@@ -806,7 +806,7 @@ func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload
 	return nil
 }
 
-// SendRevoke sends a revoke command and unregisters the device.
+// SendRevoke persists revocation and disconnects the device on every transport.
 func (h *RemoteHub) SendRevoke(deviceID string) error {
 	h.mu.Lock()
 	if h.db != nil {

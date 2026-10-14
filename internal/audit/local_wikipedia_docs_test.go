@@ -48,7 +48,7 @@ func TestLocalWikipediaGuideCoversOperatorTopics(t *testing.T) {
 
 func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 	t.Parallel()
-	en := readRepoFile(t, "documentation/manual/en/08-integrations.md")
+	en := readRepoFile(t, "documentation/manuals/en/08-integrations.md")
 	requireAll(t, "manual/en/08-integrations.md", en, []string{
 		"| Knowledge offline | [Local Wikipedia](#local-wikipedia) |",
 		"## Local Wikipedia",
@@ -57,7 +57,7 @@ func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 		"(../../local-wikipedia.md)",
 		"(07-configuration.md#local-wikipedia)",
 	})
-	de := readRepoFile(t, "documentation/manual/de/08-integrations.md")
+	de := readRepoFile(t, "documentation/manuals/de/08-integrations.md")
 	requireAll(t, "manual/de/08-integrations.md", de, []string{
 		"| Wissen offline | [Lokale Wikipedia](#lokale-wikipedia) |",
 		"## Lokale Wikipedia",
@@ -76,13 +76,13 @@ func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 
 func TestLocalWikipediaManualConfigurationReference(t *testing.T) {
 	t.Parallel()
-	en := readRepoFile(t, "documentation/manual/en/07-configuration.md")
+	en := readRepoFile(t, "documentation/manuals/en/07-configuration.md")
 	requireAll(t, "manual/en/07-configuration.md", en, []string{
 		"### Local Wikipedia",
 		"| `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. |",
 		"update_check: true        # daily catalog check; updates still need a click",
 	})
-	de := readRepoFile(t, "documentation/manual/de/07-konfiguration.md")
+	de := readRepoFile(t, "documentation/manuals/de/07-konfiguration.md")
 	requireAll(t, "manual/de/07-konfiguration.md", de, []string{
 		"### Lokale Wikipedia",
 		"| `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App |",
@@ -99,17 +99,17 @@ func TestLocalWikipediaManualConfigurationReference(t *testing.T) {
 func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
 	t.Parallel()
 	cases := map[string][]string{
-		"documentation/manual/en/06-tools.md":          {"| **Local Wikipedia** | `local_wikipedia`"},
-		"documentation/manual/de/06-tools.md":          {"| **Lokale Wikipedia** | `local_wikipedia`"},
-		"documentation/manual/en/13-dashboard.md":      {"Local Wikipedia shows **New edition**"},
-		"documentation/manual/de/13-dashboard.md":      {"Lokale Wikipedia zeigt **Neue Ausgabe**"},
-		"documentation/manual/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
-		"documentation/manual/de/22-interne-tools.md":  {"### `local_wikipedia`"},
-		"documentation/manual/en/21-api-reference.md": {
+		"documentation/manuals/en/06-tools.md":          {"| **Local Wikipedia** | `local_wikipedia`"},
+		"documentation/manuals/de/06-tools.md":          {"| **Lokale Wikipedia** | `local_wikipedia`"},
+		"documentation/manuals/en/13-dashboard.md":      {"Local Wikipedia shows **New edition**"},
+		"documentation/manuals/de/13-dashboard.md":      {"Lokale Wikipedia zeigt **Neue Ausgabe**"},
+		"documentation/manuals/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
+		"documentation/manuals/de/22-interne-tools.md":  {"### `local_wikipedia`"},
+		"documentation/manuals/en/21-api-reference.md": {
 			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
 			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
 		},
-		"documentation/manual/de/21-api-reference.md": {
+		"documentation/manuals/de/21-api-reference.md": {
 			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
 			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
 		},

@@ -11,7 +11,7 @@ Caddyfile generation, image selection, container placement and lifecycle.
 `internal/server/proxy_handlers.go` exposes `/api/proxy/*`, `config`
 owns the `security_proxy` keys, and `ui/cfg/security_proxy.js` the Config
 section. Operator guidance lives in the Security Proxy section of
-`documentation/manual/{en,de}/08-integrations.md`.
+`documentation/manuals/{en,de}/08-integrations.md`.
 
 ## Local Contracts
 

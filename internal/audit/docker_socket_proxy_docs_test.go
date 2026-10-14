@@ -52,8 +52,8 @@ func TestDockerInstallationDocStatesSocketProxyResidualRisk(t *testing.T) {
 
 	const dockerGuideLink = "../../docker_installation.md#4-docker-socket-security"
 	for _, manual := range []string{
-		"documentation/manual/en/02-installation.md",
-		"documentation/manual/de/02-installation.md",
+		"documentation/manuals/en/02-installation.md",
+		"documentation/manuals/de/02-installation.md",
 	} {
 		if !strings.Contains(readRepoFile(t, manual), dockerGuideLink) {
 			t.Fatalf("%s must link to %s", manual, dockerGuideLink)

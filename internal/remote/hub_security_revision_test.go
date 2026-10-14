@@ -142,6 +142,79 @@ func TestRemotePolicyChangeCancelsActiveCommand(t *testing.T) {
 	}
 }
 
+type revocationTestTransport struct {
+	recordingCommandTransport
+	disconnected []string
+}
+
+func (transport *revocationTestTransport) Disconnect(id string) {
+	transport.disconnected = append(transport.disconnected, id)
+}
+
+func TestSendRevokePersistsDisconnectsCancelsAndRejectsReconnect(t *testing.T) {
+	hub, db, vault := newEnrollmentTestHub(t)
+	key := strings.Repeat("ab", 32)
+	id, err := CreateDevice(db, DeviceRecord{Name: "revoke-test", Status: "approved", AllowedPaths: []string{"/srv"}, SharedKeyHash: hashTokenSHA256(key)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vault.WriteSecret("remote_shared_key_"+id, key); err != nil {
+		t.Fatal(err)
+	}
+	server, peer, cleanup := newWebSocketPairForHubTest(t)
+	defer cleanup()
+	conn := &RemoteConnection{Conn: server, DeviceID: id, SharedKey: key, AllowedPaths: []string{"/srv"}, Capabilities: ClassicCapabilities()}
+	hub.Register(id, conn)
+	t.Cleanup(func() { hub.Unregister(id) })
+	transports := []*revocationTestTransport{{}, {}}
+	hub.RegisterCommandTransport("first", transports[0])
+	hub.RegisterCommandTransport("second", transports[1])
+	finished := make(chan error, 1)
+	go func() {
+		_, err := hub.SendCommand(id, CommandPayload{Operation: OpShellExec, Args: map[string]interface{}{"command": "work"}}, time.Minute)
+		finished <- err
+	}()
+	_ = peer.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var command RemoteMessage
+	if err := peer.ReadJSON(&command); err != nil {
+		t.Fatal(err)
+	}
+	if err := hub.SendRevoke(id); err != nil {
+		t.Fatal(err)
+	}
+	device, err := GetDevice(db, id)
+	if err != nil || device.Status != "revoked" {
+		t.Fatalf("revocation not persisted: %+v, %v", device, err)
+	}
+	if hub.GetConnection(id) != nil {
+		t.Fatal("revoked connection remained registered")
+	}
+	for _, transport := range transports {
+		if len(transport.disconnected) != 1 || transport.disconnected[0] != id {
+			t.Fatalf("transport not disconnected: %v", transport.disconnected)
+		}
+	}
+	select {
+	case err := <-finished:
+		if err == nil {
+			t.Fatal("revoked command reported success")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("revocation left command running")
+	}
+	if err := peer.ReadJSON(&command); err == nil {
+		t.Fatal("revoked websocket remained open or received a command")
+	}
+	auth, err := NewMessage(MsgAuth, id, key, 1, AuthPayload{DeviceID: id, SecurityRevision: ClientSecurityRevision, Capabilities: ClassicCapabilities()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := enrollmentTestSocket(t, hub)(auth)
+	if response.Status != "rejected" || !strings.Contains(response.Message, "revoked") {
+		t.Fatalf("revoked device reconnected: %+v", response)
+	}
+}
+
 func TestRevocationSurvivesStaleDeviceUpdate(t *testing.T) {
 	_, db, _ := newEnrollmentTestHub(t)
 	id, err := CreateDevice(db, DeviceRecord{Status: "connected", Name: "before"})

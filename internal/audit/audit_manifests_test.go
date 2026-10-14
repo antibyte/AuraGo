@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"aurago/internal/agent"
 	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -1702,7 +1704,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		}
 	}
 	hubSource := readRepoFile(t, "internal/remote/hub.go")
-	for _, needle := range []string{`device.Status == "revoked"`, "MsgRevoke", "UpdateDeviceStatus(h.db, deviceID, \"revoked\")"} {
+	for _, needle := range []string{`device.Status == "revoked"`, "h.unregisterConnection(deviceID, conn)", "transport.Disconnect(deviceID)", "UpdateDeviceStatus(h.db, deviceID, \"revoked\")"} {
 		if !strings.Contains(hubSource, needle) {
 			t.Fatalf("remote hub source is missing revoked-device lifecycle guard %q", needle)
 		}
@@ -1713,7 +1715,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 			t.Fatalf("remote hub source is missing enrollment key-split guard %q", needle)
 		}
 	}
-	if !strings.Contains(agentSource, "remote.DeriveEnrollmentLookupHash(c.cfg.EnrollToken)") {
+	if !strings.Contains(agentSource, "auth.TokenHash = remote.DeriveEnrollmentLookupHash(cfg.EnrollToken)") {
 		t.Fatal("remote agent must send the enrollment lookup hash, not the MAC key")
 	}
 	// Signed auth responses are bound to the auth frame they answer.
@@ -1733,6 +1735,10 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		case "remote-enrollment-key-split", "remote-auth-response-binding", "remote-frame-canonical-hmac":
 			assertRemoteManifestTestsExist(t, entry)
 		}
+	}
+	revocationTests := readRepoFile(t, "internal/remote/hub_security_revision_test.go")
+	if !strings.Contains(revocationTests, "func TestSendRevokePersistsDisconnectsCancelsAndRejectsReconnect(") {
+		t.Fatal("remote revocation must cover persistence, transport shutdown, pending commands and reconnect")
 	}
 	hubTests := readRepoFile(t, "internal/remote/hub_ws_test.go")
 	if !strings.Contains(hubTests, "TestHandleEnrollmentRejectsRevokedDeviceReconnectOverWebSocket") {
@@ -1887,6 +1893,10 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 	t.Parallel()
 
 	allowlist := map[string]string{
+		"agentmail":             "legacy dispatch alias; native tools are agentmail_inboxes/messages/threads/drafts",
+		"homepage":              "legacy dispatch alias; native tools are homepage_project/file/quality/deploy/git",
+		"invasion_control":      "legacy dispatch alias; native tools are invasion_nests/tasks/artifacts",
+		"virtual_desktop":       "legacy dispatch alias for focused desktop tools",
 		"address_book":          "legacy/manual alias for contacts",
 		"archive":               "archive operations are routed through filesystem/tooling docs",
 		"brave_search":          "Python skill/manual",
@@ -1935,7 +1945,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"whois_lookup":          "Python skill/manual",
 		"yepapi":                "YepAPI family manual",
 	}
-	nativeNames := nativeToolNamesFromSource(t)
+	nativeNames := nativeToolNamesFromRegistry(t)
 	for _, name := range manualNames(t) {
 		if nativeNames[name] || allowlist[name] != "" {
 			continue
@@ -2021,18 +2031,22 @@ func manualNames(t *testing.T) []string {
 	return names
 }
 
-func nativeToolNamesFromSource(t *testing.T) map[string]bool {
+func nativeToolNamesFromRegistry(t *testing.T) map[string]bool {
 	t.Helper()
-	toolRe := regexp.MustCompile(`tool\("([a-z][a-z0-9_]*)"`)
+	flags := agent.ToolFeatureFlags{}
+	fields := reflect.ValueOf(&flags).Elem()
+	for i := 0; i < fields.NumField(); i++ {
+		if field := fields.Field(i); field.CanSet() && field.Kind() == reflect.Bool {
+			field.SetBool(true)
+		}
+	}
+	snapshot := agent.BuildNativeToolSchemaSnapshot(t.TempDir(), nil, flags, nil)
 	names := map[string]bool{}
-	walkGoFiles(t, repoPath("internal/agent"), func(path string, content string) {
-		if !strings.Contains(path, "native_tools") {
-			return
+	for _, schema := range snapshot.FullSchemas() {
+		if schema.Function != nil {
+			names[schema.Function.Name] = true
 		}
-		for _, match := range toolRe.FindAllStringSubmatch(content, -1) {
-			names[match[1]] = true
-		}
-	})
+	}
 	return names
 }
 

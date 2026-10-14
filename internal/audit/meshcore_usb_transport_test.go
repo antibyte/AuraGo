@@ -6,22 +6,14 @@ import (
 )
 
 func TestMeshCoreUSBSignalsHostReady(t *testing.T) {
-	// Hardware contract: TinyUSB CDC drops writes while DTR is deasserted.
-	// This guards the actual serial.Open settings without adding a production
-	// injection seam solely to test serial-library arguments.
+	// The typed transport test verifies 115200/8N1, DTR and RTS. This audit
+	// keeps the production open path connected to that mode and the shared owner.
 	source := readRepoFile(t, "internal/meshcore/transport.go")
-	start := strings.Index(source, "serial.Open(")
-	if start < 0 {
-		t.Fatal("missing USB serial open")
+	if !strings.Contains(source, "serialutil.OpenConfiguredContext(ctx, cfg.Port, serialutil.OwnerMeshCore, meshCoreSerialMode())") {
+		t.Fatal("USB transport bypasses the shared port owner or configured companion mode")
 	}
-	end := strings.Index(source[start:], "\n")
-	if end < 0 {
-		t.Fatal("missing USB serial mode")
-	}
-	mode := source[start : start+end]
-	for _, required := range []string{"BaudRate: 115200", "DataBits: 8", "Parity: serial.NoParity", "StopBits: serial.OneStopBit", "DTR: true", "RTS: false"} {
-		if !strings.Contains(mode, required) {
-			t.Fatalf("Companion USB host-ready contract missing %q", required)
-		}
+	tests := readRepoFile(t, "internal/meshcore/transport_test.go")
+	if !strings.Contains(tests, "func TestUSBTransportKeepsConfiguredAliasAndCompanionSignals(") {
+		t.Fatal("missing typed companion serial settings regression")
 	}
 }

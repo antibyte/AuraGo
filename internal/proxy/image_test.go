@@ -150,7 +150,7 @@ func TestManagerStartExplainsRateLimitBuildRefusedByReadOnly(t *testing.T) {
 // produce exactly the image the proxy looks for, so it follows the pins.
 func TestManualRateLimitImageRecipeMatchesPins(t *testing.T) {
 	for _, lang := range []string{"en", "de"} {
-		path := filepath.Join("..", "..", "documentation", "manual", lang, "08-integrations.md")
+		path := filepath.Join("..", "..", "documentation", "manuals", lang, "08-integrations.md")
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
