@@ -8,20 +8,21 @@
     const renderUI = (...args) => P.renderUI(...args);
 
     const API = '/api/desktop/video-studio';
-    const FPS = 30;
-    const MAX_CLIPS = 256;
-    const MAX_ACTIVE_ASSETS = 32;
-    const MAX_PROJECT_FRAMES = FPS * 600;
+    const MAX_CLIPS = 2000;
     const CANVASES = [
         { width: 1280, height: 720, key: 'landscape720' }, { width: 1920, height: 1080, key: 'landscape1080' },
+        { width: 2560, height: 1440, key: 'landscape1440' }, { width: 3840, height: 2160, key: 'landscape2160' },
         { width: 720, height: 1280, key: 'portrait720' }, { width: 1080, height: 1920, key: 'portrait1080' },
-        { width: 720, height: 720, key: 'square720' }, { width: 1080, height: 1080, key: 'square1080' }
+        { width: 2160, height: 3840, key: 'portrait2160' },
+        { width: 720, height: 720, key: 'square720' }, { width: 1080, height: 1080, key: 'square1080' },
+        { width: 2160, height: 2160, key: 'square2160' }, { width: 1080, height: 1350, key: 'feed1080' }
     ];
     // Actions that never change the project and stay available in read-only mode.
     const READ_ONLY_SAFE = new Set(['play', 'step-back', 'step-forward', 'seek-start', 'seek-end', 'toggle-inspector', 'close-inspector', 'project-menu', 'jobs', 'shortcuts', 'dismiss-notice', 'fullscreen', 'filter', 'toggle-fine']);
     const TERMINAL = ['succeeded', 'failed', 'cancelled', 'interrupted'];
     const PREF_TIMELINE = 'aurago.videoStudio.timelineHeight';
     const PREF_SNAP = 'aurago.videoStudio.snap';
+    const PREF_QUALITY = 'aurago.videoStudio.previewQuality';
     const clone = value => JSON.parse(JSON.stringify(value));
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const idempotencyKey = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -45,7 +46,8 @@
         return name;
     }
     function uiLocale() { return document.documentElement.lang || navigator.language || 'en'; }
-    function maxFrames(s) { return Number(s.status && s.status.limits && s.status.limits.max_duration_frames || MAX_PROJECT_FRAMES); }
+    function maxFrames(s) { return window.VideoStudioTime.maxFrames(s.project); }
+    function rateOf(s) { return window.VideoStudioTime.rate(s.project); }
     async function request(url, options) {
         const response = await fetch(url, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
         const body = (response.headers.get('content-type') || '').includes('application/json') ? await response.json() : {};
@@ -117,7 +119,7 @@
         return tracks;
     }
     function defaultProject(name, s) {
-        return { version: 2, name, width: 1280, height: 720, fps: FPS, assets: [], tracks: defaultTracks(s) };
+        return { version: 2, name, width: 1280, height: 720, fps: 30, assets: [], tracks: defaultTracks(s) };
     }
     function showNotice(s, key, fallback, error, action) {
         if (s.disposed || !s.q('[data-notice]')) return;
@@ -194,7 +196,6 @@
         s.dirty = true; s.revision++;
         persistDraft(s); scheduleSave(s); renderUI(s); s.preview.seek(s.frame);
     }
-    function activeAssetCount(project) { return new Set(project.tracks.flatMap(track => track.clips.map(clip => clip.asset_id))).size; }
     function totalClipCount(project) { return project.tracks.reduce((n, track) => n + track.clips.length, 0); }
     function nextStart(track) { return Math.max(0, ...track.clips.map(clip => clip.start + clip.duration)); }
     function addTrackTo(s, project, kind) {
@@ -367,5 +368,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();

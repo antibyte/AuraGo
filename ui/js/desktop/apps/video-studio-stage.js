@@ -52,7 +52,7 @@
         const ordered = found.track.clips.slice().sort((a, b) => a.start - b.start);
         const next = ordered[ordered.findIndex(clip => clip.id === found.clip.id) + 1];
         if (type !== 'none' && !next) return showNotice(s, 'transitionNeedsNext', 'Add a following clip on this track first.', true);
-        const duration = clamp(Math.round(Number(frames) || 15), 1, 90);
+        const rate = P.rateOf(s), duration = clamp(Math.round(Number(frames) || rate / 2), 1, Math.round(rate * 3));
         if (type !== 'none' && duration >= Math.min(found.clip.duration, next.duration)) return showNotice(s, 'transitionTooLong', 'Transition duration must be shorter than both clips.', true);
         mutate(s, 'transition', project => (T().setTransition(project, found.track.id, found.clip.id, type, duration) ? undefined : false));
     }
@@ -68,7 +68,7 @@
         else if (field === 'volume') { found.clip.volume = clamp(value / 100, 0, 4); updateOutput(input, percentText(value)); }
         else if (field === 'rotation') { found.clip.rotation = clamp(Math.round(value), -360, 360); updateOutput(input, Math.round(value) + '°'); }
         else if (field === 'size') { Object.assign(found.clip, I().scaleBox(input._vsBox, clamp(value / 100, 0.05, 1))); updateOutput(input, percentText(value)); }
-        else if (field === 'fade_in' || field === 'fade_out') { found.clip[field] = clamp(Math.round(value), 0, found.clip.duration); updateOutput(input, I().formatSeconds(found.clip[field], P.uiLocale()) + ' s'); }
+        else if (field === 'fade_in' || field === 'fade_out') { found.clip[field] = clamp(Math.round(value), 0, found.clip.duration); updateOutput(input, I().formatSeconds(found.clip[field], P.uiLocale(), s.project) + ' s'); }
         else return;
         s.dirty = true; s.revision++;
         renderToolbar(s);
@@ -80,7 +80,7 @@
         if (!found || found.track.locked) { renderInspector(s); return; }
         const field = input.dataset.field;
         if (['start', 'duration', 'offset'].includes(field)) {
-            const frames = I().parseTime(input.value);
+            const frames = I().parseTime(input.value, s.project);
             if (frames == null) { showNotice(s, 'invalidTime', 'Enter a time like 4,5 or 1:04.5.', true); renderInspector(s); return; }
             const asset = s.project.assets.find(item => item.id === found.clip.asset_id) || {};
             mutate(s, field, project => {
@@ -213,7 +213,7 @@
             const current = id === s.projectId;
             return `<li><button type="button" data-project-id="${esc(s, id)}" ${current ? 'aria-current="true"' : ''}>${icon(current ? 'check' : 'project', 15)}<span>${esc(s, name)}</span></button></li>`;
         }).join('');
-        pop.innerHTML = `${s.project ? `<div class="vs-pop-section"><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'projectNameLabel', 'Project name'))}</span><span class="vs-inline-field"><input type="text" data-project-rename maxlength="120" value="${esc(s, s.project.name || '')}" ${s.readonly ? 'disabled' : ''}><button type="button" data-action="rename-project" ${s.readonly ? 'disabled' : ''}>${esc(s, tr(s, 'rename', 'Rename'))}</button></span></label>${folder ? `<p class="vs-hint">${icon('folder', 13)} ${esc(s, tr(s, 'savedIn', 'Saved in'))} ${esc(s, folder)}</p>` : ''}</div>` : ''}<div class="vs-pop-section"><h4>${esc(s, tr(s, 'projects', 'Projects'))}</h4>${projects ? `<ul class="vs-project-list">${projects}</ul>` : `<p class="vs-hint">${esc(s, tr(s, 'noProjectsYet', 'No projects yet.'))}</p>`}</div><div class="vs-pop-foot"><button type="button" class="vs-primary" data-action="new-project" ${s.readonly ? 'disabled' : ''}>${icon('plus', 15)}<span>${esc(s, tr(s, 'newProject', 'New project'))}</span></button></div>`;
+        pop.innerHTML = `${s.project ? `<div class="vs-pop-section"><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'projectNameLabel', 'Project name'))}</span><span class="vs-inline-field"><input type="text" data-project-rename maxlength="120" value="${esc(s, s.project.name || '')}" ${s.readonly ? 'disabled' : ''}><button type="button" data-action="rename-project" ${s.readonly ? 'disabled' : ''}>${esc(s, tr(s, 'rename', 'Rename'))}</button></span></label><button type="button" class="vs-link-button" data-action="project-settings" ${s.readonly ? 'disabled' : ''}>${icon('sliders', 14)}<span>${esc(s, tr(s, 'projectSettings', 'Project settings…'))}</span></button>${folder ? `<p class="vs-hint">${icon('folder', 13)} ${esc(s, tr(s, 'savedIn', 'Saved in'))} ${esc(s, folder)}</p>` : ''}</div>` : ''}<div class="vs-pop-section"><h4>${esc(s, tr(s, 'projects', 'Projects'))}</h4>${projects ? `<ul class="vs-project-list">${projects}</ul>` : `<p class="vs-hint">${esc(s, tr(s, 'noProjectsYet', 'No projects yet.'))}</p>`}</div><div class="vs-pop-foot"><button type="button" class="vs-primary" data-action="new-project" ${s.readonly ? 'disabled' : ''}>${icon('plus', 15)}<span>${esc(s, tr(s, 'newProject', 'New project'))}</span></button></div>`;
         pop.querySelector('[data-project-rename]')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); renameProject(s); } });
     }
     function renameProject(s) {

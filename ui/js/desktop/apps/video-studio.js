@@ -2,10 +2,9 @@
     'use strict';
 
     const P = window.VideoStudioParts;
-    const { API, CANVASES, FPS, MAX_ACTIVE_ASSETS, MAX_CLIPS, POPOVERS, PREF_SNAP, PREF_TIMELINE, READ_ONLY_SAFE, STICKERS, TITLE_PRESETS } = P;
+    const { API, CANVASES, MAX_CLIPS, POPOVERS, PREF_QUALITY, PREF_SNAP, PREF_TIMELINE, READ_ONLY_SAFE, STICKERS, TITLE_PRESETS } = P;
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
-    const activeAssetCount = (...args) => P.activeAssetCount(...args);
     const assetDisplayName = (...args) => P.assetDisplayName(...args);
     const addSticker = (...args) => P.addSticker(...args);
     const addTitle = (...args) => P.addTitle(...args);
@@ -42,8 +41,11 @@
     const nextStart = (...args) => P.nextStart(...args);
     const openAI = (...args) => P.openAI(...args);
     const openExport = (...args) => P.openExport(...args);
+    const openNewProject = (...args) => P.openNewProject(...args);
+    const openProjectSettings = (...args) => P.openProjectSettings(...args);
     const projectDuration = (...args) => P.projectDuration(...args);
     const queueAutosave = (...args) => P.queueAutosave(...args);
+    const rateOf = (...args) => P.rateOf(...args);
     const readPref = (...args) => P.readPref(...args);
     const recordChange = (...args) => P.recordChange(...args);
     const recoverDraft = (...args) => P.recoverDraft(...args);
@@ -128,7 +130,7 @@
  </aside>
  <main class="vs-center">
   <div class="vs-preview-stage"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
-  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
+  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
  </main>
  <button type="button" class="vs-inspector-scrim" data-action="close-inspector" aria-label="${label('close', 'Close')}"></button>
  <aside class="vs-inspector" aria-label="${label('inspector', 'Inspector')}"><div class="vs-inspector-head"><h2>${label('properties', 'Properties')}</h2><button type="button" class="vs-inspector-close" data-action="close-inspector" aria-label="${label('close', 'Close')}" title="${label('close', 'Close')}">${icon('close', 16)}</button></div><div data-inspector class="vs-inspector-body"></div></aside>
@@ -146,7 +148,7 @@
         const s = {
             id, host, ctx, abort: new AbortController(), disposed: false, project: null, projectId: '', desktopPath: '', etag: '',
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
-            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
+            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
@@ -154,23 +156,24 @@
         instances.set(id, s);
         host.innerHTML = layoutMarkup(s);
         s.q = selector => host.querySelector(selector);
+        s.q('[data-preview-quality]').value = s.previewQuality;
         s.app = s.q('.vs-app');
         const savedHeight = Number(readPref(PREF_TIMELINE));
         if (savedHeight >= 120) s.app.style.setProperty('--vs-timeline-h', savedHeight + 'px');
         s.notice = (key, fallback, error) => showNotice(s, key, fallback, error);
-        s.media = window.VideoStudioMedia.create({ onUpdate: () => scheduleMediaRefresh(s) });
+        s.media = window.VideoStudioMedia.create({ onUpdate: () => scheduleMediaRefresh(s), rate: () => rateOf(s) });
         s.timelineOptions = timelineOptions(s);
         s.detachTimeline = T().attach(s.q('[data-timeline]'), s.timelineOptions);
         s.preview = window.VideoStudioPreview.mount(s.q('[data-preview]'), () => s.project, () => s.frame, frame => {
             s.frame = frame;
-            const current = I().formatTime(frame);
+            const current = I().formatTime(frame, s.project);
             if (s.q('[data-time]')) s.q('[data-time]').textContent = current;
             T().setPlayhead(s.q('[data-timeline]'), s, s.preview && s.preview.isPlaying());
             updateTransform(s);
         }, playing => {
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
-        });
+        }, () => previewScale(s));
         const signal = s.abort.signal;
         host.addEventListener('click', event => {
             if (event.target.closest('.vs-preview-stage,.vs-timeline-scroll') && !event.target.closest('button,input,select,textarea')) s.app.focus({ preventScroll: true });
@@ -234,6 +237,7 @@
         if (ctx.setWindowMenus) ctx.setWindowMenus(id, [{
             label: tr(s, 'project', 'Project'), items: [
                 { label: tr(s, 'newProject', 'New project'), action: () => createProjectPrompt(s) },
+                { label: tr(s, 'projectSettings', 'Project settings…'), action: () => openProjectSettings(s) },
                 { label: tr(s, 'save', 'Save'), action: () => saveProject(s) },
                 { label: tr(s, 'export', 'Export'), action: () => openExport(s) }
             ]
@@ -320,16 +324,16 @@
         scheduleSave(s);
         return true;
     }
-    async function createProject(s, name) {
+    async function createProject(s, name, settings) {
         if (s.readonly) return showNotice(s, 'readonly', 'Read-only mode prevents editing.', true);
         const epoch = s.projectEpoch = (s.projectEpoch || 0) + 1;
-        const result = await request(API + '/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name || tr(s, 'untitled', 'Untitled project') }) });
+        const result = await request(API + '/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ name: name || tr(s, 'untitled', 'Untitled project') }, settings || {})) });
         if (s.disposed || epoch !== s.projectEpoch) return false;
         const wrapper = result.body;
         s.projectId = wrapper.id || wrapper.project_id || wrapper.project && wrapper.project.id;
         s.etag = result.etag;
         s.desktopPath = wrapper.desktop_path || '';
-        s.project = hydrateProject(s, wrapper.project || defaultProject(name, s));
+        s.project = hydrateProject(s, wrapper.project || Object.assign(defaultProject(name, s), settings || {}));
         if (!s.project.tracks || !s.project.tracks.length) s.project.tracks = defaultTracks(s);
         s.project.name = name || s.project.name;
         s.savedProject = canonicalProject(s.project);
@@ -343,12 +347,8 @@
     async function createProjectPrompt(s) {
         const epoch = s.projectEpoch || 0;
         closePopovers(s);
-        const name = await s.ctx.promptDialog(tr(s, 'newProject', 'New project'), tr(s, 'projectName', 'Untitled project'));
-        if (s.disposed || epoch !== (s.projectEpoch || 0) || name === false || name == null || !String(name).trim()) return;
-        await P.flushArtwork(s);
-        if (s.dirty && !(await saveUntilClean(s))) return;
-        try { await createProject(s, String(name).trim()); }
-        catch (_) { showNotice(s, 'createFailed', 'Could not create the project.', true); }
+        if (s.disposed || epoch !== (s.projectEpoch || 0)) return;
+        await openNewProject(s);
     }
     async function switchProject(s, targetId) {
         if (!targetId || targetId === s.projectId || s.timelineDragging) return;
@@ -403,6 +403,14 @@
         }
         renderJobsButton(s);
     }
+    // Auto keeps the long edge at most 1920 px so 4K projects stay fluid; full, half and quarter are explicit.
+    function previewScale(s) {
+        const quality = s.previewQuality || 'auto';
+        if (quality === 'half') return 0.5;
+        if (quality === 'quarter') return 0.25;
+        if (quality === 'full' || !s.project) return 1;
+        return Math.min(1, 1920 / Math.max(Number(s.project.width) || 1, Number(s.project.height) || 1));
+    }
     function renderUI(s) {
         if (s.disposed || !s.project || !s.q('[data-timeline]')) return;
         s.app.classList.toggle('is-readonly', s.readonly);
@@ -410,8 +418,7 @@
         s.q('[data-canvas]').value = `${s.project.width}x${s.project.height}`;
         s.q('.vs-preview-stage').classList.remove('vs-no-project');
         const noProject = s.q('[data-no-project]'); if (noProject) noProject.remove();
-        s.q('[data-preview]').width = Number(s.project.width || 1280);
-        s.q('[data-preview]').height = Number(s.project.height || 720);
+        const scale = previewScale(s); s.q('[data-preview]').width = Math.max(2, Math.round(Number(s.project.width || 1280) * scale)); s.q('[data-preview]').height = Math.max(2, Math.round(Number(s.project.height || 720) * scale));
         s.q('.vs-preview-mat').style.aspectRatio = `${Number(s.project.width || 1280)} / ${Number(s.project.height || 720)}`;
         s.q('.vs-preview-mat').style.setProperty('--vs-ar', String(Number(s.project.width || 1280) / Number(s.project.height || 720)));
         renderPreviewEmpty(s);
@@ -422,7 +429,7 @@
         syncInspectorLock(s);
         T().render(s.q('[data-timeline]'), s.timelineOptions);
         renderJobs(s);
-        s.q('[data-transport-time]').textContent = '/ ' + I().formatTime(projectDuration(s));
+        s.q('[data-transport-time]').textContent = '/ ' + I().formatTime(projectDuration(s), s.project);
         if (s.readonly) s.q('.vs-import').setAttribute('aria-disabled', 'true'); else s.q('.vs-import').removeAttribute('aria-disabled');
         s.app.querySelectorAll('[data-action="upload"],[data-action="browse"],[data-action="add-title"],[data-sticker]').forEach(control => { control.disabled = s.readonly; });
         if (s.readonly) {
@@ -497,19 +504,18 @@
         if (!asset) return false;
         if (!asset.kind) { showNotice(s, 'mediaPreparing', 'This media is still being prepared. Try again in a moment.', true); return false; }
         if (totalClipCount(s.project) >= MAX_CLIPS) { showNotice(s, 'clipLimit', 'This project reached its clip limit.', true); return false; }
-        if (!s.project.tracks.some(item => item.clips.some(clip => clip.asset_id === asset.id)) && activeAssetCount(s.project) >= MAX_ACTIVE_ASSETS) { showNotice(s, 'assetLimit', 'This project reached its media limit.', true); return false; }
         const kind = asset.kind === 'image' ? 'overlay' : asset.kind === 'audio' ? 'audio' : 'video';
         let track = s.project.tracks.find(item => item.id === trackId);
         if (!track || track.locked || !T().accepts(track, asset)) track = s.project.tracks.find(item => item.kind === kind && !item.locked);
         if (!track && !T().trackCapacity(s.project, kind)) { showNotice(s, 'trackLimit', 'Unlock a track or remove one before placing this media.', true); return false; }
         const limit = maxFrames(s);
-        const duration = Math.max(1, Math.min(Number(asset.kind === 'image' ? FPS * 5 : asset.duration_frames || FPS * 5), limit));
+        const duration = Math.max(1, Math.min(Number(asset.kind === 'image' ? Math.round(rateOf(s) * 5) : asset.duration_frames || Math.round(rateOf(s) * 5)), limit));
         const requested = track ? freeStart(track, Number.isFinite(at) ? Math.max(0, at) : nextStart(track), duration) : Math.max(0, Number(at) || 0);
-        if (requested + duration > limit) { showNotice(s, 'projectLimit', 'The project reached its 10-minute limit.', true); return false; }
+        if (requested + duration > limit) { showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true); return false; }
         let placed = null;
         const ok = mutate(s, 'add clip', project => {
             const target = track ? project.tracks.find(item => item.id === track.id) : addTrackTo(s, project, kind);
-            const clip = T().makeClip(asset, requested);
+            const clip = T().makeClip(asset, requested, undefined, s.project);
             clip.duration = duration;
             if (asset.kind !== 'audio') { clip.width = 1; clip.height = 1; }
             target.clips.push(clip);
@@ -588,11 +594,12 @@
         if (input.matches('[data-search]')) { renderAssets(s); return; }
         if (s.readonly || s.timelineDragging) return;
         if (input.matches('input[type="range"][data-field]')) { liveField(s, input); return; }
-        if (input.matches('[data-transition-duration]')) { updateOutput(input, I().formatSeconds(Number(input.value), P.uiLocale()) + ' s'); return; }
+        if (input.matches('[data-transition-duration]')) { updateOutput(input, I().formatSeconds(Number(input.value), P.uiLocale(), s.project) + ' s'); return; }
         if (input.matches('[data-text-field="text"],[data-text-style]')) liveText(s, input);
     }
     function handleChange(s, event) {
         const input = event.target;
+        if (input.matches('[data-preview-quality]')) { s.previewQuality = input.value; writePref(PREF_QUALITY, input.value); renderUI(s); return; }
         if (input.matches('[data-canvas]')) {
             const [width, height] = input.value.split('x').map(Number);
             if (width && height && s.project) mutate(s, 'canvas', project => { project.width = width; project.height = height; });
@@ -626,7 +633,7 @@
         const fit = event.target.closest('[data-fit]');
         if (fit) { mutateSelected(s, 'fit', clip => { clip.fit = fit.dataset.fit === 'cover' ? 'cover' : 'contain'; }); return; }
         const transition = event.target.closest('[data-transition]');
-        if (transition) { const range = s.q('[data-transition-duration]'); applyTransition(s, transition.dataset.transition, range && !range.disabled ? Number(range.value) : 15); return; }
+        if (transition) { const range = s.q('[data-transition-duration]'); applyTransition(s, transition.dataset.transition, range && !range.disabled ? Number(range.value) : Math.round(rateOf(s) / 2)); return; }
         const align = event.target.closest('[data-text-align]');
         if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) P.markTextStale(s, s.selectedClipId); return; }
         const toggle = event.target.closest('[data-text-toggle]');
@@ -639,6 +646,7 @@
         else if (action === 'jobs') togglePopover(s, 'jobs');
         else if (action === 'shortcuts') togglePopover(s, 'shortcuts');
         else if (action === 'rename-project') renameProject(s);
+        else if (action === 'project-settings') openProjectSettings(s);
         else if (action === 'dismiss-notice') clearNotice(s);
         else if (action === 'toggle-inspector') setInspectorOpen(s, !s.app.classList.contains('vs-show-inspector'), true);
         else if (action === 'close-inspector') { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); }
@@ -691,8 +699,8 @@
         if (focusedClip && focusedClip !== s.selectedClipId && ['Delete', 'Backspace', 's', 'S'].includes(event.key)) s.timelineOptions.onSelect(focusedClip);
         if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
         else if (event.key === 'Delete' || event.key === 'Backspace') { if (s.selectedClipId) { event.preventDefault(); timelineAction(s, 'delete', s.selectedClipId); } }
-        else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? FPS : 1)); }
-        else if (event.key === 'ArrowRight') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame + (event.shiftKey ? FPS : 1)); }
+        else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
+        else if (event.key === 'ArrowRight') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame + (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
         else if (event.key === 'Home') { event.preventDefault(); s.preview.pause(); s.preview.seek(0); T().revealFrame(s.q('[data-timeline]'), s, 0); }
         else if (event.key === 'End') { event.preventDefault(); const end = projectDuration(s); s.preview.pause(); s.preview.seek(end); T().revealFrame(s.q('[data-timeline]'), s, end); }
         else if (event.key === '+' || event.key === '=') { event.preventDefault(); s.q('[data-timeline] [data-action="zoom-in"]')?.click(); }
@@ -701,7 +709,7 @@
         else if (event.key.toLowerCase() === 's' && s.selectedClipId) { event.preventDefault(); timelineAction(s, 'split', s.selectedClipId); }
     }
 
-    Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, renderUI, renderInspector, syncInspectorLock, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
+    Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, previewScale, renderUI, renderInspector, syncInspectorLock, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
 
     window.VideoStudioApp = { render: appRender, dispose, instances };
 })();

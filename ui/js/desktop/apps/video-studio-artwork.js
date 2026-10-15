@@ -3,10 +3,9 @@
 
     // Titles and stickers: cropped text PNGs, sticker art and overlay placement.
     const P = window.VideoStudioParts;
-    const { API, FPS, MAX_ACTIVE_ASSETS, MAX_CLIPS } = P;
+    const { API, MAX_CLIPS } = P;
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
-    const activeAssetCount = (...args) => P.activeAssetCount(...args);
     const addTrackTo = (...args) => P.addTrackTo(...args);
     const clamp = (...args) => P.clamp(...args);
     const clone = (...args) => P.clone(...args);
@@ -14,6 +13,7 @@
     const maxFrames = (...args) => P.maxFrames(...args);
     const mutate = (...args) => P.mutate(...args);
     const pollJob = (...args) => P.pollJob(...args);
+    const rateOf = (...args) => P.rateOf(...args);
     const refreshProject = (...args) => P.refreshProject(...args);
     const renderInspector = (...args) => P.renderInspector(...args);
     const renderJobs = (...args) => P.renderJobs(...args);
@@ -38,11 +38,10 @@
     async function addTitle(s, presetName) {
         if (s.readonly || !s.project || !s.projectId) return;
         if (totalClipCount(s.project) >= MAX_CLIPS) return showNotice(s, 'clipLimit', 'This project reached its clip limit.', true);
-        if (activeAssetCount(s.project) >= MAX_ACTIVE_ASSETS) return showNotice(s, 'assetLimit', 'This project reached its media limit.', true);
         const preset = TITLE_PRESETS[presetName] || TITLE_PRESETS.title;
         const projectId = s.projectId, epoch = s.projectEpoch, startFrame = s.frame;
-        const duration = Math.min(preset.seconds * FPS, maxFrames(s) - startFrame);
-        if (duration < FPS) return showNotice(s, 'projectLimit', 'The project reached its 10-minute limit.', true);
+        const duration = Math.min(Math.round(preset.seconds * rateOf(s)), maxFrames(s) - startFrame);
+        if (duration < Math.round(rateOf(s))) return showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true);
         if (!I().findOverlaySlot(s.project, startFrame, duration)) return showNotice(s, 'overlayFull', 'Every overlay track is busy at the playhead. Move the playhead or free a track.', true);
         const text = tr(s, preset.textKey, preset.text);
         const style = Object.assign({}, preset.style, { font_size: scaledFont(s, preset.style.font_size) });
@@ -63,7 +62,7 @@
         if (!slot) return showNotice(s, 'overlayFull', 'Every overlay track is busy at the playhead. Move the playhead or free a track.', true);
         const ok = mutate(s, 'add overlay', project => {
             const track = slot.trackId ? project.tracks.find(item => item.id === slot.trackId) : addTrackTo(s, project, 'overlay');
-            const clip = T().makeClip(asset, start);
+            const clip = T().makeClip(asset, start, undefined, s.project);
             clip.duration = duration;
             configure(clip);
             track.clips.push(clip);
@@ -258,10 +257,9 @@
     async function addSticker(s, name) {
         if (s.readonly || !s.project || !s.projectId) return;
         if (totalClipCount(s.project) >= MAX_CLIPS) return showNotice(s, 'clipLimit', 'This project reached its clip limit.', true);
-        if (activeAssetCount(s.project) >= MAX_ACTIVE_ASSETS) return showNotice(s, 'assetLimit', 'This project reached its media limit.', true);
         const projectId = s.projectId, epoch = s.projectEpoch, startFrame = s.frame;
-        const duration = Math.min(FPS * 4, maxFrames(s) - startFrame);
-        if (duration < FPS) return showNotice(s, 'projectLimit', 'The project reached its 10-minute limit.', true);
+        const duration = Math.min(Math.round(rateOf(s) * 4), maxFrames(s) - startFrame);
+        if (duration < Math.round(rateOf(s))) return showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true);
         if (!I().findOverlaySlot(s.project, startFrame, duration)) return showNotice(s, 'overlayFull', 'Every overlay track is busy at the playhead. Move the playhead or free a track.', true);
         try {
             const file = await stickerPNG(name);
