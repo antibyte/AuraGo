@@ -193,6 +193,12 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"image_modes":       videoStudioImageModes(provider),
 		"budget_blocked":    s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("video_generation"),
 	}
+	var encoder interface{}
+	if runtime.Ready && cfg.VideoStudio.Enabled {
+		// Finish (and cache) a started encoder test even when the client stops waiting; each candidate has its
+		// own 15-second limit.
+		encoder = videoStudioEncoder(context.WithoutCancel(r.Context()), cfg)
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{
 		"enabled":         cfg.VideoStudio.Enabled,
@@ -203,6 +209,7 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"issue":           issue,
 		"generation":      generation,
 		"limits":          limits,
+		"encoder":         encoder,
 	})
 }
 

@@ -105,14 +105,14 @@ func (m *videoStudioManager) processPreview(ctx context.Context, svc *desktop.Se
 	}
 	_ = os.Chmod(previewDir, 0o700)
 	output := filepath.Join(stageDir, "preview.mp4")
-	if err := videostudio.PreparePreview(ctx, cfg.VideoStudio.FFmpegPath, staged, output); err != nil {
+	if err := videostudio.PreparePreviewWith(ctx, cfg.VideoStudio.FFmpegPath, staged, output, videoStudioEncoder(ctx, cfg).Encoder); err != nil {
 		_ = os.Remove(output)
 		return nil, nil, err
 	}
 	info, err := os.Stat(output)
-	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 512<<20 {
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > videostudio.MaxPreviewBytes {
 		_ = os.Remove(output)
-		return nil, nil, fmt.Errorf("preview output is unavailable or exceeds 512 MiB")
+		return nil, nil, fmt.Errorf("preview output is unavailable or exceeds 2 GiB")
 	}
 	projectLock := m.projectLock(job.ProjectID)
 	projectLock.Lock()
@@ -240,10 +240,14 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	output := filepath.Join(stageDir, "render.mp4")
+	encoder := videoStudioEncoder(ctx, cfg)
+	fallback := false
 	err = videostudio.RenderWithOptions(ctx, videostudio.RenderOptions{
 		FFmpegPath: cfg.VideoStudio.FFmpegPath, Project: work.project, AssetPaths: paths, Output: output,
-		MaxOutputBytes: min64(exportLimit, maxProject-usedBefore),
-		Progress:       func(progress float64) { m.updateProgress(job.ID, progress) },
+		MaxOutputBytes:    min64(exportLimit, maxProject-usedBefore),
+		Encoder:           encoder.Encoder,
+		OnEncoderFallback: func(error) { fallback = true; invalidateVideoStudioEncoder() },
+		Progress:          func(progress float64) { m.updateProgress(job.ID, progress) },
 	})
 	if err != nil {
 		_ = os.Remove(output)
@@ -281,7 +285,12 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 		return nil, nil, err
 	}
 	artifact := &videoStudioArtifact{Name: job.ID + ".mp4", Path: "exports/" + job.ID + ".mp4", DownloadURL: fmt.Sprintf("/api/desktop/video-studio/projects/%s/exports/%s.mp4", job.ProjectID, job.ID), Size: info.Size()}
-	return artifact, map[string]interface{}{"duration_frames": videostudio.Duration(work.project), "width": work.project.Width, "height": work.project.Height}, nil
+	encoderName := encoder.Name
+	if fallback {
+		encoderName = videostudio.CodecX264
+	}
+	return artifact, map[string]interface{}{"duration_frames": videostudio.Duration(work.project), "width": work.project.Width, "height": work.project.Height,
+		"encoder": encoderName, "encoder_fallback": fallback}, nil
 }
 
 // videoStudioRenderLimitError names the limit that stopped an export: the remaining project storage when it was

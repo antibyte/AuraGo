@@ -2155,6 +2155,8 @@ video_studio:
     max_project_size_mb: 16384
     max_export_size_mb: 8192
     render_timeout_seconds: 7200
+    hardware_encoding: auto
+    hardware_device: ""
 
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access

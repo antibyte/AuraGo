@@ -175,6 +175,9 @@ function vdCfgVideoStudio() {
     ]) {
         html += vdCfgField(prefix + label, '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
     }
+    const hwModes = { auto: t(prefix + 'hw_auto'), off: t(prefix + 'hw_off'), vaapi: 'VAAPI', qsv: 'Intel Quick Sync', nvenc: 'NVIDIA NVENC', amf: 'AMD AMF' };
+    html += vdCfgField(prefix + 'hardware_encoding', prefix + 'hardware_encoding_help', '<select class="field-select" data-path="video_studio.hardware_encoding">' + Object.keys(hwModes).map(value => '<option value="' + value + '"' + ((data.hardware_encoding || 'auto') === value ? ' selected' : '') + '>' + escapeAttr(hwModes[value]) + '</option>').join('') + '</select>');
+    html += vdCfgField(prefix + 'hardware_device', '', '<input class="field-input" type="text" placeholder="/dev/dri/renderD128" value="' + escapeAttr(data.hardware_device || '') + '" data-path="video_studio.hardware_device">');
     html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestVideoStudio(this)">' + t(prefix + 'check') + '</button><span id="vd-video-studio-result" class="dc-test-result" role="status"></span></div>';
     return html;
 }
@@ -186,11 +189,14 @@ async function vdCfgTestVideoStudio(button) {
     button.disabled = true;
     result.textContent = t(prefix + 'checking');
     try {
-        const response = await fetch('/api/desktop/video-studio/status', { signal: AbortSignal.timeout(15000) });
+        // The first check after a configuration change tests up to three hardware encoders (15 s each).
+        const response = await fetch('/api/desktop/video-studio/status', { signal: AbortSignal.timeout(60000) });
         const status = await response.json();
         if (!result.isConnected) return;
         const ready = response.ok && status.enabled && status.desktop_enabled && status.ffmpeg_ready;
-        result.textContent = t(prefix + (ready ? 'ready' : 'unavailable'));
+        let text = t(prefix + (ready ? 'ready' : 'unavailable'));
+        if (ready && status.encoder && status.encoder.name) text += ' ' + t(prefix + 'encoder').replace('{{name}}', status.encoder.name + (status.encoder.device ? ' (' + status.encoder.device + ')' : ''));
+        result.textContent = text;
         result.className = 'dc-test-result ' + (ready ? 'is-success' : 'is-danger');
     } catch (_) {
         if (result.isConnected) result.textContent = t(prefix + 'unavailable');

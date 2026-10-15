@@ -21,6 +21,13 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if cfg.VideoStudio.MaxExportSizeMB != 8192 {
 		t.Fatalf("export default: %+v", cfg.VideoStudio)
 	}
+	if cfg.VideoStudio.HardwareEncoding != "auto" || cfg.VideoStudio.HardwareDevice != "" {
+		t.Fatalf("hardware defaults: %+v", cfg.VideoStudio)
+	}
+	upper := VideoStudioConfig{HardwareEncoding: " VAAPI ", HardwareDevice: "/dev/dri/renderD129"}
+	if err := NormalizeVideoStudioConfig(&upper); err != nil || upper.HardwareEncoding != "vaapi" {
+		t.Fatalf("hardware mode normalization: %+v (%v)", upper, err)
+	}
 	cfg.VideoStudio.Enabled = true
 	cfg.VideoStudio.ReadOnly = true
 	cfg.VideoStudio.FFmpegPath = "C:/Media Tools/ffmpeg.exe"
@@ -34,7 +41,7 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if loaded.VideoStudio != cfg.VideoStudio {
 		t.Fatalf("round trip: %+v", loaded.VideoStudio)
 	}
-	for _, invalid := range []VideoStudioConfig{{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: 512, MaxAssetSizeMB: 1024}, {RenderTimeoutSeconds: -1}, {MaxProjectSizeMB: 4096, MaxAssetSizeMB: 1024, MaxExportSizeMB: 8192}} {
+	for _, invalid := range []VideoStudioConfig{{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: 512, MaxAssetSizeMB: 1024}, {RenderTimeoutSeconds: -1}, {MaxProjectSizeMB: 4096, MaxAssetSizeMB: 1024, MaxExportSizeMB: 8192}, {HardwareEncoding: "cuda"}, {HardwareDevice: "relative/node"}} {
 		if NormalizeVideoStudioConfig(&invalid) == nil {
 			t.Errorf("invalid limits accepted: %+v", invalid)
 		}
