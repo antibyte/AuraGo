@@ -417,6 +417,17 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-timeline-zoom input { width: 96px; }
 .vs-toggle[aria-pressed="true"] { background: var(--vs-accent-soft) !important; border-color: var(--vs-accent-border) !important; color: var(--vs-text); }
 .vs-toggle[aria-pressed="true"] .vs-icon { color: var(--vs-accent); }
+.vs-tool-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
+.vs-edit-tools .vs-tool-group button { min-height: 26px; padding: 3px 7px; border-color: transparent; background: transparent; }
+.vs-edit-tools .vs-tool-group button[aria-pressed="true"] { background: var(--vs-accent-soft); border-color: var(--vs-accent-border); color: var(--vs-text); }
+.vs-edit-tools .vs-tool-group button[aria-pressed="true"] .vs-icon { color: var(--vs-accent); }
+.vs-mode-badge { padding: 2px 8px; border: 1px solid var(--vs-accent-border); border-radius: 999px; background: var(--vs-accent-soft); color: var(--vs-text); font-size: 11px; font-weight: 600; white-space: nowrap; }
+[data-timeline][data-tool="blade"] .vs-clip, [data-timeline][data-tool="blade"] .vs-track-lane { cursor: crosshair; }
+[data-timeline][data-tool="trim"] .vs-clip { cursor: ew-resize; }
+[data-timeline][data-trim-mode="roll"] *, [data-timeline][data-trim-mode="ripple"] * { cursor: col-resize !important; }
+[data-timeline][data-trim-mode="slip"] *, [data-timeline][data-trim-mode="slide"] * { cursor: grabbing !important; }
+.vs-blade-line { position: absolute; z-index: 4; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--vs-playhead); pointer-events: none; }
+.vs-band { position: absolute; z-index: 6; border: 1px solid var(--vs-accent); border-radius: 3px; background: var(--vs-accent-soft); pointer-events: none; }
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }
@@ -578,7 +589,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-app .vs-transport .vs-play { width: 38px; height: 38px; margin: 0 2px; }
     .vs-time-current { font-size: 13px; }
     .vs-timecode { display: none; }
-    .vs-timeline-toolbar { padding: 4px 6px; gap: 4px; }
+    .vs-timeline-toolbar { flex-wrap: wrap; padding: 4px 6px; gap: 4px; }
     .vs-timeline-zoom input { display: none; }
     .vs-edit-tools button, .vs-timeline-tools button { padding: 4px 7px; }
     .vs-track-actions button { width: 22px; }

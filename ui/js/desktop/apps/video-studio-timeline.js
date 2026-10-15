@@ -160,7 +160,7 @@
         const asset = project.assets.find(a => a.id === clip.asset_id);
         const left = clip.start / fps * pps;
         const width = Math.max(2, clip.duration / fps * pps);
-        const selected = s.selectedClipId === clip.id;
+        const selected = options.isSelected ? options.isSelected(clip.id) : s.selectedClipId === clip.id;
         const kind = clip.text ? 'text' : track.kind === 'audio' ? 'audio' : track.kind === 'overlay' ? 'overlay' : 'video';
         const name = clip.text ? clip.text.split(/\r?\n/)[0] : asset ? (options.assetName ? options.assetName(asset) : asset.name) : label(options, 'missingMedia', 'Missing media');
         const media = options.clipMedia && asset ? options.clipMedia(asset, clip, track, pps / fps, width) : '';
@@ -226,17 +226,24 @@
         const selected = !!s.selectedClipId;
         const disabledEdit = selected && !s.readonly ? '' : 'disabled';
         const snap = s.snap !== false;
+        const tool = s.readonly ? 'select' : s.tool || 'select';
+        const toolButton = (name, iconName, key, fallback) => `<button type="button" data-action="tool-${name}" aria-pressed="${tool === name}" title="${esc(label(options, key, fallback))}" aria-label="${esc(label(options, key, fallback))}">${icon(options, iconName)}</button>`;
+        const tools = `<div class="vs-tool-group" role="group" aria-label="${esc(label(options, 'tools', 'Edit tools'))}">${toolButton('select', 'pointer', 'toolSelect', 'Selection tool (V)')}${toolButton('trim', 'trim', 'toolTrim', 'Trim tool (T)')}${toolButton('blade', 'blade', 'toolBlade', 'Blade tool (B)')}</div>`;
+        const modeKey = s.trimMode ? 'trim' + s.trimMode.charAt(0).toUpperCase() + s.trimMode.slice(1) : '';
+        const badge = modeKey ? `<span class="vs-mode-badge">${esc(label(options, modeKey, s.trimMode))}</span>` : '';
+        const magnetic = `<button type="button" class="vs-toggle" data-action="magnetic" aria-pressed="${!!s.magnetic}" title="${esc(label(options, 'magneticHint', 'Close gaps when clips are moved or deleted'))}">${icon(options, 'ripple')}<span>${esc(label(options, 'magnetic', 'Magnetic'))}</span></button>`;
         const addTrack = ['video', 'audio', 'overlay'].map(kind => `<button type="button" role="menuitem" data-add-track="${kind}" ${trackCapacity(project, kind) && !s.readonly ? '' : 'disabled'}>${icon(options, kind === 'audio' ? 'audio' : kind === 'overlay' ? 'layers' : 'video', 15)}${esc(label(options, kind + 'Track', kind))}</button>`).join('');
-        root.innerHTML = `<div class="vs-timeline-toolbar"><div class="vs-edit-tools"><button type="button" data-action="split" ${disabledEdit} title="${esc(label(options, 'splitHintShort', 'Split at the playhead (S)'))}">${icon(options, 'scissors')}<span>${esc(label(options, 'split', 'Split'))}</span></button><button type="button" data-action="duplicate" ${disabledEdit}>${icon(options, 'copy')}<span>${esc(label(options, 'duplicate', 'Duplicate'))}</span></button><button type="button" data-action="delete" ${disabledEdit} title="${esc(label(options, 'deleteHint', 'Delete (Del)'))}">${icon(options, 'trash')}<span>${esc(label(options, 'delete', 'Delete'))}</span></button></div><div class="vs-timeline-tools"><div class="vs-menu-anchor"><button type="button" data-action="track-menu" aria-haspopup="menu" aria-expanded="${menuOpen}" ${s.readonly ? 'disabled' : ''}>${icon(options, 'plus')}<span>${esc(label(options, 'addTrack', 'Track'))}</span></button><div class="vs-popover vs-track-menu" data-track-menu role="menu" ${menuOpen ? '' : 'hidden'}>${addTrack}</div></div><button type="button" class="vs-toggle" data-action="snap" aria-pressed="${snap}" title="${esc(label(options, 'snapHint', 'Snap clips to edges and the playhead'))}">${icon(options, 'magnet')}<span>${esc(label(options, 'snap', 'Snap'))}</span></button><div class="vs-timeline-zoom"><button type="button" data-action="zoom-out" aria-label="${esc(label(options, 'zoomOut', 'Zoom out'))}" title="${esc(label(options, 'zoomOut', 'Zoom out'))}">${icon(options, 'minus')}</button><input type="range" data-zoom aria-label="${esc(label(options, 'timelineZoom', 'Timeline zoom'))}"><button type="button" data-action="zoom-in" aria-label="${esc(label(options, 'zoomIn', 'Zoom in'))}" title="${esc(label(options, 'zoomIn', 'Zoom in'))}">${icon(options, 'plus')}</button><button type="button" data-action="zoom-fit" title="${esc(label(options, 'zoomFit', 'Show whole project'))}">${icon(options, 'fit')}<span>${esc(label(options, 'zoomFitShort', 'Fit'))}</span></button></div></div></div><div class="vs-timeline-scroll"><div class="vs-tl-content" style="width:calc(var(--vs-head-w) + ${width}px)"><div class="vs-ruler"><div class="vs-ruler-label">${icon(options, 'clock', 13)}<span data-timeline-time>${esc(shortClock(s.frame, project))}</span></div><div class="vs-ruler-scale" data-ruler style="width:${width}px;--vs-tick:${interval * pps}px">${ticks.join('')}</div></div><div class="vs-track-list">${rows}${empty}</div><div class="vs-playhead" style="left:calc(var(--vs-head-w) + ${s.frame / fps * pps}px)"><span class="vs-playhead-knob" data-playhead></span></div></div></div>`;
+        root.innerHTML = `<div class="vs-timeline-toolbar"><div class="vs-edit-tools">${tools}${badge}<button type="button" data-action="split" ${disabledEdit} title="${esc(label(options, 'splitHintShort', 'Split at the playhead (S)'))}">${icon(options, 'scissors')}<span>${esc(label(options, 'split', 'Split'))}</span></button><button type="button" data-action="duplicate" ${disabledEdit}>${icon(options, 'copy')}<span>${esc(label(options, 'duplicate', 'Duplicate'))}</span></button><button type="button" data-action="delete" ${disabledEdit} title="${esc(label(options, 'deleteHint', 'Delete (Del)'))}">${icon(options, 'trash')}<span>${esc(label(options, 'delete', 'Delete'))}</span></button></div><div class="vs-timeline-tools"><div class="vs-menu-anchor"><button type="button" data-action="track-menu" aria-haspopup="menu" aria-expanded="${menuOpen}" ${s.readonly ? 'disabled' : ''}>${icon(options, 'plus')}<span>${esc(label(options, 'addTrack', 'Track'))}</span></button><div class="vs-popover vs-track-menu" data-track-menu role="menu" ${menuOpen ? '' : 'hidden'}>${addTrack}</div></div><button type="button" class="vs-toggle" data-action="snap" aria-pressed="${snap}" title="${esc(label(options, 'snapHint', 'Snap clips to edges and the playhead'))}">${icon(options, 'magnet')}<span>${esc(label(options, 'snap', 'Snap'))}</span></button>${magnetic}<div class="vs-timeline-zoom"><button type="button" data-action="zoom-out" aria-label="${esc(label(options, 'zoomOut', 'Zoom out'))}" title="${esc(label(options, 'zoomOut', 'Zoom out'))}">${icon(options, 'minus')}</button><input type="range" data-zoom aria-label="${esc(label(options, 'timelineZoom', 'Timeline zoom'))}"><button type="button" data-action="zoom-in" aria-label="${esc(label(options, 'zoomIn', 'Zoom in'))}" title="${esc(label(options, 'zoomIn', 'Zoom in'))}">${icon(options, 'plus')}</button><button type="button" data-action="zoom-fit" title="${esc(label(options, 'zoomFit', 'Show whole project'))}">${icon(options, 'fit')}<span>${esc(label(options, 'zoomFitShort', 'Fit'))}</span></button></div></div></div><div class="vs-timeline-scroll"><div class="vs-tl-content" style="width:calc(var(--vs-head-w) + ${width}px)"><div class="vs-ruler"><div class="vs-ruler-label">${icon(options, 'clock', 13)}<span data-timeline-time>${esc(shortClock(s.frame, project))}</span></div><div class="vs-ruler-scale" data-ruler style="width:${width}px;--vs-tick:${interval * pps}px">${ticks.join('')}</div></div><div class="vs-track-list">${rows}${empty}</div><div class="vs-playhead" style="left:calc(var(--vs-head-w) + ${s.frame / fps * pps}px)"><span class="vs-playhead-knob" data-playhead></span></div></div></div>`;
         const scroll = root.querySelector('.vs-timeline-scroll');
         scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
         const slider = root.querySelector('[data-zoom]');
         slider.min = String(MIN_ZOOM * 100); slider.max = String(MAX_ZOOM * 100); slider.step = '0.5'; slider.value = String(zoom * 100);
         root.querySelectorAll('[data-trim]').forEach(button => { button.disabled = s.readonly || !!trackFor(project, button.closest('[data-track-id]').dataset.trackId)?.locked; });
         if (s.readonly) {
-            root.querySelectorAll('[data-track-action], [data-add-track], [data-action="split"], [data-action="duplicate"], [data-action="delete"]').forEach(button => { button.disabled = true; });
+            root.querySelectorAll('[data-track-action], [data-add-track], [data-action="split"], [data-action="duplicate"], [data-action="delete"], [data-action="tool-trim"], [data-action="tool-blade"], [data-action="magnetic"]').forEach(button => { button.disabled = true; });
             root.querySelectorAll('[draggable]').forEach(element => { element.draggable = false; });
         }
+        root.dataset.tool = tool;
         if (focused) root.querySelector(focused)?.focus({ preventScroll: true });
     }
 
@@ -309,8 +316,9 @@
     }
 
     function attach(root, options) {
-        let drag = null, scrub = null, dropMarker = null;
+        let drag = null, scrub = null, band = null, dropMarker = null, suppressClick = false;
         const s = () => options.state;
+        const Edit = () => window.VideoStudioEdit;
 
         function pps() { return BASE_PX_PER_SECOND * (s().zoom || 1); }
         function frameAt(element, clientX) {
@@ -318,6 +326,7 @@
             return clamp(Math.round((clientX - rect.left) / pps() * fpsOf(s().project)), 0, maxOf(s().project));
         }
         function snapFrames() { return s().snap === false ? 0 : Math.max(1, Math.round(8 / pps() * fpsOf(s().project))); }
+        function tool() { return s().readonly ? 'select' : s().tool || 'select'; }
         function setZoom(value, anchorClientX) {
             const scroll = root.querySelector('.vs-timeline-scroll'), labelEl = root.querySelector('.vs-ruler-label');
             const before = pps(), offset = scroll && labelEl ? (anchorClientX == null ? (scroll.clientWidth - labelEl.offsetWidth) / 2 : anchorClientX - scroll.getBoundingClientRect().left - labelEl.offsetWidth) : 0;
@@ -329,44 +338,134 @@
             if (options.onZoom) options.onZoom(s().zoom);
         }
         function closeMenu() { const menu = root.querySelector('[data-track-menu]'); if (menu && !menu.hidden) { menu.hidden = true; root.querySelector('[data-action="track-menu"]')?.setAttribute('aria-expanded', 'false'); } }
+        // The blade cuts at the pointer, or at the playhead when snapping is on and the pointer is near it.
+        function bladeFrame(lane, clientX) {
+            const frame = frameAt(lane, clientX), range = snapFrames();
+            return range && Math.abs(frame - s().frame) <= range ? s().frame : frame;
+        }
+        // Dragging onto another track of the same kind moves the clips that many tracks within the kind.
+        function trackShift(project, fromId, toId) {
+            const from = trackFor(project, fromId), to = trackFor(project, toId);
+            if (!from || !to || from.kind !== to.kind) return 0;
+            const list = project.tracks.filter(track => track.kind === from.kind);
+            return list.indexOf(to) - list.indexOf(from);
+        }
+        function endTrimMode() { s().trimMode = ''; delete root.dataset.trimMode; }
+
+        // Applies the current gesture to a copy of the project taken when it started. Returns the copy, the
+        // edit result and the frame the preview should show (-1 keeps the playhead). Edges snap to the playhead
+        // from the gesture's start: the trim peek moves the playhead to the edited edge while dragging.
+        function applyGesture(event, delta) {
+            const E = Edit(), before = drag.before, project = clone(before), range = snapFrames(), extra = [drag.playhead];
+            const source = clipFor(before, drag.clipId), anchor = source.clip, ownTrack = source.track.clips.map(clip => clip.id);
+            const settled = id => clipFor(project, id)?.clip;
+            if (drag.type === 'move') {
+                const d = E.snapDelta([anchor.start, anchor.start + anchor.duration], delta, E.snapPoints(before, drag.ids, extra), range);
+                const row = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-track-row]');
+                const mode = event.ctrlKey || event.metaKey ? 'insert' : 'overwrite';
+                return { project, result: E.moveClips(project, drag.ids, anchor.id, d, trackShift(before, drag.trackId, row?.dataset.trackRow), mode, { magnetic: !!s().magnetic }), peek: -1 };
+            }
+            if (drag.op === 'ripple') {
+                const d = drag.edge === 'end' ? E.snapDelta([anchor.start + anchor.duration], delta, E.snapPoints(before, ownTrack, extra), range) : delta;
+                const result = E.rippleTrim(project, [anchor.id], drag.edge, d), clip = settled(anchor.id);
+                return { project, result, peek: clip ? (drag.edge === 'end' ? clip.start + clip.duration - 1 : clip.start) : -1 };
+            }
+            if (drag.op === 'roll') {
+                const cut = clipFor(before, drag.pair[1]).clip.start;
+                const result = E.roll(project, [drag.pair], E.snapDelta([cut], delta, E.snapPoints(before, drag.pair, extra), range)), right = settled(drag.pair[1]);
+                return { project, result, peek: right ? right.start : -1 };
+            }
+            if (drag.op === 'slip') return { project, result: E.slip(project, [anchor.id], delta), peek: anchor.start };
+            const result = E.slide(project, anchor.id, E.snapDelta([anchor.start, anchor.start + anchor.duration], delta, E.snapPoints(before, ownTrack, extra), range)), clip = settled(anchor.id);
+            return { project, result, peek: clip ? clip.start : -1 };
+        }
 
         function pointerMove(event) {
             if (scrub) { options.onFrame(frameAt(scrub.ruler, event.clientX)); return; }
+            if (band) { moveBand(event); return; }
             if (!drag || s().readonly) return;
             if (drag.epoch !== s().projectEpoch || drag.projectId !== s().projectId) {
-                drag = null; s().timelineDragging = false; return;
+                drag = null; s().timelineDragging = false; endTrimMode(); return;
             }
             const delta = Math.round((event.clientX - drag.x) / pps() * fpsOf(s().project));
-            const row = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-track-row]');
-            const next = dragClip(drag.before, drag.clipId, drag.mode, delta, row?.dataset.trackRow, snapFrames(), [s().frame]);
-            drag.invalid = !next;
-            if (!next) return;
-            s().project = next;
+            if (drag.type === 'edge') {
+                const next = dragClip(drag.before, drag.clipId, drag.mode, delta, '', snapFrames(), [s().frame]);
+                drag.invalid = !next; drag.reason = '';
+                if (!next) return;
+                s().project = next;
+            } else {
+                const { project, result, peek } = applyGesture(event, delta);
+                // Reaching a limit is not an error: the edit stops there, like hitting a wall.
+                const unchanged = result === 'nothing' || result === 'bounds';
+                drag.invalid = result !== true && !unchanged;
+                drag.reason = drag.invalid ? result : '';
+                if (drag.invalid) return;
+                s().project = result === true ? project : clone(drag.before);
+                if (result === true && peek >= 0 && options.onPeek) options.onPeek(peek);
+            }
+            drag.moved = drag.moved || delta !== 0;
             options.onPreviewChange();
+            render(root, options);
+        }
+
+        // Rubber band on empty lane space: it starts after 4 px, highlights the clips it touches without
+        // re-rendering and selects them on release (Shift/Ctrl adds to the selection).
+        function moveBand(event) {
+            const content = root.querySelector('.vs-tl-content');
+            if (!content) return;
+            if (!band.el) {
+                if (Math.hypot(event.clientX - band.x, event.clientY - band.y) < 4) return;
+                band.el = document.createElement('div');
+                band.el.className = 'vs-band';
+                content.append(band.el);
+                capture(band);
+            }
+            const rect = content.getBoundingClientRect();
+            const left = Math.min(band.x, event.clientX), right = Math.max(band.x, event.clientX), top = Math.min(band.y, event.clientY), bottom = Math.max(band.y, event.clientY);
+            Object.assign(band.el.style, { left: left - rect.left + 'px', top: top - rect.top + 'px', width: right - left + 'px', height: bottom - top + 'px' });
+            const hits = Array.from(root.querySelectorAll('.vs-clip')).filter(el => { const r = el.getBoundingClientRect(); return r.left < right && r.right > left && r.top < bottom && r.bottom > top; }).map(el => el.dataset.clipId);
+            band.ids = band.additive ? Array.from(new Set(band.base.concat(hits))) : hits;
+            root.querySelectorAll('.vs-clip').forEach(el => el.classList.toggle('is-selected', band.ids.includes(el.dataset.clipId)));
+        }
+        function finishBand(cancelled) {
+            const done = band;
+            band = null;
+            if (!done.el) return; // a plain click: the click handler seeks and deselects
+            done.el.remove();
+            suppressClick = true;
+            if (!cancelled) options.onSelectMany(done.ids, done.ids[done.ids.length - 1] || '');
             render(root, options);
         }
 
         // Gestures capture the pointer on the timeline container (clips re-render while they move), so the
         // release arrives even outside the window; a lost capture or a window switch cancels the gesture.
         function capture(event) { try { root.setPointerCapture(event.pointerId); } catch (_) { /* synthetic or finished pointer */ } }
-        function cancelGesture() { if (drag || scrub) pointerUp({ type: 'pointercancel' }); }
+        function cancelGesture() { if (drag || scrub || band) pointerUp({ type: 'pointercancel' }); }
         function pointerUp(event) {
             if (scrub) { scrub = null; return; }
-            if (drag) {
-                const before = drag.before, invalid = drag.invalid;
-                const current = drag.epoch === s().projectEpoch && drag.projectId === s().projectId;
-                drag = null;
-                s().timelineDragging = false;
-                if (!current) return;
-                if (event?.type === 'pointercancel' || s().readonly) s().project = before;
-                else if (JSON.stringify(before) !== JSON.stringify(s().project)) options.onChange('timeline', before);
-                if (invalid && options.onInvalid) options.onInvalid();
-                if (options.onDragEnd) options.onDragEnd();
-                render(root, options);
-            }
+            if (band) { finishBand(event?.type === 'pointercancel'); return; }
+            if (!drag) return;
+            const { before, invalid, reason, moved, type, clipId, ids } = drag;
+            const current = drag.epoch === s().projectEpoch && drag.projectId === s().projectId;
+            drag = null;
+            s().timelineDragging = false;
+            endTrimMode();
+            if (type === 'trim' && options.onPeekEnd) options.onPeekEnd();
+            if (!current) return;
+            if (moved) suppressClick = true;
+            if (event?.type === 'pointercancel' || s().readonly) s().project = before;
+            else if (JSON.stringify(before) !== JSON.stringify(s().project)) options.onChange('timeline', before);
+            // The click after a captured press never reaches the clip (the re-render replaces it), so a press
+            // without movement on a clip of a multi-selection selects only that clip here.
+            else if (type === 'move' && !moved && ids.length > 1) options.onSelect(clipId);
+            if (invalid && options.onInvalid) options.onInvalid(reason);
+            if (options.onDragEnd) options.onDragEnd();
+            render(root, options);
         }
 
         function click(event) {
+            // A drag or rubber band ends with a click on whatever lies under the pointer; ignore it once.
+            if (suppressClick) { suppressClick = false; return; }
             if (!event.target.closest('.vs-menu-anchor')) closeMenu();
             const action = event.target.closest('[data-action]');
             if (action) {
@@ -378,7 +477,8 @@
                     const menu = root.querySelector('[data-track-menu]');
                     menu.hidden = !menu.hidden; action.setAttribute('aria-expanded', String(!menu.hidden));
                     if (!menu.hidden) menu.querySelector('button:not(:disabled)')?.focus();
-                } else if (id && !s().readonly) options.onAction(name, id);
+                } else if (options.onCommand && options.onCommand(name)) { /* tools, magnetic and selection edits */ }
+                else if (id && !s().readonly) options.onAction(name, id);
                 return;
             }
             const trackAction = event.target.closest('[data-track-action]');
@@ -390,7 +490,16 @@
             const add = event.target.closest('[data-add-track]');
             if (add && !add.disabled && !s().readonly) { closeMenu(); options.onAddTrack(add.dataset.addTrack); return; }
             const clipEl = event.target.closest('[data-clip-id]');
-            if (clipEl) { options.onSelect(clipEl.dataset.clipId); render(root, options); return; }
+            if (clipEl) {
+                if (tool() === 'blade') {
+                    if (options.onBlade) options.onBlade(clipEl.dataset.trackId, bladeFrame(clipEl.closest('.vs-track-lane'), event.clientX), event.shiftKey);
+                    return;
+                }
+                if ((event.shiftKey || event.ctrlKey || event.metaKey) && options.onToggleSelect) options.onToggleSelect(clipEl.dataset.clipId);
+                else options.onSelect(clipEl.dataset.clipId);
+                render(root, options);
+                return;
+            }
             const lane = event.target.closest('.vs-track-lane');
             if (lane) {
                 options.onFrame(frameAt(lane, event.clientX));
@@ -399,6 +508,7 @@
         }
 
         function pointerDown(event) {
+            suppressClick = false;
             if (event.button !== 0) return;
             const ruler = event.target.closest('[data-ruler]') || (event.target.closest('[data-playhead]') && root.querySelector('[data-ruler]'));
             if (ruler) {
@@ -410,15 +520,31 @@
                 return;
             }
             const clipEl = event.target.closest('[data-clip-id]');
-            if (!clipEl || s().readonly) return;
+            if (!clipEl) {
+                if (event.target.closest('.vs-track-lane') && !s().readonly && options.onSelectMany) band = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, additive: event.shiftKey || event.ctrlKey || event.metaKey, base: options.selectedIds ? options.selectedIds() : [], ids: [], el: null };
+                return;
+            }
+            if (s().readonly || tool() === 'blade') return;
             const target = clipFor(s().project, clipEl.dataset.clipId);
             if (!target || target.track.locked) return;
-            const mode = event.target.closest('[data-trim]')?.dataset.trim;
-            drag = { clipId: target.clip.id, mode: mode === 'start' ? 'start' : mode === 'end' ? 'end' : 'move', x: event.clientX, before: clone(s().project), epoch: s().projectEpoch, projectId: s().projectId };
+            const handle = event.target.closest('[data-trim]')?.dataset.trim || '';
+            const selected = !!(options.isSelected && options.isSelected(target.clip.id));
+            const common = { clipId: target.clip.id, x: event.clientX, playhead: s().frame, before: clone(s().project), epoch: s().projectEpoch, projectId: s().projectId, moved: false, invalid: false, reason: '' };
+            if (tool() === 'trim') {
+                // A cut between two clips rolls (Shift: ripple), a free edge ripples, the body slips (Alt: slides).
+                const pair = handle && !event.shiftKey ? Edit().neighborAt(s().project, target.clip.id, handle) : null;
+                const op = handle ? (pair ? 'roll' : 'ripple') : event.altKey ? 'slide' : 'slip';
+                drag = Object.assign(common, { type: 'trim', op, edge: handle, pair });
+                s().trimMode = op; root.dataset.trimMode = op;
+            } else {
+                // Shift/Ctrl+click changes the selection on click and never starts a drag.
+                if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+                drag = handle ? Object.assign(common, { type: 'edge', mode: handle }) : Object.assign(common, { type: 'move', trackId: target.track.id, ids: selected && options.selectedIds ? options.selectedIds() : [target.clip.id] });
+            }
+            if (!selected) options.onSelect(target.clip.id);
             s().timelineDragging = true;
             capture(event);
             clearTimeout(s().autosaveTimer);
-            options.onSelect(target.clip.id);
             event.preventDefault();
         }
 
@@ -460,7 +586,8 @@
             const at = clamp(frameAt(lane, event.clientX), 0, maxOf(project) - 1);
             const assetId = event.dataTransfer.getData('application/x-video-studio-asset');
             const reorderId = event.dataTransfer.getData('application/x-video-studio-track');
-            if (assetId) options.onDropAsset(assetId, track.id, at);
+            // Dropping media overwrites at the drop point; Ctrl inserts and moves later clips.
+            if (assetId) options.onDropAsset(assetId, track.id, at, event.ctrlKey || event.metaKey ? 'insert' : 'overwrite');
             else if (reorderId && reorderId !== track.id) options.onReorderTrack(reorderId, track.id);
         }
         function zoomInput(event) {
@@ -474,6 +601,7 @@
             setZoom((s().zoom || 1) * (event.deltaY < 0 ? 1.15 : 1 / 1.15), event.clientX);
         }
         function keyDown(event) {
+            suppressClick = false;
             if (event.key === 'Escape' && root.querySelector('[data-track-menu]:not([hidden])')) { closeMenu(); root.querySelector('[data-action="track-menu"]')?.focus(); event.preventDefault(); event.stopPropagation(); return; }
             const clip = event.target.closest('[data-clip-id]');
             if (clip && (event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
@@ -483,8 +611,31 @@
                 root.querySelector(`[data-clip-id="${CSS.escape(clip.dataset.clipId)}"]`)?.focus();
             }
         }
+        // The blade tool shows where it would cut.
+        function hover(event) {
+            let line = root.querySelector('.vs-blade-line');
+            const lane = tool() === 'blade' && !drag && !band && !scrub ? event.target.closest('.vs-track-lane') : null;
+            if (!lane) { if (line) line.remove(); return; }
+            if (!line || line.parentElement !== lane) { if (line) line.remove(); line = document.createElement('span'); line.className = 'vs-blade-line'; lane.append(line); }
+            line.style.left = Math.round(bladeFrame(lane, event.clientX) / fpsOf(s().project) * pps()) + 'px';
+        }
+        function leave() { root.querySelector('.vs-blade-line')?.remove(); }
+        // Right-click, the context-menu key and Shift+F10 open the clip or lane menu. A keyboard-opened menu
+        // has no pointer position inside the clip, so it anchors below the focused clip.
+        function contextMenu(event) {
+            const clipEl = event.target.closest('[data-clip-id]'), lane = event.target.closest('.vs-track-lane');
+            if (!options.onContextMenu || !s().project || (!clipEl && !lane)) return;
+            event.preventDefault(); event.stopPropagation();
+            const anchor = clipEl || lane, rect = anchor.getBoundingClientRect();
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            const x = inside ? event.clientX : rect.left + Math.min(24, rect.width / 2), y = inside ? event.clientY : rect.bottom;
+            options.onContextMenu({ clipId: clipEl ? clipEl.dataset.clipId : '', trackId: anchor.dataset.trackId, frame: frameAt(lane || clipEl.closest('.vs-track-lane'), x), x, y, invoker: clipEl });
+        }
         root.addEventListener('click', click);
         root.addEventListener('pointerdown', pointerDown);
+        root.addEventListener('pointermove', hover);
+        root.addEventListener('pointerleave', leave);
+        root.addEventListener('contextmenu', contextMenu);
         root.addEventListener('dragstart', dragStart);
         root.addEventListener('dragover', dragOver);
         root.addEventListener('dragleave', dragLeave);
@@ -499,9 +650,12 @@
         window.addEventListener('blur', cancelGesture);
         window.addEventListener('dragend', clearMarker);
         return function detach() {
-            drag = null; scrub = null; clearMarker(); s().timelineDragging = false;
+            drag = null; scrub = null; band = null; clearMarker(); s().timelineDragging = false; endTrimMode();
             root.removeEventListener('click', click);
             root.removeEventListener('pointerdown', pointerDown);
+            root.removeEventListener('pointermove', hover);
+            root.removeEventListener('pointerleave', leave);
+            root.removeEventListener('contextmenu', contextMenu);
             root.removeEventListener('dragstart', dragStart);
             root.removeEventListener('dragover', dragOver);
             root.removeEventListener('dragleave', dragLeave);
