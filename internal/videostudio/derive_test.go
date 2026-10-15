@@ -81,3 +81,38 @@ func TestReverseRangeLimitAndChunkLength(t *testing.T) {
 		t.Fatalf("720p chunk = %d frames, want 60", got)
 	}
 }
+
+// TestReverseChunkFramesFitsMemoryBudget: a chunk's decoded yuv420p frames (1.5 bytes per pixel) stay within 256 MiB,
+// the time-based length stays the upper bound and a chunk always holds at least one frame.
+func TestReverseChunkFramesFitsMemoryBudget(t *testing.T) {
+	r30, r60, ntsc := Rate{Num: 30, Den: 1}, Rate{Num: 60, Den: 1}, Rate{Num: 30000, Den: 1001}
+	for _, tc := range []struct {
+		name          string
+		rate          Rate
+		width, height int
+		want          int
+	}{
+		{"720p30 keeps two seconds", r30, 1280, 720, 60},
+		{"720p NTSC keeps two seconds", ntsc, 1280, 720, 59},
+		{"1440p30 keeps one second", r30, 2560, 1440, 30},
+		{"1080p60 fits the budget", r60, 1920, 1080, 86}, // floor(268435456 / 3110400)
+		{"4K60 fits the budget", r60, 3840, 2160, 21},    // floor(268435456 / 12441600)
+		{"4K30 fits the budget", r30, 3840, 2160, 21},
+		{"64 MP fits the budget", r30, 8000, 8000, 2}, // floor(268435456 / 96000000)
+		{"unknown size counts as the largest", r30, 0, 0, 2},
+	} {
+		got := ReverseChunkFrames(tc.rate, tc.width, tc.height)
+		if got != tc.want {
+			t.Errorf("%s: ReverseChunkFrames(%v, %d, %d) = %d, want %d", tc.name, tc.rate, tc.width, tc.height, got, tc.want)
+		}
+		if tc.width > 0 && got > 1 && float64(got)*float64(tc.width*tc.height)*reverseBytesPerPixel > reverseBufferBytes {
+			t.Errorf("%s: %d frames exceed the %d-byte budget", tc.name, got, reverseBufferBytes)
+		}
+	}
+	if got := reverseChunkFrames(r60, 3840, 2160, 1); got != 1 {
+		t.Fatalf("a budget below one frame gives %d frames, want 1", got)
+	}
+	if got := reverseChunkFrames(r30, 64, 32, 1<<40); got != 60 {
+		t.Fatalf("a huge budget gives %d frames, want the two-second length 60", got)
+	}
+}

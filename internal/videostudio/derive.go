@@ -24,7 +24,7 @@ type ReverseOptions struct {
 	Offset         int
 	Frames         int
 	Rate           Rate
-	Width, Height  int // source size; it picks the chunk length
+	Width, Height  int // source size, used when the probe reports none; it picks the chunk length
 	Encoder        Encoder
 	MaxOutputBytes int64
 	Progress       func(float64)
@@ -35,14 +35,35 @@ func MaxReverseFrames(rate Rate) int {
 	return int(int64(MaxReverseSeconds) * rate.Num / rate.Den)
 }
 
-// ReverseChunkFrames is the length of one reversed chunk: one second at 1440p and above, two seconds below. Each chunk
-// is reversed in memory, so a larger picture gets shorter chunks.
+// reverseBufferBytes bounds the decoded frames of one chunk: FFmpeg's reverse filter keeps the whole chunk in memory.
+const reverseBufferBytes = 256 << 20
+
+// reverseBytesPerPixel is the size of one buffered pixel. renderReverseVideo converts frames to 8-bit 4:2:0 (yuv420p)
+// before the reverse filter buffers them, so 1.5 bytes holds for every source, 10-bit and 4:4:4 ones included (the
+// probe does not report the pixel format, and without the conversion such sources would need 3 bytes or more).
+const reverseBytesPerPixel = 1.5
+
+// ReverseChunkFrames is the length of one reversed chunk: two seconds below 2560×1440 pixels and one second at and
+// above, shortened so the chunk's decoded frames fit in reverseBufferBytes (256 MiB), and at least one frame. An unknown
+// size counts as the largest source (MaxSourcePixels).
 func ReverseChunkFrames(rate Rate, width, height int) int {
+	return reverseChunkFrames(rate, width, height, reverseBufferBytes)
+}
+
+// reverseChunkFrames is ReverseChunkFrames with the memory budget in bytes:
+// clamp(floor(budget / (width·height·reverseBytesPerPixel)), 1, chunk length in time).
+func reverseChunkFrames(rate Rate, width, height int, budget int64) int {
+	pixels := int64(width) * int64(height)
+	if width <= 0 || height <= 0 {
+		pixels = MaxSourcePixels
+	}
 	seconds := int64(2)
-	if int64(width)*int64(height) >= 2560*1440 {
+	if pixels >= 2560*1440 {
 		seconds = 1
 	}
-	return max(1, int(seconds*rate.Num/rate.Den))
+	frames := max(1, int(seconds*rate.Num/rate.Den))
+	fit := int64(math.Floor(float64(budget) / (float64(pixels) * reverseBytesPerPixel)))
+	return int(max(1, min(int64(frames), fit)))
 }
 
 // ReverseClip writes the source range backwards as an H.264/AAC MP4. A failed hardware encoder retries the whole job
@@ -95,8 +116,13 @@ func reverseOnce(ctx context.Context, opts ReverseOptions) error {
 	defer os.RemoveAll(workDir)
 
 	// Source chunks run forwards. Playback starts with the last chunk and every chunk is reversed on its own, so the
-	// output segments are the chunks' positions in playback order.
-	chunk := ReverseChunkFrames(rate, opts.Width, opts.Height)
+	// output segments are the chunks' positions in playback order. The probed size is the size of the decoded frames
+	// the reverse filter buffers; the asset's recorded size is the fallback.
+	width, height := source.Width, source.Height
+	if width <= 0 || height <= 0 {
+		width, height = opts.Width, opts.Height
+	}
+	chunk := ReverseChunkFrames(rate, width, height)
 	var sourceChunks []Segment
 	for start := 0; start < opts.Frames; start += chunk {
 		sourceChunks = append(sourceChunks, Segment{Start: start, End: min(opts.Frames, start+chunk)})
@@ -175,14 +201,15 @@ func reverseSeekFrame(first int, rate Rate) int {
 }
 
 // renderReverseVideo writes one source chunk, reversed, as MPEG-TS. Frames are picked by their absolute source
-// position, padded so the chunk always has its full length, trimmed to the chunk and then reversed.
+// position, padded so the chunk always has its full length, trimmed to the chunk, converted to yuv420p (the output
+// format; converting before reverse keeps the buffered frames at reverseBytesPerPixel) and then reversed.
 func renderReverseVideo(ctx context.Context, ffmpeg, input string, opts ReverseOptions, chunk Segment, output string, progress func(float64)) error {
 	rate := opts.Rate
 	first, last := opts.Offset+chunk.Start, opts.Offset+chunk.End
 	frames := chunk.End - chunk.Start
 	seekFrame := reverseSeekFrame(first, rate)
 	inputs := []segmentInput{{path: input, seek: rate.Seconds(seekFrame), limit: rate.SecondsFloat(float64(last-seekFrame)) + 1}}
-	graph := fmt.Sprintf("[0:V:0]fps=%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=%d:end_pts=%d,setpts=PTS-STARTPTS,reverse,setpts=N/FRAME_RATE/TB,format=yuv420p%s[vs_video_out]",
+	graph := fmt.Sprintf("[0:V:0]fps=%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=%d:end_pts=%d,setpts=PTS-STARTPTS,format=yuv420p,reverse,setpts=N/FRAME_RATE/TB%s[vs_video_out]",
 		rate, frames, first, last, opts.Encoder.filterTail())
 	graphPath, err := writeGraph(filepath.Dir(output), graph)
 	if err != nil {

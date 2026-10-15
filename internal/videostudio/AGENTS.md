@@ -69,7 +69,9 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   are left out of layers, mixes and staging; export length ends at the last enabled clip. A transition applies only
   when the clip after it (in the unfiltered order) is enabled.
 - Derived media (`derive.go`): `ReverseClip` renders the source range backwards in chunks (2 s, or 1 s at ≥ 2560×1440
-  pixels) and joins them with the render mux; the chunks keep the source's colour tags (the renderer's BT.709 tags are
+  pixels, shortened so one chunk's decoded frames fit in 256 MiB: frames are converted to yuv420p, 1.5 bytes per pixel,
+  before the `reverse` filter buffers the chunk; `ReverseChunkFrames` uses the probed size) and joins them with the
+  render mux; the chunks keep the source's colour tags (the renderer's BT.709 tags are
   left off, so FFmpeg does not convert the pixels). `ExtractStill` picks one source frame with the renderer's
   sampling and writes PNG. The server (`video_studio_derive.go`) imports results as project assets and publishes
   PNG exports.
