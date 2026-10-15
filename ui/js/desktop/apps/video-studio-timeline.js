@@ -6,6 +6,9 @@
     const BASE_PX_PER_SECOND = 52;
     const MAX_TRACKS_PER_KIND = 8;
     const MAX_CLIPS = 2000;
+    // Colour labels in Go's LabelColors order (videostudio.LabelColors). This is the one JS palette: the core
+    // re-exports it as P.LABEL_COLORS, and the timeline and inspector draw from it.
+    const LABEL_COLORS = Object.freeze(['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']);
     const TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
     const Time = () => window.VideoStudioTime;
     const fpsOf = project => Time().rate(project);
@@ -54,8 +57,9 @@
         };
     }
 
+    // Video tracks take video and images (a still plays for the clip's duration); overlays take images only.
     function accepts(track, asset) {
-        return !!asset && (track.kind === 'video' ? asset.kind === 'video' : track.kind === 'overlay' ? asset.kind === 'image' : asset.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
+        return !!asset && (track.kind === 'video' ? asset.kind === 'video' || asset.kind === 'image' : track.kind === 'overlay' ? asset.kind === 'image' : asset.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
     }
 
     function projectEnd(project) {
@@ -81,7 +85,11 @@
                 if (![clip.start, clip.offset, clip.duration, clip.fade_in, clip.fade_out].every(Number.isSafeInteger) ||
                     clip.start < 0 || clip.duration <= 0 || clip.duration > max - clip.start || clip.offset < 0 ||
                     clip.fade_in < 0 || clip.fade_out < 0 || clip.fade_in > clip.duration || clip.fade_out > clip.duration) return false;
-                if (asset.kind !== 'image' && clip.offset > asset.duration_frames - clip.duration) return false;
+                // Speed (absent = 1) and the source extent rule: offset + (duration - 1) * speed <= duration_frames - 1.
+                const speed = clip.speed == null ? 1 : Number(clip.speed);
+                if (!(speed >= 0.25 && speed <= 16) || asset.kind === 'image' && speed !== 1) return false;
+                if (asset.kind !== 'image' && clip.offset + (clip.duration - 1) * speed > asset.duration_frames - 1 + 1e-9) return false;
+                if (clip.audio_detached && (track.kind !== 'video' || asset.kind !== 'video' || !asset.has_audio)) return false;
                 if (!Number.isFinite(clip.volume) || clip.volume < 0 || clip.volume > 4) return false;
                 if (track.kind !== 'audio' && (![clip.x, clip.y, clip.width, clip.height, clip.rotation, clip.opacity].every(Number.isFinite) ||
                     clip.x < 0 || clip.y < 0 || clip.width <= 0 || clip.height <= 0 || clip.x + clip.width > 1 || clip.y + clip.height > 1 ||
@@ -277,7 +285,10 @@
         return clamp(visible / (seconds * BASE_PX_PER_SECOND), MIN_ZOOM, MAX_ZOOM);
     }
 
-    function dragClip(before, clipId, mode, delta, targetTrackId, snapFrames, extraPoints) {
+    // A drag edits the clip (a move changes track and start; an edge trims the source, where the offset moves by
+    // speed per timeline frame). linkedIds lists the partners of an edge on the same frame: each keeps its own
+    // media limits and the drag stops where the first of them stops. Returns the edited copy, or null when invalid.
+    function dragClip(before, clipId, mode, delta, targetTrackId, snapFrames, extraPoints, linkedIds) {
         const project = clone(before), source = clipFor(project, clipId);
         const max = maxOf(project);
         if (!source || source.track.locked) return null;
@@ -297,17 +308,38 @@
                 source.track.clips = source.track.clips.filter(item => item.id !== clip.id);
                 target.clips.push(clip);
             }
-        } else if (mode === 'start') {
-            let actual = clamp(delta, asset.kind === 'image' ? -clip.start : Math.max(-clip.start, -clip.offset), clip.duration - 1);
-            const snapped = extra.find(point => Math.abs(point - (clip.start + actual)) <= snapFrames);
-            if (snapped != null) actual = clamp(snapped - clip.start, asset.kind === 'image' ? -clip.start : Math.max(-clip.start, -clip.offset), clip.duration - 1);
-            clip.start += actual; clip.offset = asset.kind === 'image' ? 0 : clip.offset + actual; clip.duration -= actual;
         } else {
-            const sourceLimit = asset.kind === 'image' ? max : asset.duration_frames - clip.offset;
-            let duration = clip.duration + delta;
-            const snapped = extra.find(point => Math.abs(point - (clip.start + duration)) <= snapFrames);
-            if (snapped != null) duration = snapped - clip.start;
-            clip.duration = clamp(duration, 1, Math.min(sourceLimit, max - clip.start));
+            const members = [clip];
+            (linkedIds || []).forEach(id => { const found = id !== clipId ? clipFor(project, id) : null; if (found && !found.track.locked) members.push(found.clip); });
+            const media = item => { const a = project.assets.find(x => x.id === item.asset_id); return a && a.kind !== 'image' ? a : null; };
+            const speedOf = item => (Number(item.speed) > 0 ? Number(item.speed) : 1);
+            let lo = -Infinity, hi = Infinity;
+            if (mode === 'start') {
+                members.forEach(item => {
+                    lo = Math.max(lo, media(item) ? Math.max(-item.start, -Math.floor(item.offset / speedOf(item) + 1e-9)) : -item.start);
+                    hi = Math.min(hi, item.duration - 1);
+                });
+            } else {
+                members.forEach(item => {
+                    const a = media(item), speed = speedOf(item);
+                    const sourceMax = a ? Math.floor((Number(a.duration_frames) - 1 - item.offset) / speed + 1e-9) + 1 : max;
+                    lo = Math.max(lo, 1 - item.duration);
+                    hi = Math.min(hi, Math.min(sourceMax, max - item.start) - item.duration);
+                });
+            }
+            const edge = mode === 'start' ? clip.start : clip.start + clip.duration;
+            let actual = clamp(delta, lo, hi);
+            const snapped = extra.find(point => Math.abs(point - (edge + actual)) <= snapFrames);
+            if (snapped != null) actual = clamp(snapped - edge, lo, hi);
+            members.forEach(item => {
+                if (mode === 'start') {
+                    item.offset = media(item) ? Math.max(0, Math.floor(item.offset + actual * speedOf(item) + 1e-9)) : 0;
+                    item.start += actual;
+                    item.duration -= actual;
+                } else item.duration += actual;
+                item.fade_in = Math.min(item.fade_in, item.duration);
+                item.fade_out = Math.min(item.fade_out, item.duration);
+            });
         }
         clip.fade_in = Math.min(clip.fade_in, clip.duration);
         clip.fade_out = Math.min(clip.fade_out, clip.duration);
@@ -672,5 +704,5 @@
         };
     }
 
-    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
+    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, LABEL_COLORS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
 })();

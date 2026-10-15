@@ -23,6 +23,8 @@
     const PREF_TIMELINE = 'aurago.videoStudio.timelineHeight';
     const PREF_SNAP = 'aurago.videoStudio.snap';
     const PREF_QUALITY = 'aurago.videoStudio.previewQuality';
+    // Colour labels: one palette, defined in video-studio-timeline.js (VideoStudioTimeline.LABEL_COLORS).
+    const LABEL_COLORS = window.VideoStudioTimeline.LABEL_COLORS;
     const PREF_MAGNETIC = 'aurago.videoStudio.magnetic';
     const clone = value => JSON.parse(JSON.stringify(value));
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -69,6 +71,17 @@
         ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
         return out;
     }
+    // Version 2 clip fields after transition, in Go's order. Each appears only when set (omitempty): speed 1 is
+    // removed by the editor, and an enabled, unlinked, labelless clip carries none of them.
+    function canonicalClipExtras(clip) {
+        const out = {};
+        if (clip.speed != null && Number(clip.speed) !== 1) out.speed = Number(clip.speed);
+        if (clip.link) out.link = String(clip.link);
+        if (clip.audio_detached) out.audio_detached = true;
+        if (clip.disabled) out.disabled = true;
+        if (clip.label) out.label = String(clip.label);
+        return out;
+    }
     // The top level is built explicitly in the order of Go's videostudio.Project (version, name, width, height, fps,
     // ntsc when set, assets, tracks), whatever order the keys were added to the live project (rescaleProject appends
     // ntsc late). New Project fields must be inserted here at their Go struct position; unknown keys are dropped.
@@ -82,13 +95,13 @@
         });
         copy.tracks = copy.tracks.map(track => ({
             id: track.id, kind: track.kind, name: track.name, muted: !!track.muted, hidden: !!track.hidden, locked: !!track.locked,
-            clips: (track.clips || []).map(clip => ({
+            clips: (track.clips || []).map(clip => Object.assign({
                 id: clip.id, asset_id: clip.asset_id, start: Math.round(clip.start), offset: Math.round(clip.offset || 0), duration: Math.round(clip.duration),
                 x: Number(clip.x || 0), y: Number(clip.y || 0), width: Number(clip.width || 1), height: Number(clip.height || 1),
                 rotation: Number(clip.rotation || 0), opacity: Number(clip.opacity == null ? 1 : clip.opacity), volume: Number(clip.volume == null ? 1 : clip.volume),
                 fade_in: Math.round(clip.fade_in || 0), fade_out: Math.round(clip.fade_out || 0), fit: clip.fit === 'cover' ? 'cover' : 'contain',
                 text: String(clip.text || ''), text_style: normalizeTextStyle(clip.text_style), transition: clip.transition || null
-            }))
+            }, canonicalClipExtras(clip)))
         }));
         return copy;
     }
@@ -384,5 +397,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();
