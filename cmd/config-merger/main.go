@@ -110,6 +110,9 @@ func run(sourcePath, templatePath, outputPath string) {
 		if result.sanitized || result.typeFixed {
 			fmt.Println("Applied data shape fixes")
 		}
+		if result.migrated {
+			fmt.Println("Raised the Video Studio limits to the new defaults")
+		}
 		return
 	}
 
@@ -145,11 +148,15 @@ type mergeResult struct {
 	safetyAdjusted bool
 	typeFixed      bool
 	sanitized      bool
+	// migrated reports a one-time change of values the user's file wrote
+	// explicitly (see migrateVideoStudioLimits). Unlike a missing key, the
+	// template merge cannot add it, so it has to force the write by itself.
+	migrated bool
 }
 
 // needsWrite reports whether the merged config differs from the user's file.
 func (r mergeResult) needsWrite() bool {
-	return len(r.missing) > 0 || r.safetyAdjusted || r.typeFixed || r.sanitized
+	return len(r.missing) > 0 || r.safetyAdjusted || r.typeFixed || r.sanitized || r.migrated
 }
 
 // mergeUserConfig merges a parseable user config onto the template defaults.
@@ -167,6 +174,7 @@ func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
 	if preserveNewspaperLegacyDefaults(result.merged, srcMap) {
 		result.safetyAdjusted = true
 	}
+	result.migrated = migrateVideoStudioLimits(result.merged, srcMap)
 	result.sanitized = sanitizeMergedConfig(result.merged)
 	return result
 }
@@ -194,8 +202,71 @@ func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string
 	preserveLegacyHTTPS(merged, salvaged)
 	applyUpgradeGrandfathers(merged, salvaged)
 	preserveNewspaperLegacyDefaults(merged, salvaged)
+	migrateVideoStudioLimits(merged, salvaged)
 	sanitizeMergedConfig(merged)
 	return merged
+}
+
+// The Video Studio limits config_template.yaml wrote explicitly before the
+// defaults were raised, and the defaults that replaced them. Config.Save also
+// writes the whole normalized section, so practically every installation holds
+// the old values and the new defaults only reach unset (0) keys.
+const (
+	legacyVideoStudioAssetMB       = 1024
+	legacyVideoStudioProjectMB     = 4096
+	legacyVideoStudioTimeoutSecond = 3600
+
+	videoStudioAssetMB       = 4096
+	videoStudioProjectMB     = 16384
+	videoStudioTimeoutSecond = 7200
+)
+
+// migrateVideoStudioLimits raises the Video Studio limits to the new defaults
+// once, but only for a section whose three limits all still hold exactly the
+// old defaults, i.e. that was never customized. Any other combination, a
+// missing or null key included, is left alone. The check reads the raw user
+// map, never merged, where the template's new defaults already fill missing
+// keys. A migrated file holds the new values, so a second run changes nothing.
+// max_export_size_mb is not touched: the template merge adds its 8192 MB, which
+// the new project limit covers.
+func migrateVideoStudioLimits(merged, user map[string]interface{}) bool {
+	userVS, ok := asStringMap(user["video_studio"])
+	if !ok {
+		return false
+	}
+	for key, legacy := range map[string]int{
+		"max_asset_size_mb":      legacyVideoStudioAssetMB,
+		"max_project_size_mb":    legacyVideoStudioProjectMB,
+		"render_timeout_seconds": legacyVideoStudioTimeoutSecond,
+	} {
+		if value, ok := yamlIntValue(userVS[key]); !ok || value != legacy {
+			return false
+		}
+	}
+	vsMap, ok := asStringMap(merged["video_studio"])
+	if !ok {
+		return false
+	}
+	// merged may still share the template's section map; never write into it.
+	vsMap = maps.Clone(vsMap)
+	vsMap["max_asset_size_mb"] = videoStudioAssetMB
+	vsMap["max_project_size_mb"] = videoStudioProjectMB
+	vsMap["render_timeout_seconds"] = videoStudioTimeoutSecond
+	merged["video_studio"] = vsMap
+	log.Printf("migrate: video_studio limits were the earlier defaults (%d MB / %d MB / %d s) — raised to %d MB / %d MB / %d s",
+		legacyVideoStudioAssetMB, legacyVideoStudioProjectMB, legacyVideoStudioTimeoutSecond,
+		videoStudioAssetMB, videoStudioProjectMB, videoStudioTimeoutSecond)
+	return true
+}
+
+// yamlIntValue reports the int a parsed user-config value stands for: an int,
+// or a float64 holding a whole number (integralIntValue), as config.Load reads
+// both into an int field.
+func yamlIntValue(v interface{}) (int, bool) {
+	if n, ok := v.(int); ok {
+		return n, true
+	}
+	return integralIntValue(v)
 }
 
 // preserveNewspaperLegacyDefaults keeps template opt-ins from silently

@@ -40,6 +40,8 @@ The project quota includes its cached previews. Uploads have an overall read
 window of at least fifteen minutes (longer for large asset limits, sized for
 4 MiB/s) and a thirty-second idle deadline.
 
+Updates raise the limits of installations that still use the earlier defaults (1024 MB / 4096 MB / 3600 s) to the new defaults once; customized values are kept.
+
 ## Editing
 
 Create a project in landscape (720p, 1080p, 1440p, 4K), portrait (720p, 1080p, 4K),

@@ -9,7 +9,8 @@ import (
 )
 
 // The video_studio section as the template shipped it before Video Studio Pro
-// (3be4f82ff). Installs updated from it keep the explicit 4096 MB project
+// (3be4f82ff). The merge raises its untouched limits to the new defaults
+// (migrateVideoStudioLimits); a customized section keeps its explicit project
 // limit, and the merge adds the new template's 8192 MB export limit on top.
 // config.Load must still accept the merged file: a failure here makes the
 // Docker entrypoint restore factory defaults and native installs refuse to
@@ -34,8 +35,16 @@ func TestRunUpgradesPreProVideoStudioConfigThatStillLoads(t *testing.T) {
 		{
 			name:       "previous template defaults",
 			section:    preProVideoStudioSection,
+			wantExport: 8192,
+			wantLimits: config.VideoStudioConfig{MaxAssetSizeMB: 4096, MaxProjectSizeMB: 16384, RenderTimeoutSeconds: 7200},
+		},
+		{
+			// One customized limit keeps the section as written; the export limit
+			// the merge adds is clamped to the 4096 MB project limit.
+			name:       "previous template defaults with a shorter render timeout",
+			section:    "video_studio:\n    enabled: false\n    readonly: false\n    ffmpeg_path: \"\"\n    max_asset_size_mb: 1024\n    max_project_size_mb: 4096\n    render_timeout_seconds: 1800\n",
 			wantExport: 4096,
-			wantLimits: config.VideoStudioConfig{MaxAssetSizeMB: 1024, MaxProjectSizeMB: 4096, RenderTimeoutSeconds: 3600},
+			wantLimits: config.VideoStudioConfig{MaxAssetSizeMB: 1024, MaxProjectSizeMB: 4096, RenderTimeoutSeconds: 1800},
 		},
 		{
 			name:       "raised project limit",
