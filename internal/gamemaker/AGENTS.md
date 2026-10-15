@@ -217,13 +217,18 @@ revision publication and standalone export for Phaser and Three.js games.
   Anthropic reads/writes count once in cumulative stream input.
 - Building/repair schemas omit server-bound job IDs and the duplicate full scene
   under scene_patch.replace. Planning offers read/search only; replace_many
-  accepts up to eight distinct existing paths, verifies every hash/match/import
-  and project limit before writing, rolls back IO failures and builds once.
+  accepts up to eight non-overlapping edits to existing files. Repeated paths
+  use the same original hash and unique original blocks; replacements never
+  match text inserted by another edit. Verify the combined file imports/sizes
+  and project limit before writing, roll back IO failures and build once.
   Conflicts leave all files unchanged. Managed paths and policy gates still apply.
 - Runtime context reads the installed common.ts descriptor and current file
-  hashes/hook locations. Missing descriptors mean legacy/custom; never advertise
-  newer bundled helpers to those projects. Known descriptor versions attach
-  `api_reference` from `runtime_reference.go`; tests bind every documented member
+  hashes/hook locations. Only an exact accepted-plan template match (CRLF/LF may
+  normalize) permits the descriptor/API reference, using the same verification
+  as source generation. Changed, unknown or missing descriptors mean
+  legacy/custom, even when a version comment survives; provide the actual hook
+  locations for bounded reads. Verified versions attach `api_reference` from
+  `runtime_reference.go`; tests bind every documented member
   to the template declaring that version and the 2D key list to `createInputs`.
   A new helper version needs its own reference entry; re-exporting templates
   (voxel-1) bind members to the runtime named by `Source`. In Studio-bound runs,
@@ -253,7 +258,13 @@ revision publication and standalone export for Phaser and Three.js games.
   initial-plus-two-corrections budget remain binding.
 - Building and repair context carries `current_sources`: the complete `src/main.ts`
   (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window, so
-  the first call can be the edit. Larger files are omitted and read in ranges.
+  the first call can be the edit. Larger files instead appear in `omitted_sources`
+  with reason, byte/line counts, hash and a readable first range when possible.
+  File-size/path gates still apply. Prompts and budget guidance must not claim
+  omitted content or an unverified runtime reference was supplied.
+- Early core-loop checks use startup scope while accepted features/stages are
+  unfinished. Full validation follows their complete implementation (or the
+  disclosed startup-only scope); publication and shared repair limits stay intact.
 - Ordinary phase requests carry current intent/plan/runtime once, up to four
   complete recent tool rounds and at most eight assistant messages. Private
   checkpoints retain earlier messages when request fitting drops them;
@@ -556,6 +567,10 @@ Do not patch a published game merely because a new starter changed.
 - `TestSourceBatchPreflightSearchAndRuntime`, `TestPrivateBuildSourceDiagnostics`,
   `TestValidationReuseRequiresExactCurrentEvidence`, and
   `TestDesignReportsIndependentCorrectionsWithinBudget` cover agent assistance.
+- `TestSourceBatchSameFileEditsUseOriginalSnapshot` covers simultaneous edits,
+  overlap/stale-hash rejection and whole-batch preflight. Runtime
+  `TestRuntimeContextRejectsRetainedDescriptorOnChangedHelper` and server
+  `TestGameMakerSourceContextDisclosesOmittedContent` cover source-aware guidance.
 - Server `TestGameStarterProviderSourceFormats`,
   `TestGameStarterWrappedSourceRequiresExactSingleWrite`,
   `TestGameMakerUnchangedStarterGetsBoundedCodeRecovery` and

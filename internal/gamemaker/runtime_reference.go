@@ -11,8 +11,8 @@ type runtimeReference struct {
 	Source string
 }
 
-// runtimeReferences is keyed by the AURAGO_RUNTIME_API descriptor version of an
-// installed common.ts. Legacy or custom helpers have no entry and are read.
+// runtimeReferences is keyed by the AURAGO_RUNTIME_API descriptor version of a
+// verified installed common.ts. Unverified helpers are read from source.
 var runtimeReferences = map[string]runtimeReference{
 	"phaser-2": {Text: phaserRuntimeReference, Members: []string{
 		"start", "setupScene", "setup", "step", "action", "tick", "paintHUD", "player", "state", "elapsed",

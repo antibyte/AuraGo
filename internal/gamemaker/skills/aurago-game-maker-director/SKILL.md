@@ -45,8 +45,10 @@ Prefer `replace` for existing code; empty `new_text` deletes the selected block.
 Use `search` with `path` and a literal `query` to locate hooks instead of reading
 the helper from top to bottom. Inspect the supplied runtime descriptor and hashes
 before requesting more context. For a coordinated change use `replace_many`
-with `edits:[{path,expected_sha256,old_text,new_text}, ...]` (up to eight distinct
-existing files, each a unique exact block). All preconditions are checked before
+with `edits:[{path,expected_sha256,old_text,new_text}, ...]` (up to eight edits).
+Multiple blocks in one existing file use the same original hash and must not
+overlap; every old_text matches the original source, never another edit's output.
+All preconditions and combined file limits/imports are checked before
 writing and the complete batch builds once. Conflicts write nothing.
 For a deliberate complete rewrite, use `write` with full content and the current
 `expected_sha256`. Line numbers are one-based; read at most 240 lines per call.
@@ -56,6 +58,10 @@ never remove the precondition to force an overwrite. `written: true` means the
 file was saved, not that it compiles: check `build.ok` and fix its source
 diagnostics before runtime validation. Do not rewrite `vendor/` or `dist/`, run
 shell commands, or search for generic coding tools outside this job's scope.
+
+Use supplied `current_sources` directly. Files listed in `omitted_sources` are
+unread: follow their bounded read guidance before editing. Use `api_reference`
+only when supplied; otherwise read the installed helper at its hook locations.
 
 ## Job workflow
 
@@ -147,8 +153,10 @@ shell commands, or search for generic coding tools outside this job's scope.
    capability; stay within roughly four generated images and one music track.
    A disabled generator does not disable built-in packs. Treat a generation
    fallback as a design constraint.
-6. Call `game_maker_validate` with `scope: full` after the core loop and final
-   coherent edits (free-code `three`: `startup`; guided 3D: `full`). The server owns the shared three-repair budget.
+6. Use `scope: startup` for an early runtime check while planned features or
+   stages are unfinished. Call `game_maker_validate` with `scope: full` after
+   implementing every accepted feature and stage (free-code `three`: `startup`;
+   guided 3D: `full`). The server owns the shared three-repair budget.
    During a repair round, address the named check/expected/observed mismatch,
    validate once and end the turn. Do not nest another repair loop.
 7. Preserve the AuraGo diagnostic interface and finish only when validation is

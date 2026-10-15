@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -408,11 +409,11 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 	case run.Stage == "planning":
 		budget["guidance"] = "Plan with few discovery calls; an accepted set_design ends this round."
 	case run.Stage == "repair":
-		budget["guidance"] = "One focused repair: edit (current_sources holds src/main.ts and its sha256), check build.ok, validate once."
+		budget["guidance"] = "One focused repair: use current_sources when supplied; read affected ranges of omitted_sources first. Edit, check build.ok, validate once."
 	case run.Job.BaseRevision == 0:
-		budget["guidance"] = "current_sources holds src/main.ts and its sha256: write the implementation now without reading it again. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
+		budget["guidance"] = "Implement from current_sources when supplied; read affected ranges of omitted_sources first. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
 	default:
-		budget["guidance"] = "Edit src/main.ts from current_sources with its sha256; read only other affected ranges, check build.ok, then validate."
+		budget["guidance"] = "Edit from current_sources when supplied; read affected ranges of omitted_sources and other changed files first. Check build.ok, then validate the completed change."
 	}
 	return budget
 }
@@ -459,16 +460,44 @@ const gameMakerCurrentSourceMaxBytes = 24000
 
 // gameMakerCurrentSources hands the agent its editable entry files once. Real
 // runs spent many reads before the first edit; with content and sha256 in the
-// context the first call can be the edit itself. Larger files stay omitted and
-// are read in ranges.
-func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jobID string) []gamemaker.SourceRead {
+// context the first call can be the edit itself. Larger files carry metadata
+// and bounded read guidance instead of silently disappearing.
+func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jobID string) ([]gamemaker.SourceRead, []map[string]any) {
 	var sources []gamemaker.SourceRead
+	var omitted []map[string]any
 	for _, path := range []string{"src/main.ts", "src/voxel.json"} {
-		if source, err := service.ReadJobSource(ctx, jobID, path, gameMakerCurrentSourceMaxBytes); err == nil {
-			sources = append(sources, source)
+		// The service's file-size limit still applies; this cap bounds the prompt.
+		source, err := service.ReadJobSource(ctx, jobID, path, math.MaxInt)
+		if err != nil {
+			if path != "src/voxel.json" || !os.IsNotExist(err) {
+				omitted = append(omitted, map[string]any{"path": path, "reason": "unavailable", "message": service.RedactHostPaths(err.Error()), "next_action": "Inspect or read this file before editing; its content was not supplied."})
+			}
+			continue
 		}
+		if len(source.Content) <= gameMakerCurrentSourceMaxBytes {
+			sources = append(sources, source)
+			continue
+		}
+		entry := map[string]any{"path": path, "sha256": source.SHA256, "bytes": len(source.Content), "total_lines": source.TotalLines, "reason": "exceeds_context_limit", "max_content_bytes": gameMakerCurrentSourceMaxBytes,
+			"next_action": "Content was omitted. Search for the affected code or use the supplied hook/diagnostic lines, then read bounded ranges before replacing. Do not overwrite unread source."}
+		bytes, end := 0, 0
+		for _, line := range strings.Split(source.Content, "\n") {
+			separator := 0
+			if end > 0 {
+				separator = 1
+			}
+			if end == 120 || bytes+separator+len(line) > gameMakerCurrentSourceMaxBytes {
+				break
+			}
+			bytes += separator + len(line)
+			end++
+		}
+		if end > 0 {
+			entry["suggested_read"] = map[string]any{"operation": "read", "path": path, "start_line": 1, "end_line": end}
+		}
+		omitted = append(omitted, entry)
 	}
-	return sources
+	return sources, omitted
 }
 
 func gameMakerToolCallLimit(systemLimit int) int {
@@ -552,8 +581,12 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		if plan := r.service.ValidationPlan(ctx, run.Job.ID); plan != nil {
 			contextData["validation_plan"] = plan
 		}
-		if sources := gameMakerCurrentSources(ctx, r.service, run.Job.ID); len(sources) > 0 {
+		sources, omitted := gameMakerCurrentSources(ctx, r.service, run.Job.ID)
+		if len(sources) > 0 {
 			contextData["current_sources"] = sources
+		}
+		if len(omitted) > 0 {
+			contextData["omitted_sources"] = omitted
 		}
 	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)

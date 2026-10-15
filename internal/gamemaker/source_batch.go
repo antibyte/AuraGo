@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -35,7 +36,7 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
 	if len(edits) < 1 || len(edits) > 8 {
-		return SourceBatchWrite{}, fmt.Errorf("replace_many requires 1–8 edits with distinct existing paths")
+		return SourceBatchWrite{}, fmt.Errorf("replace_many requires 1–8 non-overlapping edits to existing files")
 	}
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		return SourceBatchWrite{}, err
@@ -44,34 +45,67 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 	if err != nil {
 		return SourceBatchWrite{}, err
 	}
-	type pending struct{ path, rel, before, after, temp string }
+	type replacement struct {
+		start, end int
+		text       string
+	}
+	type pending struct {
+		path, rel, before, after, temp string
+		replacements                   []replacement
+	}
 	files := make([]pending, 0, len(edits))
-	seen := map[string]bool{}
-	var growth int64
+	seen := map[string]int{}
 	for _, edit := range edits {
 		path, rel, err := secureJoin(stage, edit.Path, false)
 		if err != nil {
 			return SourceBatchWrite{}, err
 		}
 		key := strings.ToLower(rel)
-		if seen[key] {
-			return SourceBatchWrite{}, fmt.Errorf("replace_many: repeated path %s; combine its changes into one unique block", rel)
-		}
-		seen[key] = true
 		if edit.OldText == "" || edit.NewText == nil || edit.ExpectedSHA256 == "" {
 			return SourceBatchWrite{}, fmt.Errorf("%s: require old_text, explicit new_text and expected_sha256", rel)
 		}
-		before, err := s.ReadJobFile(ctx, jobID, rel)
-		if err != nil {
-			return SourceBatchWrite{}, err
+		index, exists := seen[key]
+		if !exists {
+			before, err := s.ReadJobFile(ctx, jobID, rel)
+			if err != nil {
+				return SourceBatchWrite{}, err
+			}
+			index = len(files)
+			seen[key] = index
+			files = append(files, pending{path: path, rel: rel, before: before})
 		}
-		if sourceHash(before) != edit.ExpectedSHA256 {
+		f := &files[index]
+		if f.rel != rel {
+			return SourceBatchWrite{}, fmt.Errorf("replace_many: use identical path casing for %s; no files were written", f.rel)
+		}
+		if sourceHash(f.before) != edit.ExpectedSHA256 {
 			return SourceBatchWrite{}, fmt.Errorf("source_conflict: %s changed; read it again; no files were written", rel)
 		}
-		if n := strings.Count(before, edit.OldText); n != 1 {
-			return SourceBatchWrite{}, fmt.Errorf("%s: old_text matches %d locations; no files were written", rel, n)
+		start := strings.Index(f.before, edit.OldText)
+		if start < 0 || strings.Contains(f.before[start+1:], edit.OldText) {
+			return SourceBatchWrite{}, fmt.Errorf("%s: old_text must match one unique original block; no files were written", rel)
 		}
-		after := strings.Replace(before, edit.OldText, *edit.NewText, 1)
+		end := start + len(edit.OldText)
+		for _, previous := range f.replacements {
+			if start < previous.end && end > previous.start {
+				return SourceBatchWrite{}, fmt.Errorf("%s: overlapping replacements; no files were written", rel)
+			}
+		}
+		f.replacements = append(f.replacements, replacement{start, end, *edit.NewText})
+	}
+	var growth int64
+	for i := range files {
+		f := &files[i]
+		slices.SortFunc(f.replacements, func(a, b replacement) int { return a.start - b.start })
+		var builder strings.Builder
+		position := 0
+		for _, edit := range f.replacements {
+			builder.WriteString(f.before[position:edit.start])
+			builder.WriteString(edit.text)
+			position = edit.end
+		}
+		builder.WriteString(f.before[position:])
+		after, rel := builder.String(), f.rel
 		if !utf8.ValidString(after) || strings.ContainsRune(after, 0) {
 			return SourceBatchWrite{}, fmt.Errorf("%s: source must be UTF-8 text", rel)
 		}
@@ -84,8 +118,8 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 		if err := s.validateScriptAssetImports(ctx, jobID, rel, after); err != nil {
 			return SourceBatchWrite{}, err
 		}
-		growth += int64(len(after) - len(before))
-		files = append(files, pending{path: path, rel: rel, before: before, after: after})
+		growth += int64(len(after) - len(f.before))
+		f.after = after
 	}
 	if err := validateTreeLimits(stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes-growth); err != nil {
 		return SourceBatchWrite{}, err

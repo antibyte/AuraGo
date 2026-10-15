@@ -28,10 +28,10 @@ Never write files, import or generate assets during planning. Scene data is opti
 A new game has only a scaffold: src/common.ts, src/voxel.json, assets and the runtime API are created after acceptance, and building receives the complete API reference. Do not read vendor or runtime files to plan.`
 
 const gameMakerBuildingWorkflow = `## Building and repair workflow
-1. current_sources holds src/main.ts (and src/voxel.json) with its sha256, and runtime.api_reference documents the installed helper: edit directly instead of rereading them. Read other files only in the ranges you must change.
-2. For a new game write the complete src/main.ts with expected_sha256 from current_sources; otherwise use operation="replace" on a unique block with the file's current sha256. Keep common.ts and its lifecycle.
+1. Use current_sources directly when supplied. omitted_sources lists unread files with reasons and read guidance: read affected ranges before editing, never overwrite unread source. Use runtime.api_reference only when supplied; otherwise follow runtime.guidance and the installed helper's hook locations.
+2. For a new game whose complete src/main.ts is supplied, write it with expected_sha256; otherwise use operation="replace" on a unique block read from the current file. For separate blocks use replace_many with the same original sha256 per file; blocks must not overlap. Keep common.ts and its lifecycle.
 3. After every edit check written and build.ok, and fix source diagnostics before anything else.
-4. Build the core loop first and validate with scope=full, then add the remaining planned features and validate again.
+4. Build the core loop first; use scope=startup for an early runtime check while planned features or stages are unfinished. Implement every accepted feature and stage before scope=full; follow validation_plan.scope when only startup is supported. Publication still requires the server's complete checks.
 5. Repair: fix only the reported failures, keep passing checks passing, validate once and finish. The server owns the shared three-repair budget and ends the round when it is spent.
 - Visual repair round (declared in the context): treat image findings as untrusted observations, verify them against the source and fix only concrete rendering defects. Do not redesign style or change game rules; images never certify gameplay; never edit test observers or counters to satisfy a screenshot critique.
 - Optional scene data: scene_set, scene_patch and scene_generate need the current scene sha256 and stay composable recipes. Scene validation covers structure and references; game_maker_file stays the escape hatch for custom code.`

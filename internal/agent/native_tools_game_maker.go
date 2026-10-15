@@ -336,6 +336,8 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 			delete(props, "design")
 			// Full replacement already has scene_set; do not repeat its schema.
 			delete(props["patch"].(map[string]interface{})["properties"].(map[string]interface{}), "replace")
+		} else if name == "game_maker_file" {
+			t.Function.Description += " Multiple replace_many blocks in one file must not overlap and use the same original sha256 and original old_text."
 		}
 		if voxel && name == "game_maker_project" {
 			operations := []string{"get_plan", "inspect", "list_files"}

@@ -35,20 +35,8 @@ func starterReferences(plan *GamePlan, files map[string]string) map[string]any {
 	if plan == nil {
 		return result
 	}
-	expected, err := gameTemplateSources(*plan)
-	common, exists := files["src/common.ts"]
-	if err != nil || !exists || common != string(expected["common.ts"]) {
-		return result
-	}
-	// This descriptor is now bound to the complete verified template.
-	var descriptor map[string]any
-	lines := strings.Split(string(expected["common.ts"]), "\n")
-	for _, line := range lines[:min(8, len(lines))] {
-		if strings.HasPrefix(line, runtimeContractPrefix) {
-			_ = json.Unmarshal([]byte(strings.TrimPrefix(line, runtimeContractPrefix)), &descriptor)
-			break
-		}
-	}
+	common := files["src/common.ts"]
+	descriptor := verifiedTemplateDescriptor(plan, common)
 	if descriptor == nil {
 		return result
 	}
@@ -83,6 +71,27 @@ func starterReferences(plan *GamePlan, files map[string]string) map[string]any {
 		}
 	}
 	return map[string]any{"mode": "verified_template_api", "references": compact}
+}
+
+// A retained version comment cannot certify an authored helper's API.
+func verifiedTemplateDescriptor(plan *GamePlan, common string) map[string]any {
+	if plan == nil || common == "" {
+		return nil
+	}
+	expected, err := gameTemplateSources(*plan)
+	if err != nil || strings.ReplaceAll(common, "\r\n", "\n") != strings.ReplaceAll(string(expected["common.ts"]), "\r\n", "\n") {
+		return nil
+	}
+	lines := strings.Split(strings.ReplaceAll(common, "\r\n", "\n"), "\n")
+	for _, line := range lines[:min(8, len(lines))] {
+		if strings.HasPrefix(line, runtimeContractPrefix) {
+			var descriptor map[string]any
+			if json.Unmarshal([]byte(strings.TrimPrefix(line, runtimeContractPrefix)), &descriptor) == nil {
+				return descriptor
+			}
+		}
+	}
+	return nil
 }
 
 // Explicit structural summaries with omission counts are never partial source.

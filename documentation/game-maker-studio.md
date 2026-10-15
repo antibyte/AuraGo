@@ -612,14 +612,19 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
 - File errors name the project-relative path only. A missing file answer
   points to `list_files`; host locations never reach the model, the Studio or
   the job record.
-- `replace_many` accepts one to eight edits with distinct existing paths. Each
+- `replace_many` accepts one to eight edits to existing files. Each
   contains `path`, `expected_sha256`, unique `old_text` and explicit `new_text`.
-  Every path/hash/import/size check runs before mutation. A conflict writes
+  Multiple blocks in one file use the same original hash and must not overlap.
+  Every block matches the original file, never text inserted by another edit.
+  Every path/hash/import/size check runs on the combined changes before mutation. A conflict writes
   nothing; IO failures roll back applied edits. One build follows the complete
   change and returns per-file hashes. A saved change may still fail compilation.
-- Project inspection and phase context include the installed helper descriptor,
-  file hashes and hook locations. Older/custom helpers without a descriptor are
-  identified explicitly. New `three-2` starters provide
+- Project inspection and phase context include current file hashes and hook
+  locations. The helper descriptor and API reference are included only when the
+  complete helper matches the accepted plan's template (allowing CRLF/LF).
+  A retained version comment alone cannot certify a changed helper; these games
+  receive guidance to read the actual source at the supplied hook locations.
+  New `three-2` starters provide
   `api.hasLineOfSight(from, to)` and `combat.enemyRange`, `enemyDamage` and
   `enemyCooldown` (seconds). Visible tree/obstacle/building roles block shots;
   individual objects can override `blocksShots`. Scene-builder damage remains
@@ -649,6 +654,14 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
   sequence when this is smaller than the original array. Every occurrence is
   retained, including repeated additive requests and changes back to an earlier
   preference; no distinct requirement is summarized away.
+- Entry files up to 24,000 bytes are supplied in `current_sources` with their
+  hashes. Larger files appear in `omitted_sources` with size, line count, hash,
+  omission reason and a bounded initial read when possible. The agent reads the
+  affected ranges before editing; unread content must not be overwritten.
+- During implementation, an early `startup` check can exercise the core loop's
+  startup without requiring unfinished planned stages. The agent completes all
+  accepted features and stages before full validation. Startup-only free-code
+  games keep their disclosed scope; all publication checks remain mandatory.
 
 The `tool_result` event records tool, allowlisted operation/status, phase and
 duration only. It contains no source, arguments, result text or reasoning; tool
