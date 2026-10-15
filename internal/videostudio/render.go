@@ -76,7 +76,9 @@ type RenderOptions struct {
 	// MaxOutputBytes bounds the final file; 0 means 2 GiB.
 	MaxOutputBytes int64
 	Encoder        Encoder
-	Progress       func(float64)
+	// OnEncoderFallback is called when a hardware encoder failed and the render restarts with libx264.
+	OnEncoderFallback func(error)
+	Progress          func(float64)
 }
 
 // Render produces a bounded H.264/AAC MP4 of the whole project.
@@ -86,8 +88,22 @@ func Render(ctx context.Context, ffmpegPath string, project Project, assetPaths 
 
 // RenderWithOptions renders in segments: each video segment is encoded on its own, audio is mixed into
 // sample-exact PCM per segment, and one final pass concatenates the video losslessly, limits the mixed audio
-// once and encodes AAC.
+// once and encodes AAC. A failed hardware video segment restarts the render once with libx264.
 func RenderWithOptions(ctx context.Context, opts RenderOptions) error {
+	opts.Progress = monotonicProgress(opts.Progress)
+	err := renderOnce(ctx, opts)
+	var segment *SegmentError
+	if err == nil || !opts.Encoder.Hardware() || ctx.Err() != nil || !errors.As(err, &segment) || segment.Audio {
+		return err
+	}
+	if opts.OnEncoderFallback != nil {
+		opts.OnEncoderFallback(err)
+	}
+	opts.Encoder = Encoder{Quality: opts.Encoder.Quality}
+	return renderOnce(ctx, opts)
+}
+
+func renderOnce(ctx context.Context, opts RenderOptions) error {
 	project := opts.Project
 	if err := Validate(project); err != nil {
 		return fmt.Errorf("invalid Video Studio project: %w", err)
@@ -268,7 +284,7 @@ func rangeHasAudio(project Project, sources map[string]renderSource, start, end 
 }
 
 func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, width, height int, encoder Encoder, output string, progress func(float64)) error {
-	inputs, graph, err := buildVideoSegment(project, seg, sources, rate, width, height)
+	inputs, graph, err := buildVideoSegment(project, seg, sources, rate, width, height, encoder.filterTail())
 	if err != nil {
 		return err
 	}
@@ -279,7 +295,9 @@ func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg
 	defer os.Remove(graphPath)
 	// -copyts -start_at_zero keeps every seeked input on the source's own timeline, so the graph can pick source
 	// frames by absolute position instead of restarting the frame-rate cadence at the first frame after the seek.
-	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error", "-copyts", "-start_at_zero"}, segmentInputArgs(inputs, rate)...)
+	// Hardware encoders initialise their device (globalArgs) before the inputs.
+	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error", "-copyts", "-start_at_zero"}, encoder.globalArgs()...)
+	args = append(args, segmentInputArgs(inputs, rate)...)
 	args = append(args,
 		"-filter_threads", strconv.Itoa(threadLimit), "-filter_complex_threads", strconv.Itoa(threadLimit),
 		"-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-map_metadata", "-1",

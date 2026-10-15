@@ -61,7 +61,7 @@ func inputPaths(inputs []segmentInput) []string {
 
 // buildVideoSegment composes the visual tracks of seg. When seg starts or ends inside a transition the graph
 // covers the whole transition (pre-roll) and trims the composed frames back to seg.
-func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int) ([]segmentInput, string, error) {
+func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, error) {
 	window := expandRange(seg, videoForbiddenSpans(project))
 	layers, inputs, err := segmentLayers(project, window, sources, rate)
 	if err != nil {
@@ -85,7 +85,7 @@ func buildVideoSegment(project Project, seg Segment, sources map[string]renderSo
 	if outWidth != width || outHeight != height {
 		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", outWidth, outHeight)
 	}
-	filters = append(filters, tail+","+convert+",format=yuv420p[vs_video_out]")
+	filters = append(filters, tail+","+convert+",format=yuv420p"+upload+"[vs_video_out]")
 	return inputs, strings.Join(filters, ";\n"), nil
 }
 

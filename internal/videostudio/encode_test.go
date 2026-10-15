@@ -3,9 +3,11 @@ package videostudio
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEncoderCandidatesAndArgs(t *testing.T) {
@@ -74,5 +76,32 @@ func TestSelectEncoderFallsThroughCandidates(t *testing.T) {
 	}
 	if status := SelectEncoder(context.Background(), ffmpeg, "off", ""); status.Name != CodecX264 || status.Note != "" {
 		t.Fatalf("off status = %+v", status)
+	}
+}
+
+func TestRenderFallsBackFromBrokenHardwareEncoder(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	videoPath := filepath.Join(root, "red.mp4")
+	makeVideoFixture(t, ctx, ffmpeg, videoPath, "red")
+	asset, err := Probe(ctx, ffmpeg, videoPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	asset.ID = "video"
+	project := Project{Version: CurrentVersion, Name: "Fallback", Width: 720, Height: 720, FPS: 30, Assets: []Asset{asset},
+		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{ID: "v", AssetID: "video", Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}}}}}
+	output := filepath.Join(root, "fallback.mp4")
+	var fallback error
+	err = RenderWithOptions(ctx, RenderOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: map[string]string{"video": videoPath}, Output: output,
+		Encoder:           Encoder{Codec: CodecVAAPI, Device: filepath.Join(root, "missing-render-node")},
+		OnEncoderFallback: func(err error) { fallback = err }})
+	if err != nil || fallback == nil {
+		t.Fatalf("render = %v, fallback = %v", err, fallback)
+	}
+	if got, err := Probe(ctx, ffmpeg, output); err != nil || got.Codec != "h264" {
+		t.Fatalf("fallback output = %+v, %v", got, err)
 	}
 }

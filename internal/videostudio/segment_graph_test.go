@@ -19,7 +19,7 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 	rate := ProjectRate(project)
 	sources := map[string]renderSource{"v": {asset: project.Assets[0], path: "v.mp4", videoEnd: 30}}
 
-	inputs, graph, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720)
+	inputs, graph, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 
 	// A position past the decodable video seeks to one second before its end and shifts the rest in the graph.
 	sources["v"] = renderSource{asset: project.Assets[0], path: "v.mp4", videoEnd: 2}
-	inputs, graph, err = buildVideoSegment(project, Segment{0, 20}, sources, rate, 640, 360)
+	inputs, graph, err = buildVideoSegment(project, Segment{0, 20}, sources, rate, 640, 360, "")
 	if err != nil {
 		t.Fatal(err)
 	}
