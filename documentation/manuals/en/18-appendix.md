@@ -416,7 +416,7 @@ Current surfaces (full list in [Chapter 21](21-api-reference.md)):
 | Bluetooth | `GET /api/bluetooth/status`, `POST /api/bluetooth/reprobe` |
 | CYD | `GET /api/cyd/status`, `POST /api/cyd/test` |
 
-### Static files
+### Static Files
 
 | Endpoint | Description |
 |----------|-------------|
@@ -443,7 +443,7 @@ Current surfaces (full list in [Chapter 21](21-api-reference.md)):
 ### Detailed Command Reference
 
 #### `/help`
-```
+```text
 Usage: /help
 
 Lists all available slash commands with brief descriptions.
@@ -457,7 +457,7 @@ Agent: 📜 Available Commands:
 ```
 
 #### `/reset`
-```
+```text
 Usage: /reset
 
 Clears the current session's conversation history from short-term 
@@ -474,7 +474,7 @@ Use this when:
 ```
 
 #### `/stop`
-```
+```text
 Usage: /stop
 
 Immediately interrupts the current agent action. Useful when:
@@ -486,7 +486,7 @@ Note: Does not undo already completed actions.
 ```
 
 #### `/restart`
-```
+```text
 Usage: /restart
 
 Gracefully restarts the AuraGo server. All connections will be 
@@ -498,7 +498,7 @@ disconnected. The agent will:
 ```
 
 #### `/debug`
-```
+```text
 Usage: /debug [on|off]
 
 Controls debug output verbosity.
@@ -515,7 +515,7 @@ When enabled:
 ```
 
 #### `/personality`
-```
+```text
 Usage: /personality [name]
 
 Without arguments: Lists available personalities
@@ -535,7 +535,7 @@ Agent: 🎭 Personality switched to professional
 ```
 
 #### `/budget`
-```
+```text
 Usage: /budget
 
 Displays today's API usage statistics:
@@ -941,7 +941,7 @@ docker compose up -d
 
 ### Default Directory Structure
 
-```
+```text
 AuraGo/
 ├── aurago                    # Main executable
 ├── config.yaml               # Configuration
@@ -998,7 +998,7 @@ Version numbers and feature lists belong in GitHub Releases. This handbook descr
 
 When updating AuraGo:
 
-```
+```text
 □ Read release notes for breaking changes
 □ Backup data/ directory
 □ Export current config: cp config.yaml config.yaml.backup
@@ -1093,7 +1093,7 @@ When updating AuraGo:
 
 This project is provided as-is for personal and educational use.
 
-```
+```text
 Copyright (c) 2024 AuraGo Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

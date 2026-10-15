@@ -48,7 +48,7 @@ Ein **Egg** beschreibt, *wie* der deployte Worker arbeitet:
 | `include_vault` | Verschlüsselten Vault-Export zum Ziel senden: den API-Key des Eggs und bei Nests mit **Secret dieses Nests in den Egg-Vault kopieren** das Secret des Nests (nur auf vertrauenswürdigen Hosts) |
 | `active` | Ob das Egg zugewiesen werden kann |
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  AuraGo Master (HQ)                                         │
 │                                                             │
@@ -322,7 +322,7 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/stop
 
 Status-Übergänge:
 
-```
+```text
 idle ──Hatch──► hatching ──Erfolg──► running
                   │                      │
                   │ Fehler               ├── disconnect / stop ──► stopped

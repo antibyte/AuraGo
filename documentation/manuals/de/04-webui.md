@@ -10,7 +10,7 @@ Die meisten Seiten brauchen `web_config.enabled: true`. Navigation lädt neu.
 
 [![Echter Virtual Desktop](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │ ⚡ AURA  GO    [Header-Buttons]              🌙         ≡  │
 ├────────────────────────────────────────────────────────────┤
@@ -55,7 +55,7 @@ Je nach Seite werden verschiedene Buttons angezeigt:
 
 Das Radial-Menü ist die Hauptnavigation. Es öffnet sich als kreisförmiges Menü von der oberen rechten Ecke.
 
-```
+```text
                     ┌─────────┐
               🥚   │  Chat   │   💬
     Invasion ─────┤   ☰     ├───── Telegram
@@ -92,7 +92,7 @@ Der Chat ist die am häufigsten genutzte Ansicht.
 
 ### Aufbau
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ Header                                      │
 ├─────────────────────────────────────────────┤
@@ -139,7 +139,7 @@ Der Chat ist die am häufigsten genutzte Ansicht.
 
 Wenn der Agent Tools nutzt, werden diese angezeigt:
 
-```
+```text
 🛠️ Tool: execute_shell
    $ ls -la
    
@@ -187,7 +187,7 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 
 ### Struktur
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ Konfiguration                    [Save]     │
 ├──────────┬──────────────────────────────────┤

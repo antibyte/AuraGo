@@ -8,7 +8,7 @@ from the browser to the board. Later versions can reach the device over Wi-Fi.
 Technical details for administrators (configuration, Docker, OTA protocol, error codes) are in the
 [operator reference](../../cyd-creator.md).
 
-## What you need
+## What You Need
 
 - **A supported board.** When you create a project, the board list shows what has been tested:
 
@@ -37,7 +37,7 @@ Technical details for administrators (configuration, Docker, OTA protocol, error
     address 0x0, for example with esptool or ESP Web Tools.
 - On Windows the classic CYD may need the CH340 driver.
 
-## Your first app
+## Your First App
 
 1. Open **CYD Creator** on the desktop (start menu → Development).
 2. Choose **Describe with the agent** or **Start in the designer**. The dialog asks for the name, board, theme,
@@ -60,7 +60,7 @@ Technical details for administrators (configuration, Docker, OTA protocol, error
    board does not respond, hold the BOOT button while it connects. The serial monitor opens afterwards (you can
    switch that off in the dialog).
 
-## Flashing: keep settings or full install
+## Flashing: Keep Settings or Full Install
 
 The Flash dialog asks for the **Install mode**:
 
@@ -75,7 +75,7 @@ The Flash dialog asks for the **Install mode**:
 The dialog flashes at 921600 baud and falls back to 460800 and 115200 on trouble. It checks the image before
 writing (SHA-256) and afterwards (MD5 read back from the board).
 
-## The serial monitor
+## The Serial Monitor
 
 The **Monitor** tab at the bottom shows the board's serial output (115200 baud by default). You can **Pause**,
 **Clear**, **Filter lines** and show **Timestamps**. **Restart board** resets it through the USB control lines.
@@ -83,7 +83,7 @@ After a crash a **Decode** button appears next to the `Backtrace:` line: AuraGo 
 lines with the build this browser flashed last. **Attach log** hands up to 16 KiB of the selected or visible lines
 to the agent. The monitor pauses while a flash runs.
 
-## Wi-Fi on the device
+## Wi-Fi on the Device
 
 Apps that use Wi-Fi show the setup on first start:
 
@@ -127,7 +127,7 @@ changes (a Let's Encrypt certificate is renewed about every 60 days, a self-sign
 shows "AuraGo certificate changed – please reflash via USB". Only a new flash over USB helps then. `http://` has no
 fingerprint, but the key travels unencrypted; the device still checks the update images.
 
-## Export and import
+## Export and Import
 
 **Export** saves the project as a ZIP: a complete PlatformIO project with `cyd.project.json`, your code under
 `src/app`, the images, the generated code and a README. You can build it further, for example in VS Code with
@@ -150,7 +150,7 @@ refuses an archive when
 - an image is damaged, too large or has a name that is not allowed, or the images take more than 16 MiB together,
 - it needs a newer template version than this AuraGo knows.
 
-## Good to know
+## Good to Know
 
 - **Saved automatically.** The designer and the code editor save one second after your last change. When the
   project was changed elsewhere, CYD Creator asks whether to keep editing, load the saved version or overwrite it.
@@ -176,7 +176,7 @@ refuses an archive when
 - **Security in app code.** HTTPS requests from your app are encrypted but do not check the certificate. Do not send
   passwords or keys through them.
 
-## Designer shortcuts
+## Designer Shortcuts
 
 | Key | Action |
 |---|---|
@@ -190,7 +190,7 @@ refuses an archive when
 | Enter or Space (in the Widgets list) | Add the widget in the centre |
 | F2 / Alt+arrow up or down (in the screen list) | Rename / move the screen |
 
-## When something goes wrong
+## When Something Goes Wrong
 
 | Message | What helps |
 |---|---|

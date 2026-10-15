@@ -29,7 +29,7 @@ AuraGo uses YAML for configuration. The default configuration file is `config.ya
 
 ### File Structure
 
-```
+```text
 config.yaml          # Main configuration file
 config_debug.yaml    # Debug/testing configuration (optional)
 ```
@@ -648,7 +648,7 @@ personality:
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
 | `inner_voice.enabled` | `false` | Subconscious nudge engine for subtle behavior hints |
 
-### Adaptive dynamics
+### Adaptive Dynamics
 
 The personality engine keeps transactional dynamics values that show how the character develops with you: **load** (rises through criticism and conflict), **familiarity** (grows through repeated positive interaction), and **friction**. Load and friction decay over time; voice and response style are influenced live. The Dashboard shows the current dynamics on the personality card with a trend (steady, recovering, strained) and offers a reset: `POST /api/personality/dynamics/reset` zeroes the dynamics and returns affect to rest values without changing traits, lived notes, or the active persona.
 
@@ -805,7 +805,7 @@ services:
 
 AuraGo validates the configuration on startup:
 
-```
+```text
 [INFO] Loading config from ./config.yaml
 [INFO] Configuration validated successfully
 [ERROR] Invalid config: providers section requires at least one provider
@@ -1013,7 +1013,7 @@ auth:
 
 The following blocks are available in the current Web UI or `config_template.yaml`. All features remain disabled or read-only by default.
 
-### AuraGo-Qwen — local test and fallback model
+### AuraGo-Qwen — Local Test and Fallback Model
 
 AuraGo-Qwen is a small local model tuned for AuraGo tool-call shapes. It is intended for tests and controlled fallback use, not as a replacement for a capable cloud or large local model. Open **Config → Local LLM**, check compatibility first, and perform installation or a smoke test only after an explicit administrator action.
 
@@ -1061,7 +1061,7 @@ speech_lab:
 
 In managed mode AuraGo provisions the cryptographically signed bundle stack (pinned signing key) only after administrator confirmation; `auto_update: false` keeps the verified bundle until an admin refreshes it. `AURAGO_SPEECH_LAB_BASE_URL` can override the URL at runtime; the Browser Lab is normally derived from the current AuraGo host on port `8766`. There is no silent cloud fallback. See [Speech Lab](../../s2s_speech_lab.md).
 
-### Native SIP telephony
+### Native SIP Telephony
 
 SIP settings live under `sip` and are edited under **Config → SIP Phone**. The feature remains disabled and read-only until the account, network, and permissions are explicitly configured. The digest password belongs only in the Vault key `sip_endpoint_password`.
 
@@ -1111,7 +1111,7 @@ Recent game-agent capabilities:
 - **Feedback and progression:** a shared runtime module provides player feedback, result/stage UI, and checkpoints (Phaser: `damagePlayer()` with checkpoints; Three.js: `api.damagePlayer(amount)`). Feedback never changes gameplay values; peaceful single-screen games stay valid without combat or lives.
 - **Finishing window:** a game with an accepted plan, a compiled build, and recently changed sources gets one extension window beyond the normal job budget (half the budget, at most 15 minutes); validation remains required.
 
-### Local network shares
+### Local Network Shares
 
 `network_shares` manages shares on the AuraGo host only. Detection is passive: it installs no packages, starts no services, and changes no global server configuration. Each mutation needs its matching permission and an existing canonical directory beneath `allowed_roots`.
 
@@ -1138,11 +1138,11 @@ Only shares created by AuraGo and recorded in `data/network_shares.db` may be ch
 
 The resident workspace index is controlled by `workspace_search.enabled`; it is separate from the semantic `indexing` service and does not persist file contents. The `go2rtc` camera integration is opt-in as well; sources and the internal password are stored only in the Vault. See [go2rtc](../../go2rtc.md) and [Workspace Search](06-tools.md#10-workspace-search) for the detailed limits.
 
-### Speech output — sanoTTS as the local default
+### Speech Output — sanoTTS as the Local Default
 
 New installations use the local CPU pipeline **sanoTTS** (`tts.provider: sanotts`) for speech output by default; the voice follows the user language, and unsupported voices fall back to English. Existing providers (ElevenLabs, Mistral, Piper, Supertonic) remain selectable under **Config → Speech Output**. The Speech Lab stays separate and attaches the s2s pipeline.
 
-### Task LLM router
+### Task LLM Router
 
 The optional router picks a configured provider and model for each new chat task. It is off by default. Create providers under **Config → Providers** first (credentials stay in the Vault), then assign one of the nine areas `general`, `easy`, `normal`, `complex`, `coding`, `research`, `creativity`, `security`, and `writing` under **Config → LLM Router**. Specialized areas take precedence over difficulty; an empty area falls back to the ordinary active model, not to other router targets. The decision belongs to one agent run including its tool rounds.
 
@@ -1158,7 +1158,7 @@ llm_router:
 
 Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS, and authorized MeshCore use the shared router; explicit Desktop and Speech Lab choices plus prepared workflows, Game Maker, Detective, SIP, and missions keep their models. A brief continuation such as "weiter" can reuse the previous decision for up to ten minutes in the same session. The Web UI offers a local preview test and one-shot helper questions; the Dashboard shows counters since restart. Details: [Task LLM router](../../llm-router.md).
 
-### Newspaper — personal daily edition
+### Newspaper — Personal Daily Edition
 
 `newspaper` controls the optional, server-built daily edition of the same-named desktop app (chapter 4). Interests and destinations live in the Newspaper profile of the app, never in YAML. Research runs with time and page budgets; editions stay in the archive as revisions.
 
@@ -1175,7 +1175,7 @@ newspaper:
 
 Failed deliveries report bounces back. A failed or interrupted daily run without a published edition may be retried manually for the same local date (next numbered revision); the scheduler makes only one attempt per date. Curated RSS sources and a correction flow complement the automatic research.
 
-### treg catalog gateway
+### treg Catalog Gateway
 
 `treg` exposes the dynamic treg catalog through the three agent tools `treg_catalog`, `treg_call`, and `treg_status`. The integration is optional, off by default, and read-only. The transport is pinned to the public treg API; token, authentication, and cost headers never come from the model. The Vault key is `treg_token`.
 

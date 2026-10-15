@@ -37,12 +37,12 @@ Slash-Commands beginnen mit `/`. Abkürzungen, keine zweite API.
 Zeigt eine Liste aller registrierten Commands mit ihren Kurzbeschreibungen an.
 
 **Beispiel:**
-```
+```text
 /help
 ```
 
 **Ausgabe:**
-```
+```text
 📜 **Verfügbare Befehle:**
 
 • /reset: Löscht den aktuellen Chat-Verlauf (Short-Term Memory).
@@ -61,12 +61,12 @@ Löscht den aktuellen Chat-Verlauf und das Kurzzeitgedächtnis (Short-Term Memor
 > **Auto-Learning:** Bei `agent.auto_learning.enabled: true` startet `/reset` eine leichte Session-Retrospektive (`RunSessionRetro`).
 
 **Beispiel:**
-```
+```text
 /reset
 ```
 
 **Ausgabe:**
-```
+```text
 🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.
 ```
 
@@ -78,12 +78,12 @@ Löscht den aktuellen Chat-Verlauf und das Kurzzeitgedächtnis (Short-Term Memor
 Unterbricht die aktuell laufende Aktion des Agenten. Dies ist hilfreich, wenn der Agent in eine Endlosschleife gerät oder eine unerwünschte Aktion ausführt.
 
 **Beispiel:**
-```
+```text
 /stop
 ```
 
 **Ausgabe:**
-```
+```text
 🛑 AuraGo wurde angewiesen, die aktuelle Aktion zu unterbrechen.
 ```
 
@@ -93,12 +93,12 @@ Unterbricht die aktuell laufende Aktion des Agenten. Dies ist hilfreich, wenn de
 Startet den AuraGo-Server neu. Dies kann nützlich sein, nachdem Änderungen an der Konfiguration vorgenommen wurden, die einen Neustart erfordern.
 
 **Beispiel:**
-```
+```text
 /restart
 ```
 
 **Ausgabe:**
-```
+```text
 🔄 AuraGo wird neu gestartet...
 ```
 
@@ -110,24 +110,24 @@ Startet den AuraGo-Server neu. Dies kann nützlich sein, nachdem Änderungen an 
 Aktiviert oder deaktiviert den Debug-Modus des Agenten. Im Debug-Modus werden detailliertere Fehlermeldungen im System-Prompt aktiviert.
 
 **Syntax:**
-```
+```text
 /debug [on|off|1|0|true|false]
 ```
 
 **Beispiele:**
-```
+```text
 /debug on      # Debug-Modus aktivieren
 /debug off     # Debug-Modus deaktivieren
 /debug         # Toggle (umschalten)
 ```
 
 **Ausgabe (aktiviert):**
-```
+```text
 🔍 **Agent Debug-Modus aktiviert.** Der Agent meldet Fehler jetzt mit detaillierten Informationen.
 ```
 
 **Ausgabe (deaktiviert):**
-```
+```text
 🔇 **Agent Debug-Modus deaktiviert.** Der Agent verhält sich normal.
 ```
 
@@ -137,12 +137,12 @@ Aktiviert oder deaktiviert den Debug-Modus des Agenten. Im Debug-Modus werden de
 Listet alle verfügbaren Persönlichkeiten auf oder wechselt zu einer spezifischen Persönlichkeit.
 
 **Syntax:**
-```
+```text
 /personality [name]
 ```
 
 **Beispiele:**
-```
+```text
 /personality                       # Listet alle Persönlichkeiten
 /personality friend                # Wechselt zur Freund-Persönlichkeit
 /personality professional          # Wechselt zur Profi-Persönlichkeit
@@ -150,7 +150,7 @@ Listet alle verfügbaren Persönlichkeiten auf oder wechselt zu einer spezifisch
 ```
 
 **Ausgabe (Listen):**
-```
+```text
 🎭 **Verfügbare Persönlichkeiten:**
 
 • neutral
@@ -170,7 +170,7 @@ Nutze `/personality <name>` zum Umstellen.
 ```
 
 **Ausgabe (Wechseln):**
-```
+```text
 🎭 Persönlichkeit auf **friend** umgestellt. Die Änderung ist permanent.
 ```
 
@@ -182,7 +182,7 @@ Nutze `/personality <name>` zum Umstellen.
 Zeigt den aktuellen Budget-Status an, einschließlich der Tageskosten, des Limits und der verwendeten Modelle.
 
 **Syntax:**
-```
+```text
 /budget [en|english]
 ```
 
@@ -190,13 +190,13 @@ Zeigt den aktuellen Budget-Status an, einschließlich der Tageskosten, des Limit
 - `en` (optional) – Zeigt die Ausgabe auf Englisch an
 
 **Beispiele:**
-```
+```text
 /budget        # Deutsch
 /budget en     # Englisch
 ```
 
 **Ausgabe:**
-```
+```text
 💰 **Budget Status (2026-03-28)**
 
 Heutige Kosten: $0.42 / $5.00 (8.4%)
@@ -213,12 +213,12 @@ Verwendete Modelle:
 Schaltet die Sprachausgabe (TTS) ein oder aus. Wenn kein Argument angegeben wird, wird der aktuelle Zustand umgeschaltet.
 
 **Syntax:**
-```
+```text
 /voice [on|off|1|0|true|false]
 ```
 
 **Beispiele:**
-```
+```text
 /voice on      # Sprachausgabe aktivieren
 /voice off     # Sprachausgabe deaktivieren
 /voice         # Umschalten
@@ -230,7 +230,7 @@ Schaltet die Sprachausgabe (TTS) ein oder aus. Wenn kein Argument angegeben wird
 Zeigt alle aktiven System-Warnungen aus dem Warnungs-Registry mit Schweregrad (critical/warning/info) an.
 
 **Beispiel:**
-```
+```text
 /warnings
 ```
 
@@ -240,7 +240,7 @@ Zeigt alle aktiven System-Warnungen aus dem Warnungs-Registry mit Schweregrad (c
 Speichert das sudo-Passwort sicher im Vault für das `execute_sudo` Tool. Das Passwort wird AES-256-GCM verschlüsselt gespeichert.
 
 **Syntax:**
-```
+```text
 /sudopwd <passwort>
 /sudopwd --clear
 ```
@@ -250,13 +250,13 @@ Speichert das sudo-Passwort sicher im Vault für das `execute_sudo` Tool. Das Pa
 - `--clear` – Löscht das gespeicherte Passwort
 
 **Beispiele:**
-```
+```text
 /sudopwd meinSicheresPasswort123
 /sudopwd --clear
 ```
 
 **Ausgabe:**
-```
+```text
 ✅ Sudo-Passwort erfolgreich im Vault gespeichert.
 ⚠️ Hinweis: `agent.sudo_enabled` ist noch deaktiviert. Aktiviere es in der Config.
 ```
@@ -269,7 +269,7 @@ Speichert das sudo-Passwort sicher im Vault für das `execute_sudo` Tool. Das Pa
 Registriert einen neuen SSH-Server im Inventar und speichert die Zugangsdaten sicher im Vault.
 
 **Syntax:**
-```
+```text
 /addssh host=NAME user=USER [ip=IP] [pass=PASS|keypath=PATH] [port=22] [tags=tag1,tag2]
 ```
 
@@ -285,13 +285,13 @@ Registriert einen neuen SSH-Server im Inventar und speichert die Zugangsdaten si
 | `tags` | Nein | Komma-getrennte Tags |
 
 **Beispiele:**
-```
+```text
 /addssh host=server1 user=root pass=geheim
 /addssh host=server2 user=admin keypath=/home/user/.ssh/id_rsa port=2222 tags=produktion,web
 ```
 
 **Ausgabe:**
-```
+```text
 ✅ Server server1 erfolgreich registriert mit ID: abc-123-def
 ```
 
@@ -301,12 +301,12 @@ Registriert einen neuen SSH-Server im Inventar und speichert die Zugangsdaten si
 Zeigt den aktuellen OpenRouter-Kontostand und den Verbrauch an. Nur verfügbar, wenn OpenRouter als LLM-Provider konfiguriert ist.
 
 **Beispiel:**
-```
+```text
 /credits
 ```
 
 **Ausgabe:**
-```
+```text
 💳 **OpenRouter Credits**
 
 Kontostand: $25.43

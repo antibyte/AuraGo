@@ -39,7 +39,7 @@ Die UI spricht 16 Sprachen. Persönlichkeiten ändern die Haltung, nicht die Ber
 
 [![Systemverdrahtung von Kanälen über die Agent-Schleife zu Tools und Vault](../../../assets/readme/system-wiring.svg)](../../../assets/readme/system-wiring.svg)
 
-```
+```text
 Kanäle / Missionen
         │
         ▼

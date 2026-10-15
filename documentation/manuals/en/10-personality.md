@@ -44,7 +44,7 @@ personality:
   core_personality: "friend"
 ```
 
-### Personality Engine V2 (LLM-based)
+### Personality Engine V2 (LLM-Based)
 
 > ⚠️ **Requires additional API calls:** The V2 engine analyzes mood and context with a separate LLM call.
 
@@ -170,7 +170,7 @@ When `personality.user_profiling: true` is set (**Config → Personality**), Aur
 - Experience level
 
 **Example - Learned Preferences:**
-```
+```text
 User: Can you help me with the Python script?
 
 [AuraGo learned: User uses Python]
@@ -286,7 +286,7 @@ POST /api/personality/dynamics/reset   # zero dynamics, return affect to rest
 
 ### Choosing the Right Personality
 
-```
+```text
 Use Case → Recommended Personality
 ─────────────────────────────────────────────
 Customer Support   → professional

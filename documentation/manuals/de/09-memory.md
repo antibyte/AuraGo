@@ -20,7 +20,7 @@ AuraGo implementiert ein hierarchisches Gedächtnismodell:
 | **Kernspeicher (Core Memory)** | SQLite (ältere `core_memory.md` wird migriert) | Sofort | Permanent |
 | **Langzeitgedächtnis (LTM)** | Vektordatenbank | Schnell | Permanent (wenn aktiviert) |
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    Memory Layers                        │
 ├─────────────────────────────────────────────────────────┤
@@ -117,7 +117,7 @@ Vulkan übersprungen und CPU bleibt verfügbar.
 
 ### Speicherort
 
-```
+```text
 data/vectordb/       # Vektordatenbank (chromem-go) — Langzeit-Speicher (LTM)
 data/embeddings/      # Geprüfte Modelle, native Runtimes und Benchmark-Auswahl
 ```
@@ -163,7 +163,7 @@ Der Kernspeicher enthält permanente Fakten, die AuraGo über den Benutzer und d
 
 ### Speicherort
 
-```
+```text
 SQLite (nach Start-Migration; eine alte data/core_memory.md wird nach .migrated verschoben)
 ```
 
@@ -171,7 +171,7 @@ SQLite (nach Start-Migration; eine alte data/core_memory.md wird nach .migrated 
 
 Die Datei wird automatisch verwaltet. Der Agent kann Fakten hinzufügen mit:
 
-```
+```text
 Du: Merke dir: Mein Name ist Max und ich arbeite mit Go
 Agent: ✅ In Core Memory gespeichert
 ```
@@ -207,7 +207,7 @@ Ein strukturiertes System für umsetzbare Informationen mit Kategorien, Priorit�
 ### Notizen
 
 **Notizen erstellen:**
-```
+```text
 Du: Speichere als Notiz: Server-IP ist 192.168.1.100
 Du: Notiz: Meeting-Notizen von heute - Q4-Ziele besprochen
 ```
@@ -220,7 +220,7 @@ Du: Notiz: Meeting-Notizen von heute - Q4-Ziele besprochen
 - Lernen
 
 **Notizen suchen:**
-```
+```text
 Du: Finde meine Notizen zum Server
 → Zeigt alle Notizen mit "Server"
 ```
@@ -228,7 +228,7 @@ Du: Finde meine Notizen zum Server
 ### Aufgaben (To-Dos)
 
 **Aufgaben erstellen:**
-```
+```text
 Du: Füge Aufgabe hinzu: Einkaufen morgen
 Du: Task: Bericht bis Freitag einreichen, hohe Priorität
 ```
@@ -244,7 +244,7 @@ Du: Task: Bericht bis Freitag einreichen, hohe Priorität
 | Wiederkehrend | Täglich, Wöchentlich, Monatlich |
 
 **Aufgaben verwalten:**
-```
+```text
 Du: Zeige meine Aufgaben
 Du: Markiere Einkaufen als erledigt
 Du: Welche Aufgaben sind diese Woche fällig?
@@ -290,7 +290,7 @@ Halte indexierte Verzeichnisse fokussiert und vermeide riesige, unstrukturierte 
 
 ### Die Memory-Pipeline
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │  1. Nutzereingabe                                          │
 └────────────────┬─────────────────────────────────────────┘
@@ -342,7 +342,7 @@ Beim Antworten ruft AuraGo Erinnerungen in dieser Prioritätsreihenfolge ab:
 
 ### Manuelle Speicherung
 
-```
+```text
 Du: Merke dir: Ich bevorzuge PostgreSQL über MySQL
 Agent: ✅ Gespeichert: "Ich bevorzuge PostgreSQL über MySQL"
 
@@ -352,7 +352,7 @@ Agent: ✅ Notiz gespeichert
 
 ### Abfrage
 
-```
+```text
 Du: Was ist meine bevorzugte Datenbank?
 Agent: Laut meiner Notiz bevorzugst du PostgreSQL über MySQL.
 ```
@@ -361,7 +361,7 @@ Agent: Laut meiner Notiz bevorzugst du PostgreSQL über MySQL.
 
 AuraGo extrahiert und speichert automatisch:
 
-```
+```text
 Du: Ich fliege nächsten Dienstag nach Paris zu einer Konferenz
 ↓ Extrahiert:
    • LTM: Reiseplan nach Paris
@@ -372,21 +372,21 @@ Du: Ich fliege nächsten Dienstag nach Paris zu einer Konferenz
 ### Abruf-Muster
 
 **Zeitliche Abfragen:**
-```
+```text
 "Was haben wir letzte Woche besprochen?"
 "Erinnere mich an das, was ich zum Budget sagte"
 "Zeige mir Gespräche aus dem März"
 ```
 
 **Themen-Abfragen:**
-```
+```text
 "Erzähl mir von meinem Smart-Home-Projekt"
 "Was weiß ich über Machine Learning?"
 "Finde Informationen zur Server-Konfiguration"
 ```
 
 **Entitäts-Abfragen:**
-```
+```text
 "Wer ist Sarah?"
 "Mit welchen Firmen habe ich Kontakte?"
 "An welchen Projekten arbeite ich?"
@@ -522,7 +522,7 @@ Um den Kontext effizient zu nutzen, komprimiert AuraGo ältere Konversationen au
 3. Der Kontext bleibt erhalten, aber kompakter
 
 **Manuelle Bereinigungsbefehle:**
-```
+```text
 Du: Vergiss alles über dieses alte Projekt
 Du: Lösche alle Notizen älter als 6 Monate
 Du: Leere meine Aufgabenliste
@@ -563,7 +563,7 @@ indexing:
 
 Lege Dateien im `knowledge/`-Verzeichnis ab. Der Agent kann dann darauf zugreifen:
 
-```
+```text
 Du: Was steht in der dokumentation.txt?
 Agent: [Inhalt der indexierten Datei]
 ```
@@ -576,7 +576,7 @@ Der Helper LLM ist ein sekundäres, kostengünstigeres LLM, das Hintergrundwartu
 
 ### Übersicht
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │  Helper LLM — Hintergrundwartung                          │
 ├──────────────────────────────────────────────────────────┤
@@ -638,7 +638,7 @@ Nach jedem Gesprächsstrang analysiert der Helper LLM:
 
 Helper LLM-Statistiken im Dashboard → System-Tab anzeigen:
 
-```
+```text
 Helper LLM Statistiken
 ┌─────────────────────────────────────────────────────────┐
 │  Status: Aktiviert ✓                                    │
@@ -692,7 +692,7 @@ llm:
 #### ✅ Empfohlene Praktiken
 
 1. **Wichtige Fakten explizit speichern**
-   ```
+   ```text
    Merke dir: Mein Server läuft auf Ubuntu 22.04 LTS
    ```
 

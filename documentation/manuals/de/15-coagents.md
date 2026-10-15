@@ -12,7 +12,7 @@ Helfer für Teilaufgaben. Eigenes Modell, eigene Limits, kein Zugriff auf deine 
 
 Co-Agenten sind eigenständige Helfer-Agenten, die der Haupt-Agent (Main Agent) dynamisch spawnen kann. Sie arbeiten parallel an Teilaufgaben und liefern ihre Ergebnisse zurück.
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │                        Main Agent                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
@@ -440,7 +440,7 @@ circuit_breaker:
 
 Das Dashboard zeigt aktive Co-Agenten an:
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │  Co-Agent Status                        │
 ├─────────────────────────────────────────┤
@@ -469,7 +469,7 @@ curl http://localhost:8088/api/dashboard/activity
 
 Co-Agent-Aktivitäten werden mit `component=co-agent` geloggt:
 
-```
+```text
 2026-03-08T10:30:00Z [co-agent] [co_id=coagent-1] Co-Agent started task="Recherchiere..."
 2026-03-08T10:30:34Z [co-agent] [co_id=coagent-1] Co-Agent completed tokens=2100
 2026-03-08T10:30:34Z [co-agent] [co_id=coagent-2] Co-Agent stopped (timeout)
@@ -488,7 +488,7 @@ Co-Agent-Aktivitäten werden mit `component=co-agent` geloggt:
 
 ## 🔍 Deep Dive: Lifecycle eines Co-Agenten
 
-```
+```text
 Main-Agent                          Co-Agent Goroutine
     │                                      │
     ├─ spawn("Analysiere X")               │

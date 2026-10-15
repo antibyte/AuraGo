@@ -16,7 +16,7 @@ Your self-hosted agent can SSH into a NAS, answer over mesh radio, build a brows
 
 The drawings are instruction-booklet art, not UI screenshots. Click any image for full size.
 
-## The toy box
+## The Toy Box
 
 - **Your home lab, on speaking terms.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH and Wake-on-LAN.
 - **A desktop with side quests.** Chat, files, terminal, gallery, calendar, radio, a Winamp-style player. Plus Code Studio, Homepage Studio and Game Maker.
@@ -27,7 +27,7 @@ The drawings are instruction-booklet art, not UI screenshots. Click any image fo
 
 [All integrations](08-integrations.md) · [Tool catalog](22-internal-tools.md) · [Personalities](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk)
 
-### Yes, there is an actual desktop
+### Yes, There Is an Actual Desktop
 
 [![Real AuraGo Virtual Desktop: app launcher, media gallery, radio and a Winamp-style player](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
@@ -44,7 +44,7 @@ There are 13 chat themes, including Standard and Light. Virtual Desktop has **Fr
 
 </details>
 
-### AgoDesk — the same agent, on your machine
+### AgoDesk — the Same Agent, on Your Machine
 
 <p align="center">
   <a href="../../../assets/readme/agodesk.png"><img src="../../../assets/readme/agodesk.png" width="640" alt="AgoDesk desktop chat connected to AuraGo"></a>
@@ -52,7 +52,7 @@ There are 13 chat themes, including Standard and Light. Virtual Desktop has **Fr
 
 **[AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)** gives you chat, voice and uploads without a browser. Computer and browser use stay inside the access you approve.
 
-## How it connects
+## How It Connects
 
 [![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure and media](../../../assets/readme/system-wiring.svg)](../../../assets/readme/system-wiring.svg)
 
@@ -62,7 +62,7 @@ Personality changes the tone, not the permissions. Shell, Python, writes, networ
 
 [Memory](09-memory.md) · [Security](14-security.md) · [Web assets](../../web-assets.md) · [Architecture](../../architecture.md)
 
-## Quick start
+## Quick Start
 
 > **Still a work in progress.** One maintainer, uneven tests, occasional rough edges. Linux comes first; Windows and macOS are less tested. Features depend on permissions, providers, hardware and often Docker.
 
@@ -86,7 +86,7 @@ Your data stays with the installation. **Hosted models still see their request i
 
 [Chapter 2: Installation](02-installation.md) · [Chapter 3: Quick start](03-quickstart.md) · [Docker guide](../../docker_installation.md)
 
-## Manual map
+## Manual Map
 
 ### Part 1 — Arrive
 1. [Introduction](01-introduction.md) — What it is, and what it is not
@@ -95,7 +95,7 @@ Your data stays with the installation. **Hosted models still see their request i
 4. [Web UI](04-webui.md) — Chat, desktop, Config, themes
 5. [Chat basics](05-chat-basics.md) — How to talk to the agent
 
-### Part 2 — The toys
+### Part 2 — The Toys
 6. [Tools](06-tools.md) — The big toolbox
 7. [Configuration](07-configuration.md) — Provider system and fine-tuning
 8. [Integrations](08-integrations.md) — From NAS boxes to radios
@@ -107,7 +107,7 @@ Your data stays with the installation. **Hosted models still see their request i
 12. [Invasion Control](12-invasion.md) — Eggs and nests
 13. [Dashboard](13-dashboard.md) — Numbers, issues, affect, 3D graph
 
-### Part 4 — Care and depth
+### Part 4 — Care and Depth
 14. [Security](14-security.md) — Vault, jail, Guardian, 2FA
 15. [Co-agents](15-coagents.md) — Helpers for subtasks
 16. [Troubleshooting](16-troubleshooting.md) — When you only get the recovery page
@@ -115,21 +115,21 @@ Your data stays with the installation. **Hosted models still see their request i
 18. [Appendix](18-appendix.md) — Short reference
 19. [Skills](19-skills.md) — Python skills and Agent Skills
 
-### Part 5 — Look up
+### Part 5 — Look Up
 20. [Chat commands](20-chat-commands.md) — Slash commands right in the chat
 21. [API reference](21-api-reference.md) — REST endpoints, SSE, auth
 22. [Internal tools](22-internal-tools.md) — The full tool catalog
 23. [Internals](23-internals.md) — Modules, data flow, architecture
 
-### Part 6 — Studio apps
+### Part 6 — Studio Apps
 24. [EasyDrag](24-easydrag.md) — Automations by drag and drop (extends Mission Control from chapter 11)
 25. [CYD Creator](25-cyd-creator.md) — Apps for the Cheap Yellow Display (part of the integrations family from chapter 8)
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 
-## Chat shortcuts
+## Chat Shortcuts
 
-```
+```text
 /help          All commands
 /reset         Clear chat history
 /stop          Cancel the current action
@@ -146,7 +146,7 @@ Your data stays with the installation. **Hosted models still see their request i
 
 The native tool list is large and feature-gated — not every install advertises the same 100+ names. [Chapter 22](22-internal-tools.md) and whatever Config currently allows are the source of truth.
 
-## Important notes
+## Important Notes
 
 **Web UI first.** Mission Control and Invasion Control live in the UI and the REST API, not as extra CLI commands.
 

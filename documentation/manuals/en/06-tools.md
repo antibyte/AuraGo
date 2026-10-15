@@ -238,7 +238,7 @@ video_generation:
 
 The related tools are `generate_image`, `generate_music`, and `generate_video`. Generated files are saved locally and registered in the Media Registry so they can be searched, tagged, sent back to chat, or reused later.
 
-### 9. Homepage & static sites
+### 9. Homepage & Static Sites
 
 Build and deploy marketing sites or personal homepages inside AuraGo’s dedicated homepage workspace (`data/homepage/` by default), not `agent_workspace/workdir/`.
 
@@ -249,7 +249,7 @@ Build and deploy marketing sites or personal homepages inside AuraGo’s dedicat
 4. Save. Enable **Netlify** and/or **Vercel** integrations for one-shot deploy tools.
 5. Optional: **Virtual Desktop → Homepage Studio** — a workbench UI on the same workspace: assistant chat with suggestion chips on the left, a preview-first live view with device-width switcher (desktop/tablet/mobile), fullscreen and external open in the center, and an inspector on the right with **Sites** (managed-site cards with drift status, deploy targets, deployments, remote observations, one-click reconcile) and **History** (search, type filter, pagination).
 
-### Focused agent tools (preferred)
+### Focused Agent Tools (Preferred)
 
 | Tool | Role |
 |------|------|
@@ -406,7 +406,7 @@ tools:
 ## Examples in Chat
 
 ### Filesystem
-```
+```text
 You: List all files in the project folder
 Agent: 📁 Project folder:
        ├── main.go
@@ -418,7 +418,7 @@ Agent: ✅ File created: notes.txt
 ```
 
 ### Docker
-```
+```text
 You: Show all running containers
 Agent: 🐳 Running containers:
        ┌─────────┬────────┬─────────────┐
@@ -434,7 +434,7 @@ Agent: 🔄 Restarting container redis...
 ```
 
 ### Home Assistant
-```
+```text
 You: Turn off the living room light
 Agent: 🏠 Smart Home:
        ✅ Living Room Light: OFF
@@ -446,7 +446,7 @@ Agent: 🌡️ Bedroom Sensor:
 ```
 
 ### Web Search
-```
+```text
 You: Search for Go best practices
 Agent: 🔍 Searching...
        Found: 5 results
@@ -456,7 +456,7 @@ Agent: 🔍 Searching...
 ```
 
 ### Video Generation
-```
+```text
 You: Create a short 16:9 video of a sunrise over a futuristic home lab
 Agent: 🎬 Generating video with the configured provider...
        ✅ Video created and registered in the media registry
@@ -500,7 +500,7 @@ tools:
 
 ### Examples in Chat
 
-```
+```text
 Ping google.com
 Scan ports on 192.168.1.1
 Find all devices on the local network
@@ -544,7 +544,7 @@ tools:
 
 ### Examples in Chat
 
-```
+```text
 Take a screenshot of google.com
 Save the documentation as PDF
 Fill out the contact form on example.com
@@ -579,7 +579,7 @@ tools:
 
 ### Examples in Chat
 
-```
+```text
 Extract the text from report.pdf
 Summarise the key points from invoice.pdf
 ```
@@ -629,7 +629,7 @@ tools:
 
 ### Examples in Chat
 
-```
+```text
 Convert video.mp4 to audio.mp3
 Download the YouTube video
 Send me the YouTube video as an embedded player
@@ -641,7 +641,7 @@ Send me the YouTube video as an embedded player
 
 AuraGo can create new Python tools at runtime:
 
-```
+```text
 You: Create a tool that converts temperatures
 Agent: 🛠️ Creating temperature converter...
        ✅ Created: temperature_converter.py

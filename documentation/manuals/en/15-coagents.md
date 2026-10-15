@@ -8,11 +8,11 @@ Helpers for subtasks. Their own model, their own limits, no access to your perso
 
 ---
 
-## What are Co-Agents?
+## What Are Co-Agents?
 
 Co-agents are independent helper agents that the main agent can dynamically spawn. They work in parallel on sub-tasks and deliver their results back.
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │                        Main Agent                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
@@ -116,7 +116,7 @@ co_agents:
 
 A queued co-agent waits at most `timeout_seconds` for a free slot. If no slot frees up in time it is marked `failed` and never occupies a slot. The `timeout_seconds` runtime budget starts when the co-agent leaves the queue.
 
-### Writer specialist default
+### Writer Specialist Default
 
 The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents run without runtime tool schemas by default so short writing tasks do not pay the latency cost of unrelated tools. Set the field to `""` to disable this default, or replace it with your own writing rules.
 
@@ -226,7 +226,7 @@ If the co-agent is still queued or running, `get_result` waits server-side for a
 
 **Task:** Research 3 different topics simultaneously
 
-```
+```text
 Main Agent: I'll spawn 3 co-agents to research in parallel.
 
 [Spawns coagent-1, coagent-2, coagent-3]
@@ -240,7 +240,7 @@ Main Agent: Here's what I found:
 
 ### Example 2: Multi-Server Log Analysis
 
-```
+```text
 Task: Check error logs on web-server-1, web-server-2, and db-server
 
 Main Agent spawns 3 co-agents:
@@ -253,7 +253,7 @@ Result: Combined error report from all servers
 
 ### Example 3: Data Extraction
 
-```
+```text
 Task: Extract contact info from 10 PDFs
 
 Main Agent spawns co-agents:
@@ -380,7 +380,7 @@ Co-agent activities are logged with:
 - Task description
 - Token usage
 
-```
+```text
 2024-01-15 14:30:00 [co-agent] [coagent-1] Started: "Research Go features"
 2024-01-15 14:30:34 [co-agent] [coagent-1] Completed: 2100 tokens, 5 tools
 ```
@@ -401,7 +401,7 @@ Specialists are best used for bounded, independently verifiable work: research, 
 
 ## 🔍 Deep Dive: Co-Agent Lifecycle
 
-```
+```text
 Main Agent                          Co-Agent Goroutine
     │                                      │
     ├─ spawn("Analyse X")                  │
@@ -455,7 +455,7 @@ co_agents:
   max_concurrent: 5
 ```
 
-### Problem: Co-agent hangs (timeout)
+### Problem: Co-Agent Hangs (Timeout)
 
 **Symptom:** Status stays `running` with no progress
 
@@ -472,7 +472,7 @@ circuit_breaker:
   max_tool_calls: 8
 ```
 
-### Problem: Result is empty
+### Problem: Result Is Empty
 
 **Causes:**
 1. Task was too vague

@@ -518,7 +518,7 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 
 ### Abkürzungen auf einen Blick
 
-```
+```text
 STM  → Short-Term Memory
 LTM  → Long-Term Memory
 RAG  → Retrieval-Augmented Generation

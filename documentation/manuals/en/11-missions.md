@@ -12,7 +12,7 @@ Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12
 
 ---
 
-## What are Missions?
+## What Are Missions?
 
 **Missions** are automated agent tasks that run on a schedule, on demand, or when a trigger fires. Each mission contains:
 
@@ -21,7 +21,7 @@ Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12
 - **Execution type** — Manual, scheduled, or event-triggered
 - **Optional dependencies** — Wait for other missions to finish first
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  Mission: "Daily Backup"                                    │
 │  ├─ Prompt: Create a database backup and report status      │
@@ -155,7 +155,7 @@ curl http://localhost:8088/api/missions/v2/remote-targets
 
 AuraGo accepts standard 5-field **cron expressions** and optional 6-field expressions with seconds first for scheduled missions:
 
-```
+```text
 ┌───────────── second (0 - 59, optional)
 │ ┌───────────── minute (0 - 59)
 │ │ ┌───────────── hour (0 - 23)
@@ -205,7 +205,7 @@ Configure filters in `trigger_config` (e.g. email subject, MQTT topic, HA entity
 
 **Chains of missions.** Missions that start each other on completion (`mission_completed`; agent missions and flows alike) form a chain, and a chain stops after 10 steps (11 runs). The completion of the 10th step starts nothing: a warning is logged, and the output of that last mission starts with "Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". A straight chain of up to 10 links runs whole. A mission that is started by its own completion (a self-loop) is such a chain too: it runs at most 11 times and then stops with the same warning. EasyDrag refuses to publish a flow that waits for its own mission. Every other start (schedule, event, **Run**, recovery after a restart) begins a new chain.
 
-### Flow missions (EasyDrag)
+### Flow Missions (EasyDrag)
 
 Flows that you build in the **EasyDrag** desktop app appear in Mission Control as missions of the type **flow**. The editor itself is described in [Chapter 24: EasyDrag](24-easydrag.md).
 - Their triggers are the flow's trigger nodes (schedules, date and time, webhooks, email, MQTT, Home Assistant, devices, Fritz!Box calls, planner, budget, AuraGo start, other missions). One flow can have several.
@@ -216,7 +216,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - *Run* in Mission Control, a daemon skill that wakes the mission and `POST /api/missions/v2/{id}/trigger` start the flow like EasyDrag's *Run now*: from its manual trigger with that trigger's sample data (without a manual trigger, from its first trigger with empty data). Data they pass along does not reach the flow; use a webhook trigger for data from outside.
 - When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps (up to 64 KiB for a flow; an agent mission gets at most 8 KiB of them, beyond that a preview marked `_truncated`, because they go into its prompt). The final steps are those of the version the run executed, even if the flow was published again or deleted meanwhile; `outputs` is empty only if that version is unknown, which normal runs do not produce.
 
-#### Runs, cancelling and limits
+#### Runs, Cancelling and Limits
 
 - Mission Control offers *Cancel run* while a run of the flow is running; it cancels that run and the flow's waiting runs. While the flow looks idle (its runs only wait for a free slot), Mission Control offers no *Cancel run*, and a cancel that finds no running run points to EasyDrag. There, **Stop** under **Runs** and in the run view cancels any run that has not ended; any run but a test asks first. Stop works on a read-only desktop too (read-only missions refuse it), and switching the desktop to read-only does not stop flows that are already running.
 - The mission history keeps up to 2000 bytes of a flow run's result (500 bytes of an error message) and up to 16 KiB of its trigger data.
@@ -224,12 +224,12 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Resources: each running flow can hold up to about 0.5 GB of memory in the worst case (all step outputs of a run together are capped at 32 MiB of JSON, which can take about 16 times that in memory), plus up to about 0.4 GB per tool call while a large tool answer (at most 8 MiB) is parsed. `flows.max_parallel_runs` (default 8, at most 32) and `flows.max_parallel_nodes_per_run` (default 4, at most 16) multiply this, so keep both low on small machines. Each flow also keeps up to 40 waiting runs with their trigger data.
 - The dashboard lists flow schedules among the cron jobs, read-only: they are managed by EasyDrag. The agent cannot change them either.
 
-#### Failures and notifications
+#### Failures and Notifications
 
 - A failed run notifies as the flow's setting `notify_on_error` says: desktop notification (the default), push, Telegram, or off. A flow notifies once when it starts failing and then at most once an hour while it keeps failing. A successful run ends the failing state, so a flow that alternates between success and failure notifies at every new failure. Cancelled runs neither notify nor end the failing state. The state lives in memory: after a restart the first failure notifies again.
 - Every failed run also records the flow's planner issue (one per flow; the next successful run resolves it) and fires `planner_operational_issue` triggers, as agent missions do. A mission that reacts to such issues should set `min_interval_seconds` or filter with `planner_issue_source`.
 
-#### AI and tool steps
+#### AI and Tool Steps
 
 - An AI step uses the model chosen in the step, else `flows.ai_provider`, else the main model. Its costs count towards the daily budget under the category `flows`; once the daily limit is reached under the enforcement `partial` or `full`, AI steps fail. An answer may be 4096 tokens long (8192 on reasoning models); an answer that is cut off fails the step. A provider without its API key fails at once. Deleting the provider named in `flows.ai_provider` warns that flows use it.
 - An AI step tells the model that the data in its prompt (web pages, mails, webhook bodies, tool output) is material, never instructions. Still treat the answer of a model that read untrusted data as untrusted.
@@ -243,11 +243,11 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Telegram steps with a file: when the text went out but the file failed, the step is not tried again, so the text is not sent twice.
 - A foreground shell step ends with the run. Cancelling the run ends its process tree. The shell also ends when the step's own timeout cancels the same context. Both limits apply; the shorter one wins. A shell step with `background: true` stays registered until the command ends on its own, in a flow and in chat.
 
-#### Flow secrets
+#### Flow Secrets
 
 Steps that need a password or key (the authentication of an HTTP request, for example) read it from a flow secret, which you manage in EasyDrag. AuraGo stores it in the Vault as `easydrag_<name>` (name: lower-case letters, digits and `_`, up to 40 characters; value up to 4 KiB). Values are never shown again, and the agent cannot list, read, change or delete flow secrets (neither with its Vault tool nor from Python or skills). Run data, the run view and logs show values redacted; a value shorter than 8 bytes is redacted only from the output of the step that used it. The bin next to *New secret* in a step's secret field deletes the chosen secret after a confirmation. Flows that use it fail until it is set again, and EasyDrag names the published flows that still use it (the API, `DELETE /api/desktop/flows/secrets/<name>`, answers them as `used_by`).
 
-#### Switching flows off, restarts and backups
+#### Switching Flows Off, Restarts and Backups
 
 - When the flow service is not there (`flows.enabled` was off at startup, or the flow store cannot be opened), no flow runs. The flow missions stay in Mission Control but never run as agent missions: a trigger that fires sets the last result to the error "EasyDrag flows are not available …", and **Run** answers that flows are not available.
 - Switching `flows.enabled` off while AuraGo is running turns EasyDrag and the API off at once. Published flows keep running until the restart. You can still stop a run that is already going.
@@ -260,11 +260,11 @@ Steps that need a password or key (the authentication of an HTTP request, for ex
 
 ---
 
-## The Decisions service (optional)
+## The Decisions Service (Optional)
 
 **Decisions** is an optional shared local service for decisions from text and images. It is off by default and runs independently of normal chat, helper LLMs and agents. It keeps one resident model for all callers; EasyDrag's **Decision** node is its first consumer.
 
-### Setup in the web UI
+### Setup in the Web UI
 
 Open **Configuration → Decisions**, enable the service, pick the deployment and save. `auto` selects a native process for a native AuraGo installation and a managed container when AuraGo itself runs in Docker. Container management also requires the existing Docker permissions.
 
@@ -275,11 +275,11 @@ Open **Configuration → Decisions**, enable the service, pick the deployment an
 
 Runtime bundles must be built and packaged from the pinned native source under `decisions_runtime/`. A missing bundle is a setup error — there are no fabricated download URLs and no automatic pulls of an unpinned runtime.
 
-### Accelerators and CPU fallback
+### Accelerators and CPU Fallback
 
 CUDA is preferred on suitable NVIDIA devices, Metal on Apple Silicon, and Vulkan for other supported GPUs/iGPUs. **CPU fallback and mixed GPU/CPU operation are denied by default.** The separate CPU permission switch explicitly permits both and persists across restarts; revoking it immediately cancels any CPU-assisted inference.
 
-### YAML reference
+### YAML Reference
 
 ```yaml
 decisions:

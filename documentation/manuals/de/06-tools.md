@@ -397,7 +397,7 @@ tools:
 ## Beispiele im Chat
 
 ### Dateisystem
-```
+```text
 Du: Liste alle Dateien im Projektordner
 Agent: 📁 Projektordner:
        ├── main.go
@@ -409,7 +409,7 @@ Agent: ✅ Datei erstellt: notes.txt
 ```
 
 ### Docker
-```
+```text
 Du: Zeige alle laufenden Container
 Agent: 🐳 Laufende Container:
        ┌─────────┬────────┬─────────────┐
@@ -425,7 +425,7 @@ Agent: 🔄 Container redis wird neu gestartet...
 ```
 
 ### Home Assistant
-```
+```text
 Du: Schalte das Wohnzimmerlicht aus
 Agent: 🏠 Smart Home:
        ✅ Wohnzimmer Licht: AUS
@@ -437,7 +437,7 @@ Agent: 🌡️ Schlafzimmer-Sensor:
 ```
 
 ### Web-Suche
-```
+```text
 Du: Suche nach aktuellen Go Best Practices
 Agent: 🔍 Suche läuft...
        Gefunden: 5 Ergebnisse
@@ -447,7 +447,7 @@ Agent: 🔍 Suche läuft...
 ```
 
 ### Video Generation
-```
+```text
 Du: Erstelle ein kurzes 16:9-Video von einem Sonnenaufgang über einem futuristischen Home-Lab
 Agent: 🎬 Video wird mit dem konfigurierten Provider generiert...
        ✅ Video erstellt und in der Media Registry registriert
@@ -491,7 +491,7 @@ tools:
 
 ### Beispiele im Chat
 
-```
+```text
 Ping google.com
 Scanne die Ports auf 192.168.1.1
 Finde alle Geräte im lokalen Netzwerk
@@ -535,7 +535,7 @@ tools:
 
 ### Beispiele im Chat
 
-```
+```text
 Erstelle einen Screenshot von google.com
 Speichere die Dokumentation als PDF
 Fülle das Kontaktformular auf example.com aus
@@ -570,7 +570,7 @@ tools:
 
 ### Beispiele im Chat
 
-```
+```text
 Extrahiere den Text aus report.pdf
 Fasse die wichtigsten Punkte aus invoice.pdf zusammen
 ```
@@ -620,7 +620,7 @@ tools:
 
 ### Beispiele im Chat
 
-```
+```text
 Konvertiere video.mp4 in audio.mp3
 Lade das YouTube-Video herunter
 Sende mir das YouTube-Video als eingebetteten Player
@@ -632,7 +632,7 @@ Sende mir das YouTube-Video als eingebetteten Player
 
 AuraGo kann zur Laufzeit neue Python-Tools erstellen:
 
-```
+```text
 Du: Erstelle ein Tool, das Temperaturen umrechnet
 Agent: 🛠️ Erstelle Temperatur-Konverter...
        ✅ Erstellt: temperature_converter.py

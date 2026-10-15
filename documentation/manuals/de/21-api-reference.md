@@ -2419,7 +2419,7 @@ Accept: text/event-stream
 | `tsnet_status` | Tailscale tsnet Status |
 
 **Beispiel-Stream:**
-```
+```text
 event: system_metrics
 data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
 

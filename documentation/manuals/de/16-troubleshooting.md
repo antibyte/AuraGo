@@ -58,7 +58,7 @@ Die volle UI fehlt oder das Binary ist nicht auf das Ressourcen-Set gepinnt.
 
 `resources.dat` ist das **Backend-Archiv** (Prompts, Skills, Vorlage). Es ersetzt die Web-UI nicht. Fehlt nur die Oberfläche, siehe oben `--check-assets`.
 
-```
+```text
 Fehler: resources.dat not found in working directory
 ```
 
@@ -66,7 +66,7 @@ Fehler: resources.dat not found in working directory
 
 ### Python venv Fehler
 
-```
+```text
 Fehler: failed to create virtual environment
 ```
 
@@ -95,7 +95,7 @@ export PYTHON_PATH=/usr/bin/python3.10
 
 ### Telegram Bot reagiert nicht
 
-```
+```text
 Symptom: Keine Antwort auf Nachrichten
 ```
 
@@ -114,7 +114,7 @@ tail -f log/aurago.log | grep -i telegram
 
 ### Authentifizierung fehlgeschlagen
 
-```
+```text
 Fehler: 401 Unauthorized - Invalid API key
 ```
 
@@ -132,7 +132,7 @@ nano config.yaml
 
 ### Rate Limiting (429)
 
-```
+```text
 Fehler: 429 Too Many Requests
 ```
 
@@ -143,7 +143,7 @@ Fehler: 429 Too Many Requests
 
 ### Modell nicht gefunden (404)
 
-```
+```text
 Fehler: 404 Model not found
 ```
 
@@ -161,7 +161,7 @@ Fehler: 404 Model not found
 
 ### Datenbank-Locks
 
-```
+```text
 Fehler: database is locked
 ```
 
@@ -203,7 +203,7 @@ sudo lsof -i :8088  # Prüfen, was den Port blockiert
 
 ### Permission denied auf Docker-Socket
 
-```
+```text
 Fehler: Cannot connect to Docker daemon
 ```
 
@@ -247,7 +247,7 @@ tail -f log/aurago.log | grep -i "tool\|error"
 
 ### Debug aktivieren
 
-```
+```text
 Du: /debug on
 Agent: ✅ Debug-Modus aktiviert
 ```
@@ -260,7 +260,7 @@ Agent: ✅ Debug-Modus aktiviert
 
 ### Debug wieder ausschalten
 
-```
+```text
 Du: /debug off
 ```
 
@@ -268,7 +268,7 @@ Du: /debug off
 
 ### System-Info
 
-```
+```text
 Du: Zeige System-Informationen
 ```
 

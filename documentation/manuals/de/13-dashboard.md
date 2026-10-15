@@ -15,7 +15,7 @@ Erreichbar unter `http://localhost:8088/dashboard` oder über das Radialmenü (�
 1. **Agent-Status-Banner** — immer sichtbar: aktives Modell, Persönlichkeitsprofil, Kontext-Auslastung, verbundene Integrationen und letzte Aktivität.
 2. **Tab-Navigation** — acht Tabs; beim ersten Öffnen wird nur der aktive Tab geladen.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 📊 AURAGO DASHBOARD                                    🌙         ≡ │
 ├─────────────────────────────────────────────────────────────────────┤

@@ -517,7 +517,7 @@ A comprehensive reference of technical terms, abbreviations, and concepts used i
 
 ### Acronym Expansions Quick Reference
 
-```
+```text
 STM  → Short-Term Memory
 LTM  → Long-Term Memory
 RAG  → Retrieval-Augmented Generation
@@ -535,7 +535,7 @@ SQL  → Structured Query Language
 
 ---
 
-## Current terms
+## Current Terms
 
 | Term | Meaning |
 |------|---------|

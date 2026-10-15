@@ -36,7 +36,7 @@ When encountering issues, follow this systematic approach:
 
 ### Quick Diagnostic Checklist
 
-```
+```text
 □ Is AuraGo running? (check process/systemctl status)
 □ Is the Web UI accessible? (http://localhost:8088)
 □ Are logs being written? (check log/aurago.log)
@@ -58,7 +58,7 @@ When encountering issues, follow this systematic approach:
 | `resources.dat not found` | Resource file missing | Ensure `resources.dat` is in the same directory |
 | `no such file or directory` | Architecture mismatch | Download correct binary for your OS/arch |
 
-### Recovery / login page only
+### Recovery / Login Page Only
 
 The full UI is missing, or the binary is not pinned to the resource set.
 
@@ -426,7 +426,7 @@ AuraGo uses structured logging with these levels:
 
 ### Common Log Patterns
 
-```
+```text
 # Normal startup
 [INFO] AuraGo starting...
 [INFO] Web UI available at http://localhost:8088
@@ -468,7 +468,7 @@ grep "execute_shell" log/aurago.log
 ### Enabling Debug Mode
 
 **Via chat command:**
-```
+```text
 /debug on
 ```
 
@@ -498,12 +498,12 @@ grep "execute_shell" log/aurago.log
 
 ### Disabling Debug Mode
 
-```
+```text
 /debug off
 ```
 
 Or toggle:
-```
+```text
 /debug  # Switches current state
 ```
 
@@ -593,7 +593,7 @@ docker compose down
 
 > 💡 **Non-destructive:** Only clears conversation, keeps memories
 
-```
+```text
 /reset
 ```
 
@@ -679,7 +679,7 @@ rm data/short_term.db
 
 When reporting issues, provide:
 
-```
+```text
 - AuraGo version: (./aurago --version)
 - Operating system: (uname -a)
 - Installation method: (binary/Docker/source)
@@ -718,7 +718,7 @@ What actually happens
 **Logs:**
 ```
 Paste relevant log entries here
-```
+```text
 
 **Environment:**
 - OS: Ubuntu 22.04
@@ -735,7 +735,7 @@ Contact: [Security contact information from project]
 
 ---
 
-## Extra checks for current features
+## Extra Checks for Current Features
 
 | Area | Check |
 |------|--------|
@@ -744,7 +744,7 @@ Contact: [Security contact information from project]
 | go2rtc | Vault sources, container status, same-origin viewer only |
 | Web assets | `./aurago --check-assets` — an unpinned binary stays on recovery |
 
-## Quick reference
+## Quick Reference
 
 There is no `E001`…`E008` catalog. Read the log line and the HTTP/JSON `error` field. Vault problems almost always mean `AURAGO_MASTER_KEY`. A recovery page without a resource ID means an unpinned binary. Chat cannot read `config.yaml` — that is the workspace jail.
 

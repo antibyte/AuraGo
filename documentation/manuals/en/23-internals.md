@@ -546,7 +546,7 @@ Tool guides are dynamically adapted:
 - **RAG Indexing**: Guides are indexed in the vector DB for semantic search
 - **On-Demand Loading**: `get_tool_info` loads guides on demand
 
-### 7.5 Runtime identity and prompt drift
+### 7.5 Runtime Identity and Prompt Drift
 
 AuraGo exposes the running build identity through `GET /api/system/info`. The response includes `build_id`, `vcs_revision`, `vcs_time`, and whether the working tree was modified. Release images set the identifier at link time with `-X aurago/internal/buildinfo.BuildID=<reviewed-commit>`; a `-dirty` build is not an accepted clean release artifact.
 
@@ -809,7 +809,7 @@ The bridge protocol enables communication between nest and eggs:
 - Embedding efficiency
 - Storage space
 
-### 13.5 Update artifact retention and maintenance CLI
+### 13.5 Update Artifact Retention and Maintenance CLI
 
 [`internal/upkeep/`](../../../internal/upkeep/) owns installation-scoped update artifacts. The retention contract keeps the current executable plus resource set and two verified rollback versions; updater transaction manifests are verified before any collection.
 
@@ -932,7 +932,7 @@ The A2A protocol in [`internal/a2a/`](../../../internal/a2a/) enables inter-agen
 
 [`internal/push/manager.go`](../../../internal/push/manager.go) – push notifications to mobile devices.
 
-### 17.6 MeshCore and native SIP
+### 17.6 MeshCore and Native SIP
 
 [`internal/meshcore/`](../../../internal/meshcore/) owns one Companion device, a versioned inbox, and USB/BLE. [`internal/sipphone/`](../../../internal/sipphone/) (Diago) is one endpoint, one vault password, at most one active call. Contracts: [meshcore-en.md](../../meshcore-en.md), [sip_telephony.md](../../sip_telephony.md).
 

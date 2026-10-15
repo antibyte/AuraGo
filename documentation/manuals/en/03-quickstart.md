@@ -17,7 +17,7 @@ Five minutes. Click through setup, ask something harmless, do not poke the confi
 On first start, the **Quick Setup Wizard** guides you through the most important settings:
 
 ### Step 1: Choose Language
-```
+```text
 🌍 Welcome to AuraGo!
 Choose your preferred language:
 - English
@@ -31,7 +31,7 @@ Choose your preferred language:
 
 If not already set in `config.yaml`:
 
-```
+```text
 🔌 LLM Provider
 Choose your AI provider:
 - OpenRouter (recommended) – Access to many models
@@ -44,7 +44,7 @@ Choose your AI provider:
 
 ### Step 3: Choose Personality
 
-```
+```text
 🎭 Choose a personality:
 - Friend – Casual, humorous, chatty
 - Professional – Factual, efficient, direct
@@ -54,9 +54,9 @@ Choose your AI provider:
 
 > 💡 You can change the personality at any time later.
 
-### Step 4: First Integrations (optional)
+### Step 4: First Integrations (Optional)
 
-```
+```text
 📱 Set up integrations (optional):
 - Telegram Bot
 - Discord
@@ -66,7 +66,7 @@ Choose your AI provider:
 
 You can complete these steps later as well.
 
-### After setup: success screen and Config deep links
+### After Setup: Success Screen and Config Deep Links
 
 When setup finishes, the **success screen** shows a confirmation, an optional **restart recommended** notice, **recommended next steps** (deep links to `/config#providers`, `/config#web_config`, `/config#server`, `/config#backup_restore`), and **Go to Chat**.
 
@@ -77,7 +77,7 @@ After setup, you'll land in the **Chat** – the heart of AuraGo.
 
 ### The Chat Interface
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ ⚡ AURAGO              🌙         ≡         │  ← Header
 ├─────────────────────────────────────────────┤
@@ -94,13 +94,13 @@ After setup, you'll land in the **Chat** – the heart of AuraGo.
 ### Your First Messages
 
 **Test 1: Simple greeting**
-```
+```text
 You: Hello!
 Agent: Hello! Nice to meet you. How can I help you today?
 ```
 
 **Test 2: Create a file**
-```
+```text
 You: Create a file test.txt with the content "Hello World"
 Agent: ✅ I created the file test.txt.
    📄 Content: "Hello World"
@@ -108,7 +108,7 @@ Agent: ✅ I created the file test.txt.
 ```
 
 **Test 3: System information**
-```
+```text
 You: Show me system information
 Agent: 🔍 System information:
    💻 CPU: 4 cores, 15% usage
@@ -133,7 +133,7 @@ AuraGo understands special commands starting with `/`:
 
 ### Examples
 
-```
+```text
 You: /help
 Agent: 📋 Available commands:
    /help, /reset, /stop, /debug on/off, 
@@ -152,7 +152,7 @@ Agent: 💰 Budget Overview (today):
 2. **Select** a file
 3. **Send** a message with context
 
-```
+```text
 You: [File: document.pdf]
 You: Summarize this document
 Agent: 📄 Summary of document.pdf:
@@ -166,7 +166,7 @@ Agent: 📄 Summary of document.pdf:
 AuraGo has over 100 built-in tools. Here are some to try:
 
 ### Filesystem
-```
+```text
 You: List all files in the current directory
 You: Create a folder "projects"
 You: Show me system information
@@ -175,20 +175,20 @@ You: Show me system information
 File tools stay inside `agent_workspace`. `config.yaml` and `data/` are not readable from there — that is the workspace jail, not a bug.
 
 ### Web & Search
-```
+```text
 You: Search the web for "Go 1.21 Release Notes"
 You: Fetch the page example.com and show the title
 ```
 
 ### System
-```
+```text
 You: What time is it?
 You: Show the current path
 You: Which operating system is running here?
 ```
 
 ### Notes
-```
+```text
 You: Save as note: "Don't forget to move tomorrow"
 You: Show all my notes
 ```

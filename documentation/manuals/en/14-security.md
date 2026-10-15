@@ -16,7 +16,7 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 
 ### Technical Details
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    AES-256-GCM Vault                    │
 ├─────────────────────────────────────────────────────────┤
@@ -28,7 +28,7 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 └─────────────────────────────────────────────────────────┘
 ```
 
-### What is stored in the vault?
+### What Is Stored in the Vault?
 
 | Category | Examples |
 |----------|----------|
@@ -49,7 +49,7 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 >
 > The application (not the agent) loads vault secrets at runtime and securely injects them into the appropriate tools without the agent ever seeing the plaintext values.
 
-### Initializing the vault
+### Initializing the Vault
 
 ```bash
 # Generate master key (only once)
@@ -101,13 +101,13 @@ AuraGo ships a layered authentication system for the web interface.
 | **Session cookies** | High | Stateless authentication |
 | **IP rate limiting** | Medium | Brute-force protection |
 
-### bcrypt Password Hashing
+### Bcrypt Password Hashing
 
 - **Algorithm:** bcrypt with cost factor 12
 - **Salt:** Automatic, unique per password
 - **Cost:** ~250 ms per hashing operation (protection against rainbow tables)
 
-### TOTP (Time-based One-Time Password)
+### TOTP (Time-Based One-Time Password)
 
 - **Standards:** RFC 6238 / RFC 4226
 - **Time window:** 30 seconds
@@ -118,7 +118,7 @@ AuraGo ships a layered authentication system for the web interface.
 
 ## Setting Up Password Protection
 
-### Step 1: Initial configuration
+### Step 1: Initial Configuration
 
 **In the web UI:**
 1. Open **Config → Server → Web Config & Login**.
@@ -139,7 +139,7 @@ auth:
 
 The password hash, TOTP secret and session secret are stored in the **vault** (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), not in `config.yaml`. Set them through the web UI (**Config → Server → Web Config & Login** or `/auth/login`) or the API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
-### Step 2: Set the password in the web UI
+### Step 2: Set the Password in the Web UI
 
 1. Start AuraGo with `auth.enabled: true`
 2. Open the web UI (`http://localhost:8088`)
@@ -148,7 +148,7 @@ The password hash, TOTP secret and session secret are stored in the **vault** (`
 
 > ⚠️ **Warning:** Without a configured password, authentication is disabled automatically to prevent a lockout!
 
-### Hashing a password manually (CLI)
+### Hashing a Password Manually (CLI)
 
 If you want to set the password directly in `config.yaml`:
 
@@ -185,7 +185,7 @@ node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('your-pas
    - Scan the displayed QR code with your authenticator app
    - Confirm with `POST /api/auth/totp/confirm` and the 6-digit code
 
-### Important notes on 2FA
+### Important Notes on 2FA
 
 > ⚠️ **Save a backup code!** If you lose access to your authenticator, you cannot log in without the TOTP secret. Export the secret from the config or store it separately.
 
@@ -260,7 +260,7 @@ Two additional default boundaries limit what the agent can reach regardless of t
 - **Workspace jail:** agent file access (filesystem and file-editor tools) is jailed to `agent_workspace`. From the working directory, `../skills` and `../tools` stay reachable; attempts such as `../../config.yaml` or `data/` fail path resolution. Defense-in-depth additionally blocks protected system paths (data directory, `config.yaml`, vault, SQLite databases, `.env`, and the master key file) case-insensitively and with symlinks resolved. Files served under `/files/` follow symlinks and junctions only while they stay inside the served directory; links leaving `agent_workspace` or a media directory are not served.
 - **Docker inspect redaction:** agent `docker inspect` output redacts `AURAGO_*` environment variables and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. The AuraGo app container itself (compose service `aurago`) is hidden from inspect, lifecycle, log, exec, and copy access, and the managed Garage container is invisible as well.
 
-## Read-only vs Read-write Mode
+## Read-Only vs Read-Write Mode
 
 ### Comparison
 
@@ -271,7 +271,7 @@ Two additional default boundaries limit what the agent can reach regardless of t
 | **Typical use** | Monitoring, research | Automation, control |
 | **Error message** | "Tool is in read-only mode" | – |
 
-### Granular control
+### Granular Control
 
 Per integration under **Config → Integrations → …** (toggle **Read-only**):
 
@@ -359,15 +359,15 @@ server:
 
 ## Outbound Requests and Host Execution
 
-### SSRF protection for outbound HTTP
+### SSRF Protection for Outbound HTTP
 
 `api_request`, the web scraper, and the LLM clients use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, every redirect is revalidated (at most 10, then abort), and system proxies are disabled. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch.
 
-### Network MCP servers
+### Network MCP Servers
 
 An MCP server with network access rejects private destination addresses unless that server grants `allow_private_network: true`; DNS is pinned per connection, and cross-origin redirects and SSE message endpoints are rejected.
 
-### Browser automation with egress sidecar
+### Browser Automation with Egress Sidecar
 
 Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar joins only a Docker-internal network. A separate `browser-egress` container joins that network and the outbound network, accepts proxy clients only from the internal subnet, and carries the route out. Chromium uses `http://browser-egress:7332` and disables non-proxied WebRTC UDP. `cloak_proxy` stays empty. Navigation, resources, and WebSockets follow the same egress policy.
 
@@ -381,7 +381,7 @@ browser_automation:
 
 Compose profile `browser-automation` starts `browser-egress` beside the sidecar. The sidecar has no route of its own.
 
-### Host execution without isolation
+### Host Execution without Isolation
 
 Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker write `allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise). Configurations that never run config-merger and never had the key written are grandfathered even if the shell is enabled later; write `agent.allow_unsandboxed_shell` explicitly to make the decision durable. Desktop Notes protection and file jails apply regardless.
 
@@ -409,7 +409,7 @@ agent:
 
 ### Network Security
 
-```
+```text
 Internet
    │
    ▼
@@ -433,7 +433,7 @@ Internet
 
 ### Status Check
 
-```
+```text
 Du: Check vault status
 Agent: 🔐 Vault Status:
    Status: locked/unlocked
@@ -511,7 +511,7 @@ ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
 ### Session Cookie Security
 
-```
+```text
 Cookie: aurago_session=<payload>.<hmac>
 
 payload = base64("user|<expiry_unix>")

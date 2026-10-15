@@ -37,12 +37,12 @@ Slash commands start with `/`. They are shortcuts, not a second API.
 Displays a list of all registered commands with their short descriptions.
 
 **Example:**
-```
+```text
 /help
 ```
 
 **Output:**
-```
+```text
 📜 **Available Commands:**
 
 • /reset: Clears the current chat history (Short-Term Memory).
@@ -61,12 +61,12 @@ Clears the current chat history and short-term memory (STM). This is useful for 
 > **Auto-learning:** If `agent.auto_learning.enabled` is true, `/reset` triggers a lightweight session retrospective (`RunSessionRetro`) to extract learned rules from resolved errors.
 
 **Example:**
-```
+```text
 /reset
 ```
 
 **Output:**
-```
+```text
 🧹 Chat history and short-term memory have been cleared.
 ```
 
@@ -78,12 +78,12 @@ Clears the current chat history and short-term memory (STM). This is useful for 
 Interrupts the currently running agent action. This is helpful when the agent gets into an infinite loop or performs an unwanted action.
 
 **Example:**
-```
+```text
 /stop
 ```
 
 **Output:**
-```
+```text
 🛑 AuraGo has been instructed to interrupt the current action.
 ```
 
@@ -93,12 +93,12 @@ Interrupts the currently running agent action. This is helpful when the agent ge
 Restarts the AuraGo server. This can be useful after making configuration changes that require a restart.
 
 **Example:**
-```
+```text
 /restart
 ```
 
 **Output:**
-```
+```text
 🔄 AuraGo is restarting...
 ```
 
@@ -110,24 +110,24 @@ Restarts the AuraGo server. This can be useful after making configuration change
 Enables or disables the agent's debug mode. In debug mode, more detailed error messages are activated in the system prompt.
 
 **Syntax:**
-```
+```text
 /debug [on|off|1|0|true|false]
 ```
 
 **Examples:**
-```
+```text
 /debug on      # Enable debug mode
 /debug off     # Disable debug mode
 /debug         # Toggle (switch)
 ```
 
 **Output (enabled):**
-```
+```text
 🔍 **Agent Debug Mode enabled.** The agent now reports errors with detailed information.
 ```
 
 **Output (disabled):**
-```
+```text
 🔇 **Agent Debug Mode disabled.** The agent behaves normally.
 ```
 
@@ -137,12 +137,12 @@ Enables or disables the agent's debug mode. In debug mode, more detailed error m
 Lists all available personalities or switches to a specific personality.
 
 **Syntax:**
-```
+```text
 /personality [name]
 ```
 
 **Examples:**
-```
+```text
 /personality                       # Lists all personalities
 /personality friend                # Switches to friend personality
 /personality professional          # Switches to professional personality
@@ -150,7 +150,7 @@ Lists all available personalities or switches to a specific personality.
 ```
 
 **Output (list):**
-```
+```text
 🎭 **Available Personalities:**
 
 • neutral
@@ -170,7 +170,7 @@ Use `/personality <name>` to switch.
 ```
 
 **Output (switch):**
-```
+```text
 🎭 Personality switched to **friend**. The change is permanent.
 ```
 
@@ -182,7 +182,7 @@ Use `/personality <name>` to switch.
 Displays the current budget status, including daily costs, limits, and models used.
 
 **Syntax:**
-```
+```text
 /budget [en|english]
 ```
 
@@ -190,13 +190,13 @@ Displays the current budget status, including daily costs, limits, and models us
 - `en` (optional) – Displays output in English
 
 **Examples:**
-```
+```text
 /budget        # German
 /budget en     # English
 ```
 
 **Output:**
-```
+```text
 💰 **Budget Status (2026-03-28)**
 
 Today's Costs: $0.42 / $5.00 (8.4%)
@@ -213,12 +213,12 @@ Models Used:
 Toggles voice output (TTS). When no argument is given, the current state is toggled.
 
 **Syntax:**
-```
+```text
 /voice [on|off|1|0|true|false]
 ```
 
 **Examples:**
-```
+```text
 /voice on      # Enable voice output
 /voice off     # Disable voice output
 /voice         # Toggle
@@ -230,7 +230,7 @@ Toggles voice output (TTS). When no argument is given, the current state is togg
 Displays all active system warnings from the warnings registry with severity level (critical/warning/info).
 
 **Example:**
-```
+```text
 /warnings
 ```
 
@@ -240,7 +240,7 @@ Displays all active system warnings from the warnings registry with severity lev
 Securely stores the sudo password in the vault for the `execute_sudo` tool. The password is stored encrypted with AES-256-GCM.
 
 **Syntax:**
-```
+```text
 /sudopwd <password>
 /sudopwd --clear
 ```
@@ -250,13 +250,13 @@ Securely stores the sudo password in the vault for the `execute_sudo` tool. The 
 - `--clear` – Deletes the stored password
 
 **Examples:**
-```
+```text
 /sudopwd mySecurePassword123
 /sudopwd --clear
 ```
 
 **Output:**
-```
+```text
 ✅ Sudo password successfully stored in vault.
 ⚠️ Note: `agent.sudo_enabled` is still disabled. Enable it in the config.
 ```
@@ -269,7 +269,7 @@ Securely stores the sudo password in the vault for the `execute_sudo` tool. The 
 Registers a new SSH server in the inventory and securely stores credentials in the vault.
 
 **Syntax:**
-```
+```text
 /addssh host=NAME user=USER [ip=IP] [pass=PASS|keypath=PATH] [port=22] [tags=tag1,tag2]
 ```
 
@@ -285,13 +285,13 @@ Registers a new SSH server in the inventory and securely stores credentials in t
 | `tags` | No | Comma-separated tags |
 
 **Examples:**
-```
+```text
 /addssh host=server1 user=root pass=secret
 /addssh host=server2 user=admin keypath=/home/user/.ssh/id_rsa port=2222 tags=production,web
 ```
 
 **Output:**
-```
+```text
 ✅ Server server1 successfully registered with ID: abc-123-def
 ```
 
@@ -301,12 +301,12 @@ Registers a new SSH server in the inventory and securely stores credentials in t
 Displays the current OpenRouter credit balance and usage. Only available when OpenRouter is configured as the LLM provider.
 
 **Example:**
-```
+```text
 /credits
 ```
 
 **Output:**
-```
+```text
 💳 **OpenRouter Credits**
 
 Balance: $25.43

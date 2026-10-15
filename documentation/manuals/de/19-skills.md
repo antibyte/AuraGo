@@ -28,7 +28,7 @@ Skills sind benutzerdefinierte Python-Skripte, die als erweiterte Werkzeuge im A
 
 Ein Skill besteht aus zwei Dateien:
 
-```
+```text
 agent_workspace/skills/
 ├── mein_skill.json       # Manifest (Beschreibung, Parameter)
 └── mein_skill.py         # Python-Code (Implementierung)
@@ -269,7 +269,7 @@ if __name__ == "__main__":
 ```
 
 **Verwendung im Chat:**
-```
+```text
 Du: Nutze den file_analyzer Skill für die Datei dokument.txt
 Agent: 🛠️ Skill: file_analyzer
        
@@ -446,7 +446,7 @@ Die nächtliche Wartung prüft Skills und `SKILL.md`-Pakete, deren gespeicherte 
 
 ### Skills anzeigen
 
-```
+```text
 Du: Welche Skills sind verfügbar?
 Agent: 🛠️ Verfügbare Skills:
        - file_analyzer: Analysiert Textdateien
@@ -456,7 +456,7 @@ Agent: 🛠️ Verfügbare Skills:
 
 ### Skill ausführen
 
-```
+```text
 Du: Führe den file_analyzer Skill aus mit dateipfad="readme.txt"
 
 Oder einfacher:
@@ -547,7 +547,7 @@ AuraGo bietet Templates für häufige Skill-Typen:
 
 ### Templates anzeigen
 
-```
+```text
 Du: Welche Skill-Templates gibt es?
 Agent: 📋 Verfügbare Templates:
        - minimal_skill: Minimaler Starter-Skill nur mit Standardbibliothek
@@ -559,7 +559,7 @@ Agent: 📋 Verfügbare Templates:
 
 ### Skill aus Template erstellen
 
-```
+```text
 Du: Erstelle einen Skill aus dem Template minimal_skill mit dem Namen mein_helfer
 ```
 
@@ -578,7 +578,7 @@ Du: Erstelle einen Skill aus dem Template minimal_skill mit dem Namen mein_helfe
 
 ### Import Fehler
 
-```
+```text
 ModuleNotFoundError: No module named 'requests'
 ```
 
@@ -586,7 +586,7 @@ ModuleNotFoundError: No module named 'requests'
 
 ### Vault Key nicht verfügbar
 
-```
+```text
 AURAGO_SECRET_MEIN_KEY ist None
 ```
 
@@ -631,7 +631,7 @@ Der Agent lädt das Handbuch **bei Bedarf**, bevor er den Skill aufruft — nich
 
 ### Speicherort
 
-```
+```text
 agent_workspace/skills/
 ├── mein_skill.json    # Manifest
 ├── mein_skill.py      # Code
@@ -658,13 +658,13 @@ Handbücher sind auf **64 KB** begrenzt. Das reicht für jede praxisnahe Skill-D
 
 Der Agent kann Handbücher selbst erstellen und aktualisieren:
 
-```
+```text
 get_skill_documentation  – aktuelles Handbuch eines Skills lesen
 set_skill_documentation  – Handbuch eines Skills schreiben oder ersetzen
 ```
 
 Beispiel im Chat:
-```
+```text
 Du:    Schreibe ein Nutzungshandbuch für meinen file_analyzer-Skill.
 Agent: 🛠️ set_skill_documentation(name="file_analyzer", documentation="# file_analyzer\n…")
        ✓ Handbuch gespeichert.
@@ -705,7 +705,7 @@ Ein-Satz-Beschreibung, was dieser Skill tut.
     "beschreibung": "leicht bewölkt"
   }
 }
-```
+```text
 
 ## Beispiel-Aufruf
 

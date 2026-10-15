@@ -31,7 +31,7 @@ Three roads, same gopher: installer, Docker, or build it yourself. The full UI a
 
 ## Installation Methods
 
-### Option A: Installer script (recommended for Linux)
+### Option A: Installer Script (Recommended for Linux)
 
 **Verified install (recommended).** Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
 
@@ -72,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | A
 The answer is remembered. Change it later with `./update.sh --bluetooth` or
 `./update.sh --no-bluetooth`. Details are in `documentation/bluetooth.md`.
 
-### Option B: Docker (recommended for isolated environments)
+### Option B: Docker (Recommended for Isolated Environments)
 
 The safest method – AuraGo runs in a container:
 
@@ -132,7 +132,7 @@ Then install and verify the UI set:
 
 Without a matching set — or with an unpinned binary — you only get the recovery page.
 
-### Option D: Build from source
+### Option D: Build from Source
 
 For developers or if you want to modify the code:
 
@@ -159,7 +159,7 @@ make_deploy.bat   # Windows
 
 > 💡 **Recommended:** After the first start, open the Web UI (**Menu → Config → Providers**) to add your LLM provider and API key. Credentials are stored securely in the vault. Editing `config.yaml` directly is only needed for headless or scripted setups.
 
-### 1. Configure API Key (Web UI — recommended)
+### 1. Configure API Key (Web UI — Recommended)
 
 1. Open `https://localhost` (or your configured host/port).
 2. Go to **Menu → Config → Providers**.
@@ -167,7 +167,7 @@ make_deploy.bat   # Windows
 4. Under **Config → LLM Settings**, set **Provider** to your new provider ID.
 5. Click **Save**.
 
-### 1b. Configure provider settings in YAML (optional)
+### 1b. Configure Provider Settings in YAML (Optional)
 
 Edit `config.yaml`:
 
@@ -215,7 +215,7 @@ Get-Content .env | ForEach-Object {
 
 > ⚠️ **Important:** Keep `.env` safe! Without this key, the vault cannot be decrypted.
 
-### 3. Set up system service (optional)
+### 3. Set Up System Service (Optional)
 
 **Linux (systemd):**
 ```bash
@@ -248,7 +248,7 @@ schtasks /Run /TN AuraGo
 sudo systemctl start aurago
 ```
 
-### 2. Check logs
+### 2. Check Logs
 
 ```bash
 # Direct in console (when starting manually)
@@ -259,7 +259,7 @@ tail -f log/aurago.log     # Direct
 ```
 
 You should see:
-```
+```text
 [INFO] AuraGo starting...
 [INFO] Web UI available at https://localhost
 [INFO] Agent loop initialized
@@ -273,7 +273,7 @@ You should see the login screen or chat (depending on auth configuration).
 
 ## Directory Structure After Installation
 
-```
+```text
 ~/aurago/
 ├── aurago                    # Executable
 ├── resources.dat             # Can be deleted after setup
@@ -297,14 +297,14 @@ You should see the login screen or chat (depending on auth configuration).
 
 ## Updating
 
-### Installer script (Option A)
+### Installer Script (Option A)
 Run the updater from the install directory. The installer put `update.sh` there; the binary is `bin/aurago_linux`:
 ```bash
 cd ~/aurago
 ./update.sh
 ```
 
-### Manual installation (Option C)
+### Manual Installation (Option C)
 Replace the executable (on arm64 download `aurago_linux_arm64`):
 ```bash
 cd ~/aurago
@@ -321,7 +321,7 @@ docker compose up -d
 
 > 💡 `resources.dat` does NOT need to be re-extracted – your config is preserved.
 
-### Installer and updater display
+### Installer and Updater Display
 
 `install.sh` and `update.sh` draw a colour logo, step counters, cards and spinners when they run in a terminal. Anywhere else (a pipe, a log file, the in-app updater writing `log/update.log`) they print plain timestamped lines without escape codes. Override the detection with environment variables:
 

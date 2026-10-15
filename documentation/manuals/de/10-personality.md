@@ -168,7 +168,7 @@ Wenn `personality.user_profiling: true` gesetzt ist, lernt AuraGo automatisch:
 - Erfahrungslevel
 
 **Beispiel - Gelernte Präferenzen:**
-```
+```text
 Benutzer: Kannst du mir bei dem Python-Skript helfen?
 
 [AuraGo hat gelernt: Benutzer nutzt Python]
@@ -284,7 +284,7 @@ POST /api/personality/dynamics/reset   # Dynamik auf null, Affect auf Ruhewerte
 
 ### Auswahl der richtigen Persönlichkeit
 
-```
+```text
 Anwendungsfall → Empfohlene Persönlichkeit
 ─────────────────────────────────────────────
 Kundensupport   → professional

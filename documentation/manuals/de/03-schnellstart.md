@@ -17,7 +17,7 @@ Fünf Minuten. Setup durchklicken, etwas Harmloses fragen, nicht die Config-Date
 Beim ersten Start führt dich der **Quick Setup Wizard** durch die wichtigsten Einstellungen:
 
 ### Schritt 1: Sprache wählen
-```
+```text
 🌍 Willkommen bei AuraGo!
 Wähle deine bevorzugte Sprache / Choose your preferred language:
 - Deutsch
@@ -31,7 +31,7 @@ Wähle deine bevorzugte Sprache / Choose your preferred language:
 
 Falls noch nicht in `config.yaml` gesetzt:
 
-```
+```text
 🔌 LLM Provider
 Wähle deinen KI-Provider:
 - OpenRouter (empfohlen) – Zugriff auf viele Modelle
@@ -44,7 +44,7 @@ Wähle deinen KI-Provider:
 
 ### Schritt 3: Persönlichkeit wählen
 
-```
+```text
 🎭 Wähle eine Persönlichkeit:
 - Freund – Locker, humorvoll, gesprächig
 - Professional – Sachlich, effizient, direkt
@@ -56,7 +56,7 @@ Wähle deinen KI-Provider:
 
 ### Schritt 4: Erste Integrationen (optional)
 
-```
+```text
 📱 Integrationen einrichten (optional):
 - Telegram Bot
 - Discord
@@ -77,7 +77,7 @@ Nach dem Setup landest du im **Chat** – das Herzstück von AuraGo.
 
 ### Die Chat-Oberfläche
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ ⚡ AURAGO              🌙         ≡         │  ← Header
 ├─────────────────────────────────────────────┤
@@ -94,13 +94,13 @@ Nach dem Setup landest du im **Chat** – das Herzstück von AuraGo.
 ### Deine ersten Nachrichten
 
 **Test 1: Einfache Begrüßung**
-```
+```text
 Du: Hallo!
 Agent: Hallo! Schön, dich kennenzulernen. Wie kann ich dir heute helfen?
 ```
 
 **Test 2: Eine Datei erstellen**
-```
+```text
 Du: Erstelle eine Datei test.txt mit dem Inhalt "Hallo Welt"
 Agent: ✅ Ich habe die Datei test.txt erstellt.
    📄 Inhalt: "Hallo Welt"
@@ -108,7 +108,7 @@ Agent: ✅ Ich habe die Datei test.txt erstellt.
 ```
 
 **Test 3: Systeminformationen**
-```
+```text
 Du: Zeige mir Systeminformationen
 Agent: 🔍 Systeminformationen:
    💻 CPU: 4 Kerne, 15% Auslastung
@@ -133,7 +133,7 @@ AuraGo versteht spezielle Befehle, die mit `/` beginnen:
 
 ### Beispiele
 
-```
+```text
 Du: /help
 Agent: 📋 Verfügbare Befehle:
    /help, /reset, /stop, /debug on/off, 
@@ -152,7 +152,7 @@ Agent: 💰 Budget-Übersicht (heute):
 2. **Wähle** eine Datei aus
 3. **Sende** eine Nachricht mit Kontext
 
-```
+```text
 Du: [Datei: dokument.pdf]
 Du: Fasse dieses Dokument zusammen
 Agent: 📄 Zusammenfassung von dokument.pdf:
@@ -166,7 +166,7 @@ Agent: 📄 Zusammenfassung von dokument.pdf:
 AuraGo hat über 100 eingebaute Tools. Hier sind einige zum Ausprobieren:
 
 ### Dateisystem
-```
+```text
 Du: Liste alle Dateien im aktuellen Verzeichnis
 Du: Erstelle einen Ordner "projekte"
 Du: Zeig mir Systeminformationen
@@ -175,20 +175,20 @@ Du: Zeig mir Systeminformationen
 Datei-Tools bleiben in `agent_workspace`. `config.yaml` und `data/` sind von dort aus nicht lesbar — das ist die Workspace-Jail, kein Bug.
 
 ### Web & Suche
-```
+```text
 Du: Suche im Web nach "Go 1.21 Release Notes"
 Du: Rufe die Seite example.com ab und zeige den Titel
 ```
 
 ### System
-```
+```text
 Du: Wie spät ist es?
 Du: Zeige den aktuellen Pfad
 Du: Welches Betriebssystem läuft hier?
 ```
 
 ### Notizen
-```
+```text
 Du: Speichere als Notiz: "Morgen Umzug nicht vergessen"
 Du: Zeige alle meine Notizen
 ```

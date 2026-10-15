@@ -16,7 +16,7 @@ Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle
 
 ### Technische Details
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    AES-256-GCM Vault                    │
 ├─────────────────────────────────────────────────────────┤
@@ -71,7 +71,7 @@ Der LLM Guardian überwacht alle Aktionen des Agenten und schützt vor potenziel
 
 ### Funktionsweise
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     LLM Guardian Flow                       │
 ├─────────────────────────────────────────────────────────────┤
@@ -152,7 +152,7 @@ AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo). D
 
 ### Sicherheitskonzept
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                   Sudo Execution Flow                       │
 ├─────────────────────────────────────────────────────────────┤
@@ -191,7 +191,7 @@ agent:
 
 ### Verwendung
 
-```
+```text
 Du: /sudopwd
 Agent: 🔐 Sudo-Passwort wurde sicher im Vault gespeichert.
 
@@ -489,7 +489,7 @@ fileLock := flock.New(vaultFile + ".lock")
 
 ### Instance Lock
 
-```
+```text
 ┌─────────────────┐
 │  aurago.lock    │  ← Verhindert parallele AuraGo-Instanzen
 └─────────────────┘
@@ -614,7 +614,7 @@ agent:
 
 ### Netzwerksicherheit
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                     Internet                            │
 └────────────────┬────────────────────────────────────────┘
@@ -788,7 +788,7 @@ ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
 ### Session-Cookie Sicherheit
 
-```
+```text
 Cookie: aurago_session=<payload>.<hmac>
 
 payload = base64("user|<expiry_unix>")

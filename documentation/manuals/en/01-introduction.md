@@ -10,7 +10,7 @@ The executable is portable. The **full web UI** sits beside it as a matching loc
 
 Connect an OpenAI-compatible model (hosted or local). Enable the integrations you actually want. Leave the rest off.
 
-## What it can do
+## What It Can Do
 
 - **Think and follow through** — several tool rounds, read the error, try again
 - **Run code** — Python and shell, if you open the Danger Zone
@@ -23,7 +23,7 @@ Connect an OpenAI-compatible model (hosted or local). Enable the integrations yo
 
 It does not “improve its own source code” because it is friendly. Self-update and workspace writes are separate, switchable capabilities.
 
-## Who it is for
+## Who It Is For
 
 A home lab, a NAS closet, someone who wants an agent next to Docker and Home Assistant. Developers who will hand reviews and automation to a machine with permissions. Less so: a hosted SaaS product or a research framework.
 
@@ -35,11 +35,11 @@ The UI speaks 16 languages. Personalities change the attitude, not the permissio
 
 [Personalities](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk) if you want to skip the browser.
 
-## The wiring
+## The Wiring
 
 [![System wiring from channels through the agent loop to tools and the vault](../../../assets/readme/system-wiring.svg)](../../../assets/readme/system-wiring.svg)
 
-```
+```text
 Channels / missions
         │
         ▼
@@ -54,7 +54,7 @@ Channels / missions
 
 Personality sits on tone. Guardian and the Danger Zone sit on the tools.
 
-## Safety before you start
+## Safety Before You Start
 
 > AuraGo runs code on **your** system. A VM, Docker or a dedicated box is the sensible default. A misunderstood prompt plus an open shell is not a theoretical risk.
 
@@ -62,7 +62,7 @@ Personality sits on tone. Guardian and the Danger Zone sit on the tools.
 
 File tools stay inside `agent_workspace`. `../../config.yaml` and `data/` fail on purpose. More: [Chapter 14](14-security.md).
 
-## Next steps
+## Next Steps
 
 1. **[Installation](02-installation.md)** — binary, Docker or source, plus the resource set
 2. **[Quick start](03-quickstart.md)** — setup, first chat, harmless commands

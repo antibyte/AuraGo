@@ -329,7 +329,7 @@ Es gibt keinen öffentlichen Chat-`/ws` und kein `/api/tools/execute`. Die volls
 ### Ausführliche Befehlsreferenz
 
 #### `/reset`
-```
+```text
 Verwendung: /reset
 
 Löscht den Gesprächsverlauf der aktuellen Sitzung aus dem
@@ -346,7 +346,7 @@ Sinnvoll wenn:
 ```
 
 #### `/stop`
-```
+```text
 Verwendung: /stop
 
 Unterbricht die aktuelle Agenten-Aktion sofort. Sinnvoll wenn:
@@ -358,7 +358,7 @@ Hinweis: Bereits abgeschlossene Aktionen werden nicht rückgängig gemacht.
 ```
 
 #### `/restart`
-```
+```text
 Verwendung: /restart
 
 Startet den AuraGo-Server kontrolliert neu. Alle Verbindungen werden
@@ -370,7 +370,7 @@ getrennt. Der Agent:
 ```
 
 #### `/debug`
-```
+```text
 Verwendung: /debug [on|off]
 
 Steuert die Ausführlichkeit der Debug-Ausgabe.
@@ -387,7 +387,7 @@ Wenn aktiv:
 ```
 
 #### `/personality`
-```
+```text
 Verwendung: /personality [name]
 
 Ohne Argument: Listet verfügbare Persönlichkeiten
@@ -407,7 +407,7 @@ Agent: 🎭 Persönlichkeit zu professional gewechselt
 ```
 
 #### `/budget`
-```
+```text
 Verwendung: /budget
 
 Zeigt die API-Nutzung des heutigen Tages:
@@ -772,7 +772,7 @@ docker compose up -d
 
 ### Standard-Struktur
 
-```
+```text
 ~/aurago/
 ├── aurago                    # Binary
 ├── config.yaml               # Konfiguration
@@ -820,7 +820,7 @@ Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch 
 
 Beim Aktualisieren von AuraGo:
 
-```
+```text
 □ Release Notes auf Breaking Changes prüfen
 □ Verzeichnis data/ sichern
 □ Aktuelle Konfiguration sichern: cp config.yaml config.yaml.backup

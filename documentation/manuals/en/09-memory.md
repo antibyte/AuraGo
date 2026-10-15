@@ -12,7 +12,7 @@ AuraGo's memory system is what transforms it from a simple chatbot into a truly 
 
 ## Memory Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    Memory Layers                        │
 ├─────────────────────────────────────────────────────────┤
@@ -44,7 +44,7 @@ Short-term memory stores the immediate conversation context, allowing AuraGo to 
 
 ### STM in Action
 
-```
+```text
 User: "What's the weather like?"
 [Agent checks location from STM context]
 
@@ -58,7 +58,7 @@ Long-term memory enables AuraGo to recall information from past conversations, d
 
 ### How RAG Works
 
-```
+```text
 User Query → Embedding Model → Vector Search → Top-K Results → Context Injection → LLM Response
 ```
 
@@ -81,7 +81,7 @@ Content is automatically stored in LTM when:
 
 ### Semantic Search Examples
 
-```
+```text
 User: "What did we discuss about my project last week?"
 [LTM Search: "project" + temporal context]
 → Retrieved: "User is building a home automation system 
@@ -110,7 +110,7 @@ The Knowledge Graph stores structured entities and their relationships, enabling
 
 ### Relationship Types
 
-```
+```text
 Person --works_at--> Organization
 Person --knows--> Person
 Event --located_at--> Location
@@ -121,20 +121,20 @@ Item --belongs_to--> Person
 ### Knowledge Graph Operations
 
 **Adding entities:**
-```
+```text
 User: "My colleague Sarah works at Google"
 [Extracted: Person(Sarah), Organization(Google), Relationship(works_at)]
 ```
 
 **Querying relationships:**
-```
+```text
 User: "Who do I know at Google?"
 [Query: Person --works_at--> Organization(Google)]
 → "You know Sarah who works at Google."
 ```
 
 **Inference:**
-```
+```text
 Stored: "Sarah works at Google" + "Google is in Mountain View"
 Query: "Where does Sarah work?"
 → "Sarah works at Google in Mountain View."
@@ -187,13 +187,13 @@ core_memory:
 ### Managing Core Memory
 
 **Add to core memory:**
-```
+```text
 User: "Add to core memory: I'm allergic to peanuts"
 Agent: ✅ Added to core memory: "User is allergic to peanuts"
 ```
 
 **View core memory:**
-```
+```text
 User: "What do you know about me?"
 Agent: 📋 Core Memory:
    - Name: Alex
@@ -211,7 +211,7 @@ A structured system for actionable information with categories, priorities, and 
 ### Notes
 
 **Creating notes:**
-```
+```text
 User: "Save as note: Server IP is 192.168.1.100"
 User: "Note: Meeting notes from today - discussed Q4 goals"
 ```
@@ -224,7 +224,7 @@ User: "Note: Meeting notes from today - discussed Q4 goals"
 - Learning
 
 **Searching notes:**
-```
+```text
 User: "Find my notes about the server"
 → Shows all notes containing "server"
 ```
@@ -232,7 +232,7 @@ User: "Find my notes about the server"
 ### To-Dos
 
 **Creating to-dos:**
-```
+```text
 User: "Add todo: Buy groceries tomorrow"
 User: "Task: Submit report by Friday, high priority"
 ```
@@ -248,7 +248,7 @@ User: "Task: Submit report by Friday, high priority"
 | Recurring | Daily, Weekly, Monthly |
 
 **Managing to-dos:**
-```
+```text
 User: "Show my todos"
 User: "Mark grocery shopping as done"
 User: "What tasks are due this week?"
@@ -258,7 +258,7 @@ User: "What tasks are due this week?"
 
 File KG Sync is a background service that connects file indexing with the Knowledge Graph. When the file indexer discovers or updates supported files, the sync service can extract entities, relationships, and source references from those indexed chunks and write them into the Knowledge Graph.
 
-### What it does
+### What It Does
 
 | Step | Description |
 |------|-------------|
@@ -270,7 +270,7 @@ File KG Sync is a background service that connects file indexing with the Knowle
 
 This makes uploaded or indexed documentation discoverable both through semantic RAG and structured graph queries. For example, a server runbook can create graph nodes for services, hosts, ports, owners, and dependencies.
 
-### Debug and maintenance endpoints
+### Debug and Maintenance Endpoints
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -282,7 +282,7 @@ This makes uploaded or indexed documentation discoverable both through semantic 
 | `GET /api/debug/kg-node-sources` | Source files/chunks behind graph nodes |
 | `POST /api/debug/kg-file-sync-cleanup` | Cleanup orphaned file-derived graph data |
 
-### Practical guidance
+### Practical Guidance
 
 Keep indexed directories focused and avoid dumping huge unrelated trees into the index. File KG Sync works best for runbooks, inventories, project notes, architecture docs, configuration references, and other semi-structured knowledge.
 
@@ -290,7 +290,7 @@ Keep indexed directories focused and avoid dumping huge unrelated trees into the
 
 ### The Memory Pipeline
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │  1. User Input                                           │
 └────────────────┬─────────────────────────────────────────┘
@@ -353,7 +353,7 @@ When responding, AuraGo retrieves memories in this priority order:
 
 AuraGo automatically extracts and stores:
 
-```
+```text
 User: "I'm flying to Paris next Tuesday for a conference"
 ↓ Extracted:
    • LTM: Travel plan to Paris
@@ -364,21 +364,21 @@ User: "I'm flying to Paris next Tuesday for a conference"
 ### Memory Retrieval Patterns
 
 **Temporal queries:**
-```
+```text
 "What did we discuss last week?"
 "Remind me what I said about the budget"
 "Show me conversations from March"
 ```
 
 **Topic queries:**
-```
+```text
 "Tell me about my home automation project"
 "What do I know about machine learning?"
 "Find information about server configuration"
 ```
 
 **Entity queries:**
-```
+```text
 "Who is Sarah?"
 "What companies do I have contacts at?"
 "What projects am I working on?"
@@ -517,7 +517,7 @@ indexing:
 - Knowledge graph → Prune low-confidence relations
 
 **Manual cleanup commands:**
-```
+```text
 User: "Forget everything about that old project"
 User: "Delete all notes older than 6 months"
 User: "Clear my todo list"
@@ -548,7 +548,7 @@ User: "Clear my todo list"
 
 ### Recommended Workflow
 
-```
+```text
 1. Initial Setup
    └── Add critical facts to Core Memory
 
@@ -607,7 +607,7 @@ indexing:
 
 Place files in the `knowledge/` directory. The agent can then access them:
 
-```
+```text
 User: What's in documentation.txt?
 Agent: [Contents of the indexed file]
 ```
@@ -620,7 +620,7 @@ The Helper LLM is a secondary, lower-cost LLM that handles background maintenanc
 
 ### Overview
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │  Helper LLM — Background Maintenance                       │
 ├──────────────────────────────────────────────────────────┤
@@ -682,7 +682,7 @@ After each conversation turn, the Helper LLM analyzes:
 
 View Helper LLM statistics in the Dashboard → System tab:
 
-```
+```text
 Helper LLM Statistics
 ┌─────────────────────────────────────────────────────────┐
 │  State: Enabled ✓                                       │

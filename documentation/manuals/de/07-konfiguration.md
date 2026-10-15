@@ -805,7 +805,7 @@ Lege den Vault-Master-Key bevorzugt in `./secrets/aurago_master.key` ab oder nut
 
 AuraGo validiert die Konfiguration beim Start:
 
-```
+```text
 [INFO] Loading config from ./config.yaml
 [INFO] Configuration validated successfully
 [ERROR] Invalid config: providers section requires at least one provider

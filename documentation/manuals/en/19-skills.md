@@ -10,7 +10,7 @@ After startup, Agent Skill verification runs in the background so a slow Guardia
 
 ---
 
-## What are Skills?
+## What Are Skills?
 
 Skills are custom Python scripts that are made available as extended tools in the agent. They complement the built-in tools and are ideal for:
 
@@ -26,7 +26,7 @@ Skills are custom Python scripts that are made available as extended tools in th
 
 A skill consists of two files:
 
-```
+```text
 agent_workspace/skills/
 ├── my_skill.json       # Manifest (description, parameters)
 └── my_skill.py         # Python code (implementation)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
 Skills can access secrets from the vault to use API keys, tokens, or passwords.
 
-### Step 1: Store secret in vault
+### Step 1: Store Secret in Vault
 
 1. **Open Web-UI** → "Secrets" → "New Secret"
 2. **Enter name**: e.g., `openweather_api_key`
@@ -185,7 +185,7 @@ Skills can access secrets from the vault to use API keys, tokens, or passwords.
 
 > ⚠️ **Important:** Only secrets you created yourself are available in skills. System secrets (like LLM API keys) are blocked.
 
-### Step 2: Declare in manifest
+### Step 2: Declare in Manifest
 
 ```json
 {
@@ -193,7 +193,7 @@ Skills can access secrets from the vault to use API keys, tokens, or passwords.
 }
 ```
 
-### Step 3: Use in Python code
+### Step 3: Use in Python Code
 
 ```python
 import os
@@ -203,7 +203,7 @@ import os
 api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 ```
 
-### Security notes
+### Security Notes
 
 > ⚠️ **Important:** Skills are a special case for vault access!
 >
@@ -293,7 +293,7 @@ if __name__ == "__main__":
 ```
 
 **Usage in chat:**
-```
+```text
 You: Use the file_analyzer skill for the file document.txt
 Agent: 🛠️ Skill: file_analyzer
        
@@ -473,7 +473,7 @@ if __name__ == "__main__":
 
 ## Creating and Managing Skills
 
-### Security scanning
+### Security Scanning
 
 Uploads, generated skills, and Agent Skill packages are scanned before activation. AuraGo always runs its built-in static checks and can optionally add VirusTotal, LLM Guardian, and NVIDIA SkillSpector.
 
@@ -485,19 +485,19 @@ skillspector scan <target> --no-llm --format json
 
 No SkillSpector MCP server, sidecar, or LLM credentials are used. Results are folded into the normal security status: `SAFE` becomes `clean`, `CAUTION` becomes `warning`, and `DO_NOT_INSTALL` becomes `dangerous`. Use the **Test Scanner** button in the Skill Manager settings to check whether the configured command is available.
 
-### Quality maintenance for agent-created skills
+### Quality Maintenance for Agent-Created Skills
 
 Nightly maintenance reviews Python skills and `SKILL.md` packages whose persisted provenance is exactly `agent`. User, system, and curated skills are never touched and remain immutable. Improvement requires high classifier confidence (at least 0.95) plus complete staging validation and a clean security result; deletion requires at least 0.98 plus deterministic objective evidence and permanently removes files, registry, and versions — only a maintenance tombstone without source references remains. Missing usage alone never justifies deletion. Read-only skills, ambiguity, cancellation, credential signals, scan warnings, fixed references, or failed daemon stops always prevent mutation.
 
-### Create a skill
+### Create a Skill
 
 1. **Create files**: Create `.json` and `.py` files in `agent_workspace/skills/`
 2. **Set permissions**: Ensure files are readable
 3. **Inform agent**: The agent automatically detects new skills via `list_skills`
 
-### View skills
+### View Skills
 
-```
+```text
 You: What skills are available?
 Agent: 🛠️ Available skills:
        - file_analyzer: Analyzes text files
@@ -505,16 +505,16 @@ Agent: 🛠️ Available skills:
        - data_converter: Converts JSON/CSV/YAML
 ```
 
-### Execute a skill
+### Execute a Skill
 
-```
+```text
 You: Run the file_analyzer skill with filepath="readme.txt"
 
 Or simpler:
 You: Analyze the file readme.txt with the file_analyzer
 ```
 
-### Delete a skill
+### Delete a Skill
 
 Simply delete both files from the `agent_workspace/skills/` directory.
 
@@ -522,7 +522,7 @@ Simply delete both files from the `agent_workspace/skills/` directory.
 
 ## Best Practices
 
-### 1. Parameter validation
+### 1. Parameter Validation
 
 Always validate inputs:
 
@@ -537,7 +537,7 @@ def main(url: str, max_items: int = 10) -> dict:
         return {"status": "error", "message": "max_items must be between 1 and 100"}
 ```
 
-### 2. Set timeouts
+### 2. Set Timeouts
 
 Always use timeouts for HTTP requests:
 
@@ -548,7 +548,7 @@ import requests
 response = requests.get(url, timeout=30)
 ```
 
-### 3. Error handling
+### 3. Error Handling
 
 Catch specific errors:
 
@@ -564,7 +564,7 @@ except Exception as e:
     return {"status": "error", "message": f"Unexpected error: {e}"}
 ```
 
-### 4. Close resources
+### 4. Close Resources
 
 Use context managers:
 
@@ -578,7 +578,7 @@ f = open(filepath, 'r')
 content = f.read()
 ```
 
-### 5. Declare dependencies
+### 5. Declare Dependencies
 
 List all required pip packages in the manifest:
 
@@ -596,9 +596,9 @@ Packages are automatically installed on first call.
 
 AuraGo offers templates for common skill types:
 
-### View templates
+### View Templates
 
-```
+```text
 You: What skill templates are available?
 Agent: 📋 Available templates:
        - minimal_skill: Minimal stdlib-only starter skill
@@ -608,7 +608,7 @@ Agent: 📋 Available templates:
        - scraper: Web scraper with CSS selectors
 ```
 
-### Create skill from template
+### Create Skill from Template
 
 ```json
 {
@@ -623,7 +623,7 @@ Agent: 📋 Available templates:
 
 ## Troubleshooting
 
-### Skill not found
+### Skill Not Found
 
 | Problem | Solution |
 |---------|----------|
@@ -632,17 +632,17 @@ Agent: 📋 Available templates:
 | Missing permissions | Ensure files are readable |
 | Stale cache | Call `list_skills` to refresh the cache |
 
-### Import error
+### Import Error
 
-```
+```text
 ModuleNotFoundError: No module named 'requests'
 ```
 
 **Solution:** Add `requests` to the `dependencies` in the manifest.
 
-### Vault key not available
+### Vault Key Not Available
 
-```
+```text
 AURAGO_SECRET_MY_KEY is None
 ```
 
@@ -651,7 +651,7 @@ AURAGO_SECRET_MY_KEY is None
 2. Ensure the key exists in the vault
 3. Verify that the agent itself created the value through `secrets_vault`. Values entered in the UI or secure secret dialog, system secrets, and unclassified legacy values are intentionally not exported to skills.
 
-### Timeout during execution
+### Timeout During Execution
 
 **Solution:**
 - Increase timeout in configuration
@@ -677,7 +677,7 @@ AURAGO_SECRET_MY_KEY is None
 
 Each skill can have an optional **manual** — a Markdown file that explains to the agent (and to humans) how the skill works, what its parameters mean, what it returns, and any usage tips.
 
-### Why add a manual?
+### Why Add a Manual?
 
 The agent reads the manual **on demand** before calling a skill, rather than keeping it permanently in the system prompt. This means:
 
@@ -685,9 +685,9 @@ The agent reads the manual **on demand** before calling a skill, rather than kee
 - The agent only loads the manual when it is actually needed
 - You can document edge cases, example calls, and error codes freely
 
-### File location
+### File Location
 
-```
+```text
 agent_workspace/skills/
 ├── my_skill.json    # Manifest
 ├── my_skill.py      # Code
@@ -696,11 +696,11 @@ agent_workspace/skills/
 
 The manual shares the **same base name** as the manifest and Python file. AuraGo detects it automatically on startup.
 
-### Size limit
+### Size Limit
 
 Manuals are capped at **64 KB**. This is more than enough for any real-world skill documentation.
 
-### Creating a manual
+### Creating a Manual
 
 **Via Web-UI:**
 
@@ -714,13 +714,13 @@ Manuals are capped at **64 KB**. This is more than enough for any real-world ski
 
 The agent can create and update manuals itself using the built-in tools:
 
-```
+```text
 get_skill_documentation  – read the current manual for a skill
 set_skill_documentation  – write or replace the manual for a skill
 ```
 
 Example chat:
-```
+```text
 You:   Write a usage manual for my file_analyzer skill.
 Agent: 🛠️ set_skill_documentation(name="file_analyzer", documentation="# file_analyzer\n…")
        ✓ Manual saved.
@@ -737,7 +737,7 @@ Content-Type: application/json
 }
 ```
 
-### Recommended manual structure
+### Recommended Manual Structure
 
 ```markdown
 # skill_name
@@ -761,7 +761,7 @@ One-sentence description of what this skill does.
     "description": "partly cloudy"
   }
 }
-```
+```text
 
 ## Example call
 

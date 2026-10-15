@@ -19,7 +19,7 @@ Geplante Chats, keine Shell-Skripte. Eggs und Nests wohnen in [Invasion Control]
 - **Bedingungen** – Unter welchen Umständen?
 - **Aktionen** – Was danach geschieht?
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  Mission: "Tägliches Backup"                                 │
 │  ├─ Befehl: Backup-Skript ausführen                         │
@@ -156,7 +156,7 @@ Missionen sind **Agent-Prompts** — der Agent nutzt seine Tools, um die Aufgabe
 
 AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit Sekunden am Anfang:
 
-```
+```text
 ┌───────────── Sekunde (0 - 59, optional)
 │ ┌───────────── Minute (0 - 59)
 │ │ ┌───────────── Stunde (0 - 23)
@@ -348,7 +348,7 @@ curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/cancel
 
 Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht. Zeitplan-Missionen zeigen dort und in der Liste ihren nächsten Lauf („Nächster Lauf"), damit du auf einen Blick siehst, wann eine Mission als Nächstes startet:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ Mission Control                              [+ Neue]       │
 ├─────────────────────────────────────────────────────────────┤

@@ -15,7 +15,7 @@ The dashboard has two persistent elements above the tab content:
 1. **Agent Status Banner** — always visible: active model, personality profile, context fill level, connected integrations, and last activity.
 2. **Tab navigation** — eight tabs; only the active tab's cards are loaded initially.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │ 📊 AURAGO DASHBOARD                                    🌙         ≡ │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -222,7 +222,7 @@ Prompt statistics reset on server restart and appear after the first conversatio
 
 Operational Issues are durable records for problems found during background work, maintenance, health checks, or repeated tool execution. AuraGo deduplicates them by fingerprint and keeps revisions, occurrences, status, and last-seen timestamps instead of creating an unbounded stream of identical warnings.
 
-### Notices and delivery
+### Notices and Delivery
 
 - Background and maintenance code records the issue; it never sends a user notice directly.
 - Only at the first direct chat contact of each local calendar day, the supervisor selects at most two changed issues, ordered by severity, revision change, and recency. At most one such notice is sent per day across sessions, chat channels and restarts. If no issues are due at first contact, issues added later wait until first contact the following day. Remaining open issues stay visible in the Dashboard. The model receives already-prepared diagnostic context and does not decide whether a notice is shown.
@@ -231,7 +231,7 @@ Operational Issues are durable records for problems found during background work
 
 The Dashboard card supports filters for status, kind, severity, and source. Administrators can resolve or archive an issue and can preview or archive stale issues. The API returns sanitized records with non-reversible public IDs; it never exposes raw credentials, complete tool payloads, or internal database identifiers.
 
-### Retention and mission triggers
+### Retention and Mission Triggers
 
 Active history is archived losslessly: single warnings after seven days, recurring warnings and errors after 30 days. Explicit `review_required` decisions are never auto-archived. Archived issues are excluded from notices, active counts, reminders, and mission triggers; a recurrence reopens the same fingerprint and retains its history.
 

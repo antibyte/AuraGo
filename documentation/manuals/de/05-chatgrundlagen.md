@@ -14,7 +14,7 @@ AuraGo versteht natürliche Sprache. Du musst keine speziellen Befehle lernen, u
 
 AuraGo erkennt automatisch die Sprache deiner Nachricht und antwortet entsprechend:
 
-```
+```text
 Du: Kannst du mir helfen, ein Python-Skript zu schreiben?
 Du: Can you help me write a Python script?
 Du: Peux-tu m'aider à écrire un script Python?
@@ -40,7 +40,7 @@ Die gebräuchlichste Form der Kommunikation. Unterstützt:
 - **Markdown-Formatierung** – Wird von AuraGo in der Antwort verwendet
 - **Code-Blöcke** – Werden mit Syntax-Highlighting dargestellt
 
-```
+```text
 Du: Erkläre mir den Unterschied zwischen REST und GraphQL
 Agent: 🔍 **REST vs. GraphQL**
 
@@ -81,7 +81,7 @@ Operator-Befehle (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/
 
 Nutze `Shift + Enter` für Zeilenumbrüche:
 
-```
+```text
 Du: Schreibe eine Funktion, die:
 - Eine Liste von Zahlen nimmt
 - Die geraden Zahlen filtert
@@ -132,7 +132,7 @@ Sandboxen, Custom Tools und Skills verborgen.
 
 ### Beispiele für Datei-Interaktionen
 
-```
+```text
 Du: [Datei: server.log]
 Du: Analysiere diesen Log und finde alle ERROR-Einträge
 
@@ -144,7 +144,7 @@ Agent: 🔍 Log-Analyse:
    [15:01:33] ERROR: Disk space critical (< 5%)
 ```
 
-```
+```text
 Du: [Datei: config.yaml]
 Du: Erkläre mir die wichtigsten Einstellungen in dieser Konfiguration
 
@@ -171,7 +171,7 @@ Die Bildanalyse nutzt ein Vision-LLM (Standard: Google Gemini Flash), um:
 
 ### Beispiele
 
-```
+```text
 Du: [Bild: screenshot.png]
 Du: Was zeigt dieser Screenshot?
 
@@ -182,7 +182,7 @@ Agent: 📸 Bildanalyse:
    sehen (rotes X), was auf einen Syntax-Fehler hindeutet.
 ```
 
-```
+```text
 Du: [Bild: diagramm.jpg]
 Du: Erstelle eine Textbeschreibung dieses Architektur-Diagramms
 
@@ -224,7 +224,7 @@ telegram:
 
 ### Beispiel
 
-```
+```text
 [🎙️ Sprachnachricht empfangen]
 Transkription: "Schicke eine E-Mail an Max mit dem Betreff 
 Besprechung morgen und dem Text Wir treffen uns um 10 Uhr"
@@ -244,7 +244,7 @@ Agent: ✅ E-Mail wird vorbereitet...
 
 AuraGo behält den Konversationskontext bei, um kohärente Gespräche zu führen:
 
-```
+```text
 Du: Erstelle eine Todo-Liste für mein Projekt
 Agent: ✅ Liste erstellt mit 5 Standard-Aufgaben
 
@@ -266,7 +266,7 @@ Nutze `/reset` für einen frischen Start:
 - Behält gespeicherte Notizen und Long-Term-Memory
 - Nützlich bei Kontext-Verwirrung oder neuem Thema
 
-```
+```text
 Du: /reset
 Agent: 🔄 Chat-Verlauf wurde zurückgesetzt.
        Wie kann ich dir helfen?
@@ -290,7 +290,7 @@ Agent: 🔄 Chat-Verlauf wurde zurückgesetzt.
 
 AuraGo verfügt über mehrere Speicher-Ebenen:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │  Short-Term Memory                                  │
 │  Aktueller Chat-Verlauf (letzte ~20 Nachrichten)   │
@@ -314,7 +314,7 @@ Der aktuelle Gesprächskontext. Wird automatisch verwaltet.
 
 Permanente Fakten, die AuraGo immer "im Kopf" behält:
 
-```
+```text
 Du: Merke dir: Mein Lieblings-Editor ist VS Code
 Agent: ✅ In Core Memory gespeichert
 
@@ -328,7 +328,7 @@ Agent: Du hast erwähnt, dass VS Code dein
 
 Semantische Suche über alle vergangenen Gespräche:
 
-```
+```text
 Du: Erinnerst du dich an das Python-Skript, das wir 
     letzte Woche für die Datenverarbeitung geschrieben haben?
 
@@ -342,7 +342,7 @@ Agent: 🔍 Long-Term Memory durchsucht...
 
 Strukturierte Informationen über Entitäten (Personen, Projekte, Konzepte):
 
-```
+```text
 Du: Erstelle einen Knowledge Graph für mein Projekt "Aura"
 Du: Das Projekt hat 3 Module: Core, UI und API
 Du: Max arbeitet am Core, Lisa an der UI
@@ -362,7 +362,7 @@ Du: Max arbeitet am Core, Lisa an der UI
 
 ### 2. Kontext geben
 
-```
+```text
 Du: Ich arbeite an einem REST-API-Projekt in Go.
     Die Struktur folgt dem Clean Architecture Pattern.
     
@@ -371,7 +371,7 @@ Du: Ich arbeite an einem REST-API-Projekt in Go.
 
 ### 3. Schrittweise arbeiten
 
-```
+```text
 Du: Schritt 1: Erstelle die Datenbank-Verbindung
 Du: Schritt 2: Schreibe die Migration für die users-Tabelle
 Du: Schritt 3: Implementiere den Registrierungs-Handler
@@ -379,7 +379,7 @@ Du: Schritt 3: Implementiere den Registrierungs-Handler
 
 ### 4. Beispiele nennen
 
-```
+```text
 Du: Erstelle eine Regex, die E-Mail-Adressen validiert.
     Beispiele für gültige Adressen:
     - user@example.com
@@ -392,7 +392,7 @@ Du: Erstelle eine Regex, die E-Mail-Adressen validiert.
 
 ### 5. Format wünschen
 
-```
+```text
 Du: Zeige mir die Systeminformationen als Tabelle
 Du: Fasse das Dokument in 3 Stichpunkten zusammen
 Du: Erkläre es mir wie einem Anfänger
@@ -415,7 +415,7 @@ Nutze für komplexe Aufgaben die 5-W-Methode:
 ### Level: Anfänger
 
 **Einfache Begrüßung und Frage:**
-```
+```text
 Du: Hallo! Was kannst du alles machen?
 
 Agent: Hallo! 👋 Ich bin AuraGo, dein persönlicher 
@@ -431,7 +431,7 @@ Agent: Hallo! 👋 Ich bin AuraGo, dein persönlicher
 ```
 
 **Eine einfache Datei erstellen:**
-```
+```text
 Du: Erstelle eine Datei mit meinen Einkäufen
 
 Agent: Gerne! Was genau soll in die Datei? 
@@ -454,7 +454,7 @@ Agent: ✅ Datei erstellt: agent_workspace/workdir/einkaufsliste.txt
 ### Level: Fortgeschritten
 
 **Code-Review mit Datei:**
-```
+```text
 Du: [Datei: main.go]
 Du: Bitte reviewe diesen Code und gib Verbesserungsvorschläge
 
@@ -476,7 +476,7 @@ Agent: 🔍 Code-Review für main.go:
 ```
 
 **Komplexe Suche:**
-```
+```text
 Du: Suche im Web nach aktuellen Best Practices für 
     Go Error Handling 2024
     
@@ -505,7 +505,7 @@ Agent: 🔍 Suche läuft...
 ### Level: Experte
 
 **Multi-Step Workflow:**
-```
+```text
 Du: Ich möchte ein automatisiertes Backup-Skript erstellen:
 
 1. Es soll alle 6 Stunden laufen
@@ -545,7 +545,7 @@ Schritt 6/6: Test-Modus
 ```
 
 **Selbstmodifizierender Agent:**
-```
+```text
 Du: Ich möchte, dass du dir ein neues Tool erstellst.
 
 Es soll "weather_check" heißen und:

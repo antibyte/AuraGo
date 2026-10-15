@@ -127,7 +127,7 @@ Conversation, skills, questions, planning, and sandbox execution.
 
 ### Chat API
 
-#### Chat Completion (OpenAI-compatible)
+#### Chat Completion (OpenAI-Compatible)
 ```http
 POST /v1/chat/completions
 Content-Type: application/json
@@ -1019,7 +1019,7 @@ POST /api/webhooks/{id}/test
 GET /api/webhooks/presets
 ```
 
-#### Webhook Receiver (public)
+#### Webhook Receiver (Public)
 ```http
 POST /webhook/{slug}
 ```
@@ -2370,7 +2370,7 @@ GET /api/system/os
 GET /api/runtime
 ```
 
-#### Build and VCS identity
+#### Build and VCS Identity
 ```http
 GET /api/system/info
 ```
@@ -2420,7 +2420,7 @@ Accept: text/event-stream
 | `tsnet_status` | Tailscale tsnet status |
 
 **Example Stream:**
-```
+```text
 event: system_metrics
 data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
 
@@ -2548,7 +2548,7 @@ GET /api/code-studio/terminal
 
 Code Studio paths are sanitized inside the container workspace and mounted at `/workspace`.
 
-### Desktop workspace API
+### Desktop Workspace API
 
 See the [Desktop HTTP and SDK contract](../../desktop-api.md) for readonly, scoped bootstrap/events, conditional file writes, conflict handling, archive previews and session compatibility.
 

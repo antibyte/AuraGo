@@ -20,7 +20,7 @@ AuraGo understands natural language, but a few principles help you get the best 
 
 ### Provide Context
 
-```
+```text
 You: Create a backup script
 Agent: [Creates generic script]
 
@@ -33,7 +33,7 @@ Agent: [Creates specific, targeted script]
 
 For multi-part tasks, break them down:
 
-```
+```text
 You: First, find all log files larger than 100MB
 Agent: Found 3 files: /var/log/syslog.1, /var/log/nginx/access.log
 
@@ -50,7 +50,7 @@ Agent: Summary created
 
 Standard text input works for most interactions:
 
-```
+```text
 You: What is the weather like today?
 You: Explain Docker containers
 You: Write a Python function to calculate fibonacci numbers
@@ -60,13 +60,13 @@ You: Write a Python function to calculate fibonacci numbers
 
 Share code for analysis or modification:
 
-```
+```text
 You: ```python
 def calculate_total(items):
     return sum(item['price'] for item in items)
 ```
 Can you add error handling to this function?
-```
+```text
 
 ### Structured Data
 
@@ -79,7 +79,7 @@ You: ```json
   "port": 8080,
   "ssl": true
 }
-```
+```text
 Generate a curl command from this config
 ```
 
@@ -87,7 +87,7 @@ Generate a curl command from this config
 
 Some interactions work best with clear parameter style:
 
-```
+```text
 You: Search web query="Go 1.21 release date" max_results=5
 You: Create file path="config.yml" content="[YAML content]"
 ```
@@ -131,21 +131,21 @@ skill execution.
 ### Upload Examples
 
 **Document Analysis:**
-```
+```text
 You: [Upload: report.pdf]
 You: Summarize the key findings in this report
 Agent: 📄 Summary: The report identifies three main trends...
 ```
 
 **Code Review:**
-```
+```text
 You: [Upload: main.go]
 You: Review this code for security issues
 Agent: 🔍 Code Review: Found 2 potential issues...
 ```
 
 **Data Processing:**
-```
+```text
 You: [Upload: sales.csv]
 You: Calculate total revenue by month
 Agent: 📊 Monthly Revenue:
@@ -166,7 +166,7 @@ AuraGo can analyze images using vision capabilities. This works in both Web UI a
 1. Upload an image (JPG, PNG)
 2. Ask your question about the image
 
-```
+```text
 You: [Upload: screenshot.png]
 You: What error message do you see in this screenshot?
 Agent: 🔍 I can see an error dialog showing "Connection timeout"...
@@ -202,7 +202,7 @@ When using AuraGo via Telegram, you can send voice messages for hands-free inter
 
 ### Voice Message Flow
 
-```
+```text
 [You: 🎤 Voice message]
       ↓
 [Transcription] → "What's the system CPU usage?"
@@ -230,7 +230,7 @@ When using AuraGo via Telegram, you can send voice messages for hands-free inter
 
 AuraGo maintains a continuous conversation context:
 
-```
+```text
 You: My name is Alex
 Agent: Nice to meet you, Alex!
 
@@ -277,7 +277,7 @@ Operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `
 
 The Web UI displays messages in a threaded format:
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │ 👤 User: Task A                         │
 │ 🤖 Agent: Working on Task A...          │
@@ -307,7 +307,7 @@ AuraGo uses multiple memory systems:
 ### How Context Works
 
 **Within a Conversation:**
-```
+```text
 You: Create a Python script to backup files
 Agent: [Creates script]
 
@@ -316,7 +316,7 @@ Agent: [Modifies same script - knows what "it" refers to]
 ```
 
 **Across Conversations (via Memory):**
-```
+```text
 [Yesterday] You: I work as a software engineer
 [Today]   You: What do I do for work?
 Agent: You're a software engineer.
@@ -325,7 +325,7 @@ Agent: You're a software engineer.
 ### Managing What the Agent Remembers
 
 **Explicitly save important facts:**
-```
+```text
 You: Remember that my database password is in /secrets/db.env
 Agent: ✅ Saved to core memory
 
@@ -334,7 +334,7 @@ Agent: ✅ Created note with reminder
 ```
 
 **Review stored information:**
-```
+```text
 You: What do you know about me?
 Agent: Here's what I remember:
    - Name: Alex
@@ -348,7 +348,7 @@ Agent: Here's what I remember:
 
 AuraGo has several memory layers:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │  Short-Term Memory                                  │
 │  Current chat context (last ~20 messages)           │
@@ -372,7 +372,7 @@ The current conversation context. Managed automatically.
 
 Permanent facts AuraGo always keeps "in mind":
 
-```
+```text
 User: Remember: My favorite editor is VS Code
 Agent: ✅ Stored in Core Memory
 
@@ -385,7 +385,7 @@ Agent: You mentioned VS Code is your favorite editor. I recommend it!
 
 Semantic search across all past conversations:
 
-```
+```text
 User: Do you remember the Python script we wrote last week for data processing?
 
 Agent: 🔍 Searching Long-Term Memory...
@@ -396,7 +396,7 @@ Agent: 🔍 Searching Long-Term Memory...
 
 Structured information about entities (people, projects, concepts):
 
-```
+```text
 User: Create a knowledge graph for my project "Aura"
 User: The project has 3 modules: Core, UI, and API
 User: Max works on Core, Lisa on UI
@@ -420,7 +420,7 @@ Effective prompts typically include:
 ### Example Templates
 
 **Analysis Task:**
-```
+```text
 Analyze [thing] and provide:
 - Key findings
 - Risks or issues
@@ -431,7 +431,7 @@ Format: [bullet points/paragraphs/table]
 ```
 
 **Creation Task:**
-```
+```text
 Create a [thing] that does [purpose].
 Requirements:
 - Must support [feature]
@@ -440,7 +440,7 @@ Requirements:
 ```
 
 **Comparison Task:**
-```
+```text
 Compare [option A] vs [option B] for [use case].
 Consider:
 - Performance
@@ -475,7 +475,7 @@ Consider:
 ### Beginner Level
 
 **Simple Information Request:**
-```
+```text
 You: What time is it?
 Agent: 🕐 Current time: 14:32 UTC
 
@@ -487,7 +487,7 @@ Agent: 📁 Workspace contents:
 ```
 
 **Basic File Operation:**
-```
+```text
 You: Create a text file called hello.txt
 Agent: ✅ Created hello.txt
 
@@ -502,7 +502,7 @@ Agent: 📄 Content of hello.txt:
 ### Intermediate Level
 
 **Web Research:**
-```
+```text
 You: Search for the latest Go programming language release
 Agent: 🔍 Searching...
    
@@ -516,11 +516,11 @@ Agent: 📖 Example:
    ```go
    minVal := min(10, 5, 8)  // returns 5
    maxVal := max(10, 5, 8)  // returns 10
-   ```
+   ```text
 ```
 
 **System Information:**
-```
+```text
 You: Check system resources and alert me if disk usage is over 80%
 Agent: 🔍 System check:
    💻 CPU: 12% usage
@@ -533,7 +533,7 @@ Agent: 🔍 System check:
 ### Advanced Level
 
 **Multi-Step Automation:**
-```
+```text
 You: I need to analyze all log files from last week
 Agent: 🔍 Finding log files from last 7 days...
    Found: 12 files (45 MB total)
@@ -551,7 +551,7 @@ Agent: ✅ Created weekly_log_analyzer.py
 ```
 
 **Docker Management:**
-```
+```text
 You: List all running containers and their resource usage
 Agent: 🐳 Docker Containers:
    ┌─────────────┬────────┬─────────┬──────────┐
@@ -570,7 +570,7 @@ Agent: 🔄 Restarting nginx...
 ```
 
 **Custom Tool Creation:**
-```
+```text
 You: Create a tool that fetches weather data for a given city
 Agent: 🛠️ Creating weather tool...
    ✅ Created: get_weather.py
@@ -613,7 +613,7 @@ Agent: 🌤️ London Weather:
 ## Quick Reference Card
 
 ### Essential Commands
-```
+```text
 /help          - Show all commands
 /reset         - Clear chat history
 /stop          - Cancel current action
@@ -629,7 +629,7 @@ Agent: 🌤️ London Weather:
 ```
 
 ### Message Patterns That Work Well
-```
+```text
 "Show me..."          - For information retrieval
 "Create a..."         - For file/script generation
 "Explain..."          - For learning and documentation

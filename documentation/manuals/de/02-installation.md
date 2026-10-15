@@ -257,7 +257,7 @@ tail -f log/aurago.log     # Direkt
 ```
 
 Du solltest sehen:
-```
+```text
 [INFO] AuraGo starting...
 [INFO] Web UI available at https://localhost
 [INFO] Agent loop initialized
@@ -271,7 +271,7 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 
 ## Dateistruktur nach Installation
 
-```
+```text
 ~/aurago/
 ├── aurago                    # Executable
 ├── resources.dat             # Kann nach Setup gelöscht werden

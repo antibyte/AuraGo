@@ -129,7 +129,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 
 ## Chat-Kurzbefehle
 
-```
+```text
 /help          Alle Befehle
 /reset         Chat-Verlauf löschen
 /stop          Laufende Aktion abbrechen

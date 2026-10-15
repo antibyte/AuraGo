@@ -1420,7 +1420,7 @@ Spawn and manage parallel co-agents.
 | `specialist` | enum | researcher, coder, designer, security, writer |
 | `priority` | integer | 1=low, 2=normal, 3=high |
 
-## Homepage & static site tool family
+## Homepage & Static Site Tool Family
 
 Requires `homepage.enabled: true`. Workspace paths in tool arguments are **relative** to the homepage root (e.g. `project_dir: "my-site"`), not absolute `/workspace/...` paths.
 
@@ -1438,7 +1438,7 @@ Requires `homepage.enabled: true`. Workspace paths in tool arguments are **relat
 
 **UI:** Virtual Desktop app **Homepage Studio** uses the same workspace. **Config → Integrations → Homepage**.
 
-### `homepage_registry` (detail)
+### `homepage_registry` (Detail)
 
 SQLite-backed project catalog (`sqlite.homepage_registry_path`). Auto-registration on `init_project`. Operations include `register`, `search`, `get`, `list`, `update`, `delete`, `log_edit`, `log_deploy`, `log_problem`, `resolve_problem`, and history: `add_history`, `list_history`, `get_history`, `search_history`, `update_history`, `delete_history`.
 
@@ -1762,7 +1762,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 
 AuraGo indexes `prompts/tools_manuals/*.md` (one manual per tool, plus grouped and legacy manuals) for adaptive tool retrieval. At runtime the agent can call `discover_tools` with `get_tool_info` to load the matching manual.
 
-### Native tool → manual file
+### Native Tool → Manual File
 
 Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 
@@ -1785,7 +1785,7 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 | `layerling` | [layerling.md](../../../prompts/tools_manuals/layerling.md) | Desktop CAD editor |
 | `ruview` | [ruview.md](../../../prompts/tools_manuals/ruview.md) | Wi-Fi sensing (read-only) |
 
-### Legacy / meta manuals (no 1:1 native tool name)
+### Legacy / Meta Manuals (No 1:1 Native Tool Name)
 
 | Manual file | Purpose |
 |-------------|---------|

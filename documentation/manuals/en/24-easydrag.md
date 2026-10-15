@@ -4,7 +4,7 @@ EasyDrag is the visual editor for flows. A flow is a mission built from building
 
 This chapter covers the editor. How flow runs, limits, failures and secrets behave on the server is in [Chapter 11: Flow missions (EasyDrag)](11-missions.md#flow-missions-easydrag).
 
-## Your first flow
+## Your First Flow
 
 1. Open **EasyDrag** on the desktop. Choose **New flow** and give it a name, or start from a **template**.
 2. Click **Choose a trigger** and pick one.
@@ -13,7 +13,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 5. **Test** (Ctrl+Enter) saves the draft and runs it. Steps light up one after another, and connections show how many items passed. A test has real effects; see [Testing](#testing).
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
 
-## The editor
+## The Editor
 
 - The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
 - The start page lists your flows with the same states and filters them by *All*, *Active*, *Paused* (published and switched off) and *With errors*.
@@ -51,7 +51,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - **Published with a problem** means the new version is live, but Mission Control or the timers could not be updated. The header then shows *Publish not finished*, and **Publish** stays available: publish again to finish.
 - When the flow's Mission Control entry is missing, publishing again does not help. Export the flow, delete it and import it again.
 
-## Runs and notifications
+## Runs and Notifications
 
 - **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers Stop too, because stopping changes no flow; read-only missions refuse it.
@@ -59,7 +59,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
 
-## Decisions node
+## Decisions Node
 
 *Decision* uses AuraGo’s optional managed Decisions service, which can run natively or in Docker. It accepts a state value and up to eight registered image references; templates can supply both. The server resolves image references within AuraGo’s media boundary before the model sees them. A missing or unavailable service marks the node as needing setup.
 
@@ -69,7 +69,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - Model output is untrusted data. Technical failures stop the run or use the node’s *Error path*; *Continue* is unavailable because a failed evaluation has no valid decision result.
 - GPU/iGPU inference is required by default. CPU fallback must be explicitly enabled in **Config → Decisions** and can be revoked there. The service status and any missing setup are shown on the node.
 
-## When a step fails
+## When a Step Fails
 
 - Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.
 - *Data name* in the same tab is the name later steps use in references (`{{data_name.field}}`).
@@ -80,12 +80,12 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - Secrets live in the Vault as `easydrag_<name>`. Flows can use them; the agent cannot list, read or change them. Run data and the run view show their values redacted, with a limit for very short values (see [Chapter 11](11-missions.md#flow-secrets)).
 - The bin next to **New secret** deletes the chosen secret after a confirmation and clears the field. Flows that use the secret fail until it is set again; if published flows still use it, a notification names them.
 
-## Templates, import and export
+## Templates, Import and Export
 
 - The start page offers six templates: *AI news as PDF via Telegram*, *Summarise a webhook by email*, *Appointment reminder*, *Lights off when leaving*, *Budget guard* and *Daily RSS digest*. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
 - **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; what you type into ordinary fields (a generic tool's header map, for example) is exported as typed.
 
-## Mission Control, the missions page and the dashboard
+## Mission Control, the Missions Page and the Dashboard
 
 - In Mission Control, flows carry the *EasyDrag* badge, and the filter *Flows* shows only them. **Open in EasyDrag** replaces *Edit*; **New flow** opens EasyDrag's start page. Schedules read like "weekdays at 07:00 AM" (times follow your language's format), and a mission that never ran shows *Never run*.
 - Runs that only wait for a free slot cannot be cancelled in Mission Control; stop them here under **Runs**.
@@ -99,11 +99,11 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - The agent options (*Agent may only read flows*, *Agent may publish flows*) are locked. They take effect once the agent can work with flows.
 - *Open EasyDrag* opens the app on the desktop.
 
-## When EasyDrag is switched off
+## When EasyDrag Is Switched Off
 
 EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. When EasyDrag loads while it is off (a new window, **Try again**, or opening a flow), it shows *EasyDrag is switched off* with **Open settings** and **Try again**. The start page shows the same card, with both buttons, in place of your flows the next time it loads its list; New flow, Import and the templates are then disabled. A flow that is already open stays in the editor, and its next save shows *Offline – retrying* until EasyDrag is on again. Flow missions stay in Mission Control and keep running until the restart. You can still stop a run that is already going.
 
-## Keyboard shortcuts
+## Keyboard Shortcuts
 
 Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog (a step's detail view included) or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside, and **Tab** on the canvas adds a step: the zoom buttons and the tool buttons of the selected step are reached with **Shift+Tab** from the footer. Every tool button also has a key: D turns the step off or on, Ctrl+D duplicates, Del deletes, and *Test step* is in the detail view (Enter). Screen readers also find a list of the steps.
 

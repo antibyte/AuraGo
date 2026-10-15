@@ -10,7 +10,7 @@ Most pages need `web_config.enabled: true`. Navigation reloads the page.
 
 [![Real Virtual Desktop](../../screenshots/desktop.png)](../../screenshots/desktop.png)
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │ ⚡ AURA  GO    [Header Buttons]              🌙         ≡  │
 ├────────────────────────────────────────────────────────────┤
@@ -29,7 +29,7 @@ The header is identical on all pages and contains:
 - **AURA** (in accent color) + **GO** (in default color)
 - Click opens the chat (homepage)
 
-### Center: Header Buttons (context-dependent)
+### Center: Header Buttons (Context-Dependent)
 Different buttons appear depending on the page:
 
 **In Chat:**
@@ -55,7 +55,7 @@ Different buttons appear depending on the page:
 
 The radial menu is the main navigation. It opens as a circular menu from the top-right corner.
 
-```
+```text
                     ┌─────────┐
               🥚   │  Chat   │   💬
     Invasion ─────┤   ☰     ├───── Telegram
@@ -92,7 +92,7 @@ The chat is the most frequently used view.
 
 ### Layout
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ Header                                      │
 ├─────────────────────────────────────────────┤
@@ -139,7 +139,7 @@ The chat is the most frequently used view.
 
 When the agent uses tools, they are displayed:
 
-```
+```text
 🛠️ Tool: execute_shell
    $ ls -la
    
@@ -187,7 +187,7 @@ Here you edit the `config.yaml` via a web form.
 
 ### Structure
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ Configuration                    [Save]     │
 ├──────────┬──────────────────────────────────┤
@@ -283,7 +283,7 @@ Details: the [Retro-Net deep dive](../../retro-net.md) and [chapter 8](08-integr
 
 Details: the [Personal Radio deep dive](../../personal-radio.md) and [chapter 8](08-integrations.md).
 
-### Animated personas in Live Speech
+### Animated Personas in Live Speech
 
 Webchat and Desktop **Live Speech** share a compact animated persona panel: the selected persona listens, thinks and moves its mouth with assistant playback. Static chat avatars and the existing voice-session controls stay separate. The animations are locally shipped Rive files — one per personality (including butler, silver, manager, commander, professor, vampire, secretary, punk, terminator); `custom` keeps its static image. Asset catalog and runtime contract: the [animated personas deep dive](../../animated-personas.md).
 

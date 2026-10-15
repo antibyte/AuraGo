@@ -16,7 +16,7 @@ Invasion Control deploys **AuraGo sub-agents** (Eggs) to remote or local targets
 
 ## Concepts: Nests & Eggs
 
-### Nests (deployment targets)
+### Nests (Deployment Targets)
 
 A **Nest** describes *where* an Egg is deployed:
 
@@ -32,7 +32,7 @@ A **Nest** describes *where* an Egg is deployed:
 
 Supported access types are **SSH**, **Docker API**, and **Local** only. Kubernetes is not implemented.
 
-### Eggs (sub-agent templates)
+### Eggs (Sub-Agent Templates)
 
 An **Egg** describes *how* the deployed worker behaves:
 
@@ -48,7 +48,7 @@ An **Egg** describes *how* the deployed worker behaves:
 | `include_vault` | Ship an encrypted vault export to the target: the Egg's API key and, for nests with **Copy this nest's secret into the egg vault**, the nest's own secret (use only on trusted hosts) |
 | `active` | Whether the Egg can be assigned |
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  AuraGo Master (HQ)                                         │
 │                                                             │
@@ -108,7 +108,7 @@ The UI has **two tabs only**:
 
 There is **no Deployments tab**. Deployment history is available via the REST API (`/api/invasion/nests/{id}/deployments`).
 
-### Nest card actions
+### Nest Card Actions
 
 - **Edit** — connection settings, assigned Egg, deploy method, route
 - **Hatch** — deploy the assigned Egg (when status is `idle`, `failed`, or `stopped`)
@@ -118,7 +118,7 @@ There is **no Deployments tab**. Deployment history is available via the REST AP
 - **Activate / Deactivate** — toggle `active`
 - **Delete** — requires typing the exact nest name
 
-### Egg card actions
+### Egg Card Actions
 
 - **Edit** — LLM settings, tools, port, permanent/vault/inherit flags
 - **Activate / Deactivate**
@@ -189,7 +189,7 @@ Response:
 
 REST field `export_nest_secret` (boolean): a create without it starts with `false`; an update without it keeps the current value. On the first start of this release, existing nests are set to `true`, so they keep copying their secret, and an `invasion.db` that already existed is first copied to `invasion.db.pre-export-nest-secret.bak` next to it.
 
-### Transport security for Docker nests
+### Transport Security for Docker Nests
 
 Without **Docker TLS** (the default, see below), `Docker (Remote)` (`docker_remote`) talks to the Docker Engine API of the target over **plain HTTP** (default port `2375`). Every hatch and reconfigure copies the Egg's `config.yaml` into the container over that connection. The file contains the Egg shared key, the Egg vault key and, with `inherit_llm`, the master's LLM API key. Anyone who can read the traffic gets those secrets. Anyone who can reach the Engine port controls the remote Docker daemon, because an Engine without TLS does not authenticate callers.
 
@@ -341,7 +341,7 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/stop
 
 ## Hatch Status & Lifecycle
 
-### Nest `hatch_status` values
+### Nest `hatch_status` Values
 
 | Status | Meaning |
 |--------|---------|
@@ -353,7 +353,7 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/stop
 
 Status transitions:
 
-```
+```text
 idle ──Hatch──► hatching ──success──► running
                   │                      │
                   │ failure              ├── disconnect / stop ──► stopped
@@ -395,7 +395,7 @@ Example `route_config` for SSH tunnel:
 
 Example `route_config` for custom route:
 
-```
+```text
 wss://aurago.example.com/api/invasion/ws
 ```
 
@@ -405,7 +405,7 @@ wss://aurago.example.com/api/invasion/ws
 
 Once an Egg is connected (`ws_connected: true`), the master can interact with it:
 
-### Send a task
+### Send a Task
 
 ```bash
 curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/send-task \
@@ -420,7 +420,7 @@ curl http://localhost:8088/api/invasion/nests/{nest-id}/tasks
 curl http://localhost:8088/api/invasion/tasks/{task-id}
 ```
 
-### Send a runtime secret
+### Send a Runtime Secret
 
 ```bash
 curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/send-secret \
@@ -438,7 +438,7 @@ Eggs can offer files back to the master:
 - `POST /api/invasion/artifacts/upload/{token}` — Upload payload
 - `GET /api/invasion/artifacts/{id}` — Download artifact
 
-### Egg messages
+### Egg Messages
 
 - `POST /api/invasion/messages` — Egg sends alerts/notifications to the master
 
@@ -543,7 +543,7 @@ The master generates this configuration during hatch. You do not edit `egg_mode`
 
 ---
 
-## Agent tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`
+## Agent Tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`
 
 When `invasion_control.enabled` is true, the agent can manage nests, eggs, tasks and artifacts. The focused tools are `invasion_nests`, `invasion_tasks` and `invasion_artifacts`; `invasion_control` remains a compatible dispatch alias.
 
@@ -597,7 +597,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 
 ## Troubleshooting
 
-### Connection refused / timeout
+### Connection Refused / Timeout
 
 1. Verify the target is reachable (`ping`, `ssh`)
 2. Check firewall rules and correct port (22 for SSH and Docker via SSH, 2375 for Docker API, 2376 for Docker API with TLS)
@@ -605,13 +605,13 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 4. For SSH nests, ensure a secret is configured
 5. `Docker (via SSH)` fails with `negotiate Docker API: context deadline exceeded`: the Docker API version check at the start of every operation includes the SSH login and the socket open. It allows 20 seconds; the SSH login alone may take up to 10 of them. Reverse DNS lookups (`UseDNS yes`), PAM or LDAP delays or a high-latency link can make the login slower. Speed up the login on the target, for example with `UseDNS no`, or use another deploy method.
 
-### Authentication failed
+### Authentication Failed
 
 1. Verify username and SSH key/password
 2. Check key permissions locally (`chmod 600`)
 3. Confirm `authorized_keys` on the target
 
-### Hatch failed
+### Hatch Failed
 
 1. Check `hatch_error` on the nest (UI or `GET /api/invasion/nests/{id}`)
 2. Ensure the correct `target_arch` binary exists on the master
@@ -619,14 +619,14 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 4. Review server logs for deployment details
 5. If a hatch fails before AuraGo sent the new egg configuration, AuraGo keeps the egg's previous shared key, so an egg that still runs keeps reconnecting. This covers a failed image pull, a refused container create and, for SSH nests, failures up to the binary upload. If the hatch fails later, or its health check fails and AuraGo rolls back to the previous egg, that egg cannot reconnect until a hatch succeeds.
 
-### Egg not connecting (stuck at `running` but `ws_connected: false`)
+### Egg Not Connecting (Stuck at `running` but `ws_connected: false`)
 
 1. Verify `route` and `route_config` — the Egg must reach the master WebSocket
 2. For `docker_local`, ensure the container can reach `host.docker.internal`
 3. For HTTPS masters with self-signed TLS, check `tls_pin_sha256` in the Egg's config (the Egg logs "master certificate matches neither the pinned fingerprint nor a trusted chain"). After regenerating the master certificate: restart the master, then run a safe-reconfigure for each Egg so it receives the new pin. A `custom` route through a TLS-terminating proxy is accepted only when the proxy's certificate is trusted by the Egg host (public CA, or the private CA installed in the host's trust store); the pin covers the direct routes
 4. Check firewall rules on the master port
 
-### Heartbeat timeout → `failed`
+### Heartbeat Timeout → `failed`
 
 The Egg lost its WebSocket connection or stopped responding. Re-hatch or investigate the remote process.
 
@@ -639,7 +639,7 @@ The Egg lost its WebSocket connection or stopped responding. Re-hatch or investi
 
 ---
 
-## Protocol upgrade
+## Protocol Upgrade
 
 Master and Eggs must both support protocol v2. An older peer is refused with
 `invasion_protocol_upgrade_required`; update both binaries and restart or re-hatch

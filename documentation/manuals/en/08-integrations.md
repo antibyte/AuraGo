@@ -8,7 +8,7 @@ From NAS boxes to radios. Every integration has a switch. The dangerous ones sta
 
 > **Web UI first.** Sidebar search or the groups **Messenger**, **Smart Home**, **Network & Remote**, **External AI**, **Danger Zone**. YAML is for headless and GitOps. Connection tests are POST and read-only.
 
-## Jump list
+## Jump List
 
 Nine thematic groups, one section per integration:
 
@@ -295,7 +295,7 @@ sip:
 
 V1 supports G.711 PCMA/PCMU and does not provide STUN, ICE, automatic router configuration, WS/WSS, or SRTP. Docker Desktop NAT is unsuitable when the PBX cannot route to the advertised RTP address; Linux host networking is an explicit alternative with less network isolation.
 
-#### Trust, agent routing, and privacy
+#### Trust, Agent Routing, and Privacy
 
 - Incoming calls require both a trusted source IP/CIDR and an exact normalized caller allowlist match. Empty caller or destination lists deny all.
 - Outgoing calls require a canonical `sip:` URI, an exact allowed domain, and an exact user or allowed E.164 prefix. FRITZ!Box destinations such as `**610` are exact users.
@@ -311,7 +311,7 @@ See [Native SIP telephony](../../sip_telephony.md) for network policies, failure
 
 Realtime Speech provides one continuous live voice experience across Web Chat and the Virtual Desktop. It is configured separately from the regular `providers` list and uses OpenAI, xAI, Gemini, or keyless Speech Lab profiles from AuraGo's versioned catalog. Speech Lab uses the managed or external s2s container for ASR and TTS and does not replace the cloud streaming adapters.
 
-#### Setup and privacy
+#### Setup and Privacy
 
 1. Open **Config → Realtime Speech** and create a profile with a catalog model and voice.
 2. Store the provider key through the UI. Keys are kept per profile in the Vault and are never serialized into `config.yaml` or exported to Python.
@@ -383,7 +383,7 @@ Store both Mistral API-key fields in the Vault through the Web UI. ASR calls `PO
 
 Speech Lab connects AuraGo to the local s2s ASR/TTS service. AuraGo continues to own the conversation, LLM, tools, Guardian, and memory; Speech Lab owns its active ASR, TTS, and voice stack. The feature is disabled by default.
 
-#### Web UI and channel selection
+#### Web UI and Channel Selection
 
 1. Open **Config → Media → Speech Lab**.
 2. In managed mode, choose the hardware profile (`Auto`, `CUDA`, `Vulkan`, or `CPU`) and confirm the first bundle download. `Auto` selects Vulkan when `/dev/dri` is available; `CPU` is a compatibility path.
@@ -413,7 +413,7 @@ Speech-Lab transcription can select `chat_llm_provider_id` for exactly the next 
 
 AuraGo reads ASR, TTS, and voice from one `/ready` snapshot and requires matching backend IDs and `X-S2S-Voice`/`X-S2S-TTS-ID` response headers. A stack change is rejected while a speech operation or SIP call is active. Speech Lab realtime actions emit one `final_response` followed by a contentless `done`; cancellation is request-scoped.
 
-#### Deployment and network boundary
+#### Deployment and Network Boundary
 
 Managed installation uses the signed, digest-pinned bundle and requires explicit administrator confirmation for the first pull. The service port `8765` stays private; the browser backend defaults to loopback `8766` (native installs) or `http://s2s-web:80` (Docker) and is reachable only through the `/speech-lab/` proxy. There is no separate Tailscale listener; with embedded Tailscale the Browser Lab is reachable through the normal AuraGo access path.
 
@@ -453,7 +453,7 @@ AuraGo also supports browser Web Push for the installable PWA. This is separate 
 
 Web Push requires HTTPS or `localhost`, because browsers block service-worker push subscriptions on insecure origins.
 
-### MeshCore radio
+### MeshCore Radio
 
 AuraGo connects to exactly one MeshCore Companion radio. USB works on Linux, Windows, and macOS (115200 baud); Bluetooth is native-Linux BlueZ only, and unavailable in Docker, where USB needs an explicit device passthrough. Firmware flashing, repeater administration, and radio-parameter changes are out of scope.
 
@@ -466,7 +466,7 @@ AuraGo connects to exactly one MeshCore Companion radio. USB works on Linux, Win
 5. Replies (`direct_replies`) and proactive sending (`proactive_send` with destination allowlist) are separate permissions. Automatic channel replies carry the fixed `[AuraGo KI]` disclosure and run in an isolated minimal context with at most two native Brave searches.
 6. Location disclosure is off by default. Only the administrator-entered public description may be shared — positions, coordinates, and routes stay private.
 
-#### Security and limits
+#### Security and Limits
 
 Every input passes format, duplicate, and injection checks plus a separate Guardian LLM verdict; errors, truncation, and tool calls quarantine the message. Inbound traffic never creates general chat notifications — at the next direct contact the agent receives a summarized inbox overview. Every admitted message carries structured reception context (SNR, flood hops, timestamps, channel and sender data); none of it grants authority or derived inference. Direct commands must be at most 600 seconds old; interrupted or unclear sends remain `outcome_unknown` and are never replayed automatically. Storage: seven days, 1,000 messages, queue of 128, two runs per node/channel and twelve per minute. Connection and test failures use the Operational Issue lifecycle.
 
@@ -474,7 +474,7 @@ Every input passes format, duplicate, and injection checks plus a separate Guard
 
 The agent tool `meshcore` offers `status`, `contacts`, `channels`, `send_direct`, and `send_channel` — no raw protocol or device administration. Administrative endpoints: GET under `/api/meshcore/{status,devices,contacts,channels,messages}`, POST under `/api/meshcore/{scan,pair,test,recheck}`; the inbox shows the newest 100 records with pagination. The **MeshCore** desktop app shares the same device (no second USB/BT connection) and provides a conversation list, drafts, per-part send states, protected text revealed only explicitly, and a separate messenger history (`history_days: 90`, `history_messages: 10000`). Private-channel invitations are transient admin-only exports with no browser storage. The opt-in **builtin-meshcore** desktop widget shows the latest conversations read-only.
 
-#### Device page, settings, and diagnostics
+#### Device Page, Settings, and Diagnostics
 
 The desktop app shows firmware, capacity, position, radio, and local measurements under **My node** (battery voltage, storage, uptime, queue/errors, packet counters, airtime, and the last device RSSI/SNR when supported). Measurements carry their own timestamps and refresh at most every 30 seconds while visible; they never imply per-message RSSI or battery percentages.
 
@@ -702,7 +702,7 @@ AuraGo performs both the security-bounded discovery and the private-host ONVIF s
 
 Camera changes are published safely to configuration and Vault first. If go2rtc is temporarily unreachable afterwards, the app reports the saved partial success and AuraGo reconciles the desired state automatically later. Before activation, AuraGo also checks the required Docker endpoints and shows missing permissions directly in the app. ONVIF setup tokens remain valid for retry after storage failures, and private SOAP connections never use an environment proxy.
 
-#### go2rtc setup and recovery details
+#### go2rtc Setup and Recovery Details
 
 - ONVIF discovery runs only when the runtime has broadcast capability (`Runtime.BroadcastOK`). It sends bounded probes on suitable private IPv4 interfaces; Docker bridge mode therefore keeps the manual-IP and stream-URL setup paths available.
 - Discovery candidates and credential-bearing setup tokens are memory-only, single-use, and expire after five minutes. They are never written to the Vault or returned to the browser.
@@ -711,7 +711,7 @@ Camera changes are published safely to configuration and Vault first. If go2rtc 
 - Configuration and Vault changes are published before runtime reconciliation. A saved change whose Docker/go2rtc reconciliation fails returns HTTP `202` with `saved: true` and is retried in the background; pre-publication failures return `saved: false`.
 - The raw go2rtc ONVIF API remains blocked. Browser viewers receive only AuraGo-owned, stream-ID-scoped endpoints; source URLs, camera credentials, and cookies are never exposed.
 
-#### Person detection
+#### Person Detection
 
 In its **Detection** mode the **Network Cameras** app detects people in the camera images right on the AuraGo server — with a D-FINE model in its own worker process, on the GPU/iGPU when possible (ONNX Runtime WebGPU), otherwise on the CPU.
 
@@ -799,7 +799,7 @@ Manage Docker containers, images, and networks.
 
 > ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
 
-#### Agent Compose stacks and host access
+#### Agent Compose Stacks and Host Access
 
 The agent can run `docker compose` for files inside its workspace. Before every Compose command, AuraGo resolves the file with `docker compose config` and checks the result:
 
@@ -993,7 +993,7 @@ tailscale:
         serve_http: true
 ```
 
-#### Embedded tsnet nodes
+#### Embedded Tsnet Nodes
 
 The embedded connection manages three separate Tailscale identities: the main
 AuraGo node and, when enabled, dedicated Manifest and Space Agent nodes. Store
@@ -1136,7 +1136,7 @@ koofr:
 
 AuraGo can inspect and manage shares on its own Linux or Windows host. Open **Config → Network & Remote → Network Shares** and use **Detect again** for a passive capability probe. The probe never installs packages, starts services, enables Samba registry shares, or changes global server configuration. This integration does not mount remote shares and does not manage remote users or passwords.
 
-#### Ownership and permissions
+#### Ownership and Permissions
 
 - SMB and NFS are exposed only when the configured backend is readable. Mutations additionally require `readonly: false`, the matching granular permission, a writable native backend, and an existing canonical directory under an allowed root.
 - Only AuraGo-created shares recorded in `data/network_shares.db` can be updated or removed. Native ownership markers are required where the backend supports them; Windows NFS uses an exact ledger match instead.
@@ -1731,7 +1731,7 @@ The public agent card stays unauthenticated for discovery. All other A2A endpoin
 
 The native `manus` tool delegates private asynchronous research or execution tasks to Manus v2. AuraGo stores the API key only in Vault key `manus_api_key`, polls with bounded waits, and keeps only local task metadata in `data/manus.db`.
 
-#### Setup and policy
+#### Setup and Policy
 
 1. Open **Config → External AI → Manus**.
 2. Store the API key in the Vault and test the connection.
@@ -1863,7 +1863,7 @@ github:
 
 > 💡 **Vault:** Store the token as `github_token`. Never put API tokens in `config.yaml`.
 
-#### Webhooks (separate)
+#### Webhooks (Separate)
 
 ```yaml
 webhooks:
@@ -1950,7 +1950,7 @@ golangci_lint:
   enabled: true
 ```
 
-### Homepage and site projects
+### Homepage and Site Projects
 
 AuraGo can scaffold, edit, build, deploy, and track **static site / homepage** projects through agent tools.
 
@@ -2000,7 +2000,7 @@ google_workspace:
     client_id: "YOUR_CLIENT_ID"
 ```
 
-### Google Workspace through gog
+### Google Workspace Through gog
 
 Alongside the native Google Workspace integration, AuraGo can use its managed **gog** helper. Accounts, credentials and permissions of the two paths are independent; no mail application is installed — Gmail works through the agent.
 
@@ -2227,7 +2227,7 @@ Two more Desktop features with integration overlap:
 
 Game Maker Studio is the isolated Virtual Desktop workspace for building offline, single-player browser games. It is disabled and read-only by default. Enable it under **Config → Game Maker Studio**, then open **Game Maker Studio** from the Virtual Desktop.
 
-#### Workflow and runtimes
+#### Workflow and Runtimes
 
 1. Create a 2D or 3D project, describe the game, select a configured provider/model, and optionally enable image or music generation.
 2. AuraGo runs the job in a staging directory. Phaser `4.2.1` is used for 2D and Three.js `0.186.1` for 3D; both runtimes are embedded and offline.
@@ -2236,7 +2236,7 @@ Game Maker Studio is the isolated Virtual Desktop workspace for building offline
 
 Images can be used as sprites, backgrounds, textures, or UI art. Music can become a local background track; sound effects use procedural Web Audio. Generator failure, disabled configuration, or exhausted budget produces a visible procedural fallback. AuraGo does not claim to generate 3D models.
 
-#### Isolation and preview security
+#### Isolation and Preview Security
 
 Game Maker jobs receive only the project tools, asset/validation tools, and the curated Agent Skill listing/activation tools. Generic filesystem, shell, Python, network, Desktop, Homepage, and `invoke_tool` access is excluded. Curated skill packages are restored from the embedded, verified bundle when local files drift.
 
@@ -2536,7 +2536,7 @@ virtual_desktop:
         agent_access: "off"     # off, read, write; also requires Desktop agent permissions
 ```
 
-### RuView (Wi-Fi sensing)
+### RuView (Wi-Fi Sensing)
 
 **RuView** integrates Wi-Fi sensing ([RuView v3122](https://github.com/ruvnet/RuView)) including its dashboard, observatory, pose fusion, calibration, recording and training views. AuraGo's management speaks all 16 languages; upstream views keep their original language. Wi-Fi sensing is experimental — connectivity proves nothing about measurement, presence or pose accuracy.
 
@@ -2977,7 +2977,7 @@ agent:
 4. Store secrets in the Vault (never in `config.yaml`): `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`.
 5. Test via **Config → Integrations → Manifest → Test Connection** (`POST /api/manifest/test`).
 
-#### Provider routing
+#### Provider Routing
 Add a provider entry with `type: manifest` to route LLM calls through Manifest:
 
 ```yaml
@@ -3023,7 +3023,7 @@ Manifest also appears in the Virtual Desktop **Software Store** catalog. Tailsca
 4. Store API keys in the Vault: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `dograh_postgres_password`, `dograh_minio_secret_key`.
 5. Test: `GET /api/dograh/test`, status: `GET /api/dograh/status`.
 
-#### MCP bridge
+#### MCP Bridge
 Dograh exposes MCP tools to AuraGo via the standard `mcp_call` tool when configured as an MCP server/client bridge. AuraGo can also accept inbound Dograh MCP connections on `/mcp` when `mcp_server.enabled: true`.
 
 #### YAML Reference
@@ -3048,7 +3048,7 @@ dograh:
 
 ## Testing Integrations
 
-### Health checks
+### Health Checks
 A dedicated live health route exists for Discord. It requires a logged-in browser session or an API token with `admin` scope, because the response names the bot account and its last connection error (`/api/health` and `/api/ready` stay public):
 
 ```bash
