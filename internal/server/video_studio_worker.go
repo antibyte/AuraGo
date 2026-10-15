@@ -46,6 +46,12 @@ func (m *videoStudioManager) process(ctx context.Context, job *videoStudioJob, w
 	if work.kind == "render" {
 		return m.processRender(ctx, svc, job, work, cfg)
 	}
+	if work.kind == "reverse" {
+		return m.processReverse(ctx, svc, job, work, cfg)
+	}
+	if work.kind == "still" {
+		return m.processStill(ctx, svc, job, work, cfg)
+	}
 	if work.kind == "generate" {
 		return m.processGenerate(ctx, svc, job, work, cfg)
 	}
@@ -289,7 +295,7 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if fallback {
 		encoderName = videostudio.CodecX264
 	}
-	return artifact, map[string]interface{}{"duration_frames": videostudio.Duration(work.project), "width": work.project.Width, "height": work.project.Height,
+	return artifact, map[string]interface{}{"duration_frames": videostudio.EnabledDuration(work.project), "width": work.project.Width, "height": work.project.Height,
 		"encoder": encoderName, "encoder_fallback": fallback}, nil
 }
 

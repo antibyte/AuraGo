@@ -130,6 +130,10 @@ type videoStudioJobRequest struct {
 	LastFrameAssetID  string   `json:"last_frame_asset_id,omitempty"`
 	ReferenceAssetIDs []string `json:"reference_asset_ids,omitempty"`
 	IdempotencyKey    string   `json:"idempotency_key,omitempty"`
+	Offset            int      `json:"offset,omitempty"`
+	Duration          int      `json:"duration,omitempty"`
+	Frame             int      `json:"frame,omitempty"`
+	Purpose           string   `json:"purpose,omitempty"`
 }
 
 type videoStudioManager struct {
@@ -1069,6 +1073,9 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if errors.Is(err, videostudio.ErrTooManyInputs) {
 		return "failed", "render_too_many_inputs", "Too many clips play at the same time in one part of the timeline."
 	}
+	if errors.Is(err, videostudio.ErrReverseRangeTooLong) {
+		return "failed", "reverse_range_too_long", "Reverse works on up to 5 minutes at a time."
+	}
 	var segment *videostudio.SegmentError
 	if kind == "render" && errors.As(err, &segment) {
 		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."
@@ -1080,6 +1087,10 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		return "failed", "preview_failed", "A preview could not be created."
 	case "render":
 		return "failed", "render_failed", "The project could not be rendered."
+	case "reverse":
+		return "failed", "reverse_failed", "The clip could not be reversed."
+	case "still":
+		return "failed", "still_failed", "The frame could not be captured."
 	case "generate":
 		if errors.Is(err, errVideoStudioGenerationImport) {
 			return "failed", "generation_import_failed", "The provider returned a video, but AuraGo could not import it into this project."

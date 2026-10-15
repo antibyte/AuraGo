@@ -752,12 +752,16 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		LastFrameAssetID  string   `json:"last_frame_asset_id,omitempty"`
 		ReferenceAssetIDs []string `json:"reference_asset_ids,omitempty"`
 		IdempotencyKey    string   `json:"idempotency_key,omitempty"`
+		Offset            int      `json:"offset,omitempty"`
+		Duration          int      `json:"duration,omitempty"`
+		Frame             int      `json:"frame,omitempty"`
+		Purpose           string   `json:"purpose,omitempty"`
 	}
 	if err := decodeVideoStudioJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Job request is invalid.")
 		return
 	}
-	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey}
+	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey, Offset: body.Offset, Duration: body.Duration, Frame: body.Frame, Purpose: body.Purpose}
 	if request.IdempotencyKey == "" {
 		request.IdempotencyKey = r.Header.Get("Idempotency-Key")
 	}
@@ -767,8 +771,8 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		return
 	}
 	kind := strings.ToLower(strings.TrimSpace(body.Kind))
-	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" {
-		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, and generate.")
+	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" && kind != "reverse" && kind != "still" {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, generate, reverse, and still.")
 		return
 	}
 	if kind == "generate" && !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
@@ -890,6 +894,43 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		if kind == "preview" && record.Asset.Kind != videostudio.AssetVideo {
 			writeVideoStudioError(w, http.StatusBadRequest, "preview_requires_video", "Previews are available for video assets.")
 			return
+		}
+	}
+	if kind == "reverse" || kind == "still" {
+		if !validVideoStudioAssetID(request.AssetID) {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_asset_id", "A project asset_id is required.")
+			return
+		}
+		record, ok := manager.mediaRecord(projectID, request.AssetID)
+		if !ok {
+			writeVideoStudioError(w, http.StatusNotFound, "media_not_found", "Project media was not found.")
+			return
+		}
+		if record.Asset.Kind != videostudio.AssetVideo {
+			writeVideoStudioError(w, http.StatusBadRequest, "derive_requires_video", "Reverse and frame capture need a video asset.")
+			return
+		}
+		rate := videostudio.ProjectRate(project)
+		asset := videoStudioAssetAtRate(record.Asset, rate)
+		if kind == "reverse" {
+			// Written as a difference so a huge offset cannot overflow past the check.
+			if request.Duration < 1 || request.Offset < 0 || request.Offset > asset.DurationFrames-request.Duration {
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The source range is outside the media.")
+				return
+			}
+			if request.Duration > videostudio.MaxReverseFrames(rate) {
+				writeVideoStudioError(w, http.StatusBadRequest, "reverse_range_too_long", "Reverse works on up to 5 minutes at a time.")
+				return
+			}
+		} else {
+			if request.Frame < 0 || request.Frame >= asset.DurationFrames {
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The frame is outside the media.")
+				return
+			}
+			if request.Purpose != "freeze" && request.Purpose != "export" {
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_purpose", "Frame purpose must be freeze or export.")
+				return
+			}
 		}
 	}
 	work := &videoStudioWork{project: project, revision: revision, request: request}
@@ -1031,7 +1072,11 @@ func handleVideoStudioExportFile(s *Server, w http.ResponseWriter, r *http.Reque
 		writeVideoStudioMethodError(w)
 		return
 	}
-	if !strings.HasSuffix(filename, ".mp4") || !validVideoStudioProjectID(strings.TrimSuffix(filename, ".mp4")) {
+	suffix, kind := ".mp4", "render"
+	if strings.HasSuffix(filename, ".png") {
+		suffix, kind = ".png", "still"
+	}
+	if !strings.HasSuffix(filename, suffix) || !validVideoStudioProjectID(strings.TrimSuffix(filename, suffix)) {
 		writeVideoStudioError(w, http.StatusNotFound, "export_not_found", "Export not found.")
 		return
 	}
@@ -1039,9 +1084,9 @@ func handleVideoStudioExportFile(s *Server, w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	jobID := strings.TrimSuffix(filename, ".mp4")
+	jobID := strings.TrimSuffix(filename, suffix)
 	job := manager.job(jobID)
-	if job == nil || job.ProjectID != projectID || job.Kind != "render" || job.Status != "succeeded" || job.Artifact == nil || job.Artifact.Path != "exports/"+filename {
+	if job == nil || job.ProjectID != projectID || job.Kind != kind || job.Status != "succeeded" || job.Artifact == nil || job.Artifact.Path != "exports/"+filename {
 		writeVideoStudioError(w, http.StatusNotFound, "export_not_found", "Export not found.")
 		return
 	}
