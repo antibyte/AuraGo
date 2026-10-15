@@ -247,7 +247,7 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	})
 	if err != nil {
 		_ = os.Remove(output)
-		return nil, nil, err
+		return nil, nil, videoStudioRenderLimitError(err, exportLimit, maxProject-usedBefore)
 	}
 	info, err := os.Stat(output)
 	if err != nil || !info.Mode().IsRegular() {
@@ -282,6 +282,18 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	}
 	artifact := &videoStudioArtifact{Name: job.ID + ".mp4", Path: "exports/" + job.ID + ".mp4", DownloadURL: fmt.Sprintf("/api/desktop/video-studio/projects/%s/exports/%s.mp4", job.ProjectID, job.ID), Size: info.Size()}
 	return artifact, map[string]interface{}{"duration_frames": videostudio.Duration(work.project), "width": work.project.Width, "height": work.project.Height}, nil
+}
+
+// videoStudioRenderLimitError names the limit that stopped an export: the remaining project storage when it was
+// smaller than the export limit, otherwise the configured export size limit. Other errors pass through.
+func videoStudioRenderLimitError(err error, exportLimit, remainingProject int64) error {
+	if !errors.Is(err, videostudio.ErrOutputLimit) {
+		return err
+	}
+	if remainingProject < exportLimit {
+		return errVideoStudioProjectSizeLimit
+	}
+	return errVideoStudioExportSizeLimit
 }
 
 func videoStudioRenderAssetIDs(project videostudio.Project) map[string]struct{} {

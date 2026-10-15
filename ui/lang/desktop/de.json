@@ -5792,6 +5792,7 @@
   "videoStudio.renderSegmentFailed": "Das Rendern ist zwischen {{from}} und {{to}} fehlgeschlagen. Prüfe die Clips dort und versuche es erneut.",
   "videoStudio.diskSpaceLow": "Auf dem Server ist nicht genug Speicherplatz für diesen Export frei.",
   "videoStudio.tooManyClipsAtOnce": "In einem Teil der Timeline laufen zu viele Clips gleichzeitig. Entferne oder kürze einige der überlappenden Clips.",
+  "videoStudio.exportTooLarge": "Das Video ist größer als die in den Video-Studio-Einstellungen festgelegte Exportgrenze.",
   "videoStudio.backgroundJobs": "Hintergrundaufgaben",
   "videoStudio.job_probe": "Medienprüfung",
   "videoStudio.job_preview": "Vorschau rendern",

@@ -5792,6 +5792,7 @@
   "videoStudio.renderSegmentFailed": "Renderingen mislyktes mellom {{from}} og {{to}}. Kontroller klippene der, og prøv igjen.",
   "videoStudio.diskSpaceLow": "Serveren har ikke nok ledig diskplass til denne eksporten.",
   "videoStudio.tooManyClipsAtOnce": "For mange klipp spilles av samtidig i en del av tidslinjen. Fjern eller forkort noen av de overlappende klippene.",
+  "videoStudio.exportTooLarge": "Videoen er større enn eksportgrensen som er angitt i innstillingene for Video Studio.",
   "videoStudio.backgroundJobs": "Bakgrunnsjobber",
   "videoStudio.job_probe": "Medieinspeksjon",
   "videoStudio.job_preview": "Forhåndsvisning",

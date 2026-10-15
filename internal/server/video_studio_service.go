@@ -37,6 +37,7 @@ const (
 
 var (
 	errVideoStudioProjectSizeLimit = errors.New("project_size_limit")
+	errVideoStudioExportSizeLimit  = errors.New("export_size_limit")
 	errVideoStudioAssetSizeLimit   = errors.New("asset_size_limit")
 	errVideoStudioGenerationImport = errors.New("generation_import_failed")
 )
@@ -1055,6 +1056,9 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	}
 	if errors.Is(err, errVideoStudioProjectSizeLimit) {
 		return "failed", "project_size_limit", "The project storage limit has been reached. Free space in this project before continuing."
+	}
+	if errors.Is(err, errVideoStudioExportSizeLimit) || errors.Is(err, videostudio.ErrOutputLimit) {
+		return "failed", "export_size_limit", "The export is larger than the configured export size limit."
 	}
 	if errors.Is(err, errVideoStudioAssetSizeLimit) {
 		return "failed", "asset_size_limit", "The generated video exceeds the configured per-asset size limit."

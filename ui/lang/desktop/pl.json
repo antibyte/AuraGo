@@ -5792,6 +5792,7 @@
   "videoStudio.renderSegmentFailed": "Renderowanie nie powiodło się między {{from}} a {{to}}. Sprawdź klipy w tym miejscu i spróbuj ponownie.",
   "videoStudio.diskSpaceLow": "Na serwerze brakuje wolnego miejsca na dysku dla tego eksportu.",
   "videoStudio.tooManyClipsAtOnce": "W jednej części osi czasu odtwarza się jednocześnie zbyt wiele klipów. Usuń lub skróć część nakładających się klipów.",
+  "videoStudio.exportTooLarge": "Film jest większy niż limit rozmiaru eksportu ustawiony w ustawieniach Video Studio.",
   "videoStudio.backgroundJobs": "Zadania w tle",
   "videoStudio.job_probe": "Analiza multimediów",
   "videoStudio.job_preview": "Render podglądu",

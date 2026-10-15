@@ -30,6 +30,8 @@ var (
 	ErrInsufficientDiskSpace = errors.New("insufficient disk space for rendering")
 	// ErrTooManyInputs reports a span that needs more simultaneous inputs than one FFmpeg process may open.
 	ErrTooManyInputs = errors.New("too many simultaneous clips for one render segment")
+	// ErrOutputLimit reports an export that reached RenderOptions.MaxOutputBytes.
+	ErrOutputLimit = errors.New("rendered output reached the size limit")
 )
 
 // SegmentError identifies the render segment that failed.
@@ -215,6 +217,12 @@ func RenderWithOptions(ctx context.Context, opts RenderOptions) error {
 			return ctxErr
 		}
 		return err
+	}
+	// -fs stops writing once the file reaches the limit and FFmpeg still exits successfully (some versions only
+	// check it between larger writes), so a file at or above the limit is a truncated or oversized export.
+	if info, err := os.Stat(outputPath); err == nil && info.Size() >= maxOutput {
+		_ = os.Remove(outputPath)
+		return fmt.Errorf("%w of %d bytes", ErrOutputLimit, maxOutput)
 	}
 	if err := ensureOutputSize(outputPath, maxOutput); err != nil {
 		_ = os.Remove(outputPath)

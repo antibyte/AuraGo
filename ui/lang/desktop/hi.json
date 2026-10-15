@@ -5792,6 +5792,7 @@
   "videoStudio.renderSegmentFailed": "{{from}} और {{to}} के बीच रेंडरिंग विफल हो गई। वहाँ की क्लिप जाँचें और फिर से कोशिश करें।",
   "videoStudio.diskSpaceLow": "इस निर्यात के लिए सर्वर पर पर्याप्त खाली डिस्क स्थान नहीं है।",
   "videoStudio.tooManyClipsAtOnce": "टाइमलाइन के एक हिस्से में एक साथ बहुत अधिक क्लिप चल रही हैं। ओवरलैप होने वाली कुछ क्लिप हटाएँ या छोटी करें।",
+  "videoStudio.exportTooLarge": "वीडियो, Video Studio सेटिंग्स में तय की गई निर्यात आकार सीमा से बड़ा है।",
   "videoStudio.backgroundJobs": "बैकग्राउंड कार्य",
   "videoStudio.job_probe": "मीडिया जाँच",
   "videoStudio.job_preview": "पूर्वावलोकन रेंडर",

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -333,5 +334,29 @@ func TestRenderSpaceAndSegmentErrors(t *testing.T) {
 	segment := &SegmentError{Index: 11, Start: 120, End: 130, Err: errors.New("boom")}
 	if segment.Location() != "video segment 12 (2:00–2:10)" || !strings.Contains(segment.Error(), "boom") || !errors.Is(segment, segment.Err) {
 		t.Fatalf("SegmentError = %q / %q", segment.Location(), segment.Error())
+	}
+}
+
+func TestRenderReportsOutputLimit(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	videoPath := filepath.Join(root, "red.mp4")
+	makeVideoFixture(t, ctx, ffmpeg, videoPath, "red")
+	video, err := Probe(ctx, ffmpeg, videoPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	video.ID = "video"
+	project := Project{Version: CurrentVersion, Name: "Limit", Width: 1280, Height: 720, FPS: 30, Assets: []Asset{video},
+		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{ID: "v", AssetID: "video", Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}}}}}
+	output := filepath.Join(root, "limit.mp4")
+	err = RenderWithOptions(ctx, RenderOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: map[string]string{"video": videoPath}, Output: output, MaxOutputBytes: 1024})
+	if !errors.Is(err, ErrOutputLimit) {
+		t.Fatalf("render above the output limit returned %v, want ErrOutputLimit", err)
+	}
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("the oversized output was left behind: %v", statErr)
 	}
 }

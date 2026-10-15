@@ -5792,6 +5792,7 @@
   "videoStudio.renderSegmentFailed": "Het renderen is mislukt tussen {{from}} en {{to}}. Controleer de clips daar en probeer het opnieuw.",
   "videoStudio.diskSpaceLow": "De server heeft niet genoeg vrije schijfruimte voor deze export.",
   "videoStudio.tooManyClipsAtOnce": "In een deel van de tijdlijn spelen te veel clips tegelijk af. Verwijder of verkort enkele van de overlappende clips.",
+  "videoStudio.exportTooLarge": "De video is groter dan de exportlimiet die in de instellingen van Video Studio is ingesteld.",
   "videoStudio.backgroundJobs": "Achtergrondtaken",
   "videoStudio.job_probe": "Media-inspectie",
   "videoStudio.job_preview": "Voorbeeldrender",

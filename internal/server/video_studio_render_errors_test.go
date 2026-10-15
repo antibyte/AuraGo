@@ -28,4 +28,17 @@ func TestVideoStudioRenderFailureCodes(t *testing.T) {
 	if _, code, _ := videoStudioJobFailure("render", fmt.Errorf("x: %w", videostudio.ErrTooManyInputs), ctx); code != "render_too_many_inputs" {
 		t.Fatalf("too many inputs code = %s", code)
 	}
+	// A full export names the limit that stopped it: the project quota when it was the smaller one.
+	limitErr := fmt.Errorf("render: %w", videostudio.ErrOutputLimit)
+	for _, tt := range []struct {
+		exportLimit, remaining int64
+		code                   string
+	}{{100 << 20, 10 << 20, "project_size_limit"}, {100 << 20, 500 << 20, "export_size_limit"}, {100 << 20, 100 << 20, "export_size_limit"}} {
+		if _, code, _ := videoStudioJobFailure("render", videoStudioRenderLimitError(limitErr, tt.exportLimit, tt.remaining), ctx); code != tt.code {
+			t.Fatalf("output limit with export %d / remaining %d = %s, want %s", tt.exportLimit, tt.remaining, code, tt.code)
+		}
+	}
+	if err := videoStudioRenderLimitError(segment, 1, 2); err != segment {
+		t.Fatalf("a segment error was rewritten to %v", err)
+	}
 }
