@@ -50,26 +50,28 @@ func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 	t.Parallel()
 	en := readRepoFile(t, "documentation/manuals/en/08-integrations.md")
 	requireAll(t, "manual/en/08-integrations.md", en, []string{
-		"| Knowledge offline | [Local Wikipedia](#local-wikipedia) |",
-		"## Local Wikipedia",
-		"### Web UI Setup",
+		"[Data, Documents & Knowledge](#data-documents--knowledge)",
+		"[Local Wikipedia](#local-wikipedia)",
+		"### Local Wikipedia",
+		"#### Web UI Setup",
 		"local_wikipedia:",
 		"(../../local-wikipedia.md)",
 		"(07-configuration.md#local-wikipedia)",
 	})
 	de := readRepoFile(t, "documentation/manuals/de/08-integrations.md")
 	requireAll(t, "manual/de/08-integrations.md", de, []string{
-		"| Wissen offline | [Lokale Wikipedia](#lokale-wikipedia) |",
-		"## Lokale Wikipedia",
-		"### Einrichtung in der Web-UI",
+		"[Daten, Dokumente & Wissen](#daten-dokumente--wissen)",
+		"[Lokale Wikipedia](#lokale-wikipedia)",
+		"### Lokale Wikipedia",
+		"#### Einrichtung in der Web-UI",
 		"local_wikipedia:",
 		"(../../local-wikipedia.md)",
 		"(07-konfiguration.md#lokale-wikipedia)",
 	})
-	if strings.Index(en, "## Local Wikipedia") > strings.Index(en, "## Testing Integrations") {
+	if strings.Index(en, "### Local Wikipedia") > strings.Index(en, "## Testing Integrations") {
 		t.Error("English Local Wikipedia section must come before Testing Integrations")
 	}
-	if strings.Index(de, "## Lokale Wikipedia") > strings.Index(de, "## Integrationen testen") {
+	if strings.Index(de, "### Lokale Wikipedia") > strings.Index(de, "## Integrationen testen") {
 		t.Error("German Lokale Wikipedia section must come before Integrationen testen")
 	}
 }
@@ -106,12 +108,14 @@ func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
 		"documentation/manuals/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
 		"documentation/manuals/de/22-interne-tools.md":  {"### `local_wikipedia`"},
 		"documentation/manuals/en/21-api-reference.md": {
-			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
-			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
+			"[Memory & Knowledge APIs](#memory--knowledge-apis)", "[Local Wikipedia](#local-wikipedia-api)",
+			"[SSE Events](#sse-events)", "### Local Wikipedia API",
+			"POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
 		},
 		"documentation/manuals/de/21-api-reference.md": {
-			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
-			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
+			"[Memory- & Wissens-APIs](#memory---wissens-apis)", "[Lokale Wikipedia](#local-wikipedia-api)",
+			"[SSE Events](#sse-events)", "### Local Wikipedia API",
+			"POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
 		},
 	}
 	for path, wants := range cases {
