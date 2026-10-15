@@ -131,3 +131,99 @@ assert.equal(at(p,'still').asset_id, 's');
 valid(p);
 `)
 }
+
+// TestVideoStudioEditSplitsKeepLinkGroups: overwrite and insert splits inside linked clips never grow a link group.
+func TestVideoStudioEditSplitsKeepLinkGroups(t *testing.T) {
+	runVideoStudioEditScript(t, `
+const groups = p => { const m = {}; p.tracks.forEach(t => t.clips.forEach(c => { if (c.link) m[c.link] = (m[c.link] || 0) + 1; })); return m; };
+
+// Overwrite splits follow the blade rule: a lone right part is unlinked, so sixteen drops into a detached clip keep its
+// group at two clips (it used to reach eighteen, which the server refuses).
+let p = project([track('v1','video',[clip('x',V,0,600)])]);
+assert.equal(E.detachAudio(p, 'x', {clip:'ax', link:'L', track:'a1', trackName:'A1'}), true);
+for (let k = 0; k < 16; k++) assert.equal(E.overwrite(p, [{trackId:'v1', clips:[clip('i'+k,I,10+k*35,20)]}]), true);
+assert.deepEqual(groups(p), {L:2}, 'overwrite drops never grow the group');
+valid(p);
+p = project([track('v1','video',[clip('x',V,0,300,{link:'L'})]), track('a1','audio',[clip('ax',V,0,300,{link:'L'})])]);
+assert.equal(E.overwrite(p, [{trackId:'v1', clips:[clip('n',I,100,50)]}, {trackId:'a1', clips:[clip('na',A,100,50)]}]), true);
+let rv = p.tracks[0].clips.find(c => c.start === 150), ra = p.tracks[1].clips.find(c => c.start === 150);
+assert.ok(rv.link && rv.link !== 'L' && rv.link === ra.link, 'right parts of one group split together share a new link id');
+assert.deepEqual(E.linkGroup(p,'x').sort(), ['ax','x']);
+valid(p);
+// Insert edits split the same way.
+p = project([track('v1','video',[clip('x',V,0,300,{link:'L'})]), track('a1','audio',[clip('ax',V,0,300,{link:'L'})])]);
+assert.equal(E.insertClips(p, 100, [{trackId:'v1', clips:[clip('n',I,100,50)]}]), true);
+assert.ok(!p.tracks[0].clips.find(c => c.start === 150).link, 'an insert into one linked clip unlinks the lone right part');
+assert.deepEqual(groups(p), {L:2});
+p = project([track('v1','video',[clip('x',V,0,300,{link:'L'})]), track('a1','audio',[clip('ax',V,0,300,{link:'L'})])]);
+assert.equal(E.insertClips(p, 100, [{trackId:'v1', clips:[clip('n',I,100,50)]}, {trackId:'a1', clips:[clip('na',A,100,50)]}]), true);
+rv = p.tracks[0].clips.find(c => c.start === 150); ra = p.tracks[1].clips.find(c => c.start === 150);
+assert.ok(rv.link && rv.link !== 'L' && rv.link === ra.link, 'an insert across the group gives the right parts a new shared id');
+valid(p);
+// Go's limit (MaxLinkClips): a group above sixteen clips is invalid and edits refuse to leave one behind.
+const big = project([track('v1','video', Array.from({length:17}, (_, i) => clip('c'+i,V,i*10,10,{link:'G'})))]);
+assert.equal(T.validTimeline(big), false, 'a link group holds at most sixteen clips');
+assert.equal(E.setLabel(big, ['c0'], 'red'), 'link');
+big.tracks[0].clips.pop();
+valid(big);
+`)
+}
+
+// TestVideoStudioEditLinkedCutInTransition: a linked blade or split never cuts only part of a group.
+func TestVideoStudioEditLinkedCutInTransition(t *testing.T) {
+	runVideoStudioEditScript(t, `
+// A linked blade or split inside a transition cuts nothing when a member of the group would stay whole.
+let p, out;
+const faded = () => project([track('v1','video',[clip('a',V,0,100,{transition:{type:'dissolve',duration:20}}), clip('b',V,80,100,{offset:300})])]);
+p = faded();
+assert.equal(E.detachAudio(p, 'b', {clip:'ab', link:'L', track:'a1', trackName:'A1'}), true);
+out = {};
+assert.equal(E.blade(p, 90, {trackIds:['v1'], linked:true}, out), 'transition');
+assert.deepEqual(spans(p,'a1'), [[80,100,300]], 'the detached audio stays whole');
+assert.equal(E.blade(p, 90, {clipIds:['b'], linked:true}, {}), 'transition', 'S refuses the same way');
+p = faded(); p.tracks.push(track('v2','video',[clip('w',V,50,100)]));
+assert.equal(E.blade(p, 90, {trackIds:['v1','v2'], linked:true}, out = {}), true, 'unlinked clips beside a transition are still cut');
+assert.deepEqual(spans(p,'v2'), [[50,40,0],[90,60,40]]);
+assert.equal(p.tracks[0].clips.length, 2);
+`)
+}
+
+// TestVideoStudioEditDetachedSound: copies and reattach never leave a detached clip silent without an audio clip.
+func TestVideoStudioEditDetachedSound(t *testing.T) {
+	runVideoStudioEditScript(t, `
+let p, out;
+// A detached clip copied without its audio clip plays its own sound; copied with it, it stays detached.
+p = project([track('v1','video',[clip('x',V,100,200,{offset:50})])]);
+assert.equal(E.detachAudio(p, 'x', {clip:'ax', link:'L', track:'a1', trackName:'A1'}), true);
+assert.equal(E.paste(p, E.copyClips(p, ['x']), 400, 'overwrite', {out: out = {}}), true);
+assert.ok(!at(p, out.created[0]).audio_detached, 'a lone copy is not silent');
+assert.equal(E.paste(p, E.copyClips(p, ['x','ax']), 700, 'overwrite', {out: out = {}}), true);
+const [copyV, copyA] = out.created.map(id => at(p, id));
+assert.equal(copyV.audio_detached, true);
+assert.equal(E.audioPartner(p, copyV.id), copyA.id, 'a copy with its audio clip stays detached');
+assert.equal(E.duplicateClips(p, ['x'], out = {}), true);
+assert.ok(!at(p, out.created[0]).audio_detached, 'duplicate follows paste');
+valid(p);
+
+// Reattach: with the audio clip gone (Alt-delete) it restores the clip's sound; while an audio clip of the same media
+// still plays with it (J-cut, unlinked by an Alt blade) it is not offered.
+p = project([track('v1','video',[clip('x',V,100,200,{offset:100})])]);
+assert.equal(E.detachAudio(p, 'x', {clip:'ax', link:'L', track:'a1', trackName:'A1'}), true);
+assert.equal(E.canReattach(p, 'x'), true);
+assert.equal(E.removeClips(p, ['ax']), true);
+assert.equal(E.canReattach(p, 'x'), true, 'an orphaned detached clip can get its sound back');
+assert.equal(E.reattachAudio(p, 'x'), true);
+assert.ok(!at(p,'x').audio_detached && !at(p,'x').link, 'the flag and the lone link are cleared');
+valid(p);
+p = project([track('v1','video',[clip('x',V,100,200,{offset:100})])]);
+assert.equal(E.detachAudio(p, 'x', {clip:'ax', link:'L', track:'a1', trackName:'A1'}), true);
+assert.equal(E.rippleTrim(p, ['ax'], 'start', -30), true);
+assert.equal(E.canReattach(p, 'x'), false, 'a J-cut audio clip still holds the sound');
+assert.equal(E.reattachAudio(p, 'x'), 'nothing');
+p = project([track('v1','video',[clip('x',V,100,200,{offset:100})])]);
+assert.equal(E.detachAudio(p, 'x', {clip:'ax', link:'L', track:'a1', trackName:'A1'}), true);
+assert.equal(E.blade(p, 200, {clipIds:['x']}, out = {}), true);
+assert.equal(E.canReattach(p, out.created[0]), false, 'the uncut audio clip still plays under the unlinked part');
+assert.equal(E.reattachAudio(p, out.created[0]), 'nothing');
+`)
+}

@@ -24,6 +24,10 @@ func TestVideoStudioEditingCommandsAreWired(t *testing.T) {
 	if !strings.Contains(string(editing), "key === 'l'") || !strings.Contains(string(editing), "key === 'e'") {
 		t.Fatal("editCommand does not map Ctrl+L and Shift+E")
 	}
+	// Reattach is offered exactly when reattachAudio acts (owned audio clip or an orphaned detached clip).
+	if !strings.Contains(string(editing), "E().canReattach(s.project, clip.id)") {
+		t.Fatal("clipCapabilities does not offer Reattach through VideoStudioEdit.canReattach")
+	}
 	if !strings.Contains(string(shell), `action.startsWith('clip-')`) || !strings.Contains(string(shell), "P.linkedIds(s, [id], altKey)") ||
 		!strings.Contains(string(shell), "P.linkedIds(s, ids, altKey)") {
 		t.Fatal("the shell does not route clip-* actions or select link groups through onSelect and onSelectMany")

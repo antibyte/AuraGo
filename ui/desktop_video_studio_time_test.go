@@ -63,6 +63,14 @@ assert.equal(a.transition.duration, a.start + a.duration - b.start, 'the transit
 assert.equal(b.fade_in, 5);
 assert(c.offset + c.duration <= 250, 'clips stay inside their media');
 assert(window.VideoStudioTimeline.validTimeline(project), 'a rescaled project stays valid');
+// A speed clip that reaches the end of its media stays inside it at the new rate (source extent rule at speed 2).
+const sped = {fps: 24, assets: [{id: 'v', kind: 'video', duration_frames: 119, duration_us: Math.round(119 / 24 * 1e6)}], tracks: [{id: 't', kind: 'video', clips: [
+  {...box, id: 's', asset_id: 'v', start: 0, offset: 0, duration: 60, speed: 2, fade_in: 0, fade_out: 0, transition: null}]}]};
+assert(window.VideoStudioTimeline.validTimeline(sped), 'the 24 fps speed fixture is valid');
+V.rescaleProject(sped, 25, false);
+assert.equal(sped.assets[0].duration_frames, 124);
+assert.equal(sped.tracks[0].clips[0].duration, 62, 'the duration is clamped by offset + (duration - 1) * speed');
+assert(window.VideoStudioTimeline.validTimeline(sped), 'a rescaled speed clip stays valid');
 V.rescaleProject(project, 30, true);
 assert.equal(project.ntsc, true);
 V.rescaleProject(project, 25, true);

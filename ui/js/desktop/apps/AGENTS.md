@@ -1436,7 +1436,12 @@ buttons and menu popovers remain excluded from those gestures.
   `go test ./ui -run TestVideoStudioEdit`.
 - Clips and derived media (phase 1b): link groups are the clips with one `link` id (`linkGroup`, `withLinks`,
   `linkedEdges`; edges on the same frame belong together, Alt unlinks). Speed changes go through `setSpeed` only;
-  stills keep speed 1. Blade and paste remap link ids. Disabled clips are never drawn, played or mixed, and a
+  stills keep speed 1. Every split (blade, overwrite, insert) follows the blade rule: right parts split off one group
+  at one frame share a new link id, a lone right part is unlinked, so no split grows a group; `finish` (reason `link`)
+  and `validTimeline` refuse a group above `MAX_LINK_CLIPS` (16, Go's `MaxLinkClips`). A linked blade or split cuts a
+  group whole or not at all (`transition`). Paste remaps link ids and clears `audio_detached` on a video copy pasted
+  without its audio clip; `canReattach`/`reattachAudio` also give an orphaned detached clip (no audio clip of its
+  asset in its group or overlapping it) its sound back. Disabled clips are never drawn, played or mixed, and a
   transition applies only when the clip after it is enabled. Derived jobs (`video-studio-derive.js`) call
   `createJob(…, onSucceeded)`: the edit runs after `refreshProject`, re-finds its clips by id and never assumes they
   did not move. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
@@ -1484,7 +1489,8 @@ buttons and menu popovers remain excluded from those gestures.
   `formatSeconds(frames, project, locale)`, `framesAt`, `maxFrames`, `rescaleProject`); no part keeps an `FPS`
   constant. The inspector's `formatSeconds(frames, locale, project)` wrapper keeps its old argument order.
   Thumbnails are cached in seconds (`{time, url}`), waveform peaks per second. Changing the frame rate in
-  Project settings rescales clip edges in one undo step after a confirm. The preview canvas backing store
+  Project settings rescales clip edges in one undo step after a confirm; durations are clamped by the source extent
+  rule with the clip's speed. The preview canvas backing store
   follows the per-viewer quality (`aurago.videoStudio.previewQuality`: auto = long edge ≤ 1920 px, full, half,
   quarter); the transform box stays in CSS pixels.
 - Timing and transitions use integer frames at the project rate (24/25/30/50/60, NTSC ×1000/1001). The outgoing clip owns an

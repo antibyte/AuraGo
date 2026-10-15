@@ -97,7 +97,10 @@ selecting a linked clip selects its whole link group; hold `Alt` while clicking 
 duplicate, nudge and the other commands act on the selection as it is. Dragging a selected clip moves the selection
 (hold `Alt` when you start the drag to move only that clip); trims and cuts follow the link group (hold `Alt` to act on
 one clip alone, for example for a J or L cut). Detach audio (inspector or clip menu) moves a video clip's sound to an audio clip
-on a free audio track, and Reattach audio removes that audio clip again. Speed (inspector, paste attributes) plays a
+on a free audio track, and Reattach audio removes that audio clip again (if the audio clip was deleted on its own,
+Reattach audio gives the video clip its sound back; a copy pasted without its audio clip keeps its sound). A link group
+holds up to 16 clips; cuts, overwrites and inserts inside linked clips put the parts after the cut into a new group, and
+a cut inside a transition is refused for the whole group. Speed (inspector, paste attributes) plays a
 clip faster or slower, from 0.25 to 16×: by default the clip keeps its source range and changes length, and Keep
 duration changes the source range instead. Audio keeps its pitch up to 4× and is silent above that. `Shift+E` disables
 or enables the selected clips: a disabled clip stays on the timeline but is neither shown nor exported. Colour labels

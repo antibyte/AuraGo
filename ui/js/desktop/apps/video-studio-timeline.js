@@ -6,6 +6,8 @@
     const BASE_PX_PER_SECOND = 52;
     const MAX_TRACKS_PER_KIND = 8;
     const MAX_CLIPS = 2000;
+    // Go's MaxLinkClips: one link group holds at most this many clips.
+    const MAX_LINK_CLIPS = 16;
     // Colour labels in Go's LabelColors order (videostudio.LabelColors). This is the one JS palette: the core
     // re-exports it as P.LABEL_COLORS, and the timeline and inspector draw from it.
     const LABEL_COLORS = Object.freeze(['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']);
@@ -71,7 +73,7 @@
         if (!project || !Array.isArray(project.tracks) || !Array.isArray(project.assets)) return false;
         const max = maxOf(project);
         const assets = new Map(project.assets.map(asset => [asset.id, asset]));
-        const ids = new Set(), tracks = new Set();
+        const ids = new Set(), tracks = new Set(), links = new Map();
         const counts = { video: 0, audio: 0, overlay: 0 };
         for (const track of project.tracks) {
             if (!Object.hasOwn(counts, track.kind) || ++counts[track.kind] > MAX_TRACKS_PER_KIND || tracks.has(track.id) || !Array.isArray(track.clips)) return false;
@@ -82,6 +84,10 @@
                 if (!accepts(track, asset) || ids.has(clip.id)) return false;
                 ids.add(clip.id);
                 if (ids.size > MAX_CLIPS) return false;
+                if (clip.link) {
+                    links.set(clip.link, (links.get(clip.link) || 0) + 1);
+                    if (links.get(clip.link) > MAX_LINK_CLIPS) return false;
+                }
                 if (![clip.start, clip.offset, clip.duration, clip.fade_in, clip.fade_out].every(Number.isSafeInteger) ||
                     clip.start < 0 || clip.duration <= 0 || clip.duration > max - clip.start || clip.offset < 0 ||
                     clip.fade_in < 0 || clip.fade_out < 0 || clip.fade_in > clip.duration || clip.fade_out > clip.duration) return false;
@@ -724,5 +730,5 @@
         };
     }
 
-    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, LABEL_COLORS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
+    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, MAX_LINK_CLIPS, LABEL_COLORS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
 })();

@@ -81,8 +81,10 @@
             clip.offset = edge(clip.offset);
             const asset = assets.get(clip.asset_id);
             if (asset && asset.kind !== 'image') {
+                // Source extent rule: offset + (duration - 1) * speed <= duration_frames - 1.
+                const speed = clip.speed > 0 ? Number(clip.speed) : 1;
                 clip.offset = Math.min(clip.offset, Math.max(0, asset.duration_frames - 1));
-                clip.duration = Math.max(1, Math.min(clip.duration, asset.duration_frames - clip.offset));
+                clip.duration = Math.max(1, Math.min(clip.duration, Math.floor((asset.duration_frames - 1 - clip.offset) / speed + 1e-9) + 1));
             }
             clip.fade_in = Math.min(edge(clip.fade_in), clip.duration);
             clip.fade_out = Math.min(edge(clip.fade_out), clip.duration);
