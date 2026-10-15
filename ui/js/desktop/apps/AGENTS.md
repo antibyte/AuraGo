@@ -1421,6 +1421,16 @@ buttons and menu popovers remain excluded from those gestures.
   and creates only `<video>`/`<audio>`/`Image` (the node test asserts it);
   dispose stops local playback, timers, uploads (XHR), thumbnail extraction and
   requests but does not cancel server-owned jobs.
+- Editing (phase 1a): `VideoStudioEdit` (`video-studio-edit.js`, DOM-free) changes a project in place and
+  returns `true` or a reason (`locked`, `media`, `bounds`, `nothing`, `limit`, `kind`, `transition`); the app
+  runs operations through `applyEdit` (one `mutate` undo step; a reason shows an info toast). Overwrite is the
+  default drop and move, Ctrl inserts; locked tracks never change; ripple delete closes only time that is empty
+  on every affected track. The multi-selection is `selectionSet` + `selectionPrimary` and counts only while the
+  primary equals `selectedClipId` (code that sets `selectedClipId` directly collapses it); `mutate` restores
+  both. Tools V/T/B: the trim tool rolls at a cut (Shift: ripple), ripples a free edge and slips the body
+  (Alt: slides); the blade cuts one track (Shift: all unlocked). Context menus use `openMenu` in
+  `video-studio-menus.js` (`role="menu"`, arrows, Home/End, Escape returns focus). Node checks:
+  `go test ./ui -run TestVideoStudioEdit`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;

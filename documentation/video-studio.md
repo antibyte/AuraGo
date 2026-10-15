@@ -78,6 +78,20 @@ by the browser before import so preview and export use the same pixels.
 If a source's audio continues after its video ends, both preview and export hold
 the final video frame for the remaining clip duration, including trimmed tails.
 
+The timeline has three tools: Selection (`V`), Trim (`T`) and Blade (`B`). Dropping or dragging a clip
+overwrites what lies underneath; hold `Ctrl` while dropping to insert instead, which moves later clips on every
+unlocked track. Locked tracks never change. With the Trim tool, dragging the cut between two clips rolls it
+(hold `Shift` to ripple that edge instead), a free edge ripples the rest of the track, and dragging the middle
+of a clip slips its content (`Alt`: slides the clip between its neighbors); the preview shows the edited frame
+while you drag. The Blade cuts the clicked clip (`Shift`: every unlocked track). Select several clips with
+`Shift`/`Ctrl`+click, a rubber band on empty track space or `Ctrl+A`. `Del` deletes and `Shift+Del` deletes
+and closes the gap; the Magnetic toggle closes gaps whenever clips are moved or deleted. `Ctrl+C`, `Ctrl+X`
+and `Ctrl+V` copy, cut and paste at the playhead (`Ctrl+Shift+V` inserts), `Ctrl+Alt+V` pastes picture or
+sound attributes onto the selected clips, `Ctrl+D` duplicates, `Alt+←`/`Alt+→` nudge by one frame (`Shift`:
+ten), `Q`/`W` ripple trim the start or end of the clip under the playhead to it, `N` toggles snapping and
+`Shift+Z` fits the timeline. Right-click a clip or empty track space (or press `Shift+F10` on a focused clip)
+for a menu with these actions.
+
 Transitions include dissolve, fade through black, and wipes in both directions.
 A transition belongs to the outgoing clip. Adjacent clips overlap by exactly
 the transition duration; arbitrary overlap on the same track is rejected.

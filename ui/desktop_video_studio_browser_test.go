@@ -337,6 +337,39 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		window.fixtureConfirm=false;
 	}`)
 
+	page.MustEval(`async()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const all=()=>s.project.tracks.find(t=>t.id==='o1').clips.slice().sort((a,b)=>a.start-b.start);
+		const others=all().filter(c=>c.id!=='c1').map(c=>c.id);
+		const o1=()=>all().filter(c=>!others.includes(c.id));
+		app.focus();
+		s.timelineOptions.onSelect('c1');
+		if(!key('c',{ctrlKey:true}).defaultPrevented)throw new Error('Ctrl+C was not handled');
+		s.preview.seek(300);
+		key('v',{ctrlKey:true});
+		if(o1().length!==2||o1()[1].start!==300)throw new Error('Ctrl+V did not paste at the playhead: '+JSON.stringify(o1()));
+		key('b');
+		if(s.tool!=='blade'||document.querySelector('[data-timeline]').dataset.tool!=='blade')throw new Error('B did not pick the blade tool');
+		const pasted=document.querySelector('[data-clip-id="'+o1()[1].id+'"]'),r=pasted.getBoundingClientRect();
+		pasted.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
+		if(o1().length!==3)throw new Error('a blade click did not cut the clip: '+JSON.stringify(o1()));
+		key('v');
+		if(s.tool!=='select')throw new Error('V did not return to the selection tool');
+		s.timelineOptions.onSelect(o1()[1].id);
+		const lastStart=o1()[2].start,removed=o1()[1].duration;
+		key('Delete',{shiftKey:true});
+		if(o1().length!==2||o1()[1].start!==lastStart-removed)throw new Error('Shift+Del did not ripple delete: '+JSON.stringify(o1()));
+		const clipEl=document.querySelector('[data-clip-id="c1"]'),cr=clipEl.getBoundingClientRect();
+		clipEl.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:cr.left+10,clientY:cr.top+10}));
+		const menu=document.querySelector('.vs-context-menu[role="menu"]');
+		if(!menu||!menu.contains(document.activeElement)||!menu.querySelector('[role="menuitem"]'))throw new Error('the clip menu did not open with focus');
+		key('Escape',{},document.activeElement);
+		if(document.querySelector('.vs-context-menu'))throw new Error('Escape did not close the clip menu');
+		key('z',{ctrlKey:true});key('z',{ctrlKey:true});key('z',{ctrlKey:true});
+		if(o1().length!==1||o1()[0].id!=='c1'||all().length!==others.length+1)throw new Error('undo did not restore the clips: '+JSON.stringify(all()));
+	}`)
+
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")
 	page.MustWaitLoad()
