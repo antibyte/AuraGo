@@ -74,6 +74,7 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 <script src="/js/desktop/apps/video-studio-stage.js"></script>
 <script src="/js/desktop/apps/video-studio-editing.js"></script>
 <script src="/js/desktop/apps/video-studio-projects.js"></script>
+<script src="/js/desktop/apps/video-studio-menus.js"></script>
 <script src="/js/desktop/apps/video-studio.js"></script>
 <script>
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

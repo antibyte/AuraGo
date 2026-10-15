@@ -87,6 +87,7 @@
         if (!s) return;
         s.disposed = true;
         s.abort.abort();
+        if (P.closeMenu) P.closeMenu(s, false);
         clearTimeout(s.autosaveTimer);
         clearTimeout(s.toastTimer);
         if (s.textTimers) P.cancelTextApplies(s);
@@ -514,6 +515,7 @@
             onAction: (action, id) => timelineAction(s, action, id),
             onCommand: name => P.timelineCommand(s, name),
             onBlade: (trackId, frame, allTracks) => P.bladeAt(s, trackId, frame, allTracks),
+            onContextMenu: info => (info.clipId ? P.openClipMenu(s, info.clipId, info.x, info.y) : P.openGapMenu(s, info.trackId, info.frame, info.x, info.y)),
             onTrackAction: (id, action) => trackAction(s, id, action),
             onAddTrack: kind => addTrack(s, kind),
             onDropAsset: (assetId, trackId, at, mode) => addAssetToTrack(s, assetId, trackId, at, mode),

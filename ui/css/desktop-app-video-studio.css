@@ -428,6 +428,13 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 [data-timeline][data-trim-mode="slip"] *, [data-timeline][data-trim-mode="slide"] * { cursor: grabbing !important; }
 .vs-blade-line { position: absolute; z-index: 4; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--vs-playhead); pointer-events: none; }
 .vs-band { position: absolute; z-index: 6; border: 1px solid var(--vs-accent); border-radius: 3px; background: var(--vs-accent-soft); pointer-events: none; }
+.vs-context-menu { position: absolute; z-index: 70; min-width: 224px; max-width: 320px; padding: 5px; border: 1px solid var(--vs-border-strong); border-radius: 10px; background: var(--vs-surface); box-shadow: var(--vs-shadow); color: var(--vs-text); }
+.vs-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 4px 9px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.vs-context-menu button:hover:not(:disabled), .vs-context-menu button:focus-visible { background: var(--vs-control-hover); outline: 2px solid var(--vs-accent-border); outline-offset: -2px; }
+.vs-context-menu button:disabled { opacity: .45; cursor: default; }
+.vs-context-menu .vs-menu-gap { flex: 0 0 15px; width: 15px; }
+.vs-context-menu kbd { margin-left: auto; padding-left: 16px; color: var(--vs-muted); font: inherit; font-size: 11px; }
+.vs-context-menu hr { margin: 4px 2px; border: 0; border-top: 1px solid var(--vs-border); }
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }
