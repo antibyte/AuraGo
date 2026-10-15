@@ -45,7 +45,7 @@ func TestRenderImageOnlyProjectWithEmptyTracks(t *testing.T) {
 	}
 	asset.ID = "overlay-asset"
 	project := Project{
-		Version: 1, Name: "Image-only starter", Width: 1280, Height: 720, FPS: 30,
+		Version: 2, Name: "Image-only starter", Width: 1280, Height: 720, FPS: 30,
 		Assets: []Asset{asset},
 		Tracks: []Track{
 			{ID: "video-1", Name: "Video 1", Kind: TrackVideo},

@@ -33,6 +33,9 @@ func Render(ctx context.Context, ffmpegPath string, project Project, assetPaths 
 	if err := Validate(project); err != nil {
 		return fmt.Errorf("invalid Video Studio project: %w", err)
 	}
+	if ProjectRate(project) != (Rate{Num: FramesPerSecond, Den: 1}) {
+		return fmt.Errorf("rendering %s fps projects requires the segmented renderer", ProjectRate(project))
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

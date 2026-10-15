@@ -8,7 +8,7 @@ import (
 
 func validProject() Project {
 	return Project{
-		Version: 1, Name: "Test", Width: 1280, Height: 720, FPS: 30,
+		Version: 2, Name: "Test", Width: 1280, Height: 720, FPS: 30,
 		Assets: []Asset{{ID: "video", Name: "video.mp4", Kind: AssetVideo, DurationFrames: 300, Width: 640, Height: 360}},
 		Tracks: []Track{{
 			ID: "track", Name: "Video", Kind: TrackVideo,
@@ -78,8 +78,12 @@ func TestValidateBoundaries(t *testing.T) {
 		change func(*Project)
 	}{
 		{"unsupported size", func(p *Project) { p.Width = 640 }},
-		{"wrong fps", func(p *Project) { p.FPS = 24 }},
-		{"too long", func(p *Project) { p.Tracks[0].Clips[0].Duration = MaxDurationFrames + 1 }},
+		{"wrong fps", func(p *Project) { p.FPS = 23 }},
+		{"too long", func(p *Project) { p.Tracks[0].Clips[0].Start = MaxDurationFrames(*p) }},
+		{"ntsc at 25 fps", func(p *Project) { p.FPS = 25; p.NTSC = true }},
+		{"bad source fps", func(p *Project) { p.Assets[0].SourceFPS = "30fps" }},
+		{"bad codec", func(p *Project) { p.Assets[0].Codec = "H 264" }},
+		{"negative microseconds", func(p *Project) { p.Assets[0].DurationUs = -1 }},
 		{"start exceeds timeline bound", func(p *Project) { p.Tracks[0].Clips[0].Start = math.MaxInt }},
 		{"offset exceeds source bound", func(p *Project) { p.Tracks[0].Clips[0].Offset = math.MaxInt }},
 		{"source offset addition wraps", func(p *Project) {
@@ -113,17 +117,120 @@ func TestDurationSaturatesOnIntegerOverflow(t *testing.T) {
 	}
 }
 
-func TestValidateLimitsDistinctRenderInputs(t *testing.T) {
-	project := validProject()
-	project.Assets = make([]Asset, MaxRenderInputs+1)
-	clips := make([]Clip, MaxRenderInputs+1)
-	for i := range project.Assets {
-		id := fmt.Sprintf("video-%d", i)
-		project.Assets[i] = Asset{ID: id, Name: id + ".mp4", Kind: AssetVideo, DurationFrames: 30, Width: 64, Height: 36}
-		clips[i] = Clip{ID: fmt.Sprintf("clip-%d", i), AssetID: id, Start: i * 30, Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}
+func TestValidateV2RatesSizesAndLimits(t *testing.T) {
+	for _, fps := range []int{24, 25, 30, 50, 60} {
+		p := validProject()
+		p.FPS = fps
+		if err := Validate(p); err != nil {
+			t.Fatalf("%d fps rejected: %v", fps, err)
+		}
 	}
-	project.Tracks[0].Clips = clips
-	if err := Validate(project); err == nil {
-		t.Fatal("project with too many render inputs was accepted")
+	for _, fps := range []int{24, 30, 60} {
+		p := validProject()
+		p.FPS, p.NTSC = fps, true
+		if err := Validate(p); err != nil {
+			t.Fatalf("NTSC %d fps rejected: %v", fps, err)
+		}
+	}
+	for _, size := range CanvasSizes() {
+		p := validProject()
+		p.Width, p.Height = size[0], size[1]
+		if err := Validate(p); err != nil {
+			t.Fatalf("canvas %dx%d rejected: %v", size[0], size[1], err)
+		}
+	}
+	if len(CanvasSizes()) != 11 {
+		t.Fatalf("CanvasSizes() has %d entries, want 11", len(CanvasSizes()))
+	}
+
+	tracks := validProject()
+	for i := 1; i < MaxVideoTracks; i++ {
+		tracks.Tracks = append(tracks.Tracks, Track{ID: fmt.Sprintf("v%d", i), Name: "Video", Kind: TrackVideo})
+	}
+	for i := 0; i < MaxAudioTracks; i++ {
+		tracks.Tracks = append(tracks.Tracks, Track{ID: fmt.Sprintf("a%d", i), Name: "Audio", Kind: TrackAudio})
+	}
+	for i := 0; i < MaxOverlayTracks; i++ {
+		tracks.Tracks = append(tracks.Tracks, Track{ID: fmt.Sprintf("o%d", i), Name: "Overlay", Kind: TrackOverlay})
+	}
+	if err := Validate(tracks); err != nil {
+		t.Fatalf("eight tracks per kind rejected: %v", err)
+	}
+	tracks.Tracks = append(tracks.Tracks, Track{ID: "v-extra", Name: "Video", Kind: TrackVideo})
+	if err := Validate(tracks); err == nil {
+		t.Fatal("a ninth video track was accepted")
+	}
+
+	// The hour limit is in seconds: a 59-minute clip fits at 60 fps.
+	long := validProject()
+	long.FPS = 60
+	long.Assets[0].DurationFrames, long.Assets[0].DurationUs = MaxDurationFrames(long), 3_600_000_000
+	long.Tracks[0].Clips[0].Duration = 59 * 60 * 60
+	if err := Validate(long); err != nil {
+		t.Fatalf("59 minutes at 60 fps rejected: %v", err)
+	}
+	long.Tracks[0].Clips[0].Start = 2 * 60 * 60
+	if err := Validate(long); err == nil {
+		t.Fatal("a 61-minute timeline was accepted")
+	}
+
+	// Segments bound FFmpeg inputs now; a project may use more than 32 assets.
+	many := validProject()
+	many.Assets, many.Tracks[0].Clips = nil, nil
+	for i := 0; i < 33; i++ {
+		id := fmt.Sprintf("video-%d", i)
+		many.Assets = append(many.Assets, Asset{ID: id, Name: id + ".mp4", Kind: AssetVideo, DurationFrames: 30, Width: 64, Height: 36})
+		many.Tracks[0].Clips = append(many.Tracks[0].Clips, Clip{ID: "clip-" + id, AssetID: id, Start: i * 30, Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain})
+	}
+	if err := Validate(many); err != nil {
+		t.Fatalf("33 distinct assets rejected: %v", err)
+	}
+}
+
+func TestUpgradeVersionOne(t *testing.T) {
+	v1 := validProject()
+	v1.Version = 1
+	if err := Validate(v1); err == nil {
+		t.Fatal("Validate accepted an unconverted version 1 project")
+	}
+	got, err := Upgrade(v1)
+	if err != nil {
+		t.Fatalf("Upgrade() error = %v", err)
+	}
+	if got.Version != CurrentVersion || got.Assets[0].DurationUs != 10_000_000 {
+		t.Fatalf("Upgrade() = version %d, duration %d us", got.Version, got.Assets[0].DurationUs)
+	}
+	if v1.Assets[0].DurationUs != 0 {
+		t.Fatal("Upgrade() mutated its input")
+	}
+	if err := Validate(got); err != nil {
+		t.Fatalf("upgraded project invalid: %v", err)
+	}
+	again, err := Upgrade(got)
+	if err != nil || again.Version != CurrentVersion {
+		t.Fatalf("Upgrade(v2) = %d, %v", again.Version, err)
+	}
+	notThirty := v1
+	notThirty.FPS = 25
+	if _, err := Upgrade(notThirty); err == nil {
+		t.Fatal("a version 1 project at 25 fps was upgraded")
+	}
+	if _, err := Upgrade(Project{Version: 3}); err == nil {
+		t.Fatal("version 3 was upgraded")
+	}
+}
+
+func TestAssetAtRate(t *testing.T) {
+	video := Asset{Kind: AssetVideo, DurationUs: 2_000_000, DurationFrames: 60}
+	if got := AssetAtRate(video, Rate{60, 1}).DurationFrames; got != 120 {
+		t.Fatalf("video at 60 fps = %d frames", got)
+	}
+	image := Asset{Kind: AssetImage, Width: 10, Height: 10}
+	if got := AssetAtRate(image, Rate{60, 1}).DurationFrames; got != 0 {
+		t.Fatalf("image at 60 fps = %d frames", got)
+	}
+	legacy := Asset{Kind: AssetAudio, DurationFrames: 90, HasAudio: true}
+	if got := AssetAtRate(legacy, Rate{60, 1}).DurationFrames; got != 90 {
+		t.Fatalf("asset without microseconds changed to %d frames", got)
 	}
 }

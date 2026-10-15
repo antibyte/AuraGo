@@ -18,6 +18,7 @@ func TestTenMinuteRenderPerformanceOptIn(t *testing.T) {
 	if err != nil {
 		t.Skip("ffmpeg is not installed")
 	}
+	const tenMinutes = 10 * 60 * FramesPerSecond
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Hour)
 	defer cancel()
 	root := t.TempDir()
@@ -37,14 +38,14 @@ func TestTenMinuteRenderPerformanceOptIn(t *testing.T) {
 		t.Fatalf("Probe(synthetic source) error = %v", err)
 	}
 	asset.ID = "synthetic"
-	if asset.Kind != AssetVideo || !asset.HasAudio || asset.DurationFrames < MaxDurationFrames-1 {
+	if asset.Kind != AssetVideo || !asset.HasAudio || asset.DurationFrames < tenMinutes-1 {
 		t.Fatalf("synthetic source metadata = %+v", asset)
 	}
 	project := Project{
-		Version: 1, Name: "10-minute local render check", Width: 1920, Height: 1080, FPS: FramesPerSecond,
+		Version: 2, Name: "10-minute local render check", Width: 1920, Height: 1080, FPS: FramesPerSecond,
 		Assets: []Asset{asset},
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{
-			ID: "full-length", AssetID: asset.ID, Start: 0, Duration: MaxDurationFrames,
+			ID: "full-length", AssetID: asset.ID, Start: 0, Duration: tenMinutes,
 			Width: 1, Height: 1, Opacity: 1, Volume: 0.5, Fit: FitContain,
 		}}}},
 	}
@@ -63,7 +64,7 @@ func TestTenMinuteRenderPerformanceOptIn(t *testing.T) {
 		t.Fatalf("stat 10-minute output: %v", err)
 	}
 	t.Logf("10-minute 1080p synthetic render: elapsed=%s, output_duration=%.3fs, bytes=%d", elapsed.Round(time.Millisecond), float64(rendered.DurationFrames)/FramesPerSecond, info.Size())
-	if rendered.Width != 1920 || rendered.Height != 1080 || rendered.DurationFrames < MaxDurationFrames-1 || !rendered.HasAudio {
+	if rendered.Width != 1920 || rendered.Height != 1080 || rendered.DurationFrames < tenMinutes-1 || !rendered.HasAudio {
 		t.Fatalf("rendered output metadata = %+v", rendered)
 	}
 }

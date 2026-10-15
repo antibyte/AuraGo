@@ -43,15 +43,22 @@ type Project struct {
 	Tracks  []Track `json:"tracks"`
 }
 
+// Asset metadata is server-owned. DurationUs is the source of truth; DurationFrames expresses it in the
+// project's frame rate and is recomputed whenever the server canonicalizes a project.
 type Asset struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	Path           string    `json:"path,omitempty"`
-	Kind           AssetKind `json:"kind"`
-	DurationFrames int       `json:"duration_frames"`
-	Width          int       `json:"width,omitempty"`
-	Height         int       `json:"height,omitempty"`
-	HasAudio       bool      `json:"has_audio"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Path            string    `json:"path,omitempty"`
+	Kind            AssetKind `json:"kind"`
+	DurationFrames  int       `json:"duration_frames"`
+	DurationUs      int64     `json:"duration_us,omitempty"`
+	VideoDurationUs int64     `json:"video_duration_us,omitempty"`
+	Width           int       `json:"width,omitempty"`
+	Height          int       `json:"height,omitempty"`
+	HasAudio        bool      `json:"has_audio"`
+	SourceFPS       string    `json:"source_fps,omitempty"`
+	Codec           string    `json:"codec,omitempty"`
+	SizeBytes       int64     `json:"size_bytes,omitempty"`
 }
 
 type Track struct {
@@ -104,17 +111,54 @@ type Transition struct {
 }
 
 const (
+	// FramesPerSecond is the version 1 frame rate and the default for new projects.
 	FramesPerSecond     = 30
-	MaxDurationFrames   = 10 * 60 * FramesPerSecond
-	MaxVideoTracks      = 4
-	MaxAudioTracks      = 4
-	MaxOverlayTracks    = 4
-	MaxClipsPerProject  = 256
-	MaxAssetsPerProject = 512
-	MaxRenderInputs     = 32
-	MaxSourceDimension  = 16384
-	MaxSourcePixels     = 64_000_000
+	CurrentVersion      = 2
+	MaxDurationSeconds  = 3600
+	MaxVideoTracks      = 8
+	MaxAudioTracks      = 8
+	MaxOverlayTracks    = 8
+	MaxClipsPerProject  = 2000
+	MaxAssetsPerProject = 1024
+	// MaxSegmentInputs bounds the inputs of one FFmpeg process; the segment planner splits busier spans.
+	MaxSegmentInputs   = 32
+	MaxSourceDimension = 16384
+	MaxSourcePixels    = 64_000_000
 )
+
+var canvasSizes = [][2]int{
+	{1280, 720}, {1920, 1080}, {2560, 1440}, {3840, 2160},
+	{720, 1280}, {1080, 1920}, {2160, 3840},
+	{720, 720}, {1080, 1080}, {2160, 2160},
+	{1080, 1350},
+}
+
+// CanvasSizes lists the supported canvas sizes in menu order.
+func CanvasSizes() [][2]int { return append([][2]int(nil), canvasSizes...) }
+
+func supportedCanvas(width, height int) bool {
+	for _, size := range canvasSizes {
+		if size[0] == width && size[1] == height {
+			return true
+		}
+	}
+	return false
+}
+
+// MaxDurationFrames is the longest timeline of a project, in its own frame rate.
+func MaxDurationFrames(project Project) int {
+	rate := ProjectRate(project)
+	return int(int64(MaxDurationSeconds) * rate.Num / rate.Den)
+}
+
+// AssetAtRate expresses an asset's microsecond duration in frames of the given rate.
+// Images and assets without a microsecond duration keep their frame count.
+func AssetAtRate(asset Asset, rate Rate) Asset {
+	if asset.Kind != AssetImage && asset.DurationUs > 0 {
+		asset.DurationFrames = rate.FramesAt(asset.DurationUs)
+	}
+	return asset
+}
 
 // Duration returns the frame position immediately after the last clip.
 func Duration(project Project) int {

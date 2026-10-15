@@ -3,66 +3,45 @@ package videostudio
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 )
 
-var supportedCanvasSizes = map[[2]int]struct{}{
-	{1280, 720}: {}, {1920, 1080}: {},
-	{720, 1280}: {}, {1080, 1920}: {},
-	{720, 720}: {}, {1080, 1080}: {},
-}
+var supportedFrameRates = map[int]bool{24: true, 25: true, 30: true, 50: true, 60: true}
 
-// Validate checks the persisted project model and all frame and overlap rules.
+var sourceFPSPattern = regexp.MustCompile(`^[1-9][0-9]{0,6}/[1-9][0-9]{0,6}$`)
+
+// Validate checks a version 2 project and all frame and overlap rules. Stored or submitted
+// version 1 documents must pass through Upgrade first.
 func Validate(project Project) error {
-	if project.Version != 1 {
+	if project.Version != CurrentVersion {
 		return fmt.Errorf("unsupported project version %d", project.Version)
 	}
 	if strings.TrimSpace(project.Name) == "" || len([]rune(project.Name)) > 120 {
 		return fmt.Errorf("project name must contain 1 to 120 characters")
 	}
-	if _, ok := supportedCanvasSizes[[2]int{project.Width, project.Height}]; !ok {
+	if !supportedCanvas(project.Width, project.Height) {
 		return fmt.Errorf("unsupported canvas size %dx%d", project.Width, project.Height)
 	}
-	if project.FPS != FramesPerSecond {
-		return fmt.Errorf("project frame rate must be %d fps", FramesPerSecond)
+	if !supportedFrameRates[project.FPS] {
+		return fmt.Errorf("unsupported frame rate %d fps", project.FPS)
+	}
+	if project.NTSC && project.FPS != 24 && project.FPS != 30 && project.FPS != 60 {
+		return fmt.Errorf("NTSC timing is available for 24, 30 and 60 fps only")
 	}
 	if len(project.Assets) > MaxAssetsPerProject {
 		return fmt.Errorf("project exceeds %d assets", MaxAssetsPerProject)
 	}
+	maxFrames := MaxDurationFrames(project)
 
 	assets := make(map[string]Asset, len(project.Assets))
 	for _, asset := range project.Assets {
-		if !validIdentifier(asset.ID) {
-			return fmt.Errorf("asset id is required and must be at most 128 characters")
+		if err := validateAsset(asset); err != nil {
+			return err
 		}
 		if _, exists := assets[asset.ID]; exists {
 			return fmt.Errorf("duplicate asset id %q", asset.ID)
-		}
-		if strings.TrimSpace(asset.Name) == "" || len([]rune(asset.Name)) > 255 {
-			return fmt.Errorf("asset %q must have a name of at most 255 characters", asset.ID)
-		}
-		if asset.DurationFrames < 0 || asset.Width < 0 || asset.Height < 0 {
-			return fmt.Errorf("asset %q has negative media metadata", asset.ID)
-		}
-		if asset.Width > MaxSourceDimension || asset.Height > MaxSourceDimension || int64(asset.Width)*int64(asset.Height) > MaxSourcePixels {
-			return fmt.Errorf("asset %q exceeds the source dimension limit", asset.ID)
-		}
-		switch asset.Kind {
-		case AssetVideo:
-			if asset.DurationFrames == 0 || asset.Width == 0 || asset.Height == 0 {
-				return fmt.Errorf("video asset %q is missing duration or dimensions", asset.ID)
-			}
-		case AssetAudio:
-			if asset.DurationFrames == 0 || !asset.HasAudio {
-				return fmt.Errorf("audio asset %q is missing duration or audio stream metadata", asset.ID)
-			}
-		case AssetImage:
-			if asset.Width == 0 || asset.Height == 0 {
-				return fmt.Errorf("image asset %q is missing dimensions", asset.ID)
-			}
-		default:
-			return fmt.Errorf("asset %q has unsupported kind %q", asset.ID, asset.Kind)
 		}
 		assets[asset.ID] = asset
 	}
@@ -70,7 +49,6 @@ func Validate(project Project) error {
 	var videoTracks, audioTracks, overlayTracks, clipCount int
 	trackIDs := make(map[string]struct{}, len(project.Tracks))
 	clipIDs := make(map[string]struct{})
-	renderAssets := make(map[string]struct{})
 	for _, track := range project.Tracks {
 		if !validIdentifier(track.ID) {
 			return fmt.Errorf("track id is required and must be at most 128 characters")
@@ -105,15 +83,8 @@ func Validate(project Project) error {
 			return clips[i].Start < clips[j].Start
 		})
 		for i, clip := range clips {
-			if err := validateClip(track, clip, assets, clipIDs); err != nil {
+			if err := validateClip(track, clip, assets, clipIDs, maxFrames); err != nil {
 				return err
-			}
-			asset := assets[clip.AssetID]
-			visualUsed := track.Kind != TrackAudio && !track.Hidden
-			audioUsed := !track.Hidden && !track.Muted && clip.Volume > 0 &&
-				((track.Kind == TrackAudio && !track.Hidden) || (track.Kind == TrackVideo && asset.HasAudio))
-			if visualUsed || audioUsed {
-				renderAssets[clip.AssetID] = struct{}{}
 			}
 			if clip.Transition != nil {
 				if i+1 >= len(clips) {
@@ -142,16 +113,51 @@ func Validate(project Project) error {
 	if videoTracks > MaxVideoTracks || audioTracks > MaxAudioTracks || overlayTracks > MaxOverlayTracks {
 		return fmt.Errorf("project exceeds track limits (%d video, %d audio, %d overlay)", MaxVideoTracks, MaxAudioTracks, MaxOverlayTracks)
 	}
-	if len(renderAssets) > MaxRenderInputs {
-		return fmt.Errorf("project uses more than %d distinct render inputs", MaxRenderInputs)
-	}
-	if Duration(project) > MaxDurationFrames {
-		return fmt.Errorf("project duration exceeds ten minutes")
+	if Duration(project) > maxFrames {
+		return fmt.Errorf("project duration exceeds %d minutes", MaxDurationSeconds/60)
 	}
 	return nil
 }
 
-func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[string]struct{}) error {
+func validateAsset(asset Asset) error {
+	if !validIdentifier(asset.ID) {
+		return fmt.Errorf("asset id is required and must be at most 128 characters")
+	}
+	if strings.TrimSpace(asset.Name) == "" || len([]rune(asset.Name)) > 255 {
+		return fmt.Errorf("asset %q must have a name of at most 255 characters", asset.ID)
+	}
+	if asset.DurationFrames < 0 || asset.Width < 0 || asset.Height < 0 || asset.DurationUs < 0 || asset.VideoDurationUs < 0 || asset.SizeBytes < 0 {
+		return fmt.Errorf("asset %q has negative media metadata", asset.ID)
+	}
+	if asset.Width > MaxSourceDimension || asset.Height > MaxSourceDimension || int64(asset.Width)*int64(asset.Height) > MaxSourcePixels {
+		return fmt.Errorf("asset %q exceeds the source dimension limit", asset.ID)
+	}
+	if asset.SourceFPS != "" && !sourceFPSPattern.MatchString(asset.SourceFPS) {
+		return fmt.Errorf("asset %q has an invalid source frame rate", asset.ID)
+	}
+	if asset.Codec != safeCodecName(asset.Codec) {
+		return fmt.Errorf("asset %q has an invalid codec name", asset.ID)
+	}
+	switch asset.Kind {
+	case AssetVideo:
+		if asset.DurationFrames == 0 || asset.Width == 0 || asset.Height == 0 {
+			return fmt.Errorf("video asset %q is missing duration or dimensions", asset.ID)
+		}
+	case AssetAudio:
+		if asset.DurationFrames == 0 || !asset.HasAudio {
+			return fmt.Errorf("audio asset %q is missing duration or audio stream metadata", asset.ID)
+		}
+	case AssetImage:
+		if asset.Width == 0 || asset.Height == 0 {
+			return fmt.Errorf("image asset %q is missing dimensions", asset.ID)
+		}
+	default:
+		return fmt.Errorf("asset %q has unsupported kind %q", asset.ID, asset.Kind)
+	}
+	return nil
+}
+
+func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[string]struct{}, maxFrames int) error {
 	if !validIdentifier(clip.ID) {
 		return fmt.Errorf("clip id is required and must be at most 128 characters")
 	}
@@ -163,7 +169,7 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 	if !exists {
 		return fmt.Errorf("clip %q references unknown asset %q", clip.ID, clip.AssetID)
 	}
-	if clip.Start < 0 || clip.Start > MaxDurationFrames || clip.Offset < 0 || clip.Duration <= 0 || clip.Duration > MaxDurationFrames || clip.Start > MaxDurationFrames-clip.Duration {
+	if clip.Start < 0 || clip.Start > maxFrames || clip.Offset < 0 || clip.Duration <= 0 || clip.Duration > maxFrames || clip.Start > maxFrames-clip.Duration {
 		return fmt.Errorf("clip %q has invalid frame timing", clip.ID)
 	}
 	if asset.Kind != AssetImage && (clip.Offset > asset.DurationFrames || clip.Duration > asset.DurationFrames-clip.Offset) {
@@ -232,6 +238,20 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 		}
 	}
 	return nil
+}
+
+// safeCodecName returns a lowercase FFmpeg codec name, or "" for anything that is not one.
+func safeCodecName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if len(name) > 32 {
+		return ""
+	}
+	for _, r := range name {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_') {
+			return ""
+		}
+	}
+	return name
 }
 
 func validIdentifier(value string) bool {
