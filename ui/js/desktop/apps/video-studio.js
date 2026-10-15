@@ -576,6 +576,8 @@
         else if (action === 'split') P.splitSelection(s);
     }
     function trackAction(s, id, action) {
+        // Only the project changes are handled here; the header's view actions (target, solo, menu, rename) are not.
+        if (!['remove', 'mute', 'hide', 'lock'].includes(action)) return;
         if (action === 'remove') {
             const track = s.project.tracks.find(item => item.id === id);
             if (!track || track.clips.length) return;

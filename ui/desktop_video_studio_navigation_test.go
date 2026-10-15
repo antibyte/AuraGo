@@ -165,3 +165,20 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 		}
 	}
 }
+
+func TestVideoStudioRulerMarkup(t *testing.T) {
+	runVideoStudioNavScript(t, `
+require('./js/desktop/apps/video-studio-ruler.js');
+const R = window.VideoStudioRuler;
+assert.equal(typeof R.markup, 'function'); assert.equal(typeof R.overviewInner, 'function'); assert.equal(typeof R.syncOverview, 'function'); assert.equal(typeof R.attachOverview, 'function');
+assert.equal(typeof R.markerDrag, 'function'); assert.equal(typeof R.markerMove, 'function');
+const project = {fps: 30, markers: [{id: 'm', frame: 30, duration: 0, name: '', color: 'teal'}, {id: 'r', frame: 60, duration: 30, color: 'mauve'}], in_point: 30, out_point: 90};
+const options = {esc: value => String(value), label: (key, fallback) => fallback};
+const html = R.markup(options, project, 52, 1000);
+assert(html.includes('class="vs-range-shade"') && html.includes('data-marker-id="m"') && html.includes('--vs-marker-color:var(--vs-label-teal)'));
+assert(html.includes('is-range') && html.includes('vs-marker-span'), 'a range marker draws its span');
+assert(!html.includes('mauve'), 'a colour outside the palette is not drawn');
+const inner = R.overviewInner(options, project, 52, 1000);
+assert(inner.includes('vs-overview-shade') && inner.includes('vs-overview-mark'));
+`)
+}
