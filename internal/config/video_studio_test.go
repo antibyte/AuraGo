@@ -41,10 +41,23 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if loaded.VideoStudio != cfg.VideoStudio {
 		t.Fatalf("round trip: %+v", loaded.VideoStudio)
 	}
-	for _, invalid := range []VideoStudioConfig{{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: 512, MaxAssetSizeMB: 1024}, {RenderTimeoutSeconds: -1}, {MaxProjectSizeMB: 4096, MaxAssetSizeMB: 1024, MaxExportSizeMB: 8192}, {HardwareEncoding: "cuda"}, {HardwareDevice: "relative/node"}} {
+	for _, invalid := range []VideoStudioConfig{
+		{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: -1}, {MaxProjectSizeMB: 65537},
+		{RenderTimeoutSeconds: -1}, {MaxExportSizeMB: -1}, {HardwareEncoding: "cuda"}, {HardwareDevice: "relative/node"},
+	} {
 		if NormalizeVideoStudioConfig(&invalid) == nil {
 			t.Errorf("invalid limits accepted: %+v", invalid)
 		}
+	}
+	// An older config keeps its explicit project limit and gains the larger template asset and export
+	// defaults through the update merge; both are clamped instead of failing the whole config.
+	merged := VideoStudioConfig{MaxProjectSizeMB: 4096, MaxAssetSizeMB: 1024, MaxExportSizeMB: 8192}
+	if err := NormalizeVideoStudioConfig(&merged); err != nil || merged.MaxExportSizeMB != 4096 || merged.MaxAssetSizeMB != 1024 {
+		t.Fatalf("an export limit above the project limit must clamp to it: %+v (%v)", merged, err)
+	}
+	handEdited := VideoStudioConfig{MaxProjectSizeMB: 2048, MaxAssetSizeMB: 4096, MaxExportSizeMB: 8192}
+	if err := NormalizeVideoStudioConfig(&handEdited); err != nil || handEdited.MaxAssetSizeMB != 2048 || handEdited.MaxExportSizeMB != 2048 {
+		t.Fatalf("asset and export limits above the project limit must clamp to it: %+v (%v)", handEdited, err)
 	}
 	small := VideoStudioConfig{MaxProjectSizeMB: 2048}
 	if err := NormalizeVideoStudioConfig(&small); err != nil || small.MaxAssetSizeMB != 2048 {
