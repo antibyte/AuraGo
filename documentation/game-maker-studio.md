@@ -57,6 +57,11 @@ Choose 2D, 3D or Voxel, describe the game, select a configured provider/model, a
 optionally enable image and music generation. The global AuraGo provider and
 model are preselected.
 
+An explicit provider or model stays pinned for planning, code generation and
+repairs. Selecting only a model uses the configured primary provider's endpoint;
+the global system/fallback client cannot replace that model. This does not change
+AuraGo's system-wide selection.
+
 - 2D projects use the embedded Phaser 4.2.1 runtime.
 - 3D projects use the embedded Three.js 0.186.1 runtime.
 - Voxel projects use Three.js with the bundled finite sandbox runtime, central

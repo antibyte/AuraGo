@@ -538,13 +538,17 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		cfg.LLM.APIKey = provider.APIKey
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 	}
 	if model := strings.TrimSpace(run.Job.Model); model != "" {
 		cfg.LLM.Model = model
 	}
 	if strings.TrimSpace(cfg.LLM.Model) == "" {
 		return fmt.Errorf("selected Game Maker model is empty")
+	}
+	if strings.TrimSpace(run.Job.ProviderID) != "" || strings.TrimSpace(run.Job.Model) != "" {
+		// The global failover client overwrites request.Model with its system route.
+		cfg.FallbackLLM.Enabled = false
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID))
 	}
 	if run.Stage == "visual" {
 		return r.reviewGameImages(ctx, &cfg, client, run)

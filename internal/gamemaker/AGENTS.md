@@ -201,6 +201,12 @@ revision publication and standalone export for Phaser and Three.js games.
   retain visual findings without starting another repair in that case.
 
 ### Game Maker Studio Contract
+- An explicit job provider or model pins planning, editing, source generation
+  and repair to a dedicated client after resolving both values. A model-only
+  selection uses the configured primary endpoint, never the global failover
+  client that replaces the request model. Disable global fallback in that job's
+  config snapshot; leave system defaults untouched. Verify the actual HTTP
+  model/endpoint with `TestGameMakerSelectedModelReachesProvider`.
 - Planning, editing, source-only generation and image review have versioned
   prepared prompt profiles. Editing is shared by building and repair. Select
   2D/3D guidance once; keep the three planning/four editing schemas and their
