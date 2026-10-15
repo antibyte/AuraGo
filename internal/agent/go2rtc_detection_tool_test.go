@@ -394,21 +394,26 @@ func TestPersonDetectAPIReportsANotYetConfiguredServiceAsUnavailable(t *testing.
 func TestGo2RTCSetArmModeKeepsAutonomousRunsFromDisarming(t *testing.T) {
 	api := &fakeDetectionAPI{}
 	useDetectionAPI(t, api)
-	wake := &DispatchContext{Cfg: detectionTestConfig(), Logger: testLogger, MessageSource: "camera_detection"}
-	for _, mode := range []string{"off", "schedule"} {
-		if m := runDetection(t, wake, "set_arm_mode", map[string]interface{}{"mode": mode}); m["code"] != "not_allowed" {
-			t.Errorf("autonomous %s = %v", mode, m)
+	contexts := []DispatchContext{{MessageSource: "web_chat", MissionID: "mission-42"}, {SessionID: "heartbeat"}}
+	for _, source := range []string{"mission", " Mission ", "heartbeat", "planner_notification", "uptime_kuma", "space_agent_bridge", "follow_up", "cron", "cron_prompt", "mqtt", "frigate", "camera_detection"} {
+		contexts = append(contexts, DispatchContext{MessageSource: source})
+	}
+	contexts = append(contexts, DispatchContext{MessageSource: "web_chat"})
+	for i := range contexts {
+		dc := &contexts[i]
+		dc.Cfg, dc.Logger = detectionTestConfig(), testLogger
+		for _, mode := range []string{"off", "schedule", "on"} {
+			before := len(api.armModes)
+			m := runDetection(t, dc, "set_arm_mode", map[string]interface{}{"mode": mode})
+			blocked := i < len(contexts)-1 && mode != "on"
+			if blocked {
+				if m["code"] != "not_allowed" || len(api.armModes) != before {
+					t.Fatalf("context=%+v mode=%s: blocked call reached service or succeeded: %v", dc, mode, m)
+				}
+			} else if m["status"] != "ok" || len(api.armModes) != before+1 || api.armModes[before] != mode {
+				t.Fatalf("context=%+v mode=%s: allowed call failed: %v", dc, mode, m)
+			}
 		}
-	}
-	if m := runDetection(t, wake, "set_arm_mode", map[string]interface{}{"mode": "on"}); m["status"] != "ok" {
-		t.Errorf("autonomous on = %v", m)
-	}
-	chat := &DispatchContext{Cfg: detectionTestConfig(), Logger: testLogger, MessageSource: "web_chat"}
-	if m := runDetection(t, chat, "set_arm_mode", map[string]interface{}{"mode": "off"}); m["status"] != "ok" {
-		t.Errorf("chat off = %v", m)
-	}
-	if got := strings.Join(api.armModes, ","); got != "on,off" {
-		t.Fatalf("modes that reached the service = %s", got)
 	}
 }
 
@@ -478,6 +483,9 @@ func TestGo2RTCShowDetectionEventInAutonomousRunsShowsNothing(t *testing.T) {
 	broker := &captureBroker{}
 	for name, dc := range map[string]*DispatchContext{
 		"camera wake-up source": {Cfg: detectionTestConfig(), Logger: testLogger, Broker: broker, MessageSource: "camera_detection"},
+		"mission source":        {Cfg: detectionTestConfig(), Logger: testLogger, Broker: broker, MessageSource: "mission"},
+		"mission ID":            {Cfg: detectionTestConfig(), Logger: testLogger, Broker: broker, MessageSource: "web_chat", MissionID: "mission-42"},
+		"heartbeat session":     {Cfg: detectionTestConfig(), Logger: testLogger, Broker: broker, SessionID: "heartbeat"},
 		"noop broker":           {Cfg: detectionTestConfig(), Logger: testLogger, Broker: NoopBroker{}},
 	} {
 		m := runDetection(t, dc, "show_detection_event", map[string]interface{}{"event_id": float64(42)})

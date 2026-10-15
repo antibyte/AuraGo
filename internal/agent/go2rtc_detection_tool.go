@@ -231,7 +231,7 @@ func dispatchGo2RTCDetection(ctx context.Context, operation string, tc ToolCall,
 	case "detection_status":
 		return go2RTCDetectionStatus(ctx, dc.Cfg, api)
 	case "set_arm_mode":
-		return go2RTCSetArmMode(ctx, api, toolArgString(tc.Params, "mode"), isAutonomousMessageSource(dc.MessageSource))
+		return go2RTCSetArmMode(ctx, api, toolArgString(tc.Params, "mode"), isAutonomousDetectionRun(dc))
 	case "list_detection_events":
 		return go2RTCListDetectionEvents(ctx, dc.Cfg, api, tc)
 	case "analyze_detection_event":
@@ -301,9 +301,11 @@ func go2RTCDetectionStatus(ctx context.Context, cfg *config.Config, api detectio
 	return go2RTCDetectionResult(payload)
 }
 
-// go2RTCSetArmMode sets the arm mode. An autonomous run (a camera wake-up, cron, heartbeat,
-// relay) may only arm: its decisions can rest on a picture a stranger holds up to the
-// camera, and switching alerts off or back to the schedule would silence later alerts.
+func isAutonomousDetectionRun(dc *DispatchContext) bool {
+	return dc.MissionID != "" || isAutonomousAgentRun(RunConfig{MessageSource: dc.MessageSource}, dc.SessionID)
+}
+
+// go2RTCSetArmMode only lets autonomous runs arm: a staged picture must not silence later alerts.
 func go2RTCSetArmMode(ctx context.Context, api detectionAPI, raw string, autonomous bool) string {
 	mode := strings.ToLower(strings.TrimSpace(raw))
 	if !persondetect.ValidArmMode(mode) {
@@ -421,7 +423,7 @@ func go2RTCShowDetectionEvent(ctx context.Context, api detectionAPI, tc ToolCall
 	case NoopBroker, *NoopBroker:
 		noopBroker = true
 	}
-	if dc.Broker == nil || noopBroker || isAutonomousMessageSource(dc.MessageSource) {
+	if dc.Broker == nil || noopBroker || isAutonomousDetectionRun(dc) {
 		return go2RTCDetectionResult(map[string]any{
 			"status":    "ok",
 			"operation": "show_detection_event",
