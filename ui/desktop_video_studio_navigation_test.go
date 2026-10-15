@@ -10,7 +10,8 @@ const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-timeline.js');
-const T = window.VideoStudioTimeline, Time = window.VideoStudioTime;
+require('./js/desktop/apps/video-studio-navigation.js');
+const T = window.VideoStudioTimeline, N = window.VideoStudioNavigation, Time = window.VideoStudioTime;
 const box = {x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, volume: 1, fit: 'contain'};
 `
 
@@ -51,5 +52,73 @@ const long = {fps: 24, assets: [{id: 'img', kind: 'image'}], tracks: [{id: 't', 
 assert.equal(Time.rescaleFits(long, 24, true), false, 'one frame past the 60-minute limit');
 assert.equal(Time.rescaleFits(long, 24, false), true, 'the same rate always fits');
 assert.equal(Time.rescaleFits(long, 25, false), true, '3600 s is exactly 90000 frames at 25 fps and fits');
+`)
+}
+
+func TestVideoStudioNavigationHelpers(t *testing.T) {
+	runVideoStudioNavScript(t, `
+const log = [];
+let frame = 100, rate = 1, playing = false;
+const shuttle = N.createShuttle({
+  getFrame: () => frame,
+  seek: value => { frame = value; },
+  play: () => { playing = true; },
+  pause: () => { playing = false; },
+  setRate: value => { rate = value; },
+  maxFrame: () => 500
+});
+shuttle.press('l'); assert.equal(rate, 1); assert.equal(playing, true);
+shuttle.press('l'); assert.equal(rate, 2);
+shuttle.press('l'); assert.equal(rate, 4);
+shuttle.press('l'); shuttle.press('l'); assert.equal(rate, 8, 'each press doubles the rate, up to 8x');
+shuttle.press('j'); assert.equal(rate, -1, 'a direction change restarts at 1x backward');
+shuttle.press('j'); assert.equal(rate, -2);
+shuttle.press('k'); assert.equal(playing, false, 'K stops');
+assert.equal(rate, 1, 'stopping returns the preview to 1x');
+assert.equal(shuttle.rate(), 0);
+shuttle.press('k');
+shuttle.press('l'); assert.equal(frame, 101, 'K held with L steps one frame');
+assert.equal(playing, false, 'a step does not play');
+shuttle.press('j'); assert.equal(frame, 100, 'K held with J steps back');
+shuttle.release('k');
+shuttle.press('l'); assert.equal(rate, 1, 'released K shuttles again'); assert.equal(playing, true);
+shuttle.reset(); assert.equal(shuttle.rate(), 0, 'reset forgets the rate without calling the preview');
+shuttle.press('k'); frame = 500; shuttle.press('l'); assert.equal(frame, 500, 'steps stop at the timeline end');
+shuttle.release('k');
+assert.equal(shuttle.press('x'), null, 'other keys are not the shuttle');
+
+const p = {tracks: [
+  {id: 'a', kind: 'video', hidden: false, locked: false, clips: [{start: 30, duration: 40}]},
+  {id: 'b', kind: 'video', hidden: false, locked: true, clips: [{start: 50, duration: 10}]},
+  {id: 'c', kind: 'overlay', hidden: true, locked: false, clips: [{start: 5, duration: 5}]}]};
+assert.equal(N.editPoints(p, 0, 1), 30, 'unlocked, visible tracks only');
+assert.equal(N.editPoints(p, 30, 1), 70);
+assert.equal(N.editPoints(p, 70, 1), null);
+assert.equal(N.editPoints(p, 40, -1), 30);
+assert.equal(N.editPoints(p, 30, -1), 0, 'frame 0 counts as an edit point');
+assert.equal(N.markerStep([10, 20, 20, 35], 20, 1), 35, 'the next marker strictly after the frame');
+assert.equal(N.markerStep([10, 20, 20, 35], 20, -1), 10);
+assert.equal(N.markerStep([10], 10, 1), null);
+assert.deepEqual(N.loopRange({in: 30, out: 90}, 300), {start: 30, end: 90});
+assert.deepEqual(N.loopRange({in: null, out: null}, 300), {start: 0, end: 300}, 'no points loops the whole timeline');
+assert.equal(N.loopRange({in: 100, out: 50}, 300), null, 'an empty range is refused');
+assert.deepEqual(N.overviewBox(1000, 250, 400, 200), {left: 50, width: 80});
+assert.deepEqual(N.overviewBox(1000, 900, 400, 200), {left: 120, width: 80}, 'the window stays on the strip');
+assert.equal(N.laneForStrip(60, 1000, 200, 400), 300);
+assert.equal(N.laneForStrip(199, 1000, 200, 400), 600, 'clamped to the last full view');
+assert.equal(N.zoomForSpan(10, 520, {min: 0.005, max: 2.8, basePx: 52}), 1);
+assert.equal(N.zoomForSpan(1e9, 520, {min: 0.005, max: 2.8, basePx: 52}), 0.005);
+
+const tracks = [{id: 'v1', kind: 'video'}, {id: 'o1', kind: 'overlay'}, {id: 'a1', kind: 'audio'}];
+assert.equal(N.trackInsertIndex(tracks, 'v1', 'above'), 1, 'visual tracks list front-most first: above is after it');
+assert.equal(N.trackInsertIndex(tracks, 'v1', 'below'), 0);
+assert.equal(N.trackInsertIndex(tracks, 'a1', 'above'), 2, 'audio lists in array order: above is before it');
+assert.equal(N.trackInsertIndex(tracks, 'a1', 'below'), 3);
+assert.equal(N.trackInsertIndex(tracks, 'missing', 'above'), 3);
+assert.deepEqual(['video', 'audio'].map(kind => N.arraySideFor(kind, 'above')), ['after', 'before']);
+const four = [{id: 'v1', kind: 'video'}, {id: 'v2', kind: 'video'}, {id: 'o1', kind: 'overlay'}, {id: 'v3', kind: 'video'}];
+assert.deepEqual(N.moveWithinKind(four, 'v1', 'v3', 'after').map(track => track.id), ['v2', 'o1', 'v3', 'v1']);
+assert.equal(N.moveWithinKind(four, 'v1', 'o1', 'after'), null, 'a different kind does not move');
+assert.equal(N.moveWithinKind(four, 'v1', 'v1', 'after'), null, 'the same track does not move');
 `)
 }
