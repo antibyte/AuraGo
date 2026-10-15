@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -621,44 +622,83 @@ func TestEnsureBrowserAutomationSidecarRunningBuildsOnConfiguredEngine(t *testin
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake docker CLI is a POSIX shell script")
 	}
-	configureDockerSecurityTestPermissions(t, false)
-	logFile := fakeBuildDockerCLI(t, "", "")
-	setInheritedDockerEnv(t, "DOCKER_HOST", "tcp://elsewhere:2375")
-	setInheritedDockerEnv(t, "DOCKER_CONTEXT", "remote")
+	for _, proxyPresent := range []bool{true, false} {
+		t.Run(fmt.Sprintf("proxy_present_%t", proxyPresent), func(t *testing.T) {
+			configureDockerSecurityTestPermissions(t, false)
+			logFile := fakeBuildDockerCLI(t, "", "")
+			setInheritedDockerEnv(t, "DOCKER_HOST", "tcp://elsewhere:2375")
+			setInheritedDockerEnv(t, "DOCKER_CONTEXT", "remote")
 
-	var requests []string
-	dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
-		requests = append(requests, r.Method+" "+path)
-		switch {
-		case r.Method == http.MethodGet && path == "/networks/browser-egress":
-			_, _ = w.Write([]byte(`{"Internal":true}`))
-		case r.Method == http.MethodGet && path == "/networks/bridge":
-			_, _ = w.Write([]byte(`{"Internal":false}`))
-		case r.Method == http.MethodGet && (strings.HasPrefix(path, "/containers/") || strings.HasPrefix(path, "/images/")):
-			w.WriteHeader(http.StatusNotFound)
-		default:
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	})
+			var requests []string
+			var started []string
+			dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+				path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+				requests = append(requests, r.Method+" "+path)
+				switch {
+				case r.Method == http.MethodGet && path == "/networks/browser-egress":
+					_, _ = w.Write([]byte(`{"Internal":true}`))
+				case r.Method == http.MethodGet && path == "/networks/bridge":
+					_, _ = w.Write([]byte(`{"Internal":false}`))
+				case proxyPresent && r.Method == http.MethodGet && path == "/containers/browser-egress/json":
+					_, _ = w.Write([]byte(`{"Config":{"Image":"aurago-browser-egress:latest","Env":["PORT=7332","AURAGO_BROWSER_EGRESS_BIND=internal","AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=null"]},"HostConfig":{"NetworkMode":"browser-egress"},"NetworkSettings":{"Networks":{"browser-egress":{},"bridge":{}}},"State":{"Running":true}}`))
+				case r.Method == http.MethodGet && (strings.HasPrefix(path, "/containers/") || strings.HasPrefix(path, "/images/")):
+					w.WriteHeader(http.StatusNotFound)
+				case r.Method == http.MethodPost && path == "/containers/create":
+					var payload struct{ Image string }
+					if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+						t.Error(err)
+					}
+					name := r.URL.Query().Get("name")
+					wantImage := "aurago-browser:test"
+					if name == "browser-egress" {
+						wantImage = "aurago-browser-egress:latest"
+					}
+					if payload.Image != wantImage {
+						t.Errorf("created %s with image %s", name, payload.Image)
+					}
+					w.WriteHeader(http.StatusCreated)
+					_, _ = fmt.Fprintf(w, `{"Id":%q,"Warnings":[]}`, name)
+				case r.Method == http.MethodPost && path == "/networks/bridge/connect":
+					w.WriteHeader(http.StatusNoContent)
+				case r.Method == http.MethodPost && strings.HasSuffix(path, "/start"):
+					started = append(started, path)
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					t.Errorf("unexpected Docker request %s %s", r.Method, path)
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			})
 
-	sidecarCfg := BrowserAutomationSidecarConfig{
-		URL:             "http://127.0.0.1:7331",
-		Image:           "aurago-browser:test",
-		ContainerName:   "aurago-browser-test",
-		AuthToken:       "test-token",
-		AutoBuild:       true,
-		DockerfileDir:   browserAutomationBuildContextDir(t),
-		CloakProxy:      "",
-		EgressNetwork:   "browser-egress",
-		OutboundNetwork: "bridge",
-		WorkspaceDir:    t.TempDir(),
-		DownloadDir:     t.TempDir(),
-	}
-	EnsureBrowserAutomationSidecarRunning(dockerHost, sidecarCfg, &recordingBuildLogger{})
+			sidecarCfg := BrowserAutomationSidecarConfig{
+				URL:             "http://127.0.0.1:7331",
+				Image:           "aurago-browser:test",
+				ContainerName:   "aurago-browser-test",
+				AuthToken:       "test-token",
+				AutoBuild:       true,
+				DockerfileDir:   browserAutomationBuildContextDir(t),
+				CloakProxy:      "",
+				EgressNetwork:   "browser-egress",
+				OutboundNetwork: "bridge",
+				WorkspaceDir:    t.TempDir(),
+				DownloadDir:     t.TempDir(),
+			}
+			if err := os.WriteFile(filepath.Join(sidecarCfg.DockerfileDir, "Dockerfile.browser_egress"), []byte("FROM scratch\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			EnsureBrowserAutomationSidecarRunning(dockerHost, sidecarCfg, &recordingBuildLogger{})
 
-	want := []string{"host=" + dockerHost + " context=unset"}
-	if got := fakeBuildDockerCalls(t, logFile); !reflect.DeepEqual(got, want) {
-		t.Fatalf("docker CLI calls = %#v, want %#v (the build must target the host the image check and container create use); Docker API requests: %#v", got, want, requests)
+			want := []string{"host=" + dockerHost + " context=unset"}
+			wantStarted := []string{"/containers/aurago-browser-test/start"}
+			if !proxyPresent {
+				want = append(want, want[0])
+				wantStarted = append([]string{"/containers/browser-egress/start"}, wantStarted...)
+			}
+			if got := fakeBuildDockerCalls(t, logFile); !reflect.DeepEqual(got, want) {
+				t.Fatalf("docker CLI calls = %#v, want %#v (the build must target the host the image check and container create use); Docker API requests: %#v", got, want, requests)
+			}
+			if !reflect.DeepEqual(started, wantStarted) {
+				t.Fatalf("started = %v, want %v; requests: %v", started, wantStarted, requests)
+			}
+		})
 	}
 }

@@ -82,6 +82,7 @@ UPDATE_BACKUP_COMPLETE=true
 UPDATE_OUTCOME=pending
 _AU_LOCK="$UPDATE_STATE/pid"
 remove_regular_file_if_present() { return 0; }
+tui_cleanup() { :; }
 warn() { echo "$*"; }
 if update_safe_remove_work "$DIR/data/models"; then exit 3; fi
 trap update_exit_cleanup EXIT
