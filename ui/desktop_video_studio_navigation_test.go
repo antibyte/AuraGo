@@ -182,3 +182,24 @@ const inner = R.overviewInner(options, project, 52, 1000);
 assert(inner.includes('vs-overview-shade') && inner.includes('vs-overview-mark'));
 `)
 }
+
+func TestVideoStudioNavigationWiring(t *testing.T) {
+	transport, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-transport.js"))
+	if err != nil {
+		t.Fatalf("transport part: %v", err)
+	}
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatalf("app shell: %v", err)
+	}
+	for _, want := range []string{"handleNavKeys", "createShuttle", "togglePlay", "soloTrackIds", "snapExtras"} {
+		if !bytes.Contains(transport, []byte(want)) {
+			t.Errorf("transport part does not export %s", want)
+		}
+	}
+	for _, want := range []string{"P.handleNavKeys(s, event)", "P.isNavShortcut(s, event)", "P.createShuttle({", "P.togglePlay(s)", `data-action="goto-time"`, `data-action="loop"`, "P.syncTransport(s)", "P.snapExtras(s, excludeMarkerId)"} {
+		if !bytes.Contains(app, []byte(want)) {
+			t.Errorf("app shell does not wire %s", want)
+		}
+	}
+}

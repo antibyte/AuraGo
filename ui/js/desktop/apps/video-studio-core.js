@@ -18,7 +18,7 @@
         { width: 2160, height: 2160, key: 'square2160' }, { width: 1080, height: 1350, key: 'feed1080' }
     ];
     // Actions that never change the project and stay available in read-only mode.
-    const READ_ONLY_SAFE = new Set(['play', 'step-back', 'step-forward', 'seek-start', 'seek-end', 'toggle-inspector', 'close-inspector', 'project-menu', 'jobs', 'shortcuts', 'dismiss-notice', 'fullscreen', 'filter', 'toggle-fine']);
+    const READ_ONLY_SAFE = new Set(['play', 'step-back', 'step-forward', 'seek-start', 'seek-end', 'toggle-inspector', 'close-inspector', 'project-menu', 'jobs', 'shortcuts', 'dismiss-notice', 'fullscreen', 'filter', 'toggle-fine', 'loop', 'goto-time']);
     const TERMINAL = ['succeeded', 'failed', 'cancelled', 'interrupted'];
     const PREF_TIMELINE = 'aurago.videoStudio.timelineHeight';
     const PREF_SNAP = 'aurago.videoStudio.snap';

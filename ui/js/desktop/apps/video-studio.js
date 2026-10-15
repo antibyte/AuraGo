@@ -109,16 +109,21 @@
         const stickers = STICKERS.map(name => `<button type="button" class="vs-sticker" data-sticker="${name}" title="${label('sticker_' + name, name)}"><span class="vs-sticker-art" aria-hidden="true">${stickerSVG(name, 56)}</span><small>${label('sticker_' + name, name)}</small></button>`).join('');
         const key = name => tr(s, 'key' + name, name);
         const shortcuts = [
-            [[key('Space')], 'shortcutPlay', 'Play / pause'], [['←', '→'], 'shortcutFrame', 'One frame (Shift: one second)'],
-            [[key('Home'), key('End')], 'shortcutEnds', 'Start / end'], [['V', 'T', 'B'], 'shortcutTools', 'Selection, trim and blade tool'],
-            [['S'], 'shortcutSplit', 'Split at the playhead'], [['Q', 'W'], 'shortcutTrimPlayhead', 'Ripple trim start / end to the playhead'],
-            [[key('Del')], 'shortcutDelete', 'Delete the selected clip'], [[key('Shift'), key('Del')], 'shortcutRippleDelete', 'Ripple delete'],
-            [[key('Ctrl'), 'C', 'X', 'V'], 'shortcutClipboard', 'Copy, cut, paste (Shift: insert)'],
+            [[key('Space')], 'shortcutPlay', 'Play / pause'], [['J', 'K', 'L'], 'shortcutShuttle', 'Shuttle back / stop / forward (K + J/L: one frame)'],
+            [['←', '→'], 'shortcutFrame', 'One frame (Shift: one second)'], [[key('Home'), key('End')], 'shortcutEnds', 'Start / end'],
+            [['↑', '↓'], 'shortcutEditPoint', 'Previous / next edit point'], [['I', 'O'], 'shortcutInOut', 'Set in / out point'],
+            [[key('Shift'), 'I', 'O'], 'shortcutGoInOut', 'Go to in / out point'], [[key('Alt'), 'X'], 'shortcutClearInOut', 'Clear in and out points'],
+            [['M'], 'shortcutMarker', 'Add marker (or open the one at the playhead)'], [[key('Shift'), 'M'], 'shortcutMarkerNext', 'Next marker'],
+            [[key('Ctrl'), key('Shift'), 'M'], 'shortcutMarkerPrev', 'Previous marker'], [[key('Ctrl'), 'G'], 'shortcutGoTo', 'Go to timecode'],
+            [['V', 'T', 'B'], 'shortcutTools', 'Selection, trim and blade tool'], [['S'], 'shortcutSplit', 'Split at the playhead'],
+            [['Q', 'W'], 'shortcutTrimPlayhead', 'Ripple trim start / end to the playhead'], [[key('Del')], 'shortcutDelete', 'Delete the selected clip'],
+            [[key('Shift'), key('Del')], 'shortcutRippleDelete', 'Ripple delete'], [[key('Ctrl'), 'C', 'X', 'V'], 'shortcutClipboard', 'Copy, cut, paste (Shift: insert)'],
             [[key('Ctrl'), key('Alt'), 'V'], 'shortcutPasteAttributes', 'Paste attributes'], [[key('Ctrl'), 'D'], 'shortcutDuplicate', 'Duplicate'],
             [[key('Ctrl'), 'A'], 'shortcutSelectAll', 'Select all clips'], [[key('Alt'), '←', '→'], 'shortcutNudge', 'Nudge clips (Shift: 10 frames)'],
             [['N'], 'shortcutSnap', 'Snapping on / off'], [[key('Shift'), 'Z'], 'shortcutFit', 'Fit the timeline'],
             [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
-            [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
+            [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), key('Wheel')], 'shortcutHScroll', 'Scroll the timeline sideways'],
+            [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
             [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips']
         ];
         return `<div class="vs-app" tabindex="0">
@@ -143,7 +148,7 @@
  </aside>
  <main class="vs-center">
   <div class="vs-preview-stage"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
-  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
+  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><button type="button" class="vs-time-button" data-action="goto-time" title="${label('goToTitle', 'Go to timecode')} (${esc(s, key('Ctrl'))}+G)" aria-label="${label('goToTitle', 'Go to timecode')}"><span class="vs-time-current" data-time>0:00.00</span></button><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><div class="vs-mark-buttons"><button type="button" data-action="mark-in" aria-label="${label('markIn', 'In')}" title="${label('markIn', 'In')} (I)">I</button><button type="button" data-action="mark-out" aria-label="${label('markOut', 'Out')}" title="${label('markOut', 'Out')} (O)">O</button><button type="button" data-action="loop" aria-pressed="false" aria-label="${label('loop', 'Loop')}" title="${label('loopHint', 'Play from in to out, or the whole timeline, repeatedly')}">${icon('loop', 17)}</button><button type="button" data-action="add-marker" aria-label="${label('addMarker', 'Add marker')}" title="${label('addMarker', 'Add marker')} (M)">${icon('flag', 17)}</button></div><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
  </main>
  <button type="button" class="vs-inspector-scrim" data-action="close-inspector" aria-label="${label('close', 'Close')}"></button>
  <aside class="vs-inspector" aria-label="${label('inspector', 'Inspector')}"><div class="vs-inspector-head"><h2>${label('properties', 'Properties')}</h2><button type="button" class="vs-inspector-close" data-action="close-inspector" aria-label="${label('close', 'Close')}" title="${label('close', 'Close')}">${icon('close', 16)}</button></div><div data-inspector class="vs-inspector-body"></div></aside>
@@ -162,7 +167,7 @@
             id, host, ctx, abort: new AbortController(), disposed: false, project: null, projectId: '', desktopPath: '', etag: '',
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
             selectionSet: new Set(), selectionPrimary: '', clipboard: null, tool: 'select', trimMode: '', peekReturn: null,
-            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
+            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', loop: false, soloIds: new Set(), renamingTrackId: '', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
@@ -185,9 +190,12 @@
             T().setPlayhead(s.q('[data-timeline]'), s, s.preview && s.preview.isPlaying());
             updateTransform(s);
         }, playing => {
+            if (!playing && s.shuttle) s.shuttle.reset();
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
         }, () => previewScale(s));
+        // The JKL shuttle drives the preview; the preview reports its play state back (see the playing callback).
+        s.shuttle = P.createShuttle({ getFrame: () => s.frame, seek: frame => s.preview.seek(frame), play: () => s.preview.play(), pause: () => s.preview.pause(), setRate: rate => s.preview.setRate(rate), maxFrame: () => maxFrames(s) });
         const signal = s.abort.signal;
         host.addEventListener('click', event => {
             if (event.target.closest('.vs-preview-stage,.vs-timeline-scroll') && !event.target.closest('button,input,select,textarea')) s.app.focus({ preventScroll: true });
@@ -239,6 +247,8 @@
         }); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
         s.keyHandler = event => handleKeys(s, event);
         window.addEventListener('keydown', s.keyHandler, true);
+        window.addEventListener('keyup', event => { if (s.shuttle) s.shuttle.release(String(event.key || '').toLowerCase()); }, { signal });
+        window.addEventListener('blur', () => { if (s.shuttle) s.shuttle.release('k'); }, { signal });
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
             if (s.readonly) return true;
             await P.flushArtwork(s);
@@ -325,6 +335,7 @@
             s.savedProject = canonicalProject(s.project);
             s.selectedClipId = '';
             s.frame = 0;
+            s.soloIds = new Set(); s.renamingTrackId = '';
             s.history = []; s.redo = []; s.dirty = false; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++;
             if (s.preview) s.preview.seek(0);
             await recoverDraft(s, id, epoch);
@@ -357,7 +368,7 @@
         s.project.name = name || s.project.name;
         s.savedProject = canonicalProject(s.project);
         s.dirty = true;
-        s.history = []; s.redo = []; s.selectedClipId = ''; s.frame = 0; s.jobs = []; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++;
+        s.history = []; s.redo = []; s.selectedClipId = ''; s.frame = 0; s.jobs = []; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++; s.soloIds = new Set(); s.renamingTrackId = '';
         await saveProject(s);
         await loadProjects(s);
         renderUI(s);
@@ -447,6 +458,7 @@
         renderInspector(s);
         syncInspectorLock(s);
         T().render(s.q('[data-timeline]'), s.timelineOptions);
+        P.syncTransport(s);
         renderJobs(s);
         s.q('[data-transport-time]').textContent = '/ ' + I().formatTime(projectDuration(s), s.project);
         if (s.readonly) s.q('.vs-import').setAttribute('aria-disabled', 'true'); else s.q('.vs-import').removeAttribute('aria-disabled');
@@ -476,7 +488,7 @@
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, caps: P.clipCapabilities(s)
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s)
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -492,6 +504,7 @@
             state: s, label: (key, fallback) => tr(s, key, fallback || key), esc: value => esc(s, value), icon: (name, size) => icon(name, size),
             clipMedia: (asset, clip, track, pxPerFrame, width) => clipMedia(s, asset, clip, track, pxPerFrame, width),
             assetName: asset => assetDisplayName(s, asset),
+            snapExtras: excludeMarkerId => P.snapExtras(s, excludeMarkerId),
             isSelected: id => P.isSelected(s, id),
             selectedIds: () => P.selectedIds(s),
             onSelect: (id, altKey) => {
@@ -634,6 +647,8 @@
         if (tab) { setTab(s, tab.dataset.tab); return; }
         const filter = event.target.closest('[data-filter]');
         if (filter) { s.filter = filter.dataset.filter; renderAssets(s); return; }
+        const jump = event.target.closest('[data-marker-jump]'); if (jump) { if (P.jumpToMarker) P.jumpToMarker(s, jump.dataset.markerJump); return; }
+        const markerEdit = event.target.closest('[data-marker-edit]'); if (markerEdit) { if (P.openMarkerPopover) P.openMarkerPopover(s, markerEdit.dataset.markerEdit, P.pointOf(markerEdit)); return; }
         const projectItem = event.target.closest('[data-project-id]');
         if (projectItem) { switchProject(s, projectItem.dataset.projectId); return; }
         const place = event.target.closest('[data-place-asset]');
@@ -670,13 +685,19 @@
         else if (action === 'save') saveProject(s);
         else if (action === 'undo') undo(s, false);
         else if (action === 'redo') undo(s, true);
-        else if (action === 'play') s.preview.isPlaying() ? s.preview.pause() : s.preview.play();
+        else if (action === 'play') P.togglePlay(s);
         else if (action === 'step-back') s.preview.pause(), s.preview.seek(s.frame - 1);
         else if (action === 'step-forward') s.preview.pause(), s.preview.seek(s.frame + 1);
         else if (action === 'seek-start') s.preview.pause(), s.preview.seek(0), T().revealFrame(s.q('[data-timeline]'), s, 0);
         else if (action === 'seek-end') { const end = projectDuration(s); s.preview.pause(); s.preview.seek(end); T().revealFrame(s.q('[data-timeline]'), s, end); }
         else if (action === 'fullscreen') { const mat = s.q('.vs-preview-mat'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (mat && mat.requestFullscreen) mat.requestFullscreen().catch(() => {}); }
         else if (action === 'export') openExport(s);
+        else if (action === 'goto-time') P.openGoTo(s);
+        else if (action === 'loop') P.toggleLoop(s);
+        else if (action === 'mark-in') P.setInOut(s, 'in');
+        else if (action === 'mark-out') P.setInOut(s, 'out');
+        else if (action === 'clear-inout') P.clearInOut(s);
+        else if (action === 'add-marker') { if (P.addMarkerAtPlayhead) P.addMarkerAtPlayhead(s); }
         else if (action === 'add-title') addTitle(s, button.dataset.preset || 'title');
         else if (action === 'apply-text') { if (s.selectedClipId) applyTextArtwork(s, s.selectedClipId); }
         else if (action === 'open-ai') openAI(s);
@@ -688,7 +709,7 @@
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
         if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
-        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event)) return;
+        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event)) return;
         if (event.key === 'Escape') {
             // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
             const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
@@ -713,7 +734,8 @@
         if (focusedClip && (event.code === 'Space' || event.key === 'Enter')) return;
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
         if (P.handleEditKeys(s, event, focusedClip)) return;
-        if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
+        if (P.handleNavKeys(s, event)) return;
+        if (event.code === 'Space') { event.preventDefault(); P.togglePlay(s); }
         else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
         else if (event.key === 'ArrowRight') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame + (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
         else if (event.key === 'Home') { event.preventDefault(); s.preview.pause(); s.preview.seek(0); T().revealFrame(s.q('[data-timeline]'), s, 0); }
