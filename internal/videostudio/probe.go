@@ -142,8 +142,10 @@ func PreparePreview(ctx context.Context, ffmpegPath, input, output string) error
 	return PreparePreviewWith(ctx, ffmpegPath, input, output, Encoder{})
 }
 
-// PreparePreviewWith decodes (VAAPI) and encodes on the GPU when encoder is a hardware encoder and falls back
-// to software for this preview when that fails.
+// PreparePreviewWith encodes on the GPU when encoder is a hardware encoder and falls back to software for this
+// preview when that fails. Decoding and scaling stay on the CPU: reading VAAPI-decoded frames back for the
+// scaler made 1080p previews about three times slower than software on an AMD iGPU, while CPU decoding with
+// VAAPI encoding was faster than software and still used less CPU.
 func PreparePreviewWith(ctx context.Context, ffmpegPath, input, output string, encoder Encoder) error {
 	inputPath, err := ensureRegularLocalFile(input)
 	if err != nil {
@@ -193,10 +195,6 @@ func runPreview(ctx context.Context, ffmpeg, input, output string, encoder Encod
 	previewCtx, cancel := context.WithTimeout(ctx, 4*time.Hour)
 	defer cancel()
 	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, encoder.globalArgs()...)
-	if encoder.Codec == CodecVAAPI {
-		// Decoded frames are downloaded automatically, so the CPU scaler below still works.
-		args = append(args, "-hwaccel", "vaapi", "-hwaccel_device", encoder.device())
-	}
 	args = append(args,
 		"-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers, "-i", input,
 		"-map", "0:V:0", "-map", "0:a:0?",
