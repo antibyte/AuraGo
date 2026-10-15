@@ -52,6 +52,11 @@
         const h = Math.floor(seconds / 3600), m = Math.floor(seconds % 3600 / 60), s = seconds % 60;
         return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
     }
+    // Whole seconds as m:ss, or h:mm:ss from one hour on (failure ranges and other messages).
+    function clockSeconds(seconds) {
+        const total = Math.max(0, Math.floor(Number(seconds) || 0)), h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60;
+        return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+    }
     function formatSeconds(frames, project, locale) {
         const value = Math.round(framesToSeconds(frames, project) * 10) / 10;
         return locale ? value.toLocaleString(locale) : String(value);
@@ -60,9 +65,15 @@
         const value = Math.round(rate(project) * 1000) / 1000;
         return (locale ? value.toLocaleString(locale) : String(value)) + ' fps';
     }
+    // The same time at another rate, rounded and clamped to the target's limit. Undo, redo and rate changes use it so
+    // the playhead keeps its time. Accepts projects or plain {fps, ntsc} rate objects.
+    function frameAtRate(frame, from, to) {
+        const ratio = rate(to) / rate(from);
+        return Math.max(0, Math.min(maxFrames(to), Math.round((Number(frame) || 0) * ratio)));
+    }
     // Converts every frame value to a new rate in place and returns the project. Clip edges are scaled (not
     // durations) so neighbouring clips stay gapless; asset lengths come from their microseconds like on the server;
-    // transitions follow the rounded overlap (repairTransitions).
+    // transitions follow the rounded overlap (repairTransitions). Markers and in/out follow the same scale.
     function rescaleProject(project, fps, ntsc) {
         const target = { fps: Number(fps), ntsc: !!ntsc && NTSC_RATES.includes(Number(fps)) };
         const ratio = rate(target) / rate(project);
@@ -90,9 +101,30 @@
             clip.fade_out = Math.min(edge(clip.fade_out), clip.duration);
             if (clip.transition) clip.transition = Object.assign({}, clip.transition, { duration: Math.max(1, edge(clip.transition.duration)) });
         }));
+        rescaleTiming(project, edge, target);
         if (window.VideoStudioTimeline) window.VideoStudioTimeline.repairTransitions(project);
         return project;
     }
+    // Markers and in/out: frames scale and clamp to the target's limit; a range keeps at least one frame; an out point
+    // that rounds onto the in point is dropped.
+    function rescaleTiming(project, edge, target) {
+        const max = maxFrames(target);
+        (project.markers || []).forEach(marker => {
+            marker.frame = Math.min(edge(marker.frame), max);
+            if (marker.duration > 0) marker.duration = Math.max(1, Math.min(edge(marker.duration), max - marker.frame));
+        });
+        if (Number.isFinite(project.in_point)) project.in_point = Math.max(0, Math.min(edge(project.in_point), max - 1));
+        if (Number.isFinite(project.out_point)) project.out_point = Math.max(1, Math.min(edge(project.out_point), max));
+        if (Number.isFinite(project.in_point) && Number.isFinite(project.out_point) && project.in_point >= project.out_point) delete project.out_point;
+    }
+    // True when every clip still ends inside the target rate's limit. The settings dialog refuses a change that does not
+    // fit (rescaleProject itself never clamps clips).
+    function rescaleFits(project, fps, ntsc) {
+        const probe = JSON.parse(JSON.stringify(project));
+        rescaleProject(probe, fps, ntsc);
+        const end = Math.max(0, ...(probe.tracks || []).flatMap(track => (track.clips || []).map(clip => clip.start + clip.duration)));
+        return end <= maxFrames({ fps: Number(fps), ntsc: !!ntsc && NTSC_RATES.includes(Number(fps)) });
+    }
 
-    window.VideoStudioTime = { FRAME_RATES, MAX_SECONDS, rate, framesToSeconds, secondsToFrames, framesAt, maxFrames, formatTime, parseTime, shortClock, formatSeconds, rateLabel, rescaleProject };
+    window.VideoStudioTime = { FRAME_RATES, MAX_SECONDS, rate, framesToSeconds, secondsToFrames, framesAt, maxFrames, formatTime, parseTime, shortClock, clockSeconds, formatSeconds, rateLabel, frameAtRate, rescaleProject, rescaleFits };
 })();
