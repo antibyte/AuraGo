@@ -33,14 +33,28 @@ const (
 )
 
 type Project struct {
-	Version int     `json:"version"`
-	Name    string  `json:"name"`
-	Width   int     `json:"width"`
-	Height  int     `json:"height"`
-	FPS     int     `json:"fps"`
-	NTSC    bool    `json:"ntsc,omitempty"`
-	Assets  []Asset `json:"assets"`
-	Tracks  []Track `json:"tracks"`
+	Version  int      `json:"version"`
+	Name     string   `json:"name"`
+	Width    int      `json:"width"`
+	Height   int      `json:"height"`
+	FPS      int      `json:"fps"`
+	NTSC     bool     `json:"ntsc,omitempty"`
+	Assets   []Asset  `json:"assets"`
+	Tracks   []Track  `json:"tracks"`
+	Markers  []Marker `json:"markers,omitempty"`
+	InPoint  *int     `json:"in_point,omitempty"`
+	OutPoint *int     `json:"out_point,omitempty"`
+}
+
+// Marker is a named point (Duration 0) or range on the timeline. Markers never render; they guide editing.
+// Colours come from the label palette (LabelColors) or are empty.
+type Marker struct {
+	ID       string `json:"id"`
+	Frame    int    `json:"frame"`
+	Duration int    `json:"duration,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Color    string `json:"color,omitempty"`
+	Note     string `json:"note,omitempty"`
 }
 
 // Asset metadata is server-owned. DurationUs is the source of truth; DurationFrames expresses it in the
@@ -134,6 +148,13 @@ const (
 	MaxClipSpeed = 16
 	// MaxLinkClips bounds one link group.
 	MaxLinkClips = 16
+)
+
+// Marker limits (spec §4.1).
+const (
+	MaxMarkers         = 500
+	MaxMarkerNameRunes = 120
+	MaxMarkerNoteRunes = 2000
 )
 
 var canvasSizes = [][2]int{

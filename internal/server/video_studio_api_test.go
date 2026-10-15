@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/videostudio"
 )
 
 func videoStudioAPIFixture(t *testing.T) (*Server, string, string) {
@@ -230,5 +231,36 @@ func TestVideoStudioAPIImportCopiesMediaAndOwnsMetadata(t *testing.T) {
 	}
 	if _, err := m.stageAsset(context.Background(), svc, s.ConfigSnapshot(), record, t.TempDir(), 0); err == nil {
 		t.Fatal("changed source bytes were accepted with stale probe metadata")
+	}
+}
+
+func TestVideoStudioAPIMarkersRoundTrip(t *testing.T) {
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	project, etag := videoStudioAPICreate(t, s, writeToken)
+	path := "/projects/" + project.ID
+	in, out := 30, 90
+	project.Project.Markers = []videostudio.Marker{{ID: "marker-a", Frame: 10, Name: "Intro", Color: "teal"}, {ID: "marker-b", Frame: 60, Duration: 20}}
+	project.Project.InPoint, project.Project.OutPoint = &in, &out
+	body, err := json.Marshal(project.Project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := videoStudioAPIRequest(s, writeToken, http.MethodPut, path, bytes.NewReader(body), map[string]string{"If-Match": etag})
+	if saved.Code != http.StatusOK {
+		t.Fatalf("save markers: %d %s", saved.Code, saved.Body.String())
+	}
+	read := videoStudioAPIRequest(s, readToken, http.MethodGet, path, nil, nil)
+	if !bytes.Contains(read.Body.Bytes(), []byte(`"markers"`)) || !bytes.Contains(read.Body.Bytes(), []byte(`"in_point":30`)) {
+		t.Fatalf("markers were not stored: %s", read.Body.String())
+	}
+	bad := project.Project
+	bad.Markers = append(append([]videostudio.Marker(nil), project.Project.Markers...), videostudio.Marker{ID: "marker-a", Frame: 5})
+	badBody, err := json.Marshal(bad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected := videoStudioAPIRequest(s, writeToken, http.MethodPut, path, bytes.NewReader(badBody), map[string]string{"If-Match": saved.Header().Get("ETag")})
+	if rejected.Code != http.StatusBadRequest {
+		t.Fatalf("duplicate marker id: %d %s", rejected.Code, rejected.Body.String())
 	}
 }

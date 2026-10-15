@@ -121,6 +121,9 @@ func Validate(project Project) error {
 	if videoTracks > MaxVideoTracks || audioTracks > MaxAudioTracks || overlayTracks > MaxOverlayTracks {
 		return fmt.Errorf("project exceeds track limits (%d video, %d audio, %d overlay)", MaxVideoTracks, MaxAudioTracks, MaxOverlayTracks)
 	}
+	if err := validateMarkers(project, maxFrames); err != nil {
+		return err
+	}
 	if Duration(project) > maxFrames {
 		return fmt.Errorf("project duration exceeds %d minutes", MaxDurationSeconds/60)
 	}
@@ -287,4 +290,47 @@ func validIdentifier(value string) bool {
 
 func finite(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+// validateMarkers checks the marker list and the in/out points against the timeline limit. Markers are frames of the
+// project rate: a point or a range must fit inside [0, maxFrames]; the in point lies before the timeline end, the out
+// point lies after the start, and in < out when both are set.
+func validateMarkers(project Project, maxFrames int) error {
+	if len(project.Markers) > MaxMarkers {
+		return fmt.Errorf("project exceeds %d markers", MaxMarkers)
+	}
+	ids := make(map[string]struct{}, len(project.Markers))
+	for _, marker := range project.Markers {
+		if !validIdentifier(marker.ID) {
+			return fmt.Errorf("marker id is required and must be at most 128 characters")
+		}
+		if _, exists := ids[marker.ID]; exists {
+			return fmt.Errorf("duplicate marker id %q", marker.ID)
+		}
+		ids[marker.ID] = struct{}{}
+		if marker.Frame < 0 || marker.Frame > maxFrames || marker.Duration < 0 || marker.Duration > maxFrames-marker.Frame {
+			return fmt.Errorf("marker %q has invalid frame timing", marker.ID)
+		}
+		if len([]rune(marker.Name)) > MaxMarkerNameRunes || len([]rune(marker.Note)) > MaxMarkerNoteRunes {
+			return fmt.Errorf("marker %q name or note is too long", marker.ID)
+		}
+		if !validMarkerColor(marker.Color) {
+			return fmt.Errorf("marker %q has an unsupported colour", marker.ID)
+		}
+	}
+	if project.InPoint != nil && (*project.InPoint < 0 || *project.InPoint >= maxFrames) {
+		return fmt.Errorf("in point is outside the timeline")
+	}
+	if project.OutPoint != nil && (*project.OutPoint < 1 || *project.OutPoint > maxFrames) {
+		return fmt.Errorf("out point is outside the timeline")
+	}
+	if project.InPoint != nil && project.OutPoint != nil && *project.InPoint >= *project.OutPoint {
+		return fmt.Errorf("in point must come before the out point")
+	}
+	return nil
+}
+
+// validMarkerColor accepts an empty colour or one of the label palette names (LabelColors).
+func validMarkerColor(color string) bool {
+	return color == "" || slices.Contains(LabelColors, color)
 }
