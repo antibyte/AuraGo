@@ -19,12 +19,14 @@ const (
 
 type ffprobeResult struct {
 	Streams []struct {
-		CodecType   string `json:"codec_type"`
-		CodecName   string `json:"codec_name"`
-		Width       int    `json:"width"`
-		Height      int    `json:"height"`
-		Duration    string `json:"duration"`
-		Disposition struct {
+		CodecType    string `json:"codec_type"`
+		CodecName    string `json:"codec_name"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
+		Duration     string `json:"duration"`
+		AvgFrameRate string `json:"avg_frame_rate"`
+		RFrameRate   string `json:"r_frame_rate"`
+		Disposition  struct {
 			AttachedPicture int `json:"attached_pic"`
 		} `json:"disposition"`
 	} `json:"streams"`
@@ -38,6 +40,10 @@ type ffprobeResult struct {
 // binaryPath, which may be either the configured FFmpeg or FFprobe path.
 func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 	path, err := ensureRegularLocalFile(input)
+	if err != nil {
+		return Asset{}, fmt.Errorf("open staged media: %w", err)
+	}
+	info, err := os.Stat(path)
 	if err != nil {
 		return Asset{}, fmt.Errorf("open staged media: %w", err)
 	}
@@ -62,8 +68,10 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 		return Asset{}, fmt.Errorf("decode FFprobe output: %w", err)
 	}
 
-	asset := Asset{Name: filepath.Base(path)}
+	asset := Asset{Name: filepath.Base(path), SizeBytes: info.Size()}
 	hasVideo := false
+	audioCodec := ""
+	videoDuration := 0.0
 	duration := parseSeconds(result.Format.Duration)
 	for _, stream := range result.Streams {
 		if stream.CodecType == "video" && stream.Disposition.AttachedPicture != 0 {
@@ -76,15 +84,27 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 		switch stream.CodecType {
 		case "audio":
 			asset.HasAudio = true
+			if audioCodec == "" {
+				audioCodec = safeCodecName(stream.CodecName)
+			}
 		case "video":
+			if !hasVideo {
+				asset.Codec = safeCodecName(stream.CodecName)
+				asset.SourceFPS = normalizedFrameRate(stream.AvgFrameRate, stream.RFrameRate)
+				videoDuration = streamDuration
+			}
 			hasVideo = true
 			if asset.Width == 0 && stream.Width > 0 && stream.Height > 0 {
 				asset.Width, asset.Height = stream.Width, stream.Height
 			}
 		}
 	}
+	if !hasVideo {
+		asset.Codec = audioCodec
+	}
 	if hasVideo && isStillImageFormat(result.Format.Name) {
 		asset.Kind = AssetImage
+		asset.SourceFPS = ""
 	} else if hasVideo {
 		asset.Kind = AssetVideo
 	} else if asset.HasAudio {
@@ -96,13 +116,16 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 		if duration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
 			return Asset{}, fmt.Errorf("staged media has no valid duration")
 		}
-		frames := math.Ceil(duration*FramesPerSecond - 1e-7)
-		if frames > float64(int(^uint(0)>>1)) {
+		if duration > 366*24*3600 {
 			return Asset{}, fmt.Errorf("staged media duration is too large")
 		}
-		asset.DurationFrames = int(frames)
-		if asset.DurationFrames <= 0 {
-			asset.DurationFrames = 1
+		asset.DurationUs = int64(math.Round(duration * 1e6))
+		asset.DurationFrames = Rate{Num: FramesPerSecond, Den: 1}.FramesAt(asset.DurationUs)
+		if asset.Kind == AssetVideo {
+			asset.VideoDurationUs = asset.DurationUs
+			if videoDuration > 0 && videoDuration < duration {
+				asset.VideoDurationUs = int64(math.Round(videoDuration * 1e6))
+			}
 		}
 	}
 	if asset.Kind != AssetAudio && !validSourceDimensions(asset.Width, asset.Height) {
@@ -241,4 +264,41 @@ func isStillImageFormat(format string) bool {
 		}
 	}
 	return false
+}
+
+// normalizedFrameRate returns the first valid rational frame rate in lowest terms ("30000/1001").
+func normalizedFrameRate(values ...string) string {
+	for _, value := range values {
+		num, den, ok := parseRational(value)
+		if !ok {
+			continue
+		}
+		divisor := gcd(num, den)
+		num, den = num/divisor, den/divisor
+		if num > 9_999_999 || den > 9_999_999 {
+			continue
+		}
+		return fmt.Sprintf("%d/%d", num, den)
+	}
+	return ""
+}
+
+func parseRational(value string) (int64, int64, bool) {
+	left, right, found := strings.Cut(strings.TrimSpace(value), "/")
+	if !found {
+		right = "1"
+	}
+	num, numErr := strconv.ParseInt(strings.TrimSpace(left), 10, 64)
+	den, denErr := strconv.ParseInt(strings.TrimSpace(right), 10, 64)
+	if numErr != nil || denErr != nil || num <= 0 || den <= 0 {
+		return 0, 0, false
+	}
+	return num, den, true
+}
+
+func gcd(a, b int64) int64 {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }
