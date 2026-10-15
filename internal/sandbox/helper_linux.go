@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -29,26 +30,13 @@ func RunHelper(command string) {
 		os.Exit(126)
 	}
 
-	// Apply resource limits (before Landlock, so /proc is still accessible).
-	// A failed limit exits before Landlock, same as a Landlock error.
-	if err := applyRlimits(); err != nil {
-		fmt.Fprintf(os.Stderr, "sandbox: %v\n", err)
-		os.Exit(126)
-	}
-
-	// Apply Landlock filesystem restrictions
-	if err := applyLandlock(); err != nil {
-		fmt.Fprintf(os.Stderr, "sandbox: landlock: %v\n", err)
-		os.Exit(126)
-	}
-
 	// Replace this process with the shell command.
 	// Landlock restrictions and rlimits are inherited.
 	shell := "/bin/sh"
 	argv := []string{shell, "-c", command}
 	env := FilterEnv(os.Environ())
 
-	err := syscall.Exec(shell, argv, env)
+	err := execSandboxed(shell, argv, env)
 	// If we get here, exec failed
 	fmt.Fprintf(os.Stderr, "sandbox: exec %s: %v\n", shell, err)
 	os.Exit(126)
@@ -63,16 +51,6 @@ func RunExecHelper() {
 
 	if err := os.Chdir(workDir); err != nil {
 		fmt.Fprintf(os.Stderr, "sandbox: chdir %s: %v\n", workDir, err)
-		os.Exit(126)
-	}
-
-	if err := applyRlimits(); err != nil {
-		fmt.Fprintf(os.Stderr, "sandbox: %v\n", err)
-		os.Exit(126)
-	}
-
-	if err := applyLandlock(); err != nil {
-		fmt.Fprintf(os.Stderr, "sandbox: landlock: %v\n", err)
 		os.Exit(126)
 	}
 
@@ -99,9 +77,40 @@ func RunExecHelper() {
 
 	argv := append([]string{binary}, args...)
 	env := FilterEnv(os.Environ())
-	err = syscall.Exec(resolvedBinary, argv, env)
+	err = execSandboxed(resolvedBinary, argv, env)
 	fmt.Fprintf(os.Stderr, "sandbox: exec %s: %v\n", resolvedBinary, err)
 	os.Exit(126)
+}
+
+func execSandboxed(binary string, args, env []string) error {
+	binaryPtr, err := syscall.BytePtrFromString(binary)
+	if err != nil {
+		return err
+	}
+	argsPtr, err := syscall.SlicePtrFromStrings(args)
+	if err != nil {
+		return err
+	}
+	envPtr, err := syscall.SlicePtrFromStrings(env)
+	if err != nil {
+		return err
+	}
+	// Landlock restrictions belong to this OS thread until exec replaces it.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if err := applyLandlock(); err != nil {
+		return fmt.Errorf("landlock: %w", err)
+	}
+	if err := applyRlimits(); err != nil {
+		return err
+	}
+	// The target's address-space cap can be below Go's reserved heap; do not allocate after setting it.
+	_, _, errno := syscall.RawSyscall(syscall.SYS_EXECVE, uintptr(unsafe.Pointer(binaryPtr)),
+		uintptr(unsafe.Pointer(&argsPtr[0])), uintptr(unsafe.Pointer(&envPtr[0])))
+	runtime.KeepAlive(binaryPtr)
+	runtime.KeepAlive(argsPtr)
+	runtime.KeepAlive(envPtr)
+	return errno
 }
 
 // ── Landlock ───────────────────────────────────────────────────────────────
@@ -294,6 +303,17 @@ func landlockAddPath(rulesetFd int, path string, access uint64) error {
 	}
 	defer unix.Close(fd)
 
+	var stat unix.Stat_t
+	if err := unix.Fstat(fd, &stat); err != nil {
+		return fmt.Errorf("stat landlock path %s: %w", path, err)
+	}
+	if stat.Mode&unix.S_IFMT != unix.S_IFDIR {
+		// Landlock rejects directory-only rights on files, devices and sockets.
+		access &= unix.LANDLOCK_ACCESS_FS_EXECUTE | unix.LANDLOCK_ACCESS_FS_WRITE_FILE |
+			unix.LANDLOCK_ACCESS_FS_READ_FILE | unix.LANDLOCK_ACCESS_FS_TRUNCATE |
+			unix.LANDLOCK_ACCESS_FS_IOCTL_DEV
+	}
+
 	pathAttr := unix.LandlockPathBeneathAttr{
 		Allowed_access: access,
 		Parent_fd:      int32(fd),
@@ -321,14 +341,14 @@ func landlockAddPath(rulesetFd int, path string, access uint64) error {
 // AuraGo's own threads, so AURAGO_SBX_PROCS is ignored.
 func plannedRlimits() []int {
 	var resources []int
-	if envInt("AURAGO_SBX_MEM") > 0 {
-		resources = append(resources, unix.RLIMIT_AS)
-	}
 	if envInt("AURAGO_SBX_CPU") > 0 {
 		resources = append(resources, unix.RLIMIT_CPU)
 	}
 	if envInt("AURAGO_SBX_FSIZE") > 0 {
 		resources = append(resources, unix.RLIMIT_FSIZE)
+	}
+	if envInt("AURAGO_SBX_MEM") > 0 {
+		resources = append(resources, unix.RLIMIT_AS)
 	}
 	return resources
 }
