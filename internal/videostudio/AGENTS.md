@@ -5,11 +5,14 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 
 - Inputs passed to FFmpeg are server-staged local regular files. Never accept URLs,
   shell fragments, arbitrary filter expressions, or demuxer names from project data.
-- Keep all clip timing in integer 30 fps frames. Project renders are limited to
-  ten minutes and the supported 720p/1080p landscape, portrait, and square sizes.
-- Bound projects to 4 video, 4 audio, and 4 overlay tracks, 256 clips, 512
-  assets, and 32 distinct active render inputs. Source images/video frames are
-  limited to 16,384 pixels per side and 64 megapixels.
+- Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
+  24/30/60 with a 1001 denominator). Convert with `Rate` methods only. Version 1 projects (fixed 30 fps) pass
+  through `Upgrade`; `Validate` accepts version 2 only. Projects are limited to sixty minutes and the sizes in
+  `CanvasSizes`.
+- Bound projects to 8 video, 8 audio and 8 overlay tracks, 2000 clips and 1024 assets. One FFmpeg process uses
+  at most `MaxSegmentInputs` (32) inputs. Asset durations are server-owned microseconds (`duration_us`);
+  `duration_frames` is derived for the project rate (`AssetAtRate`). Source images/video frames are limited
+  to 16,384 pixels per side and 64 megapixels.
 - Render through `exec.CommandContext` without a shell, with protocol and demuxer
   allowlists, one decoder thread per input and four output/filter threads, a
   four-hour hard wall-time ceiling, bounded diagnostics, and a 2 GiB output

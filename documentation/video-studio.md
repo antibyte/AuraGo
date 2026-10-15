@@ -16,9 +16,9 @@ video_studio:
   enabled: false
   readonly: false
   ffmpeg_path: ""
-  max_asset_size_mb: 1024
-  max_project_size_mb: 4096
-  render_timeout_seconds: 3600
+  max_asset_size_mb: 4096
+  max_project_size_mb: 16384
+  render_timeout_seconds: 7200
 ```
 
 An empty executable path discovers `ffmpeg` and `ffprobe` on the AuraGo server's
@@ -28,20 +28,22 @@ be available. The regular AuraGo Docker image already includes FFmpeg; Video
 Studio does not create another container. Native installations must provide a
 compatible FFmpeg build separately.
 
-Size settings use MiB (1,048,576 bytes). The asset limit is 1–8192 MiB; the
+Size settings use MiB (1,048,576 bytes). The asset limit is 1–32768 MiB; the
 project limit must be at least the asset limit and at most 65536 MiB. The render
 timeout is 30–14400 seconds. These are admission and job limits, not operating
 system memory isolation. FFmpeg runs under the AuraGo server account; allow
 enough free disk space for source copies, staging, previews, and exports.
-The project quota includes its cached previews. Uploads have a fifteen-minute
-overall read window and a thirty-second idle deadline.
+The project quota includes its cached previews. Uploads have an overall read
+window of at least fifteen minutes (longer for large asset limits, sized for
+4 MiB/s) and a thirty-second idle deadline.
 
 ## Editing
 
-Create a project in landscape, portrait, or square format at 720p or 1080p.
-The timeline uses 30 frames per second and supports up to ten minutes, four
-video tracks, four audio tracks, and four overlay tracks. Projects support up to
-256 clips and 32 distinct media inputs used by an export. Import
+Create a project in landscape (720p, 1080p, 1440p, 4K), portrait (720p, 1080p, 4K),
+square (720p, 1080p, 2160p) or 4:5 (1080 × 1350) format at 24, 25, 30, 50 or 60
+fps, or at the NTSC rates 23.976, 29.97 and 59.94 fps. The timeline supports up
+to sixty minutes, eight video, eight audio and eight overlay tracks, and 2000
+clips. Projects saved by earlier versions open unchanged at 30 fps. Import
 video, audio, and still images from the Desktop or upload them from the browser.
 Imports are copied; editing never modifies the original file.
 
