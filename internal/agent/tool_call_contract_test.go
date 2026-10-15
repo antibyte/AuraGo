@@ -9,7 +9,33 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	openai "github.com/sashabaranov/go-openai"
 )
+
+func TestMalformedNativeArgumentsNeverReachExecutionHooks(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for _, args := range []string{`{"operation": "set_design"`, `{"operation": 42}`} {
+		t.Run(args, func(t *testing.T) {
+			native := openai.ToolCall{ID: "call-invalid", Type: "function", Function: openai.FunctionCall{Name: "game_maker_project", Arguments: args}}
+			call := NativeToolCallToToolCall(native, logger)
+			if !call.NativeArgsMalformed {
+				t.Fatal("fixture must be rejected by the native argument decoder")
+			}
+			hookCalls := 0
+			dc := &DispatchContext{Cfg: &config.Config{}, Logger: logger, SessionID: t.Name(), ExecutionHooks: &ExecutionHooks{
+				BeforeTool: func(context.Context, ToolCall) error { hookCalls++; return nil },
+				HandleTool: func(context.Context, ToolCall) (string, bool) { return `{"status":"success"}`, true },
+			}}
+			result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
+			if !result.IsError || result.Status != ToolResultFailed || !strings.Contains(result.Output, "invalid_arguments") || hookCalls != 0 {
+				t.Fatalf("malformed call reached dispatch: hooks=%d result=%+v", hookCalls, result)
+			}
+			if call.NativeArgsRaw != args || call.NativeCallID != native.ID {
+				t.Fatal("rejection changed the original argument evidence or call identity")
+			}
+		})
+	}
+}
 
 func TestInvokeCoAgentPolicyParity(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

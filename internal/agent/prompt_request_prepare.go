@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -63,7 +64,9 @@ func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *Req
 		for j := range sanitized[i].ToolCalls {
 			call := &sanitized[i].ToolCalls[j]
 			call.Index = nil // Stream positions are not request fields.
-			if strings.TrimSpace(call.Function.Arguments) == "" {
+			arguments := strings.TrimSpace(call.Function.Arguments)
+			// Providers parse historical arguments too; rejected calls must not poison recovery.
+			if !json.Valid([]byte(arguments)) || arguments[0] != '{' {
 				call.Function.Arguments = "{}"
 			}
 		}
