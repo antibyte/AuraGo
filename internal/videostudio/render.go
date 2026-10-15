@@ -119,7 +119,7 @@ func renderOnce(ctx context.Context, opts RenderOptions) error {
 	if err != nil {
 		return err
 	}
-	duration := Duration(project)
+	duration := EnabledDuration(project)
 	if duration <= 0 {
 		return fmt.Errorf("project has no clips to render")
 	}
@@ -240,6 +240,9 @@ func collectRenderSources(ctx context.Context, ffmpeg string, project Project, a
 	used := make(map[string]struct{})
 	for _, track := range project.Tracks {
 		for _, clip := range track.Clips {
+			if clip.Disabled {
+				continue
+			}
 			if visualClip(track) || audibleClip(track, clip, assets[clip.AssetID]) {
 				used[clip.AssetID] = struct{}{}
 			}

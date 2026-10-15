@@ -20,7 +20,7 @@ func PlanVideoSegments(project Project, start, end, target int) ([]Segment, erro
 	spans := videoForbiddenSpans(project)
 	assets := assetMap(project)
 	count := func(seg Segment) int {
-		return countClips(project, assets, expandRange(seg, spans), func(track Track, _ Clip, _ Asset) bool { return visualClip(track) })
+		return countClips(project, assets, expandRange(seg, spans), func(track Track, clip Clip, _ Asset) bool { return visualClip(track) && !clip.Disabled })
 	}
 	return planSegments(start, end, target, spans, clipEdges(project), count)
 }
@@ -206,9 +206,13 @@ func assetMap(project Project) map[string]Asset {
 // visualClip reports whether clips on track are composed into the picture.
 func visualClip(track Track) bool { return track.Kind != TrackAudio && !track.Hidden }
 
-// audibleClip mirrors the mix rules: visible, unmuted tracks; overlay tracks never play sound.
+// audibleClip mirrors the mix rules: visible, unmuted tracks; overlay tracks never play sound. Disabled clips are
+// silent, and a video clip whose audio was detached is silent here: its audio clip plays the sound.
 func audibleClip(track Track, clip Clip, asset Asset) bool {
-	if track.Hidden || track.Muted || track.Kind == TrackOverlay || clip.Volume <= 0 || !asset.HasAudio {
+	if clip.Disabled || track.Hidden || track.Muted || track.Kind == TrackOverlay || clip.Volume <= 0 || !asset.HasAudio {
+		return false
+	}
+	if track.Kind == TrackVideo && clip.AudioDetached {
 		return false
 	}
 	return track.Kind == TrackVideo || asset.Kind == AssetAudio || asset.Kind == AssetVideo

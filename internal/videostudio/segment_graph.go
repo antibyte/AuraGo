@@ -29,7 +29,10 @@ type layerClip struct {
 	// from is the source position, in project frames, shown at the clip's first window frame. Seeked video
 	// inputs keep their absolute timestamps (-copyts -start_at_zero), so after fps the input's PTS count
 	// project frames from the start of the source.
-	from  int
+	from float64
+	// first is the fps frame of the clip's first window frame, Offset plus the frames it entered the window late.
+	// At speed 1 it equals from; a clip with a speed is retimed around Offset, so first stays a whole frame.
+	first int
 	image bool
 	input int
 }
@@ -89,6 +92,8 @@ func buildVideoSegment(project Project, seg Segment, sources map[string]renderSo
 	return inputs, strings.Join(filters, ";\n"), nil
 }
 
+// segmentLayers cuts every visual track to the window. Disabled clips are left out. A transition applies only when
+// the clip after it in the unfiltered track order is enabled, so preview and export agree.
 func segmentLayers(project Project, window Segment, sources map[string]renderSource, rate Rate) ([][]layerClip, []segmentInput, error) {
 	var layers [][]layerClip
 	var inputs []segmentInput
@@ -96,42 +101,44 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 		if !visualClip(track) {
 			continue
 		}
-		clips := sortedClips(track.Clips)
+		ordered := sortedClips(track.Clips)
 		var layer []layerClip
-		for i, clip := range clips {
+		for i, clip := range ordered {
 			end := clip.Start + clip.Duration
-			if clip.Start >= window.End || end <= window.Start {
+			if clip.Disabled || clip.Start >= window.End || end <= window.Start {
 				continue
 			}
 			source, ok := sources[clip.AssetID]
 			if !ok {
 				return nil, nil, fmt.Errorf("staged path is missing for visual asset %q", clip.AssetID)
 			}
+			speed := ClipSpeed(clip)
 			entered := max(0, window.Start-clip.Start)
 			local := clip
 			local.Start = max(clip.Start, window.Start) - window.Start
 			local.Duration = min(end, window.End) - max(clip.Start, window.Start)
 			local.Transition = nil
-			if clip.Transition != nil && i+1 < len(clips) && clips[i+1].Start < window.End {
+			if clip.Transition != nil && i+1 < len(ordered) && !ordered[i+1].Disabled && ordered[i+1].Start < window.End {
 				local.Transition = clip.Transition
 			}
 			item := layerClip{clip: local, image: source.asset.Kind == AssetImage, input: len(inputs)}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
-				want := clip.Offset + entered
-				// Seek about a second early: the source frame that is current at want usually starts before
-				// it, and accurate seeking drops every frame before the seek point. fps then picks frames on
-				// absolute timestamps, so every segmentation keeps the cadence of the single pass.
-				seekFrame := max(0, want-int((rate.Num+rate.Den-1)/rate.Den))
+				// The source position of the first window frame: a clip at speed s advances s source frames per frame.
+				from := float64(clip.Offset) + float64(entered)*speed
+				item.from, item.first = from, clip.Offset+entered
+				// Seek about a second early: the source frame that is current at from usually starts before it, and
+				// accurate seeking drops every frame before the seek point. The retimed timestamps keep the single
+				// pass's cadence, so every segmentation samples the same source frames.
+				seekFrame := max(0, int(math.Floor(from))-int((rate.Num+rate.Den-1)/rate.Den))
 				if source.videoEnd > 0 {
 					// Seeking past the last video frame yields no frames; seek a second before it and let
 					// tpad hold the final frame for the rest, exactly as the single pass did.
 					lastSafe := int(math.Floor((source.videoEnd - 1) * float64(rate.Num) / float64(rate.Den)))
 					seekFrame = min(seekFrame, max(0, lastSafe))
 				}
-				item.from = want
 				input.seek = rate.Seconds(seekFrame)
-				input.limit = rate.Seconds(want-seekFrame+local.Duration) + 1
+				input.limit = rate.SecondsFloat(from+float64(local.Duration)*speed-float64(seekFrame)) + 1
 			}
 			inputs = append(inputs, input)
 			layer = append(layer, item)
@@ -253,10 +260,21 @@ func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidt
 	// moved back to from, so fps holds it there instead of the clip running short.
 	resample := fmt.Sprintf("setpts=PTS-STARTPTS,fps=%s", rate)
 	if !item.image {
-		resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',fps=%s", rate.Seconds(item.from), rate)
+		from := rate.SecondsFloat(item.from)
+		resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',fps=%s", from, rate)
+		if speed := ClipSpeed(clip); speed != 1 {
+			// Retime around the clip's first source frame (Offset) before fps: clip frame n shows the last source
+			// frame at or before Offset + n*s, so a 2x clip reads every second source frame. Each source frame is
+			// moved onto the whole fps frame where it first shows (ceil, with 1 ms of tolerance for container
+			// timestamp rounding), in microseconds: setpts truncates, and the half-frame positions of even speeds
+			// would otherwise leave the choice to rounding noise. The same Offset anchor in every segment keeps the
+			// fps frames whole, so every segmentation samples the same source frames.
+			resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',settb=AVTB,setpts='(%d+ceil(((PTS*TB-0.001)*%d/%d-%d)/%s))*%d/%d/TB',fps=%s",
+				from, clip.Offset, rate.Num, rate.Den, clip.Offset, strconv.FormatFloat(speed, 'f', -1, 64), rate.Den, rate.Num, rate)
+		}
 	}
 	// Shift into the clip and bound clone padding to a small multiple of the clip's duration.
-	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.from, clip.Duration)
+	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.first, clip.Duration)
 	source := fmt.Sprintf(
 		"[%d:V:0]%s,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
 		item.input, resample, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
@@ -275,7 +293,8 @@ func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidt
 }
 
 // buildAudioSegment mixes every audible clip of seg into exactly SampleAt(End)-SampleAt(Start) samples.
-// When seg starts or ends inside a fade the window covers the whole fade and is trimmed back.
+// When seg starts or ends inside a fade the window covers the whole fade and is trimmed back. A clip above 4x is
+// left out of the mix, which is silence in preview and export alike.
 func buildAudioSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate) ([]segmentInput, string, error) {
 	assets := assetMap(project)
 	window := expandRange(seg, audioForbiddenSpans(project, assets))
@@ -292,13 +311,23 @@ func buildAudioSegment(project Project, seg Segment, sources map[string]renderSo
 			if clip.Start >= window.End || end <= window.Start {
 				continue
 			}
+			speed := ClipSpeed(clip)
+			if speed > 4 {
+				continue
+			}
 			entered := max(0, window.Start-clip.Start)
 			localStart, localEnd := max(clip.Start, window.Start), min(end, window.End)
 			samples := rate.SampleAt(localEnd) - rate.SampleAt(localStart)
+			from := float64(clip.Offset) + float64(entered)*speed
 			input := len(inputs)
-			inputs = append(inputs, segmentInput{path: source.path, audioOnly: true, seek: rate.Seconds(clip.Offset + entered), limit: rate.Seconds(localEnd-localStart) + 1})
+			inputs = append(inputs, segmentInput{path: source.path, audioOnly: true, seek: rate.SecondsFloat(from),
+				limit: rate.SecondsFloat(float64(localEnd-localStart)*speed) + 1})
 			label := fmt.Sprintf("vs_audio_%d_%d", trackIndex, clipIndex)
-			filter := fmt.Sprintf("[%d:a:0]asetpts=PTS-STARTPTS,aresample=%d,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=end_sample=%d,volume=%.6f", input, AudioSampleRate, samples, clip.Volume)
+			filter := fmt.Sprintf("[%d:a:0]asetpts=PTS-STARTPTS,aresample=%d,aformat=sample_fmts=fltp:channel_layouts=stereo", input, AudioSampleRate)
+			if tempo := tempoChain(speed); tempo != "" {
+				filter += "," + tempo
+			}
+			filter += fmt.Sprintf(",atrim=end_sample=%d,volume=%.6f", samples, clip.Volume)
 			if entered == 0 && clip.FadeIn > 0 {
 				filter += fmt.Sprintf(",afade=t=in:st=0:d=%s", rate.SecondsArg(clip.FadeIn))
 			}
@@ -318,6 +347,24 @@ func buildAudioSegment(project Project, seg Segment, sources map[string]renderSo
 	}
 	filters = append(filters, fmt.Sprintf("[vs_audio_mix]apad=whole_len=%d,atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS[vs_audio_out]", windowSamples, rate.SampleAt(seg.Start)-base, rate.SampleAt(seg.End)-base))
 	return inputs, strings.Join(filters, ";\n"), nil
+}
+
+// tempoChain returns the atempo filters for a speed. Each atempo instance takes 0.5 to 2 (the FFmpeg 5.1 range), so
+// faster or slower speeds chain instances. Speed 1 needs none, and its graph stays exactly as it was.
+func tempoChain(speed float64) string {
+	var parts []string
+	for speed > 2 {
+		parts = append(parts, "atempo=2")
+		speed /= 2
+	}
+	for speed < 0.5 {
+		parts = append(parts, "atempo=0.5")
+		speed /= 0.5
+	}
+	if math.Abs(speed-1) > 1e-9 {
+		parts = append(parts, fmt.Sprintf("atempo=%.6f", speed))
+	}
+	return strings.Join(parts, ",")
 }
 
 func transparentGapFilter(label string, frames, width, height int, rate Rate) string {

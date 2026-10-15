@@ -31,6 +31,11 @@ func (r Rate) Seconds(frames int) float64 {
 	return float64(frames) * float64(r.Den) / float64(r.Num)
 }
 
+// SecondsFloat converts a fractional frame count to seconds (source positions of clips with a speed).
+func (r Rate) SecondsFloat(frames float64) float64 {
+	return frames * float64(r.Den) / float64(r.Num)
+}
+
 // SecondsArg formats frames as an FFmpeg time argument with microsecond precision.
 func (r Rate) SecondsArg(frames int) string {
 	return fmt.Sprintf("%.6f", r.Seconds(frames))

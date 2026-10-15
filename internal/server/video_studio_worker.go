@@ -312,7 +312,7 @@ func videoStudioRenderAssetIDs(project videostudio.Project) map[string]struct{} 
 			continue
 		}
 		for _, clip := range track.Clips {
-			if track.Kind == videostudio.TrackAudio && clip.Volume <= 0 {
+			if clip.Disabled || track.Kind == videostudio.TrackAudio && clip.Volume <= 0 {
 				continue
 			}
 			active[clip.AssetID] = struct{}{}
