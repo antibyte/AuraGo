@@ -54,6 +54,11 @@ window.VideoStudioTime.rescaleProject(live, 25, false);
 assert.deepEqual(Object.keys(P.canonicalProject(live)), ['version','name','width','height','fps','assets','tracks'], 'ntsc is absent without NTSC timing');
 const extra = Object.assign({}, live, {unknown: 1});
 assert.deepEqual(Object.keys(P.canonicalProject(extra)), ['version','name','width','height','fps','assets','tracks'], 'keys the server does not know are not sent');
+// Markers and the in/out points follow Go's omitempty JSON; an in point of 0 is still a set value.
+const timed = Object.assign({}, live, {markers: [{id: 'm1', frame: 0, name: 'Start', color: 'teal', duration: 0}, {id: 'm2', frame: 30, duration: 12}], in_point: 0, out_point: 90});
+assert.deepEqual(Object.keys(P.canonicalProject(timed)), ['version','name','width','height','fps','assets','tracks','markers','in_point','out_point'], 'marker and in/out keys follow the Go struct order');
+assert.deepEqual(P.canonicalProject(timed).markers, [{id: 'm1', frame: 0, name: 'Start', color: 'teal'}, {id: 'm2', frame: 30, duration: 12}], 'empty marker fields are omitted');
+assert.deepEqual(Object.keys(P.canonicalProject(Object.assign({}, live, {markers: []}))), ['version','name','width','height','fps','assets','tracks'], 'no markers, no key');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("canonical form checks: %v\n%s", err, output)

@@ -122,3 +122,21 @@ assert.equal(N.moveWithinKind(four, 'v1', 'o1', 'after'), null, 'a different kin
 assert.equal(N.moveWithinKind(four, 'v1', 'v1', 'after'), null, 'the same track does not move');
 `)
 }
+
+func TestVideoStudioMarkerValidation(t *testing.T) {
+	runVideoStudioNavScript(t, `
+const base = {fps: 30, assets: [{id: 'v', kind: 'video', duration_frames: 300, width: 1, height: 1}], tracks: []};
+const ok = extra => T.validTimeline(Object.assign({}, base, extra));
+assert(ok({markers: [{id: 'm', frame: 10}], in_point: 5, out_point: 50}), 'valid markers and in/out');
+assert(ok({markers: [{id: 'm', frame: 10, duration: 20, color: 'teal', name: 'x', note: 'y'}]}));
+assert.equal(ok({markers: [{id: 'm', frame: -1}]}), false);
+assert.equal(ok({markers: [{id: 'm', frame: 10}, {id: 'm', frame: 12}]}), false, 'duplicate ids');
+assert.equal(ok({markers: [{id: 'm', frame: 10, color: 'mauve'}]}), false, 'colours come from the palette');
+assert.equal(ok({markers: [{id: 'm', frame: 108000, duration: 1}]}), false, 'a range past the limit');
+assert.equal(ok({in_point: 50, out_point: 50}), false, 'in must be before out');
+assert.equal(ok({out_point: 0}), false, 'out starts at frame 1');
+assert.equal(ok({in_point: 0}), true, 'an in point at 0 is valid');
+assert.equal(ok({markers: Array.from({length: 501}, (_, i) => ({id: 'm' + i, frame: i}))}), false, 'at most 500 markers');
+assert.deepEqual(T.LABEL_COLORS, ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']);
+`)
+}

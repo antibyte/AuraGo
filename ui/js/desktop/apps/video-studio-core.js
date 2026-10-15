@@ -82,9 +82,27 @@
         if (clip.label) out.label = String(clip.label);
         return out;
     }
+    // Markers and the in/out points follow Go's omitempty JSON: markers only when there are some, each field only when
+    // set, and the in/out points whenever they are numbers (0 is a set value, as Go's pointer fields are).
+    function canonicalMarker(marker) {
+        const out = { id: marker.id, frame: Math.round(Number(marker.frame) || 0) };
+        if (Number(marker.duration) > 0) out.duration = Math.round(Number(marker.duration));
+        if (marker.name) out.name = String(marker.name);
+        if (marker.color) out.color = String(marker.color);
+        if (marker.note) out.note = String(marker.note);
+        return out;
+    }
+    function timingExtras(source) {
+        const out = {};
+        if ((source.markers || []).length) out.markers = source.markers.map(canonicalMarker);
+        if (Number.isFinite(source.in_point)) out.in_point = source.in_point;
+        if (Number.isFinite(source.out_point)) out.out_point = source.out_point;
+        return out;
+    }
     // The top level is built explicitly in the order of Go's videostudio.Project (version, name, width, height, fps,
     // ntsc when set, assets, tracks), whatever order the keys were added to the live project (rescaleProject appends
-    // ntsc late). New Project fields must be inserted here at their Go struct position; unknown keys are dropped.
+    // ntsc late). New Project fields must be inserted here at their Go struct position; unknown keys are dropped
+    // (markers, in_point and out_point come last, from `timingExtras`).
     function canonicalProject(project) {
         const source = clone(project);
         const copy = Object.assign({
@@ -92,7 +110,7 @@
         }, source.ntsc ? { ntsc: true } : {}, {
             assets: (source.assets || []).map(canonicalAsset),
             tracks: source.tracks || []
-        });
+        }, timingExtras(source));
         copy.tracks = copy.tracks.map(track => ({
             id: track.id, kind: track.kind, name: track.name, muted: !!track.muted, hidden: !!track.hidden, locked: !!track.locked,
             clips: (track.clips || []).map(clip => Object.assign({

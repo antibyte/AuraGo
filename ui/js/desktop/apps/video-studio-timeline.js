@@ -13,6 +13,8 @@
     const LABEL_COLORS = Object.freeze(['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']);
     const TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
     const Time = () => window.VideoStudioTime;
+    const Nav = () => window.VideoStudioNavigation;
+    const Ruler = () => window.VideoStudioRuler;
     const fpsOf = project => Time().rate(project);
     const maxOf = project => Time().maxFrames(project);
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -68,9 +70,29 @@
         return Math.max(0, ...(project.tracks || []).flatMap(track => (track.clips || []).map(clip => clip.start + clip.duration)));
     }
 
+    // Mirror of validateMarkers in internal/videostudio/validate.go: markers and the in/out points.
+    function validMarkers(project) {
+        const max = maxOf(project), markers = project.markers || [], ids = new Set();
+        if (!Array.isArray(markers) || markers.length > 500) return false;
+        for (const marker of markers) {
+            if (!marker || typeof marker.id !== 'string' || !marker.id || marker.id.length > 128 || ids.has(marker.id)) return false;
+            ids.add(marker.id);
+            const duration = marker.duration || 0;
+            if (!Number.isSafeInteger(marker.frame) || marker.frame < 0 || marker.frame > max) return false;
+            if (!Number.isSafeInteger(duration) || duration < 0 || marker.frame + duration > max) return false;
+            if (Array.from(marker.name || '').length > 120 || Array.from(marker.note || '').length > 2000) return false;
+            if (marker.color && !LABEL_COLORS.includes(marker.color)) return false;
+        }
+        const hasIn = project.in_point != null, hasOut = project.out_point != null;
+        if (hasIn && (!Number.isSafeInteger(project.in_point) || project.in_point < 0 || project.in_point >= max)) return false;
+        if (hasOut && (!Number.isSafeInteger(project.out_point) || project.out_point < 1 || project.out_point > max)) return false;
+        return !(hasIn && hasOut && project.in_point >= project.out_point);
+    }
+
     // Mirror timing rules for immediate feedback; the server remains authoritative.
     function validTimeline(project) {
         if (!project || !Array.isArray(project.tracks) || !Array.isArray(project.assets)) return false;
+        if (!validMarkers(project)) return false;
         const max = maxOf(project);
         const assets = new Map(project.assets.map(asset => [asset.id, asset]));
         const ids = new Set(), tracks = new Set(), links = new Map();
@@ -730,5 +752,5 @@
         };
     }
 
-    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, MAX_LINK_CLIPS, LABEL_COLORS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
+    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, MAX_LINK_CLIPS, LABEL_COLORS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, validMarkers, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
 })();
