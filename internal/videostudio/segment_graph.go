@@ -159,13 +159,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 	for i := 1; i < len(layer); i++ {
 		clip, previous := layer[i].clip, layer[i-1].clip
 		if previous.Transition != nil {
-			out, outgoing, incoming := join(), join(), join()
-			// xfade mixes all four channels; premultiplied layers keep transparent surroundings from darkening the clips.
-			filters = append(filters,
-				fmt.Sprintf("[%s]premultiply=inplace=1,%s[%s]", combined, timebase, outgoing),
-				fmt.Sprintf("[%s]premultiply=inplace=1,%s[%s]", labels[i], timebase, incoming),
-				fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoing, incoming, mapTransition(previous.Transition.Type), rate.SecondsArg(previous.Transition.Duration), rate.SecondsArg(clip.Start), out))
-			combined = out
+			combined, filters = appendTransition(filters, join, combined, labels[i], clip, *previous.Transition, timebase, rate)
 			combinedEnd = clip.Start + clip.Duration
 			continue
 		}
@@ -182,6 +176,49 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 		combinedEnd = clip.Start + clip.Duration
 	}
 	return combined, filters
+}
+
+// appendTransition joins incoming (a clip starting at clip.Start) to combined, whose last transition.Duration
+// frames overlap it. xfade mixes all four channels, so the overlap is premultiplied to keep transparent
+// surroundings from darkening the clips. Only the overlapping frames pass through premultiply, xfade and
+// unpremultiply: that round trip changes pixels even at full opacity, and a frame outside a transition must
+// render identically whether or not the transition shares its segment.
+func appendTransition(filters []string, join func() string, combined, incoming string, clip Clip, transition Transition, timebase string, rate Rate) (string, []string) {
+	overlap := transition.Duration
+	var parts []string
+	outgoingSource := combined
+	if clip.Start > 0 {
+		head, tail, before := join(), join(), join()
+		filters = append(filters,
+			fmt.Sprintf("[%s]split=2[%s][%s]", combined, head, tail),
+			fmt.Sprintf("[%s]trim=end_frame=%d[%s]", head, clip.Start, before))
+		parts = append(parts, before)
+		outgoingSource = tail
+	}
+	incomingSource, after := incoming, ""
+	if clip.Duration > overlap {
+		head, tail := join(), join()
+		after = join()
+		filters = append(filters,
+			fmt.Sprintf("[%s]split=2[%s][%s]", incoming, head, tail),
+			fmt.Sprintf("[%s]trim=start_frame=%d,setpts=PTS-STARTPTS[%s]", tail, overlap, after))
+		incomingSource = head
+	}
+	outgoingPart, incomingPart, mixed := join(), join(), join()
+	filters = append(filters,
+		fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", outgoingSource, clip.Start, clip.Start+overlap, timebase, outgoingPart),
+		fmt.Sprintf("[%s]trim=end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", incomingSource, overlap, timebase, incomingPart),
+		fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoingPart, incomingPart, mapTransition(transition.Type), rate.SecondsArg(overlap), rate.SecondsArg(0), mixed))
+	parts = append(parts, mixed)
+	if after != "" {
+		parts = append(parts, after)
+	}
+	if len(parts) == 1 {
+		return mixed, filters
+	}
+	out := join()
+	filters = append(filters, fmt.Sprintf("[%s]concat=n=%d:v=1:a=0,%s[%s]", strings.Join(parts, "]["), len(parts), timebase, out))
+	return out, filters
 }
 
 func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidth, canvasHeight int, rate Rate, output string) string {

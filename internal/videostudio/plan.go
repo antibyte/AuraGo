@@ -231,5 +231,3 @@ func absInt(value int) int {
 	}
 	return value
 }
-
-var ErrTooManyInputs = fmt.Errorf("too many simultaneous clips for one render segment")

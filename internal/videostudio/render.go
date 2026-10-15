@@ -3,47 +3,125 @@ package videostudio
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/fileutil"
 )
 
 const (
-	maxRenderOutputBytes = int64(2 << 30)
-	renderTimeout        = 4 * time.Hour
-	inputThreadLimit     = 1
-	threadLimit          = 4
+	defaultMaxRenderOutputBytes = int64(2 << 30)
+	renderTimeout               = 4 * time.Hour
+	inputThreadLimit            = 1
+	threadLimit                 = 4
+	defaultSegmentSeconds       = 10
+	intermediateDemuxers        = "concat,mpegts,wav"
 )
 
-type renderInput struct {
-	asset Asset
-	path  string
-	index int
+var (
+	// ErrInsufficientDiskSpace reports that the staging volume cannot hold a render's intermediate files.
+	ErrInsufficientDiskSpace = errors.New("insufficient disk space for rendering")
+	// ErrTooManyInputs reports a span that needs more simultaneous inputs than one FFmpeg process may open.
+	ErrTooManyInputs = errors.New("too many simultaneous clips for one render segment")
+)
+
+// SegmentError identifies the render segment that failed.
+type SegmentError struct {
+	Index      int
+	Start, End float64 // seconds on the timeline
+	Audio      bool
+	Err        error
 }
 
-// Render produces a bounded H.264/AAC MP4 from private staged local assets.
-// assetPaths is keyed by project asset ID and is owned by the server staging layer.
+// Location names the failed segment, for example "video segment 12 (2:00–2:10)".
+func (e *SegmentError) Location() string {
+	kind := "video"
+	if e.Audio {
+		kind = "audio"
+	}
+	return fmt.Sprintf("%s segment %d (%s–%s)", kind, e.Index+1, clockText(e.Start), clockText(e.End))
+}
+
+func (e *SegmentError) Error() string { return e.Location() + ": " + e.Err.Error() }
+
+func (e *SegmentError) Unwrap() error { return e.Err }
+
+func clockText(seconds float64) string {
+	total := int(math.Floor(seconds))
+	return fmt.Sprintf("%d:%02d", total/60, total%60)
+}
+
+// Encoder selects the video encoder. The zero value is libx264 at CRF 23.
+type Encoder struct {
+	Codec    string // "libx264"; hardware encoders follow in slice 0c
+	Device   string
+	Quality  int  // CRF-equivalent quality 1–51; 0 means 23
+	Lossless bool // libx264 -qp 0; tests compare segmentations bit-exactly
+}
+
+func (e Encoder) videoArgs(rate Rate) []string {
+	quality := e.Quality
+	if quality <= 0 {
+		quality = 23
+	}
+	gop := strconv.FormatInt((2*rate.Num+rate.Den-1)/rate.Den, 10)
+	args := []string{"-c:v", "libx264", "-preset", "veryfast"}
+	if e.Lossless {
+		args = append(args, "-qp", "0")
+	} else {
+		args = append(args, "-crf", strconv.Itoa(quality))
+	}
+	return append(args, "-g", gop, "-force_key_frames", "expr:eq(n,0)", "-pix_fmt", "yuv420p",
+		"-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709")
+}
+
+// RenderOptions describes one export.
+type RenderOptions struct {
+	FFmpegPath string
+	Project    Project
+	// AssetPaths maps project asset IDs to private staged files owned by the server staging layer.
+	AssetPaths map[string]string
+	Output     string
+	// Start and End select the timeline range [Start, End); End 0 means the end of the last clip.
+	Start, End int
+	// Width and Height scale the output; 0 keeps the project canvas.
+	Width, Height int
+	// SegmentFrames is the target segment length; 0 means ten seconds.
+	SegmentFrames int
+	// MaxOutputBytes bounds the final file; 0 means 2 GiB.
+	MaxOutputBytes int64
+	Encoder        Encoder
+	Progress       func(float64)
+}
+
+// Render produces a bounded H.264/AAC MP4 of the whole project.
 func Render(ctx context.Context, ffmpegPath string, project Project, assetPaths map[string]string, output string, progress func(float64)) error {
+	return RenderWithOptions(ctx, RenderOptions{FFmpegPath: ffmpegPath, Project: project, AssetPaths: assetPaths, Output: output, Progress: progress})
+}
+
+// RenderWithOptions renders in segments: each video segment is encoded on its own, audio is mixed into
+// sample-exact PCM per segment, and one final pass concatenates the video losslessly, limits the mixed audio
+// once and encodes AAC.
+func RenderWithOptions(ctx context.Context, opts RenderOptions) error {
+	project := opts.Project
 	if err := Validate(project); err != nil {
 		return fmt.Errorf("invalid Video Studio project: %w", err)
-	}
-	if ProjectRate(project) != (Rate{Num: FramesPerSecond, Den: 1}) {
-		return fmt.Errorf("rendering %s fps projects requires the segmented renderer", ProjectRate(project))
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	ffmpeg, err := resolveBinary(ffmpegPath, "ffmpeg")
+	ffmpeg, err := resolveBinary(opts.FFmpegPath, "ffmpeg")
 	if err != nil {
 		return err
 	}
-	outputPath, err := validateRenderOutput(output)
+	outputPath, err := validateRenderOutput(opts.Output)
 	if err != nil {
 		return err
 	}
@@ -51,115 +129,94 @@ func Render(ctx context.Context, ffmpegPath string, project Project, assetPaths 
 	if duration <= 0 {
 		return fmt.Errorf("project has no clips to render")
 	}
-	inputs, err := collectRenderInputs(project, assetPaths)
-	if err != nil {
-		return err
+	start, end := opts.Start, opts.End
+	if end == 0 {
+		end = duration
 	}
-	for _, input := range inputs {
-		if filepath.Clean(input.path) == filepath.Clean(outputPath) {
-			return fmt.Errorf("output must not overwrite an input asset")
-		}
+	if start < 0 || end <= start || end > duration {
+		return fmt.Errorf("render range %d–%d is outside the timeline", start, end)
 	}
-
-	graph, videoLabel, audioLabel, err := buildRenderGraph(project, duration, inputs)
-	if err != nil {
-		return err
+	width, height := opts.Width, opts.Height
+	if width == 0 && height == 0 {
+		width, height = project.Width, project.Height
 	}
-	graphFile, err := os.CreateTemp("", "aurago-videostudio-filter-*.txt")
-	if err != nil {
-		return fmt.Errorf("create FFmpeg filter graph: %w", err)
+	if width < 2 || height < 2 || width%2 != 0 || height%2 != 0 || width > MaxSourceDimension || height > MaxSourceDimension {
+		return fmt.Errorf("render size %dx%d is not supported", width, height)
 	}
-	graphPath := graphFile.Name()
-	defer os.Remove(graphPath)
-	if _, err := graphFile.WriteString(graph); err != nil {
-		_ = graphFile.Close()
-		return fmt.Errorf("write FFmpeg filter graph: %w", err)
+	maxOutput := opts.MaxOutputBytes
+	if maxOutput <= 0 {
+		maxOutput = defaultMaxRenderOutputBytes
 	}
-	if err := graphFile.Close(); err != nil {
-		return fmt.Errorf("close FFmpeg filter graph: %w", err)
+	rate := ProjectRate(project)
+	target := opts.SegmentFrames
+	if target <= 0 {
+		target = int(int64(defaultSegmentSeconds) * rate.Num / rate.Den)
 	}
-
-	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error"}
-	for _, input := range inputs {
-		args = append(args, "-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers, "-threads", strconv.Itoa(inputThreadLimit))
-		if input.asset.Kind == AssetImage {
-			args = append(args, "-stream_loop", "-1", "-f", "image2", "-pattern_type", "none", "-framerate", "30")
-		}
-		args = append(args, "-i", input.path)
-	}
-	args = append(args,
-		"-filter_threads", strconv.Itoa(threadLimit),
-		"-filter_complex_threads", strconv.Itoa(threadLimit),
-		"-filter_complex_script", graphPath,
-		"-map", "["+videoLabel+"]",
-		"-map_metadata", "-1",
-		"-t", seconds(duration),
-		"-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-		"-threads", strconv.Itoa(threadLimit), "-pix_fmt", "yuv420p",
-	)
-	if audioLabel != "" {
-		args = append(args, "-map", "["+audioLabel+"]", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2")
-	} else {
-		args = append(args, "-an")
-	}
-	args = append(args,
-		"-movflags", "+faststart", "-max_muxing_queue_size", "512",
-		"-fs", strconv.FormatInt(maxRenderOutputBytes, 10),
-		"-progress", "pipe:1", "-nostats", "-f", "mp4", outputPath,
-	)
 
 	renderCtx, cancel := context.WithTimeout(ctx, renderTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(renderCtx, ffmpeg, args...)
-	stdout, err := cmd.StdoutPipe()
+	sources, err := collectRenderSources(renderCtx, ffmpeg, project, opts.AssetPaths)
 	if err != nil {
-		return fmt.Errorf("open FFmpeg progress stream: %w", err)
-	}
-	var stderr cappedBuffer
-	stderr.limit = 1 << 20
-	cmd.Stderr = &stderr
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start FFmpeg render: %w", err)
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 4096), 64<<10)
-	lastProgress := 0.0
-	for scanner.Scan() {
-		if progress == nil {
-			continue
-		}
-		value, ok := renderProgress(scanner.Text(), duration)
-		if ok && value > lastProgress {
-			lastProgress = value
-			progress(value)
-		}
-	}
-	scanErr := scanner.Err()
-	if scanErr != nil {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-	}
-	waitErr := cmd.Wait()
-	if err := renderCtx.Err(); err != nil {
-		_ = os.Remove(outputPath)
 		return err
 	}
-	if scanErr != nil {
-		_ = os.Remove(outputPath)
-		return fmt.Errorf("read FFmpeg progress: %w", scanErr)
-	}
-	if waitErr != nil {
-		_ = os.Remove(outputPath)
-		message := strings.TrimSpace(stderr.String())
-		message = scrubPaths(message, outputPath, inputs)
-		if message == "" {
-			return fmt.Errorf("FFmpeg render failed: %w", waitErr)
+	for _, source := range sources {
+		if filepath.Clean(source.path) == filepath.Clean(outputPath) {
+			return fmt.Errorf("output must not overwrite an input asset")
 		}
-		return fmt.Errorf("FFmpeg render failed: %s", message)
 	}
-	if err := ensureOutputSize(outputPath, maxRenderOutputBytes); err != nil {
+	videoSegments, err := PlanVideoSegments(project, start, end, target)
+	if err != nil {
+		return err
+	}
+	hasAudio := rangeHasAudio(project, sources, start, end)
+	var audioSegments []Segment
+	if hasAudio {
+		if audioSegments, err = PlanAudioSegments(project, start, end, target); err != nil {
+			return err
+		}
+	}
+
+	workDir, err := os.MkdirTemp(filepath.Dir(outputPath), "segments-")
+	if err != nil {
+		return fmt.Errorf("create render segment directory: %w", err)
+	}
+	defer os.RemoveAll(workDir)
+	if err := checkRenderSpace(workDir, rate, end-start, width, height, hasAudio); err != nil {
+		return err
+	}
+
+	report := monotonicProgress(opts.Progress)
+	total := float64(end - start)
+	videoNames := make([]string, len(videoSegments))
+	for i, seg := range videoSegments {
+		videoNames[i] = fmt.Sprintf("v%04d.ts", i)
+		base, span := float64(seg.Start-start), float64(seg.End-seg.Start)
+		err := renderVideoSegment(renderCtx, ffmpeg, project, seg, sources, rate, width, height, opts.Encoder, filepath.Join(workDir, videoNames[i]), func(p float64) {
+			report(0.85 * (base + p*span) / total)
+		})
+		if err != nil {
+			return segmentFailure(ctx, renderCtx, err, i, seg, rate, false)
+		}
+	}
+	audioNames := make([]string, len(audioSegments))
+	for i, seg := range audioSegments {
+		audioNames[i] = fmt.Sprintf("a%04d.wav", i)
+		base, span := float64(seg.Start-start), float64(seg.End-seg.Start)
+		err := renderAudioSegment(renderCtx, ffmpeg, project, seg, sources, rate, filepath.Join(workDir, audioNames[i]), func(p float64) {
+			report(0.85 + 0.10*(base+p*span)/total)
+		})
+		if err != nil {
+			return segmentFailure(ctx, renderCtx, err, i, seg, rate, true)
+		}
+	}
+	if err := muxSegments(renderCtx, ffmpeg, workDir, videoNames, videoSegments, audioNames, audioSegments, rate, outputPath, maxOutput, func(p float64) { report(0.95 + 0.05*p) }); err != nil {
+		_ = os.Remove(outputPath)
+		if ctxErr := renderCtx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return err
+	}
+	if err := ensureOutputSize(outputPath, maxOutput); err != nil {
 		_ = os.Remove(outputPath)
 		return err
 	}
@@ -168,33 +225,27 @@ func Render(ctx context.Context, ffmpegPath string, project Project, assetPaths 
 		_ = os.Remove(outputPath)
 		return fmt.Errorf("verify rendered output: %w", err)
 	}
-	if verified.Kind != AssetVideo || verified.Width != project.Width || verified.Height != project.Height || verified.DurationFrames < duration-1 || verified.DurationFrames > duration+2 || (audioLabel != "") != verified.HasAudio {
+	expectedUs := rate.Seconds(end-start) * 1e6
+	tolerance := math.Max(2*1e6*float64(rate.Den)/float64(rate.Num), 50_000)
+	if verified.Kind != AssetVideo || verified.Width != width || verified.Height != height || math.Abs(float64(verified.DurationUs)-expectedUs) > tolerance || verified.HasAudio != hasAudio {
 		_ = os.Remove(outputPath)
 		return fmt.Errorf("rendered output metadata does not match the project timeline")
 	}
-	if progress != nil {
-		progress(1)
-	}
+	report(1)
 	return nil
 }
 
-func collectRenderInputs(project Project, assetPaths map[string]string) ([]renderInput, error) {
+func collectRenderSources(ctx context.Context, ffmpeg string, project Project, assetPaths map[string]string) (map[string]renderSource, error) {
+	assets := assetMap(project)
 	used := make(map[string]struct{})
-	assets := make(map[string]Asset, len(project.Assets))
-	for _, asset := range project.Assets {
-		assets[asset.ID] = asset
-	}
 	for _, track := range project.Tracks {
 		for _, clip := range track.Clips {
-			visualUsed := track.Kind != TrackAudio && !track.Hidden
-			audioUsed := !track.Hidden && !track.Muted && clip.Volume > 0 &&
-				((track.Kind == TrackAudio) || (track.Kind == TrackVideo && assets[clip.AssetID].HasAudio))
-			if visualUsed || audioUsed {
+			if visualClip(track) || audibleClip(track, clip, assets[clip.AssetID]) {
 				used[clip.AssetID] = struct{}{}
 			}
 		}
 	}
-	inputs := make([]renderInput, 0, len(used))
+	sources := make(map[string]renderSource, len(used))
 	for _, asset := range project.Assets {
 		if _, ok := used[asset.ID]; !ok {
 			continue
@@ -207,192 +258,234 @@ func collectRenderInputs(project Project, assetPaths map[string]string) ([]rende
 		if err != nil {
 			return nil, fmt.Errorf("asset %q is not a private staged file: %w", asset.ID, err)
 		}
-		inputs = append(inputs, renderInput{asset: asset, path: path, index: len(inputs)})
+		source := renderSource{asset: asset, path: path}
+		if asset.Kind == AssetVideo {
+			probed, err := Probe(ctx, ffmpeg, path)
+			if err != nil {
+				return nil, fmt.Errorf("inspect asset %q: %w", asset.ID, err)
+			}
+			source.videoEnd = float64(probed.VideoDurationUs) / 1e6
+		}
+		sources[asset.ID] = source
 	}
-	return inputs, nil
+	return sources, nil
 }
 
-func buildRenderGraph(project Project, duration int, inputs []renderInput) (string, string, string, error) {
-	inputByAsset := make(map[string]renderInput, len(inputs))
-	for _, input := range inputs {
-		inputByAsset[input.asset.ID] = input
-	}
-	filters := make([]string, 0, len(project.Tracks)*4+len(project.Assets)*6)
-	width, height := project.Width, project.Height
-	durationSeconds := seconds(duration)
-	filters = append(filters,
-		fmt.Sprintf("color=c=black:s=%dx%d:r=30:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[vs_base0]", width, height, durationSeconds, duration),
-	)
-	videoOutput := "vs_base0"
-	visualTrackIndex := 0
+func rangeHasAudio(project Project, sources map[string]renderSource, start, end int) bool {
 	for _, track := range project.Tracks {
-		if track.Kind == TrackAudio || track.Hidden || len(track.Clips) == 0 {
-			continue
-		}
-		trackLabel, trackFilters, err := buildVisualTrack(track, visualTrackIndex, width, height, inputByAsset)
-		if err != nil {
-			return "", "", "", err
-		}
-		filters = append(filters, trackFilters...)
-		out := fmt.Sprintf("vs_base%d", visualTrackIndex+1)
-		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", videoOutput, trackLabel, out))
-		videoOutput = out
-		visualTrackIndex++
-	}
-
-	var audioLabels []string
-	for trackIndex, track := range project.Tracks {
-		if track.Muted || track.Hidden || len(track.Clips) == 0 {
-			continue
-		}
-		for clipIndex, clip := range track.Clips {
-			asset := inputByAsset[clip.AssetID].asset
-			if clip.Volume <= 0 || !asset.HasAudio || track.Kind == TrackOverlay || (track.Kind == TrackAudio && asset.Kind != AssetAudio && asset.Kind != AssetVideo) {
-				continue
+		for _, clip := range track.Clips {
+			source, ok := sources[clip.AssetID]
+			if ok && audibleClip(track, clip, source.asset) && clip.Start < end && clip.Start+clip.Duration > start {
+				return true
 			}
-			input, ok := inputByAsset[clip.AssetID]
-			if !ok {
-				continue
-			}
-			label := fmt.Sprintf("vs_audio_%d_%d", trackIndex, clipIndex)
-			filters = append(filters, buildAudioClipFilter(input, clip, label))
-			audioLabels = append(audioLabels, "["+label+"]")
 		}
 	}
-	if len(audioLabels) == 0 {
-		return strings.Join(filters, ";\n"), videoOutput, "", nil
-	}
-	projectDuration := seconds(duration)
-	filters = append(filters, fmt.Sprintf("%samix=inputs=%d:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95,apad=whole_dur=%s,atrim=duration=%s,asetpts=PTS-STARTPTS[vs_audio_out]", strings.Join(audioLabels, ""), len(audioLabels), projectDuration, projectDuration))
-	return strings.Join(filters, ";\n"), videoOutput, "vs_audio_out", nil
+	return false
 }
 
-func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, inputs map[string]renderInput) (string, []string, error) {
-	clips := append([]Clip(nil), track.Clips...)
-	sort.Slice(clips, func(i, j int) bool {
-		if clips[i].Start == clips[j].Start {
-			return clips[i].ID < clips[j].ID
+func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, width, height int, encoder Encoder, output string, progress func(float64)) error {
+	inputs, graph, err := buildVideoSegment(project, seg, sources, rate, width, height)
+	if err != nil {
+		return err
+	}
+	graphPath, err := writeGraph(filepath.Dir(output), graph)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(graphPath)
+	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, segmentInputArgs(inputs, rate)...)
+	args = append(args,
+		"-filter_threads", strconv.Itoa(threadLimit), "-filter_complex_threads", strconv.Itoa(threadLimit),
+		"-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-map_metadata", "-1",
+		"-frames:v", strconv.Itoa(seg.End-seg.Start), "-r", rate.String())
+	args = append(args, encoder.videoArgs(rate)...)
+	// The concat demuxer subtracts each segment's start time, so the default MPEG-TS mux delay is harmless and
+	// keeps B-frame timestamps valid.
+	args = append(args, "-threads", strconv.Itoa(threadLimit), "-an",
+		"-progress", "pipe:1", "-nostats", "-f", "mpegts", output)
+	return runFFmpeg(ctx, ffmpeg, args, rate.Seconds(seg.End-seg.Start), progress, inputPaths(inputs), output)
+}
+
+func renderAudioSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, output string, progress func(float64)) error {
+	inputs, graph, err := buildAudioSegment(project, seg, sources, rate)
+	if err != nil {
+		return err
+	}
+	graphPath, err := writeGraph(filepath.Dir(output), graph)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(graphPath)
+	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, segmentInputArgs(inputs, rate)...)
+	args = append(args,
+		"-filter_complex_threads", strconv.Itoa(threadLimit), "-filter_complex_script", graphPath,
+		"-map", "[vs_audio_out]", "-map_metadata", "-1", "-c:a", "pcm_f32le", "-ar", strconv.Itoa(AudioSampleRate), "-ac", "2",
+		"-progress", "pipe:1", "-nostats", "-f", "wav", output)
+	return runFFmpeg(ctx, ffmpeg, args, rate.Seconds(seg.End-seg.Start), progress, inputPaths(inputs), output)
+}
+
+func muxSegments(ctx context.Context, ffmpeg, dir string, videoNames []string, videoSegments []Segment, audioNames []string, audioSegments []Segment, rate Rate, output string, maxOutput int64, progress func(float64)) error {
+	videoList := filepath.Join(dir, "video.ffconcat")
+	if err := writeConcatList(videoList, videoNames, videoSegments, rate); err != nil {
+		return err
+	}
+	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error",
+		"-protocol_whitelist", allowedProtocols, "-format_whitelist", intermediateDemuxers, "-f", "concat", "-safe", "1", "-i", videoList}
+	if len(audioNames) > 0 {
+		audioList := filepath.Join(dir, "audio.ffconcat")
+		if err := writeConcatList(audioList, audioNames, audioSegments, rate); err != nil {
+			return err
 		}
-		return clips[i].Start < clips[j].Start
-	})
-	filters := make([]string, 0, len(clips)*4)
-	sequence := 0
-	newJoinLabel := func() string {
-		label := fmt.Sprintf("vs_join_%d_%d", trackIndex, sequence)
-		sequence++
-		return label
+		args = append(args, "-protocol_whitelist", allowedProtocols, "-format_whitelist", intermediateDemuxers, "-f", "concat", "-safe", "1", "-i", audioList)
 	}
-	clipLabels := make([]string, len(clips))
-	for clipIndex, clip := range clips {
-		input, ok := inputs[clip.AssetID]
-		if !ok {
-			return "", nil, fmt.Errorf("staged path is missing for visual asset %q", clip.AssetID)
-		}
-		label := fmt.Sprintf("vs_clip_%d_%d", trackIndex, clipIndex)
-		clipLabels[clipIndex] = label
-		filters = append(filters, legacyVisualClipFilter(trackIndex, clipIndex, clip, input, canvasWidth, canvasHeight, label))
+	args = append(args, "-map", "0:v:0", "-c:v", "copy")
+	if len(audioNames) > 0 {
+		args = append(args, "-map", "1:a:0", "-af", "alimiter=limit=0.95", "-c:a", "aac", "-b:a", "192k", "-ar", strconv.Itoa(AudioSampleRate), "-ac", "2")
+	} else {
+		args = append(args, "-an")
 	}
-	// concat outputs a 1/1000000 timebase; settb=1/30 after every concat keeps xfade inputs on the clip timebase.
-	combined := clipLabels[0]
-	combinedEnd := clips[0].Start + clips[0].Duration
-	if clips[0].Start > 0 {
-		gap := gapLabel(trackIndex, 0)
-		filters = append(filters, transparentGapFilter(gap, clips[0].Start, canvasWidth, canvasHeight, Rate{Num: FramesPerSecond, Den: 1}))
-		combined = newJoinLabel()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", gapLabel(trackIndex, 0), clipLabels[0], combined))
+	frames := 0
+	for _, seg := range videoSegments {
+		frames += seg.End - seg.Start
 	}
-	for i := 1; i < len(clips); i++ {
-		clip, previous := clips[i], clips[i-1]
-		if previous.Transition != nil {
-			transition := mapTransition(previous.Transition.Type)
-			out := newJoinLabel()
-			// xfade mixes all four channels; premultiplied layers keep transparent surroundings from darkening the clips.
-			outgoing, incoming := newJoinLabel(), newJoinLabel()
-			filters = append(filters,
-				fmt.Sprintf("[%s]premultiply=inplace=1[%s]", combined, outgoing),
-				fmt.Sprintf("[%s]premultiply=inplace=1[%s]", clipLabels[i], incoming),
-				fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoing, incoming, transition, seconds(previous.Transition.Duration), seconds(clip.Start), out))
-			combined = out
-			combinedEnd = clip.Start + clip.Duration
+	args = append(args, "-map_metadata", "-1", "-movflags", "+faststart", "-max_muxing_queue_size", "512",
+		"-fs", strconv.FormatInt(maxOutput, 10), "-progress", "pipe:1", "-nostats", "-f", "mp4", output)
+	return runFFmpeg(ctx, ffmpeg, args, rate.Seconds(frames), progress, nil, output)
+}
+
+// writeConcatList writes an ffconcat list with explicit durations, so segment offsets never depend on
+// container timestamp estimates.
+func writeConcatList(path string, names []string, segments []Segment, rate Rate) error {
+	return os.WriteFile(path, []byte(concatList(names, segments, rate)), 0o600)
+}
+
+// concatList measures every duration between microsecond-rounded segment starts relative to the first segment,
+// so the rounding of NTSC durations never accumulates over an hour of segments.
+func concatList(names []string, segments []Segment, rate Rate) string {
+	var list strings.Builder
+	list.WriteString("ffconcat version 1.0\n")
+	micros := func(frame int) int64 { return int64(math.Round(rate.Seconds(frame-segments[0].Start) * 1e6)) }
+	for i, name := range names {
+		duration := micros(segments[i].End) - micros(segments[i].Start)
+		fmt.Fprintf(&list, "file '%s'\nduration %d.%06d\n", name, duration/1_000_000, duration%1_000_000)
+	}
+	return list.String()
+}
+
+func writeGraph(dir, graph string) (string, error) {
+	file, err := os.CreateTemp(dir, "graph-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("create FFmpeg filter graph: %w", err)
+	}
+	if _, err := file.WriteString(graph); err != nil {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("write FFmpeg filter graph: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("close FFmpeg filter graph: %w", err)
+	}
+	return file.Name(), nil
+}
+
+func runFFmpeg(ctx context.Context, ffmpeg string, args []string, seconds float64, progress func(float64), inputs []string, output string) error {
+	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("open FFmpeg progress stream: %w", err)
+	}
+	var stderr cappedBuffer
+	stderr.limit = 1 << 20
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start FFmpeg: %w", err)
+	}
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 4096), 64<<10)
+	for scanner.Scan() {
+		if progress == nil {
 			continue
 		}
-		if clip.Start > combinedEnd {
-			gap := gapLabel(trackIndex, i)
-			filters = append(filters, transparentGapFilter(gap, clip.Start-combinedEnd, canvasWidth, canvasHeight, Rate{Num: FramesPerSecond, Den: 1}))
-			withGap := newJoinLabel()
-			filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", combined, gap, withGap))
-			combined = withGap
+		if value, ok := renderProgress(scanner.Text(), seconds); ok {
+			progress(value)
 		}
-		out := newJoinLabel()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", combined, clipLabels[i], out))
-		combined = out
-		combinedEnd = clip.Start + clip.Duration
 	}
-	return combined, filters, nil
+	scanErr := scanner.Err()
+	if scanErr != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+	waitErr := cmd.Wait()
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(output)
+		return err
+	}
+	if scanErr != nil {
+		_ = os.Remove(output)
+		return fmt.Errorf("read FFmpeg progress: %w", scanErr)
+	}
+	if waitErr != nil {
+		_ = os.Remove(output)
+		message := scrubPaths(strings.TrimSpace(stderr.String()), output, inputs)
+		if message == "" {
+			return fmt.Errorf("FFmpeg failed: %w", waitErr)
+		}
+		return fmt.Errorf("FFmpeg failed: %s", message)
+	}
+	return nil
 }
 
-func legacyVisualClipFilter(trackIndex, clipIndex int, clip Clip, input renderInput, canvasWidth, canvasHeight int, output string) string {
-	boxWidth := evenPixels(clip.Width*float64(canvasWidth), canvasWidth)
-	boxHeight := evenPixels(clip.Height*float64(canvasHeight), canvasHeight)
-	x := evenPosition(clip.X*float64(canvasWidth), boxWidth, canvasWidth)
-	y := evenPosition(clip.Y*float64(canvasHeight), boxHeight, canvasHeight)
-	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
-	if clip.Fit == FitCover {
-		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
+func segmentFailure(parent, renderCtx context.Context, err error, index int, seg Segment, rate Rate, audio bool) error {
+	if ctxErr := parent.Err(); ctxErr != nil {
+		return ctxErr
 	}
-	rotation := ""
-	if math.Abs(clip.Rotation) > 0.000001 {
-		angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
-		rotation = fmt.Sprintf(",rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
+	if ctxErr := renderCtx.Err(); ctxErr != nil {
+		return ctxErr
 	}
-	// Bound pre-offset PTS and clone padding to a small multiple of this clip's duration.
-	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", clip.Offset, clip.Duration)
-	source := fmt.Sprintf(
-		"[%d:V:0]setpts=PTS-STARTPTS,fps=30,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
-		input.index, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
-	)
-	if clip.Opacity < 0.999999 {
-		source += fmt.Sprintf(",colorchannelmixer=aa=%.6f", clip.Opacity)
-	}
-	layer := fmt.Sprintf("vs_layer_%d_%d", trackIndex, clipIndex)
-	background := fmt.Sprintf("vs_clip_bg_%d_%d", trackIndex, clipIndex)
-	positionX, positionY := fmt.Sprintf("%d", x), fmt.Sprintf("%d", y)
-	if math.Abs(clip.Rotation) > 0.000001 {
-		positionX = fmt.Sprintf("'%d+%d/2-overlay_w/2'", x, boxWidth)
-		positionY = fmt.Sprintf("'%d+%d/2-overlay_h/2'", y, boxHeight)
-	}
-	return fmt.Sprintf("%s[%s];color=c=black@0:s=%dx%d:r=30:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[%s];[%s][%s]overlay=x=%s:y=%s:format=auto:shortest=1[%s]", source, layer, canvasWidth, canvasHeight, seconds(clip.Duration), clip.Duration, background, background, layer, positionX, positionY, output)
+	return &SegmentError{Index: index, Start: rate.Seconds(seg.Start), End: rate.Seconds(seg.End), Audio: audio, Err: err}
 }
 
-func buildAudioClipFilter(input renderInput, clip Clip, output string) string {
-	start := seconds(clip.Offset)
-	duration := seconds(clip.Duration)
-	filter := fmt.Sprintf("[%d:a:0]atrim=start=%s:duration=%s,asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=%.6f", input.index, start, duration, clip.Volume)
-	if clip.FadeIn > 0 {
-		filter += fmt.Sprintf(",afade=t=in:st=0:d=%s", seconds(clip.FadeIn))
+// checkRenderSpace fails early when the staging volume cannot hold the video segments, the final copy and the
+// float PCM audio. An unknown amount of free space never blocks a render.
+func checkRenderSpace(dir string, rate Rate, frames, width, height int, audio bool) error {
+	free, err := fileutil.FreeDiskBytes(dir)
+	if err != nil {
+		return nil
 	}
-	if clip.FadeOut > 0 {
-		filter += fmt.Sprintf(",afade=t=out:st=%s:d=%s", seconds(clip.Duration-clip.FadeOut), seconds(clip.FadeOut))
+	seconds := rate.Seconds(frames)
+	pixelsPerSecond := float64(width) * float64(height) * float64(rate.Num) / float64(rate.Den)
+	need := 2 * seconds * pixelsPerSecond * 0.15 / 8
+	if audio {
+		need += float64(rate.SampleAt(frames)) * 8
 	}
-	filter += fmt.Sprintf(",adelay=%dS:all=1[%s]", clip.Start*(48000/FramesPerSecond), output)
-	return filter
+	need *= 1.2
+	if float64(free) < need {
+		return fmt.Errorf("%w: about %d MiB needed, %d MiB free", ErrInsufficientDiskSpace, int64(need)>>20, free>>20)
+	}
+	return nil
 }
 
-func seconds(frames int) string {
-	return fmt.Sprintf("%.6f", float64(frames)/FramesPerSecond)
+func monotonicProgress(report func(float64)) func(float64) {
+	last := 0.0
+	return func(value float64) {
+		if report == nil {
+			return
+		}
+		value = math.Min(1, math.Max(0, value))
+		if value > last {
+			last = value
+			report(value)
+		}
+	}
 }
 
 func validateRenderOutput(output string) (string, error) {
-	path, err := validateNewOutput(output, "")
-	if err != nil {
-		return "", err
-	}
-	return path, nil
+	return validateNewOutput(output, "")
 }
 
-func renderProgress(line string, durationFrames int) (float64, bool) {
+func renderProgress(line string, totalSeconds float64) (float64, bool) {
 	key, value, ok := strings.Cut(line, "=")
-	if !ok {
+	if !ok || totalSeconds <= 0 {
 		return 0, false
 	}
 	var elapsed float64
@@ -412,13 +505,15 @@ func renderProgress(line string, durationFrames int) (float64, bool) {
 	default:
 		return 0, false
 	}
-	return math.Min(1, math.Max(0, elapsed/(float64(durationFrames)/FramesPerSecond))), true
+	return math.Min(1, math.Max(0, elapsed/totalSeconds)), true
 }
 
-func scrubPaths(message, output string, inputs []renderInput) string {
-	message = strings.ReplaceAll(message, output, "<output>")
+func scrubPaths(message, output string, inputs []string) string {
+	if output != "" {
+		message = strings.ReplaceAll(message, output, "<output>")
+	}
 	for _, input := range inputs {
-		message = strings.ReplaceAll(message, input.path, "<staged-asset>")
+		message = strings.ReplaceAll(message, input, "<staged-asset>")
 	}
 	return message
 }
