@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "FFmpeg-programsökväg (tom: automatiskt)",
   "config.video_studio.asset_limit": "Maximal mediefilstorlek (MB)",
   "config.video_studio.project_limit": "Maximal projektstorlek (MB)",
+  "config.video_studio.export_limit": "Maximal exportstorlek (MB)",
   "config.video_studio.timeout": "Tidsgräns för rendering (sekunder)",
   "config.video_studio.check": "Kontrollera Video Studio",
   "config.video_studio.checking": "Kontrollerar…",

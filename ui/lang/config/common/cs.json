@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "Program FFmpeg (prázdné: automaticky)",
   "config.video_studio.asset_limit": "Maximální velikost média (MB)",
   "config.video_studio.project_limit": "Maximální velikost projektu (MB)",
+  "config.video_studio.export_limit": "Maximální velikost exportu (MB)",
   "config.video_studio.timeout": "Časový limit vykreslování (sekundy)",
   "config.video_studio.check": "Ověřit Video Studio",
   "config.video_studio.checking": "Ověřování…",

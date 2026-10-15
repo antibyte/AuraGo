@@ -230,8 +230,21 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 		stagedTotal += size
 		paths[asset.ID] = staged
 	}
+	exportLimit := int64(cfg.VideoStudio.MaxExportSizeMB) << 20
+	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
+	usedBefore, err := m.projectStorageSize(ctx, svc, job.ProjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if maxProject-usedBefore <= 0 {
+		return nil, nil, errVideoStudioProjectSizeLimit
+	}
 	output := filepath.Join(stageDir, "render.mp4")
-	err = videostudio.Render(ctx, cfg.VideoStudio.FFmpegPath, work.project, paths, output, func(progress float64) { m.updateProgress(job.ID, progress) })
+	err = videostudio.RenderWithOptions(ctx, videostudio.RenderOptions{
+		FFmpegPath: cfg.VideoStudio.FFmpegPath, Project: work.project, AssetPaths: paths, Output: output,
+		MaxOutputBytes: min64(exportLimit, maxProject-usedBefore),
+		Progress:       func(progress float64) { m.updateProgress(job.ID, progress) },
+	})
 	if err != nil {
 		_ = os.Remove(output)
 		return nil, nil, err
@@ -249,12 +262,11 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if err != nil {
 		return nil, nil, err
 	}
-	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
 	remaining := maxProject - used
 	if remaining <= 0 {
 		return nil, nil, errVideoStudioProjectSizeLimit
 	}
-	maxOutput := min64(min64(remaining, maxProject), 2<<30)
+	maxOutput := min64(remaining, exportLimit)
 	if info.Size() > maxOutput {
 		return nil, nil, errVideoStudioProjectSizeLimit
 	}

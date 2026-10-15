@@ -40,9 +40,15 @@
         });
         renderJobs(s);
     }
+    function fill(text, vars) { return Object.keys(vars || {}).reduce((out, key) => out.split('{{' + key + '}}').join(vars[key]), text); }
+    function clockSeconds(value) { const total = Math.max(0, Math.floor(Number(value) || 0)); return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0'); }
     function jobFailure(job) {
         if (job.external_status_unknown && ['failed', 'cancelled', 'interrupted'].includes(job.status)) return ['generationStatusUnknown', 'The provider status is unclear; it may still be processing. Check its status before making another paid request.'];
-        return ({ project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
+        if (job.error === 'render_segment_failed') {
+            const result = job.result || {};
+            return ['renderSegmentFailed', 'Rendering failed between {{from}} and {{to}}. Check the clips there and try again.', { from: clockSeconds(result.failed_from_seconds), to: clockSeconds(result.failed_to_seconds) }];
+        }
+        return ({ project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Move some clips onto fewer tracks.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
     }
     function exportName(s) { return String(s.project && s.project.name || tr(s, 'untitled', 'Untitled project')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) + '.mp4'; }
     // Finished render and generation jobs get one toast; probes are quiet unless they fail.
@@ -79,7 +85,7 @@
             const failure = job.status === 'failed' || (job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) ? jobFailure(job) : null;
             const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
             const kindIcon = job.kind === 'render' ? 'export' : job.kind === 'generate' ? 'sparkle' : 'film';
-            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading">${icon(kindIcon, 15)}<strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span class="vs-job-state">${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div>${terminal ? '' : `<progress max="100" value="${percent}" aria-label="${esc(s, tr(s, 'job_' + job.kind, job.kind))}"></progress>`}<div class="vs-job-footer"><small>${terminal ? '' : percent + ' %'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download="${esc(s, job.kind === 'render' ? exportName(s) : '')}">${icon('download', 14)} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${failure ? '<small class="vs-job-error">' + esc(s, tr(s, failure[0], failure[1])) + '</small>' : ''}</article>`;
+            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading">${icon(kindIcon, 15)}<strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span class="vs-job-state">${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div>${terminal ? '' : `<progress max="100" value="${percent}" aria-label="${esc(s, tr(s, 'job_' + job.kind, job.kind))}"></progress>`}<div class="vs-job-footer"><small>${terminal ? '' : percent + ' %'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download="${esc(s, job.kind === 'render' ? exportName(s) : '')}">${icon('download', 14)} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${failure ? '<small class="vs-job-error">' + esc(s, fill(tr(s, failure[0], failure[1]), failure[2])) + '</small>' : ''}</article>`;
         }).join('') : `<p class="vs-hint">${esc(s, tr(s, 'noJobs', 'No tasks right now.'))}</p>`;
         renderJobsButton(s);
     }
@@ -119,7 +125,7 @@
                 if (!s.finishedJobs) s.finishedJobs = new Set();
                 s.finishedJobs.add(job.id);
                 if (job.status === 'succeeded') await refreshProject(s);
-                if (job.status === 'failed' || job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) { const failure = jobFailure(job); showNotice(s, failure[0], failure[1], true); }
+                if (job.status === 'failed' || job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) { const failure = jobFailure(job); if (failure[2]) showNotice(s, '', fill(tr(s, failure[0], failure[1]), failure[2]), true); else showNotice(s, failure[0], failure[1], true); }
                 else announceJob(s, job);
                 return job;
             }
@@ -243,5 +249,5 @@
         });
     }
 
-    Object.assign(P, { loadJobs, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, openAI });
+    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, openAI });
 })();

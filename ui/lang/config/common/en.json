@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "FFmpeg executable (empty: automatic)",
   "config.video_studio.asset_limit": "Maximum media file size (MB)",
   "config.video_studio.project_limit": "Maximum project size (MB)",
+  "config.video_studio.export_limit": "Maximum export size (MB)",
   "config.video_studio.timeout": "Render timeout (seconds)",
   "config.video_studio.check": "Check Video Studio",
   "config.video_studio.checking": "Checking…",

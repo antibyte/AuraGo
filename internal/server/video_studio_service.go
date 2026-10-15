@@ -570,7 +570,7 @@ func (m *videoStudioManager) runJob(id string) {
 			}
 		}
 		stop()
-		m.finish(id, status, code, message, nil, nil)
+		m.finish(id, status, code, message, nil, videoStudioFailureResult(runErr))
 		return
 	}
 	stop()
@@ -1059,6 +1059,16 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if errors.Is(err, errVideoStudioAssetSizeLimit) {
 		return "failed", "asset_size_limit", "The generated video exceeds the configured per-asset size limit."
 	}
+	if errors.Is(err, videostudio.ErrInsufficientDiskSpace) {
+		return "failed", "insufficient_disk_space", "The server does not have enough free disk space for this export."
+	}
+	if errors.Is(err, videostudio.ErrTooManyInputs) {
+		return "failed", "render_too_many_inputs", "Too many clips play at the same time in one part of the timeline."
+	}
+	var segment *videostudio.SegmentError
+	if kind == "render" && errors.As(err, &segment) {
+		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."
+	}
 	switch kind {
 	case "probe":
 		return "failed", "probe_failed", "Media inspection failed. Check that the file is supported and FFmpeg is configured."
@@ -1074,6 +1084,15 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	default:
 		return "failed", "job_failed", "The video job failed."
 	}
+}
+
+// videoStudioFailureResult carries where a render failed, so the editor can name the time range in its language.
+func videoStudioFailureResult(err error) map[string]interface{} {
+	var segment *videostudio.SegmentError
+	if errors.As(err, &segment) {
+		return map[string]interface{}{"failed_from_seconds": segment.Start, "failed_to_seconds": segment.End}
+	}
+	return nil
 }
 
 func videoStudioHash(value string) string {

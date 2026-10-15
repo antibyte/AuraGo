@@ -2153,6 +2153,7 @@ video_studio:
     ffmpeg_path: ""
     max_asset_size_mb: 4096
     max_project_size_mb: 16384
+    max_export_size_mb: 8192
     render_timeout_seconds: 7200
 
 journal:

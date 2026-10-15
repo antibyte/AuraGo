@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "Εκτελέσιμο FFmpeg (κενό: αυτόματα)",
   "config.video_studio.asset_limit": "Μέγιστο μέγεθος αρχείου πολυμέσων (MB)",
   "config.video_studio.project_limit": "Μέγιστο μέγεθος έργου (MB)",
+  "config.video_studio.export_limit": "Μέγιστο μέγεθος εξαγωγής (MB)",
   "config.video_studio.timeout": "Χρονικό όριο απόδοσης (δευτερόλεπτα)",
   "config.video_studio.check": "Έλεγχος Video Studio",
   "config.video_studio.checking": "Γίνεται έλεγχος…",

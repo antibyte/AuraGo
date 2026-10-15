@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "FFmpeg-programsti (tom: automatisk)",
   "config.video_studio.asset_limit": "Maksimal mediefilstørrelse (MB)",
   "config.video_studio.project_limit": "Maksimal prosjektstørrelse (MB)",
+  "config.video_studio.export_limit": "Maksimal eksportstørrelse (MB)",
   "config.video_studio.timeout": "Tidsgrense for gjengivelse (sekunder)",
   "config.video_studio.check": "Kontroller Video Studio",
   "config.video_studio.checking": "Kontrollerer…",

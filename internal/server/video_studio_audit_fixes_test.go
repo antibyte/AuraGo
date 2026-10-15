@@ -284,6 +284,7 @@ func TestVideoStudioMediaUploadErrorStatuses(t *testing.T) {
 	s, _, writeToken := videoStudioAPIFixture(t)
 	s.Cfg.VideoStudio.MaxAssetSizeMB = 1
 	s.Cfg.VideoStudio.MaxProjectSizeMB = 2
+	s.Cfg.VideoStudio.MaxExportSizeMB = 2
 	project, _ := videoStudioAPICreate(t, s, writeToken)
 	upload := func(key string, body io.Reader, contentType string) *httptest.ResponseRecorder {
 		return videoStudioAPIRequest(s, writeToken, http.MethodPost, "/projects/"+project.ID+"/media", body, map[string]string{"Content-Type": contentType, "Idempotency-Key": key})

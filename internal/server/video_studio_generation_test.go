@@ -60,6 +60,7 @@ func configureVideoStudioGenerationTest(t *testing.T, s *Server, provider *video
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 	s.Cfg.VideoStudio.MaxAssetSizeMB = 1
 	s.Cfg.VideoStudio.MaxProjectSizeMB = 1
+	s.Cfg.VideoStudio.MaxExportSizeMB = 1
 	s.Cfg.VideoGeneration.Enabled = true
 	s.Cfg.VideoGeneration.APIKey = "video-studio-test-key"
 	s.Cfg.VideoGeneration.ProviderType = "minimax"

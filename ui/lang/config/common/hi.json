@@ -6,6 +6,7 @@
   "config.video_studio.ffmpeg": "FFmpeg प्रोग्राम पथ (खाली: स्वचालित)",
   "config.video_studio.asset_limit": "मीडिया फ़ाइल का अधिकतम आकार (MB)",
   "config.video_studio.project_limit": "प्रोजेक्ट का अधिकतम आकार (MB)",
+  "config.video_studio.export_limit": "एक्सपोर्ट का अधिकतम आकार (MB)",
   "config.video_studio.timeout": "रेंडर करने की समय सीमा (सेकंड)",
   "config.video_studio.check": "Video Studio जाँचें",
   "config.video_studio.checking": "जाँच जारी है…",

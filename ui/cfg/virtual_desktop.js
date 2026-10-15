@@ -170,6 +170,7 @@ function vdCfgVideoStudio() {
     for (const [name, label, fallback, min, max] of [
         ['max_asset_size_mb', 'asset_limit', 4096, 1, 32768],
         ['max_project_size_mb', 'project_limit', 16384, 1, 65536],
+        ['max_export_size_mb', 'export_limit', 8192, 1, 65536],
         ['render_timeout_seconds', 'timeout', 7200, 30, 14400]
     ]) {
         html += vdCfgField(prefix + label, '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
