@@ -164,19 +164,25 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 	case !runtime.Ready:
 		issue = "ffmpeg_unavailable"
 	}
+	sizes := make([]map[string]int, 0, len(videostudio.CanvasSizes()))
+	for _, size := range videostudio.CanvasSizes() {
+		sizes = append(sizes, map[string]int{"width": size[0], "height": size[1]})
+	}
 	limits := map[string]interface{}{
 		"max_asset_size_bytes":   int64(cfg.VideoStudio.MaxAssetSizeMB) << 20,
 		"max_project_size_bytes": int64(cfg.VideoStudio.MaxProjectSizeMB) << 20,
-		"max_duration_frames":    videostudio.MaxDurationFrames,
-		"fps":                    videostudio.FramesPerSecond,
-		"max_tracks":             map[string]int{"video": videostudio.MaxVideoTracks, "audio": videostudio.MaxAudioTracks, "overlay": videostudio.MaxOverlayTracks},
-		"max_clips":              videostudio.MaxClipsPerProject,
-		"max_render_assets":      videostudio.MaxRenderInputs,
-		"canvas_sizes": []map[string]int{
-			{"width": 1280, "height": 720}, {"width": 1920, "height": 1080},
-			{"width": 720, "height": 1280}, {"width": 1080, "height": 1920},
-			{"width": 720, "height": 720}, {"width": 1080, "height": 1080},
+		"max_duration_seconds":   videostudio.MaxDurationSeconds,
+		// Kept for editors that still count 30 fps frames; per-project limits use max_duration_seconds.
+		"max_duration_frames": videostudio.MaxDurationSeconds * videostudio.FramesPerSecond,
+		"fps":                 videostudio.FramesPerSecond,
+		"frame_rates": []map[string]interface{}{
+			{"fps": 24}, {"fps": 24, "ntsc": true}, {"fps": 25}, {"fps": 30}, {"fps": 30, "ntsc": true},
+			{"fps": 50}, {"fps": 60}, {"fps": 60, "ntsc": true},
 		},
+		"max_tracks":         map[string]int{"video": videostudio.MaxVideoTracks, "audio": videostudio.MaxAudioTracks, "overlay": videostudio.MaxOverlayTracks},
+		"max_clips":          videostudio.MaxClipsPerProject,
+		"max_segment_inputs": videostudio.MaxSegmentInputs,
+		"canvas_sizes":       sizes,
 	}
 	generation := map[string]interface{}{
 		"enabled":           cfg.VideoGeneration.Enabled,
@@ -307,17 +313,22 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 			Name   string `json:"name"`
 			Width  int    `json:"width"`
 			Height int    `json:"height"`
+			FPS    int    `json:"fps"`
+			NTSC   bool   `json:"ntsc"`
 		}
 		if err := decodeVideoStudioJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_request", "Project settings are invalid.")
 			return
 		}
-		project := videostudio.Project{Version: 1, Name: strings.TrimSpace(body.Name), Width: body.Width, Height: body.Height, FPS: videostudio.FramesPerSecond, Assets: []videostudio.Asset{}, Tracks: []videostudio.Track{}}
+		project := videostudio.Project{Version: videostudio.CurrentVersion, Name: strings.TrimSpace(body.Name), Width: body.Width, Height: body.Height, FPS: body.FPS, NTSC: body.NTSC, Assets: []videostudio.Asset{}, Tracks: []videostudio.Track{}}
 		if project.Width == 0 {
 			project.Width = 1920
 		}
 		if project.Height == 0 {
 			project.Height = 1080
+		}
+		if project.FPS == 0 {
+			project.FPS = videostudio.FramesPerSecond
 		}
 		if err := videostudio.Validate(project); err != nil {
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project settings do not meet the supported canvas and timeline limits.")
@@ -399,6 +410,11 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project document is invalid or too large.")
 			return
 		}
+		project, err = videostudio.Upgrade(project)
+		if err != nil {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project document is invalid or too large.")
+			return
+		}
 		lock := manager.projectLock(id)
 		lock.Lock()
 		defer lock.Unlock()
@@ -471,10 +487,12 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 		if !ok {
 			return
 		}
-		if _, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID)); err != nil {
+		project, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID))
+		if err != nil {
 			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 			return
 		}
+		rate := videostudio.ProjectRate(project)
 		records := manager.mediaForProject(projectID)
 		items := make([]videoStudioMediaItem, 0, len(records))
 		for _, record := range records {
@@ -483,7 +501,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 				state = "processing"
 				jobID = manager.pendingProbeJob(projectID, record.Asset.ID)
 			}
-			items = append(items, videoStudioMediaItem{Asset: record.Asset, MediaURL: fmt.Sprintf("%s/projects/%s/media/%s", videoStudioAPIBase, projectID, record.Asset.ID), State: state, JobID: jobID})
+			items = append(items, videoStudioMediaItem{Asset: videoStudioAssetAtRate(record.Asset, rate), MediaURL: fmt.Sprintf("%s/projects/%s/media/%s", videoStudioAPIBase, projectID, record.Asset.ID), State: state, JobID: jobID})
 		}
 		writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"media": items})
 		return

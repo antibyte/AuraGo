@@ -64,7 +64,7 @@ func TestVideoStudioStatusResponseShapeAndProviderCapabilities(t *testing.T) {
 	if len(status.Generation.DurationsSeconds) != 2 || status.Generation.DurationsSeconds[0] != 6 || status.Generation.DurationsSeconds[1] != 10 {
 		t.Fatalf("unexpected MiniMax duration options: %v", status.Generation.DurationsSeconds)
 	}
-	if status.Limits.FPS != 30 || status.Limits.MaxAssetSizeBytes <= 0 || status.Limits.MaxProjectSizeBytes < status.Limits.MaxAssetSizeBytes || len(status.Limits.CanvasSizes) != 6 || status.Limits.CanvasSizes[0] != (struct {
+	if status.Limits.FPS != 30 || status.Limits.MaxAssetSizeBytes <= 0 || status.Limits.MaxProjectSizeBytes < status.Limits.MaxAssetSizeBytes || len(status.Limits.CanvasSizes) != 11 || status.Limits.CanvasSizes[0] != (struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	}{Width: 1280, Height: 720}) {

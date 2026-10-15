@@ -729,6 +729,7 @@ func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop
 }
 
 func (m *videoStudioManager) canonicalizeProject(projectID string, project videostudio.Project) (videostudio.Project, error) {
+	rate := videostudio.ProjectRate(project)
 	canonical := make([]videostudio.Asset, 0, len(project.Assets))
 	for _, item := range project.Assets {
 		record, ok := m.mediaRecord(projectID, item.ID)
@@ -738,10 +739,19 @@ func (m *videoStudioManager) canonicalizeProject(projectID string, project video
 		if !videoStudioMediaPathValid(record.Path, record.Asset.ID) {
 			return project, fmt.Errorf("project asset path is not valid")
 		}
-		canonical = append(canonical, record.Asset)
+		canonical = append(canonical, videoStudioAssetAtRate(record.Asset, rate))
 	}
 	project.Assets = canonical
 	return project, nil
+}
+
+// videoStudioAssetAtRate expresses a trusted media record in a project's frame rate. Records probed before
+// version 2 carry 30 fps frames only; their microsecond duration is derived from those frames.
+func videoStudioAssetAtRate(asset videostudio.Asset, rate videostudio.Rate) videostudio.Asset {
+	if asset.DurationUs == 0 && asset.DurationFrames > 0 && asset.Kind != videostudio.AssetImage {
+		asset.DurationUs = int64(asset.DurationFrames) * 1_000_000 / videostudio.FramesPerSecond
+	}
+	return videostudio.AssetAtRate(asset, rate)
 }
 
 func validateVideoStudioProject(project videostudio.Project) error {

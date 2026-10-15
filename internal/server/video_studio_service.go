@@ -1153,6 +1153,10 @@ func readVideoStudioProject(ctx context.Context, svc *desktop.Service, projectPa
 	if err := json.Unmarshal(data, &project); err != nil {
 		return videostudio.Project{}, nil, "", fmt.Errorf("decode project: %w", err)
 	}
+	project, err = videostudio.Upgrade(project)
+	if err != nil {
+		return videostudio.Project{}, nil, "", err
+	}
 	return project, data, desktop.NoteVersion(data), nil
 }
 
