@@ -62,7 +62,7 @@ func TestRunPollingLoopThresholdAndSanitizedStatus(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	poller := &telegramPollSequence{
 		failures:  3,
-		cancelAt:  3,
+		cancelAt:  4,
 		cancel:    cancel,
 		sensitive: "HTTP 500 token=secret-should-never-appear",
 	}
@@ -81,9 +81,9 @@ func TestRunPollingLoopSuccessfulPollResolvesRuntimeFailure(t *testing.T) {
 	integrationstatus.SetTelegramConfigured(true, true)
 	integrationstatus.MarkTelegramPollFailure("telegram_poll_failed", time.Now())
 	ctx, cancel := context.WithCancel(context.Background())
-	poller := &telegramPollSequence{cancelAt: 1, cancel: cancel}
+	poller := &telegramPollSequence{cancelAt: 2, cancel: cancel}
 	var handled int
-	runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) { handled++ })
+	runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { handled++; return true })
 
 	status := integrationstatus.TelegramStatus()
 	if status.State != "healthy" || status.ConsecutivePollErrors != 0 || status.LastErrorCode != "" {
@@ -106,7 +106,7 @@ func TestRunPollingLoopOperationalIssueStartsAtThreeAndResolves(t *testing.T) {
 	t.Cleanup(func() { telegramPollingInitialBackoff = oldBackoff })
 
 	failureCtx, failureCancel := context.WithCancel(context.Background())
-	failing := &telegramPollSequence{failures: 3, cancelAt: 3, cancel: failureCancel, sensitive: "poll failed"}
+	failing := &telegramPollSequence{failures: 3, cancelAt: 4, cancel: failureCancel, sensitive: "poll failed"}
 	runPollingLoop(failureCtx, failing, tgbotapi.NewUpdate(0), db, nil, nil)
 	page, err := planner.ListOperationalIssues(db, planner.OperationalIssueListFilter{Status: "active", Source: "telegram"})
 	if err != nil || page.Total != 1 {
@@ -114,7 +114,7 @@ func TestRunPollingLoopOperationalIssueStartsAtThreeAndResolves(t *testing.T) {
 	}
 
 	successCtx, successCancel := context.WithCancel(context.Background())
-	runPollingLoop(successCtx, &telegramPollSequence{cancelAt: 1, cancel: successCancel}, tgbotapi.NewUpdate(0), db, nil, nil)
+	runPollingLoop(successCtx, &telegramPollSequence{cancelAt: 2, cancel: successCancel}, tgbotapi.NewUpdate(0), db, nil, nil)
 	page, err = planner.ListOperationalIssues(db, planner.OperationalIssueListFilter{Status: "active", Source: "telegram"})
 	if err != nil || page.Total != 0 {
 		t.Fatalf("resolved polling issue = %#v, err:%v", page, err)

@@ -50,86 +50,20 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 	return append(finalMessages, historyManager.Get()...)
 }
 
-// StartLongPolling initializes the Telegram bot in Long Polling mode.
-// It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, snapshot func() (*config.Config, llm.ChatClient), routingDecisions agent.TaskDecisionService) {
-	if cfg.Telegram.BotToken == "" {
-		integrationstatus.SetTelegramConfigured(false, false)
-		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
-		return
+// StartLongPolling starts one cancellable generation without waiting for network I/O.
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, snapshot func() (*config.Config, llm.ChatClient), routingDecisions agent.TaskDecisionService, offsets *UpdateOffsets) *Bot {
+	if cfg != nil {
+		cfg = cfg.Clone()
 	}
-	integrationstatus.SetTelegramConfigured(true, cfg.Telegram.UserID != 0)
-
-	security.RegisterSensitive(cfg.Telegram.BotToken)
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	botClient := contextBoundHTTPClient{parent: ctx, client: &http.Client{}}
-	bot, err := tgbotapi.NewBotAPIWithClient(cfg.Telegram.BotToken, tgbotapi.APIEndpoint, botClient)
-	if err != nil {
-		integrationstatus.MarkTelegramUnavailable("telegram_init_failed", time.Now())
-		logger.Error("Failed to initialize Telegram bot", "error", err)
-		return
-	}
-
-	// [MANDATORY] Clear any existing Webhook
-	_, err = bot.Request(tgbotapi.DeleteWebhookConfig{})
-	if err != nil {
-		logger.Error("Failed to clear Telegram webhook", "error", err)
-	} else {
-		logger.Info("Telegram webhook cleared successfully.")
-	}
-
-	logger.Info("Telegram Bot started in Long Polling mode", "user", bot.Self.UserName)
-
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	// Worker pool to limit concurrent message processing
-	maxWorkers := cfg.Telegram.MaxConcurrentWorkers
-	if maxWorkers <= 0 {
-		maxWorkers = 5
-	}
-	workerSem := make(chan struct{}, maxWorkers)
-
-	integrationstatus.MarkTelegramPolling()
-	go runPollingLoop(ctx, bot, u, plannerDB, logger, func(update tgbotapi.Update) {
-		if update.Message == nil || update.Message.From == nil {
-			return
-		}
+	return startLongPolling(ctx, cfg, logger, plannerDB, offsets, tgbotapi.APIEndpoint, &http.Client{}, func(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		current, currentClient := cfg, client
 		if snapshot != nil {
 			current, currentClient = snapshot()
 		}
-		// Freeze one current config/client pair for the accepted turn. A changed
-		// transport token needs a new poller, never the old bot's credentials.
-		if current == nil || current.EggMode.Enabled || current.Telegram.BotToken != cfg.Telegram.BotToken {
+		if current == nil || current.EggMode.Enabled || current.Telegram != cfg.Telegram || ctx.Err() != nil {
 			return
 		}
-
-		senderID := update.Message.From.ID
-
-		// [Silent ID Discovery Mode]
-		if current.Telegram.UserID == 0 {
-			fmt.Printf("\n[SECURITY] Incoming message from unauthorized ID: %d. Add this to config.yaml under telegram_user_id to authorize.\n\n", senderID)
-			logger.Warn("Unauthorized Telegram ID discovered", "id", senderID, "username", update.Message.From.UserName)
-			return
-		}
-
-		// [Authorization Check]
-		if senderID != current.Telegram.UserID {
-			logger.Warn("Blocked unauthorized Telegram message", "id", senderID)
-			return
-		}
-
-		// Acquire worker slot (blocks if all slots are busy)
-		if !acquireTelegramWorker(ctx, workerSem) {
-			return
-		}
-		go func(upd tgbotapi.Update) {
-			defer func() { <-workerSem }()
-			processUpdate(ctx, bot, upd, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
-		}(update)
+		processUpdate(ctx, bot, update, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
 	})
 }
 
@@ -157,13 +91,16 @@ type telegramUpdatePoller interface {
 	GetUpdates(config tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
 }
 
-func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update)) {
+func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update) bool) int {
 	backoff := telegramPollingInitialBackoff
 	for {
 		if err := ctx.Err(); err != nil {
-			return
+			return updateCfg.Offset
 		}
 		updates, err := poller.GetUpdates(updateCfg)
+		if ctx.Err() != nil {
+			return updateCfg.Offset
+		}
 		now := time.Now()
 		if err != nil {
 			code := telegramPollErrorCode(err)
@@ -186,7 +123,7 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				return
+				return updateCfg.Offset
 			case <-timer.C:
 			}
 			if backoff < 30*time.Second {
@@ -203,12 +140,16 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 		}
 		backoff = telegramPollingInitialBackoff
 		for _, update := range updates {
-			if update.UpdateID >= updateCfg.Offset {
-				updateCfg.Offset = update.UpdateID + 1
+			if ctx.Err() != nil {
+				return updateCfg.Offset
 			}
-			if handle != nil {
-				handle(update)
+			if update.UpdateID < updateCfg.Offset {
+				continue
 			}
+			if handle != nil && !handle(update) {
+				return updateCfg.Offset
+			}
+			updateCfg.Offset = update.UpdateID + 1
 		}
 	}
 }

@@ -26,18 +26,28 @@ AuraGo is a personal agent. You MUST restrict access so it only responds to you.
 1. Set `telegram_user_id: 0` in `config.yaml`.
 2. Start AuraGo and message your new bot.
 3. AuraGo will block the message but print your ID to the system console/logs.
-4. Copy that ID and update `config.yaml`.
+4. Copy that ID into the Telegram settings and save.
 
 ## Step 3: Configure AuraGo
 
-Add your credentials to the `telegram` section in `config.yaml`:
+Open **Configuration → Telegram**, enter the bot token and your numeric user ID,
+then save. The token is stored in the encrypted Vault; never put it in YAML.
+The non-secret settings in `config.yaml` look like this:
 
 ```yaml
 telegram:
-  bot_token: "YOUR_BOT_TOKEN_HERE"
   telegram_user_id: 987654321  # Your numeric ID
+  max_concurrent_workers: 5
 ```
-Restart AuraGo for the changes to take effect.
+Saving Telegram settings takes effect without restarting AuraGo. Token, user ID
+and worker-limit changes cancel the old poller and its active messages before a
+replacement starts. Active messages are not automatically replayed. The update
+cursor is preserved for the same verified bot during this server process;
+switching to a different bot starts its own cursor.
+
+Removing the token or enabling Egg Mode stops Telegram. An invalid replacement
+token appears as unavailable in the existing integration status; AuraGo does not
+reactivate the previous token. Correct the token in Configuration and save again.
 
 ## Step 4: Usage
 

@@ -854,6 +854,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		embeddingsChanged := false
 		discordChanged := false
 		rocketChatChanged := false
+		telegramChanged := false
 		homeAssistantChanged := false
 		uptimeKumaChanged := false
 		fritzBoxChanged := false
@@ -881,6 +882,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newCfg.Runtime = oldCfg.Runtime
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
 			rocketChatChanged = !reflect.DeepEqual(oldCfg.RocketChat, newCfg.RocketChat) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
+			telegramChanged = oldCfg.Telegram != newCfg.Telegram || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			homeAssistantChanged = !reflect.DeepEqual(oldCfg.HomeAssistant, newCfg.HomeAssistant) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			fritzBoxChanged = !reflect.DeepEqual(oldCfg.FritzBox, newCfg.FritzBox) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
@@ -901,10 +903,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if !reflect.DeepEqual(oldCfg.Server, newCfg.Server) {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Server (Host/Port)")
-			}
-			if oldCfg.Telegram != newCfg.Telegram {
-				needsRestart = true
-				restartReasons = append(restartReasons, "Telegram")
 			}
 			if oldCfg.Discord != newCfg.Discord {
 				discordChanged = true
@@ -1576,6 +1574,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && rocketChatChanged {
 			s.configureRocketChatBot()
+		}
+		if loadErr == nil && telegramChanged {
+			s.configureTelegramBot()
 		}
 		if restartFileIndexerAfterUnlock && newCfg != nil {
 			s.restartFileIndexer(newCfg)

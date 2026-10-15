@@ -66,6 +66,7 @@ import (
 	"aurago/internal/speechlab"
 	"aurago/internal/speechlab/deployer"
 	"aurago/internal/sqlconnections"
+	"aurago/internal/telegram"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 	"aurago/internal/vaultprompt"
@@ -337,6 +338,10 @@ type Server struct {
 	rocketChatLifecycleMu sync.Mutex
 	rocketChatBot         atomic.Pointer[rocketchat.Bot]
 	rocketChatClosed      bool
+	telegramLifecycleMu   sync.Mutex
+	telegramBot           atomic.Pointer[telegram.Bot]
+	telegramClosed        bool
+	telegramOffsets       telegram.UpdateOffsets
 	haPollerMu            sync.Mutex
 	haPoller              atomic.Pointer[homeAssistantPollerRuntime]
 	haPollerClosed        bool
@@ -495,6 +500,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
 	}
 	if bot := s.rocketChatBot.Load(); bot != nil {
+		bot.CancelIfConfigChanged(cfg)
+	}
+	if bot := s.telegramBot.Load(); bot != nil {
 		bot.CancelIfConfigChanged(cfg)
 	}
 	if poller := s.haPoller.Load(); poller != nil {

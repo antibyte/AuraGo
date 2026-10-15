@@ -20,7 +20,6 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
-	"aurago/internal/telegram"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
@@ -697,10 +696,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
+	s.configureTelegramBot()
 	if !s.Cfg.EggMode.Enabled {
-		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager, s.chatRuntimeSnapshot, taskDecisionService{s})
-
 		// Discord Bot: listen for messages and relay to the agent
 		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager, s.chatRuntimeSnapshot, taskDecisionService{s})
 
