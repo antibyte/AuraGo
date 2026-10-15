@@ -22,7 +22,7 @@ const (
 	datasetSchemaVersion = "2.0"
 	tierManifestVersion  = 1
 	contractVersion      = 2
-	targetScenarioCount  = 5000
+	targetScenarioCount  = 5010
 	maxToolsPerScenario  = 20
 	maxSchemaTokens      = 12000 // Complete Game Maker schemas require a 16K training sequence.
 )
