@@ -39,8 +39,8 @@ func TestWidgetCatalogMatchesContract(t *testing.T) {
 		{"label", "basic", 120, 24, false, "clicked,long_pressed",
 			`text:text="Label" font:font="" size:font_size=0 align:enum(left,center,right)="left" long_mode:enum(wrap,dots,scroll,clip)="wrap"`},
 		{"button", "basic", 120, 40, false, "clicked,long_pressed",
-			`text:string="Button" symbol:symbol="" font:font="" size:font_size=0`},
-		{"image", "basic", 64, 64, false, "clicked,long_pressed", `asset:asset=""`},
+			`text:string="Button" symbol:symbol="" font:font="" size:font_size=0 icon_asset:asset="" icon_tint:color="" icon_animate:bool=false icon_motion:enum(pulse,bob,rotate,frames)="pulse" icon_frames:list=[] icon_origin:string=""`},
+		{"image", "basic", 64, 64, false, "clicked,long_pressed", `asset:asset="" icon_tint:color="" icon_animate:bool=false icon_motion:enum(pulse,bob,rotate,frames)="pulse" icon_frames:list=[] icon_origin:string=""`},
 		{"panel", "basic", 160, 100, true, "clicked,long_pressed", `scrollable:bool=false`},
 		{"line", "basic", 120, 8, false, "",
 			`orientation:enum(horizontal,vertical)="horizontal" thickness:int(1..16)=2`},
@@ -104,7 +104,7 @@ func TestWidgetCatalogMatchesContract(t *testing.T) {
 
 func TestWidgetCatalogListLimits(t *testing.T) {
 	want := map[string]int{"dropdown.options": 64, "roller.options": 64, "keypad.keys": 64, "chart.series": 8,
-		"table.cells": 256, "tabview.tabs": 8, "list.items": 64, "msgbox.buttons": 4}
+		"table.cells": 256, "tabview.tabs": 8, "list.items": 64, "msgbox.buttons": 4, "button.icon_frames": 6, "image.icon_frames": 6}
 	for _, s := range WidgetCatalog() {
 		for _, p := range s.Props {
 			if p.Kind != PropList {

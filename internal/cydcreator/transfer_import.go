@@ -408,7 +408,7 @@ func readImportAssets(p Project, entries map[string]*zip.File, budget *importBud
 			max(cfg.Width, cfg.Height) > long || min(cfg.Width, cfg.Height) > short {
 			return nil, importInvalid("asset", "an image is damaged, has another size than the layout says or is larger than every display", map[string]any{"path": a.File})
 		}
-		minBytes += imageDataSize(cfg.Width, cfg.Height, false)
+		minBytes += assetDataSize(a, false)
 		if minBytes > AssetBudgetLarge {
 			return nil, importInvalid("asset", "the images are larger than the largest asset budget", map[string]any{"path": a.File, "budget": int64(AssetBudgetLarge)})
 		}

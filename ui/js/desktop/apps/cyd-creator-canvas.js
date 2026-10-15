@@ -99,7 +99,7 @@
         // project settings (Wi-Fi, clock); P.render checks their types itself.
         function renderOpts(w) {
             const screen = d.screen();
-            return { activeTab: d.activeTab(w.id), screenTitle: screen ? screen.title : '', settings: d.project().settings };
+            return { activeTab: d.activeTab(w.id), screenTitle: screen ? screen.title : '', settings: d.project().settings, assets: d.project().assets };
         }
         // screenBackground mirrors the device: the screen's bg_color and bg_opacity overrides when
         // P.render.colors accepts them, else the theme background.

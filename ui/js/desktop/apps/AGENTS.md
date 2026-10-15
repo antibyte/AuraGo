@@ -626,9 +626,18 @@
   `TestConfigCYDCreatorSectionBrowser` (the real config page, no screenshots).
 
 ## CYD Creator designer
-- Plan 4b's ten modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
+
+- `cyd-creator-icons.js` loads before the inspector and provides the image/button
+  library through `inst.iconCatalog` and `inst.importIcon`, with the same flush,
+  project-switch and autosave protection as image upload. Snapshot a selection
+  before awaiting import. Commit assignment as one undoable transaction and
+  retain imported assets during concurrent local edits. Lazy previews use
+  RGB565 PNGs or alpha masks; animate only the selection, respect reduced
+  motion, and dispose observers with the dialog. Names/filters/errors belong
+  to all 16 CYD locales. Browser test: `TestDesktopCYDCreatorIconsBrowser`.
+- The eleven designer modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
   `TestCYDCreatorDesignerModulesLoadInOrder`): `cyd-creator-geometry`, `-model`, `-render` (pure, run in Node),
-  `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-inspector`, `-screens`, `-designer` last; each stays
+  `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-icons`, `-inspector`, `-screens`, `-designer` last; each stays
   below 1100 lines (`TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`). `P.designer.create(inst)` returns
   `{mountCanvas, mountPalette, mountScreens, mountInspector, reveal, dispose, state}` (`state`: the internal
   designer object, read-only, for tests and diagnostics). Snap and grid persist in `localStorage`

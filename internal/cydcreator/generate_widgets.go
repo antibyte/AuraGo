@@ -189,6 +189,13 @@ func (g *uiGen) renderTypeLines(w *codeWriter, gw *genWidget, parent string, ind
 		g.renderFont(w, gw, ind)
 	case "button":
 		w.line(ind, "{")
+		if asset := ps("icon_asset"); asset != "" {
+			w.line(ind+1, "lv_obj_set_flex_flow(%s, LV_FLEX_FLOW_ROW);", h)
+			w.line(ind+1, "lv_obj_set_flex_align(%s, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);", h)
+			w.line(ind+1, "lv_obj_t *icon = lv_image_create(%s);", h)
+			w.line(ind+1, "lv_image_set_src(icon, &%s);", imageSymbol(asset))
+			g.renderIcon(w, gw, "icon", asset, ind+1)
+		}
 		w.line(ind+1, "lv_obj_t *label = lv_label_create(%s);", h)
 		w.line(ind+1, "lv_label_set_text(label, %s);", g.buttonText(ps("symbol"), ps("text")))
 		w.line(ind+1, "lv_obj_center(label);")
@@ -197,6 +204,7 @@ func (g *uiGen) renderTypeLines(w *codeWriter, gw *genWidget, parent string, ind
 	case "image":
 		if asset := ps("asset"); asset != "" {
 			w.line(ind, "lv_image_set_src(%s, &%s);", h, imageSymbol(asset))
+			g.renderIcon(w, gw, h, asset, ind)
 		}
 		w.line(ind, "lv_image_set_inner_align(%s, LV_IMAGE_ALIGN_CENTER);", h)
 	case "panel":

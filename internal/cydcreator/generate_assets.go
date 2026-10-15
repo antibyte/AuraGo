@@ -78,6 +78,25 @@ func imageDataSize(w, h int, alpha bool) int64 {
 	return int64(w) * int64(h) * per
 }
 
+func assetDataSize(a Asset, alpha bool) int64 {
+	if a.Encoding == "a8" {
+		return int64(a.W) * int64(a.H)
+	}
+	return imageDataSize(a.W, a.H, alpha)
+}
+
+func encodeMask(img image.Image) []byte {
+	b := img.Bounds()
+	out := make([]byte, 0, b.Dx()*b.Dy())
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			out = append(out, byte(a>>8))
+		}
+	}
+	return out
+}
+
 // InspectAsset decodes PNG/JPEG headers and pixels: size, whether any pixel
 // is not opaque, and the decoded LVGL byte size. Errors are *Error
 // CYD_BAD_REQUEST.
@@ -158,7 +177,7 @@ func maxBoardDisplay() (long, short int, err error) {
 // largest supported display (CYD_BAD_REQUEST, details.reason "dimensions"),
 // and a project whose images would need more than AssetBudgetLarge even as
 // opaque RGB565 (details.reason "budget"; Validate checks the exact budget of
-// the board afterwards). That bounds pass 2, the full decode, to about 2M
+// the board afterwards). That bounds pass 2, the full decode, to about 4M A8
 // pixels in total.
 func decodeProjectAssets(p Project, data map[string][]byte) ([]genImage, map[string]int64, error) {
 	var maxLong, maxShort int
@@ -170,6 +189,9 @@ func decodeProjectAssets(p Project, data map[string][]byte) ([]genImage, map[str
 	}
 	var minBytes int64
 	for _, a := range p.Assets {
+		if a.Encoding != "" && a.Encoding != "a8" {
+			return nil, nil, assetError(a.ID, fmt.Errorf("unsupported image encoding"))
+		}
 		raw, ok := data[a.ID]
 		if !ok {
 			return nil, nil, NewError(CodeBadRequest, fmt.Sprintf("asset %s has no image data", a.ID), map[string]any{"asset": a.ID})
@@ -187,7 +209,7 @@ func decodeProjectAssets(p Project, data map[string][]byte) ([]genImage, map[str
 				fmt.Sprintf("asset %s is %dx%d, larger than the largest supported display (%dx%d)", a.ID, cfg.Width, cfg.Height, maxLong, maxShort),
 				map[string]any{"asset": a.ID, "reason": "dimensions", "width": cfg.Width, "height": cfg.Height, "max_width": maxLong, "max_height": maxShort})
 		}
-		minBytes += imageDataSize(cfg.Width, cfg.Height, false)
+		minBytes += assetDataSize(a, false)
 		if minBytes > AssetBudgetLarge {
 			return nil, nil, NewError(CodeBadRequest,
 				fmt.Sprintf("the images need at least %d bytes, more than the largest budget of %d bytes (asset %s)", minBytes, int64(AssetBudgetLarge), a.ID),
@@ -208,7 +230,7 @@ func decodeProjectAssets(p Project, data map[string][]byte) ([]genImage, map[str
 		}
 		alpha := imageHasAlpha(img)
 		images = append(images, genImage{asset: a, img: img, alpha: alpha})
-		sizes[a.ID] = imageDataSize(a.W, a.H, alpha)
+		sizes[a.ID] = assetDataSize(a, alpha)
 	}
 	return images, sizes, nil
 }
@@ -239,6 +261,11 @@ func renderAssets(images []genImage) string {
 		bounds := im.img.Bounds()
 		iw, ih := bounds.Dx(), bounds.Dy()
 		data := encodeImage(im.img, im.alpha)
+		stride := iw * 2
+		if a.Encoding == "a8" {
+			cf, format, stride = "LV_COLOR_FORMAT_A8", "A8", iw
+			data = encodeMask(im.img)
+		}
 		mapName := "ui__img_" + a.ID + "_map"
 		w.line(0, "")
 		w.line(0, "// %s: %s, %dx%d, %s, %d bytes", a.ID, cComment(a.File), iw, ih, format, len(data))
@@ -254,7 +281,7 @@ func renderAssets(images []genImage) string {
 		w.line(0, "};")
 		w.line(0, "")
 		w.line(0, "const lv_image_dsc_t %s = {", im.symbol())
-		w.line(2, "{LV_IMAGE_HEADER_MAGIC, %s, 0, %d, %d, %d, 0},", cf, iw, ih, iw*2)
+		w.line(2, "{LV_IMAGE_HEADER_MAGIC, %s, 0, %d, %d, %d, 0},", cf, iw, ih, stride)
 		w.line(2, "%d,", len(data))
 		w.line(2, "%s,", mapName)
 		w.line(2, "NULL,")

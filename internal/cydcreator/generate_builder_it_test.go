@@ -42,6 +42,7 @@ func itBuilds(t *testing.T) []itBuild {
 	}
 	for _, b := range boards {
 		builds = append(builds, itBuild{"reference", b.ID})
+		builds = append(builds, itBuild{"icons", b.ID})
 	}
 	if only := os.Getenv("CYD_BUILDER_IT_ONLY"); only != "" {
 		var keep []itBuild
@@ -135,6 +136,9 @@ func itTar(t *testing.T, files map[string][]byte) []byte {
 // itProject loads the input project of a build with the build's board.
 func itProject(t *testing.T, b itBuild) Project {
 	t.Helper()
+	if b.Case == "icons" {
+		return iconFixture(t, b.Board)
+	}
 	dir := filepath.Join(goldenDir, b.Case)
 	if b.Case == "reference" {
 		dir = referenceDir
@@ -205,7 +209,7 @@ func TestGenerateCompilesInBuilder(t *testing.T) {
 			bctx, bcancel := context.WithTimeout(ctx, itBuildTimeout)
 			defer bcancel()
 			p := itProject(t, b)
-			res, err := Generate(GenerateInput{Project: p, ProjectID: testProjectID, AppFiles: ScaffoldAppFiles(p), Assets: goldenAssets(t)})
+			res, err := Generate(GenerateInput{Project: p, ProjectID: testProjectID, AppFiles: ScaffoldAppFiles(p), Assets: iconFixtureAssets(t, p)})
 			if err != nil {
 				t.Fatalf("Generate: %v", err)
 			}

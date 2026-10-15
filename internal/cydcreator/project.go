@@ -98,11 +98,13 @@ type Action struct {
 
 // Asset is an uploaded image; the generator converts it at build time.
 type Asset struct {
-	ID    string `json:"id"`
-	File  string `json:"file"` // "assets/<name>.png|.jpg|.jpeg"
-	W     int    `json:"w"`
-	H     int    `json:"h"`
-	Alpha bool   `json:"alpha"`
+	ID       string `json:"id"`
+	File     string `json:"file"` // "assets/<name>.png|.jpg|.jpeg"
+	W        int    `json:"w"`
+	H        int    `json:"h"`
+	Alpha    bool   `json:"alpha"`
+	Encoding string `json:"encoding,omitempty"` // "a8" for an explicitly tintable alpha mask
+	Icon     string `json:"icon,omitempty"`     // immutable library version/style/tone/motif/size/frame
 }
 
 // NewProject returns a fresh project with one empty start screen "home".

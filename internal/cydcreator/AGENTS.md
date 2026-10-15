@@ -812,6 +812,20 @@ OTA updates and the ZIP export and import.
 
 ## Work Guidance
 
+- Icon assets: `icons.go` owns the immutable catalog and strict external-resource
+  manifest; `ImportIcon` validates every selected frame before publishing under
+  the project lock and required layout version. IDs deduplicate encoding plus
+  content. Optional asset `encoding: a8` counts one byte per pixel; empty keeps
+  the old RGB565/RGB565A8 path. `icon` records provenance and is never a disk
+  lookup path. Both fields are immutable when saving an existing asset entry.
+  Image/button props `icon_asset` (button), `icon_tint`, `icon_animate`,
+  `icon_motion`, `icon_frames`, `icon_origin` travel with the ordinary project.
+  Frame references require six same-size/encoding images, at most 64 px per
+  side. Missing/default fields preserve static behaviour. `generate_icons.go`
+  owns flash frame arrays, theme/default tint and visible-only bounded updates;
+  widget deletion releases timer/state. Keep `TestIcon*`, `TestGenerateIconGolden`
+  and the nine `icons@board` compile fixtures aligned with the exporter.
+
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
 - A new board profile records its source URL and must pass `TestEveryEmbeddedBoardLoads`.
 - A new device theme needs its `testdata/golden/theme_<id>` case (`TestGenerateGolden` requires exactly one per
@@ -848,10 +862,10 @@ OTA updates and the ZIP export and import.
   `go test ./internal/cydcreator/ -run TestGenerateGolden -update`, review the diff and commit it with the code.
   `-update` is a test flag, unlike the `CYD_UPDATE_*` environment variables of the reference and strings tests; it
   also rewrites a golden `cyd.project.json` that is not in canonical form.
-- Compile proof (Docker and the builder image; opt-in, 19 builds):
+- Compile proof (Docker and the builder image; opt-in, 28 builds):
   `CYD_BUILDER_IT=1 CYD_BUILDER_IT_STRICT=1 CYD_BUILDER_IMAGE=<image> go test ./internal/cydcreator/ -run TestGenerateCompilesInBuilder -v -timeout 90m`.
   It compiles the goldens (`all_widgets` on the classic CYD and an ESP32-S3 board, `all_widgets_portrait`, one build
-  per theme) and the reference on every board, in a container with plan 2's settings: read-only root, 1 GiB `/tmp`
+  per theme), reference and icon fixture on every board, in a container with plan 2's settings: read-only root, 1 GiB `/tmp`
   tmpfs (rw, exec, nosuid, nodev), uid 1000, no network, `--cap-drop ALL`, `--memory 2g --memory-swap 2g --init
   --pids-limit 512`. `CYD_BUILDER_IT_STRICT=1` adds `-Wall -Wextra` for `src/` and fails on any compiler warning;
   `CYD_BUILDER_IT_ONLY` keeps the builds whose `case@board` contains one of its comma-separated parts;

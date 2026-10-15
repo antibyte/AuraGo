@@ -23,6 +23,8 @@ const (
 func cydCreatorCoreRoutes(s *Server) []cydRoute {
 	return []cydRoute{
 		{Method: http.MethodGet, Pattern: "capabilities", Handler: s.cydCapabilities},
+		{Method: http.MethodGet, Pattern: "icons", Handler: s.cydIcons},
+		{Method: http.MethodPost, Pattern: "projects/{id}/icons", Write: true, Handler: s.cydImportIcon},
 		{Method: http.MethodPost, Pattern: "toolchain/pull", Write: true, Handler: s.cydPullToolchain},
 		{Method: http.MethodGet, Pattern: "projects", Handler: s.cydListProjects},
 		{Method: http.MethodPost, Pattern: "projects", Write: true, Handler: s.cydCreateProject},

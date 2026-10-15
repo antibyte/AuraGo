@@ -37,6 +37,9 @@
     --cc-radius-lg: var(--vd-theme-radius-modal, 14px);
     --cc-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --cc-code-bg: var(--cc-panel-strong);
+    --cc-icon-light: #f4f4f4;
+    --cc-icon-dark: #202833;
+    --cc-delay: 0s;
     --cc-dock-h: 220px;
     position: relative;
     display: flex;
@@ -53,6 +56,43 @@
 
 .cydc-app [hidden] { display: none !important; }
 .cydc-app *, .cydc-app *::before, .cydc-app *::after { box-sizing: border-box; }
+
+/* Icon art keeps device-pixel dimensions; only the chosen preview moves. */
+.cydc-app .cydc-icon-art { display: inline-block; position: relative; flex: none; overflow: hidden; vertical-align: middle; }
+.cydc-app .cydc-icon-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; mask-size: contain; mask-repeat: no-repeat; mask-position: center; pointer-events: none; }
+.cydc-app .cydc-icon-art.is-animated.motion-frames .cydc-icon-frame { animation: cydc-icon-frame 1s steps(1, end) infinite; animation-delay: var(--cc-delay); }
+.cydc-app .cydc-icon-art.is-animated.motion-pulse .cydc-icon-frame { animation: cydc-icon-pulse 1.6s steps(8, end) infinite; }
+.cydc-app .cydc-icon-art.is-animated.motion-bob .cydc-icon-frame { animation: cydc-icon-bob 1.6s steps(8, end) infinite; }
+.cydc-app .cydc-icon-art.is-animated.motion-rotate .cydc-icon-frame { animation: cydc-icon-rotate 2.4s steps(28, end) infinite; }
+@keyframes cydc-icon-frame { 0% { opacity: 1; } 16.6667%, 100% { opacity: 0; } }
+@keyframes cydc-icon-pulse { 0%, 100% { opacity: 0.804; } 50% { opacity: 1; } }
+@keyframes cydc-icon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+@keyframes cydc-icon-rotate { to { transform: rotate(360deg); } }
+.cydc-app .cydc-dialog.cydc-icon-dialog { width: min(760px, 94%); max-width: 94%; }
+.cydc-app .cydc-icon-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cydc-app .cydc-icon-filters input, .cydc-app .cydc-icon-filters select { width: 100%; min-width: 0; color: var(--cc-text); background: var(--cc-control); border: 1px solid var(--cc-border); border-radius: var(--cc-radius); padding: 7px; }
+.cydc-app .cydc-icon-detail { display: flex; gap: 16px; align-items: center; margin: 12px 0; padding: 12px; background: var(--cc-panel-strong); border-radius: var(--cc-radius); }
+.cydc-app .cydc-icon-detail p { margin: 5px 0; }
+.cydc-app .cydc-icon-detail small { color: var(--cc-muted); }
+.cydc-app .cydc-icon-samples { display: flex; gap: 4px; }
+.cydc-app .cydc-icon-sample { width: 76px; height: 76px; display: grid; place-items: center; border: 1px solid var(--cc-border); }
+.cydc-app .cydc-icon-sample.is-light { background: var(--cc-icon-light); }
+.cydc-app .cydc-icon-sample.is-dark { background: var(--cc-icon-dark); }
+.cydc-app .cydc-icon-sample.is-light .cydc-icon-art { color: var(--cc-icon-dark) !important; }
+.cydc-app .cydc-icon-sample.is-dark .cydc-icon-art { color: var(--cc-icon-light) !important; }
+.cydc-app .cydc-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 5px; max-height: 310px; overflow: auto; }
+.cydc-app .cydc-icon-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 86px; padding: 7px 4px; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-control); color: var(--cc-text); cursor: pointer; font: inherit; font-size: 11px; overflow-wrap: anywhere; }
+.cydc-app .cydc-icon-choice[aria-pressed="true"] { border-color: var(--cc-accent); background: var(--cc-accent-soft); }
+.cydc-app .cydc-icon-choice .cydc-icon-art { color: var(--cc-text) !important; }
+.cydc-app .cydc-icon-choice:focus-visible { outline: 2px solid var(--cc-focus); outline-offset: -3px; }
+@container cydc-app (max-width: 580px) {
+    .cydc-app .cydc-icon-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cydc-app .cydc-icon-detail { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .cydc-app .cydc-icon-art.is-animated .cydc-icon-frame { animation: none !important; opacity: 0; transform: none; }
+    .cydc-app .cydc-icon-art.is-animated .cydc-icon-frame:first-child { opacity: 1; }
+}
 
 /* ── controls ───────────────────────────────────────────────────────────────── */
 .cydc-app .cydc-btn {

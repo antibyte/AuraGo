@@ -9,6 +9,41 @@ flashing over Web Serial and updates over Wi-Fi. User guide: [manual chapter 25]
 CYD Creator is not the older **Cheap Yellow Display** companion (`cyd:` config section, with its own flasher on the
 config page); the two share only the hardware.
 
+## Icon library
+
+Select an image or button in the designer and open **Icon library** in its
+inspector. The library contains 60 common motifs in playful, modern, comic
+and sober styles, each in colour/monochrome and still/animated form (960
+variants). Search by translated name or motif ID, filter by category, and
+choose 24/32/48/64 px. The two previews show actual device pixels after RGB565
+conversion; monochrome masks inherit the device theme text colour unless an
+explicit icon colour is set. System reduced-motion preferences show posters.
+
+Only selected images enter the project. Repeated imports and identical frames
+count once. The picker displays image bytes and the current project budget;
+an oversized import is refused atomically, leaving size and still-image
+controls available. Flash budgets remain 256 KiB below 8 MB and 4 MiB on larger
+profiles, including PSRAM boards. Frames, tint and origin metadata survive
+undo/redo, revisions and project ZIP export/import. Ordinary images with no
+icon metadata retain their previous behaviour.
+
+Library API under `/api/desktop/cyd-creator/`:
+
+- `GET icons`: read-only catalog (version, styles, tones, sizes, motifs and
+  motion kinds). Uses the verified external UI resource set.
+- `POST projects/{id}/icons`: protected write route, required numeric
+  `If-Match` layout version, strict JSON
+  `{"style":"modern","tone":"mono","motif":"wifi","size":32,"animated":true}`.
+  Accepts catalog entries only, never arbitrary URLs or files. Returns the
+  base `asset`, `assets`, ordered `frames`, `motion`, `version`, `added_bytes`
+  and `total_bytes`. All frames and the asset-list change publish together;
+  the designer then assigns the result in one undoable widget edit.
+
+Artwork, exact prompts and deterministic export instructions:
+[`assets/cyd-icons/README.md`](../assets/cyd-icons/README.md). ImageGen is used
+only during asset production; library use is offline. Compile fixtures cover
+all nine boards; physical animation performance needs device acceptance.
+
 ## Requirements
 
 - **Virtual Desktop** enabled. Projects live in the desktop workspace under `CYD/<slug>/`.

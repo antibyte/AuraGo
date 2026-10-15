@@ -408,6 +408,7 @@ func (g *uiGen) renderSource() string {
 	w.raw(strings.Replace(genNavigation, "{{START}}", screenEnum(g.startScreen()), 1))
 	g.renderStatusbarTick(&w)
 	g.renderSharedCallbacks(&w)
+	g.renderIconHelpers(&w)
 	for _, gw := range g.all {
 		for _, ev := range gw.w.Events {
 			if ev.Action.Type != "logic" && g.registersEvents(gw) {

@@ -65,6 +65,7 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 		t.Fatal(err)
 	}
 	families := map[string][]string{
+		"cyd_creator.icons.":          strings.Fields("title loading insert locked budget_error inserted search style tone animation still animated size category all pixels memory memory_hint empty cancel style_playful style_modern style_comic style_sober tone_color tone_mono category_navigation category_status category_system category_home category_weather category_media"),
 		"cyd_creator.widget.":         {},
 		"cyd_creator.group.":          {},
 		"cyd_creator.prop.":           {"bg_color", "bg_opacity", "text_color", "accent_color", "border_color", "border_width", "radius"},
@@ -94,6 +95,9 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 	}
 	for _, th := range themes {
 		families["cyd_creator.theme."] = append(families["cyd_creator.theme."], th.ID)
+	}
+	for _, motif := range cydcreator.Icons().Motifs {
+		families["cyd_creator.icons."] = append(families["cyd_creator.icons."], "motif."+motif.ID)
 	}
 	for prefix := range prefixes {
 		if _, ok := families[prefix]; !ok {

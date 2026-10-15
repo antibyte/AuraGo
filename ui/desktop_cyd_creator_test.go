@@ -400,7 +400,7 @@ var cydCreatorShellModules = []string{
 	"cyd-creator-core.js", "cyd-creator-api.js", "cyd-creator-events.js",
 	"cyd-creator-geometry.js", "cyd-creator-model.js", "cyd-creator-render.js", "cyd-creator-canvas.js",
 	"cyd-creator-interact.js", "cyd-creator-palette.js", "cyd-creator-inspector-fields.js",
-	"cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
+	"cyd-creator-icons.js", "cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
 	"cyd-creator-code.js", "cyd-creator-dock.js", "cyd-creator-agent.js", "cyd-creator-home.js",
 	"cyd-creator-serial.js", "cyd-creator-flasher.js", "cyd-creator-monitor.js", "cyd-creator-devices.js", "cyd-creator-transfer.js",
 	"cyd-creator-app.js",
@@ -558,7 +558,7 @@ func TestCYDCreatorAppCarriesTheModuleContracts(t *testing.T) {
 // toolchain banner follows read-only and a closed project's probe cannot block the next one's.
 func TestCYDCreatorWindowKeepsUnsavedEditsAndResumesSafely(t *testing.T) {
 	checkCYDCreatorModule(t, "cyd-creator-app.js",
-		"if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);", "if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;",
+		"if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);", "if (!isCurrent(inst, seq) || !layoutIdle(inst)) return selection ? res : res.asset;",
 		"inst.streamAfter = inst.events.resumeFrom;", "code.saveError()", "role: 'alert', dataset: { ccPublishReview: '' }",
 		"renderToolchain(inst, inst.view && inst.view.toolchainSlot);", "if (isCurrent(inst, seq)) inst.probing = false;")
 	checkCYDCreatorModule(t, "cyd-creator-events.js", "get resumeFrom() { return catching ? catchupFrom : cursor.after; }")

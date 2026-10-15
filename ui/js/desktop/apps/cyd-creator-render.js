@@ -280,11 +280,20 @@
         },
         button(x) {
             const b = buttonFace(x.theme, x.c);
+            if (P.iconLibrary && x.str('icon_asset')) {
+                const a = (x.assets || []).find(a => a.id === x.str('icon_asset'));
+                if (a) return h('div', { style: box(center(Object.assign({}, x.font, b.face, { gap: '6px', 'white-space': 'nowrap' }))) },
+                    P.iconLibrary.node(a, x.w.props, x.assetUrl, x.c.text), buttonLabel(b.kind, x.str('symbol'), x.str('text')));
+            }
             return h('div', { style: box(center(Object.assign({}, x.font, b.face, { padding: '0 6px', 'white-space': 'nowrap' }))) }, buttonLabel(b.kind, x.str('symbol'), x.str('text')));
         },
         image(x) {
             const id = x.str('asset');
             if (ELEMENT_ID.test(id) && typeof x.assetUrl === 'function') {
+                const a = (x.assets || []).find(a => a.id === id);
+                if (P.iconLibrary && a && (a.icon || a.encoding === 'a8' || x.bool('icon_animate'))) {
+                    return h('div', { style: box(center({ background: x.c.bg || 'transparent' })) }, P.iconLibrary.node(a, x.w.props, x.assetUrl, x.c.text));
+                }
                 return h('div', { style: box({ background: x.c.bg || 'transparent', 'border-radius': own(x.c.ownRadius, 0) + 'px' }) },
                     h('img', { src: x.assetUrl(id), alt: '', draggable: 'false', style: { width: '100%', height: '100%', 'object-fit': 'none', 'object-position': 'center', 'image-rendering': 'pixelated', 'pointer-events': 'none' } }));
             }
@@ -590,7 +599,7 @@
         const w = Object.assign({}, widget, { w: int(widget.w, 1, MAX_SIDE, 1), h: int(widget.h, 1, MAX_SIDE, 1) });
         const settings = o.settings !== null && typeof o.settings === 'object' ? o.settings : null;
         const ctx = Object.assign(reader(widget, spec), {
-            w, spec, theme: theme || {}, c, font: fontStyle(theme, widget, spec), assetUrl: o.assetUrl,
+            w, spec, theme: theme || {}, c, font: fontStyle(theme, widget, spec), assetUrl: o.assetUrl, assets: Array.isArray(o.assets) ? o.assets : [],
             activeTab: int(o.activeTab, 0, 63, 0),
             screenTitle: typeof o.screenTitle === 'string' ? o.screenTitle.slice(0, MAX_TEXT) : '',
             settings

@@ -236,6 +236,7 @@
                 '/js/desktop/apps/cyd-creator-interact.js',
                 '/js/desktop/apps/cyd-creator-palette.js',
                 '/js/desktop/apps/cyd-creator-inspector-fields.js',
+                '/js/desktop/apps/cyd-creator-icons.js',
                 '/js/desktop/apps/cyd-creator-inspector.js',
                 '/js/desktop/apps/cyd-creator-screens.js',
                 '/js/desktop/apps/cyd-creator-designer.js',

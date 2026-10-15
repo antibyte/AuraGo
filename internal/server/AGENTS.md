@@ -396,6 +396,12 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### CYD Creator
 
+- Icon library routes use the normal CYD gates: `GET icons` needs read access,
+  `POST projects/{id}/icons` is a write route requiring `If-Match` and a strict
+  catalog selection. Load its manifest/files through `uiFiles` (verified
+  external web resources), never from unverified asset roots or request URLs.
+  `TestCYDCreatorIconAPI` covers lookup, import, version and selection refusal.
+
 Domain, storage, events and build rules live in `internal/cydcreator/AGENTS.md`; this section owns wiring,
 configuration, the HTTP API and the Docker adapter. The desktop client (`ui/js/desktop/apps/cyd-creator-*.js`)
 depends on the API, SSE and error contracts below; its side is in `ui/js/desktop/apps/AGENTS.md` (CYD Creator).

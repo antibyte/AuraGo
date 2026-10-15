@@ -18,7 +18,7 @@ import (
 var cydDesignerScripts = []string{
 	"cyd-creator-geometry.js", "cyd-creator-model.js", "cyd-creator-render.js", "cyd-creator-canvas.js",
 	"cyd-creator-interact.js", "cyd-creator-palette.js", "cyd-creator-inspector-fields.js",
-	"cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
+	"cyd-creator-icons.js", "cyd-creator-inspector.js", "cyd-creator-screens.js", "cyd-creator-designer.js",
 }
 
 var updateCYDDesignerCaps = flag.Bool("update-cyd-designer-caps", false, "rewrite ui/testdata/cyd_creator_designer_caps.json from internal/cydcreator")

@@ -51,11 +51,7 @@ func (s *Service) openProjectRoot(row projectRow) (*os.Root, error) {
 func layoutAssetSizes(p Project) map[string]int64 {
 	sizes := make(map[string]int64, len(p.Assets))
 	for _, a := range p.Assets {
-		bpp := int64(2)
-		if a.Alpha {
-			bpp = 3
-		}
-		sizes[a.ID] = int64(a.W) * int64(a.H) * bpp
+		sizes[a.ID] = assetDataSize(a, a.Alpha)
 	}
 	return sizes
 }
@@ -71,7 +67,7 @@ func validateLayout(p Project) []Issue {
 // checkLayoutAssets keeps asset entries pointing at their own image. PutAsset
 // adds images and DeleteAsset removes them together with their files. A layout
 // save may keep or drop stored entries but never change one (File, W, H,
-// Alpha), and may list an entry the stored layout lacks (designer undo/redo,
+// Alpha, Encoding, Icon), and may list an entry the stored layout lacks (designer undo/redo,
 // a second tab overwriting) only when its File belongs to no other stored
 // entry; the file need not exist (Validate/Generate report a missing image).
 // Every entry must match the asset file rule, and each ID and File is listed
@@ -88,6 +84,12 @@ func checkLayoutAssets(stored, incoming []Asset) error {
 	files := make(map[string]bool, len(incoming))
 	for _, a := range incoming {
 		details := map[string]any{"asset": clipEcho(a.ID)}
+		if a.Encoding != "" && a.Encoding != "a8" {
+			return layoutError("unsupported asset encoding", details)
+		}
+		if len(a.Icon) > 128 {
+			return layoutError("icon origin is too long", details)
+		}
 		if !assetFileRegex.MatchString(a.File) {
 			return layoutError("asset file must match assets/<name>.png, .jpg or .jpeg", details)
 		}

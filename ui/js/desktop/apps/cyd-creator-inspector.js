@@ -276,12 +276,20 @@
             const tk = d.theme().tokens || {};
             const fonts = d.inst.caps.fonts || {};
             const limit = Number(ps.max_len) > 0 ? Number(ps.max_len) : M.LIMITS.textBytes;
+            if (ps.name === 'icon_animate') {
+                const asset = (d.project().assets || []).find(a => a.id === (w.props || {})[w.type === 'button' ? 'icon_asset' : 'asset']);
+                if (!asset || asset.w > 64 || asset.h > 64) return null;
+            }
             switch (ps.kind) {
             case 'text': return F.textarea(label, key, str(value), guard(key, textCheck(limit), { maxlength: limit }), v => commit(v));
             case 'int': return F.number(label, key, value, { min: typeof ps.min === 'number' ? ps.min : -LIMITS.intProp, max: typeof ps.max === 'number' ? ps.max : LIMITS.intProp }, v => commit(v));
-            case 'bool': return F.check(label, key, value === true, v => commit(v, true));
+            case 'bool': return F.check(label, key, value === true, v => {
+                if (ps.name === 'icon_animate' && v && (w.props || {}).icon_motion === 'frames' && ((w.props || {}).icon_frames || []).length !== 6 && P.iconLibrary) {
+                    P.iconLibrary.open(d, w.id, bag, { animated: true });
+                } else commit(v, true);
+            });
             case 'enum': return F.select(label, key, (ps.options || []).map(o => [o, t.or('cyd_creator.designer.opt_' + ps.name + '_' + o, pretty(o))]), str(value), v => commit(v, true));
-            case 'color': return F.color(label, key, str(value), tk.accent, v => commit(v), () => commit('', true));
+            case 'color': return F.color(label, key, str(value), ps.name === 'icon_tint' ? tk.text : tk.accent, v => commit(v), () => commit('', true));
             case 'font': return F.select(label, key, [['', themeDefault()]].concat((fonts.families || []).map(f => [f, t.or('cyd_creator.designer.font_' + f, pretty(f))])), str(value), v => commit(v, true));
             case 'font_size': return F.select(label, key, [['0', themeDefault()]].concat((fonts.sizes || []).map(n => [String(n), n + ' px'])), String(value || 0), v => {
                 const n = P.designerFields.clampInt(v, 0, null);
@@ -289,7 +297,8 @@
             });
             case 'symbol': return F.select(label, key, [['', t.or('cyd_creator.designer.symbol_none', 'No symbol')]].concat((d.inst.caps.symbols || []).map(s => [s, P.render.symbolGlyph(s) + '  ' + s])), str(value), v => commit(v, true));
             case 'list': return F.list(label, key, Array.isArray(value) ? value.map(str) : [], ps.name === 'keys', guard(key, listCheck(w, spec, ps)), v => commit(v));
-            case 'asset': return F.asset(d, label, key, str(value), ui.uploading.has(w.id), v => commit(v, true), file => upload(w.id, file));
+            case 'asset': return [F.asset(d, label, key, str(value), ui.uploading.has(w.id), v => setWidget(w.id, { props: { [ps.name]: v || null, icon_frames: null, icon_animate: null, icon_origin: null } }, null, true), file => upload(w.id, file)),
+                P.iconLibrary ? h('button', { type: 'button', class: 'cydc-chip', 'data-cc-focus': 'icon-library', on: { click: () => P.iconLibrary.open(d, w.id, bag) } }, t.or('cyd_creator.icons.title', 'Icon library')) : null];
             default: return F.text(label, key, str(value), guard(key, textCheck(limit), { maxlength: limit }), v => commit(v));
             }
         }
@@ -444,7 +453,7 @@
                 if (!asset || !asset.id) { notify(P.errors.message(t, null)); return; }
                 if (d.readonly()) { notify(t.or('cyd_creator.designer.asset_not_applied', 'The image was uploaded but not set: the project became read-only or locked.')); return; }
                 const cur = current(id);
-                const set = { props: { asset: asset.id } };
+                const set = { props: { [cur.type === 'button' ? 'icon_asset' : 'asset']: asset.id, icon_frames: null, icon_animate: null, icon_origin: null } };
                 if (cur.type === 'image' && Number.isInteger(asset.w) && Number.isInteger(asset.h) && asset.w > 0 && asset.h > 0) { set.w = asset.w; set.h = asset.h; }
                 d.commands.transact('asset', (draft, apply) => {
                     if (!Array.isArray(draft.assets)) draft.assets = [];
@@ -472,7 +481,7 @@
                 h('fieldset', { class: 'cydc-fieldset', disabled: ro },
                     section(t.or('cyd_creator.designer.section_name', 'Name'), nameField(w)),
                     section(t.or('cyd_creator.designer.section_geometry', 'Position and size'), geometry(f)),
-                    spec && (spec.props || []).length ? section(t.or('cyd_creator.designer.section_props', 'Properties'), spec.props.map(ps => propField(w, spec, ps))) : null,
+                    spec && (spec.props || []).length ? section(t.or('cyd_creator.designer.section_props', 'Properties'), spec.props.filter(ps => !['icon_frames', 'icon_motion', 'icon_origin'].includes(ps.name)).map(ps => propField(w, spec, ps))) : null,
                     section(t.or('cyd_creator.designer.section_style', 'Appearance'), styleFields(w)),
                     section(t.or('cyd_creator.designer.section_events', 'Events'), eventsEditor(w, spec))));
         }

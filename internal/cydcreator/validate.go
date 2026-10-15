@@ -578,6 +578,9 @@ func (v *validator) props(s *Screen, w *Widget, spec *WidgetSpec, path string) {
 	bad := func(prop, format string, args ...any) {
 		v.add(SeverityError, IssuePropInvalid, s.ID, w.ID, path+"/props/"+prop, "%s: "+format, append([]any{label}, args...)...)
 	}
+	if (w.Type == "image" || w.Type == "button") && ok("icon_frames", "icon_animate", "icon_motion") {
+		v.iconProps(w, spec, bad)
+	}
 	if _, has := spec.prop("min"); has && ok("min", "max") {
 		lo, hi := geti("min"), geti("max")
 		if lo >= hi {
@@ -797,6 +800,12 @@ func (v *validator) assets() {
 	var total int64
 	for i, a := range v.p.Assets {
 		path := fmt.Sprintf("assets/%d", i)
+		if a.Encoding != "" && a.Encoding != "a8" {
+			v.add(SeverityError, IssuePropInvalid, "", "", path+"/encoding", "unsupported asset encoding")
+		}
+		if len(a.Icon) > 128 {
+			v.add(SeverityError, IssuePropInvalid, "", "", path+"/icon", "icon origin is too long")
+		}
 		if seen[a.ID] {
 			v.add(SeverityError, IssueIDDuplicate, "", "", path+"/id", "asset id %q is used twice", clipEcho(a.ID))
 		}

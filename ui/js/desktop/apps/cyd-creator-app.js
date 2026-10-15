@@ -95,6 +95,8 @@
         inst.reloadProject = () => reloadProject(inst);
         inst.renderToolchain = el => renderToolchain(inst, el);
         inst.uploadAsset = file => uploadAsset(inst, file);
+        inst.iconCatalog = () => P.api.icons();
+        inst.importIcon = selection => uploadAsset(inst, null, selection);
         inst.flushAll = () => flushAll(inst);
         // Agent jobs start from the saved project. Every start (composer, generate code, resume, the
         // description of a new project) first saves unsaved layout and code edits; when they cannot be
@@ -546,16 +548,16 @@
     // re-read here, which keeps the history. An assets change skipped meanwhile that the re-read does
     // not cover (another tab committed after the GET was served, or the upload failed) is caught up
     // when the last upload ends, like any remote change (history reset).
-    async function uploadAsset(inst, file) {
+    async function uploadAsset(inst, file, selection) {
         const seq = inst.projectSeq;
         const id = inst.projectId;
         if (!(await inst.layoutSaver.flush())) throw unsavedError(inst);
         inst.uploads.push(seq);
         try {
-            const res = await P.api.uploadAsset(id, file);
-            if (!isCurrent(inst, seq) || !layoutIdle(inst)) return res.asset;
+            const res = selection ? await P.api.importIcon(id, selection, inst.layoutVersion) : await P.api.uploadAsset(id, file);
+            if (!isCurrent(inst, seq) || !layoutIdle(inst)) return selection ? res : res.asset;
             await reloadLayout(inst, { ifIdle: true, newer: true, keepHistory: true });
-            return res.asset;
+            return selection ? res : res.asset;
         } finally {
             inst.uploads.splice(inst.uploads.indexOf(seq), 1);
             if (!inst.uploads.includes(seq)) await catchUpSkippedAssets(inst, seq);

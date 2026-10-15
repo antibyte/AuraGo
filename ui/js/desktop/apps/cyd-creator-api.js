@@ -78,6 +78,10 @@
         request,
 
         capabilities: () => get('/capabilities'),
+        icons: () => get('/icons'),
+        importIcon: (id, selection, version) => request('POST', projectPath(id, '/icons'), {
+            json: selection, headers: { 'If-Match': String(version) }
+        }).then(r => r.data),
         pullToolchain: () => post('/toolchain/pull').then(d => d.toolchain),
 
         listProjects: () => get('/projects').then(d => d.projects || []),
