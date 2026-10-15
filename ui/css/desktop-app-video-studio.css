@@ -592,3 +592,15 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 @media (prefers-reduced-motion: reduce) {
     .vs-app *, .vs-app *::before, .vs-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Project settings dialog and preview quality */
+.vs-settings-row { gap: 12px; }
+.vs-settings-row .vs-field { min-width: 0; }
+.vs-quality { display: flex; align-items: center; }
+.vs-app .vs-quality select { height: 30px; max-width: 112px; padding: 0 6px; border: 1px solid var(--vs-border); border-radius: 7px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-text); font-size: 12px; }
+@container (max-width: 650px) {
+    .vs-app .vs-quality select { max-width: 76px; padding: 0 4px; }
+}
+@container (max-width: 420px) {
+    .vs-quality { display: none; }
+}

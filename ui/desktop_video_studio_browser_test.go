@@ -70,7 +70,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];window.fixtureArtworkRequests=[];window.fixtureArtworkStates={};window.fixtureLastJobBody=null;
 			const originalFetch=window.fetch;const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:Object.assign({'Content-Type':'application/json'},headers)});
 			window.fetch=async(url,options={})=>{const path=String(url),method=String(options.method||'GET').toUpperCase();window.fixtureCalls.push([method,path]);
-			if(path==='/api/desktop/video-studio/status')return json({enabled:true,desktop_enabled:true,ffmpeg_ready:true,read_only:window.fixtureReadonly,limits:{max_duration_frames:18000,canvas_sizes:[{width:1280,height:720},{width:720,height:1280},{width:720,height:720}]},generation:{enabled:true,configured:true,provider:'Fixture provider',model:'fixture-model',durations_seconds:[5,10],image_modes:[]}});
+			if(path==='/api/desktop/video-studio/status')return json({enabled:true,desktop_enabled:true,ffmpeg_ready:true,read_only:window.fixtureReadonly,limits:{max_duration_frames:18000,max_duration_seconds:3600,frame_rates:[{fps:24,ntsc:true},{fps:25},{fps:30},{fps:60}],canvas_sizes:[{width:1280,height:720},{width:720,height:1280},{width:720,height:720}]},generation:{enabled:true,configured:true,provider:'Fixture provider',model:'fixture-model',durations_seconds:[5,10],image_modes:[]}});
 			if(path==='/api/desktop/video-studio/projects'&&method==='GET')return json({projects:[{id:'p1',project:{name:'Browser fixture'},desktop_path:'Documents/Video Studio/p1/project.json'}]});
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='GET'){const p=window.fixtureConflict?window.fixtureLatest:window.fixtureProject;return json({id:'p1',project:p,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:window.fixtureConflict?'"vRemote"':'"v1"'});}
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='PUT'){window.fixtureSaves.push(JSON.parse(options.body));window.fixtureLastIfMatch=new Headers(options.headers).get('If-Match');if(window.fixtureConflict&&!window.fixtureConflictUsed){window.fixtureConflictUsed=true;return json({error:'file_conflict',code:'file_conflict' },412);}window.fixtureProject=JSON.parse(options.body);return json({project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
@@ -81,7 +81,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			return originalFetch(url,options);};
 			const t=key=>window.fixtureLocales[window.fixtureLang]?.[key]||key;
 			const paths={save:'M5 3h12l4 4v14H3V3h2zm2 2v5h10V5H7zm1 9v5h8v-5H8z',video:'M3 5h18v14H3zM10 9v6l5-3z',upload:'M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4',folder:'M3 6h7l2 2h9v11H3z',scissors:'M5 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 9l12 9M7 15 19 6'};
-			const ctx={t,esc:v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),iconMarkup:key=>'<svg class="vs-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(paths[key]||paths.video)+'"/></svg>',setWindowBeforeClose:(id,fn)=>window.fixtureCloseGuard=fn,setWindowMenus:()=>{},clearWindowMenus:()=>{},promptDialog:async()=>false,confirmDialog:async()=>false};
+			const ctx={t,esc:v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),iconMarkup:key=>'<svg class="vs-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(paths[key]||paths.video)+'"/></svg>',setWindowBeforeClose:(id,fn)=>window.fixtureCloseGuard=fn,setWindowMenus:()=>{},clearWindowMenus:()=>{},promptDialog:async()=>false,confirmDialog:async()=>window.fixtureConfirm===true};
 			window.VideoStudioApp.render(document.getElementById('studio'),'fixture',ctx);
 		</script></body></html>`)
 	})
@@ -314,6 +314,27 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		const messages=Array.from(document.querySelectorAll('.vs-job-error'),el=>el.textContent),locale=window.fixtureLocales.en;
 		for(const key of ['projectStorageFull','fileTooLarge','generatedImportFailed','generationStatusUnknown'])if(!messages.includes(locale['videoStudio.'+key]))throw new Error('missing localized job error: '+key);
 		if(document.querySelector('.vs-job-running .vs-job-error'))throw new Error('running provider request was reported as uncertain');
+	}`)
+
+	page.MustEval(`async()=>{
+		const wait=async test=>{for(let i=0;i<500;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('project settings timed out: '+JSON.stringify({fps:s.project.fps,errors:window.fixtureErrors}))};
+		const s=window.VideoStudioApp.instances.get('fixture');
+		window.fixtureConfirm=true;
+		document.querySelector('[data-action="project-menu"]').click();
+		document.querySelector('[data-action="project-settings"]').click();
+		const form=document.querySelector('[data-settings-form]');
+		if(!form)throw new Error('project settings did not open');
+		form.querySelector('[data-settings-rate]').value='25';
+		form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+		await wait(()=>s.project.fps===25);
+		const clip=s.project.tracks.find(track=>track.id==='o1').clips.find(item=>item.id==='c1');
+		if(clip.start!==0||clip.duration!==125)throw new Error('the 25 fps rescale did not round clip edges: '+JSON.stringify(clip));
+		document.querySelector('[data-action="undo"]').click();
+		if(s.project.fps!==30)throw new Error('undo did not restore 30 fps');
+		const quality=document.querySelector('[data-preview-quality]');quality.value='quarter';quality.dispatchEvent(new Event('change',{bubbles:true}));
+		await wait(()=>document.querySelector('[data-preview]').width===320);
+		quality.value='auto';quality.dispatchEvent(new Event('change',{bubbles:true}));
+		window.fixtureConfirm=false;
 	}`)
 
 	// Read-only is enforced in the app, not merely by disabled presentation.

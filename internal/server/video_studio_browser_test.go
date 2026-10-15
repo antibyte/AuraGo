@@ -105,6 +105,9 @@ VideoStudioApp.render(document.getElementById('studio'),'e2e',{
 	}
 	wait(`() => VideoStudioApp.instances.get('e2e')?.status?.ffmpeg_ready===true`)
 	page.MustElement(`[data-action="new-project"]`).MustClick()
+	wait(`() => !!document.querySelector('[data-new-project-form]')`)
+	page.MustEval(`() => {const form=document.querySelector('[data-new-project-form]');form.querySelector('[data-settings-name]').value='Browser export';form.querySelector('[data-settings-rate]').value='25';form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));}`)
+	wait(`() => VideoStudioApp.instances.get('e2e')?.project?.fps===25`)
 	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return !!s?.projectId && s.project?.tracks.length>0 && !s.dirty;}`)
 	page.MustEval(`async () => {
  const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
@@ -128,7 +131,8 @@ VideoStudioApp.render(document.getElementById('studio'),'e2e',{
  window.dispatchEvent(new PointerEvent('pointermove',{clientX:x+104,clientY:y}));
  window.dispatchEvent(new PointerEvent('pointerup',{clientX:x+104,clientY:y}));
 }`)
-	wait(`() => VideoStudioApp.instances.get('e2e').project.tracks.some(t=>t.kind==='overlay'&&t.clips[0]?.start===60)`)
+	// 104 px at zoom 1 is two seconds: 50 frames at the project's 25 fps.
+	wait(`() => VideoStudioApp.instances.get('e2e').project.tracks.some(t=>t.kind==='overlay'&&t.clips[0]?.start===50)`)
 	page.MustElement(`[data-action="undo"]`).MustClick()
 	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return s.project.tracks.some(t=>t.kind==='overlay'&&t.clips[0]?.start===0)&&!s.dirty;}`)
 	page.MustElement(`[data-action="export"]`).MustClick()
