@@ -329,7 +329,7 @@ func TestProductionCancellationAndDurableQuota(t *testing.T) {
 	}
 	dir := s.dir
 	s.Close()
-	other, err := New(Options{Directory: dir, Manual: true, Adapters: s.adapters})
+	other, err := New(Options{Directory: dir, Manual: true, Adapters: s.adapters, Now: s.now})
 	if err != nil {
 		t.Fatal(err)
 	}
