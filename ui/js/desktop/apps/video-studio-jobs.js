@@ -6,6 +6,7 @@
     const { API, TERMINAL } = P;
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
+    const assetAtProjectRate = (...args) => P.assetAtProjectRate(...args);
     const canonicalProject = (...args) => P.canonicalProject(...args);
     const clamp = (...args) => P.clamp(...args);
     const closePopovers = (...args) => P.closePopovers(...args);
@@ -165,8 +166,9 @@
             }
             const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
             // Assets that finished probing replace their pending entry; new ones are appended.
-            next.assets.forEach(asset => { const local = known.get(asset.id); if (local && !local.kind && asset.kind) Object.assign(local, asset); });
-            const additions = next.assets.filter(asset => !known.has(asset.id));
+            // The server counts frames at its saved rate; the local project may already be at a new, unsaved one.
+            next.assets.forEach(asset => { const local = known.get(asset.id); if (local && !local.kind && asset.kind) Object.assign(local, assetAtProjectRate(asset, s.project)); });
+            const additions = next.assets.filter(asset => !known.has(asset.id)).map(asset => assetAtProjectRate(asset, s.project));
             s.project.assets = (s.project.assets || []).concat(additions);
             s.savedProject.assets = next.assets.map(({ media_url, ...asset }) => asset);
         } else {

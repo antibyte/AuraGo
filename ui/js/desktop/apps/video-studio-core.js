@@ -99,13 +99,19 @@
         Object.keys(style).sort().forEach(key => { const value = style[key]; if (value !== '' && value !== 0 && value !== false && value != null) out[key] = value; });
         return out;
     }
+    // Mirrors Go's videostudio.AssetAtRate. Server assets carry duration_frames at the rate stored on the server; before
+    // one joins a project whose rate was changed (and not saved yet) it is expressed in that project's rate again.
+    function assetAtProjectRate(asset, project) {
+        if (!asset || asset.kind === 'image' || !(Number(asset.duration_us) > 0)) return asset;
+        return Object.assign({}, asset, { duration_frames: window.VideoStudioTime.framesAt(asset.duration_us, project) });
+    }
     function hydrateProject(s, project) {
         const p = clone(project || {});
         // Mirrors Go's videostudio.Upgrade: a recovered draft or a tab opened before the upgrade compares as version 2.
         if (Number(p.version) === 1 && (Number(p.fps) || 30) === 30 && !p.ntsc) p.version = 2;
-        p.assets = (p.assets || []).map(asset => Object.assign({}, asset, {
+        p.assets = (p.assets || []).map(asset => assetAtProjectRate(Object.assign({}, asset, {
             media_url: API + '/projects/' + encodeURIComponent(s.projectId) + '/media/' + encodeURIComponent(asset.id)
-        }));
+        }), p));
         p.tracks = p.tracks || [];
         p.assets = p.assets || [];
         return p;
@@ -295,8 +301,9 @@
         const content = project => { const canonical = canonicalProject(project); canonical.assets = []; return JSON.stringify(canonical); };
         if (content(next) !== content(s.savedProject)) return false;
         const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
-        next.assets.forEach(asset => { const local = known.get(asset.id); if (local) Object.assign(local, asset); });
-        s.project.assets = (s.project.assets || []).concat(next.assets.filter(asset => !known.has(asset.id)));
+        // The server counts frames at its saved rate; the local project may already be at a new, unsaved one.
+        next.assets.forEach(asset => { const local = known.get(asset.id); if (local) Object.assign(local, assetAtProjectRate(asset, s.project)); });
+        s.project.assets = (s.project.assets || []).concat(next.assets.filter(asset => !known.has(asset.id)).map(asset => assetAtProjectRate(asset, s.project)));
         s.savedProject.assets = next.assets.map(({ media_url, ...asset }) => asset);
         s.etag = fresh.etag;
         return true;
@@ -362,7 +369,7 @@
                 const saved = clone(s.project), recovered = hydrateProject(s, draft.project);
                 // The server may hold newer media than the draft; keep every asset the server knows.
                 const known = new Set(recovered.assets.map(asset => asset.id));
-                recovered.assets = recovered.assets.concat(saved.assets.filter(asset => !known.has(asset.id)));
+                recovered.assets = recovered.assets.concat(saved.assets.filter(asset => !known.has(asset.id)).map(asset => assetAtProjectRate(asset, recovered)));
                 s.project = recovered; s.dirty = true; s.history = [saved]; s.redo = [];
                 // A draft title whose words or style differ from the saved copy still shows the saved PNG.
                 recovered.tracks.forEach(track => track.clips.forEach(clip => {
@@ -375,5 +382,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();
