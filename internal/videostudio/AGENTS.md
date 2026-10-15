@@ -18,13 +18,19 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   `MaxSegmentInputs` clips is split. Every clip gets its own `-ss`-seeked input; a clip past the decodable video
   seeks one second before its end and `tpad` holds the last frame. Ranges that start or end inside a transition
   or fade get pre-roll (`expandRange`) and are trimmed back.
+- Video segments run with `-copyts -start_at_zero`: video inputs seek about one second early and `fps` samples
+  absolute source timestamps, so sources at another rate than the project keep the single pass's cadence in every
+  segmentation. A first decoded frame later than the wanted position (video starting after its container) is
+  moved back to it. The graph ends in an explicit `scale=...:out_color_matrix=bt709:out_range=tv,format=yuv420p`
+  (FFmpeg before 7.1 converts RGBA with BT.601 in the encoder's scaler); hardware uploads append after it.
 - Video segments use identical encoder settings (closed GOP, keyframe at frame 0, BT.709 tags) in MPEG-TS; audio
   segments are float PCM WAV with exactly `SampleAt(end)-SampleAt(start)` samples. The final pass uses the
   concat demuxer with explicit durations, `-c:v copy`, one `alimiter` and one AAC encode. Intermediates only
   pass the `concat,mpegts,wav` demuxer allowlist.
 - Commands run through `exec.CommandContext` without a shell, one decoder thread per input and four filter
   threads, a four-hour ceiling, bounded diagnostics with scrubbed paths, and `MaxOutputBytes` (default 2 GiB;
-  the server passes `max_export_size_mb`). `checkRenderSpace` fails early with `ErrInsufficientDiskSpace`;
+  the server passes `max_export_size_mb`); an output that reaches it fails with `ErrOutputLimit` (FFmpeg 8 may
+  write past `-fs` on stream copy, so the size check decides). `checkRenderSpace` fails early with `ErrInsufficientDiskSpace`;
   segment failures are `*SegmentError`. Preview proxies are complete-source 540p/30 fps MP4s capped at 512 MiB.
 - Preview and export hold the last video frame through longer source audio,
   including clip offsets beyond video EOF; FFmpeg readiness requires `tpad` for
