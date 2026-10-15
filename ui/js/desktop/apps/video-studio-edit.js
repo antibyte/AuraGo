@@ -6,8 +6,9 @@
     // inside mutate, which restores its snapshot). Locked tracks never change.
     const T = () => window.VideoStudioTimeline;
     const Time = () => window.VideoStudioTime;
-    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition' });
-    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'] };
+    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link' });
+    const MAX_LINK_CLIPS = 16;
+    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'] };
     const clone = value => JSON.parse(JSON.stringify(value));
     const endOf = clip => clip.start + clip.duration;
     const sorted = track => track.clips.slice().sort((a, b) => a.start - b.start);
@@ -326,28 +327,6 @@
         return finish(project);
     }
 
-    // Cuts at `frame`: scope.trackIds cuts every clip under the frame on those tracks, scope.clipIds only those
-    // clips. The left part keeps id and fade in; the right part gets fade out and the outgoing transition.
-    function blade(project, frame, scope, out) {
-        const created = [], ids = scope.clipIds ? new Set(scope.clipIds) : null, trackIds = scope.trackIds ? new Set(scope.trackIds) : null;
-        let locked = false, transition = false;
-        project.tracks.forEach(track => {
-            if (trackIds && !trackIds.has(track.id)) return;
-            const hits = track.clips.filter(clip => clip.start < frame && frame < endOf(clip) && (!ids || ids.has(clip.id)));
-            if (!hits.length) return;
-            if (track.locked) { locked = true; return; }
-            if (isCutInTransition(track, frame)) { transition = true; return; }
-            hits.forEach(clip => {
-                const right = piece(project, clip, frame, endOf(clip), T().newId('clip'));
-                Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
-                track.clips.push(right);
-                created.push(right.id);
-            });
-        });
-        if (out) out.created = created;
-        if (!created.length) return transition ? REASON.transition : locked ? REASON.locked : REASON.nothing;
-        return finish(project);
-    }
     // Moves clips by `delta` frames. Clips of the anchor clip's track kind also move `trackShift` tracks
     // within that kind. Overwrite replaces what lies under the moved clips; insert opens room on every
     // unlocked track. Magnetic first closes the places the clips leave on their own tracks.
@@ -407,27 +386,6 @@
         }
         return trackById(project, entry.trackId) || sameKind[entry.kindIndex] || null;
     }
-    // Pastes clipboard data at `at` (overwrite or insert). options.targets ({ video, audio, overlay } → track id)
-    // puts each kind's clips on that track and the following ones of the kind; without it clips return to the
-    // tracks they came from. options.out.created lists the new clip ids.
-    function paste(project, board, at, mode, options) {
-        const opts = options || {};
-        if (!board || !board.entries.length) return REASON.nothing;
-        const placements = [], created = [];
-        for (const entry of board.entries) {
-            if (!assetOf(project, entry.clip)) return REASON.media;
-            const track = pasteTrack(project, board, entry, opts.targets);
-            if (!track) return REASON.kind;
-            const clip = Object.assign(clone(entry.clip), { id: T().newId('clip'), start: at + entry.clip.start });
-            let placement = placements.find(item => item.trackId === track.id);
-            if (!placement) placements.push(placement = { trackId: track.id, clips: [] });
-            placement.clips.push(clip);
-            created.push(clip.id);
-        }
-        const result = mode === 'insert' ? insertClips(project, at, placements) : overwrite(project, placements);
-        if (result === true && opts.out) opts.out.created = created;
-        return result;
-    }
     // The next start after a clip that collides with the copies placed at `at`, or 0 when all of them fit.
     function collision(project, board, at) {
         let next = 0;
@@ -450,20 +408,6 @@
         }
         if (at + board.span > max) return REASON.limit;
         return paste(project, board, at, 'overwrite', { out });
-    }
-    // Copies attribute groups from `source` (a clip object) to the listed clips; picture skips audio clips.
-    function pasteAttributes(project, source, ids, groups) {
-        const items = editable(project, ids);
-        if (!items.length) return refusal(project, ids);
-        let changed = false;
-        items.forEach(({ track, clip }) => {
-            (groups || []).forEach(group => {
-                if (group === 'picture' && track.kind === 'audio') return;
-                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
-            });
-            clampFades(clip);
-        });
-        return changed ? finish(project) : REASON.nothing;
     }
     function clipsFrom(project, trackId, frame) {
         const track = trackById(project, trackId);
@@ -494,5 +438,279 @@
         return best === null ? delta : delta + best;
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta };
+    // ---- Link groups (spec 4.2): clips with the same link id. ----
+    function linkMembers(project, link) {
+        const found = [];
+        if (!link) return found;
+        (project.tracks || []).forEach(track => track.clips.forEach(clip => { if (clip.link === link) found.push({ track, clip }); }));
+        return found;
+    }
+    function linkGroup(project, clipId) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return [];
+        if (!found.clip.link) return [clipId];
+        return linkMembers(project, found.clip.link).map(({ clip }) => clip.id);
+    }
+    function withLinks(project, ids) {
+        return Array.from(new Set((ids || []).flatMap(id => linkGroup(project, id))));
+    }
+    // The group members whose same edge sits on the clip's frame (the clip itself included).
+    function linkedEdges(project, clipId, edge) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return [];
+        if (!found.clip.link) return [clipId];
+        const at = edge === 'start' ? found.clip.start : endOf(found.clip);
+        return linkMembers(project, found.clip.link).filter(({ clip }) => (edge === 'start' ? clip.start : endOf(clip)) === at).map(({ clip }) => clip.id);
+    }
+    // The audio clip a detached video clip owns: same group, audio track, same asset and timing.
+    function audioPartner(project, clipId) {
+        const found = T().clipFor(project, clipId);
+        if (!found || !found.clip.link) return null;
+        const clip = found.clip;
+        const match = linkMembers(project, clip.link).find(({ track, clip: other }) => track.kind === 'audio' && other.asset_id === clip.asset_id &&
+            other.start === clip.start && other.duration === clip.duration && other.offset === clip.offset);
+        return match ? match.clip.id : null;
+    }
+    // Ctrl+L: the editable clips of ids share one new group (link '' unlinks them). A group left with one clip ends
+    // (unless that clip sits on a locked track, which never changes).
+    function setLink(project, ids, link) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        if (link && items.length < 2) return REASON.nothing;
+        if (link && new Set(items.concat(linkMembers(project, link)).map(({ clip }) => clip.id)).size > MAX_LINK_CLIPS) return REASON.link;
+        const previous = new Set(items.map(({ clip }) => clip.link).filter(Boolean));
+        items.forEach(({ clip }) => { if (link) clip.link = link; else delete clip.link; });
+        previous.forEach(id => { const rest = linkMembers(project, id); if (rest.length === 1 && !rest[0].track.locked) delete rest[0].clip.link; });
+        return finish(project);
+    }
+
+    // ---- Blade with links (spec 4.2): scope.trackIds or scope.clipIds pick the clips under the frame; with
+    // scope.linked their link partners under the frame are cut too. The left part keeps id, link and fade in; the
+    // right part gets fade out and the outgoing transition. Right parts of one cut group share a new link id (a lone
+    // right part is unlinked), so the cut leaves two groups. ----
+    function blade(project, frame, scope, out) {
+        const wanted = scope.clipIds ? new Set(scope.clipIds) : null, trackIds = scope.trackIds ? new Set(scope.trackIds) : null;
+        const under = clip => clip.start < frame && frame < endOf(clip);
+        const picks = [];
+        project.tracks.forEach(track => track.clips.forEach(clip => {
+            if (under(clip) && (!trackIds || trackIds.has(track.id)) && (!wanted || wanted.has(clip.id))) picks.push({ track, clip });
+        }));
+        if (scope.linked) {
+            const links = new Set(picks.map(({ clip }) => clip.link).filter(Boolean)), seen = new Set(picks.map(({ clip }) => clip.id));
+            project.tracks.forEach(track => track.clips.forEach(clip => {
+                if (under(clip) && clip.link && links.has(clip.link) && !seen.has(clip.id)) { picks.push({ track, clip }); seen.add(clip.id); }
+            }));
+        }
+        const created = [], rights = new Map();
+        let locked = false, transition = false;
+        picks.forEach(({ track, clip }) => {
+            if (track.locked) { locked = true; return; }
+            if (isCutInTransition(track, frame)) { transition = true; return; }
+            const right = piece(project, clip, frame, endOf(clip), T().newId('clip'));
+            Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
+            track.clips.push(right);
+            created.push(right.id);
+            if (clip.link) { if (!rights.has(clip.link)) rights.set(clip.link, []); rights.get(clip.link).push(right); }
+        });
+        rights.forEach(parts => {
+            const link = parts.length > 1 ? T().newId('link') : '';
+            parts.forEach(right => { if (link) right.link = link; else delete right.link; });
+        });
+        if (out) out.created = created;
+        if (!created.length) return transition ? REASON.transition : locked ? REASON.locked : REASON.nothing;
+        return finish(project);
+    }
+
+    // Pastes clipboard data at `at` (overwrite or insert). options.targets ({ video, audio, overlay } → track id)
+    // puts each kind's clips on that track and the following ones of the kind; without it clips return to the
+    // tracks they came from. A group pasted with two or more clips gets one new id; a lone copy is unlinked.
+    // options.out.created lists the new clip ids.
+    function paste(project, board, at, mode, options) {
+        const opts = options || {};
+        if (!board || !board.entries.length) return REASON.nothing;
+        const counts = new Map(), remap = new Map(), placements = [], created = [];
+        board.entries.forEach(({ clip }) => { if (clip.link) counts.set(clip.link, (counts.get(clip.link) || 0) + 1); });
+        for (const entry of board.entries) {
+            if (!assetOf(project, entry.clip)) return REASON.media;
+            const track = pasteTrack(project, board, entry, opts.targets);
+            if (!track) return REASON.kind;
+            const clip = Object.assign(clone(entry.clip), { id: T().newId('clip'), start: at + entry.clip.start });
+            if (entry.clip.link) {
+                if (counts.get(entry.clip.link) > 1) {
+                    if (!remap.has(entry.clip.link)) remap.set(entry.clip.link, T().newId('link'));
+                    clip.link = remap.get(entry.clip.link);
+                } else delete clip.link;
+            }
+            let placement = placements.find(item => item.trackId === track.id);
+            if (!placement) placements.push(placement = { trackId: track.id, clips: [] });
+            placement.clips.push(clip);
+            created.push(clip.id);
+        }
+        const result = mode === 'insert' ? insertClips(project, at, placements) : overwrite(project, placements);
+        if (result === true && opts.out) opts.out.created = created;
+        return result;
+    }
+
+    // Copies attribute groups from `source` (a clip object) to the listed clips. picture skips audio clips. The speed
+    // group skips stills and goes through setSpeed for the clips and their link partners, so it follows the timing
+    // rules (ripple by default).
+    function pasteAttributes(project, source, ids, groups) {
+        const items = editable(project, ids), wanted = groups || [];
+        if (!items.length) return refusal(project, ids);
+        let changed = false;
+        items.forEach(({ track, clip }) => {
+            wanted.forEach(group => {
+                if (group === 'picture' && track.kind === 'audio') return;
+                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (key !== 'speed' && source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
+            });
+            clampFades(clip);
+        });
+        if (wanted.includes('speed')) {
+            const timed = withLinks(project, items.map(({ clip }) => clip.id)).filter(id => !isStill(project, T().clipFor(project, id).clip));
+            if (timed.length) {
+                const result = setSpeed(project, timed, speedOf(source), false);
+                if (result !== true) return result;
+                changed = true;
+            }
+        }
+        return changed ? finish(project) : REASON.nothing;
+    }
+
+    // ---- Speed (spec 4.4). The default keeps the source range and changes the duration to round(duration × old / new)
+    // (at most what the media holds at the new speed), rippling later clips on each track. keepDuration keeps the
+    // duration and changes the source range. Stills have no speed; every clip keeps the source extent rule, its
+    // transitions and the project length. ----
+    function setSpeed(project, ids, speed, keepDuration) {
+        if (!(speed >= 0.25 && speed <= 16)) return REASON.nothing;
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        const plans = [];
+        for (const { track, clip } of items) {
+            if (isStill(project, clip)) {
+                if (speed !== 1) return REASON.media;
+                plans.push({ track, clip, duration: clip.duration });
+                continue;
+            }
+            const fits = Math.floor((Number(assetOf(project, clip).duration_frames) - 1 - clip.offset) / speed + 1e-9) + 1;
+            const duration = keepDuration ? clip.duration : Math.max(1, Math.min(fits, Math.round(clip.duration * speedOf(clip) / speed)));
+            if (!(duration <= fits)) return REASON.media;
+            if (duration < minDuration(track, clip)) return REASON.bounds;
+            plans.push({ track, clip, duration });
+        }
+        plans.forEach(({ track, clip, duration }) => {
+            const delta = duration - clip.duration;
+            if (delta) track.clips.filter(item => item !== clip && item.start > clip.start).forEach(item => { item.start += delta; });
+            clip.duration = duration;
+            if (speed === 1) delete clip.speed; else clip.speed = speed;
+            clampFades(clip);
+        });
+        if (T().projectEnd(project) > Time().maxFrames(project)) return REASON.limit;
+        return finish(project);
+    }
+
+    // ---- Detached audio (spec 4.4). The sound of a video clip moves to an audio clip with the same timing on the first
+    // audio track free for that range, or on a new track while fewer than MAX_TRACKS_PER_KIND exist. Both clips join one
+    // link group. ids = { clip, link, track, trackName } provides the new ids and the name of a new track. ----
+    function detachAudio(project, clipId, ids) {
+        const found = T().clipFor(project, clipId);
+        if (!found || found.track.kind !== 'video') return REASON.nothing;
+        if (found.track.locked) return REASON.locked;
+        const clip = found.clip, asset = assetOf(project, clip);
+        if (!asset || asset.kind !== 'video' || !asset.has_audio) return REASON.media;
+        if (clip.audio_detached) return REASON.nothing;
+        if ((clip.link ? linkMembers(project, clip.link).length : 1) + 1 > MAX_LINK_CLIPS) return REASON.link;
+        const start = clip.start, end = endOf(clip);
+        const audioTracks = project.tracks.filter(track => track.kind === 'audio');
+        let track = audioTracks.find(item => !item.locked && !item.clips.some(other => other.start < end && start < endOf(other)));
+        if (!track) {
+            if (audioTracks.length >= T().MAX_TRACKS_PER_KIND) return REASON.tracks;
+            track = { id: ids.track, kind: 'audio', name: ids.trackName, muted: false, hidden: false, locked: false, clips: [] };
+            project.tracks.push(track);
+        }
+        const link = clip.link || ids.link;
+        const audio = Object.assign(clone(clip), {
+            id: ids.clip, link, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', text: '', text_style: null, transition: null
+        });
+        delete audio.audio_detached;
+        clip.link = link;
+        clip.audio_detached = true;
+        track.clips.push(audio);
+        return finish(project);
+    }
+    // Reattach: removes the audio clip a detached clip owns and clears the flag. A group left with the video clip ends.
+    function reattachAudio(project, clipId) {
+        const found = T().clipFor(project, clipId);
+        if (!found || !found.clip.audio_detached) return REASON.nothing;
+        if (found.track.locked) return REASON.locked;
+        const partnerId = audioPartner(project, clipId);
+        if (!partnerId) return REASON.nothing;
+        const partner = T().clipFor(project, partnerId);
+        if (partner.track.locked) return REASON.locked;
+        partner.track.clips = partner.track.clips.filter(item => item !== partner.clip);
+        delete found.clip.audio_detached;
+        if (linkMembers(project, found.clip.link).length <= 1) delete found.clip.link;
+        return finish(project);
+    }
+
+    // Enable and disable (Shift+E) and colour labels (empty clears the label). Neither changes timing.
+    function setDisabled(project, ids, disabled) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        items.forEach(({ clip }) => { if (disabled) clip.disabled = true; else delete clip.disabled; });
+        return finish(project);
+    }
+    function setLabel(project, ids, label) {
+        if (label && !T().LABEL_COLORS.includes(label)) return REASON.nothing;
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        items.forEach(({ clip }) => { if (label) clip.label = label; else delete clip.label; });
+        return finish(project);
+    }
+
+    // ---- Derived media (spec 4.4). reversed = { assetId, rangeStart, frames }: the reversed asset holds the source
+    // range [rangeStart, rangeStart + frames) backwards. A clip reads it from the mirrored offset
+    // frames - 1 - (offset - rangeStart) - (duration - 1) * speed, so it plays the same source frames in reverse.
+    // Members of the clip's group that use the same asset switch too; a member outside the range refuses. ----
+    function reverseClips(project, clipId, reversed) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return REASON.nothing;
+        if (found.track.locked) return REASON.locked;
+        const target = (project.assets || []).find(asset => asset.id === reversed.assetId);
+        if (!target) return REASON.media;
+        const source = found.clip.asset_id;
+        const members = found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === source) : [found];
+        const plans = [];
+        for (const { track, clip } of members) {
+            if (track.locked) return REASON.locked;
+            if (!T().accepts(track, target) || (clip.audio_detached && !target.has_audio)) return REASON.media;
+            const speed = speedOf(clip), last = clip.offset + (clip.duration - 1) * speed;
+            if (clip.offset < reversed.rangeStart || last > reversed.rangeStart + reversed.frames - 1 + 1e-9) return REASON.media;
+            plans.push({ clip, offset: Math.max(0, Math.floor(reversed.frames - 1 - (clip.offset - reversed.rangeStart) - (clip.duration - 1) * speed + 1e-9)) });
+        }
+        plans.forEach(({ clip, offset }) => { clip.asset_id = reversed.assetId; clip.offset = offset; });
+        if (plans.some(({ clip }) => clip.duration > maxDurationFrom(project, clip, clip.offset))) return REASON.media;
+        return finish(project);
+    }
+    // Freeze frame (spec 4.4): the clip and its link partners are cut at the playhead, then a still of the captured
+    // frame (the clip's geometry) is inserted on the clip's own track. Insert rules move the later clips.
+    // captured = { asset_id, clip_id, duration } (duration in frames).
+    function freezeFrame(project, clipId, frame, captured) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return REASON.nothing;
+        const { track, clip } = found;
+        if (track.locked) return REASON.locked;
+        if (track.kind !== 'video') return REASON.kind;
+        if (!(frame > clip.start && frame < endOf(clip))) return REASON.nothing;
+        if (!(project.assets || []).some(asset => asset.id === captured.asset_id && asset.kind === 'image')) return REASON.media;
+        const cut = blade(project, frame, { clipIds: [clipId], linked: true }, {});
+        if (cut !== true) return cut;
+        const still = {
+            id: captured.clip_id, asset_id: captured.asset_id, start: frame, offset: 0, duration: Math.max(1, Math.round(captured.duration)),
+            x: clip.x, y: clip.y, width: clip.width, height: clip.height, rotation: clip.rotation, opacity: clip.opacity,
+            volume: 1, fade_in: 0, fade_out: 0, fit: clip.fit, text: '', text_style: null, transition: null
+        };
+        return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
+    }
+
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, reattachAudio, setDisabled, setLabel, reverseClips, freezeFrame };
 })();
