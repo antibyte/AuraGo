@@ -10,14 +10,22 @@ Vom NAS bis zum Funkgerät. Jede Integration hat einen Schalter. Die gefährlich
 
 ## Sprungmarken
 
-| Gruppe | Abschnitte |
-|--------|------------|
-| Home Lab | [Docker](#docker-integration), [Proxmox](#proxmox-integration), [TrueNAS](#truenas-integration), [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Tailscale](#tailscale), [Inventar](#inventar-system) |
-| Stimme und Funk | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [SIP](#native-sip-telefonie), [Speech Lab](#speech-lab-integration), [MeshCore](#meshcore-funk), [Bluetooth](#bluetooth-integration), [Realtime Speech](#realtime-speech) |
-| Kameras und Schreibtisch | [go2rtc](#go2rtc-kameraintegration), [Frigate](#frigate-integration), [CYD](#cheap-yellow-display) |
-| Bauen und veröffentlichen | [Homepage](#homepage--und-website-projekte), [Game Maker](#game-maker-studio), [here.now](#herenow-integration), [Virtual Computers](#virtual-computers) |
-| Autopilot | Missionen sind [Kapitel 11](11-missions.md). Hier: [Invasion](#invasion-control), [Heartbeat](#heartbeat-system), [Webhooks](#webhooks) |
-| Wissen offline | [Lokale Wikipedia](#lokale-wikipedia) |
+Neun thematische Gruppen, jede Integration ein eigener Abschnitt:
+
+| Gruppe | Integrationen |
+|--------|---------------|
+| [Messaging & Telefonie](#messaging--telefonie) | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [E-Mail](#e-mail-imapsmtp-konfiguration), [AgentMail](#agentmail-integration), [Rocket.Chat](#rocketchat-integration), [Telnyx](#telnyx-integration), [SIP-Telefonie](#native-sip-telefonie), [Realtime Speech](#realtime-speech), [TTS/Whisper](#tts--whisper), [Whisper](#whisper-integration), [Speech Lab](#speech-lab-integration), [Notifications](#notifications), [Web Push/PWA](#web-push--pwa-benachrichtigungen), [MeshCore](#meshcore-funk) |
+| [Smart Home, IoT & Kameras](#smart-home-iot--kameras) | [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Bluetooth](#bluetooth-integration), [Chromecast](#chromecast-integration), [Frigate](#frigate-integration), [go2rtc](#go2rtc-kameraintegration), [3D-Drucker](#3d-drucker-integration), [CYD](#cheap-yellow-display) |
+| [Infrastruktur, Storage & Netz](#infrastruktur-storage--netz) | [Docker](#docker-integration), [Package Manager](#package-manager-integration), [Proxmox](#proxmox-integration), [Ansible](#ansible-integration), [TrueNAS](#truenas-integration), [MeshCentral](#meshcentral), [Tailscale](#tailscale), [Cloudflare Tunnel](#cloudflare-tunnel), [S3 Storage](#s3-kompatible-cloud-storage), [OneDrive](#onedrive-integration), [WebDAV/Koofr](#webdavkoofr), [SMB/NFS](#lokale-smb--und-nfs-freigaben), [LDAP](#ldap-integration), [Homepage](#homepage-integration), [Grafana](#grafana-integration), [Uptime Kuma](#uptime-kuma-integration), [Netlify](#netlify-integration), [Vercel](#vercel-integration) |
+| [KI-Modelle & Generierung](#ki-modelle--generierung) | [Ollama](#ollama-integration), [HuggingFace](#huggingface-plattform-integration), [AI Gateway](#cloudflare-ai-gateway), [Fallback LLM](#fallback-llm), [LLM Guardian](#llm-guardian), [YepAPI](#yepapi-integration), [Image Generation](#image-generation), [Video Generation](#video-generation), [Music Generation](#music-generation), [MCP](#mcp-model-context-protocol), [Composio](#composio-integration), [A2A](#a2a-protocol), [Manus](#manus-integration), [OmniRoute](#omniroute-integration) |
+| [Web, APIs & Automatisierung](#web-apis--automatisierung) | [Webhooks](#webhooks), [Brave Search](#brave-search), [GitHub](#github-integration), [VirusTotal](#virustotal-integration), [Browser Automation](#browser-automation), [here.now](#herenow-integration), [GolangciLint](#golangcilint-integration), [Website-Projekte](#homepage--und-website-projekte) |
+| [Daten, Dokumente & Wissen](#daten-dokumente--wissen) | [Google Workspace](#google-workspace), [über gog](#google-workspace-über-gog), [SQL Connections](#sql-connections--externe-datenbanken), [Paperless NGX](#paperless-ngx), [Obsidian](#obsidian-integration), [Lokale Wikipedia](#lokale-wikipedia) |
+| [Medien & Unterhaltung](#medien--unterhaltung) | [Jellyfin](#jellyfin-integration), [Media Registry](#media-registry), [Media Conversion](#media-conversion-integration), [Video Download](#video-download-integration), [Send YouTube](#send-youtube-video-integration), [Retro-Net/Radio](#retro-net-und-personal-radio-im-desktop), [Game Maker](#game-maker-studio) |
+| [Fernsteuerung, Sandbox & Virtuelles](#fernsteuerung-sandbox--virtuelles) | [Remote Control](#remote-control), [Sandbox](#sandbox), [Shell Sandbox](#shell-sandbox-integration), [Python Tool Bridge](#python-tool-bridge), [Skill Manager](#skill-manager), [Daemon Skills](#daemon-skills), [Virtual Desktop](#virtual-desktop-integration), [Virtual Computers](#virtual-computers), [System World](#system-world), [Layerling](#layerling-desktop-cad), [RuView](#ruview-wi-fi-sensing), [Space Agent](#space-agent-integration), [EvoMap](#evomap-integration) |
+| [Kern-Features & Meta](#kern-features--meta) | [Budget](#budget-tracking), [Inventar](#inventar-system), [Heartbeat](#heartbeat-system), [KG Extraction](#knowledge-graph-extraction), [Co-Agents](#co-agents), [Mission Prep](#mission-preparation), [Firewall](#firewall), [Invasion Control](#invasion-control), [Egg Mode](#egg-mode-invasion-control), [Document Creator](#document-creator-gotenberg), [Security Proxy](#security-proxy), [Output Compression](#output-compression), [Manifest](#manifest-integration), [Dograh](#dograh-integration) |
+| **Abschluss** | [Integrationen testen](#integrationen-testen), [Fehlerbehebung](#fehlerbehebung), [Nächste Schritte](#nächste-schritte) |
+
+---
 
 ## Integrationen über die Web-UI einrichten
 
@@ -47,19 +55,23 @@ Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. F�
 
 ---
 
-## Telegram Bot Setup
+## Messaging & Telefonie
 
-### Bot erstellen
+Chats, Anrufe, Sprache und Push-Nachrichten: alles, mit dem AuraGo zu dir spricht.
+
+### Telegram Bot Setup
+
+#### Bot erstellen
 1. Öffne Telegram und suche nach **@BotFather**.
 2. Starte mit `/start` und erstelle einen neuen Bot mit `/newbot`.
 3. Gib einen Namen und einen Benutzernamen (muss mit "bot" enden) ein.
 4. **Speichere den Token** (z. B. `123456789:ABC...`).
 
-### User-ID ermitteln
+#### User-ID ermitteln
 1. Suche nach **@userinfobot** und starte ihn.
 2. Notiere deine numerische ID.
 
-### Einrichtung in der Web-UI
+#### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → Telegram**.
 2. Aktiviere die Integration.
 3. Trage die **User-ID** ein.
@@ -67,40 +79,40 @@ Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. F�
 5. Speichern und AuraGo neu starten.
 6. Sende eine Testnachricht an deinen Bot.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 telegram:
   bot_token: "123456789:ABC..."
   telegram_user_id: 12345678
 ```
 
-## Discord Bot Setup
+### Discord Bot Setup
 
-### Discord-Anwendung erstellen
+#### Discord-Anwendung erstellen
 1. Besuche das [Discord Developer Portal](https://discord.com/developers/applications).
 2. Klicke auf **New Application** und gib einen Namen ein (z. B. "AuraGo").
 3. Gehe zu **Bot → Add Bot**.
 
-### Token und Berechtigungen
+#### Token und Berechtigungen
 1. Kopiere den **Bot-Token**.
 2. Aktiviere unter **Privileged Gateway Intents**:
    - **Message Content Intent**
    - **Server Members Intent**
 
-### Bot zum Server einladen
+#### Bot zum Server einladen
 1. Gehe zu **OAuth2 → URL Generator**.
 2. Scopes: `bot`, `applications.commands`
 3. Permissions: `Send Messages`, `Read Messages`
 4. Öffne die generierte URL und wähle deinen Server.
 
-### Einrichtung in der Web-UI
+#### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → Discord**.
 2. Aktiviere die Integration.
 3. Trage **Guild ID** und **Default Channel ID** ein.
 4. Speichere das **Bot-Token** im Vault.
 5. Trage eine **Allowed User ID** ein. Ohne diese ID blockiert AuraGo eingehende Discord-Nachrichten.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 discord:
   enabled: true
@@ -110,11 +122,11 @@ discord:
   default_channel_id: "123456789012345678"
 ```
 
-## E-Mail (IMAP/SMTP) Konfiguration
+### E-Mail (IMAP/SMTP) Konfiguration
 
 Verbinde AuraGo mit einem E-Mail-Konto, um E-Mails zu senden und empfangen.
 
-### Einrichtung in der Web-UI
+#### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → E-Mail**.
 2. Aktiviere die Integration.
 3. Trage IMAP-Host, IMAP-Port, SMTP-Host und SMTP-Port ein.
@@ -122,7 +134,7 @@ Verbinde AuraGo mit einem E-Mail-Konto, um E-Mails zu senden und empfangen.
 5. Speichere das **Passwort** im Vault (nicht in der Config!).
 6. Aktiviere bei Bedarf **Watch Enabled**, um den Posteingang regelmäßig zu prüfen.
 
-### Gmail App-Passwort verwenden
+#### Gmail App-Passwort verwenden
 Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords) erstellen:
 1. Google-Konto → Sicherheit → 2-Schritt-Verification aktivieren.
 2. App-Passwörter → Andere (benutzerdefinierter Name).
@@ -130,7 +142,7 @@ Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords
 
 Wenn `llm_guardian.scan_emails` aktiviert ist, prüft AuraGo E-Mail-Inhalte, bevor `fetch_email`, der Watcher oder das AgentMail-Relay sie weitergeben. Nur eine ausdrückliche Freigabe lässt den Inhalt passieren. Bei verdächtiger, unvollständiger oder zu großer Prüfung sowie bei nicht verfügbarem Scanner bleibt das Original zurück; der bereits autorisierte Zustellweg erhält stattdessen einen festen Quarantänehinweis. Dieser enthält weder Absender, Betreff, Header noch Nachrichtentext oder eine Scanner-Erklärung. Quarantänisierte AgentMail-Nachrichten bleiben ungelesen und unverändert beschriftet; bei fehlgeschlagener Hinweiszustellung bleibt eine Wiederholung möglich. E-Mail- und Dokumentprüfungen durch ein LLM sind optional und standardmäßig deaktiviert.
 
-### Provider-Einstellungen
+#### Provider-Einstellungen
 
 | Provider | IMAP-Host | SMTP-Host |
 |----------|-----------|-----------|
@@ -139,7 +151,7 @@ Wenn `llm_guardian.scan_emails` aktiviert ist, prüft AuraGo E-Mail-Inhalte, bev
 | GMX | `imap.gmx.net` | `mail.gmx.net` |
 | Web.de | `imap.web.de` | `smtp.web.de` |
 
-### YAML-Referenz (Mehrere Konten)
+#### YAML-Referenz (Mehrere Konten)
 Die moderne Konfiguration verwendet eine **Liste** von E-Mail-Konten unter `email_accounts`. Beim Start wird eine eventuell vorhandene `email:`-Sektion automatisch in einen `email_accounts`-Eintrag mit `id: "default"` migriert (siehe `internal/config/config_migrate.go:MigrateEmailAccounts`).
 
 ```yaml
@@ -165,7 +177,7 @@ email_accounts:
     # ...
 ```
 
-### Legacy: Einzel-Konto (`email:`)
+#### Legacy: Einzel-Konto (`email:`)
 ```yaml
 email:                         # deprecated – wird beim Start zu email_accounts migriert
   enabled: true
@@ -174,11 +186,11 @@ email:                         # deprecated – wird beim Start zu email_account
   username: "dein.email@gmail.com"
 ```
 
-## AgentMail Integration
+### AgentMail Integration
 
 API-basierte E-Mail-Postfächer über [AgentMail](https://agentmail.to). Getrennt von der Legacy-IMAP/SMTP-`email`-Integration — bestehende `fetch_email`- und `send_email`-Tools behalten ihr bisheriges Verhalten.
 
-### Einrichtung in der Web-UI
+#### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → AgentMail**.
 2. Aktiviere die Integration.
 3. Trage die **Inbox-ID** ein oder aktiviere **Auto Create Inbox**.
@@ -186,7 +198,7 @@ API-basierte E-Mail-Postfächer über [AgentMail](https://agentmail.to). Getrenn
 5. Speichere den API-Key im Vault (`agentmail_api_key`).
 6. Speichern und AuraGo neu starten.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 agentmail:
   enabled: true
@@ -211,1253 +223,13 @@ Nutze die fokussierten Tools `agentmail_inboxes`, `agentmail_messages`, `agentma
 
 Bei aktivierter E-Mail-Prüfung ersetzt ein Quarantänehinweis den Inhalt einer AgentMail-Nachricht. Der Status eines Tool-Vorgangs bleibt erhalten, aber quarantänisierter Inhalt wird nicht zurückgegeben oder weitergeleitet. Lesestatus und Labels bleiben unverändert. Die Quarantäne erlaubt weder Antworten noch Änderungen an Labels.
 
-## Home Assistant Integration
-
-Steuere Smart-Home-Geräte über AuraGo.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Home Assistant**.
-2. Aktiviere die Integration und trage die URL ein (z. B. `http://homeassistant.local:8123`).
-3. Erstelle in Home Assistant ein **Long-Lived Access Token**:
-   - Home Assistant → Profil (unten links) → Long-Lived Access Tokens → Create Token.
-4. Speichere den Token im AuraGo-Vault.
-
-### Verwendung im Chat
-- "Schalte das Licht im Wohnzimmer an."
-- "Wie ist die Temperatur im Schlafzimmer?"
-
-### YAML-Referenz
-```yaml
-home_assistant:
-  enabled: true
-  url: "http://homeassistant.local:8123"
-  allowed_services:
-    - "light.turn_on"
-    - "light.turn_off"
-  blocked_services:
-    - "lock.unlock"
-```
-
-`allowed_services` ist eine optionale Allowlist für `call_service`; leer erlaubt alle Services, solange sie nicht in `blocked_services` stehen.
-
-## MQTT Integration
-
-Für IoT-Geräte und Smart-Home-Automation.
-
-**Web-UI:** Config → Integrationen → MQTT → Broker-URL, Client-ID und optional Username/Passwort eingeben. Topics zur Subscription hinzufügen.
-
-MQTT-Einstellungen und Passwortänderungen im Vault werden ohne Serverneustart
-übernommen. Der Verbindungstest verwendet den gespeicherten Stand und einen
-eigenen kurzlebigen Client.
-
-### YAML-Referenz
-```yaml
-mqtt:
-  enabled: true
-  broker: "mqtts://mqtt.example.com:8883"
-  topics:
-    - "home/+/sensors"
-```
-
-Sichere URL-Schemata verwenden immer TLS. Der TLS-Schalter zusammen mit einer
-Klartext-URL wird abgelehnt; Schema und Port werden nicht automatisch geändert.
-CA-Dateien müssen gültig sein, Client-Zertifikate benötigen den passenden Schlüssel.
-Passwörter werden einschließlich Leerzeichen gespeichert. Die Reihenfolge ist
-Vault → `MQTT_PASSWORD` → leer; nach Löschen des Vault-Eintrags gilt wieder der
-Umgebungswert. Weitere Details: [MQTT-Betrieb](../../mqtt.md).
-
-Die Weiterleitung an den Agenten, die Frigate-Weiterleitungen und MQTT-ausgelöste
-Missionen starten Agentenläufe nur, wenn sich AuraGo mit Benutzernamen oder
-Client-Zertifikat über TLS am Broker anmeldet (`tls.cert_file` mit einer sicheren
-Broker-URL wie `mqtts://`; über `tcp://` wird das Zertifikat nie gesendet) oder
-`allow_unauthenticated_relay: true` ausdrücklich zulässt, dass jedes Gerät, das an
-den Broker veröffentlichen kann, Agentenläufe startet. Bestehende Setups mit Brokern
-ohne Authentifizierung laufen weiter (das Update schreibt
-`allow_unauthenticated_relay: true`) und erzeugen einen kritischen Sicherheitshinweis.
-Ein Benutzername schützt die Weiterleitung nur, wenn der Broker anonyme Clients
-ablehnt (bei Mosquitto `allow_anonymous false`).
-
-## Docker Integration
-
-Verwalte Docker-Container über AuraGo.
-
-**Web-UI:** Config → Integrationen → Docker → Host-URL eingeben (z. B. `unix:///var/run/docker.sock`).
-
-> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
-
-### Compose-Stacks des Agenten und Hostzugriff
-
-Der Agent kann `docker compose` für Dateien in seinem Workspace ausführen. Vor jedem Compose-Befehl löst AuraGo die Datei mit `docker compose config` auf und prüft das Ergebnis:
-
-- **Bei jedem Compose-Befehl gesperrt:** Stacks, die von AuraGo verwaltete Container, Labels, Images oder Volumes berühren (lokales LLM, ACE-Step, Garage, Homepage, der AuraGo-App-Container). Läuft AuraGo selbst in Docker, lehnt es Befehle, die auf Container wirken (`up`, `create`, `start`, `stop`, `restart`, `down`, `rm`, `kill`, `pause`, `unpause`, `logs`, `top`), außerdem für einen Stack ab, dessen Projektname AuraGos eigenes Compose-Projekt ist. In einer Docker-Installation gehört AuraGos Daten-Volume zu den gesperrten Volumes (`aurago_data`, `<Projekt>_aurago_data` oder das Volume hinter `/app/data`); das Workdir-Volume ist der Workspace des Agenten und bleibt nutzbar. Bestätigt Docker, welches Volume AuraGos eigener Container unter `/app/data` einhängt, ist nur dieses Volume gesperrt. Kann AuraGo seinen eigenen Container nicht erkennen (Docker antwortet nicht, oder AuraGo teilt das Netzwerk eines anderen Containers), gilt jedes Volume namens `aurago_data` oder mit der Endung `_aurago_data` als AuraGos; gib den Volumes anderer Stacks einen anderen Namen.
-- **Bei `up`, `create` und `build` immer gesperrt, auch mit Hostzugriff:** Binds, env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder Watch-Pfade, die in AuraGos Datenverzeichnis, `config.yaml`, die `.env` daneben, `/etc/aurago` oder das Master-Key-Secret zeigen. `config` und `convert` geben env-Dateien eingebettet aus und lehnen deshalb env-Dateien, Secrets und Configs in AuraGos Zustand ebenfalls ab. `up`, `create`, `build`, `pull`, `config` und `convert` lehnen den Wert von AuraGos Master-Key ab, wo immer er in der aufgelösten Datei steht. Docker Compose selbst sieht den Master-Key nie: AuraGo entfernt `AURAGO_MASTER_KEY` aus der Umgebung jedes Docker-Befehls, den es startet.
-- **Braucht `docker.allow_host_access: true` (geprüft bei `up`, `create` und `build`):** Binds außerhalb des Agenten-Workspace (z. B. `/srv/media`) oder solche, die AuraGos eigene Dateien enthalten, sensible Host-Pfade wie `/var/run/docker.sock`, `/etc/localtime` oder `/`, Windows-Named-Pipes, `use_api_socket`, `devices`, `device_cgroup_rules`, `gpus` und reservierte Geräte, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unbeschränkte `security_opt`, lokale Volumes, die ein Host-Verzeichnis einbinden oder ein `/dev`-Gerät bzw. ein Nicht-Netzwerk-Dateisystem mounten (NFS-, CIFS/SMB- und tmpfs-Volumes sind in Ordnung), SSH im Build (`build.ssh`, `build --ssh`), privilegierte Builds, Build-Entitlements, `build.network: host` sowie env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder `develop.watch`-Pfade außerhalb des Workspace. Ein Befehl ohne Service-Namen prüft jeden Service der Standardprofile der Datei. Ein Befehl, der Services nennt (`up -d web`), prüft diese Services, alle, die sie brauchen (depends_on, links, volumes_from, `network_mode: service:`, `service:`-Build-Kontexte), und die Services, die von ihnen abhängen, soweit der Befehl auf sie wirkt (`stop`, `down`, `rm` und `restart` alle, `up` die mit `restart: true` in `depends_on`, `create`, `start`, `build` und `pull` keine), sofern jeder Name existiert und AuraGo jedes Flag des Befehls kennt. AuraGos eigene Dateien, lokale Volumes, Secrets und Configs prüft es immer für die ganze Datei. Ein Workspace unter `/mnt`, `/root` oder `C:\ProgramData` funktioniert wie jeder andere. Das gilt auch für die Binds von `docker create`/`run`.
-- **Braucht Hostzugriff auch bei `down`, `start`, `stop`, `restart`, `rm` und `pull`:** `provider`-Services und privilegierte `post_start`-/`pre_stop`-Hooks, auch die von Profil-Services, die der Befehl nennt, und von den Services, von denen diese abhängen, weil Compose sie auf dem Host bzw. mit Host-Rechten ausführt.
-- **Umgebung:** Ohne Hostzugriff läuft Docker Compose (auch die Prüfung mit `docker compose config` davor) mit einer minimalen Umgebung: `PATH`, `HOME`, die Docker- und Compose-Einstellungen (`DOCKER_HOST`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `COMPOSE_*`, `BUILDKIT_*` …) sowie Proxy-, Temp- und Sprachvariablen. `${VAR}` in einer Compose-Datei liest deshalb nicht mehr AuraGos eigene Umgebung; lege solche Werte in die `.env`-Datei des Stacks. Verweise auf Zertifikate und Credential-Helper (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `GNUPGHOME`, `PASSWORD_STORE_DIR`, `AWS_PROFILE`, `AWS_REGION`, `AWS_CONFIG_FILE`, `AWS_SHARED_CREDENTIALS_FILE`, `CLOUDSDK_CONFIG`) bleiben erhalten, Geheimnisse wie `AWS_SECRET_ACCESS_KEY` oder `DOCKER_AUTH_CONFIG` nicht: Solange der Hostzugriff aus ist, müssen Registry-Zugangsdaten aus der Docker-Konfiguration (`~/.docker/config.json`) oder von einem Credential-Helper kommen, der keine geheimen Umgebungsvariablen braucht. Mit Hostzugriff bekommt Compose wie bisher AuraGos Umgebung, ohne `AURAGO_MASTER_KEY`.
-- **Geänderte Dateien:** Ohne Hostzugriff liest AuraGo die Compose-Datei direkt vor dem Start noch einmal und wiederholt seine Prüfungen mit `docker compose config`. Hat sich die Datei, eine eingebundene Datei oder eine env-Datei seit der Prüfung geändert, läuft nichts (`docker_compose_input_changed`); führe den Befehl erneut aus, sobald sich die Dateien nicht mehr ändern.
-- **Namen verwalteter Sidecars:** Ohne Hostzugriff dürfen `create`/`run` und ein Compose-`container_name` bei `up`/`create` die Namen von AuraGo-verwalteten Sidecars nicht verwenden (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, die `aurago_dograh_*`-Services, `aurago-cloudflared` und die dafür konfigurierten eigenen Namen), weil AuraGo diese Sidecars über ihren Namen findet. Mit Hostzugriff ändert sich nichts. Den Namen des Security-Proxys `aurago-security-proxy` lehnt AuraGo als Compose-`container_name` in jeder Installation ab, wie schon bei `create`/`run`.
-- **`create`/`run` ohne Workspace:** Ist ein Agenten-Workspace konfiguriert, müssen Binds von `create`/`run` darin bleiben. Ohne Workspace und ohne Hostzugriff lehnen `create`/`run` außerdem Binds von AuraGos eigenem Datenverzeichnis, `config.yaml`, der `.env` daneben, `/etc/aurago` und dem Master-Key ab (`docker_protected_path_denied`). Mit Hostzugriff ändert sich nichts.
-- `build --push` ist erlaubt: Es lädt die Images hoch, die der Build selbst erzeugt. `docker compose push` bleibt gesperrt. Die Master-Key-Prüfungen von `build` gelten auch hier.
-- `kill`, `pause`, `unpause`, `ps`, `logs` und die Abfragebefehle prüft AuraGo nie auf Hostzugriff – Stacks, die schon laufen, kannst du also weiter verwalten.
-- Geprüft wird nur, was ein Befehl ausführt: Ein Service eines inaktiven Profils zählt erst, wenn ein Befehl ihn nennt (z. B. `up -d tools` oder `build tools`), zusammen mit den Services, von denen er abhängt; eine optionale Abhängigkeit (`required: false`) zählt nur, wenn ihr Profil aktiv ist, denn nur dann startet Compose sie.
-
-Mit einem Docker Compose älter als v2.35 löst AuraGo einen genannten Service eines inaktiven Profils mit `docker compose config -- <service>` auf. Schlägt das fehl (etwa weil eine env-Datei fehlt), lehnt es `up` und `create` ab; `build` und `pull`, die keine env-Dateien brauchen, laufen mit Hostzugriff ungeprüft (außer die Compose-Datei selbst nennt AuraGos eigene Dateien oder den Master-Key) und werden ohne ihn abgelehnt. Die Pfade von env-Dateien kann es dort nicht auflisten: Ohne Hostzugriff lehnt es `up`/`create` für Dateien mit `env_file`, `include:` oder `extends:` ab. Bekannte Einschränkung: `down`, `start`, `stop`, `restart` und `rm` können bei so einem Compose die Provider und Hooks eines genannten Profil-Service nicht prüfen.
-
-Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter oder Medienserver mit Host-Ordnern brauchen den Hostzugriff. Konfigurationen, die es vor dieser Einstellung schon gab, haben ihn automatisch eingeschaltet (das Update schreibt `allow_host_access: true`); neue Installationen starten mit `false`. Du schaltest ihn unter **Config → Gefahrenzone → Docker-Hostzugriff für Compose-Stacks des Agenten** um. Der Sicherheitscheck warnt, solange er eingeschaltet ist.
-
-> ⚠️ Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
-
-### YAML-Referenz
-```yaml
-docker:
-  enabled: true
-  host: "unix:///var/run/docker.sock"
-  readonly: false
-  allow_host_access: false   # Compose up/create/build des Agenten darf Host-Pfade, Geräte, Privilegien und Host-Namespaces nutzen
-```
-
-## Package Manager Integration
-
-Strukturierte OS-Paketverwaltung über das Tool `package_manager`. Unterstützt apt, dnf, yum, pacman, zypper, apk, brew, winget, choco und scoop.
-
-> ⚠️ **Sicherheit:** Paketverwaltung ermöglicht erheblichen Systemzugriff. Nur aktivieren, wenn nötig, und `readonly` für reine Überwachung bevorzugen.
-
-### Voraussetzungen
-
-Beide Schalter müssen aktiv sein:
-
-1. `package_manager.enabled: true`
-2. `agent.allow_package_manager: true`
-
-Linux-Mutationen erfordern zusätzlich `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, das Vault-Secret `sudo_password` und eine Service-Umgebung ohne `NoNewPrivileges` oder `ProtectSystem=strict`. Der Host braucht außerdem sudo-Timestamp-Caching (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer, weil das Passwort nur einen sudo-Timestamp validiert und die Paketverwaltung mit `sudo -n` läuft. Leseoperationen bleiben verfügbar, wenn systemweite Schreibzugriffe gesperrt sind.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Gefahrenzone** und aktiviere **Paketverwaltung (package_manager)**.
-2. Setze `package_manager.enabled` und Detail-Optionen (`readonly`, `allow_install`, …) in der `config.yaml` (kein eigener Config-Menüpunkt für den `package_manager`-Block).
-3. Speichern und AuraGo neu starten.
-
-### YAML-Referenz
-```yaml
-package_manager:
-  enabled: true
-  readonly: false
-  auto_detect: true
-  override: ""
-  allow_install: true
-  allow_remove: true
-  allow_upgrade: true
-
-agent:
-  allow_package_manager: true
-  sudo_enabled: true
-  sudo_unrestricted: true
-```
-
-`override` erzwingt einen bestimmten Paketmanager (z. B. `apt`, `brew`, `winget`); leer lassen für Auto-Erkennung über PATH.
-
-## Proxmox Integration
-
-VM- und Container-Verwaltung.
-
-**Web-UI:** Config → Integrationen → Proxmox → URL, Node-Name und Token-ID eingeben. Das Token wird im Vault gespeichert.
-
-### YAML-Referenz
-```yaml
-proxmox:
-  enabled: true
-  readonly: false
-  allow_destructive: false
-  url: "https://proxmox.example.com:8006"
-  node: "pve"
-  token_id: "user@pam!tokenname"
-```
-
-## Webhooks
-
-Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
-
-**Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
-
-Eingehende Authentifizierung nutzt `Authorization: Bearer <Token>`; ein Query-Parameter `?token=<Token>` wird mit 401 abgelehnt, weil er in Zugriffslogs, Zwischenservern und im Browserverlauf landen würde. Provider ohne frei konfigurierbare Header können stattdessen einen nur signierten Webhook (Signatur-Header und Secret) nutzen. Nur `signature_algo: sha256` funktioniert ohne Token; ein `sha1`-Webhook muss zusätzlich sein Bearer-Token senden (die Signatur wird weiterhin geprüft), und AuraGo warnt beim Start im Log, dass sha1 veraltet ist. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet als Token-Bucket pro Webhook-Token (bei nur signierten Webhooks pro Webhook und Quell-IP); der Wert pro Minute ist zugleich die Burst-Kapazität. Neue Installationen starten mit 60 Anfragen pro Minute; bestehende Konfigurationen behalten ihren `rate_limit`-Wert (`0` = unbegrenzt), und fehlt der Schlüssel, schreibt ein Update `0`, das bisherige Verhalten. Die Webhooks-Seite zeigt den aktuellen Wert, und der Sicherheitscheck warnt bei aus dem Internet erreichbaren Instanzen vor einem unbegrenzten Limit.
-
-Mit aktiviertem `llm_guardian.scan_documents` wird ein eingehender Webhook abgelehnt, wenn die Sicherheitsprüfung den Inhalt nicht ausdrücklich freigibt, unvollständig ist, das Prüf-Limit überschreitet oder nicht verfügbar ist. Der Payload wird weder an den Chat noch an rohe Missions-Callbacks übergeben. AuraGo sendet einen festen Quarantänehinweis, wenn die konfigurierte Zustellung oder ein berechtigtes lokales Missionsziel den Agenten erreicht hätte. UI-only- und stille Webhooks ohne Missionsziel wecken den Agenten nicht.
-
-URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates werden verschlüsselt im Vault gespeichert und in API sowie Web-UI nur maskiert angezeigt. Sie dürfen nicht in `config.yaml` eingetragen werden.
-
-### YAML-Referenz
-```yaml
-webhooks:
-  enabled: true
-  max_payload_size: 65536
-  rate_limit: 60 # Token-Bucket pro Webhook-Token (nur signiert: pro Webhook und Quell-IP): Auffüllung/Minute und Burst-Kapazität; 0 = unbegrenzt
-```
-
-## Budget Tracking
-
-Überwache die Kosten für LLM-API-Aufrufe.
-
-**Web-UI:** Config → Integrationen → Budget → Tageslimit, Warnschwelle und Durchsetzungsmodus einstellen.
-
-### YAML-Referenz
-```yaml
-budget:
-  enabled: true
-  daily_limit_usd: 1.0
-  enforcement: "warn"
-```
-
-## Google Workspace
-
-Zugriff auf Gmail, Kalender, Drive, Docs und Sheets.
-
-**Web-UI:** Config → Integrationen → Google Workspace → Gewünschte Dienste aktivieren und OAuth2-Client-ID eintragen. Die Authentifizierung läuft über die Web-UI, das Token wird im Vault gespeichert.
-
-### YAML-Referenz
-```yaml
-google_workspace:
-  enabled: true
-  client_id: ""
-```
-
-## Google Workspace über gog
-
-Neben der nativen Google-Workspace-Integration kann AuraGo den verwalteten **gog**-Helfer nutzen. Konten, Zugangsdaten und Berechtigungen beider Wege sind unabhängig; es wird keine Mail-App installiert — Gmail läuft über den Agenten.
-
-**Web-UI:** **Config → Google Workspace über gog** — Helfer ausdrücklich installieren (geprüftes Paket mit SHA-256-Manifest), Integration aktivieren, Konto hinzufügen, Dienste mit Read/Create/Update/Delete-Grants wählen, dann OAuth-Login starten. Docs-, Sheets- und Slides-Tests brauchen die ID eines existierenden Testobjekts. Das bloße Öffnen der Config kontaktiert Google nie.
-
-**Wichtig:**
-- Die Integration startet deaktiviert und read-only; Schreibzugriff erfordert eine explizite Konfigurationsänderung. Gmail-Senden hat einen eigenen Grant.
-- OAuth braucht weiterhin ein Google-Cloud-Projekt, aktivierte APIs und Nutzereinwilligung. Secrets liegen nur in den Vault-Keys `oauth_gog_client_<id>` und `oauth_gog_<id>` (Export-Deny).
-- Prozesse erhalten ein kurzlebiges Access-Token, ein isoliertes `GOG_HOME` und eine minimale Umgebung.
-- Die Agent-Tools (`gog_accounts` plus `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts`, `gog_tasks`) kennen 68 festgelegte Operationen — keine beliebige CLI, keine Flags, keine freien URLs. Details: Kapitel 22 und der [gog-Deep-Dive](../../gog.md).
-
-### YAML-Referenz
-```yaml
-gog:
-  enabled: false
-  # Konten, Grants und Agent-/Desktop-Zugriff werden in der Config-UI verwaltet
-```
-
-## WebDAV/Koofr
-
-### WebDAV
-**Web-UI:** Config → Integrationen → WebDAV → URL und Username eingeben. Passwort im Vault speichern.
-
-### Koofr
-**Web-UI:** Config → Integrationen → Koofr → Username und App-Passwort eingeben.
-
-### YAML-Referenz
-```yaml
-webdav:
-  enabled: true
-  readonly: false
-  auth_type: basic
-  url: "https://cloud.example.com/remote.php/dav/files/username/"
-  username: "user@example.com"
-
-koofr:
-  enabled: true
-  readonly: false
-  username: "user@example.com"
-```
-
-> Passwörter und Tokens werden im Vault gespeichert, nicht als `password` oder `token` in der `config.yaml`.
-
-## Tailscale
-
-VPN-Status und -Verwaltung.
-
-**Web-UI:** Config → Integrationen → Tailscale → Tailnet-Name eingeben. Für den eingebetteten tsnet-Node können Hostname, Ports und Funnel separat aktiviert werden.
-
-### YAML-Referenz
-```yaml
-tailscale:
-  enabled: true
-  tailnet: "tailnet.ts.net"
-  tsnet:
-    enabled: true
-    hostname: "aurago"
-    serve_http: true
-```
-
-### Eingebettete tsnet-Knoten
-
-Die eingebettete Verbindung verwaltet drei getrennte Tailscale-Identitäten:
-den AuraGo-Hauptknoten und – sofern aktiviert – eigene Manifest- und
-Space-Agent-Knoten. Speichere ihre Auth-Keys im Vault unter
-`tailscale_tsnet_authkey_main`, `tailscale_tsnet_authkey_manifest` und
-`tailscale_tsnet_authkey_space_agent`. Der bisherige
-`tailscale_tsnet_authkey` und `TS_AUTHKEY` bleiben gemeinsame Fallbacks. Ein
-One-off-Key kann jedoch nicht mehrere Knoten registrieren.
-
-Das Speichern eines Schlüssels unterbricht eine gesunde Verbindung nicht.
-Wende ihn gezielt mit **Neu authentifizieren** am jeweiligen Knoten an.
-Normale Neustarts behalten einen gesunden Zustand bei. **Zustand
-wiederherstellen** erscheint nur nach einem Initialisierungsfehler und
-verlangt eine ausdrückliche Bestätigung, weil dadurch eine neue
-Tailscale-Identität und MagicDNS-Adresse entstehen können. AuraGo sichert den
-bisherigen Zustand atomar und stellt ihn bei fehlgeschlagener Prüfung wieder
-her. Lösche `data/tsnet` niemals zur Behebung eines Authentifizierungsfehlers.
-
-`GET /api/ready?require=tsnet` prüft den Hauptknoten und seine konfigurierte
-Webfreigabe. Fehler der optionalen Manifest-, Space-Agent- und
-Homepage-Freigaben werden als eingeschränkt gemeldet, blockieren aber nicht
-die funktionierende Haupt-UI. Der Updater erhält den konfigurierten
-tsnet-Zustand und prüft einen zuvor gesunden Knoten nach dem Neustart erneut.
-
-## Brave Search
-
-Erweiterte Websuche über Brave Search API.
-
-**Web-UI:** Config → Integrationen → Brave Search → API-Key eingeben (wird im Vault gespeichert).
-
-### YAML-Referenz
-```yaml
-brave_search:
-  enabled: true
-  api_key: "BS..."
-```
-
-## GitHub Integration
-
-GitHub-Repositories, Issues, Pull Requests, Branches, Dateien, Commits und Workflow-Runs über das native Tool `github` verwalten. Eingehende GitHub-Webhooks werden separat konfiguriert.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → GitHub**.
-2. Aktiviere die Integration und trage den Standard-**owner** (Benutzername oder Organisation) ein.
-3. Für GitHub Enterprise: **base_url** setzen (z. B. `https://github.example.com/api/v3`).
-4. Personal Access Token im Vault speichern (`github_token`).
-5. Optional **read-only** aktivieren, um Schreiboperationen zu blockieren.
-6. Erlaubte Repositories auswählen. Neue Auswahlen werden als `owner/repo` gespeichert; alte reine Repo-Namen gelten nur für den konfigurierten Owner.
-7. Für eingehende Webhooks: **Config → Integrationen → Webhooks**.
-8. Speichern und neu starten.
-
-### YAML-Referenz
-```yaml
-github:
-  enabled: false
-  readonly: false
-  owner: ""
-  default_private: false
-  base_url: ""                  # GitHub Enterprise API-Basis-URL (optional)
-  allowed_repos: []             # bevorzugt owner/repo; leer = nur von AuraGo erstellte Repos
-```
-
-`allowed_repos` ist eine strikte Freigabeliste. Eine leere Liste bedeutet nicht "alle Repos"; sie erlaubt nur Repositories, die AuraGo über `create_repo` erstellt und mit `agent_created=true` getrackt hat. Manuelle `track_project`-Einträge sind nur lokale Inventur und geben keinen Remote-Zugriff frei.
-
-### Agent-Tool: `github`
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| `list_repos`, `search_repos` | Repositories auflisten oder suchen |
-| `create_repo`, `delete_repo`, `get_repo` | Repository-Lifecycle |
-| `list_issues`, `create_issue`, `close_issue` | Issue-Verwaltung |
-| `list_pull_requests`, `list_branches` | PR- und Branch-Listen |
-| `get_file`, `create_or_update_file`, `list_commits` | Datei- und Commit-Zugriff |
-| `list_workflow_runs` | CI/CD-Workflow-Runs |
-| `list_projects`, `track_project`, `untrack_project` | Lokales Projekt-Tracking |
-
-> 💡 **Vault:** Token als `github_token` speichern. API-Tokens nie in `config.yaml` ablegen.
-
-### Webhooks (separat)
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Webhooks**.
-2. Aktiviere Webhooks und konfiguriere Limits.
-3. Speichern.
-
-### YAML-Referenz
-```yaml
-webhooks:
-  enabled: true
-```
-
-## Ollama Integration
-
-Lokale LLM-Verwaltung.
-
-**Web-UI:** Config → Integrationen → Ollama → URL eingeben (z. B. `http://localhost:11434`). Optional: Verwaltung eines lokalen Docker-Containers aktivieren.
-
-### Managed Ollama
-
-Wenn Managed Mode aktiviert ist, verwaltet AuraGo einen Docker-Container `aurago_ollama_managed`. AuraGo kann Modell-Daten in einem persistenten Volume halten, verfügbare GPU-Unterstützung erkennen (NVIDIA, AMD, Intel soweit Docker-seitig verfügbar), Speicherlimits setzen, Standardmodelle automatisch ziehen und den Container über Web-UI oder API neu erstellen.
-
-Prüfe den Status mit `GET /api/ollama/managed/status`; erstelle den Container nach Konfigurationsänderungen mit `POST /api/ollama/managed/recreate` neu.
-
-### YAML-Referenz
-```yaml
-ollama:
-  enabled: true
-  readonly: false
-  url: "http://localhost:11434"
-  managed_instance:
-    enabled: true
-    container_port: 11434
-    use_host_gpu: false
-    gpu_backend: "auto"
-    default_models: ["llama3.1"]
-    memory_limit: ""
-    volume_path: ""
-```
-
-## HuggingFace Plattform Integration
-
-Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht Suche, Download und Verwaltung von KI-Ressourcen direkt aus AuraGo.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → HuggingFace** (falls verfügbar).
-2. Aktiviere die Integration.
-3. Konfiguriere Berechtigungen (Read-Only, Schreibzugriff, Job-Zugriff, geplante Jobs und optionale Job-Token-Injektion).
-4. Optional: Definiere erlaubte Namespaces und Repositorys für zusätzliche Sicherheit.
-5. Speichere und starte neu.
-
-### Fähigkeiten
-
-| Kategorie | Beschreibung | Voraussetzungen |
-|-----------|--------------|----------------|
-| **Modelle** | Suche und Abruf von Modellen aus dem Hub | `enabled: true` |
-| **Datasets** | Durchsuchen und Herunterladen von Datasets | `enabled: true` |
-| **Papers** | Zugriff auf wissenschaftliche Paper und tägliche Updates | `enabled: true` |
-| **Jobs** | Jobs im Read-Only-Modus prüfen oder bei erlaubten Mutationen ausführen | `allow_jobs: true` und Vault-Token |
-| **Repositories** | Erstellen und Verwalten von Hub-Repositories | `allow_writes: true` |
-| **Spaces** | Zugriff auf HuggingFace Spaces | `enabled: true` |
-
-### YAML-Referenz
-```yaml
-huggingface:
-  enabled: false                 # Integration aktivieren
-  read_only: true                # Standard: Nur Lesen erlaubt; download_file bleibt erlaubt
-  allow_writes: false            # Repository-Erstellung und Uploads
-  allow_delete: false            # Löschen von Ressourcen
-  allow_jobs: false              # Job-Ausführung
-  allow_scheduled_jobs: false    # Geplante Jobs
-  allow_job_token_injection: false # Explizite HF_TOKEN-Injektion in nicht vertrauenswürdigen Job-Code
-  allowed_namespaces: []         # Explizite Namespaces
-  allowed_repos: []             # Explizite Repositorys
-  allowed_hardware: [cpu-basic]  # Erlaubte Hardware-Typen
-  max_download_mb: 512           # Max. Download-Größe in MB; Werte über 2048 werden gekappt
-  max_upload_mb: 10              # Nur kleine JSON-Uploads; kein LFS/Xet-Support
-  max_dataset_rows: 100          # Max. Dataset-Zeilen
-  job_default_timeout_minutes: 30
-  job_max_runtime_minutes: 120
-  request_timeout_seconds: 60
-  max_result_bytes: 524288
-  hub_base_url: "https://huggingface.co"
-  dataset_base_url: "https://datasets-server.huggingface.co"
-  jobs_base_url: "https://huggingface.co/api/jobs"
-  job_namespace: ""              # Optional; leer wird per whoami ermittelt
-```
-
-### Agent-Tool: `huggingface`
-
-| Operation | Beschreibung | Beispiel |
-|-----------|--------------|----------|
-| `search_models` | Suche nach Modellen | `{"action": "huggingface", "operation": "search_models", "query": "llama"}` |
-| `get_model` | Details zu einem Modell | `{"action": "huggingface", "operation": "get_model", "repo_id": "user/model"}` |
-| `search_datasets` | Suche nach Datasets | `{"action": "huggingface", "operation": "search_datasets", "query": "datasets"}` |
-| `get_dataset` | Dataset-Details | `{"action": "huggingface", "operation": "get_dataset", "repo_id": "user/dataset"}` |
-| `dataset_rows` | Dataset-Inhalte abrufen | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
-| `search_papers` | Suche nach Papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
-| `daily_papers` | Tägliche Paper-Updates | `{"action": "huggingface", "operation": "daily_papers"}` |
-| `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "paper_id": "paper_id"}` |
-| `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
-| `job_run_python` | Python-Skript ausführen | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
-
-> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge und lassen benannte Lesezugriffe öffentlich. Ein benannter Lesezugriff sendet das Vault-Token nur, wenn mindestens eine Allowlist gesetzt ist und die kanonische ID die Prüfung besteht. Sind beide Allowlists gesetzt, muss das Repository in `allowed_repos` stehen und sein Namespace in `allowed_namespaces`. Eine einzelne Liste prüft nur sich selbst. Suche, Papers und Daily Papers senden das Token nie. `download_file` bleibt im Read-Only-Modus erlaubt. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
-
-## MeshCentral
-
-Geräteverwaltung über den MeshCentral-Control-WebSocket. Interaktive Shell und Desktop-Relay bleiben aus.
-
-AuraGo unterstützt die Kernfunktionen für Homelab-Automation: Serverinfos, Gerätegruppen, Gerätelisten, Gerätedetails, Ereignisse, Wake-on-LAN, unterstützte Stromaktionen (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`) und MeshAgent-`run_command`.
-
-Wake und Strom brauchen `allow_power_actions: true`. `readonly: true` blockiert sie trotzdem. `run_command` braucht zusätzlich `agent.allow_remote_shell` und läuft als MeshAgent-Dienstkonto (unter Windows SYSTEM, unter Linux root). Befehle über 4096 Byte werden abgelehnt. Antworten über 64 KiB kommen mit `truncated: true` zurück.
-
-Wake und Strom warten 5 Sekunden auf eine passende Antwort. Der Status `unconfirmed` heißt: gesendet, aber nicht bestätigt. Das Gerät kann die Anfrage schon haben. Wiederhole sie nicht blind. Ein Befehls-Timeout trägt dieselbe Warnung, weil der Befehl noch laufen kann.
-
-Im Vault hält `meshcentral_password` das Passwort oder das Token-Geheimnis. `meshcentral_token` hält nur den Token-Namen. Ein Token-Name ohne dieses Geheimnis verbindet sich nicht.
-
-`ca_file` ist eine PEM-Datei für eine eigene CA und gilt nur, wenn `insecure` aus ist. `insecure: true` überspringt die Zertifikatsprüfung und ignoriert `ca_file`. Unverschlüsseltes `http://` bleibt erlaubt und schreibt eine Warnung.
-
-Fehlt `allow_power_actions` in einer schon aktiven, beschreibbaren Konfiguration, bleiben Wake und Strom an und es gibt einmal eine Warnung. Ein geschriebenes `false` schaltet sie ab. Die Vorlage setzt `readonly: true` und `allow_power_actions: false`.
-
-Die Integration bildet bewusst nicht die gesamte MeshCtrl-Oberfläche ab. Benutzer-/Gruppenverwaltung, Datei-Upload/-Download, interaktive Shell, Desktop-Relay, WebRelay, Invite-Links, Device Sharing, Reports und weitere Relay-Funktionen brauchen zusätzliche Command- oder `meshrelay.ashx`-Unterstützung.
-
-**Web-UI:** Config → Integrationen → MeshCentral. URL, Benutzername und entweder Passwort oder Login-Token plus Geheimnis eintragen. Nur-Lesen und Stromaktionen stellst du getrennt ein. Der Verbindungstest ist nur für Administratoren.
-
-### YAML-Referenz
-```yaml
-meshcentral:
-  enabled: false
-  readonly: true
-  allow_power_actions: false
-  blocked_operations: []
-  url: "https://mesh.example.com"
-  username: ""
-  insecure: false
-  ca_file: ""
-```
-
-## Ansible Integration
-
-Playbook-Ausführung.
-
-**Web-UI:** Config → Integrationen → Ansible → Modus (sidecar/remote), URL, Timeout und Verzeichnisse konfigurieren.
-
-### YAML-Referenz
-```yaml
-ansible:
-  enabled: true
-  mode: sidecar
-  url: "http://localhost:5000"
-```
-
-## TrueNAS Integration
-
-Verwalte ZFS-Storage-Pools, Datasets, Snapshots und Shares.
-
-**Web-UI:** Config → Integrationen → TrueNAS → Host, Port und HTTPS aktivieren. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-truenas:
-  enabled: true
-  readonly: false
-  host: "truenas.local"
-  port: 443
-  use_https: true
-  insecure_ssl: false
-  allow_destructive: false
-```
-
-## FritzBox Integration
-
-Steuere AVM Fritz!Box-Router über TR-064.
-
-**Web-UI:** Config → Integrationen → FritzBox → Host, Username und gewünschte Module (System, Netzwerk, Smart-Home, etc.) aktivieren. Passwort im Vault speichern.
-
-### YAML-Referenz
-```yaml
-fritzbox:
-  enabled: true
-  host: "fritz.box"
-  username: "admin"
-```
-
-Mit `https: true` wird der Standard-TR-064-Port 49000 automatisch auf AVMs TLS-Port 49443 umgestellt (für das selbstsignierte Zertifikat der Box `insecure_skip_verify: true` setzen). Die Sicherheitsprüfung warnt mit `fritzbox_plaintext_sessions`, solange eine aktivierte Funktionsgruppe mit `readonly: false` über unverschlüsseltes HTTP läuft. Session-IDs gehen auch beim Lesen im Klartext über das LAN, und AuraGos `readonly`-Schalter begrenzen nur AuraGo, nicht eine mitgeschnittene Session, die die Rechte des Fritz!Box-Kontos trägt. Aktiviere deshalb zuerst `https` und melde dich mit einem Fritz!Box-Benutzer an, der nur die Rechte hat, die AuraGo braucht.
-
-### Widget im Virtuellen Desktop
-Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Pfeiltasten, horizontale Trackpad-Geste oder Wischen auf Touch-Geräten; mit der Maus verschiebst du wie gewohnt das Widget):
-
-- **Verbindung** – Online-Status, aktueller Download/Upload mit Live-Sparklines, Auslastungsanzeigen der Leitung, öffentliche IPv4/IPv6 (Kopier-Button), Zugangsart, FRITZ!OS und Laufzeit.
-- **Traffic** – geglättetes Flächendiagramm der letzten Minuten (startet mit dem Online-Monitor der Box und wächst lokal weiter, solange das Widget offen ist), Gesamtwerte und Spitzen. Der Verlauf bleibt nur in deiner Browser-Sitzung.
-- **Geräte** – Ring aktiv/bekannt, LAN-/WLAN-Verteilung, Funkmodule mit Kanal und Gast-Markierung sowie die aktiven Geräte.
-- **Telefonie** – heute verpasste Anrufe, neue Anrufbeantworter-Nachrichten und die letzten Anrufe.
-
-Das Widget zeigt nur Bereiche, deren Funktionsgruppen in der Fritz!Box-Konfiguration freigegeben sind (System, Netzwerk mit Hosts/WLAN, Telefonie mit Anruflisten/AB). Es gibt niemals MAC-Adressen, Anrufbeantworter-Dateien, Portfreigaben oder das Router-Passwort preis und schaltet nichts.
-
-## AdGuard Home Integration
-
-DNS-Filterung und -Blockierung verwalten.
-
-**Web-UI:** Config → Integrationen → AdGuard → URL und Username eingeben. Passwort im Vault speichern.
-
-### YAML-Referenz
-```yaml
-adguard:
-  enabled: true
-  url: "http://adguard.local:3000"
-```
-
-## Notifications
-
-Push-Benachrichtigungen über ntfy oder Pushover.
-
-**Web-UI:** Config → Integrationen → Notifications → ntfy-URL/Topic oder Pushover-Credentials eingeben.
-
-### YAML-Referenz
-```yaml
-notifications:
-  ntfy:
-    enabled: true
-    topic: "aurago-alerts"
-```
-
-## Web Push / PWA-Benachrichtigungen
-
-AuraGo unterstützt zusätzlich Browser-Web-Push für die installierbare PWA. Das ist unabhängig von ntfy und Pushover: Browser abonnieren Push über VAPID-Schlüssel, Subscriptions werden in `data/push.db` gespeichert und AuraGo kann lokale Browser-Benachrichtigungen senden.
-
-### API-Endpunkte
-
-| Endpunkt | Zweck |
-|----------|-------|
-| `GET /api/push/vapid-pubkey` | Öffentlichen VAPID-Schlüssel abrufen |
-| `POST /api/push/subscribe` | Browser-Push-Subscription registrieren |
-| `POST /api/push/unsubscribe` | Aktuelle Subscription entfernen |
-| `GET /api/push/status` | Push-Verfügbarkeit und Subscription-Status prüfen |
-
-Web Push benötigt HTTPS oder `localhost`, da Browser Service-Worker-Push auf unsicheren Origins blockieren.
-
-## Telnyx Integration
-
-SMS senden/empfangen und Sprachanrufe über Telnyx.
-
-**Web-UI:** Config → Integrationen → Telnyx → Telefonnummer, Messaging Profile ID, Connection ID und den öffentlichen Kontoschlüssel aus Telnyx Mission Control eingeben. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-telnyx:
-  enabled: true
-  webhook_public_key: "BASE64_ED25519_KONTOSCHLUESSEL"
-  phone_number: "+491234567890"
-  allowed_numbers:
-    - "+491234567890"
-```
-
-`allowed_numbers` ist eine explizite E.164-Allowlist für eingehende Anrufe/SMS und ausgehende Benachrichtigungen. Leer bedeutet: Telnyx-Verkehr bleibt blockiert, bis Nummern konfiguriert sind.
-Der öffentliche Webhook-Schlüssel prüft eingehende Signaturen. Der API-Key dient ausgehenden API-Aufrufen und authentifiziert keine Webhooks.
-
-## VirusTotal Integration
-
-Dateien und URLs auf Malware prüfen.
-
-**Web-UI:** Config → Integrationen → VirusTotal → API-Key eingeben.
-
-### YAML-Referenz
-```yaml
-virustotal:
-  enabled: true
-```
-
-## MCP (Model Context Protocol)
-
-Verbinde externe MCP-Server (Client) oder stelle AuraGo selbst als MCP-Server bereit.
-
-**Web-UI:** Config → Integrationen → MCP → Client/Server konfigurieren.
-
-### MCP-Client
-Erlaubt dem Agenten, Tools von externen MCP-Servern zu nutzen.
-
-```yaml
-mcp:
-  enabled: true
-  servers:
-    - name: "fetch-server"
-      transport: stdio
-      command: "uvx"
-      args: ["mcp-server-fetch"]
-      allowed_tools: []  # optionale Allowlist; leer bedeutet alle entdeckten nicht-destruktiven Tools
-      allow_destructive: false
-
-    - name: "remote-tools"
-      transport: streamable_http # stdio | streamable_http | sse | websocket
-      url: "https://example.com/mcp"
-      headers:
-        Authorization: "Bearer {{remote-mcp-token}}"
-      allowed_tools: []
-      allow_destructive: false
-```
-
-Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte können MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prüft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
-
-AuraGo handelt standardmäßig MCP `2025-11-25` aus und akzeptiert `2024-11-05` weiterhin zur Kompatibilität. Verwende `streamable_http` für den aktuellen Streamable-HTTP-Transport. `sse` ist nur für einen älteren HTTP+SSE-Endpunkt vorgesehen.
-
-Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglassen erlaubt alle entdeckten nicht-destruktiven Tools; trage Toolnamen nur ein, wenn Ausführung und Routing auf diese Teilmenge begrenzt werden sollen.
-
-### MCP-Server
-Stellt AuraGo-Tools für externe Clients bereit.
-
-**Web-UI:** **Config → Externe KI → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
-
-Der Endpunkt `/mcp` handelt MCP `2025-11-25` aus und bleibt zu `2024-11-05` kompatibel. Native Clients dürfen `Origin` weglassen; Browser-Anfragen müssen zum effektiven AuraGo-Host passen.
-
-### YAML-Referenz
-```yaml
-mcp_server:
-  enabled: true
-  require_auth: true
-  allowed_tools:
-    - "execute_shell"
-    - "filesystem"
-  vscode_debug_bridge: false
-```
-
-> Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
-
-`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
-
-**Kompatibilitätsänderung:** Bestehende IDE-Konfigurationen mit leerer Liste benötigen nach dem Update eine bewusste Tool-Auswahl. Eine automatische Migration zum Preset findet nicht statt. MCP-Client-Freigabelisten behalten ihre getrennte Bedeutung.
-
-## Composio Integration
-
-Verbinde AuraGo mit [Composio](https://composio.dev)-Toolkits (GitHub, Slack, Gmail und Hunderte weitere) über das native Tool `composio_call`.
-
-### Einrichtung in der Web-UI
-1. Registriere dich bei [Composio](https://composio.dev) und erstelle einen API-Key.
-2. Öffne **Config → Integrationen → Composio**.
-3. Aktiviere die Integration.
-4. Setze die **User ID** und konfiguriere Toolkit-Richtlinien.
-5. Speichere den API-Key im Vault (`composio_api_key`).
-6. Verbinde Konten im Composio-Dashboard für die konfigurierten Toolkits.
-7. Speichern und AuraGo neu starten.
-
-### YAML-Referenz
-```yaml
-composio:
-  enabled: true
-  base_url: https://backend.composio.dev/api/v3.1
-  user_id: aurago-default
-  readonly: true
-  allow_destructive: false
-  allow_natural_language_input: false
-  request_timeout_seconds: 60
-  cache_ttl_seconds: 300
-  max_result_bytes: 262144
-  toolkits: []
-  # - slug: github
-  #   enabled: true
-  #   readonly: true
-  #   allow_destructive: false
-  #   allowed_tool_slugs: []
-  #   blocked_tool_slugs: []
-```
-
-> 🔒 Der API-Key wird im Vault als `composio_api_key` gespeichert, nicht in der `config.yaml`.
-
-Standardmäßig blockiert `readonly: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
-
-### Tool Preview Funktion
-
-Der `capabilities`-Aufruf mit einem `toolkit_slug`-Parameter liefert nicht nur den Verbindungsstatus, sondern auch eine **`tool_preview`** mit konkreten Composio-Tool-Slugs. Diese Slugs können direkt mit `get_tool` oder `execute_tool` verwendet werden, ohne eine separate Suche durchführen zu müssen.
-
-```json
-{
-  "action": "composio_call",
-  "operation": "capabilities",
-  "toolkit_slug": "github"
-}
-```
-
-Dies ermöglicht schnellere und präzisere Tool-Auswahl, besonders für häufig verwendete Integrationen wie GitHub, Gmail, Slack, Notion oder Google Calendar.
-
-## SQL Connections – Externe Datenbanken
-
-Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → SQL Connections**.
-2. Aktiviere die Integration.
-3. Lege Verbindungen an: Name, Datenbank-Typ, Host, Port, Datenbank, Benutzer. Neue PostgreSQL-/MySQL-Verbindungen brauchen einen ausdrücklichen **SSL-Modus** (`ssl_mode`; das Formular wählt **Erforderlich** vor); **Deaktiviert** ist nur für lokale Container gedacht. Bereits gespeicherte Verbindungen behalten ihren Modus. Bei MySQL prüft auch **Erforderlich** (wie die Prüfmodi) das Serverzertifikat gegen den Zertifikatsspeicher des AuraGo-Hosts; ein selbstsignierter MySQL-Server braucht deshalb seine CA in diesem Speicher oder einen anderen Modus.
-4. Speichere Passwörter im Vault.
-5. Passe bei Bedarf `max_result_rows` und Timeouts an.
-
-> 💡 **Sicherheit:** Verwende nach Möglichkeit dedizierte Read-Only-Benutzer.
-
-### YAML-Referenz
-```yaml
-sql_connections:
-  enabled: true
-  max_result_rows: 1000
-  connections:
-    - name: "produktion"
-      driver: "postgres"
-      host: "db.example.com"
-      port: 5432
-      database: "aurago"
-      username: "aurago_readonly"
-      password_vault_key: "sql_prod_password"
-      readonly: true
-      max_pool_size: 5
-      connect_timeout: 10
-      query_timeout: 30
-```
-
-## S3-kompatible Cloud Storage
-
-Zugriff auf S3, MinIO, Wasabi und andere S3-kompatible Speicher.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → S3**.
-2. Aktiviere die Integration.
-3. Trage Endpoint, Region und optional Standard-Bucket ein.
-4. Aktiviere **Path Style** für MinIO.
-5. Speichere Access Key und Secret Key im Vault.
-
-### YAML-Referenz
-```yaml
-s3:
-  enabled: true
-  endpoint: "https://s3.amazonaws.com"
-  region: "us-east-1"
-```
-
-## OneDrive Integration
-
-Zugriff auf Microsoft OneDrive über Microsoft Graph API.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → OneDrive**.
-2. Aktiviere die Integration.
-3. Trage **Client ID** und **Tenant ID** ein.
-4. Starte die OAuth2-Authentifizierung über die Web-UI.
-5. Speichere und starte neu.
-
-### YAML-Referenz
-```yaml
-onedrive:
-  enabled: true
-  client_id: "YOUR_CLIENT_ID"
-  tenant_id: "common"
-  client_secret_vault_key: "onedrive_client_secret"
-  graph_scopes:
-    - "Files.Read"
-    - "Files.ReadWrite"
-  upload_folder: "AuraGo"
-```
-
-## Homepage Integration
-
-Erstelle und deploye persönliche Startseiten/Dashboards.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Homepage**.
-2. Aktiviere die Integration.
-3. Konfiguriere Deployment-Host, Benutzer und Zielpfad.
-4. Optional: Aktiviere lokalen Webserver (`allow_local_server`).
-5. Speichere und starte neu.
-
-### YAML-Referenz
-```yaml
-homepage:
-  enabled: true
-  deploy_host: "server.example.com"
-  deploy_user: "deploy"
-  deploy_path: "/var/www/homepage"
-  webserver_config_path: "/etc/nginx/sites-available/homepage"
-  allow_deploy: true
-  allow_local_server: false
-```
-
-## Cloudflare Tunnel
-
-Sicherer Tunnel für Remote-Zugriff ohne öffentliche IP oder Port-Forwarding.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Cloudflare Tunnel**.
-2. Wähle den Modus (`auto`, `docker`, `native`) und die Auth-Methode (`token`, `named`, `quick`).
-3. Trage **Account ID** und optional **Tunnel Name** ein.
-4. Speichere den **Connector Token** im Vault.
-
-### Connector Token erhalten
-1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels.
-2. "Create a tunnel" → Cloudflared → Name vergeben.
-3. Kopiere den Token und speichere ihn im Vault unter `cloudflared_token`.
-
-### YAML-Referenz
-```yaml
-cloudflare_tunnel:
-  enabled: true
-  mode: auto
-  auth_method: token
-```
-
-Token-Tunnel verwenden den im Cloudflare-Dashboard verwalteten Connector-Token und starten `cloudflared tunnel run`; im Token-Modus hängt AuraGo keine lokale `--url` an. Quick-Tunnel nutzen weiterhin eine lokale Origin-URL und respektieren einen expliziten Quick-Tunnel-Port, bevor sie auf Loopback, HTTPS, Homepage oder Web-UI-Ports aus der Laufzeitkonfiguration zurückfallen.
-
-## Cloudflare AI Gateway
-
-Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass Statusprüfungen Tokens verbrauchen.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → AI Gateway**.
-2. Aktiviere die Integration und trage **Account ID** sowie **Gateway ID** ein.
-3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
-4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
-5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
-6. Speichere und nutze danach **Gateway testen**. Workers AI verwendet Cloudflares lokalen Models-Search-Endpunkt, OpenAI-kompatible native Routen verwenden `/models`, und Routen ohne sicheren Probe-Endpunkt werden als konfiguriert mit `live_status: skipped` gemeldet.
-
-Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
-
-Google AI Gateway provider-native Routing ist bewusst noch nicht aktiviert. Cloudflares Google-Provider-Route erwartet Gemini-native Requests, während AuraGo Google-Traffic aktuell über OpenAI-kompatible Provider-Clients sendet.
-
-### YAML-Referenz
-```yaml
-ai_gateway:
-  enabled: true
-  account_id: "YOUR_ACCOUNT_ID"
-  gateway_id: "YOUR_GATEWAY_ID"
-  mode: auto                 # auto, openai_compatible, provider_native
-  log_mode: metadata_only    # metadata_only, off, full
-  metadata: {}
-  request_timeout_ms: 0
-  max_attempts: 0
-  retry_delay_ms: 0
-  backoff: ""                # "", constant, linear, exponential
-```
-
-## Chromecast Integration
-
-Sende Text-to-Speech und Medien an Chromecast-Geräte.
-
-**Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren. Für private LAN-Medienquellen kannst du erlaubte Medien-Hosts eintragen.
-
-> 💡 Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
-
-Nutze `operation: "play"` für direkte HTTP(S)-Audio- oder Video-URLs. Direkte Videos sollten `content_type: "video/mp4"` oder `content_type: "video/webm"` setzen. Lokale `.mp4`- und `.webm`-Dateien aus dem Workspace werden automatisch über AuraGos `/cast-media/`-Pfad bereitgestellt.
-
-### YAML-Referenz
-```yaml
-chromecast:
-  enabled: true
-  tts_port: 8090
-  media_host_allowlist:
-    - "192.168.1.10"
-    - "media.lan:8096"
-    - "192.168.1.0/24"
-```
-
-Private Medien-URLs sind standardmäßig blockiert. Von AuraGo erzeugte `/tts/`- und `/cast-media/`-URLs sind automatisch erlaubt; Loopback-, Link-Local- und Metadaten-Adressen bleiben blockiert.
-
-## Bluetooth-Integration
-
-Bei nativen Linux-Installationen erkennt AuraGo beim Start einen eingeschalteten
-BlueZ-Adapter und stellt erst dann das `bluetooth`-Tool bereit. Die Gerätesuche
-ist standardmäßig verfügbar. Koppeln und Verbindungen ändern durch den Agenten
-erfordert einen deaktivierten Nur-Lesen-Modus; die Wiedergabe durch den Agenten
-benötigt zusätzlich eine erreichbare PipeWire- oder PulseAudio-Benutzersitzung
-und `allow_playback`.
-
-Unter **Konfiguration → Smart Home → Bluetooth** kannst du neu erkennen, Geräte
-suchen, koppeln, verbinden und einen lokalen Testton abspielen. AuraGo routet
-nur seinen eigenen Audiostream und ändert das Standard-Ausgabegerät des Systems
-nicht. Pakete, Konfiguration, Docker-Einschränkungen und Fehlerdiagnose stehen
-unter [Bluetooth-Geräte und Audioausgabe](../../bluetooth.md).
-
-Die Desktop-App **Bluetooth** bietet dieselben Funktionen live und erscheint nur,
-solange ein Adapter vorhanden ist. `readonly` und `allow_playback` schränken nur
-den Agenten ein; Admins in der Desktop-App und auf der Config-Seite nicht.
-
-## Media Registry
-
-Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.
-
-**Web-UI:** `media_registry.enabled` primär per YAML (kein eigener Config-Menüpunkt). Verwaltung über **Galerie** (`/gallery`).
-
-### YAML-Referenz
-```yaml
-media_registry:
-  enabled: true
-```
-
-## Netlify Integration
-
-Deploye statische Webseiten direkt auf Netlify.
-
-**Web-UI:** Config → Integrationen → Netlify → Site-ID und Team-Slug eingeben. Personal Access Token im Vault speichern.
-
-### YAML-Referenz
-```yaml
-netlify:
-  enabled: true
-  allow_deploy: false
-  allow_site_management: false
-  allow_env_management: false
-```
-
-## here.now Integration
-
-here.now hostet permanente statische Sites unter der festen API-Basis `https://here.now`. Der Agent kann Sites listen, beschreiben, veröffentlichen, aktualisieren, duplizieren, Versionen wiederherstellen und Zugriffsregeln verwalten. Der API-Key liegt ausschließlich im Vault-Schlüssel `here_now_api_key`; anonyme oder nicht authentifizierte Pfade werden bewusst nicht unterstützt.
-
-**Web-UI:** Config → Integrationen → here.now → Integration aktivieren und API-Key im Vault speichern. Wähle dann die benötigten granularen Berechtigungen.
-
-### Agent-Tools
-
-- `here_now_sites` – Sites und Versionen listen/lesen (schreibgeschützt).
-- `here_now_site` – Mutationen: `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (Löschungen zusätzlich mit `confirm: true`).
-- Homepage-Projekte können alternativ über die Homepage-Operation `deploy_here_now` veröffentlicht werden; der Einsatz wird erst nach Abschluss und URL-Prüfung im Homepage-Ledger vermerkt.
-
-Publishing snapshotzt zuerst das Projektverzeichnis in einen privaten temporären Baum (Traversal-, Symlink-, Sonderdatei- und Mengenprüfungen, maximal 1.000 Dateien) und lädt nur diesen Snapshot hoch; der Snapshot wird danach immer entfernt. Uploads verwenden DNS-gepinnte Verbindungen, Upload-Redirects werden blockiert und jeder Redirect einer Site-Verifikation wird neu verankert und geprüft. Mehrdeutige Ergebnisse werden als `here_now_outcome_unknown` gemeldet und nie automatisch wiederholt.
-
-### YAML-Referenz
-```yaml
-here_now:
-  enabled: true
-  readonly: true
-  allow_publish: false
-  allow_site_management: false
-  allow_access_management: false
-  allow_delete: false
-  default_account: ""       # leer = persönliches Konto
-```
-
-## Paperless NGX
-
-Dokumentenmanagement und Durchsuchung.
-
-**Web-UI:** Config → Integrationen → Paperless NGX → URL eingeben. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-paperless_ngx:
-  enabled: true
-  url: "https://paperless.local"
-```
-
-## LLM Guardian
-
-Sicherheits- und Policy-Engine für eingehende und ausgehende Inhalte.
-
-**Web-UI:** Config → Integrationen → LLM Guardian → Provider, Modell und Stärke-Level konfigurieren.
-
-### YAML-Referenz
-```yaml
-llm_guardian:
-  enabled: true
-  default_level: "medium"
-```
-
-## Remote Control
-
-Empfange Fernsteuerungs-Befehle von anderen AuraGo-Instanzen.
-
-**Web-UI:** Config → Integrationen → Remote Control → Discovery-Port und erlaubte Pfade konfigurieren.
-
-### YAML-Referenz
-```yaml
-remote_control:
-  enabled: true
-  discovery_port: 8092
-  allowed_paths:
-    - "/home/aurago"
-```
-
-`allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen (Lesen, Schreiben und Verzeichnislisten) und gilt als Vorgabe für jedes Remote-Gerät ohne eigene `allowed_paths` (pro Gerät über `PUT /api/remote/devices/{id}` gesetzt); eine eigene Geräteliste ersetzt sie. Eine leere Liste blockiert Dateioperationen daher nur auf Geräten ohne eigene Liste: Sind beide Listen leer, hat das Gerät keinen Datei- oder Shell-Zugriff. Shell-Befehle auf einem Remote-Agenten (`shell_exec`, Shell-Sitzungen) benötigen ebenfalls mindestens einen solchen Pfad: AuraGo lehnt sie vor dem Versand ab und der Agent lehnt sie erneut ab, während AgoDesk-Begleiter ihre eigenen lokalen Shell-Einstellungen behalten. Eine gespeicherte Änderung der globalen Liste wirkt sofort: AuraGo prüft dagegen und überträgt sie an verbundene Agenten ohne eigene Liste.
-
-Wenn AuraGo selbst HTTPS bereitstellt, bettet der Verbindungsweg **Automatisch erkennen** (`connection_mode: auto`) eine `wss://`-URL auf `server.https.https_port` in Agent-Downloads ein, daher muss der Agent dem Zertifikat vertrauen (Let's Encrypt oder ein eigenes vertrauenswürdiges Zertifikat); bei einem selbstsignierten Zertifikat verwende **Manuelle Supervisor-URL** (`connection_mode: manual`) mit einer Route, deren Zertifikat vertrauenswürdig ist (ein Cloudflare Tunnel oder ein Reverse Proxy, nicht erneut `wss://host:https_port`), oder **Tailscale-Netzwerk verwenden** (`connection_mode: tailscale`).
-
-> ⚠️ **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
-> Vor dem Upgrade verteilte Remote-Agenten können sich nicht mehr verbinden und müssen durch einen Download vom aktualisierten AuraGo (**Remote Control**) ersetzt werden. Ihre Geräteschlüssel bleiben erhalten, ein erneutes Enrollment ist nicht nötig.
-> Der Supervisor protokolliert für jedes betroffene Gerät `unsupported frame version`.
-> Der Enrollment-Schlüssel eines Tokens liegt im Vault als `remote_enroll_key_<id>`, bis das Token verwendet oder nach seinem Ablauf (bei der nächsten Token-Ausstellung) bereinigt wird.
-
-### AgoDesk / AgoChat Desktop-Begleiter
-
-AuraGo kann sich mit dem **AgoDesk**-Desktop-Client per WebSocket koppeln. Bei verbundenem Gerät kann der Agent proaktive Nachrichten über `send_agodesk_chat` senden und Remote-Desktop-Befehle über das AgoDesk-Protokoll ausführen.
-
-**Voraussetzungen:**
-- `remote_control.enabled: true`
-- AgoDesk-Client verbunden und gekoppelt (`/api/agodesk/ws`)
-
-**Einrichtung:**
-1. AgoDesk-Desktop-Client installieren und öffnen.
-2. Mit AuraGo koppeln (`pairing_token` oder gespeichertes `device_id` + `shared_key_proof`).
-3. Das Gerät erscheint im Agent-Kontext als **REACHABLE CHAT CHANNEL** mit `device_id`.
-
-**Agent-Tool:** `send_agodesk_chat`
-
-```json
-{
-  "action": "send_agodesk_chat",
-  "device_id": "dev-abc123",
-  "message": "Dein Backup wurde erfolgreich abgeschlossen."
-}
-```
-
-> 📖 Vollständiges Protokoll: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md)
-
-**API:** `GET /api/remote/devices` listet verbundene RemoteHub/AgoDesk-Geräte.
-
-## Sandbox
-
-Isolierte Ausführung von Python-Code und externen Befehlen.
-
-**Web-UI:** Config → Integrationen → Sandbox → Backend, Timeout und Netzwerkzugriff konfigurieren.
-
-### YAML-Referenz
-```yaml
-sandbox:
-  enabled: true
-  backend: docker
-```
-
-## Python Tool Bridge
-
-Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine interne HTTP-Bridge (`POST /api/internal/tool-bridge/`) aufzurufen. Standard: deaktiviert.
-
-**Web-UI:** **Config → Tools → Fähigkeiten-Manager** — Python Tool Bridge aktivieren und `allowed_tools`-Whitelist pflegen.
-
-### YAML-Referenz
-```yaml
-tools:
-  python_tool_bridge:
-    enabled: false
-    allowed_tools: []              # explizite Whitelist, z. B. ["api_request", "sql_query"]
-    allowed_sql_connections: []    # SQL-Verbindungsnamen; leer = SQL-Bridge blockiert
-```
-
-Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
-
-> ⚠️ **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
-
-## Skill Manager
-
-Verwalte hochgeladene Python-Skills.
-
-**Web-UI:** **Config → Tools → Fähigkeiten-Manager** → Uploads erlauben und Guardian-Scan aktivieren.
-
-### YAML-Referenz
-```yaml
-tools:
-  skill_manager:
-    enabled: true
-    allow_uploads: true
-```
-
-## Daemon Skills
-
-Langlaufende Python-Skills, die im Hintergrund aktiv bleiben und den Agent bei Ereignissen wecken können (z. B. Datei-Watcher, Polling-Schleifen). Verwaltung über das Tool `manage_daemon` und die Dashboard-Karte **Daemon Skills**.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Tools → Daemon Skills**.
-2. Daemon Skills aktivieren (Opt-in, standardmäßig deaktiviert).
-3. Parallelität und Wake-up-Kostenlimits konfigurieren.
-4. Skill mit `daemon: true` im Manifest hochladen oder aktivieren.
-5. Speichern und neu starten.
-
-### YAML-Referenz
-```yaml
-tools:
-  daemon_skills:
-    enabled: false
-    max_concurrent_daemons: 5
-    global_rate_limit_secs: 60
-    max_wakeups_per_hour: 6
-    max_budget_per_hour: 0.50
-```
-
-### Agent-Tool: `manage_daemon`
-
-| Operation | Beschreibung |
-|-----------|--------------|
-| `list` | Alle laufenden Daemons auflisten |
-| `status` | Status eines Daemons abfragen (`skill_id` erforderlich) |
-| `start` / `stop` | Daemon per Skill-ID starten oder stoppen |
-| `reenable` | Auto-deaktivierten Daemon wieder aktivieren |
-| `refresh` | Skills von der Festplatte neu scannen und Daemons abgleichen |
-
-> ⚠️ **Kostenkontrolle:** `max_wakeups_per_hour` und `max_budget_per_hour` wirken als Circuit Breaker gegen unkontrollierte LLM-Kosten durch häufige Daemon-Wake-ups.
-
-## Jellyfin Integration
-
-Media-Server-Verwaltung.
-
-**Web-UI:** Config → Integrationen → Jellyfin → Host und Port eintragen. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-jellyfin:
-  enabled: true
-  readonly: false
-  allow_destructive: false
-  host: "jellyfin.local"
-  port: 8096
-  use_https: true
-  insecure_ssl: false
-```
-
-## Image Generation
-
-Generiere Bilder über unterstützte Provider.
-
-**Web-UI:** Config → Integrationen → Image Generation → Provider, Modell und Limits einstellen. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-image_generation:
-  enabled: true
-  provider: ""
-```
-
-## Video Generation
-
-Generiere kurze Videos aus Text-Prompts oder Bildvorlagen. Unterstützte Provider sind je nach Konfiguration MiniMax Hailuo und Google Veo.
-
-### Fähigkeiten
-
-| Fähigkeit | Beschreibung |
-|-----------|--------------|
-| Text-zu-Video | Video direkt aus einem Prompt generieren |
-| Bild-zu-Video | Erstes Frame als visuelle Vorgabe nutzen |
-| Start-/Endframe | Provider-unterstützte Kontrolle über erstes/letztes Frame |
-| Referenzbilder | Provider-unterstützte Bildreferenzen |
-| Media Registry | Generierte MP4-Dateien werden automatisch registriert |
-| Tageslimits | Kosten und Provider-Nutzung mit `max_daily` begrenzen |
-
-**Web-UI:** Config → Integrationen → Video Generation → Provider (`minimax` oder `google`), Modell, Dauer, Auflösung, Seitenverhältnis und Tageslimit konfigurieren. Zugangsdaten im Vault speichern.
-
-### YAML-Referenz
-```yaml
-video_generation:
-  enabled: true
-  provider: "minimax"
-  model: "hailuo-02"
-  duration_seconds: 6
-  resolution: "720p"
-  aspect_ratio: "16:9"
-  max_daily: 5
-```
-
-Im Chat nutzt der Agent dafür `generate_video`. Bereits vorhandene Videodateien kann `send_video` mit Inline-Player an den Benutzer senden.
-
-## Fallback LLM
-
-Failover-LLM, der automatisch aktiviert wird, wenn der Haupt-Provider ausfällt.
-
-**Web-UI:** Config → Integrationen → Fallback LLM → Modell und Schwellenwert konfigurieren.
-
-### YAML-Referenz
-```yaml
-fallback_llm:
-  enabled: true
-  model: ""
-```
-
-## Co-Agents
-
-Spezialisierte Sub-Agenten für Recherche, Coding, Design und mehr.
-
-**Web-UI:** Config → Integrationen → Co-Agents → Spezialisten einzeln aktivieren und eigene Provider zuweisen.
-
-### YAML-Referenz
-```yaml
-co_agents:
-  enabled: true
-  max_concurrent: 3
-```
-
-## Mission Preparation
-
-Analysiert Missionen vor der Ausführung. Der Dienst lässt ein LLM vor geplanten oder manuellen Missionen strukturierte Ausführungshinweise erstellen.
-
-Mission Preparation kann benötigte Tools, Schrittpläne, mögliche Fallstricke, Entscheidungspunkte, Preload-Hinweise und einen Confidence-Score erzeugen. Ergebnisse werden anhand eines Mission-Checksums gecacht und bei Änderungen invalidiert. Geplante Missionen können automatisch vorbereitet werden.
-
-**Web-UI:** Config → Integrationen → Mission Preparation → aktivieren und Timeout/Confidence-Level einstellen.
-
-### YAML-Referenz
-```yaml
-mission_preparation:
-  enabled: true
-  timeout_seconds: 120
-  auto_prepare_scheduled: true
-  min_confidence: 0.6
-```
-
-## Rocket.Chat Integration
+### Rocket.Chat Integration
 
 Für selbst-gehostete Rocket.Chat-Instanzen.
 
 **Web-UI:** Config → Integrationen → Rocket.Chat → URL, User-ID und Channel eingeben.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 rocketchat:
   enabled: true
@@ -1473,13 +245,102 @@ Der Channel ist geteilt, deshalb werden Operator-Befehle (`/restart`, `/debug`, 
 
 Jedes Paar aus Raum und Absender hat einen eigenen Gesprächsverlauf; `/reset` und `/stop` wirken nur auf das eigene Gespräch, und der Web-Chat-Verlauf ist für Rocket.Chat nicht sichtbar.
 
-## TTS / Whisper
+### Telnyx Integration
+
+SMS senden/empfangen und Sprachanrufe über Telnyx.
+
+**Web-UI:** Config → Integrationen → Telnyx → Telefonnummer, Messaging Profile ID, Connection ID und den öffentlichen Kontoschlüssel aus Telnyx Mission Control eingeben. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+telnyx:
+  enabled: true
+  webhook_public_key: "BASE64_ED25519_KONTOSCHLUESSEL"
+  phone_number: "+491234567890"
+  allowed_numbers:
+    - "+491234567890"
+```
+
+`allowed_numbers` ist eine explizite E.164-Allowlist für eingehende Anrufe/SMS und ausgehende Benachrichtigungen. Leer bedeutet: Telnyx-Verkehr bleibt blockiert, bis Nummern konfiguriert sind.
+Der öffentliche Webhook-Schlüssel prüft eingehende Signaturen. Der API-Key dient ausgehenden API-Aufrufen und authentifiziert keine Webhooks.
+
+### Native SIP-Telefonie
+
+AuraGo enthält einen SIP-User-Agent im Go-Prozess, ein Vault-geschütztes Konto und höchstens einen gleichzeitigen Anruf. Asterisk, FreeSWITCH, PJSIP, FFmpeg, CGO und ein Sidecar sind nicht erforderlich. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt.
+
+#### Einrichtung
+
+1. Öffne **Config → SIP Phone** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
+2. Speichere das Digest-Passwort über die UI. Es liegt ausschließlich unter dem Vault-Schlüssel `sip_endpoint_password`.
+3. Konfiguriere Signaling-Bind-Adresse, Transport, vertrauenswürdige Peer-CIDRs, Caller-Allowlist, Zielrichtlinie und RTP-Bereich.
+4. Setze in Docker vor aktiven Gesprächen `advertised_signaling_host` und `media.advertised_host` auf vom PBX erreichbare Adressen.
+5. Öffne die Virtual-Desktop-App **SIP Phone** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
+
+```yaml
+sip:
+  enabled: false
+  readonly: true
+  bind_host: 127.0.0.1
+  bind_port: 5060
+  transport: udp                 # udp, tcp, tls; kein WS/WSS
+  advertised_signaling_host: ""
+  media:
+    rtp_port_start: 30000
+    rtp_port_end: 30099
+    advertised_host: ""
+```
+
+V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Router-Konfiguration, kein WS/WSS und kein SRTP. Docker-Desktop-NAT ist ungeeignet, wenn der PBX die angekündigte RTP-Adresse nicht erreichen kann; Linux-Host-Networking ist eine explizite Alternative mit geringerer Netzwerktrennung.
+
+#### Vertrauen, Agent-Routing und Datenschutz
+
+- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen exakten normalisierten Caller-Allowlist-Treffer. Leere Caller- oder Ziellisten verweigern alles.
+- Ausgehende Anrufe benötigen eine kanonische `sip:`-URI, eine exakt erlaubte Domain und entweder einen exakten Benutzer oder ein erlaubtes E.164-Präfix. FRITZ!Box-Ziele wie `**610` sind exakte Benutzer.
+- Das separate Profil **Telephone agent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
+- RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
+- `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
+- Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` ein Muster enthält, das jeden Anrufer erfasst (etwa `*` oder `*@*`), und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
+
+Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
+
+### Realtime Speech
+
+Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virtual Desktop. Es wird getrennt von der normalen `providers`-Liste konfiguriert und verwendet OpenAI-, xAI-, Gemini- oder schlüssellose Speech-Lab-Profile aus dem versionierten AuraGo-Katalog. Speech Lab nutzt den verwalteten oder externen s2s-Container für ASR und TTS und ersetzt die Cloud-Streaming-Adapter nicht.
+
+#### Einrichtung und Datenschutz
+
+1. Öffne **Config → Realtime Speech** und erstelle ein Profil mit Modell und Stimme aus dem Katalog.
+2. Speichere den Provider-Key über die UI. Keys liegen pro Profil im Vault und werden weder in `config.yaml` serialisiert noch an Python exportiert.
+3. Wähle das Standardprofil und das Inaktivitätsintervall zum Parken.
+4. Öffne **Live Speech** in Webchat oder Virtual Desktop. Pro Browser-Origin ist nur eine Mikrofon-Session erlaubt.
+5. Optional: Wähle unter **Audio** ein Bluetooth-Headset, das mit dem Server gekoppelt ist. Der Browser merkt sich die Wahl und nutzt sein eigenes Mikrofon und seinen Lautsprecher, solange das Headset nicht verbunden ist.
+
+Der Live-Provider erhält niemals Auras nativen Tool-Katalog. Für AuraGo-Zustand oder Aktionen ruft er die private Funktion `aurago_execute` auf; diese läuft durch den normalen Agent-Loop mit Guardian, Berechtigungen, Bestätigungen, Tool-Events und Abbruch. Rohes Mikrofon-Audio und partielle Transcripts bleiben im Browser; gespeichert werden nur finale direkte Dialog-Turns.
+
+```yaml
+realtime_speech:
+  enabled: false
+  default_profile: ""
+  park_after_seconds: 5
+  profiles:
+    - id: openai-live
+      name: "OpenAI Live"
+      provider: openai
+      model: gpt-realtime-2.1
+      voice: marin
+      enabled: true
+```
+
+Siehe [Realtime Speech](../../realtime_speech.md) für Provider-Katalog, VAD-Timing, Session-Leases und API-Vertrag.
+
+### TTS / Whisper
 
 Sprachsynthese (TTS) und Spracherkennung.
 
 **Web-UI:** Config → Integrationen → TTS → Provider (Piper, Supertonic, Mistral AI, MiniMax, ElevenLabs, Google) und Voice-Einstellungen konfigurieren. Mistral TTS benötigt zusätzlich eine voreingestellte oder eigene Stimmen-ID aus Mistral Studio.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 tts:
   provider: "mistral"
@@ -1511,937 +372,24 @@ providers:
 
 Beide Mistral-API-Schlüssel werden über die Web-UI im Vault gespeichert. ASR nutzt `POST /v1/audio/transcriptions`; TTS nutzt `POST /v1/audio/speech` und legt die dekodierte MP3-Antwort im TTS-Cache ab. Supertonic läuft über einen verwalteten Docker-Sidecar. AuraGo selbst bleibt dadurch ein reines Go-Binary ohne CGO oder ONNX-Runtime-Linking.
 
-## A2A Protocol
-
-AuraGo unterstützt das Google A2A (Agent-to-Agent) Protokoll für die Kommunikation zwischen KI-Agenten. AuraGo kann eine Agent Card veröffentlichen, damit andere A2A-Clients Name, Fähigkeiten, Endpunkte und Auth-Anforderungen erkennen. Umgekehrt kann AuraGo als A2A-Client Remote Agents registrieren und Aufgaben delegieren.
-
-A2A eignet sich, wenn mehrere autonome Agenten Aufgaben austauschen sollen, ohne eine gemeinsame Chat-Session zu teilen. AuraGo unterstützt REST-, JSON-RPC- und gRPC-Bindings, Streaming und Push Notifications, sofern aktiviert.
-
-**Web-UI:** Config → Integrationen → A2A → Server-Port, Agent Card und Remote Agents konfigurieren.
-
-### YAML-Referenz
-```yaml
-a2a:
-  server:
-    enabled: true
-    port: 0
-    base_path: "/a2a"
-    agent_name: "AuraGo"
-    streaming: true
-    push_notifications: true
-    bindings:
-      rest: true
-      json_rpc: true
-      grpc: true
-      grpc_port: 50051
-  client:
-    enabled: true
-    remote_agents: []
-  auth:
-    api_key_enabled: true
-    bearer_enabled: true
-```
-
-Die öffentliche Agent Card bleibt für Discovery ohne Authentifizierung erreichbar. Alle anderen A2A-Endpunkte benötigen mindestens eine konfigurierte Auth-Methode; API-Key oder Bearer-Secret müssen vor dem Exponieren im Vault liegen.
-
-## Music Generation
-
-KI-Musik-Generierung über unterstützte Provider.
-
-**Web-UI:** Config → Integrationen → Music Generation → Provider und Limits einstellen.
-
-### YAML-Referenz
-```yaml
-music_generation:
-  enabled: true
-  provider: ""
-  model: ""
-  max_daily: 10
-```
-
-## Firewall
-
-Linux-Firewall-Überwachung und -Verwaltung (iptables/ufw).
-
-**Web-UI:** Config → Integrationen → Firewall → Modus und Polling-Intervall konfigurieren.
-
-### YAML-Referenz
-```yaml
-firewall:
-  enabled: true
-  mode: "readonly"
-  poll_interval_seconds: 60
-```
-
-## Invasion Control
-
-Remote-Deployment-System für AuraGo-Worker (Eggs) in verschiedenen Nests.
-
-**Web-UI:** Config → Invasion Control → Nests und Eggs verwalten.
-
-### YAML-Referenz
-```yaml
-invasion_control:
-  enabled: true
-  readonly: false
-```
-
-## Document Creator (Gotenberg)
-
-PDF-Erstellung und Dokumenten-Konvertierung. Unterstützt den eingebauten Maroto-Backend oder einen externen Gotenberg-Sidecar.
-
-**Web-UI:** Config → Integrationen → Document Creator → Backend wählen (maroto/gotenberg).
-
-### YAML-Referenz
-```yaml
-tools:
-  document_creator:
-    enabled: true
-    backend: "maroto"
-    output_dir: "data/documents"
-    gotenberg:
-      url: "http://gotenberg:3000"
-      timeout: 120
-```
-
----
-
-## Security Proxy
-
-Schutzschicht für öffentlich erreichbare AuraGo-Instanzen: TLS (Let's Encrypt für eine Domain), Ratenbegrenzung, IP-Filter und Basic Auth vor AuraGo. AuraGo verwaltet den Proxy als Caddy-Docker-Container (`aurago-security-proxy`), schreibt sein Caddyfile nach `data/proxy/` und stellt Lifecycle-Aktionen sowie Logs per API bereit. Geo-Blocking ist geplant, aber noch nicht umgesetzt.
-
-### Einrichtung in der Web-UI
-1. Öffne **Config → Integrationen → Security Proxy**.
-2. Aktiviere den Proxy und trage Domain, ACME-E-Mail und Ports ein.
-3. Aktiviere bei Bedarf Ratenbegrenzung, IP-Filter oder Basic Auth.
-4. Speichere. Das Aktivieren startet den Proxy. Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten. Nach Änderungen an Domain, E-Mail, Werten der Ratenbegrenzung, IP-Filter, Basic Auth oder zusätzlichen Routen drückst du **Neu laden**. Nach Änderungen an den Ports oder an der Platzierung des Containers drückst du **Starten**. Um den Proxy auf einen anderen `docker_host` zu verlegen, drückst du zuerst **Entfernen**, speicherst dann den neuen `docker_host` und drückst **Starten**. Neu laden wendet nur das Caddyfile neu an und erstellt den Container nicht neu (siehe [Neu laden](#neu-laden)).
-
-### Basic Auth
-Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_pass`. AuraGo schreibt nur einen bcrypt-Hash des Passworts ins Caddyfile (Dateimodus 0600). Ist Basic Auth aktiv, fehlt aber eines der Secrets, startet der Proxy nicht und die UI nennt die fehlenden Secrets. Benutzernamen dürfen weder `:`, Anführungszeichen, Backslashes noch geschweifte Klammern enthalten; Passwörter dürfen höchstens 72 Byte lang sein.
-
-### Ratenbegrenzung
-Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Ist sie aktiv, baut AuraGo einmalig das Image `aurago-proxy:ratelimit-<Version>` aus einem festen Caddy-Release und einem festen Modul `caddy-ratelimit` (Go-Modul-Prüfsummen werden verifiziert). Der Build braucht Docker-Build-Rechte und Internetzugang und dauert ein paar Minuten; spätere Starts verwenden das Image wieder. Jede Client-IP darf `burst` Anfragen innerhalb von `burst / requests_per_second` Sekunden senden (gleitendes Fenster): kurze Spitzen gehen durch, im Mittel bleibt es bei `requests_per_second`. Die Ratenbegrenzung greift vor Basic Auth und bremst so auch Passwortraten aus. Scheitert der Build, startet der Proxy nicht, ein laufender Proxy läuft mit seinem bisherigen Caddyfile weiter, und die UI erklärt, was fehlt. Ist der Docker-Nur-Lese-Modus (`docker.read_only`) aktiv, kann AuraGo weder das Image bauen noch den Proxy-Container anlegen oder ändern; schalte den Nur-Lese-Modus dann zuerst aus.
-
-Solange der erste Build des Images mit Ratenbegrenzung oder das erste Herunterladen des offiziellen Caddy-Images läuft, warten die übrigen Proxy-Aktionen darauf: **Stoppen**, **Entfernen**, **Neu laden**, ein weiteres **Starten** sowie das automatische Starten oder Stoppen nach dem Speichern der Config laufen erst, wenn der Vorgang fertig oder gescheitert ist. Der erste Build kann diese Aktionen bis zu 30 Minuten aufhalten, das erste Herunterladen bis zu 15 Minuten. Status und Logs kannst du währenddessen weiter abrufen.
-
-### AuraGo in Docker (Compose)
-Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
-
-Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt du `BUILD=1` beim Dienst `docker-proxy`, oder du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
-
-```bash
-docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
-FROM caddy:2.11.6-builder AS builder
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6
-FROM caddy:2.11.6
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-EOF
-```
-
-Ändert ein späteres AuraGo-Release diese Versionen, braucht es ein neues Image: Das Handbuch dieses Release zeigt den passenden Befehl, und das AuraGo-Log nennt den erwarteten Tag.
-
-### Container-Härtung
-Der Proxy-Container behält den root-Benutzer von Caddy und ein beschreibbares Root-Dateisystem, verwirft aber alle Linux-Capabilities außer den vier, die Caddy braucht, und setzt `no-new-privileges`:
-- `NET_BIND_SERVICE`: Das Programm `caddy` im offiziellen Image und im Image mit Ratenbegrenzung trägt diese Datei-Capability und startet ohne sie nicht. Außerdem erlaubt sie auf älteren Docker-Engines die Ports 80 und 443.
-- `DAC_OVERRIDE`: Das Caddyfile (Modus 0600) sowie `caddy_data` und `caddy_config` (Modus 0750) gehören dem Benutzer von AuraGo. Ohne sie kann Caddy weder seine Konfiguration lesen noch Zertifikate speichern.
-- `CHOWN` und `FOWNER`: Besitzänderungen an Dateien, die Caddy nicht selbst angelegt hat, zum Beispiel in `caddy_data` kopierte Zertifikate.
-
-Zertifikate, die ein früherer Proxy-Container gespeichert hat, bleiben in Gebrauch. Drückst du **Starten**, bekommt ein Proxy-Container aus einer älteren AuraGo-Version dieses Profil; **Neu laden** behält den bestehenden Container.
-
-Der Proxy gilt als von AuraGo verwalteter Container (Owner `security-proxy`): Öffnest du auf der Seite **Container** ein Terminal für `aurago-security-proxy`, aktualisierst oder entfernst ihn, fragt AuraGo nach einer Bestätigung, auch bei einem Container aus einer älteren AuraGo-Version ohne AuraGos Labels. Das Docker-Werkzeug des Agenten lehnt `create` und `run` mit diesem Namen ab, ebenso Compose-`up`/`create` eines Stacks, der ihn als `container_name` verwendet; seine übrigen Aktionen am Proxy-Container bleiben, wie sie waren. Verwalte ihn über **Starten**, **Stoppen**, **Neu laden** und **Entfernen** in den Proxy-Einstellungen.
-
-### Neu laden
-**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host` (oder aus `docker.host`, solange `docker_host` leer ist). Erreicht ein neuer Wert einen anderen Docker-Daemon, drückst du vor dem Wechsel **Entfernen**; sonst läuft der alte Proxy auf der bisherigen Engine weiter. Hast du schon gewechselt, stellst du den alten Wert wieder ein, drückst **Entfernen** und wechselst dann erneut (oder du führst `docker rm -f aurago-security-proxy` auf der alten Engine aus).
-
-### YAML-Referenz
-```yaml
-security_proxy:
-  enabled: true
-  domain: "aurago.example.com"
-  email: "admin@example.com"     # ACME-Kontakt
-  https_port: 443
-  http_port: 80
-  docker_host: ""                # leer = docker.host
-  rate_limiting:
-    enabled: true
-    requests_per_second: 10
-    burst: 50
-  ip_filter:
-    enabled: false
-    mode: "blocklist"            # oder "allowlist"
-    addresses: []                # IP-Adressen oder CIDR-Bereiche
-  basic_auth:
-    enabled: false               # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
-  additional_routes: []          # Einträge mit name, domain und upstream
-```
-
-### Runtime API
-
-| Endpunkt | Zweck |
-|----------|-------|
-| `GET /api/proxy/status` | Aktueller Proxy-/Containerstatus |
-| `POST /api/proxy/start` | Verwalteten Proxy-Container starten |
-| `POST /api/proxy/stop` | Proxy stoppen |
-| `POST /api/proxy/destroy` | Verwalteten Proxy-Container entfernen |
-| `POST /api/proxy/reload` | Caddy-Konfiguration neu generieren und laden |
-| `GET /api/proxy/logs` | Aktuelle Proxy-Logs abrufen |
-
----
-
-## Egg Mode (Invasion Control)
-
-Verbinde mehrere AuraGo-Instanzen zu einem verteilten Nest (Cluster). Einzelne Instanzen werden als „Eggs“ bezeichnet.
-
-### Einrichtung in der Web-UI
-1. Auf dem **Master:** **Invasion Control** (`/invasion`) — Nests/Eggs verwalten und hatch deployen (setzt `egg_mode` auf dem Worker automatisch).
-2. Auf einer **standalone Worker-Instanz:** `egg_mode` nur per YAML oder Umgebungsvariablen (`AURAGO_EGG_MODE`, `AURAGO_MASTER_URL`, …) — kein eigener Config-Menüpunkt.
-
-### YAML-Referenz
-```yaml
-egg_mode:
-  enabled: false
-  master_url: "https://master.aurago.local:8088"
-  egg_id: "egg-01"
-  nest_id: "nest-main"
-  api_key_vault_key: "egg_api_key"
-```
-
-## LDAP Integration
-
-Authentifizierung und Benutzerverwaltung über LDAP/Active Directory.
-
-**Web-UI:** Config → Integrationen → LDAP → Server-URL, Base DN und Bind-Credentials konfigurieren.
-
-### YAML-Referenz
-```yaml
-ldap:
-  enabled: true
-  url: "ldap://ldap.example.com:389"
-  base_dn: "dc=example,dc=com"
-  bind_dn: "cn=admin,dc=example,dc=com"
-  use_tls: true
-  insecure_skip_verify: false
-```
-
-## Obsidian Integration
-
-Verknüpfe AuraGo mit deinem Obsidian-Vault für Notizen und Wissensmanagement.
-
-**Web-UI:** Config → Integrationen → Obsidian → Local-REST-API Host/Port und `obsidian_api_key` im Vault.
-
-### YAML-Referenz
-```yaml
-obsidian:
-  enabled: true
-  host: "127.0.0.1"
-  port: 27124
-  use_https: true
-  readonly: false
-```
-
-## Uptime Kuma Integration
-
-Überwache die Erreichbarkeit von Diensten mit Uptime Kuma.
-
-**Web-UI:** Config → Integrationen → Uptime Kuma → Base-URL eingeben. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-uptime_kuma:
-  enabled: true
-  base_url: "https://uptime-kuma.example.com:3001"
-```
-
-## Vercel Integration
-
-Deploye Web-Projekte direkt auf Vercel.
-
-**Web-UI:** Config → Integrationen → Vercel → Team-Slug eingeben. API-Token im Vault speichern.
-
-### YAML-Referenz
-```yaml
-vercel:
-  enabled: true
-  team_slug: "my-team"
-```
-
-## Browser Automation
-
-Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktionen.
-
-**Web-UI:** Config → Integrationen → Browser Automation → aktivieren, Headless-Modus und Screenshot-Verzeichnis konfigurieren.
-
-Der Browser-Automation-Sidecar verlangt standardmäßig `AURAGO_BROWSER_AUTOMATION_TOKEN`. AuraGo setzt es bei verwalteten Sidecars automatisch; bei manuell gestarteten Sidecars muss es explizit gesetzt werden. Nutze `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` nur für isolierte lokale Entwicklung.
-
-Fehlt das Sidecar-Image und ist `browser_automation.auto_build` aktiv (Standard), baut AuraGo `Dockerfile.browser_automation` aus `browser_automation.dockerfile_dir` mit der Docker-CLI auf der Engine in `docker.host`, die auch den Sidecar startet. Ein geerbtes `DOCKER_HOST` oder `DOCKER_CONTEXT` lenkt den Build nicht um. Lehnt diese Engine den Build mit einer 403-Antwort ab (Socket-Proxy mit `BUILD=0`), versucht AuraGo es einmal auf der Standard-Engine der Docker-CLI (`DOCKER_HOST` aus der Umgebung von AuraGo, sonst der lokale Socket), sofern das eine andere Engine ist; findet `docker.host` das Image danach immer noch nicht, schlägt der Build mit einem Hinweis fehl. Release-Installationen enthalten weder das Dockerfile noch die Sidecar-Quellen: Setze `browser_automation.dockerfile_dir` auf einen AuraGo-Quellcode-Checkout (relative Pfade gelten ab dem Arbeitsverzeichnis von AuraGo) oder baue `aurago-browser-automation:latest` selbst.
-
-### YAML-Referenz
-```yaml
-browser_automation:
-  enabled: true
-  headless: true
-  screenshots_dir: "browser_screenshots"
-```
-
-## Output Compression
-
-Reduziert den Token-Verbrauch durch Filterung und Deduplizierung von Tool-Ausgaben, bevor sie in den LLM-Kontext gelangen.
-
-**Web-UI:** Config → Agent → Output Compression → aktivieren, Schwellenwerte anpassen und Shell-/Python-/API- sowie Advanced-Filter setzen.
-
-### Erweiterte Modi
-
-| Modus | Standard | Einsatz |
-|-------|----------|---------|
-| `repetitive_substitution` | deaktiviert | Ersetzt lange, wiederholte Phrasen in log-artigen Ausgaben durch ein kleines Wörterbuch. Fehler, Diffs, Code-/Source-Reads, JSON-Dokumente und exakte Kopierausgaben werden übersprungen. |
-| `toon_json` | deaktiviert | Wandelt bekannte homogene API-Arrays in eine kompakte TOON-artige Darstellung um, wenn genug Tokens gespart werden. `api_request` und Datei-Reads werden übersprungen. |
-
-### YAML-Referenz
-```yaml
-agent:
-  output_compression:
-    enabled: true
-    min_chars: 500
-    preserve_errors: true
-    shell_compression: true
-    python_compression: true
-    api_compression: true
-    repetitive_substitution:
-      enabled: false
-      lzw_enabled: true
-      ltsc_lite_enabled: false
-      min_phrase_chars: 15
-      min_occurrences: 3
-      min_savings_percent: 15
-      max_input_chars: 50000
-      max_dictionary_entries: 16
-    toon_json:
-      enabled: false
-      min_savings_percent: 10
-      max_rows: 200
-```
-
----
-
-## YepAPI Integration
-
-Einheitliche API für SEO, SERP, Web-Scraping und Social-Media-Daten (YouTube, TikTok, Instagram, Amazon).
-
-### Web-UI Einrichtung
-1. Öffne **Config → Integrationen → YepAPI**.
-2. Aktiviere die Integration.
-3. Speichere den API-Key im Vault (Schlüssel: `yepapi_api_key`).
-4. Konfiguriere bei Bedarf einzelne Dienste ein/aus.
-5. Speichere und starte neu.
-
-### Fähigkeiten
-
-| Dienst | Fähigkeiten |
-|--------|--------------|
-| **SEO** | Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlinks, On-Page-Analyse, Trends |
-| **SERP** | Google/Bing/Yahoo/Baidu-Suche, Maps, Bilder, News, YouTube, Autocomplete |
-| **Scraping** | Standard, JavaScript-gestützt, Stealth, Screenshots, KI-Extraktion |
-| **YouTube** | Video-Suche, Transkripte, Kommentare, Kanäle, Playlists, Shorts |
-| **TikTok** | Video-/Benutzersuche, Profile, Posts, Kommentare, Musik, Challenges |
-| **Instagram** | Benutzer-/Hashtag-Suche, Profile, Posts, Reels, Stories, Kommentare |
-| **Amazon** | Produktsuche, ASIN-Lookup, Rezensionen, Deals, Bestseller |
-
-### YAML-Referenz
-```yaml
-yepapi:
-    enabled: true
-    seo:
-        enabled: true
-    serp:
-        enabled: true
-    scraping:
-        enabled: true
-    youtube:
-        enabled: true
-    tiktok:
-        enabled: true
-    instagram:
-        enabled: true
-    amazon:
-        enabled: true
-```
-
----
-
-## Inventar-System
-
-Geräteregistrierung mit SSH-Credential-Verwaltung und Wake-on-LAN-Unterstützung.
-
-### Web-UI Einrichtung
-1. Öffne **Config → Integrationen → Inventar**.
-2. Aktiviere die Integration.
-3. Konfiguriere `inventory_path` für einen benutzerdefinierten Datenbankspeicherort.
-4. Aktiviere **Wake-on-LAN** falls benötigt.
-5. Speichere und starte neu.
-
-### YAML-Referenz
-```yaml
-sqlite:
-    inventory_path: ./data/inventory.db
-
-tools:
-    inventory:
-        enabled: true
-    wol:
-        enabled: true
-```
-
-### Wichtige Funktionen
-- **Geräteregistrierung**: Geräte (Server, VMs, Docker, Netzwerkgeräte) mit IP, Port, SSH-Credentials speichern
-- **Wake-on-LAN**: Magic Packets senden um Geräte über gespeicherte MAC-Adressen aufzuwecken
-- **Credential-Sicherheit**: SSH-Passwörter und Private Keys im verschlüsselten Vault gespeichert
-- **Tag-basierte Organisation**: Geräte nach Tags gruppieren und durchsuchen
-
-Nutze die Tools `register_device`, `query_inventory` und `wake_on_lan` im Chat.
-
----
-
-## Heartbeat-System
-
-Hintergrund-Wake-up-Scheduler für autonome Statusprüfungen in konfigurierbaren Intervallen.
-
-### Web-UI Einrichtung
-1. Öffne **Config → Integrationen → Heartbeat**.
-2. Aktiviere die Integration.
-3. Konfiguriere **Tagesfenster** (Standard: 08:00–22:00, alle 1h) und **Nachtfenster** (Standard: 22:00–08:00, alle 4h).
-4. Wähle was geprüft werden soll: Aufgaben, Termine, E-Mails.
-5. Optional: Eigenes Prompt für Heartbeat-Wake-ups hinzufügen.
-6. Speichere und starte neu.
-
-### YAML-Referenz
-
-Der Loader und der Scheduler lesen den `heartbeat:`-Block in `config.yaml`. Du kannst ihn über **Config → Integrationen → Heartbeat** oder direkt in YAML konfigurieren. `config_template.yaml` enthält alle Felder. `heartbeat.enabled` aktiviert den Zeitplan; `day_time_window` und `night_time_window` enthalten jeweils `start`, `end` und `interval`. Der gespeicherte Laufzeitstatus ersetzt diese Konfiguration nicht.
-
-Die Standardeinstellungen sind:
-
-- **Tag-Fenster:** 08:00 – 22:00, Intervall 1h
-- **Nacht-Fenster:** 22:00 – 08:00, Intervall 4h
-- **Geprüfte Quellen:** Aufgaben, Termine, E-Mails (in der UI aktivierbar)
-
-### Wichtige Funktionen
-- **Zeitbasierte Führung**: Unterschiedliche Wake-up-Prioritäten je nach Tageszeit (Morgen-Check, Mittag-Review, Abend-Zusammenfassung, Nacht-Ruhe-Modus)
-- **Overlap-Schutz**: Verhindert parallele Heartbeat-Ausführungen
-- **State-Persistenz**: Speichert letzten Laufzeitpunkt um Neustarts zu überstehen
-- **Eigene Prompts**: Benutzerdefinierte Anweisungen an jeden Heartbeat-Wake-up anhängen
-
----
-
-## Knowledge Graph Extraction
-
-LLM-basierte Entity- und Beziehungsextraktion aus Konversationen und Dateien.
-
-### Web-UI Einrichtung
-1. Öffne **Config → Integrationen → Knowledge Graph**.
-2. Aktiviere die Integration.
-3. Konfiguriere **Auto Extraction** für nächtliche Batch-Entity-Extraktion.
-4. Aktiviere **Prompt Injection** um KG-Kontext in System-Prompts einzubinden.
-5. Setze Limits für Prompt-Node-Anzahl und Zeichenanzahl.
-6. Speichere und starte neu.
-
-### YAML-Referenz
-```yaml
-tools:
-    knowledge_graph:
-        enabled: true
-        readonly: false
-        auto_extraction: true
-        prompt_injection: true
-        max_prompt_nodes: 5
-        max_prompt_chars: 800
-        retrieval_fusion: true
-```
-
-### Wichtige Funktionen
-- **Entity-Typen**: person, device, service, software, location, project, concept, event
-- **Beziehungen**: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in
-- **Confidence Scoring**: Heuristische Qualitätsbewertung (0.0–1.0) pro Extraktion
-- **Kreuzanreicherung**: RAG ↔ Knowledge Graph bidirektionale Fusion
-
----
-
-## 3D-Drucker-Integration
-
-Überwache und steuere 3D-Drucker mit dem `three_d_printer`-Tool. Unterstützt **Elegoo Centauri Carbon** (SDCP WebSocket) und **Klipper/Moonraker** (HTTP API).
-
-**Web-UI:** Config → Integrationen → 3D Printers → Drucker hinzufügen, optionale Klipper-Moonraker-API-Keys im Vault speichern, `readonly: true` für Nur-Monitor.
-
-### YAML-Referenz
-```yaml
-three_d_printers:
-  enabled: false
-  readonly: true
-  default_printer: ""
-  elegoo_centauri_carbon:
-    enabled: false
-    printers:
-      - id: "lab-printer"
-        name: "Elegoo Centauri Carbon"
-        url: "ws://192.168.1.50/websocket"
-        timeout_seconds: 10
-  klipper:
-    enabled: false
-    printers:
-      - id: "voron"
-        name: "Voron 2.4"
-        url: "http://192.168.1.60:7125"
-        timeout_seconds: 10
-```
-
-**API:** `POST /api/3d-printers/test` (nur Status, keine Mutation), Kamera-Snapshot/Stream pro `printer_id`.
-
-**Agent-Tool:** `three_d_printer` — u. a. `status`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print` (Schreibzugriff erfordert `readonly: false`).
-
----
-
-## Frigate Integration
-
-Videoüberwachung und NVR-Management über Frigate.
-
-**Web-UI:** Config → Integrationen → Frigate → URL und API-Token eingeben. Optional: Event-Relay, Review-Relay und Media-Speicherung aktivieren.
-
-### YAML-Referenz
-```yaml
-frigate:
-  enabled: true
-  readonly: true
-  url: "https://frigate.local:8971"
-  internal_port: false
-  insecure: false
-  default_camera: ""
-  event_relay: false
-  review_relay: false
-  store_media: true
-  mqtt_topic_prefix: "frigate"
-```
-
-## Grafana Integration
-
-Monitoring und Observability über Grafana.
-
-**Web-UI:** Config → Integrationen → Grafana → Base-URL eingeben. API-Key im Vault speichern.
-
-### YAML-Referenz
-```yaml
-grafana:
-  enabled: true
-  base_url: "http://grafana.local:3000"
-  readonly: false
-  insecure_ssl: false
-  request_timeout: 30
-```
-
-## Manifest-Integration
-
-[Manifest](https://manifest.build) ist ein OpenAI-kompatibles LLM-Gateway mit verwaltetem Dashboard. AuraGo kann Manifest als **managed Docker-Sidecar** (Manifest + Postgres) oder als externe Instanz betreiben.
-
-**Web-UI:** Config → Integrationen → Manifest → Modus wählen, Secrets im Vault speichern, Test: `POST /api/manifest/test`.
-
-### Provider-Routing
-```yaml
-providers:
-  - id: manifest-main
-    type: manifest
-    name: Manifest Gateway
-    base_url: http://127.0.0.1:2099
-    api_key: ""                    # Vault: manifest_api_key
-    model: gpt-4o
-```
-
-### YAML-Referenz
-```yaml
-manifest:
-  enabled: false
-  auto_start: true
-  mode: managed
-  url: "http://127.0.0.1:2099"
-  external_base_url: "https://app.manifest.build/v1"
-  host: "127.0.0.1"
-  port: 2099
-  host_port: 2099
-  image: manifestdotbuild/manifest:5
-  container_name: aurago_manifest
-  postgres_container_name: aurago_manifest_postgres
-  postgres_image: postgres:15-alpine
-```
-
-Vault-Keys: `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`. Tailscale: `tailscale.tsnet.expose_manifest`.
-
----
-
-## Dograh-Integration
-
-[Dograh](https://dograh.com) ist eine Voice/Telephony-AI-Plattform. AuraGo deployt einen **managed Multi-Container-Stack** und verbindet ihn per MCP — es gibt kein natives `dograh`-Agent-Tool.
-
-**Web-UI:** Config → Integrationen → Dograh → aktivieren, Vault-Keys setzen, Test: `GET /api/dograh/test`.
-
-### YAML-Referenz
-```yaml
-dograh:
-  enabled: false
-  auto_start: true
-  mode: managed
-  readonly: true
-  allow_test_calls: false
-  api_url: "http://127.0.0.1:8000"
-  ui_url: "http://127.0.0.1:3010"
-  telemetry_enabled: false
-  turn_enabled: false
-```
-
-Vault-Keys: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `dograh_postgres_password`, `dograh_minio_secret_key`. MCP-Bridge über `mcp_call` / `/mcp`.
-
----
-
-## Space Agent Integration
-
-Verwalteter Docker-Sidecar für [Space Agent](https://github.com/agent0ai/space-agent), einen eigenständigen Browser-Workspace für isolierte Aufgaben. Seine Provider-Zugangsdaten werden getrennt von AuraGo im Space Agent eingerichtet.
-
-**Web-UI:** Config → Integrationen → Space Agent → Repository-URL, Host, Port und HTTPS konfigurieren. Admin-Passwort und AuraGo-Bridge-Token liegen im Vault.
-
-Wenn die Integration aktiviert ist, baut AuraGo den konfigurierten Space-Agent-Git-Ref mit dem authentifizierten Anweisungsendpunkt `/api/message_async`. Der Standard-Ref ist auf den Upstream-Commit `10f4ffdaf50a8136cf8450d17c11286178fd58e6` festgelegt; ausdrücklich konfigurierte Refs wie `main` bleiben gültig. **Neu erstellen** ruft den Ref ab und baut das neue Image, bevor der laufende Container ersetzt wird. Bei Fehlern beim Abruf oder Build bleibt der bisherige Container erhalten. Die automatische Release-Aktualisierung von Space Agent ist deaktiviert, damit sie den von AuraGo eingebundenen Endpunkt nicht ersetzt. Auth-Schlüssel und Customware bleiben unter `data_path` und `customware_path` erhalten.
-
-### YAML-Referenz
-```yaml
-space_agent:
-  enabled: true
-  auto_start: true
-  repo_url: ""
-  git_ref: "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
-  container_name: ""
-  image: ""
-  host: ""
-  port: 0
-  https_enabled: false
-  https_port: 0
-  customware_path: ""
-  data_path: ""
-  admin_user: ""
-  public_url: ""
-```
-
-## Virtual Desktop Integration
-
-Workspace-basierter Browser-Desktop für lokale Apps, generierte Apps, Dateiarbeit, Code Studio und verwaltete Docker-Software.
-
-**Web-UI:** Config → Integrationen → Virtual Desktop → Workspace aktivieren, Agent-Control konfigurieren und Code-Studio-Limits anpassen.
-
-### Zugehörige Tool-Toggles
-
-Die fokussierten Tools `virtual_desktop_files`, `virtual_desktop_apps` und `virtual_desktop_widgets` werden nur freigeschaltet, wenn sowohl `tools.virtual_desktop.enabled` als auch `virtual_desktop.allow_agent_control` aktiv sind. Office-Dokument- und Workbook-Tools benötigen ebenfalls den aktivierten Virtual Desktop.
-
-### Desktop Software Store
-
-Der Software Store installiert von AuraGo verwaltete Docker-Apps in die Virtual-Desktop-Umgebung. Aktuelle Katalogeinträge sind unter anderem Homarr, n8n, Node-RED, Open WebUI, ByteStash, IT-Tools, File Browser Quantum, OliveTin, AdGuard Home, Excalidraw, Uptime Kuma, Stirling PDF, QuakeJS (rootless), RomM, Beszel, Dozzle, Arcane, code-server, Termix, CommandCode und OpenSCAD. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix startet mit einem `guacd`-Companion-Container, damit seine Web-UI SSH-, RDP-, VNC- und Telnet-Sitzungen verwalten kann.
-
-### YAML-Referenz
-```yaml
-tools:
-  virtual_desktop:
-    enabled: false
-  office_document:
-    enabled: false
-    readonly: false
-  office_workbook:
-    enabled: false
-    readonly: false
-
-virtual_desktop:
-  enabled: false
-  readonly: false
-  allow_agent_control: false
-  allow_generated_apps: true
-  allow_python_jobs: false
-  workspace_dir: agent_workspace/virtual_desktop
-  max_file_size_mb: 50
-  max_ws_clients: 8
-  code_studio:
-    enabled: true
-    image: ghcr.io/antibyte/aurago-code-studio:latest
-    auto_start: false
-    auto_stop_minutes: 30
-    max_memory_mb: 4096
-    max_cpu_cores: 2
-```
-
-## Layerling (Desktop-CAD)
-
-**Layerling** ist ein optionaler, lokal mitgelieferter Browser-CAD-Editor im Virtual Desktop. Zur Laufzeit braucht es keinen Docker-Container, Node-Server oder separaten Skill — nur beim Neubauen der gepinnten Vendor-Assets kommt Node zum Einsatz.
-
-**Web-UI:** **Config → Virtual Desktop → Layerling** aktivieren. Der Editor öffnet sich über die Kategorie *Kreativ*; das Fenster folgt Sprache und Theme des Desktops (im Editor: Deutsch bei deutschem Desktop, sonst Englisch). Vollbild versteckt Browser-Chrome und Desktop-Rahmen (`Esc` kehrt zurück).
-
-**Wichtig:**
-- Projekte werden als `.lyl` gespeichert (Vorschlag: `Documents/Layerling`); STL, OBJ, 3MF, STEP/STP und SVG lassen sich aus dem Dateimanager mit Layerling öffnen. Export: STL, OBJ, 3MF, STEP oder PNG.
-- Speichern prüft die beim Öffnen gelesene Version (Konflikt: Ersetzen / Kopie speichern / Abbrechen); ungespeicherte Entwürfe bleiben browser-lokal wiederherstellbar.
-- **Agent-Zugriff ist standardmäßig Aus**, unabhängig vom Aktivierungsschalter: **Lesen** erlaubt Inspektion und Vorschauen, **Lesen und Schreiben** zusätzlich Modellbearbeitung und Desktop-Dateischreibungen. Desktop-Agent-Zugriff und Schreibschutz bleiben Obergrenzen.
-- Version 1 braucht einen offenen Browser-Editor — kein Headless-CAD, keine gleichzeitige Ko-Bearbeitung, keine direkte Druckersteuerung.
-- Upstream ist Layerling **1.57.0** (AGPL-3.0-only); die Quelltext-Links im Editor liefern das korrespondierende Archiv.
-
-Details: der [Layerling-Deep-Dive](../../layerling.md).
-
-### YAML-Referenz
-```yaml
-virtual_desktop:
-  layerling:
-    enabled: false          # lokaler Browser-CAD-Editor; keine Runtime-Sidecar
-    agent_access: "off"     # off, read, write; benötigt zusätzlich Desktop-Agent-Rechte
-```
-
-## RuView (Wi-Fi-Sensing)
-
-**RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
-
-**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **Open RuView** installiert/startet eine verwaltete Runtime, **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein.
-
-**Runtimes:**
-
-| Runtime | Einsatzzweck |
-|---------|---------------|
-| Verwalteter Docker | Linux-Sensing-Server für ESP32-CSI oder explizite Demo; AuraGo erzeugt/stopt eigenen markierten Container |
-| Nativer Host | Geprüftes Windows-amd64- oder macOS-Paket; Host braucht einen funktionierenden Wi-Fi-Adapter für RSSI |
-| Extern | Bestehender RuView-Service unter der gespeicherten HTTPS(S)-Origin; private/Loopback-Adressen brauchen `allow_private` |
-
-**Wichtig:**
-- Das Agent-Tool `ruview` (read-only) kennt nur `status`, `nodes`, `sensing`, `model_info` und `recordings` — nie Installation, Flashen, Kalibrierung, Aufnahme oder Training.
-- Tokens liegen in den Vault-Keys `ruview_api_token` und `ruview_managed_token` (beide Export-Deny für Python/Agent).
-- ESP32-Empfang braucht eine explizite UDP-Veröffentlichung: konkrete RFC1918-IPv4-LAN-Bindung plus Allowlist privater Quellen (Standard-Port 5005).
-- Verwaltete Aufnahmen/Modelle liegen unter `data/ruview/data`; ein Storage-Watcher stoppt Aufnahmen kontrolliert beim Budget (Standard 1024 MiB), löscht aber nichts automatisch.
-
-Details: der [RuView-Deep-Dive](../../ruview.md).
-
-### YAML-Referenz
-```yaml
-ruview:
-  enabled: false
-  readonly: true
-  agent_access: false
-  mode: docker          # docker | native (Windows/macOS) | external
-  source: esp32         # esp32 | wifi | simulated (explizite Demo)
-```
-
-## System World
-
-**System World** ist eine lokale Three.js-Stadt mit sieben festen Bezirken im Virtual Desktop — keine Cloud, kein LLM: Erkundung und dekoratives Leben rufen nie ein Modell auf.
-
-Die zweite Version bringt drei begehbare Annexbauten (Agent-Kontrollraum, Gedächtnis-Archiv, Missions-Depot am Südufer), eine siebenstationige Straßenbahn, eine optionale Drohnen-Tour, Entdeckungen, artikulierte Bewohner, Zeit-/Wetter-Regler und einen geteilten aufgezeichneten Systemblick. Der Agent-Turm trägt einen offenen Glaslift zur Sky-Deck-Terrasse in 72 m; Viewer auf jeder Galerie zoomen auf Bezirke und nennen Live-Status und Kennzahl. Roboter (Kuriere, Techniker, Archivare) führen zu existierenden Stationen; „City life"-Sequenzen sind dekoativ gekennzeichnet und behaupten keine erfolgreiche Systemarbeit.
-
-Details: der [System-World-Deep-Dive](../../system-world-2.md).
-
-## Retro-Net und Personal Radio im Desktop
-
-Zwei weitere Desktop-Features mit Integrationsberührung:
-
-- **Retro-Net** verwandelt das Desktop-**Terminal** in ein Wählerverzeichnis für noch lebende Textdienste (Telnet-BBS, C64-Boards, MUDs u. a.). Es ist standardmäßig an (`virtual_desktop.retronet_enabled`); jede Verbindung läuft über den AuraGo-Server. Beschrieben in [Kapitel 4](04-webui.md#retro-net-im-terminal) und im [Retro-Net-Deep-Dive](../../retro-net.md).
-- **Personal Radio** ist eine eingebaute Desktop-App für den eigenen Sender: importierte und/oder generierte Musik, LLM-Moderation im Stationsstil und optional recherchierte Nachrichten über die aktive Sprachausgabe. Beschrieben in [Kapitel 4](04-webui.md#personal-radio) und im [Personal-Radio-Deep-Dive](../../personal-radio.md).
-
-## Shell Sandbox Integration
-
-Linux-Landlock-basierte Sandbox für Shell-Befehle. Sie schränkt Dateisystemzugriffe, CPU-Zeit und Speicher für Shell-Operationen ein, wenn sie explizit aktiviert und verfügbar ist.
-
-**Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
-
-> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`). Seit diesem Release benötigt die Linux-/macOS-Host-Shell ohne wirksame Sandbox zusätzlich `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`. Updates über `update.sh` und Docker schreiben `agent.allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`); Konfigurationen, in denen der Schlüssel nie geschrieben wurde, funktionieren weiter und zeigen den Hinweis `shell_unsafe_host_legacy`. In Docker gibt es keine Shell-Sandbox: Eine frische Docker-Installation, die die Shell aktiviert, muss `agent.allow_unsandboxed_shell: true` (oder `allow_unsafe_host_execution: true`) setzen.
-
-Shell- und Python-Kindprozesse erhalten standardmäßig eine gefilterte Umgebung, damit Host-Secrets wie Master-Keys, API-Keys, Tokens und Passwörter nicht an agentengesteuerte Subprozesse vererbt werden. `DOCKER_HOST` und die übrigen Docker-Client-Variablen (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) erhalten Shell-Befehle und Host-Python nur, solange das Docker-Tool aktiviert ist (`docker.enabled`). Skills (Python-Skills, Daemon-Skills und Agent-Skill-Skripte) erhalten `DOCKER_HOST` weiterhin: Installierte Skills gelten als vertrauenswürdig, und die Skill-Vorlage für den Docker-Manager ist darauf angewiesen.
-
-### YAML-Referenz
-```yaml
-shell_sandbox:
-  enabled: false
-  allow_unsafe_fallback: false
-  max_memory_mb: 1024
-  max_cpu_seconds: 30
-  max_processes: 50
-  max_file_size_mb: 100
-  allowed_paths:
-    - path: "/tmp"
-      readonly: false
-```
-
-## Whisper Integration
+### Whisper Integration
 
 Spracherkennung (Speech-to-Text) über Whisper oder kompatible Provider.
 
 **Web-UI:** Config → Integrationen → Whisper → Provider und Modus konfigurieren.
 
-### YAML-Referenz
+#### YAML-Referenz
 ```yaml
 whisper:
   provider: ""
   mode: "whisper"   # whisper, multimodal, local
 ```
 
-## Media Conversion Integration
-
-Medienkonvertierung über FFmpeg und ImageMagick. Konvertiert Audio-, Video- und Bilddateien zwischen Formaten.
-
-**Web-UI:** Config → Integrationen → Media Conversion → Pfade zu FFmpeg/ImageMagick konfigurieren.
-
-### YAML-Referenz
-```yaml
-tools:
-  media_conversion:
-    enabled: true
-    readonly: false
-    ffmpeg_path: ""
-    imagemagick_path: ""
-    timeout_seconds: 0
-    max_file_size_mb: 0
-```
-
-## Video Download Integration
-
-Video-Download über yt-dlp (YouTube und andere Plattformen). Unterstützt Docker- und Native-Modus.
-
-**Web-UI:** Config → Integrationen → Video Download → Modus (docker/native) und Download-Verzeichnis konfigurieren.
-
-### YAML-Referenz
-```yaml
-tools:
-  video_download:
-    enabled: true
-    readonly: false
-    allow_download: true
-    allow_transcribe: false
-    mode: "docker"
-    yt_dlp_path: ""
-    download_dir: ""
-    max_file_size_mb: 0
-    timeout_seconds: 0
-    default_format: ""
-    max_search_results: 0
-    container_image: ""
-    auto_pull: false
-```
-
-## Send YouTube Video Integration
-
-Ermöglicht das Senden von YouTube-Videos als eingebettete Player in Chat-Nachrichten.
-
-**Web-UI:** Config → Integrationen → Send YouTube Video → aktivieren.
-
-### YAML-Referenz
-```yaml
-tools:
-  send_youtube_video:
-    enabled: true
-```
-
-## GolangciLint Integration
-
-Code-Qualitäts-Checks für Go-Code über golangci-lint.
-
-**Web-UI:** Kein eigener Config-Menüpunkt — `golangci_lint.enabled` nur per YAML.
-
-### YAML-Referenz
-```yaml
-golangci_lint:
-  enabled: true
-```
-
-## Homepage- und Website-Projekte
-
-AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten, bauen, deployen und in einer Registry nachverfolgen.
-
-**Web-UI:** Config → Integrationen → Homepage → aktivieren und Pfade setzen.
-
-| Bereich | Tools |
-|---------|-------|
-| Registry & Historie | `homepage_registry` — Projekte, Edits/Deploys/Probleme, **Projekt-Historie** |
-| Dateien | `homepage_file`, `homepage_project` |
-| Build & Deploy | `homepage_deploy`, `homepage_quality` |
-| Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
-
-**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
-
-Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
-
-### YAML-Referenz
-```yaml
-homepage:
-  enabled: true
-```
-
-
-## go2rtc-Kameraintegration
-
-AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst du die gespeicherte Konfiguration testen und den Container verwalten. Die Virtual-Desktop-App **Netzwerkkameras** (`/desktop?app=network-cameras`) bietet Kameraansichten, begrenzte ONVIF-Suche, manuelle Einrichtung und Snapshots. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
-
-Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Die automatische Suche benötigt ebenfalls lokalen Broadcast-Zugriff; bei Docker-Bridge-Betrieb nutzt du in der App die manuelle lokale IP oder Stream-URL.
-
-AuraGo führt sowohl die sicherheitsbegrenzte Suche als auch die ONVIF-Einrichtungsabfragen zum privaten Kamerahost selbst aus. Dabei erkennt AuraGo Profile und Snapshot-Unterstützung sowie, sofern verfügbar, Codec-, Auflösungs- und Geräteinformationen. Erst beim Laufzeitabgleich erhält go2rtc die ausgewählte Vault-geschützte Quelle. Die rohe go2rtc-ONVIF-API bleibt für Browser, Agenten und die optionale Admin-Oberfläche gesperrt und wird bei der Einrichtung nicht verwendet. Details stehen in der [go2rtc-Dokumentation](../../go2rtc.md).
-
-Kameraänderungen werden zuerst sicher in Konfiguration und Vault veröffentlicht. Ist go2rtc danach vorübergehend nicht erreichbar, meldet die App den gespeicherten Teilerfolg und AuraGo gleicht den gewünschten Zustand automatisch später ab. Vor der Aktivierung prüft AuraGo außerdem die benötigten Docker-Endpunkte und zeigt fehlende Rechte direkt in der App an. ONVIF-Setup-Tokens bleiben bei Speicherfehlern für einen erneuten Versuch gültig; private SOAP-Verbindungen verwenden keinen Umgebungsproxy.
-
-### go2rtc: Einrichtung und Recovery-Details
-
-- Die ONVIF-Suche läuft nur bei vorhandener Broadcast-Fähigkeit (`Runtime.BroadcastOK`). Sie verwendet begrenzte Sonden auf geeigneten privaten IPv4-Interfaces; bei Docker-Bridge bleiben manuelle IP- und Stream-URL-Einrichtung verfügbar.
-- Discovery-Kandidaten und Einrichtungs-Tokens mit Zugangsdaten bleiben ausschließlich im Speicher, sind einmalig verwendbar und verfallen nach fünf Minuten. Sie werden weder im Vault gespeichert noch an den Browser zurückgegeben.
-- Eine vollständige ONVIF-Profilabfrage ist auf 20 Sekunden begrenzt. Die optionale Erkennung der Snapshot-Fähigkeit erhält höchstens fünf Sekunden davon; jede SOAP-Antwort ist auf 1 MiB begrenzt.
-- Der Snapshot-Speicher ist auf 16 Einträge bzw. 64 MiB begrenzt. Persistente Snapshots behalten höchstens 1.000 Dateien oder 2 GiB und löschen zuerst die ältesten Dateien.
-- Konfigurations- und Vault-Änderungen werden vor dem Laufzeitabgleich veröffentlicht. Scheitert danach die Docker-/go2rtc-Reconciliation, liefert die API HTTP `202` mit `saved: true`; AuraGo versucht den Abgleich im Hintergrund erneut. Fehler vor der Veröffentlichung liefern `saved: false`.
-- Die rohe go2rtc-ONVIF-API bleibt gesperrt. Browser sehen nur AuraGo-eigene, auf Stream-IDs begrenzte Endpunkte; Quell-URLs, Kamera-Zugangsdaten und Cookies werden nie offengelegt.
-
-### Personenerkennung
-
-Im Modus **Erkennung** erkennt die App **Netzwerkkameras** Personen in den Kamerabildern direkt auf dem AuraGo-Server – mit einem D-FINE-Modell in einem eigenen Worker-Prozess, wenn möglich auf der GPU/iGPU (ONNX Runtime WebGPU), sonst auf der CPU.
-
-- **Einschalten:** in der App unter *Erkennung → Aktivieren* oder in den *Einstellungen* (Modell *Standard*, etwa 15 MB, oder *Genau*, etwa 41 MB, dazu die ONNX-Laufzeit, je nach Plattform etwa 10–80 MB (CPU: etwa 8 MB unter Linux, 32 MB unter macOS, 76–78 MB unter Windows; GPU: etwa 25 MB); einmalig geladen und per SHA-256 geprüft). Pro Kamera legst du im Reiter *Personenerkennung* der Kameraverwaltung Intervall, Mindestsicherheit, Alarmpause, Aktionen und Zonen fest.
-- **Ereignisse:** Zwei Treffer in drei Bildern oder ein Treffer ab 80 % starten ein Ereignis; es endet nach 30 Sekunden ohne Treffer (bei langen Intervallen nach zwei Intervallen plus 5 Sekunden). Ein Treffer zählt, wenn der Fußpunkt der Person (Mitte der Unterkante der Box) in einer Zone liegt (ohne Zonen: ganzes Bild); eine Zone umfasst alles, was ihr Umriss einschließt, und Punkte nahe am Bildrand rasten auf ihm ein. Deckenkameras und halb verdeckte Personen (hinter einem Auto liegen die „Füße“ auf Hüfthöhe) können eine Zone verfehlen – *Testen* zeigt es. Die Bilder liegen mit `detections.db` unter `<data_dir>/go2rtc/detections/` und werden nach `retention_days` (Standard 14) oder bei Überschreiten von `max_storage_mb` gelöscht, auch bei ausgeschalteter Erkennung; sie sind nicht Teil von Backups.
-- **Scharfschaltung:** *Aus*, *Ein* oder *Zeitplan* (Wochentage mit Uhrzeiten, auch über Mitternacht, in der **Zeitzone des Servers** – Docker läuft in UTC, solange du kein `TZ` setzt, siehe die auskommentierte `TZ`-Zeile in `docker-compose.yml`). Nachricht mit Foto, Agent-Weckruf und Desktop-Hinweis gehen nur scharf geschaltet raus, höchstens einmal pro Alarmpause je Kamera und Aktion; der Missions-Auslöser `person_detected` feuert bei jedem Ereignis mit `armed` in den Daten. Ein von einer Erkennung geweckter Agent-Lauf darf scharf, aber nicht unscharf schalten; Missionsläufe fallen nicht unter diese Regel.
-- **Hinweise und Livebilder:** Ein Klick auf einen Hinweis der Personenerkennung öffnet das Ereignis in der App, gefiltert auf die Kamera; ein inzwischen gelöschtes Ereignis verschwindet mit einem kurzen Hinweis. Solange go2rtc läuft, erstellt das Ein- oder Ausschalten der Erkennung einer Kamera seinen Container neu, Livebilder setzen dabei einige Sekunden aus (ab 6 erkennenden Kameras ist die Grenze von 2 CPUs erreicht, weitere Umschaltungen erstellen ihn nicht mehr neu); ein gestopptes go2rtc bleibt gestoppt, und seine Erkennungskameras zeigen „nicht erreichbar“.
-- **GPU unter Linux:** Der Dienstbenutzer braucht die Gruppe `render`: `sudo usermod -aG render aurago`, danach AuraGo neu starten. Ohne GPU-Zugriff läuft die Erkennung auf der CPU, und die App nennt den Grund.
-- **Konfiguration:** `go2rtc.detection` (global) und `go2rtc.streams[].detection` (pro Kamera); Details, API und Speicherregeln in der [go2rtc-Dokumentation](../../go2rtc.md#person-detection).
-
-## Native SIP-Telefonie
-
-AuraGo enthält einen SIP-User-Agent im Go-Prozess, ein Vault-geschütztes Konto und höchstens einen gleichzeitigen Anruf. Asterisk, FreeSWITCH, PJSIP, FFmpeg, CGO und ein Sidecar sind nicht erforderlich. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt.
-
-### Einrichtung
-
-1. Öffne **Config → SIP Phone** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
-2. Speichere das Digest-Passwort über die UI. Es liegt ausschließlich unter dem Vault-Schlüssel `sip_endpoint_password`.
-3. Konfiguriere Signaling-Bind-Adresse, Transport, vertrauenswürdige Peer-CIDRs, Caller-Allowlist, Zielrichtlinie und RTP-Bereich.
-4. Setze in Docker vor aktiven Gesprächen `advertised_signaling_host` und `media.advertised_host` auf vom PBX erreichbare Adressen.
-5. Öffne die Virtual-Desktop-App **SIP Phone** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
-
-```yaml
-sip:
-  enabled: false
-  readonly: true
-  bind_host: 127.0.0.1
-  bind_port: 5060
-  transport: udp                 # udp, tcp, tls; kein WS/WSS
-  advertised_signaling_host: ""
-  media:
-    rtp_port_start: 30000
-    rtp_port_end: 30099
-    advertised_host: ""
-```
-
-V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Router-Konfiguration, kein WS/WSS und kein SRTP. Docker-Desktop-NAT ist ungeeignet, wenn der PBX die angekündigte RTP-Adresse nicht erreichen kann; Linux-Host-Networking ist eine explizite Alternative mit geringerer Netzwerktrennung.
-
-### Vertrauen, Agent-Routing und Datenschutz
-
-- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen exakten normalisierten Caller-Allowlist-Treffer. Leere Caller- oder Ziellisten verweigern alles.
-- Ausgehende Anrufe benötigen eine kanonische `sip:`-URI, eine exakt erlaubte Domain und entweder einen exakten Benutzer oder ein erlaubtes E.164-Präfix. FRITZ!Box-Ziele wie `**610` sind exakte Benutzer.
-- Das separate Profil **Telephone agent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
-- `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
-- RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
-- `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
-- Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` ein Muster enthält, das jeden Anrufer erfasst (etwa `*` oder `*@*`), und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
-
-Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
-
-## Speech-Lab-Integration
+### Speech-Lab-Integration
 
 Speech Lab verbindet AuraGo mit dem lokalen s2s-ASR-/TTS-Dienst. AuraGo behält Gespräch, LLM, Tools, Guardian und Memory; Speech Lab verwaltet seinen aktiven ASR-, TTS- und Voice-Stack. Die Funktion ist standardmäßig deaktiviert.
 
-### Web-UI und Kanalauswahl
+#### Web-UI und Kanalauswahl
 
 1. Öffne **Config → Media → Speech Lab**.
 2. Wähle im Managed-Modus das Hardwareprofil (`Auto`, `CUDA`, `Vulkan` oder `CPU`) und bestätige den ersten Bundle-Download. `Auto` wählt Vulkan, wenn `/dev/dri` verfügbar ist; `CPU` dient Kompatibilitätstests.
@@ -2471,38 +419,631 @@ Eine Speech-Lab-Transkription kann `chat_llm_provider_id` nur für den nächsten
 
 AuraGo liest ASR, TTS und Stimme aus einem `/ready`-Snapshot und verlangt passende Backend-IDs sowie die Header `X-S2S-Voice` und `X-S2S-TTS-ID`. Ein Stack-Wechsel wird während einer Speech-Lab-Operation oder eines SIP-Anrufs abgelehnt. Realtime-Aktionen senden genau ein `final_response` und danach ein inhaltsloses `done`; die Abbruchlogik ist requestbezogen.
 
-### Deployment und Netzwerkgrenze
+#### Deployment und Netzwerkgrenze
 
 Die Managed-Installation verwendet das signierte, Digest-gepinnte Bundle und verlangt für den ersten Pull eine ausdrückliche Admin-Bestätigung. Port `8765` bleibt privat; der Browser-Backend-Standard ist loopback `8766` (native Installation) beziehungsweise `http://s2s-web:80` (Docker) und nur über den `/speech-lab/`-Proxy erreichbar. Es gibt keinen separaten Tailscale-Listener; bei aktiviertem eingebettetem Tailscale ist das Browser Lab über den normalen AuraGo-Zugang erreichbar.
 
 Akzeptiert werden nur credential-freie HTTP(S)-URLs zu Loopback- oder privaten Adressen. Speech Lab ist kein allgemeiner Proxy. Details zum festen Dienstvertrag und zu Deployment-Overlays stehen in der [Speech-Lab-Dokumentation](../../s2s_speech_lab.md).
 
-## Game Maker Studio
+### Notifications
 
-Game Maker Studio ist der isolierte Virtual-Desktop-Arbeitsbereich für offlinefähige Einzelspieler-Browser-Spiele. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt. Aktiviere sie unter **Config → Game Maker Studio** und öffne danach **Game Maker Studio** im Virtual Desktop.
+Push-Benachrichtigungen über ntfy oder Pushover.
 
-### Workflow und Laufzeiten
+**Web-UI:** Config → Integrationen → Notifications → ntfy-URL/Topic oder Pushover-Credentials eingeben.
 
-1. Erstelle ein 2D- oder 3D-Projekt, beschreibe das Spiel, wähle einen konfigurierten Provider bzw. ein Modell und aktiviere optional Bild- oder Musikgenerierung.
-2. AuraGo führt den Job in einem Staging-Verzeichnis aus. Für 2D wird Phaser `4.2.1`, für 3D Three.js `0.186.1` verwendet; beide Laufzeiten sind eingebettet und offline.
-3. Die Pure-Go-esbuild-Validierung muss erfolgreich sein, bevor das Staging-Ergebnis als nächste veröffentlichte Revision übernommen wird. Ein fehlgeschlagener oder abgebrochener Job lässt die letzte spielbare Revision unverändert.
-4. Fortschritt, Diagnosen, Preview, Revisionen, Restore und ZIP-Export bleiben im selben Fenster. Weltweit läuft nur ein Writer-Job gleichzeitig.
+#### YAML-Referenz
+```yaml
+notifications:
+  ntfy:
+    enabled: true
+    topic: "aurago-alerts"
+```
 
-Bilder können Sprites, Hintergründe, Texturen oder UI-Grafiken werden. Musik kann als lokaler Hintergrund-Track dienen; Soundeffekte verwenden prozedurales Web Audio. Bei Generatorfehlern, deaktivierter Konfiguration oder erschöpftem Budget wird ein sichtbarer prozeduraler Fallback verwendet. AuraGo behauptet nicht, 3D-Modelle zu erzeugen.
+### Web Push / PWA-Benachrichtigungen
 
-### Isolation und Preview-Sicherheit
+AuraGo unterstützt zusätzlich Browser-Web-Push für die installierbare PWA. Das ist unabhängig von ntfy und Pushover: Browser abonnieren Push über VAPID-Schlüssel, Subscriptions werden in `data/push.db` gespeichert und AuraGo kann lokale Browser-Benachrichtigungen senden.
 
-Game-Maker-Jobs erhalten nur Projekt-, Asset- und Validierungs-Tools sowie die kuratierten Agent-Skill-Tools zum Auflisten und Aktivieren. Generische Datei-, Shell-, Python-, Netzwerk-, Desktop-, Homepage- und `invoke_tool`-Zugriffe sind ausgeschlossen. Kuratierte Skill-Pakete werden bei lokaler Abweichung aus dem eingebetteten, verifizierten Bundle wiederhergestellt.
+#### API-Endpunkte
 
-Preview-Iframes verwenden kurzlebige, an Projekt und Job gebundene Tokens, verzichten auf `allow-same-origin`, blockieren externe Verbindungen per restriktiver CSP und erlauben nur einen begrenzten, validierten Diagnosekanal über `postMessage`. Revisionsblobs sind SHA-256-adressiert und dedupliziert. Der ZIP-Export schließt Staging-Daten, Preview-Tokens, Ledger-Metadaten und AuraGo-Secrets aus, enthält aber lokale Laufzeiten und Third-Party-Hinweise.
+| Endpunkt | Zweck |
+|----------|-------|
+| `GET /api/push/vapid-pubkey` | Öffentlichen VAPID-Schlüssel abrufen |
+| `POST /api/push/subscribe` | Browser-Push-Subscription registrieren |
+| `POST /api/push/unsubscribe` | Aktuelle Subscription entfernen |
+| `GET /api/push/status` | Push-Verfügbarkeit und Subscription-Status prüfen |
 
-Siehe [Game Maker Studio](../../game-maker-studio.md) für Limits, Revisions-APIs und den vollständigen Exportvertrag.
+Web Push benötigt HTTPS oder `localhost`, da Browser Service-Worker-Push auf unsicheren Origins blockieren.
 
-## Lokale SMB- und NFS-Freigaben
+### MeshCore-Funk
+
+AuraGo verbindet sich mit genau einem MeshCore-Companion-Funkgerät. USB funktioniert unter Linux, Windows und macOS (115200 Baud), Bluetooth nativ nur unter Linux mit BlueZ; in Docker ist Bluetooth nicht verfügbar und USB braucht eine ausdrückliche Gerätedurchreichung. Firmware-Flashing, Repeater-Verwaltung und Funkparameter-Änderungen gehören nicht zur Integration.
+
+#### Einrichtung
+
+1. **Config → MeshCore** öffnen, Transport und Port (Dropdown erkannter serieller Anschlüsse) bzw. zuvor gekoppelte BLE-Adresse wählen, aktivieren und speichern. Eine BLE-PIN gilt nur für den aktuellen Kopplungsversuch und wird nie gespeichert.
+2. Den angezeigten vollständigen Geräteschlüssel vergleichen und **Geräteidentität bestätigen**. Der Verbindungstest liest nur gespeicherte Einstellungen und sendet keine Funknachricht.
+3. Vollständige öffentliche Schlüssel (64 Zeichen) sicherer Nodes freigeben – alternativ über die durchsuchbare Nodeliste in die Vertrauens- oder Sendeliste übernehmen. Nur eindeutige synchronisierte Chat-Kontakte dürfen direkte Plain-Text-Befehle auslösen; Namen, Kanalabsender und weitergeleitete Nachrichten autorisieren nie.
+4. Kanäle zuordnen und pro Kanal Empfang, Präfix (`!aura`) oder automatische Frageerkennung wählen. Die Frageerkennung beantwortet auch offene Kanalfragen und Empfangstests wie „hört mich jemand“ – ohne Websuche; gemessene SNR-Werte und bekannte Hopzahlen dürfen genannt werden.
+5. Antworten (`direct_replies`) und proaktives Senden (`proactive_send` mit Ziel-Freigabe) sind getrennte Berechtigungen. Kanalantworten tragen die feste KI-Kennzeichnung `[AuraGo KI]` und laufen in einem isolierten Minimal-Kontext mit höchstens zwei nativen Brave-Suchaufrufen.
+6. Die Standortfreigabe ist standardmäßig aus. Nur der vom Administrator eingetragene öffentliche Beschreibungstext darf genannt werden – Positionen, Koordinaten und Routen bleiben privat.
+
+#### Sicherheit und Grenzen
+
+Vor jeder Verarbeitung laufen Format-, Duplikat- und Injection-Prüfung plus eine separate Wächter-LLM-Prüfung; Fehler, abgeschnittene Ausgaben und Werkzeugaufrufe führen zur Quarantäne. Eingänge erzeugen keine allgemeinen Chat-Systemmeldungen – beim nächsten direkten Kontakt erhält der Agent eine zusammengefasste Eingangsübersicht. Jede zugelassene Nachricht bekommt strukturierten Empfangskontext (SNR, Flood-Hops, Zeitstempel, Kanal- und Absenderdaten); daraus werden keine Berechtigungen oder Laufzeit-Schlüsse abgeleitet. Direktbefehle dürfen höchstens 600 Sekunden alt sein; unterbrochene oder unklare Sendungen bleiben `outcome_unknown` und werden nicht automatisch wiederholt. Speicher: sieben Tage, 1.000 Nachrichten, Warteschlange 128, zwei Läufe je Node/Kanal und zwölf pro Minute. Verbindungs- und Prüfprobleme laufen über den Operational-Issue-Lebenszyklus.
+
+#### Werkzeug, API und Desktop-Messenger
+
+Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`, `send_direct` und `send_channel` – keine Rohprotokoll- oder Geräteverwaltung. Administrative Endpunkte: GET unter `/api/meshcore/{status,devices,contacts,channels,messages}`, POST unter `/api/meshcore/{scan,pair,test,recheck}`; der Eingang zeigt die neuesten 100 Einträge mit Pagination. Die Desktop-App **MeshCore** teilt dasselbe Gerät (keine zweite USB-/BT-Verbindung), bietet Gesprächsliste, Entwürfe, Sendestatus, geschützten Text nur nach explizitem Aufdecken und einen getrennten Messenger-Verlauf (`history_days: 90`, `history_messages: 10000`). Private-Kanal-Einladungen sind rein transiente Admin-Exporte ohne Browser-Speicherung. Das opt-in Widget **builtin-meshcore** im Desktop zeigt die neuesten Gespräche nur lesend.
+
+#### Geräteseite, Einstellungen und Diagnose
+
+Die Desktop-App zeigt unter **Mein Knoten** Firmware, Kapazität, Position, Funk und lokale Messwerte (Batteriespannung, Speicher, Uptime, Warteschlange/Fehler, Paketzähler, Airtime, letztes Gerät-RSSI/SNR, sofern unterstützt). Messwerte tragen eigene Zeitstempel und aktualisieren sich sichtbar höchstens alle 30 Sekunden; sie implizieren nie pro-Nachricht-RSSI oder Batterieprozente.
+
+Unter **Einstellungen** gibt es getrennte Bereiche mit je Speichern/Verwerfen: App-Verlaufslimits und zwei Freigaben liegen in der AuraGo-Konfiguration, Gerätewerte auf dem Funkgerät. Name, Koordinaten und Standortfreigabe zur Werbung, Kontakt-Zulassung/Filterung, Telemetrie-Modi, Frequenz, Bandbreite, SF/CR, Sendeleistung, zusätzliche ACKs und Repeat-Optionen sind editierbar; die Zeitsynchronisation ist eine eigene explizite Aktion. Funk-Änderungen verlangen den Vergleich Alt/Neu; jeder Speichervorgang prüft Identität, Sitzung und Settings-Revision erneut und liest die Werte zurück.
+
+Die beiden Freigaben `meshcore.allow_device_settings` und `meshcore.allow_remote_diagnostics` sind standardmäßig `false` und geben dem Agenten keine zusätzlichen Fähigkeiten. Verwaltung läuft über `/api/meshcore/settings`, `/api/meshcore/device`, `POST /api/meshcore/device-settings` (Abschnitte `identity`, `contacts`, `radio`, `clock`, `reconcile`) und `POST /api/meshcore/diagnostics` (`telemetry` oder `path`, HTTP 202 mit Job-ID, Abholung über `GET /api/meshcore/diagnostics?id=...`). Firmware-Flashing und Repeater-Verwaltung bleiben ausgeschlossen.
+
+Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md). Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
+
+---
+
+## Smart Home, IoT & Kameras
+
+Hausautomation, Sensoren, Kameras und Kleingeräte am Schreibtisch.
+
+### Home Assistant Integration
+
+Steuere Smart-Home-Geräte über AuraGo.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Home Assistant**.
+2. Aktiviere die Integration und trage die URL ein (z. B. `http://homeassistant.local:8123`).
+3. Erstelle in Home Assistant ein **Long-Lived Access Token**:
+   - Home Assistant → Profil (unten links) → Long-Lived Access Tokens → Create Token.
+4. Speichere den Token im AuraGo-Vault.
+
+#### Verwendung im Chat
+- "Schalte das Licht im Wohnzimmer an."
+- "Wie ist die Temperatur im Schlafzimmer?"
+
+#### YAML-Referenz
+```yaml
+home_assistant:
+  enabled: true
+  url: "http://homeassistant.local:8123"
+  allowed_services:
+    - "light.turn_on"
+    - "light.turn_off"
+  blocked_services:
+    - "lock.unlock"
+```
+
+`allowed_services` ist eine optionale Allowlist für `call_service`; leer erlaubt alle Services, solange sie nicht in `blocked_services` stehen.
+
+### MQTT Integration
+
+Für IoT-Geräte und Smart-Home-Automation.
+
+**Web-UI:** Config → Integrationen → MQTT → Broker-URL, Client-ID und optional Username/Passwort eingeben. Topics zur Subscription hinzufügen.
+
+MQTT-Einstellungen und Passwortänderungen im Vault werden ohne Serverneustart
+übernommen. Der Verbindungstest verwendet den gespeicherten Stand und einen
+eigenen kurzlebigen Client.
+
+#### YAML-Referenz
+```yaml
+mqtt:
+  enabled: true
+  broker: "mqtts://mqtt.example.com:8883"
+  topics:
+    - "home/+/sensors"
+```
+
+Sichere URL-Schemata verwenden immer TLS. Der TLS-Schalter zusammen mit einer
+Klartext-URL wird abgelehnt; Schema und Port werden nicht automatisch geändert.
+CA-Dateien müssen gültig sein, Client-Zertifikate benötigen den passenden Schlüssel.
+Passwörter werden einschließlich Leerzeichen gespeichert. Die Reihenfolge ist
+Vault → `MQTT_PASSWORD` → leer; nach Löschen des Vault-Eintrags gilt wieder der
+Umgebungswert. Weitere Details: [MQTT-Betrieb](../../mqtt.md).
+
+Die Weiterleitung an den Agenten, die Frigate-Weiterleitungen und MQTT-ausgelöste
+Missionen starten Agentenläufe nur, wenn sich AuraGo mit Benutzernamen oder
+Client-Zertifikat über TLS am Broker anmeldet (`tls.cert_file` mit einer sicheren
+Broker-URL wie `mqtts://`; über `tcp://` wird das Zertifikat nie gesendet) oder
+`allow_unauthenticated_relay: true` ausdrücklich zulässt, dass jedes Gerät, das an
+den Broker veröffentlichen kann, Agentenläufe startet. Bestehende Setups mit Brokern
+ohne Authentifizierung laufen weiter (das Update schreibt
+`allow_unauthenticated_relay: true`) und erzeugen einen kritischen Sicherheitshinweis.
+Ein Benutzername schützt die Weiterleitung nur, wenn der Broker anonyme Clients
+ablehnt (bei Mosquitto `allow_anonymous false`).
+
+### FritzBox Integration
+
+Steuere AVM Fritz!Box-Router über TR-064.
+
+**Web-UI:** Config → Integrationen → FritzBox → Host, Username und gewünschte Module (System, Netzwerk, Smart-Home, etc.) aktivieren. Passwort im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+fritzbox:
+  enabled: true
+  host: "fritz.box"
+  username: "admin"
+```
+
+Mit `https: true` wird der Standard-TR-064-Port 49000 automatisch auf AVMs TLS-Port 49443 umgestellt (für das selbstsignierte Zertifikat der Box `insecure_skip_verify: true` setzen). Die Sicherheitsprüfung warnt mit `fritzbox_plaintext_sessions`, solange eine aktivierte Funktionsgruppe mit `readonly: false` über unverschlüsseltes HTTP läuft. Session-IDs gehen auch beim Lesen im Klartext über das LAN, und AuraGos `readonly`-Schalter begrenzen nur AuraGo, nicht eine mitgeschnittene Session, die die Rechte des Fritz!Box-Kontos trägt. Aktiviere deshalb zuerst `https` und melde dich mit einem Fritz!Box-Benutzer an, der nur die Rechte hat, die AuraGo braucht.
+
+#### Widget im Virtuellen Desktop
+Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Pfeiltasten, horizontale Trackpad-Geste oder Wischen auf Touch-Geräten; mit der Maus verschiebst du wie gewohnt das Widget):
+
+- **Verbindung** – Online-Status, aktueller Download/Upload mit Live-Sparklines, Auslastungsanzeigen der Leitung, öffentliche IPv4/IPv6 (Kopier-Button), Zugangsart, FRITZ!OS und Laufzeit.
+- **Traffic** – geglättetes Flächendiagramm der letzten Minuten (startet mit dem Online-Monitor der Box und wächst lokal weiter, solange das Widget offen ist), Gesamtwerte und Spitzen. Der Verlauf bleibt nur in deiner Browser-Sitzung.
+- **Geräte** – Ring aktiv/bekannt, LAN-/WLAN-Verteilung, Funkmodule mit Kanal und Gast-Markierung sowie die aktiven Geräte.
+- **Telefonie** – heute verpasste Anrufe, neue Anrufbeantworter-Nachrichten und die letzten Anrufe.
+
+Das Widget zeigt nur Bereiche, deren Funktionsgruppen in der Fritz!Box-Konfiguration freigegeben sind (System, Netzwerk mit Hosts/WLAN, Telefonie mit Anruflisten/AB). Es gibt niemals MAC-Adressen, Anrufbeantworter-Dateien, Portfreigaben oder das Router-Passwort preis und schaltet nichts.
+
+### AdGuard Home Integration
+
+DNS-Filterung und -Blockierung verwalten.
+
+**Web-UI:** Config → Integrationen → AdGuard → URL und Username eingeben. Passwort im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+adguard:
+  enabled: true
+  url: "http://adguard.local:3000"
+```
+
+### Bluetooth-Integration
+
+Bei nativen Linux-Installationen erkennt AuraGo beim Start einen eingeschalteten
+BlueZ-Adapter und stellt erst dann das `bluetooth`-Tool bereit. Die Gerätesuche
+ist standardmäßig verfügbar. Koppeln und Verbindungen ändern durch den Agenten
+erfordert einen deaktivierten Nur-Lesen-Modus; die Wiedergabe durch den Agenten
+benötigt zusätzlich eine erreichbare PipeWire- oder PulseAudio-Benutzersitzung
+und `allow_playback`.
+
+Unter **Konfiguration → Smart Home → Bluetooth** kannst du neu erkennen, Geräte
+suchen, koppeln, verbinden und einen lokalen Testton abspielen. AuraGo routet
+nur seinen eigenen Audiostream und ändert das Standard-Ausgabegerät des Systems
+nicht. Pakete, Konfiguration, Docker-Einschränkungen und Fehlerdiagnose stehen
+unter [Bluetooth-Geräte und Audioausgabe](../../bluetooth.md).
+
+Die Desktop-App **Bluetooth** bietet dieselben Funktionen live und erscheint nur,
+solange ein Adapter vorhanden ist. `readonly` und `allow_playback` schränken nur
+den Agenten ein; Admins in der Desktop-App und auf der Config-Seite nicht.
+
+### Chromecast Integration
+
+Sende Text-to-Speech und Medien an Chromecast-Geräte.
+
+**Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren. Für private LAN-Medienquellen kannst du erlaubte Medien-Hosts eintragen.
+
+> 💡 Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
+
+Nutze `operation: "play"` für direkte HTTP(S)-Audio- oder Video-URLs. Direkte Videos sollten `content_type: "video/mp4"` oder `content_type: "video/webm"` setzen. Lokale `.mp4`- und `.webm`-Dateien aus dem Workspace werden automatisch über AuraGos `/cast-media/`-Pfad bereitgestellt.
+
+#### YAML-Referenz
+```yaml
+chromecast:
+  enabled: true
+  tts_port: 8090
+  media_host_allowlist:
+    - "192.168.1.10"
+    - "media.lan:8096"
+    - "192.168.1.0/24"
+```
+
+Private Medien-URLs sind standardmäßig blockiert. Von AuraGo erzeugte `/tts/`- und `/cast-media/`-URLs sind automatisch erlaubt; Loopback-, Link-Local- und Metadaten-Adressen bleiben blockiert.
+
+### Frigate Integration
+
+Videoüberwachung und NVR-Management über Frigate.
+
+**Web-UI:** Config → Integrationen → Frigate → URL und API-Token eingeben. Optional: Event-Relay, Review-Relay und Media-Speicherung aktivieren.
+
+#### YAML-Referenz
+```yaml
+frigate:
+  enabled: true
+  readonly: true
+  url: "https://frigate.local:8971"
+  internal_port: false
+  insecure: false
+  default_camera: ""
+  event_relay: false
+  review_relay: false
+  store_media: true
+  mqtt_topic_prefix: "frigate"
+```
+
+### go2rtc-Kameraintegration
+
+AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst du die gespeicherte Konfiguration testen und den Container verwalten. Die Virtual-Desktop-App **Netzwerkkameras** (`/desktop?app=network-cameras`) bietet Kameraansichten, begrenzte ONVIF-Suche, manuelle Einrichtung und Snapshots. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
+
+Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Die automatische Suche benötigt ebenfalls lokalen Broadcast-Zugriff; bei Docker-Bridge-Betrieb nutzt du in der App die manuelle lokale IP oder Stream-URL.
+
+AuraGo führt sowohl die sicherheitsbegrenzte Suche als auch die ONVIF-Einrichtungsabfragen zum privaten Kamerahost selbst aus. Dabei erkennt AuraGo Profile und Snapshot-Unterstützung sowie, sofern verfügbar, Codec-, Auflösungs- und Geräteinformationen. Erst beim Laufzeitabgleich erhält go2rtc die ausgewählte Vault-geschützte Quelle. Die rohe go2rtc-ONVIF-API bleibt für Browser, Agenten und die optionale Admin-Oberfläche gesperrt und wird bei der Einrichtung nicht verwendet. Details stehen in der [go2rtc-Dokumentation](../../go2rtc.md).
+
+Kameraänderungen werden zuerst sicher in Konfiguration und Vault veröffentlicht. Ist go2rtc danach vorübergehend nicht erreichbar, meldet die App den gespeicherten Teilerfolg und AuraGo gleicht den gewünschten Zustand automatisch später ab. Vor der Aktivierung prüft AuraGo außerdem die benötigten Docker-Endpunkte und zeigt fehlende Rechte direkt in der App an. ONVIF-Setup-Tokens bleiben bei Speicherfehlern für einen erneuten Versuch gültig; private SOAP-Verbindungen verwenden keinen Umgebungsproxy.
+
+#### go2rtc: Einrichtung und Recovery-Details
+
+- Die ONVIF-Suche läuft nur bei vorhandener Broadcast-Fähigkeit (`Runtime.BroadcastOK`). Sie verwendet begrenzte Sonden auf geeigneten privaten IPv4-Interfaces; bei Docker-Bridge bleiben manuelle IP- und Stream-URL-Einrichtung verfügbar.
+- Discovery-Kandidaten und Einrichtungs-Tokens mit Zugangsdaten bleiben ausschließlich im Speicher, sind einmalig verwendbar und verfallen nach fünf Minuten. Sie werden weder im Vault gespeichert noch an den Browser zurückgegeben.
+- Eine vollständige ONVIF-Profilabfrage ist auf 20 Sekunden begrenzt. Die optionale Erkennung der Snapshot-Fähigkeit erhält höchstens fünf Sekunden davon; jede SOAP-Antwort ist auf 1 MiB begrenzt.
+- Der Snapshot-Speicher ist auf 16 Einträge bzw. 64 MiB begrenzt. Persistente Snapshots behalten höchstens 1.000 Dateien oder 2 GiB und löschen zuerst die ältesten Dateien.
+- Konfigurations- und Vault-Änderungen werden vor dem Laufzeitabgleich veröffentlicht. Scheitert danach die Docker-/go2rtc-Reconciliation, liefert die API HTTP `202` mit `saved: true`; AuraGo versucht den Abgleich im Hintergrund erneut. Fehler vor der Veröffentlichung liefern `saved: false`.
+- Die rohe go2rtc-ONVIF-API bleibt gesperrt. Browser sehen nur AuraGo-eigene, auf Stream-IDs begrenzte Endpunkte; Quell-URLs, Kamera-Zugangsdaten und Cookies werden nie offengelegt.
+
+#### Personenerkennung
+
+Im Modus **Erkennung** erkennt die App **Netzwerkkameras** Personen in den Kamerabildern direkt auf dem AuraGo-Server – mit einem D-FINE-Modell in einem eigenen Worker-Prozess, wenn möglich auf der GPU/iGPU (ONNX Runtime WebGPU), sonst auf der CPU.
+
+- **Einschalten:** in der App unter *Erkennung → Aktivieren* oder in den *Einstellungen* (Modell *Standard*, etwa 15 MB, oder *Genau*, etwa 41 MB, dazu die ONNX-Laufzeit, je nach Plattform etwa 10–80 MB (CPU: etwa 8 MB unter Linux, 32 MB unter macOS, 76–78 MB unter Windows; GPU: etwa 25 MB); einmalig geladen und per SHA-256 geprüft). Pro Kamera legst du im Reiter *Personenerkennung* der Kameraverwaltung Intervall, Mindestsicherheit, Alarmpause, Aktionen und Zonen fest.
+- **Ereignisse:** Zwei Treffer in drei Bildern oder ein Treffer ab 80 % starten ein Ereignis; es endet nach 30 Sekunden ohne Treffer (bei langen Intervallen nach zwei Intervallen plus 5 Sekunden). Ein Treffer zählt, wenn der Fußpunkt der Person (Mitte der Unterkante der Box) in einer Zone liegt (ohne Zonen: ganzes Bild); eine Zone umfasst alles, was ihr Umriss einschließt, und Punkte nahe am Bildrand rasten auf ihm ein. Deckenkameras und halb verdeckte Personen (hinter einem Auto liegen die „Füße“ auf Hüfthöhe) können eine Zone verfehlen – *Testen* zeigt es. Die Bilder liegen mit `detections.db` unter `<data_dir>/go2rtc/detections/` und werden nach `retention_days` (Standard 14) oder bei Überschreiten von `max_storage_mb` gelöscht, auch bei ausgeschalteter Erkennung; sie sind nicht Teil von Backups.
+- **Scharfschaltung:** *Aus*, *Ein* oder *Zeitplan* (Wochentage mit Uhrzeiten, auch über Mitternacht, in der **Zeitzone des Servers** – Docker läuft in UTC, solange du kein `TZ` setzt, siehe die auskommentierte `TZ`-Zeile in `docker-compose.yml`). Nachricht mit Foto, Agent-Weckruf und Desktop-Hinweis gehen nur scharf geschaltet raus, höchstens einmal pro Alarmpause je Kamera und Aktion; der Missions-Auslöser `person_detected` feuert bei jedem Ereignis mit `armed` in den Daten. Ein von einer Erkennung geweckter Agent-Lauf darf scharf, aber nicht unscharf schalten; Missionsläufe fallen nicht unter diese Regel.
+- **Hinweise und Livebilder:** Ein Klick auf einen Hinweis der Personenerkennung öffnet das Ereignis in der App, gefiltert auf die Kamera; ein inzwischen gelöschtes Ereignis verschwindet mit einem kurzen Hinweis. Solange go2rtc läuft, erstellt das Ein- oder Ausschalten der Erkennung einer Kamera seinen Container neu, Livebilder setzen dabei einige Sekunden aus (ab 6 erkennenden Kameras ist die Grenze von 2 CPUs erreicht, weitere Umschaltungen erstellen ihn nicht mehr neu); ein gestopptes go2rtc bleibt gestoppt, und seine Erkennungskameras zeigen „nicht erreichbar“.
+- **GPU unter Linux:** Der Dienstbenutzer braucht die Gruppe `render`: `sudo usermod -aG render aurago`, danach AuraGo neu starten. Ohne GPU-Zugriff läuft die Erkennung auf der CPU, und die App nennt den Grund.
+- **Konfiguration:** `go2rtc.detection` (global) und `go2rtc.streams[].detection` (pro Kamera); Details, API und Speicherregeln in der [go2rtc-Dokumentation](../../go2rtc.md#person-detection).
+
+### 3D-Drucker-Integration
+
+Überwache und steuere 3D-Drucker mit dem `three_d_printer`-Tool. Unterstützt **Elegoo Centauri Carbon** (SDCP WebSocket) und **Klipper/Moonraker** (HTTP API).
+
+**Web-UI:** Config → Integrationen → 3D Printers → Drucker hinzufügen, optionale Klipper-Moonraker-API-Keys im Vault speichern, `readonly: true` für Nur-Monitor.
+
+#### YAML-Referenz
+```yaml
+three_d_printers:
+  enabled: false
+  readonly: true
+  default_printer: ""
+  elegoo_centauri_carbon:
+    enabled: false
+    printers:
+      - id: "lab-printer"
+        name: "Elegoo Centauri Carbon"
+        url: "ws://192.168.1.50/websocket"
+        timeout_seconds: 10
+  klipper:
+    enabled: false
+    printers:
+      - id: "voron"
+        name: "Voron 2.4"
+        url: "http://192.168.1.60:7125"
+        timeout_seconds: 10
+```
+
+**API:** `POST /api/3d-printers/test` (nur Status, keine Mutation), Kamera-Snapshot/Stream pro `printer_id`.
+
+**Agent-Tool:** `three_d_printer` — u. a. `status`, `camera_snapshot`, `show_live_stream`, `start_print`, `pause_print` (Schreibzugriff erfordert `readonly: false`).
+
+### Cheap Yellow Display
+
+Ein gekoppeltes ESP32-2432S028R (Cheap Yellow Display) zeigt AuraGo-Status auf dem Schreibtisch und empfängt Agent-Overlays.
+
+Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
+
+1. **Config → Smart Home → Cheap Yellow Display** öffnen.
+2. Integration aktivieren und speichern.
+3. **Display-Token erzeugen**. Den 9-Zeichen-Code (`XXX XXX XXX`) einmal kopieren. `aura_` steht auf dem Glas schon.
+4. Display flashen, `agocyd-XXXX` beitreten und die **Display-URL** aus dieser Config-Seite eintragen (`https://<lan-ip>:8443` bei HTTPS). Dann die 9 Zeichen auf dem Glas eintippen. Host oder Port falsch: auf dem Verbindungsscreen **Edit** tippen.
+5. AuraGo muss auf einer LAN-Adresse lauschen (`server.host`), nicht nur `127.0.0.1`.
+6. Mit **Testbenachrichtigung senden** ein Overlay prüfen.
+
+Von dieser Config-Seite aus kann das Board mit dem **Web-Flasher** programmiert werden (Chrome oder Edge, HTTPS oder localhost, USB). AuraGo schreibt Token und Display-URL in eine Factory-Partition, danach bleibt nur WLAN. Die Firmware liegt unter `internal/cyd/firmware/cyd/`.
+
+Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Die Home-Karte zeigt das Portrait der aktiven Persona (dieselbe `/img/personas`-Grafik wie der AgoDesk-Avatar, als 72×72-Sprite). Alerts, Mesh- und Task-Ereignisse senden den vollständigen Text für die Detailansicht; Notify-Benachrichtigungen laufen animiert über fünf Sekunden. Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), Helligkeit und LED. Die Glassprache nutzt die verwaltete sanoTTS-Umgebung.
+
+---
+
+## Infrastruktur, Storage & Netz
+
+Server, Container, Storage, Netzwerk, Dashboards und Hosting.
+
+### Docker Integration
+
+Verwalte Docker-Container über AuraGo.
+
+**Web-UI:** Config → Integrationen → Docker → Host-URL eingeben (z. B. `unix:///var/run/docker.sock`).
+
+> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
+
+#### Compose-Stacks des Agenten und Hostzugriff
+
+Der Agent kann `docker compose` für Dateien in seinem Workspace ausführen. Vor jedem Compose-Befehl löst AuraGo die Datei mit `docker compose config` auf und prüft das Ergebnis:
+
+- **Bei jedem Compose-Befehl gesperrt:** Stacks, die von AuraGo verwaltete Container, Labels, Images oder Volumes berühren (lokales LLM, ACE-Step, Garage, Homepage, der AuraGo-App-Container). Läuft AuraGo selbst in Docker, lehnt es Befehle, die auf Container wirken (`up`, `create`, `start`, `stop`, `restart`, `down`, `rm`, `kill`, `pause`, `unpause`, `logs`, `top`), außerdem für einen Stack ab, dessen Projektname AuraGos eigenes Compose-Projekt ist. In einer Docker-Installation gehört AuraGos Daten-Volume zu den gesperrten Volumes (`aurago_data`, `<Projekt>_aurago_data` oder das Volume hinter `/app/data`); das Workdir-Volume ist der Workspace des Agenten und bleibt nutzbar. Bestätigt Docker, welches Volume AuraGos eigener Container unter `/app/data` einhängt, ist nur dieses Volume gesperrt. Kann AuraGo seinen eigenen Container nicht erkennen (Docker antwortet nicht, oder AuraGo teilt das Netzwerk eines anderen Containers), gilt jedes Volume namens `aurago_data` oder mit der Endung `_aurago_data` als AuraGos; gib den Volumes anderer Stacks einen anderen Namen.
+- **Bei `up`, `create` und `build` immer gesperrt, auch mit Hostzugriff:** Binds, env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder Watch-Pfade, die in AuraGos Datenverzeichnis, `config.yaml`, die `.env` daneben, `/etc/aurago` oder das Master-Key-Secret zeigen. `config` und `convert` geben env-Dateien eingebettet aus und lehnen deshalb env-Dateien, Secrets und Configs in AuraGos Zustand ebenfalls ab. `up`, `create`, `build`, `pull`, `config` und `convert` lehnen den Wert von AuraGos Master-Key ab, wo immer er in der aufgelösten Datei steht. Docker Compose selbst sieht den Master-Key nie: AuraGo entfernt `AURAGO_MASTER_KEY` aus der Umgebung jedes Docker-Befehls, den es startet.
+- **Braucht `docker.allow_host_access: true` (geprüft bei `up`, `create` und `build`):** Binds außerhalb des Agenten-Workspace (z. B. `/srv/media`) oder solche, die AuraGos eigene Dateien enthalten, sensible Host-Pfade wie `/var/run/docker.sock`, `/etc/localtime` oder `/`, Windows-Named-Pipes, `use_api_socket`, `devices`, `device_cgroup_rules`, `gpus` und reservierte Geräte, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unbeschränkte `security_opt`, lokale Volumes, die ein Host-Verzeichnis einbinden oder ein `/dev`-Gerät bzw. ein Nicht-Netzwerk-Dateisystem mounten (NFS-, CIFS/SMB- und tmpfs-Volumes sind in Ordnung), SSH im Build (`build.ssh`, `build --ssh`), privilegierte Builds, Build-Entitlements, `build.network: host` sowie env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder `develop.watch`-Pfade außerhalb des Workspace. Ein Befehl ohne Service-Namen prüft jeden Service der Standardprofile der Datei. Ein Befehl, der Services nennt (`up -d web`), prüft diese Services, alle, die sie brauchen (depends_on, links, volumes_from, `network_mode: service:`, `service:`-Build-Kontexte), und die Services, die von ihnen abhängen, soweit der Befehl auf sie wirkt (`stop`, `down`, `rm` und `restart` alle, `up` die mit `restart: true` in `depends_on`, `create`, `start`, `build` und `pull` keine), sofern jeder Name existiert und AuraGo jedes Flag des Befehls kennt. AuraGos eigene Dateien, lokale Volumes, Secrets und Configs prüft es immer für die ganze Datei. Ein Workspace unter `/mnt`, `/root` oder `C:\ProgramData` funktioniert wie jeder andere. Das gilt auch für die Binds von `docker create`/`run`.
+- **Braucht Hostzugriff auch bei `down`, `start`, `stop`, `restart`, `rm` und `pull`:** `provider`-Services und privilegierte `post_start`-/`pre_stop`-Hooks, auch die von Profil-Services, die der Befehl nennt, und von den Services, von denen diese abhängen, weil Compose sie auf dem Host bzw. mit Host-Rechten ausführt.
+- **Umgebung:** Ohne Hostzugriff läuft Docker Compose (auch die Prüfung mit `docker compose config` davor) mit einer minimalen Umgebung: `PATH`, `HOME`, die Docker- und Compose-Einstellungen (`DOCKER_HOST`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `COMPOSE_*`, `BUILDKIT_*` …) sowie Proxy-, Temp- und Sprachvariablen. `${VAR}` in einer Compose-Datei liest deshalb nicht mehr AuraGos eigene Umgebung; lege solche Werte in die `.env`-Datei des Stacks. Verweise auf Zertifikate und Credential-Helper (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `GNUPGHOME`, `PASSWORD_STORE_DIR`, `AWS_PROFILE`, `AWS_REGION`, `AWS_CONFIG_FILE`, `AWS_SHARED_CREDENTIALS_FILE`, `CLOUDSDK_CONFIG`) bleiben erhalten, Geheimnisse wie `AWS_SECRET_ACCESS_KEY` oder `DOCKER_AUTH_CONFIG` nicht: Solange der Hostzugriff aus ist, müssen Registry-Zugangsdaten aus der Docker-Konfiguration (`~/.docker/config.json`) oder von einem Credential-Helper kommen, der keine geheimen Umgebungsvariablen braucht. Mit Hostzugriff bekommt Compose wie bisher AuraGos Umgebung, ohne `AURAGO_MASTER_KEY`.
+- **Geänderte Dateien:** Ohne Hostzugriff liest AuraGo die Compose-Datei direkt vor dem Start noch einmal und wiederholt seine Prüfungen mit `docker compose config`. Hat sich die Datei, eine eingebundene Datei oder eine env-Datei seit der Prüfung geändert, läuft nichts (`docker_compose_input_changed`); führe den Befehl erneut aus, sobald sich die Dateien nicht mehr ändern.
+- **Namen verwalteter Sidecars:** Ohne Hostzugriff dürfen `create`/`run` und ein Compose-`container_name` bei `up`/`create` die Namen von AuraGo-verwalteten Sidecars nicht verwenden (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, die `aurago_dograh_*`-Services, `aurago-cloudflared` und die dafür konfigurierten eigenen Namen), weil AuraGo diese Sidecars über ihren Namen findet. Mit Hostzugriff ändert sich nichts. Den Namen des Security-Proxys `aurago-security-proxy` lehnt AuraGo als Compose-`container_name` in jeder Installation ab, wie schon bei `create`/`run`.
+- **`create`/`run` ohne Workspace:** Ist ein Agenten-Workspace konfiguriert, müssen Binds von `create`/`run` darin bleiben. Ohne Workspace und ohne Hostzugriff lehnen `create`/`run` außerdem Binds von AuraGos eigenem Datenverzeichnis, `config.yaml`, der `.env` daneben, `/etc/aurago` und dem Master-Key ab (`docker_protected_path_denied`). Mit Hostzugriff ändert sich nichts.
+- `build --push` ist erlaubt: Es lädt die Images hoch, die der Build selbst erzeugt. `docker compose push` bleibt gesperrt. Die Master-Key-Prüfungen von `build` gelten auch hier.
+- `kill`, `pause`, `unpause`, `ps`, `logs` und die Abfragebefehle prüft AuraGo nie auf Hostzugriff – Stacks, die schon laufen, kannst du also weiter verwalten.
+- Geprüft wird nur, was ein Befehl ausführt: Ein Service eines inaktiven Profils zählt erst, wenn ein Befehl ihn nennt (z. B. `up -d tools` oder `build tools`), zusammen mit den Services, von denen er abhängt; eine optionale Abhängigkeit (`required: false`) zählt nur, wenn ihr Profil aktiv ist, denn nur dann startet Compose sie.
+
+Mit einem Docker Compose älter als v2.35 löst AuraGo einen genannten Service eines inaktiven Profils mit `docker compose config -- <service>` auf. Schlägt das fehl (etwa weil eine env-Datei fehlt), lehnt es `up` und `create` ab; `build` und `pull`, die keine env-Dateien brauchen, laufen mit Hostzugriff ungeprüft (außer die Compose-Datei selbst nennt AuraGos eigene Dateien oder den Master-Key) und werden ohne ihn abgelehnt. Die Pfade von env-Dateien kann es dort nicht auflisten: Ohne Hostzugriff lehnt es `up`/`create` für Dateien mit `env_file`, `include:` oder `extends:` ab. Bekannte Einschränkung: `down`, `start`, `stop`, `restart` und `rm` können bei so einem Compose die Provider und Hooks eines genannten Profil-Service nicht prüfen.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter oder Medienserver mit Host-Ordnern brauchen den Hostzugriff. Konfigurationen, die es vor dieser Einstellung schon gab, haben ihn automatisch eingeschaltet (das Update schreibt `allow_host_access: true`); neue Installationen starten mit `false`. Du schaltest ihn unter **Config → Gefahrenzone → Docker-Hostzugriff für Compose-Stacks des Agenten** um. Der Sicherheitscheck warnt, solange er eingeschaltet ist.
+
+> ⚠️ Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
+
+#### YAML-Referenz
+```yaml
+docker:
+  enabled: true
+  host: "unix:///var/run/docker.sock"
+  readonly: false
+  allow_host_access: false   # Compose up/create/build des Agenten darf Host-Pfade, Geräte, Privilegien und Host-Namespaces nutzen
+```
+
+### Package Manager Integration
+
+Strukturierte OS-Paketverwaltung über das Tool `package_manager`. Unterstützt apt, dnf, yum, pacman, zypper, apk, brew, winget, choco und scoop.
+
+> ⚠️ **Sicherheit:** Paketverwaltung ermöglicht erheblichen Systemzugriff. Nur aktivieren, wenn nötig, und `readonly` für reine Überwachung bevorzugen.
+
+#### Voraussetzungen
+
+Beide Schalter müssen aktiv sein:
+
+1. `package_manager.enabled: true`
+2. `agent.allow_package_manager: true`
+
+Linux-Mutationen erfordern zusätzlich `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, das Vault-Secret `sudo_password` und eine Service-Umgebung ohne `NoNewPrivileges` oder `ProtectSystem=strict`. Der Host braucht außerdem sudo-Timestamp-Caching (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer, weil das Passwort nur einen sudo-Timestamp validiert und die Paketverwaltung mit `sudo -n` läuft. Leseoperationen bleiben verfügbar, wenn systemweite Schreibzugriffe gesperrt sind.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Gefahrenzone** und aktiviere **Paketverwaltung (package_manager)**.
+2. Setze `package_manager.enabled` und Detail-Optionen (`readonly`, `allow_install`, …) in der `config.yaml` (kein eigener Config-Menüpunkt für den `package_manager`-Block).
+3. Speichern und AuraGo neu starten.
+
+#### YAML-Referenz
+```yaml
+package_manager:
+  enabled: true
+  readonly: false
+  auto_detect: true
+  override: ""
+  allow_install: true
+  allow_remove: true
+  allow_upgrade: true
+
+agent:
+  allow_package_manager: true
+  sudo_enabled: true
+  sudo_unrestricted: true
+```
+
+`override` erzwingt einen bestimmten Paketmanager (z. B. `apt`, `brew`, `winget`); leer lassen für Auto-Erkennung über PATH.
+
+### Proxmox Integration
+
+VM- und Container-Verwaltung.
+
+**Web-UI:** Config → Integrationen → Proxmox → URL, Node-Name und Token-ID eingeben. Das Token wird im Vault gespeichert.
+
+#### YAML-Referenz
+```yaml
+proxmox:
+  enabled: true
+  readonly: false
+  allow_destructive: false
+  url: "https://proxmox.example.com:8006"
+  node: "pve"
+  token_id: "user@pam!tokenname"
+```
+
+### Ansible Integration
+
+Playbook-Ausführung.
+
+**Web-UI:** Config → Integrationen → Ansible → Modus (sidecar/remote), URL, Timeout und Verzeichnisse konfigurieren.
+
+#### YAML-Referenz
+```yaml
+ansible:
+  enabled: true
+  mode: sidecar
+  url: "http://localhost:5000"
+```
+
+### TrueNAS Integration
+
+Verwalte ZFS-Storage-Pools, Datasets, Snapshots und Shares.
+
+**Web-UI:** Config → Integrationen → TrueNAS → Host, Port und HTTPS aktivieren. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+truenas:
+  enabled: true
+  readonly: false
+  host: "truenas.local"
+  port: 443
+  use_https: true
+  insecure_ssl: false
+  allow_destructive: false
+```
+
+### MeshCentral
+
+Geräteverwaltung über den MeshCentral-Control-WebSocket. Interaktive Shell und Desktop-Relay bleiben aus.
+
+AuraGo unterstützt die Kernfunktionen für Homelab-Automation: Serverinfos, Gerätegruppen, Gerätelisten, Gerätedetails, Ereignisse, Wake-on-LAN, unterstützte Stromaktionen (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`) und MeshAgent-`run_command`.
+
+Wake und Strom brauchen `allow_power_actions: true`. `readonly: true` blockiert sie trotzdem. `run_command` braucht zusätzlich `agent.allow_remote_shell` und läuft als MeshAgent-Dienstkonto (unter Windows SYSTEM, unter Linux root). Befehle über 4096 Byte werden abgelehnt. Antworten über 64 KiB kommen mit `truncated: true` zurück.
+
+Wake und Strom warten 5 Sekunden auf eine passende Antwort. Der Status `unconfirmed` heißt: gesendet, aber nicht bestätigt. Das Gerät kann die Anfrage schon haben. Wiederhole sie nicht blind. Ein Befehls-Timeout trägt dieselbe Warnung, weil der Befehl noch laufen kann.
+
+Im Vault hält `meshcentral_password` das Passwort oder das Token-Geheimnis. `meshcentral_token` hält nur den Token-Namen. Ein Token-Name ohne dieses Geheimnis verbindet sich nicht.
+
+`ca_file` ist eine PEM-Datei für eine eigene CA und gilt nur, wenn `insecure` aus ist. `insecure: true` überspringt die Zertifikatsprüfung und ignoriert `ca_file`. Unverschlüsseltes `http://` bleibt erlaubt und schreibt eine Warnung.
+
+Fehlt `allow_power_actions` in einer schon aktiven, beschreibbaren Konfiguration, bleiben Wake und Strom an und es gibt einmal eine Warnung. Ein geschriebenes `false` schaltet sie ab. Die Vorlage setzt `readonly: true` und `allow_power_actions: false`.
+
+Die Integration bildet bewusst nicht die gesamte MeshCtrl-Oberfläche ab. Benutzer-/Gruppenverwaltung, Datei-Upload/-Download, interaktive Shell, Desktop-Relay, WebRelay, Invite-Links, Device Sharing, Reports und weitere Relay-Funktionen brauchen zusätzliche Command- oder `meshrelay.ashx`-Unterstützung.
+
+**Web-UI:** Config → Integrationen → MeshCentral. URL, Benutzername und entweder Passwort oder Login-Token plus Geheimnis eintragen. Nur-Lesen und Stromaktionen stellst du getrennt ein. Der Verbindungstest ist nur für Administratoren.
+
+#### YAML-Referenz
+```yaml
+meshcentral:
+  enabled: false
+  readonly: true
+  allow_power_actions: false
+  blocked_operations: []
+  url: "https://mesh.example.com"
+  username: ""
+  insecure: false
+  ca_file: ""
+```
+
+### Tailscale
+
+VPN-Status und -Verwaltung.
+
+**Web-UI:** Config → Integrationen → Tailscale → Tailnet-Name eingeben. Für den eingebetteten tsnet-Node können Hostname, Ports und Funnel separat aktiviert werden.
+
+#### YAML-Referenz
+```yaml
+tailscale:
+  enabled: true
+  tailnet: "tailnet.ts.net"
+  tsnet:
+    enabled: true
+    hostname: "aurago"
+    serve_http: true
+```
+
+#### Eingebettete tsnet-Knoten
+
+Die eingebettete Verbindung verwaltet drei getrennte Tailscale-Identitäten:
+den AuraGo-Hauptknoten und – sofern aktiviert – eigene Manifest- und
+Space-Agent-Knoten. Speichere ihre Auth-Keys im Vault unter
+`tailscale_tsnet_authkey_main`, `tailscale_tsnet_authkey_manifest` und
+`tailscale_tsnet_authkey_space_agent`. Der bisherige
+`tailscale_tsnet_authkey` und `TS_AUTHKEY` bleiben gemeinsame Fallbacks. Ein
+One-off-Key kann jedoch nicht mehrere Knoten registrieren.
+
+Das Speichern eines Schlüssels unterbricht eine gesunde Verbindung nicht.
+Wende ihn gezielt mit **Neu authentifizieren** am jeweiligen Knoten an.
+Normale Neustarts behalten einen gesunden Zustand bei. **Zustand
+wiederherstellen** erscheint nur nach einem Initialisierungsfehler und
+verlangt eine ausdrückliche Bestätigung, weil dadurch eine neue
+Tailscale-Identität und MagicDNS-Adresse entstehen können. AuraGo sichert den
+bisherigen Zustand atomar und stellt ihn bei fehlgeschlagener Prüfung wieder
+her. Lösche `data/tsnet` niemals zur Behebung eines Authentifizierungsfehlers.
+
+`GET /api/ready?require=tsnet` prüft den Hauptknoten und seine konfigurierte
+Webfreigabe. Fehler der optionalen Manifest-, Space-Agent- und
+Homepage-Freigaben werden als eingeschränkt gemeldet, blockieren aber nicht
+die funktionierende Haupt-UI. Der Updater erhält den konfigurierten
+tsnet-Zustand und prüft einen zuvor gesunden Knoten nach dem Neustart erneut.
+
+### Cloudflare Tunnel
+
+Sicherer Tunnel für Remote-Zugriff ohne öffentliche IP oder Port-Forwarding.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Cloudflare Tunnel**.
+2. Wähle den Modus (`auto`, `docker`, `native`) und die Auth-Methode (`token`, `named`, `quick`).
+3. Trage **Account ID** und optional **Tunnel Name** ein.
+4. Speichere den **Connector Token** im Vault.
+
+#### Connector Token erhalten
+1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels.
+2. "Create a tunnel" → Cloudflared → Name vergeben.
+3. Kopiere den Token und speichere ihn im Vault unter `cloudflared_token`.
+
+#### YAML-Referenz
+```yaml
+cloudflare_tunnel:
+  enabled: true
+  mode: auto
+  auth_method: token
+```
+
+Token-Tunnel verwenden den im Cloudflare-Dashboard verwalteten Connector-Token und starten `cloudflared tunnel run`; im Token-Modus hängt AuraGo keine lokale `--url` an. Quick-Tunnel nutzen weiterhin eine lokale Origin-URL und respektieren einen expliziten Quick-Tunnel-Port, bevor sie auf Loopback, HTTPS, Homepage oder Web-UI-Ports aus der Laufzeitkonfiguration zurückfallen.
+
+### S3-kompatible Cloud Storage
+
+Zugriff auf S3, MinIO, Wasabi und andere S3-kompatible Speicher.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → S3**.
+2. Aktiviere die Integration.
+3. Trage Endpoint, Region und optional Standard-Bucket ein.
+4. Aktiviere **Path Style** für MinIO.
+5. Speichere Access Key und Secret Key im Vault.
+
+#### YAML-Referenz
+```yaml
+s3:
+  enabled: true
+  endpoint: "https://s3.amazonaws.com"
+  region: "us-east-1"
+```
+
+### OneDrive Integration
+
+Zugriff auf Microsoft OneDrive über Microsoft Graph API.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → OneDrive**.
+2. Aktiviere die Integration.
+3. Trage **Client ID** und **Tenant ID** ein.
+4. Starte die OAuth2-Authentifizierung über die Web-UI.
+5. Speichere und starte neu.
+
+#### YAML-Referenz
+```yaml
+onedrive:
+  enabled: true
+  client_id: "YOUR_CLIENT_ID"
+  tenant_id: "common"
+  client_secret_vault_key: "onedrive_client_secret"
+  graph_scopes:
+    - "Files.Read"
+    - "Files.ReadWrite"
+  upload_folder: "AuraGo"
+```
+
+### WebDAV/Koofr
+
+#### WebDAV
+**Web-UI:** Config → Integrationen → WebDAV → URL und Username eingeben. Passwort im Vault speichern.
+
+#### Koofr
+**Web-UI:** Config → Integrationen → Koofr → Username und App-Passwort eingeben.
+
+#### YAML-Referenz
+```yaml
+webdav:
+  enabled: true
+  readonly: false
+  auth_type: basic
+  url: "https://cloud.example.com/remote.php/dav/files/username/"
+  username: "user@example.com"
+
+koofr:
+  enabled: true
+  readonly: false
+  username: "user@example.com"
+```
+
+> Passwörter und Tokens werden im Vault gespeichert, nicht als `password` oder `token` in der `config.yaml`.
+
+### Lokale SMB- und NFS-Freigaben
 
 AuraGo kann Shares auf dem eigenen Linux- oder Windows-Host prüfen und verwalten. Öffne **Config → Netzwerk & Remote → Netzwerkfreigaben** und verwende **Neu erkennen** für eine passive Capability-Prüfung. Dabei werden keine Pakete installiert, Dienste gestartet, Samba-Registry-Shares aktiviert oder globale Serverkonfigurationen verändert. Die Integration mountet keine Remote-Shares und verwaltet keine Benutzer oder Passwörter.
 
-### Ownership und Berechtigungen
+#### Ownership und Berechtigungen
 
 - SMB und NFS werden nur angezeigt, wenn das konfigurierte Backend lesbar ist. Änderungen benötigen zusätzlich `readonly: false`, die passende Einzelberechtigung, ein schreibbares natives Backend und ein vorhandenes kanonisches Directory unter einem erlaubten Root.
 - Nur von AuraGo erstellte und in `data/network_shares.db` erfasste Shares dürfen geändert oder entfernt werden. Native Ownership-Marker sind erforderlich, wenn das Backend sie unterstützt; Windows-NFS nutzt stattdessen einen exakten Ledger-Abgleich.
@@ -2531,37 +1072,1189 @@ Unter Linux ohne Root laufen Host-Änderungen über `sudo -n`, und ein gespeiche
 
 Die Standard-Docker-Bereitstellung meldet Host-Mutationen als nicht verfügbar, kann aber weiterhin lesbaren Status anzeigen. Siehe [Lokale SMB- und NFS-Freigaben](../../network_shares.md) für Plattformvoraussetzungen, Drift-Behandlung, Rollback und stabile Fehlercodes.
 
-## Realtime Speech
+### LDAP Integration
 
-Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virtual Desktop. Es wird getrennt von der normalen `providers`-Liste konfiguriert und verwendet OpenAI-, xAI-, Gemini- oder schlüssellose Speech-Lab-Profile aus dem versionierten AuraGo-Katalog. Speech Lab nutzt den verwalteten oder externen s2s-Container für ASR und TTS und ersetzt die Cloud-Streaming-Adapter nicht.
+Authentifizierung und Benutzerverwaltung über LDAP/Active Directory.
 
-### Einrichtung und Datenschutz
+**Web-UI:** Config → Integrationen → LDAP → Server-URL, Base DN und Bind-Credentials konfigurieren.
 
-1. Öffne **Config → Realtime Speech** und erstelle ein Profil mit Modell und Stimme aus dem Katalog.
-2. Speichere den Provider-Key über die UI. Keys liegen pro Profil im Vault und werden weder in `config.yaml` serialisiert noch an Python exportiert.
-3. Wähle das Standardprofil und das Inaktivitätsintervall zum Parken.
-4. Öffne **Live Speech** in Webchat oder Virtual Desktop. Pro Browser-Origin ist nur eine Mikrofon-Session erlaubt.
-5. Optional: Wähle unter **Audio** ein Bluetooth-Headset, das mit dem Server gekoppelt ist. Der Browser merkt sich die Wahl und nutzt sein eigenes Mikrofon und seinen Lautsprecher, solange das Headset nicht verbunden ist.
-
-Der Live-Provider erhält niemals Auras nativen Tool-Katalog. Für AuraGo-Zustand oder Aktionen ruft er die private Funktion `aurago_execute` auf; diese läuft durch den normalen Agent-Loop mit Guardian, Berechtigungen, Bestätigungen, Tool-Events und Abbruch. Rohes Mikrofon-Audio und partielle Transcripts bleiben im Browser; gespeichert werden nur finale direkte Dialog-Turns.
-
+#### YAML-Referenz
 ```yaml
-realtime_speech:
-  enabled: false
-  default_profile: ""
-  park_after_seconds: 5
-  profiles:
-    - id: openai-live
-      name: "OpenAI Live"
-      provider: openai
-      model: gpt-realtime-2.1
-      voice: marin
-      enabled: true
+ldap:
+  enabled: true
+  url: "ldap://ldap.example.com:389"
+  base_dn: "dc=example,dc=com"
+  bind_dn: "cn=admin,dc=example,dc=com"
+  use_tls: true
+  insecure_skip_verify: false
 ```
 
-Siehe [Realtime Speech](../../realtime_speech.md) für Provider-Katalog, VAD-Timing, Session-Leases und API-Vertrag.
+### Homepage Integration
 
-## Virtual Computers
+Erstelle und deploye persönliche Startseiten/Dashboards.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Homepage**.
+2. Aktiviere die Integration.
+3. Konfiguriere Deployment-Host, Benutzer und Zielpfad.
+4. Optional: Aktiviere lokalen Webserver (`allow_local_server`).
+5. Speichere und starte neu.
+
+#### YAML-Referenz
+```yaml
+homepage:
+  enabled: true
+  deploy_host: "server.example.com"
+  deploy_user: "deploy"
+  deploy_path: "/var/www/homepage"
+  webserver_config_path: "/etc/nginx/sites-available/homepage"
+  allow_deploy: true
+  allow_local_server: false
+```
+
+### Grafana Integration
+
+Monitoring und Observability über Grafana.
+
+**Web-UI:** Config → Integrationen → Grafana → Base-URL eingeben. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+grafana:
+  enabled: true
+  base_url: "http://grafana.local:3000"
+  readonly: false
+  insecure_ssl: false
+  request_timeout: 30
+```
+
+### Uptime Kuma Integration
+
+Überwache die Erreichbarkeit von Diensten mit Uptime Kuma.
+
+**Web-UI:** Config → Integrationen → Uptime Kuma → Base-URL eingeben. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+uptime_kuma:
+  enabled: true
+  base_url: "https://uptime-kuma.example.com:3001"
+```
+
+### Netlify Integration
+
+Deploye statische Webseiten direkt auf Netlify.
+
+**Web-UI:** Config → Integrationen → Netlify → Site-ID und Team-Slug eingeben. Personal Access Token im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+netlify:
+  enabled: true
+  allow_deploy: false
+  allow_site_management: false
+  allow_env_management: false
+```
+
+### Vercel Integration
+
+Deploye Web-Projekte direkt auf Vercel.
+
+**Web-UI:** Config → Integrationen → Vercel → Team-Slug eingeben. API-Token im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+vercel:
+  enabled: true
+  team_slug: "my-team"
+```
+
+---
+
+## KI-Modelle & Generierung
+
+Lokale und gehostete Modelle, Fallbacks, Guardian-Prüfungen und generative Medien.
+
+### Ollama Integration
+
+Lokale LLM-Verwaltung.
+
+**Web-UI:** Config → Integrationen → Ollama → URL eingeben (z. B. `http://localhost:11434`). Optional: Verwaltung eines lokalen Docker-Containers aktivieren.
+
+#### Managed Ollama
+
+Wenn Managed Mode aktiviert ist, verwaltet AuraGo einen Docker-Container `aurago_ollama_managed`. AuraGo kann Modell-Daten in einem persistenten Volume halten, verfügbare GPU-Unterstützung erkennen (NVIDIA, AMD, Intel soweit Docker-seitig verfügbar), Speicherlimits setzen, Standardmodelle automatisch ziehen und den Container über Web-UI oder API neu erstellen.
+
+Prüfe den Status mit `GET /api/ollama/managed/status`; erstelle den Container nach Konfigurationsänderungen mit `POST /api/ollama/managed/recreate` neu.
+
+#### YAML-Referenz
+```yaml
+ollama:
+  enabled: true
+  readonly: false
+  url: "http://localhost:11434"
+  managed_instance:
+    enabled: true
+    container_port: 11434
+    use_host_gpu: false
+    gpu_backend: "auto"
+    default_models: ["llama3.1"]
+    memory_limit: ""
+    volume_path: ""
+```
+
+### HuggingFace Plattform Integration
+
+Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht Suche, Download und Verwaltung von KI-Ressourcen direkt aus AuraGo.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → HuggingFace** (falls verfügbar).
+2. Aktiviere die Integration.
+3. Konfiguriere Berechtigungen (Read-Only, Schreibzugriff, Job-Zugriff, geplante Jobs und optionale Job-Token-Injektion).
+4. Optional: Definiere erlaubte Namespaces und Repositorys für zusätzliche Sicherheit.
+5. Speichere und starte neu.
+
+#### Fähigkeiten
+
+| Kategorie | Beschreibung | Voraussetzungen |
+|-----------|--------------|----------------|
+| **Modelle** | Suche und Abruf von Modellen aus dem Hub | `enabled: true` |
+| **Datasets** | Durchsuchen und Herunterladen von Datasets | `enabled: true` |
+| **Papers** | Zugriff auf wissenschaftliche Paper und tägliche Updates | `enabled: true` |
+| **Jobs** | Jobs im Read-Only-Modus prüfen oder bei erlaubten Mutationen ausführen | `allow_jobs: true` und Vault-Token |
+| **Repositories** | Erstellen und Verwalten von Hub-Repositories | `allow_writes: true` |
+| **Spaces** | Zugriff auf HuggingFace Spaces | `enabled: true` |
+
+#### YAML-Referenz
+```yaml
+huggingface:
+  enabled: false                 # Integration aktivieren
+  read_only: true                # Standard: Nur Lesen erlaubt; download_file bleibt erlaubt
+  allow_writes: false            # Repository-Erstellung und Uploads
+  allow_delete: false            # Löschen von Ressourcen
+  allow_jobs: false              # Job-Ausführung
+  allow_scheduled_jobs: false    # Geplante Jobs
+  allow_job_token_injection: false # Explizite HF_TOKEN-Injektion in nicht vertrauenswürdigen Job-Code
+  allowed_namespaces: []         # Explizite Namespaces
+  allowed_repos: []             # Explizite Repositorys
+  allowed_hardware: [cpu-basic]  # Erlaubte Hardware-Typen
+  max_download_mb: 512           # Max. Download-Größe in MB; Werte über 2048 werden gekappt
+  max_upload_mb: 10              # Nur kleine JSON-Uploads; kein LFS/Xet-Support
+  max_dataset_rows: 100          # Max. Dataset-Zeilen
+  job_default_timeout_minutes: 30
+  job_max_runtime_minutes: 120
+  request_timeout_seconds: 60
+  max_result_bytes: 524288
+  hub_base_url: "https://huggingface.co"
+  dataset_base_url: "https://datasets-server.huggingface.co"
+  jobs_base_url: "https://huggingface.co/api/jobs"
+  job_namespace: ""              # Optional; leer wird per whoami ermittelt
+```
+
+#### Agent-Tool: `huggingface`
+
+| Operation | Beschreibung | Beispiel |
+|-----------|--------------|----------|
+| `search_models` | Suche nach Modellen | `{"action": "huggingface", "operation": "search_models", "query": "llama"}` |
+| `get_model` | Details zu einem Modell | `{"action": "huggingface", "operation": "get_model", "repo_id": "user/model"}` |
+| `search_datasets` | Suche nach Datasets | `{"action": "huggingface", "operation": "search_datasets", "query": "datasets"}` |
+| `get_dataset` | Dataset-Details | `{"action": "huggingface", "operation": "get_dataset", "repo_id": "user/dataset"}` |
+| `dataset_rows` | Dataset-Inhalte abrufen | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
+| `search_papers` | Suche nach Papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
+| `daily_papers` | Tägliche Paper-Updates | `{"action": "huggingface", "operation": "daily_papers"}` |
+| `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "paper_id": "paper_id"}` |
+| `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
+| `job_run_python` | Python-Skript ausführen | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
+
+> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge und lassen benannte Lesezugriffe öffentlich. Ein benannter Lesezugriff sendet das Vault-Token nur, wenn mindestens eine Allowlist gesetzt ist und die kanonische ID die Prüfung besteht. Sind beide Allowlists gesetzt, muss das Repository in `allowed_repos` stehen und sein Namespace in `allowed_namespaces`. Eine einzelne Liste prüft nur sich selbst. Suche, Papers und Daily Papers senden das Token nie. `download_file` bleibt im Read-Only-Modus erlaubt. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
+
+### Cloudflare AI Gateway
+
+Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass Statusprüfungen Tokens verbrauchen.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → AI Gateway**.
+2. Aktiviere die Integration und trage **Account ID** sowie **Gateway ID** ein.
+3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
+4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
+5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
+6. Speichere und nutze danach **Gateway testen**. Workers AI verwendet Cloudflares lokalen Models-Search-Endpunkt, OpenAI-kompatible native Routen verwenden `/models`, und Routen ohne sicheren Probe-Endpunkt werden als konfiguriert mit `live_status: skipped` gemeldet.
+
+Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
+
+Google AI Gateway provider-native Routing ist bewusst noch nicht aktiviert. Cloudflares Google-Provider-Route erwartet Gemini-native Requests, während AuraGo Google-Traffic aktuell über OpenAI-kompatible Provider-Clients sendet.
+
+#### YAML-Referenz
+```yaml
+ai_gateway:
+  enabled: true
+  account_id: "YOUR_ACCOUNT_ID"
+  gateway_id: "YOUR_GATEWAY_ID"
+  mode: auto                 # auto, openai_compatible, provider_native
+  log_mode: metadata_only    # metadata_only, off, full
+  metadata: {}
+  request_timeout_ms: 0
+  max_attempts: 0
+  retry_delay_ms: 0
+  backoff: ""                # "", constant, linear, exponential
+```
+
+### Fallback LLM
+
+Failover-LLM, der automatisch aktiviert wird, wenn der Haupt-Provider ausfällt.
+
+**Web-UI:** Config → Integrationen → Fallback LLM → Modell und Schwellenwert konfigurieren.
+
+#### YAML-Referenz
+```yaml
+fallback_llm:
+  enabled: true
+  model: ""
+```
+
+### LLM Guardian
+
+Sicherheits- und Policy-Engine für eingehende und ausgehende Inhalte.
+
+**Web-UI:** Config → Integrationen → LLM Guardian → Provider, Modell und Stärke-Level konfigurieren.
+
+#### YAML-Referenz
+```yaml
+llm_guardian:
+  enabled: true
+  default_level: "medium"
+```
+
+### YepAPI Integration
+
+Einheitliche API für SEO, SERP, Web-Scraping und Social-Media-Daten (YouTube, TikTok, Instagram, Amazon).
+
+#### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → YepAPI**.
+2. Aktiviere die Integration.
+3. Speichere den API-Key im Vault (Schlüssel: `yepapi_api_key`).
+4. Konfiguriere bei Bedarf einzelne Dienste ein/aus.
+5. Speichere und starte neu.
+
+#### Fähigkeiten
+
+| Dienst | Fähigkeiten |
+|--------|--------------|
+| **SEO** | Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlinks, On-Page-Analyse, Trends |
+| **SERP** | Google/Bing/Yahoo/Baidu-Suche, Maps, Bilder, News, YouTube, Autocomplete |
+| **Scraping** | Standard, JavaScript-gestützt, Stealth, Screenshots, KI-Extraktion |
+| **YouTube** | Video-Suche, Transkripte, Kommentare, Kanäle, Playlists, Shorts |
+| **TikTok** | Video-/Benutzersuche, Profile, Posts, Kommentare, Musik, Challenges |
+| **Instagram** | Benutzer-/Hashtag-Suche, Profile, Posts, Reels, Stories, Kommentare |
+| **Amazon** | Produktsuche, ASIN-Lookup, Rezensionen, Deals, Bestseller |
+
+#### YAML-Referenz
+```yaml
+yepapi:
+    enabled: true
+    seo:
+        enabled: true
+    serp:
+        enabled: true
+    scraping:
+        enabled: true
+    youtube:
+        enabled: true
+    tiktok:
+        enabled: true
+    instagram:
+        enabled: true
+    amazon:
+        enabled: true
+```
+
+### Image Generation
+
+Generiere Bilder über unterstützte Provider.
+
+**Web-UI:** Config → Integrationen → Image Generation → Provider, Modell und Limits einstellen. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+image_generation:
+  enabled: true
+  provider: ""
+```
+
+### Video Generation
+
+Generiere kurze Videos aus Text-Prompts oder Bildvorlagen. Unterstützte Provider sind je nach Konfiguration MiniMax Hailuo und Google Veo.
+
+#### Fähigkeiten
+
+| Fähigkeit | Beschreibung |
+|-----------|--------------|
+| Text-zu-Video | Video direkt aus einem Prompt generieren |
+| Bild-zu-Video | Erstes Frame als visuelle Vorgabe nutzen |
+| Start-/Endframe | Provider-unterstützte Kontrolle über erstes/letztes Frame |
+| Referenzbilder | Provider-unterstützte Bildreferenzen |
+| Media Registry | Generierte MP4-Dateien werden automatisch registriert |
+| Tageslimits | Kosten und Provider-Nutzung mit `max_daily` begrenzen |
+
+**Web-UI:** Config → Integrationen → Video Generation → Provider (`minimax` oder `google`), Modell, Dauer, Auflösung, Seitenverhältnis und Tageslimit konfigurieren. Zugangsdaten im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+video_generation:
+  enabled: true
+  provider: "minimax"
+  model: "hailuo-02"
+  duration_seconds: 6
+  resolution: "720p"
+  aspect_ratio: "16:9"
+  max_daily: 5
+```
+
+Im Chat nutzt der Agent dafür `generate_video`. Bereits vorhandene Videodateien kann `send_video` mit Inline-Player an den Benutzer senden.
+
+### Music Generation
+
+KI-Musik-Generierung über unterstützte Provider.
+
+**Web-UI:** Config → Integrationen → Music Generation → Provider und Limits einstellen.
+
+#### YAML-Referenz
+```yaml
+music_generation:
+  enabled: true
+  provider: ""
+  model: ""
+  max_daily: 10
+```
+
+### MCP (Model Context Protocol)
+
+Verbinde externe MCP-Server (Client) oder stelle AuraGo selbst als MCP-Server bereit.
+
+**Web-UI:** Config → Integrationen → MCP → Client/Server konfigurieren.
+
+#### MCP-Client
+Erlaubt dem Agenten, Tools von externen MCP-Servern zu nutzen.
+
+```yaml
+mcp:
+  enabled: true
+  servers:
+    - name: "fetch-server"
+      transport: stdio
+      command: "uvx"
+      args: ["mcp-server-fetch"]
+      allowed_tools: []  # optionale Allowlist; leer bedeutet alle entdeckten nicht-destruktiven Tools
+      allow_destructive: false
+
+    - name: "remote-tools"
+      transport: streamable_http # stdio | streamable_http | sse | websocket
+      url: "https://example.com/mcp"
+      headers:
+        Authorization: "Bearer {{remote-mcp-token}}"
+      allowed_tools: []
+      allow_destructive: false
+```
+
+Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte können MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prüft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
+
+AuraGo handelt standardmäßig MCP `2025-11-25` aus und akzeptiert `2024-11-05` weiterhin zur Kompatibilität. Verwende `streamable_http` für den aktuellen Streamable-HTTP-Transport. `sse` ist nur für einen älteren HTTP+SSE-Endpunkt vorgesehen.
+
+Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglassen erlaubt alle entdeckten nicht-destruktiven Tools; trage Toolnamen nur ein, wenn Ausführung und Routing auf diese Teilmenge begrenzt werden sollen.
+
+#### MCP-Server
+Stellt AuraGo-Tools für externe Clients bereit.
+
+**Web-UI:** **Config → Externe KI → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
+
+Der Endpunkt `/mcp` handelt MCP `2025-11-25` aus und bleibt zu `2024-11-05` kompatibel. Native Clients dürfen `Origin` weglassen; Browser-Anfragen müssen zum effektiven AuraGo-Host passen.
+
+#### YAML-Referenz
+```yaml
+mcp_server:
+  enabled: true
+  require_auth: true
+  allowed_tools:
+    - "execute_shell"
+    - "filesystem"
+  vscode_debug_bridge: false
+```
+
+> Der MCP-Server teilt sich den Haupt-HTTP-Server — es gibt kein separates `port`-Feld. MCP-Client-Zugriff erfordert zusätzlich **Config → Gefahrenzone** → MCP (`agent.allow_mcp: true`).
+
+`allowed_tools` ist eine explizite serverseitige Freigabeliste. Eine leere Liste veröffentlicht keine Tools, auch im IDE-Modus. Das Öffnen der Einstellungen und Umschalten der Bridge ergänzt keine Berechtigungen. Mit **Empfohlene Tools hinzufügen** kannst du das IDE-Preset des Backends ausdrücklich übernehmen und anschließend speichern. Die Auswahl aller Tools speichert deren aktuelle Namen.
+
+**Kompatibilitätsänderung:** Bestehende IDE-Konfigurationen mit leerer Liste benötigen nach dem Update eine bewusste Tool-Auswahl. Eine automatische Migration zum Preset findet nicht statt. MCP-Client-Freigabelisten behalten ihre getrennte Bedeutung.
+
+### Composio Integration
+
+Verbinde AuraGo mit [Composio](https://composio.dev)-Toolkits (GitHub, Slack, Gmail und Hunderte weitere) über das native Tool `composio_call`.
+
+#### Einrichtung in der Web-UI
+1. Registriere dich bei [Composio](https://composio.dev) und erstelle einen API-Key.
+2. Öffne **Config → Integrationen → Composio**.
+3. Aktiviere die Integration.
+4. Setze die **User ID** und konfiguriere Toolkit-Richtlinien.
+5. Speichere den API-Key im Vault (`composio_api_key`).
+6. Verbinde Konten im Composio-Dashboard für die konfigurierten Toolkits.
+7. Speichern und AuraGo neu starten.
+
+#### YAML-Referenz
+```yaml
+composio:
+  enabled: true
+  base_url: https://backend.composio.dev/api/v3.1
+  user_id: aurago-default
+  readonly: true
+  allow_destructive: false
+  allow_natural_language_input: false
+  request_timeout_seconds: 60
+  cache_ttl_seconds: 300
+  max_result_bytes: 262144
+  toolkits: []
+  # - slug: github
+  #   enabled: true
+  #   readonly: true
+  #   allow_destructive: false
+  #   allowed_tool_slugs: []
+  #   blocked_tool_slugs: []
+```
+
+> 🔒 Der API-Key wird im Vault als `composio_api_key` gespeichert, nicht in der `config.yaml`.
+
+Standardmäßig blockiert `readonly: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
+
+#### Tool Preview Funktion
+
+Der `capabilities`-Aufruf mit einem `toolkit_slug`-Parameter liefert nicht nur den Verbindungsstatus, sondern auch eine **`tool_preview`** mit konkreten Composio-Tool-Slugs. Diese Slugs können direkt mit `get_tool` oder `execute_tool` verwendet werden, ohne eine separate Suche durchführen zu müssen.
+
+```json
+{
+  "action": "composio_call",
+  "operation": "capabilities",
+  "toolkit_slug": "github"
+}
+```
+
+Dies ermöglicht schnellere und präzisere Tool-Auswahl, besonders für häufig verwendete Integrationen wie GitHub, Gmail, Slack, Notion oder Google Calendar.
+
+### A2A Protocol
+
+AuraGo unterstützt das Google A2A (Agent-to-Agent) Protokoll für die Kommunikation zwischen KI-Agenten. AuraGo kann eine Agent Card veröffentlichen, damit andere A2A-Clients Name, Fähigkeiten, Endpunkte und Auth-Anforderungen erkennen. Umgekehrt kann AuraGo als A2A-Client Remote Agents registrieren und Aufgaben delegieren.
+
+A2A eignet sich, wenn mehrere autonome Agenten Aufgaben austauschen sollen, ohne eine gemeinsame Chat-Session zu teilen. AuraGo unterstützt REST-, JSON-RPC- und gRPC-Bindings, Streaming und Push Notifications, sofern aktiviert.
+
+**Web-UI:** Config → Integrationen → A2A → Server-Port, Agent Card und Remote Agents konfigurieren.
+
+#### YAML-Referenz
+```yaml
+a2a:
+  server:
+    enabled: true
+    port: 0
+    base_path: "/a2a"
+    agent_name: "AuraGo"
+    streaming: true
+    push_notifications: true
+    bindings:
+      rest: true
+      json_rpc: true
+      grpc: true
+      grpc_port: 50051
+  client:
+    enabled: true
+    remote_agents: []
+  auth:
+    api_key_enabled: true
+    bearer_enabled: true
+```
+
+Die öffentliche Agent Card bleibt für Discovery ohne Authentifizierung erreichbar. Alle anderen A2A-Endpunkte benötigen mindestens eine konfigurierte Auth-Methode; API-Key oder Bearer-Secret müssen vor dem Exponieren im Vault liegen.
+
+### Manus-Integration
+
+Das native `manus`-Tool delegiert private asynchrone Recherche- oder Ausführungsaufgaben an Manus v2. AuraGo speichert den API-Key nur unter `manus_api_key` im Vault, wartet mit begrenztem Polling und hält in `data/manus.db` nur lokale Aufgaben-Metadaten.
+
+#### Einrichtung und Richtlinien
+
+1. Öffne **Config → External AI → Manus**.
+2. Speichere den API-Key im Vault und teste die Verbindung.
+3. Wähle erlaubte Projekte, Connectoren und Skills.
+4. Aktiviere nur die benötigten Aufgaben- und Datei-Berechtigungen; Read-only überschreibt sie alle.
+
+Uploads müssen aus dem AuraGo-Workspace stammen und Pfad, Symlink-, Typ- und Größenprüfungen bestehen. Downloads werden unter dem Verzeichnis der verfolgten Aufgabe geschrieben und nie automatisch ausgeführt. Manus-Texte und Fehler sind nicht vertrauenswürdige externe Daten. OAuth, Webhooks, öffentliche Freigaben, kontoweite Aufgabenlisten und Account-Verwaltung gehören nicht zur aktuellen Integration.
+
+```yaml
+manus:
+  enabled: false
+  read_only: true
+  allow_create_tasks: false
+  allow_send_messages: false
+  allow_stop_tasks: false
+  allow_file_uploads: false
+  allow_file_downloads: false
+  allowed_project_ids: []
+  allowed_connector_ids: []
+  allowed_skill_ids: []
+  default_agent_profile: manus-1.6
+```
+
+Siehe [Manus v2](../../manus.md) für Dateiübertragung, Schema-Validierung, Freigaben und Fehlerausgänge.
+
+### OmniRoute-Integration
+
+OmniRoute ist ein optionales verwaltetes oder externes OpenAI-kompatibles Gateway. AuraGo kann den festgelegten lokalen Sidecar starten, dessen Health prüfen und LLM-Traffic über einen Provider mit `type: omniroute` routen.
+
+```yaml
+omniroute:
+  enabled: false
+  auto_start: true
+  mode: managed          # managed oder external
+  url: http://omniroute:20128
+  external_base_url: http://127.0.0.1:20128/v1
+  host: 127.0.0.1
+  port: 20128
+  host_port: 20128
+```
+
+OmniRoute-API-Key, Initialpasswort und Laufzeit-Secrets werden über den Vault gespeichert. Die Web-UI bietet Status, Verbindungstest, Start und Stop. Binde den Endpoint über das normale Provider-System ein; Credentials gehören nicht direkt in Provider-YAML.
+
+---
+
+## Web, APIs & Automatisierung
+
+Webhooks, Such- und Code-Dienste, Browser-Steuerung und eigene Websites.
+
+### Webhooks
+
+Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
+
+**Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
+
+Eingehende Authentifizierung nutzt `Authorization: Bearer <Token>`; ein Query-Parameter `?token=<Token>` wird mit 401 abgelehnt, weil er in Zugriffslogs, Zwischenservern und im Browserverlauf landen würde. Provider ohne frei konfigurierbare Header können stattdessen einen nur signierten Webhook (Signatur-Header und Secret) nutzen. Nur `signature_algo: sha256` funktioniert ohne Token; ein `sha1`-Webhook muss zusätzlich sein Bearer-Token senden (die Signatur wird weiterhin geprüft), und AuraGo warnt beim Start im Log, dass sha1 veraltet ist. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet als Token-Bucket pro Webhook-Token (bei nur signierten Webhooks pro Webhook und Quell-IP); der Wert pro Minute ist zugleich die Burst-Kapazität. Neue Installationen starten mit 60 Anfragen pro Minute; bestehende Konfigurationen behalten ihren `rate_limit`-Wert (`0` = unbegrenzt), und fehlt der Schlüssel, schreibt ein Update `0`, das bisherige Verhalten. Die Webhooks-Seite zeigt den aktuellen Wert, und der Sicherheitscheck warnt bei aus dem Internet erreichbaren Instanzen vor einem unbegrenzten Limit.
+
+Mit aktiviertem `llm_guardian.scan_documents` wird ein eingehender Webhook abgelehnt, wenn die Sicherheitsprüfung den Inhalt nicht ausdrücklich freigibt, unvollständig ist, das Prüf-Limit überschreitet oder nicht verfügbar ist. Der Payload wird weder an den Chat noch an rohe Missions-Callbacks übergeben. AuraGo sendet einen festen Quarantänehinweis, wenn die konfigurierte Zustellung oder ein berechtigtes lokales Missionsziel den Agenten erreicht hätte. UI-only- und stille Webhooks ohne Missionsziel wecken den Agenten nicht.
+
+URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates werden verschlüsselt im Vault gespeichert und in API sowie Web-UI nur maskiert angezeigt. Sie dürfen nicht in `config.yaml` eingetragen werden.
+
+#### YAML-Referenz
+```yaml
+webhooks:
+  enabled: true
+  max_payload_size: 65536
+  rate_limit: 60 # Token-Bucket pro Webhook-Token (nur signiert: pro Webhook und Quell-IP): Auffüllung/Minute und Burst-Kapazität; 0 = unbegrenzt
+```
+
+### Brave Search
+
+Erweiterte Websuche über Brave Search API.
+
+**Web-UI:** Config → Integrationen → Brave Search → API-Key eingeben (wird im Vault gespeichert).
+
+#### YAML-Referenz
+```yaml
+brave_search:
+  enabled: true
+  api_key: "BS..."
+```
+
+### GitHub Integration
+
+GitHub-Repositories, Issues, Pull Requests, Branches, Dateien, Commits und Workflow-Runs über das native Tool `github` verwalten. Eingehende GitHub-Webhooks werden separat konfiguriert.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → GitHub**.
+2. Aktiviere die Integration und trage den Standard-**owner** (Benutzername oder Organisation) ein.
+3. Für GitHub Enterprise: **base_url** setzen (z. B. `https://github.example.com/api/v3`).
+4. Personal Access Token im Vault speichern (`github_token`).
+5. Optional **read-only** aktivieren, um Schreiboperationen zu blockieren.
+6. Erlaubte Repositories auswählen. Neue Auswahlen werden als `owner/repo` gespeichert; alte reine Repo-Namen gelten nur für den konfigurierten Owner.
+7. Für eingehende Webhooks: **Config → Integrationen → Webhooks**.
+8. Speichern und neu starten.
+
+#### YAML-Referenz
+```yaml
+github:
+  enabled: false
+  readonly: false
+  owner: ""
+  default_private: false
+  base_url: ""                  # GitHub Enterprise API-Basis-URL (optional)
+  allowed_repos: []             # bevorzugt owner/repo; leer = nur von AuraGo erstellte Repos
+```
+
+`allowed_repos` ist eine strikte Freigabeliste. Eine leere Liste bedeutet nicht "alle Repos"; sie erlaubt nur Repositories, die AuraGo über `create_repo` erstellt und mit `agent_created=true` getrackt hat. Manuelle `track_project`-Einträge sind nur lokale Inventur und geben keinen Remote-Zugriff frei.
+
+#### Agent-Tool: `github`
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| `list_repos`, `search_repos` | Repositories auflisten oder suchen |
+| `create_repo`, `delete_repo`, `get_repo` | Repository-Lifecycle |
+| `list_issues`, `create_issue`, `close_issue` | Issue-Verwaltung |
+| `list_pull_requests`, `list_branches` | PR- und Branch-Listen |
+| `get_file`, `create_or_update_file`, `list_commits` | Datei- und Commit-Zugriff |
+| `list_workflow_runs` | CI/CD-Workflow-Runs |
+| `list_projects`, `track_project`, `untrack_project` | Lokales Projekt-Tracking |
+
+> 💡 **Vault:** Token als `github_token` speichern. API-Tokens nie in `config.yaml` ablegen.
+
+#### Webhooks (separat)
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Webhooks**.
+2. Aktiviere Webhooks und konfiguriere Limits.
+3. Speichern.
+
+#### YAML-Referenz
+```yaml
+webhooks:
+  enabled: true
+```
+
+### VirusTotal Integration
+
+Dateien und URLs auf Malware prüfen.
+
+**Web-UI:** Config → Integrationen → VirusTotal → API-Key eingeben.
+
+#### YAML-Referenz
+```yaml
+virustotal:
+  enabled: true
+```
+
+### Browser Automation
+
+Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktionen.
+
+**Web-UI:** Config → Integrationen → Browser Automation → aktivieren, Headless-Modus und Screenshot-Verzeichnis konfigurieren.
+
+Der Browser-Automation-Sidecar verlangt standardmäßig `AURAGO_BROWSER_AUTOMATION_TOKEN`. AuraGo setzt es bei verwalteten Sidecars automatisch; bei manuell gestarteten Sidecars muss es explizit gesetzt werden. Nutze `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` nur für isolierte lokale Entwicklung.
+
+Fehlt das Sidecar-Image und ist `browser_automation.auto_build` aktiv (Standard), baut AuraGo `Dockerfile.browser_automation` aus `browser_automation.dockerfile_dir` mit der Docker-CLI auf der Engine in `docker.host`, die auch den Sidecar startet. Ein geerbtes `DOCKER_HOST` oder `DOCKER_CONTEXT` lenkt den Build nicht um. Lehnt diese Engine den Build mit einer 403-Antwort ab (Socket-Proxy mit `BUILD=0`), versucht AuraGo es einmal auf der Standard-Engine der Docker-CLI (`DOCKER_HOST` aus der Umgebung von AuraGo, sonst der lokale Socket), sofern das eine andere Engine ist; findet `docker.host` das Image danach immer noch nicht, schlägt der Build mit einem Hinweis fehl. Release-Installationen enthalten weder das Dockerfile noch die Sidecar-Quellen: Setze `browser_automation.dockerfile_dir` auf einen AuraGo-Quellcode-Checkout (relative Pfade gelten ab dem Arbeitsverzeichnis von AuraGo) oder baue `aurago-browser-automation:latest` selbst.
+
+#### YAML-Referenz
+```yaml
+browser_automation:
+  enabled: true
+  headless: true
+  screenshots_dir: "browser_screenshots"
+```
+
+### here.now Integration
+
+here.now hostet permanente statische Sites unter der festen API-Basis `https://here.now`. Der Agent kann Sites listen, beschreiben, veröffentlichen, aktualisieren, duplizieren, Versionen wiederherstellen und Zugriffsregeln verwalten. Der API-Key liegt ausschließlich im Vault-Schlüssel `here_now_api_key`; anonyme oder nicht authentifizierte Pfade werden bewusst nicht unterstützt.
+
+**Web-UI:** Config → Integrationen → here.now → Integration aktivieren und API-Key im Vault speichern. Wähle dann die benötigten granularen Berechtigungen.
+
+#### Agent-Tools
+
+- `here_now_sites` – Sites und Versionen listen/lesen (schreibgeschützt).
+- `here_now_site` – Mutationen: `publish`, `update`, `duplicate`, `restore_version`, `update_metadata`, `update_access`, `set_password`, `remove_password`, `delete_site`, `delete_version` (Löschungen zusätzlich mit `confirm: true`).
+- Homepage-Projekte können alternativ über die Homepage-Operation `deploy_here_now` veröffentlicht werden; der Einsatz wird erst nach Abschluss und URL-Prüfung im Homepage-Ledger vermerkt.
+
+Publishing snapshotzt zuerst das Projektverzeichnis in einen privaten temporären Baum (Traversal-, Symlink-, Sonderdatei- und Mengenprüfungen, maximal 1.000 Dateien) und lädt nur diesen Snapshot hoch; der Snapshot wird danach immer entfernt. Uploads verwenden DNS-gepinnte Verbindungen, Upload-Redirects werden blockiert und jeder Redirect einer Site-Verifikation wird neu verankert und geprüft. Mehrdeutige Ergebnisse werden als `here_now_outcome_unknown` gemeldet und nie automatisch wiederholt.
+
+#### YAML-Referenz
+```yaml
+here_now:
+  enabled: true
+  readonly: true
+  allow_publish: false
+  allow_site_management: false
+  allow_access_management: false
+  allow_delete: false
+  default_account: ""       # leer = persönliches Konto
+```
+
+### GolangciLint Integration
+
+Code-Qualitäts-Checks für Go-Code über golangci-lint.
+
+**Web-UI:** Kein eigener Config-Menüpunkt — `golangci_lint.enabled` nur per YAML.
+
+#### YAML-Referenz
+```yaml
+golangci_lint:
+  enabled: true
+```
+
+### Homepage- und Website-Projekte
+
+AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten, bauen, deployen und in einer Registry nachverfolgen.
+
+**Web-UI:** Config → Integrationen → Homepage → aktivieren und Pfade setzen.
+
+| Bereich | Tools |
+|---------|-------|
+| Registry & Historie | `homepage_registry` — Projekte, Edits/Deploys/Probleme, **Projekt-Historie** |
+| Dateien | `homepage_file`, `homepage_project` |
+| Build & Deploy | `homepage_deploy`, `homepage_quality` |
+| Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
+
+**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
+
+Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
+
+#### YAML-Referenz
+```yaml
+homepage:
+  enabled: true
+```
+
+---
+
+## Daten, Dokumente & Wissen
+
+Externe Datenquellen, Dokumentenarchive und lokale Wissensspeicher.
+
+### Google Workspace
+
+Zugriff auf Gmail, Kalender, Drive, Docs und Sheets.
+
+**Web-UI:** Config → Integrationen → Google Workspace → Gewünschte Dienste aktivieren und OAuth2-Client-ID eintragen. Die Authentifizierung läuft über die Web-UI, das Token wird im Vault gespeichert.
+
+#### YAML-Referenz
+```yaml
+google_workspace:
+  enabled: true
+  client_id: ""
+```
+
+### Google Workspace über gog
+
+Neben der nativen Google-Workspace-Integration kann AuraGo den verwalteten **gog**-Helfer nutzen. Konten, Zugangsdaten und Berechtigungen beider Wege sind unabhängig; es wird keine Mail-App installiert — Gmail läuft über den Agenten.
+
+**Web-UI:** **Config → Google Workspace über gog** — Helfer ausdrücklich installieren (geprüftes Paket mit SHA-256-Manifest), Integration aktivieren, Konto hinzufügen, Dienste mit Read/Create/Update/Delete-Grants wählen, dann OAuth-Login starten. Docs-, Sheets- und Slides-Tests brauchen die ID eines existierenden Testobjekts. Das bloße Öffnen der Config kontaktiert Google nie.
+
+**Wichtig:**
+- Die Integration startet deaktiviert und read-only; Schreibzugriff erfordert eine explizite Konfigurationsänderung. Gmail-Senden hat einen eigenen Grant.
+- OAuth braucht weiterhin ein Google-Cloud-Projekt, aktivierte APIs und Nutzereinwilligung. Secrets liegen nur in den Vault-Keys `oauth_gog_client_<id>` und `oauth_gog_<id>` (Export-Deny).
+- Prozesse erhalten ein kurzlebiges Access-Token, ein isoliertes `GOG_HOME` und eine minimale Umgebung.
+- Die Agent-Tools (`gog_accounts` plus `gog_gmail`, `gog_calendar`, `gog_drive`, `gog_docs`, `gog_sheets`, `gog_slides`, `gog_contacts`, `gog_tasks`) kennen 68 festgelegte Operationen — keine beliebige CLI, keine Flags, keine freien URLs. Details: Kapitel 22 und der [gog-Deep-Dive](../../gog.md).
+
+#### YAML-Referenz
+```yaml
+gog:
+  enabled: false
+  # Konten, Grants und Agent-/Desktop-Zugriff werden in der Config-UI verwaltet
+```
+
+### SQL Connections – Externe Datenbanken
+
+Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → SQL Connections**.
+2. Aktiviere die Integration.
+3. Lege Verbindungen an: Name, Datenbank-Typ, Host, Port, Datenbank, Benutzer. Neue PostgreSQL-/MySQL-Verbindungen brauchen einen ausdrücklichen **SSL-Modus** (`ssl_mode`; das Formular wählt **Erforderlich** vor); **Deaktiviert** ist nur für lokale Container gedacht. Bereits gespeicherte Verbindungen behalten ihren Modus. Bei MySQL prüft auch **Erforderlich** (wie die Prüfmodi) das Serverzertifikat gegen den Zertifikatsspeicher des AuraGo-Hosts; ein selbstsignierter MySQL-Server braucht deshalb seine CA in diesem Speicher oder einen anderen Modus.
+4. Speichere Passwörter im Vault.
+5. Passe bei Bedarf `max_result_rows` und Timeouts an.
+
+> 💡 **Sicherheit:** Verwende nach Möglichkeit dedizierte Read-Only-Benutzer.
+
+#### YAML-Referenz
+```yaml
+sql_connections:
+  enabled: true
+  max_result_rows: 1000
+  connections:
+    - name: "produktion"
+      driver: "postgres"
+      host: "db.example.com"
+      port: 5432
+      database: "aurago"
+      username: "aurago_readonly"
+      password_vault_key: "sql_prod_password"
+      readonly: true
+      max_pool_size: 5
+      connect_timeout: 10
+      query_timeout: 30
+```
+
+### Paperless NGX
+
+Dokumentenmanagement und Durchsuchung.
+
+**Web-UI:** Config → Integrationen → Paperless NGX → URL eingeben. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+paperless_ngx:
+  enabled: true
+  url: "https://paperless.local"
+```
+
+### Obsidian Integration
+
+Verknüpfe AuraGo mit deinem Obsidian-Vault für Notizen und Wissensmanagement.
+
+**Web-UI:** Config → Integrationen → Obsidian → Local-REST-API Host/Port und `obsidian_api_key` im Vault.
+
+#### YAML-Referenz
+```yaml
+obsidian:
+  enabled: true
+  host: "127.0.0.1"
+  port: 27124
+  use_https: true
+  readonly: false
+```
+
+### Lokale Wikipedia
+
+Eine komplette Wikipedia-Ausgabe auf deinem AuraGo-Host – offline lesbar für den Agenten und in der Desktop-App **Wikipedia**. AuraGo lädt eine Kiwix-ZIM-Datei herunter und liest sie samt Suchindex in reinem Go: ohne Container, ohne Sidecar, ohne kiwix-serve.
+
+#### Einrichtung in der Web-UI
+
+1. Öffne **Config** und wähle **Lokale Wikipedia** in der Gruppe **Agent-Tools** (oder suche in der Sidebar danach).
+2. Schalte **Lokale Wikipedia aktivieren** ein, wähle die **Sprache** (Standard: Systemsprache) und die **Variante** (**Ohne Medien** oder **Mit Medien**) und klicke auf **Speichern**.
+3. Prüfe die Infobox (Ausgabedatum, Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; du kannst die Seite schließen.
+4. Nach Prüfsumme und Archivprüfung steht der Status auf **Bereit**. Das Agenten-Tool `local_wikipedia` und die Desktop-App sind dann verfügbar.
+
+Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt dir nie eine funktionierende Ausgabe weg, außer du lässt AuraGo die alte Ausgabe vorher löschen. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst du nur per Klick.
+
+#### YAML-Referenz
+
+```yaml
+local_wikipedia:
+  enabled: false
+  agent_access: true
+  language: ""        # leer = AuraGo-Systemsprache
+  variant: nopic      # nopic (ohne Medien) | maxi (mit Medien)
+  data_dir: ""        # leer = <data_dir>/wikipedia; in Docker fest
+  update_check: true
+```
+
+Größen je Sprache, Verzeichnisregeln für systemd und Docker, Fehlercodes, Netzwerk-Hosts und Lizenzen stehen im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md). Schlüssel: [Kapitel 7](07-konfiguration.md#lokale-wikipedia).
+
+---
+
+## Medien & Unterhaltung
+
+Medienserver, Konvertierung, Downloads, Radio und Spiele.
+
+### Jellyfin Integration
+
+Media-Server-Verwaltung.
+
+**Web-UI:** Config → Integrationen → Jellyfin → Host und Port eintragen. API-Key im Vault speichern.
+
+#### YAML-Referenz
+```yaml
+jellyfin:
+  enabled: true
+  readonly: false
+  allow_destructive: false
+  host: "jellyfin.local"
+  port: 8096
+  use_https: true
+  insecure_ssl: false
+```
+
+### Media Registry
+
+Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.
+
+**Web-UI:** `media_registry.enabled` primär per YAML (kein eigener Config-Menüpunkt). Verwaltung über **Galerie** (`/gallery`).
+
+#### YAML-Referenz
+```yaml
+media_registry:
+  enabled: true
+```
+
+### Media Conversion Integration
+
+Medienkonvertierung über FFmpeg und ImageMagick. Konvertiert Audio-, Video- und Bilddateien zwischen Formaten.
+
+**Web-UI:** Config → Integrationen → Media Conversion → Pfade zu FFmpeg/ImageMagick konfigurieren.
+
+#### YAML-Referenz
+```yaml
+tools:
+  media_conversion:
+    enabled: true
+    readonly: false
+    ffmpeg_path: ""
+    imagemagick_path: ""
+    timeout_seconds: 0
+    max_file_size_mb: 0
+```
+
+### Video Download Integration
+
+Video-Download über yt-dlp (YouTube und andere Plattformen). Unterstützt Docker- und Native-Modus.
+
+**Web-UI:** Config → Integrationen → Video Download → Modus (docker/native) und Download-Verzeichnis konfigurieren.
+
+#### YAML-Referenz
+```yaml
+tools:
+  video_download:
+    enabled: true
+    readonly: false
+    allow_download: true
+    allow_transcribe: false
+    mode: "docker"
+    yt_dlp_path: ""
+    download_dir: ""
+    max_file_size_mb: 0
+    timeout_seconds: 0
+    default_format: ""
+    max_search_results: 0
+    container_image: ""
+    auto_pull: false
+```
+
+### Send YouTube Video Integration
+
+Ermöglicht das Senden von YouTube-Videos als eingebettete Player in Chat-Nachrichten.
+
+**Web-UI:** Config → Integrationen → Send YouTube Video → aktivieren.
+
+#### YAML-Referenz
+```yaml
+tools:
+  send_youtube_video:
+    enabled: true
+```
+
+### Retro-Net und Personal Radio im Desktop
+
+Zwei weitere Desktop-Features mit Integrationsberührung:
+
+- **Retro-Net** verwandelt das Desktop-**Terminal** in ein Wählerverzeichnis für noch lebende Textdienste (Telnet-BBS, C64-Boards, MUDs u. a.). Es ist standardmäßig an (`virtual_desktop.retronet_enabled`); jede Verbindung läuft über den AuraGo-Server. Beschrieben in [Kapitel 4](04-webui.md#retro-net-im-terminal) und im [Retro-Net-Deep-Dive](../../retro-net.md).
+- **Personal Radio** ist eine eingebaute Desktop-App für den eigenen Sender: importierte und/oder generierte Musik, LLM-Moderation im Stationsstil und optional recherchierte Nachrichten über die aktive Sprachausgabe. Beschrieben in [Kapitel 4](04-webui.md#personal-radio) und im [Personal-Radio-Deep-Dive](../../personal-radio.md).
+
+### Game Maker Studio
+
+Game Maker Studio ist der isolierte Virtual-Desktop-Arbeitsbereich für offlinefähige Einzelspieler-Browser-Spiele. Die Funktion ist standardmäßig deaktiviert und schreibgeschützt. Aktiviere sie unter **Config → Game Maker Studio** und öffne danach **Game Maker Studio** im Virtual Desktop.
+
+#### Workflow und Laufzeiten
+
+1. Erstelle ein 2D- oder 3D-Projekt, beschreibe das Spiel, wähle einen konfigurierten Provider bzw. ein Modell und aktiviere optional Bild- oder Musikgenerierung.
+2. AuraGo führt den Job in einem Staging-Verzeichnis aus. Für 2D wird Phaser `4.2.1`, für 3D Three.js `0.186.1` verwendet; beide Laufzeiten sind eingebettet und offline.
+3. Die Pure-Go-esbuild-Validierung muss erfolgreich sein, bevor das Staging-Ergebnis als nächste veröffentlichte Revision übernommen wird. Ein fehlgeschlagener oder abgebrochener Job lässt die letzte spielbare Revision unverändert.
+4. Fortschritt, Diagnosen, Preview, Revisionen, Restore und ZIP-Export bleiben im selben Fenster. Weltweit läuft nur ein Writer-Job gleichzeitig.
+
+Bilder können Sprites, Hintergründe, Texturen oder UI-Grafiken werden. Musik kann als lokaler Hintergrund-Track dienen; Soundeffekte verwenden prozedurales Web Audio. Bei Generatorfehlern, deaktivierter Konfiguration oder erschöpftem Budget wird ein sichtbarer prozeduraler Fallback verwendet. AuraGo behauptet nicht, 3D-Modelle zu erzeugen.
+
+#### Isolation und Preview-Sicherheit
+
+Game-Maker-Jobs erhalten nur Projekt-, Asset- und Validierungs-Tools sowie die kuratierten Agent-Skill-Tools zum Auflisten und Aktivieren. Generische Datei-, Shell-, Python-, Netzwerk-, Desktop-, Homepage- und `invoke_tool`-Zugriffe sind ausgeschlossen. Kuratierte Skill-Pakete werden bei lokaler Abweichung aus dem eingebetteten, verifizierten Bundle wiederhergestellt.
+
+Preview-Iframes verwenden kurzlebige, an Projekt und Job gebundene Tokens, verzichten auf `allow-same-origin`, blockieren externe Verbindungen per restriktiver CSP und erlauben nur einen begrenzten, validierten Diagnosekanal über `postMessage`. Revisionsblobs sind SHA-256-adressiert und dedupliziert. Der ZIP-Export schließt Staging-Daten, Preview-Tokens, Ledger-Metadaten und AuraGo-Secrets aus, enthält aber lokale Laufzeiten und Third-Party-Hinweise.
+
+Siehe [Game Maker Studio](../../game-maker-studio.md) für Limits, Revisions-APIs und den vollständigen Exportvertrag.
+
+---
+
+## Fernsteuerung, Sandbox & Virtuelles
+
+Entfernte Steuerung, gehärtete Ausführungsumgebungen und virtuelle Arbeitsplätze.
+
+### Remote Control
+
+Empfange Fernsteuerungs-Befehle von anderen AuraGo-Instanzen.
+
+**Web-UI:** Config → Integrationen → Remote Control → Discovery-Port und erlaubte Pfade konfigurieren.
+
+#### YAML-Referenz
+```yaml
+remote_control:
+  enabled: true
+  discovery_port: 8092
+  allowed_paths:
+    - "/home/aurago"
+```
+
+`allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen (Lesen, Schreiben und Verzeichnislisten) und gilt als Vorgabe für jedes Remote-Gerät ohne eigene `allowed_paths` (pro Gerät über `PUT /api/remote/devices/{id}` gesetzt); eine eigene Geräteliste ersetzt sie. Eine leere Liste blockiert Dateioperationen daher nur auf Geräten ohne eigene Liste: Sind beide Listen leer, hat das Gerät keinen Datei- oder Shell-Zugriff. Shell-Befehle auf einem Remote-Agenten (`shell_exec`, Shell-Sitzungen) benötigen ebenfalls mindestens einen solchen Pfad: AuraGo lehnt sie vor dem Versand ab und der Agent lehnt sie erneut ab, während AgoDesk-Begleiter ihre eigenen lokalen Shell-Einstellungen behalten. Eine gespeicherte Änderung der globalen Liste wirkt sofort: AuraGo prüft dagegen und überträgt sie an verbundene Agenten ohne eigene Liste.
+
+Wenn AuraGo selbst HTTPS bereitstellt, bettet der Verbindungsweg **Automatisch erkennen** (`connection_mode: auto`) eine `wss://`-URL auf `server.https.https_port` in Agent-Downloads ein, daher muss der Agent dem Zertifikat vertrauen (Let's Encrypt oder ein eigenes vertrauenswürdiges Zertifikat); bei einem selbstsignierten Zertifikat verwende **Manuelle Supervisor-URL** (`connection_mode: manual`) mit einer Route, deren Zertifikat vertrauenswürdig ist (ein Cloudflare Tunnel oder ein Reverse Proxy, nicht erneut `wss://host:https_port`), oder **Tailscale-Netzwerk verwenden** (`connection_mode: tailscale`).
+
+> ⚠️ **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
+> Vor dem Upgrade verteilte Remote-Agenten können sich nicht mehr verbinden und müssen durch einen Download vom aktualisierten AuraGo (**Remote Control**) ersetzt werden. Ihre Geräteschlüssel bleiben erhalten, ein erneutes Enrollment ist nicht nötig.
+> Der Supervisor protokolliert für jedes betroffene Gerät `unsupported frame version`.
+> Der Enrollment-Schlüssel eines Tokens liegt im Vault als `remote_enroll_key_<id>`, bis das Token verwendet oder nach seinem Ablauf (bei der nächsten Token-Ausstellung) bereinigt wird.
+
+#### AgoDesk / AgoChat Desktop-Begleiter
+
+AuraGo kann sich mit dem **AgoDesk**-Desktop-Client per WebSocket koppeln. Bei verbundenem Gerät kann der Agent proaktive Nachrichten über `send_agodesk_chat` senden und Remote-Desktop-Befehle über das AgoDesk-Protokoll ausführen.
+
+**Voraussetzungen:**
+- `remote_control.enabled: true`
+- AgoDesk-Client verbunden und gekoppelt (`/api/agodesk/ws`)
+
+**Einrichtung:**
+1. AgoDesk-Desktop-Client installieren und öffnen.
+2. Mit AuraGo koppeln (`pairing_token` oder gespeichertes `device_id` + `shared_key_proof`).
+3. Das Gerät erscheint im Agent-Kontext als **REACHABLE CHAT CHANNEL** mit `device_id`.
+
+**Agent-Tool:** `send_agodesk_chat`
+
+```json
+{
+  "action": "send_agodesk_chat",
+  "device_id": "dev-abc123",
+  "message": "Dein Backup wurde erfolgreich abgeschlossen."
+}
+```
+
+> 📖 Vollständiges Protokoll: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md)
+
+**API:** `GET /api/remote/devices` listet verbundene RemoteHub/AgoDesk-Geräte.
+
+### Sandbox
+
+Isolierte Ausführung von Python-Code und externen Befehlen.
+
+**Web-UI:** Config → Integrationen → Sandbox → Backend, Timeout und Netzwerkzugriff konfigurieren.
+
+#### YAML-Referenz
+```yaml
+sandbox:
+  enabled: true
+  backend: docker
+```
+
+### Shell Sandbox Integration
+
+Linux-Landlock-basierte Sandbox für Shell-Befehle. Sie schränkt Dateisystemzugriffe, CPU-Zeit und Speicher für Shell-Operationen ein, wenn sie explizit aktiviert und verfügbar ist.
+
+**Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
+
+> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`). Seit diesem Release benötigt die Linux-/macOS-Host-Shell ohne wirksame Sandbox zusätzlich `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`. Updates über `update.sh` und Docker schreiben `agent.allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`); Konfigurationen, in denen der Schlüssel nie geschrieben wurde, funktionieren weiter und zeigen den Hinweis `shell_unsafe_host_legacy`. In Docker gibt es keine Shell-Sandbox: Eine frische Docker-Installation, die die Shell aktiviert, muss `agent.allow_unsandboxed_shell: true` (oder `allow_unsafe_host_execution: true`) setzen.
+
+Shell- und Python-Kindprozesse erhalten standardmäßig eine gefilterte Umgebung, damit Host-Secrets wie Master-Keys, API-Keys, Tokens und Passwörter nicht an agentengesteuerte Subprozesse vererbt werden. `DOCKER_HOST` und die übrigen Docker-Client-Variablen (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) erhalten Shell-Befehle und Host-Python nur, solange das Docker-Tool aktiviert ist (`docker.enabled`). Skills (Python-Skills, Daemon-Skills und Agent-Skill-Skripte) erhalten `DOCKER_HOST` weiterhin: Installierte Skills gelten als vertrauenswürdig, und die Skill-Vorlage für den Docker-Manager ist darauf angewiesen.
+
+#### YAML-Referenz
+```yaml
+shell_sandbox:
+  enabled: false
+  allow_unsafe_fallback: false
+  max_memory_mb: 1024
+  max_cpu_seconds: 30
+  max_processes: 50
+  max_file_size_mb: 100
+  allowed_paths:
+    - path: "/tmp"
+      readonly: false
+```
+
+### Python Tool Bridge
+
+Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine interne HTTP-Bridge (`POST /api/internal/tool-bridge/`) aufzurufen. Standard: deaktiviert.
+
+**Web-UI:** **Config → Tools → Fähigkeiten-Manager** — Python Tool Bridge aktivieren und `allowed_tools`-Whitelist pflegen.
+
+#### YAML-Referenz
+```yaml
+tools:
+  python_tool_bridge:
+    enabled: false
+    allowed_tools: []              # explizite Whitelist, z. B. ["api_request", "sql_query"]
+    allowed_sql_connections: []    # SQL-Verbindungsnamen; leer = SQL-Bridge blockiert
+```
+
+Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
+
+> ⚠️ **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
+
+### Skill Manager
+
+Verwalte hochgeladene Python-Skills.
+
+**Web-UI:** **Config → Tools → Fähigkeiten-Manager** → Uploads erlauben und Guardian-Scan aktivieren.
+
+#### YAML-Referenz
+```yaml
+tools:
+  skill_manager:
+    enabled: true
+    allow_uploads: true
+```
+
+### Daemon Skills
+
+Langlaufende Python-Skills, die im Hintergrund aktiv bleiben und den Agent bei Ereignissen wecken können (z. B. Datei-Watcher, Polling-Schleifen). Verwaltung über das Tool `manage_daemon` und die Dashboard-Karte **Daemon Skills**.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Tools → Daemon Skills**.
+2. Daemon Skills aktivieren (Opt-in, standardmäßig deaktiviert).
+3. Parallelität und Wake-up-Kostenlimits konfigurieren.
+4. Skill mit `daemon: true` im Manifest hochladen oder aktivieren.
+5. Speichern und neu starten.
+
+#### YAML-Referenz
+```yaml
+tools:
+  daemon_skills:
+    enabled: false
+    max_concurrent_daemons: 5
+    global_rate_limit_secs: 60
+    max_wakeups_per_hour: 6
+    max_budget_per_hour: 0.50
+```
+
+#### Agent-Tool: `manage_daemon`
+
+| Operation | Beschreibung |
+|-----------|--------------|
+| `list` | Alle laufenden Daemons auflisten |
+| `status` | Status eines Daemons abfragen (`skill_id` erforderlich) |
+| `start` / `stop` | Daemon per Skill-ID starten oder stoppen |
+| `reenable` | Auto-deaktivierten Daemon wieder aktivieren |
+| `refresh` | Skills von der Festplatte neu scannen und Daemons abgleichen |
+
+> ⚠️ **Kostenkontrolle:** `max_wakeups_per_hour` und `max_budget_per_hour` wirken als Circuit Breaker gegen unkontrollierte LLM-Kosten durch häufige Daemon-Wake-ups.
+
+### Virtual Desktop Integration
+
+Workspace-basierter Browser-Desktop für lokale Apps, generierte Apps, Dateiarbeit, Code Studio und verwaltete Docker-Software.
+
+**Web-UI:** Config → Integrationen → Virtual Desktop → Workspace aktivieren, Agent-Control konfigurieren und Code-Studio-Limits anpassen.
+
+#### Zugehörige Tool-Toggles
+
+Die fokussierten Tools `virtual_desktop_files`, `virtual_desktop_apps` und `virtual_desktop_widgets` werden nur freigeschaltet, wenn sowohl `tools.virtual_desktop.enabled` als auch `virtual_desktop.allow_agent_control` aktiv sind. Office-Dokument- und Workbook-Tools benötigen ebenfalls den aktivierten Virtual Desktop.
+
+#### Desktop Software Store
+
+Der Software Store installiert von AuraGo verwaltete Docker-Apps in die Virtual-Desktop-Umgebung. Aktuelle Katalogeinträge sind unter anderem Homarr, n8n, Node-RED, Open WebUI, ByteStash, IT-Tools, File Browser Quantum, OliveTin, AdGuard Home, Excalidraw, Uptime Kuma, Stirling PDF, QuakeJS (rootless), RomM, Beszel, Dozzle, Arcane, code-server, Termix, CommandCode und OpenSCAD. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix startet mit einem `guacd`-Companion-Container, damit seine Web-UI SSH-, RDP-, VNC- und Telnet-Sitzungen verwalten kann.
+
+#### YAML-Referenz
+```yaml
+tools:
+  virtual_desktop:
+    enabled: false
+  office_document:
+    enabled: false
+    readonly: false
+  office_workbook:
+    enabled: false
+    readonly: false
+
+virtual_desktop:
+  enabled: false
+  readonly: false
+  allow_agent_control: false
+  allow_generated_apps: true
+  allow_python_jobs: false
+  workspace_dir: agent_workspace/virtual_desktop
+  max_file_size_mb: 50
+  max_ws_clients: 8
+  code_studio:
+    enabled: true
+    image: ghcr.io/antibyte/aurago-code-studio:latest
+    auto_start: false
+    auto_stop_minutes: 30
+    max_memory_mb: 4096
+    max_cpu_cores: 2
+```
+
+### Virtual Computers
 
 Virtual Computers verwaltet die vollständige Boring-Computers-Bereitstellung über AuraGo. Die private `boringd`-Steuerung kann lokal auf einem Linux/KVM-Host oder auf einem ausgewählten SSH-Host eingerichtet werden; die Verwaltungs-App wird über die authentifizierte AuraGo-Origin bereitgestellt.
 
@@ -2600,55 +2293,97 @@ Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie
 
 Siehe [Virtual Computers](../../virtual_computers.md) für Modi, Screenshots, VNC, Headless-Terminals, Volumes, Task-Historie und Repair-Verhalten.
 
-## Manus-Integration
+### System World
 
-Das native `manus`-Tool delegiert private asynchrone Recherche- oder Ausführungsaufgaben an Manus v2. AuraGo speichert den API-Key nur unter `manus_api_key` im Vault, wartet mit begrenztem Polling und hält in `data/manus.db` nur lokale Aufgaben-Metadaten.
+**System World** ist eine lokale Three.js-Stadt mit sieben festen Bezirken im Virtual Desktop — keine Cloud, kein LLM: Erkundung und dekoratives Leben rufen nie ein Modell auf.
 
-### Einrichtung und Richtlinien
+Die zweite Version bringt drei begehbare Annexbauten (Agent-Kontrollraum, Gedächtnis-Archiv, Missions-Depot am Südufer), eine siebenstationige Straßenbahn, eine optionale Drohnen-Tour, Entdeckungen, artikulierte Bewohner, Zeit-/Wetter-Regler und einen geteilten aufgezeichneten Systemblick. Der Agent-Turm trägt einen offenen Glaslift zur Sky-Deck-Terrasse in 72 m; Viewer auf jeder Galerie zoomen auf Bezirke und nennen Live-Status und Kennzahl. Roboter (Kuriere, Techniker, Archivare) führen zu existierenden Stationen; „City life"-Sequenzen sind dekoativ gekennzeichnet und behaupten keine erfolgreiche Systemarbeit.
 
-1. Öffne **Config → External AI → Manus**.
-2. Speichere den API-Key im Vault und teste die Verbindung.
-3. Wähle erlaubte Projekte, Connectoren und Skills.
-4. Aktiviere nur die benötigten Aufgaben- und Datei-Berechtigungen; Read-only überschreibt sie alle.
+Details: der [System-World-Deep-Dive](../../system-world-2.md).
 
-Uploads müssen aus dem AuraGo-Workspace stammen und Pfad, Symlink-, Typ- und Größenprüfungen bestehen. Downloads werden unter dem Verzeichnis der verfolgten Aufgabe geschrieben und nie automatisch ausgeführt. Manus-Texte und Fehler sind nicht vertrauenswürdige externe Daten. OAuth, Webhooks, öffentliche Freigaben, kontoweite Aufgabenlisten und Account-Verwaltung gehören nicht zur aktuellen Integration.
+### Layerling (Desktop-CAD)
 
+**Layerling** ist ein optionaler, lokal mitgelieferter Browser-CAD-Editor im Virtual Desktop. Zur Laufzeit braucht es keinen Docker-Container, Node-Server oder separaten Skill — nur beim Neubauen der gepinnten Vendor-Assets kommt Node zum Einsatz.
+
+**Web-UI:** **Config → Virtual Desktop → Layerling** aktivieren. Der Editor öffnet sich über die Kategorie *Kreativ*; das Fenster folgt Sprache und Theme des Desktops (im Editor: Deutsch bei deutschem Desktop, sonst Englisch). Vollbild versteckt Browser-Chrome und Desktop-Rahmen (`Esc` kehrt zurück).
+
+**Wichtig:**
+- Projekte werden als `.lyl` gespeichert (Vorschlag: `Documents/Layerling`); STL, OBJ, 3MF, STEP/STP und SVG lassen sich aus dem Dateimanager mit Layerling öffnen. Export: STL, OBJ, 3MF, STEP oder PNG.
+- Speichern prüft die beim Öffnen gelesene Version (Konflikt: Ersetzen / Kopie speichern / Abbrechen); ungespeicherte Entwürfe bleiben browser-lokal wiederherstellbar.
+- **Agent-Zugriff ist standardmäßig Aus**, unabhängig vom Aktivierungsschalter: **Lesen** erlaubt Inspektion und Vorschauen, **Lesen und Schreiben** zusätzlich Modellbearbeitung und Desktop-Dateischreibungen. Desktop-Agent-Zugriff und Schreibschutz bleiben Obergrenzen.
+- Version 1 braucht einen offenen Browser-Editor — kein Headless-CAD, keine gleichzeitige Ko-Bearbeitung, keine direkte Druckersteuerung.
+- Upstream ist Layerling **1.57.0** (AGPL-3.0-only); die Quelltext-Links im Editor liefern das korrespondierende Archiv.
+
+Details: der [Layerling-Deep-Dive](../../layerling.md).
+
+#### YAML-Referenz
 ```yaml
-manus:
-  enabled: false
-  read_only: true
-  allow_create_tasks: false
-  allow_send_messages: false
-  allow_stop_tasks: false
-  allow_file_uploads: false
-  allow_file_downloads: false
-  allowed_project_ids: []
-  allowed_connector_ids: []
-  allowed_skill_ids: []
-  default_agent_profile: manus-1.6
+virtual_desktop:
+  layerling:
+    enabled: false          # lokaler Browser-CAD-Editor; keine Runtime-Sidecar
+    agent_access: "off"     # off, read, write; benötigt zusätzlich Desktop-Agent-Rechte
 ```
 
-Siehe [Manus v2](../../manus.md) für Dateiübertragung, Schema-Validierung, Freigaben und Fehlerausgänge.
+### RuView (Wi-Fi-Sensing)
 
-## OmniRoute-Integration
+**RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
 
-OmniRoute ist ein optionales verwaltetes oder externes OpenAI-kompatibles Gateway. AuraGo kann den festgelegten lokalen Sidecar starten, dessen Health prüfen und LLM-Traffic über einen Provider mit `type: omniroute` routen.
+**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **Open RuView** installiert/startet eine verwaltete Runtime, **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein.
 
+**Runtimes:**
+
+| Runtime | Einsatzzweck |
+|---------|---------------|
+| Verwalteter Docker | Linux-Sensing-Server für ESP32-CSI oder explizite Demo; AuraGo erzeugt/stopt eigenen markierten Container |
+| Nativer Host | Geprüftes Windows-amd64- oder macOS-Paket; Host braucht einen funktionierenden Wi-Fi-Adapter für RSSI |
+| Extern | Bestehender RuView-Service unter der gespeicherten HTTPS(S)-Origin; private/Loopback-Adressen brauchen `allow_private` |
+
+**Wichtig:**
+- Das Agent-Tool `ruview` (read-only) kennt nur `status`, `nodes`, `sensing`, `model_info` und `recordings` — nie Installation, Flashen, Kalibrierung, Aufnahme oder Training.
+- Tokens liegen in den Vault-Keys `ruview_api_token` und `ruview_managed_token` (beide Export-Deny für Python/Agent).
+- ESP32-Empfang braucht eine explizite UDP-Veröffentlichung: konkrete RFC1918-IPv4-LAN-Bindung plus Allowlist privater Quellen (Standard-Port 5005).
+- Verwaltete Aufnahmen/Modelle liegen unter `data/ruview/data`; ein Storage-Watcher stoppt Aufnahmen kontrolliert beim Budget (Standard 1024 MiB), löscht aber nichts automatisch.
+
+Details: der [RuView-Deep-Dive](../../ruview.md).
+
+#### YAML-Referenz
 ```yaml
-omniroute:
+ruview:
   enabled: false
+  readonly: true
+  agent_access: false
+  mode: docker          # docker | native (Windows/macOS) | external
+  source: esp32         # esp32 | wifi | simulated (explizite Demo)
+```
+
+### Space Agent Integration
+
+Verwalteter Docker-Sidecar für [Space Agent](https://github.com/agent0ai/space-agent), einen eigenständigen Browser-Workspace für isolierte Aufgaben. Seine Provider-Zugangsdaten werden getrennt von AuraGo im Space Agent eingerichtet.
+
+**Web-UI:** Config → Integrationen → Space Agent → Repository-URL, Host, Port und HTTPS konfigurieren. Admin-Passwort und AuraGo-Bridge-Token liegen im Vault.
+
+Wenn die Integration aktiviert ist, baut AuraGo den konfigurierten Space-Agent-Git-Ref mit dem authentifizierten Anweisungsendpunkt `/api/message_async`. Der Standard-Ref ist auf den Upstream-Commit `10f4ffdaf50a8136cf8450d17c11286178fd58e6` festgelegt; ausdrücklich konfigurierte Refs wie `main` bleiben gültig. **Neu erstellen** ruft den Ref ab und baut das neue Image, bevor der laufende Container ersetzt wird. Bei Fehlern beim Abruf oder Build bleibt der bisherige Container erhalten. Die automatische Release-Aktualisierung von Space Agent ist deaktiviert, damit sie den von AuraGo eingebundenen Endpunkt nicht ersetzt. Auth-Schlüssel und Customware bleiben unter `data_path` und `customware_path` erhalten.
+
+#### YAML-Referenz
+```yaml
+space_agent:
+  enabled: true
   auto_start: true
-  mode: managed          # managed oder external
-  url: http://omniroute:20128
-  external_base_url: http://127.0.0.1:20128/v1
-  host: 127.0.0.1
-  port: 20128
-  host_port: 20128
+  repo_url: ""
+  git_ref: "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
+  container_name: ""
+  image: ""
+  host: ""
+  port: 0
+  https_enabled: false
+  https_port: 0
+  customware_path: ""
+  data_path: ""
+  admin_user: ""
+  public_url: ""
 ```
 
-OmniRoute-API-Key, Initialpasswort und Laufzeit-Secrets werden über den Vault gespeichert. Die Web-UI bietet Status, Verbindungstest, Start und Stop. Binde den Endpoint über das normale Provider-System ein; Credentials gehören nicht direkt in Provider-YAML.
-
-## EvoMap-Integration
+### EvoMap-Integration
 
 EvoMap ist eine optionale GEP-/A2A-Integration für Node-Status, Verbindungstests und Registrierung. Sie ist standardmäßig deaktiviert und schreibgeschützt. Fremde Capsules und Assets gelten als nicht vertrauenswürdige externe Daten und werden nie automatisch ausgeführt.
 
@@ -2668,32 +2403,386 @@ evomap:
 
 API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secret`). Der aktuelle MVP bereitet Publish-, Report- und Bounty-Operationen vor, verweigert sie aber, solange keine spätere Implementierung sie ausdrücklich aktiviert.
 
-## Lokale Wikipedia
+---
 
-Eine komplette Wikipedia-Ausgabe auf deinem AuraGo-Host – offline lesbar für den Agenten und in der Desktop-App **Wikipedia**. AuraGo lädt eine Kiwix-ZIM-Datei herunter und liest sie samt Suchindex in reinem Go: ohne Container, ohne Sidecar, ohne kiwix-serve.
+## Kern-Features & Meta
 
-### Einrichtung in der Web-UI
+Plattformfunktionen, die keine klassische Integration sind, aber wie eine konfiguriert werden.
 
-1. Öffne **Config** und wähle **Lokale Wikipedia** in der Gruppe **Agent-Tools** (oder suche in der Sidebar danach).
-2. Schalte **Lokale Wikipedia aktivieren** ein, wähle die **Sprache** (Standard: Systemsprache) und die **Variante** (**Ohne Medien** oder **Mit Medien**) und klicke auf **Speichern**.
-3. Prüfe die Infobox (Ausgabedatum, Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; du kannst die Seite schließen.
-4. Nach Prüfsumme und Archivprüfung steht der Status auf **Bereit**. Das Agenten-Tool `local_wikipedia` und die Desktop-App sind dann verfügbar.
+### Budget Tracking
 
-Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt dir nie eine funktionierende Ausgabe weg, außer du lässt AuraGo die alte Ausgabe vorher löschen. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst du nur per Klick.
+Überwache die Kosten für LLM-API-Aufrufe.
 
-### YAML-Referenz
+**Web-UI:** Config → Integrationen → Budget → Tageslimit, Warnschwelle und Durchsetzungsmodus einstellen.
 
+#### YAML-Referenz
 ```yaml
-local_wikipedia:
-  enabled: false
-  agent_access: true
-  language: ""        # leer = AuraGo-Systemsprache
-  variant: nopic      # nopic (ohne Medien) | maxi (mit Medien)
-  data_dir: ""        # leer = <data_dir>/wikipedia; in Docker fest
-  update_check: true
+budget:
+  enabled: true
+  daily_limit_usd: 1.0
+  enforcement: "warn"
 ```
 
-Größen je Sprache, Verzeichnisregeln für systemd und Docker, Fehlercodes, Netzwerk-Hosts und Lizenzen stehen im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md). Schlüssel: [Kapitel 7](07-konfiguration.md#lokale-wikipedia).
+### Inventar-System
+
+Geräteregistrierung mit SSH-Credential-Verwaltung und Wake-on-LAN-Unterstützung.
+
+#### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Inventar**.
+2. Aktiviere die Integration.
+3. Konfiguriere `inventory_path` für einen benutzerdefinierten Datenbankspeicherort.
+4. Aktiviere **Wake-on-LAN** falls benötigt.
+5. Speichere und starte neu.
+
+#### YAML-Referenz
+```yaml
+sqlite:
+    inventory_path: ./data/inventory.db
+
+tools:
+    inventory:
+        enabled: true
+    wol:
+        enabled: true
+```
+
+#### Wichtige Funktionen
+- **Geräteregistrierung**: Geräte (Server, VMs, Docker, Netzwerkgeräte) mit IP, Port, SSH-Credentials speichern
+- **Wake-on-LAN**: Magic Packets senden um Geräte über gespeicherte MAC-Adressen aufzuwecken
+- **Credential-Sicherheit**: SSH-Passwörter und Private Keys im verschlüsselten Vault gespeichert
+- **Tag-basierte Organisation**: Geräte nach Tags gruppieren und durchsuchen
+
+Nutze die Tools `register_device`, `query_inventory` und `wake_on_lan` im Chat.
+
+### Heartbeat-System
+
+Hintergrund-Wake-up-Scheduler für autonome Statusprüfungen in konfigurierbaren Intervallen.
+
+#### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Heartbeat**.
+2. Aktiviere die Integration.
+3. Konfiguriere **Tagesfenster** (Standard: 08:00–22:00, alle 1h) und **Nachtfenster** (Standard: 22:00–08:00, alle 4h).
+4. Wähle was geprüft werden soll: Aufgaben, Termine, E-Mails.
+5. Optional: Eigenes Prompt für Heartbeat-Wake-ups hinzufügen.
+6. Speichere und starte neu.
+
+#### YAML-Referenz
+
+Der Loader und der Scheduler lesen den `heartbeat:`-Block in `config.yaml`. Du kannst ihn über **Config → Integrationen → Heartbeat** oder direkt in YAML konfigurieren. `config_template.yaml` enthält alle Felder. `heartbeat.enabled` aktiviert den Zeitplan; `day_time_window` und `night_time_window` enthalten jeweils `start`, `end` und `interval`. Der gespeicherte Laufzeitstatus ersetzt diese Konfiguration nicht.
+
+Die Standardeinstellungen sind:
+
+- **Tag-Fenster:** 08:00 – 22:00, Intervall 1h
+- **Nacht-Fenster:** 22:00 – 08:00, Intervall 4h
+- **Geprüfte Quellen:** Aufgaben, Termine, E-Mails (in der UI aktivierbar)
+
+#### Wichtige Funktionen
+- **Zeitbasierte Führung**: Unterschiedliche Wake-up-Prioritäten je nach Tageszeit (Morgen-Check, Mittag-Review, Abend-Zusammenfassung, Nacht-Ruhe-Modus)
+- **Overlap-Schutz**: Verhindert parallele Heartbeat-Ausführungen
+- **State-Persistenz**: Speichert letzten Laufzeitpunkt um Neustarts zu überstehen
+- **Eigene Prompts**: Benutzerdefinierte Anweisungen an jeden Heartbeat-Wake-up anhängen
+
+### Knowledge Graph Extraction
+
+LLM-basierte Entity- und Beziehungsextraktion aus Konversationen und Dateien.
+
+#### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Knowledge Graph**.
+2. Aktiviere die Integration.
+3. Konfiguriere **Auto Extraction** für nächtliche Batch-Entity-Extraktion.
+4. Aktiviere **Prompt Injection** um KG-Kontext in System-Prompts einzubinden.
+5. Setze Limits für Prompt-Node-Anzahl und Zeichenanzahl.
+6. Speichere und starte neu.
+
+#### YAML-Referenz
+```yaml
+tools:
+    knowledge_graph:
+        enabled: true
+        readonly: false
+        auto_extraction: true
+        prompt_injection: true
+        max_prompt_nodes: 5
+        max_prompt_chars: 800
+        retrieval_fusion: true
+```
+
+#### Wichtige Funktionen
+- **Entity-Typen**: person, device, service, software, location, project, concept, event
+- **Beziehungen**: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in
+- **Confidence Scoring**: Heuristische Qualitätsbewertung (0.0–1.0) pro Extraktion
+- **Kreuzanreicherung**: RAG ↔ Knowledge Graph bidirektionale Fusion
+
+### Co-Agents
+
+Spezialisierte Sub-Agenten für Recherche, Coding, Design und mehr.
+
+**Web-UI:** Config → Integrationen → Co-Agents → Spezialisten einzeln aktivieren und eigene Provider zuweisen.
+
+#### YAML-Referenz
+```yaml
+co_agents:
+  enabled: true
+  max_concurrent: 3
+```
+
+### Mission Preparation
+
+Analysiert Missionen vor der Ausführung. Der Dienst lässt ein LLM vor geplanten oder manuellen Missionen strukturierte Ausführungshinweise erstellen.
+
+Mission Preparation kann benötigte Tools, Schrittpläne, mögliche Fallstricke, Entscheidungspunkte, Preload-Hinweise und einen Confidence-Score erzeugen. Ergebnisse werden anhand eines Mission-Checksums gecacht und bei Änderungen invalidiert. Geplante Missionen können automatisch vorbereitet werden.
+
+**Web-UI:** Config → Integrationen → Mission Preparation → aktivieren und Timeout/Confidence-Level einstellen.
+
+#### YAML-Referenz
+```yaml
+mission_preparation:
+  enabled: true
+  timeout_seconds: 120
+  auto_prepare_scheduled: true
+  min_confidence: 0.6
+```
+
+### Firewall
+
+Linux-Firewall-Überwachung und -Verwaltung (iptables/ufw).
+
+**Web-UI:** Config → Integrationen → Firewall → Modus und Polling-Intervall konfigurieren.
+
+#### YAML-Referenz
+```yaml
+firewall:
+  enabled: true
+  mode: "readonly"
+  poll_interval_seconds: 60
+```
+
+### Invasion Control
+
+Remote-Deployment-System für AuraGo-Worker (Eggs) in verschiedenen Nests.
+
+**Web-UI:** Config → Invasion Control → Nests und Eggs verwalten.
+
+#### YAML-Referenz
+```yaml
+invasion_control:
+  enabled: true
+  readonly: false
+```
+
+### Egg Mode (Invasion Control)
+
+Verbinde mehrere AuraGo-Instanzen zu einem verteilten Nest (Cluster). Einzelne Instanzen werden als „Eggs“ bezeichnet.
+
+#### Einrichtung in der Web-UI
+1. Auf dem **Master:** **Invasion Control** (`/invasion`) — Nests/Eggs verwalten und hatch deployen (setzt `egg_mode` auf dem Worker automatisch).
+2. Auf einer **standalone Worker-Instanz:** `egg_mode` nur per YAML oder Umgebungsvariablen (`AURAGO_EGG_MODE`, `AURAGO_MASTER_URL`, …) — kein eigener Config-Menüpunkt.
+
+#### YAML-Referenz
+```yaml
+egg_mode:
+  enabled: false
+  master_url: "https://master.aurago.local:8088"
+  egg_id: "egg-01"
+  nest_id: "nest-main"
+  api_key_vault_key: "egg_api_key"
+```
+
+### Document Creator (Gotenberg)
+
+PDF-Erstellung und Dokumenten-Konvertierung. Unterstützt den eingebauten Maroto-Backend oder einen externen Gotenberg-Sidecar.
+
+**Web-UI:** Config → Integrationen → Document Creator → Backend wählen (maroto/gotenberg).
+
+#### YAML-Referenz
+```yaml
+tools:
+  document_creator:
+    enabled: true
+    backend: "maroto"
+    output_dir: "data/documents"
+    gotenberg:
+      url: "http://gotenberg:3000"
+      timeout: 120
+```
+
+### Security Proxy
+
+Schutzschicht für öffentlich erreichbare AuraGo-Instanzen: TLS (Let's Encrypt für eine Domain), Ratenbegrenzung, IP-Filter und Basic Auth vor AuraGo. AuraGo verwaltet den Proxy als Caddy-Docker-Container (`aurago-security-proxy`), schreibt sein Caddyfile nach `data/proxy/` und stellt Lifecycle-Aktionen sowie Logs per API bereit. Geo-Blocking ist geplant, aber noch nicht umgesetzt.
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Security Proxy**.
+2. Aktiviere den Proxy und trage Domain, ACME-E-Mail und Ports ein.
+3. Aktiviere bei Bedarf Ratenbegrenzung, IP-Filter oder Basic Auth.
+4. Speichere. Das Aktivieren startet den Proxy. Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten. Nach Änderungen an Domain, E-Mail, Werten der Ratenbegrenzung, IP-Filter, Basic Auth oder zusätzlichen Routen drückst du **Neu laden**. Nach Änderungen an den Ports oder an der Platzierung des Containers drückst du **Starten**. Um den Proxy auf einen anderen `docker_host` zu verlegen, drückst du zuerst **Entfernen**, speicherst dann den neuen `docker_host` und drückst **Starten**. Neu laden wendet nur das Caddyfile neu an und erstellt den Container nicht neu (siehe [Neu laden](#neu-laden)).
+
+#### Basic Auth
+Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_pass`. AuraGo schreibt nur einen bcrypt-Hash des Passworts ins Caddyfile (Dateimodus 0600). Ist Basic Auth aktiv, fehlt aber eines der Secrets, startet der Proxy nicht und die UI nennt die fehlenden Secrets. Benutzernamen dürfen weder `:`, Anführungszeichen, Backslashes noch geschweifte Klammern enthalten; Passwörter dürfen höchstens 72 Byte lang sein.
+
+#### Ratenbegrenzung
+Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Ist sie aktiv, baut AuraGo einmalig das Image `aurago-proxy:ratelimit-<Version>` aus einem festen Caddy-Release und einem festen Modul `caddy-ratelimit` (Go-Modul-Prüfsummen werden verifiziert). Der Build braucht Docker-Build-Rechte und Internetzugang und dauert ein paar Minuten; spätere Starts verwenden das Image wieder. Jede Client-IP darf `burst` Anfragen innerhalb von `burst / requests_per_second` Sekunden senden (gleitendes Fenster): kurze Spitzen gehen durch, im Mittel bleibt es bei `requests_per_second`. Die Ratenbegrenzung greift vor Basic Auth und bremst so auch Passwortraten aus. Scheitert der Build, startet der Proxy nicht, ein laufender Proxy läuft mit seinem bisherigen Caddyfile weiter, und die UI erklärt, was fehlt. Ist der Docker-Nur-Lese-Modus (`docker.read_only`) aktiv, kann AuraGo weder das Image bauen noch den Proxy-Container anlegen oder ändern; schalte den Nur-Lese-Modus dann zuerst aus.
+
+Solange der erste Build des Images mit Ratenbegrenzung oder das erste Herunterladen des offiziellen Caddy-Images läuft, warten die übrigen Proxy-Aktionen darauf: **Stoppen**, **Entfernen**, **Neu laden**, ein weiteres **Starten** sowie das automatische Starten oder Stoppen nach dem Speichern der Config laufen erst, wenn der Vorgang fertig oder gescheitert ist. Der erste Build kann diese Aktionen bis zu 30 Minuten aufhalten, das erste Herunterladen bis zu 15 Minuten. Status und Logs kannst du währenddessen weiter abrufen.
+
+#### AuraGo in Docker (Compose)
+Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
+
+Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt du `BUILD=1` beim Dienst `docker-proxy`, oder du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
+
+```bash
+docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
+FROM caddy:2.11.6-builder AS builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6
+FROM caddy:2.11.6
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+EOF
+```
+
+Ändert ein späteres AuraGo-Release diese Versionen, braucht es ein neues Image: Das Handbuch dieses Release zeigt den passenden Befehl, und das AuraGo-Log nennt den erwarteten Tag.
+
+#### Container-Härtung
+Der Proxy-Container behält den root-Benutzer von Caddy und ein beschreibbares Root-Dateisystem, verwirft aber alle Linux-Capabilities außer den vier, die Caddy braucht, und setzt `no-new-privileges`:
+- `NET_BIND_SERVICE`: Das Programm `caddy` im offiziellen Image und im Image mit Ratenbegrenzung trägt diese Datei-Capability und startet ohne sie nicht. Außerdem erlaubt sie auf älteren Docker-Engines die Ports 80 und 443.
+- `DAC_OVERRIDE`: Das Caddyfile (Modus 0600) sowie `caddy_data` und `caddy_config` (Modus 0750) gehören dem Benutzer von AuraGo. Ohne sie kann Caddy weder seine Konfiguration lesen noch Zertifikate speichern.
+- `CHOWN` und `FOWNER`: Besitzänderungen an Dateien, die Caddy nicht selbst angelegt hat, zum Beispiel in `caddy_data` kopierte Zertifikate.
+
+Zertifikate, die ein früherer Proxy-Container gespeichert hat, bleiben in Gebrauch. Drückst du **Starten**, bekommt ein Proxy-Container aus einer älteren AuraGo-Version dieses Profil; **Neu laden** behält den bestehenden Container.
+
+Der Proxy gilt als von AuraGo verwalteter Container (Owner `security-proxy`): Öffnest du auf der Seite **Container** ein Terminal für `aurago-security-proxy`, aktualisierst oder entfernst ihn, fragt AuraGo nach einer Bestätigung, auch bei einem Container aus einer älteren AuraGo-Version ohne AuraGos Labels. Das Docker-Werkzeug des Agenten lehnt `create` und `run` mit diesem Namen ab, ebenso Compose-`up`/`create` eines Stacks, der ihn als `container_name` verwendet; seine übrigen Aktionen am Proxy-Container bleiben, wie sie waren. Verwalte ihn über **Starten**, **Stoppen**, **Neu laden** und **Entfernen** in den Proxy-Einstellungen.
+
+#### Neu laden
+**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host` (oder aus `docker.host`, solange `docker_host` leer ist). Erreicht ein neuer Wert einen anderen Docker-Daemon, drückst du vor dem Wechsel **Entfernen**; sonst läuft der alte Proxy auf der bisherigen Engine weiter. Hast du schon gewechselt, stellst du den alten Wert wieder ein, drückst **Entfernen** und wechselst dann erneut (oder du führst `docker rm -f aurago-security-proxy` auf der alten Engine aus).
+
+#### YAML-Referenz
+```yaml
+security_proxy:
+  enabled: true
+  domain: "aurago.example.com"
+  email: "admin@example.com"     # ACME-Kontakt
+  https_port: 443
+  http_port: 80
+  docker_host: ""                # leer = docker.host
+  rate_limiting:
+    enabled: true
+    requests_per_second: 10
+    burst: 50
+  ip_filter:
+    enabled: false
+    mode: "blocklist"            # oder "allowlist"
+    addresses: []                # IP-Adressen oder CIDR-Bereiche
+  basic_auth:
+    enabled: false               # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
+  additional_routes: []          # Einträge mit name, domain und upstream
+```
+
+#### Runtime API
+
+| Endpunkt | Zweck |
+|----------|-------|
+| `GET /api/proxy/status` | Aktueller Proxy-/Containerstatus |
+| `POST /api/proxy/start` | Verwalteten Proxy-Container starten |
+| `POST /api/proxy/stop` | Proxy stoppen |
+| `POST /api/proxy/destroy` | Verwalteten Proxy-Container entfernen |
+| `POST /api/proxy/reload` | Caddy-Konfiguration neu generieren und laden |
+| `GET /api/proxy/logs` | Aktuelle Proxy-Logs abrufen |
+
+### Output Compression
+
+Reduziert den Token-Verbrauch durch Filterung und Deduplizierung von Tool-Ausgaben, bevor sie in den LLM-Kontext gelangen.
+
+**Web-UI:** Config → Agent → Output Compression → aktivieren, Schwellenwerte anpassen und Shell-/Python-/API- sowie Advanced-Filter setzen.
+
+#### Erweiterte Modi
+
+| Modus | Standard | Einsatz |
+|-------|----------|---------|
+| `repetitive_substitution` | deaktiviert | Ersetzt lange, wiederholte Phrasen in log-artigen Ausgaben durch ein kleines Wörterbuch. Fehler, Diffs, Code-/Source-Reads, JSON-Dokumente und exakte Kopierausgaben werden übersprungen. |
+| `toon_json` | deaktiviert | Wandelt bekannte homogene API-Arrays in eine kompakte TOON-artige Darstellung um, wenn genug Tokens gespart werden. `api_request` und Datei-Reads werden übersprungen. |
+
+#### YAML-Referenz
+```yaml
+agent:
+  output_compression:
+    enabled: true
+    min_chars: 500
+    preserve_errors: true
+    shell_compression: true
+    python_compression: true
+    api_compression: true
+    repetitive_substitution:
+      enabled: false
+      lzw_enabled: true
+      ltsc_lite_enabled: false
+      min_phrase_chars: 15
+      min_occurrences: 3
+      min_savings_percent: 15
+      max_input_chars: 50000
+      max_dictionary_entries: 16
+    toon_json:
+      enabled: false
+      min_savings_percent: 10
+      max_rows: 200
+```
+
+### Manifest-Integration
+
+[Manifest](https://manifest.build) ist ein OpenAI-kompatibles LLM-Gateway mit verwaltetem Dashboard. AuraGo kann Manifest als **managed Docker-Sidecar** (Manifest + Postgres) oder als externe Instanz betreiben.
+
+**Web-UI:** Config → Integrationen → Manifest → Modus wählen, Secrets im Vault speichern, Test: `POST /api/manifest/test`.
+
+#### Provider-Routing
+```yaml
+providers:
+  - id: manifest-main
+    type: manifest
+    name: Manifest Gateway
+    base_url: http://127.0.0.1:2099
+    api_key: ""                    # Vault: manifest_api_key
+    model: gpt-4o
+```
+
+#### YAML-Referenz
+```yaml
+manifest:
+  enabled: false
+  auto_start: true
+  mode: managed
+  url: "http://127.0.0.1:2099"
+  external_base_url: "https://app.manifest.build/v1"
+  host: "127.0.0.1"
+  port: 2099
+  host_port: 2099
+  image: manifestdotbuild/manifest:5
+  container_name: aurago_manifest
+  postgres_container_name: aurago_manifest_postgres
+  postgres_image: postgres:15-alpine
+```
+
+Vault-Keys: `manifest_api_key`, `manifest_postgres_password`, `manifest_better_auth_secret`. Tailscale: `tailscale.tsnet.expose_manifest`.
+
+### Dograh-Integration
+
+[Dograh](https://dograh.com) ist eine Voice/Telephony-AI-Plattform. AuraGo deployt einen **managed Multi-Container-Stack** und verbindet ihn per MCP — es gibt kein natives `dograh`-Agent-Tool.
+
+**Web-UI:** Config → Integrationen → Dograh → aktivieren, Vault-Keys setzen, Test: `GET /api/dograh/test`.
+
+#### YAML-Referenz
+```yaml
+dograh:
+  enabled: false
+  auto_start: true
+  mode: managed
+  readonly: true
+  allow_test_calls: false
+  api_url: "http://127.0.0.1:8000"
+  ui_url: "http://127.0.0.1:3010"
+  telemetry_enabled: false
+  turn_enabled: false
+```
+
+Vault-Keys: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `dograh_postgres_password`, `dograh_minio_secret_key`. MCP-Bridge über `mcp_call` / `/mcp`.
+
+---
 
 ## Integrationen testen
 
@@ -2724,6 +2813,8 @@ Logs prüfen:
 tail -f log/aurago.log | grep -i telegram
 ```
 
+---
+
 ## Fehlerbehebung
 
 | Problem | Lösung |
@@ -2735,57 +2826,14 @@ tail -f log/aurago.log | grep -i telegram
 
 ---
 
-## Cheap Yellow Display
+## Nächste Schritte
 
-Ein gekoppeltes ESP32-2432S028R (Cheap Yellow Display) zeigt AuraGo-Status auf dem Schreibtisch und empfängt Agent-Overlays.
+Jetzt, wo die Integrationen stehen:
 
-Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
-
-1. **Config → Smart Home → Cheap Yellow Display** öffnen.
-2. Integration aktivieren und speichern.
-3. **Display-Token erzeugen**. Den 9-Zeichen-Code (`XXX XXX XXX`) einmal kopieren. `aura_` steht auf dem Glas schon.
-4. Display flashen, `agocyd-XXXX` beitreten und die **Display-URL** aus dieser Config-Seite eintragen (`https://<lan-ip>:8443` bei HTTPS). Dann die 9 Zeichen auf dem Glas eintippen. Host oder Port falsch: auf dem Verbindungsscreen **Edit** tippen.
-5. AuraGo muss auf einer LAN-Adresse lauschen (`server.host`), nicht nur `127.0.0.1`.
-6. Mit **Testbenachrichtigung senden** ein Overlay prüfen.
-
-Von dieser Config-Seite aus kann das Board mit dem **Web-Flasher** programmiert werden (Chrome oder Edge, HTTPS oder localhost, USB). AuraGo schreibt Token und Display-URL in eine Factory-Partition, danach bleibt nur WLAN. Die Firmware liegt unter `internal/cyd/firmware/cyd/`.
-
-Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Die Home-Karte zeigt das Portrait der aktiven Persona (dieselbe `/img/personas`-Grafik wie der AgoDesk-Avatar, als 72×72-Sprite). Alerts, Mesh- und Task-Ereignisse senden den vollständigen Text für die Detailansicht; Notify-Benachrichtigungen laufen animiert über fünf Sekunden. Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), Helligkeit und LED. Die Glassprache nutzt die verwaltete sanoTTS-Umgebung.
+1. **[Sicherheit](14-sicherheit.md)** – AuraGo absichern
+2. **[Fortgeschrittene Nutzung](15-coagents.md)** – Workflows, Co-Agenten und Automatisierung
+3. **[Troubleshooting](16-troubleshooting.md)** – häufige Probleme lösen
 
 ---
-
-## MeshCore-Funk
-
-AuraGo verbindet sich mit genau einem MeshCore-Companion-Funkgerät. USB funktioniert unter Linux, Windows und macOS (115200 Baud), Bluetooth nativ nur unter Linux mit BlueZ; in Docker ist Bluetooth nicht verfügbar und USB braucht eine ausdrückliche Gerätedurchreichung. Firmware-Flashing, Repeater-Verwaltung und Funkparameter-Änderungen gehören nicht zur Integration.
-
-### Einrichtung
-
-1. **Config → MeshCore** öffnen, Transport und Port (Dropdown erkannter serieller Anschlüsse) bzw. zuvor gekoppelte BLE-Adresse wählen, aktivieren und speichern. Eine BLE-PIN gilt nur für den aktuellen Kopplungsversuch und wird nie gespeichert.
-2. Den angezeigten vollständigen Geräteschlüssel vergleichen und **Geräteidentität bestätigen**. Der Verbindungstest liest nur gespeicherte Einstellungen und sendet keine Funknachricht.
-3. Vollständige öffentliche Schlüssel (64 Zeichen) sicherer Nodes freigeben – alternativ über die durchsuchbare Nodeliste in die Vertrauens- oder Sendeliste übernehmen. Nur eindeutige synchronisierte Chat-Kontakte dürfen direkte Plain-Text-Befehle auslösen; Namen, Kanalabsender und weitergeleitete Nachrichten autorisieren nie.
-4. Kanäle zuordnen und pro Kanal Empfang, Präfix (`!aura`) oder automatische Frageerkennung wählen. Die Frageerkennung beantwortet auch offene Kanalfragen und Empfangstests wie „hört mich jemand“ – ohne Websuche; gemessene SNR-Werte und bekannte Hopzahlen dürfen genannt werden.
-5. Antworten (`direct_replies`) und proaktives Senden (`proactive_send` mit Ziel-Freigabe) sind getrennte Berechtigungen. Kanalantworten tragen die feste KI-Kennzeichnung `[AuraGo KI]` und laufen in einem isolierten Minimal-Kontext mit höchstens zwei nativen Brave-Suchaufrufen.
-6. Die Standortfreigabe ist standardmäßig aus. Nur der vom Administrator eingetragene öffentliche Beschreibungstext darf genannt werden – Positionen, Koordinaten und Routen bleiben privat.
-
-### Sicherheit und Grenzen
-
-Vor jeder Verarbeitung laufen Format-, Duplikat- und Injection-Prüfung plus eine separate Wächter-LLM-Prüfung; Fehler, abgeschnittene Ausgaben und Werkzeugaufrufe führen zur Quarantäne. Eingänge erzeugen keine allgemeinen Chat-Systemmeldungen – beim nächsten direkten Kontakt erhält der Agent eine zusammengefasste Eingangsübersicht. Jede zugelassene Nachricht bekommt strukturierten Empfangskontext (SNR, Flood-Hops, Zeitstempel, Kanal- und Absenderdaten); daraus werden keine Berechtigungen oder Laufzeit-Schlüsse abgeleitet. Direktbefehle dürfen höchstens 600 Sekunden alt sein; unterbrochene oder unklare Sendungen bleiben `outcome_unknown` und werden nicht automatisch wiederholt. Speicher: sieben Tage, 1.000 Nachrichten, Warteschlange 128, zwei Läufe je Node/Kanal und zwölf pro Minute. Verbindungs- und Prüfprobleme laufen über den Operational-Issue-Lebenszyklus.
-
-### Werkzeug, API und Desktop-Messenger
-
-Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`, `send_direct` und `send_channel` – keine Rohprotokoll- oder Geräteverwaltung. Administrative Endpunkte: GET unter `/api/meshcore/{status,devices,contacts,channels,messages}`, POST unter `/api/meshcore/{scan,pair,test,recheck}`; der Eingang zeigt die neuesten 100 Einträge mit Pagination. Die Desktop-App **MeshCore** teilt dasselbe Gerät (keine zweite USB-/BT-Verbindung), bietet Gesprächsliste, Entwürfe, Sendestatus, geschützten Text nur nach explizitem Aufdecken und einen getrennten Messenger-Verlauf (`history_days: 90`, `history_messages: 10000`). Private-Kanal-Einladungen sind rein transiente Admin-Exporte ohne Browser-Speicherung. Das opt-in Widget **builtin-meshcore** im Desktop zeigt die neuesten Gespräche nur lesend.
-
-### Geräteseite, Einstellungen und Diagnose
-
-Die Desktop-App zeigt unter **Mein Knoten** Firmware, Kapazität, Position, Funk und lokale Messwerte (Batteriespannung, Speicher, Uptime, Warteschlange/Fehler, Paketzähler, Airtime, letztes Gerät-RSSI/SNR, sofern unterstützt). Messwerte tragen eigene Zeitstempel und aktualisieren sich sichtbar höchstens alle 30 Sekunden; sie implizieren nie pro-Nachricht-RSSI oder Batterieprozente.
-
-Unter **Einstellungen** gibt es getrennte Bereiche mit je Speichern/Verwerfen: App-Verlaufslimits und zwei Freigaben liegen in der AuraGo-Konfiguration, Gerätewerte auf dem Funkgerät. Name, Koordinaten und Standortfreigabe zur Werbung, Kontakt-Zulassung/Filterung, Telemetrie-Modi, Frequenz, Bandbreite, SF/CR, Sendeleistung, zusätzliche ACKs und Repeat-Optionen sind editierbar; die Zeitsynchronisation ist eine eigene explizite Aktion. Funk-Änderungen verlangen den Vergleich Alt/Neu; jeder Speichervorgang prüft Identität, Sitzung und Settings-Revision erneut und liest die Werte zurück.
-
-Die beiden Freigaben `meshcore.allow_device_settings` und `meshcore.allow_remote_diagnostics` sind standardmäßig `false` und geben dem Agenten keine zusätzlichen Fähigkeiten. Verwaltung läuft über `/api/meshcore/settings`, `/api/meshcore/device`, `POST /api/meshcore/device-settings` (Abschnitte `identity`, `contacts`, `radio`, `clock`, `reconcile`) und `POST /api/meshcore/diagnostics` (`telemetry` oder `path`, HTTP 202 mit Job-ID, Abholung über `GET /api/meshcore/diagnostics?id=...`). Firmware-Flashing und Repeater-Verwaltung bleiben ausgeschlossen.
-
-Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md). Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
-
----
-
 **Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-konfiguration.md)
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

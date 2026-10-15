@@ -12,96 +12,21 @@ JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Def
 
 ## Table of Contents
 
-1. [Authentication](#authentication)
-2. [Chat API](#chat-api)
-3. [Memory API](#memory-api)
-4. [Dashboard API](#dashboard-api)
-5. [Config API](#config-api)
-6. [Config Rules API](#config-rules-api)
-7. [Vault API](#vault-api)
-8. [Device API](#device-api-device-registry)
-9. [Credentials API](#credentials-api)
-10. [Mission Control API](#mission-control-api)
-11. [Container API](#container-api)
-12. [Desktop API](#desktop-api)
-13. [Pixel Image Editor API](#pixel-image-editor-api)
-14. [Skills API](#skills-api)
-15. [Knowledge API](#knowledge-api)
-16. [Cheat Sheets API](#cheat-sheets-api)
-17. [Contacts API](#contacts-api)
-18. [SQL Connections API](#sql-connections-api)
-19. [Cron API](#cron-api)
-20. [Background Tasks API](#background-tasks-api)
-21. [Indexing API](#indexing-api)
-22. [Backup API](#backup-api)
-23. [Update API](#update-api)
-24. [Budget API](#budget-api)
-25. [Upload API](#upload-api)
-26. [Embeddings API](#embeddings-api)
-27. [A2A Protocol API](#a2a-protocol-api)
-28. [Invasion Control API](#invasion-control-api)
-29. [Music Generation API](#music-generation-api)
-30. [Video Generation API](#video-generation-api)
-31. [Document Creator API](#document-creator-api)
-32. [Knowledge Graph API](#knowledge-graph-api)
-33. [Planner API](#planner-api)
-34. [Helper LLM API](#helper-llm-api)
-35. [Notification API](#notification-api)
-36. [Push API](#push-api-pwa)
-37. [Webhook API](#webhook-api)
-38. [Token API](#token-api)
-39. [Provider API](#provider-api)
-40. [Ollama API](#ollama-api)
-41. [Security Proxy API](#security-proxy-api)
-42. [OpenRouter API](#openrouter-api)
-43. [Personality API](#personality-api)
-44. [Sandbox API](#sandbox-api)
-45. [Security API](#security-api)
-46. [System API](#system-api)
-47. [i18n API](#i18n-api)
-48. [Setup API](#setup-api)
-49. [Health Check](#health-check)
-50. [Agent Skills API](#agent-skills-api)
-51. [Daemon Skills API](#daemon-skills-api)
-52. [Agent Questions API](#agent-questions-api)
-53. [People API](#people-api)
-54. [Appointments API](#appointments-api)
-55. [Todos API](#todos-api)
-56. [Preferences API](#preferences-api)
-57. [Space Agent API](#space-agent-api)
-58. [Warnings API](#warnings-api)
-59. [3D Printer API](#3d-printer-api)
-60. [AgentMail API](#agentmail-api)
-61. [Native SIP API](#native-sip-api)
-62. [Speech Lab API](#speech-lab-api)
-63. [Realtime Speech API](#realtime-speech-api)
-64. [Game Maker API](#game-maker-api)
-65. [Virtual Computers API](#virtual-computers-api)
-66. [Local LLM API](#local-llm-api)
-67. [Manus API](#manus-api)
-68. [OmniRoute API](#omniroute-api)
-69. [EvoMap API](#evomap-api)
-70. [Network Shares API](#network-shares-api)
-71. [MeshCore API](#meshcore-api)
-72. [here.now API](#herenow-api)
-73. [Desktop Log API](#desktop-log-api)
-74. [Operational Issues API](#operational-issues-api)
-75. [go2rtc API](#go2rtc-api)
-76. [Bluetooth API](#bluetooth-api)
-77. [Cheap Yellow Display API](#cheap-yellow-display-api)
-78. [Tresor API](#tresor-api)
-79. [Launchpad API](#launchpad-api)
-80. [Newspaper API](#newspaper-api)
-81. [Detective API](#detective-api)
-82. [Personal Radio API](#personal-radio-api)
-83. [RTL-SDR API](#rtl-sdr-api)
-84. [Noisemaker API](#noisemaker-api)
-85. [System World API](#system-world-api)
-86. [Radio Browser API](#radio-browser-api)
-87. [Local Wikipedia API](#local-wikipedia-api)
-88. [SSE Events](#sse-events)
-89. [Error Handling](#error-handling)
-90. [Related Links](#related-links)
+First things first: [Authentication](#authentication). Ten domain groups, one section per endpoint:
+
+| Group | Endpoints |
+|---------|------------|
+| [Chat & Agent APIs](#chat--agent-apis) | [Chat](#chat-api), [Skills](#skills-api), [Agent Skills](#agent-skills-api), [Daemon Skills](#daemon-skills-api), [Agent Questions](#agent-questions-api), [Helper LLM](#helper-llm-api), [Planner](#planner-api), [Sandbox](#sandbox-api), [A2A](#a2a-protocol-api) |
+| [LLM & Provider APIs](#llm--provider-apis) | [Provider](#provider-api), [Ollama](#ollama-api), [OpenRouter](#openrouter-api), [Local LLM](#local-llm-api), [Security Proxy](#security-proxy-api), [Embeddings](#embeddings-api) |
+| [Memory & Knowledge APIs](#memory--knowledge-apis) | [Memory](#memory-api), [Knowledge](#knowledge-api), [Knowledge Graph](#knowledge-graph-api), [Cheat Sheets](#cheat-sheets-api), [Indexing](#indexing-api), [SQL Connections](#sql-connections-api), [Local Wikipedia](#local-wikipedia-api) |
+| [Missions & Automation APIs](#missions--automation-apis) | [Mission Control](#mission-control-api), [Invasion Control](#invasion-control-api), [Cron](#cron-api), [Background Tasks](#background-tasks-api), [Webhook](#webhook-api) |
+| [People & Organization](#people--organization) | [People](#people-api), [Contacts](#contacts-api), [Appointments](#appointments-api), [Todos](#todos-api), [Preferences](#preferences-api), [Space Agent](#space-agent-api), [Warnings](#warnings-api) |
+| [Media & Creativity](#media--creativity) | [Upload](#upload-api), [Pixel Image Editor](#pixel-image-editor-api), [Music Generation](#music-generation-api), [Video Generation](#video-generation-api), [Document Creator](#document-creator-api), [Game Maker](#game-maker-api), [Newspaper](#newspaper-api), [Detective](#detective-api), [Personal Radio](#personal-radio-api), [Radio Browser](#radio-browser-api), [RTL-SDR](#rtl-sdr-api), [Noisemaker](#noisemaker-api) |
+| [Devices & Messengers](#devices--messengers) | [Device](#device-api-device-registry), [3D Printer](#3d-printer-api), [Bluetooth](#bluetooth-api), [go2rtc](#go2rtc-api), [CYD](#cheap-yellow-display-api), [MeshCore](#meshcore-api), [Native SIP](#native-sip-api), [Realtime Speech](#realtime-speech-api), [Speech Lab](#speech-lab-api), [AgentMail](#agentmail-api), [Notification](#notification-api), [Push (PWA)](#push-api-pwa), [here.now](#herenow-api), [Manus](#manus-api), [OmniRoute](#omniroute-api) |
+| [Configuration & Security](#configuration--security) | [Config](#config-api), [Config Rules](#config-rules-api), [Vault](#vault-api), [Credentials](#credentials-api), [Token](#token-api), [Security](#security-api), [Personality](#personality-api), [Budget](#budget-api), [i18n](#i18n-api), [Setup](#setup-api), [Update](#update-api) |
+| [System & Operations](#system--operations) | [Dashboard](#dashboard-api), [Container](#container-api), [Backup](#backup-api), [Network Shares](#network-shares-api), [System](#system-api), [Health Check](#health-check), [SSE Events](#sse-events), [Operational Issues](#operational-issues-api) |
+| [Desktop & Workspaces](#desktop--workspaces) | [Desktop](#desktop-api), [Desktop Workspace](#desktop-workspace-api), [Desktop Log](#desktop-log-api), [Launchpad](#launchpad-api), [Tresor](#tresor-api), [Virtual Computers](#virtual-computers-api), [System World](#system-world-api), [EvoMap](#evomap-api) |
+| **Wrap-up** | [Error Handling](#error-handling), [Related Links](#related-links) |
 
 ---
 
@@ -196,9 +121,13 @@ POST /api/auth/logout
 
 ---
 
-## Chat API
+## Chat & Agent APIs
 
-### Chat Completion (OpenAI-compatible)
+Conversation, skills, questions, planning, and sandbox execution.
+
+### Chat API
+
+#### Chat Completion (OpenAI-compatible)
 ```http
 POST /v1/chat/completions
 Content-Type: application/json
@@ -229,7 +158,7 @@ Content-Type: application/json
 }
 ```
 
-### Get Chat History
+#### Get Chat History
 ```http
 GET /history
 ```
@@ -246,47 +175,480 @@ GET /history
 ]
 ```
 
-### Clear Chat History
+#### Clear Chat History
 ```http
 DELETE /clear
 ```
 
-### Interrupt Current Action
+#### Interrupt Current Action
 ```http
 POST /api/admin/stop
 ```
 
-### List Chat Sessions
+#### List Chat Sessions
 ```http
 GET /api/chat/sessions
 ```
 
 Returns recent chat sessions from short-term memory.
 
-### Create Chat Session
+#### Create Chat Session
 ```http
 POST /api/chat/sessions
 ```
 
 Creates a new chat session and returns its metadata.
 
-### Get Chat Session
+#### Get Chat Session
 ```http
 GET /api/chat/sessions/{id}
 ```
 
 Returns session metadata and visible messages for the session.
 
-### Delete Chat Session
+#### Delete Chat Session
 ```http
 DELETE /api/chat/sessions/{id}
 ```
 
+### Skills API
+
+#### List Skills
+```http
+GET /api/skills
+```
+
+**Response:**
+```json
+{
+  "skills": []
+}
+```
+
+#### Create Skill
+```http
+POST /api/skills
+Content-Type: application/json
+
+{
+  "name": "My Skill",
+  "description": "Description",
+  "code": "..."
+}
+```
+
+**Response:**
+```json
+{
+  "id": "skill-123",
+  "success": true
+}
+```
+
+#### Manage Skill
+```http
+GET /api/skills/{id}
+PUT /api/skills/{id}
+DELETE /api/skills/{id}
+```
+
+#### Test Skill
+```http
+POST /api/skills/{id}/test
+```
+
+#### Verify Skill
+```http
+POST /api/skills/{id}/verify
+```
+
+#### Export Skill
+```http
+GET /api/skills/{id}/export
+```
+
+#### Skill Versions
+```http
+GET /api/skills/{id}/versions
+```
+
+#### Skill Audit
+```http
+GET /api/skills/{id}/audit
+```
+
+#### Templates
+```http
+GET /api/skills/templates
+POST /api/skills/templates
+```
+
+#### Import Skill
+```http
+POST /api/skills/import
+Content-Type: multipart/form-data
+```
+
+#### Generate Skill Draft
+```http
+POST /api/skills/generate
+Content-Type: application/json
+
+{
+  "description": "A skill that analyzes files"
+}
+```
+
+#### Skill Statistics
+```http
+GET /api/skills/stats
+```
+
+#### Get Skill Manual
+```http
+GET /api/skills/{id}/documentation
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "skill_id": "user_my_skill_1714123456789",
+  "has_documentation": true,
+  "content": "# my_skill\n\nDoes useful things.\n"
+}
+```
+
+Returns `has_documentation: false` and `content: ""` when no manual exists.
+Returns `404` if the skill ID is not found.
+
+#### Create / Replace Skill Manual
+```http
+PUT /api/skills/{id}/documentation
+Content-Type: application/json
+
+{
+  "content": "# my_skill\n\nMarkdown content here.\n"
+}
+```
+
+**Response:**
+```json
+{ "status": "saved" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `200`  | Manual saved |
+| `400`  | Skill ID missing or content invalid |
+| `403`  | Skill Manager is in read-only mode |
+| `413`  | Content exceeds 64 KB limit |
+
+Sending an empty `content` value deletes the existing manual.
+
+#### Delete Skill Manual
+```http
+DELETE /api/skills/{id}/documentation
+```
+
+**Response:**
+```json
+{ "status": "deleted" }
+```
+
+Returns `403` if the Skill Manager is in read-only mode. Deleting a non-existent manual is a no-op.
+
+#### Upload Skill Manual File
+```http
+POST /api/skills/{id}/documentation/upload
+Content-Type: multipart/form-data
+
+file=<binary>  (field name: "file")
+```
+
+Accepts `.md`, `.markdown`, and `.txt` files. Maximum size: 64 KB.
+
+**Response:**
+```json
+{ "status": "uploaded" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `200`  | File stored |
+| `400`  | Wrong file extension |
+| `403`  | Read-only mode or uploads disabled (`allow_uploads: false`) |
+| `413`  | File exceeds 64 KB limit |
+
+#### Daemon Skill Settings
+```http
+GET /api/skills/{id}/daemon
+PUT /api/skills/{id}/daemon
+```
+
+Reads or updates daemon-specific manifest settings (`wake_agent`, `trigger_mission_id`, `cheatsheet_id`) for daemon skills.
+
+### Agent Skills API
+
+Agent Skills are filesystem-based skills managed separately from the classic Skill Manager.
+
+#### List Agent Skills
+```http
+GET /api/agent-skills
+GET /api/agent-skills?enabled=true&search=keyword
+```
+
+#### Create Agent Skill
+```http
+POST /api/agent-skills
+Content-Type: application/json
+
+{
+  "name": "my_skill",
+  "description": "Does useful things",
+  "body": "# SKILL.md content"
+}
+```
+
+#### Import Agent Skill
+```http
+POST /api/agent-skills/import
+Content-Type: multipart/form-data
+```
+
+#### Manage Agent Skill
+```http
+GET /api/agent-skills/{id}
+GET /api/agent-skills/{id}?content=true
+PUT /api/agent-skills/{id}
+DELETE /api/agent-skills/{id}
+```
+
+#### Verify / Approve / Test
+```http
+POST /api/agent-skills/{id}/verify
+POST /api/agent-skills/{id}/approve-warning
+POST /api/agent-skills/{id}/test
+```
+
+#### Agent Skill Files
+```http
+GET /api/agent-skills/{id}/files?path=scripts/run.py
+PUT /api/agent-skills/{id}/files
+POST /api/agent-skills/{id}/files
+```
+
+### Daemon Skills API
+
+Long-running daemon skills supervised by the daemon subsystem.
+
+#### List Daemons
+```http
+GET /api/daemons
+```
+
+#### Refresh Daemon List
+```http
+POST /api/daemons/refresh
+```
+
+Rescans skills from disk and reconciles running daemons.
+
+#### Daemon Status / Actions
+```http
+GET /api/daemons/{id}
+POST /api/daemons/{id}/start
+POST /api/daemons/{id}/stop
+POST /api/daemons/{id}/reenable
+```
+
+### Agent Questions API
+
+Interactive question prompts shown in the Web UI while the agent waits for user input.
+
+#### Question Status
+```http
+GET /api/agent/question-status?session=default
+```
+
+Returns `{"status":"none"}` or `{"status":"pending","question":{...}}`.
+
+#### Submit Answer
+```http
+POST /api/agent/question-response
+Content-Type: application/json
+
+{
+  "session_id": "default",
+  "selected_value": "option_a",
+  "free_text": ""
+}
+```
+
+### Helper LLM API
+
+#### Stats
+```http
+GET /api/debug/helper-llm/stats
+GET /api/dashboard/helper-llm
+```
+
+### Planner API
+
+#### List Plans
+```http
+GET /api/plans
+```
+
+**Response:**
+```json
+{
+  "plans": []
+}
+```
+
+#### Get Active Plan
+```http
+GET /api/plans/active
+```
+
+#### Manage Plan
+```http
+GET /api/plans/{id}
+PUT /api/plans/{id}
+DELETE /api/plans/{id}
+```
+
+### Sandbox API
+
+#### Sandbox Status
+```http
+GET /api/sandbox/status
+```
+
+#### Shell Sandbox Status
+```http
+GET /api/sandbox/shell-status
+```
+
+### A2A Protocol API
+
+#### A2A Status
+```http
+GET /api/a2a/status
+```
+
+#### Remote Agents
+```http
+GET /api/a2a/remote-agents
+POST /api/a2a/remote-agents
+PUT /api/a2a/remote-agents/{id}
+DELETE /api/a2a/remote-agents/{id}
+```
+
+#### Agent Card
+```http
+GET /api/a2a/card
+```
+
+#### A2A Test
+```http
+POST /api/a2a/test
+```
+
 ---
 
-## Memory API
+## LLM & Provider APIs
 
-### Archive Memory
+Model wiring, failover, and embeddings.
+
+### Provider API
+
+#### List Providers
+```http
+GET /api/providers
+```
+
+#### Provider Pricing
+```http
+GET /api/providers/pricing
+```
+
+### Ollama API
+
+#### List Models
+```http
+GET /api/ollama/models
+```
+
+#### Managed Ollama Status
+```http
+GET /api/ollama/managed/status
+```
+
+Returns the managed Docker container state, detected runtime, model volume status, GPU availability where detectable, and configured default models.
+
+#### Recreate Managed Ollama
+```http
+POST /api/ollama/managed/recreate
+```
+
+Recreates the managed `aurago_ollama_managed` container after configuration changes.
+
+### OpenRouter API
+
+#### OpenRouter Models
+```http
+GET /api/openrouter/models
+```
+
+### Local LLM API
+
+All Local LLM endpoints are administrator-only and return sanitized status.
+
+```http
+GET  /api/local-llm/status
+POST /api/local-llm/probe
+POST /api/local-llm/install
+POST /api/local-llm/action
+POST /api/local-llm/role
+POST /api/local-llm/acknowledgement
+```
+
+The `action` endpoint handles lifecycle actions such as `start`, `stop`,
+`recreate`, and `smoke_test`. Experimental hardware operations require the
+current hardware-fingerprint acknowledgement.
+
+### Security Proxy API
+
+#### Proxy Lifecycle
+```http
+GET /api/proxy/status
+POST /api/proxy/start
+POST /api/proxy/stop
+POST /api/proxy/destroy
+POST /api/proxy/reload
+GET /api/proxy/logs
+```
+
+The Security Proxy API controls the managed Caddy protection layer in front of AuraGo: TLS termination, rate limiting, IP filtering and Basic Auth. Geo-blocking is not implemented yet.
+
+### Embeddings API
+
+#### Reset Embeddings
+```http
+POST /api/embeddings/reset
+```
+
+---
+
+## Memory & Knowledge APIs
+
+Memory, knowledge graph, indexing, and external data sources.
+
+### Memory API
+
+#### Archive Memory
 ```http
 POST /api/memory/archive
 Content-Type: application/json
@@ -305,352 +667,182 @@ Content-Type: application/json
 }
 ```
 
-### Memory Activity Overview
+#### Memory Activity Overview
 ```http
 GET /api/memory/activity-overview
 ```
 
----
+### Knowledge API
 
-## Dashboard API
-
-### System Metrics
+#### Knowledge Files
 ```http
-GET /api/dashboard/system
+GET /api/knowledge
+POST /api/knowledge/upload
+Content-Type: multipart/form-data
+```
+
+#### Manage Knowledge File
+```http
+GET /api/knowledge/{id}
+DELETE /api/knowledge/{id}
+```
+
+### Knowledge Graph API
+
+#### Nodes
+```http
+GET /api/knowledge-graph/nodes
+POST /api/knowledge-graph/nodes
+```
+
+#### Edges
+```http
+GET /api/knowledge-graph/edges
+POST /api/knowledge-graph/edges
+```
+
+#### Node Detail
+```http
+GET /api/knowledge-graph/node/{id}
+POST /api/knowledge-graph/node/protect
+```
+
+#### Edge Mutate
+```http
+POST /api/knowledge-graph/edge
+```
+
+#### Search / Stats / Quality
+```http
+GET /api/knowledge-graph/search
+GET /api/knowledge-graph/stats
+GET /api/knowledge-graph/quality
+GET /api/knowledge-graph/important
+```
+
+`/api/knowledge-graph/quality` reports isolated nodes, untyped nodes, and likely duplicate candidates. `POST /api/knowledge-graph/node/protect` marks important nodes as protected so automated cleanup does not remove them accidentally.
+
+`/api/knowledge-graph/search?q=` returns `nodes` and `edges`. When part of the search failed, the response adds `incomplete: true`; when the graph could not be searched at all, it answers `503` with an `error` field instead of an empty result.
+
+#### File Sync Debugging
+```http
+GET /api/debug/kg-file-sync-stats
+GET /api/debug/kg-orphans
+GET /api/debug/file-sync-status
+GET /api/debug/file-sync-last-run
+GET /api/debug/kg-file-entities
+GET /api/debug/kg-node-sources
+POST /api/debug/kg-file-sync-cleanup
+```
+
+These endpoints inspect and maintain the background File KG Sync service that extracts entities and relationships from indexed files into the Knowledge Graph.
+
+### Cheat Sheets API
+
+#### Cheat Sheets
+```http
+GET /api/cheatsheets
+POST /api/cheatsheets
 ```
 
 **Response:**
 ```json
 {
-  "cpu": 15.2,
-  "memory": 45.8,
-  "disk": 72.1,
-  "network": {
-    "rx_mbps": 1.2,
-    "tx_mbps": 0.8
-  },
-  "uptime_seconds": 86400
+  "cheatsheets": []
 }
 ```
 
-### Mood History
+#### Manage Cheat Sheet
 ```http
-GET /api/dashboard/mood-history
+GET /api/cheatsheets/{id}
+PUT /api/cheatsheets/{id}
+DELETE /api/cheatsheets/{id}
 ```
 
-### Emotion History
+### Indexing API
+
+#### Indexing Status
 ```http
-GET /api/dashboard/emotion-history
+GET /api/indexing/status
 ```
 
-### Memory Overview
+#### Rescan
 ```http
-GET /api/dashboard/memory
+POST /api/indexing/rescan
 ```
 
-### Core Memory
+#### Manage Directories
 ```http
-GET /api/dashboard/core-memory
+GET /api/indexing/directories
+POST /api/indexing/directories
 ```
 
-### Mutate Core Memory
+### SQL Connections API
+
+#### List Connections
 ```http
-POST /api/dashboard/core-memory/mutate
+GET /api/sql-connections
+```
+
+#### Create Connection
+```http
+POST /api/sql-connections
 Content-Type: application/json
 
 {
-  "action": "add",
-  "content": "Important information"
+  "name": "Production DB",
+  "driver": "postgres",
+  "host": "db.example.lan",
+  "port": 5432,
+  "database_name": "mydb",
+  "ssl_mode": "require"
 }
 ```
 
-### Profile Data
+For `postgres` and `mysql`, `ssl_mode` is required and must be one of the lowercase values `disable`, `require`, `verify-ca`, `verify-full`; a missing or other value is rejected with `400`. A `PUT` that changes `ssl_mode`, or switches `driver` to `postgres`/`mysql`, is checked against the same four values.
+
+#### Test Connection
 ```http
-GET /api/dashboard/profile
-PUT /api/dashboard/profile/entry
+POST /api/sql-connections/{id}/test
 ```
 
-### Activity Statistics
+#### Manage Connection
 ```http
-GET /api/dashboard/activity
+GET /api/sql-connections/{id}
+PUT /api/sql-connections/{id}
+DELETE /api/sql-connections/{id}
 ```
 
-Returns runtime activity including cron jobs, processes, webhooks, background tasks, and active **co-agents** (`coagents` field).
+### Local Wikipedia API
 
-### GitHub Repositories
+Administrator routes manage the edition; desktop routes need `desktop:read`. Content paths are names inside the ZIM file, never file-system paths.
+
 ```http
-GET /api/dashboard/github-repos
-GET /api/github/repos
+GET  /api/local-wikipedia/catalog?lang=de          # Kiwix catalog for one language (cached 6 h)
+GET  /api/local-wikipedia/status                   # state, progress, edition, update hint, disk numbers
+POST /api/local-wikipedia/install                  # 202; {"replace_mode":"keep_old","confirm_unknown_space":false}
+POST /api/local-wikipedia/cancel                   # keeps the partial download
+POST /api/local-wikipedia/delete                   # removes ZIM, partial download and state
+POST /api/local-wikipedia/check-update
+GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, readable, loading, update_available, error_code, can_manage
+GET  /api/desktop/local-wikipedia/suggest?q=       # up to 10 titles
+GET  /api/desktop/local-wikipedia/search?q=&limit= # up to 30 results (default 20)
+GET  /api/desktop/local-wikipedia/random
+GET  /api/desktop/local-wikipedia/main
+GET  /api/desktop/local-wikipedia/content/{path}   # original ZIM content with Range and ETag
 ```
 
-### Logs
-```http
-GET /api/dashboard/logs
-```
-
-### Dashboard Overview
-```http
-GET /api/dashboard/overview
-```
-
-### Notes
-```http
-GET /api/dashboard/notes
-```
-
-### Journal
-```http
-GET /api/dashboard/journal
-GET /api/dashboard/journal/summaries
-GET /api/dashboard/journal/stats
-```
-
-### Guardian Status
-```http
-GET /api/dashboard/guardian
-```
-
-### Error Overview
-```http
-GET /api/dashboard/errors
-```
-
-### Prompt Statistics
-```http
-GET /api/dashboard/prompt-stats
-```
-
-### Tool Statistics
-```http
-GET /api/dashboard/tool-stats
-```
+Administrator routes need a session or a Bearer token with the `admin` scope (403 `admin_required` otherwise); a cross-origin POST without a Bearer token answers 403 `csrf_check_failed`, a wrong method 405. Refusals answer `{"error","error_code","recommendation"}` without paths or host names: 409 for `busy`, `disabled`, `free_space_unknown`, `already_installed` and `no_operation`; 422 for `insufficient_disk_space` (with `required_bytes`, `free_bytes`, `can_delete_old`) and `data_dir_invalid`; 502 for `catalog_unreachable`; 400 for `unknown_language` and `invalid_request`; 503 for `localwiki_unavailable`; 500 for `localwiki_error`. `GET /api/local-wikipedia/status` reports `readable` (an installed edition is open and served; use it rather than `state` to decide whether content is available) and `loading` (the first load after startup or a changed storage directory is still running; the previous edition stays served meanwhile; poll until it is false). Desktop routes answer errors as `{"error","code"}`, for example `not_ready` (409), `busy` (503 with `Retry-After`), `timeout` (504), `query_too_long` (400) and `not_found` (404); errors on the content route are small HTML pages with an `aurago-local-wikipedia-error` meta marker. Every content answer carries a sandboxing Content-Security-Policy without scripts. The full code list is in [Local Wikipedia](../../local-wikipedia.md).
 
 ---
 
-## Config API
+## Missions & Automation APIs
 
-### Get Configuration
-```http
-GET /api/config
-```
+Missions, invasion, cron, background tasks, and webhooks.
 
-**Response:**
-```json
-{
-  "config": {
-    "server": {
-      "host": "127.0.0.1",
-      "port": 8088
-    },
-    "llm": {
-      "provider": "main"
-    }
-  }
-}
-```
+### Mission Control API
 
-### Update Configuration
-```http
-PUT /api/config
-Content-Type: application/json
-
-{
-  "server": {
-    "host": "0.0.0.0",
-    "port": 8080
-  }
-}
-```
-
-### Configuration Schema
-```http
-GET /api/config/schema
-```
-
-### Change UI Language
-```http
-POST /api/ui-language
-Content-Type: application/json
-
-{
-  "language": "de"
-}
-```
-
----
-
-## Config Rules API
-
-Task rules are editable Markdown guardrails stored under `prompts/rules/<id>/rule.md`. All endpoints require admin access.
-
-### List Rules
-```http
-GET /api/config/rules
-```
-
-Returns the enabled state, rule metadata, and candidate tools/workflows for the rule editor.
-
-### Create Rule
-```http
-POST /api/config/rules
-Content-Type: application/json
-
-{
-  "id": "homepage",
-  "title": "Homepage rules",
-  "enabled": true,
-  "priority": 50,
-  "tools": ["homepage"],
-  "workflows": ["website"],
-  "keywords": ["landing page"],
-  "body": "Markdown rule body",
-  "design": "Optional DESIGN.md content"
-}
-```
-
-### Get / Update / Delete Rule
-```http
-GET /api/config/rules/{id}
-PUT /api/config/rules/{id}
-DELETE /api/config/rules/{id}
-```
-
-### Restore Built-In Rule
-```http
-POST /api/config/rules/{id}/restore
-```
-
-Removes the disk override so the embedded rule is used again.
-
----
-
-## Vault API
-
-### Vault Status
-```http
-GET /api/vault/status
-```
-
-**Response:**
-```json
-{
-  "initialized": true,
-  "secret_count": 12
-}
-```
-
-### List Secrets
-```http
-GET /api/vault/secrets
-```
-
-### Delete Secret
-```http
-DELETE /api/vault?key=secret_name
-```
-
----
-
-## Device API (Device Registry)
-
-### List Devices
-```http
-GET /api/devices
-```
-
-**Response:**
-```json
-{
-  "devices": []
-}
-```
-
-### Create Device
-```http
-POST /api/devices
-Content-Type: application/json
-
-{
-  "hostname": "server1",
-  "device_type": "server",
-  "ip_address": "192.168.1.10",
-  "ssh_port": 22,
-  "ssh_user": "root",
-  "tags": ["production", "web"]
-}
-```
-
-**Response:**
-```json
-{
-  "id": "dev-123",
-  "success": true
-}
-```
-
-### Get Device
-```http
-GET /api/devices/{id}
-```
-
-### Update Device
-```http
-PUT /api/devices/{id}
-Content-Type: application/json
-
-{
-  "tags": ["new", "updated"]
-}
-```
-
-### Delete Device
-```http
-DELETE /api/devices/{id}
-```
-
-### MAC Lookup
-```http
-GET /api/tools/mac_lookup?mac=aa:bb:cc:dd:ee:ff
-```
-
----
-
-## Credentials API
-
-### List Credentials
-```http
-GET /api/credentials
-```
-
-### Python-Accessible Credentials
-```http
-GET /api/credentials/python-accessible
-```
-
-### Create Credential
-```http
-POST /api/credentials
-Content-Type: application/json
-
-{
-  "name": "api_key_production",
-  "type": "token",
-  "value": "sk-...",
-  "python_accessible": false
-}
-```
-
-### Update/Delete Credential
-```http
-PUT /api/credentials/{id}
-DELETE /api/credentials/{id}
-```
-
----
-
-## Mission Control API
-
-### List Missions
+#### List Missions
 ```http
 GET /api/missions
 GET /api/missions/v2
@@ -660,7 +852,7 @@ Mission objects returned by the list and by-id endpoints contain the persisted m
 
 `next_run` (RFC 3339, optional) — next scheduled execution. Present only for enabled scheduled missions; derived at request time and not persisted. Also included in `mission_update` SSE payloads.
 
-### Create Mission
+#### Create Mission
 ```http
 POST /api/missions/v2
 Content-Type: application/json
@@ -689,526 +881,58 @@ Content-Type: application/json
 }
 ```
 
-### Manage Mission
+#### Manage Mission
 ```http
 GET /api/missions/v2/{id}
 PUT /api/missions/v2/{id}
 DELETE /api/missions/v2/{id}
 ```
 
-### Cancel Running Mission
+#### Cancel Running Mission
 ```http
 POST /api/missions/v2/{id}/cancel
 ```
 
 `POST /api/missions/v2/{id}/cancel` — cancels the running local run of a mission. Responds `202 {"status":"cancelling"}`; the run ends shortly afterwards with result `error` and output `Cancelled by user` and is recorded in the history without an operational issue. `409` when the mission is not running or the run cannot be cancelled yet, `400` for remote missions, `404` for unknown IDs.
 
-### Queue
+#### Queue
 ```http
 GET /api/missions/v2/queue
 ```
 
-### Executions
+#### Executions
 ```http
 GET /api/missions/v2/execution
 ```
 
-### Dependencies
+#### Dependencies
 ```http
 GET /api/missions/v2/dependencies
 ```
 
----
+### Invasion Control API
 
-## Container API
-
-With authentication enabled, all container routes require a browser session or an API token with the `admin` scope.
-
-### List Containers
+#### Nests
 ```http
-GET /api/containers
+GET /api/invasion/nests
 ```
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "count": 1,
-  "containers": [
-    {"id": "0123456789ab", "names": ["/aurago"], "image": "ghcr.io/antibyte/aurago:latest", "state": "running", "status": "Up 2 hours", "protected_owner": "aurago-app", "self": true}
-  ]
-}
-```
-
-### Container Actions
+#### Eggs
 ```http
-POST /api/containers/{id}/start
-POST /api/containers/{id}/stop
-POST /api/containers/{id}/restart
-POST /api/containers/{id}/pause
-POST /api/containers/{id}/unpause
-GET /api/containers/{id}/protection
-DELETE /api/containers/{id}
+GET /api/invasion/eggs
+POST /api/invasion/eggs
+PUT /api/invasion/eggs/{id}
+DELETE /api/invasion/eggs/{id}
 ```
 
-### Protected Containers
-`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`, `cyd-creator`, `decisions`, `security-proxy`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`). When AuraGo shares another container's network namespace (`network_mode: service:…` or `container:…`, for example a Tailscale or Gluetun sidecar), AuraGo cannot tell its own container from that provider; both are marked `shared_network: true` instead of `self`. The same applies when another container joins AuraGo's own network namespace, and to every container that shares one provider.
-
-For these containers, `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` and `DELETE /api/containers/{id}` answer HTTP 409 with `code: "container_protected_confirmation_required"` unless the request carries `confirm=protected`. The `owner` field names the reason (`self`, `docker-endpoint`, `shared-network`, the managing owner or `unverified`). The same applies when Docker does not answer the ownership check (`owner: "unverified"`). If the Docker endpoint host cannot be resolved, AuraGo identifies the endpoint container by the address of its open Docker connection, but only when a listed container has that address. Otherwise the target counts as `unverified`: no TCP connection was observed, the address is a loopback or host address (a proxy behind a published port stays unknown), the target joins the connected container's network namespace (it may be the process serving the port), the target has the connected container's Compose service name in any project, or one of the target's names, aliases or DNS names equals the host name of `docker.host`. `POST /api/containers/{id}/update` on the AuraGo container itself or on the Docker endpoint container always answers HTTP 409 with `code: "container_self_update_unsupported"`: the update would stop AuraGo or its Docker connection before the replacement exists. Upgrade those with `docker compose pull && docker compose up -d` on the Docker host. Under Podman, AuraGo cannot identify its own container; the app container then needs only the confirmation (by its reserved name or owner label). Start, stop, restart, pause, unpause, logs, inspect and stats need no confirmation.
-
-A terminal request that is not a WebSocket upgrade answers HTTP 400 before any shell starts. `GET /api/containers/{id}/protection` returns the classification without opening a shell: `owner` (the reason, empty when not protected), `protected`, `update_unsupported`, `read_only` and, for protected containers, the `message` of the 409 answer. Browsers cannot read the HTTP answer of a refused WebSocket handshake; the Containers page asks this route and then offers the confirmation. On an open terminal WebSocket, the text message `{"type":"end"}` ends the shell: AuraGo sends SIGHUP to the exec's own process, which it finds by the `AURAGO_TERMINAL_SESSION` variable of that session. Programs that detached from the shell, such as a tmux or screen server, keep running. Closing the WebSocket does not end the shell. With the overlay2 storage driver, AuraGo also recognises its own container behind a network sidecar: the overlay upper directory of its root filesystem (`/proc/self/mountinfo`) equals that container's `GraphDriver.Data.UpperDir`. The containerd image store (the default for new Docker 29 installations) does not report this directory. There AuraGo uses a marker file instead: at startup it writes a file with a random name into its own writable layer (for example `/tmp/.aurago-self-<random>`, never into a volume, bind mount or tmpfs) and asks Docker which container of the shared network group holds it (`HEAD /containers/{id}/archive`, which a Docker socket proxy must allow). Exactly one match proves the container AuraGo runs in. A container proven either way is `self`, and its update is refused. Without a proof (no writable directory on the container's own layer, a Docker answer other than 200 or 404, or several matches), a container marked `shared_network` (and not `docker_endpoint`) is never refused for update, only confirmed, even when it is the AuraGo container, and that update stops AuraGo.
-
-A failure reported by Docker or the Docker tool layer answers HTTP 502 with the unchanged JSON body (`status: "error"`, `message`). `503` still means Docker is disabled and `403` that Docker is read-only.
-
-### Runtime Information
+#### WebSocket
 ```http
-GET /api/runtime
+WS /api/invasion/ws
 ```
 
----
+### Cron API
 
-## Desktop API
-
-Desktop endpoints use the same session/auth model as the Web UI. Mutating operations require desktop admin/write permissions and respect `virtual_desktop.readonly`.
-
-### Desktop State
-```http
-GET /api/desktop/apps
-GET /api/desktop/shortcuts
-GET /api/desktop/widgets
-GET /api/desktop/settings
-POST /api/desktop/settings
-GET /api/desktop/embed-token
-```
-
-### Desktop Chat and Streams
-```http
-POST /api/desktop/chat
-GET /api/desktop/chat/stream
-GET /api/desktop/ws
-GET /api/agodesk/ws
-GET /api/agodesk/media/{bucket}/{path}
-```
-
-`/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`. Loopback development additionally requires an `AURAGO_AGODESK_DEV_TOKEN` of at least 32 characters and the matching `X-AuraGo-Agodesk-Dev-Token` header together with `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
-
-Clients that negotiate `local.agent` can use `local.agent.remote_tool` for bounded Memory/query adapters, `local.agent.llm` for a Vault-backed direct provider completion, `local.agent.turn` for fire-and-forget history/activity synchronization, and `local.agent.handoff` for the only local-agent operation that starts the full AuraGo agent loop. LLM requests require a whole-second RFC3339 `client_timestamp`; omitted `provider_id` values select the active main provider. Prior assistant tool calls accept both the flat AuraGo form and OpenAI wire `function.arguments` JSON strings. LLM results preserve `request_id` and use `success`, `message`, `error_code`, and `error_message`; remote-tool failures keep their matching `.result` envelope.
-
-AgoDesk chat can share AuraGo Web Chat sessions when `chat.sessions` is negotiated:
-
-- `chat.sessions.list` returns recent `sess-*` conversations.
-- `chat.session.create` starts New Chat and returns `chat.session`.
-- `chat.session.load` loads a conversation and visible non-internal messages.
-- `chat.message` should include both the AgoDesk `session_id` and active `conversation_id`.
-- `chat.cancel` stops the active request and returns `chat.cancelled`.
-- `chat.audio` is emitted only when `chat.audio_events` is negotiated. AuraGo-generated TTS paths use `/api/agodesk/tts/<filename>` so AgoDesk can fetch audio without a Web UI login cookie. `chat.voice_output` is offered only when AuraGo TTS is configured.
-- `chat.media` is emitted when `chat.media_events` is negotiated for non-TTS images, audio/music, documents, videos, STL, links, and YouTube embeds. Protected `/files/...` assets are rewritten to short-lived signed `/api/agodesk/media/...` URLs for explicit buckets such as `images`, `generated_images`, `generated_videos`, `audio`, `documents`, and `downloads`; clients must keep the provided query parameters and refresh media metadata after `401`.
-- `chat.voice_output.status` lets AgoDesk report the same `speaker_mode` preference used by Web Chat when speech output is enabled or disabled.
-- `integrations.webhosts.list` returns the same integration webhost list used by the Web Chat integrations drawer when `integrations.webhosts` is negotiated.
-- `system.warnings.list` and `system.warning.acknowledge` provide the Web Chat system warning snapshot and acknowledgement flow when `system.warnings` is negotiated.
-
-See [AgoDesk backend protocol](../../agodesk_backend_protocol.md) for payload shapes and the client implementation checklist.
-
-### Remote Desktop Proxies
-```http
-GET /api/desktop/ssh
-GET /api/desktop/vnc
-```
-
-### EasyDrag Flows
-```http
-GET  /api/desktop/flows
-POST /api/desktop/flows/validate
-POST /api/desktop/flows/{id}/{test|run|publish|enabled}
-```
-
-Bearer tokens need `desktop:read` for `GET`, `desktop:write` for `POST /api/desktop/flows/validate` (it only checks the document it is sent) and `desktop:admin` for every other change: create, save, test and live runs, publish, switching on and off, test data, secrets, cancelling runs and deleting. Test runs execute the flow's tools on the host, and publishing creates missions, cron jobs and webhooks. Browser sessions are not affected. The editor is described in [EasyDrag](24-easydrag.md).
-
-### Desktop Software Store
-```http
-GET /api/desktop/store/catalog
-GET /api/desktop/store/apps
-POST /api/desktop/store/install
-GET /api/desktop/store/operations/{operation_id}
-POST /api/desktop/store/apps/{app_id}/{start|stop|restart|update}
-DELETE /api/desktop/store/apps/{app_id}?delete_data=false
-GET /api/desktop/store/apps/{app_id}/open-url?port_id=web
-GET /api/desktop/store/apps/{app_id}/credentials
-POST /api/desktop/store/apps/beszel/companions/agent/config
-GET  /api/desktop/store/apps/gods-eye-view/config
-PUT  /api/desktop/store/apps/gods-eye-view/config
-```
-
-Install request:
-```json
-{
-  "app_id": "termix",
-  "bind_mode": "local"
-}
-```
-
-Store mutations return `202 Accepted` with an operation object. Poll `/api/desktop/store/operations/{operation_id}` until the operation reaches a terminal state.
-
-### Code Studio
-```http
-GET /api/code-studio/status
-GET /api/code-studio/files?path=/workspace
-GET /api/code-studio/file?path=/workspace/main.go
-PUT /api/code-studio/file
-PATCH /api/code-studio/file
-DELETE /api/code-studio/file?path=/workspace/main.go
-POST /api/code-studio/directory
-POST /api/code-studio/upload
-GET /api/code-studio/download?path=/workspace/main.go
-POST /api/code-studio/exec
-GET /api/code-studio/search?q=needle&path=/workspace
-GET /api/code-studio/terminal
-```
-
-Code Studio paths are sanitized inside the container workspace and mounted at `/workspace`.
-
----
-
-## Pixel Image Editor API
-
-Pixel is the desktop image editor. It can save canvas data to the virtual desktop workspace and optionally use the configured image-generation provider.
-
-### Capabilities
-```http
-GET /api/pixel/config
-```
-
-Returns whether image generation is enabled, the resolved provider/model, default size/quality/style, and image-to-image support.
-
-### Generate Image
-```http
-POST /api/pixel/generate
-Content-Type: application/json
-
-{
-  "prompt": "A clean product photo of a brass lamp",
-  "size": "1024x1024",
-  "quality": "standard",
-  "style": "natural"
-}
-```
-
-### Enhance Image
-```http
-POST /api/pixel/enhance
-Content-Type: application/json
-
-{
-  "source_path": "agent_workspace/virtual_desktop/image.png",
-  "prompt": "Improve sharpness and lighting",
-  "strength": 0.7
-}
-```
-
-`source_data` may be provided instead of `source_path` as a base64 data URL.
-
-### Save Canvas
-```http
-POST /api/pixel/save
-Content-Type: application/json
-
-{
-  "path": "Images/edited.png",
-  "data": "data:image/png;base64,...",
-  "format": "png",
-  "quality": 92
-}
-```
-
-Relative paths are stored under the configured data workspace.
-
----
-
-## Skills API
-
-### List Skills
-```http
-GET /api/skills
-```
-
-**Response:**
-```json
-{
-  "skills": []
-}
-```
-
-### Create Skill
-```http
-POST /api/skills
-Content-Type: application/json
-
-{
-  "name": "My Skill",
-  "description": "Description",
-  "code": "..."
-}
-```
-
-**Response:**
-```json
-{
-  "id": "skill-123",
-  "success": true
-}
-```
-
-### Manage Skill
-```http
-GET /api/skills/{id}
-PUT /api/skills/{id}
-DELETE /api/skills/{id}
-```
-
-### Test Skill
-```http
-POST /api/skills/{id}/test
-```
-
-### Verify Skill
-```http
-POST /api/skills/{id}/verify
-```
-
-### Export Skill
-```http
-GET /api/skills/{id}/export
-```
-
-### Skill Versions
-```http
-GET /api/skills/{id}/versions
-```
-
-### Skill Audit
-```http
-GET /api/skills/{id}/audit
-```
-
-### Templates
-```http
-GET /api/skills/templates
-POST /api/skills/templates
-```
-
-### Import Skill
-```http
-POST /api/skills/import
-Content-Type: multipart/form-data
-```
-
-### Generate Skill Draft
-```http
-POST /api/skills/generate
-Content-Type: application/json
-
-{
-  "description": "A skill that analyzes files"
-}
-```
-
-### Skill Statistics
-```http
-GET /api/skills/stats
-```
-
-### Get Skill Manual
-```http
-GET /api/skills/{id}/documentation
-```
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "skill_id": "user_my_skill_1714123456789",
-  "has_documentation": true,
-  "content": "# my_skill\n\nDoes useful things.\n"
-}
-```
-
-Returns `has_documentation: false` and `content: ""` when no manual exists.
-Returns `404` if the skill ID is not found.
-
-### Create / Replace Skill Manual
-```http
-PUT /api/skills/{id}/documentation
-Content-Type: application/json
-
-{
-  "content": "# my_skill\n\nMarkdown content here.\n"
-}
-```
-
-**Response:**
-```json
-{ "status": "saved" }
-```
-
-| Status | Meaning |
-|--------|---------|
-| `200`  | Manual saved |
-| `400`  | Skill ID missing or content invalid |
-| `403`  | Skill Manager is in read-only mode |
-| `413`  | Content exceeds 64 KB limit |
-
-Sending an empty `content` value deletes the existing manual.
-
-### Delete Skill Manual
-```http
-DELETE /api/skills/{id}/documentation
-```
-
-**Response:**
-```json
-{ "status": "deleted" }
-```
-
-Returns `403` if the Skill Manager is in read-only mode. Deleting a non-existent manual is a no-op.
-
-### Upload Skill Manual File
-```http
-POST /api/skills/{id}/documentation/upload
-Content-Type: multipart/form-data
-
-file=<binary>  (field name: "file")
-```
-
-Accepts `.md`, `.markdown`, and `.txt` files. Maximum size: 64 KB.
-
-**Response:**
-```json
-{ "status": "uploaded" }
-```
-
-| Status | Meaning |
-|--------|---------|
-| `200`  | File stored |
-| `400`  | Wrong file extension |
-| `403`  | Read-only mode or uploads disabled (`allow_uploads: false`) |
-| `413`  | File exceeds 64 KB limit |
-
-### Daemon Skill Settings
-```http
-GET /api/skills/{id}/daemon
-PUT /api/skills/{id}/daemon
-```
-
-Reads or updates daemon-specific manifest settings (`wake_agent`, `trigger_mission_id`, `cheatsheet_id`) for daemon skills.
-
----
-
-## Knowledge API
-
-### Knowledge Files
-```http
-GET /api/knowledge
-POST /api/knowledge/upload
-Content-Type: multipart/form-data
-```
-
-### Manage Knowledge File
-```http
-GET /api/knowledge/{id}
-DELETE /api/knowledge/{id}
-```
-
----
-
-## Cheat Sheets API
-
-### Cheat Sheets
-```http
-GET /api/cheatsheets
-POST /api/cheatsheets
-```
-
-**Response:**
-```json
-{
-  "cheatsheets": []
-}
-```
-
-### Manage Cheat Sheet
-```http
-GET /api/cheatsheets/{id}
-PUT /api/cheatsheets/{id}
-DELETE /api/cheatsheets/{id}
-```
-
----
-
-## Contacts API
-
-### Contacts
-```http
-GET /api/contacts
-POST /api/contacts
-```
-
-**Response:**
-```json
-{
-  "contacts": []
-}
-```
-
-### Manage Contact
-```http
-GET /api/contacts/{id}
-PUT /api/contacts/{id}
-DELETE /api/contacts/{id}
-```
-
----
-
-## SQL Connections API
-
-### List Connections
-```http
-GET /api/sql-connections
-```
-
-### Create Connection
-```http
-POST /api/sql-connections
-Content-Type: application/json
-
-{
-  "name": "Production DB",
-  "driver": "postgres",
-  "host": "db.example.lan",
-  "port": 5432,
-  "database_name": "mydb",
-  "ssl_mode": "require"
-}
-```
-
-For `postgres` and `mysql`, `ssl_mode` is required and must be one of the lowercase values `disable`, `require`, `verify-ca`, `verify-full`; a missing or other value is rejected with `400`. A `PUT` that changes `ssl_mode`, or switches `driver` to `postgres`/`mysql`, is checked against the same four values.
-
-### Test Connection
-```http
-POST /api/sql-connections/{id}/test
-```
-
-### Manage Connection
-```http
-GET /api/sql-connections/{id}
-PUT /api/sql-connections/{id}
-DELETE /api/sql-connections/{id}
-```
-
----
-
-## Cron API
-
-### Manage Cron Jobs
+#### Manage Cron Jobs
 ```http
 GET /api/cron
 POST /api/cron
@@ -1226,359 +950,21 @@ Requires an administrator session. The legacy handler maps `GET=list`, `POST=add
 }
 ```
 
----
+### Background Tasks API
 
-## Background Tasks API
-
-### List Tasks
+#### List Tasks
 ```http
 GET /api/background-tasks
 ```
 
-### Get Task
+#### Get Task
 ```http
 GET /api/background-tasks/{id}
 ```
 
----
+### Webhook API
 
-## Indexing API
-
-### Indexing Status
-```http
-GET /api/indexing/status
-```
-
-### Rescan
-```http
-POST /api/indexing/rescan
-```
-
-### Manage Directories
-```http
-GET /api/indexing/directories
-POST /api/indexing/directories
-```
-
----
-
-## Backup API
-
-AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They can include configuration, consistent SQLite database snapshots, vector DB data, skills, tools, selected workspace files, and separately encrypted vault secrets for cross-instance migration.
-
-### Create Backup
-```http
-POST /api/backup/create
-Content-Type: application/json
-
-{
-  "include_vectordb": true,
-  "include_workdir": false,
-  "password": "strong-passphrase"
-}
-```
-
-Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports.
-
-### Import Backup
-```http
-POST /api/backup/import
-Content-Type: multipart/form-data
-```
-
-Form fields:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `file` | yes | `.ago` backup archive |
-| `password` | no | Password for encrypted backups |
-
-Imports are staged first, checked for path traversal, schema warnings, and archive compatibility, then restored atomically where possible. A SQLite restore returns `restart_required: true`.
-
----
-
-## Update API
-
-### Check for Updates
-```http
-GET /api/updates/check
-```
-Checks Git installs against `origin/main` and binary installs against the latest GitHub Release. If a binary install has an unknown local `.version` but a latest release is known, the response can set `update_available: true`.
-
-### Install Update
-```http
-POST /api/updates/install
-```
-Starts `update.sh --yes` in the background and returns `{"status":"started","message":"..."}` on success. The backend returns JSON `error` responses when self-update is disabled, AuraGo runs in Docker/container mode, the runtime is not Linux, `bash` is missing, or `update.sh` is missing.
-
-### Restart
-```http
-POST /api/restart
-```
-
----
-
-## Budget API
-
-### Budget Status
-```http
-GET /api/budget
-```
-
-**Response:**
-```json
-{
-  "today_usd": 0.5,
-  "limit_usd": 5.0
-}
-```
-
-### OpenRouter Credits
-```http
-GET /api/credits
-```
-
----
-
-## Upload API
-
-### Upload File
-```http
-POST /api/upload
-Content-Type: multipart/form-data
-```
-
-### Upload Voice Message
-```http
-POST /api/upload-voice
-Content-Type: multipart/form-data
-```
-
----
-
-## Embeddings API
-
-### Reset Embeddings
-```http
-POST /api/embeddings/reset
-```
-
----
-
-## A2A Protocol API
-
-### A2A Status
-```http
-GET /api/a2a/status
-```
-
-### Remote Agents
-```http
-GET /api/a2a/remote-agents
-POST /api/a2a/remote-agents
-PUT /api/a2a/remote-agents/{id}
-DELETE /api/a2a/remote-agents/{id}
-```
-
-### Agent Card
-```http
-GET /api/a2a/card
-```
-
-### A2A Test
-```http
-POST /api/a2a/test
-```
-
----
-
-## Invasion Control API
-
-### Nests
-```http
-GET /api/invasion/nests
-```
-
-### Eggs
-```http
-GET /api/invasion/eggs
-POST /api/invasion/eggs
-PUT /api/invasion/eggs/{id}
-DELETE /api/invasion/eggs/{id}
-```
-
-### WebSocket
-```http
-WS /api/invasion/ws
-```
-
----
-
-## Music Generation API
-
-### Test Connection
-```http
-POST /api/music-generation/test
-```
-
----
-
-## Video Generation API
-
-### Test Connection
-```http
-POST /api/video-generation/test
-```
-
-Validates provider configuration and credential availability for the configured video-generation backend.
-
----
-
-## Document Creator API
-
-### Test Gotenberg Connection
-```http
-POST /api/document-creator/test
-```
-
----
-
-## Knowledge Graph API
-
-### Nodes
-```http
-GET /api/knowledge-graph/nodes
-POST /api/knowledge-graph/nodes
-```
-
-### Edges
-```http
-GET /api/knowledge-graph/edges
-POST /api/knowledge-graph/edges
-```
-
-### Node Detail
-```http
-GET /api/knowledge-graph/node/{id}
-POST /api/knowledge-graph/node/protect
-```
-
-### Edge Mutate
-```http
-POST /api/knowledge-graph/edge
-```
-
-### Search / Stats / Quality
-```http
-GET /api/knowledge-graph/search
-GET /api/knowledge-graph/stats
-GET /api/knowledge-graph/quality
-GET /api/knowledge-graph/important
-```
-
-`/api/knowledge-graph/quality` reports isolated nodes, untyped nodes, and likely duplicate candidates. `POST /api/knowledge-graph/node/protect` marks important nodes as protected so automated cleanup does not remove them accidentally.
-
-`/api/knowledge-graph/search?q=` returns `nodes` and `edges`. When part of the search failed, the response adds `incomplete: true`; when the graph could not be searched at all, it answers `503` with an `error` field instead of an empty result.
-
-### File Sync Debugging
-```http
-GET /api/debug/kg-file-sync-stats
-GET /api/debug/kg-orphans
-GET /api/debug/file-sync-status
-GET /api/debug/file-sync-last-run
-GET /api/debug/kg-file-entities
-GET /api/debug/kg-node-sources
-POST /api/debug/kg-file-sync-cleanup
-```
-
-These endpoints inspect and maintain the background File KG Sync service that extracts entities and relationships from indexed files into the Knowledge Graph.
-
----
-
-## Planner API
-
-### List Plans
-```http
-GET /api/plans
-```
-
-**Response:**
-```json
-{
-  "plans": []
-}
-```
-
-### Get Active Plan
-```http
-GET /api/plans/active
-```
-
-### Manage Plan
-```http
-GET /api/plans/{id}
-PUT /api/plans/{id}
-DELETE /api/plans/{id}
-```
-
----
-
-## Helper LLM API
-
-### Stats
-```http
-GET /api/debug/helper-llm/stats
-GET /api/dashboard/helper-llm
-```
-
----
-
-## Notification API
-
-### Notifications
-```http
-GET /notifications
-POST /notifications/read
-```
-
----
-
-## Push API (PWA)
-
-### VAPID Public Key
-```http
-GET /api/push/vapid-pubkey
-```
-
-### Subscribe Push
-```http
-POST /api/push/subscribe
-Content-Type: application/json
-
-{
-  "endpoint": "https://push.service/...",
-  "keys": {
-    "p256dh": "...",
-    "auth": "..."
-  }
-}
-```
-
-### Unsubscribe Push
-```http
-POST /api/push/unsubscribe
-```
-
-### Push Status
-```http
-GET /api/push/status
-```
-
----
-
-## Webhook API
-
-### List Webhooks
+#### List Webhooks
 ```http
 GET /api/webhooks
 ```
@@ -1590,7 +976,7 @@ GET /api/webhooks
 }
 ```
 
-### Create Webhook
+#### Create Webhook
 ```http
 POST /api/webhooks
 Content-Type: application/json
@@ -1610,44 +996,960 @@ Content-Type: application/json
 }
 ```
 
-### Manage Webhook
+#### Manage Webhook
 ```http
 GET /api/webhooks/{id}
 PUT /api/webhooks/{id}
 DELETE /api/webhooks/{id}
 ```
 
-### Webhook Log
+#### Webhook Log
 ```http
 GET /api/webhooks/{id}/log
 GET /api/webhooks/log
 ```
 
-### Test Webhook
+#### Test Webhook
 ```http
 POST /api/webhooks/{id}/test
 ```
 
-### Webhook Presets
+#### Webhook Presets
 ```http
 GET /api/webhooks/presets
 ```
 
-### Webhook Receiver (public)
+#### Webhook Receiver (public)
 ```http
 POST /webhook/{slug}
 ```
 
 ---
 
-## Token API
+## People & Organization
 
-### List Tokens
+Contacts, appointments, todos, preferences, and person-bound agents.
+
+### People API
+
+Knowledge-graph and contacts helpers for person-centric views.
+
+#### Person Lookup
+```http
+GET /api/people/lookup?q=name&mode=fts
+```
+
+Searches the knowledge graph for person nodes and related edges. Answers `503` when the knowledge graph cannot be searched.
+
+#### KG Persons
+```http
+GET /api/people/kg-persons?limit=100
+```
+
+Returns person nodes from the knowledge graph.
+
+#### Upcoming Birthdays
+```http
+GET /api/people/upcoming?days=30
+```
+
+Returns upcoming birthdays from the contacts database.
+
+### Contacts API
+
+#### Contacts
+```http
+GET /api/contacts
+POST /api/contacts
+```
+
+**Response:**
+```json
+{
+  "contacts": []
+}
+```
+
+#### Manage Contact
+```http
+GET /api/contacts/{id}
+PUT /api/contacts/{id}
+DELETE /api/contacts/{id}
+```
+
+### Appointments API
+
+#### List / Create Appointments
+```http
+GET /api/appointments?q=search&status=scheduled
+POST /api/appointments
+```
+
+#### Manage Appointment
+```http
+GET /api/appointments/{id}
+PUT /api/appointments/{id}
+DELETE /api/appointments/{id}
+```
+
+### Todos API
+
+#### List / Create Todos
+```http
+GET /api/todos?q=search&status=open
+POST /api/todos
+```
+
+#### Manage Todo
+```http
+GET /api/todos/{id}
+PUT /api/todos/{id}
+DELETE /api/todos/{id}
+POST /api/todos/{id}/complete
+```
+
+#### Todo Items
+```http
+POST /api/todos/{id}/items
+PUT /api/todos/{id}/items/{item_id}
+DELETE /api/todos/{id}/items/{item_id}
+POST /api/todos/{id}/items/reorder
+```
+
+### Preferences API
+
+Per-session UI preferences that influence agent behavior.
+
+#### Get Preferences
+```http
+GET /api/preferences
+```
+
+**Response:**
+```json
+{
+  "speaker_mode": false
+}
+```
+
+#### Update Preferences
+```http
+POST /api/preferences
+Content-Type: application/json
+
+{
+  "speaker_mode": true
+}
+```
+
+### Space Agent API
+
+Space Agent sidecar integration for external messaging bridges.
+
+#### Status
+```http
+GET /api/space-agent/status
+```
+
+#### Recreate Sidecar
+```http
+POST /api/space-agent/recreate
+```
+
+Starts an asynchronous fetch and image build for the configured Git ref. The existing container is replaced only after a successful build.
+
+#### Send Message
+```http
+POST /api/space-agent/send
+```
+
+#### Bridge Messages
+```http
+POST /api/space-agent/bridge/messages
+```
+
+Inbound bridge endpoint with its own Bearer token authentication.
+
+### Warnings API
+
+Runtime health warnings surfaced in the Web UI.
+
+#### List Warnings
+```http
+GET /api/warnings
+```
+
+Returns all warnings plus `total` and `unacknowledged` counts.
+
+#### Acknowledge Warnings
+```http
+POST /api/warnings/acknowledge
+Content-Type: application/json
+
+{"id": "warning_id"}
+```
+
+Or acknowledge all:
+
+```json
+{"all": true}
+```
+
+---
+
+## Media & Creativity
+
+Uploads, image, music and video generation, documents, games, and radio.
+
+### Upload API
+
+#### Upload File
+```http
+POST /api/upload
+Content-Type: multipart/form-data
+```
+
+#### Upload Voice Message
+```http
+POST /api/upload-voice
+Content-Type: multipart/form-data
+```
+
+### Pixel Image Editor API
+
+Pixel is the desktop image editor. It can save canvas data to the virtual desktop workspace and optionally use the configured image-generation provider.
+
+#### Capabilities
+```http
+GET /api/pixel/config
+```
+
+Returns whether image generation is enabled, the resolved provider/model, default size/quality/style, and image-to-image support.
+
+#### Generate Image
+```http
+POST /api/pixel/generate
+Content-Type: application/json
+
+{
+  "prompt": "A clean product photo of a brass lamp",
+  "size": "1024x1024",
+  "quality": "standard",
+  "style": "natural"
+}
+```
+
+#### Enhance Image
+```http
+POST /api/pixel/enhance
+Content-Type: application/json
+
+{
+  "source_path": "agent_workspace/virtual_desktop/image.png",
+  "prompt": "Improve sharpness and lighting",
+  "strength": 0.7
+}
+```
+
+`source_data` may be provided instead of `source_path` as a base64 data URL.
+
+#### Save Canvas
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/edited.png",
+  "data": "data:image/png;base64,...",
+  "format": "png",
+  "quality": 92
+}
+```
+
+Relative paths are stored under the configured data workspace.
+
+### Music Generation API
+
+#### Test Connection
+```http
+POST /api/music-generation/test
+```
+
+### Video Generation API
+
+#### Test Connection
+```http
+POST /api/video-generation/test
+```
+
+Validates provider configuration and credential availability for the configured video-generation backend.
+
+### Document Creator API
+
+#### Test Gotenberg Connection
+```http
+POST /api/document-creator/test
+```
+
+### Game Maker API
+
+Virtual Desktop clients use these authenticated, project-scoped endpoints:
+
+```http
+GET    /api/game-maker/capabilities
+GET    /api/game-maker/projects
+POST   /api/game-maker/projects
+GET    /api/game-maker/projects/{project}
+PATCH  /api/game-maker/projects/{project}
+DELETE /api/game-maker/projects/{project}
+POST   /api/game-maker/projects/{project}/jobs
+GET    /api/game-maker/projects/{project}/events
+POST   /api/game-maker/jobs/{id}/cancel
+GET    /api/game-maker/projects/{project}/revisions
+POST   /api/game-maker/projects/{project}/revisions/{number}/restore
+POST   /api/game-maker/projects/{project}/preview-token
+GET    /api/game-maker/preview/{token}/index.html
+GET    /api/game-maker/projects/{project}/export
+```
+
+Preview tokens are short-lived and bound to the project and, when applicable,
+the active job. Game Maker event streams support reconnecting with
+`Last-Event-ID` or the `after` query parameter.
+
+### Newspaper API
+
+Admin-scoped; session writes require same-origin. The server owns research and delivery — source pages cannot set recipients or invoke send tools.
+
+```http
+GET  /api/desktop/newspaper/capabilities
+GET  /api/desktop/newspaper/profile                     # ETag
+PUT  /api/desktop/newspaper/profile                     # If-Match required
+GET  /api/desktop/newspaper/editions                    # Editions + latest run
+POST /api/desktop/newspaper/editions                    # Start a run (202)
+GET  /api/desktop/newspaper/editions/{id}               # Edition (ETag) or run
+GET  /api/desktop/newspaper/editions/{id}/events        # Events + sources
+POST /api/desktop/newspaper/editions/{id}/stop          # Cancel the run (202)
+GET  /api/desktop/newspaper/editions/{id}/deliveries
+POST /api/desktop/newspaper/editions/{id}/deliver       # Idempotency-Key required
+GET  /api/desktop/newspaper/export?format=pdf
+POST /api/desktop/newspaper/email/challenge
+POST /api/desktop/newspaper/email/confirm
+POST /api/desktop/newspaper/telegram/test
+```
+
+Errors answer with structured, sanitized codes; provider error bodies, credentials, and recipients are never returned.
+
+### Detective API
+
+Reads require an enabled Virtual Desktop; writes fail with 403 when `detective.readonly`, `virtual_desktop.readonly`, or agent control is disabled. Private sources must be approved under `detective.extra_read_operations`.
+
+```http
+GET    /api/desktop/detective/capabilities
+GET    /api/desktop/detective/cases                    # Case summaries
+POST   /api/desktop/detective/cases                    # Create a case (201)
+GET    /api/desktop/detective/cases/{key}              # Full case
+DELETE /api/desktop/detective/cases/{key}
+GET    /api/desktop/detective/cases/{key}/events?after=
+POST   /api/desktop/detective/cases/{key}/run          # start/stop/finish (202)
+GET    /api/desktop/detective/cases/{key}/export?revision=
+POST   /api/desktop/detective/cases/{key}/autor        # Produce an authored revision
+```
+
+### Personal Radio API
+
+Reads are always allowed while the Virtual Desktop is enabled; writes are blocked when `virtual_desktop.readonly` applies. Playback control checks conflicts against the active station (409).
+
+```http
+GET    /api/desktop/personal-radio/state
+GET    /api/desktop/personal-radio/library
+GET    /api/desktop/personal-radio/files
+DELETE /api/desktop/personal-radio/unused
+GET    /api/desktop/personal-radio/audio/{id}
+POST   /api/desktop/personal-radio/heartbeat
+POST   /api/desktop/personal-radio/playback
+POST   /api/desktop/personal-radio/stations                     # Create station (201)
+PATCH  /api/desktop/personal-radio/stations/{id}                # Save station
+DELETE /api/desktop/personal-radio/stations/{id}                # If-Match revision
+POST   /api/desktop/personal-radio/stations/{id}/preview        # Voice preview (WAV)
+GET    /api/desktop/personal-radio/stations/{id}/news
+POST   /api/desktop/personal-radio/stations/{id}/start          # plus pause/resume/stop/skip
+GET    /api/desktop/personal-radio/stations/{id}/tracks
+POST   /api/desktop/personal-radio/stations/{id}/imports
+POST   /api/desktop/personal-radio/stations/{id}/upload
+PATCH  /api/desktop/personal-radio/stations/{id}/tracks/{track} # favorite/blocked/weight
+DELETE /api/desktop/personal-radio/stations/{id}/tracks/{track}
+```
+
+### Radio Browser API
+
+Read-only proxy to the public radio-browser.info station database for the radio apps.
+
+```http
+GET /api/radio-browser/{...}
+```
+
+### RTL-SDR API
+
+Receive-only and disabled by default; `rtl_sdr.enabled` unlocks the API, and writes require an approved configuration.
+
+```http
+PUT    /api/desktop/rtl-sdr/config                     # Save configuration
+POST   /api/desktop/rtl-sdr/setup                      # Hardware qualification
+GET    /api/desktop/rtl-sdr/state
+GET    /api/desktop/rtl-sdr/devices
+GET    /api/desktop/rtl-sdr/receiver
+GET    /api/desktop/rtl-sdr/stream
+POST   /api/desktop/rtl-sdr/tune                       # plus heartbeat/stop
+POST   /api/desktop/rtl-sdr/scan                       # Start a scan
+DELETE /api/desktop/rtl-sdr/scan                       # Cancel a scan
+POST   /api/desktop/rtl-sdr/favorites
+DELETE /api/desktop/rtl-sdr/favorites/{id}
+POST   /api/desktop/rtl-sdr/recordings                 # Start a recording
+GET    /api/desktop/rtl-sdr/recordings/{id}
+DELETE /api/desktop/rtl-sdr/recordings/{id}
+GET    /api/desktop/rtl-sdr/recordings/{id}/audio      # FLAC, ?download=1
+POST   /api/desktop/rtl-sdr/recordings/{id}/stop
+POST   /api/desktop/rtl-sdr/recordings/{id}/transcribe # Re-run ASR (202)
+POST   /api/desktop/rtl-sdr/schedules
+DELETE /api/desktop/rtl-sdr/schedules/{id}
+```
+
+### Noisemaker API
+
+Local music generation (ACE-Step) behind `music_generation.enabled`. `state` reads the workbench and player, `enhance` refines prompt fragments, `generate` starts generation, `tracks` manages the library.
+
+```http
+GET    /api/desktop/noisemaker/state
+POST   /api/desktop/noisemaker/enhance
+POST   /api/desktop/noisemaker/generate
+GET    /api/desktop/noisemaker/tracks
+DELETE /api/desktop/noisemaker/tracks/{id}
+PATCH  /api/desktop/noisemaker/tracks/{id}
+```
+
+---
+
+## Devices & Messengers
+
+Device registry, smart-home hardware, speech, and messenger channels.
+
+### Device API (Device Registry)
+
+#### List Devices
+```http
+GET /api/devices
+```
+
+**Response:**
+```json
+{
+  "devices": []
+}
+```
+
+#### Create Device
+```http
+POST /api/devices
+Content-Type: application/json
+
+{
+  "hostname": "server1",
+  "device_type": "server",
+  "ip_address": "192.168.1.10",
+  "ssh_port": 22,
+  "ssh_user": "root",
+  "tags": ["production", "web"]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "dev-123",
+  "success": true
+}
+```
+
+#### Get Device
+```http
+GET /api/devices/{id}
+```
+
+#### Update Device
+```http
+PUT /api/devices/{id}
+Content-Type: application/json
+
+{
+  "tags": ["new", "updated"]
+}
+```
+
+#### Delete Device
+```http
+DELETE /api/devices/{id}
+```
+
+#### MAC Lookup
+```http
+GET /api/tools/mac_lookup?mac=aa:bb:cc:dd:ee:ff
+```
+
+### 3D Printer API
+
+#### Test Connection
+```http
+POST /api/3d-printers/test
+```
+
+#### Camera Snapshot / Stream
+```http
+GET /api/3d-printers/{printer_id}/camera/snapshot
+GET /api/3d-printers/{printer_id}/camera/stream
+```
+
+**Test response example:**
+```json
+{
+  "printers": [
+    {
+      "name": "elegoo",
+      "type": "elegoo_centauri_carbon",
+      "status": "printing",
+      "progress": 42.5
+    }
+  ]
+}
+```
+
+### Bluetooth API
+
+Linux/BlueZ only, admin only. `readonly` and `allow_playback` restrict the agent, not admins. `devices/action` accepts `wait: false` (answers 202) and `interactive: true`. Playback is workspace files or the media registry, never URLs.
+
+```http
+GET /api/bluetooth/status
+POST /api/bluetooth/reprobe
+POST /api/bluetooth/discover
+POST /api/bluetooth/discovery
+POST /api/bluetooth/discoverable
+POST /api/bluetooth/power
+POST /api/bluetooth/devices/action
+GET /api/bluetooth/interactions/{id}
+POST /api/bluetooth/interactions/{id}
+POST /api/bluetooth/audio/test
+POST /api/bluetooth/audio/stop
+```
+
+### go2rtc API
+
+Admin setup; viewer routes need `go2rtc.view`. Sources and the internal password stay in the vault. The viewer proxy strips caller cookies.
+
+```http
+GET /api/go2rtc/status
+POST /api/go2rtc/test
+GET /api/go2rtc/viewer/{stream_id}
+GET /api/go2rtc/thumbnail/{stream_id}.jpg
+GET /api/go2rtc/detection/state?since={cursor}
+GET /api/go2rtc/detection/events?stream_id=&from=&to=&before=&limit=
+GET|DELETE /api/go2rtc/detection/events/{id}
+GET /api/go2rtc/detection/images/{frame_id}?thumb=1
+POST /api/go2rtc/detection/arm
+PUT /api/go2rtc/detection/settings
+POST /api/go2rtc/detection/test
+POST /api/go2rtc/detection/retry
+```
+
+Stream mutations and ONVIF discovery are admin POST/PUT. HTTP 202 means the desired state is stored and runtime will catch up. Details: [go2rtc](../../go2rtc.md).
+
+Person detection reads need `go2rtc.view`; arming, settings, test, retry and deleting events need an administrator and a same-origin request (403 `forbidden`). Errors are `{"error","code"}`, for example `detection_unavailable` (503), `detection_disabled` (409, from `arm` and `test` while detection is off), `detector_not_ready` (409), `frame_unavailable` (502) and `event_not_found` (404). Lists are always arrays, times UTC RFC 3339 with milliseconds, and ids large int64 numbers. `state?since=0` is a snapshot, a higher cursor returns later changes, and deletions leave no trace in the feed. A camera's `detection` object in `PATCH /api/go2rtc/streams/{id}` is merged key by key; `PUT settings` replaces the whole global block. Details: [Person detection](../../go2rtc.md#person-detection).
+
+### Cheap Yellow Display API
+
+Device endpoints for the ESP32 glass. Do not log the token. Config tests and firmware provision are admin.
+
+```http
+GET /api/cyd/status
+POST /api/cyd/test
+GET /api/cyd/snapshot
+POST /api/cyd/heartbeat
+POST /api/cyd/ack
+GET /api/cyd/ws
+GET /api/cyd/persona
+```
+
+`GET /api/cyd/persona` returns the active persona portrait as little-endian RGB565, 72×72. It is the same `/img/personas/<key>.png` file AgoDesk receives as `avatar_image_url`.
+
+### MeshCore API
+
+All MeshCore endpoints are administrator-protected.
+
+```http
+GET  /api/meshcore/status
+GET  /api/meshcore/devices
+GET  /api/meshcore/contacts
+GET  /api/meshcore/channels
+GET  /api/meshcore/messages          # newest 100 records; limit<=100, offset
+POST /api/meshcore/scan
+POST /api/meshcore/pair
+POST /api/meshcore/test
+POST /api/meshcore/recheck
+GET  /api/meshcore/messenger/bootstrap
+GET  /api/meshcore/messenger/conversations
+GET  /api/meshcore/messenger/messages      # exclusive before cursor, max 50/page
+POST /api/meshcore/messenger/send
+POST /api/meshcore/messenger/conversation
+POST /api/meshcore/messenger/reveal
+POST /api/meshcore/messenger/invitation
+POST /api/meshcore/messenger/manage
+POST /api/meshcore/messenger/settings
+```
+
+Channel keys, BLE PINs, and protected message bodies never appear in API
+responses; `reveal` releases sanitized plain text only for an explicit
+administrator request. Connection and test failures surface through the
+Operational Issue lifecycle.
+
+### Native SIP API
+
+Administrative SIP endpoints cover account configuration, provider presets,
+tests, registration status, calls, browser-phone state, and agent routing.
+
+```http
+GET    /api/sip/config
+PUT    /api/sip/config
+DELETE /api/sip/config
+GET    /api/sip/providers
+POST   /api/sip/setup
+POST   /api/sip/test
+GET    /api/sip/status
+GET    /api/sip/calls
+POST   /api/sip/calls/{id}/{action}
+GET    /api/sip/events
+GET    /api/sip/app/state
+GET    /api/sip/agent
+PUT    /api/sip/agent
+GET    /api/sip/agent/catalog
+POST   /api/sip/agent/test
+POST   /api/sip/browser-media/sessions
+DELETE /api/sip/browser-media/sessions/{id}
+```
+
+The browser-media session endpoints are same-origin protected and scoped to the
+authenticated Virtual Desktop phone. SIP passwords, RTP, raw headers, and
+provider credentials are never returned by these APIs.
+
+### Realtime Speech API
+
+```http
+GET    /api/realtime-speech/config
+PUT    /api/realtime-speech/config
+GET    /api/realtime-speech/catalog
+GET    /api/realtime-speech/status
+POST   /api/realtime-speech/test
+POST   /api/realtime-speech/sessions
+PATCH  /api/realtime-speech/sessions/{id}
+DELETE /api/realtime-speech/sessions/{id}
+POST   /api/realtime-speech/transcribe
+POST   /api/realtime-speech/synthesize
+POST   /api/realtime-speech/actions
+DELETE /api/realtime-speech/actions/{request_id}
+POST   /api/realtime-speech/turns
+```
+
+Configuration updates are atomic across YAML and per-profile Vault entries.
+Session and action routes enforce same-origin requests, lease ownership, and
+bounded request sizes. Action responses stream as SSE.
+
+### Speech Lab API
+
+```http
+GET    /api/speech-lab/status
+GET    /api/speech-lab/capability
+GET    /api/speech-lab/catalog
+GET    /api/speech-lab/suggestions
+PUT    /api/speech-lab/stack
+POST   /api/speech-lab/deployment/install
+POST   /api/speech-lab/deployment/start
+POST   /api/speech-lab/deployment/stop
+POST   /api/speech-lab/deployment/update
+DELETE /api/speech-lab/deployment
+```
+
+Status is authenticated and sanitized; capability, catalog, suggestions,
+stack, and deployment mutations require administrator access. Stack updates
+accept the active `{asr_id, tts_id, voice}` combination and are rejected while
+a speech operation or SIP call is active.
+
+### AgentMail API
+
+#### Get Status
+```http
+GET /api/agentmail/status
+```
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "inbox_id": "inbox_123",
+  "address": "aurago@agentmail.io",
+  "unread_count": 3
+}
+```
+
+#### Test Connection
+```http
+POST /api/agentmail/test
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Connection successful"
+}
+```
+
+### Notification API
+
+#### Notifications
+```http
+GET /notifications
+POST /notifications/read
+```
+
+### Push API (PWA)
+
+#### VAPID Public Key
+```http
+GET /api/push/vapid-pubkey
+```
+
+#### Subscribe Push
+```http
+POST /api/push/subscribe
+Content-Type: application/json
+
+{
+  "endpoint": "https://push.service/...",
+  "keys": {
+    "p256dh": "...",
+    "auth": "..."
+  }
+}
+```
+
+#### Unsubscribe Push
+```http
+POST /api/push/unsubscribe
+```
+
+#### Push Status
+```http
+GET /api/push/status
+```
+
+### here.now API
+
+Status and account catalog. Publish mutations stay in the Homepage/here.now contract; see [Chapter 8](08-integrations.md#herenow-integration).
+
+```http
+GET  /api/here-now/status
+POST /api/here-now/test-connection
+GET  /api/here-now/accounts
+```
+
+### Manus API
+
+```http
+GET /api/manus/status
+POST /api/manus/test
+GET /api/manus/projects
+GET /api/manus/connectors
+GET /api/manus/skills
+```
+
+These administrator-facing endpoints return sanitized account catalogs and
+connection status. Task creation, waiting, messages, and controlled file
+transfers are exposed through the policy-gated native `manus` tool rather than
+an unrestricted REST surface.
+
+### OmniRoute API
+
+```http
+GET  /api/omniroute/status
+POST /api/omniroute/test
+POST /api/omniroute/start
+POST /api/omniroute/stop
+```
+
+The lifecycle endpoints control only AuraGo's configured managed sidecar or
+test the configured external endpoint. Secrets and provider credentials remain
+Vault-backed.
+
+---
+
+## Configuration & Security
+
+Config, vault, tokens, credentials, and setup-facing endpoints.
+
+### Config API
+
+#### Get Configuration
+```http
+GET /api/config
+```
+
+**Response:**
+```json
+{
+  "config": {
+    "server": {
+      "host": "127.0.0.1",
+      "port": 8088
+    },
+    "llm": {
+      "provider": "main"
+    }
+  }
+}
+```
+
+#### Update Configuration
+```http
+PUT /api/config
+Content-Type: application/json
+
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080
+  }
+}
+```
+
+#### Configuration Schema
+```http
+GET /api/config/schema
+```
+
+#### Change UI Language
+```http
+POST /api/ui-language
+Content-Type: application/json
+
+{
+  "language": "de"
+}
+```
+
+### Config Rules API
+
+Task rules are editable Markdown guardrails stored under `prompts/rules/<id>/rule.md`. All endpoints require admin access.
+
+#### List Rules
+```http
+GET /api/config/rules
+```
+
+Returns the enabled state, rule metadata, and candidate tools/workflows for the rule editor.
+
+#### Create Rule
+```http
+POST /api/config/rules
+Content-Type: application/json
+
+{
+  "id": "homepage",
+  "title": "Homepage rules",
+  "enabled": true,
+  "priority": 50,
+  "tools": ["homepage"],
+  "workflows": ["website"],
+  "keywords": ["landing page"],
+  "body": "Markdown rule body",
+  "design": "Optional DESIGN.md content"
+}
+```
+
+#### Get / Update / Delete Rule
+```http
+GET /api/config/rules/{id}
+PUT /api/config/rules/{id}
+DELETE /api/config/rules/{id}
+```
+
+#### Restore Built-In Rule
+```http
+POST /api/config/rules/{id}/restore
+```
+
+Removes the disk override so the embedded rule is used again.
+
+### Vault API
+
+#### Vault Status
+```http
+GET /api/vault/status
+```
+
+**Response:**
+```json
+{
+  "initialized": true,
+  "secret_count": 12
+}
+```
+
+#### List Secrets
+```http
+GET /api/vault/secrets
+```
+
+#### Delete Secret
+```http
+DELETE /api/vault?key=secret_name
+```
+
+### Credentials API
+
+#### List Credentials
+```http
+GET /api/credentials
+```
+
+#### Python-Accessible Credentials
+```http
+GET /api/credentials/python-accessible
+```
+
+#### Create Credential
+```http
+POST /api/credentials
+Content-Type: application/json
+
+{
+  "name": "api_key_production",
+  "type": "token",
+  "value": "sk-...",
+  "python_accessible": false
+}
+```
+
+#### Update/Delete Credential
+```http
+PUT /api/credentials/{id}
+DELETE /api/credentials/{id}
+```
+
+### Token API
+
+#### List Tokens
 ```http
 GET /api/tokens
 ```
 
-### Create Token
+#### Create Token
 ```http
 POST /api/tokens
 Content-Type: application/json
@@ -1677,84 +1979,37 @@ Content-Type: application/json
 
 `token` is shown only once. `meta.expires_at` appears when `expires_at` was set. A `cyd` code also returns `display` (the nine characters as `XXX XXX XXX`) and `prefix` (`"aura_"`); its `meta.prefix` is `aura_...`.
 
-### Manage Token
+#### Manage Token
 ```http
 PUT /api/tokens/{id}
 DELETE /api/tokens/{id}
 ```
 
----
+### Security API
 
-## Provider API
-
-### List Providers
+#### Security Status
 ```http
-GET /api/providers
+GET /api/security/status
 ```
 
-### Provider Pricing
+#### Security Hints
 ```http
-GET /api/providers/pricing
+GET /api/security/hints
 ```
 
----
-
-## Ollama API
-
-### List Models
+#### Auto-Hardening
 ```http
-GET /api/ollama/models
+POST /api/security/harden
 ```
 
-### Managed Ollama Status
-```http
-GET /api/ollama/managed/status
-```
+### Personality API
 
-Returns the managed Docker container state, detected runtime, model volume status, GPU availability where detectable, and configured default models.
-
-### Recreate Managed Ollama
-```http
-POST /api/ollama/managed/recreate
-```
-
-Recreates the managed `aurago_ollama_managed` container after configuration changes.
-
----
-
-## Security Proxy API
-
-### Proxy Lifecycle
-```http
-GET /api/proxy/status
-POST /api/proxy/start
-POST /api/proxy/stop
-POST /api/proxy/destroy
-POST /api/proxy/reload
-GET /api/proxy/logs
-```
-
-The Security Proxy API controls the managed Caddy protection layer in front of AuraGo: TLS termination, rate limiting, IP filtering and Basic Auth. Geo-blocking is not implemented yet.
-
----
-
-## OpenRouter API
-
-### OpenRouter Models
-```http
-GET /api/openrouter/models
-```
-
----
-
-## Personality API
-
-### List Personalities
+#### List Personalities
 ```http
 GET /api/personalities
 ```
 
-### Update Personality
+#### Update Personality
 ```http
 POST /api/personality
 Content-Type: application/json
@@ -1771,12 +2026,12 @@ Content-Type: application/json
 }
 ```
 
-### Personality State
+#### Personality State
 ```http
 GET /api/personality/state
 ```
 
-### Personality Feedback
+#### Personality Feedback
 ```http
 POST /api/personality/feedback
 Content-Type: application/json
@@ -1787,95 +2042,55 @@ Content-Type: application/json
 }
 ```
 
-### Personality Files
+#### Personality Files
 ```http
 GET /api/config/personality-files
 POST /api/config/personality-files
 DELETE /api/config/personality-files
 ```
 
----
+### Budget API
 
-## Sandbox API
-
-### Sandbox Status
+#### Budget Status
 ```http
-GET /api/sandbox/status
+GET /api/budget
 ```
 
-### Shell Sandbox Status
-```http
-GET /api/sandbox/shell-status
+**Response:**
+```json
+{
+  "today_usd": 0.5,
+  "limit_usd": 5.0
+}
 ```
 
----
-
-## Security API
-
-### Security Status
+#### OpenRouter Credits
 ```http
-GET /api/security/status
+GET /api/credits
 ```
 
-### Security Hints
-```http
-GET /api/security/hints
-```
+### i18n API
 
-### Auto-Hardening
-```http
-POST /api/security/harden
-```
-
----
-
-## System API
-
-### Operating System
-```http
-GET /api/system/os
-```
-
-### Runtime Environment
-```http
-GET /api/runtime
-```
-
-### Build and VCS identity
-```http
-GET /api/system/info
-```
-
-Returns the running `build_id`, VCS revision and timestamp, and the
-`vcs_modified` flag. Clean deployment acceptance should compare `build_id` with
-the reviewed commit and reject modified artifacts.
-
----
-
-## i18n API
-
-### Translations
+#### Translations
 ```http
 GET /api/i18n?lang=en
 ```
 
----
+### Setup API
 
-## Setup API
-
-### Setup Status
+#### Setup Status
 ```http
 GET /api/setup/status
 ```
 
-### Setup Profiles
+#### Setup Profiles
 ```http
 GET /api/setup/profiles
 ```
 
 Returns pre-configured provider profiles for the setup wizard plan selection step.
 
-### Test Provider Connection
+#### Test Provider Connection
 ```http
 POST /api/setup/test
 Content-Type: application/json
@@ -1890,7 +2105,7 @@ Content-Type: application/json
 
 Performs a lightweight LLM connectivity test before saving setup. Only available while setup is incomplete.
 
-### Save Setup
+#### Save Setup
 ```http
 POST /api/setup
 Content-Type: application/json
@@ -1911,11 +2126,262 @@ Content-Type: application/json
 
 Requires the CSRF token issued by `GET /api/setup/status`.
 
+### Update API
+
+#### Check for Updates
+```http
+GET /api/updates/check
+```
+Checks Git installs against `origin/main` and binary installs against the latest GitHub Release. If a binary install has an unknown local `.version` but a latest release is known, the response can set `update_available: true`.
+
+#### Install Update
+```http
+POST /api/updates/install
+```
+Starts `update.sh --yes` in the background and returns `{"status":"started","message":"..."}` on success. The backend returns JSON `error` responses when self-update is disabled, AuraGo runs in Docker/container mode, the runtime is not Linux, `bash` is missing, or `update.sh` is missing.
+
+#### Restart
+```http
+POST /api/restart
+```
+
 ---
 
-## Health Check
+## System & Operations
 
-### Health
+Dashboard, containers, backups, system status, and event streams.
+
+### Dashboard API
+
+#### System Metrics
+```http
+GET /api/dashboard/system
+```
+
+**Response:**
+```json
+{
+  "cpu": 15.2,
+  "memory": 45.8,
+  "disk": 72.1,
+  "network": {
+    "rx_mbps": 1.2,
+    "tx_mbps": 0.8
+  },
+  "uptime_seconds": 86400
+}
+```
+
+#### Mood History
+```http
+GET /api/dashboard/mood-history
+```
+
+#### Emotion History
+```http
+GET /api/dashboard/emotion-history
+```
+
+#### Memory Overview
+```http
+GET /api/dashboard/memory
+```
+
+#### Core Memory
+```http
+GET /api/dashboard/core-memory
+```
+
+#### Mutate Core Memory
+```http
+POST /api/dashboard/core-memory/mutate
+Content-Type: application/json
+
+{
+  "action": "add",
+  "content": "Important information"
+}
+```
+
+#### Profile Data
+```http
+GET /api/dashboard/profile
+PUT /api/dashboard/profile/entry
+```
+
+#### Activity Statistics
+```http
+GET /api/dashboard/activity
+```
+
+Returns runtime activity including cron jobs, processes, webhooks, background tasks, and active **co-agents** (`coagents` field).
+
+#### GitHub Repositories
+```http
+GET /api/dashboard/github-repos
+GET /api/github/repos
+```
+
+#### Logs
+```http
+GET /api/dashboard/logs
+```
+
+#### Dashboard Overview
+```http
+GET /api/dashboard/overview
+```
+
+#### Notes
+```http
+GET /api/dashboard/notes
+```
+
+#### Journal
+```http
+GET /api/dashboard/journal
+GET /api/dashboard/journal/summaries
+GET /api/dashboard/journal/stats
+```
+
+#### Guardian Status
+```http
+GET /api/dashboard/guardian
+```
+
+#### Error Overview
+```http
+GET /api/dashboard/errors
+```
+
+#### Prompt Statistics
+```http
+GET /api/dashboard/prompt-stats
+```
+
+#### Tool Statistics
+```http
+GET /api/dashboard/tool-stats
+```
+
+### Container API
+
+With authentication enabled, all container routes require a browser session or an API token with the `admin` scope.
+
+#### List Containers
+```http
+GET /api/containers
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "count": 1,
+  "containers": [
+    {"id": "0123456789ab", "names": ["/aurago"], "image": "ghcr.io/antibyte/aurago:latest", "state": "running", "status": "Up 2 hours", "protected_owner": "aurago-app", "self": true}
+  ]
+}
+```
+
+#### Container Actions
+```http
+POST /api/containers/{id}/start
+POST /api/containers/{id}/stop
+POST /api/containers/{id}/restart
+POST /api/containers/{id}/pause
+POST /api/containers/{id}/unpause
+GET /api/containers/{id}/protection
+DELETE /api/containers/{id}
+```
+
+#### Protected Containers
+`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`, `cyd-creator`, `decisions`, `security-proxy`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`). When AuraGo shares another container's network namespace (`network_mode: service:…` or `container:…`, for example a Tailscale or Gluetun sidecar), AuraGo cannot tell its own container from that provider; both are marked `shared_network: true` instead of `self`. The same applies when another container joins AuraGo's own network namespace, and to every container that shares one provider.
+
+For these containers, `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` and `DELETE /api/containers/{id}` answer HTTP 409 with `code: "container_protected_confirmation_required"` unless the request carries `confirm=protected`. The `owner` field names the reason (`self`, `docker-endpoint`, `shared-network`, the managing owner or `unverified`). The same applies when Docker does not answer the ownership check (`owner: "unverified"`). If the Docker endpoint host cannot be resolved, AuraGo identifies the endpoint container by the address of its open Docker connection, but only when a listed container has that address. Otherwise the target counts as `unverified`: no TCP connection was observed, the address is a loopback or host address (a proxy behind a published port stays unknown), the target joins the connected container's network namespace (it may be the process serving the port), the target has the connected container's Compose service name in any project, or one of the target's names, aliases or DNS names equals the host name of `docker.host`. `POST /api/containers/{id}/update` on the AuraGo container itself or on the Docker endpoint container always answers HTTP 409 with `code: "container_self_update_unsupported"`: the update would stop AuraGo or its Docker connection before the replacement exists. Upgrade those with `docker compose pull && docker compose up -d` on the Docker host. Under Podman, AuraGo cannot identify its own container; the app container then needs only the confirmation (by its reserved name or owner label). Start, stop, restart, pause, unpause, logs, inspect and stats need no confirmation.
+
+A terminal request that is not a WebSocket upgrade answers HTTP 400 before any shell starts. `GET /api/containers/{id}/protection` returns the classification without opening a shell: `owner` (the reason, empty when not protected), `protected`, `update_unsupported`, `read_only` and, for protected containers, the `message` of the 409 answer. Browsers cannot read the HTTP answer of a refused WebSocket handshake; the Containers page asks this route and then offers the confirmation. On an open terminal WebSocket, the text message `{"type":"end"}` ends the shell: AuraGo sends SIGHUP to the exec's own process, which it finds by the `AURAGO_TERMINAL_SESSION` variable of that session. Programs that detached from the shell, such as a tmux or screen server, keep running. Closing the WebSocket does not end the shell. With the overlay2 storage driver, AuraGo also recognises its own container behind a network sidecar: the overlay upper directory of its root filesystem (`/proc/self/mountinfo`) equals that container's `GraphDriver.Data.UpperDir`. The containerd image store (the default for new Docker 29 installations) does not report this directory. There AuraGo uses a marker file instead: at startup it writes a file with a random name into its own writable layer (for example `/tmp/.aurago-self-<random>`, never into a volume, bind mount or tmpfs) and asks Docker which container of the shared network group holds it (`HEAD /containers/{id}/archive`, which a Docker socket proxy must allow). Exactly one match proves the container AuraGo runs in. A container proven either way is `self`, and its update is refused. Without a proof (no writable directory on the container's own layer, a Docker answer other than 200 or 404, or several matches), a container marked `shared_network` (and not `docker_endpoint`) is never refused for update, only confirmed, even when it is the AuraGo container, and that update stops AuraGo.
+
+A failure reported by Docker or the Docker tool layer answers HTTP 502 with the unchanged JSON body (`status: "error"`, `message`). `503` still means Docker is disabled and `403` that Docker is read-only.
+
+#### Runtime Information
+```http
+GET /api/runtime
+```
+
+### Backup API
+
+AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They can include configuration, consistent SQLite database snapshots, vector DB data, skills, tools, selected workspace files, and separately encrypted vault secrets for cross-instance migration.
+
+#### Create Backup
+```http
+POST /api/backup/create
+Content-Type: application/json
+
+{
+  "include_vectordb": true,
+  "include_workdir": false,
+  "password": "strong-passphrase"
+}
+```
+
+Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports.
+
+#### Import Backup
+```http
+POST /api/backup/import
+Content-Type: multipart/form-data
+```
+
+Form fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `file` | yes | `.ago` backup archive |
+| `password` | no | Password for encrypted backups |
+
+Imports are staged first, checked for path traversal, schema warnings, and archive compatibility, then restored atomically where possible. A SQLite restore returns `restart_required: true`.
+
+### Network Shares API
+
+```http
+GET    /api/network-shares/status
+POST   /api/network-shares/reprobe
+POST   /api/network-shares/validate
+GET    /api/network-shares
+POST   /api/network-shares
+PUT    /api/network-shares/{id}
+DELETE /api/network-shares/{id}
+```
+
+These endpoints are administrator-only. Validation is dry-run capable and does
+not write host configuration or ledger state. Mutations affect only managed
+shares and never delete their directories or files.
+
+### System API
+
+#### Operating System
+```http
+GET /api/system/os
+```
+
+#### Runtime Environment
+```http
+GET /api/runtime
+```
+
+#### Build and VCS identity
+```http
+GET /api/system/info
+```
+
+Returns the running `build_id`, VCS revision and timestamp, and the
+`vcs_modified` flag. Clean deployment acceptance should compare `build_id` with
+the reviewed commit and reject modified artifacts.
+
+### Health Check
+
+#### Health
 ```http
 GET /api/health
 ```
@@ -1927,458 +2393,209 @@ GET /api/health
 }
 ```
 
-### Readiness
+#### Readiness
 ```http
 GET /api/ready
 ```
 
 Returns `200` with `{"status":"ready"}` when initialization is complete, or `503` with `{"status":"initializing"}` while the server is still starting. Used by Docker health checks and load balancers.
 
----
+### SSE Events
 
-## Agent Skills API
+AuraGo supports Server-Sent Events (SSE) for real-time updates.
 
-Agent Skills are filesystem-based skills managed separately from the classic Skill Manager.
-
-### List Agent Skills
+#### Connect to Event Stream
 ```http
-GET /api/agent-skills
-GET /api/agent-skills?enabled=true&search=keyword
+GET /events
+Accept: text/event-stream
 ```
 
-### Create Agent Skill
-```http
-POST /api/agent-skills
-Content-Type: application/json
+#### Event Types
 
-{
-  "name": "my_skill",
-  "description": "Does useful things",
-  "body": "# SKILL.md content"
-}
+| Event | Description |
+|-------|-------------|
+| `system_metrics` | System metrics (CPU, RAM, etc.) |
+| `container_update` | Container status changes |
+| `personality_update` | Personality status |
+| `tsnet_status` | Tailscale tsnet status |
+
+**Example Stream:**
+```
+event: system_metrics
+data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
+
+event: container_update
+data: [{"id": "abc", "state": "running"}]
 ```
 
-### Import Agent Skill
+### Operational Issues API
+
 ```http
-POST /api/agent-skills/import
-Content-Type: multipart/form-data
+GET  /api/operational-issues
+GET  /api/operational-issues/stale-preview
+POST /api/operational-issues/archive-stale
+POST /api/operational-issues/{id}/resolve
+POST /api/operational-issues/{id}/archive
 ```
 
-### Manage Agent Skill
-```http
-GET /api/agent-skills/{id}
-GET /api/agent-skills/{id}?content=true
-PUT /api/agent-skills/{id}
-DELETE /api/agent-skills/{id}
-```
-
-### Verify / Approve / Test
-```http
-POST /api/agent-skills/{id}/verify
-POST /api/agent-skills/{id}/approve-warning
-POST /api/agent-skills/{id}/test
-```
-
-### Agent Skill Files
-```http
-GET /api/agent-skills/{id}/files?path=scripts/run.py
-PUT /api/agent-skills/{id}/files
-POST /api/agent-skills/{id}/files
-```
+List filters include `status`, `kind`, `severity`, `source`, `limit`, and
+`offset`. Records are sanitized and use non-reversible public IDs. Archive and
+resolve actions preserve the issue history.
 
 ---
 
-## Daemon Skills API
+## Desktop & Workspaces
 
-Long-running daemon skills supervised by the daemon subsystem.
+Desktop apps, workspaces, and virtual environments.
 
-### List Daemons
+### Desktop API
+
+Desktop endpoints use the same session/auth model as the Web UI. Mutating operations require desktop admin/write permissions and respect `virtual_desktop.readonly`.
+
+#### Desktop State
 ```http
-GET /api/daemons
+GET /api/desktop/apps
+GET /api/desktop/shortcuts
+GET /api/desktop/widgets
+GET /api/desktop/settings
+POST /api/desktop/settings
+GET /api/desktop/embed-token
 ```
 
-### Refresh Daemon List
+#### Desktop Chat and Streams
 ```http
-POST /api/daemons/refresh
+POST /api/desktop/chat
+GET /api/desktop/chat/stream
+GET /api/desktop/ws
+GET /api/agodesk/ws
+GET /api/agodesk/media/{bucket}/{path}
 ```
 
-Rescans skills from disk and reconciles running daemons.
+`/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`. Loopback development additionally requires an `AURAGO_AGODESK_DEV_TOKEN` of at least 32 characters and the matching `X-AuraGo-Agodesk-Dev-Token` header together with `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
 
-### Daemon Status / Actions
+Clients that negotiate `local.agent` can use `local.agent.remote_tool` for bounded Memory/query adapters, `local.agent.llm` for a Vault-backed direct provider completion, `local.agent.turn` for fire-and-forget history/activity synchronization, and `local.agent.handoff` for the only local-agent operation that starts the full AuraGo agent loop. LLM requests require a whole-second RFC3339 `client_timestamp`; omitted `provider_id` values select the active main provider. Prior assistant tool calls accept both the flat AuraGo form and OpenAI wire `function.arguments` JSON strings. LLM results preserve `request_id` and use `success`, `message`, `error_code`, and `error_message`; remote-tool failures keep their matching `.result` envelope.
+
+AgoDesk chat can share AuraGo Web Chat sessions when `chat.sessions` is negotiated:
+
+- `chat.sessions.list` returns recent `sess-*` conversations.
+- `chat.session.create` starts New Chat and returns `chat.session`.
+- `chat.session.load` loads a conversation and visible non-internal messages.
+- `chat.message` should include both the AgoDesk `session_id` and active `conversation_id`.
+- `chat.cancel` stops the active request and returns `chat.cancelled`.
+- `chat.audio` is emitted only when `chat.audio_events` is negotiated. AuraGo-generated TTS paths use `/api/agodesk/tts/<filename>` so AgoDesk can fetch audio without a Web UI login cookie. `chat.voice_output` is offered only when AuraGo TTS is configured.
+- `chat.media` is emitted when `chat.media_events` is negotiated for non-TTS images, audio/music, documents, videos, STL, links, and YouTube embeds. Protected `/files/...` assets are rewritten to short-lived signed `/api/agodesk/media/...` URLs for explicit buckets such as `images`, `generated_images`, `generated_videos`, `audio`, `documents`, and `downloads`; clients must keep the provided query parameters and refresh media metadata after `401`.
+- `chat.voice_output.status` lets AgoDesk report the same `speaker_mode` preference used by Web Chat when speech output is enabled or disabled.
+- `integrations.webhosts.list` returns the same integration webhost list used by the Web Chat integrations drawer when `integrations.webhosts` is negotiated.
+- `system.warnings.list` and `system.warning.acknowledge` provide the Web Chat system warning snapshot and acknowledgement flow when `system.warnings` is negotiated.
+
+See [AgoDesk backend protocol](../../agodesk_backend_protocol.md) for payload shapes and the client implementation checklist.
+
+#### Remote Desktop Proxies
 ```http
-GET /api/daemons/{id}
-POST /api/daemons/{id}/start
-POST /api/daemons/{id}/stop
-POST /api/daemons/{id}/reenable
+GET /api/desktop/ssh
+GET /api/desktop/vnc
 ```
 
----
-
-## Agent Questions API
-
-Interactive question prompts shown in the Web UI while the agent waits for user input.
-
-### Question Status
+#### EasyDrag Flows
 ```http
-GET /api/agent/question-status?session=default
+GET  /api/desktop/flows
+POST /api/desktop/flows/validate
+POST /api/desktop/flows/{id}/{test|run|publish|enabled}
 ```
 
-Returns `{"status":"none"}` or `{"status":"pending","question":{...}}`.
+Bearer tokens need `desktop:read` for `GET`, `desktop:write` for `POST /api/desktop/flows/validate` (it only checks the document it is sent) and `desktop:admin` for every other change: create, save, test and live runs, publish, switching on and off, test data, secrets, cancelling runs and deleting. Test runs execute the flow's tools on the host, and publishing creates missions, cron jobs and webhooks. Browser sessions are not affected. The editor is described in [EasyDrag](24-easydrag.md).
 
-### Submit Answer
+#### Desktop Software Store
 ```http
-POST /api/agent/question-response
-Content-Type: application/json
-
-{
-  "session_id": "default",
-  "selected_value": "option_a",
-  "free_text": ""
-}
+GET /api/desktop/store/catalog
+GET /api/desktop/store/apps
+POST /api/desktop/store/install
+GET /api/desktop/store/operations/{operation_id}
+POST /api/desktop/store/apps/{app_id}/{start|stop|restart|update}
+DELETE /api/desktop/store/apps/{app_id}?delete_data=false
+GET /api/desktop/store/apps/{app_id}/open-url?port_id=web
+GET /api/desktop/store/apps/{app_id}/credentials
+POST /api/desktop/store/apps/beszel/companions/agent/config
+GET  /api/desktop/store/apps/gods-eye-view/config
+PUT  /api/desktop/store/apps/gods-eye-view/config
 ```
 
----
-
-## People API
-
-Knowledge-graph and contacts helpers for person-centric views.
-
-### Person Lookup
-```http
-GET /api/people/lookup?q=name&mode=fts
-```
-
-Searches the knowledge graph for person nodes and related edges. Answers `503` when the knowledge graph cannot be searched.
-
-### KG Persons
-```http
-GET /api/people/kg-persons?limit=100
-```
-
-Returns person nodes from the knowledge graph.
-
-### Upcoming Birthdays
-```http
-GET /api/people/upcoming?days=30
-```
-
-Returns upcoming birthdays from the contacts database.
-
----
-
-## Appointments API
-
-### List / Create Appointments
-```http
-GET /api/appointments?q=search&status=scheduled
-POST /api/appointments
-```
-
-### Manage Appointment
-```http
-GET /api/appointments/{id}
-PUT /api/appointments/{id}
-DELETE /api/appointments/{id}
-```
-
----
-
-## Todos API
-
-### List / Create Todos
-```http
-GET /api/todos?q=search&status=open
-POST /api/todos
-```
-
-### Manage Todo
-```http
-GET /api/todos/{id}
-PUT /api/todos/{id}
-DELETE /api/todos/{id}
-POST /api/todos/{id}/complete
-```
-
-### Todo Items
-```http
-POST /api/todos/{id}/items
-PUT /api/todos/{id}/items/{item_id}
-DELETE /api/todos/{id}/items/{item_id}
-POST /api/todos/{id}/items/reorder
-```
-
----
-
-## Preferences API
-
-Per-session UI preferences that influence agent behavior.
-
-### Get Preferences
-```http
-GET /api/preferences
-```
-
-**Response:**
+Install request:
 ```json
 {
-  "speaker_mode": false
+  "app_id": "termix",
+  "bind_mode": "local"
 }
 ```
 
-### Update Preferences
+Store mutations return `202 Accepted` with an operation object. Poll `/api/desktop/store/operations/{operation_id}` until the operation reaches a terminal state.
+
+#### Code Studio
 ```http
-POST /api/preferences
-Content-Type: application/json
-
-{
-  "speaker_mode": true
-}
+GET /api/code-studio/status
+GET /api/code-studio/files?path=/workspace
+GET /api/code-studio/file?path=/workspace/main.go
+PUT /api/code-studio/file
+PATCH /api/code-studio/file
+DELETE /api/code-studio/file?path=/workspace/main.go
+POST /api/code-studio/directory
+POST /api/code-studio/upload
+GET /api/code-studio/download?path=/workspace/main.go
+POST /api/code-studio/exec
+GET /api/code-studio/search?q=needle&path=/workspace
+GET /api/code-studio/terminal
 ```
 
----
+Code Studio paths are sanitized inside the container workspace and mounted at `/workspace`.
 
-## Space Agent API
+### Desktop workspace API
 
-Space Agent sidecar integration for external messaging bridges.
+See the [Desktop HTTP and SDK contract](../../desktop-api.md) for readonly, scoped bootstrap/events, conditional file writes, conflict handling, archive previews and session compatibility.
 
-### Status
-```http
-GET /api/space-agent/status
-```
-
-### Recreate Sidecar
-```http
-POST /api/space-agent/recreate
-```
-
-Starts an asynchronous fetch and image build for the configured Git ref. The existing container is replaced only after a successful build.
-
-### Send Message
-```http
-POST /api/space-agent/send
-```
-
-### Bridge Messages
-```http
-POST /api/space-agent/bridge/messages
-```
-
-Inbound bridge endpoint with its own Bearer token authentication.
-
----
-
-## Warnings API
-
-Runtime health warnings surfaced in the Web UI.
-
-### List Warnings
-```http
-GET /api/warnings
-```
-
-Returns all warnings plus `total` and `unacknowledged` counts.
-
-### Acknowledge Warnings
-```http
-POST /api/warnings/acknowledge
-Content-Type: application/json
-
-{"id": "warning_id"}
-```
-
-Or acknowledge all:
-
-```json
-{"all": true}
-```
-
----
-
-## 3D Printer API
-
-### Test Connection
-```http
-POST /api/3d-printers/test
-```
-
-### Camera Snapshot / Stream
-```http
-GET /api/3d-printers/{printer_id}/camera/snapshot
-GET /api/3d-printers/{printer_id}/camera/stream
-```
-
-**Test response example:**
-```json
-{
-  "printers": [
-    {
-      "name": "elegoo",
-      "type": "elegoo_centauri_carbon",
-      "status": "printing",
-      "progress": 42.5
-    }
-  ]
-}
-```
-
----
-
-## AgentMail API
-
-### Get Status
-```http
-GET /api/agentmail/status
-```
-
-**Response:**
-```json
-{
-  "enabled": true,
-  "inbox_id": "inbox_123",
-  "address": "aurago@agentmail.io",
-  "unread_count": 3
-}
-```
-
-### Test Connection
-```http
-POST /api/agentmail/test
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Connection successful"
-}
-```
-
----
-
-## Native SIP API
-
-Administrative SIP endpoints cover account configuration, provider presets,
-tests, registration status, calls, browser-phone state, and agent routing.
+### Desktop Log API
 
 ```http
-GET    /api/sip/config
-PUT    /api/sip/config
-DELETE /api/sip/config
-GET    /api/sip/providers
-POST   /api/sip/setup
-POST   /api/sip/test
-GET    /api/sip/status
-GET    /api/sip/calls
-POST   /api/sip/calls/{id}/{action}
-GET    /api/sip/events
-GET    /api/sip/app/state
-GET    /api/sip/agent
-PUT    /api/sip/agent
-GET    /api/sip/agent/catalog
-POST   /api/sip/agent/test
-POST   /api/sip/browser-media/sessions
-DELETE /api/sip/browser-media/sessions/{id}
+GET  /api/desktop/logs/files
+GET  /api/desktop/logs/tail
+GET  /api/desktop/logs/stream        # SSE live tail
+GET  /api/desktop/logs/search
+GET  /api/desktop/logs/download      # HTTP 403 in desktop read-only mode
 ```
 
-The browser-media session endpoints are same-origin protected and scoped to the
-authenticated Virtual Desktop phone. SIP passwords, RTP, raw headers, and
-provider credentials are never returned by these APIs.
+### Launchpad API
 
----
-
-## Speech Lab API
+Manages the URL collections of the Launchpad desktop app (Chapter 4). Reads need a signed-in session; mutations follow the usual origin/CSRF rules. `launchpad_path` (Chapter 18) sets the storage location.
 
 ```http
-GET    /api/speech-lab/status
-GET    /api/speech-lab/capability
-GET    /api/speech-lab/catalog
-GET    /api/speech-lab/suggestions
-PUT    /api/speech-lab/stack
-POST   /api/speech-lab/deployment/install
-POST   /api/speech-lab/deployment/start
-POST   /api/speech-lab/deployment/stop
-POST   /api/speech-lab/deployment/update
-DELETE /api/speech-lab/deployment
+GET    /api/launchpad/links            # All links
+POST   /api/launchpad/links            # Create link
+GET    /api/launchpad/links/{id}       # Single link
+PUT    /api/launchpad/links/{id}       # Update link
+DELETE /api/launchpad/links/{id}       # Delete link
+GET    /api/launchpad/categories       # List categories
+GET    /api/launchpad/icons/search     # Search the icon catalog
+GET    /api/launchpad/icons/asset      # Serve a catalog icon
+POST   /api/launchpad/icons/download   # Download and cache an icon
 ```
 
-Status is authenticated and sanitized; capability, catalog, suggestions,
-stack, and deployment mutations require administrator access. Stack updates
-accept the active `{asr_id, tts_id, voice}` combination and are rejected while
-a speech operation or SIP call is active.
+### Tresor API
 
----
-
-## Game Maker API
-
-Virtual Desktop clients use these authenticated, project-scoped endpoints:
+Only for an enabled, valid browser admin session. `Authorization` headers are rejected, as is insecure remote HTTP (direct localhost stays allowed). Mutations require `Origin`, record/header revisions and return `Cache-Control: no-store`. The server stores only opaque ciphertext and key envelopes in `data/tresor.db` — plaintext and passwords never leave the browser.
 
 ```http
-GET    /api/game-maker/capabilities
-GET    /api/game-maker/projects
-POST   /api/game-maker/projects
-GET    /api/game-maker/projects/{project}
-PATCH  /api/game-maker/projects/{project}
-DELETE /api/game-maker/projects/{project}
-POST   /api/game-maker/projects/{project}/jobs
-GET    /api/game-maker/projects/{project}/events
-POST   /api/game-maker/jobs/{id}/cancel
-GET    /api/game-maker/projects/{project}/revisions
-POST   /api/game-maker/projects/{project}/revisions/{number}/restore
-POST   /api/game-maker/projects/{project}/preview-token
-GET    /api/game-maker/preview/{token}/index.html
-GET    /api/game-maker/projects/{project}/export
+GET    /api/desktop/tresor             # Vault status (set up, revision)
+POST   /api/desktop/tresor             # One-time setup (header)
+PUT    /api/desktop/tresor             # Header operation (e.g. password change)
+GET    /api/desktop/tresor/items       # List encrypted entries
+POST   /api/desktop/tresor/items       # Create entry
+GET    /api/desktop/tresor/items/{id}  # Read entry (ciphertext)
+PUT    /api/desktop/tresor/items/{id}  # Write new revision
+DELETE /api/desktop/tresor/items/{id}  # Delete entry
 ```
 
-Preview tokens are short-lived and bound to the project and, when applicable,
-the active job. Game Maker event streams support reconnecting with
-`Last-Event-ID` or the `after` query parameter.
+Storage and security contract: [documentation/tresor.md](../../tresor.md).
 
----
-
-## Local LLM API
-
-All Local LLM endpoints are administrator-only and return sanitized status.
-
-```http
-GET  /api/local-llm/status
-POST /api/local-llm/probe
-POST /api/local-llm/install
-POST /api/local-llm/action
-POST /api/local-llm/role
-POST /api/local-llm/acknowledgement
-```
-
-The `action` endpoint handles lifecycle actions such as `start`, `stop`,
-`recreate`, and `smoke_test`. Experimental hardware operations require the
-current hardware-fingerprint acknowledgement.
-
----
-
-## Realtime Speech API
-
-```http
-GET    /api/realtime-speech/config
-PUT    /api/realtime-speech/config
-GET    /api/realtime-speech/catalog
-GET    /api/realtime-speech/status
-POST   /api/realtime-speech/test
-POST   /api/realtime-speech/sessions
-PATCH  /api/realtime-speech/sessions/{id}
-DELETE /api/realtime-speech/sessions/{id}
-POST   /api/realtime-speech/transcribe
-POST   /api/realtime-speech/synthesize
-POST   /api/realtime-speech/actions
-DELETE /api/realtime-speech/actions/{request_id}
-POST   /api/realtime-speech/turns
-```
-
-Configuration updates are atomic across YAML and per-profile Vault entries.
-Session and action routes enforce same-origin requests, lease ownership, and
-bounded request sizes. Action responses stream as SSE.
-
----
-
-## Virtual Computers API
+### Virtual Computers API
 
 ```http
 GET    /api/virtual-computers/setup/status
@@ -2409,338 +2626,7 @@ The storage-mode switch responds with HTTP 409 (`storage_switch_required`)
 while volumes exist and no valid `X-AuraGo-Storage-Switch-Token` from
 `storage/switch/authorize` is supplied.
 
----
-
-## MeshCore API
-
-All MeshCore endpoints are administrator-protected.
-
-```http
-GET  /api/meshcore/status
-GET  /api/meshcore/devices
-GET  /api/meshcore/contacts
-GET  /api/meshcore/channels
-GET  /api/meshcore/messages          # newest 100 records; limit<=100, offset
-POST /api/meshcore/scan
-POST /api/meshcore/pair
-POST /api/meshcore/test
-POST /api/meshcore/recheck
-GET  /api/meshcore/messenger/bootstrap
-GET  /api/meshcore/messenger/conversations
-GET  /api/meshcore/messenger/messages      # exclusive before cursor, max 50/page
-POST /api/meshcore/messenger/send
-POST /api/meshcore/messenger/conversation
-POST /api/meshcore/messenger/reveal
-POST /api/meshcore/messenger/invitation
-POST /api/meshcore/messenger/manage
-POST /api/meshcore/messenger/settings
-```
-
-Channel keys, BLE PINs, and protected message bodies never appear in API
-responses; `reveal` releases sanitized plain text only for an explicit
-administrator request. Connection and test failures surface through the
-Operational Issue lifecycle.
-
----
-
-## here.now API
-
-Status and account catalog. Publish mutations stay in the Homepage/here.now contract; see [Chapter 8](08-integrations.md#herenow-integration).
-
-```http
-GET  /api/here-now/status
-POST /api/here-now/test-connection
-GET  /api/here-now/accounts
-```
-
----
-
-## Desktop Log API
-
-```http
-GET  /api/desktop/logs/files
-GET  /api/desktop/logs/tail
-GET  /api/desktop/logs/stream        # SSE live tail
-GET  /api/desktop/logs/search
-GET  /api/desktop/logs/download      # HTTP 403 in desktop read-only mode
-```
-
----
-
-## Manus API
-
-```http
-GET /api/manus/status
-POST /api/manus/test
-GET /api/manus/projects
-GET /api/manus/connectors
-GET /api/manus/skills
-```
-
-These administrator-facing endpoints return sanitized account catalogs and
-connection status. Task creation, waiting, messages, and controlled file
-transfers are exposed through the policy-gated native `manus` tool rather than
-an unrestricted REST surface.
-
----
-
-## OmniRoute API
-
-```http
-GET  /api/omniroute/status
-POST /api/omniroute/test
-POST /api/omniroute/start
-POST /api/omniroute/stop
-```
-
-The lifecycle endpoints control only AuraGo's configured managed sidecar or
-test the configured external endpoint. Secrets and provider credentials remain
-Vault-backed.
-
----
-
-## EvoMap API
-
-```http
-GET  /api/evomap/status
-POST /api/evomap/test
-POST /api/evomap/register
-```
-
-Registration and status responses are sanitized. EvoMap payloads are treated
-as untrusted external data and the current MVP does not enable publish, report,
-or bounty mutations.
-
----
-
-## Network Shares API
-
-```http
-GET    /api/network-shares/status
-POST   /api/network-shares/reprobe
-POST   /api/network-shares/validate
-GET    /api/network-shares
-POST   /api/network-shares
-PUT    /api/network-shares/{id}
-DELETE /api/network-shares/{id}
-```
-
-These endpoints are administrator-only. Validation is dry-run capable and does
-not write host configuration or ledger state. Mutations affect only managed
-shares and never delete their directories or files.
-
----
-
-## Operational Issues API
-
-```http
-GET  /api/operational-issues
-GET  /api/operational-issues/stale-preview
-POST /api/operational-issues/archive-stale
-POST /api/operational-issues/{id}/resolve
-POST /api/operational-issues/{id}/archive
-```
-
-List filters include `status`, `kind`, `severity`, `source`, `limit`, and
-`offset`. Records are sanitized and use non-reversible public IDs. Archive and
-resolve actions preserve the issue history.
-
----
-
-## go2rtc API
-
-Admin setup; viewer routes need `go2rtc.view`. Sources and the internal password stay in the vault. The viewer proxy strips caller cookies.
-
-```http
-GET /api/go2rtc/status
-POST /api/go2rtc/test
-GET /api/go2rtc/viewer/{stream_id}
-GET /api/go2rtc/thumbnail/{stream_id}.jpg
-GET /api/go2rtc/detection/state?since={cursor}
-GET /api/go2rtc/detection/events?stream_id=&from=&to=&before=&limit=
-GET|DELETE /api/go2rtc/detection/events/{id}
-GET /api/go2rtc/detection/images/{frame_id}?thumb=1
-POST /api/go2rtc/detection/arm
-PUT /api/go2rtc/detection/settings
-POST /api/go2rtc/detection/test
-POST /api/go2rtc/detection/retry
-```
-
-Stream mutations and ONVIF discovery are admin POST/PUT. HTTP 202 means the desired state is stored and runtime will catch up. Details: [go2rtc](../../go2rtc.md).
-
-Person detection reads need `go2rtc.view`; arming, settings, test, retry and deleting events need an administrator and a same-origin request (403 `forbidden`). Errors are `{"error","code"}`, for example `detection_unavailable` (503), `detection_disabled` (409, from `arm` and `test` while detection is off), `detector_not_ready` (409), `frame_unavailable` (502) and `event_not_found` (404). Lists are always arrays, times UTC RFC 3339 with milliseconds, and ids large int64 numbers. `state?since=0` is a snapshot, a higher cursor returns later changes, and deletions leave no trace in the feed. A camera's `detection` object in `PATCH /api/go2rtc/streams/{id}` is merged key by key; `PUT settings` replaces the whole global block. Details: [Person detection](../../go2rtc.md#person-detection).
-
-## Bluetooth API
-
-Linux/BlueZ only, admin only. `readonly` and `allow_playback` restrict the agent, not admins. `devices/action` accepts `wait: false` (answers 202) and `interactive: true`. Playback is workspace files or the media registry, never URLs.
-
-```http
-GET /api/bluetooth/status
-POST /api/bluetooth/reprobe
-POST /api/bluetooth/discover
-POST /api/bluetooth/discovery
-POST /api/bluetooth/discoverable
-POST /api/bluetooth/power
-POST /api/bluetooth/devices/action
-GET /api/bluetooth/interactions/{id}
-POST /api/bluetooth/interactions/{id}
-POST /api/bluetooth/audio/test
-POST /api/bluetooth/audio/stop
-```
-
-## Cheap Yellow Display API
-
-Device endpoints for the ESP32 glass. Do not log the token. Config tests and firmware provision are admin.
-
-```http
-GET /api/cyd/status
-POST /api/cyd/test
-GET /api/cyd/snapshot
-POST /api/cyd/heartbeat
-POST /api/cyd/ack
-GET /api/cyd/ws
-GET /api/cyd/persona
-```
-
-`GET /api/cyd/persona` returns the active persona portrait as little-endian RGB565, 72×72. It is the same `/img/personas/<key>.png` file AgoDesk receives as `avatar_image_url`.
-
-## Tresor API
-
-Only for an enabled, valid browser admin session. `Authorization` headers are rejected, as is insecure remote HTTP (direct localhost stays allowed). Mutations require `Origin`, record/header revisions and return `Cache-Control: no-store`. The server stores only opaque ciphertext and key envelopes in `data/tresor.db` — plaintext and passwords never leave the browser.
-
-```http
-GET    /api/desktop/tresor             # Vault status (set up, revision)
-POST   /api/desktop/tresor             # One-time setup (header)
-PUT    /api/desktop/tresor             # Header operation (e.g. password change)
-GET    /api/desktop/tresor/items       # List encrypted entries
-POST   /api/desktop/tresor/items       # Create entry
-GET    /api/desktop/tresor/items/{id}  # Read entry (ciphertext)
-PUT    /api/desktop/tresor/items/{id}  # Write new revision
-DELETE /api/desktop/tresor/items/{id}  # Delete entry
-```
-
-Storage and security contract: [documentation/tresor.md](../../tresor.md).
-
-## Launchpad API
-
-Manages the URL collections of the Launchpad desktop app (Chapter 4). Reads need a signed-in session; mutations follow the usual origin/CSRF rules. `launchpad_path` (Chapter 18) sets the storage location.
-
-```http
-GET    /api/launchpad/links            # All links
-POST   /api/launchpad/links            # Create link
-GET    /api/launchpad/links/{id}       # Single link
-PUT    /api/launchpad/links/{id}       # Update link
-DELETE /api/launchpad/links/{id}       # Delete link
-GET    /api/launchpad/categories       # List categories
-GET    /api/launchpad/icons/search     # Search the icon catalog
-GET    /api/launchpad/icons/asset      # Serve a catalog icon
-POST   /api/launchpad/icons/download   # Download and cache an icon
-```
-
-## Newspaper API
-
-Admin-scoped; session writes require same-origin. The server owns research and delivery — source pages cannot set recipients or invoke send tools.
-
-```http
-GET  /api/desktop/newspaper/capabilities
-GET  /api/desktop/newspaper/profile                     # ETag
-PUT  /api/desktop/newspaper/profile                     # If-Match required
-GET  /api/desktop/newspaper/editions                    # Editions + latest run
-POST /api/desktop/newspaper/editions                    # Start a run (202)
-GET  /api/desktop/newspaper/editions/{id}               # Edition (ETag) or run
-GET  /api/desktop/newspaper/editions/{id}/events        # Events + sources
-POST /api/desktop/newspaper/editions/{id}/stop          # Cancel the run (202)
-GET  /api/desktop/newspaper/editions/{id}/deliveries
-POST /api/desktop/newspaper/editions/{id}/deliver       # Idempotency-Key required
-GET  /api/desktop/newspaper/export?format=pdf
-POST /api/desktop/newspaper/email/challenge
-POST /api/desktop/newspaper/email/confirm
-POST /api/desktop/newspaper/telegram/test
-```
-
-Errors answer with structured, sanitized codes; provider error bodies, credentials, and recipients are never returned.
-
-## Detective API
-
-Reads require an enabled Virtual Desktop; writes fail with 403 when `detective.readonly`, `virtual_desktop.readonly`, or agent control is disabled. Private sources must be approved under `detective.extra_read_operations`.
-
-```http
-GET    /api/desktop/detective/capabilities
-GET    /api/desktop/detective/cases                    # Case summaries
-POST   /api/desktop/detective/cases                    # Create a case (201)
-GET    /api/desktop/detective/cases/{key}              # Full case
-DELETE /api/desktop/detective/cases/{key}
-GET    /api/desktop/detective/cases/{key}/events?after=
-POST   /api/desktop/detective/cases/{key}/run          # start/stop/finish (202)
-GET    /api/desktop/detective/cases/{key}/export?revision=
-POST   /api/desktop/detective/cases/{key}/autor        # Produce an authored revision
-```
-
-## Personal Radio API
-
-Reads are always allowed while the Virtual Desktop is enabled; writes are blocked when `virtual_desktop.readonly` applies. Playback control checks conflicts against the active station (409).
-
-```http
-GET    /api/desktop/personal-radio/state
-GET    /api/desktop/personal-radio/library
-GET    /api/desktop/personal-radio/files
-DELETE /api/desktop/personal-radio/unused
-GET    /api/desktop/personal-radio/audio/{id}
-POST   /api/desktop/personal-radio/heartbeat
-POST   /api/desktop/personal-radio/playback
-POST   /api/desktop/personal-radio/stations                     # Create station (201)
-PATCH  /api/desktop/personal-radio/stations/{id}                # Save station
-DELETE /api/desktop/personal-radio/stations/{id}                # If-Match revision
-POST   /api/desktop/personal-radio/stations/{id}/preview        # Voice preview (WAV)
-GET    /api/desktop/personal-radio/stations/{id}/news
-POST   /api/desktop/personal-radio/stations/{id}/start          # plus pause/resume/stop/skip
-GET    /api/desktop/personal-radio/stations/{id}/tracks
-POST   /api/desktop/personal-radio/stations/{id}/imports
-POST   /api/desktop/personal-radio/stations/{id}/upload
-PATCH  /api/desktop/personal-radio/stations/{id}/tracks/{track} # favorite/blocked/weight
-DELETE /api/desktop/personal-radio/stations/{id}/tracks/{track}
-```
-
-## RTL-SDR API
-
-Receive-only and disabled by default; `rtl_sdr.enabled` unlocks the API, and writes require an approved configuration.
-
-```http
-PUT    /api/desktop/rtl-sdr/config                     # Save configuration
-POST   /api/desktop/rtl-sdr/setup                      # Hardware qualification
-GET    /api/desktop/rtl-sdr/state
-GET    /api/desktop/rtl-sdr/devices
-GET    /api/desktop/rtl-sdr/receiver
-GET    /api/desktop/rtl-sdr/stream
-POST   /api/desktop/rtl-sdr/tune                       # plus heartbeat/stop
-POST   /api/desktop/rtl-sdr/scan                       # Start a scan
-DELETE /api/desktop/rtl-sdr/scan                       # Cancel a scan
-POST   /api/desktop/rtl-sdr/favorites
-DELETE /api/desktop/rtl-sdr/favorites/{id}
-POST   /api/desktop/rtl-sdr/recordings                 # Start a recording
-GET    /api/desktop/rtl-sdr/recordings/{id}
-DELETE /api/desktop/rtl-sdr/recordings/{id}
-GET    /api/desktop/rtl-sdr/recordings/{id}/audio      # FLAC, ?download=1
-POST   /api/desktop/rtl-sdr/recordings/{id}/stop
-POST   /api/desktop/rtl-sdr/recordings/{id}/transcribe # Re-run ASR (202)
-POST   /api/desktop/rtl-sdr/schedules
-DELETE /api/desktop/rtl-sdr/schedules/{id}
-```
-
-## Noisemaker API
-
-Local music generation (ACE-Step) behind `music_generation.enabled`. `state` reads the workbench and player, `enhance` refines prompt fragments, `generate` starts generation, `tracks` manages the library.
-
-```http
-GET    /api/desktop/noisemaker/state
-POST   /api/desktop/noisemaker/enhance
-POST   /api/desktop/noisemaker/generate
-GET    /api/desktop/noisemaker/tracks
-DELETE /api/desktop/noisemaker/tracks/{id}
-PATCH  /api/desktop/noisemaker/tracks/{id}
-```
-
-## System World API
+### System World API
 
 Feeds the System World app (Chapter 4) with sanitized excerpts and tower voice. Sampling never touches tool/internal turns, thinking blocks, or registered secrets; there is no LLM, SSE, caching, or text logging.
 
@@ -2756,62 +2642,17 @@ POST /api/desktop/system-world/actions           # Confirmed terminal actions, d
 
 Actions run one at a time (409 while one is pending) and are rate-limited (429).
 
-## Radio Browser API
-
-Read-only proxy to the public radio-browser.info station database for the radio apps.
+### EvoMap API
 
 ```http
-GET /api/radio-browser/{...}
+GET  /api/evomap/status
+POST /api/evomap/test
+POST /api/evomap/register
 ```
 
-## Local Wikipedia API
-
-Administrator routes manage the edition; desktop routes need `desktop:read`. Content paths are names inside the ZIM file, never file-system paths.
-
-```http
-GET  /api/local-wikipedia/catalog?lang=de          # Kiwix catalog for one language (cached 6 h)
-GET  /api/local-wikipedia/status                   # state, progress, edition, update hint, disk numbers
-POST /api/local-wikipedia/install                  # 202; {"replace_mode":"keep_old","confirm_unknown_space":false}
-POST /api/local-wikipedia/cancel                   # keeps the partial download
-POST /api/local-wikipedia/delete                   # removes ZIM, partial download and state
-POST /api/local-wikipedia/check-update
-GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, readable, loading, update_available, error_code, can_manage
-GET  /api/desktop/local-wikipedia/suggest?q=       # up to 10 titles
-GET  /api/desktop/local-wikipedia/search?q=&limit= # up to 30 results (default 20)
-GET  /api/desktop/local-wikipedia/random
-GET  /api/desktop/local-wikipedia/main
-GET  /api/desktop/local-wikipedia/content/{path}   # original ZIM content with Range and ETag
-```
-
-Administrator routes need a session or a Bearer token with the `admin` scope (403 `admin_required` otherwise); a cross-origin POST without a Bearer token answers 403 `csrf_check_failed`, a wrong method 405. Refusals answer `{"error","error_code","recommendation"}` without paths or host names: 409 for `busy`, `disabled`, `free_space_unknown`, `already_installed` and `no_operation`; 422 for `insufficient_disk_space` (with `required_bytes`, `free_bytes`, `can_delete_old`) and `data_dir_invalid`; 502 for `catalog_unreachable`; 400 for `unknown_language` and `invalid_request`; 503 for `localwiki_unavailable`; 500 for `localwiki_error`. `GET /api/local-wikipedia/status` reports `readable` (an installed edition is open and served; use it rather than `state` to decide whether content is available) and `loading` (the first load after startup or a changed storage directory is still running; the previous edition stays served meanwhile; poll until it is false). Desktop routes answer errors as `{"error","code"}`, for example `not_ready` (409), `busy` (503 with `Retry-After`), `timeout` (504), `query_too_long` (400) and `not_found` (404); errors on the content route are small HTML pages with an `aurago-local-wikipedia-error` meta marker. Every content answer carries a sandboxing Content-Security-Policy without scripts. The full code list is in [Local Wikipedia](../../local-wikipedia.md).
-
-## SSE Events
-
-AuraGo supports Server-Sent Events (SSE) for real-time updates.
-
-### Connect to Event Stream
-```http
-GET /events
-Accept: text/event-stream
-```
-
-### Event Types
-
-| Event | Description |
-|-------|-------------|
-| `system_metrics` | System metrics (CPU, RAM, etc.) |
-| `container_update` | Container status changes |
-| `personality_update` | Personality status |
-| `tsnet_status` | Tailscale tsnet status |
-
-**Example Stream:**
-```
-event: system_metrics
-data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
-
-event: container_update
-data: [{"id": "abc", "state": "running"}]
-```
+Registration and status responses are sanitized. EvoMap payloads are treated
+as untrusted external data and the current MVP does not enable publish, report,
+or bounty mutations.
 
 ---
 
@@ -2842,10 +2683,6 @@ The API uses standard HTTP status codes:
 - [Chat Commands](20-chat-commands.md) – Alternative API via chat
 - [Mission Control](11-missions.md) – Automation
 - [Security](14-security.md) – Authentication & Vault
-
-## Desktop workspace API
-
-See the [Desktop HTTP and SDK contract](../../desktop-api.md) for readonly, scoped bootstrap/events, conditional file writes, conflict handling, archive previews and session compatibility.
 
 ---
 
