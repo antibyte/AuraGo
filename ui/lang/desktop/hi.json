@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "आपका फ़्रेम तैयार है।",
   "videoStudio.freezeOutside": "पहले प्लेहेड को क्लिप के अंदर ले जाएँ।",
   "videoStudio.clipChanged": "कार्य चलते समय क्लिप बदल गई। नया मीडिया आपकी लाइब्रेरी में है।",
+  "videoStudio.frameInLibrary": "कैप्चर किया गया फ़्रेम आपकी मीडिया लाइब्रेरी में है।",
   "videoStudio.jobRejected": "यह कार्य इस क्लिप के लिए शुरू नहीं किया जा सकता।",
   "videoStudio.job_reverse": "क्लिप उलटें",
   "videoStudio.job_still": "फ़्रेम कैप्चर",

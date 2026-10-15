@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Twoja klatka jest gotowa.",
   "videoStudio.freezeOutside": "Najpierw przesuń głowicę odtwarzania do klipu.",
   "videoStudio.clipChanged": "Klip zmienił się w trakcie zadania. Nowe multimedia są w Twojej bibliotece.",
+  "videoStudio.frameInLibrary": "Przechwycona klatka jest w Twojej bibliotece multimediów.",
   "videoStudio.jobRejected": "Tego zadania nie można uruchomić dla tego klipu.",
   "videoStudio.job_reverse": "Odwracanie klipu",
   "videoStudio.job_still": "Przechwycenie klatki",

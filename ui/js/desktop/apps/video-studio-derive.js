@@ -15,21 +15,30 @@
     function foundClip(s, clipId) { return clipId && s.project ? T().clipFor(s.project, clipId) : null; }
     function assetOf(s, clip) { return (s.project.assets || []).find(item => item.id === clip.asset_id) || null; }
     function insidePlayhead(s, clip) { return s.frame > clip.start && s.frame < clip.start + clip.duration; }
-    // The source frame the renderer shows at the playhead: offset + (playhead - start) × speed, rounded down.
-    function sourceFrameAt(s, clip, asset) {
-        const frame = Math.floor(Number(clip.offset || 0) + (s.frame - clip.start) * E().speedOf(clip) + 1e-9);
-        return Math.max(0, Math.min(Number(asset.duration_frames) - 1, frame));
-    }
-    // Reverse covers the source frames the clip reads: [offset, offset + floor((duration - 1) × speed)].
-    function reverseRange(clip) {
-        return { offset: clip.offset, frames: Math.floor((clip.duration - 1) * E().speedOf(clip) + 1e-9) + 1 };
-    }
+    // Go's MaxReverseFrames: the longest source range one reverse job accepts, in project frames.
     function maxReverseFrames(s) { return Math.floor(P.rateOf(s) * MAX_REVERSE_SECONDS + 1e-6); }
+    // Whether one reverse job covers the source range of the clip and its same-asset link partners (E.reverseRange).
+    function reverseFits(s, clipId) {
+        const range = s.project ? E().reverseRange(s.project, clipId) : null;
+        return !!range && range.frames <= maxReverseFrames(s);
+    }
     function notifyRejected(s, error) {
         if (s.disposed) return;
         const code = error && error.body && error.body.code;
         if (code === 'reverse_range_too_long') showNotice(s, 'reverseTooLong', 'Reverse works on up to 5 minutes at a time.', true);
         else showNotice(s, 'jobRejected', 'This task cannot be started for this clip.', true);
+    }
+    // The edit a finished job will make is tried on a copy first (with a stand-in for the new asset), so a refusal that
+    // does not depend on the wait (a partner on a locked track, a playhead inside a transition) comes before the job,
+    // not after it with media nobody uses.
+    function trial(s, standIn, edit) {
+        const project = P.clone(s.project);
+        project.assets.push(Object.assign({ name: '', duration_frames: 0 }, standIn));
+        return edit(project);
+    }
+    function refuse(s, reason) {
+        if (reason === E().REASON.nothing) showNotice(s, 'jobRejected', 'This task cannot be started for this clip.', true);
+        else P.showReason(s, reason);
     }
     // Starts a job; a refused start becomes one notice. The success callback runs after the project is refreshed; it returns
     // false when its edit was refused (and says so), which keeps the generic job toast from replacing that message.
@@ -42,41 +51,51 @@
         }
     }
 
-    // Reverse (spec 4.4): the clip and its same-asset partners play the reversed asset once the job succeeds.
+    // Reverse (spec 4.4): the clip and its same-asset partners play the reversed asset once the job succeeds. The job
+    // covers the union of the source ranges they read, so a J- or L-cut partner trimmed past the clip reverses too.
     function reverseClip(s, clipId) {
         const found = foundClip(s, clipId);
         if (!found || s.readonly || found.track.locked || found.track.kind !== 'video') return false;
         const asset = assetOf(s, found.clip);
         if (!asset || asset.kind !== 'video') return false;
-        const range = reverseRange(found.clip);
-        if (range.frames > maxReverseFrames(s)) { showNotice(s, 'reverseTooLong', 'Reverse works on up to 5 minutes at a time.', true); return false; }
-        start(s, { kind: 'reverse', asset_id: asset.id, offset: range.offset, duration: range.frames }, job => applyReverse(s, clipId, range, job));
+        const range = E().reverseRange(s.project, clipId);
+        if (!range || range.frames > maxReverseFrames(s)) { showNotice(s, 'reverseTooLong', 'Reverse works on up to 5 minutes at a time.', true); return false; }
+        const request = { rangeStart: range.rangeStart, frames: range.frames, sourceAssetId: asset.id };
+        const tried = trial(s, { id: 'reverse-trial', kind: 'video', has_audio: !!asset.has_audio, duration_frames: range.frames },
+            project => E().reverseClips(project, clipId, Object.assign({ assetId: 'reverse-trial' }, request)));
+        if (tried !== true) { refuse(s, tried); return false; }
+        start(s, { kind: 'reverse', asset_id: asset.id, offset: range.rangeStart, duration: range.frames }, job => applyReverse(s, clipId, request, job));
         return true;
     }
-    function applyReverse(s, clipId, range, job) {
+    function applyReverse(s, clipId, request, job) {
         const asset = job && job.result && job.result.asset;
         if (!asset || !asset.id || !s.project) return;
-        const ok = P.applyEdit(s, 'reverse', project => E().reverseClips(project, clipId, { assetId: asset.id, rangeStart: range.offset, frames: range.frames }));
+        const ok = P.applyEdit(s, 'reverse', project => E().reverseClips(project, clipId, Object.assign({ assetId: asset.id }, request)));
         if (!ok) showNotice(s, 'clipChanged', 'The clip changed while the job ran. The new media is in your library.', true);
         return ok;
     }
 
-    // Freeze frame (spec 4.4): the captured frame becomes a still inserted at the playhead on the clip's own track.
+    // Freeze frame (spec 4.4): the captured frame becomes a still inserted at the playhead on the clip's own track. The
+    // request remembers the asset and source frame it captures; the edit applies only while the clip still shows that
+    // frame at the cut.
     function freezeFrame(s, clipId) {
         const found = foundClip(s, clipId);
         if (!found || s.readonly || found.track.locked || found.track.kind !== 'video') return false;
         const asset = assetOf(s, found.clip);
         if (!asset || asset.kind !== 'video') return false;
         if (!insidePlayhead(s, found.clip)) { showNotice(s, 'freezeOutside', 'Move the playhead inside the clip first.', true); return false; }
-        const point = s.frame, frame = sourceFrameAt(s, found.clip, asset);
-        const captured = { clip_id: T().newId('clip'), duration: Math.max(1, Math.round(P.rateOf(s) * FREEZE_SECONDS)) };
+        const point = s.frame, frame = E().sourceFrameAt(s.project, found.clip, point);
+        const captured = { clip_id: T().newId('clip'), duration: Math.max(1, Math.round(P.rateOf(s) * FREEZE_SECONDS)), source_asset_id: asset.id, source_frame: frame };
+        const tried = trial(s, { id: 'freeze-trial', kind: 'image', width: 1, height: 1 },
+            project => E().freezeFrame(project, clipId, point, Object.assign({}, captured, { asset_id: 'freeze-trial' })));
+        if (tried !== true) { refuse(s, tried); return false; }
         start(s, { kind: 'still', asset_id: asset.id, frame, purpose: 'freeze' }, job => applyFreeze(s, clipId, point, captured, job));
         return true;
     }
     function applyFreeze(s, clipId, point, captured, job) {
         const asset = job && job.result && job.result.asset;
         if (!asset || !asset.id || !s.project) return;
-        const ok = P.applyEdit(s, 'freeze frame', project => E().freezeFrame(project, clipId, point, { asset_id: asset.id, clip_id: captured.clip_id, duration: captured.duration }));
+        const ok = P.applyEdit(s, 'freeze frame', project => E().freezeFrame(project, clipId, point, Object.assign({}, captured, { asset_id: asset.id })));
         if (!ok) showNotice(s, 'clipChanged', 'The clip changed while the job ran. The new media is in your library.', true);
         return ok;
     }
@@ -88,9 +107,9 @@
         const asset = assetOf(s, found.clip);
         if (!asset || asset.kind !== 'video') return false;
         if (!insidePlayhead(s, found.clip)) { showNotice(s, 'freezeOutside', 'Move the playhead inside the clip first.', true); return false; }
-        start(s, { kind: 'still', asset_id: asset.id, frame: sourceFrameAt(s, found.clip, asset), purpose: 'export' }, null);
+        start(s, { kind: 'still', asset_id: asset.id, frame: E().sourceFrameAt(s.project, found.clip, s.frame), purpose: 'export' }, null);
         return true;
     }
 
-    Object.assign(P, { reverseClip, freezeFrame, exportFrame });
+    Object.assign(P, { reverseClip, freezeFrame, exportFrame, reverseFits });
 })();

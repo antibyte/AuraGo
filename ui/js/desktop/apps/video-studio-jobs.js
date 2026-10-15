@@ -128,10 +128,14 @@
                 if (!s.finishedJobs) s.finishedJobs = new Set();
                 s.finishedJobs.add(job.id);
                 if (job.status === 'succeeded') {
-                    await refreshProject(s);
-                    // Derived media applies its edit only now, after the project (with the new asset) is loaded. A hook
-                    // that returns false refused the edit and already explained why; the generic "ready" toast would hide that.
-                    if (onSucceeded && !s.disposed && epoch === s.projectEpoch && projectId === s.projectId && onSucceeded(job) === false) s.notifiedJobs.add(job.id);
+                    // Derived media applies its edit only after a refresh has loaded the project with the new asset; the
+                    // hook waits in the queue until one does (see runJobHooks), and runJobHooks announces the job.
+                    if (onSucceeded) queueJobHook(s, job, projectId, epoch, onSucceeded);
+                    const applied = await refreshProject(s);
+                    // Saves kept racing the refresh: read once more. A drag refreshes at its end, and after a conflict the
+                    // next refresh that applies runs the hook.
+                    if (onSucceeded && !applied && !s.pendingRefresh && !s.conflict && s.jobHooks.has(job.id)) await refreshProject(s);
+                    if (onSucceeded) return job;
                 }
                 if (job.status === 'failed' || job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) { const failure = jobFailure(job); if (failure[2]) showNotice(s, '', fill(tr(s, failure[0], failure[1]), failure[2]), true); else showNotice(s, failure[0], failure[1], true); }
                 else announceJob(s, job);
@@ -151,25 +155,59 @@
             showNotice(s, 'cancelFailed', 'Could not cancel the task.', true);
         }
     }
-    // A refresh never overtakes a save: it waits for a running PUT and reads again if one started meanwhile.
+    // Derived-media hooks (reverse, freeze frame) by job id. A hook runs after a refresh that applied the server project,
+    // and only while the project it was started in is still open; a refresh that did not apply (deferred by a timeline
+    // drag, a conflict, saves racing it) leaves it queued.
+    function queueJobHook(s, job, projectId, epoch, hook) {
+        if (!s.jobHooks) s.jobHooks = new Map();
+        s.jobHooks.set(job.id, { job, projectId, epoch, hook, waited: false });
+    }
+    function libraryNotice(s, job) {
+        if (job.kind === 'reverse') showNotice(s, 'reverseReady', 'The reversed clip is in your media library.', false);
+        else showNotice(s, 'frameInLibrary', 'The captured frame is in your media library.', false);
+    }
+    function runJobHooks(s) {
+        if (!s.jobHooks || !s.jobHooks.size) return;
+        let again = false;
+        for (const [id, entry] of Array.from(s.jobHooks)) {
+            if (s.disposed || entry.epoch !== s.projectEpoch || entry.projectId !== s.projectId) { s.jobHooks.delete(id); continue; }
+            const assetId = entry.job.result && entry.job.result.asset && entry.job.result.asset.id;
+            if (assetId && !(s.project.assets || []).some(asset => asset.id === assetId)) {
+                // The loaded project does not list the new asset yet: read once more, then only say where the media is.
+                if (!entry.waited) { entry.waited = true; again = true; continue; }
+                s.jobHooks.delete(id);
+                s.notifiedJobs.add(id);
+                libraryNotice(s, entry.job);
+                continue;
+            }
+            s.jobHooks.delete(id);
+            // A hook that returns false refused the edit and already explained why; the generic "ready" toast would hide that.
+            if (entry.hook(entry.job) === false) s.notifiedJobs.add(id);
+            else announceJob(s, entry.job);
+        }
+        if (again) window.setTimeout(() => { refreshProject(s).catch(() => {}); }, 0);
+    }
+    // A refresh never overtakes a save: it waits for a running PUT and reads again if one started meanwhile. It returns
+    // true when it applied the server project and then runs the queued derived-media hooks; false when it did not (a
+    // timeline drag defers it to the drag's end through pendingRefresh; a conflict; saves that kept racing it).
     async function refreshProject(s) {
-        if (!s.projectId || s.disposed) return;
+        if (!s.projectId || s.disposed) return false;
         const projectId = s.projectId, epoch = s.projectEpoch;
         let response = null;
         for (let attempt = 0; attempt < 4 && !response; attempt++) {
             if (s.savePromise) await s.savePromise.catch(() => {});
-            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
             const generation = s.saveGeneration || 0;
             const candidate = await request(API + '/projects/' + encodeURIComponent(projectId), { signal: s.abort.signal });
             if (!s.savePromise && (s.saveGeneration || 0) === generation) response = candidate;
         }
-        if (!response || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-        if (s.timelineDragging) { s.pendingRefresh = true; return; }
+        if (!response || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
+        if (s.timelineDragging) { s.pendingRefresh = true; return false; }
         const next = hydrateProject(s, response.body.project || response.body);
         if (s.dirty) {
             const comparable = project => { const canonical = canonicalProject(project); canonical.assets = []; return JSON.stringify(canonical); };
             if (!s.savedProject || comparable(next) !== comparable(s.savedProject)) {
-                s.conflict = true; await showConflict(s); return;
+                s.conflict = true; await showConflict(s); return false;
             }
             const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
             // Assets that finished probing replace their pending entry; new ones are appended.
@@ -187,6 +225,8 @@
         s.desktopPath = response.body.desktop_path || s.desktopPath;
         s.revision++;
         renderUI(s);
+        runJobHooks(s);
+        return true;
     }
     function openModal(s, markup) {
         const host = s.q('[data-modal-host]');

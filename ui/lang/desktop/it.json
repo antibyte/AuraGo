@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Il tuo fotogramma è pronto.",
   "videoStudio.freezeOutside": "Sposta prima la testina all’interno della clip.",
   "videoStudio.clipChanged": "La clip è cambiata mentre l’attività era in corso. Il nuovo media è nella tua libreria.",
+  "videoStudio.frameInLibrary": "Il fotogramma acquisito è nella tua libreria media.",
   "videoStudio.jobRejected": "Questa attività non può essere avviata per questa clip.",
   "videoStudio.job_reverse": "Inversione clip",
   "videoStudio.job_still": "Acquisizione fotogramma",

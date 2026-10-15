@@ -278,7 +278,8 @@
             retimable: !found.track.locked && timedClip(s, clip.id),
             detachable: video && !!asset.has_audio && !clip.audio_detached,
             reattachable: !found.track.locked && E().canReattach(s.project, clip.id),
-            reversible: !!P.reverseClip && video && Math.floor((clip.duration - 1) * E().speedOf(clip) + 1e-9) + 1 <= Math.floor(P.rateOf(s) * 300 + 1e-6),
+            // The reverse job covers the clip and its same-asset link partners; their source range must fit one job.
+            reversible: !!P.reverseClip && video && P.reverseFits(s, clip.id),
             freezable: !!P.freezeFrame && video && inside,
             exportable: !!P.exportFrame && asset.kind === 'video' && inside
         };

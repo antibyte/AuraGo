@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "フレームの準備ができました。",
   "videoStudio.freezeOutside": "先に再生ヘッドをクリップ内に移動してください。",
   "videoStudio.clipChanged": "処理中にクリップが変更されました。新しいメディアはメディアライブラリにあります。",
+  "videoStudio.frameInLibrary": "キャプチャしたフレームがメディアライブラリに追加されました。",
   "videoStudio.jobRejected": "このクリップではこのタスクを開始できません。",
   "videoStudio.job_reverse": "クリップを逆再生",
   "videoStudio.job_still": "フレームの取得",

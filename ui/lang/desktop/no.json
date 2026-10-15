@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Bildet ditt er klart.",
   "videoStudio.freezeOutside": "Flytt avspillingshodet inn i klippet først.",
   "videoStudio.clipChanged": "Klippet ble endret mens oppgaven kjørte. Det nye mediet ligger i biblioteket ditt.",
+  "videoStudio.frameInLibrary": "Det fangede bildet ligger i mediebiblioteket ditt.",
   "videoStudio.jobRejected": "Denne oppgaven kan ikke startes for dette klippet.",
   "videoStudio.job_reverse": "Reverser klipp",
   "videoStudio.job_still": "Bildefangst",

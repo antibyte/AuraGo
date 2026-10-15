@@ -1443,8 +1443,13 @@ buttons and menu popovers remain excluded from those gestures.
   without its audio clip; `canReattach`/`reattachAudio` also give an orphaned detached clip (no audio clip of its
   asset in its group or overlapping it) its sound back. Disabled clips are never drawn, played or mixed, and a
   transition applies only when the clip after it is enabled. Derived jobs (`video-studio-derive.js`) call
-  `createJob(…, onSucceeded)`: the edit runs after `refreshProject`, re-finds its clips by id and never assumes they
-  did not move. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
+  `createJob(…, onSucceeded)`: the hook waits in `s.jobHooks` (by job id, epoch-checked) until a `refreshProject` that
+  applied the server project (it returns `true`; a timeline drag defers it to `onDragEnd` via `pendingRefresh`) and the
+  new asset is in `s.project`; it re-finds its clips by id and never assumes they did not move. Reverse requests the
+  union of the source ranges of the clip's same-asset group members (`E.reverseRange`, limit 300 s; also
+  `clipCapabilities.reversible`) and `reverseClips` mirrors every member within it; freeze remembers the asset and
+  source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Both edits are tried on a
+  copy before the job starts. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
   -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and
   differ by `data-value`, which `focusKey` remembers so a re-render keeps focus on the clicked swatch.
   Node checks: `go test ./ui -run 'TestVideoStudioClipModelChecks|TestVideoStudioEditLinks'`.

@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Tu fotograma está listo.",
   "videoStudio.freezeOutside": "Mueve primero el cabezal dentro del clip.",
   "videoStudio.clipChanged": "El clip cambió mientras se ejecutaba la tarea. El nuevo medio está en tu biblioteca.",
+  "videoStudio.frameInLibrary": "El fotograma capturado está en tu biblioteca.",
   "videoStudio.jobRejected": "Esta tarea no se puede iniciar para este clip.",
   "videoStudio.job_reverse": "Invertir clip",
   "videoStudio.job_still": "Captura de fotograma",

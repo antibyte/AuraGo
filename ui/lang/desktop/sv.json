@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Din bildruta är klar.",
   "videoStudio.freezeOutside": "Flytta först uppspelningshuvudet in i klippet.",
   "videoStudio.clipChanged": "Klippet ändrades medan uppgiften kördes. Det nya mediet finns i ditt bibliotek.",
+  "videoStudio.frameInLibrary": "Den fångade bildrutan finns i ditt mediebibliotek.",
   "videoStudio.jobRejected": "Den här uppgiften kan inte startas för det här klippet.",
   "videoStudio.job_reverse": "Vänd klipp",
   "videoStudio.job_still": "Bildrutefångst",

@@ -6094,6 +6094,7 @@
   "videoStudio.frameExported": "Dit billede er klar.",
   "videoStudio.freezeOutside": "Flyt først afspilningshovedet ind i klippet.",
   "videoStudio.clipChanged": "Klippet blev ændret, mens opgaven kørte. Det nye medie ligger i dit bibliotek.",
+  "videoStudio.frameInLibrary": "Det optagne billede ligger i dit mediebibliotek.",
   "videoStudio.jobRejected": "Denne opgave kan ikke startes for dette klip.",
   "videoStudio.job_reverse": "Vend klip om",
   "videoStudio.job_still": "Billedoptagelse",

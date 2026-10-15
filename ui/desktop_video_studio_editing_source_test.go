@@ -40,7 +40,7 @@ func TestVideoStudioDeriveWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the derive part is missing: %v", err)
 	}
-	if !strings.Contains(string(derive), "Object.assign(P, { reverseClip, freezeFrame, exportFrame })") {
+	if !strings.Contains(string(derive), "Object.assign(P, { reverseClip, freezeFrame, exportFrame, reverseFits })") {
 		t.Fatal("video-studio-derive.js does not export its commands")
 	}
 	jobs, err := os.ReadFile("js/desktop/apps/video-studio-jobs.js")

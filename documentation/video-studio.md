@@ -105,8 +105,10 @@ clip faster or slower, from 0.25 to 16×: by default the clip keeps its source r
 duration changes the source range instead. Audio keeps its pitch up to 4× and is silent above that. `Shift+E` disables
 or enables the selected clips: a disabled clip stays on the timeline but is neither shown nor exported. Colour labels
 mark a clip's body. Reverse, Freeze frame and Export frame as PNG are in the clip menu and the inspector. Reverse works
-on up to five minutes of a clip and imports a `(reversed)` media item; freeze frame inserts a two-second still at the
-playhead; the PNG download appears in the tasks list. Video tracks take still images as well as videos.
+on up to five minutes of a clip, counted together with its linked parts of the same media (such as the audio of a J- or
+L-cut), and imports a `(reversed)` media item; freeze frame inserts a two-second still at the playhead; the PNG download
+appears in the tasks list. If the clip changes while the job runs (for example it is slipped so another frame sits at the
+playhead), the edit is not applied and the new media stays in the library. Video tracks take still images as well as videos.
 
 Transitions include dissolve, fade through black, and wipes in both directions.
 A transition belongs to the outgoing clip. Adjacent clips overlap by exactly
