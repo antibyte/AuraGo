@@ -290,14 +290,14 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 		}
 		label := fmt.Sprintf("vs_clip_%d_%d", trackIndex, clipIndex)
 		clipLabels[clipIndex] = label
-		filters = append(filters, buildVisualClipFilter(trackIndex, clipIndex, clip, input, canvasWidth, canvasHeight, label))
+		filters = append(filters, legacyVisualClipFilter(trackIndex, clipIndex, clip, input, canvasWidth, canvasHeight, label))
 	}
 	// concat outputs a 1/1000000 timebase; settb=1/30 after every concat keeps xfade inputs on the clip timebase.
 	combined := clipLabels[0]
 	combinedEnd := clips[0].Start + clips[0].Duration
 	if clips[0].Start > 0 {
 		gap := gapLabel(trackIndex, 0)
-		filters = append(filters, transparentGapFilter(gap, clips[0].Start, canvasWidth, canvasHeight))
+		filters = append(filters, transparentGapFilter(gap, clips[0].Start, canvasWidth, canvasHeight, Rate{Num: FramesPerSecond, Den: 1}))
 		combined = newJoinLabel()
 		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", gapLabel(trackIndex, 0), clipLabels[0], combined))
 	}
@@ -318,7 +318,7 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 		}
 		if clip.Start > combinedEnd {
 			gap := gapLabel(trackIndex, i)
-			filters = append(filters, transparentGapFilter(gap, clip.Start-combinedEnd, canvasWidth, canvasHeight))
+			filters = append(filters, transparentGapFilter(gap, clip.Start-combinedEnd, canvasWidth, canvasHeight, Rate{Num: FramesPerSecond, Den: 1}))
 			withGap := newJoinLabel()
 			filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", combined, gap, withGap))
 			combined = withGap
@@ -331,7 +331,7 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 	return combined, filters, nil
 }
 
-func buildVisualClipFilter(trackIndex, clipIndex int, clip Clip, input renderInput, canvasWidth, canvasHeight int, output string) string {
+func legacyVisualClipFilter(trackIndex, clipIndex int, clip Clip, input renderInput, canvasWidth, canvasHeight int, output string) string {
 	boxWidth := evenPixels(clip.Width*float64(canvasWidth), canvasWidth)
 	boxHeight := evenPixels(clip.Height*float64(canvasHeight), canvasHeight)
 	x := evenPosition(clip.X*float64(canvasWidth), boxWidth, canvasWidth)
@@ -378,52 +378,8 @@ func buildAudioClipFilter(input renderInput, clip Clip, output string) string {
 	return filter
 }
 
-func transparentGapFilter(label string, frames, width, height int) string {
-	return fmt.Sprintf("color=c=black@0:s=%dx%d:r=30:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[%s]", width, height, seconds(frames), frames, label)
-}
-
-func mapTransition(value TransitionType) string {
-	switch value {
-	case TransitionBlack:
-		return "fadeblack"
-	case TransitionWipeLeft:
-		return "wiperight"
-	case TransitionWipeRight:
-		return "wipeleft"
-	default:
-		return "fade"
-	}
-}
-
 func seconds(frames int) string {
 	return fmt.Sprintf("%.6f", float64(frames)/FramesPerSecond)
-}
-
-func evenPixels(value float64, bound int) int {
-	pixels := int(math.Round(value/2) * 2)
-	if pixels < 2 {
-		return 2
-	}
-	if pixels > bound {
-		return bound
-	}
-	return pixels
-}
-
-func evenPosition(value float64, box, bound int) int {
-	position := int(math.Round(value/2) * 2)
-	maxPosition := bound - box
-	if position < 0 {
-		return 0
-	}
-	if position > maxPosition {
-		position = maxPosition
-	}
-	return position
-}
-
-func gapLabel(trackIndex, sequence int) string {
-	return fmt.Sprintf("vs_gap_%d_%d", trackIndex, sequence)
 }
 
 func validateRenderOutput(output string) (string, error) {
