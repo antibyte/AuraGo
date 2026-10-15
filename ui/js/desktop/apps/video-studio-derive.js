@@ -52,7 +52,8 @@
     }
 
     // Reverse (spec 4.4): the clip and its same-asset partners play the reversed asset once the job succeeds. The job
-    // covers the union of the source ranges they read, so a J- or L-cut partner trimmed past the clip reverses too.
+    // covers the union of the source ranges they read, so a J- or L-cut partner trimmed past the clip reverses too; the
+    // partners are mirrored around the clip (E.reverseClips), which keeps picture and sound in sync.
     function reverseClip(s, clipId) {
         const found = foundClip(s, clipId);
         if (!found || s.readonly || found.track.locked || found.track.kind !== 'video') return false;
@@ -70,8 +71,10 @@
     function applyReverse(s, clipId, request, job) {
         const asset = job && job.result && job.result.asset;
         if (!asset || !asset.id || !s.project) return;
-        const ok = P.applyEdit(s, 'reverse', project => E().reverseClips(project, clipId, Object.assign({ assetId: asset.id }, request)));
-        if (!ok) showNotice(s, 'clipChanged', 'The clip changed while the job ran. The new media is in your library.', true);
+        let result = true;
+        const ok = P.applyEdit(s, 'reverse', project => (result = E().reverseClips(project, clipId, Object.assign({ assetId: asset.id }, request))));
+        // No room for a moved partner is explained by applyEdit (reverseNoRoom); everything else changed while the job ran.
+        if (!ok && result !== E().REASON.room) showNotice(s, 'clipChanged', 'The clip changed while the job ran. The new media is in your library.', true);
         return ok;
     }
 

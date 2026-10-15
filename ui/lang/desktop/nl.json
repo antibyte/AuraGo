@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Verplaats eerst de afspeelkop in de clip.",
   "videoStudio.clipChanged": "De clip is gewijzigd terwijl de taak liep. De nieuwe media staan in je bibliotheek.",
   "videoStudio.frameInLibrary": "Het vastgelegde frame staat in je mediabibliotheek.",
+  "videoStudio.reverseNoRoom": "Er is geen ruimte voor het omgekeerde gekoppelde geluid. Maak ruimte op het spoor of ontkoppel het.",
   "videoStudio.jobRejected": "Deze taak kan voor deze clip niet worden gestart.",
   "videoStudio.job_reverse": "Clip omkeren",
   "videoStudio.job_still": "Frame vastleggen",

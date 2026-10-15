@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Move the playhead inside the clip first.",
   "videoStudio.clipChanged": "The clip changed while the job ran. The new media is in your library.",
   "videoStudio.frameInLibrary": "The captured frame is in your media library.",
+  "videoStudio.reverseNoRoom": "There is no room to place the reversed linked sound. Make room on its track or unlink it.",
   "videoStudio.jobRejected": "This task cannot be started for this clip.",
   "videoStudio.job_reverse": "Reverse clip",
   "videoStudio.job_still": "Frame capture",

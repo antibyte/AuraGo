@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Flyt først afspilningshovedet ind i klippet.",
   "videoStudio.clipChanged": "Klippet blev ændret, mens opgaven kørte. Det nye medie ligger i dit bibliotek.",
   "videoStudio.frameInLibrary": "Det optagne billede ligger i dit mediebibliotek.",
+  "videoStudio.reverseNoRoom": "Der er ikke plads til den omvendte sammenkædede lyd. Gør plads på dens spor, eller fjern sammenkædningen.",
   "videoStudio.jobRejected": "Denne opgave kan ikke startes for dette klip.",
   "videoStudio.job_reverse": "Vend klip om",
   "videoStudio.job_still": "Billedoptagelse",

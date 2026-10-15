@@ -6,7 +6,7 @@
     // inside mutate, which restores its snapshot). Locked tracks never change.
     const T = () => window.VideoStudioTimeline;
     const Time = () => window.VideoStudioTime;
-    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link' });
+    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
     const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'] };
     const clone = value => JSON.parse(JSON.stringify(value));
@@ -750,22 +750,27 @@
         return found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === found.clip.asset_id) : [found];
     }
     // The source range one reverse job covers: the union of the ranges the same-asset group members read, each
-    // [offset, offset + floor((duration - 1) × speed) + 1). A J- or L-cut partner trimmed past the clip widens it.
+    // [offset, offset + ceil((duration - 1) × speed) + 1). A J- or L-cut partner trimmed past the clip widens it. At a
+    // fractional speed the range holds the next source frame too (it exists: the source extent rule bounds
+    // offset + (duration - 1) × speed by a whole frame), so the mirrored offset never rounds below 0 and the clip fits.
     function reverseRange(project, clipId) {
         const found = T().clipFor(project, clipId);
         if (!found) return null;
         let first = Infinity, end = -Infinity;
         sameAssetMembers(project, found).forEach(({ clip }) => {
             first = Math.min(first, clip.offset);
-            end = Math.max(end, clip.offset + Math.floor((clip.duration - 1) * speedOf(clip) + 1e-9) + 1);
+            end = Math.max(end, clip.offset + Math.ceil((clip.duration - 1) * speedOf(clip) - 1e-9) + 1);
         });
         return { rangeStart: first, frames: end - first };
     }
     // reversed = { assetId, rangeStart, frames, sourceAssetId }: the reversed asset holds the source range
-    // [rangeStart, rangeStart + frames) of sourceAssetId backwards. A clip reads it from the mirrored offset
-    // frames - 1 - (offset - rangeStart) - (duration - 1) * speed, so every member plays its own source frames in reverse
-    // where it is. Members of the clip's group that use the same asset switch too; a member outside the range, or a clip
-    // that no longer reads the reversed source, refuses.
+    // [rangeStart, rangeStart + frames) of sourceAssetId backwards. The group plays backwards around the anchor (the clip
+    // the user reversed), which keeps its place: timeline frame t maps to anchor.start + anchor.end - 1 - t, so another
+    // same-asset member moves to start' = anchor.start + (anchor.end - member.end) with its duration (a J-cut becomes an
+    // L-cut), and every member reads the mirrored offset frames - 1 - (offset - rangeStart) - (duration - 1) × speed. At
+    // the mapped frame each member shows the source frame it showed before, so picture and sound stay in sync. Members of
+    // other assets stay. A member outside the range, a clip that no longer reads the reversed source, or a moved member
+    // that would overlap another clip, touch a transition or leave the project refuses (reason room) without changes.
     function reverseClips(project, clipId, reversed) {
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
@@ -773,17 +778,26 @@
         const target = (project.assets || []).find(asset => asset.id === reversed.assetId);
         if (!target) return REASON.media;
         if (reversed.sourceAssetId && found.clip.asset_id !== reversed.sourceAssetId) return REASON.media;
-        const members = sameAssetMembers(project, found);
+        const anchor = found.clip, pivot = anchor.start + endOf(anchor), max = Time().maxFrames(project);
         const plans = [];
-        for (const { track, clip } of members) {
+        for (const { track, clip } of sameAssetMembers(project, found)) {
             if (track.locked) return REASON.locked;
             if (!T().accepts(track, target) || (clip.audio_detached && !target.has_audio)) return REASON.media;
             const speed = speedOf(clip), last = clip.offset + (clip.duration - 1) * speed;
             if (clip.offset < reversed.rangeStart || last > reversed.rangeStart + reversed.frames - 1 + 1e-9) return REASON.media;
-            plans.push({ clip, offset: Math.max(0, Math.floor(reversed.frames - 1 - (clip.offset - reversed.rangeStart) - (clip.duration - 1) * speed + 1e-9)) });
+            const offset = Math.max(0, Math.floor(reversed.frames - 1 - (clip.offset - reversed.rangeStart) - (clip.duration - 1) * speed + 1e-9));
+            if (clip.duration > Math.floor((Number(target.duration_frames) - 1 - offset) / speed + 1e-9) + 1) return REASON.media;
+            plans.push({ track, clip, offset, start: clip === anchor ? clip.start : pivot - endOf(clip) });
         }
-        plans.forEach(({ clip, offset }) => { clip.asset_id = reversed.assetId; clip.offset = offset; });
-        if (plans.some(({ clip }) => clip.duration > maxDurationFrom(project, clip, clip.offset))) return REASON.media;
+        const moving = plans.filter(plan => plan.start !== plan.clip.start), members = new Set(plans.map(({ clip }) => clip));
+        for (const { track, clip, start } of moving) {
+            const order = sorted(track), prev = order[order.indexOf(clip) - 1];
+            if (start < 0 || start + clip.duration > max || clip.transition || (prev && endOf(prev) > clip.start)) return REASON.room;
+            const end = start + clip.duration;
+            const placed = other => (members.has(other) ? plans.find(plan => plan.clip === other).start : other.start);
+            if (track.clips.some(other => other !== clip && placed(other) < end && start < placed(other) + other.duration)) return REASON.room;
+        }
+        plans.forEach(({ clip, offset, start }) => { clip.asset_id = reversed.assetId; clip.offset = offset; clip.start = start; });
         return finish(project);
     }
     // Freeze frame (spec 4.4): the clip and its link partners are cut at the playhead, then a still of the captured

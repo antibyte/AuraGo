@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Najpierw przesuń głowicę odtwarzania do klipu.",
   "videoStudio.clipChanged": "Klip zmienił się w trakcie zadania. Nowe multimedia są w Twojej bibliotece.",
   "videoStudio.frameInLibrary": "Przechwycona klatka jest w Twojej bibliotece multimediów.",
+  "videoStudio.reverseNoRoom": "Brak miejsca na odwrócony połączony dźwięk. Zrób miejsce na jego ścieżce lub go rozłącz.",
   "videoStudio.jobRejected": "Tego zadania nie można uruchomić dla tego klipu.",
   "videoStudio.job_reverse": "Odwracanie klipu",
   "videoStudio.job_still": "Przechwycenie klatki",

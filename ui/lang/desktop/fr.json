@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Placez d’abord la tête de lecture dans le clip.",
   "videoStudio.clipChanged": "Le clip a changé pendant l’exécution de la tâche. Le nouveau média est dans votre bibliothèque.",
   "videoStudio.frameInLibrary": "L’image capturée est dans votre bibliothèque de médias.",
+  "videoStudio.reverseNoRoom": "Il n’y a pas de place pour le son lié inversé. Libérez de la place sur sa piste ou dissociez-le.",
   "videoStudio.jobRejected": "Cette tâche ne peut pas être lancée pour ce clip.",
   "videoStudio.job_reverse": "Inversion du clip",
   "videoStudio.job_still": "Capture d’image",

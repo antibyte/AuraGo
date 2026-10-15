@@ -1447,7 +1447,10 @@ buttons and menu popovers remain excluded from those gestures.
   applied the server project (it returns `true`; a timeline drag defers it to `onDragEnd` via `pendingRefresh`) and the
   new asset is in `s.project`; it re-finds its clips by id and never assumes they did not move. Reverse requests the
   union of the source ranges of the clip's same-asset group members (`E.reverseRange`, limit 300 s; also
-  `clipCapabilities.reversible`) and `reverseClips` mirrors every member within it; freeze remembers the asset and
+  `clipCapabilities.reversible`); `reverseClips` keeps the reversed clip (the anchor) in place and mirrors the other
+  same-asset members around it (`start' = anchor.start + anchor.end − end`, offset mirrored within the union), so linked
+  picture and sound stay in sync; a moved member that would overlap a clip, touch a transition or leave the project
+  refuses with reason `room` (`reverseNoRoom`), before the job and when applying; freeze remembers the asset and
   source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Both edits are tried on a
   copy before the job starts. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
   -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and

@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Nejdřív přesuň přehrávací hlavu do klipu.",
   "videoStudio.clipChanged": "Klip se během úlohy změnil. Nové médium je v tvé knihovně.",
   "videoStudio.frameInLibrary": "Zachycený snímek je v tvé knihovně médií.",
+  "videoStudio.reverseNoRoom": "Pro obrácený propojený zvuk není místo. Uvolni místo na jeho stopě nebo zruš propojení.",
   "videoStudio.jobRejected": "Tuto úlohu nelze pro tento klip spustit.",
   "videoStudio.job_reverse": "Obrácení klipu",
   "videoStudio.job_still": "Zachycení snímku",

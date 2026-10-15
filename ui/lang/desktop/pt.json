@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "Mova primeiro o indicador para dentro do clipe.",
   "videoStudio.clipChanged": "O clipe mudou enquanto a tarefa era executada. A nova mídia está na sua biblioteca.",
   "videoStudio.frameInLibrary": "O quadro capturado está na sua biblioteca de mídia.",
+  "videoStudio.reverseNoRoom": "Não há espaço para o som vinculado invertido. Abra espaço na faixa dele ou desvincule-o.",
   "videoStudio.jobRejected": "Esta tarefa não pode ser iniciada para este clipe.",
   "videoStudio.job_reverse": "Inverter clipe",
   "videoStudio.job_still": "Captura de quadro",

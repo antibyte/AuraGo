@@ -6095,6 +6095,7 @@
   "videoStudio.freezeOutside": "请先将播放头移到片段内。",
   "videoStudio.clipChanged": "任务运行期间片段已更改。新媒体已添加到你的媒体库。",
   "videoStudio.frameInLibrary": "捕获的帧已添加到你的媒体库。",
+  "videoStudio.reverseNoRoom": "没有空间放置倒放的链接声音。请在其轨道上腾出空间，或取消链接。",
   "videoStudio.jobRejected": "无法为该片段启动此任务。",
   "videoStudio.job_reverse": "倒放片段",
   "videoStudio.job_still": "帧捕获",
