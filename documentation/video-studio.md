@@ -18,6 +18,7 @@ video_studio:
   ffmpeg_path: ""
   max_asset_size_mb: 4096
   max_project_size_mb: 16384
+  max_export_size_mb: 8192
   render_timeout_seconds: 7200
 ```
 
@@ -79,6 +80,12 @@ newer save. The editor retains a small local timeline draft for recovery; copied
 media stays on the server. Closing the editor waits for its save guard.
 
 ## Exports and background jobs
+
+Exports are rendered in segments of about ten seconds. Every clip is read from its own position in the
+source, so late clips in long recordings start quickly. Audio is mixed for the whole export and encoded once.
+The server needs free space for the segments, the mixed audio (about 1.4 GB per hour) and the final file; an
+export stops early with a clear message when the space is missing. A failed export names the part of the
+timeline where it failed. `max_export_size_mb` limits one export file (at most the project limit).
 
 Export produces H.264 / AAC MP4 in the Desktop project files, with a download
 link. Preview preparation, import probing, rendering, and AI generation are

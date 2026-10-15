@@ -13,19 +13,30 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   at most `MaxSegmentInputs` (32) inputs. Asset durations are server-owned microseconds (`duration_us`);
   `duration_frames` is derived for the project rate (`AssetAtRate`). Source images/video frames are limited
   to 16,384 pixels per side and 64 megapixels.
-- Render through `exec.CommandContext` without a shell, with protocol and demuxer
-  allowlists, one decoder thread per input and four output/filter threads, a
-  four-hour hard wall-time ceiling, bounded diagnostics, and a 2 GiB output
-  ceiling. Preview proxies are complete-source 540p/30 fps MP4s capped at
-  512 MiB.
+- Render through `RenderWithOptions` (`Render` is the whole-timeline wrapper): `PlanVideoSegments` cuts ~10 s
+  segments whose boundaries avoid transitions, `PlanAudioSegments` avoids fades, and a segment needing more than
+  `MaxSegmentInputs` clips is split. Every clip gets its own `-ss`-seeked input; a clip past the decodable video
+  seeks one second before its end and `tpad` holds the last frame. Ranges that start or end inside a transition
+  or fade get pre-roll (`expandRange`) and are trimmed back.
+- Video segments use identical encoder settings (closed GOP, keyframe at frame 0, BT.709 tags) in MPEG-TS; audio
+  segments are float PCM WAV with exactly `SampleAt(end)-SampleAt(start)` samples. The final pass uses the
+  concat demuxer with explicit durations, `-c:v copy`, one `alimiter` and one AAC encode. Intermediates only
+  pass the `concat,mpegts,wav` demuxer allowlist.
+- Commands run through `exec.CommandContext` without a shell, one decoder thread per input and four filter
+  threads, a four-hour ceiling, bounded diagnostics with scrubbed paths, and `MaxOutputBytes` (default 2 GiB;
+  the server passes `max_export_size_mb`). `checkRenderSpace` fails early with `ErrInsufficientDiskSpace`;
+  segment failures are `*SegmentError`. Preview proxies are complete-source 540p/30 fps MP4s capped at 512 MiB.
 - Preview and export hold the last video frame through longer source audio,
   including clip offsets beyond video EOF; FFmpeg readiness requires `tpad` for
   bounded render padding.
 - A transition belongs to its outgoing clip and must equal the explicit overlap
   with the next clip on that same visual track. Other same-track overlaps fail.
-  `settb=1/30` follows every concat so later xfades accept their inputs, and
-  xfade runs on premultiplied track layers (`premultiply`/`unpremultiply`, both
-  required for readiness) so a dissolve does not darken picture-in-picture clips.
+  `settb` to the project frame timebase follows every concat and feeds both xfade
+  inputs. Only the overlapping frames are premultiplied, cross-faded and
+  unpremultiplied (`premultiply`/`unpremultiply`, both required for readiness) so
+  a dissolve does not darken picture-in-picture clips; that round trip changes
+  pixels even at full opacity, so frames outside a transition never pass through
+  it and render identically in every segmentation.
 - The server owns persistence, upload staging, job scheduling, and cancellation
   lifecycle. This package stays independent of server state.
 
