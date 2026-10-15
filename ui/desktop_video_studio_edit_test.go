@@ -162,6 +162,31 @@ valid(p);
 p = base();
 assert.equal(E.slide(p, 'w', -80), true, 'without neighbors the clip uses the gap');
 assert.equal(at(p,'w').start, 0);
+
+// A clip between two transitions never gets shorter than both of them together.
+const chain = () => project([track('o1','overlay',[
+  clip('a',I,0,150,{transition:{type:'dissolve',duration:30}}),
+  clip('b',I,120,150,{transition:{type:'dissolve',duration:30}}),
+  clip('c',I,240,150)
+])]);
+valid(chain());
+const shrink = [
+  ['rippleTrim end', p => E.rippleTrim(p, ['b'], 'end', -100)],
+  ['rippleTrim start', p => E.rippleTrim(p, ['b'], 'start', 100)],
+  ['roll', p => E.roll(p, [['a','b']], 100)],
+  ['slide', p => E.slide(p, 'a', 100)]
+];
+shrink.forEach(([name, run]) => {
+  const q = chain(), result = run(q);
+  assert(result === true || result === 'bounds', name + ' returned ' + result);
+  if (result === true) assert(T.validTimeline(q), name + ' left an invalid timeline: ' + JSON.stringify(q.tracks));
+  assert(at(q,'b').duration >= 60, name + ' shrank b to ' + at(q,'b').duration);
+});
+// The permitted shrink still works, right down to the two transitions.
+p = chain();
+assert.equal(E.rippleTrim(p, ['b'], 'end', -90), true);
+assert.equal(at(p,'b').duration, 60);
+valid(p);
 `)
 }
 

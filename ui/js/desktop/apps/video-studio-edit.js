@@ -32,12 +32,13 @@
     function shifted(clip, frames) { return Math.max(0, Math.floor(clip.offset + frames * speedOf(clip) + 1e-9)); }
     // Timeline frames the head can grow before the source runs out.
     function headroom(project, clip) { return isStill(project, clip) ? Infinity : Math.floor(clip.offset / speedOf(clip) + 1e-9); }
-    // A clip never gets shorter than one frame or than a transition it shares with a neighbor.
+    // A clip never gets shorter than one frame, than a transition it shares with a neighbor, or than its
+    // incoming and outgoing transitions together (they may touch but must not overlap).
     function minDuration(track, clip) {
         const order = sorted(track), prev = order[order.indexOf(clip) - 1];
         const incoming = prev && prev.transition ? endOf(prev) - clip.start : 0;
         const outgoing = clip.transition ? clip.transition.duration : 0;
-        return Math.max(1, incoming + 1, outgoing + 1);
+        return Math.max(1, incoming + 1, outgoing + 1, incoming + outgoing);
     }
     // The listed clips that sit on unlocked tracks.
     function editable(project, ids) {

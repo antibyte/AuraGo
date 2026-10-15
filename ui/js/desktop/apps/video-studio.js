@@ -536,7 +536,9 @@
         const limit = maxFrames(s);
         const duration = Math.max(1, Math.min(Number(asset.kind === 'image' ? Math.round(rateOf(s) * 5) : asset.duration_frames || Math.round(rateOf(s) * 5)), limit));
         // Dropping onto a lane overwrites at the drop point (Ctrl inserts); "+" keeps finding a free spot.
-        if ((mode === 'overwrite' || mode === 'insert') && track) {
+        // Only on the lane the user pointed at: when it does not take this media (or is locked or missing), the
+        // clip goes to a substitute track, and overwriting there would destroy content the user never aimed at.
+        if ((mode === 'overwrite' || mode === 'insert') && track && track.id === trackId) {
             const start = Math.max(0, Math.round(Number(at) || 0));
             if (start + duration > limit) { showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true); return false; }
             const clip = T().makeClip(asset, start, undefined, s.project);
