@@ -60,30 +60,6 @@ func clockText(seconds float64) string {
 	return fmt.Sprintf("%d:%02d", total/60, total%60)
 }
 
-// Encoder selects the video encoder. The zero value is libx264 at CRF 23.
-type Encoder struct {
-	Codec    string // "libx264"; hardware encoders follow in slice 0c
-	Device   string
-	Quality  int  // CRF-equivalent quality 1–51; 0 means 23
-	Lossless bool // libx264 -qp 0; tests compare segmentations bit-exactly
-}
-
-func (e Encoder) videoArgs(rate Rate) []string {
-	quality := e.Quality
-	if quality <= 0 {
-		quality = 23
-	}
-	gop := strconv.FormatInt((2*rate.Num+rate.Den-1)/rate.Den, 10)
-	args := []string{"-c:v", "libx264", "-preset", "veryfast"}
-	if e.Lossless {
-		args = append(args, "-qp", "0")
-	} else {
-		args = append(args, "-crf", strconv.Itoa(quality))
-	}
-	return append(args, "-g", gop, "-force_key_frames", "expr:eq(n,0)", "-pix_fmt", "yuv420p",
-		"-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709")
-}
-
 // RenderOptions describes one export.
 type RenderOptions struct {
 	FFmpegPath string
