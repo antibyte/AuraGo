@@ -26,10 +26,11 @@
     }
     function maxFrames(project) { const f = fraction(project); return Math.floor(MAX_SECONDS * f.num / f.den); }
     function pad(value) { return String(value).padStart(2, '0'); }
-    // m:ss.cc (h:mm:ss.cc from one hour on).
+    // m:ss.cc (h:mm:ss.cc from one hour on). Centiseconds are rounded first and then split, so a carry reaches the
+    // seconds (59.94 fps frame 959 is 0:16.00) and parseTime reads every shown frame back to the same frame.
     function formatTime(frames, project) {
-        const seconds = Math.max(0, framesToSeconds(Math.round(Number(frames) || 0), project));
-        const whole = Math.floor(seconds + 1e-9), cs = Math.min(99, Math.round((seconds - whole) * 100));
+        const totalCs = Math.round(Math.max(0, framesToSeconds(Math.round(Number(frames) || 0), project)) * 100);
+        const cs = totalCs % 100, whole = Math.floor(totalCs / 100);
         const h = Math.floor(whole / 3600), m = Math.floor(whole % 3600 / 60), s = whole % 60;
         const tail = pad(s) + '.' + pad(cs);
         return h ? `${h}:${pad(m)}:${tail}` : `${m}:${tail}`;

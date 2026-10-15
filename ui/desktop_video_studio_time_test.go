@@ -24,6 +24,11 @@ assert.equal(V.formatTime(132, p30), '0:04.40');
 assert.equal(V.formatTime(108000, p30), '1:00:00.00');
 assert.equal(V.formatTime(25, p25), '0:01.00');
 assert.equal(V.formatTime(29, p30), '0:00.97');
+assert.equal(V.formatTime(959, {fps: 60, ntsc: true}), '0:16.00', 'centiseconds carry into the seconds instead of clamping at 99');
+V.FRAME_RATES.forEach(rate => {
+  const project = {fps: rate.fps, ntsc: rate.ntsc};
+  for (let f = 0; f <= 3000; f++) assert.equal(V.parseTime(V.formatTime(f, project), project), f, 'frame ' + f + ' at ' + V.rateLabel(project) + ' reads back from its display');
+});
 assert.equal(V.parseTime('1:02,5', p30), 1875);
 assert.equal(V.parseTime('2', p25), 50);
 assert.equal(V.parseTime('1:75', p30), null);
