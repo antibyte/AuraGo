@@ -44,8 +44,10 @@ func NormalizeVideoStudioConfig(c *VideoStudioConfig) error {
 	}
 	c.HardwareDevice = strings.TrimSpace(c.HardwareDevice)
 	// Linux device paths ("/dev/dri/renderD128") stay valid when the configuration is checked on Windows.
-	if c.HardwareDevice != "" && (!filepath.IsAbs(c.HardwareDevice) && !strings.HasPrefix(c.HardwareDevice, "/") || len(c.HardwareDevice) > 255 || strings.ContainsAny(c.HardwareDevice, "\r\n\x00")) {
-		return fmt.Errorf("video_studio: hardware_device must be an absolute device path")
+	// FFmpeg parses ",key=value", "name:device" and "@parent" syntax inside device strings, so these
+	// characters would smuggle device options into the single argv element.
+	if c.HardwareDevice != "" && (!filepath.IsAbs(c.HardwareDevice) && !strings.HasPrefix(c.HardwareDevice, "/") || len(c.HardwareDevice) > 255 || strings.ContainsAny(c.HardwareDevice, "\r\n\x00,:@=")) {
+		return fmt.Errorf("video_studio: hardware_device must be an absolute device path without , : @ or =")
 	}
 	if c.MaxAssetSizeMB < 1 || c.MaxAssetSizeMB > 32768 || c.MaxProjectSizeMB < 1 || c.MaxProjectSizeMB > 65536 || c.RenderTimeoutSeconds < 30 || c.RenderTimeoutSeconds > 14400 || c.MaxExportSizeMB < 1 {
 		return fmt.Errorf("video_studio: asset size must be 1–32768 MB, project size 1–65536 MB, timeout 30–14400 seconds and export size at least 1 MB")

@@ -44,6 +44,9 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	for _, invalid := range []VideoStudioConfig{
 		{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: -1}, {MaxProjectSizeMB: 65537},
 		{RenderTimeoutSeconds: -1}, {MaxExportSizeMB: -1}, {HardwareEncoding: "cuda"}, {HardwareDevice: "relative/node"},
+		// FFmpeg reads option syntax inside device strings.
+		{HardwareDevice: "/dev/dri/renderD128,driver=iHD"}, {HardwareDevice: "/dev/dri/renderD128:x"},
+		{HardwareDevice: "/dev/dri/renderD128@va"}, {HardwareDevice: "/dev/dri/card=0"},
 	} {
 		if NormalizeVideoStudioConfig(&invalid) == nil {
 			t.Errorf("invalid limits accepted: %+v", invalid)
