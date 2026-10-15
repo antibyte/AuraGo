@@ -52,3 +52,21 @@ func TestProbeReportsExactMediaMetadata(t *testing.T) {
 		t.Fatalf("audio metadata = %+v", audio)
 	}
 }
+
+func TestPreparePreviewFallsBackToSoftware(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	source, output := filepath.Join(root, "red.mp4"), filepath.Join(root, "preview.mp4")
+	makeVideoFixture(t, ctx, ffmpeg, source, "red")
+	if err := PreparePreviewWith(ctx, ffmpeg, source, output, Encoder{Codec: CodecVAAPI, Device: filepath.Join(root, "missing-render-node")}); err != nil {
+		t.Fatalf("PreparePreviewWith() error = %v", err)
+	}
+	if got, err := Probe(ctx, ffmpeg, output); err != nil || got.Codec != "h264" || got.Kind != AssetVideo {
+		t.Fatalf("preview = %+v, %v", got, err)
+	}
+	if MaxPreviewBytes != 2<<30 {
+		t.Fatalf("MaxPreviewBytes = %d", MaxPreviewBytes)
+	}
+}

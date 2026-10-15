@@ -134,8 +134,17 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 	return asset, nil
 }
 
-// PreparePreview writes a complete bounded 540p, 30 fps H.264 proxy for a local video.
+// MaxPreviewBytes bounds one 540p preview proxy.
+const MaxPreviewBytes = int64(2 << 30)
+
+// PreparePreview writes a complete bounded 540p, 30 fps H.264 proxy for a local video with libx264.
 func PreparePreview(ctx context.Context, ffmpegPath, input, output string) error {
+	return PreparePreviewWith(ctx, ffmpegPath, input, output, Encoder{})
+}
+
+// PreparePreviewWith decodes (VAAPI) and encodes on the GPU when encoder is a hardware encoder and falls back
+// to software for this preview when that fails.
+func PreparePreviewWith(ctx context.Context, ffmpegPath, input, output string, encoder Encoder) error {
 	inputPath, err := ensureRegularLocalFile(input)
 	if err != nil {
 		return fmt.Errorf("open staged preview source: %w", err)
@@ -155,25 +164,16 @@ func PreparePreview(ctx context.Context, ffmpegPath, input, output string) error
 	if err != nil {
 		return err
 	}
-	previewCtx, cancel := context.WithTimeout(ctx, 4*time.Hour)
-	defer cancel()
-	args := []string{
-		"-hide_banner", "-nostdin", "-loglevel", "error",
-		"-protocol_whitelist", allowedProtocols,
-		"-format_whitelist", allowedDemuxers,
-		"-i", inputPath,
-		"-map", "0:V:0", "-map", "0:a:0?",
-		"-vf", "scale=960:540:force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30",
-		"-threads", "2", "-filter_threads", "2",
-		"-c:v", "libx264", "-preset", "ultrafast", "-crf", "32",
-		"-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "64k", "-ar", "48000",
-		"-movflags", "+faststart", "-fs", "536870912", "-f", "mp4", outputPath,
+	err = runPreview(ctx, ffmpeg, inputPath, outputPath, encoder)
+	if err != nil && encoder.Hardware() && ctx.Err() == nil {
+		_ = os.Remove(outputPath)
+		err = runPreview(ctx, ffmpeg, inputPath, outputPath, Encoder{})
 	}
-	if _, err := runSmallCommand(previewCtx, ffmpeg, args, 1<<20); err != nil {
+	if err != nil {
 		_ = os.Remove(outputPath)
 		return fmt.Errorf("create media preview: %w", err)
 	}
-	if err := ensureOutputSize(outputPath, 536870912); err != nil {
+	if err := ensureOutputSize(outputPath, MaxPreviewBytes); err != nil {
 		_ = os.Remove(outputPath)
 		return err
 	}
@@ -187,6 +187,32 @@ func PreparePreview(ctx context.Context, ffmpegPath, input, output string) error
 		return fmt.Errorf("media preview is incomplete")
 	}
 	return nil
+}
+
+func runPreview(ctx context.Context, ffmpeg, input, output string, encoder Encoder) error {
+	previewCtx, cancel := context.WithTimeout(ctx, 4*time.Hour)
+	defer cancel()
+	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, encoder.globalArgs()...)
+	if encoder.Codec == CodecVAAPI {
+		// Decoded frames are downloaded automatically, so the CPU scaler below still works.
+		args = append(args, "-hwaccel", "vaapi", "-hwaccel_device", encoder.device())
+	}
+	args = append(args,
+		"-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers, "-i", input,
+		"-map", "0:V:0", "-map", "0:a:0?",
+		"-vf", "scale=960:540:force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30"+encoder.filterTail(),
+		"-threads", "2", "-filter_threads", "2")
+	if encoder.Hardware() {
+		proxy := encoder
+		proxy.Quality = 32
+		args = append(args, proxy.videoArgs(Rate{Num: 30, Den: 1})...)
+	} else {
+		args = append(args, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "32", "-pix_fmt", "yuv420p")
+	}
+	args = append(args, "-c:a", "aac", "-b:a", "64k", "-ar", "48000",
+		"-movflags", "+faststart", "-fs", strconv.FormatInt(MaxPreviewBytes, 10), "-f", "mp4", output)
+	_, err := runSmallCommand(previewCtx, ffmpeg, args, 1<<20)
+	return err
 }
 
 func ensureRegularLocalFile(path string) (string, error) {
