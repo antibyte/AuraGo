@@ -64,7 +64,8 @@ personality:
 
 ### Personality Engine V2 (LLM-basiert)
 
-> ⚠️ **Erfordert zusätzliche API-Aufrufe:** Die V2-Engine analysiert Stimmung und Kontext mit einem separaten LLM-Aufruf.
+> [!WARNING]
+> **Erfordert zusätzliche API-Aufrufe:** Die V2-Engine analysiert Stimmung und Kontext mit einem separaten LLM-Aufruf.
 
 Die V2-Engine bietet:
 - Dynamische Stimmungsanalyse
@@ -102,7 +103,8 @@ personality:
     error_streak_min: 2
 ```
 
-> ⚠️ **Hinweis:** `v2_provider` ist veraltet. Die V2-Engine nutzt jetzt die Helper-LLM-Konfiguration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). Siehe [Kapitel 9: Helper LLM](./09-memory.md#helper-llm--automatisierte-wartung).
+> [!NOTE]
+> `v2_provider` ist veraltet. Die V2-Engine nutzt jetzt die Helper-LLM-Konfiguration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). Siehe [Kapitel 9: Helper LLM](./09-memory.md#helper-llm--automatisierte-wartung).
 
 ### Beide Engines deaktivieren
 
@@ -343,7 +345,8 @@ Schnelle Infos  → terminator
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natürlichsprachliche Emotionsnotizen |
 | **Inner Voice** | `personality.inner_voice.enabled: true` | Unterbewusste Verhaltenshinweise |
 
-> 💡 **Profi-Tipp:** Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.
+> [!TIP]
+> Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.
 
 ---
 

@@ -25,7 +25,8 @@ Kurzreferenz. Die lange Wahrheit liegt in `config_template.yaml` und [Kapitel 21
 
 ## Vollständige Konfigurationsreferenz
 
-> 💡 **Web-UI zuerst:** Änderungen im Alltag über **Menü → Config** vornehmen. Dieser Anhang dokumentiert die vollständige `config.yaml`-Struktur als Referenz für Automatisierung und Headless-Deployments.
+> [!TIP]
+> **Web-UI zuerst:** Änderungen im Alltag über **Menü → Config** vornehmen. Dieser Anhang dokumentiert die vollständige `config.yaml`-Struktur als Referenz für Automatisierung und Headless-Deployments.
 
 ### config.yaml Struktur
 
@@ -906,7 +907,8 @@ Siehe LICENSE-Datei im Repository für Details.
 
 ---
 
-> 💡 **Tipp:** Speichere dir diese Seite als Lesezeichen – sie ist die ultimative Referenz für alle technischen Details!
+> [!TIP]
+> Speichere dir diese Seite als Lesezeichen – sie ist die ultimative Referenz für alle technischen Details!
 
 ---
 

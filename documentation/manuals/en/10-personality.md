@@ -64,7 +64,8 @@ personality:
 
 ### Personality Engine V2 (LLM-Based)
 
-> ⚠️ **Requires additional API calls:** The V2 engine analyzes mood and context with a separate LLM call.
+> [!WARNING]
+> **Requires additional API calls:** The V2 engine analyzes mood and context with a separate LLM call.
 
 The V2 engine provides:
 - Dynamic mood analysis
@@ -102,7 +103,8 @@ personality:
     error_streak_min: 2
 ```
 
-> ⚠️ **Note:** `v2_provider` is deprecated. The V2 engine now uses the Helper LLM configuration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). See [Chapter 9: Helper LLM](./09-memory.md#helper-llm--automated-maintenance).
+> [!NOTE]
+> `v2_provider` is deprecated. The V2 engine now uses the Helper LLM configuration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). See [Chapter 9: Helper LLM](./09-memory.md#helper-llm--automated-maintenance).
 
 ### Disabling Both Engines
 
@@ -172,7 +174,8 @@ personality:
   core_personality: "professional"
 ```
 
-> 💡 Changes require a restart of AuraGo.
+> [!TIP]
+> Changes require a restart of AuraGo.
 
 > 🎭 **Animated personas:** In Webchat and Desktop **Live Speech**, every personality has an animated persona (Rive) that listens, thinks and moves its mouth while speaking — from butler to terminator. `custom` keeps its static image. Details: [chapter 4](04-webui.md#animated-personas-in-live-speech) and the [animated personas deep dive](../../animated-personas.md).
 
@@ -345,7 +348,8 @@ Quick Info         → terminator
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natural-language emotion notes |
 | **Inner Voice** | `personality.inner_voice.enabled: true` | Subconscious behavioral nudges |
 
-> 💡 **Pro Tip:** Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.
+> [!TIP]
+> Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.
 
 ---
 

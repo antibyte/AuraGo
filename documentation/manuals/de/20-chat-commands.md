@@ -80,7 +80,8 @@ Löscht den aktuellen Chat-Verlauf und das Kurzzeitgedächtnis (Short-Term Memor
 🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.
 ```
 
-> ⚠️ **Hinweis:** Das Langzeitgedächtnis (LTM) und der Knowledge Graph bleiben erhalten.
+> [!NOTE]
+> Das Langzeitgedächtnis (LTM) und der Knowledge Graph bleiben erhalten.
 
 ---
 
@@ -112,7 +113,8 @@ Startet den AuraGo-Server neu. Dies kann nützlich sein, nachdem Änderungen an 
 🔄 AuraGo wird neu gestartet...
 ```
 
-> ⚠️ **Hinweis:** Der Neustart erfolgt asynchron nach einer kurzen Verzögerung von 1 Sekunde.
+> [!NOTE]
+> Der Neustart erfolgt asynchron nach einer kurzen Verzögerung von 1 Sekunde.
 
 ---
 
@@ -184,7 +186,8 @@ Nutze `/personality <name>` zum Umstellen.
 🎭 Persönlichkeit auf **friend** umgestellt. Die Änderung ist permanent.
 ```
 
-> ℹ️ Persönlichkeiten werden als Markdown-Dateien im `prompts/personalities/` Verzeichnis gespeichert.
+> [!NOTE]
+> Persönlichkeiten werden als Markdown-Dateien im `prompts/personalities/` Verzeichnis gespeichert.
 
 ---
 
@@ -215,7 +218,8 @@ Verwendete Modelle:
   • anthropic/claude-3.5-sonnet: $0.10
 ```
 
-> ℹ️ Budget-Tracking muss in der Konfiguration aktiviert sein (`budget.enabled: true`).
+> [!NOTE]
+> Budget-Tracking muss in der Konfiguration aktiviert sein (`budget.enabled: true`).
 
 ---
 
@@ -324,7 +328,8 @@ Genutzter Betrag heute: $0.42
 Verbleibend: $25.01
 ```
 
-> ℹ️ Dieser Command ist nur verfügbar, wenn ein OpenRouter-Provider konfiguriert ist (Haupt-LLM, Helper-LLM oder Provider-Liste).
+> [!NOTE]
+> Dieser Command ist nur verfügbar, wenn ein OpenRouter-Provider konfiguriert ist (Haupt-LLM, Helper-LLM oder Provider-Liste).
 
 ---
 

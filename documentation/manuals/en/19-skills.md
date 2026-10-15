@@ -81,7 +81,8 @@ The manifest describes the skill for the agent:
 }
 ```
 
-> **Note:** `parameters` may be a full JSON Schema (`type`, `properties`, `required`) or a simplified key→description map (as above).
+> [!NOTE]
+> `parameters` may be a full JSON Schema (`type`, `properties`, `required`) or a simplified key→description map (as above).
 
 **Fields explained:**
 
@@ -199,7 +200,8 @@ Skills can access secrets from the vault to use API keys, tokens, or passwords.
 3. **Enter value**: Your API key
 4. **Save**
 
-> ⚠️ **Important:** Only secrets you created yourself are available in skills. System secrets (like LLM API keys) are blocked.
+> [!IMPORTANT]
+> Only secrets you created yourself are available in skills. System secrets (like LLM API keys) are blocked.
 
 ### Step 2: Declare in Manifest
 
@@ -221,7 +223,8 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 
 ### Security Notes
 
-> ⚠️ **Important:** Skills are a special case for vault access!
+> [!IMPORTANT]
+> Skills are a special case for vault access!
 >
 > Normally, the agent has **no access** to vault secrets. For skills, however, the secrets must be transferred to the Python process in order to be used by the skill.
 >
@@ -348,7 +351,8 @@ Agent: 🛠️ Skill: file_analyzer
 }
 ```
 
-> **Note:** Use a custom name like `gh_access_token` for your GitHub Personal Access Token. Store it in the vault under that name. `github_token` is reserved for system use.
+> [!NOTE]
+> Use a custom name like `gh_access_token` for your GitHub Personal Access Token. Store it in the vault under that name. `github_token` is reserved for system use.
 
 **Python** (`github_repo.py`):
 ```python

@@ -40,7 +40,8 @@ Wähle deine bevorzugte Sprache / Choose your preferred language:
 - ...
 ```
 
-> 💡 Diese Einstellung beeinflusst die Sprache des Agents und der Web-UI.
+> [!TIP]
+> Diese Einstellung beeinflusst die Sprache des Agents und der Web-UI.
 
 ### Schritt 2: LLM Provider
 
@@ -67,7 +68,8 @@ Wähle deinen KI-Provider:
 - Punk – Rebellisch, unkonventionell
 ```
 
-> 💡 du kannst die Persönlichkeit später jederzeit ändern.
+> [!TIP]
+> du kannst die Persönlichkeit später jederzeit ändern.
 
 ### Schritt 4: Erste Integrationen (optional)
 
@@ -174,7 +176,8 @@ Agent: 📄 Zusammenfassung von dokument.pdf:
    Das Dokument behandelt...
 ```
 
-> 💡 Unterstützte Formate: TXT, PDF, Bilder (JPG, PNG), Code-Dateien, und mehr.
+> [!TIP]
+> Unterstützte Formate: TXT, PDF, Bilder (JPG, PNG), Code-Dateien, und mehr.
 
 ## Die ersten Tools kennenlernen
 

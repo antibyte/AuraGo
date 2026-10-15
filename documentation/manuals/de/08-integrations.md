@@ -39,7 +39,8 @@ Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
 6. Speichere Credentials sicher im **Vault** – niemals direkt in der `config.yaml`!
 7. Klicke auf **Speichern** und starte AuraGo bei Bedarf neu.
 
-> 💡 **Tipp:** Für fast alle Integrationen gibt es zusätzlich einen `readonly`-Modus. Aktiviere diesen zuerst, um die Verbindung zu testen, bevor du Schreibzugriffe erlaubst.
+> [!TIP]
+> Für fast alle Integrationen gibt es zusätzlich einen `readonly`-Modus. Aktiviere diesen zuerst, um die Verbindung zu testen, bevor du Schreibzugriffe erlaubst.
 
 ### Konfigurations-Referenz (Kapitel 7)
 
@@ -621,7 +622,8 @@ Sende Text-to-Speech und Medien an Chromecast-Geräte.
 
 **Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren. Für private LAN-Medienquellen kannst du erlaubte Medien-Hosts eintragen.
 
-> 💡 Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
+> [!TIP]
+> Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
 
 Nutze `operation: "play"` für direkte HTTP(S)-Audio- oder Video-URLs. Direkte Videos sollten `content_type: "video/mp4"` oder `content_type: "video/webm"` setzen. Lokale `.mp4`- und `.webm`-Dateien aus dem Workspace werden automatisch über AuraGos `/cast-media/`-Pfad bereitgestellt.
 
@@ -750,7 +752,8 @@ Verwalte Docker-Container über AuraGo.
 
 **Web-UI:** Config → Integrationen → Docker → Host-URL eingeben (z. B. `unix:///var/run/docker.sock`).
 
-> ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
+> [!WARNING]
+> **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
 
 #### Compose-Stacks des Agenten und Hostzugriff
 
@@ -772,7 +775,8 @@ Mit einem Docker Compose älter als v2.35 löst AuraGo einen genannten Service e
 
 Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter oder Medienserver mit Host-Ordnern brauchen den Hostzugriff. Konfigurationen, die es vor dieser Einstellung schon gab, haben ihn automatisch eingeschaltet (das Update schreibt `allow_host_access: true`); neue Installationen starten mit `false`. Du schaltest ihn unter **Config → Gefahrenzone → Docker-Hostzugriff für Compose-Stacks des Agenten** um. Der Sicherheitscheck warnt, solange er eingeschaltet ist.
 
-> ⚠️ Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
+> [!WARNING]
+> Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
 
 #### YAML-Referenz
 ```yaml
@@ -787,7 +791,8 @@ docker:
 
 Strukturierte OS-Paketverwaltung über das Tool `package_manager`. Unterstützt apt, dnf, yum, pacman, zypper, apk, brew, winget, choco und scoop.
 
-> ⚠️ **Sicherheit:** Paketverwaltung ermöglicht erheblichen Systemzugriff. Nur aktivieren, wenn nötig, und `readonly` für reine Überwachung bevorzugen.
+> [!WARNING]
+> **Sicherheit:** Paketverwaltung ermöglicht erheblichen Systemzugriff. Nur aktivieren, wenn nötig, und `readonly` für reine Überwachung bevorzugen.
 
 #### Voraussetzungen
 
@@ -1697,7 +1702,8 @@ github:
 | `list_workflow_runs` | CI/CD-Workflow-Runs |
 | `list_projects`, `track_project`, `untrack_project` | Lokales Projekt-Tracking |
 
-> 💡 **Vault:** Token als `github_token` speichern. API-Tokens nie in `config.yaml` ablegen.
+> [!TIP]
+> **Vault:** Token als `github_token` speichern. API-Tokens nie in `config.yaml` ablegen.
 
 #### Webhooks (separat)
 
@@ -1852,7 +1858,8 @@ Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
 4. Speichere Passwörter im Vault.
 5. Passe bei Bedarf `max_result_rows` und Timeouts an.
 
-> 💡 **Sicherheit:** Verwende nach Möglichkeit dedizierte Read-Only-Benutzer.
+> [!WARNING]
+> **Sicherheit:** Verwende nach Möglichkeit dedizierte Read-Only-Benutzer.
 
 #### YAML-Referenz
 ```yaml
@@ -2074,7 +2081,8 @@ remote_control:
 
 Wenn AuraGo selbst HTTPS bereitstellt, bettet der Verbindungsweg **Automatisch erkennen** (`connection_mode: auto`) eine `wss://`-URL auf `server.https.https_port` in Agent-Downloads ein, daher muss der Agent dem Zertifikat vertrauen (Let's Encrypt oder ein eigenes vertrauenswürdiges Zertifikat); bei einem selbstsignierten Zertifikat verwende **Manuelle Supervisor-URL** (`connection_mode: manual`) mit einer Route, deren Zertifikat vertrauenswürdig ist (ein Cloudflare Tunnel oder ein Reverse Proxy, nicht erneut `wss://host:https_port`), oder **Tailscale-Netzwerk verwenden** (`connection_mode: tailscale`).
 
-> ⚠️ **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
+> [!NOTE]
+> **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
 > Vor dem Upgrade verteilte Remote-Agenten können sich nicht mehr verbinden und müssen durch einen Download vom aktualisierten AuraGo (**Remote Control**) ersetzt werden. Ihre Geräteschlüssel bleiben erhalten, ein erneutes Enrollment ist nicht nötig.
 > Der Supervisor protokolliert für jedes betroffene Gerät `unsupported frame version`.
 > Der Enrollment-Schlüssel eines Tokens liegt im Vault als `remote_enroll_key_<id>`, bis das Token verwendet oder nach seinem Ablauf (bei der nächsten Token-Ausstellung) bereinigt wird.
@@ -2102,7 +2110,8 @@ AuraGo kann sich mit dem **AgoDesk**-Desktop-Client per WebSocket koppeln. Bei v
 }
 ```
 
-> 📖 Vollständiges Protokoll: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md)
+> [!NOTE]
+> Vollständiges Protokoll: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md)
 
 **API:** `GET /api/remote/devices` listet verbundene RemoteHub/AgoDesk-Geräte.
 
@@ -2125,7 +2134,8 @@ Linux-Landlock-basierte Sandbox für Shell-Befehle. Sie schränkt Dateisystemzug
 
 **Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
 
-> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`). Seit diesem Release benötigt die Linux-/macOS-Host-Shell ohne wirksame Sandbox zusätzlich `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`. Updates über `update.sh` und Docker schreiben `agent.allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`); Konfigurationen, in denen der Schlüssel nie geschrieben wurde, funktionieren weiter und zeigen den Hinweis `shell_unsafe_host_legacy`. In Docker gibt es keine Shell-Sandbox: Eine frische Docker-Installation, die die Shell aktiviert, muss `agent.allow_unsandboxed_shell: true` (oder `allow_unsafe_host_execution: true`) setzen.
+> [!TIP]
+> Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`). Seit diesem Release benötigt die Linux-/macOS-Host-Shell ohne wirksame Sandbox zusätzlich `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`. Updates über `update.sh` und Docker schreiben `agent.allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`); Konfigurationen, in denen der Schlüssel nie geschrieben wurde, funktionieren weiter und zeigen den Hinweis `shell_unsafe_host_legacy`. In Docker gibt es keine Shell-Sandbox: Eine frische Docker-Installation, die die Shell aktiviert, muss `agent.allow_unsandboxed_shell: true` (oder `allow_unsafe_host_execution: true`) setzen.
 
 Shell- und Python-Kindprozesse erhalten standardmäßig eine gefilterte Umgebung, damit Host-Secrets wie Master-Keys, API-Keys, Tokens und Passwörter nicht an agentengesteuerte Subprozesse vererbt werden. `DOCKER_HOST` und die übrigen Docker-Client-Variablen (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) erhalten Shell-Befehle und Host-Python nur, solange das Docker-Tool aktiviert ist (`docker.enabled`). Skills (Python-Skills, Daemon-Skills und Agent-Skill-Skripte) erhalten `DOCKER_HOST` weiterhin: Installierte Skills gelten als vertrauenswürdig, und die Skill-Vorlage für den Docker-Manager ist darauf angewiesen.
 
@@ -2160,7 +2170,8 @@ tools:
 
 Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
 
-> ⚠️ **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
+> [!WARNING]
+> **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
 
 ### Skill Manager
 
@@ -2208,7 +2219,8 @@ tools:
 | `reenable` | Auto-deaktivierten Daemon wieder aktivieren |
 | `refresh` | Skills von der Festplatte neu scannen und Daemons abgleichen |
 
-> ⚠️ **Kostenkontrolle:** `max_wakeups_per_hour` und `max_budget_per_hour` wirken als Circuit Breaker gegen unkontrollierte LLM-Kosten durch häufige Daemon-Wake-ups.
+> [!WARNING]
+> **Kostenkontrolle:** `max_wakeups_per_hour` und `max_budget_per_hour` wirken als Circuit Breaker gegen unkontrollierte LLM-Kosten durch häufige Daemon-Wake-ups.
 
 ### Virtual Desktop Integration
 

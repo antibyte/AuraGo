@@ -171,7 +171,8 @@ make_deploy.bat   # Windows
 
 ## Initial Configuration
 
-> 💡 **Recommended:** After the first start, open the Web UI (**Menu → Config → Providers**) to add your LLM provider and API key. Credentials are stored securely in the vault. Editing `config.yaml` directly is only needed for headless or scripted setups.
+> [!TIP]
+> **Recommended:** After the first start, open the Web UI (**Menu → Config → Providers**) to add your LLM provider and API key. Credentials are stored securely in the vault. Editing `config.yaml` directly is only needed for headless or scripted setups.
 
 ### 1. Configure API Key (Web UI — Recommended)
 
@@ -205,9 +206,11 @@ llm:
 
 ```
 
-> 💡 **No API key?** Visit [openrouter.ai](https://openrouter.ai) – there are free models available.
+> [!TIP]
+> **No API key?:** Visit [openrouter.ai](https://openrouter.ai) – there are free models available.
 
-> ℹ️ **Note:** The provider system (using `providers:` list) is the recommended configuration method for AuraGo 2.x. The provider ID is then referenced in the `llm.provider` field.
+> [!NOTE]
+> The provider system (using `providers:` list) is the recommended configuration method for AuraGo 2.x. The provider ID is then referenced in the `llm.provider` field.
 
 ### 2. Set Master Key
 
@@ -227,7 +230,8 @@ Get-Content .env | ForEach-Object {
 }
 ```
 
-> ⚠️ **Important:** Keep `.env` safe! Without this key, the vault cannot be decrypted.
+> [!IMPORTANT]
+> Keep `.env` safe! Without this key, the vault cannot be decrypted.
 
 ### 3. Set Up System Service (Optional)
 
@@ -333,7 +337,8 @@ docker compose pull
 docker compose up -d
 ```
 
-> 💡 `resources.dat` does NOT need to be re-extracted – your config is preserved.
+> [!TIP]
+> `resources.dat` does NOT need to be re-extracted – your config is preserved.
 
 ### Installer and Updater Display
 

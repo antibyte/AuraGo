@@ -25,7 +25,8 @@ Short reference. The long truth lives in `config_template.yaml` and [Chapter 21]
 
 ## Complete Configuration Reference
 
-> 💡 **Web UI first:** Use **Menu → Config** for day-to-day changes. This appendix documents the full `config.yaml` structure for reference, automation, and headless deployments.
+> [!TIP]
+> **Web UI first:** Use **Menu → Config** for day-to-day changes. This appendix documents the full `config.yaml` structure for reference, automation, and headless deployments.
 
 ### Full config.yaml Structure
 
@@ -1146,7 +1147,8 @@ When using AuraGo in projects or publications, please consider acknowledging:
 
 ---
 
-> 💡 **Tip:** Keep this appendix handy as a quick reference. The configuration reference and command tables are especially useful when setting up new instances or customizing behavior.
+> [!TIP]
+> Keep this appendix handy as a quick reference. The configuration reference and command tables are especially useful when setting up new instances or customizing behavior.
 
 ---
 

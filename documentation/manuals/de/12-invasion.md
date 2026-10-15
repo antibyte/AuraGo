@@ -10,7 +10,8 @@ Eggs schlüpfen auf Nests. Die Namen sind ernst gemeint.
 
 Invasion Control deployt **AuraGo-Sub-Agenten** (Eggs) auf Remote- oder lokale Ziele (Nests). Der Master überträgt ein Worker-Binary plus generierte `config.yaml`, das Egg startet im **egg_mode** und verbindet sich per WebSocket zurück zum Master.
 
-> **Hinweis:** Eggs sind **LLM-Sub-Agenten-Konfigurationsvorlagen**, keine Shell-Skripte, Cronjobs oder Docker-Image-Definitionen. Nests und Eggs werden in der Invasion-SQLite-Datenbank gespeichert, nicht in `config.yaml`.
+> [!NOTE]
+> Eggs sind **LLM-Sub-Agenten-Konfigurationsvorlagen**, keine Shell-Skripte, Cronjobs oder Docker-Image-Definitionen. Nests und Eggs werden in der Invasion-SQLite-Datenbank gespeichert, nicht in `config.yaml`.
 
 ---
 
@@ -198,7 +199,8 @@ Verbindung testen:
 curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 ```
 
-> 💡 **Tipp:** SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
+> [!TIP]
+> SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
 
 REST-Feld `export_nest_secret` (Boolean): Ein Anlegen ohne das Feld beginnt mit `false`; ein Update ohne das Feld behält den aktuellen Wert. Beim ersten Start dieses Releases werden bestehende Nests auf `true` gesetzt, sie kopieren ihr Secret also weiter, und eine bereits vorhandene `invasion.db` wird vorher nach `invasion.db.pre-export-nest-secret.bak` daneben kopiert.
 
@@ -246,7 +248,8 @@ Wähle für solche Nests den Zugriffstyp `SSH`. `Docker (über SSH)` ignoriert `
 | `open /var/run/docker.sock: ssh: rejected: connect failed ("open failed")` | Entweder hat eine Forwarding-Richtlinie den Socket abgelehnt (`AllowStreamLocalForwarding no`, `DisableForwarding yes` oder `restrict` / `no-port-forwarding` in `authorized_keys`), oder der Socket fehlt (Docker läuft nicht, Rootless Docker) bzw. der SSH-Benutzer darf ihn nicht öffnen. OpenSSH antwortet in beiden Fällen gleich; nur bei einer Ablehnung durch eine Richtlinie steht im `sshd`-Log des Ziels `refused streamlocal port forward` |
 | `negotiate Docker API: context deadline exceeded` | SSH-Anmeldung, Öffnen des Sockets und Versionsantwort waren nicht innerhalb von 20 Sekunden fertig (die SSH-Anmeldung allein darf bis zu 10 dauern), siehe [Troubleshooting](#verbindung-verweigert--timeout) |
 
-> ⚠️ Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
+> [!WARNING]
+> Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
 
 ---
 
@@ -438,7 +441,8 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/safe-reconfigure
 
 Erlaubte Patch-Felder: `provider`, `base_url`, `model`, `allowed_tools`, `allow_filesystem_write`, `allow_network_requests`, `allow_remote_shell`, `allow_self_update`.
 
-> ⚠️ Das Egg wird nach dem Anwenden neu gestartet.
+> [!WARNING]
+> Das Egg wird nach dem Anwenden neu gestartet.
 
 Config-Historie und Rollback:
 
@@ -612,7 +616,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 
 ## Sicherheitshinweise
 
-> ⚠️ **Wichtig:**
+> [!IMPORTANT]
 > - SSH-Keys, Passwörter und API-Keys im Vault speichern
 > - `include_vault` nur auf vertrauenswürdigen Hosts nutzen
 > - **Secret dieses Nests in den Egg-Vault kopieren** gibt dem Egg das Passwort oder den SSH-Key, mit dem sich der Master an seinem Host anmeldet. Bei neuen Nests ist es aus; schalte es bei älteren Nests ab, wenn ihr Egg es nicht braucht. Das Abschalten wirkt beim nächsten Hatch; ein bereits ausgerolltes Egg behält seine Kopie bis dahin.

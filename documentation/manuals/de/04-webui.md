@@ -102,7 +102,8 @@ Das Radial-Menü ist die Hauptnavigation. Es öffnet sich als kreisförmiges Men
 2. **Wähle** einen Menüpunkt
 3. **Die Seite** wechselt sofort
 
-> 💡 Auf Mobilgeräten kannst du auch von rechts nach links wischen.
+> [!TIP]
+> Auf Mobilgeräten kannst du auch von rechts nach links wischen.
 
 ## Die Chat-Oberfläche
 
@@ -238,7 +239,8 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 3. Bestätigungsdialog beim Bereichswechsel mit ungespeicherten Änderungen (Sidebar, Hash, Browser Zurück/Vor).
 4. **AuraGo neu starten**, wenn UI oder Doku es verlangen.
 
-> ⚠️ **Achtung:** Verworfene Änderungen nur nach Bestätigung im Modal.
+> [!WARNING]
+> Verworfene Änderungen nur nach Bestätigung im Modal.
 
 ## Virtual Desktop
 

@@ -102,7 +102,8 @@ The radial menu is the main navigation. It opens as a circular menu from the top
 2. **Select** a menu item
 3. **The page** switches immediately
 
-> 💡 On mobile devices, you can also swipe from right to left.
+> [!TIP]
+> On mobile devices, you can also swipe from right to left.
 
 ## The Chat Interface
 
@@ -238,7 +239,8 @@ Here you edit the `config.yaml` via a web form.
 3. Confirm when prompted if you switch sections with unsaved edits (sidebar click, hash change, or browser Back/Forward).
 4. **Restart AuraGo** when the UI or docs indicate it (server port, some integrations).
 
-> ⚠️ **Attention:** Leaving a section without saving discards in-memory edits only after you confirm discard in the modal.
+> [!WARNING]
+> **Attention:** Leaving a section without saving discards in-memory edits only after you confirm discard in the modal.
 
 ## Virtual Desktop
 

@@ -48,7 +48,8 @@ Geplante Chats, keine Shell-Skripte. Eggs und Nests wohnen in [Invasion Control]
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> 💡 Missions laufen im Hintergrund und beeinträchtigen den normalen Chat-Betrieb nicht.
+> [!TIP]
+> Missions laufen im Hintergrund und beeinträchtigen den normalen Chat-Betrieb nicht.
 
 ---
 
@@ -108,7 +109,8 @@ mission_preparation:
   auto_prepare_scheduled: true
 ```
 
-> 💡 Mission Preparation ist rein beratend – es blockiert niemals die Ausführung.
+> [!TIP]
+> Mission Preparation ist rein beratend – es blockiert niemals die Ausführung.
 
 ### Abhängigkeiten und Warteschlange
 
@@ -198,7 +200,8 @@ AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit S
 | `0 */15 * * * *` | Alle 15 Minuten mit expliziten Sekunden |
 | `0 0 1 * *` | Am 1. jeden Monats |
 
-> 💡 Nutze [crontab.guru](https://crontab.guru) zum Testen deiner Cron-Ausdrücke.
+> [!TIP]
+> Nutze [crontab.guru](https://crontab.guru) zum Testen deiner Cron-Ausdrücke.
 
 ### Ereignis-Trigger
 
@@ -517,7 +520,8 @@ tail -f log/aurago.log | grep -i mission
 | **Cron-Scheduling** | ✅ Unterstützt |
 | **Manuelle Ausführung** | ✅ Über Web-UI/API |
 
-> 💡 **Tipp:** Für komplexe Automatisierungen nutze die Web-UI. Für Integrationen in externe Systeme verwende die REST API.
+> [!TIP]
+> Für komplexe Automatisierungen nutze die Web-UI. Für Integrationen in externe Systeme verwende die REST API.
 
 ## Synchronisierte Hinweise zu Mission Control V2
 

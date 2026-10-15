@@ -10,7 +10,8 @@ Eggs hatch on nests. The names are serious.
 
 Invasion Control deploys **AuraGo sub-agents** (Eggs) to remote or local targets (Nests). The master pushes a worker binary plus generated `config.yaml`, the Egg starts in **egg mode**, and connects back to the master over WebSocket.
 
-> **Note:** Eggs are **LLM sub-agent configuration templates**, not shell scripts, cron jobs, or Docker image definitions. Nests and Eggs are stored in the invasion SQLite database, not in `config.yaml`.
+> [!NOTE]
+> Eggs are **LLM sub-agent configuration templates**, not shell scripts, cron jobs, or Docker image definitions. Nests and Eggs are stored in the invasion SQLite database, not in `config.yaml`.
 
 ---
 
@@ -208,7 +209,8 @@ Response:
 }
 ```
 
-> 💡 **Tip:** Store SSH keys and passwords in the vault via the UI/API at creation time. Secrets are never included in list/get responses (`has_secret: true` indicates a stored credential).
+> [!TIP]
+> Store SSH keys and passwords in the vault via the UI/API at creation time. Secrets are never included in list/get responses (`has_secret: true` indicates a stored credential).
 
 REST field `export_nest_secret` (boolean): a create without it starts with `false`; an update without it keeps the current value. On the first start of this release, existing nests are set to `true`, so they keep copying their secret, and an `invasion.db` that already existed is first copied to `invasion.db.pre-export-nest-secret.bak` next to it.
 
@@ -256,7 +258,8 @@ Choose access type `SSH` for such nests. `Docker (via SSH)` ignores `HTTP_PROXY`
 | `open /var/run/docker.sock: ssh: rejected: connect failed ("open failed")` | Either a forwarding policy refused the socket (`AllowStreamLocalForwarding no`, `DisableForwarding yes`, or `restrict` / `no-port-forwarding` in `authorized_keys`), or the socket is missing (Docker not running, rootless Docker) or the SSH user may not open it. OpenSSH answers both the same way; the target's `sshd` log shows `refused streamlocal port forward` only for a policy refusal |
 | `negotiate Docker API: context deadline exceeded` | The SSH login, the socket open and the version answer did not finish within 20 seconds (the SSH login alone may take up to 10), see [Troubleshooting](#connection-refused--timeout) |
 
-> ⚠️ Older AuraGo versions treat unknown deploy methods as `SSH`. After a downgrade, a `docker_ssh` nest would deploy the binary over SSH instead of the container. Switch these nests to another method before downgrading.
+> [!WARNING]
+> Older AuraGo versions treat unknown deploy methods as `SSH`. After a downgrade, a `docker_ssh` nest would deploy the binary over SSH instead of the container. Switch these nests to another method before downgrading.
 
 ---
 
@@ -495,7 +498,8 @@ Allowed patch fields:
 | `allow_remote_shell` | Remote shell permission |
 | `allow_self_update` | Self-update permission |
 
-> ⚠️ The Egg is restarted after applying changes.
+> [!WARNING]
+> The Egg is restarted after applying changes.
 
 View revision history:
 
@@ -674,7 +678,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 
 ## Security Notes
 
-> ⚠️ **Important:**
+> [!IMPORTANT]
 > - Store SSH keys, passwords, and API keys in the vault — never in chat logs or plain config
 > - `include_vault` ships encrypted vault data to the target; use only on trusted hosts
 > - **Copy this nest's secret into the egg vault** gives the Egg the password or SSH key the master uses to log in to its host. It is off for new nests; switch it off for older nests whose Egg does not need it. Switching it off takes effect at the next hatch; a deployed Egg keeps its copy until then.

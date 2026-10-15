@@ -91,7 +91,8 @@ export PYTHON_PATH=/usr/bin/python3.10
 | Firewall? | `sudo ufw allow 8088` oder Port ändern |
 | Falsche IP? | `server.host` auf `0.0.0.0` setzen für LAN-Zugriff |
 
-> ⚠️ **Warnung:** `0.0.0.0` exponiert die UI im LAN. Nie ohne Auth im Internet nutzen!
+> [!WARNING]
+> `0.0.0.0` exponiert die UI im LAN. Nie ohne Auth im Internet nutzen!
 
 ### Telegram Bot reagiert nicht
 
@@ -317,7 +318,8 @@ Kann die Datei gar nicht gelesen werden (zum Beispiel wegen fehlender Rechte ode
 
 Falls `AURAGO_MASTER_KEY` verloren:
 
-> ⚠️ **Ohne Master-Key ist der Vault unwiderruflich verloren!**
+> [!WARNING]
+> **Ohne Master-Key ist der Vault unwiderruflich verloren!:**
 
 **Neuer Vault:**
 ```bash
@@ -396,7 +398,8 @@ Bei schwer reproduzierbaren Fehlern zuerst Debug Mode, dann die Status-Endpunkte
 
 ---
 
-> 💡 **Tipp:** Die meisten Probleme lassen sich durch sorgfältiges Lesen der Logs lösen. Nimm dir Zeit, die Fehlermeldungen zu verstehen.
+> [!TIP]
+> Die meisten Probleme lassen sich durch sorgfältiges Lesen der Logs lösen. Nimm dir Zeit, die Fehlermeldungen zu verstehen.
 
 ---
 

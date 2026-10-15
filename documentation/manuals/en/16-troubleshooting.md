@@ -74,7 +74,8 @@ The full UI is missing, or the binary is not pinned to the resource set.
 
 `resources.dat` is the **backend archive** (prompts, skills, template). It does not replace the Web UI. If only the UI is missing, use `--check-assets` above.
 
-> ⚠️ **Error:** `resources.dat not found or corrupted`
+> [!WARNING]
+> **Error:** `resources.dat not found or corrupted`
 
 **Solution:** Place the release asset `resources.dat` next to the binary. Do not rename a UI `tar.gz` to `resources.dat`. Then run `./aurago --setup` if prompts or skills are missing.
 
@@ -93,7 +94,8 @@ The full UI is missing, or the binary is not pinned to the resource set.
 
 ### Web UI Not Accessible
 
-> ⚠️ **Symptom:** Browser shows "Connection refused" or "This site can't be reached"
+> [!WARNING]
+> **Symptom:** Browser shows "Connection refused" or "This site can't be reached"
 
 **Checklist:**
 
@@ -131,7 +133,8 @@ The full UI is missing, or the binary is not pinned to the resource set.
 
 ### Port Already in Use
 
-> ⚠️ **Error:** `bind: address already in use`
+> [!WARNING]
+> **Error:** `bind: address already in use`
 
 **Solution:**
 ```bash
@@ -161,7 +164,8 @@ server:
 
 ### Discord Bot Issues
 
-> ⚠️ **Bot appears offline**
+> [!WARNING]
+> **Bot appears offline:**
 
 1. Verify bot token in Discord Developer Portal
 2. Check `gateway intents` are enabled (Server Members, Message Content)
@@ -174,7 +178,8 @@ server:
 
 ### API Key Issues
 
-> ⚠️ **Error:** `401 Unauthorized` or `invalid_api_key`
+> [!WARNING]
+> **Error:** `401 Unauthorized` or `invalid_api_key`
 
 **Solutions:**
 
@@ -199,7 +204,8 @@ server:
 
 ### Rate Limiting (429 Errors)
 
-> ⚠️ **Error:** `429 Too Many Requests`
+> [!WARNING]
+> **Error:** `429 Too Many Requests`
 
 **Solutions:**
 
@@ -223,7 +229,8 @@ circuit_breaker:
 
 ### Model Not Found
 
-> ⚠️ **Error:** `model not found` or `invalid model identifier`
+> [!WARNING]
+> **Error:** `model not found` or `invalid model identifier`
 
 **Solution:**
 ```bash
@@ -259,7 +266,8 @@ fallback_llm:
 
 ### High Memory Usage
 
-> ⚠️ **Symptom:** AuraGo using excessive RAM (>2GB)
+> [!WARNING]
+> **Symptom:** AuraGo using excessive RAM (>2GB)
 
 **Causes and Solutions:**
 
@@ -286,7 +294,8 @@ circuit_breaker:
 
 ### Database Locked Errors
 
-> ⚠️ **Error:** `database is locked` (SQLite)
+> [!WARNING]
+> **Error:** `database is locked` (SQLite)
 
 **Solutions:**
 ```bash
@@ -302,7 +311,8 @@ cp data/short_term.db.backup data/short_term.db
 
 ### VectorDB Issues
 
-> ⚠️ **Error:** `chromem: index corrupted` or search returns no results
+> [!WARNING]
+> **Error:** `chromem: index corrupted` or search returns no results
 
 **Recovery:**
 ```bash
@@ -328,7 +338,8 @@ rm -rf data/vectordb/*
 
 ### Container Won't Start
 
-> ⚠️ **Error:** `Error response from daemon: driver failed programming external connectivity`
+> [!WARNING]
+> **Error:** `Error response from daemon: driver failed programming external connectivity`
 
 **Solution:**
 ```bash
@@ -339,7 +350,8 @@ ports:
 
 ### Web UI Not Accessible in Docker
 
-> ⚠️ **Critical:** Must use `host: "0.0.0.0"` in Docker!
+> [!WARNING]
+> **Critical:** Must use `host: "0.0.0.0"` in Docker!
 
 ```yaml
 # config.yaml - CORRECT for Docker
@@ -360,7 +372,8 @@ sudo chmod 666 /var/run/docker.sock
 
 ### Volume Persistence Issues
 
-> ⚠️ **Data lost after container restart**
+> [!WARNING]
+> **Data lost after container restart:**
 
 **Check docker-compose.yml:**
 ```yaml
@@ -377,7 +390,8 @@ docker volume inspect aurago_aurago_data
 
 ### Python Skills Fail in Docker
 
-> ⚠️ **Error:** `pip install failed` or `module not found`
+> [!WARNING]
+> **Error:** `pip install failed` or `module not found`
 
 **Solution:**
 ```bash
@@ -395,10 +409,11 @@ docker compose up -d
 | Ollama | `http://host.docker.internal:11434/v1` |
 | Local API | `http://host.docker.internal:PORT` |
 
-> 💡 **Linux users:** Add to `docker-compose.yml`:
+> [!TIP]
+> **Linux users:** Add to `docker-compose.yml`:
 > ```yaml
 > extra_hosts:
->   - "host.docker.internal:host-gateway"
+> - "host.docker.internal:host-gateway"
 > ```
 
 ---
@@ -591,7 +606,8 @@ docker compose down
 
 ### Reset Chat History
 
-> 💡 **Non-destructive:** Only clears conversation, keeps memories
+> [!TIP]
+> **Non-destructive:** Only clears conversation, keeps memories
 
 ```text
 /reset
@@ -611,7 +627,8 @@ If the file cannot be read at all (for example missing permissions or a lock hel
 
 ### Vault Recovery
 
-> ⚠️ **Critical:** Without master key, encrypted data is lost forever
+> [!WARNING]
+> **Critical:** Without master key, encrypted data is lost forever
 
 **If master key is lost:**
 1. Stop AuraGo
@@ -633,7 +650,8 @@ export NEW_KEY=$(openssl rand -hex 32)
 
 ### Complete Reset (Fresh Start)
 
-> ⚠️ **Destructive:** Deletes all data!
+> [!WARNING]
+> **Destructive:** Deletes all data!
 
 ```bash
 # Backup first
@@ -729,7 +747,8 @@ Paste relevant log entries here
 
 ### Security Issues
 
-> ⚠️ **For security vulnerabilities, do NOT open public issues.**
+> [!WARNING]
+> **For security vulnerabilities, do NOT open public issues.:**
 
 Contact: [Security contact information from project]
 

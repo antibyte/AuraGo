@@ -28,7 +28,8 @@ Web UI first. YAML for headless and GitOps. Secrets in the vault, not the file. 
 18. [New Runtimes and Local Integrations](#new-runtimes-and-local-integrations)
 19. [Compact YAML Reference](#compact-yaml-reference)
 20. [Advanced Config Blocks](#advanced-config-blocks)
-21. [Next Steps](#next-steps)
+21. [Summary](#summary)
+22. [Next Steps](#next-steps)
 
 ---
 
@@ -80,7 +81,8 @@ The easiest way to configure AuraGo is through the built-in Web UI:
 5. **Toggle switches** and **fill in fields** as needed
 6. **Click "Save"** at the bottom of the page
 
-> 💡 **Tip:** The Web UI validates configuration before saving, preventing syntax errors.
+> [!TIP]
+> The Web UI validates configuration before saving, preventing syntax errors.
 
 Schema-rendered integration sections (including Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible) expose a read-only **Test connection** button. Tests work only with the **saved** configuration and stored Vault credentials — dirty or incomplete sections stay locked with a visible reason. The tests send only read-only status/authentication requests: they never send messages, execute playbooks, or mutate remote state.
 
@@ -218,7 +220,8 @@ llm:
 | `huggingface` | Hugging Face inference | Variable |
 | `llamacpp` / `lmstudio` | Local llama.cpp and LM Studio servers | `http://localhost:8080/v1` |
 
-> 💡 Which providers and models the Web UI offers is driven by the bundled model catalog (`model_catalog`, see the block table below). The catalog is a snapshot — you can still enter models newer than the catalog.
+> [!TIP]
+> Which providers and models the Web UI offers is driven by the bundled model catalog (`model_catalog`, see the block table below). The catalog is a snapshot — you can still enter models newer than the catalog.
 
 ### LLM Parameters
 
@@ -281,9 +284,11 @@ server:
 | `https.http_port` | `80` | HTTP port for ACME challenge |
 | `https.behind_proxy` | `false` | AuraGo is behind a reverse proxy |
 
-> 💡 **Tip:** For production deployments, set `host` to `127.0.0.1` and use a reverse proxy (nginx, Caddy, Traefik) with HTTPS.
+> [!TIP]
+> For production deployments, set `host` to `127.0.0.1` and use a reverse proxy (nginx, Caddy, Traefik) with HTTPS.
 
-> ⚠️ **Warning:** Never expose AuraGo directly to the internet without authentication. Enable `auth` or use a VPN.
+> [!WARNING]
+> Never expose AuraGo directly to the internet without authentication. Enable `auth` or use a VPN.
 
 ---
 
@@ -430,7 +435,8 @@ agent:
     sudo_enabled: false          # execute_sudo tool (requires vault entry)
 ```
 
-> ⚠️ **Warning:** Disabling `allow_filesystem_write` prevents the agent from modifying files, which limits functionality but increases safety.
+> [!WARNING]
+> Disabling `allow_filesystem_write` prevents the agent from modifying files, which limits functionality but increases safety.
 
 ---
 
@@ -612,7 +618,8 @@ embeddings:
 | `mxbai-embed-large` | 1024 | Medium | Excellent |
 | `snowflake-arctic-embed` | 768 | Small | Good |
 
-> 💡 **Tip:** For local deployments, use Ollama with `nomic-embed-text` for fast, free embeddings without API costs.
+> [!TIP]
+> For local deployments, use Ollama with `nomic-embed-text` for fast, free embeddings without API costs.
 
 ---
 
@@ -806,7 +813,8 @@ services:
       - ./secrets:/run/optional-secrets:ro
 ```
 
-> 💡 **Tip:** Put the vault master key in `./secrets/aurago_master.key` or use your Docker secret manager. If no key is mounted, AuraGo generates one into the persistent data volume on first start.
+> [!TIP]
+> Put the vault master key in `./secrets/aurago_master.key` or use your Docker secret manager. If no key is mounted, AuraGo generates one into the persistent data volume on first start.
 
 ---
 
@@ -833,7 +841,8 @@ AuraGo validates the configuration on startup:
 
 ## Common Configuration Examples
 
-> 💡 **Tip:** These YAML examples work for headless or advanced setups, but the **Web UI is the easier way** to configure AuraGo today.
+> [!TIP]
+> These YAML examples work for headless or advanced setups, but the **Web UI is the easier way** to configure AuraGo today.
 
 ### Example 1: Local Development with Ollama
 
@@ -1069,7 +1078,8 @@ The following blocks can also be configured through the Web UI or additionally i
 | `flows` | Visual EasyDrag flows: missions with their own engine ([Chapter 11](11-missions.md#flow-missions-easydrag)). Limits: 1–32 runs, 1–16 branches per run, 1–365 days retention, 10–5000 runs per flow; empty `ai_provider` = main model. Changing a limit requires a restart. Turning `enabled` off locks EasyDrag and the API immediately; published flows keep running until the restart, and a run already in flight can still be stopped. `ai_provider` applies immediately. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline Wikipedia (Kiwix ZIM), agent tool and desktop app | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
 
-> 📖 For details on all available parameters see `config_template.yaml` in the project root.
+> [!NOTE]
+> For details on all available parameters see `config_template.yaml` in the project root.
 
 ---
 
@@ -1401,6 +1411,23 @@ media_registry:
 
 ---
 
+## Summary
+
+| Section | Purpose |
+|-----------|---------|
+| `providers` | Central LLM management |
+| `llm` | Main LLM selection |
+| `embeddings` | RAG/long-term memory |
+| `agent` | Behavior & permissions |
+| `tools.*` | Tool permissions |
+| `server` | Web UI settings |
+| `telegram/discord/email` | Integrations |
+
+> [!TIP]
+> Start with the minimal configuration and enable features as needed. The Web UI offers the safest and most convenient way to extend the configuration.
+
+---
+
 ## Next Steps
 
 Now that you understand AuraGo configuration:
@@ -1409,7 +1436,8 @@ Now that you understand AuraGo configuration:
 2. **[Security](14-security.md)** – Harden your AuraGo installation
 3. **[Troubleshooting](16-troubleshooting.md)** – Fix common configuration issues
 
-> 💡 **Pro Tip:** Keep a backup of your working `config.yaml` before making major changes. Configuration errors can prevent AuraGo from starting.
+> [!TIP]
+> Keep a backup of your working `config.yaml` before making major changes. Configuration errors can prevent AuraGo from starting.
 
 ---
 

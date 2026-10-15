@@ -97,7 +97,8 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 
 ## Konfiguration der wichtigsten Tools
 
-> 💡 **Tipp:** Die bevorzugte Konfiguration erfolgt über die **Web-UI**. Die YAML-Beispiele unten sind eine alternative Referenz für Docker-Deployments und Git-Ops.
+> [!TIP]
+> Die bevorzugte Konfiguration erfolgt über die **Web-UI**. Die YAML-Beispiele unten sind eine alternative Referenz für Docker-Deployments und Git-Ops.
 
 ### 1. Dateisystem & Shell
 
@@ -408,7 +409,8 @@ tools:
     enabled: false               # lädt externe Seiten in den Agent-Kontext; bewusst aktivieren (ersetzt veraltetes allow_web_scraper)
 ```
 
-> ⚠️ **Tipp:** In Produktionsumgebungen nur das aktivieren, was wirklich benötigt wird.
+> [!TIP]
+> In Produktionsumgebungen nur das aktivieren, was wirklich benötigt wird.
 
 ---
 
@@ -673,7 +675,8 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 | **Effizienz** | Adaptive Tools sparen Tokens |
 | **Medien** | Bilder, Musik, Audio, Dokumente und Videos generieren und ausliefern |
 
-> 💡 **Merke:** AuraGos Stärke liegt in der Kombination von Tools. Ein einzelner Chat kann Shell-Befehle, Web-Suchen, Docker-Operationen und E-Mail-Benachrichtigungen verketten – vollautomatisch!
+> [!TIP]
+> **Merke:** AuraGos Stärke liegt in der Kombination von Tools. Ein einzelner Chat kann Shell-Befehle, Web-Suchen, Docker-Operationen und E-Mail-Benachrichtigungen verketten – vollautomatisch!
 
 ---
 

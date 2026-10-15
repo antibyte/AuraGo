@@ -21,6 +21,7 @@ Say what you want. Not which tool to pick — unless you have to.
 11. [Example Conversations](#example-conversations)
 12. [Troubleshooting](#troubleshooting)
 13. [Quick Reference Card](#quick-reference-card)
+14. [Next Steps](#next-steps)
 
 ---
 
@@ -110,7 +111,8 @@ You: Search web query="Go 1.21 release date" max_results=5
 You: Create file path="config.yml" content="[YAML content]"
 ```
 
-> 💡 **Tip:** AuraGo is flexible. Experiment to find the style that works best for your use case.
+> [!TIP]
+> AuraGo is flexible. Experiment to find the style that works best for your use case.
 
 ## Secure Secret Prompts
 
@@ -172,7 +174,8 @@ Agent: 📊 Monthly Revenue:
    ...
 ```
 
-> 💡 **Tip:** Large files are automatically summarized. For specific sections, mention page numbers or line ranges.
+> [!TIP]
+> Large files are automatically summarized. For specific sections, mention page numbers or line ranges.
 
 ## Image Analysis
 
@@ -240,7 +243,8 @@ When using AuraGo via Telegram, you can send voice messages for hands-free inter
 | Keep messages under 1 minute for best results | Record very long monologues |
 | Mention context explicitly | Assume previous context is known |
 
-> 💡 **Tip:** Voice messages are transcribed using OpenAI's Whisper or similar services. The transcription accuracy affects the quality of responses.
+> [!TIP]
+> Voice messages are transcribed using OpenAI's Whisper or similar services. The transcription accuracy affects the quality of responses.
 
 ## Chat History Management
 
@@ -289,7 +293,8 @@ Operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `
 - The agent needs previous context
 - You want to build on earlier work
 
-> ⚠️ **Warning:** `/reset` clears short-term memory. Long-term memories, notes, and core facts are preserved.
+> [!WARNING]
+> `/reset` clears short-term memory. Long-term memories, notes, and core facts are preserved.
 
 ### Message Threading (Web UI)
 
@@ -486,7 +491,8 @@ Consider:
 | Assuming knowledge | Provide necessary context |
 | No output specification | State desired format clearly |
 
-> 💡 **Tip:** If you're not getting the desired result, try rephrasing or breaking the request into smaller steps.
+> [!TIP]
+> If you're not getting the desired result, try rephrasing or breaking the request into smaller steps.
 
 ## Example Conversations
 
@@ -612,7 +618,8 @@ Agent: 🌤️ London Weather:
    - Day after: 18°C, Sunny
 ```
 
-> 💡 **Tip:** Start simple and gradually increase complexity. AuraGo learns your preferences and working style over time.
+> [!TIP]
+> Start simple and gradually increase complexity. AuraGo learns your preferences and working style over time.
 
 ---
 
@@ -657,6 +664,14 @@ Agent: 🌤️ London Weather:
 "Remember that..."    - For storing facts
 "What do you know..." - For memory retrieval
 ```
+
+---
+
+## Next Steps
+
+- **[Tools](06-tools.md)** – All available tools in detail
+- **[Configuration](07-configuration.md)** – Fine-tuning your agent
+- **[Integrations](08-integrations.md)** – Set up Telegram, Discord, Email
 
 ---
 

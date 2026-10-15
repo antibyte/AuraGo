@@ -80,7 +80,8 @@ Clears the current chat history and short-term memory (STM). This is useful for 
 🧹 Chat history and short-term memory have been cleared.
 ```
 
-> ⚠️ **Note:** Long-term memory (LTM) and the Knowledge Graph remain intact.
+> [!NOTE]
+> Long-term memory (LTM) and the Knowledge Graph remain intact.
 
 ---
 
@@ -112,7 +113,8 @@ Restarts the AuraGo server. This can be useful after making configuration change
 🔄 AuraGo is restarting...
 ```
 
-> ⚠️ **Note:** The restart occurs asynchronously after a short 1-second delay.
+> [!NOTE]
+> The restart occurs asynchronously after a short 1-second delay.
 
 ---
 
@@ -184,7 +186,8 @@ Use `/personality <name>` to switch.
 🎭 Personality switched to **friend**. The change is permanent.
 ```
 
-> ℹ️ Personalities are stored as Markdown files in the `prompts/personalities/` directory.
+> [!NOTE]
+> Personalities are stored as Markdown files in the `prompts/personalities/` directory.
 
 ---
 
@@ -215,7 +218,8 @@ Models Used:
   • anthropic/claude-3.5-sonnet: $0.10
 ```
 
-> ℹ️ Budget tracking must be enabled in the configuration (`budget.enabled: true`).
+> [!NOTE]
+> Budget tracking must be enabled in the configuration (`budget.enabled: true`).
 
 ---
 
@@ -324,7 +328,8 @@ Used today: $0.42
 Remaining: $25.01
 ```
 
-> ℹ️ This command is only available when an OpenRouter provider is configured (primary LLM, helper LLM, or providers list).
+> [!NOTE]
+> This command is only available when an OpenRouter provider is configured (primary LLM, helper LLM, or providers list).
 
 ---
 

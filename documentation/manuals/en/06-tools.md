@@ -97,7 +97,8 @@ The current version includes several powerful extensions:
 
 ## Configuration of Key Tools
 
-> 💡 **Web UI first:** Open **Menu → Config** and use the sidebar to configure tools and integrations. The YAML blocks below are for advanced or headless setups.
+> [!TIP]
+> **Web UI first:** Open **Menu → Config** and use the sidebar to configure tools and integrations. The YAML blocks below are for advanced or headless setups.
 
 ### 1. Filesystem & Shell
 
@@ -417,7 +418,8 @@ tools:
     enabled: false               # outbound page scraping into agent context; enable deliberately (replaces deprecated allow_web_scraper, **Config → Agent Tools → Web Scraper**)
 ```
 
-> ⚠️ **Tip:** In production environments, only enable what you really need.
+> [!TIP]
+> In production environments, only enable what you really need.
 
 ---
 
@@ -682,7 +684,8 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 | **Efficiency** | Adaptive Tools save tokens |
 | **Media** | Generate and deliver images, music, audio, documents, and videos |
 
-> 💡 **Remember:** AuraGo's strength lies in combining tools. A single chat can chain shell commands, web searches, Docker operations, and email notifications — fully automatically!
+> [!TIP]
+> **Remember:** AuraGo's strength lies in combining tools. A single chat can chain shell commands, web searches, Docker operations, and email notifications — fully automatically!
 
 ---
 

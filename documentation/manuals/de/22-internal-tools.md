@@ -737,7 +737,8 @@ Vier native Tools teilen sich eine Broker-Verbindung und einen Nachrichten-Buffe
 | `mqtt_unsubscribe` | Empfang für ein Topic beenden | `topic` |
 | `mqtt_get_messages` | Gepufferte eingehende Nachrichten lesen | `topic` (leer oder `#` für alle), `limit` (Standard 20) |
 
-> 💡 **Workflow:** Abonnieren oder `mqtt.topics` in der Config nutzen, auf Nachrichten warten (oder `relay_to_agent`), dann `mqtt_get_messages`. Ausgehende Steuerung über `mqtt_publish`.
+> [!TIP]
+> **Workflow:** Abonnieren oder `mqtt.topics` in der Config nutzen, auf Nachrichten warten (oder `relay_to_agent`), dann `mqtt_get_messages`. Ausgehende Steuerung über `mqtt_publish`.
 
 ### `fritzbox_system`
 Fritz!Box System-Infos, Logs, Reboot.
@@ -1662,7 +1663,8 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 | `ssh_key_manager.md` | SSH-Key-Helfer (Inventory-Workflows) |
 | `skill_manifest_spec.md` | Referenz für Skill-Manifeste |
 
-> 📖 Quelle für Parameter und Beispiele: `prompts/tools_manuals/` und `config_template.yaml`. Dieses Kapitel fasst Gates und Operationen zusammen; die Manuals enthalten Aufrufmuster.
+> [!NOTE]
+> Quelle für Parameter und Beispiele: `prompts/tools_manuals/` und `config_template.yaml`. Dieses Kapitel fasst Gates und Operationen zusammen; die Manuals enthalten Aufrufmuster.
 
 ---
 

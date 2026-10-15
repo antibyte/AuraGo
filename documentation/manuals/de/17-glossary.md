@@ -559,7 +559,8 @@ SQL  → Structured Query Language
 
 ---
 
-> 💡 **Tipp:** Viele Begriffe haben im Kontext von AuraGo spezifische Bedeutungen. Bei Unklarheiten immer auch die entsprechenden Kapitel konsultieren.
+> [!TIP]
+> Viele Begriffe haben im Kontext von AuraGo spezifische Bedeutungen. Bei Unklarheiten immer auch die entsprechenden Kapitel konsultieren.
 
 ---
 

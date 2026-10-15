@@ -39,7 +39,8 @@ The easiest and recommended way to configure integrations is through the AuraGo 
 6. Store credentials securely in the **Vault** (not in `config.yaml`!).
 7. Click **Save** and restart AuraGo if prompted.
 
-> 💡 **Tip:** Most integrations support a **Read-only** toggle. Enable it first to test safely.
+> [!TIP]
+> Most integrations support a **Read-only** toggle. Enable it first to test safely.
 
 ### Configuration Reference (Chapter 7)
 
@@ -78,7 +79,8 @@ Search for **@userinfobot** in Telegram and start it—it will reply with your I
 4. Save and restart AuraGo.
 5. Send `/start` to your bot to test.
 
-> ⚠️ **Security Warning:** Never share your bot token.
+> [!WARNING]
+> **Security Warning:** Never share your bot token.
 
 #### YAML Reference
 ```yaml
@@ -111,7 +113,8 @@ Enable **Developer Mode** in Discord (User Settings → Advanced), then right-cl
 3. Paste the **Bot Token**, **Guild ID**, **Channel ID**, and your **User ID**.
 4. Save and restart.
 
-> 💡 **Tip:** Enable `readonly` for a monitoring-only bot.
+> [!TIP]
+> Enable `readonly` for a monitoring-only bot.
 
 `allowed_user_id` is required for inbound Discord control. Leave it empty to block user messages until a specific Discord user ID is configured.
 
@@ -502,7 +505,8 @@ Control your smart home devices through AuraGo.
 5. Store the **Access Token** in the Vault.
 6. Save and restart.
 
-> 💡 **Tip:** Enable `readonly` for monitoring-only access.
+> [!TIP]
+> Enable `readonly` for monitoring-only access.
 
 #### YAML Reference
 ```yaml
@@ -797,7 +801,8 @@ Manage Docker containers, images, and networks.
 3. Set the **Docker Host** (`unix:///var/run/docker.sock` on Linux/macOS, `npipe:////./pipe/docker_engine` on Windows, or a remote `tcp://` address).
 4. Save and restart.
 
-> ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
+> [!WARNING]
+> Docker integration grants significant system access. Use `readonly` for restricted environments.
 
 #### Agent Compose Stacks and Host Access
 
@@ -819,7 +824,8 @@ With a Docker Compose older than v2.35 AuraGo resolves a named profile service w
 
 Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter or media servers with host folders need host access. Configurations created before this setting existed have it switched on automatically (the updater writes `allow_host_access: true`); fresh installs start with `false`. Toggle it in **Config → Danger Zone → Docker host access for agent Compose stacks**. The security check warns while it is on.
 
-> ⚠️ With host access on, a bind of a parent directory such as `/` (node-exporter) still exposes AuraGo's vault, `config.yaml` and master key to that container. Only AuraGo's own paths themselves are blocked.
+> [!WARNING]
+> With host access on, a bind of a parent directory such as `/` (node-exporter) still exposes AuraGo's vault, `config.yaml` and master key to that container. Only AuraGo's own paths themselves are blocked.
 
 #### YAML Reference
 ```yaml
@@ -834,7 +840,8 @@ docker:
 
 Structured OS package management via the `package_manager` tool. Supports apt, dnf, yum, pacman, zypper, apk, brew, winget, choco, and scoop.
 
-> ⚠️ **Security:** Package management grants significant system access. Enable only when needed and prefer `readonly` for monitoring.
+> [!WARNING]
+> **Security:** Package management grants significant system access. Enable only when needed and prefer `readonly` for monitoring.
 
 #### Requirements
 
@@ -1861,7 +1868,8 @@ github:
 | `list_workflow_runs` | CI/CD workflow runs |
 | `list_projects`, `track_project`, `untrack_project` | Local project tracking |
 
-> 💡 **Vault:** Store the token as `github_token`. Never put API tokens in `config.yaml`.
+> [!TIP]
+> **Vault:** Store the token as `github_token`. Never put API tokens in `config.yaml`.
 
 #### Webhooks (Separate)
 
@@ -2031,7 +2039,8 @@ Connect to external SQL databases (PostgreSQL, MySQL/MariaDB, SQLite).
 5. Adjust `max_result_rows` and timeouts as needed.
 6. Save and restart.
 
-> 💡 **Security:** Use dedicated read-only users when possible.
+> [!WARNING]
+> **Security:** Use dedicated read-only users when possible.
 
 #### YAML Reference
 ```yaml
@@ -2273,7 +2282,8 @@ remote_control:
 
 When AuraGo serves HTTPS itself, the **Auto detect** connection route (`connection_mode: auto`) puts a `wss://` URL on `server.https.https_port` into agent downloads, so the agent must trust the certificate (Let's Encrypt or a custom trusted certificate); with a self-signed certificate use **Manual supervisor URL** (`connection_mode: manual`) pointing at a route with a trusted certificate (a Cloudflare Tunnel or a reverse proxy, not `wss://host:https_port` again) or **Use Tailscale network** (`connection_mode: tailscale`).
 
-> ⚠️ **Upgrade note (enrollment key split):** Enrollment tokens issued before the upgrade are invalid; create new ones.
+> [!NOTE]
+> **Upgrade note (enrollment key split):** Enrollment tokens issued before the upgrade are invalid; create new ones.
 > Remote agents deployed before the upgrade cannot reconnect and must be replaced with a download from the upgraded AuraGo (**Remote Control**). Their device keys survive, so no re-enrollment is needed.
 > The supervisor logs `unsupported frame version` for each affected device.
 > A token's enrollment key is held in the Vault as `remote_enroll_key_<id>` until the token is used, or swept after it expires (at the next token issuance).
@@ -2301,7 +2311,8 @@ AuraGo can pair with the **AgoDesk** desktop client over WebSocket. When a devic
 }
 ```
 
-> 📖 Full protocol reference: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md) (pairing flow, capabilities, desktop commands).
+> [!NOTE]
+> Full protocol reference: [`documentation/agodesk_backend_protocol.md`](../../agodesk_backend_protocol.md) (pairing flow, capabilities, desktop commands).
 
 **API:** `GET /api/remote/devices` lists connected RemoteHub/AgoDesk devices.
 
@@ -2328,7 +2339,8 @@ Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CP
 
 **Web UI:** Config → Integrations → Shell Sandbox → Enable and configure limits.
 
-> 💡 Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the Linux/macOS host shell without an effective sandbox also requires `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Updates via `update.sh` and Docker write `agent.allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise); configurations that never had the key written keep working and show the `shell_unsafe_host_legacy` hint. Inside Docker no shell sandbox exists, so a fresh Docker install that enables the shell must set `agent.allow_unsandboxed_shell: true` (or `allow_unsafe_host_execution: true`).
+> [!TIP]
+> Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the Linux/macOS host shell without an effective sandbox also requires `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Updates via `update.sh` and Docker write `agent.allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise); configurations that never had the key written keep working and show the `shell_unsafe_host_legacy` hint. Inside Docker no shell sandbox exists, so a fresh Docker install that enables the shell must set `agent.allow_unsandboxed_shell: true` (or `allow_unsafe_host_execution: true`).
 
 Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses. `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) are only passed to shell commands and host Python while the Docker tool is enabled (`docker.enabled`). Skills (Python skills, daemon skills and Agent Skill scripts) still receive `DOCKER_HOST`: installed skills are treated as trusted, and the Docker manager skill template depends on it.
 
@@ -2368,7 +2380,8 @@ tools:
 
 Skills declare bridge usage in their manifest via `internal_tools`. The agent does not call the bridge directly — skills invoke it at runtime.
 
-> ⚠️ **Security:** Only whitelist tools a skill truly needs. Never add `get_secret`, `execute_shell`, or vault tools unless you fully trust the skill code.
+> [!WARNING]
+> **Security:** Only whitelist tools a skill truly needs. Never add `get_secret`, `execute_shell`, or vault tools unless you fully trust the skill code.
 
 ### Skill Manager Integration
 
@@ -2420,7 +2433,8 @@ tools:
 | `reenable` | Re-enable an auto-disabled daemon |
 | `refresh` | Rescan skills from disk and reconcile running daemons |
 
-> ⚠️ **Cost control:** `max_wakeups_per_hour` and `max_budget_per_hour` act as circuit breakers to prevent runaway LLM costs from frequent daemon wake-ups.
+> [!WARNING]
+> **Cost control:** `max_wakeups_per_hour` and `max_budget_per_hour` act as circuit breakers to prevent runaway LLM costs from frequent daemon wake-ups.
 
 ### Virtual Desktop Integration
 
@@ -3042,7 +3056,8 @@ dograh:
     turn_enabled: false                 # optional coturn sidecar for WebRTC
 ```
 
-> 📖 See also `prompts/tools_manuals/manifest.md` for Manifest sidecar details.
+> [!NOTE]
+> See also `prompts/tools_manuals/manifest.md` for Manifest sidecar details.
 
 ---
 

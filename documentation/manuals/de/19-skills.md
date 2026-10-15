@@ -8,7 +8,8 @@ Zwei Familien: **Python-Skills** zum Ausführen, **Agent Skills** (`SKILL.md`) f
 
 Nach dem Start läuft die Prüfung der Agent Skills im Hintergrund. Ein langsamer Guardian oder SkillSpector verzögert dadurch weder die Weboberfläche noch löst er einen Update-Rollback aus. Game Maker bleibt bis zur Prüfung seiner Skills nicht verfügbar. Beim Herunterfahren werden offene Prüfungen ohne Freigabe abgebrochen; die Startprüfung ist auf fünf Minuten begrenzt.
 
-> 💡 **Skill Manager:** Uploads, Aktivierung und Sicherheits-Scan über **Config → Tools → Fähigkeiten-Manager** oder die Seite **Skills** (`/skills`).
+> [!TIP]
+> **Skill Manager:** Uploads, Aktivierung und Sicherheits-Scan über **Config → Tools → Fähigkeiten-Manager** oder die Seite **Skills** (`/skills`).
 
 ---
 
@@ -69,7 +70,8 @@ Das Manifest beschreibt den Skill für den Agenten:
 }
 ```
 
-> **Hinweis:** `parameters` kann auch ein vollständiges JSON Schema sein (mit `type`, `properties`, `required`, `enum`, etc.). Das vereinfachte Key→Description-Format oben wird automatisch unterstützt.
+> [!NOTE]
+> `parameters` kann auch ein vollständiges JSON Schema sein (mit `type`, `properties`, `required`, `enum`, etc.). Das vereinfachte Key→Description-Format oben wird automatisch unterstützt.
 
 **Felder erklärt:**
 
@@ -183,7 +185,8 @@ Skills können auf Secrets aus dem Vault zugreifen, um API-Keys, Tokens oder Pas
 3. **Wert eingeben**: Dein API-Key
 4. **Speichern**
 
-> ⚠️ **Wichtig:** Nur Secrets, die du selbst erstellt hast, sind in Skills verfügbar. System-Secrets (wie LLM-API-Keys) sind blockiert.
+> [!IMPORTANT]
+> Nur Secrets, die du selbst erstellt hast, sind in Skills verfügbar. System-Secrets (wie LLM-API-Keys) sind blockiert.
 
 ### Schritt 2: Im Manifest deklarieren
 
@@ -205,7 +208,8 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
 
 ### Sicherheitshinweise
 
-> ⚠️ **Wichtig:** Skills sind ein Sonderfall beim Vault-Zugriff!
+> [!IMPORTANT]
+> Skills sind ein Sonderfall beim Vault-Zugriff!
 >
 > Normalerweise hat der Agent **keinen Zugriff** auf Vault-Secrets. Bei Skills müssen die Geheimnisse jedoch an den Python-Prozess übertragen werden, um vom Skill genutzt werden zu können.
 >
@@ -313,7 +317,8 @@ Agent: 🛠️ Skill: file_analyzer
 }
 ```
 
-> **Hinweis:** Verwende einen eigenen Namen wie `gh_access_token` für deinen GitHub Personal Access Token. Speichere ihn unter diesem Namen im Vault. `github_token` ist für die Systemnutzung reserviert.
+> [!NOTE]
+> Verwende einen eigenen Namen wie `gh_access_token` für deinen GitHub Personal Access Token. Speichere ihn unter diesem Namen im Vault. `github_token` ist für die Systemnutzung reserviert.
 
 **Python** (`github_repo.py`):
 ```python

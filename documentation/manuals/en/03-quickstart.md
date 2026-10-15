@@ -40,7 +40,8 @@ Choose your preferred language:
 - ...
 ```
 
-> 💡 This setting affects the agent's and Web UI's language.
+> [!TIP]
+> This setting affects the agent's and Web UI's language.
 
 ### Step 2: LLM Provider
 
@@ -67,7 +68,8 @@ Choose your AI provider:
 - Punk – Rebellious, unconventional
 ```
 
-> 💡 You can change the personality at any time later.
+> [!TIP]
+> You can change the personality at any time later.
 
 ### Step 4: First Integrations (Optional)
 
@@ -174,7 +176,8 @@ Agent: 📄 Summary of document.pdf:
    The document covers...
 ```
 
-> 💡 Supported formats: TXT, PDF, images (JPG, PNG), code files, and more.
+> [!TIP]
+> Supported formats: TXT, PDF, images (JPG, PNG), code files, and more.
 
 ## Getting to Know the First Tools
 

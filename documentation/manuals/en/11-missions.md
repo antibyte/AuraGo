@@ -8,7 +8,8 @@ Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12
 
 > Mission Control is **Web UI** and **REST API** only. There is no extra CLI.
 
-> **Note:** Nests and Eggs belong to [Invasion Control](12-invasion.md), not Mission Control. Missions are **prompt-based agent tasks**, not shell/script templates.
+> [!NOTE]
+> Nests and Eggs belong to [Invasion Control](12-invasion.md), not Mission Control. Missions are **prompt-based agent tasks**, not shell/script templates.
 
 ---
 
@@ -50,7 +51,8 @@ Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> 💡 Missions run in the background and do not block normal chat.
+> [!TIP]
+> Missions run in the background and do not block normal chat.
 
 ---
 
@@ -113,7 +115,8 @@ mission_preparation:
   auto_prepare_scheduled: true
 ```
 
-> 💡 Mission Preparation is advisory only — it never blocks execution.
+> [!TIP]
+> Mission Preparation is advisory only — it never blocks execution.
 
 ### Dependencies and Queue
 
@@ -197,7 +200,8 @@ AuraGo accepts standard 5-field **cron expressions** and optional 6-field expres
 | `0 */15 * * * *` | Every 15 minutes, with explicit seconds |
 | `0 0 1 * *` | First day of each month |
 
-> 💡 Use [crontab.guru](https://crontab.guru) to test cron expressions.
+> [!TIP]
+> Use [crontab.guru](https://crontab.guru) to test cron expressions.
 
 ---
 
@@ -455,7 +459,8 @@ fi
 | **Manual execution** | ✅ Web UI / API |
 | **Remote execution** | ✅ Via invasion nests |
 
-> 💡 For complex automation use the Web UI. For external integrations use the REST API with session auth.
+> [!TIP]
+> For complex automation use the Web UI. For external integrations use the REST API with session auth.
 
 ---
 

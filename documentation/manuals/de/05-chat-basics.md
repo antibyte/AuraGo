@@ -19,8 +19,9 @@ Sag, was du willst. Nicht, welches Tool er nehmen soll — außer du musst.
 9. [Best Practices für Prompts](#best-practices-für-prompts)
 10. [Beispiel-Konversationen](#beispiel-konversationen)
 11. [Fehlerbehebung](#fehlerbehebung)
-12. [Zusammenfassung: Dos and Don'ts](#zusammenfassung-dos-and-donts)
-13. [Nächste Schritte](#nächste-schritte)
+12. [Kurzreferenz](#kurzreferenz)
+13. [Zusammenfassung: Dos and Don'ts](#zusammenfassung-dos-and-donts)
+14. [Nächste Schritte](#nächste-schritte)
 
 ---
 
@@ -38,7 +39,8 @@ Du: Can you help me write a Python script?
 Du: Peux-tu m'aider à écrire un script Python?
 ```
 
-> 💡 **Tipp:** Die Standardsprache des Agents wird unter **Config → Agent → System Language** gesetzt (YAML: `agent.system_language`). Du kannst jederzeit die Sprache im Chat wechseln.
+> [!TIP]
+> Die Standardsprache des Agents wird unter **Config → Agent → System Language** gesetzt (YAML: `agent.system_language`). Du kannst jederzeit die Sprache im Chat wechseln.
 
 ### Klare vs. komplexe Anfragen
 
@@ -173,7 +175,8 @@ Agent: 📄 Konfigurationsübersicht:
    - Budget-Tracking deaktiviert
 ```
 
-> 💡 **Tipp:** Bei großen Dateien (> 1MB) wird AuraGo automatisch die relevanten Abschnitte extrahieren oder dich fragen, wonach suchen soll.
+> [!TIP]
+> Bei großen Dateien (> 1MB) wird AuraGo automatisch die relevanten Abschnitte extrahieren oder dich fragen, wonach suchen soll.
 
 ## Bildanalyse
 
@@ -254,7 +257,8 @@ Agent: ✅ E-Mail wird vorbereitet...
    Möchtest du die E-Mail jetzt senden?
 ```
 
-> 💡 **Tipp:** Sprachnachrichten sind besonders nützlich unterwegs oder für längere Anfragen.
+> [!TIP]
+> Sprachnachrichten sind besonders nützlich unterwegs oder für längere Anfragen.
 
 ## Chat-Verlauf und Kontext
 
@@ -275,7 +279,8 @@ Agent: ✅ "Dokumentation schreiben" zur Liste hinzugefügt
        3. Dokumentation schreiben
 ```
 
-> 💡 **Der Agent erinnert sich an den vorherigen Kontext**, auch wenn du nicht explizit wiederholst, worum es geht.
+> [!TIP]
+> **Der Agent erinnert sich an den vorherigen Kontext:** , auch wenn du nicht explizit wiederholst, worum es geht.
 
 ### Chat zurücksetzen
 
@@ -601,6 +606,38 @@ Agent: 🛠️ Erstelle neues Tool "weather_check"...
 | Zu lange Antworten | Keine Format-Vorgabe | "Kurze Antwort" oder "In Stichpunkten" ergänzen |
 | Agent "halluziniert" Fakten | Kein Web-Zugriff bei Fakten | "Suche im Web nach..." explizit sagen |
 
+## Kurzreferenz
+
+### Essentielle Befehle
+```text
+/help          - Alle Befehle anzeigen
+/reset         - Chat-Verlauf leeren
+/stop          - Aktuelle Aktion abbrechen
+/restart       - AuraGo-Server neu starten
+/debug on/off  - Debug-Modus umschalten
+/budget        - API-Kosten anzeigen
+/personality   - Persönlichkeit wechseln
+/voice         - Sprachausgabe umschalten
+/warnings      - Systemwarnungen anzeigen
+/sudopwd       - Sudo-Passwort im Vault speichern
+/credits       - OpenRouter-Guthaben anzeigen
+/addssh        - SSH-Server registrieren
+```
+
+### Nachrichtenmuster, die gut funktionieren
+```text
+"Zeige mir..."          - Für Informationsabruf
+"Erstelle eine..."      - Für Datei-/Skript-Erstellung
+"Erkläre..."            - Zum Lernen und Dokumentieren
+"Vergleiche..."         - Für Analyse und Entscheidungen
+"Fixe/verbessere..."    - Für Code-Bearbeitung
+"Richte ... ein"        - Für Konfigurationsaufgaben
+"Merke dir..."          - Zum Speichern von Fakten
+"Was weißt du über..."  - Für Gedächtnis-Abruf
+```
+
+---
+
 ## Zusammenfassung: Dos and Don'ts
 
 | ✅ Do | ❌ Don't |
@@ -614,7 +651,8 @@ Agent: 🛠️ Erstelle neues Tool "weather_check"...
 
 ---
 
-> 💡 **Merke:** Je besser du kommunizierst, desto besser werden die Ergebnisse. AuraGo ist ein Werkzeug – du bist der Architekt!
+> [!TIP]
+> **Merke:** Je besser du kommunizierst, desto besser werden die Ergebnisse. AuraGo ist ein Werkzeug – du bist der Architekt!
 
 ## Nächste Schritte
 

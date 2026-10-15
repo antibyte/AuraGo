@@ -171,7 +171,8 @@ make_deploy.bat   # Windows
 
 ## Erstkonfiguration
 
-> 💡 **Empfohlen:** Nach dem ersten Start die Web-UI öffnen (**Menü → Config → Provider**), LLM-Provider und API-Key eintragen. Zugangsdaten landen sicher im Vault. `config.yaml` direkt bearbeiten ist nur für Headless- oder Skript-Setups nötig.
+> [!TIP]
+> **Empfohlen:** Nach dem ersten Start die Web-UI öffnen (**Menü → Config → Provider**), LLM-Provider und API-Key eintragen. Zugangsdaten landen sicher im Vault. `config.yaml` direkt bearbeiten ist nur für Headless- oder Skript-Setups nötig.
 
 ### 1. API-Key konfigurieren (Web-UI — empfohlen)
 
@@ -205,7 +206,8 @@ llm:
   provider: main
 ```
 
-> 💡 **Keinen API-Key?** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle. Das Provider-System erlaubt mehrere LLM-Provider mit Failover; Details im [Kapitel 7: Konfiguration](07-configuration.md).
+> [!TIP]
+> **Keinen API-Key?:** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle. Das Provider-System erlaubt mehrere LLM-Provider mit Failover; Details im [Kapitel 7: Konfiguration](07-configuration.md).
 
 ### 2. Master Key setzen
 
@@ -225,7 +227,8 @@ Get-Content .env | ForEach-Object {
 }
 ```
 
-> ⚠️ **Wichtig:** Bewahre `.env` sicher auf! Ohne diesen Schlüssel kann der Vault nicht entschlüsselt werden.
+> [!IMPORTANT]
+> Bewahre `.env` sicher auf! Ohne diesen Schlüssel kann der Vault nicht entschlüsselt werden.
 
 ### 3. System-Service einrichten (optional)
 
@@ -331,7 +334,8 @@ docker compose pull
 docker compose up -d
 ```
 
-> 💡 `resources.dat` muss NICHT neu extrahiert werden – deine Config bleibt erhalten.
+> [!TIP]
+> `resources.dat` muss NICHT neu extrahiert werden – deine Config bleibt erhalten.
 
 ### Darstellung von Installer und Updater
 

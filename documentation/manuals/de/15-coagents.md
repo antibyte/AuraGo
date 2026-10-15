@@ -78,7 +78,8 @@ Co-Agenten sind eigenständige Helfer-Agenten, die der Haupt-Agent (Main Agent) 
 
 ### Wann NICHT nutzen
 
-> ⚠️ **Warnung:** Co-Agenten sind NICHT geeignet für:
+> [!WARNING]
+> Co-Agenten sind NICHT geeignet für:
 > - **Aufgaben mit Abhängigkeiten** (Task B braucht Ergebnis von Task A)
 > - **Kontext-sensitive Operationen** (wo jeder Schritt auf dem vorherigen aufbaut)
 > - **Sehr einfache Aufgaben** (Overhead zu hoch)
@@ -148,7 +149,8 @@ Der kompakte Zusatz übernimmt das Konzept von [Humanizer 3.0](https://github.co
 
 ### Modell-Auswahl
 
-> 💡 **Tipp:** Nutze für Co-Agenten ein kleineres, schnelleres Modell als den Main-Agenten:
+> [!TIP]
+> Nutze für Co-Agenten ein kleineres, schnelleres Modell als den Main-Agenten:
 
 | Main-Agent | Co-Agent (Empfohlen) | Grund |
 |------------|----------------------|-------|
@@ -380,7 +382,8 @@ circuit_breaker:
   timeout_seconds: 300
 ```
 
-> ⚠️ **Warnung:** Wenn ein Co-Agent das Timeout erreicht, wird er hart beendet. Das Ergebnis ist dann unvollständig.
+> [!WARNING]
+> Wenn ein Co-Agent das Timeout erreicht, wird er hart beendet. Das Ergebnis ist dann unvollständig.
 
 ---
 
@@ -412,7 +415,8 @@ circuit_breaker:
   max_tokens: 8000          # Co-Agent muss bei Überschreitung zusammenfassen
 ```
 
-> 💡 **Tipp:** Setze `max_tokens` für kostenkontrollierte Umgebungen. Der Co-Agent erhält dann eine Systemnachricht, seine Ergebnisse zu komprimieren.
+> [!TIP]
+> Setze `max_tokens` für kostenkontrollierte Umgebungen. Der Co-Agent erhält dann eine Systemnachricht, seine Ergebnisse zu komprimieren.
 
 ---
 
@@ -608,7 +612,8 @@ circuit_breaker:
 
 ---
 
-> 💡 **Nächste Schritte:**
+> [!TIP]
+> **Nächste Schritte:**
 > - **[Sicherheit](14-security.md)** – Co-Agenten sicher konfigurieren
 > - **[Konfiguration](07-configuration.md)** – Alle Parameter im Detail
 > - **[Tools](06-tools.md)** – Verfügbare Werkzeuge kennenlernen

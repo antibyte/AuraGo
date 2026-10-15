@@ -6,7 +6,8 @@
 
 Vault zu, Jail an, Danger Zone bewusst. Persönlichkeit ändert daran nichts.
 
-> ⚠️ **Kritisch:** AuraGo führt Code auf deinem System aus. Eine korrekte Sicherheitskonfiguration ist nicht optional, sondern zwingend erforderlich.
+> [!CAUTION]
+> AuraGo führt Code auf deinem System aus. Eine korrekte Sicherheitskonfiguration ist nicht optional, sondern zwingend erforderlich.
 
 ---
 
@@ -61,7 +62,8 @@ Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle
 | **Token** | OAuth-Refresh-Tokens, Bot-Tokens |
 | **Intern** | Master-Key-Derivate, Session-Secrets |
 
-> 💡 **Tipp:** Der Vault wird in `data/vault.bin` gespeichert. Das Master-Passwort (64 Hex-Zeichen) wird aus der Umgebungsvariable `AURAGO_MASTER_KEY` gelesen.
+> [!TIP]
+> Der Vault wird in `data/vault.bin` gespeichert. Das Master-Passwort (64 Hex-Zeichen) wird aus der Umgebungsvariable `AURAGO_MASTER_KEY` gelesen.
 
 ### Agent-Zugriff auf den Vault
 
@@ -140,7 +142,8 @@ llm_guardian:
   scan_emails: false                 # Eingehende E-Mails scannen
 ```
 
-> 💡 **Hinweis:** Der LLM Guardian nutzt das Provider-System. Erstelle einen eigenen Provider-Eintrag für den Guardian und referenziere ihn über die `provider`-ID.
+> [!NOTE]
+> Der LLM Guardian nutzt das Provider-System. Erstelle einen eigenen Provider-Eintrag für den Guardian und referenziere ihn über die `provider`-ID.
 
 `scan_emails` und `scan_documents` sind optionale Prüfungen und standardmäßig deaktiviert. Sobald eine davon aktiviert ist, wird Inhalt nur bei ausdrücklicher Freigabe weitergegeben. Scannerfehler, unvollständige Abdeckung und überschrittene Größenlimits quarantänisieren das Original; ein berechtigtes Agentenziel erhält nur einen festen, sicheren Hinweis. Diese Regel für eingehende Inhalte ist unabhängig von `fail_safe` und kann daher nicht mit `allow` oder `quarantine` auf Freigabe umgestellt werden.
 
@@ -226,7 +229,7 @@ Agent: 🛠️ Shell: sudo apt install nginx -y
 
 ### Sicherheitshinweise
 
-> ⚠️ **Wichtig:**
+> [!IMPORTANT]
 > - Das Sudo-Passwort wird **niemals** im Chat angezeigt oder geloggt
 > - Es ist nur im verschlüsselten Vault gespeichert
 > - Das Passwort erreicht nur `sudo -v`; Befehle laufen mit `sudo -n` und geschlossenem stdin. Voraussetzung: sudo-Timestamp-Caching aktiv (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer
@@ -306,7 +309,8 @@ Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`
 3. Du wirst automatisch zur Einrichtungsseite weitergeleitet
 4. Wähle ein starkes Passwort (min. 12 Zeichen, gemischte Zeichensätze)
 
-> ⚠️ **Warnung:** Ohne gesetztes Passwort wird die Authentifizierung automatisch deaktiviert, um einen Lockout zu verhindern!
+> [!WARNING]
+> Ohne gesetztes Passwort wird die Authentifizierung automatisch deaktiviert, um einen Lockout zu verhindern!
 
 ### Passwort manuell hashen (CLI)
 
@@ -347,7 +351,8 @@ node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('dein-pas
 
 ### Wichtige Hinweise zur 2FA
 
-> ⚠️ **Backup-Code speichern!** Wenn du den Zugang zu deinem Authenticator verlierst, kannst du dich ohne das TOTP-Secret nicht mehr anmelden. Exportiere das Secret aus der Config oder sichere es separat.
+> [!IMPORTANT]
+> **Backup-Code speichern!:** Wenn du den Zugang zu deinem Authenticator verlierst, kannst du dich ohne das TOTP-Secret nicht mehr anmelden. Exportiere das Secret aus der Config oder sichere es separat.
 
 ```yaml
 # Backup: Diesen Wert sicher aufbewahren!
@@ -444,7 +449,8 @@ tools:
 | **Email** | `email.readonly` | Kein Versand von E-Mails |
 | **Discord** | `discord.readonly` | Nur lesen, keine Nachrichten senden |
 
-> 💡 **Best Practice:** Starte mit `readonly: true` für alle kritischen Integrationen und aktiviere Schreibzugriff nur bei Bedarf.
+> [!TIP]
+> **Best Practice:** Starte mit `readonly: true` für alle kritischen Integrationen und aktiviere Schreibzugriff nur bei Bedarf.
 
 ---
 
@@ -523,7 +529,8 @@ fileLock := flock.New(vaultFile + ".lock")
 - **Zweck:** Verhindert, dass mehrere AuraGo-Prozesse gleichzeitig laufen
 - **Neustart:** Wird beim sauberen Beenden automatisch aufgeräumt
 
-> ⚠️ **Achtung:** Falls AuraGo abstürzt, kann die Lock-Datei bestehen bleiben. Lösche sie manuell: `rm data/aurago.lock`
+> [!WARNING]
+> Falls AuraGo abstürzt, kann die Lock-Datei bestehen bleiben. Lösche sie manuell: `rm data/aurago.lock`
 
 ---
 
@@ -560,7 +567,8 @@ auth:
 # [Auth] IP 192.168.1.100 locked out until 2026-03-08T14:30:00
 ```
 
-> 💡 **Tipp:** Bei Reverse-Proxy-Einsatz (nginx, Traefik) zählen `X-Forwarded-*`-Header nur, wenn `server.https.behind_proxy: true` gesetzt ist **und** die unmittelbare Gegenstelle in `server.https.trusted_proxy_cidrs` steht. Ohne diese Konfiguration werden clientgelieferte Weiterleitungsangaben verworfen. Details unten unter [Eingangs-Vertrauen](#eingangs-vertrauen-und-öffentliche-grenzen).
+> [!TIP]
+> Bei Reverse-Proxy-Einsatz (nginx, Traefik) zählen `X-Forwarded-*`-Header nur, wenn `server.https.behind_proxy: true` gesetzt ist **und** die unmittelbare Gegenstelle in `server.https.trusted_proxy_cidrs` steht. Ohne diese Konfiguration werden clientgelieferte Weiterleitungsangaben verworfen. Details unten unter [Eingangs-Vertrauen](#eingangs-vertrauen-und-öffentliche-grenzen).
 
 ---
 
@@ -617,7 +625,8 @@ agent:
   allow_unsafe_host_execution: false   # unsicher: nur nach bewusster Entscheidung setzen
 ```
 
-> ⚠️ Beide Flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) stehen in der Danger-Zone-Philosophie: standardmäßig `false`, im Log sichtbar, nur setzen, wenn du die Konsequenz trägst.
+> [!WARNING]
+> Beide Flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) stehen in der Danger-Zone-Philosophie: standardmäßig `false`, im Log sichtbar, nur setzen, wenn du die Konsequenz trägst.
 
 ---
 
@@ -664,7 +673,8 @@ agent:
 
 ### Vault zurücksetzen
 
-> ⚠️ **Warnung:** Dies löscht ALLE gespeicherten Secrets unwiderruflich!
+> [!WARNING]
+> Dies löscht ALLE gespeicherten Secrets unwiderruflich!
 
 ```bash
 # 1. AuraGo stoppen
@@ -705,7 +715,8 @@ curl -X POST http://localhost:8088/api/backup/import \
      --data-binary @vault_backup.aurago
 ```
 
-> 📖 Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup-api)
+> [!NOTE]
+> Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup-api)
 
 ### Vault-Status prüfen
 
@@ -860,7 +871,8 @@ Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs l
 
 ---
 
-> 💡 **Nächste Schritte:**
+> [!TIP]
+> **Nächste Schritte:**
 > - **[Co-Agenten](15-coagents.md)** – Parallele Agenten sicher nutzen
 > - **[Konfiguration](07-configuration.md)** – Feintuning aller Parameter
 > - **[Docker-Deployment](../../docker_installation.md)** – Isolierte Produktivumgebung

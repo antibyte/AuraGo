@@ -6,7 +6,8 @@
 
 Mehrere Regale, ein nützlicher Kontext. Die Zeichnung vereinfacht — sie ist kein Screenshot.
 
-> ⚠️ **Hinweis:** Dieses Kapitel beschreibt die aktuelle Implementierung. Einige fortgeschrittene Features aus früheren Versionen (wie konfigurierbare RAG-Parameter) sind in der aktuellen Version nicht verfügbar.
+> [!NOTE]
+> Dieses Kapitel beschreibt die aktuelle Implementierung. Einige fortgeschrittene Features aus früheren Versionen (wie konfigurierbare RAG-Parameter) sind in der aktuellen Version nicht verfügbar.
 
 ---
 
@@ -216,7 +217,8 @@ agent:
 | `soft` | Weiche Begrenzung, ältere Einträge werden priorisiert |
 | `hard` | Harte Begrenzung, überschüssige Einträge werden entfernt |
 
-> ⚠️ **Warnung:** Der Kernspeicher ist immer im Prompt enthalten. Halte ihn kurz (empfohlen unter 500 Tokens), um übermäßige API-Kosten zu vermeiden.
+> [!WARNING]
+> Der Kernspeicher ist immer im Prompt enthalten. Halte ihn kurz (empfohlen unter 500 Tokens), um übermäßige API-Kosten zu vermeiden.
 
 ---
 
@@ -695,7 +697,8 @@ llm:
   helper_model: ""                  # leer = auto; oder spezifisches kostengünstiges Modell
 ```
 
-> 💡 **Empfehlung:** Aktiviere den Helper LLM und weise ihm ein kleineres, kostengünstiges Modell zu (z. B. `google/gemini-2.0-flash-001`). Ohne Helper sind viele Hintergrundfunktionen wie Turn-Analyse, Konsolidierung und Wissensgraph-Extraktion nicht vollständig verfügbar.
+> [!TIP]
+> **Empfehlung:** Aktiviere den Helper LLM und weise ihm ein kleineres, kostengünstiges Modell zu (z. B. `google/gemini-2.0-flash-001`). Ohne Helper sind viele Hintergrundfunktionen wie Turn-Analyse, Konsolidierung und Wissensgraph-Extraktion nicht vollständig verfügbar.
 
 | Parameter | Standard | Beschreibung |
 |-----------|----------|--------------|
@@ -767,7 +770,8 @@ cp -r data/vectordb backup/  # Falls Embeddings aktiviert
 3. **Aufgabenmanagement** – Aufgaben mit Prioritäten, Fälligkeitsdaten, regelmäßige Prüfung
 4. **Wöchentliche Übersicht** – Speichernutzung im Dashboard prüfen, Einträge bereinigen, Core Memory bei Bedarf aktualisieren
 
-> 💡 **Profi-Tipp:** Wenn du keine semantische Suche benötigst, kannst du Embeddings weiterhin auf `disabled` setzen. Ein vorhandener eigener Provider bleibt ebenfalls vollständig unterstützt.
+> [!TIP]
+> Wenn du keine semantische Suche benötigst, kannst du Embeddings weiterhin auf `disabled` setzen. Ein vorhandener eigener Provider bleibt ebenfalls vollständig unterstützt.
 
 ---
 

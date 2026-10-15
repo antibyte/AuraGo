@@ -6,7 +6,8 @@
 
 Vault closed, jail on, Danger Zone on purpose. Personality does not change that.
 
-> ⚠️ **Critical:** AuraGo executes code on your system. Proper security configuration is not optional but mandatory.
+> [!WARNING]
+> **Critical:** AuraGo executes code on your system. Proper security configuration is not optional but mandatory.
 
 ---
 
@@ -61,7 +62,8 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 | **Tokens** | OAuth refresh tokens, bot tokens |
 | **Internal** | Master key derivatives, session secrets |
 
-> 💡 **Tip:** The vault is stored in `data/vault.bin`. The master password (64 hex characters) is read from the `AURAGO_MASTER_KEY` environment variable.
+> [!TIP]
+> The vault is stored in `data/vault.bin`. The master password (64 hex characters) is read from the `AURAGO_MASTER_KEY` environment variable.
 
 ### Agent Access to the Vault
 
@@ -170,7 +172,8 @@ The password hash, TOTP secret and session secret are stored in the **vault** (`
 3. You are redirected to the setup page automatically
 4. Choose a strong password (at least 12 characters, mixed character sets)
 
-> ⚠️ **Warning:** Without a configured password, authentication is disabled automatically to prevent a lockout!
+> [!WARNING]
+> Without a configured password, authentication is disabled automatically to prevent a lockout!
 
 ### Hashing a Password Manually (CLI)
 
@@ -211,7 +214,8 @@ node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('your-pas
 
 ### Important Notes on 2FA
 
-> ⚠️ **Save a backup code!** If you lose access to your authenticator, you cannot log in without the TOTP secret. Export the secret from the config or store it separately.
+> [!IMPORTANT]
+> **Save a backup code!:** If you lose access to your authenticator, you cannot log in without the TOTP secret. Export the secret from the config or store it separately.
 
 ```yaml
 # Backup: keep this value safe!
@@ -357,7 +361,8 @@ auth:
 - API rate limiting per IP
 - Webhook rate limiting configurable
 
-> 💡 **Tip:** Behind a reverse proxy (nginx, Traefik), `X-Forwarded-*` headers count only when `server.https.behind_proxy: true` is set **and** the immediate peer is listed in `server.https.trusted_proxy_cidrs`. Without this, client-supplied forwarding claims are discarded. Details below under [Ingress trust](#ingress-trust-and-public-boundaries).
+> [!TIP]
+> Behind a reverse proxy (nginx, Traefik), `X-Forwarded-*` headers count only when `server.https.behind_proxy: true` is set **and** the immediate peer is listed in `server.https.trusted_proxy_cidrs`. Without this, client-supplied forwarding claims are discarded. Details below under [Ingress trust](#ingress-trust-and-public-boundaries).
 
 ---
 
@@ -414,7 +419,8 @@ agent:
   allow_unsafe_host_execution: false   # unsafe: set only after a deliberate decision
 ```
 
-> ⚠️ Both flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) follow the danger-zone philosophy: default `false`, visible in the log, and set only when you accept the consequence.
+> [!WARNING]
+> Both flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) follow the danger-zone philosophy: default `false`, visible in the log, and set only when you accept the consequence.
 
 ---
 
@@ -467,7 +473,8 @@ Agent: 🔐 Vault Status:
 
 ### Reset Vault
 
-> ⚠️ **All secrets will be lost!**
+> [!WARNING]
+> **All secrets will be lost!:**
 
 ```bash
 # Backup old vault
@@ -583,7 +590,8 @@ If compromise is suspected: rotate keys with the provider, invalidate webhook to
 
 ---
 
-> 💡 **Next steps:**
+> [!TIP]
+> **Next steps:**
 > - **[Co-agents](15-coagents.md)** – Use parallel agents safely
 > - **[Configuration](07-configuration.md)** – Fine-tune every parameter
 > - **[Docker deployment](../../docker_installation.md)** – Isolated production environment

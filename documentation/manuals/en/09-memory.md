@@ -222,7 +222,8 @@ Agent: 📋 Core Memory:
    - Software Engineer
 ```
 
-> ⚠️ **Warning:** Core Memory is always included in prompts. Keep it concise (under 500 tokens recommended) to avoid excessive API costs.
+> [!WARNING]
+> Core Memory is always included in prompts. Keep it concise (under 500 tokens recommended) to avoid excessive API costs.
 
 ## Notes & To-Dos
 
@@ -773,7 +774,8 @@ helper_llm:
 
 ---
 
-> 💡 **Remember:** Good memory management is key to a personalized experience. Be intentional about what you store, and your AI assistant will become increasingly helpful over time.
+> [!TIP]
+> **Remember:** Good memory management is key to a personalized experience. Be intentional about what you store, and your AI assistant will become increasingly helpful over time.
 
 ---
 

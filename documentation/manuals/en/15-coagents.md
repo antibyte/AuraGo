@@ -90,7 +90,8 @@ Co-agents are independent helper agents that the main agent can dynamically spaw
 
 ## Configuration
 
-> 💡 **Web UI first:** Open **Config → Co-Agents** to enable the system, set concurrency limits, assign a provider, and configure specialists. YAML below is for headless or advanced setups.
+> [!TIP]
+> **Web UI first:** Open **Config → Co-Agents** to enable the system, set concurrency limits, assign a provider, and configure specialists. YAML below is for headless or advanced setups.
 
 ### Web UI Setup
 1. Open **Config → Co-Agents**.
@@ -521,7 +522,8 @@ circuit_breaker:
 
 ---
 
-> 💡 **Next steps:**
+> [!TIP]
+> **Next steps:**
 > - **[Security](14-security.md)** – Configure co-agents safely
 > - **[Configuration](07-configuration.md)** – Every parameter in detail
 > - **[Tools](06-tools.md)** – Learn the available tools

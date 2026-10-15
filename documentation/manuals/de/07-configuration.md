@@ -31,6 +31,7 @@ Web-UI zuerst. YAML für Headless und GitOps. Secrets in den Vault, nicht in die
 19. [Kompakte YAML-Referenz](#kompakte-yaml-referenz)
 20. [Erweiterte Konfigurationsblöcke](#erweiterte-konfigurationsblöcke)
 21. [Zusammenfassung](#zusammenfassung)
+22. [Nächste Schritte](#nächste-schritte)
 
 ---
 
@@ -38,7 +39,8 @@ Web-UI zuerst. YAML für Headless und GitOps. Secrets in den Vault, nicht in die
 
 AuraGo wird über eine zentrale YAML-Konfigurationsdatei gesteuert: `config.yaml`.
 
-> 💡 **Tipp:** Die meisten Einstellungen lassen sich heute komfortabel über die Web-UI vornehmen. Änderungen an `config.yaml` erfordern in der Regel einen Neustart von AuraGo.
+> [!TIP]
+> Die meisten Einstellungen lassen sich heute komfortabel über die Web-UI vornehmen. Änderungen an `config.yaml` erfordern in der Regel einen Neustart von AuraGo.
 
 ---
 
@@ -62,7 +64,8 @@ Die einfachste und sicherste Methode, AuraGo zu konfigurieren:
 5. **Aktiviere Toggles, fülle Felder aus** und klicke unten auf **Speichern**
 6. Einige Änderungen (z. B. Server-Port, Provider-Wechsel, Danger-Zone-Berechtigungen) erfordern einen **Neustart** – die UI zeigt das an
 
-> 💡 **Tipp:** Sensible Werte wie API-Keys oder Passwörter werden automatisch im Vault gespeichert, wenn sie über die Web-UI eingegeben werden.
+> [!TIP]
+> Sensible Werte wie API-Keys oder Passwörter werden automatisch im Vault gespeichert, wenn sie über die Web-UI eingegeben werden.
 
 ### Config-UX (Sidebar, Save-Leiste, ungespeicherte Änderungen)
 
@@ -202,9 +205,11 @@ embeddings:
 | `huggingface` | Hugging-Face-Inference |
 | `llamacpp` / `lmstudio` | Lokale llama.cpp- bzw. LM-Studio-Server |
 
-> 💡 Welche Provider und Modelle die Web-UI anbietet, steuert der gebündelte Modellkatalog (`model_catalog`, siehe Blocktabelle unten). Der Katalog ist eine Momentaufnahme — neuere Modelle des Anbieters kannst du trotzdem eintragen.
+> [!TIP]
+> Welche Provider und Modelle die Web-UI anbietet, steuert der gebündelte Modellkatalog (`model_catalog`, siehe Blocktabelle unten). Der Katalog ist eine Momentaufnahme — neuere Modelle des Anbieters kannst du trotzdem eintragen.
 
-> ⚠️ **Empfohlene Migration:** Nutze das neue Provider-System für mehr Flexibilität. Die alte "inline" Konfiguration funktioniert zwar weiterhin, ist aber nicht mehr empfohlen.
+> [!WARNING]
+> **Empfohlene Migration:** Nutze das neue Provider-System für mehr Flexibilität. Die alte "inline" Konfiguration funktioniert zwar weiterhin, ist aber nicht mehr empfohlen.
 
 ---
 
@@ -560,7 +565,8 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `flows` | Visuelle EasyDrag-Flows: Missionen mit eigener Engine ([Kapitel 11](11-missions.md#flow-missionen-easydrag)). Grenzen: Läufe 1–32, Zweige pro Lauf 1–16, Aufbewahrung 1–365 Tage, 10–5000 Läufe pro Flow; `ai_provider` leer = Hauptmodell. Änderungen an einer Grenze brauchen einen Neustart. `enabled` aus sperrt EasyDrag und die API sofort; veröffentlichte Flows laufen bis zum Neustart weiter, und einen schon laufenden Lauf kann man weiter stoppen. `ai_provider` gilt sofort. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
 
-> 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
+> [!NOTE]
+> Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
 
 ---
 
@@ -948,7 +954,21 @@ media_registry:
 | `server` | Web-UI Einstellungen |
 | `telegram/discord/email` | Integrationen |
 
-> 💡 **Profi-Tipp:** Beginne mit der Minimal-Konfiguration und aktiviere Features nach Bedarf. Die Web-UI bietet die sicherste und komfortabelste Methode, die Konfiguration zu erweitern.
+> [!TIP]
+> Beginne mit der Minimal-Konfiguration und aktiviere Features nach Bedarf. Die Web-UI bietet die sicherste und komfortabelste Methode, die Konfiguration zu erweitern.
+
+---
+
+## Nächste Schritte
+
+Jetzt, wo du die AuraGo-Konfiguration verstehst:
+
+1. **[Integrationen](08-integrations.md)** – Telegram, Discord, E-Mail und mehr einrichten
+2. **[Sicherheit](14-security.md)** – Deine AuraGo-Installation härten
+3. **[Troubleshooting](16-troubleshooting.md)** – Häufige Konfigurationsprobleme lösen
+
+> [!TIP]
+> Bewahre ein Backup deiner funktionierenden `config.yaml` auf, bevor du größere Änderungen machst. Konfigurationsfehler können verhindern, dass AuraGo startet.
 
 ---
 
