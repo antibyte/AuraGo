@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Upravujte až deset minut videa v 1080p. Server vyžaduje FFmpeg a FFprobe. Prázdná cesta použije PATH. Volitelné klipy AI používají nastavení generování videa.",
+  "config.video_studio.help": "Upravujte až šedesát minut videa ve 4K a při 24–60 fps. Server vyžaduje FFmpeg a FFprobe. Prázdná cesta použije PATH. Volitelné klipy AI používají nastavení generování videa.",
   "config.video_studio.enabled": "Zapnout Video Studio",
   "config.video_studio.readonly": "Projekty jen pro čtení",
   "config.video_studio.ffmpeg": "Program FFmpeg (prázdné: automaticky)",

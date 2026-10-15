@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Edita hasta diez minutos a 1080p. El servidor necesita FFmpeg y FFprobe. Una ruta vacía usa PATH. Los clips opcionales de IA usan la configuración de generación de vídeo.",
+  "config.video_studio.help": "Edita hasta sesenta minutos en 4K como máximo y a 24–60 fps. El servidor necesita FFmpeg y FFprobe. Una ruta vacía usa PATH. Los clips opcionales de IA usan la configuración de generación de vídeo.",
   "config.video_studio.enabled": "Activar Video Studio",
   "config.video_studio.readonly": "Proyectos de solo lectura",
   "config.video_studio.ffmpeg": "Ejecutable FFmpeg (vacío: automático)",

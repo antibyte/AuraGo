@@ -42,6 +42,16 @@ var (
 )
 
 const videoStudioUploadReadWindow = 15 * time.Minute
+
+// videoStudioUploadReadWindowFor allows at least 15 minutes and enough time for a full-size asset at 4 MiB/s.
+func videoStudioUploadReadWindowFor(maxAssetBytes int64) time.Duration {
+	window := time.Duration(maxAssetBytes/(4<<20)) * time.Second
+	if window < videoStudioUploadReadWindow {
+		return videoStudioUploadReadWindow
+	}
+	return window
+}
+
 const videoStudioUploadIdleWindow = 30 * time.Second
 
 type videoStudioArtifact struct {
@@ -246,10 +256,10 @@ func videoStudioConfigRootsChanged(previous, next *config.Config) bool {
 		previous.VirtualDesktop.ReadOnly != next.VirtualDesktop.ReadOnly
 }
 
-func beginVideoStudioUploadReadWindow(w http.ResponseWriter, body io.ReadCloser) (io.ReadCloser, func(), error) {
+func beginVideoStudioUploadReadWindow(w http.ResponseWriter, body io.ReadCloser, maxAssetBytes int64) (io.ReadCloser, func(), error) {
 	controller := http.NewResponseController(w)
 	started := time.Now()
-	maxEnd := started.Add(videoStudioUploadReadWindow)
+	maxEnd := started.Add(videoStudioUploadReadWindowFor(maxAssetBytes))
 	setIdleDeadline := func() error {
 		deadline := time.Now().Add(videoStudioUploadIdleWindow)
 		if deadline.After(maxEnd) {

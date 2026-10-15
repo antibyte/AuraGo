@@ -14,17 +14,17 @@ type VideoStudioConfig struct {
 
 // NormalizeVideoStudioConfig applies defaults without enabling the editor.
 func NormalizeVideoStudioConfig(c *VideoStudioConfig) error {
-	if c.MaxAssetSizeMB == 0 {
-		c.MaxAssetSizeMB = 1024
-	}
 	if c.MaxProjectSizeMB == 0 {
-		c.MaxProjectSizeMB = 4096
+		c.MaxProjectSizeMB = 16384
+	}
+	if c.MaxAssetSizeMB == 0 {
+		c.MaxAssetSizeMB = min(4096, c.MaxProjectSizeMB)
 	}
 	if c.RenderTimeoutSeconds == 0 {
-		c.RenderTimeoutSeconds = 3600
+		c.RenderTimeoutSeconds = 7200
 	}
-	if c.MaxAssetSizeMB < 1 || c.MaxAssetSizeMB > 8192 || c.MaxProjectSizeMB < c.MaxAssetSizeMB || c.MaxProjectSizeMB > 65536 || c.RenderTimeoutSeconds < 30 || c.RenderTimeoutSeconds > 14400 {
-		return fmt.Errorf("video_studio: asset size must be 1–8192 MB, project size at least the asset limit and at most 65536 MB, and timeout 30–14400 seconds")
+	if c.MaxAssetSizeMB < 1 || c.MaxAssetSizeMB > 32768 || c.MaxProjectSizeMB < c.MaxAssetSizeMB || c.MaxProjectSizeMB > 65536 || c.RenderTimeoutSeconds < 30 || c.RenderTimeoutSeconds > 14400 {
+		return fmt.Errorf("video_studio: asset size must be 1–32768 MB, project size at least the asset limit and at most 65536 MB, and timeout 30–14400 seconds")
 	}
 	return nil
 }

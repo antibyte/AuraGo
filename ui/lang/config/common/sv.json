@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Redigera upp till tio minuter i 1080p. Servern behöver FFmpeg och FFprobe. En tom programsökväg använder PATH. Valfria AI-klipp använder inställningarna för videogenerering.",
+  "config.video_studio.help": "Redigera upp till sextio minuter i upp till 4K och 24–60 fps. Servern behöver FFmpeg och FFprobe. En tom programsökväg använder PATH. Valfria AI-klipp använder inställningarna för videogenerering.",
   "config.video_studio.enabled": "Aktivera Video Studio",
   "config.video_studio.readonly": "Skrivskyddade projekt",
   "config.video_studio.ffmpeg": "FFmpeg-programsökväg (tom: automatiskt)",

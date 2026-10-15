@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "1080p में दस मिनट तक के वीडियो संपादित करें। सर्वर पर FFmpeg और FFprobe चाहिए। पथ खाली रखने पर PATH उपयोग होगा। वैकल्पिक AI क्लिप वीडियो निर्माण की सेटिंग इस्तेमाल करते हैं।",
+  "config.video_studio.help": "4K तक के रिज़ॉल्यूशन और 24–60 fps पर साठ मिनट तक के वीडियो संपादित करें। सर्वर पर FFmpeg और FFprobe चाहिए। पथ खाली रखने पर PATH उपयोग होगा। वैकल्पिक AI क्लिप वीडियो निर्माण की सेटिंग इस्तेमाल करते हैं।",
   "config.video_studio.enabled": "Video Studio चालू करें",
   "config.video_studio.readonly": "केवल पढ़ने योग्य प्रोजेक्ट",
   "config.video_studio.ffmpeg": "FFmpeg प्रोग्राम पथ (खाली: स्वचालित)",

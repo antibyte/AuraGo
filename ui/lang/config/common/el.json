@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Επεξεργασία έως δέκα λεπτών σε 1080p. Ο διακομιστής χρειάζεται FFmpeg και FFprobe. Η κενή διαδρομή χρησιμοποιεί το PATH. Τα προαιρετικά κλιπ AI χρησιμοποιούν τις ρυθμίσεις δημιουργίας βίντεο.",
+  "config.video_studio.help": "Επεξεργασία έως εξήντα λεπτών σε ανάλυση έως 4K και 24–60 fps. Ο διακομιστής χρειάζεται FFmpeg και FFprobe. Η κενή διαδρομή χρησιμοποιεί το PATH. Τα προαιρετικά κλιπ AI χρησιμοποιούν τις ρυθμίσεις δημιουργίας βίντεο.",
   "config.video_studio.enabled": "Ενεργοποίηση Video Studio",
   "config.video_studio.readonly": "Έργα μόνο για ανάγνωση",
   "config.video_studio.ffmpeg": "Εκτελέσιμο FFmpeg (κενό: αυτόματα)",

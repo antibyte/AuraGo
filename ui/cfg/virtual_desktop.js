@@ -168,9 +168,9 @@ function vdCfgVideoStudio() {
     html += vdCfgToggleRow(prefix + 'readonly', '', data.readonly === true, 'video_studio.readonly');
     html += vdCfgField(prefix + 'ffmpeg', '', '<input class="field-input" type="text" value="' + escapeAttr(data.ffmpeg_path || '') + '" data-path="video_studio.ffmpeg_path">');
     for (const [name, label, fallback, min, max] of [
-        ['max_asset_size_mb', 'asset_limit', 1024, 1, 8192],
-        ['max_project_size_mb', 'project_limit', 4096, 1, 65536],
-        ['render_timeout_seconds', 'timeout', 3600, 30, 14400]
+        ['max_asset_size_mb', 'asset_limit', 4096, 1, 32768],
+        ['max_project_size_mb', 'project_limit', 16384, 1, 65536],
+        ['render_timeout_seconds', 'timeout', 7200, 30, 14400]
     ]) {
         html += vdCfgField(prefix + label, '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
     }

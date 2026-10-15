@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Rediger op til ti minutter i 1080p. Serveren kræver FFmpeg og FFprobe. En tom programsti bruger PATH. Valgfrie AI-klip bruger indstillingerne for videogenerering.",
+  "config.video_studio.help": "Rediger op til tres minutter i op til 4K og 24–60 fps. Serveren kræver FFmpeg og FFprobe. En tom programsti bruger PATH. Valgfrie AI-klip bruger indstillingerne for videogenerering.",
   "config.video_studio.enabled": "Aktivér Video Studio",
   "config.video_studio.readonly": "Skrivebeskyttede projekter",
   "config.video_studio.ffmpeg": "FFmpeg-programsti (tom: automatisk)",

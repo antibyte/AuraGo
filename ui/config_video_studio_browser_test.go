@@ -25,7 +25,7 @@ func TestConfigVideoStudioBrowser(t *testing.T) {
         };
         await selectSection('virtual_desktop'); resetDirtySnapshot();
     }`)
-	if !page.MustEval(`() => document.querySelector('[data-path="video_studio.max_asset_size_mb"]').value==='1024' && !document.querySelector('[data-path="video_studio.enabled"]').classList.contains('on')`).Bool() {
+	if !page.MustEval(`() => document.querySelector('[data-path="video_studio.max_asset_size_mb"]').value==='4096' && !document.querySelector('[data-path="video_studio.enabled"]').classList.contains('on')`).Bool() {
 		t.Fatal("Video Studio defaults must be visible and disabled")
 	}
 	page.MustEval(`() => {

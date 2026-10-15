@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Montuj do dziesięciu minut w 1080p. Serwer wymaga FFmpeg i FFprobe. Pusta ścieżka programu używa PATH. Opcjonalne klipy AI korzystają z ustawień generowania wideo.",
+  "config.video_studio.help": "Montuj do sześćdziesięciu minut w rozdzielczości do 4K i 24–60 fps. Serwer wymaga FFmpeg i FFprobe. Pusta ścieżka programu używa PATH. Opcjonalne klipy AI korzystają z ustawień generowania wideo.",
   "config.video_studio.enabled": "Włącz Video Studio",
   "config.video_studio.readonly": "Projekty tylko do odczytu",
   "config.video_studio.ffmpeg": "Program FFmpeg (puste: automatycznie)",

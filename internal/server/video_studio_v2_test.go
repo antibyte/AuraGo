@@ -104,3 +104,12 @@ func TestVideoStudioV2CreateUpgradeAndRates(t *testing.T) {
 		t.Fatalf("status limits = %+v", limits.Limits)
 	}
 }
+
+func TestVideoStudioUploadWindowScalesWithAssetLimit(t *testing.T) {
+	if got := videoStudioUploadReadWindowFor(1024 << 20); got != 15*time.Minute {
+		t.Fatalf("1 GiB window = %s", got)
+	}
+	if got := videoStudioUploadReadWindowFor(8192 << 20); got != 2048*time.Second {
+		t.Fatalf("8 GiB window = %s", got)
+	}
+}

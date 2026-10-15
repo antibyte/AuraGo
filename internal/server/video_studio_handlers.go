@@ -576,7 +576,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 		}
 		name, source, sourceCloser, expectedSize = entry.Name, file, file, entry.Size
 	} else if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/form-data") {
-		r.Body, restoreUploadDeadline, err = beginVideoStudioUploadReadWindow(w, r.Body)
+		r.Body, restoreUploadDeadline, err = beginVideoStudioUploadReadWindow(w, r.Body, maxAsset)
 		if err != nil {
 			writeVideoStudioError(w, http.StatusRequestTimeout, "upload_timeout_setup_failed", "Upload could not establish a bounded read window.")
 			return

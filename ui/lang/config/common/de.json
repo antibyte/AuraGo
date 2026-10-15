@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Bearbeite bis zu zehn Minuten in 1080p. Auf dem Server müssen FFmpeg und FFprobe installiert sein. Ein leerer Programmpfad verwendet PATH. Optionale KI-Clips nutzen die Einstellungen der Videoerzeugung.",
+  "config.video_studio.help": "Bearbeite bis zu sechzig Minuten in bis zu 4K und 24–60 fps. Auf dem Server müssen FFmpeg und FFprobe installiert sein. Ein leerer Programmpfad verwendet PATH. Optionale KI-Clips nutzen die Einstellungen der Videoerzeugung.",
   "config.video_studio.enabled": "Video Studio aktivieren",
   "config.video_studio.readonly": "Projekte schreibgeschützt öffnen",
   "config.video_studio.ffmpeg": "FFmpeg-Programmpfad (leer: automatisch)",

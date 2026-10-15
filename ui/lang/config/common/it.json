@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Monta fino a dieci minuti in 1080p. Sul server servono FFmpeg e FFprobe. Un percorso vuoto usa PATH. I clip IA facoltativi usano le impostazioni di generazione video.",
+  "config.video_studio.help": "Monta fino a sessanta minuti in 4K al massimo e a 24–60 fps. Sul server servono FFmpeg e FFprobe. Un percorso vuoto usa PATH. I clip IA facoltativi usano le impostazioni di generazione video.",
   "config.video_studio.enabled": "Attiva Video Studio",
   "config.video_studio.readonly": "Progetti in sola lettura",
   "config.video_studio.ffmpeg": "Eseguibile FFmpeg (vuoto: automatico)",

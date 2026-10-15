@@ -15,7 +15,7 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.VideoStudio.Enabled || cfg.VideoStudio.MaxAssetSizeMB != 1024 || cfg.VideoStudio.MaxProjectSizeMB != 4096 || cfg.VideoStudio.RenderTimeoutSeconds != 3600 {
+	if cfg.VideoStudio.Enabled || cfg.VideoStudio.MaxAssetSizeMB != 4096 || cfg.VideoStudio.MaxProjectSizeMB != 16384 || cfg.VideoStudio.RenderTimeoutSeconds != 7200 {
 		t.Fatalf("defaults: %+v", cfg.VideoStudio)
 	}
 	cfg.VideoStudio.Enabled = true
@@ -31,9 +31,13 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if loaded.VideoStudio != cfg.VideoStudio {
 		t.Fatalf("round trip: %+v", loaded.VideoStudio)
 	}
-	for _, invalid := range []VideoStudioConfig{{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 8193}, {MaxProjectSizeMB: 512}, {RenderTimeoutSeconds: -1}} {
+	for _, invalid := range []VideoStudioConfig{{MaxAssetSizeMB: -1}, {MaxAssetSizeMB: 32769, MaxProjectSizeMB: 65536}, {MaxProjectSizeMB: 512, MaxAssetSizeMB: 1024}, {RenderTimeoutSeconds: -1}} {
 		if NormalizeVideoStudioConfig(&invalid) == nil {
 			t.Errorf("invalid limits accepted: %+v", invalid)
 		}
+	}
+	small := VideoStudioConfig{MaxProjectSizeMB: 2048}
+	if err := NormalizeVideoStudioConfig(&small); err != nil || small.MaxAssetSizeMB != 2048 {
+		t.Fatalf("an explicit small project limit must cap the asset default: %+v (%v)", small, err)
 	}
 }

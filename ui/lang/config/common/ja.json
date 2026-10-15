@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "1080pで最大10分の動画を編集できます。サーバーにFFmpegとFFprobeが必要です。実行パスが空の場合はPATHを使用します。任意のAIクリップ作成には動画生成設定を使用します。",
+  "config.video_studio.help": "最大4K、24〜60fpsで、最長60分の動画を編集できます。サーバーにFFmpegとFFprobeが必要です。実行パスが空の場合はPATHを使用します。任意のAIクリップ作成には動画生成設定を使用します。",
   "config.video_studio.enabled": "Video Studioを有効にする",
   "config.video_studio.readonly": "プロジェクトを読み取り専用にする",
   "config.video_studio.ffmpeg": "FFmpeg実行パス（空欄：自動）",

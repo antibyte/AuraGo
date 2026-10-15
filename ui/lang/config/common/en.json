@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Edit up to ten minutes at 1080p. FFmpeg and FFprobe must be installed on the server. Leave the executable path empty to use PATH. Optional AI clips use Video Generation settings.",
+  "config.video_studio.help": "Edit up to sixty minutes at up to 4K and 24–60 fps. FFmpeg and FFprobe must be installed on the server. Leave the executable path empty to use PATH. Optional AI clips use Video Generation settings.",
   "config.video_studio.enabled": "Enable Video Studio",
   "config.video_studio.readonly": "Read-only projects",
   "config.video_studio.ffmpeg": "FFmpeg executable (empty: automatic)",

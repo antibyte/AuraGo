@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "可编辑最长十分钟的1080p视频。服务器需安装FFmpeg和FFprobe。程序路径留空时使用PATH。可选AI片段使用视频生成设置。",
+  "config.video_studio.help": "可编辑最长六十分钟、最高4K分辨率、24–60fps的视频。服务器需安装FFmpeg和FFprobe。程序路径留空时使用PATH。可选AI片段使用视频生成设置。",
   "config.video_studio.enabled": "启用Video Studio",
   "config.video_studio.readonly": "以只读方式打开项目",
   "config.video_studio.ffmpeg": "FFmpeg程序路径（留空：自动）",

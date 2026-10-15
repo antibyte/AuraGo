@@ -1,6 +1,6 @@
 {
   "config.video_studio.title": "Video Studio",
-  "config.video_studio.help": "Bewerk maximaal tien minuten in 1080p. De server heeft FFmpeg en FFprobe nodig. Een leeg programmapad gebruikt PATH. Optionele AI-clips gebruiken de instellingen voor videogeneratie.",
+  "config.video_studio.help": "Bewerk maximaal zestig minuten in maximaal 4K en 24–60 fps. De server heeft FFmpeg en FFprobe nodig. Een leeg programmapad gebruikt PATH. Optionele AI-clips gebruiken de instellingen voor videogeneratie.",
   "config.video_studio.enabled": "Video Studio inschakelen",
   "config.video_studio.readonly": "Projecten alleen-lezen openen",
   "config.video_studio.ffmpeg": "FFmpeg-programmapad (leeg: automatisch)",
