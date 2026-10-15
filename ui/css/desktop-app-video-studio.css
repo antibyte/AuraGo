@@ -512,6 +512,9 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-modal-close:hover { background: var(--vs-control-hover); color: var(--vs-text); }
 .vs-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .vs-modal-actions-stack { flex-wrap: wrap; }
+.vs-attr-groups { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; border: 0; }
+.vs-attr-groups label { display: flex; align-items: flex-start; gap: 9px; line-height: 1.35; }
+.vs-attr-groups input { margin-top: 2px; accent-color: var(--vs-accent); }
 .vs-modal .vs-facts { padding: 12px; border-radius: 10px; background: var(--vs-control); }
 .vs-modal .vs-ai-provider { margin-top: 12px; }
 

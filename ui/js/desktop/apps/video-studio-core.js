@@ -23,6 +23,7 @@
     const PREF_TIMELINE = 'aurago.videoStudio.timelineHeight';
     const PREF_SNAP = 'aurago.videoStudio.snap';
     const PREF_QUALITY = 'aurago.videoStudio.previewQuality';
+    const PREF_MAGNETIC = 'aurago.videoStudio.magnetic';
     const clone = value => JSON.parse(JSON.stringify(value));
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const idempotencyKey = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -175,8 +176,9 @@
     function mutate(s, label, fn) {
         if (!s.project || s.readonly || s.timelineDragging) return false;
         flushTextBefore(s);
-        const before = snapshot(s), selection = [s.selectedClipId, s.selectionRevision];
-        const restore = () => { s.project = hydrateProject(s, before); [s.selectedClipId, s.selectionRevision] = selection; };
+        // The multi-selection is restored too: edits set it inside fn and a refusal must not keep it.
+        const before = snapshot(s), selection = [s.selectedClipId, s.selectionRevision, s.selectionSet, s.selectionPrimary];
+        const restore = () => { s.project = hydrateProject(s, before); [s.selectedClipId, s.selectionRevision, s.selectionSet, s.selectionPrimary] = selection; };
         if (fn(s.project) === false) { restore(); return false; }
         T().repairTransitions(s.project);
         if (T().validTimeline && !T().validTimeline(s.project)) {
@@ -382,5 +384,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();

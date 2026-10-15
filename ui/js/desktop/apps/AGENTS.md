@@ -1405,11 +1405,13 @@ buttons and menu popovers remain excluded from those gestures.
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-media.js`,
   `video-studio-preview.js`, `video-studio-timeline.js`,
+  `video-studio-edit.js` (DOM-free edit operations),
   `video-studio-inspector.js`, then the app parts
   `video-studio-core.js` (constants, requests, model, history, saving,
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
-  drawer, timeline height, transform box, field edits) and `-projects.js`
+  drawer, timeline height, transform box, field edits), `-editing.js`
+  (selection, clipboard, tools, edit commands and shortcuts) and `-projects.js`
   (settings and new-project dialogs), and `video-studio.js`
   last (same order in `module-loader.js` and both browser fixtures). The parts
   share `window.VideoStudioParts`: each registers its functions with

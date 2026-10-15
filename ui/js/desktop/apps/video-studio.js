@@ -2,7 +2,7 @@
     'use strict';
 
     const P = window.VideoStudioParts;
-    const { API, CANVASES, MAX_CLIPS, POPOVERS, PREF_QUALITY, PREF_SNAP, PREF_TIMELINE, READ_ONLY_SAFE, STICKERS, TITLE_PRESETS } = P;
+    const { API, CANVASES, MAX_CLIPS, POPOVERS, PREF_MAGNETIC, PREF_QUALITY, PREF_SNAP, PREF_TIMELINE, READ_ONLY_SAFE, STICKERS, TITLE_PRESETS } = P;
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
     const assetDisplayName = (...args) => P.assetDisplayName(...args);
@@ -107,7 +107,18 @@
         const presets = Object.keys(TITLE_PRESETS).map(name => `<button type="button" class="vs-preset vs-preset-${name}" data-action="add-title" data-preset="${name}"><span class="vs-preset-sample" aria-hidden="true">${label('presetSample_' + name, name === 'lower' ? 'Name' : 'Aa')}</span><span class="vs-preset-text"><strong>${label('preset_' + name, name)}</strong><small>${label('presetHint_' + name, '')}</small></span>${icon('plus', 16, 'vs-icon vs-preset-add')}</button>`).join('');
         const stickers = STICKERS.map(name => `<button type="button" class="vs-sticker" data-sticker="${name}" title="${label('sticker_' + name, name)}"><span class="vs-sticker-art" aria-hidden="true">${stickerSVG(name, 56)}</span><small>${label('sticker_' + name, name)}</small></button>`).join('');
         const key = name => tr(s, 'key' + name, name);
-        const shortcuts = [[[key('Space')], 'shortcutPlay', 'Play / pause'], [['←', '→'], 'shortcutFrame', 'One frame (Shift: one second)'], [[key('Home'), key('End')], 'shortcutEnds', 'Start / end'], [['S'], 'shortcutSplit', 'Split at the playhead'], [[key('Del')], 'shortcutDelete', 'Delete the selected clip'], [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'], [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer']];
+        const shortcuts = [
+            [[key('Space')], 'shortcutPlay', 'Play / pause'], [['←', '→'], 'shortcutFrame', 'One frame (Shift: one second)'],
+            [[key('Home'), key('End')], 'shortcutEnds', 'Start / end'], [['V', 'T', 'B'], 'shortcutTools', 'Selection, trim and blade tool'],
+            [['S'], 'shortcutSplit', 'Split at the playhead'], [['Q', 'W'], 'shortcutTrimPlayhead', 'Ripple trim start / end to the playhead'],
+            [[key('Del')], 'shortcutDelete', 'Delete the selected clip'], [[key('Shift'), key('Del')], 'shortcutRippleDelete', 'Ripple delete'],
+            [[key('Ctrl'), 'C', 'X', 'V'], 'shortcutClipboard', 'Copy, cut, paste (Shift: insert)'],
+            [[key('Ctrl'), key('Alt'), 'V'], 'shortcutPasteAttributes', 'Paste attributes'], [[key('Ctrl'), 'D'], 'shortcutDuplicate', 'Duplicate'],
+            [[key('Ctrl'), 'A'], 'shortcutSelectAll', 'Select all clips'], [[key('Alt'), '←', '→'], 'shortcutNudge', 'Nudge clips (Shift: 10 frames)'],
+            [['N'], 'shortcutSnap', 'Snapping on / off'], [[key('Shift'), 'Z'], 'shortcutFit', 'Fit the timeline'],
+            [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
+            [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu']
+        ];
         return `<div class="vs-app" tabindex="0">
 <header class="vs-toolbar">
  <div class="vs-tb-group vs-tb-project"><div class="vs-menu-anchor"><button type="button" class="vs-project-button" data-action="project-menu" aria-haspopup="dialog" aria-expanded="false" title="${label('projects', 'Projects')}">${icon('project', 18)}<span class="vs-project-name" data-project-name>${label('noProject', 'No project')}</span>${icon('chevronDown', 14)}</button><div class="vs-popover vs-project-popover" data-project-popover role="dialog" aria-label="${label('projects', 'Projects')}" hidden></div></div><button type="button" class="vs-save-chip" data-action="save" data-save-state></button></div>
@@ -148,7 +159,8 @@
         const s = {
             id, host, ctx, abort: new AbortController(), disposed: false, project: null, projectId: '', desktopPath: '', etag: '',
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
-            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
+            selectionSet: new Set(), selectionPrimary: '', clipboard: null, tool: 'select', trimMode: '', peekReturn: null,
+            zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
@@ -245,8 +257,13 @@
             label: tr(s, 'edit', 'Edit'), items: [
                 { label: tr(s, 'undo', 'Undo'), action: () => undo(s, false) },
                 { label: tr(s, 'redo', 'Redo'), action: () => undo(s, true) },
-                { label: tr(s, 'split', 'Split'), action: () => s.selectedClipId && timelineAction(s, 'split', s.selectedClipId) },
-                { label: tr(s, 'delete', 'Delete'), action: () => s.selectedClipId && timelineAction(s, 'delete', s.selectedClipId) }
+                { label: tr(s, 'cut', 'Cut'), action: () => P.cutSelection(s) },
+                { label: tr(s, 'copyClips', 'Copy'), action: () => P.copySelection(s) },
+                { label: tr(s, 'paste', 'Paste'), action: () => P.pasteClipboard(s, 'overwrite') },
+                { label: tr(s, 'selectAll', 'Select all'), action: () => P.selectAll(s) },
+                { label: tr(s, 'split', 'Split'), action: () => P.splitSelection(s) },
+                { label: tr(s, 'delete', 'Delete'), action: () => P.deleteSelection(s, false) },
+                { label: tr(s, 'rippleDelete', 'Ripple delete'), action: () => P.deleteSelection(s, true) }
             ]
         }]);
         renderFilters(s);
@@ -473,32 +490,38 @@
             state: s, label: (key, fallback) => tr(s, key, fallback || key), esc: value => esc(s, value), icon: (name, size) => icon(name, size),
             clipMedia: (asset, clip, track, pxPerFrame, width) => clipMedia(s, asset, clip, track, pxPerFrame, width),
             assetName: asset => assetDisplayName(s, asset),
+            isSelected: id => P.isSelected(s, id),
+            selectedIds: () => P.selectedIds(s),
             onSelect: id => {
-                if (id !== s.selectedClipId) { s.selectedClipId = id; s.selectionRevision++; }
-                renderInspector(s);
-                syncInspectorLock(s);
-                updateTransform(s);
+                P.setSelection(s, id ? [id] : [], id);
                 if (id && s.app.getBoundingClientRect().width <= 920) setInspectorOpen(s, true, false);
             },
+            onToggleSelect: id => P.toggleSelection(s, id),
+            onSelectMany: (ids, primary) => P.setSelection(s, ids, primary),
             onFrame: value => { s.preview.seek(value); },
             onScrubStart: () => { if (s.preview.isPlaying()) s.preview.pause(); },
             onPreviewChange: () => { if (s.preview) s.preview.seek(s.frame); },
+            // Trim gestures show the edited edge; the playhead returns when the gesture ends.
+            onPeek: frame => { if (s.peekReturn == null) s.peekReturn = s.frame; s.preview.seek(frame); },
+            onPeekEnd: () => { if (s.peekReturn != null) { const frame = s.peekReturn; s.peekReturn = null; s.preview.seek(frame); } },
             onChange: (label, before) => recordChange(s, label, before),
             onDragEnd: () => {
                 P.retryArtwork(s);
                 if (s.pendingRefresh) { s.pendingRefresh = false; refreshProject(s).catch(() => {}).finally(() => { if (s.dirty && !s.conflict) queueAutosave(s); }); }
                 else if (s.dirty && !s.conflict) queueAutosave(s);
             },
-            onInvalid: () => showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true),
+            onInvalid: reason => (reason ? P.showReason(s, reason) : showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true)),
             onAction: (action, id) => timelineAction(s, action, id),
+            onCommand: name => P.timelineCommand(s, name),
+            onBlade: (trackId, frame, allTracks) => P.bladeAt(s, trackId, frame, allTracks),
             onTrackAction: (id, action) => trackAction(s, id, action),
             onAddTrack: kind => addTrack(s, kind),
-            onDropAsset: (assetId, trackId, at) => addAssetToTrack(s, assetId, trackId, at),
+            onDropAsset: (assetId, trackId, at, mode) => addAssetToTrack(s, assetId, trackId, at, mode),
             onReorderTrack: (from, to) => reorderTrack(s, from, to),
             onSnap: value => writePref(PREF_SNAP, value)
         };
     }
-    function addAssetToTrack(s, assetId, trackId, at) {
+    function addAssetToTrack(s, assetId, trackId, at, mode) {
         if (s.readonly || s.timelineDragging || !s.project) return false;
         const asset = s.project.assets.find(item => item.id === assetId);
         if (!asset) return false;
@@ -510,6 +533,17 @@
         if (!track && !T().trackCapacity(s.project, kind)) { showNotice(s, 'trackLimit', 'Unlock a track or remove one before placing this media.', true); return false; }
         const limit = maxFrames(s);
         const duration = Math.max(1, Math.min(Number(asset.kind === 'image' ? Math.round(rateOf(s) * 5) : asset.duration_frames || Math.round(rateOf(s) * 5)), limit));
+        // Dropping onto a lane overwrites at the drop point (Ctrl inserts); "+" keeps finding a free spot.
+        if ((mode === 'overwrite' || mode === 'insert') && track) {
+            const start = Math.max(0, Math.round(Number(at) || 0));
+            if (start + duration > limit) { showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true); return false; }
+            const clip = T().makeClip(asset, start, undefined, s.project);
+            clip.duration = duration;
+            const placements = [{ trackId: track.id, clips: [clip] }];
+            const ok = P.applyEdit(s, mode === 'insert' ? 'insert clip' : 'overwrite clip', project => (mode === 'insert' ? window.VideoStudioEdit.insertClips(project, start, placements) : window.VideoStudioEdit.overwrite(project, placements)), () => [clip.id]);
+            if (ok) { renderInspector(s); T().revealFrame(s.q('[data-timeline]'), s, start); }
+            return ok;
+        }
         const requested = track ? freeStart(track, Number.isFinite(at) ? Math.max(0, at) : nextStart(track), duration) : Math.max(0, Number(at) || 0);
         if (requested + duration > limit) { showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true); return false; }
         let placed = null;
@@ -528,39 +562,13 @@
         }
         return ok;
     }
+    // Inspector buttons and the window menu act on one clip; they run the selection commands on it.
     function timelineAction(s, action, id) {
-        const found = T().clipFor(s.project, id);
-        if (!found || found.track.locked || s.readonly || s.timelineDragging) return;
-        if (action === 'delete') {
-            if (mutate(s, action, project => { const track = project.tracks.find(item => item.id === found.track.id); track.clips = track.clips.filter(clip => clip.id !== id); })) {
-                s.selectedClipId = ''; renderUI(s);
-                if (!s.host.contains(document.activeElement)) s.app.focus({ preventScroll: true });
-            }
-        } else if (action === 'duplicate') {
-            if (totalClipCount(s.project) >= MAX_CLIPS) return showNotice(s, 'clipLimit', 'This project reached its clip limit.', true);
-            mutate(s, action, project => {
-                const track = project.tracks.find(item => item.id === found.track.id);
-                const copy = clone(track.clips.find(clip => clip.id === id));
-                copy.id = T().newId('clip'); copy.transition = null;
-                copy.start = freeStart(track, copy.start + copy.duration, copy.duration);
-                if (copy.start + copy.duration > maxFrames(s)) return false;
-                track.clips.push(copy); s.selectedClipId = copy.id; s.selectionRevision++;
-            });
-        } else if (action === 'split') {
-            const frame = s.frame, clip = found.clip;
-            if (frame <= clip.start || frame >= clip.start + clip.duration) return showNotice(s, 'splitHint', 'Move the playhead inside the selected clip to split it.', true);
-            mutate(s, action, project => {
-                const target = project.tracks.find(item => item.id === found.track.id), original = target.clips.find(item => item.id === id);
-                const firstDuration = frame - original.start;
-                const second = clone(original);
-                second.id = T().newId('clip'); second.start = frame; second.offset += firstDuration; second.duration -= firstDuration;
-                if (original.text || (s.project.assets.find(asset => asset.id === original.asset_id) || {}).kind === 'image') second.offset = 0;
-                second.transition = original.transition;
-                original.fade_in = Math.min(Number(original.fade_in || 0), firstDuration); original.fade_out = 0;
-                second.fade_in = 0; second.fade_out = Math.min(Number(second.fade_out || 0), second.duration);
-                original.duration = firstDuration; original.transition = null; target.clips.push(second); s.selectedClipId = second.id; s.selectionRevision++;
-            });
-        }
+        if (!s.project || !T().clipFor(s.project, id) || s.readonly || s.timelineDragging) return;
+        if (!P.isSelected(s, id)) P.setSelection(s, [id], id);
+        if (action === 'delete') P.deleteSelection(s, false);
+        else if (action === 'duplicate') P.duplicateSelection(s);
+        else if (action === 'split') P.splitSelection(s);
     }
     function trackAction(s, id, action) {
         if (action === 'remove') {
@@ -672,7 +680,7 @@
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
         if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
-        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut) return;
+        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event)) return;
         if (event.key === 'Escape') {
             // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
             const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
@@ -696,9 +704,8 @@
         if (!focusedClip && target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"]')) return;
         if (focusedClip && (event.code === 'Space' || event.key === 'Enter')) return;
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
-        if (focusedClip && focusedClip !== s.selectedClipId && ['Delete', 'Backspace', 's', 'S'].includes(event.key)) s.timelineOptions.onSelect(focusedClip);
+        if (P.handleEditKeys(s, event, focusedClip)) return;
         if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
-        else if (event.key === 'Delete' || event.key === 'Backspace') { if (s.selectedClipId) { event.preventDefault(); timelineAction(s, 'delete', s.selectedClipId); } }
         else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
         else if (event.key === 'ArrowRight') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame + (event.shiftKey ? Math.round(rateOf(s)) : 1)); }
         else if (event.key === 'Home') { event.preventDefault(); s.preview.pause(); s.preview.seek(0); T().revealFrame(s.q('[data-timeline]'), s, 0); }
@@ -706,7 +713,6 @@
         else if (event.key === '+' || event.key === '=') { event.preventDefault(); s.q('[data-timeline] [data-action="zoom-in"]')?.click(); }
         else if (event.key === '-') { event.preventDefault(); s.q('[data-timeline] [data-action="zoom-out"]')?.click(); }
         else if (event.key === '?') { event.preventDefault(); togglePopover(s, 'shortcuts'); }
-        else if (event.key.toLowerCase() === 's' && s.selectedClipId) { event.preventDefault(); timelineAction(s, 'split', s.selectedClipId); }
     }
 
     Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, previewScale, renderUI, renderInspector, syncInspectorLock, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
