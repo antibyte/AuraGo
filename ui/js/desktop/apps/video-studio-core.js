@@ -57,9 +57,19 @@
         }
         return { body, etag: response.headers.get('ETag') || body.etag || '' };
     }
+    const ASSET_FIELDS = ['id', 'name', 'path', 'kind', 'duration_frames', 'width', 'height', 'has_audio'];
+    // Server-owned version 2 metadata; like Go's omitempty JSON they appear only when set.
+    const OPTIONAL_ASSET_FIELDS = ['duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes'];
+    function canonicalAsset(asset) {
+        const out = {};
+        ASSET_FIELDS.forEach(key => { out[key] = asset[key]; });
+        OPTIONAL_ASSET_FIELDS.forEach(key => { if (asset[key]) out[key] = asset[key]; });
+        return out;
+    }
     function canonicalProject(project) {
         const copy = clone(project);
-        copy.assets = (copy.assets || []).map(({ id, name, path, kind, duration_frames, width, height, has_audio }) => ({ id, name, path, kind, duration_frames, width, height, has_audio }));
+        if (!copy.ntsc) delete copy.ntsc;
+        copy.assets = (copy.assets || []).map(canonicalAsset);
         copy.tracks = (copy.tracks || []).map(track => ({
             id: track.id, kind: track.kind, name: track.name, muted: !!track.muted, hidden: !!track.hidden, locked: !!track.locked,
             clips: (track.clips || []).map(clip => ({
@@ -105,7 +115,7 @@
         return tracks;
     }
     function defaultProject(name, s) {
-        return { version: 1, name, width: 1280, height: 720, fps: FPS, assets: [], tracks: defaultTracks(s) };
+        return { version: 2, name, width: 1280, height: 720, fps: FPS, assets: [], tracks: defaultTracks(s) };
     }
     function showNotice(s, key, fallback, error, action) {
         if (s.disposed || !s.q('[data-notice]')) return;
