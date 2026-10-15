@@ -597,9 +597,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-settings-row { gap: 12px; }
 .vs-settings-row .vs-field { min-width: 0; }
 .vs-quality { display: flex; align-items: center; }
-.vs-app .vs-quality select { height: 30px; max-width: 112px; padding: 0 6px; border: 1px solid var(--vs-border); border-radius: 7px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-text); font-size: 12px; }
-@container (max-width: 650px) {
-    .vs-app .vs-quality select { max-width: 76px; padding: 0 4px; }
+.vs-app .vs-quality select { flex: none; height: 30px; max-width: 112px; padding: 0 8px; border: 1px solid var(--vs-border); border-radius: 7px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-text); font-size: 12px; }
+/* The select keeps its full label; where the preview column (app width minus library and inspector) is too
+   narrow for time, transport buttons and the select, it hides instead of squeezing. */
+@container (min-width: 921px) and (max-width: 990px) {
+    .vs-quality { display: none; }
+}
+@container (min-width: 651px) and (max-width: 690px) {
+    .vs-quality { display: none; }
 }
 @container (max-width: 420px) {
     .vs-quality { display: none; }
