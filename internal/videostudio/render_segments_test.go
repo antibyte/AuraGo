@@ -155,6 +155,73 @@ func TestSegmentedRenderMatchesSinglePass(t *testing.T) {
 	}
 }
 
+// Sources at 25, 24 and 29.97 fps in a 30 fps project: every segment must continue the frame-rate cadence of
+// the single pass instead of restarting it at its first kept source frame. The last source's video starts
+// 0.1 s after its audio, so its first frame must hold the clip's first positions instead of the clip running
+// short.
+func TestSegmentedRenderKeepsMixedRateCadence(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	// Every source frame N has its own gray level, so a picked frame shows in the hash.
+	counter := func(rate string) string {
+		return "nullsrc=s=64x32:r=" + rate + ":d=6,format=yuv420p,geq=lum='mod(N*13,180)+40':cb=128:cr=128"
+	}
+	paths := map[string]string{"late": filepath.Join(root, "late.mp4")}
+	lateArgs := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=6",
+		"-itsoffset", "0.1", "-f", "lavfi", "-i", counter("30"), "-map", "1:v", "-map", "0:a",
+		"-c:v", "libx264", "-preset", "ultrafast", "-crf", "10", "-pix_fmt", "yuv420p", "-c:a", "aac", "-f", "mp4", paths["late"]}
+	if out, err := exec.CommandContext(ctx, ffmpeg, lateArgs...).CombinedOutput(); err != nil {
+		t.Fatalf("late-start fixture: %v: %s", err, out)
+	}
+	var assets []Asset
+	for _, source := range []struct{ id, rate string }{{"c25", "25"}, {"c24", "24"}, {"c2997", "30000/1001"}, {"late", ""}} {
+		if source.rate != "" {
+			paths[source.id] = filepath.Join(root, source.id+".mp4")
+			makeLavfiVideoFixture(t, ctx, ffmpeg, paths[source.id], counter(source.rate))
+		}
+		asset, err := Probe(ctx, ffmpeg, paths[source.id])
+		if err != nil {
+			t.Fatalf("Probe(%s): %v", source.id, err)
+		}
+		asset.ID = source.id
+		assets = append(assets, AssetAtRate(asset, Rate{30, 1}))
+	}
+	clip := func(id, asset string, start, offset, duration int) Clip {
+		return Clip{ID: id, AssetID: asset, Start: start, Offset: offset, Duration: duration, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}
+	}
+	project := Project{Version: CurrentVersion, Name: "Mixed", Width: 720, Height: 720, FPS: 30, Assets: assets,
+		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
+			clip("a", "c25", 0, 7, 50), clip("b", "c24", 50, 31, 50), clip("c", "c2997", 100, 19, 50), clip("d", "late", 150, 0, 20),
+		}}}}
+	if err := Validate(project); err != nil {
+		t.Fatalf("mixed-rate project invalid: %v", err)
+	}
+	render := func(name string, segmentFrames int) []string {
+		output := filepath.Join(root, name)
+		err := RenderWithOptions(ctx, RenderOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: paths, Output: output,
+			Width: 360, Height: 360, SegmentFrames: segmentFrames, Encoder: Encoder{Lossless: true}})
+		if err != nil {
+			t.Fatalf("render %s: %v", name, err)
+		}
+		return frameHashes(t, ctx, ffmpeg, output)
+	}
+	single, many := render("single.mp4", 100000), render("many.mp4", 13)
+	if len(single) != 170 || len(many) != 170 {
+		t.Fatalf("frame counts %d and %d, want 170", len(single), len(many))
+	}
+	var differing []int
+	for i := range single {
+		if single[i] != many[i] {
+			differing = append(differing, i)
+		}
+	}
+	if len(differing) > 0 {
+		t.Fatalf("%d of 170 frames differ between one segment and 13-frame segments: %v", len(differing), differing)
+	}
+}
+
 func TestSegmentedRenderSeeksLateOffsetsExactly(t *testing.T) {
 	ffmpeg := requireFFmpeg(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

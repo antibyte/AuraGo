@@ -25,8 +25,12 @@ type segmentInput struct {
 
 // layerClip is a visual clip cut to a segment window, in window-local frames.
 type layerClip struct {
-	clip  Clip // Start/Duration are window-local; Transition is kept only when the next clip is in the window
-	shift int  // frames between the input's first decoded frame and the clip's first frame
+	clip Clip // Start/Duration are window-local; Transition is kept only when the next clip is in the window
+	// from is the source position, in project frames, shown at the clip's first window frame. Seeked video
+	// inputs keep their absolute timestamps (-copyts -start_at_zero), so after fps the input's PTS count
+	// project frames from the start of the source.
+	from  int
+	image bool
 	input int
 }
 
@@ -107,20 +111,23 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 			if clip.Transition != nil && i+1 < len(clips) && clips[i+1].Start < window.End {
 				local.Transition = clip.Transition
 			}
-			item := layerClip{clip: local, input: len(inputs)}
-			input := segmentInput{path: source.path, image: source.asset.Kind == AssetImage}
+			item := layerClip{clip: local, image: source.asset.Kind == AssetImage, input: len(inputs)}
+			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
 				want := clip.Offset + entered
-				seekFrame := want
+				// Seek about a second early: the source frame that is current at want usually starts before
+				// it, and accurate seeking drops every frame before the seek point. fps then picks frames on
+				// absolute timestamps, so every segmentation keeps the cadence of the single pass.
+				seekFrame := max(0, want-int((rate.Num+rate.Den-1)/rate.Den))
 				if source.videoEnd > 0 {
 					// Seeking past the last video frame yields no frames; seek a second before it and let
 					// tpad hold the final frame for the rest, exactly as the single pass did.
 					lastSafe := int(math.Floor((source.videoEnd - 1) * float64(rate.Num) / float64(rate.Den)))
 					seekFrame = min(seekFrame, max(0, lastSafe))
 				}
-				item.shift = want - seekFrame
+				item.from = want
 				input.seek = rate.Seconds(seekFrame)
-				input.limit = rate.Seconds(item.shift+local.Duration) + 1
+				input.limit = rate.Seconds(want-seekFrame+local.Duration) + 1
 			}
 			inputs = append(inputs, input)
 			layer = append(layer, item)
@@ -236,11 +243,19 @@ func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidt
 		angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
 		rotation = fmt.Sprintf(",rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
 	}
+	// Images start at zero. Video keeps absolute timestamps, so fps samples it on the source's own cadence and
+	// output frame from becomes the clip's first frame. When the video stream starts after the container (for
+	// example behind leading audio) no source frame covers the first positions; the first decoded frame is then
+	// moved back to from, so fps holds it there instead of the clip running short.
+	resample := fmt.Sprintf("setpts=PTS-STARTPTS,fps=%s", rate)
+	if !item.image {
+		resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',fps=%s", rate.Seconds(item.from), rate)
+	}
 	// Shift into the clip and bound clone padding to a small multiple of the clip's duration.
-	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.shift, clip.Duration)
+	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.from, clip.Duration)
 	source := fmt.Sprintf(
-		"[%d:V:0]setpts=PTS-STARTPTS,fps=%s,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
-		item.input, rate, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
+		"[%d:V:0]%s,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
+		item.input, resample, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
 	)
 	if clip.Opacity < 0.999999 {
 		source += fmt.Sprintf(",colorchannelmixer=aa=%.6f", clip.Opacity)

@@ -29,9 +29,13 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 			t.Fatalf("graph lacks %q:\n%s", want, graph)
 		}
 	}
-	// a enters the window 50 frames late: its input seeks to source frame 150.
-	if len(inputs) != 2 || math.Abs(inputs[0].seek-rate.Seconds(150)) > 1e-9 || inputs[0].limit <= rate.Seconds(10) {
+	// a enters the window 50 frames late at source frame 150: its input seeks one second (30 frames) earlier and
+	// keeps absolute timestamps, so the graph picks frame 150 on the source's own cadence.
+	if len(inputs) != 2 || math.Abs(inputs[0].seek-rate.Seconds(120)) > 1e-9 || inputs[0].limit <= rate.Seconds(40) {
 		t.Fatalf("inputs = %+v", inputs)
+	}
+	if !strings.Contains(graph, "[0:V:0]setpts='if(eq(N,0),min(PTS,floor(5.005000000/TB)),PTS)',fps=30000/1001,setpts='max(PTS-150,-10)'") {
+		t.Fatalf("graph does not pick source frame 150 by absolute position:\n%s", graph)
 	}
 
 	// A position past the decodable video seeks to one second before its end and shifts the rest in the graph.
@@ -40,7 +44,7 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(inputs) != 1 || inputs[0].seek > 1.0001 || !strings.Contains(graph, "setpts='max(PTS-71,-20)'") || !strings.Contains(graph, "scale=w=640:h=360") {
+	if len(inputs) != 1 || inputs[0].seek > 1.0001 || !strings.Contains(graph, "setpts='max(PTS-100,-20)'") || !strings.Contains(graph, "scale=w=640:h=360") {
 		t.Fatalf("late clip: inputs %+v graph:\n%s", inputs, graph)
 	}
 }

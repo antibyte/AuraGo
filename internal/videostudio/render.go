@@ -293,7 +293,9 @@ func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg
 		return err
 	}
 	defer os.Remove(graphPath)
-	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, segmentInputArgs(inputs, rate)...)
+	// -copyts -start_at_zero keeps every seeked input on the source's own timeline, so the graph can pick source
+	// frames by absolute position instead of restarting the frame-rate cadence at the first frame after the seek.
+	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error", "-copyts", "-start_at_zero"}, segmentInputArgs(inputs, rate)...)
 	args = append(args,
 		"-filter_threads", strconv.Itoa(threadLimit), "-filter_complex_threads", strconv.Itoa(threadLimit),
 		"-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-map_metadata", "-1",
