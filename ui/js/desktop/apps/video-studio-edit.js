@@ -325,5 +325,173 @@
         return finish(project);
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide };
+    // Cuts at `frame`: scope.trackIds cuts every clip under the frame on those tracks, scope.clipIds only those
+    // clips. The left part keeps id and fade in; the right part gets fade out and the outgoing transition.
+    function blade(project, frame, scope, out) {
+        const created = [], ids = scope.clipIds ? new Set(scope.clipIds) : null, trackIds = scope.trackIds ? new Set(scope.trackIds) : null;
+        let locked = false, transition = false;
+        project.tracks.forEach(track => {
+            if (trackIds && !trackIds.has(track.id)) return;
+            const hits = track.clips.filter(clip => clip.start < frame && frame < endOf(clip) && (!ids || ids.has(clip.id)));
+            if (!hits.length) return;
+            if (track.locked) { locked = true; return; }
+            if (isCutInTransition(track, frame)) { transition = true; return; }
+            hits.forEach(clip => {
+                const right = piece(project, clip, frame, endOf(clip), T().newId('clip'));
+                Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
+                track.clips.push(right);
+                created.push(right.id);
+            });
+        });
+        if (out) out.created = created;
+        if (!created.length) return transition ? REASON.transition : locked ? REASON.locked : REASON.nothing;
+        return finish(project);
+    }
+    // Moves clips by `delta` frames. Clips of the anchor clip's track kind also move `trackShift` tracks
+    // within that kind. Overwrite replaces what lies under the moved clips; insert opens room on every
+    // unlocked track. Magnetic first closes the places the clips leave on their own tracks.
+    function moveClips(project, ids, anchorId, delta, trackShift, mode, options) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        const anchor = T().clipFor(project, anchorId), kind = anchor ? anchor.track.kind : '';
+        const plan = [];
+        for (const { track, clip } of items) {
+            let dest = track;
+            if (trackShift && track.kind === kind) {
+                const list = project.tracks.filter(item => item.kind === kind);
+                dest = list[list.indexOf(track) + trackShift];
+                if (!dest) return REASON.bounds;
+                if (dest.locked) return REASON.locked;
+                if (!T().accepts(dest, assetOf(project, clip))) return REASON.kind;
+            }
+            plan.push({ source: track, dest, clip });
+        }
+        const first = Math.min(...plan.map(({ clip }) => clip.start)), last = Math.max(...plan.map(({ clip }) => endOf(clip)));
+        const shift = Math.max(-first, Math.min(Math.round(delta) || 0, Time().maxFrames(project) - last));
+        if (!shift && !trackShift) return REASON.nothing;
+        const lifted = new Map();
+        plan.forEach(({ source, clip }) => {
+            source.clips = source.clips.filter(item => item !== clip);
+            if (!lifted.has(source)) lifted.set(source, []);
+            lifted.get(source).push([clip.start, endOf(clip)]);
+        });
+        if (options && options.magnetic) lifted.forEach((ranges, track) => closeRanges([track], ranges));
+        const placements = [];
+        plan.forEach(({ dest, clip }) => {
+            clip.start += shift;
+            let entry = placements.find(item => item.trackId === dest.id);
+            if (!entry) placements.push(entry = { trackId: dest.id, clips: [] });
+            entry.clips.push(clip);
+        });
+        return mode === 'insert' ? insertClips(project, first + shift, placements) : overwrite(project, placements);
+    }
+    // Clipboard data: clip copies with times relative to the earliest one and the track they came from.
+    function copyClips(project, ids) {
+        const wanted = new Set(ids || []), entries = [];
+        project.tracks.forEach(track => {
+            const kindIndex = project.tracks.filter(item => item.kind === track.kind).indexOf(track);
+            track.clips.forEach(clip => { if (wanted.has(clip.id)) entries.push({ trackId: track.id, kind: track.kind, kindIndex, clip: clone(clip) }); });
+        });
+        if (!entries.length) return null;
+        const origin = Math.min(...entries.map(({ clip }) => clip.start));
+        entries.forEach(({ clip }) => { clip.start -= origin; });
+        return { span: Math.max(...entries.map(({ clip }) => endOf(clip))), entries };
+    }
+    function pasteTrack(project, board, entry, targets) {
+        const sameKind = project.tracks.filter(track => track.kind === entry.kind);
+        if (targets && targets[entry.kind]) {
+            const base = sameKind.findIndex(track => track.id === targets[entry.kind]);
+            const lowest = Math.min(...board.entries.filter(item => item.kind === entry.kind).map(item => item.kindIndex));
+            return base < 0 ? null : sameKind[base + entry.kindIndex - lowest] || null;
+        }
+        return trackById(project, entry.trackId) || sameKind[entry.kindIndex] || null;
+    }
+    // Pastes clipboard data at `at` (overwrite or insert). options.targets ({ video, audio, overlay } → track id)
+    // puts each kind's clips on that track and the following ones of the kind; without it clips return to the
+    // tracks they came from. options.out.created lists the new clip ids.
+    function paste(project, board, at, mode, options) {
+        const opts = options || {};
+        if (!board || !board.entries.length) return REASON.nothing;
+        const placements = [], created = [];
+        for (const entry of board.entries) {
+            if (!assetOf(project, entry.clip)) return REASON.media;
+            const track = pasteTrack(project, board, entry, opts.targets);
+            if (!track) return REASON.kind;
+            const clip = Object.assign(clone(entry.clip), { id: T().newId('clip'), start: at + entry.clip.start });
+            let placement = placements.find(item => item.trackId === track.id);
+            if (!placement) placements.push(placement = { trackId: track.id, clips: [] });
+            placement.clips.push(clip);
+            created.push(clip.id);
+        }
+        const result = mode === 'insert' ? insertClips(project, at, placements) : overwrite(project, placements);
+        if (result === true && opts.out) opts.out.created = created;
+        return result;
+    }
+    // The next start after a clip that collides with the copies placed at `at`, or 0 when all of them fit.
+    function collision(project, board, at) {
+        let next = 0;
+        board.entries.forEach(({ trackId, clip }) => {
+            const from = at + clip.start, to = from + clip.duration;
+            trackById(project, trackId).clips.forEach(item => { if (item.start < to && from < endOf(item)) next = Math.max(next, endOf(item) - clip.start); });
+        });
+        return next;
+    }
+    // Copies the clips to the first place after them where every copy fits on its own track.
+    function duplicateClips(project, ids, out) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        const board = copyClips(project, items.map(({ clip }) => clip.id)), max = Time().maxFrames(project);
+        let at = Math.min(...items.map(({ clip }) => clip.start)) + board.span;
+        while (at + board.span <= max) {
+            const next = collision(project, board, at);
+            if (!next) break;
+            at = next;
+        }
+        if (at + board.span > max) return REASON.limit;
+        return paste(project, board, at, 'overwrite', { out });
+    }
+    // Copies attribute groups from `source` (a clip object) to the listed clips; picture skips audio clips.
+    function pasteAttributes(project, source, ids, groups) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        let changed = false;
+        items.forEach(({ track, clip }) => {
+            (groups || []).forEach(group => {
+                if (group === 'picture' && track.kind === 'audio') return;
+                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
+            });
+            clampFades(clip);
+        });
+        return changed ? finish(project) : REASON.nothing;
+    }
+    function clipsFrom(project, trackId, frame) {
+        const track = trackById(project, trackId);
+        return track ? sorted(track).filter(clip => clip.start >= frame).map(clip => clip.id) : [];
+    }
+    // The two clips that share the clip's edge (touching or joined by a transition), or null.
+    function neighborAt(project, clipId, edge) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return null;
+        const order = sorted(found.track), index = order.indexOf(found.clip);
+        if (edge === 'end') { const next = order[index + 1]; return next && next.start <= endOf(found.clip) ? [found.clip.id, next.id] : null; }
+        const prev = order[index - 1];
+        return prev && endOf(prev) >= found.clip.start ? [prev.id, found.clip.id] : null;
+    }
+    function snapPoints(project, excludeIds, extra) {
+        const skip = new Set(excludeIds || []), points = [0];
+        project.tracks.forEach(track => track.clips.forEach(clip => { if (!skip.has(clip.id)) points.push(clip.start, endOf(clip)); }));
+        return points.concat((extra || []).filter(Number.isFinite));
+    }
+    // Adjusts `delta` by at most `range` frames so one of the moving edges lands on a snap point.
+    function snapDelta(edges, delta, points, range) {
+        if (!(range > 0)) return delta;
+        let best = null;
+        edges.forEach(edge => points.forEach(point => {
+            const adjust = point - (edge + delta);
+            if (Math.abs(adjust) <= range && (best === null || Math.abs(adjust) < Math.abs(best))) best = adjust;
+        }));
+        return best === null ? delta : delta + best;
+    }
+
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta };
 })();
