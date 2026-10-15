@@ -17,7 +17,7 @@ global.location = {origin:'http://localhost'};
 require('./js/desktop/apps/video-studio-time.js');
 const allMedia = [], audioContexts = [];
 class MediaElement {
-  constructor() { this.src=''; this.paused=true; this.currentTime=0; this.readyState=2; this.videoWidth=640; this.videoHeight=360; this.removed=0; }
+  constructor() { this.src=''; this.paused=true; this.currentTime=0; this.playbackRate=1; this.readyState=2; this.videoWidth=640; this.videoHeight=360; this.removed=0; }
   addEventListener() {}
   load() { this.loads=(this.loads||0)+1; }
   pause() { this.paused=true; }
@@ -67,6 +67,18 @@ assert(T.validTimeline(longProject),'256 sequential clips must be a valid sub-10
 assert.equal(longProject.tracks[0].clips.at(-1).start+30,7680);
 const live=()=>allMedia.filter(element=>element.src);
 const preview=Preview.mount(canvas,()=>longProject,()=>0,()=>{},()=>{});
+assert.equal(typeof preview.setRate, 'function', 'the shuttle sets the rate');
+assert.equal(typeof preview.setLoop, 'function', 'the transport sets the loop range');
+assert.equal(typeof preview.setSolo, 'function', 'the timeline sets audio solo');
+preview.setRate(-2);
+assert.equal(preview.rate(), -2, 'a backward rate is kept');
+preview.setRate(20);
+assert.equal(preview.rate(), 8, 'rates stop at 8x');
+preview.setRate(1);
+preview.setLoop({start: 10, end: 5});
+preview.setLoop({start: 10, end: 60});
+preview.setSolo(['a1']);
+preview.setSolo([]);
 assert.equal(allMedia.length,3,'only current clip and the two-second lookahead should create players');
 assert.equal(live().length,3);
 assert.equal(allMedia[0].preload,'auto');
@@ -119,6 +131,33 @@ imagePreview.seek(0);
 assert.equal(imageDraws,1,'broken image must not break later project refreshes');
 imagePreview.dispose();
 assert.equal(images[0].src,'');
+
+// Shuttle runs with a hand-driven clock: the end stop, reverse stepping, the loop wrap, mute and solo.
+let clock=1000, pending=null, shown=-1;
+global.performance={now:()=>clock};
+global.requestAnimationFrame=callback=>{pending=callback;return 2;};
+const runTo=ms=>{clock=ms;const callback=pending;pending=null;if(callback)callback(ms);};
+const shortProject={...longProject,assets:[shared],tracks:[{id:'video',kind:'video',clips:[clip('one','shared',0,60)]}]};
+const shuttle=Preview.mount(canvas,()=>shortProject,()=>0,value=>{shown=value;},()=>{});
+const element=allMedia.at(-1);
+shuttle.setRate(2); shuttle.play();
+runTo(1500); assert.equal(shown,30); assert.equal(element.playbackRate,2,'forward rates run the media clock at the rate');
+runTo(2200); assert.equal(shown,59,'a shuttle stops on the last frame, not past it');
+assert.equal(shuttle.isPlaying(),false); assert.equal(shuttle.rate(),1,'stopping returns the rate to 1x');
+shuttle.seek(45); shuttle.setRate(-1); shuttle.play();
+runTo(2300); assert.equal(shown,42); assert(element.paused,'backward playback keeps the media clock paused');
+runTo(2350); assert.equal(shown,42,'backward playback repaints at most every 100 ms');
+runTo(2400); assert.equal(shown,39);
+runTo(4000); assert.equal(shown,0,'backward playback stops at the start'); assert.equal(shuttle.isPlaying(),false);
+shuttle.setLoop({start:10,end:20}); shuttle.seek(15); shuttle.play();
+runTo(4400); assert.equal(shown,10,'looping wraps to the range start');
+runTo(4500); assert.equal(shown,13);
+const gain=audioContexts.at(-1).gains[0].gain;
+assert.equal(gain.value,1,'normal speed sounds');
+shuttle.setRate(4); assert.equal(gain.value,0,'fast forward above 2x is silent');
+shuttle.setRate(1); shuttle.setSolo(['a1']); assert.equal(gain.value,0,'a solo silences embedded video audio');
+shuttle.setSolo([]); assert.equal(gain.value,1);
+shuttle.dispose();
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("Video Studio preview lifecycle checks: %v\n%s", err, output)

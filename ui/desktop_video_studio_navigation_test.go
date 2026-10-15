@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"bytes"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -139,4 +142,26 @@ assert.equal(ok({in_point: 0}), true, 'an in point at 0 is valid');
 assert.equal(ok({markers: Array.from({length: 501}, (_, i) => ({id: 'm' + i, frame: i}))}), false, 'at most 500 markers');
 assert.deepEqual(T.LABEL_COLORS, ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']);
 `)
+}
+
+func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
+	preview, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-preview.js"))
+	if err != nil {
+		t.Fatalf("preview part: %v", err)
+	}
+	for _, want := range []string{
+		"function speedOf(clip) { const speed = Number(clip.speed); return speed > 0 ? speed : 1; }",
+		"return !clip.disabled && at >= Number(clip.start || 0)",
+		"(Number(clip.offset || 0) + (at - Number(clip.start || 0)) * speedOf(clip)) / fps()",
+		"if (index <= 0 || sorted[index - 1].disabled) return null;",
+		"if (!after || after.disabled) return null;",
+		"near = !current && !clip.disabled && clip.start > at",
+		"!clip.audio_detached && speedOf(clip) <= 4 && soloed && !shuttleMuted()",
+		"const playRate = clamp(speedOf(clip) * (forwardPlayback ? rate : 1), 0.0625, 16);",
+		"flatMap(track => track.clips.filter(clip => !clip.disabled).map(clip => clip.start + clip.duration))",
+	} {
+		if !bytes.Contains(preview, []byte(want)) {
+			t.Errorf("preview part lost a 1b rule: %s", want)
+		}
+	}
 }

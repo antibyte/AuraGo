@@ -2,6 +2,8 @@
     'use strict';
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    // Shuttle rates stop at 8x in both directions. Backward playback repaints at most every 100 ms (10 frames/s).
+    const MAX_RATE = 8, REVERSE_STEP_MS = 100;
 
     function mediaURL(asset) {
         const raw = String(asset && asset.media_url || '');
@@ -18,7 +20,15 @@
         const sourceNodes = new Map(), gainNodes = new Map();
         let audioContext = null;
         let frame = 0, playing = false, raf = 0, playStartAt = 0, playStartFrame = 0, disposed = false;
+        // Shuttle and view state (never saved). rate is signed: 1 forward, negative backward; the JKL shuttle sets it.
+        // loopRange is {start, end} or null. soloIds are the audio tracks that alone sound in the preview.
+        let rate = 1, loopRange = null, soloIds = new Set(), lastPaint = 0;
         let layer = null, layerContext = null;
+        // Forward playback runs the media clocks; backward and paused playback only seek the media.
+        const forward = () => playing && rate > 0;
+        // Fast forward above 2x and every backward rate are silent.
+        const shuttleMuted = () => playing && (rate < 0 || rate > 2);
+        const nowFrame = now => playStartFrame + Math.max(0, now - playStartAt) * fps() * rate / 1000;
 
         function release(clipId, el) {
             if (!el) return;
@@ -47,7 +57,7 @@
                 el = document.createElement(asset.kind === 'audio' ? 'audio' : 'video');
                 el.preload = 'metadata'; el.playsInline = true; el.src = src;
                 el.addEventListener('loadeddata', () => { if (media.get(key) === el) paint(frame); });
-                el.addEventListener('seeked', () => { if (media.get(key) === el && !playing) paint(frame); });
+                el.addEventListener('seeked', () => { if (media.get(key) === el && !forward()) paint(frame); });
                 el.load();
             }
             el.__vsAssetId = asset.id;
@@ -91,7 +101,9 @@
             return at >= start ? { type: transition.type, progress: clamp((at - start) / duration, 0, 1) } : null;
         }
 
-        function syncMedia(project, at, isPlaying) {
+        // Keeps the media in step with the frame. forwardPlayback is true only while playing forward: then the media
+        // clocks run (at the shuttle rate); otherwise they stay paused and are only seeked.
+        function syncMedia(project, at, forwardPlayback) {
             const active = new Set(), keep = new Set(), preloadUntil = at + fps() * 2;
             (project.tracks || []).forEach(track => {
                 if (track.hidden) return;
@@ -111,19 +123,23 @@
                     const local = Math.max(0, at - clip.start);
                     const fadeIn = clip.fade_in > 0 ? clamp(local / clip.fade_in, 0, 1) : 1;
                     const fadeOut = clip.fade_out > 0 ? clamp((clip.duration - local) / clip.fade_out, 0, 1) : 1;
+                    // With a solo active only the soloed audio tracks sound; embedded video audio is silent too.
+                    const soloed = soloIds.size === 0 || (track.kind === 'audio' && soloIds.has(track.id));
                     // A detached video clip is silent here (its audio clip plays), and so is any clip above 4x.
-                    const audioAllowed = !track.muted && !track.hidden && !clip.audio_detached && speedOf(clip) <= 4 && (track.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
+                    const audioAllowed = !track.muted && !track.hidden && !clip.audio_detached && speedOf(clip) <= 4 && soloed && !shuttleMuted() && (track.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
                     const targetGain = audioAllowed ? clamp(Number(clip.volume == null ? 1 : clip.volume) * fadeIn * fadeOut, 0, 4) : 0;
                     const gain = ensureAudioNode(el);
                     if (gain) { gain.gain.value = targetGain; el.volume = 1; el.muted = false; }
                     else { el.volume = clamp(targetGain, 0, 1); if (asset.kind === 'video') el.muted = !audioAllowed; }
-                    if (el instanceof HTMLMediaElement && Math.abs(el.playbackRate - speedOf(clip)) > 1e-6) el.playbackRate = speedOf(clip);
+                    // Browsers accept 1/16x to 16x. The clip speed scales the shuttle rate while the media clocks run.
+                    const playRate = clamp(speedOf(clip) * (forwardPlayback ? rate : 1), 0.0625, 16);
+                    if (el instanceof HTMLMediaElement && Math.abs(el.playbackRate - playRate) > 1e-6) el.playbackRate = playRate;
                     const desired = sourcePosition(clip, at);
-                    if (Math.abs((el.currentTime || 0) - desired) > (isPlaying ? 0.38 : 0.025)) {
+                    if (Math.abs((el.currentTime || 0) - desired) > (forwardPlayback ? 0.38 : 0.025)) {
                         try { el.currentTime = desired; } catch (_) { /* source metadata is loading */ }
                     }
-                    if (isPlaying && el.paused) el.play().catch(() => {});
-                    else if (!isPlaying && !el.paused) el.pause();
+                    if (forwardPlayback && el.paused) el.play().catch(() => {});
+                    else if (!forwardPlayback && !el.paused) el.pause();
                 });
             });
             Array.from(media.entries()).forEach(([clipId, el]) => {
@@ -138,7 +154,7 @@
             if (!asset || !el) return;
             if (asset.kind !== 'image') {
                 const desired = sourcePosition(clip, at);
-                if (Math.abs((el.currentTime || 0) - desired) > (playing ? 0.38 : 0.025)) {
+                if (Math.abs((el.currentTime || 0) - desired) > (forward() ? 0.38 : 0.025)) {
                     try { el.currentTime = desired; } catch (_) { /* source metadata is loading */ }
                 }
             }
@@ -236,43 +252,88 @@
                     }
                 });
             });
-            syncMedia(project, at, playing);
+            syncMedia(project, at, forward());
             if (typeof setFrame === 'function') setFrame(Math.round(frame));
+        }
+
+        // The range playback runs in: the loop range when looping, else the whole timeline (enabled clips only).
+        function playBounds(project) {
+            if (loopRange) return loopRange;
+            const end = Math.max(1, ...(project && project.tracks || []).flatMap(track => track.clips.filter(clip => !clip.disabled).map(clip => clip.start + clip.duration)));
+            return { start: 0, end };
         }
 
         function tick(now) {
             if (!playing || disposed) return;
-            const project = getProject();
-            const end = Math.max(1, ...(project && project.tracks || []).flatMap(track => track.clips.filter(clip => !clip.disabled).map(clip => clip.start + clip.duration)));
-            frame = playStartFrame + Math.max(0, now - playStartAt) * fps() / 1000;
-            if (frame >= end) { playStartFrame = 0; playStartAt = now; frame = 0; }
-            paint(frame);
+            const bounds = playBounds(getProject());
+            let next = nowFrame(now);
+            if (rate > 0 && next >= bounds.end) {
+                // Looping wraps to the range start; normal speed wraps to the start as before; a shuttle stops at the end.
+                if (!loopRange && rate !== 1) { halt(bounds.end - 1); return; }
+                next = loopRange ? loopRange.start : 0; playStartFrame = next; playStartAt = now;
+            } else if (rate < 0 && next <= bounds.start) {
+                // Backward playback stops at the start, or wraps to the range end when looping.
+                if (!loopRange) { halt(0); return; }
+                next = loopRange.end - 1; playStartFrame = next; playStartAt = now; lastPaint = 0;
+            }
+            // Forward playback paints every frame and never shows the end (it is exclusive); backward playback repaints
+            // at most every 100 ms. The frame moves only on paint, so a seek that completes in between repaints the
+            // frame on screen instead of a newer one.
+            if (rate > 0 || now - lastPaint >= REVERSE_STEP_MS) { lastPaint = now; paint(rate > 0 ? Math.min(next, bounds.end - 1) : next); }
             raf = requestAnimationFrame(tick);
         }
 
         function play() {
             if (disposed || playing) return;
-            playing = true; playStartFrame = frame; playStartAt = performance.now();
+            playing = true; playStartFrame = frame; playStartAt = performance.now(); lastPaint = 0;
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
             if (!audioContext && AudioContextClass) {
                 try { audioContext = new AudioContextClass(); media.forEach(el => ensureAudioNode(el)); } catch (_) { audioContext = null; }
             }
             if (audioContext && audioContext.state === 'suspended') audioContext.resume().catch(() => {});
-            syncMedia(getProject() || { tracks: [] }, frame, true);
+            syncMedia(getProject() || { tracks: [] }, frame, forward());
             if (onPlayState) onPlayState(true);
             raf = requestAnimationFrame(tick);
         }
-        function pause() {
-            if (!playing) { syncMedia(getProject() || { tracks: [] }, frame, false); paint(frame); return; }
-            frame = playStartFrame + Math.max(0, performance.now() - playStartAt) * fps() / 1000;
-            playing = false; cancelAnimationFrame(raf); syncMedia(getProject() || { tracks: [] }, frame, false);
+        // Stops playback on frame at (pause, or the end of a shuttle run) and returns the rate to 1x.
+        function halt(at) {
+            playing = false; rate = 1; cancelAnimationFrame(raf);
+            frame = Math.max(0, at);
+            syncMedia(getProject() || { tracks: [] }, frame, false);
             if (onPlayState) onPlayState(false);
             paint(frame);
+        }
+        // Pausing always returns the rate to 1x, so Space and the play button play forward again.
+        function pause() {
+            if (!playing) { rate = 1; syncMedia(getProject() || { tracks: [] }, frame, false); paint(frame); return; }
+            halt(nowFrame(performance.now()));
         }
         function seek(value) {
             frame = Math.max(0, Math.round(value));
             if (playing) { playStartFrame = frame; playStartAt = performance.now(); }
             paint(frame);
+        }
+        // Signed playback rate, clamped to ±8x (0 or invalid means 1x). While playing, the playhead continues from where
+        // it is at the new rate.
+        function setRate(value) {
+            const next = clamp(Number(value) || 1, -MAX_RATE, MAX_RATE);
+            if (next === rate) return;
+            if (playing) { const now = performance.now(); frame = Math.max(0, nowFrame(now)); playStartFrame = frame; playStartAt = now; lastPaint = 0; }
+            rate = next;
+            if (playing) syncMedia(getProject() || { tracks: [] }, frame, forward());
+        }
+        // Loop range {start, end} in frames, or null to play normally. An empty range means no loop.
+        function setLoop(range) {
+            const start = range ? Math.max(0, Number(range.start) || 0) : 0, end = range ? Number(range.end) || 0 : 0;
+            loopRange = end > start ? { start, end } : null;
+        }
+        // Audio tracks that alone sound (preview only, never saved). Empty means every track sounds as usual.
+        function setSolo(ids) {
+            const next = new Set((ids || []).filter(Boolean));
+            if (next.size === soloIds.size && Array.from(next).every(id => soloIds.has(id))) return;
+            soloIds = next;
+            const project = getProject();
+            if (!disposed && project) syncMedia(project, frame, forward());
         }
         function dispose() {
             if (disposed) return;
@@ -284,7 +345,7 @@
             context.clearRect(0, 0, canvas.width, canvas.height);
         }
         paint(Number(getFrame() || 0));
-        return { play, pause, seek, getFrame: () => Math.round(frame), isPlaying: () => playing, dispose };
+        return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, dispose };
     }
 
     window.VideoStudioPreview = { mount };
