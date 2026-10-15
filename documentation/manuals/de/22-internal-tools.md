@@ -559,6 +559,44 @@ Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
 | `title` | string | Optional: Anzeigetitel |
 | `start_seconds` | integer | Optional: Startzeitpunkt in Sekunden |
 
+### `tts`
+Text-to-Speech Synthese über konfigurierbare Provider (Google, ElevenLabs, MiniMax, Piper, Supertonic). Piper und Supertonic laufen lokal über Docker; Supertonic wird über den lokalen HTTP-Sidecar angesprochen und kann WAV, FLAC oder Ogg liefern. Immer verfügbar.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `text` | string | Text, der in Sprache umgewandelt wird |
+| `language` | string | Sprachcode für die Ausgabe (z. B. 'de', 'en', 'es', 'fr') |
+
+### `chromecast`
+Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover). Lokale Audio-/Video-/Bilddateien werden für `play` unter `/cast-media/` bereitgestellt; direkte private LAN-Medien-URLs brauchen `chromecast.media_host_allowlist`.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | discover, play, speak, stop, volume, status |
+| `device_name` | string | Anzeigename des Geräts (Auflösung über das Geräteregister) |
+| `device_addr` | string | IP-Adresse des Chromecast-Geräts |
+| `device_port` | integer | Port des Chromecast-Geräts (Standard: 8009) |
+| `url` | string | Direkte HTTP(S)-Medien-URL für `play`; private LAN-URLs brauchen `chromecast.media_host_allowlist`, außer AuraGo hat die `/tts/`- oder `/cast-media/`-URL erzeugt |
+| `local_path` | string | Lokale Workspace-Audio-/Video-/Bilddatei für `play`; wird unter `/cast-media/` bereitgestellt |
+| `content_type` | string | MIME-Typ der Medien für `play` (z. B. 'audio/mpeg', 'video/mp4', 'video/webm'); Standard ist `audio/mpeg` |
+| `text` | string | Text, der per TTS gesprochen wird (für `speak`) |
+| `language` | string | Sprachcode für TTS (für `speak`) |
+| `volume` | number | Lautstärke 0.0-1.0 (für `volume`) |
+
+### `jellyfin`
+Jellyfin Media Server steuern (Bibliotheken, Sessions, Wiedergabe).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | health, library_list, search, item_details, recent_items, sessions, playback_control, library_refresh, delete_item, activity_log |
+| `query` | string | Suchanfrage (für search) |
+| `media_type` | string | Nach Medientyp filtern: movie, series, episode, music, album, artist |
+| `item_id` | string | Medien-ID (für item_details, delete_item) |
+| `library_id` | string | Bibliotheks-ID (für library_refresh) |
+| `session_id` | string | Sitzungs-ID (für playback_control) |
+| `command` | string | Wiedergabebefehl: play, pause, stop, next, previous |
+| `limit` | integer | Maximale Ergebnisse (Standard: 20) |
+
 ### `agentmail`
 Verwaltet AgentMail Postfächer, Nachrichten, Threads, Entwürfe und Labels über eine API-basierte E-Mail-Integration.
 
@@ -925,6 +963,17 @@ Obsidian Vault über Local REST API Plugin durchsuchen und bearbeiten (Notizen l
 ### `uptime_kuma`
 Uptime Kuma Monitor-Status über Prometheus Metrics abfragen (summary, list_monitors, get_monitor).
 
+### `koofr`
+Koofr Cloud-Storage Dateioperationen (Listen, Upload, Download, Links).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, read, download, write, upload, mkdir, delete, rename, move, copy |
+| `path` | string | Datei- oder Verzeichnispfad in Koofr |
+| `destination` | string | Zielpfad für rename/move/copy |
+| `content` | string | Nicht-leerer Textinhalt zum Schreiben (nur `write`) |
+| `local_path` | string | Vorhandener lokaler Dateipfad zum Upload (nur `upload`) |
+
 ### `ldap`
 LDAP/Active Directory Server durchsuchen und Authentifizierung durchführen.
 
@@ -1125,6 +1174,59 @@ Vollständige Browser-Session-Automatisierung über den optionalen Browser-Autom
 ### `site_monitor`
 Webseiten auf Änderungen überwachen.
 
+### `ddg_search`
+Websuche über DuckDuckGo (Instant Answers und HTML-Ergebnisse).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `query` | string | Suchanfrage, die an DuckDuckGo geht |
+| `max_results` | integer | Maximale Anzahl Ergebnisse (Standard: 5) |
+| `search_query` | string | Optionale fokussierte Frage für den Zusammenfassungsmodus |
+
+### `wikipedia_search`
+Wikipedia-Artikel durchsuchen und auslesen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `query` | string | Suchbegriff oder Seitentitel in der Wikipedia |
+| `language` | string | Optionaler Wikipedia-Sprachcode wie de, en, fr oder ja |
+| `search_query` | string | Optionale fokussierte Frage für den Zusammenfassungsmodus |
+
+### `local_wikipedia`
+Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel abschnittsweise lesen (`read`) – Integration Lokale Wikipedia. Nur vorhanden, wenn die Integration an ist, **Agent darf die lokale Wikipedia nutzen** aktiviert ist und eine Ausgabe installiert und lesbar ist. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen, die Wikipedia, ein Lexikon (Enzyklopädie) oder Kiwix erwähnen, und findet es sonst über `discover_tools`; ist das Tool-Limit erreicht, kann es den Platz von `wikipedia_search` einnehmen, außer die Nachricht nennt die Online-Wikipedia ausdrücklich. Nur lesend; Artikeltext gilt als externe Daten, Antworten nennen Artikel und Ausgabedatum. `search` liefert je Treffer `title`, `path` und `snippet` (die ersten drei auch den `lead`); `read` liefert Markdown-Seiten mit bis zu 8.000 Zeichen samt `sections` (höchstens 100; `sections_total` nennt die Gesamtzahl) und `next_offset`. Jede Antwort bleibt unter der Inline-Grenze für Tool-Ausgaben (`agent.output_compression.reversible.max_inline_chars`); bei kleiner Grenze und nicht-lateinischen Schriften fallen Einleitungen, Abschnittsliste und Seiten deshalb kürzer aus.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | string | `search` oder `read` |
+| `query` | string | Suchbegriffe oder ein wahrscheinlicher Artikeltitel, höchstens 200 Zeichen und 16 Wörter (`search`, erforderlich) |
+| `limit` | integer | Anzahl der Treffer, 1–10 (Standard 5; `search`) |
+| `title` | string | Artikeltitel (`read`; `title` oder `path` ist erforderlich) |
+| `path` | string | Artikelpfad aus einem Suchtreffer (`read`) |
+| `section` | string | Überschrift oder Abschnittsindex (`read`, optional) |
+| `offset` | integer | Langen Artikel bei `next_offset` fortsetzen (`read`, optional) |
+
+### `retro_games`
+Den lokalen Index der im Browser spielbaren archive.org-Spiele durchsuchen und ein Spiel in der Desktop-App Retro Games öffnen (siehe [Retro Games](../../retro-games.md)). Nur vorhanden, wenn **Retro Games aktivieren** und **Agent darf Spiele suchen und starten** an sind. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen zu Retro-Spielen, Arcade (Spielhalle), alten Spielen oder Spieleklassikern, DOS-Spielen oder klassischen Systemen wie C64, Amiga, Atari, ZX Spectrum und Mega Drive und findet es sonst über `discover_tools`; es nimmt keinem anderen Tool den Platz weg. Titel und Hersteller gelten als externe Daten. `search` ohne `query` listet Klassiker aus der Hall of Fame; solange der Index noch keine Spiele enthält, weicht eine Suche auf passende Hall-of-Fame-Spiele aus (`note: index_building`, solange die erste Synchronisation läuft, `note: index_unavailable`, wenn sie fehlgeschlagen ist und keine Synchronisation läuft), und ein leeres Ergebnis, solange eine durchsuchte Plattform (ohne Angabe: irgendeine Plattform) ihre erste Synchronisation noch nicht abgeschlossen hat, trägt `note: index_incomplete`. Indexsuchen lassen Spiele aus, die der Nutzer als „startet nicht“ markiert hat. Die Ergebnisse sind Zeilen der Form `n. identifier | title | system | year | maker` mit höchstens etwa 2.800 Bytes (`truncated: true`, wenn die Liste gekürzt wurde; Titel werden auf 80, Hersteller auf 60 Zeichen gekürzt). `play` öffnet das Spiel nur, wenn der Virtuelle Desktop, sein Agent-Tool und **Agentensteuerung erlauben** an sind (sonst `desktop_unavailable` oder `desktop_agent_control_disabled`); den Emulator startet der Nutzer mit dem Power-Button.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | string | `search` oder `play` |
+| `query` | string | Titel, Hersteller oder Stichwörter, höchstens 200 Zeichen (`search`, optional) |
+| `platform` | string | `msdos`, `arcade`, `console`, `c64`, `amiga`, `apple2`, `zx` oder `win3` (`search`, optional) |
+| `decade` | integer | 1970, 1980, 1990 oder 2000 (`search`, optional; jedes Jahrzehnt von 1950 bis 2020 wird akzeptiert) |
+| `limit` | integer | Anzahl der Ergebnisse, 1–20 (Standard 10; größere Werte werden auf 20 gesenkt; `search`) |
+| `identifier` | string | Spielkennung aus einem Suchergebnis (`play`, erforderlich) |
+
+### `brave_search`
+Websuche über die Brave Search API.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `query` | string | Die Suchanfrage (erforderlich) |
+| `count` | integer | Anzahl Ergebnisse (1-20, Standard: 10) |
+| `country` | string | Zweibuchstabiger Ländercode für lokalisierte Ergebnisse |
+| `lang` | string | Sprachcode der Suche |
+
 ---
 
 ## Dokumente & Medien
@@ -1190,6 +1292,14 @@ Konvertiert Mediendateien zwischen verschiedenen Formaten (Video, Audio, Bilder)
 | `fps` | integer | Optional: Bilder pro Sekunde |
 | `sample_rate` | integer | Optional: Audio-Sample-Rate |
 | `quality_pct` | integer | Optional: Qualität (1-100) |
+
+### `pdf_extractor`
+Text und Metadaten aus PDF-Dateien extrahieren (inkl. OCR-Unterstützung). Wird als Skill ausgeführt.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `filepath` | string | Pfad zur PDF-Datei |
+| `search_query` | string | Wenn der Zusammenfassungsmodus aktiv ist: welche Information der Zusammenfasser extrahieren soll |
 
 ---
 
@@ -1419,6 +1529,16 @@ Steuert den AuraGo Virtual Desktop (Browser-Desktop). Ermöglicht Datei-Operatio
 | `html` | string | Optional: HTML-Repräsentation für Dokumente |
 | `document` | object | Dokumenten-Payload für write_document |
 | `workbook` | object | Workbook-Payload für write_workbook |
+
+### `truenas`
+TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `action` | enum | truenas_health, truenas_pool_list, truenas_pool_scrub, truenas_dataset_list, truenas_dataset_create, truenas_dataset_delete, truenas_snapshot_list, truenas_snapshot_create, truenas_snapshot_delete, truenas_snapshot_rollback, truenas_smb_list, truenas_smb_create, truenas_smb_delete, truenas_nfs_list, truenas_nfs_create, truenas_nfs_delete, truenas_fs_space |
+| `name` | string | Name von Dataset, Snapshot oder SMB-Share |
+| `path` | string | Lokaler Dateisystempfad des SMB-/NFS-Shares |
+| `query` | string | Pool-/Dataset-Filter; für truenas_nfs_create kommagetrennte erlaubte Netzwerke |
 
 ### `virtual_desktop_files`
 Fokussiertes Tool für Datei-Operationen im Virtual-Desktop-Workspace (bevorzugt gegenüber `virtual_desktop`). Office-Dateien werden an `office_document` / `office_workbook` weitergeleitet.
@@ -1674,63 +1794,6 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 - [Chat-Commands](20-chat-commands.md) – Manuelle Befehle
 - [API Referenz](21-api-reference.md) – REST API
 - [Sicherheit](14-security.md) – Berechtigungen & Danger Zone
-
-
----
-
-## Zusätzliche Tools & Integrationen
-
-### `tts`
-Text-to-Speech Synthese über konfigurierbare Provider (Google, ElevenLabs, MiniMax, Piper, Supertonic). Piper und Supertonic laufen lokal über Docker; Supertonic wird über den lokalen HTTP-Sidecar angesprochen und kann WAV, FLAC oder Ogg liefern. Immer verfügbar.
-
-### `chromecast`
-Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover). Lokale Audio-/Video-/Bilddateien werden für `play` unter `/cast-media/` bereitgestellt; direkte private LAN-Medien-URLs brauchen `chromecast.media_host_allowlist`.
-
-### `brave_search`
-Websuche über die Brave Search API.
-
-### `ddg_search`
-Websuche über DuckDuckGo (Instant Answers und HTML-Ergebnisse).
-
-### `wikipedia_search`
-Wikipedia-Artikel durchsuchen und auslesen.
-
-### `local_wikipedia`
-Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel abschnittsweise lesen (`read`) – Integration Lokale Wikipedia. Nur vorhanden, wenn die Integration an ist, **Agent darf die lokale Wikipedia nutzen** aktiviert ist und eine Ausgabe installiert und lesbar ist. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen, die Wikipedia, ein Lexikon (Enzyklopädie) oder Kiwix erwähnen, und findet es sonst über `discover_tools`; ist das Tool-Limit erreicht, kann es den Platz von `wikipedia_search` einnehmen, außer die Nachricht nennt die Online-Wikipedia ausdrücklich. Nur lesend; Artikeltext gilt als externe Daten, Antworten nennen Artikel und Ausgabedatum. `search` liefert je Treffer `title`, `path` und `snippet` (die ersten drei auch den `lead`); `read` liefert Markdown-Seiten mit bis zu 8.000 Zeichen samt `sections` (höchstens 100; `sections_total` nennt die Gesamtzahl) und `next_offset`. Jede Antwort bleibt unter der Inline-Grenze für Tool-Ausgaben (`agent.output_compression.reversible.max_inline_chars`); bei kleiner Grenze und nicht-lateinischen Schriften fallen Einleitungen, Abschnittsliste und Seiten deshalb kürzer aus.
-
-| Parameter | Typ | Beschreibung |
-|-----------|-----|--------------|
-| `operation` | string | `search` oder `read` |
-| `query` | string | Suchbegriffe oder ein wahrscheinlicher Artikeltitel, höchstens 200 Zeichen und 16 Wörter (`search`, erforderlich) |
-| `limit` | integer | Anzahl der Treffer, 1–10 (Standard 5; `search`) |
-| `title` | string | Artikeltitel (`read`; `title` oder `path` ist erforderlich) |
-| `path` | string | Artikelpfad aus einem Suchtreffer (`read`) |
-| `section` | string | Überschrift oder Abschnittsindex (`read`, optional) |
-| `offset` | integer | Langen Artikel bei `next_offset` fortsetzen (`read`, optional) |
-
-### `retro_games`
-Den lokalen Index der im Browser spielbaren archive.org-Spiele durchsuchen und ein Spiel in der Desktop-App Retro Games öffnen (siehe [Retro Games](../../retro-games.md)). Nur vorhanden, wenn **Retro Games aktivieren** und **Agent darf Spiele suchen und starten** an sind. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen zu Retro-Spielen, Arcade (Spielhalle), alten Spielen oder Spieleklassikern, DOS-Spielen oder klassischen Systemen wie C64, Amiga, Atari, ZX Spectrum und Mega Drive und findet es sonst über `discover_tools`; es nimmt keinem anderen Tool den Platz weg. Titel und Hersteller gelten als externe Daten. `search` ohne `query` listet Klassiker aus der Hall of Fame; solange der Index noch keine Spiele enthält, weicht eine Suche auf passende Hall-of-Fame-Spiele aus (`note: index_building`, solange die erste Synchronisation läuft, `note: index_unavailable`, wenn sie fehlgeschlagen ist und keine Synchronisation läuft), und ein leeres Ergebnis, solange eine durchsuchte Plattform (ohne Angabe: irgendeine Plattform) ihre erste Synchronisation noch nicht abgeschlossen hat, trägt `note: index_incomplete`. Indexsuchen lassen Spiele aus, die der Nutzer als „startet nicht“ markiert hat. Die Ergebnisse sind Zeilen der Form `n. identifier | title | system | year | maker` mit höchstens etwa 2.800 Bytes (`truncated: true`, wenn die Liste gekürzt wurde; Titel werden auf 80, Hersteller auf 60 Zeichen gekürzt). `play` öffnet das Spiel nur, wenn der Virtuelle Desktop, sein Agent-Tool und **Agentensteuerung erlauben** an sind (sonst `desktop_unavailable` oder `desktop_agent_control_disabled`); den Emulator startet der Nutzer mit dem Power-Button.
-
-| Parameter | Typ | Beschreibung |
-|-----------|-----|--------------|
-| `operation` | string | `search` oder `play` |
-| `query` | string | Titel, Hersteller oder Stichwörter, höchstens 200 Zeichen (`search`, optional) |
-| `platform` | string | `msdos`, `arcade`, `console`, `c64`, `amiga`, `apple2`, `zx` oder `win3` (`search`, optional) |
-| `decade` | integer | 1970, 1980, 1990 oder 2000 (`search`, optional; jedes Jahrzehnt von 1950 bis 2020 wird akzeptiert) |
-| `limit` | integer | Anzahl der Ergebnisse, 1–20 (Standard 10; größere Werte werden auf 20 gesenkt; `search`) |
-| `identifier` | string | Spielkennung aus einem Suchergebnis (`play`, erforderlich) |
-
-### `truenas`
-TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).
-
-### `jellyfin`
-Jellyfin Media Server steuern (Bibliotheken, Sessions, Wiedergabe).
-
-### `koofr`
-Koofr Cloud-Storage Dateioperationen (Listen, Upload, Download, Links).
-
-### `pdf_extractor`
-Text und Metadaten aus PDF-Dateien extrahieren (inkl. OCR-Unterstützung). Wird als Skill ausgeführt.
 
 ---
 
