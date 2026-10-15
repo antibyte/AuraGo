@@ -673,6 +673,8 @@ Agent: 🌤️ London Weather:
 - **[Configuration](07-configuration.md)** – Fine-tuning your agent
 - **[Integrations](08-integrations.md)** – Set up Telegram, Discord, Email
 
+*End of Part 1 — Arrive. On to Part 2: The Toys.*
+
 ---
 
 **Previous Chapter:** [Chapter 4: Web UI](./04-webui.md)

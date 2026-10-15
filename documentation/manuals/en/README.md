@@ -127,6 +127,16 @@ Your data stays with the installation. **Hosted models still see their request i
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 
+## Reading Paths
+
+Five routes through the manual — depending on what you are here for:
+
+- 🌱 **First contact:** [Introduction](01-introduction.md) → [Installation](02-installation.md) → [Quick start](03-quickstart.md) → [Web UI](04-webui.md) → [Chat basics](05-chat-basics.md)
+- 🔌 **The workbench:** [Integrations](08-integrations.md) → [Tools](06-tools.md) → [Dashboard](13-dashboard.md) → [Chat commands](20-chat-commands.md)
+- 🛡️ **Run & harden:** [Configuration](07-configuration.md) → [Security](14-security.md) → [Troubleshooting](16-troubleshooting.md) → [Internals](23-internals.md)
+- 🧠 **Automation:** [Memory](09-memory.md) → [Personality](10-personality.md) → [Mission Control](11-missions.md) → [Co-agents](15-coagents.md) → [Skills](19-skills.md) → [Internal tools](22-internal-tools.md)
+- 📖 **Look it up:** [Glossary](17-glossary.md) · [Appendix](18-appendix.md) · [API reference](21-api-reference.md) · [FAQ](faq.md)
+
 ## Chat Shortcuts
 
 ```text
@@ -158,4 +168,4 @@ The UI speaks **16 languages**. Pick your company in **Config → Personality**.
 
 [![Flags for all 16 UI languages](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Updated 12 October 2026. German edition [here](../de/README.md).*
+*Updated 15 October 2026. German edition [here](../de/README.md).*

@@ -351,6 +351,8 @@ Quick Info         → terminator
 > [!TIP]
 > Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.
 
+*End of Part 2 — The Toys. On to Part 3: Autopilot.*
+
 ---
 
 **Previous Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)

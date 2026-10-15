@@ -417,6 +417,8 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **[Kapitel 14: Sicherheit](14-security.md)** — Audit-Protokoll und LLM Guardian
 - **[Kapitel 21: REST-API-Referenz](21-api-reference.md)** — Vollständige Endpunkt-Details
 
+*Ende von Teil 3 — Autopilot. Weiter geht's mit Teil 4: Vorsicht und Tiefe.*
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 12: Invasion Control](./12-invasion.md)

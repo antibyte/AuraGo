@@ -348,6 +348,8 @@ Schnelle Infos  → terminator
 > [!TIP]
 > Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.
 
+*Ende von Teil 2 — Die Spielzeuge. Weiter geht's mit Teil 3: Autopilot.*
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

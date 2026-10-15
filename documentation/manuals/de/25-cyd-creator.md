@@ -16,10 +16,11 @@ Technische Details für Admins (Konfiguration, Docker, OTA-Protokoll, Fehlercode
 4. [Der serielle Monitor](#der-serielle-monitor)
 5. [WLAN auf dem Gerät](#wlan-auf-dem-gerät)
 6. [Updates per WLAN (OTA)](#updates-per-wlan-ota)
-7. [Export und Import](#export-und-import)
-8. [Gut zu wissen](#gut-zu-wissen)
-9. [Tastenkürzel im Designer](#tastenkürzel-im-designer)
-10. [Wenn etwas nicht klappt](#wenn-etwas-nicht-klappt)
+7. [Icon-Bibliothek](#icon-bibliothek)
+8. [Export und Import](#export-und-import)
+9. [Gut zu wissen](#gut-zu-wissen)
+10. [Tastenkürzel im Designer](#tastenkürzel-im-designer)
+11. [Wenn etwas nicht klappt](#wenn-etwas-nicht-klappt)
 
 ---
 
@@ -147,6 +148,25 @@ Bei HTTPS merkt sich das Board beim Flashen den Fingerabdruck des AuraGo-Zertifi
 „AuraGo-Zertifikat geändert – bitte per USB neu flashen“. Dann hilft nur ein neuer Flash über USB. Mit `http://`
 gibt es keinen Fingerabdruck, dafür geht der Schlüssel unverschlüsselt übers Netz; die Update-Images prüft das Gerät
 trotzdem.
+
+## Icon-Bibliothek
+
+Wähle ein Bild oder eine Schaltfläche und öffne im Inspector die
+**Icon-Bibliothek**. Sie enthält 60 Motive in vier Stilen, jeweils farbig oder
+monochrom sowie statisch oder animiert: insgesamt 960 Varianten. Suche nach
+einem Namen, filtere nach Kategorie und wähle 24, 32, 48 oder 64 Pixel. Die
+Vorschau auf hellem und dunklem Grund zeigt Geräte-Pixel; die Speicheranzeige
+hilft dir bei der Auswahl. Monochrome Icons übernehmen die Textfarbe des
+Gerätethemas. Eine eigene Icon-Farbe kannst du im Inspector setzen.
+
+Nur ausgewählte Varianten werden übernommen. Wiederverwendete Bilder und
+Frames belegen ihren Bildspeicher einmal. Reicht das Budget nicht, wähle eine
+kleinere Größe oder ein Standbild. PSRAM erhöht das Flash-Bildbudget nicht.
+Animationen lassen sich ausschalten; bei aktivierter Systemeinstellung
+„Bewegung reduzieren“ zeigt der Designer Standbilder. Stilwechsel und
+Einfügen lassen sich rückgängig machen. ZIP-Exporte enthalten auch Masken,
+Animationsframes und ihre Einstellungen. Die Bibliothek benötigt keinen
+Bildgenerierungsdienst.
 
 ## Export und Import
 

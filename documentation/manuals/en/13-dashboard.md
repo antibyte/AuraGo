@@ -417,6 +417,8 @@ For programmatic access, use the dashboard REST endpoints listed below and [Chap
 - **[Chapter 14: Security](14-security.md)** — Audit log and LLM Guardian
 - **[Chapter 21: REST API Reference](21-api-reference.md)** — Full endpoint details
 
+*End of Part 3 — Autopilot. On to Part 4: Care and Depth.*
+
 ---
 
 **Previous Chapter:** [Chapter 12: Invasion Control](./12-invasion.md)

@@ -763,6 +763,8 @@ Der Agent lädt sie über `activate_agent_skill` und `run_agent_skill_script`.
 - **[Kapitel 14: Sicherheit](14-security.md)** – Sicherheitsrichtlinien für Skills
 - **Config → Tools → Fähigkeiten-Manager** bzw. Seite **Skills** (`/skills`) → Neue Skills entdecken
 
+*Ende von Teil 4 — Vorsicht und Tiefe. Weiter geht's mit Teil 5: Nachschlagen.*
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 18: Anhang](./18-appendix.md)

@@ -16,10 +16,11 @@ Technical details for administrators (configuration, Docker, OTA protocol, error
 4. [The Serial Monitor](#the-serial-monitor)
 5. [Wi-Fi on the Device](#wi-fi-on-the-device)
 6. [Updates over Wi-Fi (OTA)](#updates-over-wi-fi-ota)
-7. [Export and Import](#export-and-import)
-8. [Good to Know](#good-to-know)
-9. [Designer Shortcuts](#designer-shortcuts)
-10. [When Something Goes Wrong](#when-something-goes-wrong)
+7. [Icon Library](#icon-library)
+8. [Export and Import](#export-and-import)
+9. [Good to Know](#good-to-know)
+10. [Designer Shortcuts](#designer-shortcuts)
+11. [When Something Goes Wrong](#when-something-goes-wrong)
 
 ---
 
@@ -141,6 +142,23 @@ With HTTPS the board remembers the fingerprint of AuraGo's certificate when it i
 changes (a Let's Encrypt certificate is renewed about every 60 days, a self-signed one may be regenerated), the board
 shows "AuraGo certificate changed – please reflash via USB". Only a new flash over USB helps then. `http://` has no
 fingerprint, but the key travels unencrypted; the device still checks the update images.
+
+## Icon Library
+
+Select an image or button and open **Icon library** in its inspector. Choose
+from 60 motifs in four styles, each in colour or monochrome and still or
+animated form: 960 variants. Search by name, filter by category and select
+24, 32, 48 or 64 pixels. Light/dark previews show device pixels and the memory
+display helps you choose. Monochrome icons inherit the device theme text
+colour; an explicit icon colour can be set in the inspector.
+
+Only selected variants enter the project. Reused images and frames count once
+against image memory. If an import exceeds the budget, choose a smaller size
+or a still image. PSRAM does not increase the flash image budget. Animation can
+be switched off; the system reduced-motion preference uses posters in the
+designer. Insertion and style changes support undo. Project ZIPs include
+masks, animation frames and settings. Using the library needs no image
+generation service.
 
 ## Export and Import
 

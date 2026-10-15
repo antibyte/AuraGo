@@ -25,36 +25,48 @@ The root README is the postcard. This is the field guide: install it, talk to it
 | Keep secrets secret | [Sicherheit](de/14-security.md) · [Security](en/14-security.md) |
 | Unstick it | [Troubleshooting DE](de/16-troubleshooting.md) · [Troubleshooting EN](en/16-troubleshooting.md) |
 
+## Reading paths
+
+| Path | Route |
+|------|-------|
+| 🌱 **First contact** | 01 → 02 → 03 → 04 → 05 |
+| 🔌 **The workbench** | 08 → 06 → 13 → 20 |
+| 🛡️ **Run & harden** | 07 → 14 → 16 → 23 |
+| 🧠 **Automation** | 09 → 10 → 11 → 15 → 19 → 22 |
+| 📖 **Look it up** | 17 · 18 · 21 · FAQ |
+
+Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [English overview](en/README.md).
+
 ## All chapters
 
-| Chapter | Deutsch | English |
-|---------|---------|---------|
-| 01 · Introduction | [Einführung](de/01-introduction.md) | [Introduction](en/01-introduction.md) |
-| 02 · Installation | [Installation](de/02-installation.md) | [Installation](en/02-installation.md) |
-| 03 · Quick start | [Schnellstart](de/03-quickstart.md) | [Quick start](en/03-quickstart.md) |
-| 04 · Web UI | [Web-Oberfläche](de/04-webui.md) | [Web UI](en/04-webui.md) |
-| 05 · Chat basics | [Chat-Grundlagen](de/05-chat-basics.md) | [Chat basics](en/05-chat-basics.md) |
-| 06 · Tools | [Werkzeuge](de/06-tools.md) | [Tools](en/06-tools.md) |
-| 07 · Configuration | [Konfiguration](de/07-configuration.md) | [Configuration](en/07-configuration.md) |
-| 08 · Integrations | [Integrationen](de/08-integrations.md) | [Integrations](en/08-integrations.md) |
-| 09 · Memory | [Gedächtnis](de/09-memory.md) | [Memory](en/09-memory.md) |
-| 10 · Personality | [Persönlichkeit](de/10-personality.md) | [Personality](en/10-personality.md) |
-| 11 · Mission Control | [Mission Control](de/11-missions.md) | [Mission Control](en/11-missions.md) |
-| 12 · Invasion Control | [Invasion Control](de/12-invasion.md) | [Invasion Control](en/12-invasion.md) |
-| 13 · Dashboard | [Dashboard](de/13-dashboard.md) | [Dashboard](en/13-dashboard.md) |
-| 14 · Security | [Sicherheit](de/14-security.md) | [Security](en/14-security.md) |
-| 15 · Co-agents | [Co-Agenten](de/15-coagents.md) | [Co-agents](en/15-coagents.md) |
-| 16 · Troubleshooting | [Troubleshooting](de/16-troubleshooting.md) | [Troubleshooting](en/16-troubleshooting.md) |
-| 17 · Glossary | [Glossar](de/17-glossary.md) | [Glossary](en/17-glossary.md) |
-| 18 · Appendix | [Anhang](de/18-appendix.md) | [Appendix](en/18-appendix.md) |
-| 19 · Skills | [Skills](de/19-skills.md) | [Skills](en/19-skills.md) |
-| 20 · Chat commands | [Chat-Commands](de/20-chat-commands.md) | [Chat commands](en/20-chat-commands.md) |
-| 21 · API reference | [API-Referenz](de/21-api-reference.md) | [API reference](en/21-api-reference.md) |
-| 22 · Internal tools | [Interne Tools](de/22-internal-tools.md) | [Internal tools](en/22-internal-tools.md) |
-| 23 · Internals | [Interna](de/23-internals.md) | [Internals](en/23-internals.md) |
-| 24 · EasyDrag | [EasyDrag](de/24-easydrag.md) | [EasyDrag](en/24-easydrag.md) |
-| 25 · CYD Creator | [CYD Creator](de/25-cyd-creator.md) | [CYD Creator](en/25-cyd-creator.md) |
-| FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) |
+| Chapter | Deutsch | English | One line |
+|---------|---------|---------|----------|
+| 01 · Introduction | [Einführung](de/01-introduction.md) | [Introduction](en/01-introduction.md) | What it is, and what it is not |
+| 02 · Installation | [Installation](de/02-installation.md) | [Installation](en/02-installation.md) | Binary, Docker, build, resource set |
+| 03 · Quick start | [Schnellstart](de/03-quickstart.md) | [Quick start](en/03-quickstart.md) | The first five minutes |
+| 04 · Web UI | [Web-Oberfläche](de/04-webui.md) | [Web UI](en/04-webui.md) | Chat, desktop, Config, themes |
+| 05 · Chat basics | [Chat-Grundlagen](de/05-chat-basics.md) | [Chat basics](en/05-chat-basics.md) | How to talk to the agent |
+| 06 · Tools | [Werkzeuge](de/06-tools.md) | [Tools](en/06-tools.md) | The big toolbox |
+| 07 · Configuration | [Konfiguration](de/07-configuration.md) | [Configuration](en/07-configuration.md) | Provider system and fine-tuning |
+| 08 · Integrations | [Integrationen](de/08-integrations.md) | [Integrations](en/08-integrations.md) | From NAS boxes to radios |
+| 09 · Memory | [Gedächtnis](de/09-memory.md) | [Memory](en/09-memory.md) | History, core facts, RAG, graph |
+| 10 · Personality | [Persönlichkeit](de/10-personality.md) | [Personality](en/10-personality.md) | Same toolbox, different attitude |
+| 11 · Mission Control | [Mission Control](de/11-missions.md) | [Mission Control](en/11-missions.md) | Scheduled work |
+| 12 · Invasion Control | [Invasion Control](de/12-invasion.md) | [Invasion Control](en/12-invasion.md) | Eggs and nests |
+| 13 · Dashboard | [Dashboard](de/13-dashboard.md) | [Dashboard](en/13-dashboard.md) | Numbers, issues, affect, 3D graph |
+| 14 · Security | [Sicherheit](de/14-security.md) | [Security](en/14-security.md) | Vault, jail, Guardian, 2FA |
+| 15 · Co-agents | [Co-Agenten](de/15-coagents.md) | [Co-agents](en/15-coagents.md) | Helpers for subtasks |
+| 16 · Troubleshooting | [Troubleshooting](de/16-troubleshooting.md) | [Troubleshooting](en/16-troubleshooting.md) | When you only get the recovery page |
+| 17 · Glossary | [Glossar](de/17-glossary.md) | [Glossary](en/17-glossary.md) | Terms |
+| 18 · Appendix | [Anhang](de/18-appendix.md) | [Appendix](en/18-appendix.md) | Short reference |
+| 19 · Skills | [Skills](de/19-skills.md) | [Skills](en/19-skills.md) | Python skills and Agent Skills |
+| 20 · Chat commands | [Chat-Commands](de/20-chat-commands.md) | [Chat commands](en/20-chat-commands.md) | Slash commands right in the chat |
+| 21 · API reference | [API-Referenz](de/21-api-reference.md) | [API reference](en/21-api-reference.md) | REST endpoints, SSE, auth |
+| 22 · Internal tools | [Interne Tools](de/22-internal-tools.md) | [Internal tools](en/22-internal-tools.md) | The full tool catalog |
+| 23 · Internals | [Interna](de/23-internals.md) | [Internals](en/23-internals.md) | Modules, data flow, architecture |
+| 24 · EasyDrag | [EasyDrag](de/24-easydrag.md) | [EasyDrag](en/24-easydrag.md) | Automations by drag and drop |
+| 25 · CYD Creator | [CYD Creator](de/25-cyd-creator.md) | [CYD Creator](en/25-cyd-creator.md) | Apps for the Cheap Yellow Display |
+| FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
 
 ## What this book is
 
@@ -62,7 +74,7 @@ AuraGo is a self-hosted Go agent for a home lab. The backend is one portable bin
 
 These chapters stay in sync with the product, not with a marketing checklist. If a sentence and the code disagree, the code wins. Deep dives for MeshCore, Game Maker, SIP, Speech Lab, Docker and web assets live next to this handbook under [`documentation/`](../).
 
-**Stand: 12. Oktober 2026.** Both languages cover the same 25 chapters. German uses *du*.
+**Stand: 15. Oktober 2026.** Both languages cover the same 25 chapters. German uses *du*.
 
 ## Nearby docs
 

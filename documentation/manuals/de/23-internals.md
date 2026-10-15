@@ -1181,6 +1181,8 @@ Das System ist darauf ausgelegt, **vollständig autonom** zu operieren, während
 
 *Dieses Kapitel wird mit dem Code-Stand synchronisiert. Bei Fragen oder Unstimmigkeiten sollte immer der Quellcode in `internal/` als Referenz dienen.*
 
+*Ende von Teil 5 — Nachschlagen. Weiter geht's mit Teil 6: Studio-Apps.*
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 22: Interne Tools](./22-internal-tools.md)

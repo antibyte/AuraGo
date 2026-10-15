@@ -1181,6 +1181,8 @@ The system is designed to operate **fully autonomously** while being protected f
 
 *This chapter is kept in sync with the codebase. For any questions or discrepancies, the source code in `internal/` should always serve as the authoritative reference.*
 
+*End of Part 5 — Look Up. On to Part 6: Studio Apps.*
+
 ---
 
 **Previous Chapter:** [Chapter 22: Internal tools](./22-internal-tools.md)

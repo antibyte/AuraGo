@@ -818,6 +818,8 @@ The agent loads them via `activate_agent_skill` and `run_agent_skill_script` too
 - **[Chapter 14: Security](14-security.md)** – Security policies for skills
 - **Web-UI** → Skills → Discover new skills
 
+*End of Part 4 — Care and Depth. On to Part 5: Look Up.*
+
 ---
 
 **Previous Chapter:** [Chapter 18: Appendix](./18-appendix.md)
