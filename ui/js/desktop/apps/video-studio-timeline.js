@@ -594,6 +594,9 @@
             s().timelineDragging = true;
             capture(event);
             clearTimeout(s().autosaveTimer);
+            // preventDefault also stops the browser from focusing the pressed clip; focus it here so the clip shortcuts
+            // (Delete, S, Ctrl+L, Shift+E…) reach the editor after a click. Re-rendering restores the focus.
+            root.querySelector(`[data-clip-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
             event.preventDefault();
         }
 

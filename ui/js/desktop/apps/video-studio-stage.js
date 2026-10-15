@@ -80,6 +80,7 @@
         const found = selectedClip(s);
         if (!found || found.track.locked) { renderInspector(s); return; }
         const field = input.dataset.field;
+        if (field === 'speed') { P.commitSpeedField(s, input); return; }
         if (['start', 'duration', 'offset'].includes(field)) {
             const frames = I().parseTime(input.value, s.project);
             if (frames == null) { showNotice(s, 'invalidTime', 'Enter a time like 4,5 or 1:04.5.', true); renderInspector(s); return; }

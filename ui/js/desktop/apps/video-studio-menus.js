@@ -58,11 +58,23 @@
         enabled()[0]?.focus({ preventScroll: true });
         return el;
     }
+    // Colour labels in a second menu; "Back" returns to the clip menu.
+    function openLabelMenu(s, clipId, x, y) {
+        const colors = P.LABEL_COLORS || [];
+        const items = [{ label: tr(s, 'labelNone', 'No label'), run: () => P.setLabel(s, '') }]
+            .concat(colors.map(color => ({ label: tr(s, 'color_' + color, color), run: () => P.setLabel(s, color) })))
+            .concat([{ separator: true }, { label: tr(s, 'back', 'Back'), run: () => openClipMenu(s, clipId, x, y) }]);
+        return openMenu(s, x, y, items, tr(s, 'labelMenu', 'Color label…'), () => s.q(`[data-timeline] [data-clip-id="${CSS.escape(clipId)}"]`));
+    }
+    // An unselected clip selects its link group; a clip already in the selection becomes its primary clip, so the
+    // clip-specific items (P.clipCapabilities) describe the clip under the pointer.
     function openClipMenu(s, clipId, x, y) {
         const found = s.project && T().clipFor(s.project, clipId);
         if (!found) return null;
-        if (!P.isSelected(s, clipId)) { P.setSelection(s, [clipId], clipId); P.renderTimeline(s); }
-        const ro = !!s.readonly, canPaste = !ro && P.clipboardReady(s), key = name => tr(s, 'key' + name, name);
+        if (!P.isSelected(s, clipId)) { P.setSelection(s, P.linkedIds(s, [clipId], false), clipId); P.renderTimeline(s); }
+        else if (s.selectedClipId !== clipId) { P.setSelection(s, P.selectedIds(s), clipId); P.renderTimeline(s); }
+        const ro = !!s.readonly, caps = P.clipCapabilities(s), canPaste = !ro && P.clipboardReady(s), key = name => tr(s, 'key' + name, name);
+        // Split acts on every selected clip under the playhead (as landed in 1a), not only the clicked one.
         const inside = P.selectedIds(s).some(id => { const hit = T().clipFor(s.project, id); return !!hit && s.frame > hit.clip.start && s.frame < hit.clip.start + hit.clip.duration; });
         const items = [
             { label: tr(s, 'split', 'Split'), shortcut: 'S', icon: 'scissors', disabled: ro || !inside, run: () => P.splitSelection(s) },
@@ -73,6 +85,17 @@
             { label: tr(s, 'paste', 'Paste'), shortcut: key('Ctrl') + '+V', disabled: !canPaste, run: () => P.pasteClipboard(s, 'overwrite') },
             { label: tr(s, 'pasteInsert', 'Paste insert'), shortcut: key('Ctrl') + '+' + key('Shift') + '+V', disabled: !canPaste, run: () => P.pasteClipboard(s, 'insert') },
             { label: tr(s, 'pasteAttributes', 'Paste attributes…'), shortcut: key('Ctrl') + '+' + key('Alt') + '+V', disabled: !canPaste, run: () => P.openPasteAttributes(s) },
+            { separator: true },
+            { label: tr(s, caps.linked ? 'unlink' : 'link', caps.linked ? 'Unlink' : 'Link'), shortcut: key('Ctrl') + '+L', icon: caps.linked ? 'unlink' : 'link', disabled: ro || !caps.linkable, run: () => P.toggleLink(s) },
+            { label: tr(s, 'speed', 'Speed…'), icon: 'speed', disabled: ro || !caps.retimable, run: () => P.focusSpeed(s) },
+            { label: tr(s, 'labelMenu', 'Color label…'), icon: 'label', disabled: ro, run: () => openLabelMenu(s, clipId, x, y) },
+            { label: tr(s, found.clip.disabled ? 'enable' : 'disable', found.clip.disabled ? 'Enable' : 'Disable'), shortcut: key('Shift') + '+E', icon: found.clip.disabled ? 'eye' : 'eyeOff', disabled: ro, run: () => P.toggleDisabled(s) },
+            { separator: true },
+            { label: tr(s, 'detachAudio', 'Detach audio'), icon: 'speaker', disabled: ro || !caps.detachable, run: () => P.detachAudio(s) },
+            { label: tr(s, 'reattachAudio', 'Reattach audio'), icon: 'speaker', disabled: ro || !caps.reattachable, run: () => P.reattachAudio(s) },
+            { label: tr(s, 'reverse', 'Reverse'), icon: 'reverse', disabled: ro || !caps.reversible, run: () => P.clipCommand(s, 'reverse') },
+            { label: tr(s, 'freezeFrame', 'Freeze frame'), icon: 'freeze', disabled: ro || !caps.freezable, run: () => P.clipCommand(s, 'freeze') },
+            { label: tr(s, 'exportFrame', 'Export frame as PNG'), icon: 'download', disabled: ro || !caps.exportable, run: () => P.clipCommand(s, 'export-frame') },
             { separator: true },
             { label: tr(s, 'selectForward', 'Select forward on track'), run: () => P.selectForward(s, found.track.id, found.clip.start) },
             { separator: true },

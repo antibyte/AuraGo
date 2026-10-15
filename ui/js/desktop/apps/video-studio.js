@@ -118,7 +118,8 @@
             [[key('Ctrl'), 'A'], 'shortcutSelectAll', 'Select all clips'], [[key('Alt'), '←', '→'], 'shortcutNudge', 'Nudge clips (Shift: 10 frames)'],
             [['N'], 'shortcutSnap', 'Snapping on / off'], [[key('Shift'), 'Z'], 'shortcutFit', 'Fit the timeline'],
             [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
-            [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu']
+            [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
+            [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips']
         ];
         return `<div class="vs-app" tabindex="0">
 <header class="vs-toolbar">
@@ -475,7 +476,7 @@
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, caps: P.clipCapabilities(s)
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -493,12 +494,12 @@
             assetName: asset => assetDisplayName(s, asset),
             isSelected: id => P.isSelected(s, id),
             selectedIds: () => P.selectedIds(s),
-            onSelect: id => {
-                P.setSelection(s, id ? [id] : [], id);
+            onSelect: (id, altKey) => {
+                P.setSelection(s, id ? P.linkedIds(s, [id], altKey) : [], id);
                 if (id && s.app.getBoundingClientRect().width <= 920) setInspectorOpen(s, true, false);
             },
             onToggleSelect: id => P.toggleSelection(s, id),
-            onSelectMany: (ids, primary) => P.setSelection(s, ids, primary),
+            onSelectMany: (ids, primary, altKey) => P.setSelection(s, P.linkedIds(s, ids, altKey), primary),
             onFrame: value => { s.preview.seek(value); },
             onScrubStart: () => { if (s.preview.isPlaying()) s.preview.pause(); },
             onPreviewChange: () => { if (s.preview) s.preview.seek(s.frame); },
@@ -514,7 +515,7 @@
             onInvalid: reason => (reason ? P.showReason(s, reason) : showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true)),
             onAction: (action, id) => timelineAction(s, action, id),
             onCommand: name => P.timelineCommand(s, name),
-            onBlade: (trackId, frame, allTracks) => P.bladeAt(s, trackId, frame, allTracks),
+            onBlade: (trackId, frame, allTracks, unlinked) => P.bladeAt(s, trackId, frame, allTracks, unlinked),
             onContextMenu: info => (info.clipId ? P.openClipMenu(s, info.clipId, info.x, info.y) : P.openGapMenu(s, info.trackId, info.frame, info.x, info.y)),
             onTrackAction: (id, action) => trackAction(s, id, action),
             onAddTrack: kind => addTrack(s, kind),
@@ -680,6 +681,7 @@
         else if (action === 'toggle-fine') { s.fineOpen = !s.fineOpen; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
         else if (action === 'fill-frame') mutateSelected(s, 'fill', clip => { Object.assign(clip, { x: 0, y: 0, width: 1, height: 1 }); });
         else if (action === 'clip-split' || action === 'clip-duplicate' || action === 'clip-delete') { if (s.selectedClipId) timelineAction(s, action.slice(5), s.selectedClipId); }
+        else if (action.startsWith('clip-')) P.clipCommand(s, action.slice(5), button.dataset.value);
     }
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';

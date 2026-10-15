@@ -24,7 +24,9 @@
         bounds: ['editBounds', 'The clip cannot be trimmed or moved any further.'],
         limit: ['editLimit', 'The edit would go past the project limits.'],
         kind: ['editKind', 'That track does not accept this media.'],
-        transition: ['editTransition', 'Move the playhead out of the transition first.']
+        transition: ['editTransition', 'Move the playhead out of the transition first.'],
+        tracks: ['editTracks', 'All audio tracks are busy at this point. Add an audio track first.'],
+        link: ['editLinkLimit', 'A link group holds at most 16 clips.']
     };
 
     function renderTimeline(s) { if (s.project && s.q('[data-timeline]')) T().render(s.q('[data-timeline]'), s.timelineOptions); }
@@ -88,6 +90,12 @@
         return ok;
     }
 
+    // Selection helpers (spec 4.2, decision "Links"). Commands act on the selection as it is; only speed (setClipSpeed)
+    // adds link partners. Clicks and band selections pass the Alt state to linkedIds, which adds the link group unless
+    // Alt asks for the clips alone.
+    function linkedSelection(s) { return s.project ? E().withLinks(s.project, selectedIds(s)) : []; }
+    function linkedIds(s, ids, altKey) { return s.project && !altKey ? E().withLinks(s.project, ids || []) : (ids || []).slice(); }
+
     function deleteSelection(s, ripple) {
         const ids = selectedIds(s);
         if (!ids.length || s.readonly) return false;
@@ -97,27 +105,30 @@
         return ok;
     }
     function deleteGap(s, trackId, frame) { return applyEdit(s, 'delete gap', project => E().rippleDeleteGap(project, trackId, frame)); }
+    // S cuts the selected clips under the playhead together with their link partners.
     function splitSelection(s) {
         const frame = s.frame;
         const ids = selectedIds(s).filter(id => { const clip = T().clipFor(s.project, id).clip; return clip.start < frame && frame < clip.start + clip.duration; });
         if (!ids.length) { showNotice(s, 'splitHint', 'Move the playhead inside the selected clip to split it.', true); return false; }
-        return applyEdit(s, 'split', (project, out) => E().blade(project, frame, { clipIds: ids }, out), out => out.created);
+        return applyEdit(s, 'split', (project, out) => E().blade(project, frame, { clipIds: ids, linked: true }, out), out => out.created);
     }
-    function bladeAt(s, trackId, frame, allTracks) {
+    // The blade cuts one track (or every unlocked track with Shift) and, unless Alt is held, the linked partners too.
+    function bladeAt(s, trackId, frame, allTracks, unlinked) {
         if (!s.project) return false;
         const trackIds = allTracks ? s.project.tracks.filter(track => !track.locked).map(track => track.id) : [trackId];
-        return applyEdit(s, 'blade', (project, out) => E().blade(project, frame, { trackIds }, out));
+        return applyEdit(s, 'blade', (project, out) => E().blade(project, frame, { trackIds, linked: !unlinked }, out));
     }
     function duplicateSelection(s) {
         const ids = selectedIds(s);
         return ids.length ? applyEdit(s, 'duplicate', (project, out) => E().duplicateClips(project, ids, out), out => out.created) : false;
     }
+    // Nudge acts on the selection as it is (no partners are added). Alt is the nudge key, so nudging cannot unlink.
     function nudgeSelection(s, frames) {
         const ids = selectedIds(s);
         return ids.length ? applyEdit(s, 'nudge', project => E().moveClips(project, ids, s.selectedClipId, frames, 0, 'overwrite', {})) : false;
     }
-    // Q / W: ripple trim the start or end of the selected clips under the playhead, or of the top-most
-    // unlocked clip under it, to the playhead.
+    // Q / W: ripple trim the start or end of the selected clips under the playhead, or of the top-most unlocked clip
+    // under it, to the playhead. Link partners whose edge sits on the same frame trim with it.
     function trimToPlayhead(s, edge) {
         if (!s.project || s.readonly) return false;
         const frame = s.frame, under = clip => clip.start < frame && frame < clip.start + clip.duration;
@@ -129,9 +140,13 @@
         if (!ids.length) return false;
         const starts = ids.map(id => T().clipFor(s.project, id).clip.start);
         const ok = applyEdit(s, edge === 'start' ? 'trim start' : 'trim end', project => {
+            const done = new Set();
             for (const id of ids) {
+                if (done.has(id)) continue;
                 const clip = T().clipFor(project, id).clip;
-                const result = E().rippleTrim(project, [id], edge, edge === 'start' ? frame - clip.start : frame - clip.start - clip.duration);
+                const group = E().linkedEdges(project, id, edge);
+                group.forEach(item => done.add(item));
+                const result = E().rippleTrim(project, group, edge, edge === 'start' ? frame - clip.start : frame - clip.start - clip.duration);
                 if (result !== true) return result;
             }
             return true;
@@ -142,6 +157,8 @@
     }
 
     function clipboardReady(s) { return !!(s.clipboard && s.clipboard.data && s.clipboard.projectId === s.projectId); }
+    // Copy and cut take the selection as it is (clicking a linked clip has already selected its group); a pasted group is
+    // a group again.
     function copySelection(s) {
         const ids = selectedIds(s);
         if (!ids.length) return false;
@@ -165,7 +182,7 @@
         if (!clipboardReady(s)) { showNotice(s, 'clipboardEmpty', 'Copy clips first.', false); return; }
         if (!ids.length) { showNotice(s, 'selectClipsFirst', 'Select the clips that should receive the attributes.', false); return; }
         const source = s.clipboard.data.entries[0].clip, label = (key, fallback) => esc(s, tr(s, key, fallback)), id = esc(s, s.id);
-        const host = openModal(s, `<form class="vs-modal" data-attr-form role="dialog" aria-modal="true" aria-labelledby="vs-attr-title-${id}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${label('close', 'Close')}">${icon('close', 18)}</button><h2 id="vs-attr-title-${id}">${label('pasteAttributesTitle', 'Paste attributes')}</h2><fieldset class="vs-attr-groups"><label><input type="checkbox" data-attr-group value="picture" checked><span>${label('attrPicture', 'Picture: position, size, rotation, opacity, fit')}</span></label><label><input type="checkbox" data-attr-group value="sound" checked><span>${label('attrSound', 'Sound: volume and fades')}</span></label></fieldset><div class="vs-modal-actions"><button type="button" data-modal-close>${label('cancel', 'Cancel')}</button><button type="submit" class="vs-primary">${label('apply', 'Apply')}</button></div></form>`);
+        const host = openModal(s, `<form class="vs-modal" data-attr-form role="dialog" aria-modal="true" aria-labelledby="vs-attr-title-${id}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${label('close', 'Close')}">${icon('close', 18)}</button><h2 id="vs-attr-title-${id}">${label('pasteAttributesTitle', 'Paste attributes')}</h2><fieldset class="vs-attr-groups"><label><input type="checkbox" data-attr-group value="picture" checked><span>${label('attrPicture', 'Picture: position, size, rotation, opacity, fit')}</span></label><label><input type="checkbox" data-attr-group value="sound" checked><span>${label('attrSound', 'Sound: volume and fades')}</span></label><label><input type="checkbox" data-attr-group value="speed"><span>${label('attrSpeed', 'Speed (changes the clip length)')}</span></label></fieldset><div class="vs-modal-actions"><button type="button" data-modal-close>${label('cancel', 'Cancel')}</button><button type="submit" class="vs-primary">${label('apply', 'Apply')}</button></div></form>`);
         host.querySelector('[data-attr-form]').addEventListener('submit', event => {
             event.preventDefault();
             const groups = Array.from(host.querySelectorAll('[data-attr-group]:checked'), input => input.value);
@@ -196,7 +213,95 @@
         return false;
     }
 
-    // Edit shortcuts (spec §4.5). `selection` commands act on the selected clips and first select a focused,
+    // Ctrl+L: links the selection, or unlinks it when every selected clip already shares one group.
+    function toggleLink(s) {
+        const ids = selectedIds(s);
+        if (s.readonly || !ids.length) return false;
+        const links = ids.map(id => T().clipFor(s.project, id).clip.link || '');
+        const shared = links.every(link => link && link === links[0]);
+        if (!shared && ids.length < 2) return false;
+        return applyEdit(s, shared ? 'unlink' : 'link', project => E().setLink(project, ids, shared ? '' : T().newId('link')));
+    }
+    // Detach audio: the sound of the primary video clip moves to an audio clip (new ids; a new track gets the next name).
+    function detachAudio(s) {
+        const id = s.selectedClipId;
+        if (s.readonly || !id) return false;
+        return applyEdit(s, 'detach audio', project => E().detachAudio(project, id, { clip: T().newId('clip'), link: T().newId('link'), track: T().newId('track'), trackName: P.trackName(s, project.tracks, 'audio') }));
+    }
+    function reattachAudio(s) {
+        const id = s.selectedClipId;
+        if (s.readonly || !id) return false;
+        return applyEdit(s, 'reattach audio', project => E().reattachAudio(project, id));
+    }
+    // Speed from the inspector or the menu: the linked group gets the same speed. Stills have no speed and are skipped,
+    // as in paste attributes.
+    function timedClip(s, id) {
+        const found = T().clipFor(s.project, id), asset = found && (s.project.assets || []).find(item => item.id === found.clip.asset_id);
+        return !!asset && (asset.kind === 'video' || asset.kind === 'audio') && !found.clip.text;
+    }
+    function setClipSpeed(s, value, keep) {
+        const speed = Math.round(Number(value) * 1000) / 1000;
+        if (s.readonly || !s.project) return false;
+        if (!Number.isFinite(speed) || speed < 0.25 || speed > 16) { showNotice(s, 'speedInvalid', 'Enter a speed between 0.25 and 16.', true); return false; }
+        const ids = linkedSelection(s).filter(id => timedClip(s, id));
+        if (!ids.length) return false;
+        return applyEdit(s, 'speed', project => E().setSpeed(project, ids, speed, !!keep));
+    }
+    function commitSpeedField(s, input) {
+        const keep = !!s.q('[data-speed-keep]')?.checked;
+        setClipSpeed(s, input.value, keep);
+        renderInspector(s);
+    }
+    function toggleDisabled(s) {
+        const found = s.selectedClipId && s.project ? T().clipFor(s.project, s.selectedClipId) : null;
+        if (s.readonly || !found) return false;
+        const ids = selectedIds(s), next = !found.clip.disabled;
+        return applyEdit(s, next ? 'disable' : 'enable', project => E().setDisabled(project, ids, next));
+    }
+    function setLabel(s, label) {
+        const ids = selectedIds(s);
+        if (s.readonly || !ids.length) return false;
+        return applyEdit(s, 'label', project => E().setLabel(project, ids, label || ''));
+    }
+    // What the clip menu and the inspector may offer for the primary clip. Read-only offers nothing. The derived-media
+    // actions stay off until their app part (video-studio-derive.js) is loaded.
+    function clipCapabilities(s) {
+        const none = { linkable: false, linked: false, retimable: false, detachable: false, reattachable: false, reversible: false, freezable: false, exportable: false };
+        const found = s.project && s.selectedClipId ? T().clipFor(s.project, s.selectedClipId) : null;
+        if (!found || s.readonly) return none;
+        const clip = found.clip, asset = s.project.assets.find(item => item.id === clip.asset_id) || {};
+        const inside = s.frame > clip.start && s.frame < clip.start + clip.duration;
+        const video = found.track.kind === 'video' && asset.kind === 'video' && !found.track.locked;
+        return {
+            linkable: selectedIds(s).length > 1 || !!clip.link,
+            linked: !!clip.link,
+            retimable: !found.track.locked && timedClip(s, clip.id),
+            detachable: video && !!asset.has_audio && !clip.audio_detached,
+            reattachable: !found.track.locked && !!clip.audio_detached && !!E().audioPartner(s.project, clip.id),
+            reversible: !!P.reverseClip && video && Math.floor((clip.duration - 1) * E().speedOf(clip) + 1e-9) + 1 <= Math.floor(P.rateOf(s) * 300 + 1e-6),
+            freezable: !!P.freezeFrame && video && inside,
+            exportable: !!P.exportFrame && asset.kind === 'video' && inside
+        };
+    }
+    // Inspector and menu buttons: data-action="clip-<name>" (data-value for labels).
+    function clipCommand(s, name, value) {
+        if (name === 'link') return toggleLink(s);
+        if (name === 'detach') return detachAudio(s);
+        if (name === 'reattach') return reattachAudio(s);
+        if (name === 'disable') return toggleDisabled(s);
+        if (name === 'label') return setLabel(s, value);
+        if (name === 'reverse') return !!P.reverseClip && P.reverseClip(s, s.selectedClipId);
+        if (name === 'freeze') return !!P.freezeFrame && P.freezeFrame(s, s.selectedClipId);
+        if (name === 'export-frame') return !!P.exportFrame && P.exportFrame(s, s.selectedClipId);
+        return false;
+    }
+    // Speed… in the clip menu: opens the inspector on narrow windows and focuses the speed field.
+    function focusSpeed(s) {
+        if (!s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920) s.q('[data-action="toggle-inspector"]')?.click();
+        window.setTimeout(() => s.q('[data-inspector] [data-field="speed"]')?.focus({ preventScroll: true }), 0);
+    }
+
+    // Edit shortcuts (spec 4.5). `selection` commands act on the selected clips and first select a focused,
     // unselected clip; `always` commands swallow the key even without a selection (Alt+arrows would otherwise
     // navigate the browser history).
     function editCommand(s, event) {
@@ -209,11 +314,16 @@
             if (event.shiftKey) return null;
             if (key === 'd') return { run: () => duplicateSelection(s), selection: true };
             if (key === 'a') return { run: () => selectAll(s) };
+            if (key === 'l') return { run: () => toggleLink(s), selection: true };
             return null;
         }
         if (event.altKey) return key === 'ArrowLeft' || key === 'ArrowRight' ? { run: () => nudgeSelection(s, (key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1)), selection: true, always: true } : null;
         if (key === 'Delete' || key === 'Backspace') return { run: () => deleteSelection(s, event.shiftKey), selection: true };
-        if (event.shiftKey) return key === 'z' ? { run: () => s.q('[data-timeline] [data-action="zoom-fit"]')?.click() } : null;
+        if (event.shiftKey) {
+            if (key === 'z') return { run: () => s.q('[data-timeline] [data-action="zoom-fit"]')?.click() };
+            if (key === 'e') return { run: () => toggleDisabled(s), selection: true };
+            return null;
+        }
         if (key === 'v' || key === 't' || key === 'b') return { run: () => setTool(s, key === 'v' ? 'select' : key === 't' ? 'trim' : 'blade') };
         if (key === 'n') return { run: () => s.q('[data-timeline] [data-action="snap"]')?.click() };
         if (key === 'q' || key === 'w') return { run: () => trimToPlayhead(s, key === 'q' ? 'start' : 'end') };
@@ -225,12 +335,12 @@
     function handleEditKeys(s, event, focusedClip) {
         const command = editCommand(s, event);
         if (!command) return false;
-        if (command.selection && focusedClip && !isSelected(s, focusedClip)) { setSelection(s, [focusedClip], focusedClip); renderTimeline(s); }
+        if (command.selection && focusedClip && !isSelected(s, focusedClip)) { setSelection(s, linkedIds(s, [focusedClip], false), focusedClip); renderTimeline(s); }
         if (command.selection && !command.always && !selectedIds(s).length) return false;
         event.preventDefault();
         command.run();
         return true;
     }
 
-    Object.assign(P, { renderTimeline, selectedIds, isSelected, assignSelection, setSelection, toggleSelection, selectAll, selectForward, showReason, applyEdit, deleteSelection, deleteGap, splitSelection, bladeAt, duplicateSelection, nudgeSelection, trimToPlayhead, clipboardReady, copySelection, cutSelection, pasteClipboard, openPasteAttributes, setTool, toggleMagnetic, timelineCommand, isEditShortcut, handleEditKeys });
+    Object.assign(P, { renderTimeline, selectedIds, isSelected, assignSelection, setSelection, toggleSelection, selectAll, selectForward, showReason, applyEdit, deleteSelection, deleteGap, splitSelection, bladeAt, duplicateSelection, nudgeSelection, trimToPlayhead, clipboardReady, copySelection, cutSelection, pasteClipboard, openPasteAttributes, setTool, toggleMagnetic, timelineCommand, isEditShortcut, handleEditKeys, linkedIds, linkedSelection, toggleLink, detachAudio, reattachAudio, setClipSpeed, commitSpeedField, toggleDisabled, setLabel, clipCapabilities, clipCommand, focusSpeed });
 })();
