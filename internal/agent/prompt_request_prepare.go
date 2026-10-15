@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"aurago/internal/config"
 	loggerPkg "aurago/internal/logger"
@@ -54,6 +55,19 @@ func finalizePromptRequestForSend(req *openai.ChatCompletionRequest, budget *Req
 
 	before := len(req.Messages)
 	sanitized, dropped := SanitizeToolMessages(req.Messages)
+	// The sanitizer copies matched calls, so wire normalization preserves the archive.
+	for i := range sanitized {
+		if sanitized[i].Role != openai.ChatMessageRoleAssistant {
+			continue
+		}
+		for j := range sanitized[i].ToolCalls {
+			call := &sanitized[i].ToolCalls[j]
+			call.Index = nil // Stream positions are not request fields.
+			if strings.TrimSpace(call.Function.Arguments) == "" {
+				call.Function.Arguments = "{}"
+			}
+		}
+	}
 	req.Messages = sanitized
 	if len(preserveReasoning) == 0 || !preserveReasoning[0] {
 		req.Messages = sanitizeReasoningForRequestRoutes(sanitized, budget.Routes, providerType, req.Model)

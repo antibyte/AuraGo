@@ -188,6 +188,11 @@ remains enabled, and the configured call and job deadlines still apply.
 StepFun's standard `reasoning` response field
 is retained privately for both JSON and streaming responses, including chunks
 without token-usage data; it never becomes game code or Studio answer text.
+Before resending a tool round, empty function arguments are encoded as the JSON
+object string `"{}"` and stream-only call indices are omitted. This avoids malformed
+continuation requests after a model emits a call without parameters. The original
+history and paired tool error remain intact; missing required parameters are not
+invented, and the model still has to correct its call.
 Normal 3D build and repair turns request 16384 output tokens, including reasoning,
 when the selected route resolves to at least 65536 context and permits more than
 8192 output tokens. Other routes keep the general agent reserve. Every request
