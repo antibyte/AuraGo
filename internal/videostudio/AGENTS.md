@@ -31,7 +31,13 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   threads, a four-hour ceiling, bounded diagnostics with scrubbed paths, and `MaxOutputBytes` (default 2 GiB;
   the server passes `max_export_size_mb`); an output that reaches it fails with `ErrOutputLimit` (FFmpeg 8 may
   write past `-fs` on stream copy, so the size check decides). `checkRenderSpace` fails early with `ErrInsufficientDiskSpace`;
-  segment failures are `*SegmentError`. Preview proxies are complete-source 540p/30 fps MP4s capped at 512 MiB.
+  segment failures are `*SegmentError`. Preview proxies are complete-source 540p/30 fps MP4s capped at
+  `MaxPreviewBytes` (2 GiB).
+- `Encoder` (`encode.go`) holds codec, render node and CRF-equivalent quality. `SelectEncoder` tests candidates
+  with a one-second encode (`testEncode` is replaceable in tests). Hardware encoders only encode: segment graphs
+  end in `format=nv12,hwupload` for VAAPI/QSV, device setup comes from `globalArgs`. `RenderWithOptions`
+  restarts once with libx264 when a hardware video segment fails (`OnEncoderFallback`); previews retry in
+  software. Run `TestVAAPIRenderOptIn` on a host with a render node.
 - Preview and export hold the last video frame through longer source audio,
   including clip offsets beyond video EOF; FFmpeg readiness requires `tpad` for
   bounded render padding.

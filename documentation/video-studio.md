@@ -20,6 +20,8 @@ video_studio:
   max_project_size_mb: 16384
   max_export_size_mb: 8192
   render_timeout_seconds: 7200
+  hardware_encoding: auto
+  hardware_device: ""
 ```
 
 An empty executable path discovers `ffmpeg` and `ffprobe` on the AuraGo server's
@@ -106,6 +108,34 @@ cancels or refunds its generation.
 The app's read-only switch and Desktop permissions prevent new mutations.
 Stopping an existing job remains possible after write access is revoked.
 Publication is checked again before a completed background job writes its result.
+
+## Hardware encoding
+
+`hardware_encoding: auto` tests the graphics hardware once (VAAPI, Intel Quick Sync and NVIDIA NVENC on Linux;
+NVENC, Quick Sync and AMD AMF on Windows) and uses the first encoder that works for exports and preview
+proxies. `off` always uses the CPU (libx264); `vaapi`, `qsv`, `nvenc` or `amf` test only that encoder.
+`hardware_device` selects the render node for VAAPI and Quick Sync on Linux (default `/dev/dri/renderD128`).
+Decoding and picture composition stay on the CPU; the GPU only encodes. When the GPU
+fails during an export, the export restarts once on the CPU; the finished job's result records the encoder
+(`encoder`) and the fallback (`encoder_fallback: true`).
+"Check Video Studio" shows the chosen encoder. The test result is kept for ten minutes or until the
+configuration changes; an export that had to fall back to the CPU tests again next time.
+Preview proxies may grow to 2 GiB, enough for hour-long sources.
+
+The Docker image includes the Mesa VA drivers (AMD and older Intel GPUs). Pass the render node into the
+container and add the group that owns it:
+
+```yaml
+services:
+  aurago:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "110"   # numeric GID of /dev/dri/renderD128 on the host: stat -c %g /dev/dri/renderD128
+```
+
+Native installations need the VA driver of their GPU (for example `mesa-va-drivers` or
+`intel-media-va-driver`), and the AuraGo service user must be in the `render` group.
 
 ## Optional AI clips
 
