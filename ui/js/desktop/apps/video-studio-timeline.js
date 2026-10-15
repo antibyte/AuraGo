@@ -1,12 +1,15 @@
 (function () {
     'use strict';
 
-    const FPS = 30;
-    const MIN_ZOOM = 0.025;
+    const MIN_ZOOM = 0.005;
     const MAX_ZOOM = 2.8;
     const BASE_PX_PER_SECOND = 52;
-    const MAX_FRAME = 600 * FPS;
-    const TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300];
+    const MAX_TRACKS_PER_KIND = 8;
+    const MAX_CLIPS = 2000;
+    const TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+    const Time = () => window.VideoStudioTime;
+    const fpsOf = project => Time().rate(project);
+    const maxOf = project => Time().maxFrames(project);
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const clone = value => JSON.parse(JSON.stringify(value));
 
@@ -14,20 +17,18 @@
         return prefix + '-' + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
     }
 
-    function frameToClock(frame) {
-        const seconds = Math.floor(Math.max(0, frame) / FPS);
-        const frames = Math.floor(Math.max(0, frame) % FPS);
+    function frameToClock(frame, project) {
+        const fps = fpsOf(project), total = Math.max(0, frame);
+        const seconds = Math.floor(total / fps + 1e-9);
+        const frames = Math.floor(total - seconds * fps + 1e-9);
         const minutes = Math.floor(seconds / 60);
         return String(minutes).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0') + ':' + String(frames).padStart(2, '0');
     }
 
-    function shortClock(frame) {
-        const seconds = Math.floor(Math.max(0, frame) / FPS);
-        return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
-    }
+    function shortClock(frame, project) { return Time().shortClock(frame, project); }
 
     function trackCapacity(project, kind) {
-        return (project.tracks || []).filter(track => track.kind === kind).length < 4;
+        return (project.tracks || []).filter(track => track.kind === kind).length < MAX_TRACKS_PER_KIND;
     }
 
     function trackFor(project, id) {
@@ -42,11 +43,12 @@
         return null;
     }
 
-    function makeClip(asset, start, id) {
-        start = clamp(Math.round(start || 0), 0, MAX_FRAME - 1);
+    function makeClip(asset, start, id, project) {
+        const max = maxOf(project);
+        start = clamp(Math.round(start || 0), 0, max - 1);
         return {
-            id: id || newId('clip'), asset_id: asset.id, start: Math.max(0, Math.round(start)), offset: 0,
-            duration: Math.max(1, Math.min(Number(asset.duration_frames || FPS * 5), MAX_FRAME - start)),
+            id: id || newId('clip'), asset_id: asset.id, start, offset: 0,
+            duration: Math.max(1, Math.min(Number(asset.duration_frames || Math.round(fpsOf(project) * 5)), max - start)),
             x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, volume: 1,
             fade_in: 0, fade_out: 0, fit: 'contain', text: '', text_style: null, transition: null
         };
@@ -63,20 +65,21 @@
     // Mirror timing rules for immediate feedback; the server remains authoritative.
     function validTimeline(project) {
         if (!project || !Array.isArray(project.tracks) || !Array.isArray(project.assets)) return false;
+        const max = maxOf(project);
         const assets = new Map(project.assets.map(asset => [asset.id, asset]));
-        const ids = new Set(), tracks = new Set(), used = new Set();
+        const ids = new Set(), tracks = new Set();
         const counts = { video: 0, audio: 0, overlay: 0 };
         for (const track of project.tracks) {
-            if (!Object.hasOwn(counts, track.kind) || ++counts[track.kind] > 4 || tracks.has(track.id) || !Array.isArray(track.clips)) return false;
+            if (!Object.hasOwn(counts, track.kind) || ++counts[track.kind] > MAX_TRACKS_PER_KIND || tracks.has(track.id) || !Array.isArray(track.clips)) return false;
             tracks.add(track.id);
             const clips = track.clips.slice().sort((a, b) => a.start - b.start);
             for (let i = 0; i < clips.length; i++) {
                 const clip = clips[i], asset = assets.get(clip.asset_id), next = clips[i + 1];
                 if (!accepts(track, asset) || ids.has(clip.id)) return false;
-                ids.add(clip.id); used.add(clip.asset_id);
-                if (ids.size > 256 || used.size > 32) return false;
+                ids.add(clip.id);
+                if (ids.size > MAX_CLIPS) return false;
                 if (![clip.start, clip.offset, clip.duration, clip.fade_in, clip.fade_out].every(Number.isSafeInteger) ||
-                    clip.start < 0 || clip.duration <= 0 || clip.duration > MAX_FRAME - clip.start || clip.offset < 0 ||
+                    clip.start < 0 || clip.duration <= 0 || clip.duration > max - clip.start || clip.offset < 0 ||
                     clip.fade_in < 0 || clip.fade_out < 0 || clip.fade_in > clip.duration || clip.fade_out > clip.duration) return false;
                 if (asset.kind !== 'image' && clip.offset > asset.duration_frames - clip.duration) return false;
                 if (!Number.isFinite(clip.volume) || clip.volume < 0 || clip.volume > 4) return false;
@@ -152,20 +155,21 @@
     }
 
     function clipMarkup(options, project, track, clip, pps) {
+        const fps = fpsOf(project);
         const s = options.state, esc = options.esc;
         const asset = project.assets.find(a => a.id === clip.asset_id);
-        const left = clip.start / FPS * pps;
-        const width = Math.max(2, clip.duration / FPS * pps);
+        const left = clip.start / fps * pps;
+        const width = Math.max(2, clip.duration / fps * pps);
         const selected = s.selectedClipId === clip.id;
         const kind = clip.text ? 'text' : track.kind === 'audio' ? 'audio' : track.kind === 'overlay' ? 'overlay' : 'video';
         const name = clip.text ? clip.text.split(/\r?\n/)[0] : asset ? (options.assetName ? options.assetName(asset) : asset.name) : label(options, 'missingMedia', 'Missing media');
-        const media = options.clipMedia && asset ? options.clipMedia(asset, clip, track, pps / FPS, width) : '';
-        const fadeIn = clip.fade_in ? `<span class="vs-fade vs-fade-in" style="width:${Math.max(2, clip.fade_in / FPS * pps)}px"></span>` : '';
-        const fadeOut = clip.fade_out ? `<span class="vs-fade vs-fade-out" style="width:${Math.max(2, clip.fade_out / FPS * pps)}px"></span>` : '';
-        const transition = clip.transition && clip.transition.duration ? `<span class="vs-transition" style="width:${Math.max(4, clip.transition.duration / FPS * pps)}px" title="${esc(label(options, clip.transition.type, clip.transition.type))}">${icon(options, 'transition', 12)}</span>` : '';
+        const media = options.clipMedia && asset ? options.clipMedia(asset, clip, track, pps / fps, width) : '';
+        const fadeIn = clip.fade_in ? `<span class="vs-fade vs-fade-in" style="width:${Math.max(2, clip.fade_in / fps * pps)}px"></span>` : '';
+        const fadeOut = clip.fade_out ? `<span class="vs-fade vs-fade-out" style="width:${Math.max(2, clip.fade_out / fps * pps)}px"></span>` : '';
+        const transition = clip.transition && clip.transition.duration ? `<span class="vs-transition" style="width:${Math.max(4, clip.transition.duration / fps * pps)}px" title="${esc(label(options, clip.transition.type, clip.transition.type))}">${icon(options, 'transition', 12)}</span>` : '';
         const kindIcon = kind === 'text' ? 'text' : kind === 'audio' ? 'audio' : kind === 'overlay' ? 'image' : 'video';
-        const range = `${shortClock(clip.start)}–${shortClock(clip.start + clip.duration)}`;
-        return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}" data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span><span class="vs-clip-dur">${esc(shortClock(clip.duration))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
+        const range = `${shortClock(clip.start, project)}–${shortClock(clip.start + clip.duration, project)}`;
+        return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}" data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span><span class="vs-clip-dur">${esc(shortClock(clip.duration, project))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
     }
 
     // Re-rendering replaces every control; remember which one had keyboard focus and restore it.
@@ -184,6 +188,11 @@
     function tickInterval(pps) {
         return TICK_STEPS.find(step => step * pps >= 72) || 600;
     }
+    // Whole ruler seconds as m:ss, h:mm:ss from one hour on.
+    function tickLabel(sec) {
+        const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), rest = String(sec % 60).padStart(2, '0');
+        return h ? `${h}:${String(m).padStart(2, '0')}:${rest}` : `${m}:${rest}`;
+    }
 
     function render(root, options) {
         const s = options.state;
@@ -197,12 +206,13 @@
         const focused = focusSelector(root);
         const zoom = s.zoom || 1;
         const pps = BASE_PX_PER_SECOND * zoom;
-        const totalFrames = Math.max(FPS * 20, projectEnd(project) + FPS * 6, s.frame + FPS * 4);
-        const width = Math.ceil(totalFrames / FPS * pps) + 120;
+        const fps = fpsOf(project);
+        const totalFrames = Math.max(fps * 20, projectEnd(project) + fps * 6, s.frame + fps * 4);
+        const width = Math.ceil(totalFrames / fps * pps) + 120;
         const interval = tickInterval(pps);
         const ticks = [];
-        for (let sec = 0; sec <= totalFrames / FPS + interval; sec += interval) {
-            ticks.push(`<span class="vs-tick" style="left:${Math.round(sec * pps)}px">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</span>`);
+        for (let sec = 0; sec <= totalFrames / fps + interval; sec += interval) {
+            ticks.push(`<span class="vs-tick" style="left:${Math.round(sec * pps)}px">${tickLabel(sec)}</span>`);
         }
         const hasClips = project.tracks.some(track => track.clips.length);
         const firstVisual = displayOrder(project.tracks).find(track => track.kind === 'video') || project.tracks[0];
@@ -217,7 +227,7 @@
         const disabledEdit = selected && !s.readonly ? '' : 'disabled';
         const snap = s.snap !== false;
         const addTrack = ['video', 'audio', 'overlay'].map(kind => `<button type="button" role="menuitem" data-add-track="${kind}" ${trackCapacity(project, kind) && !s.readonly ? '' : 'disabled'}>${icon(options, kind === 'audio' ? 'audio' : kind === 'overlay' ? 'layers' : 'video', 15)}${esc(label(options, kind + 'Track', kind))}</button>`).join('');
-        root.innerHTML = `<div class="vs-timeline-toolbar"><div class="vs-edit-tools"><button type="button" data-action="split" ${disabledEdit} title="${esc(label(options, 'splitHintShort', 'Split at the playhead (S)'))}">${icon(options, 'scissors')}<span>${esc(label(options, 'split', 'Split'))}</span></button><button type="button" data-action="duplicate" ${disabledEdit}>${icon(options, 'copy')}<span>${esc(label(options, 'duplicate', 'Duplicate'))}</span></button><button type="button" data-action="delete" ${disabledEdit} title="${esc(label(options, 'deleteHint', 'Delete (Del)'))}">${icon(options, 'trash')}<span>${esc(label(options, 'delete', 'Delete'))}</span></button></div><div class="vs-timeline-tools"><div class="vs-menu-anchor"><button type="button" data-action="track-menu" aria-haspopup="menu" aria-expanded="${menuOpen}" ${s.readonly ? 'disabled' : ''}>${icon(options, 'plus')}<span>${esc(label(options, 'addTrack', 'Track'))}</span></button><div class="vs-popover vs-track-menu" data-track-menu role="menu" ${menuOpen ? '' : 'hidden'}>${addTrack}</div></div><button type="button" class="vs-toggle" data-action="snap" aria-pressed="${snap}" title="${esc(label(options, 'snapHint', 'Snap clips to edges and the playhead'))}">${icon(options, 'magnet')}<span>${esc(label(options, 'snap', 'Snap'))}</span></button><div class="vs-timeline-zoom"><button type="button" data-action="zoom-out" aria-label="${esc(label(options, 'zoomOut', 'Zoom out'))}" title="${esc(label(options, 'zoomOut', 'Zoom out'))}">${icon(options, 'minus')}</button><input type="range" data-zoom aria-label="${esc(label(options, 'timelineZoom', 'Timeline zoom'))}"><button type="button" data-action="zoom-in" aria-label="${esc(label(options, 'zoomIn', 'Zoom in'))}" title="${esc(label(options, 'zoomIn', 'Zoom in'))}">${icon(options, 'plus')}</button><button type="button" data-action="zoom-fit" title="${esc(label(options, 'zoomFit', 'Show whole project'))}">${icon(options, 'fit')}<span>${esc(label(options, 'zoomFitShort', 'Fit'))}</span></button></div></div></div><div class="vs-timeline-scroll"><div class="vs-tl-content" style="width:calc(var(--vs-head-w) + ${width}px)"><div class="vs-ruler"><div class="vs-ruler-label">${icon(options, 'clock', 13)}<span data-timeline-time>${esc(shortClock(s.frame))}</span></div><div class="vs-ruler-scale" data-ruler style="width:${width}px;--vs-tick:${interval * pps}px">${ticks.join('')}</div></div><div class="vs-track-list">${rows}${empty}</div><div class="vs-playhead" style="left:calc(var(--vs-head-w) + ${s.frame / FPS * pps}px)"><span class="vs-playhead-knob" data-playhead></span></div></div></div>`;
+        root.innerHTML = `<div class="vs-timeline-toolbar"><div class="vs-edit-tools"><button type="button" data-action="split" ${disabledEdit} title="${esc(label(options, 'splitHintShort', 'Split at the playhead (S)'))}">${icon(options, 'scissors')}<span>${esc(label(options, 'split', 'Split'))}</span></button><button type="button" data-action="duplicate" ${disabledEdit}>${icon(options, 'copy')}<span>${esc(label(options, 'duplicate', 'Duplicate'))}</span></button><button type="button" data-action="delete" ${disabledEdit} title="${esc(label(options, 'deleteHint', 'Delete (Del)'))}">${icon(options, 'trash')}<span>${esc(label(options, 'delete', 'Delete'))}</span></button></div><div class="vs-timeline-tools"><div class="vs-menu-anchor"><button type="button" data-action="track-menu" aria-haspopup="menu" aria-expanded="${menuOpen}" ${s.readonly ? 'disabled' : ''}>${icon(options, 'plus')}<span>${esc(label(options, 'addTrack', 'Track'))}</span></button><div class="vs-popover vs-track-menu" data-track-menu role="menu" ${menuOpen ? '' : 'hidden'}>${addTrack}</div></div><button type="button" class="vs-toggle" data-action="snap" aria-pressed="${snap}" title="${esc(label(options, 'snapHint', 'Snap clips to edges and the playhead'))}">${icon(options, 'magnet')}<span>${esc(label(options, 'snap', 'Snap'))}</span></button><div class="vs-timeline-zoom"><button type="button" data-action="zoom-out" aria-label="${esc(label(options, 'zoomOut', 'Zoom out'))}" title="${esc(label(options, 'zoomOut', 'Zoom out'))}">${icon(options, 'minus')}</button><input type="range" data-zoom aria-label="${esc(label(options, 'timelineZoom', 'Timeline zoom'))}"><button type="button" data-action="zoom-in" aria-label="${esc(label(options, 'zoomIn', 'Zoom in'))}" title="${esc(label(options, 'zoomIn', 'Zoom in'))}">${icon(options, 'plus')}</button><button type="button" data-action="zoom-fit" title="${esc(label(options, 'zoomFit', 'Show whole project'))}">${icon(options, 'fit')}<span>${esc(label(options, 'zoomFitShort', 'Fit'))}</span></button></div></div></div><div class="vs-timeline-scroll"><div class="vs-tl-content" style="width:calc(var(--vs-head-w) + ${width}px)"><div class="vs-ruler"><div class="vs-ruler-label">${icon(options, 'clock', 13)}<span data-timeline-time>${esc(shortClock(s.frame, project))}</span></div><div class="vs-ruler-scale" data-ruler style="width:${width}px;--vs-tick:${interval * pps}px">${ticks.join('')}</div></div><div class="vs-track-list">${rows}${empty}</div><div class="vs-playhead" style="left:calc(var(--vs-head-w) + ${s.frame / fps * pps}px)"><span class="vs-playhead-knob" data-playhead></span></div></div></div>`;
         const scroll = root.querySelector('.vs-timeline-scroll');
         scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
         const slider = root.querySelector('[data-zoom]');
@@ -234,10 +244,10 @@
         const head = root.querySelector('.vs-playhead');
         if (!head) return;
         const pps = BASE_PX_PER_SECOND * (state.zoom || 1);
-        const x = state.frame / FPS * pps;
+        const x = state.frame / fpsOf(state.project) * pps;
         head.style.left = `calc(var(--vs-head-w) + ${x}px)`;
         const time = root.querySelector('[data-timeline-time]');
-        if (time) time.textContent = shortClock(state.frame);
+        if (time) time.textContent = shortClock(state.frame, state.project);
         if (!follow) return;
         const scroll = root.querySelector('.vs-timeline-scroll'), labelEl = root.querySelector('.vs-ruler-label');
         if (!scroll || !labelEl) return;
@@ -248,7 +258,7 @@
     function revealFrame(root, state, frame) {
         const scroll = root.querySelector('.vs-timeline-scroll'), labelEl = root.querySelector('.vs-ruler-label');
         if (!scroll || !labelEl) return;
-        const x = frame / FPS * BASE_PX_PER_SECOND * (state.zoom || 1);
+        const x = frame / fpsOf(state.project) * BASE_PX_PER_SECOND * (state.zoom || 1);
         const visible = scroll.clientWidth - labelEl.offsetWidth;
         if (x < scroll.scrollLeft || x > scroll.scrollLeft + visible - 32) scroll.scrollLeft = Math.max(0, x - 48);
     }
@@ -256,22 +266,23 @@
     function fitZoom(root, project) {
         const scroll = root.querySelector('.vs-timeline-scroll'), labelEl = root.querySelector('.vs-ruler-label');
         const visible = Math.max(120, (scroll ? scroll.clientWidth : 800) - (labelEl ? labelEl.offsetWidth : 160) - 40);
-        const seconds = Math.max(5, projectEnd(project) / FPS);
+        const seconds = Math.max(5, projectEnd(project) / fpsOf(project));
         return clamp(visible / (seconds * BASE_PX_PER_SECOND), MIN_ZOOM, MAX_ZOOM);
     }
 
     function dragClip(before, clipId, mode, delta, targetTrackId, snapFrames, extraPoints) {
         const project = clone(before), source = clipFor(project, clipId);
+        const max = maxOf(project);
         if (!source || source.track.locked) return null;
         const clip = source.clip, asset = project.assets.find(item => item.id === clip.asset_id);
         const extra = Array.isArray(extraPoints) ? extraPoints.filter(Number.isFinite) : [];
         if (mode === 'move') {
             const target = trackFor(project, targetTrackId) || source.track;
             if (target.locked || !accepts(target, asset)) return null;
-            let start = clamp(clip.start + delta, 0, MAX_FRAME - clip.duration);
+            let start = clamp(clip.start + delta, 0, max - clip.duration);
             const edges = target.clips.filter(item => item.id !== clip.id).flatMap(item => [item.start, item.start + item.duration]).concat(extra);
             const positions = [0, ...edges, ...edges.map(edge => edge - clip.duration)];
-            const nearby = positions.filter(point => point >= 0 && point <= MAX_FRAME - clip.duration && Math.abs(point - start) <= snapFrames);
+            const nearby = positions.filter(point => point >= 0 && point <= max - clip.duration && Math.abs(point - start) <= snapFrames);
             nearby.sort((a, b) => Math.abs(a - start) - Math.abs(b - start));
             if (nearby.length) start = nearby[0];
             clip.start = start;
@@ -285,11 +296,11 @@
             if (snapped != null) actual = clamp(snapped - clip.start, asset.kind === 'image' ? -clip.start : Math.max(-clip.start, -clip.offset), clip.duration - 1);
             clip.start += actual; clip.offset = asset.kind === 'image' ? 0 : clip.offset + actual; clip.duration -= actual;
         } else {
-            const sourceLimit = asset.kind === 'image' ? MAX_FRAME : asset.duration_frames - clip.offset;
+            const sourceLimit = asset.kind === 'image' ? max : asset.duration_frames - clip.offset;
             let duration = clip.duration + delta;
             const snapped = extra.find(point => Math.abs(point - (clip.start + duration)) <= snapFrames);
             if (snapped != null) duration = snapped - clip.start;
-            clip.duration = clamp(duration, 1, Math.min(sourceLimit, MAX_FRAME - clip.start));
+            clip.duration = clamp(duration, 1, Math.min(sourceLimit, max - clip.start));
         }
         clip.fade_in = Math.min(clip.fade_in, clip.duration);
         clip.fade_out = Math.min(clip.fade_out, clip.duration);
@@ -304,9 +315,9 @@
         function pps() { return BASE_PX_PER_SECOND * (s().zoom || 1); }
         function frameAt(element, clientX) {
             const rect = element.getBoundingClientRect();
-            return clamp(Math.round((clientX - rect.left) / pps() * FPS), 0, MAX_FRAME);
+            return clamp(Math.round((clientX - rect.left) / pps() * fpsOf(s().project)), 0, maxOf(s().project));
         }
-        function snapFrames() { return s().snap === false ? 0 : Math.max(1, Math.round(8 / pps() * FPS)); }
+        function snapFrames() { return s().snap === false ? 0 : Math.max(1, Math.round(8 / pps() * fpsOf(s().project))); }
         function setZoom(value, anchorClientX) {
             const scroll = root.querySelector('.vs-timeline-scroll'), labelEl = root.querySelector('.vs-ruler-label');
             const before = pps(), offset = scroll && labelEl ? (anchorClientX == null ? (scroll.clientWidth - labelEl.offsetWidth) / 2 : anchorClientX - scroll.getBoundingClientRect().left - labelEl.offsetWidth) : 0;
@@ -325,7 +336,7 @@
             if (drag.epoch !== s().projectEpoch || drag.projectId !== s().projectId) {
                 drag = null; s().timelineDragging = false; return;
             }
-            const delta = Math.round((event.clientX - drag.x) / pps() * FPS);
+            const delta = Math.round((event.clientX - drag.x) / pps() * fpsOf(s().project));
             const row = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-track-row]');
             const next = dragClip(drag.before, drag.clipId, drag.mode, delta, row?.dataset.trackRow, snapFrames(), [s().frame]);
             drag.invalid = !next;
@@ -435,7 +446,7 @@
             event.dataTransfer.dropEffect = 'copy';
             if (!dropMarker) { dropMarker = document.createElement('span'); dropMarker.className = 'vs-drop-marker'; }
             if (dropMarker.parentElement !== lane) { clearMarker(); dropMarker = document.createElement('span'); dropMarker.className = 'vs-drop-marker'; lane.append(dropMarker); lane.classList.add('is-drop'); }
-            dropMarker.style.left = Math.round(frameAt(lane, event.clientX) / FPS * pps()) + 'px';
+            dropMarker.style.left = Math.round(frameAt(lane, event.clientX) / fpsOf(s().project) * pps()) + 'px';
         }
         function dragLeave(event) { if (!root.contains(event.relatedTarget)) clearMarker(); }
         function drop(event) {
@@ -446,7 +457,7 @@
             const project = s().project;
             const track = trackFor(project, lane.dataset.trackId);
             if (!track || track.locked) return;
-            const at = clamp(frameAt(lane, event.clientX), 0, MAX_FRAME - 1);
+            const at = clamp(frameAt(lane, event.clientX), 0, maxOf(project) - 1);
             const assetId = event.dataTransfer.getData('application/x-video-studio-asset');
             const reorderId = event.dataTransfer.getData('application/x-video-studio-track');
             if (assetId) options.onDropAsset(assetId, track.id, at);
@@ -507,5 +518,5 @@
         };
     }
 
-    window.VideoStudioTimeline = { FPS, MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
+    window.VideoStudioTimeline = { MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, MAX_TRACKS_PER_KIND, MAX_CLIPS, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
 })();

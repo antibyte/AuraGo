@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    const FPS = 30;
     const THUMB_COUNT = 8;
     const THUMB_WIDTH = 160;
     const MAX_PEAK_BYTES = 80 * 1024 * 1024;
@@ -42,10 +41,10 @@
         return peaks;
     }
 
-    function pickThumb(thumbs, frame) {
+    function pickThumb(thumbs, seconds) {
         if (!thumbs || !thumbs.length) return null;
         let best = thumbs[0];
-        for (const thumb of thumbs) if (Math.abs(thumb.frame - frame) < Math.abs(best.frame - frame)) best = thumb;
+        for (const thumb of thumbs) if (Math.abs(thumb.time - seconds) < Math.abs(best.time - seconds)) best = thumb;
         return best;
     }
 
@@ -60,6 +59,8 @@
 
     function create(options) {
         const opts = options || {};
+        // Thumbnails and peaks are kept in seconds, so a frame-rate change keeps the cache valid.
+        const rate = () => (typeof opts.rate === 'function' ? Number(opts.rate()) : 0) || 30;
         const thumbs = new Map(), peaks = new Map(), urls = new Set(), queue = [];
         const abort = new AbortController();
         let running = false, disposed = false, video = null;
@@ -101,12 +102,12 @@
                 const ctx = canvas.getContext('2d');
                 for (const frame of thumbnailTimes(asset.duration_frames, THUMB_COUNT)) {
                     if (disposed) return;
-                    el.currentTime = frame / FPS;
+                    el.currentTime = frame / rate();
                     await once(el, 'seeked', 10000);
                     ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
                     const url = await canvasURL(canvas);
                     if (!url) return;
-                    entry.list.push({ frame, url });
+                    entry.list.push({ time: frame / rate(), url });
                     if (entry.list.length === 1) notify(asset.id);
                 }
                 entry.state = 'ready';
@@ -127,7 +128,7 @@
             const channels = [];
             for (let c = 0; c < Math.min(2, audio.numberOfChannels); c++) channels.push(audio.getChannelData(c));
             const data = peaksFromChannels(channels, audio.sampleRate, 50, 6000);
-            entry.data = { peaks: data, perFrame: data.length / Math.max(1 / FPS, audio.duration) / FPS };
+            entry.data = { peaks: data, perSecond: data.length / Math.max(1 / 30, audio.duration) };
             entry.state = 'ready';
         }
 
@@ -149,7 +150,7 @@
 
         function thumbsFor(asset) {
             if (!asset || !asset.id || !asset.media_url) return [];
-            if (asset.kind === 'image') return [{ frame: 0, url: asset.media_url }];
+            if (asset.kind === 'image') return [{ time: 0, url: asset.media_url }];
             if (asset.kind !== 'video') return [];
             let entry = thumbs.get(asset.id);
             if (!entry) {

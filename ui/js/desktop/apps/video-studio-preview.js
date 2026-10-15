@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    const FPS = 30;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
     function mediaURL(asset) {
@@ -11,7 +10,9 @@
         catch (_) { return ''; }
     }
 
-    function mount(canvas, getProject, getFrame, setFrame, onPlayState) {
+    function mount(canvas, getProject, getFrame, setFrame, onPlayState, getScale) {
+        const fps = () => window.VideoStudioTime.rate(getProject());
+        const scale = () => { const value = typeof getScale === 'function' ? Number(getScale()) : 1; return Math.max(0.1, Math.min(1, value || 1)); };
         const context = canvas.getContext('2d', { alpha: false });
         const media = new Map();
         const sourceNodes = new Map(), gainNodes = new Map();
@@ -67,7 +68,7 @@
 
         function assetFor(project, clip) { return (project.assets || []).find(asset => asset.id === clip.asset_id); }
         function activeAt(clip, at) { return at >= Number(clip.start || 0) && at < Number(clip.start || 0) + Number(clip.duration || 0); }
-        function sourcePosition(clip, at) { return Math.max(0, (Number(clip.offset || 0) + at - Number(clip.start || 0)) / FPS); }
+        function sourcePosition(clip, at) { return Math.max(0, (Number(clip.offset || 0) + at - Number(clip.start || 0)) / fps()); }
 
         function transitionIn(track, clip, at) {
             const sorted = (track.clips || []).slice().sort((a, b) => a.start - b.start);
@@ -86,7 +87,7 @@
         }
 
         function syncMedia(project, at, isPlaying) {
-            const active = new Set(), keep = new Set(), preloadUntil = at + FPS * 2;
+            const active = new Set(), keep = new Set(), preloadUntil = at + fps() * 2;
             (project.tracks || []).forEach(track => {
                 if (track.hidden) return;
                 (track.clips || []).forEach(clip => {
@@ -206,8 +207,10 @@
             const project = getProject();
             if (!project) return;
             frame = Math.max(0, Number(nextFrame) || 0);
-            if (canvas.width !== Number(project.width || 1280)) canvas.width = Number(project.width || 1280);
-            if (canvas.height !== Number(project.height || 720)) canvas.height = Number(project.height || 720);
+            // The backing store follows the preview quality; drawing uses canvas.width/height, so geometry scales with it.
+            const width = Math.max(2, Math.round(Number(project.width || 1280) * scale())), height = Math.max(2, Math.round(Number(project.height || 720) * scale()));
+            if (canvas.width !== width) canvas.width = width;
+            if (canvas.height !== height) canvas.height = height;
             // The export composes onto black, so empty and letterboxed areas are black here too.
             context.fillStyle = '#000'; context.fillRect(0, 0, canvas.width, canvas.height);
             const at = frame, tracks = project.tracks || [];
@@ -234,7 +237,7 @@
             if (!playing || disposed) return;
             const project = getProject();
             const end = Math.max(1, ...(project && project.tracks || []).flatMap(track => track.clips.map(clip => clip.start + clip.duration)));
-            frame = playStartFrame + Math.max(0, now - playStartAt) * FPS / 1000;
+            frame = playStartFrame + Math.max(0, now - playStartAt) * fps() / 1000;
             if (frame >= end) { playStartFrame = 0; playStartAt = now; frame = 0; }
             paint(frame);
             raf = requestAnimationFrame(tick);
@@ -254,7 +257,7 @@
         }
         function pause() {
             if (!playing) { syncMedia(getProject() || { tracks: [] }, frame, false); paint(frame); return; }
-            frame = playStartFrame + Math.max(0, performance.now() - playStartAt) * FPS / 1000;
+            frame = playStartFrame + Math.max(0, performance.now() - playStartAt) * fps() / 1000;
             playing = false; cancelAnimationFrame(raf); syncMedia(getProject() || { tracks: [] }, frame, false);
             if (onPlayState) onPlayState(false);
             paint(frame);

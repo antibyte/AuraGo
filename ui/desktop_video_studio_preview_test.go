@@ -14,6 +14,7 @@ func TestDesktopVideoStudioPreviewMediaLifecycle(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 global.location = {origin:'http://localhost'};
+require('./js/desktop/apps/video-studio-time.js');
 const allMedia = [], audioContexts = [];
 class MediaElement {
   constructor() { this.src=''; this.paused=true; this.currentTime=0; this.readyState=2; this.videoWidth=640; this.videoHeight=360; this.removed=0; }

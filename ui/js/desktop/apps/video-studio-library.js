@@ -77,7 +77,7 @@
             const ready = !!asset.kind;
             const poster = ready ? s.media.poster(asset) : '';
             const kindIcon = asset.kind === 'video' ? 'video' : asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : 'spinner';
-            const duration = asset.kind === 'video' || asset.kind === 'audio' ? T().shortClock(asset.duration_frames || 0) : '';
+            const duration = asset.kind === 'video' || asset.kind === 'audio' ? T().shortClock(asset.duration_frames || 0, s.project) : '';
             const style = poster ? ` style="background-image:url('${esc(s, poster)}')"` : '';
             return `<article class="vs-asset vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb"${style}>${poster ? '' : icon(kindIcon, 22, 'vs-icon' + (ready ? '' : ' vs-spin'))}${duration ? `<span class="vs-asset-badge">${esc(s, duration)}</span>` : ''}${used ? `<span class="vs-asset-used" title="${esc(s, tr(s, 'inTimeline', 'In the timeline'))}">${icon('check', 11)}</span>` : ''}</span><span class="vs-asset-name">${esc(s, asset.name)}</span><span class="vs-asset-meta">${icon(kindIcon === 'spinner' ? 'clock' : kindIcon, 12)}${esc(s, assetKindLabel(s, asset))}</span><button type="button" class="vs-asset-add" data-place-asset="${esc(s, asset.id)}" title="${esc(s, tr(s, 'addToTimeline', 'Add at the playhead'))}" aria-label="${esc(s, tr(s, 'addToTimeline', 'Add at the playhead'))}: ${esc(s, asset.name)}" ${s.readonly || !ready ? 'disabled' : ''}>${icon('plus', 16)}</button></article>`;
         }).join('');
@@ -113,18 +113,19 @@
     }
     function clipMedia(s, asset, clip, track, pxPerFrame, width) {
         if (clip.text || !asset.kind) return '';
+        const fps = window.VideoStudioTime.rate(s.project);
         if (track.kind === 'audio' || asset.kind === 'audio') {
             const data = s.media.peaks(asset);
             if (!data || !data.peaks.length) return '';
             const points = Math.max(2, Math.min(600, Math.round(width / 2)));
-            const key = [asset.id, clip.offset, clip.duration, points, clip.volume].join('|');
+            const key = [asset.id, clip.offset, clip.duration, points, clip.volume, fps].join('|');
             s.waveCache = s.waveCache || new Map();
             let path = s.waveCache.get(key);
             if (!path) {
                 const top = [], bottom = [];
                 for (let k = 0; k < points; k++) {
                     const frame = clip.offset + k / (points - 1) * clip.duration;
-                    const value = Math.min(1, (data.peaks[Math.min(data.peaks.length - 1, Math.floor(frame * data.perFrame))] || 0) * Math.max(0.15, Math.min(1.6, Number(clip.volume == null ? 1 : clip.volume))));
+                    const value = Math.min(1, (data.peaks[Math.min(data.peaks.length - 1, Math.floor(frame / fps * data.perSecond))] || 0) * Math.max(0.15, Math.min(1.6, Number(clip.volume == null ? 1 : clip.volume))));
                     top.push(`${k},${(50 - value * 46).toFixed(1)}`);
                     bottom.unshift(`${k},${(50 + value * 46).toFixed(1)}`);
                 }
@@ -141,7 +142,7 @@
         const count = Math.min(48, Math.ceil(width / tile));
         let tiles = '';
         for (let i = 0; i < count; i++) {
-            const thumb = window.VideoStudioMedia.pickThumb(thumbs, clip.offset + (i * tile + tile / 2) / pxPerFrame);
+            const thumb = window.VideoStudioMedia.pickThumb(thumbs, (clip.offset + (i * tile + tile / 2) / pxPerFrame) / fps);
             if (thumb) tiles += `<i style="left:${i * tile}px;width:${tile}px;background-image:url('${esc(s, thumb.url)}')"></i>`;
         }
         return `<span class="vs-filmstrip">${tiles}</span>`;

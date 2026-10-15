@@ -13,6 +13,7 @@ func TestVideoStudioTimelineEdits(t *testing.T) {
 	script := `
 const assert = require('node:assert/strict');
 global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 const T = window.VideoStudioTimeline;
 const asset = {id:'a',kind:'video',has_audio:true,duration_frames:300};
@@ -42,8 +43,13 @@ project.tracks[0].clips[1].start++;
 assert(!T.validTimeline(project),'transition duration need not match overlap');
 project.tracks[0].clips[0].start = Number.MAX_SAFE_INTEGER;
 assert(!T.validTimeline(project));
-assert.equal(T.makeClip(asset, 18000).duration,1);
-assert.equal(T.MIN_ZOOM * 52 * 600,780,'ten minutes cannot fit the timeline');
+assert.equal(T.makeClip(asset, 108000, 'end', {fps:30}).duration,1);
+assert.equal(T.makeClip(asset, 0, 'pal', {fps:25}).duration,300,'a clip keeps its asset frames');
+assert(T.MIN_ZOOM * 52 * 3600 <= 1000,'sixty minutes fit the timeline');
+const eight = {fps:30,assets:[asset],tracks:Array.from({length:8},(_,i)=>track('v'+i,'video'))};
+assert(T.validTimeline(eight) && !T.trackCapacity(eight,'video'));
+eight.tracks.push(track('v8','video'));
+assert(!T.validTimeline(eight),'a ninth video track is rejected');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("timeline checks: %v\n%s", err, output)

@@ -13,6 +13,7 @@ func TestVideoStudioHelpers(t *testing.T) {
 	script := `
 const assert = require('node:assert/strict');
 global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-icons.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-media.js');
@@ -37,6 +38,8 @@ assert.equal(I.parseTime(''), null);
 assert.equal(I.parseTime('abc'), null);
 assert.equal(I.parseTime('-3'), null);
 assert.equal(I.parseTime('1:75'), null, 'seconds above 59 inside m:ss are rejected');
+assert.equal(I.formatTime(25, {fps: 25}), '0:01.00', 'the inspector formats in the project rate');
+assert.equal(I.parseTime('2', {fps: 50}), 100);
 assert.equal(I.formatSeconds(45), '1.5');
 assert.equal(I.formatSeconds(30), '1');
 
@@ -129,8 +132,8 @@ assert.deepEqual(M.thumbnailTimes(2, 8), [0, 1]);
 const peaks = M.peaksFromChannels([new Float32Array([0, 0.5, -1, 0.25]), new Float32Array([0.75, 0, 0, 0])], 4, 2, 100);
 assert.deepEqual(Array.from(peaks), [0.75, 1]);
 assert.equal(M.peaksFromChannels([new Float32Array(1000)], 100, 50, 7).length, 7, 'peak count is capped');
-assert.equal(M.pickThumb([{frame: 0, url: 'a'}, {frame: 90, url: 'b'}], 60).url, 'b');
-assert.equal(M.pickThumb([], 60), null);
+assert.equal(M.pickThumb([{time: 0, url: 'a'}, {time: 3, url: 'b'}], 2).url, 'b');
+assert.equal(M.pickThumb([], 2), null);
 assert.equal(M.isArtwork({name: 'title-1791446437502.png', kind: 'image'}), true);
 assert.equal(M.isArtwork({name: 'sticker-heart.png', kind: 'image'}), true);
 assert.equal(M.isArtwork({name: 'Holiday title-card.png', kind: 'image'}), false);
