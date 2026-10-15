@@ -72,24 +72,29 @@ type Track struct {
 }
 
 type Clip struct {
-	ID         string      `json:"id"`
-	AssetID    string      `json:"asset_id"`
-	Start      int         `json:"start"`
-	Offset     int         `json:"offset"`
-	Duration   int         `json:"duration"`
-	X          float64     `json:"x"`
-	Y          float64     `json:"y"`
-	Width      float64     `json:"width"`
-	Height     float64     `json:"height"`
-	Rotation   float64     `json:"rotation"`
-	Opacity    float64     `json:"opacity"`
-	Volume     float64     `json:"volume"`
-	FadeIn     int         `json:"fade_in"`
-	FadeOut    int         `json:"fade_out"`
-	Fit        FitMode     `json:"fit"`
-	Text       string      `json:"text,omitempty"`
-	TextStyle  *TextStyle  `json:"text_style,omitempty"`
-	Transition *Transition `json:"transition,omitempty"`
+	ID            string      `json:"id"`
+	AssetID       string      `json:"asset_id"`
+	Start         int         `json:"start"`
+	Offset        int         `json:"offset"`
+	Duration      int         `json:"duration"`
+	X             float64     `json:"x"`
+	Y             float64     `json:"y"`
+	Width         float64     `json:"width"`
+	Height        float64     `json:"height"`
+	Rotation      float64     `json:"rotation"`
+	Opacity       float64     `json:"opacity"`
+	Volume        float64     `json:"volume"`
+	FadeIn        int         `json:"fade_in"`
+	FadeOut       int         `json:"fade_out"`
+	Fit           FitMode     `json:"fit"`
+	Text          string      `json:"text,omitempty"`
+	TextStyle     *TextStyle  `json:"text_style,omitempty"`
+	Transition    *Transition `json:"transition,omitempty"`
+	Speed         float64     `json:"speed,omitempty"`
+	Link          string      `json:"link,omitempty"`
+	AudioDetached bool        `json:"audio_detached,omitempty"`
+	Disabled      bool        `json:"disabled,omitempty"`
+	Label         string      `json:"label,omitempty"`
 }
 
 type TextStyle struct {
@@ -124,6 +129,11 @@ const (
 	MaxSegmentInputs   = 32
 	MaxSourceDimension = 16384
 	MaxSourcePixels    = 64_000_000
+	// MinClipSpeed and MaxClipSpeed bound Clip.Speed; an absent speed (0) plays at 1.
+	MinClipSpeed = 0.25
+	MaxClipSpeed = 16
+	// MaxLinkClips bounds one link group.
+	MaxLinkClips = 16
 )
 
 var canvasSizes = [][2]int{
@@ -158,6 +168,34 @@ func AssetAtRate(asset Asset, rate Rate) Asset {
 		asset.DurationFrames = rate.FramesAt(asset.DurationUs)
 	}
 	return asset
+}
+
+// LabelColors are the clip label colors in menu order; a clip without a label has "".
+var LabelColors = []string{"red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"}
+
+// ClipSpeed returns the playback speed of a clip; an absent speed is 1.
+func ClipSpeed(clip Clip) float64 {
+	if clip.Speed == 0 {
+		return 1
+	}
+	return clip.Speed
+}
+
+// EnabledDuration is the frame position after the last enabled clip. Export ranges end there; Duration keeps
+// counting disabled clips because they still obey the limits.
+func EnabledDuration(project Project) int {
+	trimmed := project
+	trimmed.Tracks = make([]Track, len(project.Tracks))
+	for i, track := range project.Tracks {
+		trimmed.Tracks[i] = track
+		trimmed.Tracks[i].Clips = nil
+		for _, clip := range track.Clips {
+			if !clip.Disabled {
+				trimmed.Tracks[i].Clips = append(trimmed.Tracks[i].Clips, clip)
+			}
+		}
+	}
+	return Duration(trimmed)
 }
 
 // Duration returns the frame position immediately after the last clip.

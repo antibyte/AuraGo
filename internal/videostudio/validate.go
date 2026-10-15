@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -47,6 +48,7 @@ func Validate(project Project) error {
 	}
 
 	var videoTracks, audioTracks, overlayTracks, clipCount int
+	linkCounts := make(map[string]int)
 	trackIDs := make(map[string]struct{}, len(project.Tracks))
 	clipIDs := make(map[string]struct{})
 	for _, track := range project.Tracks {
@@ -85,6 +87,12 @@ func Validate(project Project) error {
 		for i, clip := range clips {
 			if err := validateClip(track, clip, assets, clipIDs, maxFrames); err != nil {
 				return err
+			}
+			if clip.Link != "" {
+				linkCounts[clip.Link]++
+				if linkCounts[clip.Link] > MaxLinkClips {
+					return fmt.Errorf("link group %q holds more than %d clips", clip.Link, MaxLinkClips)
+				}
 			}
 			if clip.Transition != nil {
 				if i+1 >= len(clips) {
@@ -172,13 +180,29 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 	if clip.Start < 0 || clip.Start > maxFrames || clip.Offset < 0 || clip.Duration <= 0 || clip.Duration > maxFrames || clip.Start > maxFrames-clip.Duration {
 		return fmt.Errorf("clip %q has invalid frame timing", clip.ID)
 	}
-	if asset.Kind != AssetImage && (clip.Offset > asset.DurationFrames || clip.Duration > asset.DurationFrames-clip.Offset) {
+	if clip.Speed != 0 && (!finite(clip.Speed) || clip.Speed < MinClipSpeed || clip.Speed > MaxClipSpeed) {
+		return fmt.Errorf("clip %q speed must be between 0.25 and 16", clip.ID)
+	}
+	speed := ClipSpeed(clip)
+	if asset.Kind == AssetImage {
+		if speed != 1 {
+			return fmt.Errorf("image clip %q cannot change speed", clip.ID)
+		}
+	} else if float64(clip.Duration-1)*speed > float64(asset.DurationFrames-1-clip.Offset)+1e-9 {
+		// Source extent rule: offset + (duration - 1) * speed <= duration_frames - 1. The room left in the
+		// source is computed in integers so huge offsets cannot round into range.
 		return fmt.Errorf("clip %q exceeds asset %q duration", clip.ID, asset.ID)
+	}
+	if clip.Link != "" && !validIdentifier(clip.Link) {
+		return fmt.Errorf("clip %q has an invalid link id", clip.ID)
+	}
+	if clip.Label != "" && !slices.Contains(LabelColors, clip.Label) {
+		return fmt.Errorf("clip %q has an unsupported label %q", clip.ID, clip.Label)
 	}
 	switch track.Kind {
 	case TrackVideo:
-		if asset.Kind != AssetVideo {
-			return fmt.Errorf("video track clip %q must reference a video asset", clip.ID)
+		if asset.Kind != AssetVideo && asset.Kind != AssetImage {
+			return fmt.Errorf("video track clip %q must reference a video or image asset", clip.ID)
 		}
 	case TrackOverlay:
 		if asset.Kind != AssetImage {
@@ -188,6 +212,9 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 		if asset.Kind != AssetAudio && (asset.Kind != AssetVideo || !asset.HasAudio) {
 			return fmt.Errorf("audio track clip %q must reference an asset with audio", clip.ID)
 		}
+	}
+	if clip.AudioDetached && (track.Kind != TrackVideo || asset.Kind != AssetVideo || !asset.HasAudio) {
+		return fmt.Errorf("clip %q can detach audio only on a video track with a video asset that has audio", clip.ID)
 	}
 	if track.Kind != TrackAudio {
 		if !finite(clip.X) || !finite(clip.Y) || !finite(clip.Width) || !finite(clip.Height) ||
