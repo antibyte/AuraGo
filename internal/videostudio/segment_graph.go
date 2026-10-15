@@ -78,10 +78,14 @@ func buildVideoSegment(project Project, seg Segment, sources map[string]renderSo
 		output = next
 	}
 	tail := fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS", output, seg.Start-window.Start, seg.End-window.Start)
+	// Convert RGBA to limited-range BT.709 YUV here, together with the optional resize: left to the encoder's
+	// automatic conversion, FFmpeg before 7.1 uses BT.601 while the stream is tagged BT.709. Hardware encoders
+	// append their upload (format=nv12,hwupload) after this format.
+	convert := "scale=out_color_matrix=bt709:out_range=tv"
 	if outWidth != width || outHeight != height {
-		tail += fmt.Sprintf(",scale=w=%d:h=%d:flags=bicubic", outWidth, outHeight)
+		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", outWidth, outHeight)
 	}
-	filters = append(filters, tail+"[vs_video_out]")
+	filters = append(filters, tail+","+convert+",format=yuv420p[vs_video_out]")
 	return inputs, strings.Join(filters, ";\n"), nil
 }
 

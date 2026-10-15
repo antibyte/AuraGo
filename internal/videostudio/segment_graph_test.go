@@ -37,6 +37,10 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 	if !strings.Contains(graph, "[0:V:0]setpts='if(eq(N,0),min(PTS,floor(5.005000000/TB)),PTS)',fps=30000/1001,setpts='max(PTS-150,-10)'") {
 		t.Fatalf("graph does not pick source frame 150 by absolute position:\n%s", graph)
 	}
+	// The graph converts to BT.709 itself instead of leaving RGBA to the encoder's scaler (BT.601 before FFmpeg 7.1).
+	if !strings.HasSuffix(graph, ",setpts=PTS-STARTPTS,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[vs_video_out]") {
+		t.Fatalf("graph does not end in an explicit BT.709 conversion:\n%s", graph)
+	}
 
 	// A position past the decodable video seeks to one second before its end and shifts the rest in the graph.
 	sources["v"] = renderSource{asset: project.Assets[0], path: "v.mp4", videoEnd: 2}
@@ -44,7 +48,8 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(inputs) != 1 || inputs[0].seek > 1.0001 || !strings.Contains(graph, "setpts='max(PTS-100,-20)'") || !strings.Contains(graph, "scale=w=640:h=360") {
+	if len(inputs) != 1 || inputs[0].seek > 1.0001 || !strings.Contains(graph, "setpts='max(PTS-100,-20)'") ||
+		!strings.HasSuffix(graph, ",scale=w=640:h=360:flags=bicubic:out_color_matrix=bt709:out_range=tv,format=yuv420p[vs_video_out]") {
 		t.Fatalf("late clip: inputs %+v graph:\n%s", inputs, graph)
 	}
 }
