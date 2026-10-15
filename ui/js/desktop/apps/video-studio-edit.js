@@ -184,5 +184,146 @@
         return finish(project);
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, overwrite, insertGap, insertClips, removeClips };
+    // Deletes clips and closes the time that becomes empty on all of their tracks; other tracks stay.
+    function rippleDelete(project, ids) {
+        const doomed = editable(project, ids);
+        if (!doomed.length) return refusal(project, ids);
+        const tracks = Array.from(new Set(doomed.map(({ track }) => track)));
+        const ranges = doomed.map(({ clip }) => [clip.start, endOf(clip)]);
+        doomed.forEach(({ track, clip }) => { track.clips = track.clips.filter(item => item !== clip); });
+        closeRanges(tracks, ranges);
+        return finish(project);
+    }
+    // The empty space around `frame` on a track, bounded by a later clip (space after the last clip is no gap).
+    function gapAt(project, trackId, frame) {
+        const track = trackById(project, trackId);
+        if (!track || track.clips.some(clip => clip.start <= frame && frame < endOf(clip))) return null;
+        const next = sorted(track).find(clip => clip.start > frame);
+        if (!next) return null;
+        return { trackId, start: Math.max(0, ...track.clips.filter(clip => endOf(clip) <= frame).map(endOf)), end: next.start };
+    }
+    function rippleDeleteGap(project, trackId, frame) {
+        const gap = gapAt(project, trackId, frame);
+        if (!gap) return REASON.nothing;
+        const track = trackById(project, trackId);
+        if (track.locked) return REASON.locked;
+        closeRanges([track], [[gap.start, gap.end]]);
+        return finish(project);
+    }
+    function clampDelta(lo, hi, delta) {
+        if (lo > hi) return null;
+        return Math.round(Math.max(lo, Math.min(hi, delta)));
+    }
+    // Trims the same edge of every listed clip by `delta` (clamped to what all of them allow) and moves the
+    // later clips on their tracks. End edge: the clip ends later or earlier. Start edge: the clip keeps its
+    // start and shows `delta` frames less at its head.
+    function rippleTrim(project, ids, edge, delta) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        const max = Time().maxFrames(project), perTrack = new Map();
+        items.forEach(({ track }) => perTrack.set(track, (perTrack.get(track) || 0) + 1));
+        let lo = -Infinity, hi = Infinity;
+        items.forEach(({ track, clip }) => {
+            const min = minDuration(track, clip), room = Math.floor((max - Math.max(...track.clips.map(endOf))) / perTrack.get(track));
+            if (edge === 'end') {
+                lo = Math.max(lo, min - clip.duration);
+                hi = Math.min(hi, maxDurationFrom(project, clip, clip.offset) - clip.duration, room);
+            } else {
+                hi = Math.min(hi, clip.duration - min);
+                lo = Math.max(lo, -headroom(project, clip), -room);
+            }
+        });
+        const d = clampDelta(lo, hi, delta);
+        if (d === null) return REASON.bounds;
+        if (!d) return delta ? REASON.bounds : REASON.nothing;
+        items.forEach(({ track, clip }) => {
+            const later = track.clips.filter(item => item !== clip && item.start > clip.start);
+            if (edge === 'end') {
+                clip.duration += d;
+                later.forEach(item => { item.start += d; });
+            } else {
+                if (!isStill(project, clip)) clip.offset = shifted(clip, d);
+                clip.duration -= d;
+                later.forEach(item => { item.start -= d; });
+            }
+            clampFades(clip);
+        });
+        return finish(project);
+    }
+    // Moves cuts between neighbors: the left clip ends `delta` later, the right clip starts later and shows
+    // later source frames. A transition at the cut keeps its overlap.
+    function roll(project, pairs, delta) {
+        const items = [];
+        for (const [leftId, rightId] of pairs || []) {
+            const a = T().clipFor(project, leftId), b = T().clipFor(project, rightId);
+            if (!a || !b || a.track !== b.track) return REASON.nothing;
+            if (a.track.locked) return REASON.locked;
+            const order = sorted(a.track);
+            if (order[order.indexOf(a.clip) + 1] !== b.clip || endOf(a.clip) < b.clip.start) return REASON.nothing;
+            items.push({ track: a.track, left: a.clip, right: b.clip });
+        }
+        if (!items.length) return REASON.nothing;
+        let lo = -Infinity, hi = Infinity;
+        items.forEach(({ track, left, right }) => {
+            lo = Math.max(lo, minDuration(track, left) - left.duration, -headroom(project, right));
+            hi = Math.min(hi, maxDurationFrom(project, left, left.offset) - left.duration, right.duration - minDuration(track, right));
+        });
+        const d = clampDelta(lo, hi, delta);
+        if (d === null) return REASON.bounds;
+        if (!d) return delta ? REASON.bounds : REASON.nothing;
+        items.forEach(({ left, right }) => {
+            left.duration += d;
+            if (!isStill(project, right)) right.offset = shifted(right, d);
+            right.start += d; right.duration -= d;
+            clampFades(left); clampFades(right);
+        });
+        return finish(project);
+    }
+    // Shows other source frames in the same place: the offset moves by `delta` timeline frames.
+    function slip(project, ids, delta) {
+        const items = editable(project, ids);
+        if (!items.length) return refusal(project, ids);
+        const moving = items.filter(({ clip }) => !isStill(project, clip));
+        if (!moving.length) return REASON.media;
+        let lo = -Infinity, hi = Infinity;
+        moving.forEach(({ clip }) => {
+            const frames = Number(assetOf(project, clip).duration_frames) || 0, speed = speedOf(clip);
+            lo = Math.max(lo, -headroom(project, clip));
+            hi = Math.min(hi, Math.floor((frames - 1 - (clip.duration - 1) * speed - clip.offset) / speed + 1e-9));
+        });
+        const d = clampDelta(lo, hi, delta);
+        if (d === null) return REASON.bounds;
+        if (!d) return delta ? REASON.bounds : REASON.nothing;
+        moving.forEach(({ clip }) => { clip.offset = shifted(clip, d); });
+        return finish(project);
+    }
+    // Moves a clip between its neighbors: a joined left neighbor ends with it, a joined right neighbor starts
+    // with it (showing other frames). Without a joined neighbor the clip moves into the gap on that side.
+    function slide(project, clipId, delta) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return REASON.nothing;
+        if (found.track.locked) return REASON.locked;
+        const { track, clip } = found, order = sorted(track), index = order.indexOf(clip);
+        const prev = order[index - 1], next = order[index + 1];
+        const leftJoined = !!prev && endOf(prev) >= clip.start, rightJoined = !!next && next.start <= endOf(clip);
+        let lo = leftJoined ? minDuration(track, prev) - prev.duration : (prev ? endOf(prev) : 0) - clip.start;
+        let hi = leftJoined ? maxDurationFrom(project, prev, prev.offset) - prev.duration : Infinity;
+        if (rightJoined) {
+            hi = Math.min(hi, next.duration - minDuration(track, next));
+            lo = Math.max(lo, -headroom(project, next));
+        } else hi = Math.min(hi, (next ? next.start : Time().maxFrames(project)) - endOf(clip));
+        const d = clampDelta(lo, hi, delta);
+        if (d === null) return REASON.bounds;
+        if (!d) return delta ? REASON.bounds : REASON.nothing;
+        clip.start += d;
+        if (leftJoined) { prev.duration += d; clampFades(prev); }
+        if (rightJoined) {
+            if (!isStill(project, next)) next.offset = shifted(next, d);
+            next.start += d; next.duration -= d;
+            clampFades(next);
+        }
+        return finish(project);
+    }
+
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide };
 })();

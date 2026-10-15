@@ -92,3 +92,75 @@ assert.equal(E.removeClips(p, ['t']), 'locked');
 assert.equal(E.removeClips(p, ['nope']), 'nothing');
 `)
 }
+
+func TestVideoStudioEditTrims(t *testing.T) {
+	runVideoStudioEditScript(t, `
+// Ripple delete closes the removed time on the clips' own tracks; other tracks stay.
+let p = base();
+assert.equal(E.rippleDelete(p, ['y']), true);
+assert.deepEqual(spans(p,'v1'), [[0,100,0],[100,100,400]]);
+assert.deepEqual(spans(p,'a1'), [[0,300,0]]);
+// Only time that is empty on every affected track closes (J-cut: audio starts 20 frames earlier).
+p = project([
+  track('v1','video',[clip('x',V,0,100), clip('y',V,100,100,{offset:100}), clip('z',V,200,100,{offset:200})]),
+  track('a1','audio',[clip('ax',A,0,80), clip('ay',A,80,120,{offset:80}), clip('az',A,200,100,{offset:200})])
+]);
+assert.equal(E.rippleDelete(p, ['y','ay']), true);
+assert.deepEqual(spans(p,'v1'), [[0,100,0],[100,100,200]]);
+assert.deepEqual(spans(p,'a1'), [[0,80,0],[100,100,200]]);
+valid(p);
+// A gap closes on its own track.
+p = base(); p.tracks[1].clips.push(clip('w2',V,200,50));
+assert.deepEqual(E.gapAt(p,'v2',150), {trackId:'v2', start:110, end:200});
+assert.equal(E.rippleDeleteGap(p,'v2',150), true);
+assert.equal(at(p,'w2').start, 110);
+assert.equal(E.gapAt(p,'v2',300), null, 'space after the last clip is not a gap');
+
+// Ripple trim: the end edge moves later clips; the start edge keeps the clip start and shows later frames.
+p = base();
+assert.equal(E.rippleTrim(p, ['x'], 'end', -40), true);
+assert.deepEqual(spans(p,'v1'), [[0,60,0],[60,100,200],[160,100,400]]);
+assert.equal(E.rippleTrim(p, ['z'], 'end', 500), true, 'clamped at the media end');
+assert.equal(at(p,'z').duration, 200);
+assert.equal(E.rippleTrim(p, ['z'], 'end', 5), 'bounds');
+p = base();
+assert.equal(E.rippleTrim(p, ['y'], 'start', 30), true);
+assert.deepEqual(spans(p,'v1'), [[0,100,0],[100,70,230],[170,100,400]]);
+assert.equal(E.rippleTrim(p, ['x'], 'start', -10), 'bounds', 'no media before the first frame');
+p = base(); p.tracks[0].locked = true;
+assert.equal(E.rippleTrim(p, ['x'], 'end', -10), 'locked');
+
+// Roll moves the cut between touching clips, bounded by both clips' media.
+p = base();
+assert.equal(E.roll(p, [['x','y']], 20), true);
+assert.deepEqual(spans(p,'v1'), [[0,120,0],[120,80,220],[200,100,400]]);
+assert.equal(E.roll(p, [['x','y']], -500), true);
+assert.deepEqual(spans(p,'v1'), [[0,1,0],[1,199,101],[200,100,400]]);
+assert.equal(E.roll(p, [['x','z']], 5), 'nothing', 'only neighbors roll');
+p = pair();
+assert.equal(E.roll(p, [['a','b']], 15), true);
+assert.equal(at(p,'a').transition.duration, 10, 'a transition keeps its overlap');
+assert.deepEqual(spans(p,'v1'), [[0,115,0],[105,85,115]]);
+valid(p);
+
+// Slip changes the source frames in place; stills have nothing to slip.
+p = base();
+assert.equal(E.slip(p, ['y'], 50), true);
+assert.equal(at(p,'y').offset, 250);
+assert.equal(E.slip(p, ['y'], 1000), true);
+assert.equal(at(p,'y').offset, 500);
+assert.equal(E.slip(p, ['y'], 1), 'bounds');
+assert.equal(E.slip(base(), ['t'], 10), 'media');
+
+// Slide moves a clip between its neighbors; they absorb the change.
+p = base();
+assert.equal(E.slide(p, 'y', 30), true);
+assert.deepEqual(spans(p,'v1'), [[0,130,0],[130,100,200],[230,70,430]]);
+assert.equal(E.slide(p, 'y', -1000), true);
+assert.deepEqual(spans(p,'v1'), [[0,1,0],[1,100,200],[101,199,301]]);
+valid(p);
+p = base();
+assert.equal(E.slide(p, 'w', -80), true, 'without neighbors the clip uses the gap');
+assert.equal(at(p,'w').start, 0);
+`)
+}
