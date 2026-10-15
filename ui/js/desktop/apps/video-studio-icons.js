@@ -57,7 +57,13 @@
         layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
         clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         transition: '<rect x="3" y="6" width="9" height="12" rx="1.5"/><rect x="12" y="6" width="9" height="12" rx="1.5" stroke-dasharray="2 2"/>',
-        project: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>'
+        project: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',
+        link: '<path d="M10 13.5 14 9.5"/><path d="M8.5 15.5 6.7 17.3a3.2 3.2 0 0 1-4.5-4.5l2.6-2.6a3.2 3.2 0 0 1 4.5 0"/><path d="M15.5 8.5l1.8-1.8a3.2 3.2 0 0 1 4.5 4.5l-2.6 2.6a3.2 3.2 0 0 1-4.5 0"/>',
+        unlink: '<path d="M10 13.5 14 9.5"/><path d="M8.5 15.5 6.7 17.3a3.2 3.2 0 0 1-4.5-4.5l2.6-2.6a3.2 3.2 0 0 1 4.5 0"/><path d="M15.5 8.5l1.8-1.8a3.2 3.2 0 0 1 4.5 4.5l-2.6 2.6a3.2 3.2 0 0 1-4.5 0"/><path d="M3 3l18 18"/>',
+        speed: '<path d="M5 17a8 8 0 1 1 14 0"/><path d="m12 13 4-4"/>',
+        reverse: '<path d="M4 7h11"/><path d="m11 4 4 3-4 3"/><path d="M20 17H9"/><path d="m13 14-4 3 4 3"/>',
+        freeze: '<rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>',
+        label: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>'
     };
 
     function svg(name, size, cls) {

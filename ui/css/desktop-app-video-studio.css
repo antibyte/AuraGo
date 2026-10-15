@@ -26,6 +26,14 @@
     --vs-clip-overlay: #c66f31;
     --vs-clip-text: #b5428a;
     --vs-clip-audio: #15907a;
+    --vs-label-red: rgba(229, 72, 77, .78);
+    --vs-label-orange: rgba(242, 143, 58, .8);
+    --vs-label-yellow: rgba(230, 190, 52, .8);
+    --vs-label-green: rgba(47, 181, 124, .75);
+    --vs-label-teal: rgba(30, 166, 176, .78);
+    --vs-label-blue: rgba(63, 128, 230, .78);
+    --vs-label-purple: rgba(148, 98, 230, .78);
+    --vs-label-pink: rgba(219, 96, 160, .78);
     --vs-head-w: 204px;
     --vs-lib-w: 288px;
     --vs-insp-w: 304px;
@@ -475,6 +483,21 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-clip-overlay { background: var(--vs-clip-overlay); }
 .vs-clip-text { background: var(--vs-clip-text); }
 .vs-clip-audio { background: var(--vs-clip-audio); }
+.vs-clip[data-label="red"] { background: var(--vs-label-red); }
+.vs-clip[data-label="orange"] { background: var(--vs-label-orange); }
+.vs-clip[data-label="yellow"] { background: var(--vs-label-yellow); }
+.vs-clip[data-label="green"] { background: var(--vs-label-green); }
+.vs-clip[data-label="teal"] { background: var(--vs-label-teal); }
+.vs-clip[data-label="blue"] { background: var(--vs-label-blue); }
+.vs-clip[data-label="purple"] { background: var(--vs-label-purple); }
+.vs-clip[data-label="pink"] { background: var(--vs-label-pink); }
+/* Filmstrip tiles cover the clip background: they let the label colour through, and the hatch is drawn over them. */
+.vs-clip[data-label] .vs-filmstrip i { opacity: .55; }
+.vs-clip.is-disabled { opacity: .5; filter: saturate(.3); background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, .34) 0 6px, transparent 6px 12px); }
+.vs-clip.is-disabled .vs-clip-media::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, .34) 0 6px, transparent 6px 12px); }
+.vs-clip-speed { padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, .4); font: 600 10px/1.5 ui-monospace, Consolas, monospace; }
+.vs-clip.is-linked .vs-clip-label > .vs-icon { opacity: .9; }
+.vs-clip.is-detached { box-shadow: inset 0 -3px 0 rgba(255, 255, 255, .35), 0 1px 2px rgba(0, 0, 0, .3); }
 .vs-clip.is-selected { border-color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 4px color-mix(in srgb, var(--vs-accent) 70%, transparent), 0 4px 12px rgba(0, 0, 0, .4); z-index: 2; }
 .vs-clip:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .vs-clip-media { position: absolute; inset: 0; pointer-events: none; }
@@ -533,6 +556,15 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-attr-groups { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; border: 0; }
 .vs-attr-groups label { display: flex; align-items: flex-start; gap: 9px; line-height: 1.35; }
 .vs-attr-groups input { margin-top: 2px; accent-color: var(--vs-accent); }
+.vs-swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.vs-swatch { width: 22px; height: 22px; padding: 0; border: 1px solid var(--vs-border-strong); border-radius: 6px; background: var(--vs-swatch, transparent); cursor: pointer; }
+.vs-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--vs-bg), 0 0 0 4px var(--vs-accent); }
+.vs-clip-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.vs-clip-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-clip-actions button[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-clip-actions button:disabled { opacity: .45; cursor: default; }
+.vs-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.vs-check input { accent-color: var(--vs-accent); }
 .vs-modal .vs-facts { padding: 12px; border-radius: 10px; background: var(--vs-control); }
 .vs-modal .vs-ai-provider { margin-top: 12px; }
 

@@ -67,13 +67,15 @@
         }
 
         function assetFor(project, clip) { return (project.assets || []).find(asset => asset.id === clip.asset_id); }
-        function activeAt(clip, at) { return at >= Number(clip.start || 0) && at < Number(clip.start || 0) + Number(clip.duration || 0); }
-        function sourcePosition(clip, at) { return Math.max(0, (Number(clip.offset || 0) + at - Number(clip.start || 0)) / fps()); }
+        function speedOf(clip) { const speed = Number(clip.speed); return speed > 0 ? speed : 1; }
+        // Disabled clips are neither drawn nor played.
+        function activeAt(clip, at) { return !clip.disabled && at >= Number(clip.start || 0) && at < Number(clip.start || 0) + Number(clip.duration || 0); }
+        function sourcePosition(clip, at) { return Math.max(0, (Number(clip.offset || 0) + (at - Number(clip.start || 0)) * speedOf(clip)) / fps()); }
 
         function transitionIn(track, clip, at) {
             const sorted = (track.clips || []).slice().sort((a, b) => a.start - b.start);
             const index = sorted.findIndex(item => item.id === clip.id);
-            if (index <= 0) return null;
+            if (index <= 0 || sorted[index - 1].disabled) return null;
             const prior = sorted[index - 1], duration = Number(prior.transition && prior.transition.duration || 0);
             if (!duration || !prior.transition || prior.start + prior.duration - clip.start !== duration) return null;
             return { type: prior.transition.type, progress: clamp((at - clip.start) / duration, 0, 1) };
@@ -82,6 +84,9 @@
         function transitionOut(track, clip, at) {
             const transition = clip.transition, duration = Number(transition && transition.duration || 0);
             if (!duration) return null;
+            // The transition is honoured only when the clip after it on the track is enabled (export agrees).
+            const after = (track.clips || []).slice().sort((a, b) => a.start - b.start).find(item => item.start > clip.start);
+            if (!after || after.disabled) return null;
             const start = clip.start + clip.duration - duration;
             return at >= start ? { type: transition.type, progress: clamp((at - start) / duration, 0, 1) } : null;
         }
@@ -91,7 +96,7 @@
             (project.tracks || []).forEach(track => {
                 if (track.hidden) return;
                 (track.clips || []).forEach(clip => {
-                    const current = activeAt(clip, at), near = !current && clip.start > at && clip.start <= preloadUntil;
+                    const current = activeAt(clip, at), near = !current && !clip.disabled && clip.start > at && clip.start <= preloadUntil;
                     if (!current && !near) return;
                     const asset = assetFor(project, clip), el = entry(asset, clip);
                     if (!asset || !el) return;
@@ -106,11 +111,13 @@
                     const local = Math.max(0, at - clip.start);
                     const fadeIn = clip.fade_in > 0 ? clamp(local / clip.fade_in, 0, 1) : 1;
                     const fadeOut = clip.fade_out > 0 ? clamp((clip.duration - local) / clip.fade_out, 0, 1) : 1;
-                    const audioAllowed = !track.muted && !track.hidden && (track.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
+                    // A detached video clip is silent here (its audio clip plays), and so is any clip above 4x.
+                    const audioAllowed = !track.muted && !track.hidden && !clip.audio_detached && speedOf(clip) <= 4 && (track.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
                     const targetGain = audioAllowed ? clamp(Number(clip.volume == null ? 1 : clip.volume) * fadeIn * fadeOut, 0, 4) : 0;
                     const gain = ensureAudioNode(el);
                     if (gain) { gain.gain.value = targetGain; el.volume = 1; el.muted = false; }
                     else { el.volume = clamp(targetGain, 0, 1); if (asset.kind === 'video') el.muted = !audioAllowed; }
+                    if (el instanceof HTMLMediaElement && Math.abs(el.playbackRate - speedOf(clip)) > 1e-6) el.playbackRate = speedOf(clip);
                     const desired = sourcePosition(clip, at);
                     if (Math.abs((el.currentTime || 0) - desired) > (isPlaying ? 0.38 : 0.025)) {
                         try { el.currentTime = desired; } catch (_) { /* source metadata is loading */ }
@@ -236,7 +243,7 @@
         function tick(now) {
             if (!playing || disposed) return;
             const project = getProject();
-            const end = Math.max(1, ...(project && project.tracks || []).flatMap(track => track.clips.map(clip => clip.start + clip.duration)));
+            const end = Math.max(1, ...(project && project.tracks || []).flatMap(track => track.clips.filter(clip => !clip.disabled).map(clip => clip.start + clip.duration)));
             frame = playStartFrame + Math.max(0, now - playStartAt) * fps() / 1000;
             if (frame >= end) { playStartFrame = 0; playStartAt = now; frame = 0; }
             paint(frame);

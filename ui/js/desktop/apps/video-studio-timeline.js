@@ -177,7 +177,12 @@
         const transition = clip.transition && clip.transition.duration ? `<span class="vs-transition" style="width:${Math.max(4, clip.transition.duration / fps * pps)}px" title="${esc(label(options, clip.transition.type, clip.transition.type))}">${icon(options, 'transition', 12)}</span>` : '';
         const kindIcon = kind === 'text' ? 'text' : kind === 'audio' ? 'audio' : kind === 'overlay' ? 'image' : 'video';
         const range = `${shortClock(clip.start, project)}–${shortClock(clip.start + clip.duration, project)}`;
-        return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}" data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span><span class="vs-clip-dur">${esc(shortClock(clip.duration, project))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
+        const speed = Number(clip.speed) > 0 ? Number(clip.speed) : 1;
+        const flags = (clip.disabled ? ' is-disabled' : '') + (clip.link ? ' is-linked' : '') + (clip.audio_detached ? ' is-detached' : '');
+        const color = clip.label ? ` data-label="${esc(clip.label)}"` : '';
+        const badges = (speed !== 1 ? `<span class="vs-clip-speed">${esc(String(Math.round(speed * 100) / 100))}×</span>` : '') + (clip.link ? icon(options, 'link', 11) : '');
+        const state = clip.disabled ? `, ${label(options, 'disabledClip', 'Disabled')}` : '';
+        return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}${flags}"${color} data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}${esc(state)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}${esc(state)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span>${badges}<span class="vs-clip-dur">${esc(shortClock(clip.duration, project))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
     }
 
     // Re-rendering replaces every control; remember which one had keyboard focus and restore it.
@@ -397,17 +402,18 @@
                 const mode = event.ctrlKey || event.metaKey ? 'insert' : 'overwrite';
                 return { project, result: E.moveClips(project, drag.ids, anchor.id, d, trackShift(before, drag.trackId, row?.dataset.trackRow), mode, { magnetic: !!s().magnetic }), peek: -1 };
             }
+            // Linked partners move with the edge, so their edges are no snap points.
             if (drag.op === 'ripple') {
-                const d = drag.edge === 'end' ? E.snapDelta([anchor.start + anchor.duration], delta, E.snapPoints(before, ownTrack, extra), range) : delta;
-                const result = E.rippleTrim(project, [anchor.id], drag.edge, d), clip = settled(anchor.id);
+                const d = drag.edge === 'end' ? E.snapDelta([anchor.start + anchor.duration], delta, E.snapPoints(before, ownTrack.concat(drag.linked || []), extra), range) : delta;
+                const result = E.rippleTrim(project, [anchor.id].concat(drag.linked || []), drag.edge, d), clip = settled(anchor.id);
                 return { project, result, peek: clip ? (drag.edge === 'end' ? clip.start + clip.duration - 1 : clip.start) : -1 };
             }
             if (drag.op === 'roll') {
-                const cut = clipFor(before, drag.pair[1]).clip.start;
-                const result = E.roll(project, [drag.pair], E.snapDelta([cut], delta, E.snapPoints(before, drag.pair, extra), range)), right = settled(drag.pair[1]);
+                const cut = clipFor(before, drag.pair[1]).clip.start, pairs = drag.pairs || [drag.pair];
+                const result = E.roll(project, pairs, E.snapDelta([cut], delta, E.snapPoints(before, pairs.flat(), extra), range)), right = settled(drag.pair[1]);
                 return { project, result, peek: right ? right.start : -1 };
             }
-            if (drag.op === 'slip') return { project, result: E.slip(project, [anchor.id], delta), peek: anchor.start };
+            if (drag.op === 'slip') return { project, result: E.slip(project, drag.group && drag.group.length ? drag.group : [anchor.id], delta), peek: anchor.start };
             const result = E.slide(project, anchor.id, E.snapDelta([anchor.start, anchor.start + anchor.duration], delta, E.snapPoints(before, ownTrack, extra), range)), clip = settled(anchor.id);
             return { project, result, peek: clip ? clip.start : -1 };
         }
@@ -421,7 +427,7 @@
             }
             const delta = Math.round((event.clientX - drag.x) / pps() * fpsOf(s().project));
             if (drag.type === 'edge') {
-                const next = dragClip(drag.before, drag.clipId, drag.mode, delta, '', snapFrames(), [s().frame]);
+                const next = dragClip(drag.before, drag.clipId, drag.mode, delta, '', snapFrames(), [s().frame], drag.linked);
                 drag.invalid = !next; drag.reason = '';
                 if (!next) return;
                 s().project = next;
@@ -465,7 +471,7 @@
             if (!done.el) return; // a plain click: the click handler seeks and deselects
             done.el.remove();
             suppressClick = true;
-            if (!cancelled) options.onSelectMany(done.ids, done.ids[done.ids.length - 1] || '');
+            if (!cancelled) options.onSelectMany(done.ids, done.ids[done.ids.length - 1] || '', done.altKey);
             render(root, options);
         }
 
@@ -477,7 +483,7 @@
             if (scrub) { scrub = null; return; }
             if (band) { finishBand(event?.type === 'pointercancel'); return; }
             if (!drag) return;
-            const { before, invalid, reason, moved, type, clipId, ids } = drag;
+            const { before, invalid, reason, moved, type, clipId, ids, unlinked, many } = drag;
             const current = drag.epoch === s().projectEpoch && drag.projectId === s().projectId;
             drag = null;
             s().timelineDragging = false;
@@ -488,8 +494,8 @@
             if (event?.type === 'pointercancel' || s().readonly) s().project = before;
             else if (JSON.stringify(before) !== JSON.stringify(s().project)) options.onChange('timeline', before);
             // The click after a captured press never reaches the clip (the re-render replaces it), so a press
-            // without movement on a clip of a multi-selection selects only that clip here.
-            else if (type === 'move' && !moved && ids.length > 1) options.onSelect(clipId);
+            // without movement on a clip of a multi-selection selects only that clip (its link group unless Alt) here.
+            else if (type === 'move' && !moved && (ids.length > 1 || many)) options.onSelect(clipId, unlinked);
             if (invalid && options.onInvalid) options.onInvalid(reason);
             if (options.onDragEnd) options.onDragEnd();
             render(root, options);
@@ -524,11 +530,11 @@
             const clipEl = event.target.closest('[data-clip-id]');
             if (clipEl) {
                 if (tool() === 'blade') {
-                    if (options.onBlade) options.onBlade(clipEl.dataset.trackId, bladeFrame(clipEl.closest('.vs-track-lane'), event.clientX), event.shiftKey);
+                    if (options.onBlade) options.onBlade(clipEl.dataset.trackId, bladeFrame(clipEl.closest('.vs-track-lane'), event.clientX), event.shiftKey, event.altKey);
                     return;
                 }
                 if ((event.shiftKey || event.ctrlKey || event.metaKey) && options.onToggleSelect) options.onToggleSelect(clipEl.dataset.clipId);
-                else options.onSelect(clipEl.dataset.clipId);
+                else options.onSelect(clipEl.dataset.clipId, event.altKey);
                 render(root, options);
                 return;
             }
@@ -553,7 +559,7 @@
             }
             const clipEl = event.target.closest('[data-clip-id]');
             if (!clipEl) {
-                if (event.target.closest('.vs-track-lane') && !s().readonly && options.onSelectMany) band = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, additive: event.shiftKey || event.ctrlKey || event.metaKey, base: options.selectedIds ? options.selectedIds() : [], ids: [], el: null };
+                if (event.target.closest('.vs-track-lane') && !s().readonly && options.onSelectMany) band = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, additive: event.shiftKey || event.ctrlKey || event.metaKey, altKey: event.altKey, base: options.selectedIds ? options.selectedIds() : [], ids: [], el: null };
                 return;
             }
             if (s().readonly || tool() === 'blade') return;
@@ -561,19 +567,30 @@
             if (!target || target.track.locked) return;
             const handle = event.target.closest('[data-trim]')?.dataset.trim || '';
             const selected = !!(options.isSelected && options.isSelected(target.clip.id));
-            const common = { clipId: target.clip.id, x: event.clientX, playhead: s().frame, before: clone(s().project), epoch: s().projectEpoch, projectId: s().projectId, moved: false, invalid: false, reason: '' };
+            const E = Edit(), id = target.clip.id, unlinked = event.altKey;
+            // Shift/Ctrl+click changes the selection on click and never starts a move or edge drag (the trim tool still trims).
+            if (tool() !== 'trim' && (event.shiftKey || event.ctrlKey || event.metaKey)) return;
+            // An unselected clip selects its link group before the gesture is built (Alt: the clip alone). The drag below
+            // then reads the selection, so a move never adds partners on top of it.
+            if (!selected) options.onSelect(id, unlinked);
+            const common = { clipId: id, x: event.clientX, playhead: s().frame, before: clone(s().project), epoch: s().projectEpoch, projectId: s().projectId, moved: false, invalid: false, reason: '' };
             if (tool() === 'trim') {
                 // A cut between two clips rolls (Shift: ripple), a free edge ripples, the body slips (Alt: slides).
-                const pair = handle && !event.shiftKey ? Edit().neighborAt(s().project, target.clip.id, handle) : null;
+                // Link partners follow an edge on the same frame (Alt: they do not); a roll rolls their cuts too.
+                const pair = handle && !event.shiftKey ? E.neighborAt(s().project, id, handle) : null;
                 const op = handle ? (pair ? 'roll' : 'ripple') : event.altKey ? 'slide' : 'slip';
-                drag = Object.assign(common, { type: 'trim', op, edge: handle, pair });
+                const linked = handle && !unlinked ? E.linkedEdges(s().project, id, handle) : [];
+                const pairs = pair ? [pair].concat(linked.filter(item => item !== id).map(item => E.neighborAt(s().project, item, handle)).filter(Boolean)) : null;
+                const group = !handle && !unlinked ? E.linkGroup(s().project, id) : [];
+                drag = Object.assign(common, { type: 'trim', op, edge: handle, pair, pairs, linked, group });
                 s().trimMode = op; root.dataset.trimMode = op;
+            } else if (handle) {
+                drag = Object.assign(common, { type: 'edge', mode: handle, linked: unlinked ? [] : E.linkedEdges(s().project, id, handle) });
             } else {
-                // Shift/Ctrl+click changes the selection on click and never starts a drag.
-                if (event.shiftKey || event.ctrlKey || event.metaKey) return;
-                drag = handle ? Object.assign(common, { type: 'edge', mode: handle }) : Object.assign(common, { type: 'move', trackId: target.track.id, ids: selected && options.selectedIds ? options.selectedIds() : [target.clip.id] });
+                // Alt moves the clicked clip alone; otherwise the drag moves the selection, which holds the whole group now.
+                const picked = options.selectedIds ? options.selectedIds() : [];
+                drag = Object.assign(common, { type: 'move', trackId: target.track.id, ids: unlinked || !picked.includes(id) ? [id] : picked, unlinked, many: picked.length > 1 });
             }
-            if (!selected) options.onSelect(target.clip.id);
             s().timelineDragging = true;
             capture(event);
             clearTimeout(s().autosaveTimer);
@@ -638,7 +655,7 @@
             const clip = event.target.closest('[data-clip-id]');
             if (clip && (event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
                 event.preventDefault(); event.stopPropagation();
-                options.onSelect(clip.dataset.clipId);
+                options.onSelect(clip.dataset.clipId, event.altKey);
                 render(root, options);
                 root.querySelector(`[data-clip-id="${CSS.escape(clip.dataset.clipId)}"]`)?.focus();
             }

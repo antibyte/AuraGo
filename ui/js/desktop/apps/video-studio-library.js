@@ -114,17 +114,18 @@
     function clipMedia(s, asset, clip, track, pxPerFrame, width) {
         if (clip.text || !asset.kind) return '';
         const fps = window.VideoStudioTime.rate(s.project);
+        const speed = Number(clip.speed) > 0 ? Number(clip.speed) : 1;
         if (track.kind === 'audio' || asset.kind === 'audio') {
             const data = s.media.peaks(asset);
             if (!data || !data.peaks.length) return '';
             const points = Math.max(2, Math.min(600, Math.round(width / 2)));
-            const key = [asset.id, clip.offset, clip.duration, points, clip.volume, fps].join('|');
+            const key = [asset.id, clip.offset, clip.duration, points, clip.volume, fps, speed].join('|');
             s.waveCache = s.waveCache || new Map();
             let path = s.waveCache.get(key);
             if (!path) {
                 const top = [], bottom = [];
                 for (let k = 0; k < points; k++) {
-                    const frame = clip.offset + k / (points - 1) * clip.duration;
+                    const frame = clip.offset + k / (points - 1) * clip.duration * speed;
                     const value = Math.min(1, (data.peaks[Math.min(data.peaks.length - 1, Math.floor(frame / fps * data.perSecond))] || 0) * Math.max(0.15, Math.min(1.6, Number(clip.volume == null ? 1 : clip.volume))));
                     top.push(`${k},${(50 - value * 46).toFixed(1)}`);
                     bottom.unshift(`${k},${(50 + value * 46).toFixed(1)}`);
@@ -142,7 +143,7 @@
         const count = Math.min(48, Math.ceil(width / tile));
         let tiles = '';
         for (let i = 0; i < count; i++) {
-            const thumb = window.VideoStudioMedia.pickThumb(thumbs, (clip.offset + (i * tile + tile / 2) / pxPerFrame) / fps);
+            const thumb = window.VideoStudioMedia.pickThumb(thumbs, (clip.offset + (i * tile + tile / 2) / pxPerFrame * speed) / fps);
             if (thumb) tiles += `<i style="left:${i * tile}px;width:${tile}px;background-image:url('${esc(s, thumb.url)}')"></i>`;
         }
         return `<span class="vs-filmstrip">${tiles}</span>`;

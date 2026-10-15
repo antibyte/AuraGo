@@ -8,6 +8,7 @@
     const T = (...args) => P.T(...args);
     const canonicalProject = (...args) => P.canonicalProject(...args);
     const clamp = (...args) => P.clamp(...args);
+    const speedOf = clip => (Number(clip.speed) > 0 ? Number(clip.speed) : 1);
     const clearDraft = (...args) => P.clearDraft(...args);
     const esc = (...args) => P.esc(...args);
     const hydrateProject = (...args) => P.hydrateProject(...args);
@@ -85,10 +86,12 @@
             const asset = s.project.assets.find(item => item.id === found.clip.asset_id) || {};
             mutate(s, field, project => {
                 const target = T().clipFor(project, found.clip.id).clip;
+                // The source extent rule with speed: offset + (duration - 1) * speed <= duration_frames - 1.
+                const maxOffset = asset.kind === 'image' ? 0 : Math.max(0, Math.floor(asset.duration_frames - 1 - (target.duration - 1) * speedOf(target)));
                 if (field === 'start') target.start = clamp(frames, 0, maxFrames(s) - target.duration);
-                else if (field === 'offset') target.offset = asset.kind === 'image' ? 0 : clamp(frames, 0, Math.max(0, asset.duration_frames - target.duration));
+                else if (field === 'offset') target.offset = asset.kind === 'image' ? 0 : clamp(frames, 0, maxOffset);
                 else {
-                    const sourceLimit = asset.kind === 'image' || target.text ? maxFrames(s) : asset.duration_frames - target.offset;
+                    const sourceLimit = asset.kind === 'image' || target.text ? maxFrames(s) : Math.floor((asset.duration_frames - 1 - target.offset) / speedOf(target) + 1e-9) + 1;
                     target.duration = clamp(frames, 1, Math.min(sourceLimit, maxFrames(s) - target.start));
                     target.fade_in = Math.min(target.fade_in, target.duration); target.fade_out = Math.min(target.fade_out, target.duration);
                 }
