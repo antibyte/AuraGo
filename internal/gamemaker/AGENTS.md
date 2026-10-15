@@ -215,7 +215,9 @@ revision publication and standalone export for Phaser and Three.js games.
   file/asset operations; no dynamic schema selection or cache warm-up.
 - `prompt_usage` events contain per-attempt provider/model, nullable measured
   input/output/cache-read/cache-write tokens, duration, profile/schema/prefix
-  fingerprints, context generation/reason and local prompt reuse. They supplement
+  fingerprints, context generation/reason and local prompt reuse. Include the
+  final request's `requested_max_tokens` on success and failure, separately from
+  measured provider usage; a requested ceiling is not a usage measurement. They supplement
   legacy `token_usage`; never sum the two streams. Evaluation reports keep
   unknown/partially priced calls explicit and compare costs with calls, repairs
   and outcome. Do not add prompt/source/reasoning to these events. StepFun's

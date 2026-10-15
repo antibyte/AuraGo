@@ -173,7 +173,7 @@ func TestGameMakerPromptUsagePersistsThroughMinimalLoop(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.ContextWindow = 32768
 	client := llm.WrapOpenAIClient(llm.NewClientFromProvider("stepfun", provider.URL+"/v1", "fixture"))
-	opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, PreparedPrompt: profile, UsageObserver: observer}
+	opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, MaxOutputTokens: 512, PreparedPrompt: profile, UsageObserver: observer}
 	_, history, err := agent.ExecuteMinimalLoop(ctx, client, "step-5-preview", "", "private-source-marker", nil, &agent.DispatchContext{Cfg: cfg}, nil, slog.Default(), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -198,6 +198,9 @@ func TestGameMakerPromptUsagePersistsThroughMinimalLoop(t *testing.T) {
 			t.Fatal("request content leaked into usage events")
 		}
 		if event.Type == "diagnostic" && strings.Contains(fmt.Sprint(event.Payload["message"]), "cache_read=60 cache_write=unknown") {
+			if !strings.Contains(fmt.Sprint(event.Payload["message"]), "requested_max_tokens=512") {
+				t.Fatal("requested output budget missing from Studio diagnostics")
+			}
 			diagnostics++
 		}
 	}

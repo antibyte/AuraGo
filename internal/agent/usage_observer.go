@@ -17,6 +17,7 @@ type PromptUsageObservation struct {
 	ContextGeneration   int    `json:"context_generation"`
 	ContextChange       string `json:"context_change,omitempty"`
 	LocalPromptCacheHit bool   `json:"local_prompt_cache_hit"`
+	RequestedMaxTokens  int    `json:"requested_max_tokens"`
 	Failed              bool   `json:"failed"`
 }
 
@@ -48,6 +49,7 @@ func (o *PromptUsageObserver) begin(ctx context.Context, req openai.ChatCompleti
 		Tools  []openai.Tool
 		Format *openai.ChatCompletionResponseFormat
 	}{system, req.Tools, req.ResponseFormat}), LocalPromptCacheHit: localHit}
+	base.RequestedMaxTokens = req.MaxTokens
 	return ctx, func(response openai.ChatCompletionResponse, err error) {
 		items := capture.Snapshot()
 		if len(items) == 0 {

@@ -129,7 +129,7 @@ func TestPreparedProfileMinimalRecoveryAndFinalization(t *testing.T) {
 func TestUsageObserverContextGenerations(t *testing.T) {
 	var events []PromptUsageObservation
 	observer := &PromptUsageObserver{Observe: func(e PromptUsageObservation) { events = append(events, e) }}
-	req := openai.ChatCompletionRequest{Model: "one", Messages: []openai.ChatCompletionMessage{{Role: "system", Content: "stable"}, {Role: "user", Content: "task"}}}
+	req := openai.ChatCompletionRequest{Model: "one", MaxTokens: 20480, Messages: []openai.ChatCompletionMessage{{Role: "system", Content: "stable"}, {Role: "user", Content: "task"}}}
 	send := func(revision string) {
 		_, done := observer.begin(context.Background(), req, "fixture", revision, false)
 		done(openai.ChatCompletionResponse{}, nil)
@@ -144,7 +144,7 @@ func TestUsageObserverContextGenerations(t *testing.T) {
 	send("v2")
 	want := []string{"initial", "", "profile_changed", "route_changed", "history_rebased"}
 	for i, e := range events {
-		if e.ContextChange != want[i] || e.InputTokens != nil || e.EstimatedCostUSD != nil {
+		if e.ContextChange != want[i] || e.RequestedMaxTokens != 20480 || e.InputTokens != nil || e.EstimatedCostUSD != nil {
 			t.Fatalf("observation %d: %+v", i, e)
 		}
 	}

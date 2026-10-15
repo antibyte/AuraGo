@@ -798,7 +798,19 @@ func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
 	defer service.Close()
 	service.SetSkillStatus(nil, true)
 	var finished atomic.Bool
+	var requestedMaxTokens atomic.Int32
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var request openai.ChatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		requestedMaxTokens.Store(int32(request.MaxTokens))
 		w.Header().Set("Content-Type", "text/event-stream")
 		chunk, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"reasoning_content": strings.Repeat("plan the game ", 8)}}}})
 		for end := time.Now().Add(2500 * time.Millisecond); time.Now().Before(end); {
@@ -815,15 +827,16 @@ func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
 	}))
 	defer provider.Close()
 	cfg := &config.Config{}
-	cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+	cfg.LLM.Provider, cfg.LLM.Model, cfg.LLM.ProviderType = "fixture", "tencent/hy4-preview", "openai"
+	cfg.Providers = []config.ProviderEntry{{ID: "fixture", Type: "openai", Model: cfg.LLM.Model, BaseURL: provider.URL, ContextWindow: 65536, MaxOutputTokens: 32768}}
 	cfg.Agent.ContextWindow = 65536
 	cfg.CircuitBreaker.LLMTimeoutSeconds = 1
 	cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 1
 	cfg.GameMaker.Enabled = true
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
-	clientConfig := openai.DefaultConfig("local-test")
-	clientConfig.BaseURL = provider.URL
-	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	cfg.LLM.BaseURL = provider.URL
+	client := llm.NewClientFromProviderWithConfig(cfg, "openai", provider.URL, "local-test", "")
+	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(client), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 	if err != nil {
@@ -847,6 +860,9 @@ func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
 	case err := <-done:
 		if !finished.Load() || err != nil && strings.Contains(err.Error(), "deadline") {
 			t.Fatalf("slow steady stream was cut off: finished=%v err=%v", finished.Load(), err)
+		}
+		if got := requestedMaxTokens.Load(); got != 20480 {
+			t.Fatalf("provider received max_tokens=%d, want planning ceiling 20480", got)
 		}
 	case <-time.After(20 * time.Second):
 		t.Fatal("planning round did not end")

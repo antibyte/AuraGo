@@ -134,7 +134,13 @@ cache reads/writes when supplied, duration, profile revision, schema/prefix
 fingerprints and context-generation changes. It contains no prompt, source or
 reasoning text. `local_prompt_cache_hit` describes local construction reuse only.
 A compact per-call summary also appears in the Studio diagnostic panel, with
-missing measurements and prices explicitly marked `unknown`.
+missing measurements and prices explicitly marked `unknown`. The separate
+`requested_max_tokens` field records the final request's output ceiling, including
+on failure; it is not measured or billed usage. Compare it with the provider log
+when a stream times out despite continued output. The server's `[Stream] Completion
+summary` distinguishes answer bytes, private reasoning bytes and tool calls without
+logging their contents. Continued reasoning alone does not establish game progress
+or justify raising the timeout.
 StepFun's top-level `usage.cached_tokens` is normalized for both JSON and SSE;
 OpenAI uses `prompt_tokens_details.cached_tokens`. Anthropic cached reads/writes
 are included in total input, and repeated cumulative SSE counters count once.

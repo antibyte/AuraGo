@@ -46,6 +46,6 @@ func gameUsageDiagnostic(value agent.PromptUsageObservation) string {
 	if value.EstimatedCostUSD != nil {
 		cost = strconv.FormatFloat(*value.EstimatedCostUSD, 'f', 6, 64)
 	}
-	return fmt.Sprintf("prompt_usage: %s/%s; input=%s output=%s cache_read=%s cache_write=%s; local_prompt_reuse=%t; estimated_USD=%s; duration_ms=%d; context_generation=%d (%s); failed=%t",
-		value.Provider, value.Model, count(value.InputTokens), count(value.OutputTokens), count(value.CacheReadTokens), count(value.CacheWriteTokens), value.LocalPromptCacheHit, cost, value.DurationMS, value.ContextGeneration, value.ContextChange, value.Failed)
+	return fmt.Sprintf("prompt_usage: %s/%s; input=%s output=%s cache_read=%s cache_write=%s; requested_max_tokens=%d; local_prompt_reuse=%t; estimated_USD=%s; duration_ms=%d; context_generation=%d (%s); failed=%t",
+		value.Provider, value.Model, count(value.InputTokens), count(value.OutputTokens), count(value.CacheReadTokens), count(value.CacheWriteTokens), value.RequestedMaxTokens, value.LocalPromptCacheHit, cost, value.DurationMS, value.ContextGeneration, value.ContextChange, value.Failed)
 }
