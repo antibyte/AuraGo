@@ -462,9 +462,6 @@ fi
 > [!TIP]
 > For complex automation use the Web UI. For external integrations use the REST API with session auth.
 
----
-
-**Previous Chapter:** [Chapter 10: Personality](./10-personality.md)
 ## Synchronized Notes on Mission Control V2
 
 The current Mission Control implementation supports, in addition to simple cron jobs, queue and execution views, dependencies, remote targets, and prepared missions. The main REST areas are `/api/missions/v2`, `/api/missions/v2/queue`, `/api/missions/v2/execution`, `/api/missions/v2/dependencies`, `/api/missions/v2/history`, and `/api/missions/v2/remote-targets`.
@@ -475,4 +472,5 @@ Missions remain primarily a web UI/API feature. There are no dedicated slash com
 
 ---
 
+**Previous Chapter:** [Chapter 10: Personality](./10-personality.md)
 **Next Chapter:** [Chapter 12: Invasion Control](./12-invasion.md)
