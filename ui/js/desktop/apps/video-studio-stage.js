@@ -36,7 +36,7 @@
     function focusKey(s) {
         const active = document.activeElement;
         if (!active || !s.q('[data-inspector]')?.contains(active)) return null;
-        for (const attr of ['field', 'textField', 'textStyle', 'position', 'fit', 'transition', 'transitionDuration', 'textAlign', 'textToggle', 'action']) {
+        for (const attr of ['field', 'textField', 'textStyle', 'position', 'fit', 'transition', 'transitionDuration', 'textAlign', 'textToggle', 'value', 'action']) {
             if (active.dataset && active.dataset[attr] != null) return { attr: attr.replace(/[A-Z]/g, c => '-' + c.toLowerCase()), value: active.dataset[attr] };
         }
         return null;

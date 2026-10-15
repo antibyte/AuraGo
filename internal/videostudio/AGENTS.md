@@ -56,3 +56,22 @@ Run `go test ./internal/videostudio` for validation, real-frame/audio FFmpeg
 integration, and output metadata checks. The opt-in ten-minute local performance
 check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
 -run '^TestTenMinuteRenderPerformanceOptIn$' -count=1`.
+
+## Speed, links, labels and derived media (phase 1b)
+
+- Clip fields: `speed` (absent = 1; 0.25–16; stills stay at 1), `link` (≤ 16 clips), `audio_detached` (video
+  clips with sound only), `disabled`, `label` (`LabelColors`). The source extent rule is
+  `offset + (duration − 1) × speed ≤ duration_frames − 1`; `ClipSpeed` and `EnabledDuration` are the helpers.
+- Rendering: a clip with a speed is retimed around its first source frame (`clip.Offset`) before `fps`. Each source
+  frame is snapped to the whole output frame where it first shows, so output frame n shows source frame
+  `floor(offset + n·speed)`; every segment anchors on `Offset`, so every segmentation samples the same source frames.
+  Audio uses `tempoChain` (atempo factors within 0.5–2) and leaves clips above 4× out of the mix. Disabled clips
+  are left out of layers, mixes and staging; export length ends at the last enabled clip. A transition applies only
+  when the clip after it (in the unfiltered order) is enabled.
+- Derived media (`derive.go`): `ReverseClip` renders the source range backwards in chunks (2 s, or 1 s at ≥ 2560×1440
+  pixels) and joins them with the render mux; the chunks keep the source's colour tags (the renderer's BT.709 tags are
+  left off, so FFmpeg does not convert the pixels). `ExtractStill` picks one source frame with the renderer's
+  sampling and writes PNG. The server (`video_studio_derive.go`) imports results as project assets and publishes
+  PNG exports.
+- Tests: `go test ./internal/videostudio -run 'TestRenderSpeed|TestRenderDisabled|TestRenderImage|TestTempoChain|TestReverse|TestExtractStill|TestValidateSpeed' -count=1`
+  (the render and still tests need FFmpeg 5.1+).

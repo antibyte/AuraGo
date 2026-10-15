@@ -92,6 +92,19 @@ ten), `Q`/`W` ripple trim the start or end of the clip under the playhead to it,
 `Shift+Z` fits the timeline. Right-click a clip or empty track space (or press `Shift+F10` on a focused clip)
 for a menu with these actions.
 
+Clips can be linked: `Ctrl+L` links the selected clips, or unlinks them when they already share a link. Clicking or
+selecting a linked clip selects its whole link group; hold `Alt` while clicking to select the clip alone. Delete, copy,
+duplicate, nudge and the other commands act on the selection as it is. Dragging a selected clip moves the selection
+(hold `Alt` when you start the drag to move only that clip); trims and cuts follow the link group (hold `Alt` to act on
+one clip alone, for example for a J or L cut). Detach audio (inspector or clip menu) moves a video clip's sound to an audio clip
+on a free audio track, and Reattach audio removes that audio clip again. Speed (inspector, paste attributes) plays a
+clip faster or slower, from 0.25 to 16×: by default the clip keeps its source range and changes length, and Keep
+duration changes the source range instead. Audio keeps its pitch up to 4× and is silent above that. `Shift+E` disables
+or enables the selected clips: a disabled clip stays on the timeline but is neither shown nor exported. Colour labels
+mark a clip's body. Reverse, Freeze frame and Export frame as PNG are in the clip menu and the inspector. Reverse works
+on up to five minutes of a clip and imports a `(reversed)` media item; freeze frame inserts a two-second still at the
+playhead; the PNG download appears in the tasks list. Video tracks take still images as well as videos.
+
 Transitions include dissolve, fade through black, and wipes in both directions.
 A transition belongs to the outgoing clip. Adjacent clips overlap by exactly
 the transition duration; arbitrary overlap on the same track is rejected.

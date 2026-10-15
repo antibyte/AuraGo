@@ -370,6 +370,63 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		if(o1().length!==1||o1()[0].id!=='c1'||all().length!==others.length+1)throw new Error('undo did not restore the clips: '+JSON.stringify(all()));
 	}`)
 
+	page.MustEval(`async()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const wait=async test=>{for(let i=0;i<500;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('clip flow timed out')};
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const clipOf=id=>{for(const t of s.project.tracks){const c=t.clips.find(x=>x.id===id);if(c)return c;}return null;};
+		// Track ids before this flow: the cleanup at the end removes the tracks and media the flow added.
+		const before=new Set(s.project.tracks.map(t=>t.id));
+		const video={id:'vid1',name:'Clip.mp4',path:'media/vid1_clip.mp4',kind:'video',duration_frames:900,width:1280,height:720,has_audio:true,media_url:'/fixture.mp4'};
+		s.project.assets.push(video);
+		s.project.tracks.find(t=>t.id==='v1').clips.push({id:'vc',asset_id:'vid1',start:0,offset:0,duration:150,x:0,y:0,width:1,height:1,rotation:0,opacity:1,volume:1,fade_in:0,fade_out:0,fit:'contain',text:'',text_style:null,transition:null});
+		s.dirty=true;
+		s.timelineOptions.onSelect('vc');
+		app.focus();
+		document.querySelector('[data-action="clip-detach"]').click();
+		await wait(()=>s.project.tracks.some(t=>t.kind==='audio'&&t.clips.some(c=>c.asset_id==='vid1')));
+		const detached=clipOf('vc');
+		if(!detached||!detached.audio_detached||!detached.link)throw new Error('detach did not link the clips: '+JSON.stringify(detached));
+		s.timelineOptions.onSelect('vc');
+		const speed=document.querySelector('[data-field="speed"]');
+		speed.value='2';speed.dispatchEvent(new Event('change',{bubbles:true}));
+		await wait(()=>clipOf('vc').speed===2);
+		const partner=s.project.tracks.flatMap(t=>t.clips).find(c=>c.link===detached.link&&c.id!=='vc');
+		if(!partner||partner.speed!==2)throw new Error('the linked partner did not take the speed');
+		// A click selects the whole link group; Alt-click selects the clip alone.
+		const selectedOnTimeline=()=>Array.from(document.querySelectorAll('.vs-clip.is-selected'),el=>el.dataset.clipId).sort();
+		document.querySelector('[data-clip-id="vc"]').click();
+		if(JSON.stringify(selectedOnTimeline())!==JSON.stringify(['vc',partner.id].sort()))throw new Error('a click did not select the link group: '+selectedOnTimeline().join(','));
+		document.querySelector('[data-clip-id="vc"]').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,altKey:true}));
+		if(JSON.stringify(selectedOnTimeline())!==JSON.stringify(['vc']))throw new Error('Alt-click did not select the clip alone: '+selectedOnTimeline().join(','));
+		// Commands act on the selection as it is: after the Alt-click only vc is selected, so only vc is disabled.
+		app.focus();key('E',{shiftKey:true});
+		if(!clipOf('vc').disabled||clipOf(partner.id).disabled)throw new Error('Shift+E did not disable only the Alt-selected clip');
+		key('E',{shiftKey:true});
+		if(clipOf('vc').disabled)throw new Error('Shift+E did not enable the clip again');
+		// With the whole link group selected, Shift+E disables and enables the pair.
+		document.querySelector('[data-clip-id="vc"]').click();
+		key('E',{shiftKey:true});
+		if(!clipOf('vc').disabled||!clipOf(partner.id).disabled)throw new Error('Shift+E did not disable the linked pair');
+		key('E',{shiftKey:true});
+		if(clipOf('vc').disabled||clipOf(partner.id).disabled)throw new Error('Shift+E did not enable the linked pair again');
+		s.timelineOptions.onSelect('vc');
+		key('l',{ctrlKey:true});
+		if(clipOf('vc').link)throw new Error('Ctrl+L did not unlink the clip');
+		const swatch=document.querySelector('[data-action="clip-label"][data-value="teal"]');
+		swatch.focus();swatch.click();
+		if(clipOf('vc').label!=='teal')throw new Error('the label swatch did not set teal');
+		await new Promise(resolve=>setTimeout(resolve,100));
+		if(!document.activeElement||document.activeElement.dataset.value!=='teal')throw new Error('focus left the clicked label swatch: '+(document.activeElement&&document.activeElement.outerHTML.slice(0,90)));
+		// Remove what the flow added (the clip, its partner, the detached audio track and the asset) so the next flow
+		// starts from the same empty video track (1d expects v1 empty). History keeps whole-project snapshots, so an
+		// undo of an earlier step still restores a valid project.
+		s.timelineOptions.onSelect('');
+		s.project.tracks=s.project.tracks.filter(t=>before.has(t.id)).map(t=>Object.assign(t,{clips:t.clips.filter(c=>c.asset_id!=='vid1')}));
+		s.project.assets=s.project.assets.filter(a=>a.id!=='vid1');
+		s.dirty=true;
+	}`)
+
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")
 	page.MustWaitLoad()

@@ -25,7 +25,7 @@
         limit: ['editLimit', 'The edit would go past the project limits.'],
         kind: ['editKind', 'That track does not accept this media.'],
         transition: ['editTransition', 'Move the playhead out of the transition first.'],
-        tracks: ['editTracks', 'All audio tracks are busy at this point. Add an audio track first.'],
+        tracks: ['editTracks', 'All eight audio tracks are in use. Free an audio track first.'],
         link: ['editLinkLimit', 'A link group holds at most 16 clips.']
     };
 

@@ -1434,6 +1434,15 @@ buttons and menu popovers remain excluded from those gestures.
   (Alt: slides); the blade cuts one track (Shift: all unlocked). Context menus use `openMenu` in
   `video-studio-menus.js` (`role="menu"`, arrows, Home/End, Escape returns focus). Node checks:
   `go test ./ui -run TestVideoStudioEdit`.
+- Clips and derived media (phase 1b): link groups are the clips with one `link` id (`linkGroup`, `withLinks`,
+  `linkedEdges`; edges on the same frame belong together, Alt unlinks). Speed changes go through `setSpeed` only;
+  stills keep speed 1. Blade and paste remap link ids. Disabled clips are never drawn, played or mixed, and a
+  transition applies only when the clip after it is enabled. Derived jobs (`video-studio-derive.js`) call
+  `createJob(…, onSucceeded)`: the edit runs after `refreshProject`, re-finds its clips by id and never assumes they
+  did not move. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
+  -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and
+  differ by `data-value`, which `focusKey` remembers so a re-render keeps focus on the clicked swatch.
+  Node checks: `go test ./ui -run 'TestVideoStudioClipModelChecks|TestVideoStudioEditLinks'`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
