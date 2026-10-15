@@ -8,6 +8,24 @@ The catalog is large and feature-gated. “100+” is the documented native-tool
 
 ---
 
+## Table of Contents
+
+1. [Tool Categories Overview](#tool-categories-overview)
+2. [New Platform Features](#new-platform-features)
+3. [Configuration of Key Tools](#configuration-of-key-tools)
+4. [Adaptive Tools — Intelligent Filtering](#adaptive-tools--intelligent-filtering)
+5. [Read-Only vs. Read-Write](#read-only-vs-read-write)
+6. [Danger Zone](#danger-zone)
+7. [Examples in Chat](#examples-in-chat)
+8. [Network Tools](#network-tools)
+9. [Web Capture & Form Automation](#web-capture--form-automation)
+10. [PDF Extractor](#pdf-extractor)
+11. [Media Conversion & Video Download](#media-conversion--video-download)
+12. [Creating Custom Tools](#creating-custom-tools)
+13. [Summary](#summary)
+
+---
+
 ## Tool Categories Overview
 
 | Category | Tools | Danger Zone |

@@ -10,6 +10,16 @@ Slash commands start with `/`. They are shortcuts, not a second API.
 
 ---
 
+## Table of Contents
+
+1. [Overview of All Commands](#overview-of-all-commands)
+2. [Detailed Descriptions](#detailed-descriptions)
+3. [Programmatic Usage](#programmatic-usage)
+4. [Troubleshooting](#troubleshooting)
+5. [Related Links](#related-links)
+
+---
+
 ## Overview of All Commands
 
 | Command | Description | Availability |

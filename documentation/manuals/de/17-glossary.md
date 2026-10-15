@@ -4,7 +4,7 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 
 ---
 
-## 📚 Inhaltsverzeichnis
+## Inhaltsverzeichnis
 
 1. [Abkürzungen und Akronyme](#abkürzungen-und-akronyme)
 2. [Agent-Terminologie](#agent-terminologie)

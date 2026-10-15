@@ -4,6 +4,25 @@ EasyDrag ist der visuelle Editor für Flows. Ein Flow ist eine Mission, die aus 
 
 Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Geheimnisse auf dem Server verhalten, steht in [Kapitel 11: Flow-Missionen (EasyDrag)](11-missions.md#flow-missionen-easydrag).
 
+## Inhaltsverzeichnis
+
+1. [Der erste Flow](#der-erste-flow)
+2. [Der Editor](#der-editor)
+3. [Speichern](#speichern)
+4. [Testen](#testen)
+5. [Veröffentlichen](#veröffentlichen)
+6. [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)
+7. [Decisions-Baustein](#decisions-baustein)
+8. [Wenn ein Schritt scheitert](#wenn-ein-schritt-scheitert)
+9. [Geheimnisse](#geheimnisse)
+10. [Vorlagen, Import und Export](#vorlagen-import-und-export)
+11. [Mission Control, Missionsseite und Dashboard](#mission-control-missionsseite-und-dashboard)
+12. [Einstellungen](#einstellungen)
+13. [Wenn EasyDrag abgeschaltet ist](#wenn-easydrag-abgeschaltet-ist)
+14. [Tastenkürzel](#tastenkürzel)
+
+---
+
 ## Der erste Flow
 
 1. Öffne **EasyDrag** auf dem Desktop. Wähle **Neuer Flow** und gib ihm einen Namen, oder starte mit einer **Vorlage**.

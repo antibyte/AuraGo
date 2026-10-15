@@ -6,6 +6,15 @@ Zurück zur [Handbuch-Startseite](../README.md) · [Deutsche Übersicht](README.
   <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="480" alt="AuraGo-Gopher mit Handbuch"></a>
 </p>
 
+## Inhaltsverzeichnis
+
+1. [Start](#start)
+2. [Sicherheit](#sicherheit)
+3. [Spielzeuge](#spielzeuge)
+4. [Wenn es knirscht](#wenn-es-knirscht)
+
+---
+
 ## Start
 
 ### Wie komme ich am schnellsten hin?

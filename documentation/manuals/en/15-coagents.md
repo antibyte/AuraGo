@@ -8,6 +8,24 @@ Helpers for subtasks. Their own model, their own limits, no access to your perso
 
 ---
 
+## Table of Contents
+
+1. [What Are Co-Agents?](#what-are-co-agents)
+2. [When to Use Co-Agents](#when-to-use-co-agents)
+3. [Configuration](#configuration)
+4. [Spawning Co-Agents](#spawning-co-agents)
+5. [Managing Co-Agents](#managing-co-agents)
+6. [Use Cases and Examples](#use-cases-and-examples)
+7. [Limitations and Constraints](#limitations-and-constraints)
+8. [Resource Management](#resource-management)
+9. [Security Considerations](#security-considerations)
+10. [Monitoring](#monitoring)
+11. [Deep Dive: Co-Agent Lifecycle](#deep-dive-co-agent-lifecycle)
+12. [Troubleshooting](#troubleshooting)
+13. [Summary](#summary)
+
+---
+
 ## What Are Co-Agents?
 
 Co-agents are independent helper agents that the main agent can dynamically spawn. They work in parallel on sub-tasks and deliver their results back.
@@ -399,7 +417,7 @@ Specialists are best used for bounded, independently verifiable work: research, 
 
 ---
 
-## 🔍 Deep Dive: Co-Agent Lifecycle
+## Deep Dive: Co-Agent Lifecycle
 
 ```text
 Main Agent                          Co-Agent Goroutine

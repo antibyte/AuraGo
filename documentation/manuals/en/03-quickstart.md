@@ -6,6 +6,21 @@
 
 Five minutes. Click through setup, ask something harmless, do not poke the config file.
 
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [The Quick Setup Wizard](#the-quick-setup-wizard)
+3. [The First Chat](#the-first-chat)
+4. [Important Chat Commands](#important-chat-commands)
+5. [Uploading Files](#uploading-files)
+6. [Getting to Know the First Tools](#getting-to-know-the-first-tools)
+7. [Navigation in the Web UI](#navigation-in-the-web-ui)
+8. [Dark/Light Theme](#darklight-theme)
+9. [Next Steps](#next-steps)
+10. [Quick Checklist](#quick-checklist)
+
+---
+
 ## Prerequisites
 
 - AuraGo is [installed](02-installation.md) and running

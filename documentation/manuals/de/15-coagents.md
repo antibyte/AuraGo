@@ -8,6 +8,24 @@ Helfer für Teilaufgaben. Eigenes Modell, eigene Limits, kein Zugriff auf deine 
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Was sind Co-Agenten?](#was-sind-co-agenten)
+2. [Wann Co-Agenten nutzen?](#wann-co-agenten-nutzen)
+3. [Konfiguration](#konfiguration)
+4. [Co-Agenten spawnen](#co-agenten-spawnen)
+5. [Co-Agenten verwalten](#co-agenten-verwalten)
+6. [Use Cases und Beispiele](#use-cases-und-beispiele)
+7. [Limitierungen und Constraints](#limitierungen-und-constraints)
+8. [Ressourcen-Management](#ressourcen-management)
+9. [Sicherheitsaspekte](#sicherheitsaspekte)
+10. [Monitoring paralleler Agenten](#monitoring-paralleler-agenten)
+11. [Deep Dive: Lifecycle eines Co-Agenten](#deep-dive-lifecycle-eines-co-agenten)
+12. [Troubleshooting](#troubleshooting)
+13. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Was sind Co-Agenten?
 
 Co-Agenten sind eigenständige Helfer-Agenten, die der Haupt-Agent (Main Agent) dynamisch spawnen kann. Sie arbeiten parallel an Teilaufgaben und liefern ihre Ergebnisse zurück.
@@ -486,7 +504,7 @@ Co-Agent-Aktivitäten werden mit `component=co-agent` geloggt:
 
 ---
 
-## 🔍 Deep Dive: Lifecycle eines Co-Agenten
+## Deep Dive: Lifecycle eines Co-Agenten
 
 ```text
 Main-Agent                          Co-Agent Goroutine

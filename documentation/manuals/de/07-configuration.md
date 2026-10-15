@@ -8,6 +8,32 @@ Web-UI zuerst. YAML für Headless und GitOps. Secrets in den Vault, nicht in die
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Übersicht](#übersicht)
+2. [Konfiguration über Web UI vs. YAML](#konfiguration-über-web-ui-vs-yaml)
+3. [Die config.yaml-Struktur](#die-configyaml-struktur)
+4. [Aufgabenbezogene Regeln](#aufgabenbezogene-regeln)
+5. [Das Provider-System](#das-provider-system)
+6. [Server-Einstellungen](#server-einstellungen)
+7. [Agent-Verhalten](#agent-verhalten)
+8. [Tool-Konfiguration](#tool-konfiguration)
+9. [Skill Manager](#skill-manager)
+10. [Media Registry](#media-registry)
+11. [Background Tasks](#background-tasks)
+12. [Personality – Persönlichkeit](#personality--persönlichkeit)
+13. [Co-Agents – Parallele Sub-Agenten](#co-agents--parallele-sub-agenten)
+14. [Weitere Konfigurationsblöcke (Übersicht)](#weitere-konfigurationsblöcke-übersicht)
+15. [Neue Laufzeiten und lokale Integrationen](#neue-laufzeiten-und-lokale-integrationen)
+16. [Minimal-Konfiguration](#minimal-konfiguration)
+17. [Umgebungsvariablen](#umgebungsvariablen)
+18. [Konfigurationsvalidierung](#konfigurationsvalidierung)
+19. [Kompakte YAML-Referenz](#kompakte-yaml-referenz)
+20. [Erweiterte Konfigurationsblöcke](#erweiterte-konfigurationsblöcke)
+21. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Übersicht
 
 AuraGo wird über eine zentrale YAML-Konfigurationsdatei gesteuert: `config.yaml`.

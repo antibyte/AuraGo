@@ -10,6 +10,16 @@ Die ausführbare Datei ist portabel. Die **volle Web-UI** liegt daneben als pass
 
 Verbinde ein OpenAI-kompatibles Modell (hosted oder lokal). Schalte die Integrationen ein, die du wirklich willst. Der Rest bleibt aus.
 
+## Inhaltsverzeichnis
+
+1. [Was er tun kann](#was-er-tun-kann)
+2. [Für wen](#für-wen)
+3. [Die grobe Verdrahtung](#die-grobe-verdrahtung)
+4. [Sicherheit, bevor du startest](#sicherheit-bevor-du-startest)
+5. [Nächste Schritte](#nächste-schritte)
+
+---
+
 ## Was er tun kann
 
 - **Denken und nachfassen** — mehrere Tool-Runden, Fehler lesen, nochmal versuchen

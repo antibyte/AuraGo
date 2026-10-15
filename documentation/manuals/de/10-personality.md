@@ -8,6 +8,24 @@ Dieselbe Toolbox. Andere Haltung. Rechte kommen nicht aus der Persona.
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Übersicht](#übersicht)
+2. [Personality Engine](#personality-engine)
+3. [Stimmungszustände (V1/V2)](#stimmungszustände-v1v2)
+4. [Verfügbare Persönlichkeiten](#verfügbare-persönlichkeiten)
+5. [Benutzer-Profiling (V2)](#benutzer-profiling-v2)
+6. [Temperatur-Modulation (V2)](#temperatur-modulation-v2)
+7. [Emotion Synthesizer (V2)](#emotion-synthesizer-v2)
+8. [Inner Voice (V2)](#inner-voice-v2)
+9. [Adaptive Dynamik](#adaptive-dynamik)
+10. [Beispiel-Vergleich](#beispiel-vergleich)
+11. [Best Practices](#best-practices)
+12. [Troubleshooting](#troubleshooting)
+13. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Übersicht
 
 Die Persönlichkeit beeinflusst:

@@ -8,6 +8,21 @@ from the browser to the board. Later versions can reach the device over Wi-Fi.
 Technical details for administrators (configuration, Docker, OTA protocol, error codes) are in the
 [operator reference](../../cyd-creator.md).
 
+## Table of Contents
+
+1. [What You Need](#what-you-need)
+2. [Your First App](#your-first-app)
+3. [Flashing: Keep Settings or Full Install](#flashing-keep-settings-or-full-install)
+4. [The Serial Monitor](#the-serial-monitor)
+5. [Wi-Fi on the Device](#wi-fi-on-the-device)
+6. [Updates over Wi-Fi (OTA)](#updates-over-wi-fi-ota)
+7. [Export and Import](#export-and-import)
+8. [Good to Know](#good-to-know)
+9. [Designer Shortcuts](#designer-shortcuts)
+10. [When Something Goes Wrong](#when-something-goes-wrong)
+
+---
+
 ## What You Need
 
 - **A supported board.** When you create a project, the board list shows what has been tested:

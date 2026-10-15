@@ -12,6 +12,25 @@ Scheduled chats, not shell scripts. Eggs and nests live in [Invasion Control](12
 
 ---
 
+## Table of Contents
+
+1. [What Are Missions?](#what-are-missions)
+2. [Prerequisites](#prerequisites)
+3. [Mission Control Concepts](#mission-control-concepts)
+4. [Creating Missions](#creating-missions)
+5. [Scheduling with Cron](#scheduling-with-cron)
+6. [Event Triggers](#event-triggers)
+7. [The Decisions Service (Optional)](#the-decisions-service-optional)
+8. [Manual Execution](#manual-execution)
+9. [Monitoring](#monitoring)
+10. [Best Practices for Automation](#best-practices-for-automation)
+11. [Examples](#examples)
+12. [Troubleshooting](#troubleshooting)
+13. [Summary](#summary)
+14. [Synchronized Notes on Mission Control V2](#synchronized-notes-on-mission-control-v2)
+
+---
+
 ## What Are Missions?
 
 **Missions** are automated agent tasks that run on a schedule, on demand, or when a trigger fires. Each mission contains:

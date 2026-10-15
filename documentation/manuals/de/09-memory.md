@@ -10,6 +10,26 @@ Mehrere Regale, ein nützlicher Kontext. Die Zeichnung vereinfacht — sie ist k
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Übersicht des Gedächtnissystems](#übersicht-des-gedächtnissystems)
+2. [Kurzzeitgedächtnis (STM)](#kurzzeitgedächtnis-stm)
+3. [Langzeitgedächtnis (LTM) / Embeddings](#langzeitgedächtnis-ltm--embeddings)
+4. [Knowledge Graph](#knowledge-graph)
+5. [Kernspeicher (Core Memory)](#kernspeicher-core-memory)
+6. [Notizen & Aufgaben](#notizen--aufgaben)
+7. [File KG Sync](#file-kg-sync)
+8. [Funktionsweise des Gedächtnisses in Gesprächen](#funktionsweise-des-gedächtnisses-in-gesprächen)
+9. [Wissen speichern und abrufen](#wissen-speichern-und-abrufen)
+10. [Memory-Konfiguration](#memory-konfiguration)
+11. [Memory-Optimierung](#memory-optimierung)
+12. [Knowledge Indexing (Datei-Indexierung)](#knowledge-indexing-datei-indexierung)
+13. [Helper LLM — Automatisierte Wartung](#helper-llm--automatisierte-wartung)
+14. [Best Practices](#best-practices)
+15. [Fehlerbehebung](#fehlerbehebung)
+
+---
+
 ## Übersicht des Gedächtnissystems
 
 AuraGo implementiert ein hierarchisches Gedächtnismodell:

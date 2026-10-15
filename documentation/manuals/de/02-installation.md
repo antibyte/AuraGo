@@ -8,6 +8,20 @@ Neue Installationen verwenden HTTPS mit einem lokalen Zertifikat: nativ Port 443
 
 Drei Wege, derselbe Gopher: Installer, Docker oder selbst bauen. Die volle UI kommt als **passendes Ressourcenpaket** mit — nicht als zweite Website und nicht vollständig im Binary.
 
+## Inhaltsverzeichnis
+
+1. [Systemanforderungen](#systemanforderungen)
+2. [Installationsmethoden](#installationsmethoden)
+3. [Erstkonfiguration](#erstkonfiguration)
+4. [Installation verifizieren](#installation-verifizieren)
+5. [Dateistruktur nach Installation](#dateistruktur-nach-installation)
+6. [Update durchführen](#update-durchführen)
+7. [Deinstallation](#deinstallation)
+8. [Troubleshooting](#troubleshooting)
+9. [Nächste Schritte](#nächste-schritte)
+
+---
+
 ## Systemanforderungen
 
 ### Minimal

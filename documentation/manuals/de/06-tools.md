@@ -8,6 +8,24 @@ Der Katalog ist groß und feature-gated. „100+“ ist die Größenordnung der 
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Tool-Kategorien im Überblick](#tool-kategorien-im-überblick)
+2. [Neue Plattform-Features](#neue-plattform-features)
+3. [Konfiguration der wichtigsten Tools](#konfiguration-der-wichtigsten-tools)
+4. [Adaptive Tools – Intelligente Filterung](#adaptive-tools--intelligente-filterung)
+5. [Read-Only vs. Read-Write](#read-only-vs-read-write)
+6. [Danger Zone](#danger-zone)
+7. [Beispiele im Chat](#beispiele-im-chat)
+8. [Netzwerk-Tools](#netzwerk-tools)
+9. [Web Capture & Form Automation](#web-capture--form-automation)
+10. [PDF Extractor](#pdf-extractor)
+11. [Medien-Konvertierung & Video-Download](#medien-konvertierung--video-download)
+12. [Eigene Tools erstellen](#eigene-tools-erstellen)
+13. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Tool-Kategorien im Überblick
 
 | Kategorie | Tools | Danger Zone |

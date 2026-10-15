@@ -6,6 +6,24 @@
 
 Say what you want. Not which tool to pick — unless you have to.
 
+## Table of Contents
+
+1. [How to Communicate Effectively with AuraGo](#how-to-communicate-effectively-with-aurago)
+2. [Message Types and Formats](#message-types-and-formats)
+3. [Secure Secret Prompts](#secure-secret-prompts)
+4. [File Uploads and Handling](#file-uploads-and-handling)
+5. [Image Analysis](#image-analysis)
+6. [Voice Messages (Telegram)](#voice-messages-telegram)
+7. [Chat History Management](#chat-history-management)
+8. [Context and Memory in Conversations](#context-and-memory-in-conversations)
+9. [Memory Systems Overview](#memory-systems-overview)
+10. [Best Practices for Prompts](#best-practices-for-prompts)
+11. [Example Conversations](#example-conversations)
+12. [Troubleshooting](#troubleshooting)
+13. [Quick Reference Card](#quick-reference-card)
+
+---
+
 ## How to Communicate Effectively with AuraGo
 
 AuraGo understands natural language, but a few principles help you get the best results:

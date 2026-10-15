@@ -10,6 +10,16 @@ The executable is portable. The **full web UI** sits beside it as a matching loc
 
 Connect an OpenAI-compatible model (hosted or local). Enable the integrations you actually want. Leave the rest off.
 
+## Table of Contents
+
+1. [What It Can Do](#what-it-can-do)
+2. [Who It Is For](#who-it-is-for)
+3. [The Wiring](#the-wiring)
+4. [Safety Before You Start](#safety-before-you-start)
+5. [Next Steps](#next-steps)
+
+---
+
 ## What It Can Do
 
 - **Think and follow through** — several tool rounds, read the error, try again

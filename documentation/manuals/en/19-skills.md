@@ -10,6 +10,22 @@ After startup, Agent Skill verification runs in the background so a slow Guardia
 
 ---
 
+## Table of Contents
+
+1. [What Are Skills?](#what-are-skills)
+2. [Skill Architecture](#skill-architecture)
+3. [Using Vault Secrets in Skills](#using-vault-secrets-in-skills)
+4. [Examples](#examples)
+5. [Creating and Managing Skills](#creating-and-managing-skills)
+6. [Best Practices](#best-practices)
+7. [Using Predefined Templates](#using-predefined-templates)
+8. [Troubleshooting](#troubleshooting)
+9. [Summary](#summary)
+10. [Skill Manual (Documentation)](#skill-manual-documentation)
+11. [Agent Skills (Markdown Packages)](#agent-skills-markdown-packages)
+
+---
+
 ## What Are Skills?
 
 Skills are custom Python scripts that are made available as extended tools in the agent. They complement the built-in tools and are ideal for:

@@ -14,6 +14,29 @@ Invasion Control deploys **AuraGo sub-agents** (Eggs) to remote or local targets
 
 ---
 
+## Table of Contents
+
+1. [Concepts: Nests & Eggs](#concepts-nests--eggs)
+2. [Prerequisites](#prerequisites)
+3. [Web UI](#web-ui)
+4. [Creating a Nest](#creating-a-nest)
+5. [Creating an Egg](#creating-an-egg)
+6. [Hatching (Deploying an Egg)](#hatching-deploying-an-egg)
+7. [Hatch Status & Lifecycle](#hatch-status--lifecycle)
+8. [Routing Options](#routing-options)
+9. [Tasks, Artifacts & Messages](#tasks-artifacts--messages)
+10. [Safe Reconfigure & Config History](#safe-reconfigure--config-history)
+11. [Deployment Rollback & History](#deployment-rollback--history)
+12. [Egg Mode (Worker Configuration)](#egg-mode-worker-configuration)
+13. [Agent Tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`](#agent-tools-invasion_nests-invasion_tasks-invasion_artifacts)
+14. [REST API Reference](#rest-api-reference)
+15. [Troubleshooting](#troubleshooting)
+16. [Protocol Upgrade](#protocol-upgrade)
+17. [Security Notes](#security-notes)
+18. [Next Steps](#next-steps)
+
+---
+
 ## Concepts: Nests & Eggs
 
 ### Nests (Deployment Targets)

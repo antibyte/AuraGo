@@ -14,6 +14,29 @@ Invasion Control deployt **AuraGo-Sub-Agenten** (Eggs) auf Remote- oder lokale Z
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Konzept: Nester & Eier](#konzept-nester--eier)
+2. [Voraussetzungen](#voraussetzungen)
+3. [Web-UI](#web-ui)
+4. [Nest erstellen](#nest-erstellen)
+5. [Egg erstellen](#egg-erstellen)
+6. [Hatch (Egg deployen)](#hatch-egg-deployen)
+7. [Hatch-Status & Lifecycle](#hatch-status--lifecycle)
+8. [Routing-Optionen](#routing-optionen)
+9. [Tasks, Artefakte & Nachrichten](#tasks-artefakte--nachrichten)
+10. [Safe Reconfigure & Config History](#safe-reconfigure--config-history)
+11. [Deployment-Rollback & Historie](#deployment-rollback--historie)
+12. [Egg Mode (Worker-Konfiguration)](#egg-mode-worker-konfiguration)
+13. [Agent-Tools: `invasion_nests`, `invasion_tasks`, `invasion_artifacts`](#agent-tools-invasion_nests-invasion_tasks-invasion_artifacts)
+14. [REST API Referenz](#rest-api-referenz)
+15. [Troubleshooting](#troubleshooting)
+16. [Protokoll-Upgrade](#protokoll-upgrade)
+17. [Sicherheitshinweise](#sicherheitshinweise)
+18. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Konzept: Nester & Eier
 
 ### Nester (Deployment-Ziele)

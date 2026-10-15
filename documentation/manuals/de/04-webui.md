@@ -21,6 +21,24 @@ Die meisten Seiten brauchen `web_config.enabled: true`. Navigation lädt neu.
 └────────────────────────────────────────────────────────────┘
 ```
 
+## Inhaltsverzeichnis
+
+1. [Der Header](#der-header)
+2. [Das Radial-Menü](#das-radial-menü)
+3. [Die Chat-Oberfläche](#die-chat-oberfläche)
+4. [Das Dashboard](#das-dashboard)
+5. [Die Config-Oberfläche](#die-config-oberfläche)
+6. [Virtual Desktop](#virtual-desktop)
+7. [Mission Control](#mission-control)
+8. [Looper](#looper)
+9. [Invasion Control](#invasion-control)
+10. [Responsive Design](#responsive-design)
+11. [Tipps & Tricks](#tipps--tricks)
+12. [Fehlerbehebung](#fehlerbehebung)
+13. [Nächste Schritte](#nächste-schritte)
+
+---
+
 ## Der Header
 
 Der Header ist auf allen Seiten identisch und enthält:

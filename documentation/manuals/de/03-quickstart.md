@@ -6,6 +6,21 @@
 
 Fünf Minuten. Setup durchklicken, etwas Harmloses fragen, nicht die Config-Datei anfassen.
 
+## Inhaltsverzeichnis
+
+1. [Voraussetzungen](#voraussetzungen)
+2. [Der Quick Setup Wizard](#der-quick-setup-wizard)
+3. [Der erste Chat](#der-erste-chat)
+4. [Wichtige Chat-Befehle](#wichtige-chat-befehle)
+5. [Dateien hochladen](#dateien-hochladen)
+6. [Die ersten Tools kennenlernen](#die-ersten-tools-kennenlernen)
+7. [Navigation in der Web-UI](#navigation-in-der-web-ui)
+8. [Dark/Light Theme](#darklight-theme)
+9. [Nächste Schritte](#nächste-schritte)
+10. [Schnell-Checkliste](#schnell-checkliste)
+
+---
+
 ## Voraussetzungen
 
 - AuraGo ist [installiert](02-installation.md) und läuft

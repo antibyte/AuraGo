@@ -8,6 +8,20 @@ Fresh installs use HTTPS with a local certificate: native port 443 or 8443, Dock
 
 Three roads, same gopher: installer, Docker, or build it yourself. The full UI arrives as a **matching resource set** — not a second website, and not entirely inside the binary.
 
+## Table of Contents
+
+1. [System Requirements](#system-requirements)
+2. [Installation Methods](#installation-methods)
+3. [Initial Configuration](#initial-configuration)
+4. [Verify Installation](#verify-installation)
+5. [Directory Structure After Installation](#directory-structure-after-installation)
+6. [Updating](#updating)
+7. [Uninstallation](#uninstallation)
+8. [Troubleshooting](#troubleshooting)
+9. [Next Steps](#next-steps)
+
+---
+
 ## System Requirements
 
 ### Minimum

@@ -12,6 +12,22 @@ Nach dem Start läuft die Prüfung der Agent Skills im Hintergrund. Ein langsame
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Was sind Skills?](#was-sind-skills)
+2. [Skill-Architektur](#skill-architektur)
+3. [Vault Secrets in Skills nutzen](#vault-secrets-in-skills-nutzen)
+4. [Beispiele](#beispiele)
+5. [Skills erstellen und verwalten](#skills-erstellen-und-verwalten)
+6. [Best Practices](#best-practices)
+7. [Vordefinierte Templates nutzen](#vordefinierte-templates-nutzen)
+8. [Troubleshooting](#troubleshooting)
+9. [Zusammenfassung](#zusammenfassung)
+10. [Skill-Handbuch (Dokumentation)](#skill-handbuch-dokumentation)
+11. [Agent Skills (Markdown-Pakete)](#agent-skills-markdown-pakete)
+
+---
+
 ## Was sind Skills?
 
 Skills sind benutzerdefinierte Python-Skripte, die als erweiterte Werkzeuge im Agenten verfügbar gemacht werden. Sie ergänzen die eingebauten Tools und sind ideal für:

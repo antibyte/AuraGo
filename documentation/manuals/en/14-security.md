@@ -10,6 +10,30 @@ Vault closed, jail on, Danger Zone on purpose. Personality does not change that.
 
 ---
 
+## Table of Contents
+
+1. [The AES-256 Vault](#the-aes-256-vault)
+2. [LLM Guardian](#llm-guardian)
+3. [Sudo](#sudo)
+4. [Web UI Authentication](#web-ui-authentication)
+5. [Setting Up Password Protection](#setting-up-password-protection)
+6. [Enabling Two-Factor Authentication (2FA)](#enabling-two-factor-authentication-2fa)
+7. [Danger Zone – Capability Gates](#danger-zone--capability-gates)
+8. [Agent Filesystem and Docker Isolation](#agent-filesystem-and-docker-isolation)
+9. [Read-Only vs Read-Write Mode](#read-only-vs-read-write-mode)
+10. [File Locks and Instance Prevention](#file-locks-and-instance-prevention)
+11. [Rate Limiting](#rate-limiting)
+12. [Ingress Trust and Public Boundaries](#ingress-trust-and-public-boundaries)
+13. [Outbound Requests and Host Execution](#outbound-requests-and-host-execution)
+14. [Security Best Practices](#security-best-practices)
+15. [Vault Management](#vault-management)
+16. [Incident Response](#incident-response)
+17. [Deep Dive: Cryptographic Implementation](#deep-dive-cryptographic-implementation)
+18. [Public Access](#public-access)
+19. [Summary](#summary)
+
+---
+
 ## The AES-256 Vault
 
 The vault is the heart of AuraGo's security architecture. All sensitive data – API keys, passwords, tokens – is stored encrypted here.
@@ -489,7 +513,7 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 
 ---
 
-## 🔍 Deep Dive: Cryptographic Implementation
+## Deep Dive: Cryptographic Implementation
 
 ### AES-256-GCM Details
 

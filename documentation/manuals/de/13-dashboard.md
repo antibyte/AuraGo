@@ -8,6 +8,27 @@ Zahlen, Issues, Affect, 3D-Graph. Kein zweiter Chat.
 
 Erreichbar unter `http://localhost:8088/dashboard` oder über das Radialmenü (☰ → 📊 Dashboard). Bei aktivierter Web-UI-Authentifizierung ist ein Login erforderlich.
 
+## Inhaltsverzeichnis
+
+1. [Aufbau](#aufbau)
+2. [Tab: Übersicht](#tab-übersicht)
+3. [Tab: Agent](#tab-agent)
+4. [Tab: Benutzer](#tab-benutzer)
+5. [Tab: Knowledge Graph](#tab-knowledge-graph)
+6. [Tab: Datei-Sync](#tab-datei-sync)
+7. [Tab: Audit](#tab-audit)
+8. [Tab: Cronjobs](#tab-cronjobs)
+9. [Tab: System](#tab-system)
+10. [Operational Issues](#operational-issues)
+11. [Mood-Zustände](#mood-zustände)
+12. [Echtzeit-Updates (SSE)](#echtzeit-updates-sse)
+13. [Dashboard-API-Übersicht](#dashboard-api-übersicht)
+14. [Tipps](#tipps)
+15. [Fehlerbehebung](#fehlerbehebung)
+16. [Nächste Schritte](#nächste-schritte)
+
+---
+
 ## Aufbau
 
 Über dem Tab-Inhalt gibt es zwei dauerhaft sichtbare Elemente:

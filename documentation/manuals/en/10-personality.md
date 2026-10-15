@@ -8,6 +8,24 @@ Same toolbox. Different attitude. Permissions do not come from the persona.
 
 ---
 
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Personality Engine](#personality-engine)
+3. [Mood States (V1/V2)](#mood-states-v1v2)
+4. [Available Personalities](#available-personalities)
+5. [User Profiling (V2)](#user-profiling-v2)
+6. [Temperature Modulation (V2)](#temperature-modulation-v2)
+7. [Emotion Synthesizer (V2)](#emotion-synthesizer-v2)
+8. [Inner Voice (V2)](#inner-voice-v2)
+9. [Adaptive Dynamics](#adaptive-dynamics)
+10. [Example Comparison](#example-comparison)
+11. [Best Practices](#best-practices)
+12. [Troubleshooting](#troubleshooting)
+13. [Summary](#summary)
+
+---
+
 ## Overview
 
 Personality influences:

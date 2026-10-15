@@ -6,6 +6,24 @@
 
 Sag, was du willst. Nicht, welches Tool er nehmen soll — außer du musst.
 
+## Inhaltsverzeichnis
+
+1. [Grundlagen der Kommunikation](#grundlagen-der-kommunikation)
+2. [Nachrichtentypen und Formate](#nachrichtentypen-und-formate)
+3. [Datei-Uploads und Verarbeitung](#datei-uploads-und-verarbeitung)
+4. [Sichere Secret-Eingabe](#sichere-secret-eingabe)
+5. [Bildanalyse](#bildanalyse)
+6. [Sprachnachrichten (Telegram)](#sprachnachrichten-telegram)
+7. [Chat-Verlauf und Kontext](#chat-verlauf-und-kontext)
+8. [Memory-Systeme im Überblick](#memory-systeme-im-überblick)
+9. [Best Practices für Prompts](#best-practices-für-prompts)
+10. [Beispiel-Konversationen](#beispiel-konversationen)
+11. [Fehlerbehebung](#fehlerbehebung)
+12. [Zusammenfassung: Dos and Don'ts](#zusammenfassung-dos-and-donts)
+13. [Nächste Schritte](#nächste-schritte)
+
+---
+
 ## Grundlagen der Kommunikation
 
 AuraGo versteht natürliche Sprache. Du musst keine speziellen Befehle lernen, um Aufgaben zu erledigen. Schreib einfach, wie du es einem menschlichen Assistenten erklären würdest.

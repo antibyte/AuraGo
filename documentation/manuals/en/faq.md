@@ -6,6 +6,15 @@ Back to the [handbook hub](../README.md) · [English overview](README.md)
   <a href="../images/manual-hero.webp"><img src="../images/manual-hero.webp" width="480" alt="AuraGo gopher with a handbook"></a>
 </p>
 
+## Table of Contents
+
+1. [Start](#start)
+2. [Security](#security)
+3. [Toys](#toys)
+4. [When It Creaks](#when-it-creaks)
+
+---
+
 ## Start
 
 ### Fastest Way In?

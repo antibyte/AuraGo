@@ -10,6 +10,30 @@ Vault zu, Jail an, Danger Zone bewusst. Persönlichkeit ändert daran nichts.
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Der AES-256 Vault](#der-aes-256-vault)
+2. [LLM Guardian – KI-gestützte Sicherheitsüberwachung](#llm-guardian--ki-gestützte-sicherheitsüberwachung)
+3. [Sudo Execution – Privilegierte Befehle](#sudo-execution--privilegierte-befehle)
+4. [Web UI Authentication](#web-ui-authentication)
+5. [Passwort-Schutz einrichten](#passwort-schutz-einrichten)
+6. [Zwei-Faktor-Authentifizierung (2FA) aktivieren](#zwei-faktor-authentifizierung-2fa-aktivieren)
+7. [Danger Zone – Capability Gates](#danger-zone--capability-gates)
+8. [Agent-Dateisystem und Docker-Isolation](#agent-dateisystem-und-docker-isolation)
+9. [Read-only vs Read-write Modus](#read-only-vs-read-write-modus)
+10. [File Locks und Instance Prevention](#file-locks-und-instance-prevention)
+11. [Rate Limiting konfigurieren](#rate-limiting-konfigurieren)
+12. [Eingangs-Vertrauen und öffentliche Grenzen](#eingangs-vertrauen-und-öffentliche-grenzen)
+13. [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung)
+14. [Security Best Practices](#security-best-practices)
+15. [Vault Management](#vault-management)
+16. [Incident Response](#incident-response)
+17. [Deep Dive: Kryptographische Implementierung](#deep-dive-kryptographische-implementierung)
+18. [Öffentlicher Zugang](#öffentlicher-zugang)
+19. [Zusammenfassung](#zusammenfassung)
+
+---
+
 ## Der AES-256 Vault
 
 Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle sensiblen Daten – API-Keys, Passwörter, Tokens – verschlüsselt gespeichert.
@@ -766,7 +790,7 @@ grep "vault\|secret" log/aurago.log | grep -v "secret_key"
 
 ---
 
-## 🔍 Deep Dive: Kryptographische Implementierung
+## Deep Dive: Kryptographische Implementierung
 
 ### AES-256-GCM Details
 

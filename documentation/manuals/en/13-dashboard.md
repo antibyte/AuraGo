@@ -8,6 +8,27 @@ Numbers, issues, affect, 3D graph. Not a second chat.
 
 Access it at `http://localhost:8088/dashboard` or via the radial menu (☰ → 📊 Dashboard). Authentication is required when Web UI auth is enabled.
 
+## Table of Contents
+
+1. [Layout](#layout)
+2. [Tab: Overview](#tab-overview)
+3. [Tab: Agent](#tab-agent)
+4. [Tab: User](#tab-user)
+5. [Tab: Knowledge Graph](#tab-knowledge-graph)
+6. [Tab: File-Sync](#tab-file-sync)
+7. [Tab: Audit](#tab-audit)
+8. [Tab: Cronjobs](#tab-cronjobs)
+9. [Tab: System](#tab-system)
+10. [Operational Issues](#operational-issues)
+11. [Mood States](#mood-states)
+12. [Real-Time Updates (SSE)](#real-time-updates-sse)
+13. [Dashboard API Summary](#dashboard-api-summary)
+14. [Tips](#tips)
+15. [Troubleshooting](#troubleshooting)
+16. [Next Steps](#next-steps)
+
+---
+
 ## Layout
 
 The dashboard has two persistent elements above the tab content:

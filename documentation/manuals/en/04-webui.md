@@ -21,6 +21,24 @@ Most pages need `web_config.enabled: true`. Navigation reloads the page.
 └────────────────────────────────────────────────────────────┘
 ```
 
+## Table of Contents
+
+1. [The Header](#the-header)
+2. [The Radial Menu](#the-radial-menu)
+3. [The Chat Interface](#the-chat-interface)
+4. [The Dashboard](#the-dashboard)
+5. [The Config Interface](#the-config-interface)
+6. [Virtual Desktop](#virtual-desktop)
+7. [Mission Control](#mission-control)
+8. [Looper](#looper)
+9. [Invasion Control](#invasion-control)
+10. [Responsive Design](#responsive-design)
+11. [Tips & Tricks](#tips--tricks)
+12. [Troubleshooting](#troubleshooting)
+13. [Next Steps](#next-steps)
+
+---
+
 ## The Header
 
 The header is identical on all pages and contains:

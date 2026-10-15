@@ -10,6 +10,16 @@ Slash-Commands beginnen mit `/`. Abkürzungen, keine zweite API.
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Übersicht aller Commands](#übersicht-aller-commands)
+2. [Detaillierte Beschreibungen](#detaillierte-beschreibungen)
+3. [Programmatische Verwendung](#programmatische-verwendung)
+4. [Troubleshooting](#troubleshooting)
+5. [Weiterführende Links](#weiterführende-links)
+
+---
+
 ## Übersicht aller Commands
 
 | Command | Beschreibung | Verfügbarkeit |

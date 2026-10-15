@@ -10,6 +10,25 @@ Geplante Chats, keine Shell-Skripte. Eggs und Nests wohnen in [Invasion Control]
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Was sind Missions?](#was-sind-missions)
+2. [Voraussetzungen](#voraussetzungen)
+3. [Mission Control Konzepte](#mission-control-konzepte)
+4. [Missions erstellen](#missions-erstellen)
+5. [Scheduling mit Cron](#scheduling-mit-cron)
+6. [Ereignis-Trigger (Event Triggers)](#ereignis-trigger-event-triggers)
+7. [Der Decisions-Service (optional)](#der-decisions-service-optional)
+8. [Manuelle Ausführung](#manuelle-ausführung)
+9. [Monitoring von Missions](#monitoring-von-missions)
+10. [Best Practices für Automation](#best-practices-für-automation)
+11. [Beispiele](#beispiele)
+12. [Fehlerbehebung](#fehlerbehebung)
+13. [Zusammenfassung](#zusammenfassung)
+14. [Synchronisierte Hinweise zu Mission Control V2](#synchronisierte-hinweise-zu-mission-control-v2)
+
+---
+
 ## Was sind Missions?
 
 **Missions** sind automatisierte Aufgaben, die zu festgelegten Zeiten oder bei bestimmten Ereignissen ausgeführt werden. Sie bestehen aus:

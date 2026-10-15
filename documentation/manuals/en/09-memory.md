@@ -10,6 +10,26 @@ Different shelves. One useful context. The drawing simplifies the system; it is 
 
 AuraGo's memory system is what transforms it from a simple chatbot into a truly personal assistant. This chapter explores how AuraGo remembers, organizes, and retrieves information across conversations.
 
+## Table of Contents
+
+1. [Memory Architecture Overview](#memory-architecture-overview)
+2. [Short-Term Memory (STM)](#short-term-memory-stm)
+3. [Long-Term Memory (LTM) / RAG](#long-term-memory-ltm--rag)
+4. [Knowledge Graph](#knowledge-graph)
+5. [Core Memory](#core-memory)
+6. [Notes & To-Dos](#notes--to-dos)
+7. [File KG Sync](#file-kg-sync)
+8. [How Memory Works in Conversations](#how-memory-works-in-conversations)
+9. [Saving and Retrieving Knowledge](#saving-and-retrieving-knowledge)
+10. [Memory Configuration](#memory-configuration)
+11. [Memory Optimization](#memory-optimization)
+12. [Best Practices for Knowledge Management](#best-practices-for-knowledge-management)
+13. [Knowledge Indexing (File Indexing)](#knowledge-indexing-file-indexing)
+14. [Helper LLM — Automated Maintenance](#helper-llm--automated-maintenance)
+15. [Troubleshooting](#troubleshooting)
+
+---
+
 ## Memory Architecture Overview
 
 ```text

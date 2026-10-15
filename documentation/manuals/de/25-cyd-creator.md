@@ -8,6 +8,21 @@ Ergebnis direkt aus dem Browser auf das Board. Spätere Versionen kommen auf Wun
 Technische Details für Admins (Konfiguration, Docker, OTA-Protokoll, Fehlercodes) stehen in der
 [Betriebsreferenz](../../cyd-creator.md) (englisch).
 
+## Inhaltsverzeichnis
+
+1. [Was du brauchst](#was-du-brauchst)
+2. [Die erste App](#die-erste-app)
+3. [Flashen: Einstellungen behalten oder vollständig installieren](#flashen-einstellungen-behalten-oder-vollständig-installieren)
+4. [Der serielle Monitor](#der-serielle-monitor)
+5. [WLAN auf dem Gerät](#wlan-auf-dem-gerät)
+6. [Updates per WLAN (OTA)](#updates-per-wlan-ota)
+7. [Export und Import](#export-und-import)
+8. [Gut zu wissen](#gut-zu-wissen)
+9. [Tastenkürzel im Designer](#tastenkürzel-im-designer)
+10. [Wenn etwas nicht klappt](#wenn-etwas-nicht-klappt)
+
+---
+
 ## Was du brauchst
 
 - **Ein unterstütztes Board.** Beim Anlegen eines Projekts zeigt die Board-Liste, was geprüft ist:

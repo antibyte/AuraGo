@@ -10,16 +10,25 @@ Web UI first. YAML for headless and GitOps. Secrets in the vault, not the file. 
 
 1. [Configuration Overview](#configuration-overview)
 2. [Editing Configuration](#editing-configuration)
-3. [Provider System](#provider-system)
-4. [Server Settings](#server-settings)
-5. [Agent Behavior Settings](#agent-behavior-settings)
-6. [Tool Configuration, Skill Manager & Media Registry](#tool-configuration-skill-manager--media-registry)
-7. [Embeddings Configuration](#embeddings-configuration)
-8. [Personality Settings](#personality-settings)
-9. [Logging Configuration](#logging-configuration)
-10. [Environment Variables](#environment-variables)
-11. [Common Configuration Examples](#common-configuration-examples)
-12. [Compact YAML Reference](#compact-yaml-reference)
+3. [The config.yaml Structure](#the-configyaml-structure)
+4. [Task Rules](#task-rules)
+5. [Provider System](#provider-system)
+6. [Server Settings](#server-settings)
+7. [Agent Behavior Settings](#agent-behavior-settings)
+8. [Tool Configuration, Skill Manager & Media Registry](#tool-configuration-skill-manager--media-registry)
+9. [Background Tasks](#background-tasks)
+10. [Embeddings Configuration](#embeddings-configuration)
+11. [Personality Settings](#personality-settings)
+12. [Co-Agents Configuration](#co-agents-configuration)
+13. [Logging Configuration](#logging-configuration)
+14. [Environment Variables](#environment-variables)
+15. [Configuration Validation](#configuration-validation)
+16. [Common Configuration Examples](#common-configuration-examples)
+17. [Other Configuration Blocks (Overview)](#other-configuration-blocks-overview)
+18. [New Runtimes and Local Integrations](#new-runtimes-and-local-integrations)
+19. [Compact YAML Reference](#compact-yaml-reference)
+20. [Advanced Config Blocks](#advanced-config-blocks)
+21. [Next Steps](#next-steps)
 
 ---
 
@@ -1006,6 +1015,61 @@ auth:
     max_login_attempts: 3
     lockout_minutes: 60
 ```
+
+---
+
+## Other Configuration Blocks (Overview)
+
+The following blocks can also be configured through the Web UI or additionally in `config.yaml`. Their most important parameters are summarized here in compact form:
+
+| Block | Purpose | YAML quick example |
+|-------|---------|--------------------|
+| `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
+| `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `email_accounts` | Email IMAP/SMTP (array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
+| `email` | *(legacy)* Email IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
+| `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |
+| `docker` | Docker API | `docker:`<br>`  enabled: true`<br>`  host: "unix:///var/run/docker.sock"` |
+| `budget` | Cost control | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn` |
+| `fallback_llm` | Backup LLM | `fallback_llm:`<br>`  enabled: true`<br>`  provider: fallback` |
+| `co_agents` | Parallel sub-agents | `co_agents:`<br>`  enabled: true`<br>`  max_concurrent: 3` |
+| `circuit_breaker` | Resilience | `circuit_breaker:`<br>`  max_tool_calls: 20`<br>`  llm_timeout_seconds: 600` |
+| `auth` | Login protection | `auth:`<br>`  enabled: true`<br>`  session_timeout_hours: 24` |
+| `llm_guardian` | Security screening | `llm_guardian:`<br>`  enabled: false`<br>`  default_level: medium` |
+| `mcp_server` | MCP interoperability | `mcp_server:`<br>`  enabled: false`<br>`  require_auth: true` |
+| `sandbox` | Isolated execution | `sandbox:`<br>`  enabled: true`<br>`  backend: docker`<br>`  network_enabled: false` |
+| `notifications` | Push notifications | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`  pushover:`<br>`    enabled: true` |
+| `tailscale` | Tailscale VPN | `tailscale:`<br>`  enabled: false`<br>`  tsnet:`<br>`    enabled: false` |
+| `ollama` | Local LLM management | `ollama:`<br>`  enabled: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto` |
+| `proxmox` / `ansible` | Infrastructure | Each `enabled: false`, `url: ""`, `readonly: false` |
+| `meshcentral` | Control WebSocket for devices, wake, power, and MeshAgent commands | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
+| `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
+| `s3` / `onedrive` / `webdav` / `koofr` | Cloud storage | Each `enabled: false`, endpoint/credentials in UI/Vault |
+| `paperless_ngx` | Document workflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
+| `telnyx` / `rocketchat` | Telephony/chat | `enabled: false`, details via Web UI |
+| `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
+| `egg_mode` | Worker mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
+| `invasion_control` | Remote deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
+| `security_proxy` | Reverse proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
+| `indexing` | File indexing | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `a2a` | Agent-to-agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
+| `realtime_speech` | Live speech sessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
+| `virtual_computers` | Managed virtual computers | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
+| `manus` | Asynchronous Manus tasks | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
+| `omniroute` | OpenAI-compatible gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
+| `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
+| `music_generation` | AI music | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  max_daily: 0` |
+| `firewall` | Firewall integration | `firewall:`<br>`  enabled: false`<br>`  mode: readonly` |
+| `journal` | Journal entries | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
+| `llm_router` | Optional task-based model router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
+| `newspaper` | Personal daily newspaper (desktop app) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `treg` | treg catalog gateway (three agent tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
+| `model_catalog` | Bundled provider/model catalog for UI and capability detection | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
+| `detective` | Bound desktop research (intensity profiles) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
+| `flows` | Visual EasyDrag flows: missions with their own engine ([Chapter 11](11-missions.md#flow-missions-easydrag)). Limits: 1–32 runs, 1–16 branches per run, 1–365 days retention, 10–5000 runs per flow; empty `ai_provider` = main model. Changing a limit requires a restart. Turning `enabled` off locks EasyDrag and the API immediately; published flows keep running until the restart, and a run already in flight can still be stopped. `ai_provider` applies immediately. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
+| `local_wikipedia` | Offline Wikipedia (Kiwix ZIM), agent tool and desktop app | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
+
+> 📖 For details on all available parameters see `config_template.yaml` in the project root.
 
 ---
 
