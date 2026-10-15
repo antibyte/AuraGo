@@ -42,9 +42,13 @@ window of at least fifteen minutes (longer for large asset limits, sized for
 
 Create a project in landscape (720p, 1080p, 1440p, 4K), portrait (720p, 1080p, 4K),
 square (720p, 1080p, 2160p) or 4:5 (1080 × 1350) format at 24, 25, 30, 50 or 60
-fps, or at the NTSC rates 23.976, 29.97 and 59.94 fps. The timeline supports up
-to sixty minutes, eight video, eight audio and eight overlay tracks, and 2000
-clips. Projects saved by earlier versions open unchanged at 30 fps. Import
+fps, or at the NTSC rates 23.976, 29.97 and 59.94 fps. Project settings (project
+menu) change the name, format and frame rate. A frame-rate change rounds every
+clip time to the new rate in one undoable step. The preview quality next to the
+full-screen button lowers the preview resolution for smooth playback of 4K
+projects; it does not affect exports. The timeline supports up to sixty
+minutes, eight video, eight audio and eight overlay tracks, and 2000 clips.
+Projects saved by earlier versions open unchanged at 30 fps. Import
 video, audio, and still images from the Desktop or upload them from the browser.
 Imports are copied; editing never modifies the original file.
 

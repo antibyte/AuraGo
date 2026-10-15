@@ -1394,12 +1394,14 @@ buttons and menu popovers remain excluded from those gestures.
 ### Video Studio contract
 
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
-  `video-studio-icons.js`, `video-studio-media.js`, `video-studio-preview.js`,
-  `video-studio-timeline.js`, `video-studio-inspector.js`, then the app parts
+  `video-studio-icons.js`, `video-studio-time.js`, `video-studio-media.js`,
+  `video-studio-preview.js`, `video-studio-timeline.js`,
+  `video-studio-inspector.js`, then the app parts
   `video-studio-core.js` (constants, requests, model, history, saving,
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
-  `-jobs.js` (jobs, refresh, export/AI dialogs) and `-stage.js` (popovers,
-  drawer, timeline height, transform box, field edits), and `video-studio.js`
+  `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
+  drawer, timeline height, transform box, field edits) and `-projects.js`
+  (settings and new-project dialogs), and `video-studio.js`
   last (same order in `module-loader.js` and both browser fixtures). The parts
   share `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
@@ -1429,7 +1431,7 @@ buttons and menu popovers remain excluded from those gestures.
   `sticker-<built-in name>.png`) are hidden from the media bin. Key names and
   decimal seconds follow the UI language.
   The inspector shows seconds (`m:ss.cc`, input also `4,5`) and percent; the
-  model stays in 30 fps frames and 0..1 boxes. Its fine-tune fields toggle with
+  model stays in integer frames at the project rate and 0..1 boxes. Its fine-tune fields toggle with
   `hidden`, not `<details>`: closed `<details>` content still reports client
   rects and broke the drawer focus trap.
 - A project loaded without tracks gets Video 1, Overlay 1 and Audio 1 once (no
@@ -1446,7 +1448,14 @@ buttons and menu popovers remain excluded from those gestures.
   project refreshes and draft recovery to the captured project ID and epoch.
   Window close awaits saving until clean or blocked by a visible failure or
   conflict choice.
-- Timing and transitions use integer 30 fps frames. The outgoing clip owns an
+- Timing goes through `window.VideoStudioTime` only (`rate`, `formatTime`, `parseTime`, `shortClock`,
+  `formatSeconds(frames, project, locale)`, `framesAt`, `maxFrames`, `rescaleProject`); no part keeps an `FPS`
+  constant. The inspector's `formatSeconds(frames, locale, project)` wrapper keeps its old argument order.
+  Thumbnails are cached in seconds (`{time, url}`), waveform peaks per second. Changing the frame rate in
+  Project settings rescales clip edges in one undo step after a confirm. The preview canvas backing store
+  follows the per-viewer quality (`aurago.videoStudio.previewQuality`: auto = long edge ≤ 1920 px, full, half,
+  quarter); the transform box stays in CSS pixels.
+- Timing and transitions use integer frames at the project rate (24/25/30/50/60, NTSC ×1000/1001). The outgoing clip owns an
   exact overlap with the next clip on its track; transitions apply on change.
   `setTransition` moves the following clip and every later clip on the track
   together; `repairTransitions` runs after every edit (mutate, recordChange,
