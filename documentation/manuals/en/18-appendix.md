@@ -695,6 +695,43 @@ follow_up:
   delay: string       # Delay (e.g., "1h", "30m") (required)
 ```
 
+### Filesystem Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `filesystem` | `operation`, `path`, `content` | File operations |
+| `execute_shell` | `command`, `timeout` | Shell commands |
+| `execute_python` | `code`, `timeout` | Python code |
+
+### Web Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `web_search` | `query`, `max_results` | Web search |
+| `fetch_url` | `url`, `extract_text` | Fetch URL |
+| `api_request` | `method`, `url`, `headers`, `body` | API calls |
+
+### Memory Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `manage_memory` | `operation`, `key`, `value` | Manage memory |
+| `query_memory` | `query`, `limit` | Semantic search |
+| `knowledge_graph` | `operation`, `entity`, `relation` | Knowledge graph |
+
+### Docker Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `docker` | `operation`, `container`, `image` | Docker management |
+
+### Scheduling Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `cron_scheduler` | `operation`, `expression`, `task` | Cron jobs |
+| `missions` | `operation`, `mission_id` | Missions |
+
 ---
 
 ## Example Configurations
@@ -1057,6 +1094,15 @@ When updating AuraGo:
 |----------|------|---------|
 | GitHub Issues | github.com/antibyte/AuraGo/issues | Bug reports |
 | GitHub Discussions | github.com/antibyte/AuraGo/discussions | Q&A |
+
+### Tools & Utilities
+
+| Tool | Link |
+|------|------|
+| YAML Validator | yamllint.com |
+| Cron Generator | crontab.guru |
+| bcrypt Generator | bcrypt-generator.com |
+| TOTP Apps | Google Authenticator, Authy, Aegis |
 
 ---
 

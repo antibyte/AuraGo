@@ -366,7 +366,12 @@ Das finale native Schema-Budget wird über `max_total_tools` gesteuert, wo es m�
 
 ## Read-Only vs. Read-Write
 
-Viele Tools unterstützen einen Read-Only-Modus — jeweils in der jeweiligen Integrationssektion der Web-UI (**Config → Integrationen → …**):
+Viele Tools unterstützen einen Read-Only-Modus:
+
+### Einrichtung in der Web-UI
+1. Öffne die Integration unter **Config** (z. B. **Config → Integrationen → Docker**).
+2. Aktiviere **Read-only** im Formular der Integration.
+3. Änderungen speichern.
 
 ### YAML-Referenz
 ```yaml

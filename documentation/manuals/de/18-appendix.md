@@ -901,9 +901,60 @@ Beim Aktualisieren von AuraGo:
 
 ## Lizenz
 
-AuraGo wird bereitgestellt als Open Source Software für persönliche und Bildungszwecke.
+### AuraGo-Lizenz
 
-Siehe LICENSE-Datei im Repository für Details.
+Dieses Projekt wird wie besehen für den persönlichen und Bildungseinsatz bereitgestellt.
+
+```text
+Copyright (c) 2024 AuraGo Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Drittanbieter-Lizenzen
+
+AuraGo verwendet die folgenden Open-Source-Komponenten:
+
+| Bibliothek | Lizenz | Zweck |
+|------------|--------|-------|
+| go-openai | Apache-2.0 | OpenAI-API-Client |
+| chromem-go | MPL-2.0 | Vektordatenbank |
+| diago | MPL-2.0 | Nativer SIP-Dialog und Medienverarbeitung |
+| sipgo | BSD-2-Clause | SIP-Protokollstack |
+| go-mp3 | Apache-2.0 | Reines Go-Telefonie-TTS-Audio-Decoding |
+| modernc.org/sqlite | BSD-3 | SQLite-Treiber |
+| telegram-bot-api | MIT | Telegram-Bot |
+| discordgo | BSD-3 | Discord-Bot |
+| gopsutil | BSD-3 | Systemmetriken |
+| golang.org/x/crypto | BSD-3 | Kryptografie |
+| cron/v3 | MIT | Aufgabenplanung |
+| vishen/go-chromecast | Apache-2.0 | Chromecast-Steuerung |
+| yaml.v3 | MIT AND Apache-2.0 | YAML-Parsing |
+
+Das kompakte Fremdprojekt-Inventar und die Lizenztexte, die bei einer Weiterverbreitung mitgegeben werden müssen, liegen in `licences/UEBERSICHT.md`. Die Upstream-Repositories bleiben die Quelle für einen gepinnten Image-Digest.
+
+### Attribution
+
+Wenn du AuraGo in Projekten oder Publikationen verwendest, denke bitte daran anzugeben:
+- Das AuraGo-Projekt und seine Beitragenden
+- Die zugrunde liegenden LLM-Provider
+- Die verwendeten Open-Source-Bibliotheken
 
 ---
 

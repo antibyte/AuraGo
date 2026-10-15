@@ -553,6 +553,7 @@ On an SSH nest the Egg lives in `~/.aurago-egg-<first 8 characters of the nest I
 
 Deployed Eggs run with `egg_mode` enabled in their generated `config.yaml`:
 
+### YAML Reference
 ```yaml
 egg_mode:
   enabled: true
