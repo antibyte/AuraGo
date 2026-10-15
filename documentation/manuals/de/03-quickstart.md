@@ -215,10 +215,10 @@ Klicke auf das **Mond/Sonne-Symbol** (🌙/☀️) im Header, um zwischen Dark u
 | Wenn du... | Dann... |
 |------------|---------|
 | Mehr über die UI erfahren willst | → [Kapitel 4: Web-Oberfläche](04-webui.md) |
-| Besser chatten lernen willst | → [Kapitel 5: Chat-Grundlagen](05-chatgrundlagen.md) |
+| Besser chatten lernen willst | → [Kapitel 5: Chat-Grundlagen](05-chat-basics.md) |
 | Alle Tools erkunden willst | → [Kapitel 6: Werkzeuge](06-tools.md) |
 | Telegram einrichten willst | → [Kapitel 8: Integrationen](08-integrations.md) |
-| Die Konfiguration verstehen willst | → [Kapitel 7: Konfiguration](07-konfiguration.md) |
+| Die Konfiguration verstehen willst | → [Kapitel 7: Konfiguration](07-configuration.md) |
 
 ## Schnell-Checkliste
 

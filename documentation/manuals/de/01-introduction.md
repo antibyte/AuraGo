@@ -60,12 +60,12 @@ Persönlichkeit sitzt auf dem Ton. Guardian und Danger Zone sitzen auf den Werkz
 
 > Die Web-UI nicht nackt ins Internet hängen. VPN (Tailscale, WireGuard), Reverse-Proxy mit Auth, oder die eingebaute Anmeldung plus 2FA.
 
-Datei-Tools bleiben in `agent_workspace`. `../../config.yaml` und `data/` scheitern absichtlich. Mehr: [Kapitel 14](14-sicherheit.md).
+Datei-Tools bleiben in `agent_workspace`. `../../config.yaml` und `data/` scheitern absichtlich. Mehr: [Kapitel 14](14-security.md).
 
 ## Nächste Schritte
 
 1. **[Installation](02-installation.md)** — Binary, Docker oder Source, plus Ressourcenpaket
-2. **[Schnellstart](03-schnellstart.md)** — Setup, erster Chat, harmlose Befehle
+2. **[Schnellstart](03-quickstart.md)** — Setup, erster Chat, harmlose Befehle
 3. **[Web-Oberfläche](04-webui.md)** — Chat, Desktop, Config
 
 > Tipp: Fang mit der Web-UI an. Frag nach Systeminformationen, nicht nach der Config-Datei.

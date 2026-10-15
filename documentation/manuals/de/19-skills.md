@@ -739,10 +739,10 @@ Der Agent lädt sie über `activate_agent_skill` und `run_agent_skill_script`.
 **Nächste Schritte**
 
 - **[Kapitel 6: Werkzeuge](06-tools.md)** – Die eingebauten Tools kennenlernen
-- **[Kapitel 14: Sicherheit](14-sicherheit.md)** – Sicherheitsrichtlinien für Skills
+- **[Kapitel 14: Sicherheit](14-security.md)** – Sicherheitsrichtlinien für Skills
 - **Config → Tools → Fähigkeiten-Manager** bzw. Seite **Skills** (`/skills`) → Neue Skills entdecken
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 18: Anhang](./18-anhang.md)
+**Vorheriges Kapitel:** [Kapitel 18: Anhang](./18-appendix.md)
 **Nächstes Kapitel:** [Kapitel 20: Chat-Commands](./20-chat-commands.md)

@@ -564,4 +564,4 @@ SQL  → Structured Query Language
 ---
 
 **Vorheriges Kapitel:** [Kapitel 16: Troubleshooting](./16-troubleshooting.md)
-**Nächstes Kapitel:** [Kapitel 18: Anhang](./18-anhang.md)
+**Nächstes Kapitel:** [Kapitel 18: Anhang](./18-appendix.md)

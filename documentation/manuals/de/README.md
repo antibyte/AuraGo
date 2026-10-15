@@ -9,7 +9,7 @@
 Dein selbst gehosteter Agent kann per SSH aufs NAS, über Mesh-Funk antworten, ein Browser-Spiel bauen und sich merken, woran ihr gestern gehangen habt. Dieses Handbuch erklärt, wie du ihn aufsetzt, mit ihm sprichst und die Spielzeuge einschaltest — ohne die Danger Zone aus Versehen weit zu öffnen.
 
 <p align="center">
-  <a href="#die-werkzeugkiste">Kapitel</a> · <a href="03-schnellstart.md">Schnellstart</a> · <a href="faq.md">FAQ</a> · <a href="../en/README.md">English</a>
+  <a href="#die-werkzeugkiste">Kapitel</a> · <a href="03-quickstart.md">Schnellstart</a> · <a href="faq.md">FAQ</a> · <a href="../en/README.md">English</a>
 </p>
 
 [![Gezeichnete Feature-Karte: der Gopher verbindet Home-Lab, Gedächtnis, Studios, Funk, Autopilot und virtuelle Arbeitsflächen](../../../assets/readme/gopher-feature-map.webp)](../../../assets/readme/gopher-feature-map.webp)
@@ -25,7 +25,7 @@ Die Illustrationen sind Anleitungszeichnungen, keine UI-Screenshots. Klicke ein 
 - **Sprache und Funk.** Telegram, Discord, Rocket.Chat, E-Mail, Realtime Speech, SIP, Speech Lab. **MeshCore** für vertrauenswürdige Direktnachrichten und eingeschränkte Kanalantworten.
 - **Seltsames Zeug.** 3D-Drucker, go2rtc-Kameras, Bluetooth-Audio, ESP32 Cheap Yellow Display, here.now, lokale Modelle (Qwen, Ling, experimentelles Spark). Skills und MCP, wenn dir das noch nicht reicht.
 
-[Alle Integrationen](08-integrations.md) · [Tool-Katalog](22-interne-tools.md) · [Persönlichkeiten](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk)
+[Alle Integrationen](08-integrations.md) · [Tool-Katalog](22-internal-tools.md) · [Persönlichkeiten](10-personality.md) · [AgoDesk](https://github.com/antibyte/agodesk)
 
 ### Ja, es gibt einen echten Desktop
 
@@ -60,7 +60,7 @@ Nachrichten und Missionen landen in der **Agent-Schleife**. Sie baut Kontext, ru
 
 Persönlichkeit ändert den Ton, nicht die Rechte. Shell, Python, Schreiben, Netz und Remote-Ausführung haben eigene Danger-Zone-Schalter. Guardian prüft zusätzlich. Schalte ein, was du brauchst.
 
-[Gedächtnis](09-memory.md) · [Sicherheit](14-sicherheit.md) · [Web-Assets](../../web-assets.md) · [Architektur](../../architecture.md)
+[Gedächtnis](09-memory.md) · [Sicherheit](14-security.md) · [Web-Assets](../../web-assets.md) · [Architektur](../../architecture.md)
 
 ## Schnellstart
 
@@ -82,22 +82,22 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 
 Der Installer startet AuraGo und druckt URL plus Erstpasswort. Meist **http://localhost:8088**. Passwort ändern, `/setup` zu Ende bringen, ein Modell wählen, dann etwas Harmloses wie **„Zeig mir Systeminformationen.“**
 
-Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Request-Inhalte.** Self-hosted heißt nicht automatisch offline. Nach außen: Login, HTTPS, optional 2FA. Mehr in [Kapitel 14](14-sicherheit.md).
+Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Request-Inhalte.** Self-hosted heißt nicht automatisch offline. Nach außen: Login, HTTPS, optional 2FA. Mehr in [Kapitel 14](14-security.md).
 
-[Kapitel 2: Installation](02-installation.md) · [Kapitel 3: Schnellstart](03-schnellstart.md) · [Docker-Guide](../../docker_installation.md)
+[Kapitel 2: Installation](02-installation.md) · [Kapitel 3: Schnellstart](03-quickstart.md) · [Docker-Guide](../../docker_installation.md)
 
 ## Handbuch-Karte
 
 ### Teil 1 — Ankommen
-1. [Einführung](01-einfuehrung.md) — Was das Ding ist, und was nicht
+1. [Einführung](01-introduction.md) — Was das Ding ist, und was nicht
 2. [Installation](02-installation.md) — Binary, Docker, Build, Ressourcenpaket
-3. [Schnellstart](03-schnellstart.md) — Die ersten fünf Minuten
+3. [Schnellstart](03-quickstart.md) — Die ersten fünf Minuten
 4. [Web-Oberfläche](04-webui.md) — Chat, Desktop, Config, Themes
-5. [Chat-Grundlagen](05-chatgrundlagen.md) — Wie du mit dem Agenten redest
+5. [Chat-Grundlagen](05-chat-basics.md) — Wie du mit dem Agenten redest
 
 ### Teil 2 — Die Spielzeuge
 6. [Werkzeuge](06-tools.md) — Der große Werkzeugkasten
-7. [Konfiguration](07-konfiguration.md) — Provider-System und Feintuning
+7. [Konfiguration](07-configuration.md) — Provider-System und Feintuning
 8. [Integrationen](08-integrations.md) — Vom NAS bis zum Funkgerät
 9. [Gedächtnis](09-memory.md) — Verlauf, Kernfakten, RAG, Graph
 10. [Persönlichkeit](10-personality.md) — Dieselbe Toolbox, andere Haltung
@@ -108,18 +108,18 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 13. [Dashboard](13-dashboard.md) — Zahlen, Issues, Affect, 3D-Graph
 
 ### Teil 4 — Vorsicht und Tiefe
-14. [Sicherheit](14-sicherheit.md) — Vault, Jail, Guardian, 2FA
+14. [Sicherheit](14-security.md) — Vault, Jail, Guardian, 2FA
 15. [Co-Agenten](15-coagents.md) — Helfer für Teilaufgaben
 16. [Troubleshooting](16-troubleshooting.md) — Wenn nur die Recovery-Seite da ist
-17. [Glossar](17-glossar.md) — Begriffe
-18. [Anhang](18-anhang.md) — Kurzreferenz
+17. [Glossar](17-glossary.md) — Begriffe
+18. [Anhang](18-appendix.md) — Kurzreferenz
 19. [Skills](19-skills.md) — Python-Skills und Agent Skills
 
 ### Teil 5 — Nachschlagen
 20. [Chat-Commands](20-chat-commands.md) — Slash-Befehle direkt im Chat
 21. [API-Referenz](21-api-reference.md) — REST-Endpunkte, SSE, Auth
-22. [Interne Tools](22-interne-tools.md) — Der vollständige Werkzeugkatalog
-23. [Interna](23-interna.md) — Module, Datenflüsse, Architektur
+22. [Interne Tools](22-internal-tools.md) — Der vollständige Werkzeugkatalog
+23. [Interna](23-internals.md) — Module, Datenflüsse, Architektur
 
 ### Teil 6 — Studio-Apps
 24. [EasyDrag](24-easydrag.md) — Automationen per Drag & Drop (erweitert Mission Control aus Kapitel 11)
@@ -144,7 +144,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 /credits       OpenRouter-Guthaben
 ```
 
-Die native Tool-Liste ist groß und feature-gated — nicht jede Installation sieht dieselben 100+ Namen. Maßgeblich sind [Kapitel 22](22-interne-tools.md) und das, was Config gerade erlaubt.
+Die native Tool-Liste ist groß und feature-gated — nicht jede Installation sieht dieselben 100+ Namen. Maßgeblich sind [Kapitel 22](22-internal-tools.md) und das, was Config gerade erlaubt.
 
 ## Wichtige Hinweise
 

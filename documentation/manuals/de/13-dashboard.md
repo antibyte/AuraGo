@@ -370,7 +370,7 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **Tab direkt verlinken:** `http://localhost:8088/dashboard#agent` öffnet direkt den Agent-Tab.
 - **Karten einklappen:** Mit ▼ am Kartenkopf selten genutzte Bereiche ausblenden.
 - **Theme:** 🌙 in der Kopfzeile — gilt für alle Web-UI-Seiten.
-- **Budget-Hinweise:** Bei Annäherung an Tageslimits kommen SSE-Toasts im Dashboard — Limits in [Kapitel 7: Konfiguration](07-konfiguration.md) setzen, nicht per Dashboard-YAML.
+- **Budget-Hinweise:** Bei Annäherung an Tageslimits kommen SSE-Toasts im Dashboard — Limits in [Kapitel 7: Konfiguration](07-configuration.md) setzen, nicht per Dashboard-YAML.
 
 ---
 
@@ -393,10 +393,10 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 - **[Kapitel 9: Gedächtnis](09-memory.md)** — Speicherschichten auf dem Agent-Tab verstehen
 - **[Kapitel 11: Mission Control](11-missions.md)** — Mission History und Cron-Zeitpläne
 - **[Kapitel 12: Invasion Control](12-invasion.md)** — Remote-Nodes in den Betriebs-Stats
-- **[Kapitel 14: Sicherheit](14-sicherheit.md)** — Audit-Protokoll und LLM Guardian
+- **[Kapitel 14: Sicherheit](14-security.md)** — Audit-Protokoll und LLM Guardian
 - **[Kapitel 21: REST-API-Referenz](21-api-reference.md)** — Vollständige Endpunkt-Details
 
 ---
 
 **Vorheriges Kapitel:** [Kapitel 12: Invasion Control](./12-invasion.md)
-**Nächstes Kapitel:** [Kapitel 14: Sicherheit](./14-sicherheit.md)
+**Nächstes Kapitel:** [Kapitel 14: Sicherheit](./14-security.md)

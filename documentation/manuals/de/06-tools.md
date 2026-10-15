@@ -268,7 +268,7 @@ homepage:
   allow_local_server: false
 ```
 
-Siehe [Integrationen](08-integrations.md#homepage--und-website-projekte) und [Interne Tools](22-interne-tools.md#homepage--statische-website-tool-familie).
+Siehe [Integrationen](08-integrations.md#homepage--und-website-projekte) und [Interne Tools](22-internal-tools.md#homepage--statische-website-tool-familie).
 
 
 ---
@@ -661,10 +661,10 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 
 **Nächste Schritte**
 
-- **[Konfiguration](07-konfiguration.md)** — Tools feinjustieren
+- **[Konfiguration](07-configuration.md)** — Tools feinjustieren
 - **[Integrationen](08-integrations.md)** — Externe Dienste verbinden
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chatgrundlagen.md)
-**Nächstes Kapitel:** [Kapitel 7: Konfiguration](./07-konfiguration.md)
+**Vorheriges Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chat-basics.md)
+**Nächstes Kapitel:** [Kapitel 7: Konfiguration](./07-configuration.md)

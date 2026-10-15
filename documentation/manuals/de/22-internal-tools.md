@@ -1671,7 +1671,7 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 - [Tools Kapitel](06-tools.md) – Nutzung der Tools im Chat
 - [Chat-Commands](20-chat-commands.md) – Manuelle Befehle
 - [API Referenz](21-api-reference.md) – REST API
-- [Sicherheit](14-sicherheit.md) – Berechtigungen & Danger Zone
+- [Sicherheit](14-security.md) – Berechtigungen & Danger Zone
 
 
 ---
@@ -1733,4 +1733,4 @@ Text und Metadaten aus PDF-Dateien extrahieren (inkl. OCR-Unterstützung). Wird 
 ---
 
 **Vorheriges Kapitel:** [Kapitel 21: REST API Referenz](./21-api-reference.md)
-**Nächstes Kapitel:** [Kapitel 23: Interna](./23-interna.md)
+**Nächstes Kapitel:** [Kapitel 23: Interna](./23-internals.md)

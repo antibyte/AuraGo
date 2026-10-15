@@ -348,7 +348,7 @@ Commands können auch programmatisch über die API ausgelöst werden:
 
 - [Web-Oberfläche](04-webui.md) – Alternative zur Command-Zeile
 - [REST API Referenz](21-api-reference.md) – Programmatischer Zugriff
-- [Sicherheit](14-sicherheit.md) – Vault und Verschlüsselung
+- [Sicherheit](14-security.md) – Vault und Verschlüsselung
 
 ---
 

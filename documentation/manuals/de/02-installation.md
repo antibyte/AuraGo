@@ -191,7 +191,7 @@ llm:
   provider: main
 ```
 
-> 💡 **Keinen API-Key?** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle. Das Provider-System erlaubt mehrere LLM-Provider mit Failover; Details im [Kapitel 7: Konfiguration](07-konfiguration.md).
+> 💡 **Keinen API-Key?** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle. Das Provider-System erlaubt mehrere LLM-Provider mit Failover; Details im [Kapitel 7: Konfiguration](07-configuration.md).
 
 ### 2. Master Key setzen
 
@@ -368,13 +368,13 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 
 ## Nächste Schritte
 
-- **[Schnellstart](03-schnellstart.md)** – Die ersten 5 Minuten mit AuraGo
+- **[Schnellstart](03-quickstart.md)** – Die ersten 5 Minuten mit AuraGo
 - **[Web-Oberfläche](04-webui.md)** – Die UI kennenlernen
-- **[Konfiguration](07-konfiguration.md)** – Feintuning
+- **[Konfiguration](07-configuration.md)** – Feintuning
 
 Die vollständige Weboberfläche wird als passendes lokales Ressourcenpaket installiert; im Binary bleibt eine kleine Reparatur-/Anmeldeseite. Details: [Ressourcen und Offline-Installation](../../web-assets.md).
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 1: Einführung](./01-einfuehrung.md)
-**Nächstes Kapitel:** [Kapitel 3: Schnellstart](./03-schnellstart.md)
+**Vorheriges Kapitel:** [Kapitel 1: Einführung](./01-introduction.md)
+**Nächstes Kapitel:** [Kapitel 3: Schnellstart](./03-quickstart.md)

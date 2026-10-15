@@ -429,11 +429,11 @@ Die Web-UI passt sich an verschiedene Bildschirmgrößen an:
 
 ## Nächste Schritte
 
-- **[Chat-Grundlagen](05-chatgrundlagen.md)** – Effektiv kommunizieren
+- **[Chat-Grundlagen](05-chat-basics.md)** – Effektiv kommunizieren
 - **[Werkzeuge](06-tools.md)** – Alle Tools kennenlernen
-- **[Konfiguration](07-konfiguration.md)** – Feintuning
+- **[Konfiguration](07-configuration.md)** – Feintuning
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 3: Schnellstart](./03-schnellstart.md)
-**Nächstes Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chatgrundlagen.md)
+**Vorheriges Kapitel:** [Kapitel 3: Schnellstart](./03-quickstart.md)
+**Nächstes Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chat-basics.md)

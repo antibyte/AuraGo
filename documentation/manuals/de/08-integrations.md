@@ -43,14 +43,14 @@ Die bevorzugte Art, Integrationen zu konfigurieren, ist die Web-UI:
 
 ### Konfigurations-Referenz (Kapitel 7)
 
-Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. Für YAML-Schlüssel, Defaults und plattformweite Blöcke siehe **[Kapitel 7: Konfiguration](07-konfiguration.md)**:
+Dieses Kapitel beschreibt Einrichtung, Anwendungsfälle und Web-UI-Workflows. Für YAML-Schlüssel, Defaults und plattformweite Blöcke siehe **[Kapitel 7: Konfiguration](07-configuration.md)**:
 
 | Thema | Abschnitt in Kapitel 7 |
 |-------|------------------------|
-| Provider-System, LLM, Embeddings, Agent-Verhalten | [Das Provider-System](07-konfiguration.md#das-provider-system), [Agent-Verhalten](07-konfiguration.md#agent-verhalten) |
-| Tool-Berechtigungen, Skill Manager, Media Registry, Daemon Skills | [Tool-Konfiguration](07-konfiguration.md#tool-konfiguration), [Skill Manager](07-konfiguration.md#skill-manager) |
-| Co-Agents, Personality, Logging, Umgebungsvariablen | [Co-Agents](07-konfiguration.md#co-agents--parallele-sub-agenten), [Personality](07-konfiguration.md#personality--persönlichkeit), [Umgebungsvariablen](07-konfiguration.md#umgebungsvariablen) |
-| Erweiterte Integrations-YAML-Blöcke | [Kompakte YAML-Referenz](07-konfiguration.md#kompakte-yaml-referenz) |
+| Provider-System, LLM, Embeddings, Agent-Verhalten | [Das Provider-System](07-configuration.md#das-provider-system), [Agent-Verhalten](07-configuration.md#agent-verhalten) |
+| Tool-Berechtigungen, Skill Manager, Media Registry, Daemon Skills | [Tool-Konfiguration](07-configuration.md#tool-konfiguration), [Skill Manager](07-configuration.md#skill-manager) |
+| Co-Agents, Personality, Logging, Umgebungsvariablen | [Co-Agents](07-configuration.md#co-agents--parallele-sub-agenten), [Personality](07-configuration.md#personality--persönlichkeit), [Umgebungsvariablen](07-configuration.md#umgebungsvariablen) |
+| Erweiterte Integrations-YAML-Blöcke | [Kompakte YAML-Referenz](07-configuration.md#kompakte-yaml-referenz) |
 | Vollständige Parameterliste | `config_template.yaml` im Projektverzeichnis |
 
 ---
@@ -1927,7 +1927,7 @@ local_wikipedia:
   update_check: true
 ```
 
-Größen je Sprache, Verzeichnisregeln für systemd und Docker, Fehlercodes, Netzwerk-Hosts und Lizenzen stehen im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md). Schlüssel: [Kapitel 7](07-konfiguration.md#lokale-wikipedia).
+Größen je Sprache, Verzeichnisregeln für systemd und Docker, Fehlercodes, Netzwerk-Hosts und Lizenzen stehen im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md). Schlüssel: [Kapitel 7](07-configuration.md#lokale-wikipedia).
 
 ---
 
@@ -2830,10 +2830,10 @@ tail -f log/aurago.log | grep -i telegram
 
 Jetzt, wo die Integrationen stehen:
 
-1. **[Sicherheit](14-sicherheit.md)** – AuraGo absichern
+1. **[Sicherheit](14-security.md)** – AuraGo absichern
 2. **[Fortgeschrittene Nutzung](15-coagents.md)** – Workflows, Co-Agenten und Automatisierung
 3. **[Troubleshooting](16-troubleshooting.md)** – häufige Probleme lösen
 
 ---
-**Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-konfiguration.md)
+**Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-configuration.md)
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)

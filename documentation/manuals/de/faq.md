@@ -9,7 +9,7 @@ Zurück zur [Handbuch-Startseite](../README.md) · [Deutsche Übersicht](README.
 ## Start
 
 ### Wie komme ich am schnellsten hin?
-Linux: One-Liner in [Kapitel 2](02-installation.md), danach [Schnellstart](03-schnellstart.md). Docker: Repo klonen und `docker compose up -d` — nicht `config.yaml` von GitHub ziehen, die Datei liegt nicht im Repository.
+Linux: One-Liner in [Kapitel 2](02-installation.md), danach [Schnellstart](03-quickstart.md). Docker: Repo klonen und `docker compose up -d` — nicht `config.yaml` von GitHub ziehen, die Datei liegt nicht im Repository.
 
 ### Brauche ich Docker?
 Nein. Der Kern ist eine Binary. Docker ist die sauberere Isolation und bringt Sidecars mit. Siehe [Docker-Guide](../../docker_installation.md).
@@ -23,7 +23,7 @@ Default ist **http://127.0.0.1:8088** bzw. **http://localhost:8088**. Docker und
 ## Sicherheit
 
 ### Wohin mit API-Keys?
-In den Vault. Nicht in Markdown, Git oder unverschlüsselte Exports. [Kapitel 14](14-sicherheit.md).
+In den Vault. Nicht in Markdown, Git oder unverschlüsselte Exports. [Kapitel 14](14-security.md).
 
 ### Darf das Ding ins Internet?
 Nur mit HTTPS, Login und am besten 2FA. VPN ist die gemütlichere Variante.
@@ -37,7 +37,7 @@ Absicht. Datei-Tools sitzen in `agent_workspace`. `../../config.yaml` und `data/
 ## Spielzeuge
 
 ### Wie viele Tools sind es wirklich?
-Der Katalog ist groß und **feature-gated**. Handbücher sagen „100+“, weil das die Größenordnung der dokumentierten nativen Tools ist. Deine Instanz zeigt nur, was Config und Integrationen erlauben. [Kapitel 6](06-tools.md) · [Kapitel 22](22-interne-tools.md).
+Der Katalog ist groß und **feature-gated**. Handbücher sagen „100+“, weil das die Größenordnung der dokumentierten nativen Tools ist. Deine Instanz zeigt nur, was Config und Integrationen erlauben. [Kapitel 6](06-tools.md) · [Kapitel 22](22-internal-tools.md).
 
 ### Telegram, Discord, MeshCore, SIP?
 Alles in [Kapitel 8](08-integrations.md). Telegram extra: [telegram_setup.md](../../telegram_setup.md). MeshCore: [meshcore-de.md](../../meshcore-de.md).

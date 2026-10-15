@@ -66,7 +66,7 @@ func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 		"#### Einrichtung in der Web-UI",
 		"local_wikipedia:",
 		"(../../local-wikipedia.md)",
-		"(07-konfiguration.md#lokale-wikipedia)",
+		"(07-configuration.md#lokale-wikipedia)",
 	})
 	if strings.Index(en, "### Local Wikipedia") > strings.Index(en, "## Testing Integrations") {
 		t.Error("English Local Wikipedia section must come before Testing Integrations")
@@ -84,8 +84,8 @@ func TestLocalWikipediaManualConfigurationReference(t *testing.T) {
 		"| `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. |",
 		"update_check: true        # daily catalog check; updates still need a click",
 	})
-	de := readRepoFile(t, "documentation/manuals/de/07-konfiguration.md")
-	requireAll(t, "manual/de/07-konfiguration.md", de, []string{
+	de := readRepoFile(t, "documentation/manuals/de/07-configuration.md")
+	requireAll(t, "manual/de/07-configuration.md", de, []string{
 		"### Lokale Wikipedia",
 		"| `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App |",
 		"update_check: true        # tägliche Katalogprüfung; Updates nur per Klick",
@@ -106,7 +106,7 @@ func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
 		"documentation/manuals/en/13-dashboard.md":      {"Local Wikipedia shows **New edition**"},
 		"documentation/manuals/de/13-dashboard.md":      {"Lokale Wikipedia zeigt **Neue Ausgabe**"},
 		"documentation/manuals/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
-		"documentation/manuals/de/22-interne-tools.md":  {"### `local_wikipedia`"},
+		"documentation/manuals/de/22-internal-tools.md":  {"### `local_wikipedia`"},
 		"documentation/manuals/en/21-api-reference.md": {
 			"[Memory & Knowledge APIs](#memory--knowledge-apis)", "[Local Wikipedia](#local-wikipedia-api)",
 			"[SSE Events](#sse-events)", "### Local Wikipedia API",

@@ -409,4 +409,4 @@ Es gibt keinen `E001`…`E008`-Katalog. Lies die Log-Zeile und das HTTP/JSON-`er
 
 ---
 
-**Nächstes Kapitel:** [Kapitel 17: Glossar](./17-glossar.md)
+**Nächstes Kapitel:** [Kapitel 17: Glossar](./17-glossary.md)

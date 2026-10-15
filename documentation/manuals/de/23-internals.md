@@ -1183,5 +1183,5 @@ Das System ist darauf ausgelegt, **vollständig autonom** zu operieren, während
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 22: Interne Tools](./22-interne-tools.md)
+**Vorheriges Kapitel:** [Kapitel 22: Interne Tools](./22-internal-tools.md)
 **Nächstes Kapitel:** [Kapitel 24: EasyDrag](./24-easydrag.md)

@@ -838,7 +838,7 @@ Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs l
 
 > 💡 **Nächste Schritte:**
 > - **[Co-Agenten](15-coagents.md)** – Parallele Agenten sicher nutzen
-> - **[Konfiguration](07-konfiguration.md)** – Feintuning aller Parameter
+> - **[Konfiguration](07-configuration.md)** – Feintuning aller Parameter
 > - **[Docker-Deployment](../../docker_installation.md)** – Isolierte Produktivumgebung
 
 ---

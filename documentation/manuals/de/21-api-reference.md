@@ -2680,9 +2680,9 @@ Die API verwendet standard HTTP-Statuscodes:
 
 - [Chat-Commands](20-chat-commands.md) – Alternative API via Chat
 - [Mission Control](11-missions.md) – Automatisierung
-- [Sicherheit](14-sicherheit.md) – Authentifizierung & Vault
+- [Sicherheit](14-security.md) – Authentifizierung & Vault
 
 ---
 
 **Vorheriges Kapitel:** [Kapitel 20: Chat-Commands](./20-chat-commands.md)
-**Nächstes Kapitel:** [Kapitel 22: Interne Tools](./22-interne-tools.md)
+**Nächstes Kapitel:** [Kapitel 22: Interne Tools](./22-internal-tools.md)

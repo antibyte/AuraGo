@@ -910,5 +910,5 @@ Siehe LICENSE-Datei im Repository für Details.
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 17: Glossar](./17-glossar.md)
+**Vorheriges Kapitel:** [Kapitel 17: Glossar](./17-glossary.md)
 **Nächstes Kapitel:** [Kapitel 19: Skills](./19-skills.md)

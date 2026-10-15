@@ -601,7 +601,7 @@ Agent: 🛠️ Erstelle neues Tool "weather_check"...
 ## Nächste Schritte
 
 - **[Werkzeuge](06-tools.md)** – Alle verfügbaren Tools im Detail
-- **[Konfiguration](07-konfiguration.md)** – Feintuning deines Agents
+- **[Konfiguration](07-configuration.md)** – Feintuning deines Agents
 - **[Integrationen](08-integrations.md)** – Telegram, Discord, Email einrichten
 
 ---
