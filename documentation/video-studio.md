@@ -122,7 +122,9 @@ fails during an export, the export restarts once on the CPU; the finished job's 
 configuration changes; an export that had to fall back to the CPU tests again next time.
 Preview proxies may grow to 2 GiB, enough for hour-long sources.
 
-The Docker image includes the Mesa VA drivers (AMD and older Intel GPUs). Pass the render node into the
+The Docker image includes VA drivers for AMD (Mesa) and, on amd64, for Intel (iHD for Broadwell and newer,
+i965 for older GPUs). Intel Quick Sync (QSV) additionally needs the oneVPL/Media SDK runtime, which the image
+does not include, so Intel GPUs encode through VAAPI in the container. Pass the render node into the
 container and add the group that owns it:
 
 ```yaml
@@ -134,8 +136,8 @@ services:
       - "110"   # numeric GID of /dev/dri/renderD128 on the host: stat -c %g /dev/dri/renderD128
 ```
 
-Native installations need the VA driver of their GPU (for example `mesa-va-drivers` or
-`intel-media-va-driver`), and the AuraGo service user must be in the `render` group.
+Native installations: install the VA driver for your GPU (for example `mesa-va-drivers` for AMD,
+`intel-media-va-driver` or `i965-va-driver` for Intel) and add the AuraGo service user to the `render` group.
 
 ## Optional AI clips
 

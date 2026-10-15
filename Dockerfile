@@ -53,9 +53,14 @@ RUN mkdir -p /deploy && \
 FROM python:3.12-slim-bookworm AS runtime
 
 # ----- system dependencies -----
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# VA drivers for Video Studio hardware encoding: Mesa covers AMD; the Intel
+# drivers (iHD for Broadwell and newer, i965 for older GPUs) exist only for amd64.
+RUN intel_va=""; \
+    if [ "$(dpkg --print-architecture)" = "amd64" ]; then intel_va="intel-media-va-driver i965-va-driver"; fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         mesa-va-drivers \
+        $intel_va \
         imagemagick \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
