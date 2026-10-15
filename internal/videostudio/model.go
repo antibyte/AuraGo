@@ -38,6 +38,7 @@ type Project struct {
 	Width   int     `json:"width"`
 	Height  int     `json:"height"`
 	FPS     int     `json:"fps"`
+	NTSC    bool    `json:"ntsc,omitempty"`
 	Assets  []Asset `json:"assets"`
 	Tracks  []Track `json:"tracks"`
 }
