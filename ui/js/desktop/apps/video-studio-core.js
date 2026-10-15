@@ -68,11 +68,18 @@
         ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
         return out;
     }
+    // The top level is built explicitly in the order of Go's videostudio.Project (version, name, width, height, fps,
+    // ntsc when set, assets, tracks), whatever order the keys were added to the live project (rescaleProject appends
+    // ntsc late). New Project fields must be inserted here at their Go struct position; unknown keys are dropped.
     function canonicalProject(project) {
-        const copy = clone(project);
-        if (!copy.ntsc) delete copy.ntsc;
-        copy.assets = (copy.assets || []).map(canonicalAsset);
-        copy.tracks = (copy.tracks || []).map(track => ({
+        const source = clone(project);
+        const copy = Object.assign({
+            version: source.version, name: source.name, width: source.width, height: source.height, fps: source.fps
+        }, source.ntsc ? { ntsc: true } : {}, {
+            assets: (source.assets || []).map(canonicalAsset),
+            tracks: source.tracks || []
+        });
+        copy.tracks = copy.tracks.map(track => ({
             id: track.id, kind: track.kind, name: track.name, muted: !!track.muted, hidden: !!track.hidden, locked: !!track.locked,
             clips: (track.clips || []).map(clip => ({
                 id: clip.id, asset_id: clip.asset_id, start: Math.round(clip.start), offset: Math.round(clip.offset || 0), duration: Math.round(clip.duration),
