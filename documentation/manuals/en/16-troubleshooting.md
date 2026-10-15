@@ -21,6 +21,8 @@ Logs first, then toggles, then the resource set. `log/aurago.log` is the trail â
 9. [Diagnostic Commands](#diagnostic-commands)
 10. [Recovery Procedures](#recovery-procedures)
 11. [Getting Help](#getting-help)
+12. [Extra Checks for Current Features](#extra-checks-for-current-features)
+13. [Quick Reference](#quick-reference)
 
 ---
 
@@ -548,6 +550,12 @@ curl http://localhost:8088/api/dashboard
 | `/debug on` | Enable detailed output |
 | `/reset` | Clear potentially corrupted chat state |
 | `/stop` | Interrupt hanging operations |
+
+### Config Validation
+
+```bash
+./aurago -check-config
+```
 
 ### File System Diagnostics
 

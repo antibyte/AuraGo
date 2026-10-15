@@ -20,6 +20,7 @@ Erst die Logs, dann die Schalter, dann das Ressourcenpaket. `log/aurago.log` ist
 10. [Wiederherstellungsverfahren](#wiederherstellungsverfahren)
 11. [Hilfe erhalten](#hilfe-erhalten)
 12. [Zusätzliche Diagnosepunkte für aktuelle Features](#zusätzliche-diagnosepunkte-für-aktuelle-features)
+13. [Kurzreferenz](#kurzreferenz)
 
 ---
 
@@ -31,6 +32,17 @@ Bevor du einzelne Lösungen ausprobierst, gehe systematisch vor:
 2. **Kürzliche Änderungen** – Was wurde zuletzt geändert?
 3. **Isolation testen** – Tritt das Problem nur bei bestimmten Aktionen auf?
 4. **Schrittweise einschränken** – Ein Feature nach dem anderen deaktivieren
+
+### Schnell-Diagnose-Checkliste
+
+```text
+□ Läuft AuraGo? (Prozess/Systemctl-Status prüfen)
+□ Ist die Web-UI erreichbar? (http://localhost:8088)
+□ Werden Logs geschrieben? (log/aurago.log prüfen)
+□ Ist der LLM-API-Key gültig? (mit curl testen)
+□ Ist der Master-Key gesetzt? (echo $AURAGO_MASTER_KEY)
+□ Ist die config.yaml gültig? (mit YAML-Linter prüfen)
+```
 
 ## Installationsprobleme
 
@@ -111,6 +123,38 @@ Symptom: Keine Antwort auf Nachrichten
 tail -f log/aurago.log | grep -i telegram
 ```
 
+### Port bereits belegt
+
+> [!WARNING]
+> **Fehler:** `bind: address already in use`
+
+**Lösung:**
+```bash
+# Prozess finden, der Port 8088 belegt
+# Linux/macOS
+lsof -i :8088
+sudo kill -9 <PID>
+
+# Windows
+netstat -ano | findstr :8088
+taskkill /PID <PID> /F
+
+# Oder Port in der Web-UI ändern: Config → Server → Port
+# YAML-Alternative:
+server:
+  port: 8089  # Anderen Port verwenden
+```
+
+### Discord-Bot-Probleme
+
+> [!WARNING]
+> **Bot erscheint offline:**
+
+1. Bot-Token im Discord Developer Portal prüfen
+2. `Gateway Intents` aktiviert? (Server Members, Message Content)
+3. Bot braucht die Berechtigung `Send Messages` im Kanal
+4. **Config → Messenger → Discord** → **Aktiviert** prüfen (YAML: `discord.enabled: true`)
+
 ## LLM/API-Fehler
 
 ### Authentifizierung fehlgeschlagen
@@ -142,6 +186,22 @@ Fehler: 429 Too Many Requests
 - Anderes/schnelleres Modell unter **Config → LLM Settings** wählen
 - **Config → Budget** aktivieren für Kostenüberblick
 
+### YAML-Referenz
+```yaml
+# Verzögerung zwischen Aufrufen einbauen
+agent:
+  step_delay_seconds: 2  # 2 Sekunden zwischen Tool-Aufrufen warten
+```
+
+Oder Circuit-Breaker-Backoff implementieren:
+```yaml
+circuit_breaker:
+  retry_intervals:
+    - 10s   # Erster Retry nach 10 Sekunden
+    - 2m    # Zweiter Retry nach 2 Minuten
+    - 10m   # Dritter Retry nach 10 Minuten
+```
+
 ### Modell nicht gefunden (404)
 
 ```text
@@ -149,6 +209,22 @@ Fehler: 404 Model not found
 ```
 
 **Lösung:** Modell-ID unter **Config → LLM Settings** prüfen (YAML: `llm.model`). Bei OpenRouter: Im Dashboard verifizieren.
+
+### Fallback-LLM-Aktivierung
+
+Schlägt dein Haupt-LLM wiederholt fehl, aktiviere den Fallback.
+
+> 🖥️ **Web-UI:** **Config → Fallback LLM**.
+
+### YAML-Referenz
+```yaml
+fallback_llm:
+  enabled: true
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "sk-or-v1-BACKUP-KEY"
+  model: "meta-llama/llama-3.1-8b-instruct:free"
+  error_threshold: 2  # Nach 2 aufeinanderfolgenden Fehlern wechseln
+```
 
 ## Gedächtnis- und Performance-Probleme
 
@@ -159,6 +235,18 @@ Fehler: 404 Model not found
 | Große Vektordatenbank | **Config → Embeddings** → Provider deaktivieren |
 | Langer Chat-Verlauf | `/reset` oder **Config → Agent** → Memory Compression Limit senken |
 | Memory Leak | AuraGo neustarten, Bug reporten |
+
+### YAML-Referenz
+```yaml
+agent:
+  context_window: 8192        # Kontextfenster verkleinern
+  memory_compression_char_limit: 25000  # Früher komprimieren
+  max_tool_calls: 8           # Tool-Aufrufketten begrenzen
+
+circuit_breaker:
+  max_tool_calls: 15          # Hartes Limit
+  llm_timeout_seconds: 120    # Kürzere Timeouts
+```
 
 ### Datenbank-Locks
 
@@ -172,6 +260,20 @@ Fehler: database is locked
 pkill aurago
 rm data/*.lock 2>/dev/null
 ./aurago
+```
+
+### VectorDB-Probleme
+
+> [!WARNING]
+> **Fehler:** `chromem: index corrupted` oder die Suche liefert keine Ergebnisse
+
+**Wiederherstellung:**
+```bash
+# Vektordatenbank neu aufbauen
+rm -rf data/vectordb/*
+
+# Beim nächsten Start baut AuraGo sie neu auf
+# Wissensdateien gegebenenfalls neu indizieren
 ```
 
 ### Langsame Antworten
@@ -202,6 +304,18 @@ docker compose down
 sudo lsof -i :8088  # Prüfen, was den Port blockiert
 ```
 
+### Web UI in Docker nicht erreichbar
+
+> [!WARNING]
+> **Kritisch:** In Docker zwingend `host: "0.0.0.0"` verwenden!
+
+```yaml
+# config.yaml - KORREKT für Docker
+server:
+  host: "0.0.0.0"  # Auf allen Interfaces lauschen
+  port: 8088
+```
+
 ### Permission denied auf Docker-Socket
 
 ```text
@@ -219,6 +333,52 @@ newgrp docker
 sudo chmod 666 /var/run/docker.sock
 ```
 
+### Volume-Persistenz-Probleme
+
+> [!WARNING]
+> **Daten nach Container-Neustart verloren:**
+
+**docker-compose.yml prüfen:**
+```yaml
+volumes:
+  aurago_data:/app/data        # Muss ein benanntes Volume sein
+  aurago_workdir:/app/agent_workspace/workdir
+```
+
+**Volumes prüfen:**
+```bash
+docker volume ls
+docker volume inspect aurago_aurago_data
+```
+
+### Python-Skills schlagen in Docker fehl
+
+> [!WARNING]
+> **Fehler:** `pip install failed` oder `module not found`
+
+**Lösung:**
+```bash
+# Workdir-Volume zurücksetzen
+docker compose down
+docker volume rm aurago_aurago_workdir
+docker compose up -d
+```
+
+### Zugriff auf Host-Dienste aus Docker
+
+| Dienst | URL in Docker |
+|---------|---------------|
+| Home Assistant | `http://host.docker.internal:8123` |
+| Ollama | `http://host.docker.internal:11434/v1` |
+| Lokale API | `http://host.docker.internal:PORT` |
+
+> [!TIP]
+> **Linux-Nutzer:** In `docker-compose.yml` ergänzen:
+> ```yaml
+> extra_hosts:
+> - "host.docker.internal:host-gateway"
+> ```
+
 ## Logs effektiv lesen
 
 ### Log-Dateien
@@ -230,6 +390,36 @@ sudo chmod 666 /var/run/docker.sock
 | Systemd | `journalctl -u aurago -f` |
 
 `log/aurago.log`, `log/web_access.log` und `log/maintenance.log` sind nur für den AuraGo-Benutzer lesbar (`0600`); ein Log-Shipper unter einem anderen Benutzer braucht Gruppenzugriff, z. B. `chmod 640` auf diese Dateien plus eine mit dem Shipper geteilte Gruppe. Einen Modus ohne Zugriff für alle lässt AuraGo beim Neustart unverändert.
+
+### Log-Level
+
+AuraGo nutzt strukturiertes Logging mit diesen Leveln:
+
+- `DEBUG` – Detaillierte Informationen für die Fehlersuche
+- `INFO` – Allgemeine Betriebsinformationen
+- `WARN` – Warnzustände
+- `ERROR` – Fehlerzustände
+
+### Häufige Log-Muster
+
+```text
+# Normaler Start
+[INFO] AuraGo starting...
+[INFO] Web UI available at http://localhost:8088
+[INFO] Agent loop initialized
+
+# LLM-API-Aufruf
+[DEBUG] Sending request to LLM
+[INFO] LLM response received
+
+# Tool-Ausführung
+[DEBUG] Dispatching tool: execute_shell
+[INFO] Tool execute_shell completed
+
+# Fehlermuster
+[ERROR] Failed to connect to LLM API
+[WARN] Retrying in 10s...
+```
 
 ### Log-Level filtern
 
@@ -259,6 +449,28 @@ Agent: ✅ Debug-Modus aktiviert
 - API-Request/Response Details
 - Timing-Informationen
 
+### Debug-Anzeigen
+
+| Anzeige | Bedeutung |
+|---------|-----------|
+| 🔍 Debug-Badge in der UI | Debug-Modus ist aktiv |
+| Detaillierte Fehler-Traces | Vollständige Stack-Traces in Fehlern |
+| Tool-Ausgabe sichtbar | Roh-Antworten der Tools sehen |
+| Ausführliches Logging | Detailliertere Log-Einträge |
+
+### Wann der Debug-Modus sinnvoll ist
+
+**Debug-Modus verwenden bei:**
+- Fehlersuche bei Tool-Fehlern
+- Untersuchung unerwarteten Verhaltens
+- Bug-Reports
+- Entwicklung neuer Tools
+
+**Debug-Modus nicht verwenden bei:**
+- Produktivbetrieb (ausführliche Ausgaben)
+- Geteilten Screenshots (können sensible Daten zeigen)
+- Performance-kritischen Läufen (Mehraufwand)
+
 ### Debug wieder ausschalten
 
 ```text
@@ -277,6 +489,32 @@ Du: Zeige System-Informationen
 
 ```bash
 ./aurago -check-config
+```
+
+### Chat-basierte Diagnose
+
+| Befehl | Zweck |
+|--------|-------|
+| `/help` | Alle verfügbaren Befehle auflisten |
+| `/budget` | API-Nutzung und Kosten prüfen |
+| `/debug on` | Detaillierte Ausgaben aktivieren |
+| `/reset` | Möglicherweise korrumpierten Chat-Status leeren |
+| `/stop` | Hängende Operationen abbrechen |
+
+### Dateisystem-Diagnose
+
+```bash
+# Speicherplatz prüfen
+df -h
+
+# Größe des AuraGo-Verzeichnisses
+du -sh ~/aurago
+
+# Dateirechte prüfen
+ls -la ~/aurago/data/
+
+# Gesperrte Dateien finden
+lsof +D ~/aurago/data/
 ```
 
 ### Netzwerk-Test
@@ -306,6 +544,21 @@ rm data/*.lock 2>/dev/null
 
 # 4. Neustart
 ./aurago
+```
+
+### Chat-Verlauf zurücksetzen
+
+> [!TIP]
+> **Zerstörungsfrei:** Löscht nur die Konversation, das Gedächtnis bleibt
+
+```text
+/reset
+```
+
+Oder manuell löschen:
+```bash
+rm data/chat_history.json
+rm data/short_term.db
 ```
 
 ### Chat-Verlauf konnte nicht geladen werden
@@ -350,6 +603,21 @@ rm log/*.log
 ./aurago --setup
 ```
 
+### Datenbank-Wiederherstellung
+
+**SQLite-Korruption:**
+```bash
+# Datenbank-Integrität prüfen
+sqlite3 data/short_term.db "PRAGMA integrity_check;"
+
+# Bei Korruption aus Backup wiederherstellen
+cp data/short_term.db.backup data/short_term.db
+
+# Oder neu anlegen (Datenverlust)
+rm data/short_term.db
+# AuraGo neu starten — erstellt eine leere Datei
+```
+
 ## Hilfe erhalten
 
 ### Informationen sammeln
@@ -367,6 +635,20 @@ echo "Python Version: $(python3 --version 2>/dev/null || echo 'not installed')"
 tail -50 log/aurago.log > problem-report.log
 ```
 
+### Informationen beilegen
+
+Beim Melden von Problemen bereitstellen:
+
+```text
+- AuraGo-Version: (./aurago --version)
+- Betriebssystem: (uname -a)
+- Installationsmethode: (Binary/Docker/Quelle)
+- LLM-Provider: (OpenRouter/OpenAI/Ollama)
+- Relevante config.yaml-Abschnitte (bereinigt)
+- Fehlermeldungen aus den Logs
+- Schritte zum Reproduzieren
+```
+
 ### Community-Ressourcen
 
 | Ressource | URL/Zugriff |
@@ -374,6 +656,42 @@ tail -50 log/aurago.log > problem-report.log
 | GitHub Issues | github.com/antibyte/AuraGo/issues |
 | Dokumentation | Ordner `documentation/` |
 | Vorlage | `config_template.yaml` |
+
+### GitHub-Issue-Vorlage
+
+```markdown
+**Beschreibung:**
+Kurze Beschreibung des Problems
+
+**Schritte zum Reproduzieren:**
+1. Schritt eins
+2. Schritt zwei
+3. …
+
+**Erwartetes Verhalten:**
+Was passieren sollte
+
+**Tatsächliches Verhalten:**
+Was tatsächlich passiert
+
+**Logs:**
+```
+Relevante Log-Zeilen hier einfügen
+```text
+
+**Umgebung:**
+- OS: Ubuntu 22.04
+- Version: v1.2.3
+- Installation: Docker
+- LLM: OpenRouter mit gpt-4
+```
+
+### Sicherheitsprobleme
+
+> [!WARNING]
+> **Für Sicherheitslücken KEINE öffentlichen Issues öffnen.:**
+
+Kontakt: [Sicherheitskontakt-Informationen des Projekts]
 
 ---
 
@@ -401,9 +719,6 @@ Bei schwer reproduzierbaren Fehlern zuerst Debug Mode, dann die Status-Endpunkte
 > [!TIP]
 > Die meisten Probleme lassen sich durch sorgfältiges Lesen der Logs lösen. Nimm dir Zeit, die Fehlermeldungen zu verstehen.
 
----
-
-**Vorheriges Kapitel:** [Kapitel 15: Co-Agenten](./15-coagents.md)
 ## Kurzreferenz
 
 Es gibt keinen `E001`…`E008`-Katalog. Lies die Log-Zeile und das HTTP/JSON-`error`-Feld. Vault-Probleme bedeuten fast immer `AURAGO_MASTER_KEY`. Eine Recovery-Seite ohne Resource-ID deutet auf eine ungepinnt Binary hin. Chat kann `config.yaml` nicht lesen — das ist der Workspace-Jail.
@@ -412,4 +727,5 @@ Es gibt keinen `E001`…`E008`-Katalog. Lies die Log-Zeile und das HTTP/JSON-`er
 
 ---
 
+**Vorheriges Kapitel:** [Kapitel 15: Co-Agenten](./15-coagents.md)
 **Nächstes Kapitel:** [Kapitel 17: Glossar](./17-glossary.md)
