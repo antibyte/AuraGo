@@ -93,26 +93,159 @@ export AURAGO_MASTER_KEY="your-generated-key"
 
 An optional second model looks at tool calls and untrusted content before dispatch. Personality never bypasses it.
 
-**Config → Security → LLM Guardian.** Use a dedicated provider ID, not the main chat model. `fail_safe: block` is the closed default; MeshCore and other untrusted inlets still fail closed even if a global allow is set.
+### How It Works
 
-```yaml
-llm_guardian:
-  enabled: false
-  provider: ""
-  model: ""
-  default_level: medium   # low | medium | high | strict
-  fail_safe: block        # block | quarantine | allow
-  scan_documents: false   # opt-in scan for incoming documents and webhooks
-  scan_emails: false      # opt-in scan for fetched and relayed email
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                     LLM Guardian Flow                       │
+├─────────────────────────────────────────────────────────────┤
+│  1. Agent generates a tool call                              │
+│  2. Guardian analyzes the call with a dedicated LLM          │
+│  3. A risk score is computed (0-100)                        │
+│  4. High risk: blocked or flagged                            │
+│  5. Low risk only: the tool is executed                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Document and email scans are opt-in to control cost. Once enabled, their ingress paths accept only an explicit allow; scanner errors, incomplete coverage, and size-limit overflow quarantine the original and deliver only a fixed safe notice where an authorized agent target exists. This ingress rule is independent of `fail_safe` and cannot be changed to allow by setting it to `allow` or `quarantine`.
+### What Gets Monitored
+
+| Category | Examples |
+|----------|----------|
+| **Tool calls** | Dangerous shell commands, data deletion, system changes |
+| **External data** | Prompt injection attempts, malicious content |
+| **Files** | Malware, suspicious attachments |
+| **Emails** | Phishing attempts, suspicious content |
+
+### Configuration
+
+### Web UI Setup
+1. Open **Config → Security → LLM Guardian**.
+2. Enable the Guardian, pick provider and check level.
+3. Store API keys in the vault.
+4. Save and restart if prompted.
+
+### YAML Reference
+```yaml
+llm_guardian:
+  enabled: false                     # Enable the Guardian
+  provider: ""                       # Provider ID (reference to a providers entry)
+  model: ""                          # Model override (empty = provider default)
+  default_level: "medium"            # Default check level (low | medium | high | strict)
+  fail_safe: "block"                 # Behavior on Guardian errors: block | quarantine | allow
+  cache_ttl: 300                     # Cache validity in seconds
+  max_checks_per_minute: 60         # Max checks per minute
+  tool_overrides: {}                 # Tool-specific level overrides
+  allow_clarification: false         # Allow follow-up questions to the user
+  scan_documents: false              # Scan uploaded documents
+  scan_emails: false                 # Scan incoming emails
+```
+
+> [!NOTE]
+> The LLM Guardian uses the provider system. Create a dedicated provider entry for the Guardian and reference it via the `provider` ID.
+
+`scan_emails` and `scan_documents` are opt-in checks and disabled by default. Once either is enabled, their ingress paths accept content only on an explicit allow. Scanner errors, incomplete coverage, and size-limit overflow quarantine the original; an authorized agent target receives only a fixed safe notice. This ingress rule is independent of `fail_safe` and cannot be switched to allow by setting it to `allow` or `quarantine`.
+
+### Check Levels
+
+| Level | Description | Use case |
+|-------|-------------|----------|
+| `low` | Basic checking | Development, testing |
+| `medium` | Standard checking (default) | Normal use |
+| `high` | Intensified checking | Production environments |
+| `strict` | Maximum checking | High-security environments |
+
+### Fail-Safe Behavior
+
+| Value | Description |
+|-------|-------------|
+| `block` | On Guardian errors the tool call is blocked (default) |
+| `quarantine` | On Guardian errors the tool call is allowed but logged and flagged |
+| `allow` | On Guardian errors the tool call is allowed |
+
+### Best Practices
+
+- Use a **dedicated provider** for the Guardian (not the main LLM)
+- Pick a **fast, inexpensive model** for real-time scans
+- Configure **exceptions** for frequent, harmless operations
+- Watch the **Guardian logs** for suspicious patterns
+
+`fail_safe: block` is the closed default; MeshCore and other untrusted inlets still fail closed even if a global allow is set.
 
 ## Sudo
 
 `/sudopwd` stores the password in the vault. `sudo_enabled` must be on. `sudo_unrestricted` is a second gate and needs a systemd unit without `ProtectSystem=strict`. Writes outside the install directory stay denied until both are true.
 
-The password only reaches `sudo -v`; commands run with `sudo -n` and a closed stdin. This needs sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user.
+### Security Concept
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                   Sudo Execution Flow                       │
+├─────────────────────────────────────────────────────────────┤
+│  1. User sets the sudo password with /sudopwd               │
+│  2. Password is stored securely in the vault                │
+│  3. Password never appears in chat or logs                   │
+│  4. Commands run with sudo                                   │
+│  5. Automatic timeout after a configurable time              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Setup
+
+#### Step 1: Store the sudo password in the vault
+
+```bash
+# Type in chat
+/sudopwd
+
+# Or directly in the vault under the key "sudo_password"
+```
+
+#### Step 2: Enable sudo in the Web UI
+
+### Web UI Setup
+1. Open **Config → Danger Zone**.
+2. Enable **Sudo Execution** and set the timeout.
+3. Save.
+
+### YAML Reference
+```yaml
+agent:
+  sudo_enabled: true           # Allow sudo execution
+  sudo_timeout_minutes: 10     # Timeout after 10 minutes
+```
+
+### Usage
+
+```text
+You: /sudopwd
+Agent: 🔐 Sudo password stored securely in the vault.
+
+You: Install the nginx package
+Agent: 🛠️ Shell: sudo apt install nginx -y
+       ✅ Package installed successfully
+```
+
+### Security Notes
+
+> [!IMPORTANT]
+> - The sudo password is **never** shown in chat or logged
+> - It is stored only in the encrypted vault
+> - The password only reaches `sudo -v`; commands run with `sudo -n` and a closed stdin. This needs sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user
+> - Sudo mode has an **automatic timeout**
+> - Every sudo execution is recorded in the **journal**
+> - Combine sudo with the **LLM Guardian** for extra safety
+
+### Read-Only Mode
+
+For especially sensitive systems sudo can be disabled entirely (**Config → Danger Zone**):
+
+### YAML Reference
+```yaml
+agent:
+  sudo_enabled: false          # No sudo execution allowed
+```
+
+In this case sudo commands are rejected with an error message.
 
 ## Web UI Authentication
 
@@ -146,7 +279,7 @@ AuraGo ships a layered authentication system for the web interface.
 
 ### Step 1: Initial Configuration
 
-**In the web UI:**
+### Web UI Setup
 1. Open **Config → Server → Web Config & Login**.
 2. Enable login protection, session timeout and rate limiting.
 3. Set the password and optionally TOTP via `POST /api/auth/password` and `POST /api/auth/totp/setup` (or directly in the web UI).
@@ -328,25 +461,45 @@ email:
 
 ## File Locks and Instance Prevention
 
-AuraGo uses file locks to prevent multiple instances from running simultaneously:
+AuraGo uses several locking mechanisms to prevent data corruption and race conditions.
 
-| Lock File | Purpose |
-|-----------|---------|
-| `data/vault.lock` | Prevents concurrent vault access |
-| `data/aurago.lock` | Prevents multiple AuraGo instances |
-| `agent.lock` | Prevents multiple agent instances |
+### Vault File Lock
 
-**If stuck:**
-```bash
-# Remove stale locks
-rm data/*.lock 2>/dev/null
+```go
+// Internal mechanism
+fileLock := flock.New(vaultFile + ".lock")
+// Locks during read/write operations
 ```
+
+- **File:** `data/vault.bin.lock`
+- **Purpose:** Prevents concurrent vault access
+- **Timeout:** None - blocks until released
+
+### Instance Lock
+
+```text
+┌─────────────────┐
+│  aurago.lock    │  ← Prevents parallel AuraGo instances
+└─────────────────┘
+```
+
+- **File:** `data/aurago.lock` (the agent loop is guarded by `agent.lock` the same way)
+- **Purpose:** Prevents multiple AuraGo processes from running at once
+- **Cleanup:** Removed automatically on clean shutdown
+
+> [!WARNING]
+> If AuraGo crashes, the lock file may remain. Remove it manually: `rm data/aurago.lock`
 
 ## Rate Limiting
 
 Protects against brute force and overload.
 
-> 🖥️ **Web UI:** **Config → Web Config & Login** → **Max Login Attempts** and **Lockout Minutes**.
+### Default Configuration
+
+### Web UI Setup
+1. Open **Config → Web Config & Login**.
+2. Set **Max Login Attempts** and **Lockout Minutes**.
+3. Save.
 
 ### YAML Reference
 ```yaml
@@ -356,10 +509,20 @@ auth:
   lockout_minutes: 15
 ```
 
-**Effects:**
-- After 5 failed logins: 15-minute lockout
-- API rate limiting per IP
-- Webhook rate limiting configurable
+### How It Works
+
+| Attempt | Action |
+|---------|--------|
+| 1-4 | Error counted, login still possible |
+| 5 | Account locked for 15 minutes |
+| After lockout | Counter resets |
+
+### Checking Lockout Status
+
+```bash
+# Visible in the log:
+# [Auth] IP 192.168.1.100 locked out until 2026-03-08T14:30:00
+```
 
 > [!TIP]
 > Behind a reverse proxy (nginx, Traefik), `X-Forwarded-*` headers count only when `server.https.behind_proxy: true` is set **and** the immediate peer is listed in `server.https.trusted_proxy_cidrs`. Without this, client-supplied forwarding claims are discarded. Details below under [Ingress trust](#ingress-trust-and-public-boundaries).
@@ -517,6 +680,19 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 1. Find backup of TOTP secret (shown during setup)
 2. Restore to new authenticator app
 3. Or: Disable TOTP via config file (requires file access)
+
+### Log Analysis
+
+```bash
+# Filter auth-related events
+grep "\[Auth\]" log/aurago.log
+
+# Patterns for attack attempts
+grep "failed login\|locked out\|unauthorized" log/aurago.log
+
+# Vault access
+grep "vault\|secret" log/aurago.log | grep -v "secret_key"
+```
 
 ---
 
