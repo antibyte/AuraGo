@@ -132,18 +132,26 @@
             track.clips.push(right);
         });
     }
-    // After a clear a clip may still reach into the next one: a transition that fits keeps the overlap,
-    // otherwise the earlier clip ends where the next one starts.
+    // After a clear a clip may still reach into the next one. Every clip ends up following validTimeline's rules: a
+    // transition keeps the overlap only while it is shorter than both clips and the clip ends before the clip after next
+    // starts; otherwise the earlier clip ends where the next one starts. Shortening a piece can break the rule for the
+    // transition into it (a piece no longer than its incoming transition), so the pass repeats until nothing changes, and
+    // empty pieces disappear. Pieces with the same start are ordered by end: a transition remnant comes first and empties.
     function settleTrack(track) {
-        const order = sorted(track);
-        for (let i = 0; i < order.length - 1; i++) {
-            const a = order[i], b = order[i + 1], overlap = endOf(a) - b.start;
-            if (overlap <= 0 || (a.transition && overlap < Math.min(a.duration, b.duration))) continue;
-            a.transition = null;
-            a.duration = b.start - a.start;
-            clampFades(a);
+        for (let changed = true; changed;) {
+            changed = false;
+            const order = track.clips.filter(clip => clip.duration > 0).sort((a, b) => a.start - b.start || endOf(a) - endOf(b));
+            for (let i = 0; i < order.length - 1; i++) {
+                const a = order[i], b = order[i + 1], after = order[i + 2], overlap = endOf(a) - b.start;
+                if (overlap <= 0) continue;
+                if (a.transition && overlap < Math.min(a.duration, b.duration) && (!after || endOf(a) <= after.start)) continue;
+                a.transition = null;
+                a.duration = b.start - a.start;
+                clampFades(a);
+                changed = true;
+            }
+            track.clips = order.filter(clip => clip.duration > 0);
         }
-        track.clips = order.filter(clip => clip.duration > 0);
     }
     // Removes [from, to) from every clip on the track: clips are trimmed, split (blade rule, see noteRight) or deleted.
     function clearRange(project, track, from, to, rights) {
@@ -730,18 +738,42 @@
         return finish(project);
     }
 
-    // ---- Derived media (spec 4.4). reversed = { assetId, rangeStart, frames }: the reversed asset holds the source
-    // range [rangeStart, rangeStart + frames) backwards. A clip reads it from the mirrored offset
-    // frames - 1 - (offset - rangeStart) - (duration - 1) * speed, so it plays the same source frames in reverse.
-    // Members of the clip's group that use the same asset switch too; a member outside the range refuses. ----
+    // ---- Derived media (spec 4.4). ----
+    // The source frame the renderer shows at timeline frame `frame`: offset + (frame - start) × speed, rounded down and
+    // kept inside the media. A freeze frame captures this frame.
+    function sourceFrameAt(project, clip, frame) {
+        const asset = assetOf(project, clip), value = Math.floor(Number(clip.offset || 0) + (frame - clip.start) * speedOf(clip) + 1e-9);
+        return Math.max(0, Math.min(Math.max(0, Number(asset && asset.duration_frames) - 1), value));
+    }
+    // Members of the clip's group that read the clip's asset (the clip alone when it is unlinked); reverse switches all.
+    function sameAssetMembers(project, found) {
+        return found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === found.clip.asset_id) : [found];
+    }
+    // The source range one reverse job covers: the union of the ranges the same-asset group members read, each
+    // [offset, offset + floor((duration - 1) × speed) + 1). A J- or L-cut partner trimmed past the clip widens it.
+    function reverseRange(project, clipId) {
+        const found = T().clipFor(project, clipId);
+        if (!found) return null;
+        let first = Infinity, end = -Infinity;
+        sameAssetMembers(project, found).forEach(({ clip }) => {
+            first = Math.min(first, clip.offset);
+            end = Math.max(end, clip.offset + Math.floor((clip.duration - 1) * speedOf(clip) + 1e-9) + 1);
+        });
+        return { rangeStart: first, frames: end - first };
+    }
+    // reversed = { assetId, rangeStart, frames, sourceAssetId }: the reversed asset holds the source range
+    // [rangeStart, rangeStart + frames) of sourceAssetId backwards. A clip reads it from the mirrored offset
+    // frames - 1 - (offset - rangeStart) - (duration - 1) * speed, so every member plays its own source frames in reverse
+    // where it is. Members of the clip's group that use the same asset switch too; a member outside the range, or a clip
+    // that no longer reads the reversed source, refuses.
     function reverseClips(project, clipId, reversed) {
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
         if (found.track.locked) return REASON.locked;
         const target = (project.assets || []).find(asset => asset.id === reversed.assetId);
         if (!target) return REASON.media;
-        const source = found.clip.asset_id;
-        const members = found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === source) : [found];
+        if (reversed.sourceAssetId && found.clip.asset_id !== reversed.sourceAssetId) return REASON.media;
+        const members = sameAssetMembers(project, found);
         const plans = [];
         for (const { track, clip } of members) {
             if (track.locked) return REASON.locked;
@@ -756,7 +788,9 @@
     }
     // Freeze frame (spec 4.4): the clip and its link partners are cut at the playhead, then a still of the captured
     // frame (the clip's geometry) is inserted on the clip's own track. Insert rules move the later clips.
-    // captured = { asset_id, clip_id, duration } (duration in frames).
+    // captured = { asset_id, clip_id, duration, source_asset_id, source_frame } (duration in frames). When given, the
+    // source fields name the frame the still shows; a clip that shows another frame at the cut (slipped, moved, re-timed
+    // or reversed while the capture waited) refuses, so the still never jumps against the clip.
     function freezeFrame(project, clipId, frame, captured) {
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
@@ -765,6 +799,8 @@
         if (track.kind !== 'video') return REASON.kind;
         if (!(frame > clip.start && frame < endOf(clip))) return REASON.nothing;
         if (!(project.assets || []).some(asset => asset.id === captured.asset_id && asset.kind === 'image')) return REASON.media;
+        if (captured.source_asset_id != null && clip.asset_id !== captured.source_asset_id) return REASON.media;
+        if (captured.source_frame != null && sourceFrameAt(project, clip, frame) !== captured.source_frame) return REASON.media;
         const cut = blade(project, frame, { clipIds: [clipId], linked: true }, {});
         if (cut !== true) return cut;
         const still = {
@@ -775,5 +811,5 @@
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, reverseClips, freezeFrame };
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, sourceFrameAt, reverseRange, reverseClips, freezeFrame };
 })();

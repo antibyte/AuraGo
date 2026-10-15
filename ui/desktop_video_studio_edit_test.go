@@ -279,3 +279,26 @@ assert.deepEqual(E.neighborAt(base(), 'x', 'end'), ['x','y']);
 assert.equal(E.neighborAt(base(), 'w', 'start'), null);
 `)
 }
+
+// TestVideoStudioEditOverwriteOverTransitionChain: overwriting over a chain of transitions settles every remaining clip
+// by validTimeline's rules (shrunk from fuzz.js seed 4). The piece that is left no longer than its incoming transition
+// keeps its frames; that transition goes and the clip before it ends where the piece starts.
+func TestVideoStudioEditOverwriteOverTransitionChain(t *testing.T) {
+	runVideoStudioEditScript(t, `
+const dissolve = duration => ({transition:{type:'dissolve', duration}});
+let p = project([track('v1','video',[clip('a',V,0,100,dissolve(2)), clip('b',V,98,40,Object.assign({offset:200}, dissolve(38))), clip('c',V,100,60,{offset:300})])]);
+valid(p);
+assert.equal(E.overwrite(p, [{trackId:'v1', clips:[clip('n',V,120,50,{offset:400})]}]), true);
+T.repairTransitions(p);
+valid(p);
+assert.deepEqual(spans(p,'v1'), [[0,98,0],[98,2,200],[100,20,300],[120,50,400]]);
+assert.ok(!at(p,'a').transition && !at(p,'b').transition, 'transitions that no longer fit are gone');
+// The same on an overlay track, where the first clip would otherwise also reach the clip after next.
+p = project([track('o1','overlay',[clip('c1',I,14,23,dissolve(4)), clip('c2',I,33,27,dissolve(23)), clip('c3',I,37,37,dissolve(1)), clip('c4',I,73,76)])]);
+valid(p);
+assert.equal(E.overwrite(p, [{trackId:'o1', clips:[clip('n',I,46,56)]}]), true);
+T.repairTransitions(p);
+valid(p);
+assert.deepEqual(spans(p,'o1').map(([start, duration]) => [start, duration]), [[14,19],[33,4],[37,9],[46,56],[102,47]]);
+`)
+}

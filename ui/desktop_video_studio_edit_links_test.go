@@ -227,3 +227,69 @@ assert.equal(E.canReattach(p, out.created[0]), false, 'the uncut audio clip stil
 assert.equal(E.reattachAudio(p, out.created[0]), 'nothing');
 `)
 }
+
+// TestVideoStudioEditReverseUnionAndFreezeSource: reverse covers the union of the source ranges of the clip's same-asset
+// group members and mirrors every member within it; a freeze applies only while the clip still shows the captured frame.
+func TestVideoStudioEditReverseUnionAndFreezeSource(t *testing.T) {
+	runVideoStudioEditScript(t, `
+const sourceAt = (clip, i) => clip.offset + i;
+// Every member plays its own source frames backwards where it is: reversed frame k is source frame rangeStart + frames - 1 - k.
+function playsBackwards(before, after, range) {
+  before.tracks.forEach(t => t.clips.forEach(old => {
+    const now = at(after, old.id);
+    assert.equal(now.asset_id, 'r', old.id + ' switches to the reversed asset');
+    for (let i = 0; i < old.duration; i++) assert.equal(range.rangeStart + range.frames - 1 - (now.offset + i), sourceAt(old, old.duration - 1 - i), old.id + ' frame ' + i);
+  }));
+}
+// J-cut pair: the video reads [100,200), its audio partner was trimmed 20 frames earlier and reads [80,200).
+let p = project([track('v1','video',[clip('x',V,50,100,{offset:100,link:'L',audio_detached:true})]), track('a1','audio',[clip('ax',V,30,120,{offset:80,link:'L'})])]);
+valid(p);
+assert.deepEqual(E.reverseRange(p, 'x'), {rangeStart:80, frames:120});
+assert.deepEqual(E.reverseRange(p, 'ax'), {rangeStart:80, frames:120}, 'either member gives the same range');
+p.assets.push({id:'r', name:'Clip (reversed).mp4', kind:'video', has_audio:true, duration_frames:120});
+let before = JSON.parse(JSON.stringify(p));
+assert.equal(E.reverseClips(p, 'x', {assetId:'r', rangeStart:80, frames:120, sourceAssetId:'v'}), true);
+assert.equal(at(p,'x').offset, 0); assert.equal(at(p,'ax').offset, 0);
+playsBackwards(before, p, {rangeStart:80, frames:120});
+valid(p);
+// L-cut pair: the audio runs 30 frames past the video ([100,230) against [100,200)), so the mirrored offsets differ.
+p = project([track('v1','video',[clip('x',V,50,100,{offset:100,link:'L',audio_detached:true})]), track('a1','audio',[clip('ax',V,50,130,{offset:100,link:'L'})])]);
+assert.deepEqual(E.reverseRange(p, 'x'), {rangeStart:100, frames:130});
+p.assets.push({id:'r', name:'Clip (reversed).mp4', kind:'video', has_audio:true, duration_frames:130});
+before = JSON.parse(JSON.stringify(p));
+assert.equal(E.reverseClips(p, 'x', {assetId:'r', rangeStart:100, frames:130, sourceAssetId:'v'}), true);
+assert.equal(at(p,'x').offset, 30); assert.equal(at(p,'ax').offset, 0);
+playsBackwards(before, p, {rangeStart:100, frames:130});
+valid(p);
+// A clip that no longer reads the reversed source refuses; so does a member the range does not cover.
+p = project([track('v1','video',[clip('x',V,50,100,{offset:100})])]);
+p.assets.push({id:'r', name:'r.mp4', kind:'video', has_audio:true, duration_frames:100});
+assert.equal(E.reverseClips(p, 'x', {assetId:'r', rangeStart:100, frames:100, sourceAssetId:'other'}), 'media');
+assert.equal(E.reverseClips(p, 'x', {assetId:'r', rangeStart:110, frames:90, sourceAssetId:'v'}), 'media');
+// Speed: a 2× clip of 50 frames reads source frames 100..198, 99 of them.
+p = project([track('v1','video',[clip('x',V,0,50,{offset:100,speed:2})])]);
+assert.deepEqual(E.reverseRange(p, 'x'), {rangeStart:100, frames:99});
+
+// Freeze: the request remembers the asset and source frame (offset + (point - start) × speed, rounded down).
+const still = {id:'s', name:'s.png', kind:'image', duration_frames:0, width:64, height:64};
+const fresh = () => { const q = project([track('v1','video',[clip('x',V,0,100,{offset:30})])]); q.assets.push(still); return q; };
+p = fresh();
+assert.equal(E.sourceFrameAt(p, at(p,'x'), 40), 70);
+const captured = {asset_id:'s', clip_id:'still', duration:60, source_asset_id:'v', source_frame:70};
+let q = fresh(); assert.equal(E.slip(q, ['x'], 5), true);
+assert.equal(E.freezeFrame(q, 'x', 40, captured), 'media', 'a slipped clip shows another frame at the cut');
+q = fresh(); at(q,'x').start = 10;
+assert.equal(E.freezeFrame(q, 'x', 40, captured), 'media', 'a moved clip shows another frame at the cut');
+q = fresh(); at(q,'x').speed = 2;
+assert.equal(E.freezeFrame(q, 'x', 40, captured), 'media', 'a re-timed clip shows another frame at the cut');
+q = fresh(); q.assets.push({id:'r', name:'r.mp4', kind:'video', has_audio:true, duration_frames:600}); at(q,'x').asset_id = 'r';
+assert.equal(E.freezeFrame(q, 'x', 40, captured), 'media', 'a reversed clip reads another asset');
+q = fresh(); Object.assign(at(q,'x'), {start:10, offset:40});
+assert.equal(E.freezeFrame(q, 'x', 40, captured), true, 'a moved clip that still shows the frame at the cut takes the still');
+valid(q);
+q = fresh();
+assert.equal(E.freezeFrame(q, 'x', 40, captured), true);
+assert.deepEqual(spans(q,'v1'), [[0,40,30],[40,60,0],[100,60,70]]);
+valid(q);
+`)
+}
