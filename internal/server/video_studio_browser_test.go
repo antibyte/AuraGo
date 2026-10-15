@@ -73,6 +73,7 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 <script src="/js/desktop/apps/video-studio-jobs.js"></script>
 <script src="/js/desktop/apps/video-studio-stage.js"></script>
 <script src="/js/desktop/apps/video-studio-editing.js"></script>
+<script src="/js/desktop/apps/video-studio-derive.js"></script>
 <script src="/js/desktop/apps/video-studio-projects.js"></script>
 <script src="/js/desktop/apps/video-studio-menus.js"></script>
 <script src="/js/desktop/apps/video-studio.js"></script>

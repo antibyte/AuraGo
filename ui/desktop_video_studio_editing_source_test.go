@@ -29,3 +29,39 @@ func TestVideoStudioEditingCommandsAreWired(t *testing.T) {
 		t.Fatal("the shell does not route clip-* actions or select link groups through onSelect and onSelectMany")
 	}
 }
+
+// TestVideoStudioDeriveWiring checks the derived-media part, the job hook and the load order.
+func TestVideoStudioDeriveWiring(t *testing.T) {
+	derive, err := os.ReadFile("js/desktop/apps/video-studio-derive.js")
+	if err != nil {
+		t.Fatalf("the derive part is missing: %v", err)
+	}
+	if !strings.Contains(string(derive), "Object.assign(P, { reverseClip, freezeFrame, exportFrame })") {
+		t.Fatal("video-studio-derive.js does not export its commands")
+	}
+	jobs, err := os.ReadFile("js/desktop/apps/video-studio-jobs.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(jobs), "onSucceeded") {
+		t.Fatal("createJob and pollJob do not take the onSucceeded hook")
+	}
+	loader, err := os.ReadFile("js/desktop/core/module-loader.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(loader), "'/js/desktop/apps/video-studio-derive.js', '/js/desktop/apps/video-studio-projects.js'") {
+		t.Fatal("module-loader.js does not load video-studio-derive.js directly before video-studio-projects.js")
+	}
+	// Both browser fixtures load the same scripts, so derive must come before projects there too.
+	for _, path := range []string{"desktop_video_studio_browser_test.go", "../internal/server/video_studio_browser_test.go"} {
+		fixture, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		deriveAt, projectsAt := strings.Index(string(fixture), "video-studio-derive.js"), strings.Index(string(fixture), "video-studio-projects.js")
+		if deriveAt < 0 || projectsAt < 0 || deriveAt > projectsAt {
+			t.Fatalf("%s does not load video-studio-derive.js before video-studio-projects.js", path)
+		}
+	}
+}

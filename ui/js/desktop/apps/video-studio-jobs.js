@@ -49,7 +49,7 @@
             const result = job.result || {};
             return ['renderSegmentFailed', 'Rendering failed between {{from}} and {{to}}. Check the clips there and try again.', { from: clockSeconds(result.failed_from_seconds), to: clockSeconds(result.failed_to_seconds) }];
         }
-        return ({ project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
+        return ({ reverse_range_too_long: ['reverseTooLong', 'Reverse works on up to 5 minutes at a time.'], reverse_failed: ['reverseFailed', 'The clip could not be reversed.'], still_failed: ['stillFailed', 'The frame could not be captured.'], project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
     }
     function exportName(s) { return String(s.project && s.project.name || tr(s, 'untitled', 'Untitled project')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) + '.mp4'; }
     // Finished render and generation jobs get one toast; probes are quiet unless they fail.
@@ -59,6 +59,8 @@
         const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
         if (job.kind === 'render' && job.status === 'succeeded' && artifact) showNotice(s, 'exportReady', 'Your video is ready.', false, { href: artifact, download: exportName(s), label: tr(s, 'download', 'Download') });
         else if (job.kind === 'generate' && job.status === 'succeeded') showNotice(s, 'generationReady', 'The generated clip is in your media library.', false);
+        else if (job.kind === 'still' && job.status === 'succeeded' && artifact) showNotice(s, 'frameExported', 'Your frame is ready.', false, { href: artifact, download: job.artifact.name || 'frame.png', label: tr(s, 'download', 'Download') });
+        else if (job.kind === 'reverse' && job.status === 'succeeded') showNotice(s, 'reverseReady', 'The reversed clip is in your media library.', false);
     }
     function visibleJobs(s) {
         return s.jobs.filter(job => !s.jobLocalStops.has(job.id) && !(job.kind === 'probe' && job.status === 'succeeded'));
@@ -93,7 +95,7 @@
     function safeSameOrigin(raw) {
         try { const url = new URL(raw, location.origin); return url.origin === location.origin ? url.href : ''; } catch (_) { return ''; }
     }
-    async function createJob(s, payload, expectedProjectId, expectedEpoch) {
+    async function createJob(s, payload, expectedProjectId, expectedEpoch, onSucceeded) {
         const projectId = expectedProjectId || s.projectId, epoch = expectedEpoch == null ? s.projectEpoch : expectedEpoch;
         if (!projectId || projectId !== s.projectId || epoch !== s.projectEpoch) throw new Error('project_changed');
         const key = idempotencyKey();
@@ -108,10 +110,10 @@
         const job = response.body.job || response.body;
         if (!s.jobs.some(item => item.id === job.id)) s.jobs.unshift(job);
         renderJobs(s);
-        pollJob(s, job.id, projectId, epoch).catch(() => {});
+        pollJob(s, job.id, projectId, epoch, onSucceeded).catch(() => {});
         return job;
     }
-    async function pollJob(s, jobId, projectId, epoch) {
+    async function pollJob(s, jobId, projectId, epoch, onSucceeded) {
         projectId = projectId || s.projectId;
         epoch = epoch == null ? s.projectEpoch : epoch;
         while (!s.disposed) {
@@ -125,7 +127,12 @@
             if (TERMINAL.includes(job.status)) {
                 if (!s.finishedJobs) s.finishedJobs = new Set();
                 s.finishedJobs.add(job.id);
-                if (job.status === 'succeeded') await refreshProject(s);
+                if (job.status === 'succeeded') {
+                    await refreshProject(s);
+                    // Derived media applies its edit only now, after the project (with the new asset) is loaded. A hook
+                    // that returns false refused the edit and already explained why; the generic "ready" toast would hide that.
+                    if (onSucceeded && !s.disposed && epoch === s.projectEpoch && projectId === s.projectId && onSucceeded(job) === false) s.notifiedJobs.add(job.id);
+                }
                 if (job.status === 'failed' || job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) { const failure = jobFailure(job); if (failure[2]) showNotice(s, '', fill(tr(s, failure[0], failure[1]), failure[2]), true); else showNotice(s, failure[0], failure[1], true); }
                 else announceJob(s, job);
                 return job;

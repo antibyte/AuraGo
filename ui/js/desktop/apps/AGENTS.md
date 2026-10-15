@@ -1411,12 +1411,15 @@ buttons and menu popovers remain excluded from those gestures.
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
   drawer, timeline height, transform box, field edits), `-editing.js`
-  (selection, clipboard, tools, edit commands and shortcuts), `-projects.js`
-  (settings and new-project dialogs) and `-menus.js` (context menus), and
-  `video-studio.js` last (same order in `module-loader.js` and both browser
-  fixtures). The parts share `window.VideoStudioParts`: each registers its
-  functions with `Object.assign(P, …)` and calls the others through call-time
-  wrappers, so every file stays below the 1100-line budget; the shell exposes
+  (selection, clipboard, tools, edit commands and shortcuts), `-derive.js`
+  (reverse, freeze frame and export frame as server jobs; the edit is applied
+  by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
+  `-projects.js`), `-projects.js` (settings and new-project dialogs) and
+  `-menus.js` (context menus), and `video-studio.js` last (same order in
+  `module-loader.js` and both browser fixtures). The parts share
+  `window.VideoStudioParts`: each registers its functions with
+  `Object.assign(P, …)` and calls the others through call-time wrappers, so
+  every file stays below the 1100-line budget; the shell exposes
   `VideoStudioApp.render(host, id, ctx)` and `dispose(id)`. The preview owns its media elements and shared frame clock
   and creates only `<video>`/`<audio>`/`Image` (the node test asserts it);
   dispose stops local playback, timers, uploads (XHR), thumbnail extraction and
