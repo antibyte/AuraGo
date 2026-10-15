@@ -5781,7 +5781,7 @@
   "videoStudio.generationStatusUnknown": "El estado del proveedor no está claro; puede que siga procesando la solicitud. Comprueba su estado antes de enviar otra solicitud de pago.",
   "videoStudio.renderSegmentFailed": "La renderización falló entre {{from}} y {{to}}. Revisa los clips de ese tramo y vuelve a intentarlo.",
   "videoStudio.diskSpaceLow": "El servidor no tiene suficiente espacio libre en disco para esta exportación.",
-  "videoStudio.tooManyClipsAtOnce": "Se reproducen demasiados clips a la vez en una parte de la línea de tiempo. Mueve algunos clips a menos pistas.",
+  "videoStudio.tooManyClipsAtOnce": "Se reproducen demasiados clips a la vez en una parte de la línea de tiempo. Quita o acorta algunos de los clips superpuestos.",
   "videoStudio.backgroundJobs": "Tareas en segundo plano",
   "videoStudio.job_probe": "Análisis de medios",
   "videoStudio.job_preview": "Renderizado de vista previa",

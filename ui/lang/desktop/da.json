@@ -5781,7 +5781,7 @@
   "videoStudio.generationStatusUnknown": "Udbyderens status er uklar; behandlingen kan stadig være i gang. Kontrollér status, før du sender en ny betalt anmodning.",
   "videoStudio.renderSegmentFailed": "Renderingen mislykkedes mellem {{from}} og {{to}}. Kontrollér klippene der, og prøv igen.",
   "videoStudio.diskSpaceLow": "Serveren har ikke nok ledig diskplads til denne eksport.",
-  "videoStudio.tooManyClipsAtOnce": "For mange klip afspilles samtidig i en del af tidslinjen. Flyt nogle klip over på færre spor.",
+  "videoStudio.tooManyClipsAtOnce": "For mange klip afspilles samtidig i en del af tidslinjen. Fjern eller forkort nogle af de overlappende klip.",
   "videoStudio.backgroundJobs": "Baggrundsopgaver",
   "videoStudio.job_probe": "Medieanalyse",
   "videoStudio.job_preview": "Forhåndsvisning",

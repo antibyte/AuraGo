@@ -5781,7 +5781,7 @@
   "videoStudio.generationStatusUnknown": "提供商的处理状态不明确，可能仍在处理中。再次提交付费请求前，请先确认其状态。",
   "videoStudio.renderSegmentFailed": "在 {{from}} 至 {{to}} 之间渲染失败。请检查该处的片段后重试。",
   "videoStudio.diskSpaceLow": "服务器没有足够的可用磁盘空间来完成此次导出。",
-  "videoStudio.tooManyClipsAtOnce": "时间线的某一段同时播放的片段过多。请将部分片段移到更少的轨道上。",
+  "videoStudio.tooManyClipsAtOnce": "时间线的某一段同时播放的片段过多。请删除或缩短部分重叠的片段。",
   "videoStudio.backgroundJobs": "后台任务",
   "videoStudio.job_probe": "媒体检查",
   "videoStudio.job_preview": "预览渲染",

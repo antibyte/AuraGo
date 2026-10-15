@@ -5781,7 +5781,7 @@
   "videoStudio.generationStatusUnknown": "The provider status is unclear; it may still be processing. Check its status before making another paid request.",
   "videoStudio.renderSegmentFailed": "Rendering failed between {{from}} and {{to}}. Check the clips there and try again.",
   "videoStudio.diskSpaceLow": "The server does not have enough free disk space for this export.",
-  "videoStudio.tooManyClipsAtOnce": "Too many clips play at the same time in one part of the timeline. Move some clips onto fewer tracks.",
+  "videoStudio.tooManyClipsAtOnce": "Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.",
   "videoStudio.backgroundJobs": "Background jobs",
   "videoStudio.job_probe": "Media inspection",
   "videoStudio.job_preview": "Preview render",

@@ -5781,7 +5781,7 @@
   "videoStudio.generationStatusUnknown": "Stav poskytovatele není jasný; zpracování možná stále probíhá. Před dalším placeným požadavkem zkontroluj jeho stav.",
   "videoStudio.renderSegmentFailed": "Vykreslování mezi {{from}} a {{to}} selhalo. Zkontroluj klipy v tomto úseku a zkus to znovu.",
   "videoStudio.diskSpaceLow": "Server nemá pro tento export dost volného místa na disku.",
-  "videoStudio.tooManyClipsAtOnce": "V jedné části časové osy se současně přehrává příliš mnoho klipů. Přesuň některé klipy na méně stop.",
+  "videoStudio.tooManyClipsAtOnce": "V jedné části časové osy se současně přehrává příliš mnoho klipů. Odeber nebo zkrať některé z překrývajících se klipů.",
   "videoStudio.backgroundJobs": "Úlohy na pozadí",
   "videoStudio.job_probe": "Kontrola médií",
   "videoStudio.job_preview": "Vykreslení náhledu",

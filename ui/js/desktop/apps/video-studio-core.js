@@ -57,13 +57,13 @@
         }
         return { body, etag: response.headers.get('ETag') || body.etag || '' };
     }
-    const ASSET_FIELDS = ['id', 'name', 'path', 'kind', 'duration_frames', 'width', 'height', 'has_audio'];
+    // Go struct order, so a canonical copy and a server-ordered copy stringify the same.
+    const ASSET_FIELDS = ['id', 'name', 'path', 'kind', 'duration_frames', 'duration_us', 'video_duration_us', 'width', 'height', 'has_audio', 'source_fps', 'codec', 'size_bytes'];
     // Server-owned version 2 metadata; like Go's omitempty JSON they appear only when set.
-    const OPTIONAL_ASSET_FIELDS = ['duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes'];
+    const OPTIONAL_ASSET_FIELDS = new Set(['duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes']);
     function canonicalAsset(asset) {
         const out = {};
-        ASSET_FIELDS.forEach(key => { out[key] = asset[key]; });
-        OPTIONAL_ASSET_FIELDS.forEach(key => { if (asset[key]) out[key] = asset[key]; });
+        ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
         return out;
     }
     function canonicalProject(project) {
@@ -92,6 +92,8 @@
     }
     function hydrateProject(s, project) {
         const p = clone(project || {});
+        // Mirrors Go's videostudio.Upgrade: a recovered draft or a tab opened before the upgrade compares as version 2.
+        if (Number(p.version) === 1 && (Number(p.fps) || 30) === 30 && !p.ntsc) p.version = 2;
         p.assets = (p.assets || []).map(asset => Object.assign({}, asset, {
             media_url: API + '/projects/' + encodeURIComponent(s.projectId) + '/media/' + encodeURIComponent(asset.id)
         }));
