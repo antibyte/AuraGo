@@ -124,6 +124,9 @@
                 upload(source) {
                     const [width, height] = sourceSize(source);
                     if (disposed || isLost() || !width || !height) return false;
+                    // An image still loading reports its size but cannot be uploaded: texImage2D sets INVALID_VALUE without
+                    // throwing, which would leave a blank texture behind a true result.
+                    if (typeof HTMLImageElement === 'function' && source instanceof HTMLImageElement && !source.complete) return false;
                     if (!tex.handle || tex.generation !== generation) { tex.handle = gl.createTexture(); tex.generation = generation; configure(tex.handle); }
                     try {
                         gl.bindTexture(gl.TEXTURE_2D, tex.handle);

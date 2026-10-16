@@ -231,10 +231,14 @@
             catch (_) { el.__vsFrameSeen = true; }
         }
 
+        // An image counts only once it finished loading: naturalWidth is known while the file is still arriving, and a
+        // WebGL texture taken from such an image stays blank (the upload fails with INVALID_VALUE) and is never refreshed.
+        function imageLoaded(el) { return !!(el.naturalWidth && el.naturalHeight) && el.complete !== false; }
+
         // A decoded frame is available: the 2D painter's draw condition (the compositor keeps its own upload gating).
         function frameReady(asset, el) {
             if (!asset || !el) return false;
-            if (asset.kind === 'image') return !!(el.naturalWidth && el.naturalHeight);
+            if (asset.kind === 'image') return imageLoaded(el);
             const width = Number(el.videoWidth || el.naturalWidth || asset.width || 0), height = Number(el.videoHeight || el.naturalHeight || asset.height || 0);
             return !!(width && height) && !(el instanceof HTMLVideoElement && el.readyState < 2);
         }
@@ -371,7 +375,7 @@
                 if (!asset || !sourceURL(asset)) return true;
                 const el = media.get(clip.id);
                 if (!el) return false;
-                if (asset.kind === 'image') return !!(el.naturalWidth && el.naturalHeight);
+                if (asset.kind === 'image') return imageLoaded(el);
                 if (el.readyState < 2 || el.seeking || Math.abs((el.currentTime || 0) - sourcePosition(clip, frame)) > 0.025) return false;
                 return el.__vsFrameSeen !== false || (el.__vsSeekedAt > 0 && performance.now() - el.__vsSeekedAt >= SETTLE_GRACE_MS);
             }));

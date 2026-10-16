@@ -2,14 +2,27 @@ package ui
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"math"
+	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"aurago/internal/videostudio"
+	"aurago/internal/videostudio/goldenframe"
+
+	"github.com/go-rod/rod"
 	"github.com/ysmood/gson"
 )
 
@@ -373,5 +386,299 @@ func TestDesktopVideoStudioPreviewFallbackBrowser(t *testing.T) {
 	}
 	if list := checks["cutList"].Arr(); len(list) != 1 || list[0].Get("kind").Str() != "transition" || list[0].Get("id").Str() != "dissolve" {
 		t.Errorf("failedPrograms() = %s", checks["cutList"].JSON("", ""))
+	}
+}
+
+// goldenSeekFile is the paused-seek evidence clip: 1 s at 25 fps, frame N a flat grey of luma 24+8N, so a captured
+// pixel names the frame on screen.
+const goldenSeekFile = "seekframes.mp4"
+
+// TestDesktopVideoStudioGoldenFrames compares every registered golden case (goldenframe.Cases) between the export and
+// the preview. RenderFrame writes the export's lossless RGB frame. vsGolden.render draws the same frame on the engine
+// page with the requested painter. SSIM must reach the case's threshold. The seek_frame_starts subtest is the
+// paused-seek evidence of plan 2a (open question 12). Needs AURAGO_RUN_BROWSER_SMOKE=1, ffmpeg and Chrome or Edge. Each
+// case gets its own SwiftShader browser, so no browser outlives the launcher's 180 s context.
+func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("golden frames need ffmpeg on the PATH")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Minute)
+	defer cancel()
+	media, err := goldenframe.MakeMedia(ctx, ffmpeg, t.TempDir())
+	if err != nil {
+		t.Fatalf("MakeMedia: %v", err)
+	}
+	seekPath := filepath.Join(media.Dir, goldenSeekFile)
+	writeGoldenSeekMedia(t, ctx, ffmpeg, seekPath)
+	engine := newVideoStudioEngineServer(t, media.Dir)
+	t.Run("seek_frame_starts", func(t *testing.T) { checkGoldenSeekFrames(t, ctx, ffmpeg, engine, media.Files, seekPath) })
+	frames := t.TempDir()
+	for _, c := range goldenframe.Cases(media) {
+		t.Run(c.Name, func(t *testing.T) {
+			want := goldenRenderWant(t, ctx, ffmpeg, media, c, filepath.Join(frames, c.Name+".png"))
+			page := goldenEnginePage(t, engine, media.Files)
+			for _, painter := range c.Painters {
+				t.Run(painter, func(t *testing.T) {
+					got := goldenRenderGot(t, page, c, painter)
+					score, err := goldenframe.SSIM(want, got)
+					if err != nil {
+						t.Fatalf("SSIM: %v", err)
+					}
+					failed := score.Min < c.Threshold
+					kept := goldenKeepArtifacts(t, c.Name+"_"+painter, want, got, failed)
+					if failed {
+						t.Fatalf("SSIM R %.4f G %.4f B %.4f, min %.4f < %.2f (want/got/diff PNGs: %s)", score.R, score.G, score.B, score.Min, c.Threshold, kept)
+					}
+					t.Logf("SSIM min %.4f (threshold %.2f)", score.Min, c.Threshold)
+				})
+			}
+		})
+	}
+}
+
+// goldenEnginePage opens the Task 10 engine page in a fresh SwiftShader browser (openVideoStudioEngine) and fills the
+// asset-file map that vsGolden.render resolves media through. The map is filled in place, because render keeps its
+// own reference to the object.
+func goldenEnginePage(t *testing.T, engine *httptest.Server, files map[string]string) *rod.Page {
+	t.Helper()
+	page := openVideoStudioEngine(t, newWebGLSmokeBrowser(t), engine)
+	page.MustEval(`files=>{Object.assign(window.vsGolden.files,files);}`, files)
+	return page
+}
+
+func goldenDecodePNG(t *testing.T, path string) image.Image {
+	t.Helper()
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	img, err := png.Decode(file)
+	if err != nil {
+		t.Fatalf("decode %s: %v", filepath.Base(path), err)
+	}
+	return img
+}
+
+func goldenRenderWant(t *testing.T, ctx context.Context, ffmpeg string, media goldenframe.Media, c goldenframe.Case, output string) image.Image {
+	t.Helper()
+	if err := videostudio.RenderFrame(ctx, videostudio.FrameOptions{FFmpegPath: ffmpeg, Project: c.Project, AssetPaths: media.Paths, Frame: c.Frame, Output: output}); err != nil {
+		t.Fatalf("RenderFrame(%s, frame %d): %v", c.Name, c.Frame, err)
+	}
+	return goldenDecodePNG(t, output)
+}
+
+// goldenRenderGot draws the case on the engine page with Task 10's renderEngineFrame and insists on the requested
+// painter and settled media.
+func goldenRenderGot(t *testing.T, page *rod.Page, c goldenframe.Case, painter string) image.Image {
+	t.Helper()
+	got := renderEngineFrame(t, page, c.Project, c.Frame, painter)
+	if got.Painter != painter {
+		t.Fatalf("vsGolden.render was asked for the %s painter and drew with %q (GL must work under the SwiftShader launcher)", painter, got.Painter)
+	}
+	if !got.Settled {
+		t.Fatalf("%s/%s: the preview media did not settle within 15 s", c.Name, painter)
+	}
+	return got.Image
+}
+
+// goldenKeepArtifacts writes want/got/diff PNGs. With AURAGO_GOLDEN_OUT set it writes them there for every comparison,
+// for review. Without it, it writes them only for a failed comparison, into a new temporary folder outside the checkout.
+// It returns the folder, or "" when nothing was kept.
+func goldenKeepArtifacts(t *testing.T, name string, want, got image.Image, failed bool) string {
+	t.Helper()
+	dir := os.Getenv("AURAGO_GOLDEN_OUT")
+	if dir == "" && !failed {
+		return ""
+	}
+	if dir == "" {
+		var err error
+		if dir, err = os.MkdirTemp("", "aurago-golden-"); err != nil {
+			t.Logf("keep artifacts for %s: %v", name, err)
+			return ""
+		}
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Logf("keep artifacts for %s: %v", name, err)
+		return ""
+	}
+	if err := goldenframe.WriteArtifacts(dir, name, want, got); err != nil {
+		t.Logf("write artifacts for %s: %v", name, err)
+		return ""
+	}
+	return dir
+}
+
+func writeGoldenSeekMedia(t *testing.T, ctx context.Context, ffmpeg, path string) {
+	t.Helper()
+	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error",
+		"-f", "lavfi", "-i", "nullsrc=s=320x180:r=25:d=1,format=gray,geq=lum='24+8*N'",
+		"-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "4", "-g", "1", "-bf", "0", "-pix_fmt", "yuv420p",
+		"-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-f", "mp4", path}
+	if out, err := exec.CommandContext(ctx, ffmpeg, args...).CombinedOutput(); err != nil {
+		t.Fatalf("create %s: %v: %s", goldenSeekFile, err, out)
+	}
+}
+
+// goldenSeekLevels decodes the evidence clip to RGB with FFmpeg and returns the centre green value of every frame.
+func goldenSeekLevels(t *testing.T, ctx context.Context, ffmpeg, path string) []int {
+	t.Helper()
+	const width, height = 320, 180
+	out, err := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error", "-i", path,
+		"-map", "0:v:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1").Output()
+	frame := width * height * 3
+	if err != nil || len(out) == 0 || len(out)%frame != 0 {
+		t.Fatalf("decode %s: %v (%d bytes)", goldenSeekFile, err, len(out))
+	}
+	levels := make([]int, len(out)/frame)
+	for i := range levels {
+		levels[i] = int(out[i*frame+((height/2)*width+width/2)*3+1])
+	}
+	if len(levels) != 25 {
+		t.Fatalf("%s has %d frames, want 25", goldenSeekFile, len(levels))
+	}
+	return levels
+}
+
+func goldenSeekNearest(levels []int, value float64) (int, float64) {
+	best, distance := -1, math.MaxFloat64
+	for i, level := range levels {
+		if d := math.Abs(float64(level) - value); d < distance {
+			best, distance = i, d
+		}
+	}
+	return best, distance
+}
+
+// checkGoldenSeekFrames is the paused-seek evidence of plan 2a (open question 12). A paused preview seeked to
+// timeline frame k of a 25 fps project must show source frame k, the frame the export renders there.
+func checkGoldenSeekFrames(t *testing.T, ctx context.Context, ffmpeg string, engine *httptest.Server, files map[string]string, path string) {
+	levels := goldenSeekLevels(t, ctx, ffmpeg, path)
+	asset, err := videostudio.Probe(ctx, ffmpeg, path)
+	if err != nil {
+		t.Fatalf("probe %s: %v", goldenSeekFile, err)
+	}
+	asset.ID = "seek-frames"
+	asset = videostudio.AssetAtRate(asset, videostudio.Rate{Num: 25, Den: 1})
+	project := videostudio.Project{Version: videostudio.CurrentVersion, Name: "Seek frames", Width: 1280, Height: 720, FPS: 25,
+		Assets: []videostudio.Asset{asset},
+		Tracks: []videostudio.Track{{ID: "v1", Kind: videostudio.TrackVideo, Name: "Video 1", Clips: []videostudio.Clip{
+			{ID: "seek", AssetID: asset.ID, Start: 0, Duration: asset.DurationFrames, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: videostudio.FitContain},
+		}}}}
+	frames := []int{1, 3, 6, 7, 12, 20, 24}
+	// The export: timeline frame k shows source frame k. If not, the evidence clip or RenderFrame is off, not the preview.
+	dir := t.TempDir()
+	for _, frame := range frames {
+		output := filepath.Join(dir, fmt.Sprintf("seek-%02d.png", frame))
+		if err := videostudio.RenderFrame(ctx, videostudio.FrameOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: map[string]string{asset.ID: path}, Frame: frame, Output: output}); err != nil {
+			t.Fatalf("RenderFrame(seek, %d): %v", frame, err)
+		}
+		_, g, _, _ := goldenDecodePNG(t, output).At(project.Width/2, project.Height/2).RGBA()
+		if got, distance := goldenSeekNearest(levels, float64(g>>8)); got != frame || distance > 6 {
+			t.Fatalf("the export shows source frame %d (distance %.1f) at timeline frame %d", got, distance, frame)
+		}
+	}
+	for _, painter := range []string{"gl", "2d"} {
+		t.Run(painter, func(t *testing.T) {
+			page := goldenEnginePage(t, engine, files)
+			t.Logf("browser: %s", page.Browser().MustVersion().Product)
+			timed := page.Timeout(2 * time.Minute)
+			defer timed.CancelTimeout()
+			results := timed.MustEval(`async(project,frames,painter,file)=>{
+				const canvas=document.createElement('canvas');canvas.width=project.width;canvas.height=project.height;canvas.setAttribute('data-vs-seek','');document.body.append(canvas);
+				let current=0;
+				const preview=window.VideoStudioPreview.mount(canvas,()=>project,()=>current,frame=>{current=frame;},null,()=>1,{painter,mediaURL:()=>'/media/'+file});
+				const out=[];
+				try{
+					for(const frame of frames){
+						preview.seek(frame);
+						const settled=await preview.settle(15000);
+						const shot=preview.capture({x:project.width/2-10,y:project.height/2-10,width:20,height:20});
+						let sum=0;for(let i=1;i<shot.data.length;i+=4)sum+=shot.data[i];
+						out.push({frame,settled,grey:sum/(shot.data.length/4),painter:preview.painterKind()});
+					}
+				}finally{preview.dispose();document.querySelectorAll('canvas[data-vs-seek]').forEach(node=>node.remove());}
+				return out;
+			}`, project, frames, painter, goldenSeekFile).Arr()
+			var early []string
+			for _, result := range results {
+				frame, grey := result.Get("frame").Int(), result.Get("grey").Num()
+				if !result.Get("settled").Bool() {
+					t.Fatalf("frame %d did not settle", frame)
+				}
+				if kind := result.Get("painter").Str(); kind != painter {
+					t.Fatalf("asked for the %s painter, drew with %s", painter, kind)
+				}
+				got, distance := goldenSeekNearest(levels, grey)
+				switch {
+				case distance > 6:
+					t.Fatalf("frame %d shows grey %.1f, which is no frame of the evidence clip", frame, grey)
+				case got == frame-1:
+					early = append(early, strconv.Itoa(frame))
+				case got != frame:
+					t.Fatalf("frame %d shows source frame %d", frame, got)
+				}
+			}
+			if len(early) > 0 {
+				t.Fatalf("paused seeks to exact frame starts show the previous frame at frames %s: apply plan 2a Task 13 Step 9 (paused seeks to frame centres)", strings.Join(early, ", "))
+			}
+		})
+	}
+}
+
+// A PNG that is still arriving already reports its size, but it is not complete and a WebGL upload of it leaves a blank
+// texture (INVALID_VALUE, no exception). The preview must treat such an image as not ready and not settled: slow.png
+// is served in two halves 1.5 s apart (640x360 noise around a solid 100x100 block), and the centre of the settled frame
+// must show the block with both painters. Without the fix the GL frame was black, which flaked the compositor goldens
+// under load.
+func TestDesktopVideoStudioSlowImageBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	solid := color.NRGBA{R: 40, G: 160, B: 220, A: 255}
+	img := image.NewNRGBA(image.Rect(0, 0, 640, 360))
+	noise := rand.New(rand.NewSource(7))
+	for y := 0; y < 360; y++ {
+		for x := 0; x < 640; x++ {
+			if x >= 270 && x < 370 && y >= 130 && y < 230 {
+				img.SetNRGBA(x, y, solid)
+			} else {
+				img.SetNRGBA(x, y, color.NRGBA{R: uint8(noise.Intn(256)), G: uint8(noise.Intn(256)), B: uint8(noise.Intn(256)), A: 255})
+			}
+		}
+	}
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		t.Fatal(err)
+	}
+	data := encoded.Bytes()
+	engine := newVideoStudioEngineServer(t, "")
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/media/slow.png" {
+			engine.Config.Handler.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(data[:len(data)/2])
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		time.Sleep(1500 * time.Millisecond)
+		_, _ = w.Write(data[len(data)/2:])
+	}))
+	t.Cleanup(slow.Close)
+	page := openVideoStudioEngine(t, newWebGLSmokeBrowser(t), slow)
+	requireWebGL2(t, page)
+	page.MustEval(`() => { Object.assign(window.vsGolden.files, {slow: 'slow.png'}); }`)
+	project := engineTestProject([]map[string]any{engineTestAsset("slow", 640, 360)},
+		engineTestTrack("v1", "video", engineTestClip("c1", "slow", 0, 50, nil)))
+	for _, painter := range []string{"gl", "2d"} {
+		got := renderEngineFrame(t, page, project, 0, painter)
+		if got.Painter != painter || !got.Settled {
+			t.Fatalf("%s: painter %q settled %v, want %s and settled", painter, got.Painter, got.Settled, painter)
+		}
+		if px := got.Image.RGBAAt(320, 180); !rgbaNear(px, color.RGBA{R: solid.R, G: solid.G, B: solid.B, A: 255}, 3) {
+			t.Errorf("%s: centre pixel %v of the settled frame, want the solid block %v (the image was drawn before it finished loading)", painter, px, solid)
+		}
 	}
 }
