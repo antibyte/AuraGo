@@ -726,6 +726,10 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 }
 
 func handleVideoStudioMediaFile(s *Server, w http.ResponseWriter, r *http.Request, projectID, assetID string) {
+	if r.Method == http.MethodDelete {
+		handleVideoStudioMediaDelete(s, w, r, projectID, assetID)
+		return
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		writeVideoStudioMethodError(w)
 		return

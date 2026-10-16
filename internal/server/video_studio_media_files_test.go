@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -181,5 +182,129 @@ func TestVideoStudioImportsWritePosters(t *testing.T) {
 		if !asset.HasPoster {
 			t.Fatalf("saved project asset without poster: %+v", asset)
 		}
+	}
+}
+
+// videoStudioFakeJob places a job of the project in the manager's table and returns a function that removes it. The
+// job never runs: it stands in for an import, render or preview that is still queued or running (or one that ended).
+func videoStudioFakeJob(t *testing.T, s *Server, projectID, kind, status string) (*videoStudioJob, func()) {
+	t.Helper()
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := &videoStudioJob{ID: uidNew(), ProjectID: projectID, Kind: kind, Status: status, CreatedAt: time.Now().UTC()}
+	manager.mu.Lock()
+	manager.jobs[job.ID] = job
+	manager.mu.Unlock()
+	return job, func() {
+		manager.mu.Lock()
+		delete(manager.jobs, job.ID)
+		manager.mu.Unlock()
+	}
+}
+
+func TestVideoStudioMediaRemovalAPI(t *testing.T) {
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	project, etag := videoStudioAPICreate(t, s, writeToken)
+	const assetID = "123e4567-e89b-12d3-a456-426614174401"
+	videoStudioSeedMedia(t, s, project.ID, videostudio.Asset{ID: assetID, Name: "clip.bin", Kind: videostudio.AssetImage, Width: 2, Height: 2, HasPoster: true}, []byte("clip"))
+	videoStudioSeedPoster(t, s, project.ID, assetID)
+	path := "/projects/" + project.ID + "/media/" + assetID
+	if denied := videoStudioAPIRequest(s, readToken, http.MethodDelete, path, nil, nil); denied.Code != http.StatusForbidden {
+		t.Fatalf("read token removed media: %d", denied.Code)
+	}
+	project.Project.Assets = []videostudio.Asset{{ID: assetID, Name: "clip.bin"}}
+	body, err := json.Marshal(project.Project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := videoStudioAPIRequest(s, writeToken, http.MethodPut, "/projects/"+project.ID, bytes.NewReader(body), map[string]string{"If-Match": etag})
+	if saved.Code != http.StatusOK {
+		t.Fatalf("save with the asset: %d %s", saved.Code, saved.Body.String())
+	}
+	if inUse := videoStudioAPIRequest(s, writeToken, http.MethodDelete, path, nil, nil); inUse.Code != http.StatusConflict || !strings.Contains(inUse.Body.String(), "media_in_use") {
+		t.Fatalf("removal of used media: %d %s", inUse.Code, inUse.Body.String())
+	}
+	project.Project.Assets = nil
+	body, err = json.Marshal(project.Project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved = videoStudioAPIRequest(s, writeToken, http.MethodPut, "/projects/"+project.ID, bytes.NewReader(body), map[string]string{"If-Match": saved.Header().Get("ETag")})
+	if saved.Code != http.StatusOK {
+		t.Fatalf("save without the asset: %d %s", saved.Code, saved.Body.String())
+	}
+	// A render, preview, probe, reverse, still or duplicate job of the project may still read the file.
+	for _, kind := range []string{"render", "preview", "probe", "reverse", "still", "duplicate"} {
+		_, remove := videoStudioFakeJob(t, s, project.ID, kind, "running")
+		busy := videoStudioAPIRequest(s, writeToken, http.MethodDelete, path, nil, nil)
+		remove()
+		if busy.Code != http.StatusConflict || !strings.Contains(busy.Body.String(), "media_in_use") {
+			t.Fatalf("removal during a %s job: %d %s", kind, busy.Code, busy.Body.String())
+		}
+	}
+	_, removeGenerate := videoStudioFakeJob(t, s, project.ID, "generate", "queued")
+	defer removeGenerate()
+	_, removeOther := videoStudioFakeJob(t, s, "123e4567-e89b-12d3-a456-426614174499", "render", "running")
+	defer removeOther()
+	next := *s.ConfigSnapshot()
+	next.VideoStudio.ReadOnly = true
+	s.replaceConfigSnapshot(&next)
+	if readOnly := videoStudioAPIRequest(s, writeToken, http.MethodDelete, path, nil, nil); readOnly.Code != http.StatusForbidden {
+		t.Fatalf("read-only removal: %d %s", readOnly.Code, readOnly.Body.String())
+	}
+	next.VideoStudio.ReadOnly = false
+	s.replaceConfigSnapshot(&next)
+
+	// A cached preview of the asset is part of its storage and goes with it.
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, removePreview := videoStudioFakeJob(t, s, project.ID, "preview", "succeeded")
+	defer removePreview()
+	manager.mu.Lock()
+	preview.Artifact = &videoStudioArtifact{Name: "preview.mp4", Size: 7}
+	preview.Result = map[string]interface{}{"asset_id": assetID}
+	manager.mu.Unlock()
+	previewFile := filepath.Join(manager.previewDir, project.ID, preview.ID+".mp4")
+	if err := os.MkdirAll(filepath.Dir(previewFile), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(previewFile, []byte("preview"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if removed := videoStudioAPIRequest(s, writeToken, http.MethodDelete, path, nil, nil); removed.Code != http.StatusOK {
+		t.Fatalf("removal of unused media: %d %s", removed.Code, removed.Body.String())
+	}
+	if poster := videoStudioAPIRequest(s, readToken, http.MethodGet, path+"/poster.jpg", nil, nil); poster.Code != http.StatusNotFound {
+		t.Fatalf("poster after removal: %d", poster.Code)
+	}
+	if _, ok := manager.mediaRecord(project.ID, assetID); ok {
+		t.Fatal("media record survived the removal")
+	}
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.ReadFileBytes(context.Background(), videoStudioProjectPath(project.ID)+"/media/"+assetID+"_clip.bin"); err == nil {
+		t.Fatal("media file survived the removal")
+	}
+	if _, _, err := svc.ReadFileBytes(context.Background(), manager.posterPath(project.ID, assetID)); err == nil {
+		t.Fatal("poster file survived the removal")
+	}
+	if _, err := os.Stat(previewFile); !os.IsNotExist(err) {
+		t.Fatalf("cached preview survived the removal: %v", err)
+	}
+	if job := manager.job(preview.ID); job == nil || job.Artifact != nil {
+		t.Fatalf("preview job still offers its artifact: %+v", job)
+	}
+	if again := videoStudioAPIRequest(s, writeToken, http.MethodDelete, path, nil, nil); again.Code != http.StatusNotFound || !strings.Contains(again.Body.String(), "media_not_found") {
+		t.Fatalf("second removal: %d %s", again.Code, again.Body.String())
+	}
+	if bad := videoStudioAPIRequest(s, writeToken, http.MethodDelete, "/projects/"+project.ID+"/media/not-an-id", nil, nil); bad.Code != http.StatusNotFound {
+		t.Fatalf("invalid asset id: %d", bad.Code)
 	}
 }
