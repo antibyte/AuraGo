@@ -1405,18 +1405,22 @@ buttons and menu popovers remain excluded from those gestures.
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-media.js`,
   `video-studio-preview.js`, `video-studio-timeline.js`,
+  `video-studio-ruler.js` (in/out shade, marker flags, overview strip),
   `video-studio-edit.js` (DOM-free edit operations),
+  `video-studio-navigation.js` (DOM-free shuttle, edit points and track order),
   `video-studio-inspector.js`, then the app parts
   `video-studio-core.js` (constants, requests, model, history, saving,
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
   drawer, timeline height, transform box, field edits), `-editing.js`
-  (selection, clipboard, tools, edit commands and shortcuts), `-derive.js`
+  (selection, clipboard, tools, edit commands and shortcuts), `-tracks.js`
+  (track commands, targets, heights, solo), `-markers.js` (marker commands and
+  popover), `-transport.js` (JKL, in/out, loop and navigation keys), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
   `-projects.js`), `-projects.js` (settings and new-project dialogs) and
-  `-menus.js` (context menus), and `video-studio.js` last (same order in
-  `module-loader.js` and both browser fixtures). The parts share
+  `-menus.js` (context menus), and `video-studio.js` last (22 scripts, same
+  order in `module-loader.js` and both browser fixtures). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
   every file stays below the 1100-line budget; the shell exposes
@@ -1452,10 +1456,22 @@ buttons and menu popovers remain excluded from those gestures.
   picture and sound stay in sync; a moved member that would overlap a clip, touch a transition or leave the project
   refuses with reason `room` (`reverseNoRoom`), before the job and when applying; freeze remembers the asset and
   source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Both edits are tried on a
-  copy before the job starts. Load order: `derive` loads directly before `projects` (`…-stage.js, -editing.js, -derive.js,
+  copy before the job starts. Load order: `derive` loads directly before `projects` (`…-transport.js, -derive.js,
   -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and
   differ by `data-value`, which `focusKey` remembers so a re-render keeps focus on the clicked swatch.
   Node checks: `go test ./ui -run 'TestVideoStudioClipModelChecks|TestVideoStudioEditLinks'`.
+- Navigation and tracks (phase 1c): `video-studio-navigation.js` is DOM-free (`VideoStudioNavigation`: the JKL
+  shuttle controller, edit points, marker steps, loop ranges, overview geometry, track order). Transport keys live in
+  one table, `navCommand` in `video-studio-transport.js`; edit keys stay in `editCommand` (`-editing.js`). Every project
+  change goes through `mutate` (one undo step); targets, heights, the loop and solo are view state (targets and heights
+  per viewer and project in localStorage, solo session only). The preview takes signed rates (`setRate`), a loop range
+  (`setLoop`) and audio solo (`setSolo`); `pause()` resets the rate to 1x. Markers (`markers`, in/out) are validated by
+  `validateMarkers` in Go and `validMarkers` in JS; markers never render. Array order is paint order: `arraySideFor`
+  is the one place that maps "above/below" to array positions for visual and audio tracks. The timeline draws clips only
+  inside the visible window (`laneWindow`); the rubber band selects drawn clips. A frame-rate change keeps markers and
+  in/out (`rescaleProject`), is refused when a clip would pass 60 minutes (`rescaleFits`), and the playhead keeps its
+  time through it and through undo and redo (`frameAtRate`). Node checks:
+  `go test ./ui -run 'TestVideoStudio(Navigation|Ruler|Marker|Track|Rate)'`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;

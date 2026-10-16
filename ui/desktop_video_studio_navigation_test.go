@@ -283,3 +283,33 @@ func TestVideoStudioRateWiring(t *testing.T) {
 		t.Error("failure ranges do not use the hour-aware clock text")
 	}
 }
+
+func TestVideoStudioNavigationLoadOrder(t *testing.T) {
+	loader, err := os.ReadFile(filepath.Join("js", "desktop", "core", "module-loader.js"))
+	if err != nil {
+		t.Fatalf("module loader: %v", err)
+	}
+	fixture, err := os.ReadFile(filepath.Join("desktop_video_studio_browser_test.go"))
+	if err != nil {
+		t.Fatalf("browser fixture: %v", err)
+	}
+	server, err := os.ReadFile(filepath.Join("..", "internal", "server", "video_studio_browser_test.go"))
+	if err != nil {
+		t.Fatalf("server browser fixture: %v", err)
+	}
+	order := []string{"video-studio-timeline.js", "video-studio-ruler.js", "video-studio-edit.js", "video-studio-navigation.js", "video-studio-editing.js", "video-studio-tracks.js", "video-studio-markers.js", "video-studio-transport.js", "video-studio-derive.js", "video-studio-projects.js", "video-studio-menus.js", "video-studio.js"}
+	for name, source := range map[string][]byte{"module loader": loader, "ui browser fixture": fixture, "server browser fixture": server} {
+		last := -1
+		for _, file := range order {
+			index := bytes.Index(source, []byte(file))
+			if index < 0 {
+				t.Errorf("%s does not load %s", name, file)
+				continue
+			}
+			if index < last {
+				t.Errorf("%s loads %s before the parts that come before it", name, file)
+			}
+			last = index
+		}
+	}
+}

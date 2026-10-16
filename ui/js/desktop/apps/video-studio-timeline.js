@@ -435,7 +435,7 @@
     }
 
     function attach(root, options) {
-        let drag = null, scrub = null, band = null, dropMarker = null, suppressClick = false, scrollFrame = 0;
+        let drag = null, scrub = null, band = null, dropMarker = null, suppressClick = false, scrollFrame = 0, dragKind = '';
         const s = () => options.state;
         const Edit = () => window.VideoStudioEdit;
 
@@ -747,6 +747,7 @@
             if (s().readonly) { event.preventDefault(); return; }
             const trackLabel = event.target.closest('[data-track-drag]');
             if (trackLabel) {
+                dragKind = (trackFor(s().project, trackLabel.dataset.trackDrag) || {}).kind || '';
                 event.dataTransfer.setData('application/x-video-studio-track', trackLabel.dataset.trackDrag);
                 event.dataTransfer.effectAllowed = 'move';
                 return;
@@ -767,6 +768,9 @@
             const labelEl = event.target.closest('.vs-track-label');
             // A track header can be dropped on a header: the upper or lower half decides above or below.
             if (labelEl && !s().readonly && types.includes('application/x-video-studio-track')) {
+                // Tracks reorder within their kind only: a header of another kind shows no drop line and takes no drop.
+                const overRow = labelEl.closest('[data-track-row]'), overTrack = overRow && trackFor(s().project, overRow.dataset.trackRow);
+                if (dragKind && overTrack && overTrack.kind !== dragKind) { clearMarker(); return; }
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
                 const rect = labelEl.getBoundingClientRect(), above = event.clientY < rect.top + rect.height / 2;
@@ -784,6 +788,7 @@
             dropMarker.style.left = Math.round(frameAt(lane, event.clientX) / fpsOf(s().project) * pps()) + 'px';
         }
         function dragLeave(event) { if (!root.contains(event.relatedTarget)) clearMarker(); }
+        function dragEnd() { dragKind = ''; clearMarker(); }
         function drop(event) {
             const labelEl = event.target.closest('.vs-track-label');
             const reorderFrom = event.dataTransfer.getData('application/x-video-studio-track');
@@ -903,7 +908,7 @@
         window.addEventListener('pointercancel', pointerUp);
         root.addEventListener('lostpointercapture', cancelGesture);
         window.addEventListener('blur', cancelGesture);
-        window.addEventListener('dragend', clearMarker);
+        window.addEventListener('dragend', dragEnd);
         const detachOverview = Ruler().attachOverview(root, { state: options.state, zoomToSpan });
         return function detach() {
             drag = null; scrub = null; band = null; clearMarker(); s().timelineDragging = false; endTrimMode();
@@ -930,7 +935,7 @@
             window.removeEventListener('pointercancel', pointerUp);
             root.removeEventListener('lostpointercapture', cancelGesture);
             window.removeEventListener('blur', cancelGesture);
-            window.removeEventListener('dragend', clearMarker);
+            window.removeEventListener('dragend', dragEnd);
         };
     }
 

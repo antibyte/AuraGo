@@ -9,6 +9,10 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   24/30/60 with a 1001 denominator). Convert with `Rate` methods only. Version 1 projects (fixed 30 fps) pass
   through `Upgrade`; `Validate` accepts version 2 only. Projects are limited to sixty minutes and the sizes in
   `CanvasSizes`.
+- Markers (`markers`, at most 500) and the in/out points (`in_point`, `out_point`) are frames of the project rate.
+  `validateMarkers` keeps a marker's frame and range inside `[0, MaxDurationFrames]`, its colour in the label palette
+  (`LabelColors`), the in point before the timeline end and the out point at least frame 1, with in < out when both
+  are set. Markers never render; the renderer ignores them and so does `Upgrade`.
 - Bound projects to 8 video, 8 audio and 8 overlay tracks, 2000 clips and 1024 assets. One FFmpeg process uses
   at most `MaxSegmentInputs` (32) inputs. Asset durations are server-owned microseconds (`duration_us`);
   `duration_frames` is derived for the project rate (`AssetAtRate`). Source images/video frames are limited
