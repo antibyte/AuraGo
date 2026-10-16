@@ -254,7 +254,8 @@
         if (!ids.length) { showNotice(s, 'removeUnusedNone', 'Every media item is used.', false); return false; }
         return removeAssets(s, ids, true);
     }
-    // Item menu: open in the source monitor (also the keyboard way to open a source), rename, move, show its clips, remove.
+    // Item menu: open in the source monitor (also the keyboard way to open a source), rename, move, show its clips,
+    // create a preview proxy (videos), remove.
     function openLibraryMenu(s, assetId, x, y) {
         const asset = assetOf(s, assetId);
         if (!asset) return null;
@@ -265,6 +266,8 @@
             { label: tr(s, 'assetRename', 'Rename media'), icon: 'edit', disabled: ro, run: () => openRenameAsset(s, assetId) },
             { label: tr(s, 'moveToFolder', 'Move to folder…'), icon: 'folder', disabled: ro, run: () => openMoveDialog(s, [assetId]) },
             { label: tr(s, 'showInTimeline', 'Show in timeline'), disabled: !clips, run: () => showInTimeline(s, assetId) },
+            // Media imported before proxies existed gets one on request; there is no automatic backfill.
+            ...(asset.kind === 'video' ? [{ label: tr(s, 'createProxy', 'Create preview proxy'), disabled: ro || ['queued', 'running', 'ready'].includes(P.proxyState(s, assetId)), run: () => P.queueProxy(s, assetId) }] : []),
             { separator: true },
             { label: tr(s, 'removeMedia', 'Remove media…'), icon: 'trash', disabled: ro, run: () => removeAssets(s, [assetId], false) }
         ];

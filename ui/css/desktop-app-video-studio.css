@@ -227,6 +227,10 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-image .vs-asset-thumb { background-color: #2b2219; background-size: contain; }
 .vs-asset-badge { position: absolute; right: 5px; bottom: 5px; padding: 1px 6px; border-radius: 5px; background: rgba(0, 0, 0, .66); color: #fff; font: 600 11px/1.5 ui-monospace, Consolas, monospace; }
 .vs-asset-used { position: absolute; left: 5px; top: 5px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--vs-ok); color: #fff; }
+/* Preview proxy state of a video (2a): bottom left of the grid thumbnail; the duration badge holds the bottom right. */
+.vs-proxy-badge { position: absolute; left: 5px; bottom: 5px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, .66); color: #fff; }
+.vs-proxy-badge[data-proxy-state="ready"] { background: var(--vs-accent-strong); }
+.vs-proxy-badge[data-proxy-state="failed"] { background: var(--vs-danger); }
 .vs-asset-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .vs-asset-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--vs-muted); }
 .vs-asset-add {
@@ -486,6 +490,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-row.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-asset-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
 .vs-asset-cell-name { color: var(--vs-text); font-weight: 600; }
+.vs-asset-row .vs-proxy-badge { position: static; display: inline-grid; width: 16px; height: 16px; margin-left: 6px; vertical-align: -3px; }
 .vs-asset-row .vs-asset-thumb-small { width: 40px; height: 24px; aspect-ratio: auto; border-radius: 4px; }
 .vs-folder-line, .vs-folder-cell { display: flex; min-width: 0; }
 .vs-folder-cell { flex: 1 1 auto; }

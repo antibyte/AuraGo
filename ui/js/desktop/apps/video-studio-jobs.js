@@ -17,6 +17,7 @@
     const keepOwnedAssetFields = (...args) => P.keepOwnedAssetFields(...args);
     const mutate = (...args) => P.mutate(...args);
     const projectDuration = (...args) => P.projectDuration(...args);
+    const renderAssets = (...args) => P.renderAssets(...args);
     const renderUI = (...args) => P.renderUI(...args);
     const request = (...args) => P.request(...args);
     const saveProject = (...args) => P.saveProject(...args);
@@ -24,6 +25,12 @@
     const showNotice = (...args) => P.showNotice(...args);
     const tr = (...args) => P.tr(...args);
     const trCount = (...args) => P.trCount(...args);
+
+    // Preview proxies (2a): finished imports of these kinds queue one; proxy and range-render jobs never change the
+    // project document and stay out of the jobs list.
+    const PROXY_SOURCES = ['probe', 'generate', 'reverse'];
+    const QUIET_KINDS = ['preview', 'range_render'];
+    const PROXY_POLL_MS = 1500;
 
     async function loadJobs(s) {
         if (!s.projectId || s.disposed) return;
@@ -36,12 +43,16 @@
             if (TERMINAL.includes(job.status) && !s.finishedJobs?.has(job.id)) {
                 if (!s.finishedJobs) s.finishedJobs = new Set();
                 s.finishedJobs.add(job.id);
-                if (job.status === 'succeeded') refreshProject(s).catch(() => {});
+                // Proxies and range renders leave the project document as it is.
+                if (job.status === 'succeeded' && !QUIET_KINDS.includes(job.kind)) refreshProject(s).catch(() => {});
                 const was = previous.get(job.id);
-                if (was && !TERMINAL.includes(was)) announceJob(s, job);
+                // Only a job this tab saw unfinished counts: media imported before the session gets no proxy on open.
+                if (was && !TERMINAL.includes(was)) { announceJob(s, job); noteFinishedJob(s, job); }
             }
         });
+        adoptProxyJobs(s);
         renderJobs(s);
+        pumpProxies(s);
     }
     function fill(text, vars) { return Object.keys(vars || {}).reduce((out, key) => out.split('{{' + key + '}}').join(vars[key]), text); }
     const clockSeconds = value => window.VideoStudioTime.clockSeconds(value);
@@ -68,8 +79,9 @@
         else if (job.kind === 'still' && job.status === 'succeeded' && artifact) showNotice(s, 'frameExported', 'Your frame is ready.', false, { href: artifact, download: job.artifact.name || 'frame.png', label: tr(s, 'download', 'Download') });
         else if (job.kind === 'reverse' && job.status === 'succeeded') showNotice(s, 'reverseReady', 'The reversed clip is in your media library.', false);
     }
+    // Proxy and range-render jobs belong to the library badge and the compare overlay, not to the jobs list.
     function visibleJobs(s) {
-        return s.jobs.filter(job => !s.jobLocalStops.has(job.id) && !(job.kind === 'probe' && job.status === 'succeeded'));
+        return s.jobs.filter(job => !s.jobLocalStops.has(job.id) && !QUIET_KINDS.includes(job.kind) && !(job.kind === 'probe' && job.status === 'succeeded'));
     }
     function renderJobsButton(s) {
         const button = s.q('[data-action="jobs"]');
@@ -133,6 +145,7 @@
             if (TERMINAL.includes(job.status)) {
                 if (!s.finishedJobs) s.finishedJobs = new Set();
                 s.finishedJobs.add(job.id);
+                noteFinishedJob(s, job);
                 if (job.status === 'succeeded') {
                     // Derived media applies its edit only after a refresh has loaded the project with the new asset; the
                     // hook waits in the queue until one does (see runJobHooks), and runJobHooks announces the job.
@@ -325,5 +338,129 @@
         });
     }
 
-    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, openAI });
+    // Preview proxies (2a). A video that finishes importing gets the server's preview job (at most 960x540, at the source
+    // frame rate). The one job worker also runs exports and range renders, so the editor keeps at most one preview job of
+    // the project queued or running, and waits while the job list shows another one (another tab). The store belongs to
+    // the open project; a new project epoch starts an empty one. Proxy jobs never toast: a failed proxy only means the
+    // original plays.
+    function proxyStore(s) {
+        if (!s.proxies || s.proxies.projectId !== s.projectId || s.proxies.epoch !== s.projectEpoch) s.proxies = { projectId: s.projectId, epoch: s.projectEpoch, items: new Map(), queue: [] };
+        return s.proxies;
+    }
+    // '' (never requested), 'queued' (waiting here or on the server), 'running', 'ready' or 'failed'.
+    function proxyState(s, assetId) {
+        const store = proxyStore(s), item = store.items.get(assetId);
+        if (item) return item.state;
+        return store.queue.includes(assetId) ? 'queued' : '';
+    }
+    // A pending import has no kind yet and a derived clip may not be in the loaded project yet; the server checks those.
+    function proxyCandidate(s, assetId) {
+        const asset = (s.project && s.project.assets || []).find(item => item.id === assetId);
+        return !asset || !asset.kind || asset.kind === 'video';
+    }
+    function queueProxy(s, assetId) {
+        if (!assetId || s.readonly || s.disposed || !s.projectId || !proxyCandidate(s, assetId)) return false;
+        const store = proxyStore(s), state = proxyState(s, assetId);
+        if (state === 'queued' || state === 'running' || state === 'ready') return false;
+        store.items.delete(assetId);
+        store.queue.push(assetId);
+        renderAssets(s);
+        pumpProxies(s);
+        return true;
+    }
+    async function pumpProxies(s) {
+        const store = proxyStore(s);
+        if (s.disposed || s.readonly || !store.queue.length) return;
+        const inFlight = Array.from(store.items.values()).some(item => item.state === 'queued' || item.state === 'running');
+        if (inFlight || s.jobs.some(job => job.kind === 'preview' && !TERMINAL.includes(job.status))) return;
+        const assetId = store.queue.shift();
+        if (!proxyCandidate(s, assetId)) { pumpProxies(s); return; }
+        const projectId = s.projectId, epoch = s.projectEpoch;
+        store.items.set(assetId, { jobId: '', state: 'queued', url: '' });
+        let job = null;
+        try {
+            const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey() }, body: JSON.stringify({ kind: 'preview', asset_id: assetId }), signal: s.abort.signal });
+            job = response.body.job || response.body;
+        } catch (_) { job = null; }
+        if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+        if (!job || !job.id) { store.items.set(assetId, { jobId: '', state: 'failed', url: '' }); renderAssets(s); pumpProxies(s); return; }
+        store.items.set(assetId, { jobId: job.id, state: job.status === 'running' ? 'running' : 'queued', url: '' });
+        if (!s.jobs.some(item => item.id === job.id)) s.jobs.unshift(job);
+        renderAssets(s);
+        pollProxy(s, job.id, assetId, projectId, epoch).catch(() => {});
+    }
+    function proxyItemOf(job) {
+        const url = job.status === 'succeeded' && job.artifact ? safeSameOrigin(job.artifact.download_url) : '';
+        if (url) return { jobId: job.id, state: 'ready', url };
+        if (job.status === 'running') return { jobId: job.id, state: 'running', url: '' };
+        return { jobId: job.id, state: TERMINAL.includes(job.status) ? 'failed' : 'queued', url: '' };
+    }
+    // Watches one proxy job without toasts. An unreadable status ends the watch as failed (the original plays); the job
+    // list keeps the job's last known state, so the pump still waits for it.
+    async function pollProxy(s, jobId, assetId, projectId, epoch) {
+        const current = () => !s.disposed && epoch === s.projectEpoch && projectId === s.projectId;
+        while (current()) {
+            await new Promise(resolve => window.setTimeout(resolve, PROXY_POLL_MS));
+            if (!current()) return null;
+            let job = null;
+            try { const response = await request(API + '/jobs/' + encodeURIComponent(jobId), { signal: s.abort.signal }); job = response.body.job || response.body; } catch (_) { job = null; }
+            if (!current()) return null;
+            const store = proxyStore(s), before = store.items.get(assetId);
+            if (!before || before.jobId !== jobId) return null;
+            const known = !!job && job.id === jobId;
+            const next = known ? proxyItemOf(job) : { jobId, state: 'failed', url: '' };
+            if (known) { const index = s.jobs.findIndex(item => item.id === jobId); if (index >= 0) s.jobs[index] = job; else s.jobs.unshift(job); }
+            if (next.state !== before.state || next.url !== before.url) {
+                store.items.set(assetId, next);
+                renderAssets(s);
+                if (next.state === 'ready') repaintPaused(s);
+            }
+            if (next.state === 'ready' || next.state === 'failed') {
+                if (known && TERMINAL.includes(job.status)) { if (!s.finishedJobs) s.finishedJobs = new Set(); s.finishedJobs.add(jobId); }
+                pumpProxies(s);
+                return job;
+            }
+        }
+        return null;
+    }
+    // Proxies finished in an earlier session or another tab: the newest succeeded preview job of an asset whose file is
+    // still published (a replaced or trimmed one has no artifact or has left the list). A local queued, running or failed
+    // state stays as it is; a ready proxy whose file is gone is dropped, so the original plays again.
+    function adoptProxyJobs(s) {
+        const store = proxyStore(s), listed = new Map(s.jobs.map(job => [job.id, job])), newest = new Map();
+        s.jobs.forEach(job => {
+            const assetId = job.result && job.result.asset_id, url = job.artifact ? safeSameOrigin(job.artifact.download_url) : '';
+            if (job.kind === 'preview' && job.status === 'succeeded' && assetId && url && !newest.has(assetId)) newest.set(assetId, { jobId: job.id, state: 'ready', url });
+        });
+        let changed = false;
+        store.items.forEach((item, assetId) => {
+            if (item.state !== 'ready') return;
+            const job = listed.get(item.jobId);
+            if (!job || job.status === 'succeeded' && !(job.artifact && safeSameOrigin(job.artifact.download_url))) { store.items.delete(assetId); changed = true; }
+        });
+        newest.forEach((entry, assetId) => {
+            const item = store.items.get(assetId);
+            if (!item || item.state === 'ready' && item.jobId !== entry.jobId) { store.items.set(assetId, entry); changed = true; }
+        });
+        if (changed) { renderAssets(s); repaintPaused(s); }
+    }
+    // A video that finished importing queues its proxy. Called for jobs this tab watched finish (pollJob, loadJobs).
+    function noteFinishedJob(s, job) {
+        const asset = job && job.status === 'succeeded' && PROXY_SOURCES.includes(job.kind) && job.result && job.result.asset;
+        if (!asset || asset.kind !== 'video' || !asset.id) return false;
+        return queueProxy(s, asset.id);
+    }
+    // The URL the stage plays: the proxy at Auto, Half and Quarter quality once it is ready, the original otherwise
+    // (Full quality, images, audio, and proxies that are missing, queued, running or failed).
+    function previewMediaURL(s, asset) {
+        if (!asset) return '';
+        const original = asset.media_url || '';
+        if (asset.kind !== 'video' || (s.previewQuality || 'auto') === 'full') return original;
+        const item = proxyStore(s).items.get(asset.id);
+        return item && item.state === 'ready' && item.url ? item.url : original;
+    }
+    // A paused stage repaints so it picks up the proxy (or the original again); a playing one picks it up on its next frame.
+    function repaintPaused(s) { if (s.preview && s.project && !s.preview.isPlaying()) s.preview.seek(s.frame); }
+
+    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, openAI, queueProxy, pumpProxies, proxyState, previewMediaURL, noteFinishedJob });
 })();

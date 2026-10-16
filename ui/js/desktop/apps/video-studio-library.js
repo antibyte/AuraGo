@@ -152,6 +152,15 @@
     }
     function kindIconOf(asset) { return asset.kind === 'video' ? 'video' : asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : 'spinner'; }
     function durationLabel(s, asset) { return asset.kind === 'video' || asset.kind === 'audio' ? T().shortClock(asset.duration_frames || 0, s.project) : ''; }
+    // The preview proxy of a video (2a): queued, preparing, ready or failed; nothing until one was requested.
+    const PROXY_BADGES = { queued: ['proxyQueued', 'Preview proxy queued', 'clock'], running: ['proxyPreparing', 'Preparing preview proxy…', 'spinner'], ready: ['proxyReady', 'Preview proxy ready', 'check'], failed: ['proxyFailed', 'Preview proxy failed; the original plays', 'alert'] };
+    function proxyBadge(s, asset) {
+        if (!asset || asset.kind !== 'video' || typeof P.proxyState !== 'function') return '';
+        const state = P.proxyState(s, asset.id), badge = PROXY_BADGES[state];
+        if (!badge) return '';
+        const label = tr(s, badge[0], badge[1]);
+        return `<span class="vs-proxy-badge" data-proxy-state="${state}" role="img" title="${esc(s, label)}" aria-label="${esc(s, label)}">${icon(badge[2], 11, 'vs-icon' + (state === 'running' ? ' vs-spin' : ''))}</span>`;
+    }
     function gridCard(s, asset, used) {
         const ready = !!asset.kind;
         const poster = ready ? thumbFor(s, asset) : '';
@@ -159,7 +168,7 @@
         const duration = durationLabel(s, asset);
         const style = poster ? ` style="background-image:url('${esc(s, poster)}')"` : '';
         const selected = s.selectedAssetId === asset.id ? ' is-selected' : '';
-        return `<article class="vs-asset vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb"${style}>${poster ? '' : icon(kindIcon, 22, 'vs-icon' + (ready ? '' : ' vs-spin'))}${duration ? `<span class="vs-asset-badge">${esc(s, duration)}</span>` : ''}${used ? `<span class="vs-asset-used" title="${esc(s, tr(s, 'inTimeline', 'In the timeline'))}">${icon('check', 11)}</span>` : ''}</span><span class="vs-asset-name">${esc(s, asset.name)}</span><span class="vs-asset-meta">${icon(kindIcon === 'spinner' ? 'clock' : kindIcon, 12)}${esc(s, assetKindLabel(s, asset))}</span>${addButton(s, asset, ready)}</article>`;
+        return `<article class="vs-asset vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb"${style}>${poster ? '' : icon(kindIcon, 22, 'vs-icon' + (ready ? '' : ' vs-spin'))}${duration ? `<span class="vs-asset-badge">${esc(s, duration)}</span>` : ''}${used ? `<span class="vs-asset-used" title="${esc(s, tr(s, 'inTimeline', 'In the timeline'))}">${icon('check', 11)}</span>` : ''}${proxyBadge(s, asset)}</span><span class="vs-asset-name">${esc(s, asset.name)}</span><span class="vs-asset-meta">${icon(kindIcon === 'spinner' ? 'clock' : kindIcon, 12)}${esc(s, assetKindLabel(s, asset))}</span>${addButton(s, asset, ready)}</article>`;
     }
     function listRow(s, asset, used, usage) {
         const ready = !!asset.kind;
@@ -168,7 +177,7 @@
         const kindIcon = kindIconOf(asset);
         const cells = [asset.name, durationLabel(s, asset), resolutionLabel(asset), frameRateLabel(asset), asset.codec || '', formatBytes(asset.size_bytes, P.uiLocale()), String(usage.get(asset.id) || 0)];
         const selected = s.selectedAssetId === asset.id ? ' is-selected' : '';
-        return `<div class="vs-asset vs-asset-row vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" role="row" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb vs-asset-thumb-small" aria-hidden="true"${style}>${poster ? '' : icon(kindIcon, 14, 'vs-icon' + (ready ? '' : ' vs-spin'))}</span>${cells.map((value, index) => `<span class="vs-asset-cell${index === 0 ? ' vs-asset-cell-name' : ''}" role="cell" data-column="${LIST_COLUMNS[index]}">${esc(s, value)}</span>`).join('')}<span class="vs-asset-cell-add" role="cell">${addButton(s, asset, ready)}</span></div>`;
+        return `<div class="vs-asset vs-asset-row vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" role="row" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb vs-asset-thumb-small" aria-hidden="true"${style}>${poster ? '' : icon(kindIcon, 14, 'vs-icon' + (ready ? '' : ' vs-spin'))}</span>${cells.map((value, index) => `<span class="vs-asset-cell${index === 0 ? ' vs-asset-cell-name' : ''}" role="cell" data-column="${LIST_COLUMNS[index]}">${esc(s, value)}${index === 0 ? proxyBadge(s, asset) : ''}</span>`).join('')}<span class="vs-asset-cell-add" role="cell">${addButton(s, asset, ready)}</span></div>`;
     }
     // The list header row: one column header per sort column, each holding its sort button. Only the sorted column
     // carries aria-sort (ascending or descending). The thumbnail column is decoration; the add-button column is named

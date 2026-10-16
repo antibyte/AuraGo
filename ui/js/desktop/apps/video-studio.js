@@ -223,7 +223,7 @@
             if (!playing && s.shuttle) s.shuttle.reset();
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
-        }, () => previewScale(s), { painter: P.previewEngine(s), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => P.syncPreviewNotice(s) });
+        }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => P.syncPreviewNotice(s) });
         // The JKL shuttle drives the preview; the preview reports its play state back (see the playing callback).
         s.shuttle = P.createShuttle({ getFrame: () => s.frame, seek: frame => s.preview.seek(frame), play: () => s.preview.play(), pause: () => s.preview.pause(), setRate: rate => s.preview.setRate(rate), maxFrame: () => maxFrames(s) });
         const signal = s.abort.signal;

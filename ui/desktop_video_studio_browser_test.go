@@ -79,6 +79,8 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			if(path==='/api/desktop/video-studio/projects/p1/versions/11111111-1111-4111-8111-111111111111/restore'&&method==='POST'){window.fixtureRestoreIfMatch=new Headers(options.headers).get('If-Match');window.fixtureRestoreSaves=window.fixtureSaves.length;return json({id:'p1',project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='PUT'){window.fixtureSaves.push(JSON.parse(options.body));window.fixtureLastIfMatch=new Headers(options.headers).get('If-Match');if(window.fixtureConflict&&!window.fixtureConflictUsed){window.fixtureConflictUsed=true;return json({error:'file_conflict',code:'file_conflict' },412);}window.fixtureProject=JSON.parse(options.body);return json({project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
 			if(path==='/api/desktop/video-studio/projects/p1/media'&&method==='POST'){const id='art-job-'+(window.fixtureArtworkRequests.length+1),assetId='art-asset-'+(window.fixtureArtworkRequests.length+1),job={id,project_id:'p1',kind:'probe',status:'queued',progress:0};window.fixtureArtworkStates[id]=job;window.fixtureArtworkRequests.push({id,assetId});return json({job,asset:{id:assetId,name:'Title.png',path:'media/'+assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false}},202);}if(path.startsWith('/api/desktop/video-studio/jobs/art-job-'))return json({job:window.fixtureArtworkStates[path.split('/').pop()]});if(path==='/api/desktop/video-studio/jobs?project_id=p1')return json({jobs:window.fixtureJobs});
+			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'&&JSON.parse(options.body||'{}').kind==='preview'){window.fixtureProxyBodies=(window.fixtureProxyBodies||[]).concat([JSON.parse(options.body)]);window.fixtureProxyJob={id:'px1',project_id:'p1',kind:'preview',status:'queued',progress:0};return json({job:window.fixtureProxyJob},202);}
+			if(path==='/api/desktop/video-studio/jobs/px1')return json({job:window.fixtureProxyJob});
 			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'){window.fixtureLastRenderIfMatch=new Headers(options.headers).get('If-Match');window.fixtureLastJobBody=JSON.parse(options.body);const job={id:'j1',project_id:'p1',kind:'render',status:'queued',progress:0};window.fixtureJobs=[job];return json({job},202);}
 			if(path==='/api/desktop/video-studio/jobs/j1/cancel'&&method==='POST')return json({error:'job_finished',code:'job_finished',message:'Already finished.',job:{id:'j1',project_id:'p1',kind:'render',status:'succeeded',progress:1}},409);
 			if(path==='/api/desktop/video-studio/jobs/j1')return json({job:{id:'j1',project_id:'p1',kind:'render',status:'succeeded',progress:1,artifact:{name:'Browser fixture.mp4',download_url:'/fixture.mp4',size:1234}}});
@@ -382,6 +384,41 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	page.MustNavigate(server.URL + "/fixture")
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>!!document.querySelector('.vs-clip')`)
+	// Proxies (2a): the item menu requests the preview proxy of a video, the badge follows the job, the jobs list hides
+	// it, the stage plays the proxy at Auto and the original at Full, and the menu entry is off once a proxy is ready.
+	page.MustEval(`async()=>{
+		const P=window.VideoStudioParts, s=window.VideoStudioApp.instances.get('fixture'), t=key=>window.fixtureLocales[window.fixtureLang]['videoStudio.'+key];
+		const until=async(test,message)=>{for(let i=0;i<300;i++){const value=test();if(value)return value;await new Promise(resolve=>setTimeout(resolve,20));}throw new Error(message+': '+JSON.stringify({bodies:window.fixtureProxyBodies||[],job:window.fixtureProxyJob||null,state:P.proxyState(s,'vid1'),calls:window.fixtureCalls.slice(-6),errors:window.fixtureErrors}));};
+		const video={id:'vid1',name:'Clip.mp4',path:'media/vid1_clip.mp4',kind:'video',duration_frames:90,duration_us:3000000,width:1280,height:720,has_audio:false,source_fps:'25/1',media_url:'/api/desktop/video-studio/projects/p1/media/vid1'};
+		const menuItem=()=>[...document.querySelectorAll('.vs-context-menu [role="menuitem"]')].find(item=>item.textContent.trim()===t('createProxy'));
+		s.project.assets.push(video);P.renderAssets(s);
+		try{
+			P.openLibraryMenu(s,'vid1',200,200);
+			const create=await until(menuItem,'the item menu has no Create preview proxy entry');
+			if(create.disabled)throw new Error('Create preview proxy is disabled for a video without a proxy');
+			create.click();
+			await until(()=>(window.fixtureProxyBodies||[]).length===1,'the proxy was not requested');
+			if(JSON.stringify(window.fixtureProxyBodies[0])!==JSON.stringify({kind:'preview',asset_id:'vid1'}))throw new Error('wrong proxy request: '+JSON.stringify(window.fixtureProxyBodies[0]));
+			await until(()=>document.querySelector('[data-asset-id="vid1"] [data-proxy-state="queued"]'),'the queued badge is missing');
+			const done={id:'px1',project_id:'p1',kind:'preview',status:'succeeded',progress:1,result:{asset_id:'vid1'},artifact:{name:'preview.mp4',download_url:'/api/desktop/video-studio/projects/p1/previews/px1',size:10}};
+			window.fixtureProxyJob=done;window.fixtureJobs=[done];
+			const badge=await until(()=>document.querySelector('[data-asset-id="vid1"] [data-proxy-state="ready"]'),'the ready badge is missing');
+			if(badge.getAttribute('aria-label')!==t('proxyReady'))throw new Error('the badge is not labelled: '+badge.outerHTML);
+			if(!P.previewMediaURL(s,video).endsWith('/api/desktop/video-studio/projects/p1/previews/px1'))throw new Error('Auto quality does not play the proxy');
+			s.previewQuality='full';
+			const original=P.previewMediaURL(s,video);
+			s.previewQuality='auto';
+			if(original!==video.media_url)throw new Error('Full quality does not play the original');
+			if(P.visibleJobs(s).some(job=>job.kind==='preview'))throw new Error('the jobs list shows the proxy job');
+			P.openLibraryMenu(s,'vid1',200,200);
+			if(!(await until(menuItem,'the item menu did not open again')).disabled)throw new Error('Create preview proxy stays enabled while a proxy is ready');
+			P.closeMenu(s,false);
+			if(window.fixtureErrors.length)throw new Error('script errors in the proxy flow: '+JSON.stringify(window.fixtureErrors));
+		}finally{
+			P.closeMenu(s,false);
+			s.project.assets=s.project.assets.filter(asset=>asset.id!=='vid1');window.fixtureJobs=[];P.renderAssets(s);
+		}
+	}`)
 	page.MustEval(`async()=>{document.querySelector('[data-action="open-ai"]').click();await new Promise(resolve=>setTimeout(resolve,50));}`)
 	if !page.MustEval(`()=>!!document.querySelector('[data-ai-form]')`).Bool() {
 		t.Fatalf("AI action did not open: %s", page.MustEval(`()=>JSON.stringify({button:document.querySelector('[data-action="open-ai"]')?.outerHTML,notice:document.querySelector('[data-notice]')?.textContent,readonly:window.VideoStudioApp.instances.get('fixture').readonly,generation:window.VideoStudioApp.instances.get('fixture').status.generation,errors:window.fixtureErrors})`).Str())
