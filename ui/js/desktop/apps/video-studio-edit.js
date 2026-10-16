@@ -745,6 +745,14 @@
         const asset = assetOf(project, clip), value = Math.floor(Number(clip.offset || 0) + (frame - clip.start) * speedOf(clip) + 1e-9);
         return Math.max(0, Math.min(Math.max(0, Number(asset && asset.duration_frames) - 1), value));
     }
+    // The name of a reversed copy, without extension (the server adds .mp4): the name with the localized
+    // " (<label>)" suffix toggled, so reversing a reversed copy gives back the plain name instead of another suffix.
+    function reversedName(name, label) {
+        const suffix = ' (' + label + ')';
+        const base = String(name || '').trim().replace(/\.[A-Za-z0-9]{1,5}$/, '');
+        const plain = base.endsWith(suffix) ? base.slice(0, -suffix.length).trim() : '';
+        return plain || base + suffix;
+    }
     // Members of the clip's group that read the clip's asset (the clip alone when it is unlinked); reverse switches all.
     function sameAssetMembers(project, found) {
         return found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === found.clip.asset_id) : [found];
@@ -825,5 +833,5 @@
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, sourceFrameAt, reverseRange, reverseClips, freezeFrame };
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, sourceFrameAt, reversedName, reverseRange, reverseClips, freezeFrame };
 })();

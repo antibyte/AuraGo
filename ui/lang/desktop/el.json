@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Εξαγωγή καρέ ως PNG",
   "videoStudio.reverseTooLong": "Η αντίστροφη αναπαραγωγή λειτουργεί για έως 5 λεπτά τη φορά.",
   "videoStudio.reverseReady": "Το αντεστραμμένο κλιπ βρίσκεται στη βιβλιοθήκη πολυμέσων σου.",
+  "videoStudio.reversedSuffix": "αντεστραμμένο",
   "videoStudio.reverseFailed": "Δεν ήταν δυνατή η αντιστροφή του κλιπ.",
   "videoStudio.stillFailed": "Δεν ήταν δυνατή η λήψη του καρέ.",
   "videoStudio.frameExported": "Το καρέ σου είναι έτοιμο.",

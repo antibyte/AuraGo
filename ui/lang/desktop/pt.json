@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Exportar quadro como PNG",
   "videoStudio.reverseTooLong": "Inverter funciona com até 5 minutos por vez.",
   "videoStudio.reverseReady": "O clipe invertido está na sua biblioteca de mídia.",
+  "videoStudio.reversedSuffix": "invertido",
   "videoStudio.reverseFailed": "Não foi possível inverter o clipe.",
   "videoStudio.stillFailed": "Não foi possível capturar o quadro.",
   "videoStudio.frameExported": "Seu quadro está pronto.",

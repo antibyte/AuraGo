@@ -81,7 +81,10 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   `buildVisualClipFilter`), so a 30 fps source in a 25 fps project at 1.5x shows the rendered frame; it writes PNG. A
   still job carries `offset`, `clip_frame` and `speed` with `frame = floor(offset + clip_frame·speed)` (checked, else
   400 `invalid_range`); without `speed`, `frame` is the source frame at 1x. The server (`video_studio_derive.go`)
-  imports results as project assets and publishes PNG exports.
+  imports results as project assets and publishes PNG exports. A reverse job may carry `name` (the editor's display
+  name with the localized `videoStudio.reversedSuffix` toggled, no extension; at most `MaxAssetNameRunes`, no control
+  characters, else 400 `invalid_job`); without it `reversedAssetName` toggles " (reversed)" on the imported name. The
+  name always ends in `.mp4` and fits `MaxAssetNameRunes`, so reversing back and forth never grows it.
 - Tests: `go test ./internal/videostudio -run 'TestRenderSpeed|TestRenderDisabled|TestRenderImage|TestTempoChain|TestReverse|TestExtractStill|TestValidateSpeed' -count=1`
   (the render and still tests need FFmpeg 5.1+).
 

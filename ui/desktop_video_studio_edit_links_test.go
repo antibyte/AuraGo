@@ -121,6 +121,12 @@ assert.equal(at(p,'ax').asset_id, 'r'); assert.equal(at(p,'ax').offset, 0);
 p = project([track('v1','video',[clip('x',V,50,100,{offset:200,link:'L'})]), track('a1','audio',[clip('ax',V,50,100,{offset:100,link:'L'})])]);
 p.assets.push(reversed);
 assert.equal(E.reverseClips(p, 'x', {assetId:'r', rangeStart:200, frames:100}), 'media', 'a partner outside the range refuses');
+// The reversed copy's name toggles the localized suffix: reversing it again gives back the plain name.
+assert.equal(E.reversedName('Beach take 2.mov', 'reversed'), 'Beach take 2 (reversed)');
+assert.equal(E.reversedName('Beach take 2 (reversed).mp4', 'reversed'), 'Beach take 2');
+assert.equal(E.reversedName(E.reversedName('Strand', 'umgekehrt') + '.mp4', 'umgekehrt'), 'Strand');
+assert.equal(E.reversedName('Mr. Smith', 'reversed'), 'Mr. Smith (reversed)', 'only an extension-like ending is dropped');
+assert.equal(E.reversedName(' (reversed)', 'reversed'), '(reversed) (reversed)', 'a name that is only the suffix keeps a name');
 
 // Freeze frame: the clip is cut at the playhead and a still is inserted on its own track.
 p = project([track('v1','video',[clip('x',V,0,100), clip('y',V,100,100,{offset:100})])]);

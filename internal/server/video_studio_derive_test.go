@@ -39,8 +39,25 @@ func TestVideoStudioDeriveFailureCodes(t *testing.T) {
 }
 
 func TestVideoStudioDeriveNames(t *testing.T) {
-	if got := reversedAssetName("Beach take 2.mov"); got != "Beach take 2 (reversed).mp4" {
-		t.Fatalf("reversedAssetName = %q", got)
+	long := strings.Repeat("ä", 300)
+	for _, tc := range []struct{ source, requested, want string }{
+		{"Beach take 2.mov", "", "Beach take 2 (reversed).mp4"},
+		// Reversing a reversed copy removes the suffix instead of adding another.
+		{"Beach take 2 (reversed).mp4", "", "Beach take 2.mp4"},
+		{" (reversed).mp4", "", "(reversed) (reversed).mp4"},
+		{"Mr. Smith", "", "Mr. Smith (reversed).mp4"},
+		// The editor's name (localized suffix toggled, no extension) is used as sent.
+		{"Strand.mov", "Strand (umgekehrt)", "Strand (umgekehrt).mp4"},
+		{"Strand (umgekehrt).mp4", "Strand", "Strand.mp4"},
+		{"clip v1.2 (reversed).mp4", "clip v1.2", "clip v1.2.mp4"},
+		{long + ".mov", "", strings.Repeat("ä", videostudio.MaxAssetNameRunes-4) + ".mp4"},
+	} {
+		if got := reversedAssetName(tc.source, tc.requested); got != tc.want {
+			t.Fatalf("reversedAssetName(%q, %q) = %q, want %q", tc.source, tc.requested, got, tc.want)
+		}
+	}
+	if validVideoStudioDerivedName("clip\x00") || validVideoStudioDerivedName(long) || !validVideoStudioDerivedName("") || !validVideoStudioDerivedName("Strand (umgekehrt)") {
+		t.Fatal("validVideoStudioDerivedName accepts a control character or an overlong name, or refuses a valid one")
 	}
 	if got := stillAssetName("clip.mp4", 37); got != "clip (frame 37).png" {
 		t.Fatalf("stillAssetName = %q", got)
@@ -125,6 +142,7 @@ func TestVideoStudioDeriveEnqueueValidationAndPermissions(t *testing.T) {
 		{"negative frame", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":-1,"purpose":"export"}`, video), http.StatusBadRequest, "invalid_range"},
 		{"no purpose", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":59}`, video), http.StatusBadRequest, "invalid_purpose"},
 		{"unknown purpose", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":59,"purpose":"thumbnail"}`, video), http.StatusBadRequest, "invalid_purpose"},
+		{"reverse name with a control character", writeToken, fmt.Sprintf(`{"kind":"reverse","asset_id":%q,"offset":0,"duration":10,"name":"clip\u0007"}`, video), http.StatusBadRequest, "invalid_job"},
 		{"frame not at the clip position", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":10,"offset":2,"clip_frame":4,"speed":1.5,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},
 		{"speed out of range", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":42,"offset":2,"clip_frame":2,"speed":20,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},
 		{"clip frame without a speed", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":8,"offset":2,"clip_frame":4,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},

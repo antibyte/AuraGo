@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Eksporter bilde som PNG",
   "videoStudio.reverseTooLong": "Baklengs avspilling fungerer for opptil 5 minutter om gangen.",
   "videoStudio.reverseReady": "Det reverserte klippet ligger i mediebiblioteket ditt.",
+  "videoStudio.reversedSuffix": "reversert",
   "videoStudio.reverseFailed": "Klippet kunne ikke reverseres.",
   "videoStudio.stillFailed": "Bildet kunne ikke fanges.",
   "videoStudio.frameExported": "Bildet ditt er klart.",

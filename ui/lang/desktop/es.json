@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Exportar fotograma como PNG",
   "videoStudio.reverseTooLong": "Invertir funciona con un máximo de 5 minutos cada vez.",
   "videoStudio.reverseReady": "El clip invertido está en tu biblioteca.",
+  "videoStudio.reversedSuffix": "invertido",
   "videoStudio.reverseFailed": "No se pudo invertir el clip.",
   "videoStudio.stillFailed": "No se pudo capturar el fotograma.",
   "videoStudio.frameExported": "Tu fotograma está listo.",

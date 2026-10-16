@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Eksportér billede som PNG",
   "videoStudio.reverseTooLong": "Baglæns afspilning virker på op til 5 minutter ad gangen.",
   "videoStudio.reverseReady": "Det omvendte klip ligger i dit mediebibliotek.",
+  "videoStudio.reversedSuffix": "omvendt",
   "videoStudio.reverseFailed": "Klippet kunne ikke vendes om.",
   "videoStudio.stillFailed": "Billedet kunne ikke optages.",
   "videoStudio.frameExported": "Dit billede er klar.",

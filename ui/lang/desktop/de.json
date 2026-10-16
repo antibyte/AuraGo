@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Bild als PNG exportieren",
   "videoStudio.reverseTooLong": "Rückwärts funktioniert mit bis zu 5 Minuten auf einmal.",
   "videoStudio.reverseReady": "Der umgekehrte Clip liegt in deiner Medienbibliothek.",
+  "videoStudio.reversedSuffix": "umgekehrt",
   "videoStudio.reverseFailed": "Der Clip konnte nicht umgekehrt werden.",
   "videoStudio.stillFailed": "Das Bild konnte nicht erfasst werden.",
   "videoStudio.frameExported": "Dein Bild ist fertig.",

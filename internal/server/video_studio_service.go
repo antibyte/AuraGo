@@ -139,7 +139,8 @@ type videoStudioJobRequest struct {
 	ClipFrame int     `json:"clip_frame,omitempty"`
 	Speed     float64 `json:"speed,omitempty"`
 	Purpose   string  `json:"purpose,omitempty"`
-	// Name is the name of a duplicate's copy; Range is the timeline range of a render.
+	// Name is the name of a duplicate's copy or of a reversed copy (optional there); Range is the timeline range of a
+	// render.
 	Name  string            `json:"name,omitempty"`
 	Range *videoStudioRange `json:"range,omitempty"`
 }

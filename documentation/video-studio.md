@@ -127,7 +127,8 @@ duration changes the source range instead. Audio keeps its pitch up to 4× and i
 or enables the selected clips: a disabled clip stays on the timeline but is neither shown nor exported. Colour labels
 mark a clip's body. Reverse, Freeze frame and Export frame as PNG are in the clip menu and the inspector. Reverse works
 on up to five minutes of a clip, counted together with its linked parts of the same media (such as the audio of a J- or
-L-cut), and imports a `(reversed)` media item. The reversed clip keeps its place and its linked parts of the same media
+L-cut), and imports a `(reversed)` media item in your language; reversing a reversed clip again gives back the plain
+name instead of a second suffix. The reversed clip keeps its place and its linked parts of the same media
 are mirrored around it, so picture and sound stay in sync (a J-cut becomes an L-cut); if a mirrored part would not fit
 on its track, Reverse is refused until you make room or unlink it; freeze frame inserts a two-second still at the playhead; the PNG download
 appears in the tasks list. If the clip changes while the job runs (for example it is slipped so another frame sits at the

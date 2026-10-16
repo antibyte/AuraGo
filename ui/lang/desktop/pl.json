@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Eksportuj klatkę jako PNG",
   "videoStudio.reverseTooLong": "Odwracanie działa na fragmentach do 5 minut naraz.",
   "videoStudio.reverseReady": "Odwrócony klip jest w Twojej bibliotece multimediów.",
+  "videoStudio.reversedSuffix": "odwrócony",
   "videoStudio.reverseFailed": "Nie udało się odwrócić klipu.",
   "videoStudio.stillFailed": "Nie udało się przechwycić klatki.",
   "videoStudio.frameExported": "Twoja klatka jest gotowa.",

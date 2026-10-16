@@ -160,8 +160,8 @@ func validateAsset(asset Asset) error {
 	if !validIdentifier(asset.ID) {
 		return fmt.Errorf("asset id is required and must be at most 128 characters")
 	}
-	if asset.Name == "" || asset.Name != strings.TrimSpace(asset.Name) || len([]rune(asset.Name)) > 255 {
-		return fmt.Errorf("asset %q must have a name of at most 255 characters", asset.ID)
+	if asset.Name == "" || asset.Name != strings.TrimSpace(asset.Name) || len([]rune(asset.Name)) > MaxAssetNameRunes {
+		return fmt.Errorf("asset %q must have a name of at most %d characters", asset.ID, MaxAssetNameRunes)
 	}
 	if folder, err := NormalizeFolder(asset.Folder); err != nil || folder != asset.Folder {
 		return fmt.Errorf("asset %q has an invalid folder", asset.ID)

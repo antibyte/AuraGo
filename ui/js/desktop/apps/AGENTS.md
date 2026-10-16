@@ -1475,7 +1475,9 @@ buttons and menu popovers remain excluded from those gestures.
   refuses with reason `room` (`reverseNoRoom`), before the job and when applying; freeze remembers the asset and
   source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Still jobs (freeze and
   export frame) send the clip position (`stillPayload`: `offset`, `clip_frame`, `speed`) with that `frame`, so the
-  server samples at the clip's speed like the renderer. Both edits are tried on a
+  server samples at the clip's speed like the renderer. Reverse sends `name: E.reversedName(display name, localized
+  videoStudio.reversedSuffix)`, which toggles the suffix so a reversed copy reversed again gets its plain name back.
+  Both edits are tried on a
   copy before the job starts. Load order: `derive` loads directly before `projects` (`…-transport.js, -derive.js,
   -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and
   differ by `data-value`, which `focusKey` remembers so a re-render keeps focus on the clicked swatch.

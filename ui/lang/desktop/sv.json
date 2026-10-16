@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Exportera bildruta som PNG",
   "videoStudio.reverseTooLong": "Baklänges fungerar för upp till 5 minuter åt gången.",
   "videoStudio.reverseReady": "Det omvända klippet finns i ditt mediebibliotek.",
+  "videoStudio.reversedSuffix": "omvänd",
   "videoStudio.reverseFailed": "Klippet kunde inte vändas.",
   "videoStudio.stillFailed": "Bildrutan kunde inte fångas.",
   "videoStudio.frameExported": "Din bildruta är klar.",

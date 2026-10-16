@@ -1034,6 +1034,10 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 				writeVideoStudioError(w, http.StatusBadRequest, "reverse_range_too_long", "Reverse works on up to 5 minutes at a time.")
 				return
 			}
+			if !validVideoStudioDerivedName(request.Name) {
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "The name of the reversed media is not valid.")
+				return
+			}
 		} else {
 			if request.Frame < 0 || request.Frame >= asset.DurationFrames || !validVideoStudioStillPosition(request) {
 				writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The frame is outside the media.")

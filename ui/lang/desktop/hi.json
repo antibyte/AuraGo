@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "फ़्रेम को PNG के रूप में निर्यात करें",
   "videoStudio.reverseTooLong": "उलटा चलाना एक बार में अधिकतम 5 मिनट तक काम करता है।",
   "videoStudio.reverseReady": "उलटी की गई क्लिप आपकी मीडिया लाइब्रेरी में है।",
+  "videoStudio.reversedSuffix": "उलटा",
   "videoStudio.reverseFailed": "क्लिप को उलटा नहीं किया जा सका।",
   "videoStudio.stillFailed": "फ़्रेम कैप्चर नहीं हो सका।",
   "videoStudio.frameExported": "आपका फ़्रेम तैयार है।",

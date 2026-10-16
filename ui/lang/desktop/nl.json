@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Frame exporteren als PNG",
   "videoStudio.reverseTooLong": "Omkeren werkt met maximaal 5 minuten tegelijk.",
   "videoStudio.reverseReady": "De omgekeerde clip staat in je mediabibliotheek.",
+  "videoStudio.reversedSuffix": "omgekeerd",
   "videoStudio.reverseFailed": "De clip kon niet worden omgekeerd.",
   "videoStudio.stillFailed": "Het frame kon niet worden vastgelegd.",
   "videoStudio.frameExported": "Je frame is klaar.",

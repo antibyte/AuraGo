@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Exporter l’image en PNG",
   "videoStudio.reverseTooLong": "L’inversion fonctionne sur 5 minutes maximum à la fois.",
   "videoStudio.reverseReady": "Le clip inversé est dans votre bibliothèque de médias.",
+  "videoStudio.reversedSuffix": "inversé",
   "videoStudio.reverseFailed": "Le clip n’a pas pu être inversé.",
   "videoStudio.stillFailed": "L’image n’a pas pu être capturée.",
   "videoStudio.frameExported": "Votre image est prête.",

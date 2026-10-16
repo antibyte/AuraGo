@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Export frame as PNG",
   "videoStudio.reverseTooLong": "Reverse works on up to 5 minutes at a time.",
   "videoStudio.reverseReady": "The reversed clip is in your media library.",
+  "videoStudio.reversedSuffix": "reversed",
   "videoStudio.reverseFailed": "The clip could not be reversed.",
   "videoStudio.stillFailed": "The frame could not be captured.",
   "videoStudio.frameExported": "Your frame is ready.",

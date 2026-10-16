@@ -156,6 +156,8 @@ const (
 	MaxClipSpeed = 16
 	// MaxLinkClips bounds one link group.
 	MaxLinkClips = 16
+	// MaxAssetNameRunes bounds an asset's display name.
+	MaxAssetNameRunes = 255
 )
 
 // Marker limits (spec §4.1).

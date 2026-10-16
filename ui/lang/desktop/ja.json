@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "フレームをPNGで書き出し",
   "videoStudio.reverseTooLong": "逆再生は一度に最大5分まで対応しています。",
   "videoStudio.reverseReady": "逆再生したクリップがメディアライブラリに追加されました。",
+  "videoStudio.reversedSuffix": "逆再生",
   "videoStudio.reverseFailed": "クリップを逆再生にできませんでした。",
   "videoStudio.stillFailed": "フレームを取得できませんでした。",
   "videoStudio.frameExported": "フレームの準備ができました。",

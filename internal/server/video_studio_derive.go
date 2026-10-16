@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -46,7 +48,7 @@ func (m *videoStudioManager) processReverse(ctx context.Context, svc *desktop.Se
 		}
 		return nil, nil, err
 	}
-	asset, err := m.importDerivedMedia(ctx, svc, cfg, job, reversedAssetName(record.Asset.Name), output)
+	asset, err := m.importDerivedMedia(ctx, svc, cfg, job, reversedAssetName(record.Asset.Name, work.request.Name), output)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -236,12 +238,60 @@ func (m *videoStudioManager) importDerivedMedia(ctx context.Context, svc *deskto
 	return saved, nil
 }
 
-// reversedAssetName names a reversed copy after its source: "<name> (reversed).mp4".
-func reversedAssetName(source string) string {
-	return strings.TrimSuffix(source, filepath.Ext(source)) + " (reversed).mp4"
+// videoStudioReversedSuffix is the English suffix of a reversed copy; the editor sends its own name with the
+// localized suffix (videoStudio.reversedSuffix) toggled instead.
+const videoStudioReversedSuffix = " (reversed)"
+
+// reversedAssetName names a reversed copy. requested is the editor's name for it without an extension (the display
+// name, extension dropped, with the localized suffix toggled); without one, the source name gets " (reversed)"
+// toggled: added to a plain name, removed from a reversed one, so reversing back and forth never grows the name. The
+// name ends in ".mp4", the reversed file's container, and is cut to fit the asset name limit.
+func reversedAssetName(source, requested string) string {
+	base := strings.TrimSpace(requested)
+	if base == "" {
+		base = trimMediaExtension(source)
+		if trimmed, ok := strings.CutSuffix(base, videoStudioReversedSuffix); ok && strings.TrimSpace(trimmed) != "" {
+			base = trimmed
+		} else {
+			base += videoStudioReversedSuffix
+		}
+		base = strings.TrimSpace(base)
+	}
+	if runes := []rune(base); len(runes) > videostudio.MaxAssetNameRunes-len(".mp4") {
+		base = strings.TrimSpace(string(runes[:videostudio.MaxAssetNameRunes-len(".mp4")]))
+	}
+	return base + ".mp4"
+}
+
+// validVideoStudioDerivedName accepts an optional editor-supplied name for derived media: at most
+// MaxAssetNameRunes runes and no control characters.
+func validVideoStudioDerivedName(name string) bool {
+	if utf8.RuneCountInString(name) > videostudio.MaxAssetNameRunes {
+		return false
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// trimMediaExtension drops a file extension (a dot and one to five letters or digits), so "Mr. Smith" keeps its name.
+func trimMediaExtension(name string) string {
+	ext := filepath.Ext(name)
+	if len(ext) < 2 || len(ext) > 6 || len(ext) == len(name) {
+		return name
+	}
+	for _, r := range ext[1:] {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return name
+		}
+	}
+	return strings.TrimSuffix(name, ext)
 }
 
 // stillAssetName names a captured frame after its source: "<name> (frame N).png".
 func stillAssetName(source string, frame int) string {
-	return fmt.Sprintf("%s (frame %d).png", strings.TrimSuffix(source, filepath.Ext(source)), frame)
+	return fmt.Sprintf("%s (frame %d).png", trimMediaExtension(source), frame)
 }

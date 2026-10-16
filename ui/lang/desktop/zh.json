@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "将帧导出为 PNG",
   "videoStudio.reverseTooLong": "倒放一次最多处理 5 分钟。",
   "videoStudio.reverseReady": "倒放片段已添加到你的媒体库。",
+  "videoStudio.reversedSuffix": "倒放",
   "videoStudio.reverseFailed": "无法倒放该片段。",
   "videoStudio.stillFailed": "无法捕获该帧。",
   "videoStudio.frameExported": "你的帧已就绪。",

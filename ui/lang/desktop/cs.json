@@ -6088,6 +6088,7 @@
   "videoStudio.exportFrame": "Exportovat snímek jako PNG",
   "videoStudio.reverseTooLong": "Přehrání pozpátku funguje najednou nejvýše s 5 minutami.",
   "videoStudio.reverseReady": "Obrácený klip je v tvé knihovně médií.",
+  "videoStudio.reversedSuffix": "obrácený",
   "videoStudio.reverseFailed": "Klip se nepodařilo obrátit.",
   "videoStudio.stillFailed": "Snímek se nepodařilo zachytit.",
   "videoStudio.frameExported": "Tvůj snímek je hotový.",

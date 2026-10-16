@@ -65,7 +65,7 @@
         const tried = trial(s, { id: 'reverse-trial', kind: 'video', has_audio: !!asset.has_audio, duration_frames: range.frames },
             project => E().reverseClips(project, clipId, Object.assign({ assetId: 'reverse-trial' }, request)));
         if (tried !== true) { refuse(s, tried); return false; }
-        start(s, { kind: 'reverse', asset_id: asset.id, offset: range.rangeStart, duration: range.frames }, job => applyReverse(s, clipId, request, job));
+        start(s, { kind: 'reverse', asset_id: asset.id, offset: range.rangeStart, duration: range.frames, name: E().reversedName(asset.name, P.tr(s, 'reversedSuffix', 'reversed')) }, job => applyReverse(s, clipId, request, job));
         return true;
     }
     function applyReverse(s, clipId, request, job) {
