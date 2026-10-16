@@ -37,6 +37,13 @@
         const value = s.ctx.t ? s.ctx.t('videoStudio.' + key) : '';
         return !value || value === 'videoStudio.' + key ? (fallback || key) : value;
     }
+    // Count wording, as in the other Desktop apps (GalleryLibrary.countLabel): the `<key>_one` string for exactly one,
+    // the key itself for every other count. {{count}} and the other placeholders in vars are filled in.
+    function trCount(s, key, count, one, other, vars) {
+        const n = Number(count) || 0;
+        const text = n === 1 ? tr(s, key + '_one', one) : tr(s, key, other);
+        return Object.entries(Object.assign({ count: n }, vars)).reduce((out, [name, value]) => out.split('{{' + name + '}}').join(String(value)), text);
+    }
     function esc(s, value) { return s.ctx.esc(String(value == null ? '' : value)); }
     function icon(name, size, cls) { return window.VideoStudioIcons ? window.VideoStudioIcons.svg(name, size || 16, cls) : ''; }
     function readPref(key) { try { return window.localStorage.getItem(key); } catch (_) { return null; } }
@@ -530,5 +537,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
 })();

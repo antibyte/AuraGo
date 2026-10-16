@@ -18,6 +18,7 @@
     const selectedClip = (...args) => P.selectedClip(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const tr = (...args) => P.tr(...args);
+    const trCount = (...args) => P.trCount(...args);
     const F = () => window.VideoStudioFolders;
 
     // List columns of the media bin; every column sorts both views (aurago.videoStudio.mediaSort = 'name:asc' style).
@@ -111,8 +112,7 @@
         host.innerHTML = markup;
         if (focus) host.querySelector(focus)?.focus({ preventScroll: true });
     }
-    // One item has its own wording ("1 item"); every other count uses the plural key.
-    function countLabel(s, count) { return count === 1 ? tr(s, 'assetCountOne', '1 item') : tr(s, 'assetCount', '{{count}} items').replace('{{count}}', String(count)); }
+    function countLabel(s, count) { return trCount(s, 'assetCount', count, '1 item', '{{count}} items'); }
     // The media bar: the breadcrumb of the open folder, the view switch and the folder and cleanup actions.
     function renderMediaBar(s) {
         const host = s.q('[data-media-bar]');

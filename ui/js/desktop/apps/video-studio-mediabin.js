@@ -9,7 +9,6 @@
     const E = () => window.VideoStudioEdit;
     const F = () => window.VideoStudioFolders;
     const esc = (...args) => P.esc(...args);
-    const fill = (...args) => P.fill(...args);
     const icon = (...args) => P.icon(...args);
     const mutate = (...args) => P.mutate(...args);
     const openModal = (...args) => P.openModal(...args);
@@ -22,6 +21,7 @@
     const setSelection = (...args) => P.setSelection(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const tr = (...args) => P.tr(...args);
+    const trCount = (...args) => P.trCount(...args);
     const writeMediaPrefs = (...args) => P.writeMediaPrefs(...args);
 
     const FOLDER_NOTICES = {
@@ -110,7 +110,7 @@
         if (s.readonly || !path || !s.project) return;
         const projectId = s.projectId, epoch = s.projectEpoch;
         const count = F().assetsIn(s.project, path, true).length;
-        const copy = fill(tr(s, 'deleteFolderCopy', 'Its {{count}} items and subfolders move to the folder above.'), { count });
+        const copy = trCount(s, 'deleteFolderCopy', count, 'Its 1 item and subfolders move to the folder above.', 'Its {{count}} items and subfolders move to the folder above.');
         if (!(await s.ctx.confirmDialog(tr(s, 'deleteFolderTitle', 'Delete this folder?'), copy))) return;
         if (s.disposed || s.readonly || epoch !== s.projectEpoch || projectId !== s.projectId) return;
         if (!folderEdit(s, 'delete folder', project => F().deleteFolder(project, path))) return;
@@ -234,10 +234,10 @@
         let title, copy;
         if (bulk) {
             title = tr(s, 'removeUnusedTitle', 'Remove unused media?');
-            copy = fill(tr(s, 'removeUnusedCopy', '{{count}} media items are not used in the timeline and will be deleted.'), { count: ids.length });
+            copy = trCount(s, 'removeUnusedCopy', ids.length, '1 media item is not used in the timeline and will be deleted.', '{{count}} media items are not used in the timeline and will be deleted.');
         } else if (clips) {
             title = tr(s, 'removeMediaUsedTitle', 'Remove media used in the timeline?');
-            copy = fill(tr(s, 'removeMediaUsedCopy', '{{count}} clips using it leave the timeline in one undo step. Then the file is deleted. This cannot be undone.'), { count: clips });
+            copy = trCount(s, 'removeMediaUsedCopy', clips, '1 clip using it leaves the timeline in one undo step. Then the file is deleted. This cannot be undone.', '{{count}} clips using it leave the timeline in one undo step. Then the file is deleted. This cannot be undone.');
         } else {
             title = tr(s, 'removeMediaUnusedTitle', 'Remove this media?');
             copy = tr(s, 'removeMediaUnusedCopy', 'The file is deleted from the project. This cannot be undone.');

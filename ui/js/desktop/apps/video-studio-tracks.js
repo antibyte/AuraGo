@@ -8,6 +8,7 @@
     const T = (...args) => P.T(...args);
     const mutate = (...args) => P.mutate(...args);
     const tr = (...args) => P.tr(...args);
+    const trCount = (...args) => P.trCount(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const renderTimeline = (...args) => P.renderTimeline(...args);
     const updateTransform = (...args) => P.updateTransform(...args);
@@ -118,7 +119,7 @@
         if (!track || s.readonly) return false;
         if (track.locked) { showNotice(s, 'trackLockedDelete', 'Unlock the track before deleting it.', true); return false; }
         if (track.clips.length) {
-            const copy = tr(s, 'deleteTrackCopy', 'The track holds {{count}} clips. They are removed too; you can undo this.').replace('{{count}}', String(track.clips.length));
+            const copy = trCount(s, 'deleteTrackCopy', track.clips.length, 'The track holds 1 clip. It is removed too; you can undo this.', 'The track holds {{count}} clips. They are removed too; you can undo this.');
             const projectId = s.projectId, confirmed = await s.ctx.confirmDialog(tr(s, 'deleteTrackTitle', 'Delete this track?'), copy);
             // The answer only counts for the project and track it was asked about.
             if (!confirmed || s.disposed || s.projectId !== projectId || !trackOf(s, trackId)) return false;

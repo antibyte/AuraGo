@@ -246,7 +246,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 
 			// Media bin: one item reads in the singular, list and grid views, a new folder that opens and then shows as a tile.
 			const countText=document.querySelector('[data-asset-count]').textContent;
-			if(countText!==window.fixtureLocales[window.fixtureLang]['videoStudio.assetCountOne'])throw new Error('one item does not use the singular label: '+countText);
+			if(countText!==window.fixtureLocales[window.fixtureLang]['videoStudio.assetCount_one'])throw new Error('one item does not use the singular label: '+countText);
 			document.querySelector('[data-action="media-view"][data-view="list"]').click();
 			if(document.querySelector('[data-assets]').dataset.view!=='list'||!document.querySelector('.vs-asset-head'))throw new Error('the list view did not render');
 			// The list is an ARIA table: a named table, a header row of column headers that hold the sort buttons (aria-sort

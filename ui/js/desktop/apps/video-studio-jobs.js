@@ -23,6 +23,7 @@
     const showConflict = (...args) => P.showConflict(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const tr = (...args) => P.tr(...args);
+    const trCount = (...args) => P.trCount(...args);
 
     async function loadJobs(s) {
         if (!s.projectId || s.disposed) return;
@@ -81,7 +82,7 @@
         button.classList.toggle('has-failure', !active.length && !!failed.length);
         const render = active.find(job => job.kind === 'render');
         s.q('[data-jobs-icon]').innerHTML = icon(active.length ? 'spinner' : failed.length ? 'alert' : 'check', 16, 'vs-icon' + (active.length ? ' vs-spin' : ''));
-        s.q('[data-jobs-label]').textContent = render ? tr(s, 'exportingPercent', 'Exporting {{percent}} %').replace('{{percent}}', String(Math.round(clamp(Number(render.progress || 0), 0, 1) * 100))) : active.length ? tr(s, 'jobsRunning', '{{count}} running').replace('{{count}}', String(active.length)) : tr(s, 'jobsDone', 'Tasks');
+        s.q('[data-jobs-label]').textContent = render ? tr(s, 'exportingPercent', 'Exporting {{percent}} %').replace('{{percent}}', String(Math.round(clamp(Number(render.progress || 0), 0, 1) * 100))) : active.length ? trCount(s, 'jobsRunning', active.length, '1 running', '{{count}} running') : tr(s, 'jobsDone', 'Tasks');
     }
     function renderJobs(s) {
         const host = s.q('[data-jobs]');

@@ -175,7 +175,8 @@ The media bin shows the open folder as a breadcrumb. Folders are created with **
 to four levels), renamed and deleted from their menus; deleting a folder moves its media and subfolders to the folder
 above after a confirm. Drag media onto a folder or a breadcrumb crumb to move it, or use the item menu's **Move to
 folder**. Switch between grid and list with the view buttons; in the list, click a column header to sort (click again to
-reverse). Search looks through every folder. The item menu opens a clip in the source monitor, renames it, moves it,
+reverse). In a narrow window the list fits the library without sideways scrolling: the name, and below it the duration
+and the column you sorted by. Search looks through every folder. The item menu opens a clip in the source monitor, renames it, moves it,
 selects the clips that use it, or removes it. Removing media that the timeline uses first takes its clips off the timeline
 (one undo step, gaps stay) and then deletes the file; **Remove unused media** deletes every item no clip uses. While the
 files are deleted, editing and undo wait a moment. A window that has the same project open drops removed media it does not

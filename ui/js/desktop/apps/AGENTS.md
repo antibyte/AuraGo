@@ -1527,7 +1527,11 @@ buttons and menu popovers remain excluded from those gestures.
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
   only the editor's own artwork names (`title-<Date.now()>.png`,
   `sticker-<built-in name>.png`) are hidden from the media bin. Key names and
-  decimal seconds follow the UI language.
+  decimal seconds follow the UI language. Strings with `{{count}}` go through
+  `P.trCount(s, key, count, one, other)`: the `<key>_one` string for exactly one (the Desktop convention of
+  `GalleryLibrary.countLabel`), the key itself for every other count. Each such key has `_one` in all sixteen
+  locales; Czech and Polish plurals stay count-neutral (`Položky: {{count}}`), since one/other cannot express
+  their 2–4 forms. Checks: `go test ./ui -run 'TestVideoStudio(CountStrings|TrCount)'`.
   The inspector shows seconds (`m:ss.cc`, input also `4,5`) and percent; the
   model stays in integer frames at the project rate and 0..1 boxes. Its fine-tune fields toggle with
   `hidden`, not `<details>`: closed `<details>` content still reports client
