@@ -192,6 +192,7 @@ type agentLoopState struct {
 
 	cachedSysPromptKey string
 	cachedSysPrompt    string
+	learningContext    string
 	cachedSysPromptAt  time.Time
 
 	emotionSynthesizer *memory.EmotionSynthesizer
@@ -230,6 +231,13 @@ func (s *agentLoopState) inlineBudgetBasis() inlineBudgetBasis {
 // makeDispatchContext builds a DispatchContext from the current loop state.
 func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
 	return &DispatchContext{
+		CodeGraph:            s.runCfg.CodeGraph,
+		CodeProject:          s.runCfg.CodeProject,
+		WriteTargets:         s.runCfg.WriteTargets,
+		WorkChainID:          s.runCfg.WorkChainID,
+		LearningScope:        s.runCfg.LearningScope,
+		LearningTargetScope:  s.runCfg.LearningTargetScope,
+		LearningFingerprint:  s.runCfg.LearningFingerprint,
 		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
 		inlineBasis:          s.inlineBudgetBasis(),
@@ -288,6 +296,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
+	configureKnowledgeRuntime(&runCfg)
 	if err := PrepareTaskRouting(ctx, &req, &runCfg); err != nil {
 		return response, err
 	}
@@ -331,6 +340,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}()
 	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
+	if s.runCfg.WorkChainID == "" {
+		s.runCfg.WorkChainID = s.correctionRun().id
+	}
+	if s.runCfg.WriteTargets != nil {
+		defer s.runCfg.WriteTargets.Release(s.correctionRun().id)
+	}
 	s.progressFeedback = progressFeedback
 	s.turnSnapshot = &turnContextSnapshot{
 		UserIntent:        s.initialUserMsg,
@@ -339,6 +354,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		DailyTodoReminder: s.dailyTodoReminder,
 	}
 	req = s.req
+	if runCfg.PreparedPrompt != nil || runCfg.StableSystemPrompt {
+		if observation := learningPromptContext(ctx, runCfg, s.initialUserMsg, req.Model); observation != "" {
+			s.learningContext = observation
+			req.Messages = insertLearningObservation(req.Messages, observation)
+		}
+	}
 	defer func() {
 		if errors.Is(retErr, errServerRunCompleted) {
 			retErr = ctx.Err()
@@ -1293,6 +1314,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Learned Rules injection — only in active mode; log_only skips injection.
+		flags.LearnedRulesContext = ""
 		if cfg.Agent.AutoLearning.Enabled && cfg.Agent.AutoLearning.Mode == "active" &&
 			shortTermMem != nil && flags.Tier != "minimal" {
 			// Use adaptive filtering: only rules relevant to recently used tools.
@@ -1310,6 +1332,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Phase D: Inject personality line before building system prompt
+		if runCfg.PreparedPrompt == nil && !runCfg.StableSystemPrompt {
+			s.learningContext = learningPromptContext(ctx, runCfg, s.initialUserMsg, req.Model)
+			flags.LearnedRulesContext += s.learningContext
+		}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
@@ -1888,6 +1914,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		var content string
 		var promptTokens, completionTokens, totalTokens int
 		var tokenSource string
+		recordLearningContextUsage(ctx, runCfg, req, s.learningContext)
 
 		if stream {
 			if runCfg.RequireCompleteStream {
@@ -2444,7 +2471,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityBasis,
 						)
 					}
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, learningAnalysisScope{Scope: runCfg.LearningScope, Fingerprint: runCfg.LearningFingerprint})
 					captureActivityTurn(
 						cfg,
 						s.currentLogger,
@@ -2533,7 +2560,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				_ = sideEffects.Go(func(taskCtx context.Context) {
 					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 					defer cancel()
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, learningAnalysisScope{Scope: runCfg.LearningScope, Fingerprint: runCfg.LearningFingerprint})
 				})
 			}
 

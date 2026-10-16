@@ -3,6 +3,12 @@ package agent
 import openai "github.com/sashabaranov/go-openai"
 
 func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
+	if ff.CodeGraphEnabled {
+		tools = append(tools, codeGraphToolSchema())
+	}
+	if ff.LearningsEnabled {
+		tools = append(tools, learningToolSchema())
+	}
 	if ff.MemoryEnabled {
 		tools = append(tools, memoryCorrectionToolSchema())
 		tools = append(tools,
@@ -25,7 +31,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					"sources": map[string]interface{}{
 						"type":        "array",
 						"description": "Memory sources to search. Default: all available. Options: conversation, activity, vector_db, knowledge_graph, journal, notes, planner, core_memory, user_profile, error_patterns",
-						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "user_profile", "error_patterns"}},
+						"items":       map[string]interface{}{"type": "string", "enum": []string{"conversation", "activity", "vector_db", "knowledge_graph", "journal", "notes", "planner", "core_memory", "user_profile", "error_patterns", "learnings"}},
 					},
 					"limit": map[string]interface{}{
 						"type":        "integer",

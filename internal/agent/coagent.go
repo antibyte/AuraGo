@@ -322,6 +322,7 @@ func SpawnCoAgent(
 		}
 		runCfg.TrustedPromptAddenda = []prompts.PromptAddendum{{ID: addendumID, Text: systemPrompt}}
 
+		inheritProjectRun(parentCtx, &runCfg)
 		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries
 		delay := time.Duration(cfg.CoAgents.RetryPolicy.RetryDelaySeconds) * time.Second
 		var resp openai.ChatCompletionResponse

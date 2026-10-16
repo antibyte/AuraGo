@@ -69,7 +69,7 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
-		RuViewEnabled: true,
+		RuViewEnabled:   true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
@@ -84,7 +84,8 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
 		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WorkspaceSearchEnabled: true,
-		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true, VirtualWorkspaceEnabled: true,
+		LearningsEnabled:       true, CodeGraphEnabled: true,
+		WebCaptureEnabled: true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true, VirtualWorkspaceEnabled: true,
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		MeshCoreEnabled: true,
@@ -207,6 +208,8 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("video_download_download", ff.VideoDownloadAllowDownload)
 	appendToolFeatureKeyPart("video_download_transcribe", ff.VideoDownloadAllowTranscribe)
 	appendToolFeatureKeyPart("workspace_search", ff.WorkspaceSearchEnabled)
+	appendToolFeatureKeyPart("learnings", ff.LearningsEnabled)
+	appendToolFeatureKeyPart("code_graph", ff.CodeGraphEnabled)
 	appendToolFeatureKeyPart("send_youtube_video", ff.SendYouTubeVideoEnabled)
 	appendToolFeatureKeyPart("web_capture", ff.WebCaptureEnabled)
 	appendToolFeatureKeyPart("browser_automation", ff.BrowserAutomationEnabled)

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/codegraph"
 	"database/sql"
 	"log/slog"
 
@@ -26,7 +27,14 @@ const MessageSourceFlow = "flow"
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
-	MemoryCorrections *memoryCorrectionRun
+	CodeGraph           *codegraph.Manager
+	CodeProject         codegraph.Project
+	WriteTargets        *services.WriteTargets
+	WorkChainID         string
+	LearningScope       memory.LearningScope
+	LearningTargetScope func(action, resource string) (memory.LearningScope, bool)
+	LearningFingerprint string
+	MemoryCorrections   *memoryCorrectionRun
 	// ToolDetailFits checks a complete discovery detail against every route.
 	ToolDetailFits func(string) bool
 	// inlineBasis sizes the automatic inline budget of this dispatch

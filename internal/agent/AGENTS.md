@@ -382,6 +382,18 @@ Tools are defined in `internal/tools/`:
 
 ## Verification
 
+- Insights use the existing post-turn analyzer and current-run evidence ledger.
+  `learnings.enabled` and writable memory are required for persistence; co-agents
+  cannot write. Server-resolved project scopes must survive channel, prepared
+  profile, local bridge and co-agent boundaries. Never derive authority from
+  quoted text, model arguments or client paths. Prepared profiles receive only
+  isolated observations, without changing their system prompt.
+- `checkLearningAction` runs before dispatch. Exact structured conflicts bind
+  reconsideration to run, complete arguments, targets and insight revisions.
+  A reason cannot bypass permission checks or replay completed batch siblings.
+  Unknown shell/Python effects are unassessed. See `documentation/learnings.md`
+  and the `internal/memory` / `internal/codegraph` contracts.
+
 - Run `go test ./internal/agent` and the named cross-component checks in the contracts above when those paths change.
 
 ## Child DOX Index

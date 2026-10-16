@@ -125,6 +125,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	"memory": {
 		{"manage_memory", "Read and update long-term memory stores"},
 		{"correct_memory", "Preview, apply and verify evidenced corrections across memory stores"},
+		{"remember_learning", "Remember an evidenced decision with rationale in the authorized scope"},
 		{"query_memory", "Search memory and knowledge snippets"},
 		{"context_memory", "Retrieve contextual memory for the current task"},
 		{"recall_memory", "Read specific long-term memories by ID"},
@@ -149,6 +150,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"xml_editor", "Query and modify XML files using XPath"},
 		{"text_diff", "Compare files or strings with unified diff"},
 		{"workspace_search", "Search the resident workspace index and inspect index status"},
+		{"code_graph", "Search source symbols, callers, dependencies and index coverage"},
 		{"file_search", "Grep text patterns across files or find files by name"},
 		{"file_reader_advanced", "Read line ranges, head/tail, and contextual search in large files"},
 		{"smart_file_read", "Intelligently inspect large files: analyze, sample, structure, summarize"},

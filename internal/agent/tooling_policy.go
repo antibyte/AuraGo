@@ -416,6 +416,8 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
 		PackageManagerEnabled:        packageManagerEnabled,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
+		LearningsEnabled:             cfg.Learnings.Enabled && cfg.Tools.Memory.Enabled,
+		CodeGraphEnabled:             cfg.CodeGraph.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,
 		SchedulerEnabled:             cfg.Tools.Scheduler.Enabled,

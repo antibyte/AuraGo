@@ -4,7 +4,7 @@ import openai "github.com/sashabaranov/go-openai"
 
 func memoryCorrectionToolSchema() openai.Tool {
 	reference := schema(map[string]interface{}{
-		"store":    operationProperty("Memory store", []string{"core", "ltm", "profile", "kg_node", "kg_edge"}),
+		"store":    operationProperty("Memory store", []string{"core", "ltm", "profile", "kg_node", "kg_edge", "learning"}),
 		"id":       prop("string", "Core numeric ID, LTM document ID, node ID or edge source ID from query_memory."),
 		"field":    prop("string", "Exact graph property, or label; required for kg_node."),
 		"category": prop("string", "Profile category; required for profile."),

@@ -90,3 +90,11 @@ The system automatically enriches each turn with memory before you even issue a 
 - **PLANNER CONTEXT** — open planner todos and near-term appointments, injected only on planner-relevant turns or at session start
 
 This means: in many cases you already have the relevant context **without calling any tool**. Only call `query_memory` when the injected context is incomplete or you need something specific.
+# Insights
+
+When learning is enabled, `sources: ["learnings"]` queries structured insights in
+the runtime-authorized global/project/resource scope. Each entry carries its
+state, revision, evidence and rationale. No arbitrary project argument is accepted.
+Use `remember_learning` for new evidence and `correct_memory` with store `learning`
+for evidenced corrections; project-specific decisions never fall back to a foreign
+project's entries.

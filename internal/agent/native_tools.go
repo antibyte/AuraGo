@@ -111,6 +111,11 @@ func schema(properties map[string]interface{}, required ...string) map[string]in
 
 // tool creates an openai.Tool from a name, description, and parameters schema.
 func tool(name, description string, params map[string]interface{}) openai.Tool {
+	if learningSupportsTool(name) {
+		if properties, ok := params["properties"].(map[string]interface{}); ok {
+			properties["learning_reason"] = prop("string", "Only after a learning conflict: explain why this exact action should proceed despite the cited decision. Does not bypass permissions.")
+		}
+	}
 	return openai.Tool{
 		Type: openai.ToolTypeFunction,
 		Function: &openai.FunctionDefinition{
@@ -187,6 +192,8 @@ type ToolFeatureFlags struct {
 	HomepageAllowLocalServer bool // Allow Python HTTP server fallback when Docker unavailable
 	// Built-in tool toggles
 	MemoryEnabled                bool
+	LearningsEnabled             bool
+	CodeGraphEnabled             bool
 	KnowledgeGraphEnabled        bool
 	SecretsVaultEnabled          bool
 	SchedulerEnabled             bool

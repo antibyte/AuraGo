@@ -66,3 +66,11 @@ the same ID only while saved target states, permissions and protections still
 match. Graph property revisions also reject changes that reverted to the old value.
 Changed facts require a new preview and fresh evidence. A later real
 change in preference is a new correction, not a replay of an old operation.
+# Insights
+
+`store: "learning"` also supports the same preview/apply/status sequence. Supply
+the learning ID from `query_memory`. Scope and feature/write gates are rechecked
+on preview, apply and status. Replacements retain a superseded entry and link to
+a fresh revision chain. Protected, archived or superseded insights cannot be
+silently changed or resurrected. A write-action deviation does not count as
+evidence to replace an insight.

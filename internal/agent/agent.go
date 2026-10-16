@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/codegraph"
 	"bytes"
 	"context"
 	"database/sql"
@@ -1089,6 +1090,15 @@ func (tc ToolCall) GetArgs() []string {
 // RunConfig holds all the dependencies required to run the agent loop,
 // consolidating the parameter list that was previously over 20 items long.
 type RunConfig struct {
+	CodeGraph             *codegraph.Manager
+	CodeProject           codegraph.Project
+	WriteTargets          *services.WriteTargets
+	WorkChainID           string
+	AllowProjectLearnings bool
+	// LearningScope is supplied only by server-owned workspace/project resolution.
+	LearningScope       memory.LearningScope
+	LearningTargetScope func(action, resource string) (memory.LearningScope, bool)
+	LearningFingerprint string
 	// Empty mode follows the interactive source policy; off/pinned bypass routing.
 	// Auto is for explicit routing preparation such as the administrator preview.
 	TaskRoutingMode string
@@ -1213,6 +1223,7 @@ type RunConfig struct {
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (output string) {
+	ctx = context.WithValue(ctx, projectRunKey{}, dc)
 	tc = prepareToolCall(tc, dc)
 	if tc.PreparationError != "" {
 		return tc.PreparationError
@@ -1227,6 +1238,11 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 
 	if blocked := roleToolRestriction(tc, dc); blocked != "" {
 		return blocked
+	}
+	if blocked, advisory := checkLearningAction(ctx, tc, dc); blocked != "" {
+		return blocked
+	} else if advisory != "" {
+		defer func() { output += advisory }()
 	}
 
 	if hooks := dc.ExecutionHooks; hooks != nil {

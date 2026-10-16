@@ -31,10 +31,11 @@ type correctionEvidenceRecord struct{ kind, text string }
 
 // Only the running main loop owns this ledger. Tool arguments cannot populate it.
 type memoryCorrectionRun struct {
-	mu       sync.Mutex
-	id       string
-	evidence map[string]correctionEvidenceRecord
-	dirty    bool
+	mu             sync.Mutex
+	id             string
+	evidence       map[string]correctionEvidenceRecord
+	dirty          bool
+	learningChecks map[string]bool
 }
 
 func (s *agentLoopState) correctionRun() *memoryCorrectionRun {
@@ -123,7 +124,7 @@ func dispatchMemoryCorrection(ctx context.Context, tc ToolCall, dc *DispatchCont
 	if err != nil {
 		return respond("error", nil, err)
 	}
-	service := memory.MemoryCorrectionService{Memory: dc.ShortTermMem, Vector: dc.LongTermMem, Graph: dc.KG, Access: memory.CorrectionAccess{
+	service := memory.MemoryCorrectionService{Memory: dc.ShortTermMem, Vector: dc.LongTermMem, Graph: dc.KG, LearningsEnabled: dc.Cfg.Learnings.Enabled, LearningScope: dc.LearningScope, Access: memory.CorrectionAccess{
 		MemoryWrite:    !dc.Cfg.Tools.Memory.ReadOnly,
 		GraphWrite:     dc.Cfg.Tools.KnowledgeGraph.Enabled && !dc.Cfg.Tools.KnowledgeGraph.ReadOnly,
 		ProfileEnabled: dc.Cfg.Personality.UserProfiling,
@@ -145,6 +146,18 @@ func dispatchMemoryCorrection(ctx context.Context, tc ToolCall, dc *DispatchCont
 		}
 		if args.Operation == "status" {
 			plan, err = dc.ShortTermMem.MemoryCorrection(args.ID, dc.SessionID)
+			if err == nil {
+				for _, item := range plan.Items {
+					if item.Reference.Store == "learning" {
+						if !service.LearningsEnabled {
+							return respond("policy_denied", nil, fmt.Errorf("learnings disabled"))
+						}
+						if _, e := dc.ShortTermMem.Learning(ctx, item.Reference.ID, dc.LearningScope); e != nil {
+							return respond("policy_denied", nil, fmt.Errorf("learning scope unavailable"))
+						}
+					}
+				}
+			}
 		} else {
 			// Invalidate even after cancellation or an uncertain commit; a conservative refresh is safe.
 			if dc.MemoryCorrections != nil {

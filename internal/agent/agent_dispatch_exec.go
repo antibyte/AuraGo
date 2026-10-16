@@ -339,6 +339,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return fmt.Sprintf("Tool Output: [LOGS for PID %d]\n%s", req.PID, security.Scrub(proc.ReadOutput()))
 
+		case "remember_learning":
+			return dispatchLearning(ctx, tc, dc)
+		case "code_graph":
+			return dispatchCodeGraph(ctx, tc, dc)
 		case "query_memory":
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
@@ -347,7 +351,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"query_memory failed: %v"}`, err)
 			}
-			return result
+			return appendLearningQuery(ctx, tc, dc, result)
 
 		case "recall_memory":
 			if !cfg.Tools.Memory.Enabled {

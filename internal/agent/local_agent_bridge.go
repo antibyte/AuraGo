@@ -19,25 +19,32 @@ const localAgentActivitySource = "agodesk_local_agent"
 // LocalAgentTurnSync contains the bounded, already-sanitized data captured for
 // one turn executed by a paired local agent.
 type LocalAgentTurnSync struct {
-	SessionID        string
-	UserMessage      string
-	AssistantMessage string
-	Status           string
-	Provider         string
-	ClientTimestamp  time.Time
-	ToolNames        []string
-	ToolSummaries    []string
+	LearningScope       memory.LearningScope
+	LearningFingerprint string
+	SessionID           string
+	UserMessage         string
+	AssistantMessage    string
+	Status              string
+	Provider            string
+	ClientTimestamp     time.Time
+	ToolNames           []string
+	ToolSummaries       []string
 }
 
 // QueryMemoryForLocalAgent exposes the same memory search implementation used
 // by the native query_memory tool without exposing the agent loop.
-func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (map[string]interface{}, error) {
+func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, cfg ...*config.Config) (map[string]interface{}, error) {
 	raw, err := executeQueryMemory(ToolCall{
 		Content: strings.TrimSpace(query),
 		Limit:   limit,
 	}, "", shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 	if err != nil {
 		return nil, err
+	}
+	// Paired clients have no server-owned project registration. Client paths
+	// cannot authorize access to another project's memory.
+	if len(cfg) > 0 {
+		raw = appendLearningQuery(context.Background(), ToolCall{Content: query, Limit: limit}, &DispatchContext{Cfg: cfg[0], ShortTermMem: shortTermMem}, raw)
 	}
 	return decodeLocalAgentToolOutput(raw)
 }
@@ -100,7 +107,7 @@ func SyncLocalAgentTurn(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	if status == "completed" {
 		JournalAutoTrigger(cfg, shortTermMem, logger, turn.SessionID, toolNames, userMessage)
-		runMemoryAnalysis(ctx, cfg, logger, shortTermMem, kg, longTermMem, userMessage, assistantMessage, turn.SessionID)
+		runMemoryAnalysis(ctx, cfg, logger, shortTermMem, kg, longTermMem, userMessage, assistantMessage, turn.SessionID, learningAnalysisScope{Scope: turn.LearningScope, Fingerprint: turn.LearningFingerprint})
 		return nil
 	}
 	insertLocalAgentStatusJournal(cfg, shortTermMem, logger, turn.SessionID, status, userMessage, toolNames)
