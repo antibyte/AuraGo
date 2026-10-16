@@ -62,7 +62,7 @@
             const result = job.result || {};
             return ['renderSegmentFailed', 'Rendering failed between {{from}} and {{to}}. Check the clips there and try again.', { from: clockSeconds(result.failed_from_seconds), to: clockSeconds(result.failed_to_seconds) }];
         }
-        return ({ reverse_range_too_long: ['reverseTooLong', 'Reverse works on up to 5 minutes at a time.'], reverse_failed: ['reverseFailed', 'The clip could not be reversed.'], still_failed: ['stillFailed', 'The frame could not be captured.'], project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'], duplicate_quota: ['duplicateTooLarge', 'The copy would exceed this project\'s storage limit.'], duplicate_failed: ['duplicateFailed', 'The project could not be copied.'], invalid_range: ['invalidRange', 'The in/out range is not valid.'], media_in_use: ['mediaInUse', 'This media is still in use. Save the project and try again.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
+        return ({ reverse_range_too_long: ['reverseTooLong', 'Reverse works on up to 5 minutes at a time.'], reverse_failed: ['reverseFailed', 'The clip could not be reversed.'], still_failed: ['stillFailed', 'The frame could not be captured.'], project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'], duplicate_quota: ['duplicateTooLarge', 'The copy would exceed this project\'s storage limit.'], duplicate_failed: ['duplicateFailed', 'The project could not be copied.'], invalid_range: ['invalidRange', 'The in/out range is not valid.'], media_in_use: ['mediaInUse', 'This media is still in use. Save the project and try again.'], range_render_failed: ['rangeFailed', 'The range could not be rendered. Try again.'], range_too_long: ['rangeTooLong', 'Render range exactly works on up to 60 seconds. Move the in and out points closer together.'], feature_unavailable: ['featureUnavailable', 'The server\'s FFmpeg lacks a filter this project needs. Update FFmpeg or remove that effect or transition.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
     }
     // The download name: the project name, " (in-out)" for a range export, then ".mp4". The job says whether it is a range.
     function exportName(s, job) {
@@ -255,17 +255,19 @@
         host.querySelector('.vs-modal textarea,.vs-modal select,.vs-modal input,.vs-modal [type="submit"]')?.focus();
         return host;
     }
+    // The renderer's length (EnabledDuration in Go): the end of the last enabled clip. Disabled clips do not count. The
+    // export dialog and the range check (video-studio-rangerender.js) share it.
+    function enabledEnd(project) {
+        let end = 0;
+        ((project && project.tracks) || []).forEach(track => (track.clips || []).forEach(clip => { if (!clip.disabled && clip.start >= 0 && clip.duration > 0) end = Math.max(end, clip.start + clip.duration); }));
+        return end;
+    }
     function openExport(s) {
         if (!s.projectId || s.readonly) return;
         const projectId = s.projectId, epoch = s.projectEpoch;
         const size = `${s.project.width}x${s.project.height}`;
-        // The renderer's length (EnabledDuration in Go): the end of the last enabled clip. Disabled clips do not count.
-        const enabledEnd = project => {
-            let end = 0;
-            (project.tracks || []).forEach(track => (track.clips || []).forEach(clip => { if (!clip.disabled && clip.start >= 0 && clip.duration > 0) end = Math.max(end, clip.start + clip.duration); }));
-            return end;
-        };
-        // The in/out points are clamped to that length, so the request always satisfies 0 ≤ start < end ≤ EnabledDuration.
+        // The in/out points are clamped to the renderer's length (enabledEnd), so the request always satisfies
+        // 0 ≤ start < end ≤ EnabledDuration.
         const range = P.inOut(s), length = enabledEnd(s.project);
         const inFrame = range.in == null ? null : Math.max(0, Math.min(range.in, length));
         const outFrame = range.out == null ? null : Math.max(0, Math.min(range.out, length));
@@ -462,5 +464,5 @@
     // A paused stage repaints so it picks up the proxy (or the original again); a playing one picks it up on its next frame.
     function repaintPaused(s) { if (s.preview && s.project && !s.preview.isPlaying()) s.preview.seek(s.frame); }
 
-    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, openAI, queueProxy, pumpProxies, proxyState, previewMediaURL, noteFinishedJob });
+    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, enabledEnd, openAI, queueProxy, pumpProxies, proxyState, previewMediaURL, noteFinishedJob });
 })();

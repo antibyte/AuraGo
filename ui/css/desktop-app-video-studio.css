@@ -313,6 +313,21 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-time-current { font-size: 15px; font-weight: 650; color: var(--vs-text); }
 .vs-timecode { font-size: 12.5px; color: var(--vs-muted); }
 .vs-transport-right { grid-column: 3; justify-self: end; display: flex; gap: 4px; }
+/* Render range exactly: the compare overlay lives inside the preview mat, so it follows the mat into full screen. */
+.vs-range-overlay { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: stretch; pointer-events: none; background: rgba(0, 0, 0, .38); }
+.vs-range-overlay[data-range-view="live"] { background: transparent; }
+.vs-range-overlay[data-range-state="ready"][data-range-view="rendered"] { background: #000; pointer-events: auto; }
+.vs-range-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.vs-range-bar { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px; padding: 6px 8px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; background: rgba(12, 15, 21, .88); color: #f1f3f7; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0, 0, 0, .45); pointer-events: auto; }
+.vs-range-status { flex: 1 1 140px; min-width: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.vs-range-status.is-error { color: #ffb4a8; }
+.vs-range-bar progress { flex: 0 1 120px; height: 6px; accent-color: var(--vs-accent); }
+.vs-range-bar .vs-range-switch { margin-top: 0; background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .16); }
+.vs-range-bar .vs-range-switch button { color: #c3cad4; }
+.vs-range-bar .vs-range-switch button[aria-pressed="true"] { background: var(--vs-accent-strong); color: #fff; }
+.vs-app .vs-range-bar > button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; }
+.vs-app .vs-range-bar > .vs-icon-button { justify-content: center; width: 28px; padding: 0; }
+.vs-app .vs-transport [data-action="range-render"].is-busy { color: var(--vs-accent); }
 
 /* Empty project */
 .vs-preview-stage.vs-no-project { place-items: stretch; padding: 0; background: var(--vs-bg); }

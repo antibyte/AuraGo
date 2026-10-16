@@ -86,6 +86,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-tracks.js"></script>
 <script src="/js/desktop/apps/video-studio-markers.js"></script>
 <script src="/js/desktop/apps/video-studio-transport.js"></script>
+<script src="/js/desktop/apps/video-studio-rangerender.js"></script>
 <script src="/js/desktop/apps/video-studio-derive.js"></script>
 <script src="/js/desktop/apps/video-studio-projects.js"></script>
 <script src="/js/desktop/apps/video-studio-mediabin.js"></script>
@@ -185,6 +186,62 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 }`).Bool() {
 		t.Fatal("completed render did not produce a downloadable MP4")
 	}
+	if !page.MustEval(`async () => await closeGuard()`).Bool() {
+		t.Fatal("saved editor refused close")
+	}
+	page.MustEval(`() => VideoStudioApp.dispose('e2e')`)
+}
+
+// Render range exactly in the production editor against the real handlers and FFmpeg: the transport button saves and
+// starts a range_render job for 5 s around the playhead, the overlay plays the 540p result, the A/B switch keeps the
+// timeline frame both ways, and Escape closes the comparison.
+func TestVideoStudioBrowserRangeRender(t *testing.T) {
+	browser := personalRadioBrowser(t)
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("FFmpeg required")
+	}
+	origin := videoStudioBrowserServer(t)
+	page := browser.MustPage(origin.URL + "/fixture").Timeout(120 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustWaitLoad()
+	wait := func(condition string) {
+		t.Helper()
+		videoStudioBrowserWait(t, page, condition)
+	}
+	wait(`() => VideoStudioApp.instances.get('e2e')?.status?.ffmpeg_ready===true`)
+	page.MustElement(`[data-action="new-project"]`).MustClick()
+	wait(`() => !!document.querySelector('[data-new-project-form]')`)
+	page.MustEval(`() => {const form=document.querySelector('[data-new-project-form]');form.querySelector('[data-settings-name]').value='Range check';form.querySelector('[data-settings-rate]').value='25';form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));}`)
+	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return s?.project?.fps===25 && !!s.projectId && s.project.tracks.length>0 && !s.dirty;}`)
+	page.MustEval(`async () => {
+ const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='#3989db';ctx.fillRect(0,0,64,64);
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+ const transfer=new DataTransfer();transfer.items.add(new File([blob],'blue.png',{type:'image/png'}));
+ const input=document.querySelector('[data-file-input]');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+}`)
+	wait(`() => VideoStudioApp.instances.get('e2e')?.project?.assets.length===1`)
+	page.MustElement(`[data-place-asset]`).MustClick()
+	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return s.project.tracks.some(t=>t.kind==='overlay'&&t.clips.length===1)&&!s.dirty;}`)
+	wait(`() => document.querySelector('[data-action="range-render"]')?.disabled===false`)
+	page.MustElement(`[data-action="range-render"]`).MustClick()
+	wait(`() => {const host=document.querySelector('[data-range-overlay]');return !!host && !host.hidden && ['ready','failed'].includes(host.dataset.rangeState);}`)
+	if state := page.MustEval(`() => {const host=document.querySelector('[data-range-overlay]');const s=VideoStudioApp.instances.get('e2e');return host.dataset.rangeState==='ready' ? '' : JSON.stringify({state:host.dataset.rangeState,status:host.querySelector('[data-range-status]')?.textContent,job:s.rangeCompare&&s.rangeCompare.job});}`).Str(); state != "" {
+		t.Fatal(state)
+	}
+	// The 1920x1080 project renders at 960x540; the 5 s image clip at the playhead is frames 0-125 at 25 fps.
+	if got := page.MustEval(`() => {const job=VideoStudioApp.instances.get('e2e').rangeCompare.job;return JSON.stringify({kind:job.kind,width:job.result.width,height:job.result.height,range:{start:job.result.range.start,end:job.result.range.end}});}`).Str(); got !=`{"kind":"range_render","width":960,"height":540,"range":{"start":0,"end":125}}` {
+		t.Fatalf("range check result: %s", got)
+	}
+	wait(`() => {const video=document.querySelector('[data-range-video]');return video.readyState>=1 && Math.abs(video.duration-5)<0.2;}`)
+	page.MustEval(`() => new Promise(resolve => {const video=document.querySelector('[data-range-video]');video.addEventListener('seeked',()=>resolve(true),{once:true});video.currentTime=2;})`)
+	page.MustElement(`[data-action="range-view"][data-view="live"]`).MustClick()
+	wait(`() => {const host=document.querySelector('[data-range-overlay]');return host.dataset.rangeView==='live' && host.querySelector('[data-range-video]').hidden && VideoStudioApp.instances.get('e2e').frame===50;}`)
+	page.MustElement(`[data-action="range-view"][data-view="rendered"]`).MustClick()
+	wait(`() => {const host=document.querySelector('[data-range-overlay]');const video=host.querySelector('[data-range-video]');return host.dataset.rangeView==='rendered' && !video.hidden && Math.abs(video.currentTime-2)<0.05;}`)
+	page.MustEval(`() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`)
+	wait(`() => document.querySelector('[data-range-overlay]').hidden && document.activeElement===document.querySelector('[data-action="range-render"]')`)
 	if !page.MustEval(`async () => await closeGuard()`).Bool() {
 		t.Fatal("saved editor refused close")
 	}
