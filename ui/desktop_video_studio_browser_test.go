@@ -427,6 +427,57 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		s.dirty=true;
 	}`)
 
+	// 1c: navigation keys (J/K/L, I/O, Alt+X, M, Shift+M, arrows, Ctrl+G) and the track rename. The flow restores the
+	// markers, in/out points, track name and playhead it found, so the next flow starts from the same project.
+	page.MustEval(`async()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const up=k=>window.dispatchEvent(new KeyboardEvent('keyup',{key:k,bubbles:true}));
+		const base=JSON.stringify({markers:s.project.markers,in_point:s.project.in_point,out_point:s.project.out_point}),startFrame=s.frame;
+		app.focus();
+		s.preview.pause(); s.preview.seek(60);
+		key('l'); if(!s.preview.isPlaying())throw new Error('L did not start playback');
+		key('l'); if(s.shuttle.rate()!==2)throw new Error('a second L did not double the rate: '+s.shuttle.rate());
+		key('k'); up('k'); if(s.preview.isPlaying())throw new Error('K did not stop playback');
+		if(s.preview.rate()!==1)throw new Error('stopping did not return the preview to 1x');
+		s.preview.seek(120); key('i');
+		if(s.project.in_point!==120)throw new Error('I did not set the in point: '+JSON.stringify(s.project.in_point));
+		s.preview.seek(240); key('o');
+		if(s.project.out_point!==240)throw new Error('O did not set the out point');
+		key('x',{altKey:true});
+		if('in_point' in s.project||'out_point' in s.project)throw new Error('Alt+X did not clear both points');
+		s.preview.seek(150); key('m');
+		if(!(s.project.markers||[]).some(m=>m.frame===150))throw new Error('M did not add a marker at the playhead');
+		key('m');
+		if(!document.querySelector('.vs-marker-pop'))throw new Error('M on a marker did not open its popover');
+		key('Escape',{},document.activeElement);
+		if(document.querySelector('.vs-marker-pop'))throw new Error('Escape did not close the marker popover');
+		s.preview.seek(0); key('M',{shiftKey:true});
+		if(s.frame!==150)throw new Error('Shift+M did not step to the next marker: '+s.frame);
+		const before=s.frame; key('ArrowDown');
+		if(s.frame<before)throw new Error('the down arrow moved the playhead backwards');
+		key('g',{ctrlKey:true});
+		if(!document.querySelector('[data-goto-input]'))throw new Error('Ctrl+G did not open go to timecode');
+		key('Escape',{},document.activeElement);
+		const named=document.querySelector('[data-track-name]');
+		if(!named)throw new Error('no track name to rename');
+		const trackId=named.dataset.trackName,originalName=s.project.tracks.find(t=>t.id===trackId).name;
+		named.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));
+		const input=document.querySelector('[data-track-rename]');
+		if(!input)throw new Error('double-click did not start renaming');
+		input.value='Lead';
+		input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+		if(s.project.tracks.find(t=>t.id===trackId).name!=='Lead')throw new Error('Enter did not rename the track');
+		// Put back what the flow changed.
+		s.project.tracks.find(t=>t.id===trackId).name=originalName;
+		const restore=JSON.parse(base||'{}');
+		for(const field of ['markers','in_point','out_point']){if(restore[field]===undefined)delete s.project[field];else s.project[field]=restore[field];}
+		s.dirty=true;
+		s.preview.seek(startFrame);
+		window.VideoStudioParts.renderTimeline(s);
+		if(JSON.stringify({markers:s.project.markers,in_point:s.project.in_point,out_point:s.project.out_point})!==base)throw new Error('the navigation flow did not restore the markers and in/out points');
+	}`)
+
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")
 	page.MustWaitLoad()

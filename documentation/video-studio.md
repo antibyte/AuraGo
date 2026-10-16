@@ -92,6 +92,24 @@ ten), `Q`/`W` ripple trim the start or end of the clip under the playhead to it,
 `Shift+Z` fits the timeline. Right-click a clip or empty track space (or press `Shift+F10` on a focused clip)
 for a menu with these actions.
 
+Navigation: `J`, `K` and `L` shuttle back, stop and forward; repeated presses double the speed up to eight times, and
+`K` with `J` or `L` steps one frame. `I` and `O` set the in and out points at the playhead, `Shift+I` and `Shift+O` go to
+them and `Alt+X` clears both; the loop button in the transport plays from in to out (or the whole timeline when they are
+not set). `↑` and `↓` jump to the previous or next edit point on the unlocked, visible tracks. `M` adds a marker at the
+playhead (a second `M` on a marker opens it), `Shift+M` and `Ctrl+Shift+M` step to the next and previous marker, and
+`Ctrl+G` (or a click on the time) goes to a timecode. Markers appear as flags in the ruler: click to go there, drag to
+move (snapping to clips, the playhead and the in/out points), double-click to edit the name, colour, note and duration.
+The overview strip above the ruler shows the whole project; drag the window to scroll, its edges to zoom. The
+Properties panel lists the markers when no clip is selected. `Shift`+wheel scrolls the timeline sideways.
+
+Tracks: each track header has a kind badge that makes it the paste target (one per kind), a solo button on audio tracks
+(it only changes what the preview plays, and is not saved), mute, hide and lock buttons, and a `…` menu. In narrow
+windows the mute, hide and lock buttons leave the header and are offered in the `…` menu instead. Double-click a name to
+rename it. The track menu (also on right-click) adds a track above or below, sets the height (small, medium or large),
+toggles the paste target, solo, mute, hide and lock, and deletes the track: an empty track goes at once, a track with clips
+asks first (and a locked track must be unlocked first); the deletion can be undone. Drag a header onto another header of
+the same kind to move it. Heights and targets are remembered on this computer for each project.
+
 Clips can be linked: `Ctrl+L` links the selected clips, or unlinks them when they already share a link. Clicking or
 selecting a linked clip selects its whole link group; hold `Alt` while clicking to select the clip alone. Delete, copy,
 duplicate, nudge and the other commands act on the selection as it is. Dragging a selected clip moves the selection
