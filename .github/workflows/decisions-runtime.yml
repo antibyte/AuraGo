@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    timeout-minutes: 120
+    timeout-minutes: ${{ matrix.backend == 'cuda' && 360 || 120 }}
     strategy:
       fail-fast: false
       matrix:
