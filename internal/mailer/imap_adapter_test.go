@@ -36,11 +36,143 @@ func TestIMAPMetadataPreviewAndAttachmentCountStayOutOfTheBody(t *testing.T) {
 	if snippet != "Hello there friend" {
 		t.Fatalf("snippet = %q", snippet)
 	}
+	plain := imapListSnippet([]byte("See <https://example.com/a> and <ada@example.test> today. 5 > 3"))
+	if plain != "See <https://example.com/a> and <ada@example.test> today. 5 > 3" {
+		t.Fatalf("plain snippet = %q", plain)
+	}
+	set, cursorUID, exhausted, err := imapSearchPageLimit("9")
+	if err != nil || exhausted || cursorUID != 9 || set == nil || set.String() != "1:8" {
+		t.Fatalf("page limit = %v uid=%d exhausted=%v err=%v", set, cursorUID, exhausted, err)
+	}
+	if _, _, exhausted, err = imapSearchPageLimit("1"); err != nil || !exhausted {
+		t.Fatalf("cursor 1 = exhausted %v err %v", exhausted, err)
+	}
+	if _, _, _, err = imapSearchPageLimit("nope"); err == nil {
+		t.Fatal("invalid cursor was accepted")
+	}
 	if messagePreview(Message{Snippet: "from snippet", Text: "from text", Subject: "subject"}) != "from snippet" {
 		t.Fatal("preview ignored the snippet")
 	}
 	if messagePreview(Message{Text: "from text", Subject: "subject"}) != "from text" || messagePreview(Message{Subject: "subject"}) != "subject" {
 		t.Fatal("preview fallback order changed")
+	}
+}
+
+func TestIMAPSyncDropsBrokenSessionAndDialsAgain(t *testing.T) {
+	serverTLS, clientTLS := smtpFixtureTLS(t)
+	firstClient, firstServer := net.Pipe()
+	secondClient, secondServer := net.Pipe()
+	defer firstClient.Close()
+	defer secondClient.Close()
+	firstServer = tls.Server(firstServer, serverTLS)
+	secondServer = tls.Server(secondServer, serverTLS)
+	defer firstServer.Close()
+	defer secondServer.Close()
+	serve := func(conn net.Conn, failSelect bool, done chan error) {
+		go func() {
+			_ = conn.SetDeadline(time.Now().Add(12 * time.Second))
+			if _, err := io.WriteString(conn, "* OK [CAPABILITY IMAP4rev1] fixture IMAP ready\r\n"); err != nil {
+				done <- err
+				return
+			}
+			reader := bufio.NewReader(conn)
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					done <- err
+					return
+				}
+				line = strings.TrimRight(line, "\r\n")
+				parts := strings.SplitN(line, " ", 3)
+				if len(parts) < 2 {
+					done <- fmt.Errorf("invalid IMAP command: %q", line)
+					return
+				}
+				tag, command := parts[0], strings.ToUpper(parts[1])
+				switch command {
+				case "CAPABILITY":
+					_, err = fmt.Fprintf(conn, "* CAPABILITY IMAP4rev1\r\n%s OK CAPABILITY completed\r\n", tag)
+				case "LOGIN":
+					_, err = fmt.Fprintf(conn, "%s OK [CAPABILITY IMAP4rev1] LOGIN completed\r\n", tag)
+				case "LIST":
+					_, err = io.WriteString(conn, "* LIST () \"/\" INBOX\r\n")
+					if err == nil {
+						_, err = fmt.Fprintf(conn, "%s OK LIST completed\r\n", tag)
+					}
+				case "EXAMINE", "SELECT":
+					if failSelect {
+						_, err = fmt.Fprintf(conn, "%s NO select failed\r\n", tag)
+					} else {
+						_, err = io.WriteString(conn, "* FLAGS (\\Seen)\r\n* 0 EXISTS\r\n* 0 RECENT\r\n* OK [UIDVALIDITY 3] valid\r\n")
+						if err == nil {
+							_, err = fmt.Fprintf(conn, "%s OK [READ-ONLY] selected\r\n", tag)
+						}
+					}
+				case "UID":
+					_, err = fmt.Fprintf(conn, "* SEARCH\r\n%s OK SEARCH completed\r\n", tag)
+				case "LOGOUT":
+					_, _ = io.WriteString(conn, "* BYE logging out\r\n")
+					_, err = fmt.Fprintf(conn, "%s OK LOGOUT completed\r\n", tag)
+					done <- err
+					return
+				default:
+					_, err = fmt.Fprintf(conn, "%s OK completed\r\n", tag)
+				}
+				if err != nil {
+					done <- err
+					return
+				}
+			}
+		}()
+	}
+	done1 := make(chan error, 1)
+	done2 := make(chan error, 1)
+	serve(firstServer, true, done1)
+	serve(secondServer, false, done2)
+	var dials int
+	var dialMu sync.Mutex
+	adapter := &imapAdapter{cfg: TransportConfig{ID: "fixture", Source: "email", IMAPHost: "127.0.0.1", ReceiveTLS: "tls", Username: "user", Password: "password", TLSConfig: clientTLS,
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			dialMu.Lock()
+			defer dialMu.Unlock()
+			dials++
+			switch dials {
+			case 1:
+				return firstClient, nil
+			case 2:
+				return secondClient, nil
+			default:
+				return nil, errors.New("unexpected IMAP dial")
+			}
+		}}}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	stop, err := adapter.StartSyncSession(ctx)
+	if err != nil {
+		t.Fatalf("start sync session: %v", err)
+	}
+	defer stop()
+	if _, err := adapter.Sync(ctx, "INBOX", ""); err == nil {
+		t.Fatal("broken select succeeded")
+	}
+	if adapter.currentSyncSession() != nil {
+		t.Fatal("broken sync session was kept")
+	}
+	folders, err := adapter.Folders(ctx)
+	if err != nil {
+		t.Fatalf("folders after reconnect: %v", err)
+	}
+	if len(folders) != 1 || folders[0].Name != "INBOX" {
+		t.Fatalf("folders = %#v", folders)
+	}
+	if err := <-done2; err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatal(err)
+	}
+	dialMu.Lock()
+	gotDials := dials
+	dialMu.Unlock()
+	if gotDials != 2 {
+		t.Fatalf("IMAP dials = %d", gotDials)
 	}
 }
 

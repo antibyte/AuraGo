@@ -106,6 +106,46 @@ func TestParseMIMEKeepsLaterPartsWhenHTMLIsSkipped(t *testing.T) {
 	}
 }
 
+func TestParseMIMEKeepsAcceptedHTMLWhenALaterPartIsSkipped(t *testing.T) {
+	_, _, _, _, text, html, _, htmlSkipped, err := ParseMIME(mixedHTMLFixture(true), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if htmlSkipped || !strings.Contains(html, "shown") || strings.Contains(html, "hidden") || text != "plain stays" {
+		t.Fatalf("later HTML failure cleared the message: skipped=%v html=%q text=%q", htmlSkipped, html, text)
+	}
+}
+
+func TestParseMIMEUsesLaterHTMLWhenTheFirstPartIsSkipped(t *testing.T) {
+	_, _, _, _, text, html, _, htmlSkipped, err := ParseMIME(mixedHTMLFixture(false), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if htmlSkipped || !strings.Contains(html, "shown") || strings.Contains(html, "hidden") || text != "plain stays" {
+		t.Fatalf("later HTML stayed hidden: skipped=%v html=%q text=%q", htmlSkipped, html, text)
+	}
+}
+
+func mixedHTMLFixture(goodFirst bool) []byte {
+	var nested strings.Builder
+	for i := 0; i < 80; i++ {
+		nested.WriteString("<div>")
+	}
+	nested.WriteString("hidden")
+	for i := 0; i < 80; i++ {
+		nested.WriteString("</div>")
+	}
+	first, second := "<p>shown</p>", nested.String()
+	if !goodFirst {
+		first, second = second, "<p>shown</p>"
+	}
+	return []byte("From: sender@example.test\r\nTo: reader@example.test\r\nSubject: mixed\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=bound\r\n\r\n" +
+		"--bound\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + first + "\r\n" +
+		"--bound\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + second + "\r\n" +
+		"--bound\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nplain stays\r\n" +
+		"--bound--\r\n")
+}
+
 func TestParseReplyToExtractsOnlyMailboxAddresses(t *testing.T) {
 	raw := []byte("From: sender@example.test\r\nReply-To: Support Team <support@example.test>, Escalations <ops@example.test>\r\nSubject: help\r\n\r\nbody\r\n")
 	got := ParseReplyTo(raw)

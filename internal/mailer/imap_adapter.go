@@ -70,36 +70,54 @@ func (a *imapAdapter) StartSyncSession(ctx context.Context) (func(), error) {
 	}
 	a.session = &imapSyncSession{client: c, conn: conn, stop: stop}
 	a.mu.Unlock()
-	var once sync.Once
-	return func() {
-		once.Do(func() {
-			a.mu.Lock()
-			sess := a.session
-			a.session = nil
-			a.mu.Unlock()
-			if sess == nil {
-				return
-			}
-			_ = sess.client.Logout()
-			if sess.stop != nil {
-				sess.stop()
-			}
-			_ = sess.conn.Close()
-		})
-	}, nil
+	return func() { closeIMAPSession(a.takeSyncSession(), true) }, nil
+}
+
+func (a *imapAdapter) takeSyncSession() *imapSyncSession {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	sess := a.session
+	a.session = nil
+	return sess
+}
+
+func (a *imapAdapter) dropSyncSession() {
+	closeIMAPSession(a.takeSyncSession(), false)
+}
+
+func closeIMAPSession(sess *imapSyncSession, logout bool) {
+	if sess == nil {
+		return
+	}
+	if logout && sess.client != nil {
+		_ = sess.client.Logout()
+	}
+	if sess.stop != nil {
+		sess.stop()
+	}
+	if sess.conn != nil {
+		_ = sess.conn.Close()
+	}
 }
 
 func (a *imapAdapter) withClient(ctx context.Context, fn func(*imapclient.Client) error) error {
 	if sess := a.currentSyncSession(); sess != nil {
 		if err := sess.conn.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+			a.dropSyncSession()
 			return err
 		}
 		sess.client.Timeout = 30 * time.Second
 		err := fn(sess.client)
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if err != nil || ctx.Err() != nil {
+			// A failed command can leave the shared connection unusable.
+			// Drop it so the next folder dials a new one.
+			a.dropSyncSession()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return err
 		}
-		return err
+		return nil
 	}
 	c, conn, stop, err := dialIMAP(ctx, a.cfg)
 	if err != nil {
@@ -219,7 +237,15 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		limit = 100
 	}
 	var page MessagePage
-	err := a.withClient(ctx, func(c *imapclient.Client) error {
+	pageLimit, cursorUID, exhausted, err := imapSearchPageLimit(query.Cursor)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	if exhausted {
+		page.Limit = limit
+		return page, nil
+	}
+	err = a.withClient(ctx, func(c *imapclient.Client) error {
 		folder := a.providerFolder(folderID)
 		status, err := c.Select(folder, true)
 		if err != nil {
@@ -227,6 +253,7 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		}
 		criteria := imap.NewSearchCriteria()
 		criteria.Text = []string{text}
+		criteria.Uid = pageLimit
 		if query.Unread {
 			criteria.WithoutFlags = append(criteria.WithoutFlags, imap.SeenFlag)
 		}
@@ -239,16 +266,9 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		}
 		sort.Slice(uids, func(i, j int) bool { return uids[i] > uids[j] })
 		page.Total = len(uids)
-		var cursorUID uint64
-		if query.Cursor != "" {
-			cursorUID, err = strconv.ParseUint(query.Cursor, 10, 32)
-			if err != nil || cursorUID == 0 {
-				return fmt.Errorf("invalid IMAP search cursor")
-			}
-		}
 		filtered := make([]uint32, 0, len(uids))
 		for _, uid := range uids {
-			if cursorUID == 0 || uint64(uid) < cursorUID {
+			if cursorUID == 0 || uint64(uid) < uint64(cursorUID) {
 				filtered = append(filtered, uid)
 			}
 		}
@@ -266,6 +286,27 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 	})
 	return page, err
 }
+
+// imapSearchPageLimit restricts a later page to UIDs below the cursor. The
+// cursor is the smallest UID already returned. An empty cursor searches the
+// whole folder. Cursor 1 has no smaller UID.
+func imapSearchPageLimit(cursor string) (*imap.SeqSet, uint32, bool, error) {
+	if cursor == "" {
+		return nil, 0, false, nil
+	}
+	parsed, err := strconv.ParseUint(cursor, 10, 32)
+	if err != nil || parsed == 0 {
+		return nil, 0, false, fmt.Errorf("invalid IMAP search cursor")
+	}
+	cursorUID := uint32(parsed)
+	if cursorUID == 1 {
+		return nil, cursorUID, true, nil
+	}
+	set := new(imap.SeqSet)
+	set.AddRange(1, cursorUID-1)
+	return set, cursorUID, false, nil
+}
+
 func (a *imapAdapter) fetchUIDs(c *imapclient.Client, folder string, uids []uint32) ([]Message, error) {
 	if len(uids) == 0 {
 		return []Message{}, nil
@@ -385,33 +426,7 @@ func imapListSnippet(raw []byte) string {
 	} else if index := strings.Index(text, "\n\n"); index >= 0 && imapSnippetHeader(text[:index]) {
 		text = text[index+2:]
 	}
-	if strings.Contains(text, ">") {
-		var b strings.Builder
-		inTag := false
-		for _, r := range text {
-			switch {
-			case r == '<':
-				inTag = true
-			case r == '>':
-				inTag = false
-				b.WriteByte(' ')
-			case !inTag:
-				if r < 32 {
-					b.WriteByte(' ')
-				} else {
-					b.WriteRune(r)
-				}
-			}
-		}
-		text = b.String()
-	} else {
-		text = strings.Map(func(r rune) rune {
-			if r < 32 {
-				return ' '
-			}
-			return r
-		}, text)
-	}
+	text = stripIMAPSnippetTags(text)
 	text = strings.Join(strings.Fields(text), " ")
 	runes := []rune(text)
 	if len(runes) > 180 {
@@ -419,6 +434,67 @@ func imapListSnippet(raw []byte) string {
 	}
 	return text
 }
+
+func stripIMAPSnippetTags(text string) string {
+	runes := []rune(text)
+	var b strings.Builder
+	b.Grow(len(text))
+	for i := 0; i < len(runes); {
+		if runes[i] == '<' {
+			if end := imapSnippetTagEnd(runes, i); end > i {
+				b.WriteByte(' ')
+				i = end + 1
+				continue
+			}
+		}
+		if runes[i] < 32 {
+			b.WriteByte(' ')
+		} else {
+			b.WriteRune(runes[i])
+		}
+		i++
+	}
+	return b.String()
+}
+
+func imapSnippetTagEnd(runes []rune, start int) int {
+	if start+4 <= len(runes) && string(runes[start:start+4]) == "<!--" {
+		for j := start + 4; j+2 < len(runes); j++ {
+			if runes[j] == '-' && runes[j+1] == '-' && runes[j+2] == '>' {
+				return j + 2
+			}
+		}
+		return -1
+	}
+	i := start + 1
+	if i < len(runes) && (runes[i] == '/' || runes[i] == '!') {
+		i++
+	}
+	if i >= len(runes) || !asciiLetter(runes[i]) {
+		return -1
+	}
+	i++
+	for i < len(runes) && (asciiLetter(runes[i]) || asciiDigit(runes[i])) {
+		i++
+	}
+	if i >= len(runes) {
+		return -1
+	}
+	switch runes[i] {
+	case '>', ' ', '\t', '\r', '\n', '/':
+	default:
+		return -1
+	}
+	for j := i; j < len(runes); j++ {
+		if runes[j] == '>' {
+			return j
+		}
+	}
+	return -1
+}
+
+func asciiLetter(r rune) bool { return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') }
+func asciiDigit(r rune) bool  { return r >= '0' && r <= '9' }
 
 func imapSnippetHeader(value string) bool {
 	lower := strings.ToLower(value)

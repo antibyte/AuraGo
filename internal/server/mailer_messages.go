@@ -73,7 +73,7 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 		if remote {
 			scope = "provider"
 		}
-		mailerJSON(w, 200, map[string]any{"items": items, "total": page.Total, "next_cursor": next, "offset": page.Offset, "limit": page.Limit, "search_scope": scope, "partial": remote && (next != "" || page.Total > len(items))})
+		mailerJSON(w, 200, map[string]any{"items": items, "total": page.Total, "next_cursor": next, "offset": page.Offset, "limit": page.Limit, "search_scope": scope, "partial": remote && next != ""})
 		return
 	}
 	if p[0] == "threads" && len(p) >= 2 {

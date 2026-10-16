@@ -17,7 +17,9 @@ remain in the Vault and are resolved only when an adapter is created.
   minutes; new mail, a leftover page, deletions, or another error wait 60
   seconds. Disabled and read-only passes use the idle interval. The outbox loop
   stays at one second. The due map is in memory.
-- One IMAP session serves each account pass, with sequential commands. Completion
+- One IMAP session serves each account pass, with sequential commands. A failed
+  command closes that session so the next folder dials again. Cancellation still
+  stops the pass. Completion
   stores the high-water UID and UIDVALIDITY, so the next pass searches only
   newer UIDs. A validity change clears the cursor and takes a full snapshot.
   After the first snapshot, later passes still do not remove older messages that
@@ -29,15 +31,17 @@ remain in the Vault and are resolved only when an adapter is created.
   `BODY.PEEK`.
 - One unreadable message stays in the thread. The thread path sets `ReadError`
   to the fixed code `message_unavailable` and does not write that code back.
-  A failed HTML sanitize clears HTML, sets `HTMLSkipped`, and keeps later text
-  and attachments. A POP3 message that cannot be parsed keeps `Raw` and headers,
+  A failed HTML sanitize keeps an earlier HTML part that succeeded. `HTMLSkipped`
+  is set only when no HTML part could be shown. Later text and attachments stay.
+  A POP3 message that cannot be parsed keeps `Raw` and headers,
   leaves `Text` empty, and persists `ReadError` `message_unparsed`.
 - Provider search pages one folder of one account and forwards the provider
   cursor. The UI toggle stays on while the query is edited. Account, view,
   folder, and clear-search reset it. A single-account inbox uses the folder
   whose kind is `inbox`. The all-accounts inbox stays local. Remote HTTP results
-  keep `next_cursor`. `partial` is true when a next cursor exists or the reported
-  total exceeds the delivered page.
+  keep `next_cursor`. `partial` is true only when that cursor is present, so the
+  last page does not advertise another page. A later IMAP page searches only
+  UIDs below the cursor.
 - Automatically evaluate rules only for newly indexed messages. Historical
   application is explicit and previews make no changes. Rules cannot forward or
   permanently delete messages.

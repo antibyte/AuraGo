@@ -265,11 +265,13 @@ func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []strin
 			if strings.EqualFold(ct, "text/html") {
 				sanitized, sanitizeErr := SanitizeHTML(string(data))
 				if sanitizeErr != nil {
-					html = ""
-					htmlSkipped = true
+					if html == "" {
+						htmlSkipped = true
+					}
 					continue
 				}
 				html = sanitized
+				htmlSkipped = false
 			} else if strings.HasPrefix(strings.ToLower(ct), "text/") && text == "" {
 				text = string(data)
 			}
