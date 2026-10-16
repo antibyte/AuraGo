@@ -102,6 +102,7 @@
         const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
         const isImage = desktopIsImageFile(name);
         const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
+        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
         if (isText) {
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (isImage) {
@@ -132,7 +133,8 @@
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
-        const ext = desktopFileExtension(name);
+        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
+        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
         if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
         const openItems = apps.map(app => ({
             label: app.label,
@@ -1866,6 +1868,18 @@ if (appId === 'pixel') {
                 return;
             }
             return window.NewspaperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog }));
+        }
+        if (appId === 'bookshelf') {
+            if (!window.BookshelfApp) {
+                window.AuraDesktopModules.loadAppScript('bookshelf').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            const win = state.windows.get(id);
+            return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
+                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                openApp
+            }));
         }
         if (appId === 'local-wikipedia') {
             if (!window.LocalWikipediaApp) {

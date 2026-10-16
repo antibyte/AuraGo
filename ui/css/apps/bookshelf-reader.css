@@ -1,0 +1,20 @@
+/* PDF.js 6 text geometry; scoped to Bookshelf so other PDF viewers keep their styles. */
+.bookshelf-pdf-text {
+    color-scheme: only light; letter-spacing: normal; word-spacing: normal;
+    text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0;
+    --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+    --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.bookshelf-pdf-text :is(span, br) {
+    color: transparent; position: absolute; white-space: pre; cursor: text;
+    transform-origin: 0 0; user-select: text;
+}
+.bookshelf-pdf-text > :not(.markedContent), .bookshelf-pdf-text .markedContent span:not(.markedContent) {
+    z-index: 1; --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height));
+    --scale-x: 1; --rotate: 0deg;
+    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.bookshelf-pdf-text .markedContent { display: contents; }
+.bookshelf-pdf-text span[role="img"] { user-select: none; cursor: default; }
+.bookshelf-pdf-text ::selection { background: #ca9c3866; }
+.bookshelf-pdf-viewport { scrollbar-gutter: stable; overscroll-behavior: contain; }

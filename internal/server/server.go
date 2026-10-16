@@ -163,6 +163,8 @@ type Server struct {
 	lockdownLogOnce sync.Once
 	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	bookshelfMu     sync.Mutex
+	bookshelf       *desktopBookshelfRuntime
 
 	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
 	serverLifetimeCancel context.CancelFunc
@@ -478,8 +480,41 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if previous != nil && (previous.LLMRouter.Enabled != cfg.LLMRouter.Enabled || previous.LLMRouter.DecisionsFallback != cfg.LLMRouter.DecisionsFallback) {
 		s.routingDecisionEpoch.Add(1)
 	}
-	if previous != nil && (previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr || previous.VirtualDesktop.ReadOnly != cfg.VirtualDesktop.ReadOnly || previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled) {
-		s.revokeStorageRequests()
+	if previous != nil {
+		genericStoragePolicyChanged := previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr ||
+			previous.VirtualDesktop.ReadOnly != cfg.VirtualDesktop.ReadOnly || previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled ||
+			previous.VirtualDesktop.MaxFileSizeMB != cfg.VirtualDesktop.MaxFileSizeMB
+		if genericStoragePolicyChanged {
+			// Preserve Desktop storage's existing global revocation boundary for
+			// active reads and mutations when any storage policy changes.
+			s.revokeStorageRequests()
+		}
+		oldWebDAV, newWebDAV := previous.WebDAV, cfg.WebDAV
+		oldKoofr, newKoofr := previous.Koofr, cfg.Koofr
+		oldWebDAV.ReadOnly = newWebDAV.ReadOnly
+		oldKoofr.ReadOnly = newKoofr.ReadOnly
+		storageIdentityChanged := oldWebDAV != newWebDAV || oldKoofr != newKoofr ||
+			previous.VirtualDesktop.Enabled != cfg.VirtualDesktop.Enabled || previous.VirtualDesktop.WorkspaceDir != cfg.VirtualDesktop.WorkspaceDir ||
+			previous.VirtualDesktop.MaxFileSizeMB != cfg.VirtualDesktop.MaxFileSizeMB
+		bookshelfJobsMustStop := genericStoragePolicyChanged || storageIdentityChanged ||
+			previous.VirtualDesktop.BookshelfEnabled != cfg.VirtualDesktop.BookshelfEnabled ||
+			previous.VirtualDesktop.BookshelfConverterPath != cfg.VirtualDesktop.BookshelfConverterPath
+		if storageIdentityChanged {
+			s.cancelDesktopBookshelfJobs()
+			s.revokeDesktopBookshelfTickets()
+		} else if bookshelfJobsMustStop {
+			s.cancelDesktopBookshelfJobs()
+			if previous.VirtualDesktop.Enabled && !cfg.VirtualDesktop.Enabled || previous.VirtualDesktop.BookshelfEnabled && !cfg.VirtualDesktop.BookshelfEnabled {
+				s.revokeDesktopBookshelfTickets()
+			}
+		}
+	}
+	if err := s.updateDesktopBookshelfMaxBytes(cfg); err != nil {
+		logger := s.Logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("Could not update Bookshelf file-size limit", "error", err)
 	}
 	if previous != nil && videoStudioConfigRootsChanged(previous, cfg) {
 		// Cancel before publishing the new roots. A worker may finish an FFmpeg
@@ -521,6 +556,10 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled &&
+		(previous == nil || !previous.VirtualDesktop.Enabled || !previous.VirtualDesktop.BookshelfEnabled) {
+		s.startDesktopBookshelfAtStartup(s.integrationCtx)
+	}
 	s.reconfigureDecisions(previous, cfg)
 	if s.RuView != nil {
 		s.RuView.Configure()
@@ -720,6 +759,7 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	s.startDesktopBookshelfAtStartup(serverCtx)
 	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
 	// own (listener failure) too, not only on shutdownCh.
 	s.setServerLifetimeCancel(serverCancel)
@@ -2054,7 +2094,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/") ||
+		allowDesktopIframe := path == "/api/desktop/bookshelf/reader" || strings.HasPrefix(path, "/files/desktop/") ||
 			strings.HasPrefix(path, "/api/go2rtc/viewer/") ||
 			strings.HasPrefix(path, "/api/game-maker/preview/")
 

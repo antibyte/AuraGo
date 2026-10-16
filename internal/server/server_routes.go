@@ -72,6 +72,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	go func() {
 		<-shutdownCh
 		s.shutdownDesktopStorage()
+		s.shutdownDesktopBookshelf()
 	}()
 
 	// Initialize Daemon Supervisor (long-running daemon skills)
@@ -557,6 +558,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/fritzbox/overview", handleDesktopFritzBoxOverview(s))
 	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
 	mux.HandleFunc("/api/desktop/storage/", handleDesktopStorage(s))
+	mux.HandleFunc("/api/desktop/bookshelf", handleDesktopBookshelf(s))
+	mux.HandleFunc("/api/desktop/bookshelf/", handleDesktopBookshelf(s))
 	mux.HandleFunc("/api/desktop/gallery/metadata", handleDesktopGalleryMetadata(s))
 	mux.HandleFunc("/api/desktop/gallery/categories", handleDesktopGalleryCategories(s))
 	mux.HandleFunc("/api/desktop/search", handleDesktopSearch(s))

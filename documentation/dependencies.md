@@ -84,6 +84,17 @@ tables from `webaudio-tinysynth` 1.1.4 (Apache-2.0) under
 playback and offline WAV export; the upstream TinySynth player is not loaded.
 Retain the source/version, checksum and license records beside these assets.
 
+Bookshelf pins foliate-js at `78914aef4466eb960965702401634c2cb348e9b1`
+(MIT), with ZIP.js 2.8.22 and fflate 0.8.2 selected from that revision. Its
+adapter uses the repository's DOMPurify and PDF.js. Source, local safety patches,
+licenses and hashes live in `ui/js/vendor/foliate/`. Rebuild with
+`node scripts/build-bookshelf-reader.mjs`, verify with `--check`, and run
+`node scripts/test-bookshelf-reader-security.mjs` plus
+`TestDesktopBookshelfReaderBrowser` before updating these assets.
+Optional Calibre conversion is an operator-installed Linux runtime with
+`bubblewrap` and `prlimit`; ordinary reading has no converter dependency. No
+Calibre binaries are redistributed or installed by Bookshelf.
+
 Run `npm ci` before generators. `npm run build:browser-vendor` rebuilds shared
 libraries, licenses and hashes, including Three.js and its matching loaders,
 PDF.js workers/fonts, noVNC, Rive, ESP Web Tools and esptool-js (the CYD Creator

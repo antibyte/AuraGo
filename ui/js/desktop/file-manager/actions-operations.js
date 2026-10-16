@@ -605,13 +605,23 @@
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
             apps.push({ label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
+
+        if (/\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(file.name || file.path || ''))) {
+            apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
+        }
         
         return apps.map(app => ({
             label: app.label,
             action: 'open-with-' + app.appId,
             handler: () => {
                 if (fm.callbacks && typeof fm.callbacks.openApp === 'function') {
-                    fm.callbacks.openApp(app.appId, { path: file.path });
+                    const context = { path: file.path };
+                    if (app.appId === 'bookshelf') {
+                        const storage = fm.storage || { provider: 'local', mount_id: '' };
+                        context.provider = storage.provider || 'local';
+                        context.mount_id = storage.mount_id || '';
+                    }
+                    fm.callbacks.openApp(app.appId, context);
                 }
             }
         }));

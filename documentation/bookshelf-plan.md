@@ -1,7 +1,8 @@
 # Bookshelf desktop app plan
 
-Status: proposed product and implementation plan, 2026-10-16. No application
-code has been implemented. The user selected the third displayed concept,
+Status: implementation and acceptance contract, 2026-10-16. The application is
+implemented locally; deployment and live-provider acceptance remain separate.
+The user selected the third displayed concept,
 **The Reading Salon**, as the visual target. The reference is an illustration,
 not a screenshot of a working app: [selected design](../assets/bookshelf/design-reference.png).
 
@@ -276,13 +277,19 @@ These are implementation increments of the requested app, not permission to call
 an EPUB/PDF-only local prototype feature-complete. Complete delivery includes all
 three named remote providers and the declared supported-format paths.
 
-Proposed performance acceptance uses a fixed recorded reference machine and
-browser: a 10,000-record catalog with only viewport-adjacent cover rows mounted,
+Performance acceptance uses a fixed recorded reference machine and
+browser: a 10,000-record catalog with a bounded number of cover rows mounted,
 cached first shelf visible within 1 second, metadata search within 200 ms after
 debounce, and responsive scrolling without repeated long tasks over 50 ms.
 These are targets, not measured results. Large-book memory remains bounded by
 explicit limits and the active page/chapter window. Reading starts independently
 of a full-library scan.
+
+The implemented shelf uses explicit pages of at most 36 books instead of row
+virtualization. Search and sorting still cover the complete catalog. This keeps
+DOM size bounded and makes keyboard focus and screen-reader navigation stable;
+page changes preserve the current filter. The 10,000-record timing targets still
+require a recorded performance run on the deployment's reference machine.
 
 Verification combines Go service/handler tests, deterministic reader fixtures,
 browser flow tests, accessibility inspection and side-by-side visual review.
@@ -325,7 +332,7 @@ deployment remain separate from local fixtures.
   `ui/desktop_log_viewer_test.go`: existing registration/lifecycle test patterns.
   Theme contrast/consistency tests remain applicable to the new app.
 
-Proposed new implementation ownership: `internal/bookshelf/` owns catalog,
+Implementation ownership: `internal/bookshelf/` owns catalog,
 scans, read preparation/cache and reader-state validation; server Bookshelf
 handlers own HTTP authorization and source capability injection. A narrow
 read-only source interface needs list, stat and open only. Reuse typed Desktop
@@ -348,17 +355,30 @@ contract table. Register Open with Bookshelf for supported formats and preserve
 the existing PDF default unless the user selects Bookshelf. Add the app's icon
 to both theme manifests and its lazy locale section to all sixteen languages.
 
-## Planning verification and remaining decisions
+## Verification boundaries
 
 Source contracts, current cloud-storage documentation, existing PDF.js use and
 upstream reader/converter capabilities were inspected for this plan. GitNexus's
 planning impact query for the existing `loadPdf` reported no resolved callers
 and UNKNOWN risk, with an index 85 commits behind HEAD; that is not evidence of
-zero implementation impact. Refresh and rerun impact analysis before changing
-runtime symbols. No runtime change is made by this document.
+zero implementation impact. Implementation queries remained unresolved against
+the stale graph and its local refresh failed during native worker startup.
+Current source, call sites, isolated build snapshots and focused executable
+tests therefore provide the implementation evidence; the graph is not a clean
+impact certificate.
 
-Remaining gates: validate reader isolation and format fidelity; confirm the
-exact remote SMB adapter and optional conversion
-runtime. Browser-offline reading, external metadata lookup, full-text library
+The reader browser corpus covers EPUB (flowing and fixed-layout), PDF, MOBI6,
+KF8/AZW3, FB2, FB2.ZIP, CBZ, TXT and HTML. It exercises opaque-origin isolation,
+blocked book scripts/network requests, contents/search, navigation, typography,
+CFI resume, thumbnails and disposal. Service and handler fixtures cover catalog
+edits, source authorization, read preparation, revocation, readonly operation,
+range delivery, migration and stale reader state.
+
+Real NAS/WebDAV/Koofr interoperability, Linux converter execution and hardware
+performance remain deployment-environment acceptance gates. The optional
+converter fails closed where its namespace sandbox is unavailable. Synthetic
+fixtures do not establish live-provider or every-publisher format fidelity.
+
+Browser-offline reading, external metadata lookup, full-text library
 indexing, OCR, TTS, AI features, DRM processing and source-file management are
 outside the first implementation. None is necessary for the requested core.

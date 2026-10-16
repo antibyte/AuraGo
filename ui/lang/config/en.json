@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "Decisions-only profile",
   "config.providers.not_available_here": "not available here",
   "config.telephone_agent.provider_unavailable": "provider unavailable",
-  "config.decisions.lifecycle_busy": "Another installation or start is already running."
+  "config.decisions.lifecycle_busy": "Another installation or start is already running.",
+  "config.virtual_desktop.bookshelf_enabled_label": "Enable Bookshelf",
+  "help.virtual_desktop.bookshelf_enabled": "Enable Bookshelf to manage and read books from selected local folders and connected sources. It is off by default.",
+  "config.virtual_desktop.bookshelf_converter_path_label": "Ebook converter executable",
+  "help.virtual_desktop.bookshelf_converter_path": "Linux path to ebook-convert. Conversion also requires bwrap and prlimit isolation; leave empty to disable. Example: /usr/bin/ebook-convert or /opt/calibre/ebook-convert. On unsupported platforms, import a converted book instead."
 }

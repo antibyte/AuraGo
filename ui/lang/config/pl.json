@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "profil tylko dla Decisions",
   "config.providers.not_available_here": "niedostępne tutaj",
   "config.telephone_agent.provider_unavailable": "dostawca niedostępny",
-  "config.decisions.lifecycle_busy": "Instalacja lub uruchomienie już trwa."
+  "config.decisions.lifecycle_busy": "Instalacja lub uruchomienie już trwa.",
+  "config.virtual_desktop.bookshelf_enabled_label": "Włącz Bookshelf",
+  "help.virtual_desktop.bookshelf_enabled": "Włącz Bookshelf, aby zarządzać książkami z wybranych folderów lokalnych i połączonych źródeł oraz je czytać. Domyślnie funkcja jest wyłączona.",
+  "config.virtual_desktop.bookshelf_converter_path_label": "Program do konwersji książek",
+  "help.virtual_desktop.bookshelf_converter_path": "Ścieżka do ebook-convert w systemie Linux. Konwersja wymaga także izolacji za pomocą bwrap i prlimit; puste pole ją wyłącza. Przykład: /usr/bin/ebook-convert lub /opt/calibre/ebook-convert. Na nieobsługiwanych platformach zaimportuj już przekonwertowaną książkę."
 }

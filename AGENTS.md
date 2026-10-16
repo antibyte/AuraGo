@@ -281,6 +281,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
 | Decisions native scoring runtime | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
+| Bookshelf library, sources, reader isolation and conversion | `internal/bookshelf/AGENTS.md` |
 | ONNX Runtime binding, asset cache and person detection worker | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |

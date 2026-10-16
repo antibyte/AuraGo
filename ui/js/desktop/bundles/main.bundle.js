@@ -336,6 +336,7 @@
         backups: 'backup',
         book: 'book',
         books: 'book',
+        bookshelf: 'bookshelf',
         camera: 'camera',
         chess: 'chess',
         cloud: 'cloud',
@@ -850,6 +851,7 @@
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
+            'bookshelf': 'BookshelfApp',
             'local-wikipedia': 'LocalWikipediaApp',
             'retro-games': 'RetroGamesApp',
             cheater: 'CheaterApp',
@@ -6462,19 +6464,21 @@
             noisemaker: { width: 1120, height: 740 },
             'homepage-studio': { width: 1240, height: 760 },
             'retro-games': { width: 1100, height: 720 },
-            'local-wikipedia': { width: 1080, height: 760 }
+            'local-wikipedia': { width: 1080, height: 760 },
+            bookshelf: { width: 1440, height: 920 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
+        if (appId === 'bookshelf') return { width: 620, height: 460 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -6678,6 +6682,10 @@
         const existing = (context && context.forceNew) ? null : findExistingAppWindow(appId, context || {});
         if (existing) {
             focusWindow(existing.id);
+            if (appId === 'bookshelf' && context && context.path != null) {
+                updateWindowContext(existing.id, { path: context.path, provider: context.provider || 'local', mount_id: context.mount_id || '' });
+                window.BookshelfApp?.open?.(existing.id, context);
+            }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
@@ -10110,9 +10118,14 @@ function wireWindow(win, id) {
             return;
         }
         const ext = normalized.split('.').pop().toLowerCase();
-        const defaultApp = defaultAppForExtension(ext);
+        const associationExtension = /\.fb2\.zip$/i.test(normalized) ? 'fb2.zip' : /\.txt\.gz$/i.test(normalized) ? 'txt.gz' : ext;
+        const defaultApp = defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '');
         if (defaultApp) {
             openApp(defaultApp, { path: normalized });
+            return;
+        }
+        if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(normalized)) {
+            openApp('bookshelf', { path: normalized });
             return;
         }
         openApp('files', { path: pathDir(normalized) || '' });
@@ -16197,6 +16210,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
         const isImage = desktopIsImageFile(name);
         const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
+        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
         if (isText) {
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (isImage) {
@@ -16227,7 +16241,8 @@ function updateTaskbarSystemButtonsForMobile() {
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
-        const ext = desktopFileExtension(name);
+        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
+        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
         if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
         const openItems = apps.map(app => ({
             label: app.label,
@@ -17962,6 +17977,18 @@ if (appId === 'pixel') {
             }
             return window.NewspaperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog }));
         }
+        if (appId === 'bookshelf') {
+            if (!window.BookshelfApp) {
+                window.AuraDesktopModules.loadAppScript('bookshelf').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            const win = state.windows.get(id);
+            return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
+                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                openApp
+            }));
+        }
         if (appId === 'local-wikipedia') {
             if (!window.LocalWikipediaApp) {
                 window.AuraDesktopModules.loadAppScript('local-wikipedia').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -18078,6 +18105,20 @@ if (appId === 'pixel') {
                 clearWindowMenus,
                 wireContextMenuBoundary,
                 openFile: (entry) => {
+                    const entryName = entry.name || entry.path || '';
+                    // Bookshelf formats must be routed before the generic ZIP handler (notably .fb2.zip).
+                    if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entryName)) {
+                        const associationExtension = /\.fb2\.zip$/i.test(entryName) ? 'fb2.zip' : fileExtension(entryName);
+                        const savedDefault = typeof defaultAppForExtension === 'function'
+                            ? defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '')
+                            : '';
+                        const storage = state.windows.get(id)?.context?.storage || initialLocation || { provider: 'local', mount_id: '' };
+                        return openApp(savedDefault || 'bookshelf', {
+                            path: entry.path,
+                            provider: storage.provider || 'local',
+                            mount_id: storage.mount_id || ''
+                        });
+                    }
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
                     if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
@@ -18267,6 +18308,13 @@ if (appId === 'pixel') {
             media_kind: row.dataset.mediaKind,
             mime_type: row.dataset.mimeType
         };
+        const extension = fileExtension(entry.name || entry.path);
+        const associationExtension = /\.fb2\.zip$/i.test(entry.name || entry.path) ? 'fb2.zip' : /\.txt\.gz$/i.test(entry.name || entry.path) ? 'txt.gz' : extension;
+        const savedDefault = typeof defaultAppForExtension === 'function'
+            ? defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '')
+            : '';
+        if (savedDefault) return openApp(savedDefault, { path: entry.path });
+        if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entry.name || entry.path)) return openApp('bookshelf', { path: entry.path });
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
         if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });

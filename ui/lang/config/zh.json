@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "仅限 Decisions 的配置",
   "config.providers.not_available_here": "此处不可用",
   "config.telephone_agent.provider_unavailable": "提供商不可用",
-  "config.decisions.lifecycle_busy": "已有安装或启动正在进行。"
+  "config.decisions.lifecycle_busy": "已有安装或启动正在进行。",
+  "config.virtual_desktop.bookshelf_enabled_label": "启用 Bookshelf",
+  "help.virtual_desktop.bookshelf_enabled": "启用 Bookshelf，以管理和阅读所选本地文件夹及已连接来源中的图书。默认关闭。",
+  "config.virtual_desktop.bookshelf_converter_path_label": "电子书转换程序",
+  "help.virtual_desktop.bookshelf_converter_path": "Linux 上 ebook-convert 的路径。转换还需要 bwrap 和 prlimit 提供隔离；留空即可禁用。例如：/usr/bin/ebook-convert 或 /opt/calibre/ebook-convert。不支持的平台可以导入已转换的图书。"
 }

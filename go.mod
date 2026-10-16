@@ -35,6 +35,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hajimehoshi/go-mp3 v0.3.4
+	github.com/hirochachacha/go-smb2/v2 v2.0.0-20260929042113-82213d0ccb22
 	github.com/huin/goupnp v1.3.0
 	github.com/itlightning/dateparse v0.2.1
 	github.com/johnfercher/maroto/v2 v2.4.3
@@ -117,9 +118,13 @@ require (
 	github.com/emiago/dtls/v3 v3.0.0-20260122183559-8b8d23e359c0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.6 // indirect
 	github.com/gaissmai/bart v0.30.0 // indirect
+	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
+	github.com/go-crypt/x v0.4.17 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
+	github.com/go-krb5/krb5 v0.1.1-0.20260910042439-3e50d4009c09 // indirect
+	github.com/go-krb5/x v0.3.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
@@ -155,6 +160,7 @@ require (
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/nlnwa/whatwg-url v0.6.2 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.26 // indirect
 	github.com/pion/datachannel v1.6.3 // indirect
 	github.com/pion/dtls/v3 v3.1.8 // indirect
 	github.com/pion/mdns/v2 v2.2.2 // indirect
@@ -171,6 +177,7 @@ require (
 	github.com/pires/go-proxyproto v0.15.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 // indirect
+	github.com/quic-go/quic-go v0.62.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.9 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect

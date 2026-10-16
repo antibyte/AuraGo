@@ -653,6 +653,8 @@ type VirtualDesktopConfig struct {
 	SerialBrowserEnabled     bool             `yaml:"serial_browser_enabled" json:"serial_browser_enabled"`           // allow browser-local serial terminals
 	SerialHostEnabled        bool             `yaml:"serial_host_enabled" json:"serial_host_enabled"`                 // allow administrator serial terminals on the AuraGo host
 	RetroNetEnabled          bool             `yaml:"retronet_enabled" json:"retronet_enabled"`                       // Terminal Retro-Net: dial public Telnet/SSH text services through this server
+	BookshelfEnabled         bool             `yaml:"bookshelf_enabled" json:"bookshelf_enabled"`                     // enable the local-first Bookshelf catalog and reader
+	BookshelfConverterPath   string           `yaml:"bookshelf_converter_path" json:"bookshelf_converter_path"`       // optional explicitly configured safe ebook-convert executable
 	WorkspaceDir             string           `yaml:"workspace_dir" json:"workspace_dir"`                             // persistent desktop workspace root
 	MaxFileSizeMB            int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`                       // max text file read/write size
 	MaxWSClients             int              `yaml:"max_ws_clients" json:"max_ws_clients"`                           // max concurrent desktop websocket clients

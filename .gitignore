@@ -180,3 +180,6 @@ terminals/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Bookshelf catalog, managed imports, renditions and disposable cache.
+/data/bookshelf/

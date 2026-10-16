@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "केवल Decisions प्रोफ़ाइल",
   "config.providers.not_available_here": "यहाँ उपलब्ध नहीं",
   "config.telephone_agent.provider_unavailable": "प्रदाता उपलब्ध नहीं",
-  "config.decisions.lifecycle_busy": "एक इंस्टॉलेशन या स्टार्ट पहले से चल रहा है।"
+  "config.decisions.lifecycle_busy": "एक इंस्टॉलेशन या स्टार्ट पहले से चल रहा है।",
+  "config.virtual_desktop.bookshelf_enabled_label": "Bookshelf चालू करें",
+  "help.virtual_desktop.bookshelf_enabled": "चुने गए स्थानीय फ़ोल्डरों और जुड़े स्रोतों से किताबों को व्यवस्थित करने और पढ़ने के लिए Bookshelf चालू करें। यह डिफ़ॉल्ट रूप से बंद रहता है।",
+  "config.virtual_desktop.bookshelf_converter_path_label": "ईबुक रूपांतरण प्रोग्राम",
+  "help.virtual_desktop.bookshelf_converter_path": "Linux पर ebook-convert का पथ। रूपांतरण के लिए bwrap और prlimit का पृथक्करण भी ज़रूरी है; बंद रखने के लिए खाली छोड़ें। उदाहरण: /usr/bin/ebook-convert या /opt/calibre/ebook-convert। असमर्थित प्लेटफ़ॉर्म पर पहले से रूपांतरित किताब आयात करें।"
 }

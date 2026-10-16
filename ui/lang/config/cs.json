@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "profil tylko dla Decisions",
   "config.providers.not_available_here": "niedostępny w tym miejscu",
   "config.telephone_agent.provider_unavailable": "dostawca niedostępny",
-  "config.decisions.lifecycle_busy": "Instalace nebo spuštění už probíhá."
+  "config.decisions.lifecycle_busy": "Instalace nebo spuštění už probíhá.",
+  "config.virtual_desktop.bookshelf_enabled_label": "Zapnout Bookshelf",
+  "help.virtual_desktop.bookshelf_enabled": "Zapni Bookshelf pro správu a čtení knih z vybraných místních složek a připojených zdrojů. Ve výchozím nastavení je vypnutý.",
+  "config.virtual_desktop.bookshelf_converter_path_label": "Spustitelný soubor převodníku knih",
+  "help.virtual_desktop.bookshelf_converter_path": "Cesta k ebook-convert v Linuxu. Převod vyžaduje také izolaci pomocí bwrap a prlimit; prázdné pole jej vypne. Například /usr/bin/ebook-convert nebo /opt/calibre/ebook-convert. Na nepodporovaných platformách importuj již převedenou knihu."
 }

@@ -32,6 +32,20 @@
                 clearWindowMenus,
                 wireContextMenuBoundary,
                 openFile: (entry) => {
+                    const entryName = entry.name || entry.path || '';
+                    // Bookshelf formats must be routed before the generic ZIP handler (notably .fb2.zip).
+                    if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entryName)) {
+                        const associationExtension = /\.fb2\.zip$/i.test(entryName) ? 'fb2.zip' : fileExtension(entryName);
+                        const savedDefault = typeof defaultAppForExtension === 'function'
+                            ? defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '')
+                            : '';
+                        const storage = state.windows.get(id)?.context?.storage || initialLocation || { provider: 'local', mount_id: '' };
+                        return openApp(savedDefault || 'bookshelf', {
+                            path: entry.path,
+                            provider: storage.provider || 'local',
+                            mount_id: storage.mount_id || ''
+                        });
+                    }
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
                     if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
@@ -221,6 +235,13 @@
             media_kind: row.dataset.mediaKind,
             mime_type: row.dataset.mimeType
         };
+        const extension = fileExtension(entry.name || entry.path);
+        const associationExtension = /\.fb2\.zip$/i.test(entry.name || entry.path) ? 'fb2.zip' : /\.txt\.gz$/i.test(entry.name || entry.path) ? 'txt.gz' : extension;
+        const savedDefault = typeof defaultAppForExtension === 'function'
+            ? defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '')
+            : '';
+        if (savedDefault) return openApp(savedDefault, { path: entry.path });
+        if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entry.name || entry.path)) return openApp('bookshelf', { path: entry.path });
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
         if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });

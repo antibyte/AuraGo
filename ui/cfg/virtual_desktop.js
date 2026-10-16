@@ -15,6 +15,8 @@ function vdCfgEnsureData() {
     if (!data.remote_max_session_minutes) data.remote_max_session_minutes = 60;
     if (!data.remote_idle_timeout_minutes) data.remote_idle_timeout_minutes = 5;
     if (typeof data.allow_generated_apps !== 'boolean') data.allow_generated_apps = true;
+    if (typeof data.bookshelf_enabled !== 'boolean') data.bookshelf_enabled = false;
+    if (typeof data.bookshelf_converter_path !== 'string') data.bookshelf_converter_path = '';
     if (typeof data.allow_agent_control === 'boolean') {
         configData.tools.virtual_desktop.enabled = data.allow_agent_control === true;
     }
@@ -28,6 +30,9 @@ function renderVirtualDesktopSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this)");
+    html += vdCfgToggleRow('config.virtual_desktop.bookshelf_enabled_label', 'help.virtual_desktop.bookshelf_enabled', data.bookshelf_enabled === true, 'virtual_desktop.bookshelf_enabled');
+    html += vdCfgField('config.virtual_desktop.bookshelf_converter_path_label', 'help.virtual_desktop.bookshelf_converter_path',
+        '<input class="field-input" type="text" spellcheck="false" autocomplete="off" data-path="virtual_desktop.bookshelf_converter_path" value="' + escapeAttr(data.bookshelf_converter_path) + '">');
     html += vdCfgHiddenToggle('tools.virtual_desktop.enabled', data.allow_agent_control === true);
 
     if (!enabled) {

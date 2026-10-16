@@ -62,9 +62,14 @@
             return;
         }
         const ext = normalized.split('.').pop().toLowerCase();
-        const defaultApp = defaultAppForExtension(ext);
+        const associationExtension = /\.fb2\.zip$/i.test(normalized) ? 'fb2.zip' : /\.txt\.gz$/i.test(normalized) ? 'txt.gz' : ext;
+        const defaultApp = defaultAppForExtension(associationExtension) || (associationExtension === 'fb2.zip' ? defaultAppForExtension('fb2') : '');
         if (defaultApp) {
             openApp(defaultApp, { path: normalized });
+            return;
+        }
+        if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(normalized)) {
+            openApp('bookshelf', { path: normalized });
             return;
         }
         openApp('files', { path: pathDir(normalized) || '' });

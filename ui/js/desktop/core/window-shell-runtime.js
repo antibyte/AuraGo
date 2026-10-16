@@ -1294,19 +1294,21 @@
             noisemaker: { width: 1120, height: 740 },
             'homepage-studio': { width: 1240, height: 760 },
             'retro-games': { width: 1100, height: 720 },
-            'local-wikipedia': { width: 1080, height: 760 }
+            'local-wikipedia': { width: 1080, height: 760 },
+            bookshelf: { width: 1440, height: 920 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
+        if (appId === 'bookshelf') return { width: 620, height: 460 };
         const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -1510,6 +1512,10 @@
         const existing = (context && context.forceNew) ? null : findExistingAppWindow(appId, context || {});
         if (existing) {
             focusWindow(existing.id);
+            if (appId === 'bookshelf' && context && context.path != null) {
+                updateWindowContext(existing.id, { path: context.path, provider: context.provider || 'local', mount_id: context.mount_id || '' });
+                window.BookshelfApp?.open?.(existing.id, context);
+            }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);

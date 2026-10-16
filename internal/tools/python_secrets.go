@@ -58,6 +58,7 @@ var blockedSecretPrefixes = []string{
 	"evomap_",
 	"huggingface_",
 	"desktop_store_",
+	"bookshelf_",
 	"proxy_basic_auth_",
 	"virtual_computers_",
 	"oauth_",

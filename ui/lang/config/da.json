@@ -735,5 +735,9 @@
   "config.providers.decisions_only_unavailable": "kun til Decisions",
   "config.providers.not_available_here": "ikke tilgængelig her",
   "config.telephone_agent.provider_unavailable": "udbyder ikke tilgængelig",
-  "config.decisions.lifecycle_busy": "En installation eller start kører allerede."
+  "config.decisions.lifecycle_busy": "En installation eller start kører allerede.",
+  "config.virtual_desktop.bookshelf_enabled_label": "Aktivér Bookshelf",
+  "help.virtual_desktop.bookshelf_enabled": "Aktivér Bookshelf for at administrere og læse bøger fra valgte lokale mapper og tilsluttede kilder. Funktionen er som standard slået fra.",
+  "config.virtual_desktop.bookshelf_converter_path_label": "Program til bogkonvertering",
+  "help.virtual_desktop.bookshelf_converter_path": "Linux-sti til ebook-convert. Konvertering kræver også isolering med bwrap og prlimit; lad feltet være tomt for at deaktivere den. Eksempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importér en allerede konverteret bog på andre platforme."
 }
