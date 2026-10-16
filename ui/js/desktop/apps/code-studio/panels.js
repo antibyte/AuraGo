@@ -1,3 +1,18 @@
+    function showProjectKnowledge() {
+        const instance = state;
+        if (!instance || !window.AuraGoLearnings) return;
+        if (instance.knowledgeClose) instance.knowledgeClose();
+        const tab = activeTab();
+        instance.knowledgeClose = window.AuraGoLearnings.open({
+            project: 'code-studio', graph: true, file: tab && tab.path,
+            parent: instance.root, title: tr('codeStudio.knowledge', 'Insights'),
+            openSource: (file, line) => {
+                if (instance.knowledgeClose) instance.knowledgeClose();
+                return runAsyncStep(instance, () => openSearchResult('/workspace/' + file, line));
+            }
+        });
+    }
+
     function splitEditor(direction) {
         if (!state) return;
         const next = direction === 'down' ? 'down' : 'right';

@@ -262,6 +262,19 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 	}
 	sessionID := cydCreatorAgentSessionPrefix + run.Job.ID
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "cyd_creator")
+	if cfg.Learnings.Enabled || cfg.CodeGraph.Enabled {
+		cleanup, err := s.configureCYDKnowledge(&runCfg, r.service, run.Project.ID, run.Job.ID)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		if cfg.CodeGraph.Enabled {
+			profile, err = agent.WithCodeGraphProfile(profile)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	runCfg.TrustedPromptAddenda = nil
 	runCfg.PreparedPrompt = profile
 	runCfg.NativeToolSchemas = profile.Tools()

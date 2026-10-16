@@ -781,6 +781,13 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	if (cfg.Learnings.Enabled || cfg.CodeGraph.Enabled) && (chatContext.Source == "code-studio" || chatContext.OriginApp == "code-studio") {
+		project, scope, fingerprint, err := s.resolveKnowledgeProject(ctx, "code-studio", chatContext.CurrentFile)
+		if err != nil {
+			return turn, fmt.Errorf("resolve project context: %w", err)
+		}
+		turn.runCfg.CodeProject, turn.runCfg.LearningScope, turn.runCfg.LearningFingerprint = project, scope, fingerprint
+	}
 	turn.runCfg.UserIntent = message
 	turn.runCfg.TaskRoutingText = &routingText
 	turn.runCfg.TaskRouting = routingRun.TaskRouting
@@ -842,7 +849,7 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 	if messageSource == "" {
 		messageSource = desktopChatMessageSource
 	}
-	return agent.RunConfig{
+	run := agent.RunConfig{
 		RoutingDecisions:   taskDecisionService{s},
 		Config:             cfg,
 		Logger:             s.Logger,
@@ -878,6 +885,8 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 		MessageSource:      messageSource,
 		VoiceOutputActive:  GetSpeakerMode(),
 	}
+	s.configureRunKnowledge(&run)
+	return run
 }
 
 func handleDesktopSlashCommand(s *Server, message string) (string, bool, error) {

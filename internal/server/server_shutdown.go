@@ -42,6 +42,7 @@ func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
 	}
+	s.closeProjectKnowledge()
 	s.closeVideoStudioManager()
 	s.stopRocketChatBot()
 	s.stopTelegramBot()

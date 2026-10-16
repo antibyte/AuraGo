@@ -610,6 +610,19 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	}
 	sessionID := "game-maker-" + run.Job.ID
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "game_maker")
+	if cfg.Learnings.Enabled || cfg.CodeGraph.Enabled {
+		root, err := r.service.JobDirectory(run.Job.ID)
+		if err != nil {
+			return fmt.Errorf("resolve project knowledge: %w", err)
+		}
+		defer s.configureGameKnowledge(&runCfg, run.Project.ID, run.Job.ID, root)()
+		if cfg.CodeGraph.Enabled {
+			profile, err = agent.WithCodeGraphProfile(profile)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	runCfg.TrustedPromptAddenda = nil
 	runCfg.PreparedPrompt = profile
 	runCfg.UsageObserver = r.gameUsageObserver(run)

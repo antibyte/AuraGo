@@ -32,6 +32,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		return err
 	}
 	mux := http.NewServeMux()
+	registerLearningRoutes(mux, s)
 	registerMeshCoreRoutes(mux, s)
 	sse := NewSSEBroadcaster()
 	s.SSE = sse // expose broadcaster for use by handlers and callbacks
@@ -326,6 +327,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				IsMaintenance:      false,
 				MessageSource:      "planner_notification",
 			}
+			s.configureRunKnowledge(&runCfg)
 			go agent.Loopback(runCfg, prompt, agent.NoopBroker{})
 		})
 		go plannerNotifier.Start(serverCtx)
@@ -786,6 +788,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					MessageSource:      "sms",
 				}
 				runCfg.TrustedPromptAddenda = quarantineAddenda
+				s.configureRunKnowledge(&runCfg)
 				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
 			}, nil)
 			mux.HandleFunc(webhookPath, telnyxHandler.HandleWebhook)

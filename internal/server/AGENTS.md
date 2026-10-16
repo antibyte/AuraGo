@@ -713,6 +713,13 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.
 
+- Insights and native graph: `documentation/learnings.md` and
+  `internal/codegraph/AGENTS.md`. Resolve project identities and roots from live
+  registrations. Central knowledge routes require admin; Desktop routes also
+  require Desktop scopes/policy. Job indexes are capabilities for the current
+  working copy only. Release registrations and advisory write targets on every
+  completion/cancellation path and drain the graph service on shutdown.
+
 ## Child DOX Index
 
 None.

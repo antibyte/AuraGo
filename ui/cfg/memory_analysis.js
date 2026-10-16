@@ -9,6 +9,16 @@ async function renderMemoryAnalysisSection(section) {
     document.getElementById('content').innerHTML = `<div class="cfg-section active">
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
+        <div class="ma-block"><label class="ma-label-block">
+            <input type="checkbox" data-path="learnings.enabled" ${configData.learnings?.enabled ? 'checked' : ''}>
+            <strong>${t('config.memory_analysis.learnings_enable')}</strong>
+            <p>${t('config.memory_analysis.learnings_help')}</p>
+        </label></div>
+        <div class="ma-block"><label class="ma-label-block">
+            <input type="checkbox" data-path="code_graph.enabled" ${configData.code_graph?.enabled ? 'checked' : ''}>
+            <strong>${t('config.memory_analysis.graph_enable')}</strong>
+            <p>${t('config.memory_analysis.graph_help')}</p>
+        </label></div>
         <div class="ma-intro-notice"><div class="ma-notice-body">
             <strong>${t('config.memory_analysis.auto_notice')}</strong>
             <p>${t('config.memory_analysis.auto_desc')}</p>

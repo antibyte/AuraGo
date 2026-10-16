@@ -471,6 +471,10 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	switch path {
+	case "/api/learnings", "/api/desktop/learnings", "/api/code-graph", "/api/desktop/code-graph":
+		return true
+	}
 	if strings.HasPrefix(path, "/api/llm-router/") {
 		return true
 	}

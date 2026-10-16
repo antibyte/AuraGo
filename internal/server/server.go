@@ -150,6 +150,7 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
+	knowledge       projectKnowledge
 	Cfg             *config.Config
 	cfgSnapshot     atomic.Pointer[config.Config]
 	CfgMu           sync.RWMutex // protects Cfg during hot-reload
@@ -759,6 +760,8 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	releaseKnowledgeRuntime := agent.RegisterKnowledgeRuntime(s.configureRunKnowledge)
+	defer releaseKnowledgeRuntime()
 	s.startDesktopBookshelfAtStartup(serverCtx)
 	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
 	// own (listener failure) too, not only on shutdownCh.
@@ -967,6 +970,7 @@ func Start(opts StartOptions) error {
 		SessionID:          "heartbeat",
 		MessageSource:      "heartbeat",
 	}
+	s.configureRunKnowledge(&hbRunCfg)
 	s.HeartbeatScheduler = heartbeat.New(cfg, logger, func(prompt string) {
 		correlationID := fmt.Sprintf("heartbeat_%d", time.Now().UTC().UnixNano())
 		started := time.Now()

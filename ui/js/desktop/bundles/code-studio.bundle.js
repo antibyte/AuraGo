@@ -429,6 +429,7 @@
         const instance = instances.get(windowId);
         if (!instance) return;
         if (instance.agentAbortController) instance.agentAbortController.abort();
+        if (instance.knowledgeClose) instance.knowledgeClose();
         closeTerminalSessionSockets(instance);
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
@@ -449,9 +450,7 @@
                 if (session && session.ws) sockets.add(session.ws);
             });
         }
-        sockets.forEach(socket => {
-            if (typeof WebSocket === 'undefined' || socket.readyState !== WebSocket.CLOSED) socket.close();
-        });
+        sockets.forEach(socket => endTerminalSocket(socket));
         instance.ws = null;
         if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
     }
@@ -648,6 +647,10 @@
                 <button type="button" class="cs-icon-button" data-action="command-palette" title="${esc(tr('codeStudio.commandPalette', 'Command Palette'))} (Ctrl+Shift+P)">${iconMarkup('search', 'P', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-button primary" data-action="run" title="${esc(tr('codeStudio.run', 'Run'))} (F5)">${iconMarkup('run', 'R', 'cs-button-icon', 15)}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
             </span>`;
+        const knowledge = document.createElement('button');
+        knowledge.type = 'button'; knowledge.className = 'cs-button'; knowledge.dataset.action = 'knowledge';
+        knowledge.textContent = tr('codeStudio.knowledge', 'Insights');
+        knowledge.addEventListener('click', bind(showProjectKnowledge)); toolbar.append(knowledge);
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
         toolbar.querySelector('[data-action="open-file-dialog"]').addEventListener('click', bind(openFileFromDialog));
@@ -2603,6 +2606,16 @@
         if (label) label.textContent = tr(key);
     }
 
+    function endTerminalSocket(ws) {
+        if (!ws || typeof WebSocket === 'undefined') return;
+        if (ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ type: 'end' })); } catch (_) {}
+        }
+        if (ws.readyState !== WebSocket.CLOSED) {
+            try { ws.close(); } catch (_) {}
+        }
+    }
+
     function refitTerminal() {
         if (!state.terminalVisible || state.zenMode) return;
         const session = activeTerminalSession();
@@ -2691,7 +2704,7 @@
             session.dispose = () => {
                 if (terminalDisposed) return;
                 terminalDisposed = true;
-                if (session.ws) session.ws.close();
+                if (session.ws) endTerminalSocket(session.ws);
                 if (term && typeof term.dispose === 'function') term.dispose();
             };
             instance.disposers.push(session.dispose);
@@ -2712,8 +2725,11 @@
             syncTerminalAliases();
             ws.onopen = bindInstance(instance, () => {
                 if (!state.terminalSessions.includes(session)) return;
-                terminalSessionStatus(session, 'codeStudio.running');
-                const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
+                terminalSessionStatus(session, session.lineMode ? 'codeStudio.terminalLineMode' : 'codeStudio.running');
+                const termDataDispose = term.onData(bindInstance(instance, data => {
+                    if (ws.readyState !== WebSocket.OPEN) return;
+                    ws.send(new TextEncoder().encode(data));
+                }));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
                     instance.disposers.push(() => termDataDispose.dispose());
                 }
@@ -2721,8 +2737,17 @@
             });
             ws.onmessage = bindInstance(instance, event => {
                 if (terminalDisposed) return;
-                if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
-                else term.write(String(event.data));
+                if (event.data instanceof ArrayBuffer) {
+                    term.write(new Uint8Array(event.data));
+                    return;
+                }
+                const text = String(event.data);
+                if (!session.lineMode && text === '{"type":"line"}') {
+                    session.lineMode = true;
+                    terminalSessionStatus(session, 'codeStudio.terminalLineMode');
+                    return;
+                }
+                term.write(text);
             });
             ws.onerror = bindInstance(instance, () => {
                 terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
@@ -2756,7 +2781,9 @@
         syncTerminalAliases();
         if (label && session && session.ws) {
             const open = typeof WebSocket !== 'undefined' && session.ws.readyState === WebSocket.OPEN;
-            label.textContent = open ? tr('codeStudio.running', 'Running...') : tr('codeStudio.stopped', 'Stopped');
+            const key = session.lineMode ? 'codeStudio.terminalLineMode' : (open ? 'codeStudio.running' : 'codeStudio.stopped');
+            const fallback = session.lineMode ? 'Line mode' : (open ? 'Running...' : 'Stopped');
+            label.textContent = tr(key, fallback);
         }
         sendTerminalResize(session);
     }
@@ -3411,6 +3438,21 @@
 
 ;
 /* ui/js/desktop/apps/code-studio/panels.js */
+    function showProjectKnowledge() {
+        const instance = state;
+        if (!instance || !window.AuraGoLearnings) return;
+        if (instance.knowledgeClose) instance.knowledgeClose();
+        const tab = activeTab();
+        instance.knowledgeClose = window.AuraGoLearnings.open({
+            project: 'code-studio', graph: true, file: tab && tab.path,
+            parent: instance.root, title: tr('codeStudio.knowledge', 'Insights'),
+            openSource: (file, line) => {
+                if (instance.knowledgeClose) instance.knowledgeClose();
+                return runAsyncStep(instance, () => openSearchResult('/workspace/' + file, line));
+            }
+        });
+    }
+
     function splitEditor(direction) {
         if (!state) return;
         const next = direction === 'down' ? 'down' : 'right';

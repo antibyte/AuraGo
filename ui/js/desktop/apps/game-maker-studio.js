@@ -85,6 +85,7 @@
                         <button type="button" class="gm-action-wide" data-gm-action="rename" disabled>${esc(t('game_maker.rename'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="delete" disabled>${esc(t('game_maker.delete'))}</button>
                         <button type="button" data-gm-action="skills">${esc(t('game_maker.skills'))}</button>
+                        <button type="button" data-gm-action="knowledge" disabled>${esc(t('game_maker.knowledge'))}</button>
                         <button type="button" data-gm-action="assets">${esc(t('game_maker.assets'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="revisions" disabled>${esc(t('game_maker.revisions'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="code" disabled>${esc(t('game_maker.open_code_studio'))}</button>
@@ -223,6 +224,11 @@
             const preview = window.GameMakerStudioPreview;
             const actions = {
                 new: () => showCreateModal(state),
+                knowledge: () => {
+                    if (!state.project || !window.AuraGoLearnings) return;
+                    if (state.knowledgeClose) state.knowledgeClose();
+                    state.knowledgeClose = window.AuraGoLearnings.open({ project: 'game-maker:' + state.project.id, parent: state.container, title: state.context.t('game_maker.knowledge') });
+                },
                 assets: () => window.GameMakerStudioAssets.show(state, modalHelpers),
                 skills: () => modals ? modals.showSkillsModal(state, modalHelpers) : fail(state, new Error(state.context.t('game_maker.modules_load_failed'))),
                 revisions: () => modals ? modals.showRevisionsModal(state, modalHelpers) : fail(state, new Error(state.context.t('game_maker.modules_load_failed'))),
@@ -403,6 +409,7 @@
                 state.frame = null; state.previewGrant = null; state.channelID = '';
                 state.activity?.reset();
             }
+            if (state.knowledgeClose && state.project?.id !== body.project.id) state.knowledgeClose();
             state.project = body.project;
             state.messages = body.messages || [];
             state.job = null;
@@ -439,6 +446,7 @@
             ? `${state.context.t('game_maker.voxel')} ${state.capabilities.voxel_version || 1} · Three.js ${state.capabilities.three_version}` : project.dimension === '3d'
             ? `Three.js ${state.capabilities.three_version}` : `Phaser ${state.capabilities.phaser_version}`;
         setButton(state, 'revisions', true);
+        setButton(state, 'knowledge', true);
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit));
         setButton(state, 'delete', Boolean(state.capabilities.allow_delete));
         setButton(state, 'export', Boolean(project.current_revision));
@@ -1132,6 +1140,8 @@
         try {
             await state.api.deleteProject(state.project.id);
             state.projects = state.projects.filter(item => item.id !== state.project.id);
+            if (state.knowledgeClose) state.knowledgeClose();
+            setButton(state, 'knowledge', false);
             state.project = null;
             state.job = null;
             stopElapsed(state);
@@ -1308,6 +1318,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        if (state.knowledgeClose) state.knowledgeClose();
         state.context.setWindowBeforeClose?.(windowId, null);
         state.activity?.dispose();
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();

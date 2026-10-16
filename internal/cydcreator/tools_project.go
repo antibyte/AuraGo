@@ -61,6 +61,19 @@ func (s *Service) jobTool(jobID, tool string) (*jobRun, error) {
 	return run, nil
 }
 
+// JobAnalysisRoot exposes only a currently running, readable working copy to
+// the server-owned native code graph. It does not expand tool write permissions.
+func (s *Service) JobAnalysisRoot(jobID string) (string, error) {
+	run, err := s.jobTool(jobID, ToolReadProject)
+	if err != nil {
+		return "", err
+	}
+	if err := rejectLinkedComponents(s.workspaceDir, stagingRel(jobID)); err != nil {
+		return "", err
+	}
+	return run.stage, nil
+}
+
 // BoardInfo is the board summary the agent sees.
 type BoardInfo struct {
 	ID           string   `json:"id"`

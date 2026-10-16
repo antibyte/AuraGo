@@ -424,6 +424,7 @@
         const instance = instances.get(windowId);
         if (!instance) return;
         if (instance.agentAbortController) instance.agentAbortController.abort();
+        if (instance.knowledgeClose) instance.knowledgeClose();
         closeTerminalSessionSockets(instance);
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
@@ -641,6 +642,10 @@
                 <button type="button" class="cs-icon-button" data-action="command-palette" title="${esc(tr('codeStudio.commandPalette', 'Command Palette'))} (Ctrl+Shift+P)">${iconMarkup('search', 'P', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-button primary" data-action="run" title="${esc(tr('codeStudio.run', 'Run'))} (F5)">${iconMarkup('run', 'R', 'cs-button-icon', 15)}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
             </span>`;
+        const knowledge = document.createElement('button');
+        knowledge.type = 'button'; knowledge.className = 'cs-button'; knowledge.dataset.action = 'knowledge';
+        knowledge.textContent = tr('codeStudio.knowledge', 'Insights');
+        knowledge.addEventListener('click', bind(showProjectKnowledge)); toolbar.append(knowledge);
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
         toolbar.querySelector('[data-action="open-file-dialog"]').addEventListener('click', bind(openFileFromDialog));

@@ -1,0 +1,23 @@
+.learning-view { color: var(--cs-text, var(--text-primary, #222)); font: 14px/1.5 system-ui, sans-serif; overflow-wrap: anywhere; }
+.learning-view h3 { margin: 0 0 16px; font-size: 18px; }
+.learning-view h4 { margin: 0 0 8px; }
+.learning-view p { margin: 8px 0; }
+.learning-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.learning-view input, .learning-view select, .learning-view textarea, .learning-view button { font: inherit; color: inherit; background: var(--cs-bg, var(--bg-secondary, #fff)); border: 1px solid var(--cs-border, var(--border-color, #999)); border-radius: 6px; padding: 9px 12px; min-height: 40px; }
+.learning-view button { cursor: pointer; margin: 4px 6px 4px 0; }
+.learning-view button:disabled { opacity: .55; cursor: default; }
+.learning-view :focus-visible, .learning-close:focus-visible { outline: 3px solid var(--accent, #467bd9); outline-offset: 2px; }
+.learning-controls input { flex: 1; min-width: 140px; }
+.learning-controls select { max-width: 100%; }
+.learning-item { padding: 14px 0; border-bottom: 1px solid var(--cs-border, var(--border-color, #aaa)); }
+.learning-item small, .learning-status { opacity: .85; }
+.learning-view blockquote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--accent, #467bd9); white-space: pre-wrap; }
+.learning-view pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; font: 12px/1.5 monospace; }
+.learning-view summary { cursor: pointer; padding: 8px 0; }
+.learning-review { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; padding: 12px; border: 1px solid var(--accent, #467bd9); border-radius: 8px; }
+.learning-review h4, .learning-review textarea { width: 100%; box-sizing: border-box; }
+.learning-graph { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--cs-border, var(--border-color, #aaa)); }
+.learning-dialog { --cs-text: var(--vd-text, var(--text-primary, #ddd)); --cs-bg: var(--vd-theme-app-bg, var(--bg-primary, #202329)); --cs-border: var(--vd-theme-border, var(--border-color, #888)); width: min(850px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid var(--cs-border); border-radius: 12px; color: var(--cs-text); background: var(--cs-bg); }
+.learning-dialog::backdrop { background: #0008; }
+.learning-close { float: right; border: 0; background: transparent; color: inherit; cursor: pointer; font: 24px/1 system-ui; min-width: 44px; min-height: 44px; }
+@media (max-width: 480px) { .learning-dialog { padding: 12px; } .learning-controls > * { width: 100%; } }

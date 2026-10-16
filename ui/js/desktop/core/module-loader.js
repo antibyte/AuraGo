@@ -103,8 +103,9 @@
             ]
         },
         'code-studio': {
-            styles: appStyles('/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css'),
+            styles: appStyles('/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css', '/css/learnings.css'),
             scripts: [
+                '/js/shared/learnings.js',
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
                 '/js/vendor/highlight.min.js',
@@ -212,8 +213,9 @@
             scripts: ['/js/desktop/apps/camera.js']
         },
         'game-maker-studio': {
-            styles: appStyles('/css/desktop-app-game-maker-studio.css'),
+            styles: appStyles('/css/desktop-app-game-maker-studio.css', '/css/learnings.css'),
             scripts: [
+                '/js/shared/learnings.js',
                 '/js/desktop/apps/game-maker-studio-api.js',
                 '/js/desktop/apps/game-maker-studio-activity.js',
                 '/js/desktop/apps/game-maker-studio-preview.js',
@@ -586,9 +588,9 @@
         'cyd-creator': ['cyd_creator'],
         'easydrag': ['easydrag'],
         'chess': [],
-        'code-studio': ['codeStudio'],
+        'code-studio': ['codeStudio', 'learnings'],
         'galaxa-deluxe': ['galaxa'],
-        'game-maker-studio': ['game_maker'],
+        'game-maker-studio': ['game_maker', 'learnings'],
         'homepage-studio': ['homepage_studio'],
         'live-speech': [],
         'sip-phone': ['sip_phone'],

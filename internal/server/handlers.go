@@ -509,6 +509,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MessageSource:      msgSource,
 			VoiceOutputActive:  GetSpeakerMode(),
 		}
+		s.configureRunKnowledge(&runCfg)
 		if msgSource == "web_chat" && !inMaintenance && webVaultSecretPromptAuthenticated(s, r) && vaultSecretPromptWriteEnabled(s) {
 			if manager := ensureVaultSecretPrompter(s); manager != nil {
 				runCfg.VaultSecretPrompter = manager
