@@ -26,6 +26,14 @@ func (s *Service) ListOutbox(ctx context.Context) ([]OutboxItem, error) {
 	return out, nil
 }
 
+func (s *Service) ListOutboxPage(ctx context.Context, cursor string, limit int) (OutboxPage, error) {
+	allowed, err := s.allowedAccountIDs(ctx)
+	if err != nil {
+		return OutboxPage{}, err
+	}
+	return s.store.ListOutboxPage(ctx, cursor, limit, allowed)
+}
+
 func (s *Service) QueueSend(ctx context.Context, req SendRequest) (OutboxItem, error) {
 	ctx, cancel, err := s.begin(ctx, true)
 	if err != nil {
@@ -39,6 +47,11 @@ func (s *Service) QueueSend(ctx context.Context, req SendRequest) (OutboxItem, e
 	if d.Revision != req.Revision {
 		return OutboxItem{}, ErrConflict
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, d.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(d.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
 	if err := validateDraft(d); err != nil {
 		return OutboxItem{}, err
 	}
@@ -55,6 +68,9 @@ func (s *Service) QueueSend(ctx context.Context, req SendRequest) (OutboxItem, e
 		return OutboxItem{}, fmt.Errorf("%w: invalid schedule timezone", ErrInvalid)
 	}
 	if _, _, err := s.sendAccount(ctx, d.AccountID); err != nil {
+		return OutboxItem{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return OutboxItem{}, err
 	}
 	for _, a := range d.Attachments {
@@ -76,21 +92,16 @@ func (s *Service) CancelSend(ctx context.Context, id string) error {
 		return err
 	}
 	defer cancel()
-	items, err := s.store.ListOutbox(ctx)
+	found, _, err := s.authorizedOutboxItem(ctx, id)
 	if err != nil {
 		return err
 	}
-	var found *OutboxItem
-	for i := range items {
-		if items[i].ID == id {
-			found = &items[i]
-			break
-		}
-	}
-	if found == nil {
-		return ErrNotFound
-	}
-	account, err := s.authorizedAccount(ctx, found.AccountID)
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, found.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(found.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	_, account, err := s.authorizedOutboxItem(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -113,20 +124,15 @@ func (s *Service) RetrySend(ctx context.Context, id string) (OutboxItem, error) 
 		return OutboxItem{}, err
 	}
 	defer cancel()
-	items, err := s.store.ListOutbox(ctx)
+	found, _, err := s.authorizedOutboxItem(ctx, id)
 	if err != nil {
 		return OutboxItem{}, err
 	}
-	var found *OutboxItem
-	for i := range items {
-		if items[i].ID == id {
-			found = &items[i]
-			break
-		}
-	}
-	if found == nil {
-		return OutboxItem{}, ErrNotFound
-	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, found.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(found.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
 	if _, _, err := s.sendAccount(ctx, found.AccountID); err != nil {
 		return OutboxItem{}, err
 	}
@@ -136,6 +142,22 @@ func (s *Service) RetrySend(ctx context.Context, id string) (OutboxItem, error) 
 	}
 	s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: item.Status})
 	return item, nil
+}
+
+func (s *Service) authorizedOutboxItem(ctx context.Context, id string) (OutboxItem, Account, error) {
+	item, err := s.store.GetOutbox(ctx, id)
+	if err != nil {
+		return OutboxItem{}, Account{}, err
+	}
+	allowed, err := s.allowedAccountIDs(ctx)
+	if err != nil {
+		return OutboxItem{}, Account{}, err
+	}
+	if !contains(allowed, item.AccountID) {
+		return OutboxItem{}, Account{}, ErrNotFound
+	}
+	account, err := s.authorizedAccount(ctx, item.AccountID)
+	return item, account, err
 }
 
 func (s *Service) sendAccount(ctx context.Context, id string) (Adapter, Account, error) {
@@ -191,6 +213,11 @@ func (s *Service) dispatchDue(parent context.Context) {
 	if err != nil {
 		return
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, item.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(item.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
 	adapter, account, err := s.sendAccount(ctx, item.AccountID)
 	if err != nil {
 		status := "failed"
@@ -224,6 +251,17 @@ func (s *Service) dispatchDue(parent context.Context) {
 		}
 		draft.Attachments[i].Data = data
 	}
+	adapter, account, err = s.sendAccount(ctx, item.AccountID)
+	if err != nil {
+		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "account_unavailable", "")
+		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
+		return
+	}
+	if err := ctx.Err(); err != nil {
+		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "account_unavailable", "")
+		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
+		return
+	}
 	result, sendErr := adapter.Send(ctx, Outgoing{Draft: draft})
 	if sendErr != nil {
 		status := "unknown"
@@ -256,7 +294,11 @@ func (s *Service) dispatchDue(parent context.Context) {
 	}
 	appendErr := error(nil)
 	accountSettings, _ := s.store.AccountSettings(ctx, account.ID)
-	if mappedID := accountSettings.FolderMap["sent"]; mappedID != "" {
+	if ctx.Err() != nil {
+		appendErr = ctx.Err()
+	} else if _, _, err := s.sendAccount(ctx, account.ID); err != nil {
+		appendErr = err
+	} else if mappedID := accountSettings.FolderMap["sent"]; mappedID != "" {
 		if appender, ok := adapter.(MappedSentAppender); ok {
 			var mapped Folder
 			folders, _ := s.store.Folders(ctx, account.ID)

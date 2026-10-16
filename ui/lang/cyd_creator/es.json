@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Añadir {name}: arrastra a la pantalla o pulsa Intro",
   "cyd_creator.designer.palette_search": "Buscar widgets",
   "cyd_creator.designer.palette_title": "Widgets",
+  "cyd_creator.designer.paste_adjusted": "Pegado. Se quitaron las imágenes y los saltos de pantalla que no existen en este proyecto.",
   "cyd_creator.designer.project_title": "Proyecto",
   "cyd_creator.designer.screen_add": "Añadir pantalla",
   "cyd_creator.designer.screen_added": "Pantalla añadida",

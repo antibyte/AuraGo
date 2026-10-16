@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Refresh failed. The last data is stale.",
   "ruview.process_exited": "The service exited. You can start it again.",
   "ruview.stop_failed": "Could not confirm the stop. Check the service.",
-  "ruview.stopping": "Stopping…"
+  "ruview.stopping": "Stopping…",
+  "ruview.device_offline": "No current sensor data",
+  "ruview.devices_known": "Known boards remain visible without reception. Current CSI data is indicated separately.",
+  "ruview.devices_empty": "No boards saved yet. Previously configured boards are added when they next send data; flashing again is not necessary.",
+  "ruview.device_save_failed": "Board settings confirmed, but the device list could not be saved. Repeat the confirmation."
 }

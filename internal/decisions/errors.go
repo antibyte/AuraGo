@@ -6,35 +6,37 @@ import (
 )
 
 const (
-	CodeServiceDisabled          = "service_disabled"
-	CodeServiceNotReady          = "service_not_ready"
-	CodeCPUConsentRequired       = "cpu_consent_required"
-	CodeHardwareUnavailable      = "hardware_unavailable"
-	CodeModelNotInstalled        = "model_not_installed"
-	CodeModelIntegrityFailed     = "model_integrity_failed"
-	CodeModelInstallFailed       = "model_install_failed"
-	CodeModelInstallBusy         = "model_install_busy"
-	CodeModelDownloadFailed      = "model_download_failed"
-	CodeRuntimeAttestationFailed = "runtime_attestation_failed"
-	CodeRuntimeUnavailable       = "runtime_unavailable"
-	CodeRuntimeArtifactMissing   = "runtime_artifact_missing"
-	CodeRuntimeStartFailed       = "runtime_start_failed"
-	CodeDockerUnavailable        = "docker_unavailable"
-	CodeDeploymentDenied         = "deployment_denied"
-	CodeInvalidRequest           = "invalid_request"
-	CodeCandidateNotScorable     = "candidate_not_single_token"
-	CodeInputTokenBudgetExceeded = "input_token_budget_exceeded"
-	CodeInvalidRuntimeResponse   = "invalid_runtime_response"
-	CodeInferenceFailed          = "inference_failed"
-	CodeCancelled                = "cancelled"
-	CodeQueueFull                = "queue_full"
-	CodeLifecycleBusy            = "lifecycle_busy"
-	CodeRuntimeBusy              = "runtime_busy"
-	CodeExternalProviderFailed   = "external_provider_failed"
-	CodeExternalOutcomeUnknown   = "external_outcome_unknown"
-	CodeProviderAuthFailed       = "provider_auth_failed"
-	CodeProviderCreditExhausted  = "provider_credit_exhausted"
-	CodeProviderRateLimited      = "provider_rate_limited"
+	CodeServiceDisabled             = "service_disabled"
+	CodeServiceNotReady             = "service_not_ready"
+	CodeCPUConsentRequired          = "cpu_consent_required"
+	CodeHardwareUnavailable         = "hardware_unavailable"
+	CodeModelNotInstalled           = "model_not_installed"
+	CodeModelIntegrityFailed        = "model_integrity_failed"
+	CodeModelInstallFailed          = "model_install_failed"
+	CodeModelInstallBusy            = "model_install_busy"
+	CodeModelDownloadFailed         = "model_download_failed"
+	CodeRuntimeAttestationFailed    = "runtime_attestation_failed"
+	CodeRuntimeUnavailable          = "runtime_unavailable"
+	CodeRuntimeArtifactMissing      = "runtime_artifact_missing"
+	CodeRuntimeStartFailed          = "runtime_start_failed"
+	CodeRuntimeStartTimeout         = "runtime_start_timeout"
+	CodeRuntimeInvalidConfiguration = "runtime_invalid_configuration"
+	CodeDockerUnavailable           = "docker_unavailable"
+	CodeDeploymentDenied            = "deployment_denied"
+	CodeInvalidRequest              = "invalid_request"
+	CodeCandidateNotScorable        = "candidate_not_single_token"
+	CodeInputTokenBudgetExceeded    = "input_token_budget_exceeded"
+	CodeInvalidRuntimeResponse      = "invalid_runtime_response"
+	CodeInferenceFailed             = "inference_failed"
+	CodeCancelled                   = "cancelled"
+	CodeQueueFull                   = "queue_full"
+	CodeLifecycleBusy               = "lifecycle_busy"
+	CodeRuntimeBusy                 = "runtime_busy"
+	CodeExternalProviderFailed      = "external_provider_failed"
+	CodeExternalOutcomeUnknown      = "external_outcome_unknown"
+	CodeProviderAuthFailed          = "provider_auth_failed"
+	CodeProviderCreditExhausted     = "provider_credit_exhausted"
+	CodeProviderRateLimited         = "provider_rate_limited"
 )
 
 // Error carries a stable, safe-to-publish code and an optional wrapped cause.
@@ -92,7 +94,7 @@ func IsNonRetryable(err error) bool {
 	}
 	switch ErrorCode(err) {
 	case CodeServiceDisabled, CodeCPUConsentRequired, CodeModelNotInstalled,
-		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed,
+		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed, CodeRuntimeStartTimeout, CodeRuntimeInvalidConfiguration,
 		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,

@@ -16,12 +16,29 @@ export async function checkDevices(page,fixture) {
         fixture.fail=false;fixture.statusFail=false;
         await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent==='');
         fixture.hold=new Promise(resolve=>{release=resolve;});
-        await page.waitForRequest(request=>request.url().endsWith('/proxy/api/v1/nodes'));
+        await page.waitForRequest(request=>request.url().endsWith('/ruview/nodes'));
         await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').waitFor();
         await page.locator('[data-tab=devices]').click();await page.waitForTimeout(4200);
         assert.equal(fixture.max,1,'returning to devices must not overlap a previous request');
         release();fixture.hold=null;
         await page.waitForFunction(()=>parseInt(document.querySelector('[data-age]')?.textContent)<1000);
+        fixture.offline=true;
+        await page.waitForFunction(()=>document.querySelector('[data-fresh]')?.textContent==='Keine aktuellen Sensordaten');
+        assert.equal(await page.locator('.ruview-node').count(),1,'empty upstream after restart retains known boards');
+        assert.match(await page.locator('.ruview-node').innerText(),/-51/,'last RSSI remains explicitly offline');
+        fixture.unavailable=true;
+        await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent.includes('Aktualisierung fehlgeschlagen'));
+        assert.equal(await page.locator('.ruview-node').count(),1,'unreachable upstream retains known boards');
+        await page.evaluate(()=>render());await page.locator('[data-action=test]').waitFor();
+        await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+        assert.equal(await page.locator('[data-age]').innerText(),'—','reopening restores identity, never fake historical measurements');
+        fixture.offline=false;fixture.unavailable=false;
+        await page.waitForFunction(()=>document.querySelector('[data-fresh]')?.textContent==='Frische Sensordaten empfangen');
+        fixture.offline=true;fixture.scope='different-receiver';
+        await page.waitForFunction(()=>document.querySelector('[data-age]')?.textContent==='—');
+        assert.ok(!(await page.locator('.ruview-node').innerText()).includes('-51'),'another receiver must not inherit previous measurements');
+        fixture.offline=false;fixture.scope='fixture';
+        await page.waitForFunction(()=>document.querySelector('[data-fresh]')?.textContent==='Frische Sensordaten empfangen');
         await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,value:true}));
         const reads=fixture.reads;await page.waitForTimeout(4200);
         assert.equal(fixture.reads,reads,'hidden document pauses polling');
@@ -40,7 +57,7 @@ export async function checkDevices(page,fixture) {
         assert.equal(fixture.reads,closedReads);assert.equal(await page.locator('[data-age]').innerText(),closedAge,'disposed app has no age timer');
         await page.evaluate(()=>render());await page.locator('[data-action=test]').waitFor();
         await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
-    } finally {release();fixture.hold=null;fixture.fail=false;fixture.statusFail=false;await page.evaluate(()=>delete document.hidden);}
+    } finally {release();fixture.hold=null;fixture.fail=false;fixture.statusFail=false;fixture.offline=false;fixture.unavailable=false;fixture.scope='fixture';await page.evaluate(()=>delete document.hidden);}
 }
 
 export async function checkPolicy(frame,setReadonly) {

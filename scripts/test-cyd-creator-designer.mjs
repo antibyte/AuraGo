@@ -154,6 +154,31 @@ eq('resize grows a stored 0 size to at least 1', [G.resizeRect({ x: 5, y: 5, w: 
 eq('clampInto rect larger than the frame', G.clampInto({ x: 50, y: 50, w: 400, h: 300 }, { x: 0, y: 0, w: 320, h: 240 }), { x: 0, y: 0, w: 400, h: 300 });
 eq('clampInto frame with an offset origin', [G.clampInto({ x: 0, y: 60, w: 20, h: 20 }, { x: 10, y: 20, w: 100, h: 50 }), G.clampInto({ x: 30, y: 30, w: 200, h: 10 }, { x: 10, y: 20, w: 100, h: 50 })],
     [{ x: 10, y: 50, w: 20, h: 20 }, { x: 10, y: 30, w: 200, h: 10 }]);
+const stack = ['A', 'B', 'C', 'D'];
+eq('restack forward moves a block one slot in list order', G.restack(stack, ['B', 'A'], 'forward'), ['C', 'A', 'B', 'D']);
+eq('restack front keeps list order, not click order', G.restack(stack, ['B', 'A'], 'front'), ['C', 'D', 'A', 'B']);
+eq('restack back of the front pair stays put', G.restack(stack, ['A', 'B'], 'back'), ['A', 'B', 'C', 'D']);
+eq('restack forward of a split selection steps each one slot', G.restack(stack, ['A', 'C'], 'forward'), ['B', 'A', 'D', 'C']);
+eq('restack backward of the back pair steps the block one slot', G.restack(stack, ['D', 'C'], 'backward'), ['A', 'C', 'D', 'B']);
+eq('restack one widget forward', G.restack(stack, ['B'], 'forward'), ['A', 'C', 'B', 'D']);
+eq('restack one widget front and back', [G.restack(stack, ['B'], 'front'), G.restack(stack, ['B'], 'back')], [['A', 'C', 'D', 'B'], ['B', 'A', 'C', 'D']]);
+const forwardSteps = G.reorderIndexes(stack, ['C', 'A', 'B', 'D']);
+eq('reorderIndexes skips ids that are already in place', forwardSteps.map(s => s.id + '@' + s.index), ['C@0']);
+const frame320 = { x: 0, y: 0, w: 320, h: 240 };
+eq('clampDelta pulls a widget back to the frame origin', G.clampDelta([{ abs: { x: -40, y: 10, w: 40, h: 20 }, frame: frame320 }], { x: 0, y: 0 }), { x: 40, y: 0 });
+eq('clampDelta keeps a group rigid at the edge', G.clampDelta([
+    { abs: { x: 10, y: 0, w: 20, h: 10 }, frame: frame320 },
+    { abs: { x: 30, y: 0, w: 20, h: 10 }, frame: frame320 }
+], { x: -100, y: 5 }), { x: -10, y: 5 });
+eq('clampDelta sticks the overflowing axis to the frame origin', G.clampDelta([{ abs: { x: 40, y: 8, w: 400, h: 10 }, frame: frame320 }], { x: 15, y: -3 }), { x: -40, y: -3 });
+const visScreen = { widgets: [
+    { id: 'a', type: 'label' },
+    { id: 'p', type: 'panel', hidden: true, children: [{ id: 'h', type: 'label' }] },
+    { id: 'q', type: 'panel', children: [{ id: 'k', type: 'label' }, { id: 'z', type: 'label', hidden: true }] },
+    { id: 't', type: 'tabview', children: [{ id: 'on', type: 'label', tab: 0 }, { id: 'off', type: 'label', tab: 1 }] }
+]};
+eq('visibleIds skips hidden widgets and inactive tab pages', M.visibleIds(visScreen, () => 0), ['a', 'q', 'k', 't', 'on']);
+eq('visibleIds follows the active tab', M.visibleIds(visScreen, id => id === 't' ? 1 : 0), ['a', 'q', 'k', 't', 'off']);
 
 // ── store ──
 function project() {
@@ -306,6 +331,41 @@ eq('change returns the fn result', ret, 42);
 // ── ops (structural mirror of Go ApplyOps, no validation gate) ──
 const specs = M.specMap(caps.widgets);
 const ctx = { specs, screenSize: { w: 320, h: 240 }, themes: caps.themes.map(t => t.id) };
+{
+    const zProject = project();
+    zProject.screens[0].widgets = ['A', 'B', 'C', 'D'].map((id, i) => ({ id, type: 'label', name: 'lbl_' + (i + 1), x: i * 10, y: 0, w: 10, h: 10 }));
+    const desired = G.restack(['A', 'B', 'C', 'D'], ['A', 'B'], 'forward');
+    const stepped = M.applyOps(zProject, G.reorderIndexes(['A', 'B', 'C', 'D'], desired).map(s => ({ op: 'reorder_widget', id: s.id, index: s.index })), ctx);
+    eq('simulated reorder_widget ops land the block one slot forward', stepped.project.screens[0].widgets.map(w => w.id), ['C', 'A', 'B', 'D']);
+    const host = { screens: [{ id: 's_keep', name: 'keep' }], assets: [{ id: 'a_ok', file: 'assets/a_ok.png', w: 8, h: 8, alpha: false }] };
+    const foreign = {
+        type: 'button',
+        props: { icon_asset: 'a_missing', icon_frames: ['a_ok', 'a_ok', 'a_ok', 'a_ok', 'a_ok', 'a_ok'], icon_animate: true, icon_origin: 'top' },
+        events: [
+            { on: 'clicked', action: { type: 'goto_screen', screen: 's_gone' } },
+            { on: 'long_pressed', action: { type: 'goto_screen', screen: 'keep' } },
+            { on: 'clicked', action: { type: 'logic', hint: 'stay' } }
+        ],
+        children: [{ type: 'button', props: { icon_asset: 'a_ok', icon_origin: 'mid' } }]
+    };
+    const cleaned = M.sanitizeForeign(foreign, host, specs);
+    eq('sanitizeForeign drops a missing asset, its frames and an unknown screen jump', [
+        cleaned.adjusted,
+        cleaned.widget.props.icon_asset || null,
+        cleaned.widget.props.icon_frames || null,
+        cleaned.widget.props.icon_animate || null,
+        cleaned.widget.props.icon_origin || null,
+        cleaned.widget.events.map(e => e.action.type + ':' + (e.action.screen || e.action.hint)),
+        cleaned.widget.children[0].props
+    ], [true, null, null, null, null, ['goto_screen:keep', 'logic:stay'], { icon_asset: 'a_ok', icon_origin: 'mid' }]);
+    const partial = { type: 'button', props: { icon_asset: 'a_ok', icon_frames: ['a_ok', 'a_missing'], icon_animate: true, icon_origin: 'top' } };
+    const frames = M.sanitizeForeign(partial, host, specs);
+    eq('sanitizeForeign drops incomplete frames and keeps the asset and its origin', [
+        frames.adjusted, frames.widget.props.icon_asset, frames.widget.props.icon_frames || null, frames.widget.props.icon_animate || null, frames.widget.props.icon_origin
+    ], [true, 'a_ok', null, null, 'top']);
+    const intact = { type: 'button', props: { icon_asset: 'a_ok' }, events: [{ on: 'clicked', action: { type: 'logic', hint: 'ok' } }] };
+    eq('sanitizeForeign leaves a resolvable widget alone', M.sanitizeForeign(intact, host, specs).adjusted, false);
+}
 const base = project();
 function ops(list) { return M.applyOps(base, list, ctx); }
 let r = ops([{ op: 'add_widget', screen: 'home', widget: { type: 'label', x: 1, y: 2, w: 50, h: 20 } }]);
@@ -667,7 +727,7 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
         root, viewport,
         render() { seen.render++; }, fit() { seen.fit = (seen.fit || 0) + 1; }, dispose() { seen.disposed = true; },
         previewMove(ids, delta) { seen.moves.push(delta); }, previewResize(id, r) { seen.resizes.push(r); },
-        showGuides() {}, showMarquee() {}, showDrop(r) { seen.drops.push(r); }, announce() {},
+        showGuides() {}, showMarquee() {}, showDrop(r) { seen.drops.push(r); }, announce(text) { (seen.said = seen.said || []).push(text); },
         hostRect: () => ({ left: host.x, top: host.y, right: host.x + 320 * (d.zoom || 1), bottom: host.y + 240 * (d.zoom || 1) }),
         clientToWorld: (x, y) => G.toWorld({ x, y }, { left: host.x, top: host.y }, d.zoom || 1)
     }) };
@@ -775,7 +835,8 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     iStore.undo();
     eq('reparent is one undo step', at('w_btn'), [null, 200, 20]);
     drag(els.w_btn, [210, 30], [60, 215]);
-    eq('dropping on the visible tabview page sets its tab', [at('w_btn'), widget('w_btn').widget.tab], [['w_tabs', 50, 5], 1]);
+    // The button is as tall as the tab page, so the 5 px overflow sticks to the top of that page.
+    eq('dropping on the visible tabview page sets its tab', [at('w_btn'), widget('w_btn').widget.tab], [['w_tabs', 50, 0], 1]);
     iStore.undo();
     d.select(['w_kid']);
     drag(els.w_kid, [115, 115], [115, 75]);
@@ -872,7 +933,67 @@ for (const file of ['cyd-creator-designer.js', 'cyd-creator-interact.js']) {
     key('z', { ctrlKey: true });
     check('undo brings the cut widget back', !!widget('w_btn') && rootIds().length === count0);
     key('a', { ctrlKey: true });
-    eq('Ctrl+A selects every visible root widget', d.selection, rootIds());
+    eq('Ctrl+A selects every visible widget, including nested ones', d.selection, ['w_lbl', 'w_pnl', 'w_kid', 'w_btn', 'w_lock', 'w_tabs']);
+    d.select([]);
+    drag(viewport, [100, 100], [160, 140], { altKey: false });
+    eq('a marquee over a panel hits the panel and its child', d.selection, ['w_pnl', 'w_kid']);
+    d.commands.update('w_kid', { hidden: true });
+    d.commands.selectAll();
+    check('Ctrl+A skips a hidden child', !d.selection.includes('w_kid') && d.selection.includes('w_pnl'));
+    d.select([]);
+    drag(viewport, [100, 100], [160, 140], { altKey: false });
+    eq('a marquee skips a hidden child', d.selection, ['w_pnl']);
+    d.commands.undo();
+    d.setTab('w_tabs', 0);
+    const tabAdd = d.commands.run('add', [{ op: 'add_widget', screen: 's_one', parent: 'w_tabs', tab: 1, widget: { type: 'label', x: 4, y: 4, w: 20, h: 12 } }]);
+    const tabId = tabAdd && tabAdd[0].id;
+    d.commands.selectAll();
+    check('Ctrl+A skips a widget on an inactive tab page', !!tabId && !d.selection.includes(tabId) && d.selection.includes('w_tabs'));
+    d.commands.undo();
+    d.select(['w_lbl', 'w_pnl']);
+    d.commands.zorder('forward');
+    eq('forward moves the two front widgets one slot as a block', rootIds(), ['w_btn', 'w_lbl', 'w_pnl', 'w_lock', 'w_tabs']);
+    d.commands.undo();
+    d.commands.update('w_lbl', { x: 10, y: 10, w: 80, h: 20 });
+    drag(els.w_lbl, [20, 20], [-400, 20]);
+    eq('a drag past the left edge stops on the screen', widget('w_lbl').widget.x, 0);
+    d.select(['w_lbl']);
+    const nEdge = origins.length;
+    key('ArrowLeft');
+    check('a nudge at the edge does not record an undo step', widget('w_lbl').widget.x === 0 && origins.length === nEdge);
+    d.commands.update('w_lbl', { x: 15, y: 10 });
+    d.commands.update('w_btn', { x: 45, y: 10 });
+    d.select(['w_lbl', 'w_btn']);
+    drag(els.w_lbl, [20, 20], [-400, 20]);
+    eq('a group stops together and keeps its gap', [widget('w_lbl').widget.x, widget('w_btn').widget.x], [0, 30]);
+    d.commands.undo();
+    d.commands.undo();
+    d.commands.undo();
+    d.commands.undo();
+    d.commands.undo();
+    inst.projectId = 'proj-a';
+    d.commands.update('w_btn', {
+        props: { icon_asset: 'a_gone', icon_origin: 'top' },
+        events: [
+            { on: 'clicked', action: { type: 'goto_screen', screen: 's_missing' } },
+            { on: 'long_pressed', action: { type: 'logic', hint: 'stay' } }
+        ]
+    });
+    d.select(['w_btn']);
+    d.commands.copy();
+    d.commands.paste();
+    const same = widget(d.selection[0]).widget;
+    check('a paste in the same project keeps the copied picture', d.selection[0] !== 'w_btn' && same.props && same.props.icon_asset === 'a_gone');
+    d.commands.undo();
+    inst.projectId = 'proj-b';
+    seen.said = [];
+    d.commands.paste();
+    const foreignPaste = widget(d.selection[0]).widget;
+    check('a paste into another project drops the missing picture and the unknown screen jump', d.selection[0] !== 'w_btn' && !(foreignPaste.props && foreignPaste.props.icon_asset) && !(foreignPaste.events || []).some(e => e.action && e.action.type === 'goto_screen') && (foreignPaste.events || []).some(e => e.action && e.action.type === 'logic'));
+    check('that paste announces the adjustment', seen.said.includes('cyd_creator.designer.paste_adjusted'));
+    d.commands.undo();
+    d.commands.undo();
+    inst.projectId = '';
 
     // keys during a gesture
     d.select(['w_lbl']);

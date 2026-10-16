@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Ajouter {name} : faites glisser sur l’écran ou appuyez sur Entrée",
   "cyd_creator.designer.palette_search": "Rechercher des widgets",
   "cyd_creator.designer.palette_title": "Widgets",
+  "cyd_creator.designer.paste_adjusted": "Collé. Les images et les changements d'écran qui n'existent pas dans ce projet ont été retirés.",
   "cyd_creator.designer.project_title": "Projet",
   "cyd_creator.designer.screen_add": "Ajouter un écran",
   "cyd_creator.designer.screen_added": "Écran ajouté",

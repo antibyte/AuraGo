@@ -41,18 +41,21 @@ type ServiceOptions struct {
 }
 
 type Service struct {
-	store      *Store
-	blobs      *BlobStore
-	opts       ServiceOptions
-	ownsStore  bool
-	lifeMu     sync.Mutex
-	lifeCancel context.CancelFunc
-	lifeWG     sync.WaitGroup
-	syncMu     sync.Mutex
-	outboxMu   sync.Mutex
-	activeMu   sync.Mutex
-	activeNext uint64
-	activeOps  map[uint64]context.CancelFunc
+	store        *Store
+	blobs        *BlobStore
+	opts         ServiceOptions
+	ownsStore    bool
+	lifeMu       sync.Mutex
+	lifeCancel   context.CancelFunc
+	lifeWG       sync.WaitGroup
+	syncMu       sync.Mutex
+	outboxMu     sync.Mutex
+	activeMu     sync.Mutex
+	activeNext   uint64
+	activeOps    map[uint64]context.CancelFunc
+	accountOps   map[string]map[uint64]context.CancelFunc
+	accountGates map[string]*sync.RWMutex
+	ruleGates    map[string]*sync.Mutex
 }
 
 func NewService(opts ServiceOptions) (*Service, error) {
@@ -88,7 +91,7 @@ func NewService(opts ServiceOptions) (*Service, error) {
 		}
 		return nil, err
 	}
-	return &Service{store: store, blobs: blobs, opts: opts, ownsStore: owns, activeOps: make(map[uint64]context.CancelFunc)}, nil
+	return &Service{store: store, blobs: blobs, opts: opts, ownsStore: owns, activeOps: make(map[uint64]context.CancelFunc), accountOps: make(map[string]map[uint64]context.CancelFunc), accountGates: make(map[string]*sync.RWMutex), ruleGates: make(map[string]*sync.Mutex)}, nil
 }
 
 func (s *Service) Store() *Store         { return s.store }
@@ -175,6 +178,58 @@ func (s *Service) cancelActiveOperations() {
 	s.activeMu.Lock()
 	cancels := make([]context.CancelFunc, 0, len(s.activeOps))
 	for _, cancel := range s.activeOps {
+		cancels = append(cancels, cancel)
+	}
+	s.activeMu.Unlock()
+	for _, cancel := range cancels {
+		cancel()
+	}
+}
+
+func (s *Service) trackAccountOperation(ctx context.Context, cancel func(), accountID string) (context.Context, func()) {
+	accountCtx, accountCancel := context.WithCancel(ctx)
+	s.activeMu.Lock()
+	s.activeNext++
+	id := s.activeNext
+	if s.accountOps[accountID] == nil {
+		s.accountOps[accountID] = make(map[uint64]context.CancelFunc)
+	}
+	stop := func() { accountCancel(); cancel() }
+	s.accountOps[accountID][id] = stop
+	s.activeMu.Unlock()
+	return accountCtx, func() {
+		accountCancel()
+		s.activeMu.Lock()
+		delete(s.accountOps[accountID], id)
+		if len(s.accountOps[accountID]) == 0 {
+			delete(s.accountOps, accountID)
+		}
+		s.activeMu.Unlock()
+	}
+}
+
+func (s *Service) accountGate(accountID string) *sync.RWMutex {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+	if s.accountGates[accountID] == nil {
+		s.accountGates[accountID] = &sync.RWMutex{}
+	}
+	return s.accountGates[accountID]
+}
+
+func (s *Service) ruleGate(ruleID string) *sync.Mutex {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+	if s.ruleGates[ruleID] == nil {
+		s.ruleGates[ruleID] = &sync.Mutex{}
+	}
+	return s.ruleGates[ruleID]
+}
+
+func (s *Service) cancelAccountOperations(accountID string) {
+	s.activeMu.Lock()
+	cancels := make([]context.CancelFunc, 0, len(s.accountOps[accountID]))
+	for _, cancel := range s.accountOps[accountID] {
 		cancels = append(cancels, cancel)
 	}
 	s.activeMu.Unlock()
@@ -373,6 +428,10 @@ func (s *Service) Disconnect(ctx context.Context, id string) error {
 		return err
 	}
 	defer cancel()
+	s.cancelAccountOperations(id)
+	gate := s.accountGate(id)
+	gate.Lock()
+	defer gate.Unlock()
 	if err := s.store.UnlinkAccount(ctx, id); err != nil {
 		return err
 	}
@@ -410,21 +469,6 @@ func (s *Service) SetAccountSettings(ctx context.Context, id string, v AccountSe
 	if normalizeErr != nil {
 		return normalizeErr
 	}
-	if v.AgentAccess != account.AgentAccess {
-		if s.opts.SetAgentAccess == nil {
-			return errors.New("agent access is controlled by account configuration")
-		}
-		if err := s.opts.SetAgentAccess(ctx, id, v.AgentAccess); err != nil {
-			return err
-		}
-		account, err = s.currentSource(ctx, id)
-		if err != nil {
-			return err
-		}
-		if account.AgentAccess != v.AgentAccess {
-			return errors.New("account source did not apply the agent access change")
-		}
-	}
 	current, err := s.store.AccountSettings(ctx, id)
 	if err != nil {
 		return err
@@ -461,10 +505,57 @@ func (s *Service) SetAccountSettings(ctx context.Context, id string, v AccountSe
 			return fmt.Errorf("%w: signature does not belong to this account", ErrInvalid)
 		}
 	}
+	if v.AgentAccess != account.AgentAccess && s.opts.SetAgentAccess == nil {
+		return errors.New("agent access is controlled by account configuration")
+	}
+	var gate *sync.RWMutex
+	if (v.ReadOnly && !current.ReadOnly) || (v.Disabled && !current.Disabled) {
+		s.cancelAccountOperations(id)
+		gate = s.accountGate(id)
+		gate.Lock()
+		defer gate.Unlock()
+	}
+	oldAgentAccess := account.AgentAccess
+	agentAccessChanged := v.AgentAccess != oldAgentAccess
+	rollbackAgentAccess := func(cause error) error {
+		if !agentAccessChanged {
+			return cause
+		}
+		rollbackCtx := context.WithoutCancel(ctx)
+		rollbackErr := s.opts.SetAgentAccess(rollbackCtx, id, oldAgentAccess)
+		if rollbackErr == nil {
+			var restored Account
+			restored, rollbackErr = s.currentSource(rollbackCtx, id)
+			if rollbackErr == nil && restored.AgentAccess != oldAgentAccess {
+				rollbackErr = errors.New("account source did not restore the original agent access")
+			}
+		}
+		if rollbackErr != nil {
+			return fmt.Errorf("%w; restore agent access: %v", cause, rollbackErr)
+		}
+		return cause
+	}
+	if agentAccessChanged {
+		if err := s.opts.SetAgentAccess(ctx, id, v.AgentAccess); err != nil {
+			return rollbackAgentAccess(err)
+		}
+		account, err = s.currentSource(ctx, id)
+		if err != nil {
+			return rollbackAgentAccess(err)
+		}
+		if account.AgentAccess != v.AgentAccess {
+			return rollbackAgentAccess(errors.New("account source did not apply the agent access change"))
+		}
+	}
 	// Source-level agent access is never persisted as a local grant.
 	v.AgentAccess = account.AgentAccess
 	if err := s.store.SetAccountSettings(ctx, id, v); err != nil {
-		return err
+		return rollbackAgentAccess(err)
+	}
+	if gate != nil {
+		if err := s.store.SkipPendingRuleRuns(ctx, id, "account write access was revoked"); err != nil {
+			return err
+		}
 	}
 	s.emit(Event{Type: "account_settings", AccountID: id})
 	return nil
@@ -589,6 +680,17 @@ func (s *Service) SaveDraft(ctx context.Context, d Draft) (Draft, error) {
 	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
 		return Draft{}, err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, d.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(d.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return Draft{}, err
+	}
+	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
+		return Draft{}, err
+	}
 	if err := validateDraft(d); err != nil {
 		return Draft{}, err
 	}
@@ -638,6 +740,17 @@ func (s *Service) DeleteDraft(ctx context.Context, id string, revision int64) er
 	if _, _, err := s.writableAccount(ctx, draft.AccountID, "send"); err != nil {
 		return err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, draft.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(draft.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if _, _, err := s.writableAccount(ctx, draft.AccountID, "send"); err != nil {
+		return err
+	}
 	pending, err := s.store.DraftHasPendingSend(ctx, id)
 	if err != nil {
 		return err
@@ -673,6 +786,17 @@ func (s *Service) AddDraftAttachment(ctx context.Context, draftID string, revisi
 	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
 		return Draft{}, err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, d.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(d.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return Draft{}, err
+	}
+	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
+		return Draft{}, err
+	}
 	a, err := s.blobs.Put(ctx, "draft", draftID, filename, contentType, src)
 	if err != nil {
 		return Draft{}, err
@@ -703,31 +827,22 @@ func (s *Service) RemoveDraftAttachment(ctx context.Context, draftID string, rev
 	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
 		return Draft{}, err
 	}
-	found := false
-	attachments := make([]Attachment, 0, len(d.Attachments))
-	for _, a := range d.Attachments {
-		if a.ID == attachmentID {
-			found = true
-			continue
-		}
-		attachments = append(attachments, a)
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, d.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(d.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return Draft{}, err
 	}
-	if !found {
-		return Draft{}, ErrNotFound
+	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
+		return Draft{}, err
 	}
-	pending, err := s.store.BlobHasPendingSend(ctx, attachmentID)
+	saved, err := s.store.RemoveDraftAttachment(ctx, draftID, revision, attachmentID)
 	if err != nil {
 		return Draft{}, err
 	}
-	if pending {
-		return Draft{}, ErrConflict
-	}
-	d.Attachments = attachments
-	saved, err := s.store.SaveDraft(ctx, d)
-	if err != nil {
-		return Draft{}, err
-	}
-	if err := s.blobs.Remove(ctx, attachmentID); err != nil {
+	if err := s.blobs.removeFile(attachmentID); err != nil {
 		return saved, err
 	}
 	s.emit(Event{Type: "draft_attachment", AccountID: d.AccountID, ID: draftID, Status: "removed"})

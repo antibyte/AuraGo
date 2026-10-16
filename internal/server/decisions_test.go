@@ -507,6 +507,7 @@ func TestDecisionsDisabledCancellationAndTechnicalErrors(t *testing.T) {
 	}{
 		{errDecisionImage, 400}, {context.DeadlineExceeded, 504}, {decisions.NewError("queue_full", nil), 429}, {fake.err, 503},
 		{decisions.NewError(decisions.CodeCancelled, context.DeadlineExceeded), 504},
+		{decisions.NewError(decisions.CodeRuntimeStartTimeout, context.DeadlineExceeded), 504},
 		{decisions.NewError(decisions.CodeCancelled, context.Canceled), 408},
 		{decisions.NewError(decisions.CodeCandidateNotScorable, nil), 400},
 	} {
@@ -514,6 +515,9 @@ func TestDecisionsDisabledCancellationAndTechnicalErrors(t *testing.T) {
 		writeDecisionsFailure(w, tc.err)
 		if w.Code != tc.status {
 			t.Fatalf("wrong error status: %d", w.Code)
+		}
+		if decisions.ErrorCode(tc.err) == decisions.CodeRuntimeStartTimeout && !strings.Contains(w.Body.String(), `"code":"runtime_start_timeout"`) {
+			t.Fatalf("startup timeout was reduced to a request deadline: %s", w.Body.String())
 		}
 	}
 }

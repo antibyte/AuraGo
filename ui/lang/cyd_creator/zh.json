@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "添加{name}：拖到屏幕上或按 Enter",
   "cyd_creator.designer.palette_search": "搜索组件",
   "cyd_creator.designer.palette_title": "组件",
+  "cyd_creator.designer.paste_adjusted": "已粘贴。本项目中不存在的图片和画面跳转已移除。",
   "cyd_creator.designer.project_title": "项目",
   "cyd_creator.designer.screen_add": "添加屏幕",
   "cyd_creator.designer.screen_added": "已添加屏幕",

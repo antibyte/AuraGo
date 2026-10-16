@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Lägg till {name}: dra till skärmen eller tryck Enter",
   "cyd_creator.designer.palette_search": "Sök widgetar",
   "cyd_creator.designer.palette_title": "Widgetar",
+  "cyd_creator.designer.paste_adjusted": "Klistrat in. Bilder och skärmbyten som inte finns i det här projektet togs bort.",
   "cyd_creator.designer.project_title": "Projekt",
   "cyd_creator.designer.screen_add": "Lägg till skärm",
   "cyd_creator.designer.screen_added": "Skärm tillagd",

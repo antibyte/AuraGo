@@ -190,9 +190,7 @@ func (a *gmailAdapter) Search(ctx context.Context, folder string, query MessageQ
 	if query.Starred {
 		q.Set("q", strings.TrimSpace(q.Get("q"))+" is:starred")
 	}
-	if label := gmailProviderLabel(a.accountID(), folder); label != "" {
-		q.Set("labelIds", label)
-	}
+	addGmailFolderFilter(q, a.accountID(), folder)
 	if query.Cursor != "" {
 		if len(query.Cursor) > 8192 {
 			return MessagePage{}, fmt.Errorf("invalid Gmail search cursor")
@@ -305,10 +303,7 @@ func (a *gmailAdapter) currentHistoryID(ctx context.Context) (string, error) {
 
 func (a *gmailAdapter) syncSnapshotPage(ctx context.Context, folder string, state gmailSyncCursor) (SyncResult, error) {
 	q := url.Values{"maxResults": {"100"}}
-	label := gmailProviderLabel(a.accountID(), folder)
-	if label != "" {
-		q.Set("labelIds", label)
-	}
+	addGmailFolderFilter(q, a.accountID(), folder)
 	if state.PageToken != "" {
 		q.Set("pageToken", state.PageToken)
 	}
@@ -718,6 +713,16 @@ func (a *gmailAdapter) AppendSentTo(ctx context.Context, _ Outgoing, result Send
 }
 func (a *gmailAdapter) accountID() string        { return a.cfg.Source + ":" + a.cfg.ID }
 func gmailFolderID(account, label string) string { return account + ":gmail:" + url.PathEscape(label) }
+func addGmailFolderFilter(q url.Values, account, folder string) {
+	label := gmailProviderLabel(account, folder)
+	if label == "" {
+		return
+	}
+	q.Set("labelIds", label)
+	if label == "SPAM" || label == "TRASH" {
+		q.Set("includeSpamTrash", "true")
+	}
+}
 func gmailProviderLabel(account, id string) string {
 	prefix := account + ":gmail:"
 	if !strings.HasPrefix(id, prefix) {

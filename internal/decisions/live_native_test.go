@@ -198,9 +198,9 @@ func (factory *liveDeviceFactory) discover(ctx context.Context, deployment strin
 	return integrated, nil
 }
 
-func (factory *liveDeviceFactory) start(ctx context.Context, deployment string, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string) (runtimeSession, error) {
+func (factory *liveDeviceFactory) start(ctx context.Context, deployment string, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string, progress func(string)) (runtimeSession, error) {
 	factory.attempts = append(factory.attempts, device)
-	return factory.runtimeFactory.start(ctx, deployment, device, paths, cfg, access, dataDir)
+	return factory.runtimeFactory.start(ctx, deployment, device, paths, cfg, access, dataDir, progress)
 }
 
 func liveErrorChain(err error) string {

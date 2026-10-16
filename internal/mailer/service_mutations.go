@@ -21,6 +21,14 @@ func (s *Service) Mutate(ctx context.Context, id string, mutation Mutation) erro
 	if err != nil {
 		return err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, m.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(m.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	account, err := s.authorizedAccount(ctx, m.AccountID)
 	if err != nil {
 		return err
@@ -87,6 +95,16 @@ func (s *Service) Mutate(ctx context.Context, id string, mutation Mutation) erro
 			return err
 		}
 	} else {
+		adapter, account, err = s.writableAccount(ctx, m.AccountID, mutationCapability(mutation.Kind))
+		if err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := s.checkMutationPublication(ctx); err != nil {
+			return err
+		}
 		if err := adapter.Mutate(ctx, m.FolderID, m.RemoteID, mutation); err != nil {
 			return err
 		}
@@ -255,6 +273,14 @@ func (s *Service) Snooze(ctx context.Context, id string, until time.Time) error 
 	if err != nil {
 		return err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, m.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(m.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	account, err := s.authorizedAccount(ctx, m.AccountID)
 	if err != nil {
 		return err
@@ -269,6 +295,9 @@ func (s *Service) Snooze(ctx context.Context, id string, until time.Time) error 
 		return ErrCapability
 	}
 	if err := s.ensureCurrentRemoteMessage(ctx, account, m); err != nil {
+		return err
+	}
+	if _, _, err := s.writableAccount(ctx, m.AccountID, "read"); err != nil {
 		return err
 	}
 	if err := s.checkMutationPublication(ctx); err != nil {
@@ -291,6 +320,14 @@ func (s *Service) Unsnooze(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, m.AccountID)
+	defer releaseAccount()
+	gate := s.accountGate(m.AccountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	account, err := s.authorizedAccount(ctx, m.AccountID)
 	if err != nil {
 		return err
@@ -305,6 +342,9 @@ func (s *Service) Unsnooze(ctx context.Context, id string) error {
 		return ErrCapability
 	}
 	if err := s.ensureCurrentRemoteMessage(ctx, account, m); err != nil {
+		return err
+	}
+	if _, _, err := s.writableAccount(ctx, m.AccountID, "read"); err != nil {
 		return err
 	}
 	if err := s.checkMutationPublication(ctx); err != nil {

@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "{name} を追加: 画面にドラッグするか Enter キー",
   "cyd_creator.designer.palette_search": "ウィジェットを検索",
   "cyd_creator.designer.palette_title": "ウィジェット",
+  "cyd_creator.designer.paste_adjusted": "貼り付けました。このプロジェクトにない画像と画面の移動は削除しました。",
   "cyd_creator.designer.project_title": "プロジェクト",
   "cyd_creator.designer.screen_add": "画面を追加",
   "cyd_creator.designer.screen_added": "画面を追加しました",

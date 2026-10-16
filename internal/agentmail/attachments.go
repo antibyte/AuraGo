@@ -10,10 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"aurago/internal/security"
 )
 
-// DownloadAttachment retrieves an attachment only from the configured
-// AgentMail origin and enforces the caller's byte limit before returning it.
+// DownloadAttachment retrieves an attachment from its signed HTTPS URL without
+// sending the AgentMail API key to the download host.
 func (c *Client) DownloadAttachment(ctx context.Context, inboxID, messageID, attachmentID string, maxBytes int64) ([]byte, *Attachment, error) {
 	if maxBytes <= 0 || maxBytes > 25<<20 {
 		maxBytes = 25 << 20
@@ -26,22 +29,15 @@ func (c *Client) DownloadAttachment(ctx context.Context, inboxID, messageID, att
 	if raw == "" {
 		return nil, nil, fmt.Errorf("attachment download URL is missing")
 	}
-	u, err := url.Parse(raw)
+	u, err := attachmentDownloadURL(raw, c.baseURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid attachment URL")
-	}
-	if !u.IsAbs() {
-		u = c.baseURL.ResolveReference(u)
-	}
-	if !strings.EqualFold(u.Scheme, c.baseURL.Scheme) || !strings.EqualFold(u.Host, c.baseURL.Host) || u.User != nil || u.Fragment != "" {
-		return nil, nil, fmt.Errorf("attachment URL is outside the configured AgentMail origin")
+		return nil, nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.attachmentHTTPClient.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("AgentMail attachment download failed")
 	}
@@ -54,6 +50,45 @@ func (c *Client) DownloadAttachment(ctx context.Context, inboxID, messageID, att
 		return nil, nil, err
 	}
 	return data, meta, nil
+}
+
+func newAttachmentHTTPClient() *http.Client {
+	return attachmentRedirectPolicy(security.NewSSRFProtectedHTTPClient(30 * time.Second))
+}
+
+func attachmentRedirectPolicy(client *http.Client) *http.Client {
+	copy := *client
+	checkRedirect := copy.CheckRedirect
+	copy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if _, err := attachmentDownloadURL(req.URL.String(), nil); err != nil {
+			return err
+		}
+		if checkRedirect != nil {
+			return checkRedirect(req, via)
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 attachment redirects")
+		}
+		return nil
+	}
+	return &copy
+}
+
+func attachmentDownloadURL(raw string, base *url.URL) (*url.URL, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil, fmt.Errorf("invalid attachment URL")
+	}
+	if !u.IsAbs() && base != nil {
+		u = base.ResolveReference(u)
+	}
+	if !strings.EqualFold(u.Scheme, "https") || u.Host == "" || u.User != nil || u.Fragment != "" || strings.ContainsAny(u.Path, "\r\n\x00") {
+		return nil, fmt.Errorf("attachment URL must be HTTPS without credentials or fragments")
+	}
+	if err := security.ValidatePublicHTTPURL(u.String()); err != nil {
+		return nil, fmt.Errorf("attachment URL is not public HTTPS: %w", err)
+	}
+	return u, nil
 }
 
 // PrepareAttachments converts either workspace-local paths or explicit base64

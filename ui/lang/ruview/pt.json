@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Falha ao atualizar. Os últimos dados estão desatualizados.",
   "ruview.process_exited": "O serviço terminou. Podes iniciá-lo novamente.",
   "ruview.stop_failed": "Não foi possível confirmar a paragem. Verifica o serviço.",
-  "ruview.stopping": "A parar…"
+  "ruview.stopping": "A parar…",
+  "ruview.device_offline": "Sem dados atuais do sensor",
+  "ruview.devices_known": "As placas conhecidas continuam visíveis sem receção. Os dados CSI atuais são indicados separadamente.",
+  "ruview.devices_empty": "Ainda não há placas guardadas. As placas já configuradas serão adicionadas quando voltarem a enviar dados; não é necessário gravar o firmware novamente.",
+  "ruview.device_save_failed": "Definições da placa confirmadas, mas não foi possível guardar a lista de dispositivos. Repete a confirmação."
 }

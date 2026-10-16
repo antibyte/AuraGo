@@ -169,11 +169,17 @@ func (b *BlobStore) Remove(ctx context.Context, id string) error {
 		return err
 	}
 	_ = a
-	path := filepath.Join(b.root, id+".blob")
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := b.store.DeleteBlob(ctx, id); err != nil {
+		return err
+	}
+	return b.removeFile(id)
+}
+
+func (b *BlobStore) removeFile(id string) error {
+	if err := os.Remove(filepath.Join(b.root, id+".blob")); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove mail attachment: %w", err)
 	}
-	return b.store.DeleteBlob(ctx, id)
+	return nil
 }
 
 func validBlobID(id string) bool {

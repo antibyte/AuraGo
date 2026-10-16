@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Aggiornamento non riuscito. Gli ultimi dati non sono aggiornati.",
   "ruview.process_exited": "Il servizio è terminato. Puoi avviarlo di nuovo.",
   "ruview.stop_failed": "Impossibile confermare l’arresto. Controlla il servizio.",
-  "ruview.stopping": "Arresto in corso…"
+  "ruview.stopping": "Arresto in corso…",
+  "ruview.device_offline": "Nessun dato recente dal sensore",
+  "ruview.devices_known": "Le schede note restano visibili anche senza ricezione. I dati CSI attuali sono indicati separatamente.",
+  "ruview.devices_empty": "Nessuna scheda salvata. Le schede già configurate verranno aggiunte alla prossima trasmissione; non serve riscrivere il firmware.",
+  "ruview.device_save_failed": "Impostazioni della scheda confermate, ma non è stato possibile salvare l’elenco dei dispositivi. Ripeti la conferma."
 }

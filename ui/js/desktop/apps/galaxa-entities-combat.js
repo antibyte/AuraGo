@@ -110,16 +110,57 @@
         function boom(x, y, isBoss, enemyType, killVx, killVy) {
             const size = isBoss ? 'large' : ['hunter', 'carrier', 'bomber'].includes(enemyType) ? 'medium' : 'small';
             ctx.G.exp.push({ x, y, t: 0, dur: size === 'large' ? 800 : 560, animation: 'fx.explosion.' + size, size: size === 'large' ? 128 : size === 'medium' ? 72 : 48 });
-            const count = ctx.settings.reducedMotion ? 0 : ctx.settings.particles === 'low' ? 3 : isBoss ? 18 : 7;
-            for (let i = 0; i < count; i++) {
-                const angle = Math.atan2(killVy || -1, killVx || 0) + (Math.random() - 0.5) * 3, speed = 35 + Math.random() * 90;
-                ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 350 + Math.random() * 300, t: 0, col: i % 2 ? '#d2e5ed' : '#fdad53', size: 1 + i % 3, debris: true, rot: 0 }));
+            const profTbl = GC.EXPLOSION_PROFILE || {};
+            const prof = profTbl[enemyType] || profTbl.default || { cols: ['#ffffff', '#fdad53', '#ff5522'], ringCol: '#ffd88a', sparkMult: 1, debrisN: 3 };
+            const cols = prof.cols || ['#ffffff', '#fdad53'];
+            if (!ctx.settings.reducedMotion) {
+                const pScale = ctx.settings.particles === 'low' ? 0.35 : (ctx.settings.particles === 'medium' ? 0.7 : 1);
+                const sparkCount = Math.max(2, Math.round((isBoss ? 22 : 9) * (prof.sparkMult || 1) * pScale));
+                const baseAngle = Math.atan2(killVy || -1, killVx || 0);
+                for (let i = 0; i < sparkCount; i++) {
+                    const angle = baseAngle + (Math.random() - 0.5) * 3.8;
+                    const speed = 45 + Math.random() * (isBoss ? 140 : 95);
+                    ctx.G.part.push(ctx.getParticle({
+                        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                        life: 240 + Math.random() * 260, t: 0,
+                        col: cols[i % cols.length],
+                        size: 1 + (i % 2), spark: true, shape: i % 3 === 0 ? 'diamond' : 'rect'
+                    }));
+                }
+                const debrisCount = Math.max(1, Math.round((isBoss ? 10 : (prof.debrisN || 3)) * pScale));
+                for (let i = 0; i < debrisCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 28 + Math.random() * 75;
+                    ctx.G.part.push(ctx.getParticle({
+                        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                        life: 380 + Math.random() * 320, t: 0,
+                        col: i % 2 ? '#d2e5ed' : cols[0],
+                        size: 2 + (i % 2), debris: true, rot: Math.random() * 6.28, rotSpd: (Math.random() - 0.5) * 9
+                    }));
+                }
+                if (ctx.settings.particles !== 'low') {
+                    const smokeCount = isBoss ? 5 : 2;
+                    for (let i = 0; i < smokeCount; i++) {
+                        const a = Math.random() * Math.PI * 2, sp = 10 + Math.random() * 24;
+                        ctx.G.part.push(ctx.getParticle({
+                            x: x + (Math.random() - 0.5) * 10, y: y + (Math.random() - 0.5) * 10,
+                            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 8,
+                            life: 420 + Math.random() * 240, t: 0,
+                            col: '#4a5568', r: (isBoss ? 9 : 5) + Math.random() * 4, smoke: true
+                        }));
+                    }
+                }
+                ctx.G.plasmaRings.push({
+                    x, y, r: 0, maxR: isBoss ? 110 : (size === 'medium' ? 44 : 26),
+                    t: 0, dur: isBoss ? 450 : 260, col: prof.ringCol || '#ffd88a'
+                });
             }
             if (ctx.SFX.eExplodeTyped) ctx.SFX.eExplodeTyped(enemyType || 'bee', isBoss ? 'big' : 'normal', x);
-            if (isBoss) { ctx.G.shkT = 280; ctx.G.shkM = 5; ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 110, t: 0, dur: 450, col: "#ffd88a" }); }
+            if (isBoss) { ctx.G.shkT = 280; ctx.G.shkM = 5; }
         }
         function bulletImpact(x, y, col) {
             if (ctx.G.exp.length < 48) ctx.G.exp.push({ x, y, t: 0, dur: 200, animation: 'fx.plasma', size: 20 });
+            if (ctx.fxSparkCone && !ctx.settings.reducedMotion) ctx.fxSparkCone(x, y, col || '#ffee88', 0, -1);
         }
         function addScore(pts, x, y, col) {
             const prev = ctx.G.score;

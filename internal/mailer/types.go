@@ -206,6 +206,23 @@ type OutboxItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type OutboxPage struct {
+	Items      []OutboxItem `json:"items"`
+	NextCursor string       `json:"next_cursor,omitempty"`
+	HasMore    bool         `json:"has_more"`
+}
+
+type RuleRun struct {
+	MessageID    string    `json:"message_id"`
+	RuleID       string    `json:"rule_id"`
+	RuleRevision int64     `json:"rule_revision"`
+	ActionIndex  int       `json:"action_index"`
+	ActionCount  int       `json:"action_count"`
+	Status       string    `json:"status"`
+	Error        string    `json:"error,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type SendRequest struct {
 	DraftID  string    `json:"draft_id"`
 	Revision int64     `json:"revision"`

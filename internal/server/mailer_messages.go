@@ -154,6 +154,23 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 		}
 	}
 	if p[0] == "messages" && len(p) >= 2 {
+		if len(p) == 3 && p[2] == "rule-runs" && r.Method == http.MethodGet {
+			items, err := s.Mailer.ListRuleRuns(ctx, p[1])
+			if err != nil {
+				mailerHTTPError(w, err)
+				return
+			}
+			mailerJSON(w, 200, map[string]any{"items": items})
+			return
+		}
+		if len(p) == 5 && p[2] == "rule-runs" && p[4] == "retry" && r.Method == http.MethodPost {
+			if err := s.Mailer.RetryRuleRun(ctx, p[1], p[3]); err != nil {
+				mailerHTTPError(w, err)
+				return
+			}
+			mailerJSON(w, 200, map[string]bool{"ok": true})
+			return
+		}
 		if len(p) == 2 && r.Method == http.MethodGet {
 			m, err := s.Mailer.GetMessage(ctx, p[1])
 			if err != nil {

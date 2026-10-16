@@ -52,14 +52,14 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
     const cleanup=()=>{stopped=true;controller.abort();serial?.close();get('ssid').value='';get('password').value='';identity=null;expected=null;clearInterval(policyTimer);window.removeEventListener('aurago:auth-ended',close);window.removeEventListener('aurago:desktop-policy',policy);dialog.remove();};
     const close=()=>dialog.close();const policy=e=>{if(e.detail?.readonly||e.detail?.read_only)close();};
     dialog.addEventListener('close',cleanup,{once:true});window.addEventListener('aurago:auth-ended',close);window.addEventListener('aurago:desktop-policy',policy);
-    async function request(route,method='GET') {const response=await fetch(base+route,{method,signal:controller.signal});const body=await response.json().catch(()=>({}));if(!response.ok){const error=Error(body.error||body.message||('HTTP '+response.status));error.fromAPI=true;error.httpStatus=response.status;throw error;}return body;}
+    async function request(route,method='GET',payload) {const response=await fetch(base+route,{method,signal:controller.signal,...(payload?{headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}:{})});const body=await response.json().catch(()=>({}));if(!response.ok){const error=Error(body.error||body.message||('HTTP '+response.status));error.fromAPI=true;error.httpStatus=response.status;throw error;}return body;}
     async function allowed(){const status=await request('status');if(typeof status.enabled!=='boolean'||typeof status.readonly!=='boolean')throw Error('invalid_reply');if(!status.enabled||status.readonly)throw Error('readonly');return status;}
     async function loadNodeID(){
         const hint=dialog.querySelector('#ruview-node-hint');
         try{
-            const data=await request('proxy/api/v1/nodes');if(stopped)return;
+            const data=await request('nodes');if(stopped)return;
             const nodes=Array.isArray(data)?data:data.nodes;
-            if(!Array.isArray(nodes))throw Error('invalid_reply');
+            if(!Array.isArray(nodes)||data.available===false)throw Error('invalid_reply');
             const used=new Set(nodes.map(node=>{
                 const raw=node?.node_id??node?.id;
                 if(!['number','string'].includes(typeof raw)||!/^\d+$/.test(String(raw)))throw Error('invalid_reply');
@@ -136,7 +136,9 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
                 // Keep the dialog draft for explicit retries; cleanup clears it when the dialog closes.
                 serial=new Onboarding(selected);try{await serial.open();identity=await serial.configure(settings);if(stopped)return;expected={node_id:settings.node_id,target_ip:settings.target_ip,target_port:settings.target_port};feedback('reconnect');}finally{settings.ssid='';settings.password='';await serial.close();serial=null;}
             }else if(action==='readback'){
-                if(!expected||!identity)throw Error('configure_first');serial=new Onboarding(selected);try{await serial.open();const h=await serial.hello();if(h.device_digest!==identity.device_digest||h.chip!==identity.chip||h.node_id!==String(expected.node_id)||h.target_ip!==expected.target_ip||h.target_port!==String(expected.target_port)||h.configured!=='1')throw Error('readback_failed');expected.confirmed=true;completed(1);feedback('configured');}finally{await serial.close();serial=null;}
+                if(!expected||!identity)throw Error('configure_first');serial=new Onboarding(selected);try{await serial.open();const h=await serial.hello();if(h.device_digest!==identity.device_digest||h.chip!==identity.chip||h.node_id!==String(expected.node_id)||h.target_ip!==expected.target_ip||h.target_port!==String(expected.target_port)||h.configured!=='1')throw Error('readback_failed');expected.confirmed=true;completed(1);}finally{await serial.close();serial=null;}
+                try{await request('nodes','POST',{node_id:expected.node_id});}catch{throw Error('device_save_failed');}
+                feedback('configured');
             }else if(action==='verify'){
                 if(!expected?.confirmed)throw Error('configure_first');const status=await request('test','POST');const data=await request('proxy/api/v1/nodes');const nodes=Array.isArray(data)?data:(data.nodes||[]);const node=nodes.find(n=>Number(n.node_id??n.id)===expected.node_id);if(!status.fresh||status.simulated||status.signal!=='CSI'||!node||node.csi_status!=='active'||!Number.isFinite(node.csi_last_seen_ms)||node.csi_last_seen_ms>10000||node.csi_sequence==null)throw Error('no_frames');completed(2);feedback('received');
             }

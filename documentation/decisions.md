@@ -17,7 +17,9 @@ managed container when AuraGo itself runs in Docker. Container management also
 requires the existing Docker enable/write permissions.
 
 The **Install** action verifies the runtime bundle and downloads the model plus
-image projector with progress. **Start** loads one resident model for all callers.
+image projector with progress. Successful installation shows **Installed and
+verified**; it does not make the service ready. **Start** loads one resident model
+for all callers and grants readiness only after device attestation.
 **Test decision** runs a small explicit text test; merely opening settings only
 reads status. **Stop** stops the process or container. Disabling the feature
 cancels requests and stops it while preserving verified downloads.
@@ -33,7 +35,28 @@ directory. The manager provisions verified bundles into its data directory.
 Docker requires a locally built, verified image; a mutable tag alone never
 establishes a trusted running image. There are no fabricated remote release URLs
 or automatic pulls of an unpinned runtime. A missing bundle is a setup error.
-See the runtime README for build and packaging commands.
+Install does not build the runtime or pull a Docker image. On Windows, prepare
+the matching bundle with `scripts/build-decisions-runtime.ps1 -Backend vulkan`
+or `-Backend cuda` before installing. Docker expects the corresponding local
+`aurago-decisions-runtime:<backend>` image. See the
+[runtime README](../decisions_runtime/README.md#build-locally) for toolchain,
+build and packaging commands.
+
+Installation and start may return HTTP 202 while work continues. The settings
+keep the operation pending and show its eventual success or failure. File
+verification reports byte progress; model loading and warmup show the current
+phase without a fabricated percentage. Stop cancels either operation, including
+verification. Failed replacement leaves the previous artifact in place.
+
+Each runtime launch has a five-minute readiness budget after AuraGo's own file
+verification. This includes the runtime's independent hashes, loading and first
+device warmup. `runtime_start_timeout` stops the attempt without interpreting
+slowness as device failure or trying another device/CPU mode. Pin failures and
+invalid startup configuration also stop retries; Docker reports these early
+exits directly. Real device failures still follow the accelerator policy below.
+Older runtime packages remain compatible but need rebuilding to emit load and
+warmup phases. No router timeout or confidence threshold is changed by this
+startup budget.
 
 ### Accelerator policy
 

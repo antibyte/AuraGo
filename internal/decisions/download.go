@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/fileutil"
+
 	"github.com/gofrs/flock"
 )
 
@@ -96,7 +98,7 @@ func (cache *artifactCache) ensureFile(ctx context.Context, manifest Manifest, a
 	if err := validateManagedFilePath(cache.root, destination); err != nil {
 		return "", WrapError(CodeModelInstallFailed, err)
 	}
-	if err := verifyArtifactFile(destination, artifact); err == nil {
+	if err := verifyArtifactFile(ctx, destination, artifact, cache.progressFn); err == nil {
 		if cache.progressFn != nil {
 			cache.progressFn("verified_"+artifact.Name, artifact.Size, artifact.Size)
 		}
@@ -108,9 +110,6 @@ func (cache *artifactCache) ensureFile(ctx context.Context, manifest Manifest, a
 		}
 		if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
 			return "", WrapError(CodeModelInstallFailed, statErr)
-		}
-		if err := os.Remove(destination); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return "", WrapError(CodeModelInstallFailed, err)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", WrapError(CodeModelInstallFailed, err)
@@ -137,7 +136,10 @@ func validateManagedFilePath(root, destination string) error {
 	return nil
 }
 
-func verifyArtifactFile(path string, artifact Artifact) error {
+func verifyArtifactFile(ctx context.Context, path string, artifact Artifact, progress func(string, int64, int64)) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -151,7 +153,14 @@ func verifyArtifactFile(path string, artifact Artifact) error {
 	}
 	defer file.Close()
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	writer := &artifactProgressWriter{ctx: ctx, writer: hash, total: artifact.Size, phase: "verifying_" + artifact.Name, callback: progress}
+	if progress != nil {
+		progress(writer.phase, 0, artifact.Size)
+	}
+	if _, err := io.CopyBuffer(writer, file, make([]byte, modelDownloadChunk)); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(artifact.SHA256) {
@@ -174,8 +183,11 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 				return WrapError(CodeModelInstallFailed, err)
 			}
 		} else if info.Size() == artifact.Size {
-			if err := verifyArtifactFile(partPath, artifact); err == nil {
-				return publishArtifact(partPath, destination)
+			if err := verifyArtifactFile(ctx, partPath, artifact, cache.progressFn); err == nil {
+				if err := publishArtifact(ctx, partPath, destination); err != nil {
+					return WrapError(CodeModelInstallFailed, err)
+				}
+				return nil
 			} else if !errors.Is(err, errArtifactIntegrity) {
 				return WrapError(CodeModelInstallFailed, err)
 			}
@@ -243,7 +255,7 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 			_ = response.Body.Close()
 			return WrapError(CodeModelInstallFailed, err)
 		}
-		writer := &artifactProgressWriter{writer: file, current: current, total: artifact.Size, phase: phase, callback: cache.progressFn}
+		writer := &artifactProgressWriter{ctx: ctx, writer: file, current: current, total: artifact.Size, phase: phase, callback: cache.progressFn}
 		copied, copyErr := io.CopyBuffer(writer, io.LimitReader(response.Body, artifact.Size-current+1), make([]byte, modelDownloadChunk))
 		bodyCloseErr := response.Body.Close()
 		if copyErr == nil {
@@ -268,11 +280,14 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 		if current+copied < artifact.Size {
 			return NewError(CodeModelDownloadFailed, io.ErrUnexpectedEOF)
 		}
-		if err := verifyArtifactFile(partPath, artifact); err != nil {
+		if err := verifyArtifactFile(ctx, partPath, artifact, cache.progressFn); err != nil {
+			if ctx.Err() != nil {
+				return WrapError(CodeCancelled, ctx.Err())
+			}
 			_ = os.Remove(partPath)
 			return WrapError(CodeModelIntegrityFailed, err)
 		}
-		if err := publishArtifact(partPath, destination); err != nil {
+		if err := publishArtifact(ctx, partPath, destination); err != nil {
 			return WrapError(CodeModelInstallFailed, err)
 		}
 		return nil
@@ -281,6 +296,7 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 }
 
 type artifactProgressWriter struct {
+	ctx      context.Context
 	writer   io.Writer
 	current  int64
 	total    int64
@@ -289,6 +305,11 @@ type artifactProgressWriter struct {
 }
 
 func (writer *artifactProgressWriter) Write(data []byte) (int, error) {
+	if writer.ctx != nil {
+		if err := writer.ctx.Err(); err != nil {
+			return 0, err
+		}
+	}
 	written, err := writer.writer.Write(data)
 	writer.current += int64(written)
 	if writer.callback != nil {
@@ -326,16 +347,13 @@ func contentRangeStart(value string) (int64, error) {
 	return strconv.ParseInt(startEnd[0], 10, 64)
 }
 
-func publishArtifact(partPath, destination string) error {
+func publishArtifact(ctx context.Context, partPath, destination string) error {
 	if info, err := os.Lstat(destination); err == nil {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("managed artifact destination is not a regular file")
 		}
-		if err := os.Remove(destination); err != nil {
-			return err
-		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.Rename(partPath, destination)
+	return fileutil.RenameContext(ctx, partPath, destination)
 }

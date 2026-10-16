@@ -19,7 +19,7 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	if !strings.Contains(app, "window.MailerSettings.create(inst") {
 		t.Fatal("desktop Mailer must initialize its lazy settings module")
 	}
-	for _, marker := range []string{"window.MailerSettings = { create }", "async function saveAccountForm", "async function previewRule", "async function applyRule"} {
+	for _, marker := range []string{"window.MailerSettings = { create }", "async function saveAccountForm", "async function previewRule", "async function applyRule", "rule_error: 'reason_rule_error'", "reasonText: code => reasonText(inst, code)"} {
 		if !strings.Contains(settings, marker) {
 			t.Fatalf("desktop Mailer settings module is missing %q", marker)
 		}
@@ -74,6 +74,11 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 		"more.hidden = !inst.nextCursor",
 		"vd-mailer-thread-account",
 		"params.remote = 'true'",
+		"outboxHasMore = !!result?.has_more && !!inst.outboxCursor",
+		"inst.api.outbox(Object.assign({ limit: 50 }, append && inst.outboxCursor ? { cursor: inst.outboxCursor } : {}))",
+		"loadRuleRuns(inst, threadId, thread.messages || [])",
+		"change.type === 'account_sync'",
+		"change.type === 'rule_run'",
 		"loadInlineImages(inst, message, inst.readerAbort.signal)",
 		"frame && result.images.size > 0",
 		"image/png", "image/jpeg", "image/gif", "image/webp",
@@ -90,9 +95,21 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 		t.Fatal("unread indicator must not become an auto-placed grid child")
 	}
 	compose := readDesktopAssetText(t, "js/desktop/apps/mailer-compose.js")
-	for _, marker := range []string{"copyMessageAttachment", "forward_attachment_copy_review", "pending.length > 0", "options.assistContext", "reply_remote_id: String(inst.draft.reply_remote_id || '')", "if (nextAccountId !== inst.accountId) inst.draft.reply_remote_id = ''"} {
+	for _, marker := range []string{
+		"copyMessageAttachment", "forward_attachment_copy_review", "else if (pending.length)", "options.assistContext",
+		"reply_remote_id: String(inst.draft.reply_remote_id || '')", "if (nextAccountId !== inst.accountId) inst.draft.reply_remote_id = ''",
+		"await Promise.all([inst.uploadTask, inst.forwardCopyPromise, inst.attachmentTask])", "inst.failedUploads.size > 0",
+		"data-resolve-draft-conflict", "data-reload-latest-draft", "function resolveDraftConflict(inst)", "function reloadLatestDraft(inst)",
+		"function retryFailedUpload(inst, key)", "function skipForwardAttachment(inst, attachmentId)",
+	} {
 		if !strings.Contains(compose, marker) {
 			t.Fatalf("desktop Mailer composer is missing safety marker %q", marker)
+		}
+	}
+	api := readDesktopAssetText(t, "js/desktop/apps/mailer-api.js")
+	for _, marker := range []string{"outbox: params =>", "ruleRuns: messageId =>", "retryRuleRun: (messageId, ruleId) =>"} {
+		if !strings.Contains(api, marker) {
+			t.Fatalf("desktop Mailer API is missing %q", marker)
 		}
 	}
 

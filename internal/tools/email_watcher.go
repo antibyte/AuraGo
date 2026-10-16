@@ -178,9 +178,9 @@ func (ew *EmailWatcher) seedAllAccounts(ctx context.Context) {
 		if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 			continue
 		}
-		uids, err := searchUnseenUIDsContext(ctx,
+		uids, err := searchUnseenUIDsTransportContext(ctx,
 			acct.IMAPHost, acct.IMAPPort,
-			acct.Username, acct.Password,
+			acct.Username, acct.Password, acct.ReceiveTLS,
 			acct.WatchFolder,
 		)
 		if err != nil {
@@ -212,9 +212,9 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 		return
 	}
-	uids, err := searchUnseenUIDsContext(ctx,
+	uids, err := searchUnseenUIDsTransportContext(ctx,
 		acct.IMAPHost, acct.IMAPPort,
-		acct.Username, acct.Password,
+		acct.Username, acct.Password, acct.ReceiveTLS,
 		acct.WatchFolder,
 	)
 	if err != nil {
@@ -246,9 +246,9 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	ew.logger.Info("[EmailWatcher] New unseen emails detected", "account", acct.ID, "count", len(newUIDs))
 
 	// Fetch the specific new messages by UID (not by sequence number)
-	messages, err := fetchEmailsByUIDContext(ctx,
+	messages, err := fetchEmailsByUIDTransportContext(ctx,
 		acct.IMAPHost, acct.IMAPPort,
-		acct.Username, acct.Password,
+		acct.Username, acct.Password, acct.ReceiveTLS,
 		acct.WatchFolder, newUIDs,
 		ew.logger,
 	)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
 	imapclient "github.com/emersion/go-imap/client"
 	"github.com/emersion/go-sasl"
 )
@@ -100,10 +101,47 @@ func dialTransport(ctx context.Context, cfg TransportConfig, network, address st
 	return (&net.Dialer{Timeout: timeout}).DialContext(ctx, network, address)
 }
 
+// WithIMAPClient runs fn with an authenticated IMAP client using the shared
+// TLS, timeout, and cancellation handling.
+func WithIMAPClient(ctx context.Context, cfg TransportConfig, fn func(*imapclient.Client) error) error {
+	if fn == nil {
+		return fmt.Errorf("IMAP operation is required")
+	}
+	c, conn, stop, err := dialIMAP(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("IMAP connection failed: %w", err)
+	}
+	c.Timeout = 30 * time.Second
+	defer stop()
+	defer conn.Close()
+	err = fn(c)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if err == nil {
+		_ = c.Logout()
+	}
+	return err
+}
+
+// TestIMAPAuth verifies IMAP credentials without fetching or marking mail.
+func TestIMAPAuth(ctx context.Context, cfg TransportConfig) error {
+	return WithIMAPClient(ctx, cfg, func(c *imapclient.Client) error { return c.Noop() })
+}
+
 func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net.Conn, func(), error) {
+	security.RegisterSensitive(cfg.Username)
+	security.RegisterSensitive(cfg.Password)
+	receiveTLS := strings.ToLower(strings.TrimSpace(cfg.ReceiveTLS))
+	if receiveTLS == "" {
+		receiveTLS = "tls"
+	}
+	if receiveTLS != "tls" && receiveTLS != "starttls" {
+		return nil, nil, func() {}, fmt.Errorf("IMAP requires TLS or STARTTLS")
+	}
 	port := cfg.IMAPPort
 	if port <= 0 {
-		if strings.EqualFold(cfg.ReceiveTLS, "starttls") {
+		if receiveTLS == "starttls" {
 			port = 143
 		} else {
 			port = 993
@@ -123,13 +161,13 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 		return nil, nil, func() {}, err
 	}
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	if strings.EqualFold(cfg.ReceiveTLS, "tls") || cfg.ReceiveTLS == "" {
+	if receiveTLS == "tls" {
 		tlsConn := tls.Client(conn, transportTLSConfig(cfg, cfg.IMAPHost))
 		if err = tlsConn.HandshakeContext(ctx); err != nil {
 			return fail(nil, err)
 		}
 		conn = tlsConn
-	} else if strings.EqualFold(cfg.ReceiveTLS, "starttls") {
+	} else if receiveTLS == "starttls" {
 		// STARTTLS is negotiated by go-imap after receiving the server greeting.
 	} else {
 		return fail(nil, fmt.Errorf("IMAP requires TLS or STARTTLS"))
@@ -138,7 +176,7 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 	if err != nil {
 		return fail(nil, err)
 	}
-	if strings.EqualFold(cfg.ReceiveTLS, "starttls") {
+	if receiveTLS == "starttls" {
 		ok, e := c.SupportStartTLS()
 		if e != nil || !ok {
 			c.Logout()
@@ -159,6 +197,7 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 			c.Logout()
 			return fail(c, e)
 		}
+		security.RegisterSensitive(token)
 		ok, e := c.SupportAuth("XOAUTH2")
 		if e != nil || !ok {
 			c.Logout()
@@ -204,6 +243,13 @@ func (a *imapAdapter) Send(ctx context.Context, out Outgoing) (SendResult, error
 	return sendSMTP(ctx, a.cfg, out)
 }
 func (a *imapAdapter) TestSend(ctx context.Context) error { return TestSMTPAuth(ctx, a.cfg) }
+
+// SendSMTP sends through the configured SMTP transport without requiring a
+// receive adapter.
+func SendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResult, error) {
+	return sendSMTP(ctx, cfg, out)
+}
+
 func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResult, error) {
 	host := strings.TrimSpace(cfg.SMTPHost)
 	if host == "" {
@@ -212,6 +258,10 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	port := cfg.SMTPPort
 	if port <= 0 {
 		port = 587
+	}
+	transport, err := smtpTransportMode(cfg.SMTPTransport, port)
+	if err != nil {
+		return SendResult{Rejected: true}, err
 	}
 	username := cfg.SMTPUsername
 	if username == "" {
@@ -227,6 +277,8 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	} else if strings.EqualFold(cfg.SMTPAuthMethod, "xoauth2") {
 		return SendResult{}, fmt.Errorf("SMTP OAuth token source unavailable")
 	}
+	security.RegisterSensitive(username)
+	security.RegisterSensitive(password)
 	addr := net.JoinHostPort(host, fmt.Sprint(port))
 	conn, err := dialTransport(ctx, cfg, "tcp", addr, 10*time.Second)
 	if err != nil {
@@ -237,17 +289,6 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	defer stop()
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(60 * time.Second))
-	transport := strings.ToLower(strings.TrimSpace(cfg.SMTPTransport))
-	if transport == "" {
-		if port == 465 {
-			transport = "tls"
-		} else {
-			transport = "starttls"
-		}
-	}
-	if transport != "tls" && transport != "starttls" {
-		return SendResult{Rejected: true}, fmt.Errorf("SMTP transport must use TLS or STARTTLS")
-	}
 	implicitTLS := transport == "tls"
 	if implicitTLS {
 		tc := tls.Client(conn, transportTLSConfig(cfg, host))
@@ -342,6 +383,10 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 	if port <= 0 {
 		port = 587
 	}
+	transport, err := smtpTransportMode(cfg.SMTPTransport, port)
+	if err != nil {
+		return err
+	}
 	username := cfg.SMTPUsername
 	if username == "" {
 		username = cfg.Username
@@ -357,6 +402,8 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 			return e
 		}
 	}
+	security.RegisterSensitive(username)
+	security.RegisterSensitive(password)
 	conn, err := dialTransport(ctx, cfg, "tcp", net.JoinHostPort(host, fmt.Sprint(port)), 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("connect SMTP: %w", err)
@@ -366,17 +413,6 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 	defer stop()
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	transport := strings.ToLower(strings.TrimSpace(cfg.SMTPTransport))
-	if transport == "" {
-		if port == 465 {
-			transport = "tls"
-		} else {
-			transport = "starttls"
-		}
-	}
-	if transport != "tls" && transport != "starttls" {
-		return fmt.Errorf("SMTP transport must use TLS or STARTTLS")
-	}
 	implicit := transport == "tls"
 	if implicit {
 		tc := tls.Client(conn, transportTLSConfig(cfg, host))
@@ -411,6 +447,21 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 		}
 	}
 	return nil
+}
+
+func smtpTransportMode(configured string, port int) (string, error) {
+	transport := strings.ToLower(strings.TrimSpace(configured))
+	if transport == "" {
+		if port == 465 {
+			transport = "tls"
+		} else {
+			transport = "starttls"
+		}
+	}
+	if transport != "tls" && transport != "starttls" {
+		return "", fmt.Errorf("SMTP transport must use TLS or STARTTLS")
+	}
+	return transport, nil
 }
 
 func smtpRejected(err error) (SendResult, error) {

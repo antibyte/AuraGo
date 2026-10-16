@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 const defaultMaxResponseBytes int64 = 8 << 20
@@ -26,12 +28,13 @@ type ClientConfig struct {
 }
 
 type Client struct {
-	baseURL          *url.URL
-	apiKey           string
-	httpClient       *http.Client
-	maxResponseBytes int64
-	maxRetries       int
-	retrySleep       func(time.Duration)
+	baseURL              *url.URL
+	apiKey               string
+	httpClient           *http.Client
+	attachmentHTTPClient *http.Client
+	maxResponseBytes     int64
+	maxRetries           int
+	retrySleep           func(time.Duration)
 }
 
 type APIError struct {
@@ -63,6 +66,7 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("agentmail api key is required")
 	}
+	security.RegisterSensitive(apiKey)
 	httpClient := cfg.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
@@ -87,12 +91,13 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:          parsed,
-		apiKey:           apiKey,
-		httpClient:       httpClient,
-		maxResponseBytes: maxBytes,
-		maxRetries:       maxRetries,
-		retrySleep:       retrySleep,
+		baseURL:              parsed,
+		apiKey:               apiKey,
+		httpClient:           httpClient,
+		attachmentHTTPClient: newAttachmentHTTPClient(),
+		maxResponseBytes:     maxBytes,
+		maxRetries:           maxRetries,
+		retrySleep:           retrySleep,
 	}, nil
 }
 

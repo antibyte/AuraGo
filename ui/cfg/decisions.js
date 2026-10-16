@@ -51,6 +51,7 @@ function renderDecisionsSection(section) {
     [['auto', tr('auto')], ['native', tr('native')], ['docker', 'Docker']].forEach(([value, label]) => deployment.add(new Option(label, value)));
     deployment.value = data.deployment || 'auto';
     node('p', 'field-help', tr('gpu_first'), localPanel);
+    node('p', 'field-help', tr('deployment_help'), localPanel);
     toggle('cpu_fallback_allowed', tr('cpu_permission'), localPanel);
     node('p', 'field-help', tr('cpu_help'), localPanel);
 
@@ -96,6 +97,11 @@ function renderDecisionsSection(section) {
     result.setAttribute('role', 'status');
 
     const localHelp = node('p', 'field-help', tr('install_help'), localPanel);
+    node('p', 'field-help', tr('runtime_setup_help'), localPanel);
+    const setupLink = node('a', 'field-help', tr('setup_instructions'), localPanel);
+    setupLink.href = 'https://github.com/antibyte/AuraGo/blob/main/decisions_runtime/README.md#build-locally';
+    setupLink.target = '_blank';
+    setupLink.rel = 'noopener noreferrer';
     const statusHeading = node('h3', 'cfg-subheading', tr('status'));
     const statusText = node('p', 'cfg-note-banner', t('common.loading'));
     statusText.dataset.decisionsStatus = '';
@@ -106,7 +112,11 @@ function renderDecisionsSection(section) {
     const progress = node('progress', '');
     progress.max = 100;
     progress.hidden = true;
-    progress.setAttribute('aria-label', tr('installation'));
+    progress.setAttribute('aria-label', tr('status'));
+    const phaseText = node('p', 'field-help');
+    phaseText.dataset.decisionsProgress = '';
+    phaseText.setAttribute('role', 'status');
+    phaseText.hidden = true;
     const actions = node('div', 'cfg-actions cfg-actions-row', '', localPanel);
     const buttons = {};
     for (const [action, label] of [['install', t('config.local_llm.install')], ['start', t('config.local_llm.start')], ['stop', t('config.local_llm.stop')], ['test', tr('test')]]) {
@@ -124,6 +134,7 @@ function renderDecisionsSection(section) {
     const lifetime = new AbortController();
     let status, busy = false, activeAction = '', actionRevision = 0, timer, statusRequest, modelsRequest, activeRequest, activeOperation;
     let loadedModels = [];
+    let pendingAction = null;
     const attached = () => !lifetime.signal.aborted && root.isConnected;
     const providerMode = () => backend.value === 'provider';
     const dirty = () => typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges();
@@ -135,8 +146,9 @@ function renderDecisionsSection(section) {
         modelsRequest = null;
     };
     const invalidateAction = () => {
-        if (!busy || !activeOperation) return;
-        const operation = activeOperation;
+        if ((!busy || !activeOperation) && !pendingAction) return;
+        const operation = activeOperation || {providerMode: false};
+        pendingAction = null;
         actionRevision++;
         activeRequest?.abort();
         activeRequest = null;
@@ -205,13 +217,14 @@ function renderDecisionsSection(section) {
     const updateButtons = () => {
         if (!attached()) return;
         const local = !providerMode();
-        const changing = ['installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
+        const changing = !!pendingAction || ['installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
         for (const [action, button] of Object.entries(buttons)) {
             button.hidden = !local;
-            button.disabled = action === 'stop' ? busy && activeAction !== 'test' : busy || changing || dirty() || !status?.enabled || (action === 'test' && !status?.ready);
+            button.disabled = action === 'stop' ? busy && !['test', 'install', 'start'].includes(activeAction) : busy || changing || dirty() || !status?.enabled || (action === 'test' && !status?.ready);
         }
         localHelp.hidden = !local;
-        progress.hidden = !local || !['installing', 'downloading'].includes(status?.state);
+        progress.hidden = !local || !['installing', 'downloading', 'starting', 'discovering_devices'].includes(status?.state);
+        phaseText.hidden = progress.hidden;
         deviceText.hidden = false;
         cpuText.hidden = !local || !status?.cpu_fallback_active;
         providerPanel.hidden = !providerMode();
@@ -232,7 +245,7 @@ function renderDecisionsSection(section) {
             runtime_unavailable: 'runtime_missing', runtime_artifact_missing: 'runtime_missing', service_not_ready: 'not_ready',
             docker_unavailable: 'docker_unavailable', deployment_denied: 'docker_unavailable',
             model_integrity_failed: 'integrity_failed', runtime_attestation_failed: 'attestation_failed',
-            lifecycle_busy: 'lifecycle_busy'
+            lifecycle_busy: 'lifecycle_busy', runtime_start_timeout: 'runtime_start_timeout', runtime_invalid_configuration: 'runtime_invalid_configuration'
         };
         return tr(exact[code] || 'failed') + ' (' + code + ')';
     };
@@ -259,15 +272,26 @@ function renderDecisionsSection(section) {
             cpuText.hidden = true;
         } else {
             const stateKeys = {disabled: 'disabled', stopped: 'stopped', installing: 'downloading', downloading: 'downloading', starting: 'starting', discovering_devices: 'starting', blocked: 'error', error: 'error', stopped_with_error: 'error'};
-            const state = status.ready ? tr('ready') : reason(status.code) || (stateKeys[status.state] ? t('config.local_llm.state_' + stateKeys[status.state]) : tr('not_ready'));
+            const state = status.ready ? tr('ready') : status.state === 'installed' ? tr('installed') : reason(status.code) || (stateKeys[status.state] ? t('config.local_llm.state_' + stateKeys[status.state]) : tr('not_ready'));
             statusText.textContent = state;
-            statusText.className = 'cfg-note-banner ' + (status.ready ? 'cfg-note-banner-success' : status.code ? 'cfg-note-banner-warning' : '');
+            statusText.className = 'cfg-note-banner ' + (status.ready || status.state === 'installed' ? 'cfg-note-banner-success' : status.code ? 'cfg-note-banner-warning' : '');
             const mode = {gpu: 'GPU', cpu: 'CPU', mixed: 'GPU + CPU'}[status.execution_mode] || '';
             deviceText.textContent = tr('device') + ': ' + (status.device || '—') + (status.backend ? ' · ' + status.backend : '') + ' · ' + (status.deployment || '—') + (mode ? ' · ' + mode : '');
             cpuText.hidden = !status.cpu_fallback_active;
             const fallbackReason = status.cpu_fallback_reason;
             cpuText.textContent = tr('cpu_active') + (fallbackReason ? ' ' + tr(fallbackReason === 'gpu_accelerator_partial' ? 'cpu_partial_reason' : 'cpu_unavailable_reason') + ' (' + fallbackReason + ')' : '');
-            progress.value = Math.max(0, Math.min(100, Number(status.progress?.percent) || 0));
+            if (Number(status.progress?.total_bytes) > 0) progress.value = Math.max(0, Math.min(100, Number(status.progress?.percent) || 0));
+            else progress.removeAttribute('value');
+            const phases = {verifying_runtime: 'verifying_runtime', verifying_model: 'verifying_model', verified_model: 'verifying_model', verifying_projector: 'verifying_projector', verified_projector: 'verifying_projector', loading_model: 'loading_model', loading_projector: 'loading_projector', warming_up: 'warming_up'};
+            phaseText.textContent = phases[status.progress?.phase] ? tr(phases[status.progress.phase]) : statusText.textContent;
+            if (pendingAction && pendingAction.revision === actionRevision) {
+                let outcome = '';
+                if (pendingAction.action === 'install' && status.state === 'installed') outcome = tr('installed');
+                else if (pendingAction.action === 'start' && status.ready) outcome = tr('ready');
+                else if (['error', 'blocked', 'stopped_with_error'].includes(status.state)) outcome = reason(status.code) || tr('failed');
+                else if (['stopped', 'disabled'].includes(status.state)) outcome = errorText('cancelled');
+                if (outcome) { localResult.textContent = outcome; pendingAction = null; }
+            }
         }
         updateButtons();
     };
@@ -332,8 +356,9 @@ function renderDecisionsSection(section) {
         }
     };
     const run = async action => {
-        if (!attached() || (busy && !(action === 'stop' && activeAction === 'test'))) return;
+        if (!attached() || (busy && !(action === 'stop' && ['test', 'install', 'start'].includes(activeAction)))) return;
         const useProvider = providerMode();
+        if (action === 'stop') { activeRequest?.abort(); pendingAction = null; }
         const actionResult = useProvider ? result : localResult;
         if (action !== 'stop' && dirty()) { actionResult.textContent = t('config.local_llm.save_first'); return; }
         let revision = actionRevision;
@@ -385,7 +410,12 @@ function renderDecisionsSection(section) {
             const response = await fetch('/api/decisions/' + (useProvider ? 'test' : action), {method: 'POST', credentials: 'same-origin', signal: request.signal});
             const body = await response.json();
             if (!attached() || revision !== actionRevision) return;
-            if (response.ok) actionResult.textContent = useProvider ? tr('test_passed') : (action === 'test' ? tr('test_passed') : '');
+            if (response.ok) {
+                if (!useProvider && response.status === 202 && ['install', 'start'].includes(action)) {
+                    pendingAction = {action, revision};
+                    actionResult.textContent = tr('action_pending');
+                } else actionResult.textContent = useProvider || action === 'test' ? tr('test_passed') : action === 'install' ? tr('installed') : action === 'start' ? tr('ready') : t('config.local_llm.state_stopped');
+            }
             else actionResult.textContent = useProvider ? errorText(body.code || 'external_provider_failed') : reason(body.code || 'request_failed');
             await refresh();
         } catch (_) {

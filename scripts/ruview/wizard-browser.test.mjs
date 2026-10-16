@@ -11,6 +11,8 @@ let setup = { mode:'docker', receiver_ip:'192.168.4.20', udp_port:5010, udp_enab
 let setupDelay = 0, setupError = false, fresh = true, posts = 0, statusError = 0;
 const knownNodes=[{node_id:1,csi_status:'stale'},{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3}];
 let nodeData={nodes:knownNodes},nodeError=false,nodeDelay=0;
+const registrations=[];
+let registrationError=false;
 let catalogFault = '';
 const buildVersion = 'ruview-browser-fixture', resourceRequests = [];
 const server = createServer(async (req, res) => {
@@ -34,7 +36,15 @@ const server = createServer(async (req, res) => {
                 return res.end(JSON.stringify(catalog));
             }
             if (route === 'status' && statusError) {res.statusCode=statusError;return res.end(JSON.stringify({error:'fixture status unavailable'}));}
-            if (route === 'proxy/api/v1/nodes') {
+            if (route === 'nodes' && req.method === 'POST') {
+                let body='';for await(const chunk of req)body+=chunk;
+                const payload=JSON.parse(body);
+                assert.deepEqual(Object.keys(payload),['node_id'],'only the node ID may reach AuraGo');
+                if(registrationError){res.statusCode=503;return res.end('{}');}
+                registrations.push(payload.node_id);
+                return res.end('{}');
+            }
+            if (route === 'proxy/api/v1/nodes' || route === 'nodes') {
                 const snapshot=structuredClone(nodeData);
                 if(nodeDelay)await new Promise(resolve=>setTimeout(resolve,nodeDelay));
                 res.statusCode=nodeError?503:200;
@@ -308,8 +318,15 @@ try {
     assert.equal(await action('verify').isDisabled(),true,'a different board cannot confirm the settings');
     assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'a mismatched board must not discard the draft');
     await page.evaluate(() => serialFixture.mismatch=false);
+    assert.deepEqual(registrations,[],'cancelled, failed and mismatched readbacks must not register boards');
+    registrationError=true;
+    await action('readback').click();await ready();
+    assert.ok((await page.locator('dialog section').nth(1).innerText()).includes('Geräteliste konnte nicht gespeichert'));
+    assert.deepEqual(registrations,[]);
+    registrationError=false;
     await action('readback').click();
     await page.waitForFunction(() => !document.querySelector('dialog [data-action="verify"]').disabled);
+    assert.deepEqual(registrations,[7],'matching readback records the board independently of UDP reception');
     assert.deepEqual(await wifiDraft(),['memory-only','fixture-password'],'successful restart confirmation keeps the draft until dialog close');
     await input('ssid').fill('next-draft'); await input('password').fill('next-password');
     fresh=false; await action('verify').click(); await ready();
@@ -317,7 +334,7 @@ try {
     assert.equal(await input('password').inputValue(),'next-password','sensor tests must not clear WLAN drafts');
     fresh=true; await action('verify').click(); await ready();
     assert.ok((await page.locator('dialog section').last().innerText()).includes('Frische Sensordaten empfangen'));
-    assert.equal(posts,2);
+    assert.equal(posts,4,'two registration attempts and two explicit sensor tests');
     fresh=false;await action('verify').click();await ready();
     assert.equal(await page.locator('.ruview-steps li').nth(2).evaluate(el=>el.classList.contains('complete')),false,'failed repeated sensor check clears success');
     fresh=true;await action('verify').click();await ready();

@@ -147,5 +147,9 @@
   "ruview.devices_stale": "更新に失敗しました。前回のデータは古くなっています。",
   "ruview.process_exited": "サービスが終了しました。再起動できます。",
   "ruview.stop_failed": "停止を確認できませんでした。サービスを確認してください。",
-  "ruview.stopping": "停止中…"
+  "ruview.stopping": "停止中…",
+  "ruview.device_offline": "現在のセンサーデータはありません",
+  "ruview.devices_known": "データを受信していなくても既知のボードは表示されます。現在のCSIデータは別途示されます。",
+  "ruview.devices_empty": "保存済みのボードはまだありません。設定済みのボードは次回のデータ受信時に追加されます。ファームウェアの再書き込みは不要です。",
+  "ruview.device_save_failed": "ボードの設定は確認できましたが、デバイス一覧を保存できませんでした。確認をやり直してください。"
 }

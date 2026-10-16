@@ -6,14 +6,52 @@
             const c = ctx.c; c.fillStyle = color || '#d5e8f7'; c.textAlign = align || 'left';
             c.font = size + 'px "Share Tech Mono", monospace'; c.fillText(text, x, y);
         }
-        function bar(x, y, width, fraction, color) {
-            ctx.c.fillStyle = '#26354a'; ctx.c.fillRect(x, y, width, 4);
-            ctx.c.fillStyle = color; ctx.c.fillRect(x, y, width * Math.max(0, Math.min(1, fraction)), 4);
+        function bar(x, y, width, fraction, color, glow) {
+            const c = ctx.c;
+            const fillW = width * Math.max(0, Math.min(1, fraction));
+            c.fillStyle = '#26354a'; c.fillRect(x, y, width, 4);
+            c.fillStyle = color; c.fillRect(x, y, fillW, 4);
+            if (fillW > 2) {
+                c.fillStyle = 'rgba(255,255,255,0.28)';
+                c.fillRect(x, y, fillW, 1);
+            }
+            if (glow) {
+                c.strokeStyle = color;
+                c.lineWidth = 1;
+                c.strokeRect(x - 1, y - 1, width + 2, 6);
+            }
         }
         function renderBeam(tb) {
-            const c = ctx.c; c.save(); c.globalAlpha = 0.55;
-            c.fillStyle = '#398bc7'; c.beginPath(); c.moveTo(tb.x - 10, tb.y); c.lineTo(tb.x + 10, tb.y);
-            c.lineTo(tb.x + 22, tb.y + tb.h); c.lineTo(tb.x - 22, tb.y + tb.h); c.closePath(); c.fill(); c.restore();
+            const c = ctx.c, time = (ctx.G && ctx.G.animTime) || 0;
+            c.save();
+            c.globalCompositeOperation = 'lighter';
+            const grad = c.createLinearGradient(tb.x, tb.y, tb.x, tb.y + tb.h);
+            grad.addColorStop(0, 'rgba(120, 220, 255, 0.72)');
+            grad.addColorStop(0.6, 'rgba(57, 139, 199, 0.42)');
+            grad.addColorStop(1, 'rgba(30, 90, 170, 0.12)');
+            c.fillStyle = grad;
+            c.beginPath();
+            c.moveTo(tb.x - 10, tb.y);
+            c.lineTo(tb.x + 10, tb.y);
+            c.lineTo(tb.x + 26, tb.y + tb.h);
+            c.lineTo(tb.x - 26, tb.y + tb.h);
+            c.closePath();
+            c.fill();
+            // Descending concentric tractor energy arcs
+            c.strokeStyle = '#99eeff';
+            c.lineWidth = 1.5;
+            const ringCount = 5;
+            for (let i = 0; i < ringCount; i++) {
+                const p = ((time * 0.0018 + i / ringCount) % 1);
+                const ry = tb.y + p * tb.h;
+                const rw = 10 + p * 16;
+                c.globalAlpha = (1 - p * 0.65) * 0.75;
+                c.beginPath();
+                c.moveTo(tb.x - rw, ry);
+                c.quadraticCurveTo(tb.x, ry + 6, tb.x + rw, ry);
+                c.stroke();
+            }
+            c.restore();
         }
         function renderHUD() {
             const G = ctx.G, c = ctx.c, W = ctx.W, H = ctx.H;
@@ -28,13 +66,14 @@
             ctx.drawAnimation(c, 'icon.' + ctx.settings.ship, 21, H - 20, 0, 24);
             label('× ' + G.lives, 38, H - 16, 14);
             label('W' + G.weaponLv + (G.weaponEvo ? ' · ' + ctx.WEAPON_EVOS[G.weaponEvo].name : ''), 92, H - 23, 10, '#b6d1e2');
-            bar(92, H - 14, 92, G.weaponLv >= 4 ? 1 : G.weaponXP / (G.weaponLv * 10), '#77bbbe');
+            bar(92, H - 14, 92, G.weaponLv >= 4 ? 1 : G.weaponXP / (G.weaponLv * 10), '#77bbbe', G.overcharge > 0);
             const ready = G.superMeter >= 100 && G.superPhase === 'idle';
-            label(ctx.t('galaxa.action_super') + ' C', 270, H - 23, 10, ready ? '#f6d38d' : '#88abc6', 'center');
-            bar(217, H - 14, 106, G.superMeter / 100, ready ? '#f6d38d' : '#6a9fbd');
+            const readyBlink = ready && Math.floor((G.animTime || 0) / 220) % 2 === 0;
+            label(ctx.t('galaxa.action_super') + ' C', 270, H - 23, 10, ready ? (readyBlink ? '#fff4cc' : '#f6d38d') : '#88abc6', 'center');
+            bar(217, H - 14, 106, G.superMeter / 100, ready ? '#f6d38d' : '#6a9fbd', ready);
             if (G.combo > 0) {
                 label('×' + G.comboMult + ' · ' + G.combo, 373, H - 23, 10, '#f6d38d', 'center');
-                bar(339, H - 14, 68, G.comboTimer / ctx.COMBO_TIMEOUT, '#f6d38d');
+                bar(339, H - 14, 68, G.comboTimer / ctx.COMBO_TIMEOUT, '#f6d38d', G.comboMult >= 8);
             }
             if (G.activePU) {
                 ctx.drawAnimation(c, 'pickup.' + G.activePU.type, W - 23, H - 20, G.animTime, 24);

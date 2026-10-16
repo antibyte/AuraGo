@@ -178,9 +178,10 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if limit <= 0 {
 			limit = 10
 		}
-		messages, err := tools.FetchEmails(
+		messages, err := tools.FetchEmailsWithTransport(ctx,
 			acct.IMAPHost, acct.IMAPPort,
 			acct.Username, acct.Password,
+			acct.ReceiveTLS,
 			folder, limit, logger,
 		)
 		if err != nil {
@@ -251,16 +252,9 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			if err != nil {
 				return "Tool Output: " + tools.EncodeEmailResult(tools.EmailResult{Status: "error", Message: err.Error()}), true
 			}
-			if acct.SMTPPort == 465 {
-				sendErr = tools.SendEmailTLSWithAttachments(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, files, logger)
-			} else {
-				sendErr = tools.SendEmailWithAttachments(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, files, logger)
-			}
-		} else if acct.SMTPPort == 465 {
-			sendErr = tools.SendEmailTLS(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, logger)
-		} else {
-			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, logger)
 		}
+		sendErr = tools.SendEmailWithTransport(ctx, acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword,
+			acct.FromAddress, to, subject, body, acct.SMTPTransport, files, logger)
 		if sendErr != nil {
 			return toolErrorf("SMTP send failed (%s): %v", acct.ID, sendErr), true
 		}

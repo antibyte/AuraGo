@@ -234,6 +234,18 @@ func (s *Service) CreateFolder(ctx context.Context, accountID, name, parentID st
 	if err != nil {
 		return Folder{}, err
 	}
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, accountID)
+	defer releaseAccount()
+	gate := s.accountGate(accountID)
+	gate.RLock()
+	defer gate.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return Folder{}, err
+	}
+	account, err = s.authorizedAccount(ctx, accountID)
+	if err != nil {
+		return Folder{}, err
+	}
 	if account.Disabled {
 		return Folder{}, ErrDisabled
 	}
@@ -267,7 +279,7 @@ func (s *Service) CreateFolder(ctx context.Context, accountID, name, parentID st
 		sum := sha256.Sum256([]byte(strings.ToLower(name)))
 		folder = Folder{ID: account.ID + ":local:custom:" + hex.EncodeToString(sum[:8]), AccountID: accountID, Name: name, Kind: "custom", ProviderID: name}
 	} else {
-		adapter, current, err := s.resolve(ctx, accountID)
+		adapter, current, err := s.writableAccount(ctx, accountID, "folders_create")
 		if err != nil {
 			return Folder{}, err
 		}
@@ -277,6 +289,9 @@ func (s *Service) CreateFolder(ctx context.Context, accountID, name, parentID st
 		manager, ok := adapter.(FolderManager)
 		if !ok {
 			return Folder{}, ErrCapability
+		}
+		if err := ctx.Err(); err != nil {
+			return Folder{}, err
 		}
 		folder, err = manager.CreateFolder(ctx, name, parentID)
 		if err != nil {

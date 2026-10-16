@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Oppdateringen mislyktes. De siste dataene er utdaterte.",
   "ruview.process_exited": "Tjenesten ble avsluttet. Du kan starte den igjen.",
   "ruview.stop_failed": "Kunne ikke bekrefte stansen. Kontroller tjenesten.",
-  "ruview.stopping": "Stopper…"
+  "ruview.stopping": "Stopper…",
+  "ruview.device_offline": "Ingen aktuelle sensordata",
+  "ruview.devices_known": "Kjente kort forblir synlige uten mottak. Aktuelle CSI-data vises separat.",
+  "ruview.devices_empty": "Ingen kort er lagret ennå. Tidligere konfigurerte kort legges til neste gang de sender data; fastvaren trenger ikke skrives på nytt.",
+  "ruview.device_save_failed": "Kortinnstillingene er bekreftet, men enhetslisten kunne ikke lagres. Gjenta bekreftelsen."
 }

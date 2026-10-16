@@ -36,6 +36,7 @@ const (
 )
 
 var mailerOAuthRefreshMu sync.Mutex
+var newMailerOAuthHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin
 
 type mailerOAuthPending struct {
 	Version             int               `json:"version"`
@@ -133,9 +134,7 @@ func (s *Server) mailerOAuthIdentity(r *http.Request, cfg *config.Config) (kind,
 		if raw == "" {
 			return "", "", false
 		}
-		if tm := s.currentTokenManager(); tm == nil {
-			return "", "", false
-		} else if _, valid := tm.Validate(raw, "admin"); !valid {
+		if !desktopTokenHasScope(s, raw, desktopScopeAdmin) {
 			return "", "", false
 		}
 		security.RegisterSensitive(raw)
@@ -162,12 +161,7 @@ func (s *Server) mailerOAuthIdentityStillValid(p mailerOAuthPending) bool {
 	case "session":
 		return cfg.Auth.Enabled && validateSessionValue(cfg.Auth.SessionSecret, p.Identity)
 	case "bearer":
-		tm := s.currentTokenManager()
-		if tm == nil {
-			return false
-		}
-		_, ok := tm.Validate(p.Identity, "admin")
-		return ok
+		return desktopTokenHasScope(s, p.Identity, desktopScopeAdmin)
 	default:
 		return false
 	}
@@ -773,15 +767,17 @@ func (s *Server) completeMailerWorkspaceOAuth(ctx context.Context, p mailerOAuth
 		return fmt.Errorf("provider omitted granted scopes")
 	}
 	actualScopes := strings.Fields(response.Scope)
-	requiredScopes := []string{"https://www.googleapis.com/auth/gmail.readonly"}
-	if cfg.GoogleWorkspace.GmailSend {
-		requiredScopes = append(requiredScopes, "https://www.googleapis.com/auth/gmail.send")
+	requiredScopes := []string{"https://www.googleapis.com/auth/gmail.readonly|https://www.googleapis.com/auth/gmail.modify|https://mail.google.com/"}
+	if cfg.GoogleWorkspace.GmailSend && !cfg.GoogleWorkspace.ReadOnly {
+		requiredScopes = append(requiredScopes, "https://www.googleapis.com/auth/gmail.send|https://www.googleapis.com/auth/gmail.compose|https://www.googleapis.com/auth/gmail.modify|https://mail.google.com/")
 	}
-	if cfg.GoogleWorkspace.GmailModifyLabels {
-		requiredScopes = append(requiredScopes, "https://www.googleapis.com/auth/gmail.modify")
+	if cfg.GoogleWorkspace.GmailModifyLabels && !cfg.GoogleWorkspace.ReadOnly {
+		requiredScopes = append(requiredScopes, "https://www.googleapis.com/auth/gmail.modify|https://mail.google.com/")
 	}
-	if !scopeSetContains(actualScopes, requiredScopes) {
-		return fmt.Errorf("provider did not grant requested mail scopes")
+	for _, required := range requiredScopes {
+		if !mailerHasScope(actualScopes, required) {
+			return fmt.Errorf("provider did not grant requested mail scopes")
+		}
 	}
 	var previous config.OAuthToken
 	if json.Unmarshal([]byte(p.Previous), &previous) != nil {
@@ -839,7 +835,7 @@ func (s *Server) completeMailerMicrosoftOAuth(ctx context.Context, p mailerOAuth
 		return fmt.Errorf("provider omitted granted scopes")
 	}
 	actualScopes := strings.Fields(response.Scope)
-	if !scopeSetContains(actualScopes, p.Scopes) {
+	if !scopeSetContains(actualScopes, microsoftMailerRequiredScopes(*account)) {
 		return fmt.Errorf("provider did not grant requested scopes")
 	}
 	var previous config.OAuthToken
@@ -892,7 +888,7 @@ func mailerOAuthTokenRequest(ctx context.Context, endpoint string, values url.Va
 	for _, key := range []string{"client_secret", "code", "code_verifier", "refresh_token"} {
 		security.RegisterSensitive(values.Get(key))
 	}
-	client := security.NewSSRFProtectedHTTPClientSameOrigin(20 * time.Second)
+	client := newMailerOAuthHTTPClient(20 * time.Second)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(values.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("build OAuth token request: %w", err)

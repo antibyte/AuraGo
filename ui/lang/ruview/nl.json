@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Vernieuwen mislukt. De laatste gegevens zijn verouderd.",
   "ruview.process_exited": "De dienst is beëindigd. Je kunt deze opnieuw starten.",
   "ruview.stop_failed": "Het stoppen kon niet worden bevestigd. Controleer de dienst.",
-  "ruview.stopping": "Bezig met stoppen…"
+  "ruview.stopping": "Bezig met stoppen…",
+  "ruview.device_offline": "Geen actuele sensorgegevens",
+  "ruview.devices_known": "Bekende boards blijven zichtbaar zonder ontvangst. Actuele CSI-gegevens worden apart aangegeven.",
+  "ruview.devices_empty": "Er zijn nog geen boards opgeslagen. Eerder ingestelde boards worden toegevoegd zodra ze weer gegevens sturen; opnieuw flashen is niet nodig.",
+  "ruview.device_save_failed": "De instellingen van het board zijn bevestigd, maar de apparatenlijst kon niet worden opgeslagen. Herhaal de bevestiging."
 }

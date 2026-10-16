@@ -16,21 +16,39 @@
             const world = !['TITLE', 'SETTINGS', 'SHOP', 'LOOP_CLEAR', 'RUN_CLEAR', 'LOADING'].includes(G.st);
             if (world) {
                 c.save();
+                if (!ctx.settings.reducedMotion && G.camZoom && Math.abs(G.camZoom - 1) > 0.002) {
+                    const zx = G.p && G.p.alive ? G.p.x : W / 2;
+                    const zy = G.p && G.p.alive ? G.p.y : H / 2;
+                    c.translate(zx, zy);
+                    c.scale(G.camZoom, G.camZoom);
+                    c.translate(-zx, -zy);
+                }
                 if (G.shkT > 0 && !ctx.settings.reducedMotion) {
                     const strength = Math.min(4, G.shkM || 0) * ctx.settings.shake * Math.min(1, G.shkT / 200);
                     c.translate(Math.round(Math.sin(ctx.tick * 2.3) * strength), Math.round(Math.cos(ctx.tick * 1.7) * strength));
                 }
                 if (!ctx.settings.reducedMotion && ctx.fxDrawBack) ctx.fxDrawBack(c);
                 ctx.renderGame();
+                if (ctx.fxDrawWorld) ctx.fxDrawWorld(c);
                 ctx.renderDangers();
                 c.restore();
+                if (ctx.fxDrawOverlay) ctx.fxDrawOverlay(c);
+                if (ctx.drawBiomeTransition) ctx.drawBiomeTransition(c, G);
                 // HUD has its own fixed transform; no camera movement or particles cover it.
                 ctx.renderHUD();
                 const boss = G.encounterBoss;
                 if (boss && boss.st !== 'DEAD') {
-                    c.fillStyle = '#111d32'; c.fillRect(90, 67, W - 180, 9);
-                    c.fillStyle = boss.invulnerable ? '#7293af' : '#eaaa6b'; c.fillRect(90, 67, (W - 180) * Math.max(0, boss.hp / boss.maxHp), 9);
-                    for (const threshold of [0.30, 0.65]) { c.fillStyle = '#050a17'; c.fillRect(90 + (W - 180) * threshold, 66, 2, 11); }
+                    const bx = 90, by = 67, bw = W - 180, bh = 9;
+                    const hpFrac = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
+                    c.fillStyle = '#111d32'; c.fillRect(bx, by, bw, bh);
+                    c.strokeStyle = boss.hitF > 0 ? '#ffffff' : '#3d5a80';
+                    c.lineWidth = 1;
+                    c.strokeRect(bx - 1, by - 1, bw + 2, bh + 2);
+                    c.fillStyle = boss.invulnerable ? '#7293af' : (boss.hitF > 50 ? '#fff0d6' : (boss.bossPhase >= 3 ? '#ff5c77' : '#eaaa6b'));
+                    c.fillRect(bx, by, bw * hpFrac, bh);
+                    c.fillStyle = 'rgba(255,255,255,0.22)';
+                    c.fillRect(bx, by, bw * hpFrac, 2);
+                    for (const threshold of [0.30, 0.65]) { c.fillStyle = '#050a17'; c.fillRect(bx + bw * threshold, by - 1, 2, bh + 2); }
                     text(ctx.t('galaxa.boss_' + boss.sectorBoss) + ' · ' + boss.bossPhase + '/3', 61, 11);
                 }
                 if (G.st === 'STAGE_INTRO') ctx.renderStageIntro();

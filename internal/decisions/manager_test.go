@@ -48,7 +48,7 @@ func (factory *testFactory) discover(context.Context, string, RuntimeAccess, mod
 	return append([]runtimeDevice(nil), factory.devices...), nil
 }
 
-func (factory *testFactory) start(ctx context.Context, _ string, device runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string) (runtimeSession, error) {
+func (factory *testFactory) start(ctx context.Context, _ string, device runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string, _ func(string)) (runtimeSession, error) {
 	attempt := startAttempt{id: device.ID, gpuLayers: device.GPULayers}
 	factory.attempts = append(factory.attempts, attempt)
 	if factory.blockFirstStart {
@@ -186,7 +186,7 @@ func readyManagerForTest(t *testing.T, session *testSession) *Manager {
 func startManagerForTest(t *testing.T, cfg config.DecisionsConfig, factory *testFactory) *Manager {
 	manager := NewManager(cfg, t.TempDir())
 	manager.factory = factory
-	manager.resolveModelPaths = func(string) (modelPaths, error) {
+	manager.resolveModelPaths = func(context.Context, string, func(string, int64, int64)) (modelPaths, error) {
 		return modelPaths{Model: "managed-model.gguf", Projector: "managed-mmproj.gguf"}, nil
 	}
 	return manager
@@ -224,7 +224,7 @@ type factoryWithSession struct {
 	session *testSession
 }
 
-func (factory factoryWithSession) start(context.Context, string, runtimeDevice, modelPaths, config.DecisionsConfig, RuntimeAccess, string) (runtimeSession, error) {
+func (factory factoryWithSession) start(context.Context, string, runtimeDevice, modelPaths, config.DecisionsConfig, RuntimeAccess, string, func(string)) (runtimeSession, error) {
 	return factory.session, nil
 }
 
@@ -233,7 +233,7 @@ type cancelDuringStartFactory struct {
 	entered chan struct{}
 }
 
-func (factory *cancelDuringStartFactory) start(ctx context.Context, _ string, _ runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string) (runtimeSession, error) {
+func (factory *cancelDuringStartFactory) start(ctx context.Context, _ string, _ runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string, _ func(string)) (runtimeSession, error) {
 	close(factory.entered)
 	<-ctx.Done()
 	return nil, NewError(CodeRuntimeStartFailed, errors.New("fake launch failed after cancellation"))
@@ -244,7 +244,7 @@ type captureStartContextFactory struct {
 	startedCtx chan context.Context
 }
 
-func (factory *captureStartContextFactory) start(ctx context.Context, _ string, device runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string) (runtimeSession, error) {
+func (factory *captureStartContextFactory) start(ctx context.Context, _ string, device runtimeDevice, _ modelPaths, _ config.DecisionsConfig, _ RuntimeAccess, _ string, _ func(string)) (runtimeSession, error) {
 	factory.startedCtx <- ctx
 	return &testSession{metadataValue: metadataForDevice(device), closed: make(chan struct{})}, nil
 }
@@ -360,7 +360,7 @@ func TestStartPreservesCancellationDuringRuntimeLaunch(t *testing.T) {
 	}
 	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
 	manager.factory = factory
-	manager.resolveModelPaths = func(string) (modelPaths, error) {
+	manager.resolveModelPaths = func(context.Context, string, func(string, int64, int64)) (modelPaths, error) {
 		return modelPaths{Model: "managed-model.gguf", Projector: "managed-mmproj.gguf"}, nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -389,7 +389,7 @@ func TestSuccessfulStartOutlivesCallerContext(t *testing.T) {
 	}
 	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
 	manager.factory = factory
-	manager.resolveModelPaths = func(string) (modelPaths, error) {
+	manager.resolveModelPaths = func(context.Context, string, func(string, int64, int64)) (modelPaths, error) {
 		return modelPaths{Model: "managed-model.gguf", Projector: "managed-mmproj.gguf"}, nil
 	}
 	callerCtx, cancel := context.WithCancel(context.Background())
@@ -631,7 +631,7 @@ func TestAutoStartRetriesTransientLifecycleBusy(t *testing.T) {
 func TestAutoStartDoesNotPublishStaleModelFailureAfterDisable(t *testing.T) {
 	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
 	entered, release := make(chan struct{}), make(chan struct{})
-	manager.resolveModelPaths = func(string) (modelPaths, error) {
+	manager.resolveModelPaths = func(context.Context, string, func(string, int64, int64)) (modelPaths, error) {
 		close(entered)
 		<-release
 		return modelPaths{}, os.ErrNotExist
@@ -859,6 +859,52 @@ func TestStartNeverLaunchesHybridOrCPUWithoutConsent(t *testing.T) {
 	}
 	if want := []startAttempt{{id: "cuda0"}}; !reflect.DeepEqual(factory.attempts, want) {
 		t.Fatalf("startup attempts = %#v, want only strict GPU attempt %#v", factory.attempts, want)
+	}
+}
+
+func TestStartupTimeoutAndInvalidArtifactsNeverTryAnotherDevice(t *testing.T) {
+	for _, failure := range []error{NewError(CodeRuntimeStartTimeout, context.DeadlineExceeded), runtimeStartupError("model_pin_mismatch"), runtimeStartupError("projector_pin_mismatch"), runtimeStartupError("invalid_configuration")} {
+		t.Run(ErrorCode(failure), func(t *testing.T) {
+			factory := &testFactory{
+				devices: []runtimeDevice{
+					{ID: "cuda0", Name: "GPU", Backend: "cuda", Type: "GPU", ModelLayers: 32},
+					{ID: "vulkan0", Name: "GPU2", Backend: "vulkan", Type: "GPU", ModelLayers: 32},
+					{ID: "cpu", Name: "CPU", Backend: "cpu", Type: "CPU", ModelLayers: 32},
+				},
+				startErrors: map[startAttempt]error{{id: "cuda0"}: failure},
+			}
+			manager := startManagerForTest(t, config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative, CPUFallbackAllowed: true}, factory)
+			if err := manager.Start(t.Context()); ErrorCode(err) != ErrorCode(failure) {
+				t.Fatalf("startup error: %v", err)
+			}
+			if !reflect.DeepEqual(factory.attempts, []startAttempt{{id: "cuda0"}}) {
+				t.Fatalf("terminal failure launched fallback: %#v", factory.attempts)
+			}
+			if status := manager.Status(); status.Ready || status.State != "error" || status.Code != ErrorCode(failure) {
+				t.Fatalf("terminal status: %#v", status)
+			}
+		})
+	}
+}
+
+func TestStartupProgressCannotPublishAcrossOperationGenerations(t *testing.T) {
+	manager := NewManager(config.DecisionsConfig{Enabled: true}, t.TempDir())
+	_, cancel, id, stopParent, err := manager.beginOperation(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.finishOperation(cancel, id, stopParent, false)
+	manager.updateProgress(id, "warming_up", 0, 0)
+	manager.updateProgress(id-1, "loading_model", 0, 0)
+	if got := manager.Status().Progress.Phase; got != "warming_up" {
+		t.Fatalf("stale phase: %s", got)
+	}
+	if err := manager.Stop(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	manager.updateProgress(id, "warming_up", 0, 0)
+	if manager.Status().State != "stopped" {
+		t.Fatal("progress revived a stopped operation")
 	}
 }
 

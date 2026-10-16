@@ -3,8 +3,11 @@ package mailer
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -87,12 +90,35 @@ func (s *Store) ListDrafts(ctx context.Context) ([]Draft, error) {
 }
 
 func (s *Store) DeleteDraft(ctx context.Context, id string, revision int64) error {
-	res, err := s.db.ExecContext(ctx, "DELETE FROM mailer_drafts WHERE id=? AND revision=?", id, revision)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var current int64
+	if err := tx.QueryRowContext(ctx, "SELECT revision FROM mailer_drafts WHERE id=?", id).Scan(&current); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if current != revision {
+		return ErrConflict
+	}
+	var pending int
+	if err := tx.QueryRowContext(ctx, "SELECT 1 FROM mailer_outbox WHERE draft_id=? AND status IN ('scheduled','sending','unknown') LIMIT 1", id).Scan(&pending); err == nil {
+		return ErrConflict
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, "DELETE FROM mailer_drafts WHERE id=? AND revision=?", id, revision)
 	if err != nil {
 		return fmt.Errorf("delete mail draft: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrConflict
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit mail draft deletion: %w", err)
 	}
 	return nil
 }
@@ -345,27 +371,106 @@ func (s *Store) QueueSend(ctx context.Context, req SendRequest, d Draft) (Outbox
 }
 
 func (s *Store) ListOutbox(ctx context.Context) ([]OutboxItem, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT id,account_id,draft_id,revision,timezone,send_at,undo_until,status,error,remote_id,append_error,created_at,updated_at FROM mailer_outbox ORDER BY send_at DESC,created_at DESC LIMIT 500")
+	rows, err := s.db.QueryContext(ctx, "SELECT id,account_id,draft_id,revision,timezone,send_at,undo_until,status,error,remote_id,append_error,created_at,updated_at FROM mailer_outbox ORDER BY send_at DESC,created_at DESC,id DESC")
 	if err != nil {
 		return nil, fmt.Errorf("list mail outbox: %w", err)
 	}
 	defer rows.Close()
 	items := make([]OutboxItem, 0)
 	for rows.Next() {
-		var v OutboxItem
-		var sendAt, undo, created, updated int64
-		var appendError string
-		if err := rows.Scan(&v.ID, &v.AccountID, &v.DraftID, &v.Revision, &v.Timezone, &sendAt, &undo, &v.Status, &v.Error, &v.RemoteID, &appendError, &created, &updated); err != nil {
+		v, err := scanOutboxItem(rows)
+		if err != nil {
 			return nil, err
 		}
-		v.SendAt = fromNS(sendAt)
-		v.UndoUntil = fromNS(undo)
-		v.CreatedAt = fromNS(created)
-		v.UpdatedAt = fromNS(updated)
-		v.AppendError = appendError
 		items = append(items, v)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) GetOutbox(ctx context.Context, id string) (OutboxItem, error) {
+	row := s.db.QueryRowContext(ctx, "SELECT id,account_id,draft_id,revision,timezone,send_at,undo_until,status,error,remote_id,append_error,created_at,updated_at FROM mailer_outbox WHERE id=?", id)
+	item, err := scanOutboxItem(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return OutboxItem{}, ErrNotFound
+	}
+	return item, err
+}
+
+func (s *Store) ListOutboxPage(ctx context.Context, cursor string, limit int, allowedAccountIDs []string) (OutboxPage, error) {
+	if limit <= 0 {
+		limit = 50
+	} else if limit > 200 {
+		limit = 200
+	}
+	if len(allowedAccountIDs) == 0 {
+		return OutboxPage{Items: []OutboxItem{}}, nil
+	}
+	var point outboxCursor
+	if cursor != "" {
+		data, err := base64.RawURLEncoding.DecodeString(cursor)
+		if err != nil || json.Unmarshal(data, &point) != nil || point.ID == "" || point.SendAt == 0 || point.CreatedAt == 0 {
+			return OutboxPage{}, fmt.Errorf("%w: invalid outbox cursor", ErrInvalid)
+		}
+	}
+	query := "SELECT id,account_id,draft_id,revision,timezone,send_at,undo_until,status,error,remote_id,append_error,created_at,updated_at FROM mailer_outbox WHERE account_id IN (" + strings.TrimRight(strings.Repeat("?,", len(allowedAccountIDs)), ",") + ")"
+	args := make([]any, 0, len(allowedAccountIDs)+4)
+	for _, id := range allowedAccountIDs {
+		args = append(args, id)
+	}
+	if cursor != "" {
+		query += " AND (send_at,created_at,id) < (?,?,?)"
+		args = append(args, point.SendAt, point.CreatedAt, point.ID)
+	}
+	query += " ORDER BY send_at DESC,created_at DESC,id DESC LIMIT ?"
+	args = append(args, limit+1)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return OutboxPage{}, fmt.Errorf("list mail outbox page: %w", err)
+	}
+	defer rows.Close()
+	items := make([]OutboxItem, 0, limit+1)
+	for rows.Next() {
+		item, err := scanOutboxItem(rows)
+		if err != nil {
+			return OutboxPage{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return OutboxPage{}, err
+	}
+	page := OutboxPage{Items: items}
+	if len(items) > limit {
+		page.HasMore = true
+		page.Items = items[:limit]
+		last := page.Items[len(page.Items)-1]
+		encoded, err := json.Marshal(outboxCursor{SendAt: timeNS(last.SendAt), CreatedAt: timeNS(last.CreatedAt), ID: last.ID})
+		if err != nil {
+			return OutboxPage{}, err
+		}
+		page.NextCursor = base64.RawURLEncoding.EncodeToString(encoded)
+	}
+	return page, nil
+}
+
+type outboxCursor struct {
+	SendAt    int64  `json:"s"`
+	CreatedAt int64  `json:"c"`
+	ID        string `json:"i"`
+}
+
+type outboxScanner interface {
+	Scan(...any) error
+}
+
+func scanOutboxItem(row outboxScanner) (OutboxItem, error) {
+	var item OutboxItem
+	var sendAt, undo, created, updated int64
+	if err := row.Scan(&item.ID, &item.AccountID, &item.DraftID, &item.Revision, &item.Timezone, &sendAt, &undo, &item.Status, &item.Error, &item.RemoteID, &item.AppendError, &created, &updated); err != nil {
+		return OutboxItem{}, err
+	}
+	item.SendAt, item.UndoUntil, item.CreatedAt, item.UpdatedAt = fromNS(sendAt), fromNS(undo), fromNS(created), fromNS(updated)
+	return item, nil
 }
 
 func (s *Store) ClaimDue(ctx context.Context, now time.Time) (OutboxItem, Draft, error) {
@@ -454,16 +559,7 @@ func (s *Store) RetrySend(ctx context.Context, id string) (OutboxItem, error) {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return OutboxItem{}, ErrConflict
 	}
-	items, err := s.ListOutbox(ctx)
-	if err != nil {
-		return OutboxItem{}, err
-	}
-	for _, item := range items {
-		if item.ID == id {
-			return item, nil
-		}
-	}
-	return OutboxItem{}, ErrNotFound
+	return s.GetOutbox(ctx, id)
 }
 
 func (s *Store) RecoverSending(ctx context.Context) error {
@@ -507,19 +603,28 @@ func (s *Store) BlobOwner(ctx context.Context, id string) (string, string, error
 }
 
 func (s *Store) DeleteBlob(ctx context.Context, id string) error {
-	pending, err := s.BlobHasPendingSend(ctx, id)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if pending {
-		return ErrConflict
-	}
-	res, err := s.db.ExecContext(ctx, "DELETE FROM mailer_blobs WHERE id=?", id)
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `DELETE FROM mailer_blobs WHERE id=? AND NOT EXISTS (
+SELECT 1 FROM mailer_outbox_blobs b JOIN mailer_outbox o ON o.id=b.outbox_id
+WHERE b.blob_id=mailer_blobs.id AND o.status IN ('scheduled','sending','unknown'))`, id)
 	if err != nil {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
+		var exists int
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM mailer_blobs WHERE id=?", id).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		return ErrConflict
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit mail attachment removal: %w", err)
 	}
 	return nil
 }
@@ -527,7 +632,7 @@ func (s *Store) DeleteBlob(ctx context.Context, id string) error {
 func (s *Store) BlobHasPendingSend(ctx context.Context, blobID string) (bool, error) {
 	var exists int
 	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM mailer_outbox_blobs b JOIN mailer_outbox o ON o.id=b.outbox_id
-WHERE b.blob_id=? AND o.status IN ('scheduled','sending') LIMIT 1`, blobID).Scan(&exists)
+WHERE b.blob_id=? AND o.status IN ('scheduled','sending','unknown') LIMIT 1`, blobID).Scan(&exists)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -536,9 +641,76 @@ WHERE b.blob_id=? AND o.status IN ('scheduled','sending') LIMIT 1`, blobID).Scan
 
 func (s *Store) DraftHasPendingSend(ctx context.Context, draftID string) (bool, error) {
 	var exists int
-	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM mailer_outbox WHERE draft_id=? AND status IN ('scheduled','sending') LIMIT 1", draftID).Scan(&exists)
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM mailer_outbox WHERE draft_id=? AND status IN ('scheduled','sending','unknown') LIMIT 1", draftID).Scan(&exists)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	return err == nil, err
+}
+
+func (s *Store) RemoveDraftAttachment(ctx context.Context, draftID string, revision int64, blobID string) (Draft, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Draft{}, err
+	}
+	defer tx.Rollback()
+	var body []byte
+	if err := tx.QueryRowContext(ctx, "SELECT body FROM mailer_drafts WHERE id=?", draftID).Scan(&body); errors.Is(err, sql.ErrNoRows) {
+		return Draft{}, ErrNotFound
+	} else if err != nil {
+		return Draft{}, err
+	}
+	var draft Draft
+	if err := unmarshal(body, &draft); err != nil {
+		return Draft{}, err
+	}
+	if draft.Revision != revision {
+		return Draft{}, ErrConflict
+	}
+	attachments := make([]Attachment, 0, len(draft.Attachments))
+	found := false
+	for _, attachment := range draft.Attachments {
+		if attachment.ID == blobID {
+			found = true
+			continue
+		}
+		attachments = append(attachments, attachment)
+	}
+	if !found {
+		return Draft{}, ErrNotFound
+	}
+	draft.Attachments = attachments
+	draft.Revision++
+	draft.UpdatedAt = time.Now().UTC()
+	updated, err := marshal(draft)
+	if err != nil {
+		return Draft{}, err
+	}
+	res, err := tx.ExecContext(ctx, `UPDATE mailer_drafts SET revision=?,body=?,updated_at=? WHERE id=? AND revision=? AND NOT EXISTS (
+SELECT 1 FROM mailer_outbox WHERE draft_id=? AND status IN ('scheduled','sending','unknown'))`, draft.Revision, updated, timeNS(draft.UpdatedAt), draftID, revision, draftID)
+	if err != nil {
+		return Draft{}, fmt.Errorf("update mail draft attachments: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		var pending int
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM mailer_outbox WHERE draft_id=? AND status IN ('scheduled','sending','unknown') LIMIT 1", draftID).Scan(&pending); err == nil {
+			return Draft{}, ErrConflict
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return Draft{}, err
+		}
+		return Draft{}, ErrConflict
+	}
+	res, err = tx.ExecContext(ctx, `DELETE FROM mailer_blobs WHERE id=? AND owner_kind='draft' AND owner_id=? AND NOT EXISTS (
+SELECT 1 FROM mailer_outbox_blobs b JOIN mailer_outbox o ON o.id=b.outbox_id
+WHERE b.blob_id=mailer_blobs.id AND o.status IN ('scheduled','sending','unknown'))`, blobID, draftID)
+	if err != nil {
+		return Draft{}, fmt.Errorf("remove mail attachment index: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return Draft{}, ErrConflict
+	}
+	if err := tx.Commit(); err != nil {
+		return Draft{}, fmt.Errorf("commit mail draft attachment removal: %w", err)
+	}
+	return draft, nil
 }

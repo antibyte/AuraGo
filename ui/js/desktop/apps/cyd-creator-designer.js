@@ -195,7 +195,7 @@
                 const ids = sel();
                 if (!ids.length) return false;
                 const p = d.project();
-                clipboard = { count: 0, items: ids.map(id => ({ widget: P.util.deepClone(d.find(id).widget), abs: M.absRect(p, id, d.env()) })) };
+                clipboard = { count: 0, projectId: inst.projectId || '', items: ids.map(id => ({ widget: P.util.deepClone(d.find(id).widget), abs: M.absRect(p, id, d.env()) })) };
                 d.announce(t('cyd_creator.designer.copied', { count: ids.length }));
                 return true;
             },
@@ -207,25 +207,50 @@
                 const p = d.project();
                 const names = M.usedNames(p);
                 const offset = 8 * clipboard.count;
+                const foreign = !!(clipboard.projectId && inst.projectId && clipboard.projectId !== inst.projectId);
+                let adjusted = false;
                 const ops = clipboard.items.map(item => {
-                    const copy = M.cloneSubtree(p, item.widget, names);
+                    let copy = M.cloneSubtree(p, item.widget, names);
+                    if (foreign) {
+                        const cleaned = M.sanitizeForeign(copy, p, d.specs);
+                        copy = cleaned.widget;
+                        if (cleaned.adjusted) adjusted = true;
+                    }
                     delete copy.tab;
                     copy.x = item.abs.x + offset; copy.y = item.abs.y + offset;
                     return { op: 'add_widget', screen: screen.id, widget: copy };
                 });
                 const res = run('paste', ops);
                 if (res) d.select(res.map(r => r.id));
+                if (res && adjusted) d.announce(t('cyd_creator.designer.paste_adjusted'));
             },
             nudge(dx, dy) {
                 const ids = unlocked(sel());
                 if (!ids.length) return;
-                const ops = ids.map(id => { const w = d.find(id).widget; return { op: 'move_widget', id, x: w.x + dx, y: w.y + dy }; });
+                const p = d.project();
+                const env = d.env();
+                const items = ids.map(id => {
+                    const f = d.find(id);
+                    return { id, widget: f.widget, abs: M.absRect(p, id, env), frame: frameOf(f) };
+                });
+                const step = G.clampDelta(items, { x: dx, y: dy });
+                if (!step.x && !step.y) return;
+                const ops = items.map(it => ({ op: 'move_widget', id: it.id, x: it.widget.x + step.x, y: it.widget.y + step.y }));
                 run('nudge', ops, 'nudge:' + ids.join(','));
             },
             // place moves widgets to absolute rects (screen coordinates) inside their parents.
+            // Each rect is clamped into that parent's content box; the size stays.
             place(rects) {
                 const p = d.project();
-                const ops = rects.map(r => { const o = M.absOrigin(p, r.id, d.env()); return { op: 'move_widget', id: r.id, x: r.x - o.x, y: r.y - o.y }; });
+                const env = d.env();
+                const ops = [];
+                (rects || []).forEach(r => {
+                    const found = d.find(r.id);
+                    if (!found) return;
+                    const clamped = G.clampInto({ x: r.x, y: r.y, w: r.w, h: r.h }, frameOf(found));
+                    const o = M.absOrigin(p, r.id, env);
+                    ops.push({ op: 'move_widget', id: r.id, x: Math.round(clamped.x - o.x), y: Math.round(clamped.y - o.y) });
+                });
                 return run('arrange', ops);
             },
             align(mode) {
@@ -244,11 +269,19 @@
                 commands.place(out.map((r, i) => Object.assign({ id: ids[i] }, r)));
             },
             zorder(dir) {
-                const ops = sel().map(id => {
+                const groups = new Map();
+                sel().forEach(id => {
                     const f = d.find(id);
-                    const last = f.list.length - 1;
-                    const index = dir === 'front' ? last : dir === 'back' ? 0 : dir === 'forward' ? Math.min(last, f.index + 1) : Math.max(0, f.index - 1);
-                    return { op: 'reorder_widget', id, index };
+                    if (!f) return;
+                    const key = f.parent ? f.parent.id : f.screen.id;
+                    let group = groups.get(key);
+                    if (!group) { group = { ids: f.list.map(w => w.id), selected: [] }; groups.set(key, group); }
+                    group.selected.push(id);
+                });
+                const ops = [];
+                groups.forEach(group => {
+                    const desired = G.restack(group.ids, group.selected, dir);
+                    G.reorderIndexes(group.ids, desired).forEach(step => ops.push({ op: 'reorder_widget', id: step.id, index: step.index }));
                 });
                 run('zorder', ops);
             },
@@ -263,7 +296,7 @@
             redo() { if (!d.readonly()) store.redo(); },
             selectAll() {
                 const screen = d.screen();
-                if (screen) d.select((screen.widgets || []).filter(w => !w.hidden).map(w => w.id));
+                if (screen) d.select(M.visibleIds(screen, d.activeTab));
             }
         };
         d.commands = commands;

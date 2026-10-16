@@ -16,8 +16,9 @@ import (
 )
 
 type mailerHTTPAdapter struct {
-	messages  []mailer.Message
-	mutations []mailer.Mutation
+	messages    []mailer.Message
+	mutations   []mailer.Mutation
+	mutationErr error
 }
 
 func (a *mailerHTTPAdapter) Folders(context.Context) ([]mailer.Folder, error) {
@@ -37,7 +38,7 @@ func (a *mailerHTTPAdapter) Attachment(context.Context, string, string, string) 
 }
 func (a *mailerHTTPAdapter) Mutate(_ context.Context, _, _ string, m mailer.Mutation) error {
 	a.mutations = append(a.mutations, m)
-	return nil
+	return a.mutationErr
 }
 func (a *mailerHTTPAdapter) Send(context.Context, mailer.Outgoing) (mailer.SendResult, error) {
 	return mailer.SendResult{Confirmed: true, RemoteID: "sent-fixture"}, nil
@@ -122,6 +123,44 @@ func TestMailerHTTPDraftConflictAndIdempotentSend(t *testing.T) {
 	}
 	if got := mailerHTTPRequest(s, "DELETE", "drafts/"+draft.ID, ""); got.Code != 428 {
 		t.Fatalf("unguarded delete: %d", got.Code)
+	}
+}
+
+func TestMailerHTTPOutboxCursorPagesReachEveryJob(t *testing.T) {
+	s, _ := newMailerHTTPTestServer(t)
+	want := make(map[string]bool)
+	for i := 0; i < 3; i++ {
+		draft, err := s.Mailer.SaveDraft(context.Background(), mailer.Draft{AccountID: "fixture", To: []string{"recipient@example.test"}, Text: "Fixture"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		item, err := s.Mailer.QueueSend(context.Background(), mailer.SendRequest{DraftID: draft.ID, Revision: draft.Revision, SendAt: time.Now().Add(time.Hour)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want[item.ID] = true
+	}
+	cursor := ""
+	for i := 0; i < 3; i++ {
+		w := mailerHTTPRequest(s, "GET", "outbox?limit=1&cursor="+cursor, "")
+		if w.Code != 200 {
+			t.Fatalf("page %d: %d %s", i, w.Code, w.Body)
+		}
+		var page mailer.OutboxPage
+		if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 1 || !want[page.Items[0].ID] {
+			t.Fatalf("page %d omitted or repeated a job", i)
+		}
+		delete(want, page.Items[0].ID)
+		if page.HasMore != (i < 2) || (page.HasMore && page.NextCursor == "") {
+			t.Fatalf("page %d has incorrect continuation: %+v", i, page)
+		}
+		cursor = page.NextCursor
+	}
+	if w := mailerHTTPRequest(s, "GET", "outbox?cursor=invalid", ""); w.Code != 400 {
+		t.Fatalf("invalid cursor: %d %s", w.Code, w.Body)
 	}
 }
 
@@ -216,6 +255,57 @@ func TestMailerHTTPRulePreviewAndApplyShareRevision(t *testing.T) {
 	body, _ := json.Marshal(map[string]any{"revision": rule.Revision, "message_ids": []string{created[0].ID}})
 	if got := mailerHTTPRequest(s, "POST", "rules/"+updated.ID+"/apply", string(body)); got.Code != 409 {
 		t.Fatalf("stale rule applied: %d %s", got.Code, got.Body)
+	}
+}
+
+func TestMailerHTTPRuleFailureIsVisibleAndRetryRequiresWritableDesktop(t *testing.T) {
+	s, adapter := newMailerHTTPTestServer(t)
+	ctx := context.Background()
+	rule, err := s.Mailer.SaveRule(ctx, mailer.Rule{AccountID: "fixture", Name: "Invoices", Enabled: true, Conditions: []mailer.RuleCondition{{Field: "subject", Operator: "contains", Value: "Invoice"}}, Actions: []mailer.RuleAction{{Kind: mailer.MutationStar}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter.messages = []mailer.Message{{RemoteID: "invoice", Subject: "Invoice", From: "sender@example.test", Text: "Fixture", Attachments: []mailer.Attachment{{ID: "fixture-file", Filename: "invoice.pdf", Size: 12}}}}
+	adapter.mutationErr = fmt.Errorf("fixture transport interruption")
+	if err := s.Mailer.SyncAccount(ctx, "fixture"); err != nil {
+		t.Fatalf("sync rule fixture: %v", err)
+	}
+	page, err := s.Mailer.QueryThreads(ctx, mailer.MessageQuery{AccountID: "fixture"})
+	if err != nil || len(page.Threads) != 1 || len(page.Threads[0].Messages) != 1 {
+		t.Fatalf("indexed message missing: %v", err)
+	}
+	messageID := page.Threads[0].Messages[0].ID
+	listing := mailerHTTPRequest(s, "GET", "threads?account_id=fixture", "")
+	if listing.Code != 200 || !strings.Contains(listing.Body.String(), `"message_id":"`+messageID+`"`) || !strings.Contains(listing.Body.String(), `"from":"sender@example.test"`) || !strings.Contains(listing.Body.String(), `"attachment_count":1`) {
+		t.Fatalf("thread list omitted message metadata: %d %s", listing.Code, listing.Body)
+	}
+	path := "messages/" + messageID + "/rule-runs"
+	w := mailerHTTPRequest(s, "GET", path, "")
+	var runs struct {
+		Items []mailer.RuleRun `json:"items"`
+	}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &runs) != nil || len(runs.Items) != 1 || (runs.Items[0].Status != "failed" && runs.Items[0].Status != "unknown") {
+		t.Fatalf("failed rule not exposed: %d %s", w.Code, w.Body)
+	}
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	retry := path + "/" + rule.ID + "/retry"
+	if w := mailerHTTPRequest(s, "POST", retry, ""); w.Code != 403 {
+		t.Fatalf("readonly retry: %d %s", w.Code, w.Body)
+	}
+	if len(adapter.mutations) != 1 {
+		t.Fatal("readonly retry reached the provider")
+	}
+	s.Cfg.VirtualDesktop.ReadOnly = false
+	adapter.mutationErr = nil
+	if w := mailerHTTPRequest(s, "POST", retry, ""); w.Code != 200 {
+		t.Fatalf("explicit retry: %d %s", w.Code, w.Body)
+	}
+	w = mailerHTTPRequest(s, "GET", path, "")
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &runs) != nil || len(runs.Items) != 1 || runs.Items[0].Status != "completed" || len(adapter.mutations) != 2 {
+		t.Fatalf("retry did not complete exactly one action: %d %s", w.Code, w.Body)
+	}
+	if w := mailerHTTPRequest(s, "GET", "messages/missing/rule-runs", ""); w.Code != 404 {
+		t.Fatalf("missing message: %d %s", w.Code, w.Body)
 	}
 }
 

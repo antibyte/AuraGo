@@ -29,6 +29,21 @@ There is no native fallback between modes. Failed strict startup exits; the mana
 
 ## HTTP protocol v1
 
+Before opening the HTTP port, the runtime verifies both pinned files, loads the
+model and projector, and performs the device-attestation warmup. The manager
+allows five minutes for this startup, with individually bounded readiness
+probes. A timeout stops the attempt without trying another device or CPU mode;
+explicit device failures still follow the manager's consent policy.
+
+Startup writes constant, newline-terminated diagnostics to stderr:
+`AURAGO_DECISIONS_STARTUP phase=<phase>` for `verifying_model`,
+`verifying_projector`, `loading_model`, `loading_projector`, and `warming_up`.
+Failures use `AURAGO_DECISIONS_STARTUP_ERROR code=<stable-code>`. Native and Docker
+managers accept only bounded allowlisted lines, never arbitrary log text.
+Older verified bundles without phase messages remain usable but cannot display
+these phases; rebuild the bundle/image to include them. Neither hashes nor
+device attestation are skipped to shorten startup.
+
 All routes require `Authorization: Bearer <private token>` and return JSON. Failed authorization is HTTP 401 `{"error":{"code":"unauthorized"}}`.
 
 - `GET /healthz` and `GET /capabilities`: protocol, readiness, exact model/projector pins, runtime build hash, model layer count, selected device, backend assignment and buffer attestations, image marker, and limits. Graph preflight proves where real model/projector operators would execute before the graph runs; model/projector weight-buffer and KV maps are checked separately. Reported projector compute-buffer byte counts describe allocated scratch capacity and are diagnostic only, not CPU/GPU execution evidence.

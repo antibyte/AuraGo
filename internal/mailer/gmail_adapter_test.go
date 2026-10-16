@@ -86,3 +86,43 @@ func TestGmailCreateFolderUsesCreateGrant(t *testing.T) {
 		t.Fatalf("grant=%q folder=%#v", seenGrant, folder)
 	}
 }
+
+func TestGmailSpamTrashSearchAndInitialSnapshotIncludeHiddenMessages(t *testing.T) {
+	for _, mode := range []string{"search", "snapshot"} {
+		for _, folder := range []string{"SPAM", "TRASH"} {
+			t.Run(mode+"/"+folder, func(t *testing.T) {
+				var listCalls int
+				client := &http.Client{Transport: gmailFixtureTransport(func(r *http.Request) (*http.Response, error) {
+					var body string
+					switch {
+					case strings.HasSuffix(r.URL.Path, "/profile"):
+						body = `{"historyId":"123"}`
+					case strings.HasSuffix(r.URL.Path, "/messages"):
+						listCalls++
+						q := r.URL.Query()
+						if q.Get("labelIds") != folder || q.Get("includeSpamTrash") != "true" {
+							t.Fatalf("folder listing query = %s, want labelIds=%s and includeSpamTrash=true", r.URL.RawQuery, folder)
+						}
+						body = `{"messages":[]}`
+					default:
+						t.Fatalf("unexpected Gmail endpoint %s", r.URL)
+					}
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+				})}
+				a := &gmailAdapter{cfg: TransportConfig{ID: "google", Source: "gog", HTTPClient: client, Token: func(context.Context, string, bool) (string, error) { return "fixture-token", nil }}}
+				var err error
+				if mode == "search" {
+					_, err = a.Search(context.Background(), folder, MessageQuery{Query: "newer_than:7d"})
+				} else {
+					_, err = a.Sync(context.Background(), folder, "")
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if listCalls != 1 {
+					t.Fatalf("message list calls = %d, want 1", listCalls)
+				}
+			})
+		}
+	}
+}

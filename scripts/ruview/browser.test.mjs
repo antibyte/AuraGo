@@ -11,7 +11,7 @@ const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWR
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
 let serviceState='';
-const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null};
+const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,scope:'fixture'};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
 function sendFrames(sockets,data){
  const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<65536);
@@ -25,6 +25,14 @@ const server=createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
   if(p.startsWith('/api/')&&!p.includes('/ui/')){
    res.setHeader('Content-Type','application/json');if(req.method==='POST')writes++;
+   if(p.endsWith('/ruview/nodes')){
+    nodeFixture.reads++;nodeFixture.active++;nodeFixture.max=Math.max(nodeFixture.max,nodeFixture.active);
+    try {
+     if(nodeFixture.hold)await nodeFixture.hold;
+     if(nodeFixture.fail){res.statusCode=503;return res.end('{}');}
+     return res.end(JSON.stringify({scope:nodeFixture.scope,available:!nodeFixture.unavailable,nodes:nodeFixture.offline||nodeFixture.unavailable?[{node_id:7,csi_status:'offline',csi_last_seen_ms:null,csi_sequence:null,rssi_dbm:null}]:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
+    }finally{nodeFixture.active--;}
+   }
    if(p.includes('/proxy/')){
     const upstream=p.split('/proxy')[1];
     if(upstream.startsWith('/health/')){
@@ -48,7 +56,6 @@ const server=createServer(async(req,res)=>{
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
    if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
-   if(p.endsWith('/nodes'))return res.end(JSON.stringify({nodes:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
    return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline&&!serviceState,fresh:!offline&&!serviceState,data_state:serviceState||(offline?'disconnected':'live_unverified'),signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
   }
   if(p==='/'){
@@ -88,7 +95,14 @@ try{
   assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('#app').innerText()),`missing ${lang} labels`);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow ${lang} ${width}`);
   if(lang==='de')await page.screenshot({path:`reports/ruview-browser/${theme}-${width}.png`});
+  nodeFixture.offline=true;
+  await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+  assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('#app').innerText()),`device translations ${lang}`);
+  assert.equal(await page.locator('[data-age]').innerText(),'—','known offline boards must not invent measurements');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`device overflow ${lang} ${width}`);
+  if(lang==='de')await page.screenshot({path:`reports/ruview-browser/devices-${theme}-${width}.png`});
  }
+ nodeFixture.offline=false;
  await page.setViewportSize({width:1100,height:800});await page.emulateMedia({colorScheme:'dark'});
  await page.goto(`http://127.0.0.1:${server.address().port}/?lang=de`);await page.locator('[data-action=test]').waitFor();
  for(const [state,label] of [['unchecked','Nicht geprüft'],['starting','Wird ausgeführt…'],['','Bereit']]){
