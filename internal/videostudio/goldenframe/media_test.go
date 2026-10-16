@@ -28,7 +28,8 @@ func fakeMedia() Media {
 	}
 	return Media{Assets: map[string]videostudio.Asset{
 		MediaGradient: video(MediaGradient, 1280, 720, 3), MediaPortrait: video(MediaPortrait, 720, 1280, 2),
-		MediaLogo: still(MediaLogo), MediaRed: still(MediaRed), MediaBlue: still(MediaBlue)}}
+		MediaLogo: still(MediaLogo), MediaRed: still(MediaRed), MediaBlue: still(MediaBlue),
+		MediaTicker: video(MediaTicker, 320, 180, 8)}}
 }
 
 func TestProjectBuilderAndRegisteredCasesValidate(t *testing.T) {
@@ -37,7 +38,7 @@ func TestProjectBuilderAndRegisteredCasesValidate(t *testing.T) {
 	if err := videostudio.Validate(project); err != nil {
 		t.Fatalf("builder project invalid: %v", err)
 	}
-	if project.Width != ProjectWidth || project.Height != ProjectHeight || project.FPS != ProjectFPS || len(project.Assets) != 5 || project.Assets[0].ID != MediaBlue {
+	if project.Width != ProjectWidth || project.Height != ProjectHeight || project.FPS != ProjectFPS || len(project.Assets) != len(m.Assets) || project.Assets[0].ID != MediaBlue {
 		t.Fatalf("builder project = %+v", project)
 	}
 	if gradient := project.Assets[1]; gradient.ID != MediaGradient || gradient.DurationFrames != 75 {
@@ -91,6 +92,7 @@ func TestMakeMediaProbesTaggedAssets(t *testing.T) {
 		MediaLogo:     {videostudio.AssetImage, 640, 360, ""},
 		MediaRed:      {videostudio.AssetImage, 640, 360, ""},
 		MediaBlue:     {videostudio.AssetImage, 640, 360, ""},
+		MediaTicker:   {videostudio.AssetVideo, 320, 180, "25/1"},
 	} {
 		asset := m.Assets[name]
 		if asset.ID != name || asset.Kind != want.kind || asset.Width != want.width || asset.Height != want.height || asset.SourceFPS != want.fps {
@@ -104,7 +106,7 @@ func TestMakeMediaProbesTaggedAssets(t *testing.T) {
 	if err != nil {
 		t.Skip("ffprobe is not installed")
 	}
-	for name, frames := range map[string]int{MediaGradient: 75, MediaPortrait: 50} {
+	for name, frames := range map[string]int{MediaGradient: 75, MediaPortrait: 50, MediaTicker: 200} {
 		tags, err := exec.CommandContext(ctx, ffprobe, "-v", "error", "-select_streams", "v:0",
 			"-show_entries", "stream=color_space,color_primaries,color_transfer,color_range", "-of", "default=noprint_wrappers=1", m.Paths[name]).Output()
 		if err != nil {
