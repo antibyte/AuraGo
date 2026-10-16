@@ -77,6 +77,14 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	byID := make(map[string]map[string]any, len(books))
 	createdSources := make(chan map[string]any, 1)
 	bookLoadRequests := make(chan string, 8)
+	uploadRequests := make(chan string, 16)
+	lateUploadStarted := make(chan struct{}, 1)
+	releaseLateUpload := make(chan struct{})
+	var releaseLateUploadOnce sync.Once
+	releaseLateUploadNow := func() { releaseLateUploadOnce.Do(func() { close(releaseLateUpload) }) }
+	t.Cleanup(releaseLateUploadNow)
+	var uploadRetryMu sync.Mutex
+	uploadFailuresRemaining := map[string]int{"retry-standard.epub": 1, "retry-fruity.epub": 1}
 	slowSearchStarted := make(chan struct{})
 	releaseSlowSearch := make(chan struct{})
 	var releaseSlowSearchOnce sync.Once
@@ -121,15 +129,60 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if path == "capabilities" {
-			_ = json.NewEncoder(w).Encode(map[string]any{"enabled": true, "can_read": true, "can_write": true, "readonly": false, "local_roots": []any{}, "sources": []any{map[string]any{"provider": "local", "available": true}, map[string]any{"provider": "webdav", "available": true}, map[string]any{"provider": "smb", "available": true}, map[string]any{"provider": "koofr", "available": false, "reason": "not_configured"}}, "converter": map[string]any{"available": false, "enabled": false, "reason": "not_configured", "formats": []any{}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"enabled": true, "can_read": true, "can_write": true, "readonly": false, "local_roots": []any{}, "limits": map[string]any{"max_book_bytes": 16}, "sources": []any{map[string]any{"provider": "local", "available": true}, map[string]any{"provider": "webdav", "available": true}, map[string]any{"provider": "smb", "available": true}, map[string]any{"provider": "koofr", "available": false, "reason": "not_configured"}}, "converter": map[string]any{"available": false, "enabled": false, "reason": "not_configured", "formats": []any{}}})
 			return
 		}
 		switch path {
+		case "imports":
+			if r.Method != http.MethodPost {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
+				http.Error(w, "invalid upload", http.StatusBadRequest)
+				return
+			}
+			file, header, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, "missing upload", http.StatusBadRequest)
+				return
+			}
+			_ = file.Close()
+			filename := header.Filename
+			uploadRequests <- filename
+			if header.Size > 16 {
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "limit_exceeded", "max_bytes": 16})
+				return
+			}
+			if strings.HasPrefix(filename, "late-") {
+				lateUploadStarted <- struct{}{}
+				<-releaseLateUpload
+			}
+			if strings.HasPrefix(filename, "server-limit-") {
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "limit_exceeded", "max_bytes": 1})
+				return
+			}
+			uploadRetryMu.Lock()
+			if uploadFailuresRemaining[filename] > 0 {
+				uploadFailuresRemaining[filename]--
+				uploadRetryMu.Unlock()
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": "fixture_failure"})
+				return
+			}
+			uploadRetryMu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{"imported": true})
 		case "books/1984/prepare":
 			_ = json.NewEncoder(w).Encode(map[string]any{"content_url": "/api/desktop/bookshelf/books/1984/content", "format": "txt", "revision": "fixture-revision", "progress": map[string]any{"revision": 1}})
 		case "books/1984/annotations":
 			_ = json.NewEncoder(w).Encode(map[string]any{"annotations": []any{}})
 		case "books/1984/progress":
+			if r.Header.Get("Content-Type") != "application/json" {
+				http.Error(w, "progress request must use JSON", http.StatusBadRequest)
+				return
+			}
 			var progress map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&progress); err != nil {
 				http.Error(w, "invalid progress", 400)
@@ -139,6 +192,10 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"progress": progress})
 		case "sources":
 			if r.Method == http.MethodPost {
+				if r.Header.Get("Content-Type") != "application/json" {
+					http.Error(w, "source request must use JSON", http.StatusBadRequest)
+					return
+				}
 				var payload struct {
 					Source map[string]any `json:"source"`
 				}
@@ -239,7 +296,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/bookshelf-fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];window.__slowResponseParsed=false;window.__disposeRequestStarted=false;window.__disposeResponseParsed=false;const nativeFetch=window.fetch.bind(window);window.fetch=(input,...args)=>{const url=String(input);if(url.includes('__bookshelf_dispose_search__')){window.__disposeRequestStarted=true;return new Promise(resolve=>{window.__releaseDisposeRequest=()=>resolve({ok:true,statusText:'OK',json:async()=>{window.__disposeResponseParsed=true;return{books:[],total:0};}});});}return nativeFetch(input,...args).then(response=>{if(url.includes('__bookshelf_slow_search__')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__slowResponseParsed=true;return body;});}return response;});};addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{if(opts.body && !(opts.body instanceof FormData) && typeof opts.body==="object"){opts={...opts,body:JSON.stringify(opts.body),headers:{"Content-Type":"application/json",...(opts.headers||{})}};}const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async()=>true};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];window.__slowResponseParsed=false;window.__disposeRequestStarted=false;window.__disposeResponseParsed=false;window.__uploadResponsesParsed=0;const nativeFetch=window.fetch.bind(window);window.fetch=(input,...args)=>{const url=String(input);if(url.includes('__bookshelf_dispose_search__')){window.__disposeRequestStarted=true;return new Promise(resolve=>{window.__releaseDisposeRequest=()=>resolve({ok:true,statusText:'OK',json:async()=>{window.__disposeResponseParsed=true;return{books:[],total:0};}});});}return nativeFetch(input,...args).then(response=>{if(url.includes('/imports')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__uploadResponsesParsed++;return body;});}if(url.includes('__bookshelf_slow_search__')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__slowResponseParsed=true;return body;});}return response;});};addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async()=>true};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
 	})
 	fixtureURL := ""
 	if address := os.Getenv("AURAGO_BOOKSHELF_FIXTURE_ADDR"); address != "" {
@@ -276,6 +333,10 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	if !page.MustEval(`() => { const r=document.querySelector('.bs-library-view').getBoundingClientRect(); return r.width>0 && document.querySelector('.bs-paper-page').getBoundingClientRect().width>380 }`).Bool() {
 		t.Fatal("wide Reading Salon composition did not render both panes")
 	}
+	for _, theme := range []string{"standard", "fruity"} {
+		assertBookshelfUploadFailureUX(t, page, uploadRequests, theme)
+	}
+	assertBookshelfLateUploadReply(t, page, uploadRequests, lateUploadStarted, releaseLateUploadNow)
 	dir := filepath.Join("..", "reports", "bookshelf")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
@@ -420,6 +481,110 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	if os.Getenv("AURAGO_BOOKSHELF_FIXTURE_HOLD") == "1" {
 		fmt.Printf("Bookshelf fixture is available at %s/bookshelf-fixture. Press Ctrl+C to stop.\n", fixtureURL)
 		select {}
+	}
+}
+
+func assertBookshelfUploadFailureUX(t *testing.T, page *rod.Page, uploads <-chan string, theme string) {
+	t.Helper()
+	page.MustEval(`theme => { document.body.dataset.theme=theme; document.body.dataset.fruityMode='light'; }`, theme)
+	openBookshelfUploadDialog(page)
+	oversizedName := "too-large-" + theme + ".epub"
+	setBookshelfUploadFiles(page, map[string]any{"name": oversizedName, "size": 17})
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	page.MustWait(fmt.Sprintf(`() => { const error=document.querySelector('[data-form-error]'); return !error.hidden && error.textContent.includes(%q) && error.textContent.includes('16 B'); }`, oversizedName))
+	if !page.MustEval(fmt.Sprintf(`() => document.querySelector('[data-form-error]').textContent === window.ctx.t('bookshelf.upload_too_large').replace('{name}', %q).replace('{limit}', '16 B')`, oversizedName)).Bool() {
+		t.Fatalf("%s preflight error did not use the localized size-limit message", theme)
+	}
+	select {
+	case got := <-uploads:
+		t.Fatalf("%s oversized preflight unexpectedly uploaded %q", theme, got)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	serverLimitedName := "server-limit-" + theme + ".epub"
+	setBookshelfUploadFiles(page,
+		map[string]any{"name": "before-limit-" + theme + ".epub", "size": 1},
+		map[string]any{"name": serverLimitedName, "size": 2},
+	)
+	page.MustWait(`() => document.querySelector('[data-form-error]').hidden`)
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, "before-limit-"+theme+".epub")
+	waitForBookshelfUpload(t, uploads, serverLimitedName)
+	page.MustWait(fmt.Sprintf(`() => { const error=document.querySelector('[data-form-error]'); const expected=window.ctx.t('bookshelf.upload_too_large').replace('{name}', %q).replace('{limit}', '1 B')+' '+window.ctx.t('bookshelf.upload_partial').replace('{done}', '1').replace('{total}', '2'); const button=document.querySelector('dialog [type=submit]'); const input=document.querySelector('dialog [name=files]'); return !error.hidden && error.textContent===expected && !button.disabled && button.textContent===window.ctx.t('bookshelf.upload') && !input.disabled && document.querySelector('[data-upload-limit]').textContent===window.ctx.t('bookshelf.upload_limit').replace('{limit}', '1 B'); }`, serverLimitedName))
+	waitForBookshelfShelf(page)
+	setBookshelfUploadFiles(page, map[string]any{"name": "replacement-" + theme + ".epub", "size": 1})
+	page.MustWait(`() => document.querySelector('[data-form-error]').hidden`)
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, "replacement-"+theme+".epub")
+	page.MustWait(`() => !document.querySelector('dialog').open`)
+	waitForBookshelfShelf(page)
+
+	openBookshelfUploadDialog(page)
+	knownName := "known-" + theme + ".epub"
+	retryName := "retry-" + theme + ".epub"
+	setBookshelfUploadFiles(page, map[string]any{"name": knownName, "size": 1}, map[string]any{"name": retryName, "size": 1})
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, knownName)
+	waitForBookshelfUpload(t, uploads, retryName)
+	page.MustWait(fmt.Sprintf(`() => { const error=document.querySelector('[data-form-error]'); const expected=window.ctx.t('bookshelf.upload_failed').replace('{name}', %q)+' '+window.ctx.t('bookshelf.upload_partial').replace('{done}', '1').replace('{total}', '2'); const button=document.querySelector('dialog [type=submit]'); const input=document.querySelector('dialog [name=files]'); return !error.hidden && error.textContent===expected && !button.disabled && button.textContent===window.ctx.t('bookshelf.upload') && !input.disabled; }`, retryName))
+	waitForBookshelfShelf(page)
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, retryName)
+	page.MustWait(`() => !document.querySelector('dialog').open`)
+	waitForBookshelfShelf(page)
+}
+
+func assertBookshelfLateUploadReply(t *testing.T, page *rod.Page, uploads <-chan string, started <-chan struct{}, release func()) {
+	t.Helper()
+	openBookshelfUploadDialog(page)
+	page.MustEval(`() => { window.__bookshelfLateUploadBefore=window.__uploadResponsesParsed; }`)
+	setBookshelfUploadFiles(page, map[string]any{"name": "late-reply.epub", "size": 1})
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, "late-reply.epub")
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("late upload did not reach the fixture")
+	}
+	page.MustElement(`dialog [data-dialog-close]`).MustClick()
+	page.MustWait(`() => !document.querySelector('dialog').open`)
+	openBookshelfUploadDialog(page)
+	setBookshelfUploadFiles(page, map[string]any{"name": "after-late-reply.epub", "size": 1})
+	release()
+	page.MustWait(`() => window.__uploadResponsesParsed > window.__bookshelfLateUploadBefore`)
+	waitForBookshelfShelf(page)
+	if !page.MustEval(`() => { const dialog=document.querySelector('dialog'); const input=dialog.querySelector('[name=files]'); const error=dialog.querySelector('[data-form-error]'); return dialog.open && input.files[0]?.name==='after-late-reply.epub' && error.hidden; }`).Bool() {
+		t.Fatal("a late upload response changed or closed the newly opened upload dialog")
+	}
+	page.MustEval(`() => document.querySelector('dialog form').requestSubmit()`)
+	waitForBookshelfUpload(t, uploads, "after-late-reply.epub")
+	page.MustWait(`() => !document.querySelector('dialog').open`)
+	waitForBookshelfShelf(page)
+}
+
+func openBookshelfUploadDialog(page *rod.Page) {
+	page.MustElement(`[data-action="add"]`).MustClick()
+	page.MustElement(`[data-add-choice="upload"]`).MustClick()
+	page.MustElement(`dialog [name="files"]`)
+}
+
+func waitForBookshelfShelf(page *rod.Page) {
+	page.MustWait(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); return state && !state.loading && state.books.length===9 && document.querySelectorAll('.bs-book').length===9; }`)
+}
+
+func setBookshelfUploadFiles(page *rod.Page, files ...map[string]any) {
+	page.MustEval(`files => { const input=document.querySelector('dialog [name="files"]'); const transfer=new DataTransfer(); for (const file of files) transfer.items.add(new File([new Uint8Array(file.size)], file.name, {type:'application/epub+zip'})); input.files=transfer.files; input.dispatchEvent(new Event('change', {bubbles:true})); }`, files)
+}
+
+func waitForBookshelfUpload(t *testing.T, uploads <-chan string, want string) {
+	t.Helper()
+	select {
+	case got := <-uploads:
+		if got != want {
+			t.Fatalf("upload request used filename %q, want %q", got, want)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatalf("upload request for %q did not reach the fixture", want)
 	}
 }
 

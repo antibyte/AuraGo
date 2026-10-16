@@ -20,6 +20,13 @@ The server owns HTTP authorization and injects authorized source adapters.
 - Scan failures, cancellation, denied directories and limits never mark unseen
   books unavailable. Only a complete scan may do so. Bound entry count, depth,
   text fields, locators, covers, transfers and cache bytes.
+- Uploads use the effective `limits.max_book_bytes` capability, including the
+  Desktop file-size cap. HTTP 413 responses include `max_bytes`; the dialog
+  explains the limit, restores its controls and retains successful batch items
+  across a retry of the same selection.
+- The browser API serializes JSON mutations before the shared Desktop fetch;
+  uploads retain native multipart boundaries. Fixtures must not normalize
+  request bodies on behalf of production code. Verify `scripts/test-bookshelf-api.mjs`.
 - Catalog edits use expected revisions. Progress uses its own compare-and-swap
   revision and carries the rendition revision. Never choose or merge competing
   reader positions automatically.
