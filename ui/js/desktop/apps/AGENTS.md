@@ -1479,10 +1479,17 @@ buttons and menu popovers remain excluded from those gestures.
   part (`video-studio-source.js`) mounts the item as a second `VideoStudioPreview` instance over a one-clip project,
   so playback elements come from preview.js (`stopAtEnd` keeps an item from wrapping). Source edits run through
   `applyEdit`. In source mode `handleKeys` routes every key to `P.handleSourceKeys` and stops; Escape returns to the
-  timeline. Marks are per item and viewer in
+  timeline. The position slider `[data-source-scrub]` is exempt from the text-field guard for every key but its own
+  (arrows, Home, End, Page Up/Down), and a mouse scrub hands focus back to `.vs-app` (pointerup/change); an action that
+  disables its own button (Clear in and out) does the same through `keepKeyFocus`, since keys are ignored on `<body>`.
+  Marks are per item and viewer in
   `aurago.videoStudio.sourceMarks.<projectId>` (seconds, at most 200 entries). The picture and sound handles set
   `application/x-video-studio-part`; the timeline drop passes it as the fifth argument of `onDropAsset`, and
-  `addAssetToTrack` hands such a drop to `P.dropSourcePart`, which places only on the lane dropped on. Node checks:
+  `addAssetToTrack` hands such a drop to `P.dropSourcePart`, which places only on the lane dropped on. The handles are
+  buttons too: a click, Enter or Space (`activatePart`) runs `sourceEdit(s, 'overwrite', part)` at the 3-point position on
+  the matching target track, Ctrl/Cmd (click or Enter) inserts; a drag never counts as that click. The ResizeObserver
+  watches `.vs-app` as well as the preview stage, because the stage is hidden in source mode and the narrow drawer's
+  "widening closes it" logic depends on the app width. Node checks:
   `go test ./ui -run TestVideoStudioSource`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with

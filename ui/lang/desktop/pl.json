@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Nadpisz",
   "videoStudio.sourcePicture": "Tylko obraz",
   "videoStudio.sourceSound": "Tylko audio",
-  "videoStudio.sourceDragHint": "Przeciągnij na ścieżkę, aby umieścić",
+  "videoStudio.sourcePartHint": "Przeciągnij na ścieżkę, aby umieścić. Enter nadpisuje w punkcie edycji, Ctrl+Enter wstawia.",
   "videoStudio.sourceBeforeStart": "Edycja zaczęłaby się przed początkiem osi czasu. Przesuń punkt wyjścia osi czasu dalej.",
   "videoStudio.sourceNoTarget": "Włącz ścieżkę docelową dla tego rodzaju multimediów.",
   "videoStudio.shortcutSourceEdit": "Monitor źródła: wstaw (,) / nadpisz (.)",

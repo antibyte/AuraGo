@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Écraser",
   "videoStudio.sourcePicture": "Image seule",
   "videoStudio.sourceSound": "Audio seul",
-  "videoStudio.sourceDragHint": "Faites glisser sur une piste pour le placer",
+  "videoStudio.sourcePartHint": "Faites glisser sur une piste pour le placer. Entrée écrase au point d'édition, Ctrl+Entrée insère.",
   "videoStudio.sourceBeforeStart": "La modification commencerait avant le début de la timeline. Placez le point de sortie de la timeline plus tard.",
   "videoStudio.sourceNoTarget": "Activez une piste cible pour ce type de média.",
   "videoStudio.shortcutSourceEdit": "Moniteur source : insérer (,) / écraser (.)",

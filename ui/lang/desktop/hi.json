@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "ओवरराइट करें",
   "videoStudio.sourcePicture": "केवल चित्र",
   "videoStudio.sourceSound": "केवल ऑडियो",
-  "videoStudio.sourceDragHint": "रखने के लिए किसी ट्रैक पर खींचें",
+  "videoStudio.sourcePartHint": "रखने के लिए किसी ट्रैक पर खींचें। Enter संपादन बिंदु पर ओवरराइट करता है, Ctrl+Enter डालता है।",
   "videoStudio.sourceBeforeStart": "यह संपादन टाइमलाइन की शुरुआत से पहले शुरू होगा। टाइमलाइन का आउट पॉइंट आगे बढ़ाएँ।",
   "videoStudio.sourceNoTarget": "इस प्रकार के मीडिया के लिए कोई लक्ष्य ट्रैक चालू करें।",
   "videoStudio.shortcutSourceEdit": "स्रोत मॉनिटर: डालें (,) / ओवरराइट करें (.)",

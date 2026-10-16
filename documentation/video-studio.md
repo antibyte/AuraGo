@@ -161,6 +161,13 @@ inserts). A drop places the marked range, or the whole item, and ignores the tim
 needs a track that accepts it and the sound needs an audio track, otherwise the drop is refused and nothing changes. A
 picture-only video clip keeps its embedded sound silent.
 
+The handles also work from the keyboard and with a plain click: `Enter`, `Space` or a click on **Picture only** or
+**Sound only** places that part at the edit position on the matching target track (picture on the Video target, or on
+the Overlay target when that one takes the media; sound on the Audio target), overwriting what is there; `Ctrl+Enter`
+(or a `Ctrl`-click) inserts instead. The same rules as for `,` and `.` apply (timeline in and out, the playhead, the
+marks), the same refusals appear, and the playhead moves to the end of the edit. Opening a library item is by
+double-click for now; opening one from the keyboard comes with the library's item menu.
+
 ## Exports and background jobs
 
 Exports are rendered in segments of about ten seconds. Every clip is read from its own position in the

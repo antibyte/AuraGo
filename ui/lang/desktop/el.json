@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Αντικατάσταση",
   "videoStudio.sourcePicture": "Μόνο εικόνα",
   "videoStudio.sourceSound": "Μόνο ήχος",
-  "videoStudio.sourceDragHint": "Σύρε σε ένα κομμάτι για να το τοποθετήσεις",
+  "videoStudio.sourcePartHint": "Σύρε σε ένα κομμάτι για να το τοποθετήσεις. Το Enter αντικαθιστά στο σημείο επεξεργασίας, το Ctrl+Enter εισάγει.",
   "videoStudio.sourceBeforeStart": "Η επεξεργασία θα ξεκινούσε πριν από την αρχή της γραμμής χρόνου. Μετακίνησε το σημείο εξόδου της γραμμής χρόνου αργότερα.",
   "videoStudio.sourceNoTarget": "Ενεργοποίησε ένα κομμάτι-στόχο για αυτό το είδος πολυμέσου.",
   "videoStudio.shortcutSourceEdit": "Οθόνη πηγής: εισαγωγή (,) / αντικατάσταση (.)",

@@ -536,6 +536,100 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		if(v2().length!==0)throw new Error('undo did not remove the dropped still');
 	}`)
 
+	// Source position slider: after a scrub with the mouse the editor gets the keys back (I marks in, Space plays), and a
+	// slider that has keyboard focus passes every key but its own (arrows, Home, End, Page Up and Down) to the source monitor.
+	scrub := page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture');
+		window.VideoStudioParts.setStageMode(s,'source');
+		s.sourcePreview.pause();s.sourcePreview.seek(0);
+		const bar=document.querySelector('[data-source-scrub]');bar.scrollIntoView({block:'nearest'});
+		const r=bar.getBoundingClientRect();
+		return {x:r.left+r.width*0.3,y:r.top+r.height/2};
+	}`)
+	page.Mouse.MustMoveTo(scrub.Get("x").Num(), scrub.Get("y").Num()).MustDown(proto.InputMouseButtonLeft).MustMoveTo(scrub.Get("x").Num()+20, scrub.Get("y").Num()).MustUp(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture');
+		if(s.sourceFrame<10)throw new Error('the mouse scrub did not move the source: '+s.sourceFrame);
+		if(document.activeElement!==document.querySelector('.vs-app'))throw new Error('the keys did not go back to the editor after a mouse scrub: '+document.activeElement.className);
+	}`)
+	page.Keyboard.MustType(input.KeyI)
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture');
+		if(s.sourceIn!==Math.round(s.sourceFrame))throw new Error('I after a mouse scrub did not mark in: '+JSON.stringify({in:s.sourceIn,frame:s.sourceFrame}));
+	}`)
+	page.Keyboard.MustType(input.Space)
+	if !page.MustEval(`()=>window.VideoStudioApp.instances.get('fixture').sourcePreview.isPlaying()`).Bool() {
+		t.Fatal("Space after a mouse scrub did not play the source")
+	}
+	page.Keyboard.MustType(input.Space)
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const v1=()=>s.project.tracks.find(t=>t.id==='v1').clips;
+		if(s.sourcePreview.isPlaying())throw new Error('a second Space did not pause the source');
+		const bar=document.querySelector('[data-source-scrub]');
+		s.sourcePreview.seek(20);
+		// Keyboard use of the slider keeps its focus: a change without a pointer press does not move it away.
+		bar.focus();bar.dispatchEvent(new Event('change',{bubbles:true}));
+		if(document.activeElement!==bar)throw new Error('a keyboard change on the slider took its focus');
+		for(const k of ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown']){
+			if(key(k,{},bar).defaultPrevented)throw new Error('the slider lost its own key '+k);
+		}
+		if(s.sourceFrame!==20)throw new Error('a slider key moved the source as well: '+s.sourceFrame);
+		key('i',{},bar);
+		if(s.sourceIn!==20)throw new Error('I on the focused slider did not mark in: '+s.sourceIn);
+		key(' ',{code:'Space'},bar);
+		if(!s.sourcePreview.isPlaying())throw new Error('Space on the focused slider did not play the source');
+		key(' ',{code:'Space'},bar);
+		if(s.sourcePreview.isPlaying())throw new Error('a second Space on the focused slider did not pause the source');
+		const io={in:s.project.in_point,out:s.project.out_point};
+		key(',',{},bar);
+		if(v1().length!==1||v1()[0].start!==io.in||v1()[0].duration!==io.out-io.in)throw new Error('the comma on the focused slider did not insert: '+JSON.stringify(v1()));
+		key('z',{ctrlKey:true});
+		if(v1().length!==0)throw new Error('undo did not remove the insert made from the slider');
+		key('Escape',{},bar);
+		if(s.stageMode!=='timeline')throw new Error('Escape on the focused slider did not return to the timeline');
+	}`)
+
+	// Picture only / Sound only are buttons too: Enter, Space or a click places that part at the edit point (overwrite),
+	// Ctrl+Enter inserts, and the playhead moves to the end of the edit. A still has no sound, so its sound handle is off.
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture');
+		window.VideoStudioParts.setStageMode(s,'source');
+		const handle=document.querySelector('[data-source-drag="picture"]');
+		if(!/Enter/.test(handle.title))throw new Error('the picture handle does not hint at the keyboard: '+handle.title);
+		if(!document.querySelector('[data-source-drag="sound"]').disabled)throw new Error('the sound handle of a still is enabled');
+		s.preview.seek(0);handle.focus();
+	}`)
+	page.Keyboard.MustType(input.Enter)
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const v1=()=>s.project.tracks.find(t=>t.id==='v1').clips.slice().sort((a,b)=>a.start-b.start);
+		const io={in:s.project.in_point,out:s.project.out_point},handle=document.querySelector('[data-source-drag="picture"]');
+		if(v1().length!==1||v1()[0].asset_id!=='art1'||v1()[0].start!==io.in||v1()[0].duration!==io.out-io.in)throw new Error('Enter on the picture handle did not place the picture at in: '+JSON.stringify(v1()));
+		if(s.frame!==io.out)throw new Error('the playhead did not move to the end of the picture edit: '+s.frame);
+		if(document.activeElement!==handle)throw new Error('the picture handle lost its focus');
+		// Ctrl+Enter inserts: the clip that is already there is pushed right instead of being overwritten.
+		if(!key('Enter',{ctrlKey:true},handle).defaultPrevented)throw new Error('Ctrl+Enter on the picture handle was not taken');
+		if(v1().length!==2||v1()[0].start!==io.in||v1()[1].start!==io.out)throw new Error('Ctrl+Enter on the picture handle did not insert: '+JSON.stringify(v1().map(c=>[c.start,c.duration])));
+		key('z',{ctrlKey:true});key('z',{ctrlKey:true});
+		if(v1().length!==0)throw new Error('undo did not remove the picture edits: '+JSON.stringify(v1()));
+		// A click without a drag does the same as Enter; a drag (dragstart) does not count as a click.
+		s.preview.seek(0);
+		handle.dispatchEvent(new DragEvent('dragstart',{dataTransfer:new DataTransfer(),bubbles:true,cancelable:true}));
+		handle.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,detail:1}));
+		if(v1().length!==0)throw new Error('a click that follows a drag placed the picture');
+		handle.dispatchEvent(new DragEvent('dragend',{bubbles:true}));
+		return new Promise(resolve=>setTimeout(resolve,20)).then(()=>{
+			handle.click();
+			if(v1().length!==1||v1()[0].start!==io.in)throw new Error('a click on the picture handle did not place the picture: '+JSON.stringify(v1()));
+			key('z',{ctrlKey:true});
+			if(v1().length!==0)throw new Error('undo did not remove the clicked picture');
+			window.VideoStudioParts.setStageMode(s,'timeline');
+		});
+	}`)
+
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")
 	page.MustWaitLoad()

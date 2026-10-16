@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Overwrite",
   "videoStudio.sourcePicture": "Picture only",
   "videoStudio.sourceSound": "Sound only",
-  "videoStudio.sourceDragHint": "Drag onto a track to place it",
+  "videoStudio.sourcePartHint": "Drag onto a track to place it. Enter overwrites at the edit point, Ctrl+Enter inserts.",
   "videoStudio.sourceBeforeStart": "The edit would start before the timeline begins. Move the timeline out point later.",
   "videoStudio.sourceNoTarget": "Turn on a target track for this kind of media.",
   "videoStudio.shortcutSourceEdit": "Source monitor: insert (,) / overwrite (.)",

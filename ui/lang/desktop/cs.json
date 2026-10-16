@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Přepsat",
   "videoStudio.sourcePicture": "Pouze obraz",
   "videoStudio.sourceSound": "Pouze zvuk",
-  "videoStudio.sourceDragHint": "Přetažením na stopu médium umístíš",
+  "videoStudio.sourcePartHint": "Přetažením na stopu médium umístíš. Enter přepíše v místě úpravy, Ctrl+Enter vloží.",
   "videoStudio.sourceBeforeStart": "Úprava by začala před začátkem časové osy. Posuň výstupní bod časové osy dál.",
   "videoStudio.sourceNoTarget": "Zapni cílovou stopu pro tento druh média.",
   "videoStudio.shortcutSourceEdit": "Zdrojový monitor: vložit (,) / přepsat (.)",

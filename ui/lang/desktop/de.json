@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Überschreiben",
   "videoStudio.sourcePicture": "Nur Bild",
   "videoStudio.sourceSound": "Nur Ton",
-  "videoStudio.sourceDragHint": "Zum Platzieren auf eine Spur ziehen",
+  "videoStudio.sourcePartHint": "Zum Platzieren auf eine Spur ziehen. Enter überschreibt an der Bearbeitungsposition, Strg+Enter fügt ein.",
   "videoStudio.sourceBeforeStart": "Die Änderung würde vor dem Beginn der Zeitleiste beginnen. Verschiebe den Ausgangspunkt der Zeitleiste nach hinten.",
   "videoStudio.sourceNoTarget": "Aktiviere eine Zielspur für diese Medienart.",
   "videoStudio.shortcutSourceEdit": "Quellmonitor: Einfügen (,) / Überschreiben (.)",

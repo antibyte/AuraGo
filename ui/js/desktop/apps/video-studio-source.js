@@ -274,15 +274,16 @@
         else P.showReason(s, reason);
     }
     // Three-point edit from the source monitor (spec §4.7): `,` inserts and `.` overwrites on the target tracks. The
-    // timeline in/out and the playhead decide the place; afterwards the playhead moves to the end of the edit.
-    function sourceEdit(s, mode) {
+    // timeline in/out and the playhead decide the place; afterwards the playhead moves to the end of the edit. `part`
+    // is 'both' (the keys), or 'picture' / 'sound' for the handles' keyboard and click activation (see activatePart).
+    function sourceEdit(s, mode, part) {
         const asset = currentAsset(s);
         if (!asset || !s.project) return false;
         if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return false; }
         const io = P.inOut(s), range = SE().sourceRange(s.project, asset, { in: s.sourceIn, out: s.sourceOut });
         const picked = SE().plan({ timelineIn: io.in, timelineOut: io.out, playhead: s.frame, still: asset.kind === 'image', range });
         if (picked.reason) { reasonNotice(s, picked.reason); return false; }
-        const built = SE().placements(s.project, asset, { start: picked.start, duration: picked.duration, offset: picked.offset, targets: P.targetTracks(s), part: 'both' });
+        const built = SE().placements(s.project, asset, { start: picked.start, duration: picked.duration, offset: picked.offset, targets: P.targetTracks(s), part: part === 'picture' || part === 'sound' ? part : 'both' });
         if (built.reason) { reasonNotice(s, built.reason); return false; }
         const end = picked.start + picked.duration;
         const ok = applyEdit(s, mode === 'insert' ? 'source insert' : 'source overwrite', (project, out) => {
@@ -291,6 +292,13 @@
         }, out => out.created);
         if (ok) { s.preview.seek(end); T().revealFrame(s.q('[data-timeline]'), s, end); }
         return ok;
+    }
+    // A picture or sound handle activated without dragging (click, Enter or Space): the part alone lands at the
+    // three-point position on its target track (a picture on the Video target, or the Overlay target when that one
+    // takes the media; a sound on the Audio target) and overwrites; Ctrl or Cmd inserts.
+    function activatePart(s, handle, insert) {
+        if (!handle || handle.disabled) return false;
+        return sourceEdit(s, insert ? 'insert' : 'overwrite', handle.dataset.sourceDrag);
     }
     // A picture or sound handle dropped on a lane (spec §4.7): the source range (marks, or the whole item) lands at the
     // drop point. The kind must match the lane: sound needs an audio lane, a picture needs a lane that takes the media.
@@ -356,6 +364,14 @@
         else if (action === 'clear-marks') clearMarks(s);
         else if (action === 'insert') sourceEdit(s, 'insert');
         else if (action === 'overwrite') sourceEdit(s, 'overwrite');
+        keepKeyFocus(s);
+    }
+    // An action can disable the very button that was pressed (Clear in and out, Go to in, Go to out): focus then falls to
+    // <body>, where the editor ignores every key. The keys go back to the editor, as after a click on the picture.
+    function keepKeyFocus(s) {
+        const active = document.activeElement;
+        if (active && active.isConnected && !active.disabled && s.host.contains(active)) return;
+        if (s.app && s.app.isConnected) s.app.focus({ preventScroll: true });
     }
 
     // ---- Wiring: stage switch, source transport, drag handles, library double-click ----
@@ -365,26 +381,61 @@
             const button = event.target.closest('[data-stage-mode]');
             if (button) setStageMode(s, button.dataset.stageMode);
         }, { signal });
+        // A drag of a handle never counts as a click on it: the browser sends none after a drag, and the flag also covers
+        // a click that follows the drop in the same task. Keyboard activation (detail 0) is never held back.
+        let dragging = false, scrubbing = false;
         view.addEventListener('click', event => {
             const button = event.target.closest('[data-source-action]');
             if (button && !button.disabled) { runSourceAction(s, button.dataset.sourceAction); return; }
+            // Picture only / Sound only: a click, Enter or Space places that part; Ctrl or Cmd inserts instead of overwriting.
+            const handle = event.target.closest('[data-source-drag]');
+            if (handle) {
+                if (dragging && event.detail > 0) return;
+                activatePart(s, handle, event.ctrlKey || event.metaKey);
+                return;
+            }
             // A click on the picture gives the keys back to the editor, as a click on the timeline preview does.
             if (event.target.closest('.vs-source-stage')) s.app.focus({ preventScroll: true });
+        }, { signal });
+        // Ctrl or Cmd with Enter on a handle inserts; the browser's own Enter click cannot carry that reliably, so the key
+        // is handled here and its default (the click) is cancelled.
+        view.addEventListener('keydown', event => {
+            const handle = event.target.closest && event.target.closest('[data-source-drag]');
+            if (!handle || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+            event.preventDefault();
+            activatePart(s, handle, true);
         }, { signal });
         view.addEventListener('input', event => {
             if (!event.target.matches('[data-source-scrub]')) return;
             pauseSource(s);
             seekSource(s, Number(event.target.value));
         }, { signal });
+        // The position slider keeps focus after a scrub with the mouse, which would leave I, O, the comma, Space and
+        // Escape to the slider. After a mouse scrub (pointerup or change) the keys go back to the editor; keyboard use of
+        // the slider (arrow keys) keeps its focus.
+        const returnKeys = () => {
+            if (!scrubbing) return;
+            scrubbing = false;
+            if (s.app && s.app.isConnected) s.app.focus({ preventScroll: true });
+        };
+        view.addEventListener('pointerdown', event => {
+            if (event.target.matches('[data-source-scrub]')) scrubbing = true;
+            else if (event.target.closest('[data-source-drag]')) dragging = false;
+        }, { signal });
+        view.addEventListener('change', event => { if (event.target.matches('[data-source-scrub]')) returnKeys(); }, { signal });
+        window.addEventListener('pointerup', returnKeys, { signal });
+        window.addEventListener('pointercancel', returnKeys, { signal });
         view.addEventListener('dragstart', event => {
             const handle = event.target.closest('[data-source-drag]');
             if (!handle) return;
             const asset = currentAsset(s);
             if (!asset || s.readonly || handle.disabled) { event.preventDefault(); return; }
+            dragging = true;
             event.dataTransfer.setData('application/x-video-studio-asset', asset.id);
             event.dataTransfer.setData('application/x-video-studio-part', handle.dataset.sourceDrag);
             event.dataTransfer.effectAllowed = 'copy';
         }, { signal });
+        view.addEventListener('dragend', () => { setTimeout(() => { dragging = false; }, 0); }, { signal });
         s.host.addEventListener('dblclick', event => {
             const card = event.target.closest('.vs-library [data-asset-id]');
             if (card && !event.target.closest('[data-place-asset]')) openSource(s, card.dataset.assetId);

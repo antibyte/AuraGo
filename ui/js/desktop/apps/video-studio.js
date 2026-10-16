@@ -168,8 +168,8 @@
    <button type="button" data-source-action="go-in">${label('sourceGoIn', 'Go to in')}</button>
    <button type="button" data-source-action="go-out">${label('sourceGoOut', 'Go to out')}</button>
    <button type="button" data-source-action="clear-marks">${label('sourceClearMarks', 'Clear in and out')}</button>
-   <button type="button" data-source-drag="picture" draggable="true" title="${label('sourceDragHint', 'Drag onto a track to place it')}">${icon('video', 15)}<span>${label('sourcePicture', 'Picture only')}</span></button>
-   <button type="button" data-source-drag="sound" draggable="true" title="${label('sourceDragHint', 'Drag onto a track to place it')}">${icon('audio', 15)}<span>${label('sourceSound', 'Sound only')}</span></button>
+   <button type="button" data-source-drag="picture" draggable="true" title="${label('sourcePartHint', 'Drag onto a track to place it. Enter overwrites at the edit point, Ctrl+Enter inserts.')}">${icon('video', 15)}<span>${label('sourcePicture', 'Picture only')}</span></button>
+   <button type="button" data-source-drag="sound" draggable="true" title="${label('sourcePartHint', 'Drag onto a track to place it. Enter overwrites at the edit point, Ctrl+Enter inserts.')}">${icon('audio', 15)}<span>${label('sourceSound', 'Sound only')}</span></button>
    <button type="button" class="vs-source-insert" data-source-action="insert" title="${label('sourceInsert', 'Insert')} (,)">${label('sourceInsert', 'Insert')}</button>
    <button type="button" data-source-action="overwrite" title="${label('sourceOverwrite', 'Overwrite')} (.)">${label('sourceOverwrite', 'Overwrite')}</button>
   </div>
@@ -267,11 +267,13 @@
             s.modalObserver = new MutationObserver(() => P.syncInert(s));
             [s.q('[data-modal-host]'), s.q('[data-conflict-host]')].forEach(node => s.modalObserver.observe(node, { childList: true }));
         }
+        // The preview stage is hidden in source mode and reports nothing then, so the app box is watched too: the drawer
+        // logic below depends on its width, whichever stage shows.
         if (typeof ResizeObserver === 'function') { s.resizeObserver = new ResizeObserver(() => {
             updateTransform(s); syncDrawer(s);
             // Widening the window turns the drawer back into a column; drop its modal state.
             if (s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width > 920) setInspectorOpen(s, false, false);
-        }); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
+        }); s.resizeObserver.observe(s.q('.vs-preview-stage')); s.resizeObserver.observe(s.app); }
         s.keyHandler = event => handleKeys(s, event);
         window.addEventListener('keydown', s.keyHandler, true);
         window.addEventListener('keyup', event => { if (s.shuttle) s.shuttle.release(String(event.key || '').toLowerCase()); }, { signal });
@@ -744,7 +746,12 @@
             if (items.length) { const first = items[0], last = items[items.length - 1]; if (event.shiftKey && (document.activeElement === first || !trap.contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && (document.activeElement === last || !trap.contains(document.activeElement))) { event.preventDefault(); first.focus(); } }
         }
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
-        if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        // The source position slider is an input that takes no text: in source mode it passes everything but its own
+        // keys (arrows, Home, End, Page Up/Down stay native), so I, O, the comma, Space and Escape keep working after
+        // a scrub.
+        const sliderKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+        const sourceSlider = s.stageMode === 'source' && target.matches('[data-source-scrub]') && !sliderKeys.includes(event.key);
+        if (!sourceSlider && target.closest('input,textarea,select,[contenteditable="true"]')) return;
         // Escape leaves the source monitor. It sits after the text-field guard (Escape in the library search or a rename
         // stays there) and before the button guard (Escape on a focused source button still returns to the timeline).
         if (event.key === 'Escape' && s.stageMode === 'source' && !s.menu) { P.setStageMode(s, 'timeline'); event.preventDefault(); return; }

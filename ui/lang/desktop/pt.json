@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Sobrescrever",
   "videoStudio.sourcePicture": "Somente imagem",
   "videoStudio.sourceSound": "Somente áudio",
-  "videoStudio.sourceDragHint": "Arraste para uma faixa para posicioná-lo",
+  "videoStudio.sourcePartHint": "Arraste para uma faixa para posicioná-lo. Enter sobrescreve no ponto de edição, Ctrl+Enter insere.",
   "videoStudio.sourceBeforeStart": "A edição começaria antes do início da linha do tempo. Mova o ponto de saída da linha do tempo para mais tarde.",
   "videoStudio.sourceNoTarget": "Ative uma faixa de destino para este tipo de mídia.",
   "videoStudio.shortcutSourceEdit": "Monitor de origem: inserir (,) / sobrescrever (.)",

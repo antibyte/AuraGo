@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "上書き",
   "videoStudio.sourcePicture": "映像のみ",
   "videoStudio.sourceSound": "音声のみ",
-  "videoStudio.sourceDragHint": "トラックにドラッグして配置",
+  "videoStudio.sourcePartHint": "トラックにドラッグして配置。Enter で編集位置に上書き、Ctrl+Enter で挿入。",
   "videoStudio.sourceBeforeStart": "この編集はタイムラインの開始より前から始まってしまいます。タイムラインのアウト点を後ろに移動してください。",
   "videoStudio.sourceNoTarget": "この種類のメディア用のターゲットトラックをオンにしてください。",
   "videoStudio.shortcutSourceEdit": "ソースモニター：挿入（,）/ 上書き（.）",

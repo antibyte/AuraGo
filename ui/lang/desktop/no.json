@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Overskriv",
   "videoStudio.sourcePicture": "Bare bilde",
   "videoStudio.sourceSound": "Bare lyd",
-  "videoStudio.sourceDragHint": "Dra til et spor for å plassere det",
+  "videoStudio.sourcePartHint": "Dra til et spor for å plassere det. Enter overskriver ved redigeringspunktet, Ctrl+Enter setter inn.",
   "videoStudio.sourceBeforeStart": "Redigeringen ville startet før tidslinjen begynner. Flytt utpunktet på tidslinjen senere.",
   "videoStudio.sourceNoTarget": "Slå på et målspor for denne typen medier.",
   "videoStudio.shortcutSourceEdit": "Kildemonitor: sett inn (,) / overskriv (.)",

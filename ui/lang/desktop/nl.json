@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Overschrijven",
   "videoStudio.sourcePicture": "Alleen beeld",
   "videoStudio.sourceSound": "Alleen audio",
-  "videoStudio.sourceDragHint": "Sleep naar een track om het te plaatsen",
+  "videoStudio.sourcePartHint": "Sleep naar een track om het te plaatsen. Enter overschrijft op het bewerkingspunt, Ctrl+Enter voegt in.",
   "videoStudio.sourceBeforeStart": "De bewerking zou beginnen vóór het begin van de tijdlijn. Verplaats het uitpunt van de tijdlijn later.",
   "videoStudio.sourceNoTarget": "Schakel een doeltrack in voor dit soort media.",
   "videoStudio.shortcutSourceEdit": "Bronmonitor: invoegen (,) / overschrijven (.)",

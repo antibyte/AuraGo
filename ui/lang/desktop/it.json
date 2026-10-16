@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Sovrascrivi",
   "videoStudio.sourcePicture": "Solo immagine",
   "videoStudio.sourceSound": "Solo audio",
-  "videoStudio.sourceDragHint": "Trascina su una traccia per posizionarlo",
+  "videoStudio.sourcePartHint": "Trascina su una traccia per posizionarlo. Invio sovrascrive nel punto di modifica, Ctrl+Invio inserisce.",
   "videoStudio.sourceBeforeStart": "La modifica inizierebbe prima dell’inizio della timeline. Sposta più avanti il punto di uscita della timeline.",
   "videoStudio.sourceNoTarget": "Attiva una traccia di destinazione per questo tipo di media.",
   "videoStudio.shortcutSourceEdit": "Monitor sorgente: inserisci (,) / sovrascrivi (.)",

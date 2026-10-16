@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "Skriv över",
   "videoStudio.sourcePicture": "Endast bild",
   "videoStudio.sourceSound": "Endast ljud",
-  "videoStudio.sourceDragHint": "Dra till ett spår för att placera det",
+  "videoStudio.sourcePartHint": "Dra till ett spår för att placera det. Enter skriver över vid redigeringspunkten, Ctrl+Enter infogar.",
   "videoStudio.sourceBeforeStart": "Redigeringen skulle börja före tidslinjens början. Flytta tidslinjens utpunkt senare.",
   "videoStudio.sourceNoTarget": "Aktivera ett målspår för den här typen av medium.",
   "videoStudio.shortcutSourceEdit": "Källmonitor: infoga (,) / skriv över (.)",

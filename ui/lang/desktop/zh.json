@@ -6171,7 +6171,7 @@
   "videoStudio.sourceOverwrite": "覆盖",
   "videoStudio.sourcePicture": "仅画面",
   "videoStudio.sourceSound": "仅音频",
-  "videoStudio.sourceDragHint": "拖到轨道上即可放置",
+  "videoStudio.sourcePartHint": "拖到轨道上即可放置。Enter 在编辑点覆盖，Ctrl+Enter 插入。",
   "videoStudio.sourceBeforeStart": "此编辑会在时间线开始之前起始。请将时间线的出点后移。",
   "videoStudio.sourceNoTarget": "请为此类媒体启用目标轨道。",
   "videoStudio.shortcutSourceEdit": "源素材监视器：插入（,）/ 覆盖（.）",
