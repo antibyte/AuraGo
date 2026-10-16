@@ -41,6 +41,25 @@
         return { start: 0, end };
     }
 
+    // Ramp-aware media timing (plan 2b, index §4.18). Positions use the content anchor that the keyframes and the export
+    // share, VideoStudioEffects.sourceAt: offset + S(t) on a ramp, offset + t x speed otherwise.
+    // The source time that a clip shows at timeline frame `at`, in seconds and never negative. fps is the project rate.
+    function sourceSeconds(clip, at, fps) { return Math.max(0, window.VideoStudioEffects.sourceAt(clip, at) / fps); }
+    // The media element's playbackRate at frame `at`: the clip's instantaneous speed (VideoStudioEffects.speedAt, clip
+    // time) times the shuttle rate (1 unless playing forward), inside the 1/16x..16x that browsers accept. Forward
+    // playback sets it on every paint, so a ramp's media clock follows the curve; the 0.38 s drift seek corrects the rest.
+    function mediaRate(clip, at, rate) { return clamp(window.VideoStudioEffects.speedAt(clip, at - Number(clip.start || 0)) * rate, 0.0625, 16); }
+    // Whether a clip may sound at all; syncMedia applies the solo and shuttle state on top. Muted or hidden tracks are
+    // silent. A detached video clip is silent because its audio clip plays, and so is any clip above 4x. The linked
+    // sound of a ramped video-track clip is silent too, because the export mutes it (Go audibleClip). Audio tracks
+    // sound, and so does video with a sound stream.
+    function audioAllowed(track, clip, asset) {
+        const speed = Number(clip.speed) > 0 ? Number(clip.speed) : 1;
+        if (!asset || track.muted || track.hidden || clip.audio_detached || speed > 4) return false;
+        if (track.kind === 'video' && window.VideoStudioEffects.hasRamp(clip)) return false;
+        return track.kind === 'audio' || (asset.kind === 'video' && !!asset.has_audio);
+    }
+
     function mount(canvas, getProject, getFrame, setFrame, onPlayState, getScale, options) {
         const fps = () => window.VideoStudioTime.rate(getProject());
         const scale = () => { const value = typeof getScale === 'function' ? Number(getScale()) : 1; return Math.max(0.1, Math.min(1, value || 1)); };
@@ -172,8 +191,8 @@
         }
 
         function assetFor(project, clip) { return (project.assets || []).find(asset => asset.id === clip.asset_id); }
-        function speedOf(clip) { const speed = Number(clip.speed); return speed > 0 ? speed : 1; }
-        function sourcePosition(clip, at) { return Math.max(0, (Number(clip.offset || 0) + (at - Number(clip.start || 0)) * speedOf(clip)) / fps()); }
+        // The source time of a clip at a frame: the shared content anchor (rules.sourceSeconds), ramp-aware.
+        function sourcePosition(clip, at) { return sourceSeconds(clip, at, fps()); }
 
         // Keeps the media in step with the frame. forwardPlayback is true only while playing forward: then the media
         // clocks run (at the shuttle rate); otherwise they stay paused and are only seeked.
@@ -199,14 +218,14 @@
                     const fadeOut = clip.fade_out > 0 ? clamp((clip.duration - local) / clip.fade_out, 0, 1) : 1;
                     // With a solo active only the soloed audio tracks sound; embedded video audio is silent too.
                     const soloed = soloIds.size === 0 || (track.kind === 'audio' && soloIds.has(track.id));
-                    // A detached video clip is silent here (its audio clip plays), and so is any clip above 4x.
-                    const audioAllowed = !track.muted && !track.hidden && !clip.audio_detached && speedOf(clip) <= 4 && soloed && !shuttleMuted() && (track.kind === 'audio' || asset.kind === 'video' && asset.has_audio);
-                    const targetGain = audioAllowed ? clamp(Number(clip.volume == null ? 1 : clip.volume) * fadeIn * fadeOut, 0, 4) : 0;
+                    // The clip rules (rules.audioAllowed: detached, above 4x, ramped video-track sound), then solo and shuttle.
+                    const audible = audioAllowed(track, clip, asset) && soloed && !shuttleMuted();
+                    const targetGain = audible ? clamp(Number(clip.volume == null ? 1 : clip.volume) * fadeIn * fadeOut, 0, 4) : 0;
                     const gain = ensureAudioNode(el);
                     if (gain) { gain.gain.value = targetGain; el.volume = 1; el.muted = false; }
-                    else { el.volume = clamp(targetGain, 0, 1); if (asset.kind === 'video') el.muted = !audioAllowed; }
-                    // Browsers accept 1/16x to 16x. The clip speed scales the shuttle rate while the media clocks run.
-                    const playRate = clamp(speedOf(clip) * (forwardPlayback ? rate : 1), 0.0625, 16);
+                    else { el.volume = clamp(targetGain, 0, 1); if (asset.kind === 'video') el.muted = !audible; }
+                    // The clip's speed at this frame scales the shuttle rate (rules.mediaRate). A ramp changes it on every paint.
+                    const playRate = mediaRate(clip, at, forwardPlayback ? rate : 1);
                     if (el instanceof HTMLMediaElement && Math.abs(el.playbackRate - playRate) > 1e-6) el.playbackRate = playRate;
                     const desired = sourcePosition(clip, at);
                     if (Math.abs((el.currentTime || 0) - desired) > (forwardPlayback ? 0.38 : 0.025)) {
@@ -407,5 +426,5 @@
             painterKind: () => painter.kind, capture, settle };
     }
 
-    window.VideoStudioPreview = { mount, rules: { transitionPair, activeAt, playBounds } };
+    window.VideoStudioPreview = { mount, rules: { transitionPair, activeAt, playBounds, sourceSeconds, mediaRate, audioAllowed } };
 })();

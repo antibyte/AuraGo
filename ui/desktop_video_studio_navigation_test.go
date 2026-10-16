@@ -229,13 +229,11 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview part: %v", err)
 	}
+	// The disabled-clip rules stay pinned. The speed rules (formerly the pinned speedOf, sourcePosition, audio and
+	// playRate lines) go through VideoStudioEffects since plan 2b and are checked by behaviour below.
 	for _, want := range []string{
-		"function speedOf(clip) { const speed = Number(clip.speed); return speed > 0 ? speed : 1; }",
 		"return !clip.disabled && at >= Number(clip.start || 0)",
-		"(Number(clip.offset || 0) + (at - Number(clip.start || 0)) * speedOf(clip)) / fps()",
 		"near = !current && !clip.disabled && clip.start > at",
-		"!clip.audio_detached && speedOf(clip) <= 4 && soloed && !shuttleMuted()",
-		"const playRate = clamp(speedOf(clip) * (forwardPlayback ? rate : 1), 0.0625, 16);",
 		"flatMap(track => track.clips.filter(clip => !clip.disabled).map(clip => clip.start + clip.duration))",
 	} {
 		if !bytes.Contains(preview, []byte(want)) {
@@ -245,7 +243,8 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 	if t.Failed() {
 		return
 	}
-	// The transition rules (formerly the string-pinned transitionIn/transitionOut) are checked by behaviour.
+	// The transition rules (formerly the string-pinned transitionIn/transitionOut) and the speed rules are checked by
+	// behaviour.
 	node, err := exec.LookPath("node")
 	if err != nil {
 		t.Skip("Node.js required for the preview rule checks")
@@ -253,9 +252,11 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 	script := `
 const assert = require('node:assert/strict');
 global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-preview.js');
 const R = window.VideoStudioPreview.rules;
-assert.deepEqual(Object.keys(R).sort(), ['activeAt', 'playBounds', 'transitionPair']);
+assert.deepEqual(Object.keys(R).sort(), ['activeAt', 'audioAllowed', 'mediaRate', 'playBounds', 'sourceSeconds', 'transitionPair']);
 const c = (id, start, duration, extra) => Object.assign({id, start, duration}, extra || {});
 const track = clips => ({id: 't', kind: 'video', clips});
 const out = c('a', 0, 40, {transition: {type: 'dissolve', duration: 10}});
@@ -271,6 +272,23 @@ assert.equal(R.activeAt(c('d', 10, 5, {disabled: true}), 12), false, 'disabled c
 assert.equal(R.activeAt(c('e', 10, 5), 15), false, 'the clip end is exclusive');
 assert.deepEqual(R.playBounds({tracks: [track([c('f', 0, 30), c('g', 30, 90, {disabled: true})])]}, null), {start: 0, end: 30}, 'disabled clips do not extend playback');
 assert.deepEqual(R.playBounds({tracks: []}, {start: 5, end: 9}), {start: 5, end: 9}, 'the loop range wins');
+// The 1b speed rules by behaviour: an absent speed plays at 1x, the source position is offset + (frame - start) x speed
+// and never negative, the clip speed scales the shuttle rate inside 1/16x..16x, and sound stops above 4x.
+assert.equal(R.sourceSeconds(c('s', 10, 60, {offset: 5}), 40, 30), 35 / 30, 'an absent speed plays at 1x');
+assert.equal(R.sourceSeconds(c('s', 10, 60, {offset: 5, speed: 1.5}), 40, 30), 50 / 30, 'offset + (frame - start) x speed');
+assert.equal(R.sourceSeconds(c('s', 10, 60, {offset: 0}), 0, 30), 0, 'never before the media start');
+assert.equal(R.mediaRate(c('s', 0, 60, {offset: 0, speed: 1.5}), 10, 2), 3, 'the clip speed scales the shuttle rate');
+assert.equal(R.mediaRate(c('s', 0, 60, {offset: 0, speed: 16}), 10, 8), 16, 'browsers accept at most 16x');
+assert.equal(R.mediaRate(c('s', 0, 60, {offset: 0, speed: 0.25}), 10, 0.1), 0.0625, 'and at least 1/16x');
+const videoTrack = {id: 'v', kind: 'video'}, video = {kind: 'video', has_audio: true};
+assert.equal(R.audioAllowed(videoTrack, c('s', 0, 60), video), true, 'video with a sound stream sounds');
+assert.equal(R.audioAllowed(videoTrack, c('s', 0, 60, {audio_detached: true}), video), false, 'a detached video clip is silent (its audio clip plays)');
+assert.equal(R.audioAllowed(videoTrack, c('s', 0, 60, {speed: 4}), video), true, 'up to 4x sounds');
+assert.equal(R.audioAllowed(videoTrack, c('s', 0, 60, {speed: 4.5}), video), false, 'above 4x is silent');
+assert.equal(R.audioAllowed(Object.assign({}, videoTrack, {muted: true}), c('s', 0, 60), video), false, 'a muted track is silent');
+assert.equal(R.audioAllowed(Object.assign({}, videoTrack, {hidden: true}), c('s', 0, 60), video), false, 'a hidden track is silent');
+assert.equal(R.audioAllowed(videoTrack, c('s', 0, 60), {kind: 'video', has_audio: false}), false, 'video without a sound stream');
+assert.equal(R.audioAllowed({id: 'a', kind: 'audio'}, c('s', 0, 60), {kind: 'audio', has_audio: true}), true, 'audio tracks sound');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("preview rule checks: %v\n%s", err, output)
