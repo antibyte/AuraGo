@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -291,7 +292,7 @@ func TestCodeStudioDownloadRejectsFilesOverConfiguredLimit(t *testing.T) {
 
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{
-			{ExitCode: 0, Output: "1048577|1710000000\n"},
+			{ExitCode: 0, Output: "1048577|1710000000\n/workspace/large.bin\n"},
 			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("should-not-read"))},
 		},
 	}
@@ -316,7 +317,7 @@ func TestCodeStudioDownloadStillStreamsFilesWithinConfiguredLimit(t *testing.T) 
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{
-			{ExitCode: 0, Output: "5|1710000000\n"},
+			{ExitCode: 0, Output: "5|1710000000\n/workspace/hello.txt\n"},
 			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("hello"))},
 		},
 	}
@@ -334,6 +335,114 @@ func TestCodeStudioDownloadStillStreamsFilesWithinConfiguredLimit(t *testing.T) 
 	}
 	if len(docker.commands) != 2 {
 		t.Fatalf("docker exec calls = %d, want 2; commands=%v", len(docker.commands), docker.commands)
+	}
+	if got := docker.commands[1]; len(got) != 3 || got[0] != "base64" || got[2] != "/workspace/hello.txt" {
+		t.Fatalf("content command = %q, want base64 of the physical path", got)
+	}
+}
+
+func TestCodeStudioReadRejectsSymlinkEscape(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := &recordingCodeStudioDockerAPI{
+		results: []codeStudioExecResult{{
+			ExitCode: 1,
+			Output:   "directory is outside the workspace or unavailable\n",
+		}},
+	}
+	handler := codeStudioHandlers{server: s, docker: docker}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/file?path=/workspace/escape", nil)
+	rec := httptest.NewRecorder()
+
+	handler.handleReadFile(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "root:x") {
+		t.Fatal("escaped symlink content was returned")
+	}
+	if len(docker.commands) != 1 || strings.Contains(strings.Join(docker.commands[0], " "), "base64") {
+		t.Fatalf("commands = %v, want one probe without base64", docker.commands)
+	}
+}
+
+func TestCodeStudioReadFollowsSymlinkInsideWorkspace(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := &recordingCodeStudioDockerAPI{
+		results: []codeStudioExecResult{
+			{ExitCode: 0, Output: "5|1710000000\n/workspace/real.txt\n"},
+			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("hello"))},
+		},
+	}
+	handler := codeStudioHandlers{server: s, docker: docker}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/file?path=/workspace/link", nil)
+	rec := httptest.NewRecorder()
+
+	handler.handleReadFile(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Path != "/workspace/real.txt" || body.Content != "hello" {
+		t.Fatalf("body = %+v, want physical path and target content", body)
+	}
+	if got := docker.commands[1]; len(got) != 3 || got[2] != "/workspace/real.txt" {
+		t.Fatalf("content command = %q, want the physical path", got)
+	}
+}
+
+func TestCodeStudioReadRejectsProbePathOutsideWorkspace(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := &recordingCodeStudioDockerAPI{
+		results: []codeStudioExecResult{{
+			ExitCode: 0,
+			Output:   "4|1710000000\n/etc/passwd\n",
+		}},
+	}
+	handler := codeStudioHandlers{server: s, docker: docker}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/file?path=/workspace/escape", nil)
+	rec := httptest.NewRecorder()
+
+	handler.handleReadFile(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "root:x") || len(docker.commands) != 1 {
+		t.Fatalf("outside probe was read: status body=%s commands=%v", rec.Body.String(), docker.commands)
+	}
+}
+
+func TestCodeStudioTerminalRejectsEmptyOrForeignOrigin(t *testing.T) {
+	s := testCodeStudioServer(t)
+	handler := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}}
+	session := &http.Cookie{Name: sessionCookieName, Value: createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))}
+	for _, origin := range []string{"", "http://evil.example"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/code-studio/terminal", nil)
+		req.Host = "aurago.example"
+		req.AddCookie(session)
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Upgrade", "websocket")
+		req.Header.Set("Sec-Websocket-Version", "13")
+		req.Header.Set("Sec-Websocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		rec := httptest.NewRecorder()
+		handler.handleTerminal(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("origin %q status = %d, want %d; body=%s", origin, rec.Code, http.StatusForbidden, rec.Body.String())
+		}
+		if rec.Header().Get("Upgrade") != "" {
+			t.Fatalf("origin %q upgraded the websocket", origin)
+		}
 	}
 }
 

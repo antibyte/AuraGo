@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -199,46 +200,30 @@ func (h codeStudioHandlers) handleReadFile(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	maxSize := h.maxFileSizeBytes()
-	script := fmt.Sprintf("stat -c '%%s|%%Y' %s && base64 -w0 %s", shellQuote(path), shellQuote(path))
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", script}, 30*time.Second)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	probed, probeErr := h.probeCodeStudioFile(r.Context(), containerID, path)
+	if status, msg, ok := codeStudioProbeHTTPError(probeErr); ok {
+		jsonError(w, msg, status)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
-	lines := strings.SplitN(result.Output, "\n", 2)
-	if len(lines) != 2 {
-		jsonError(w, "invalid file read response", http.StatusBadGateway)
-		return
-	}
-	size, modified, err := parseCodeStudioStatLine(strings.TrimSpace(lines[0]))
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	if size > maxSize {
+	if probed.Size > h.maxFileSizeBytes() {
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	content, err := base64.StdEncoding.DecodeString(strings.TrimSpace(lines[1]))
+	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path)
 	if err != nil {
-		jsonError(w, "invalid file content encoding", http.StatusBadGateway)
+		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"status":  "ok",
-		"path":    path,
+		"path":    probed.Path,
 		"content": string(content),
 		"entry": codeStudioFileEntry{
-			Name:     pathpkg.Base(path),
-			Path:     path,
+			Name:     pathpkg.Base(probed.Path),
+			Path:     probed.Path,
 			Type:     "file",
-			Size:     size,
-			Modified: modified,
+			Size:     probed.Size,
+			Modified: probed.Modified,
 		},
 	})
 }
@@ -491,40 +476,22 @@ func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	statResult, err := h.docker.Exec(r.Context(), containerID, []string{"stat", "-c", "%s|%Y", path}, 30*time.Second)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	probed, probeErr := h.probeCodeStudioFile(r.Context(), containerID, path)
+	if status, msg, ok := codeStudioProbeHTTPError(probeErr); ok {
+		jsonError(w, msg, status)
 		return
 	}
-	if statResult.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(statResult.Output), http.StatusBadRequest)
-		return
-	}
-	size, _, err := parseCodeStudioStatLine(strings.TrimSpace(statResult.Output))
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	if size > h.maxFileSizeBytes() {
+	if probed.Size > h.maxFileSizeBytes() {
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"base64", "-w0", path}, 30*time.Second)
+	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
-	content, err := base64.StdEncoding.DecodeString(strings.TrimSpace(result.Output))
-	if err != nil {
-		jsonError(w, "invalid file content encoding", http.StatusBadGateway)
-		return
-	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(pathpkg.Base(path)))
+	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(pathpkg.Base(probed.Path)))
 	_, _ = w.Write(content)
 }
 
@@ -617,6 +584,10 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 	}
 	if !h.isAuthenticated(r) {
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !desktop.SameHostWebSocketOrigin(r) {
+		jsonError(w, "forbidden websocket origin", http.StatusForbidden)
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -967,14 +938,7 @@ func (h codeStudioHandlers) maxFileSizeBytes() int64 {
 }
 
 var codeStudioWSUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		origin := strings.TrimSpace(r.Header.Get("Origin"))
-		if origin == "" {
-			return true
-		}
-		u, err := url.Parse(origin)
-		return err == nil && strings.EqualFold(u.Host, r.Host)
-	},
+	CheckOrigin: desktop.SameHostWebSocketOrigin,
 }
 
 func sanitizeCodeStudioPath(raw string) (string, error) {
@@ -1044,6 +1008,127 @@ func parseCodeStudioFindOutput(output string) ([]codeStudioFileEntry, error) {
 		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
 	})
 	return entries, nil
+}
+
+type codeStudioFileProbe struct {
+	Path     string
+	Size     int64
+	Modified time.Time
+}
+
+type codeStudioProbeRejection struct {
+	message string
+}
+
+func (e codeStudioProbeRejection) Error() string { return e.message }
+
+func codeStudioProbeHTTPError(err error) (int, string, bool) {
+	if err == nil {
+		return 0, "", false
+	}
+	var rejected codeStudioProbeRejection
+	if errors.As(err, &rejected) {
+		message := strings.TrimSpace(rejected.message)
+		if message == "" {
+			message = "file is outside the workspace or unavailable"
+		}
+		return http.StatusBadRequest, message, true
+	}
+	return http.StatusBadGateway, err.Error(), true
+}
+
+func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID, lexical string) (codeStudioFileProbe, error) {
+	result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-c", codeStudioPhysicalFileScript(lexical)}, 30*time.Second)
+	if err != nil {
+		return codeStudioFileProbe{}, fmt.Errorf("probe code studio file: %w", err)
+	}
+	if result.ExitCode != 0 {
+		message := strings.TrimSpace(result.Output)
+		if message == "" {
+			message = "file is outside the workspace or unavailable"
+		}
+		return codeStudioFileProbe{}, codeStudioProbeRejection{message: message}
+	}
+	lines := strings.SplitN(strings.TrimRight(result.Output, "\n"), "\n", 2)
+	if len(lines) != 2 {
+		return codeStudioFileProbe{}, codeStudioProbeRejection{message: "invalid file probe"}
+	}
+	size, modified, err := parseCodeStudioStatLine(strings.TrimSpace(lines[0]))
+	if err != nil {
+		return codeStudioFileProbe{}, codeStudioProbeRejection{message: err.Error()}
+	}
+	physical, err := sanitizeCodeStudioPath(strings.TrimSpace(lines[1]))
+	if err != nil {
+		return codeStudioFileProbe{}, codeStudioProbeRejection{message: err.Error()}
+	}
+	return codeStudioFileProbe{Path: physical, Size: size, Modified: modified}, nil
+}
+
+func (h codeStudioHandlers) readCodeStudioFileBytes(ctx context.Context, containerID, physical string) ([]byte, error) {
+	result, err := h.docker.Exec(ctx, containerID, []string{"base64", "-w0", physical}, 30*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("read code studio file: %w", err)
+	}
+	if result.ExitCode != 0 {
+		message := strings.TrimSpace(result.Output)
+		if message == "" {
+			message = "read code studio file failed"
+		}
+		return nil, errors.New(message)
+	}
+	content, err := base64.StdEncoding.DecodeString(strings.TrimSpace(result.Output))
+	if err != nil {
+		return nil, fmt.Errorf("invalid file content encoding")
+	}
+	return content, nil
+}
+
+// codeStudioPhysicalFileScript resolves a lexical workspace path inside the
+// container. The parent directory is entered with pwd -P before the final
+// component is inspected, so an intermediate symlink cannot point outside
+// /workspace. A final symlink is followed only while each hop stays inside
+// /workspace. The script prints size|mtime and the physical path.
+func codeStudioPhysicalFileScript(lexical string) string {
+	return `set -eu
+p=` + shellQuote(lexical) + `
+parent=$(dirname -- "$p")
+base=$(basename -- "$p")
+phys_dir=$(CDPATH= cd -- "$parent" && pwd -P)
+case "$phys_dir" in
+  /workspace|/workspace/*) ;;
+  *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
+esac
+cur="$phys_dir/$base"
+hops=0
+while [ -L "$cur" ]; do
+  hops=$((hops+1))
+  if [ "$hops" -gt 16 ]; then
+    echo "symlink loop" >&2
+    exit 1
+  fi
+  link=$(readlink -- "$cur")
+  case "$link" in
+    /*) cur=$link ;;
+    *) cur="$phys_dir/$link" ;;
+  esac
+  phys_dir=$(CDPATH= cd -- "$(dirname -- "$cur")" && pwd -P)
+  case "$phys_dir" in
+    /workspace|/workspace/*) ;;
+    *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
+  esac
+  cur="$phys_dir/$(basename -- "$cur")"
+done
+case "$cur" in
+  /workspace|/workspace/*) ;;
+  *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
+esac
+if [ ! -f "$cur" ] || [ -L "$cur" ]; then
+  echo "not a regular file" >&2
+  exit 1
+fi
+stat -c '%s|%Y' -- "$cur"
+printf '%s\n' "$cur"
+`
 }
 
 func parseCodeStudioStatLine(line string) (int64, time.Time, error) {

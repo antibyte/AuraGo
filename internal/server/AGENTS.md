@@ -169,6 +169,16 @@ Server-owned HTTP and cross-component integration contracts.
   single generated regular staging file through the Docker archive API. Never
   embed contents in exec arguments. The normal container user verifies the
   staged digest and installs through no-follow directory descriptors.
+- File GET and download resolve the physical path with `pwd -P` before
+  reading bytes. An intermediate or final symlink whose target leaves
+  `/workspace`, a non-regular file, or a probe path that fails
+  `sanitizeCodeStudioPath` is HTTP 400 and is not base64-read. The response
+  path is the physical path. Verify `TestCodeStudioReadRejectsSymlinkEscape`,
+  `TestCodeStudioReadFollowsSymlinkInsideWorkspace` and `TestCodeStudioDownload*`.
+- The Code Studio terminal rejects an empty or foreign `Origin` with HTTP 403
+  before the container starts and before the WebSocket upgrade.
+  `CheckOrigin` is `desktop.SameHostWebSocketOrigin`. Verify
+  `TestCodeStudioTerminalRejectsEmptyOrForeignOrigin`.
 - File PUT accepts additive `create_only`; New File must use it. Exclusive
   creation returns HTTP 409 on collision; overwrite publishes a complete sibling
   file atomically and preserves executable mode. Failed transfers leave the
