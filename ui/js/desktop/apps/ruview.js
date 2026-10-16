@@ -9,7 +9,7 @@
         const errorText = message => { if (!message) return ''; const key = 'ruview.' + message, value = ctx.t(key); return value === key ? message : value; };
         let dead = false, tab = 'overview', status = {}, wizardClose = null, actionError = '';
         let viewEpoch = 0, statusEpoch = 0, polling = false;
-        let nodes = [], nodesAt = 0, nodesError = '', nodesLoaded = false;
+        let nodes = [], nodesAt = 0, nodesError = '', nodesLoaded = false, nodesScope = '';
         const pending = new Set();
         host.innerHTML = '<div class="ruview-app"><nav class="ruview-toolbar" aria-label="RuView"><strong>RuView</strong>' +
             [['overview','overview'],['devices','devices'],['index.html','dashboard'],['observatory.html','observatory'],['pose-fusion.html','pose_fusion']].map(([name,label]) => '<button data-tab="'+name+'">'+esc(t(label))+'</button>').join('') +
@@ -44,14 +44,14 @@
                 const node=nodes[index]; if (!node) continue;
                 const age=Number.isFinite(node.csi_last_seen_ms)&&node.csi_last_seen_ms>=0?Math.round(node.csi_last_seen_ms+performance.now()-nodesAt):null;
                 row.querySelector('[data-age]').textContent=age==null?'—':age+' ms';
-                const fresh=!nodesError&&node.csi_status==='active'&&age!=null&&age<=10000;
-                row.querySelector('[data-fresh]').textContent=t(fresh?'received':'stale');
+                const fresh=!nodesError&&status.source==='esp32'&&!status.simulated&&node.csi_status==='active'&&node.csi_sequence!=null&&age!=null&&age<=10000;
+                row.querySelector('[data-fresh]').textContent=t(fresh?'received':node.csi_status==='offline'?'device_offline':'stale');
             }
         }
         function devices() {
-            if (!content.querySelector('[data-node-list]')) content.innerHTML='<h2>'+esc(t('devices'))+'</h2><p role="status" class="ruview-feedback"></p><div data-node-list></div><button data-action="flash">'+esc(t('configure'))+'</button>';
+            if (!content.querySelector('[data-node-list]')) content.innerHTML='<h2>'+esc(t('devices'))+'</h2><p class="ruview-note">'+esc(t('devices_known'))+'</p><p role="status" class="ruview-feedback"></p><div data-node-list></div><button data-action="flash">'+esc(t('configure'))+'</button>';
             content.querySelector('[data-node-list]').innerHTML=nodes.map(node=>'<article class="ruview-node"><strong>'+esc(t('node'))+' '+esc(node.node_id??node.id)+'</strong><div><span>CSI</span><span data-fresh></span></div><div><span>RSSI</span>'+esc(node.rssi_dbm??'—')+' dBm</div><div><span>'+esc(t('last_measurement'))+'</span><span data-age></span></div></article>').join('');
-            content.querySelector('[role="status"]').textContent=nodesError?t('devices_stale'):!nodesLoaded?t('working'):!nodes.length?t('no_frames'):'';
+            content.querySelector('[role="status"]').textContent=nodesError?t('devices_stale'):!nodesLoaded?t('working'):!nodes.length?t('devices_empty'):'';
             content.querySelector('[data-action="flash"]').disabled=disabled('flash');
             deviceAges();
         }
@@ -59,13 +59,19 @@
             const generation=statusEpoch;
             try {
                 // Wait for both requests even if one fails, so the next poll cannot overlap its sibling.
-                const results=await Promise.allSettled([request('status'),request('proxy/api/v1/nodes')]);
+                const results=await Promise.allSettled([request('status'),request('nodes')]);
                 const failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;
                 const [next,data]=results.map(result=>result.value);
                 if (dead||epoch!==viewEpoch||tab!=='devices'||generation!==statusEpoch) return;
                 const incoming=Array.isArray(data)?data:data.nodes;
                 if (!Array.isArray(incoming)) throw Error('Invalid nodes response');
-                status=next;nodes=incoming;nodesAt=performance.now();nodesError='';nodesLoaded=true;
+                const now=performance.now(),previous=new Map(nodesScope===data.scope?nodes.map(node=>[node.node_id,node]):[]);
+                nodes=incoming.map(node=>{
+                    const old=previous.get(node.node_id);
+                    if(node.csi_status!=='offline'||!old)return node;
+                    return {...node,rssi_dbm:old.rssi_dbm,csi_last_seen_ms:Number.isFinite(old.csi_last_seen_ms)?old.csi_last_seen_ms+now-nodesAt:null};
+                });
+                status=next;nodesAt=now;nodesScope=data.scope;nodesError=data.available===false?'unavailable':'';nodesLoaded=true;
             } catch(error) {
                 if(dead||epoch!==viewEpoch||tab!=='devices'||generation!==statusEpoch) return;
                 nodesError=error.message;

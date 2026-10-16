@@ -367,6 +367,13 @@ Server-owned HTTP and cross-component integration contracts.
   flash offset, including bootloader address `0`. Browser profile validation requires
   explicit addresses. Verify `TestRuViewFirmwareResponsesPreserveFlashOffsets` and
   `ui/TestRuViewSerializedFirmwareCatalogBrowser` against the Go-encoded catalog.
+- RuView `nodes` and its Desktop alias remain admin-only. Reads combine live nodes
+  with receiver-scoped saved IDs, including offline boards. Writes accept only a
+  node ID after browser readback and retain CSRF/enabled/read-only gates. Never
+  store WLAN credentials or turn retained IDs into fresh measurements. Managed
+  background health checks collect IDs without opening the app. Keep proxy and
+  agent reads live-only. Verify `TestKnownNodes*`, `TestRuViewKnownNodes*`, the
+  background lifecycle tests and both RuView browser suites.
 - `/api/treg/` is admin-only. Connection tests read the saved Vault-backed organization and balance; they never execute a catalog endpoint or accept a token in the request body. Catalog, balance and local status routes share the client policy boundary.
 - Schema-rendered Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible sections expose read-only connection tests through the shared registry in `ui/js/config/`.
 - Test actions are enabled only for saved configuration and available Vault-backed credentials. Their backend routes are POST-only and admin-protected; probes must not send messages, execute playbooks, mutate storage, or change remote state.

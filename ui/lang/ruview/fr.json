@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Échec de l’actualisation. Les dernières données sont périmées.",
   "ruview.process_exited": "Le service s’est arrêté. Tu peux le relancer.",
   "ruview.stop_failed": "L’arrêt n’a pas pu être confirmé. Vérifie le service.",
-  "ruview.stopping": "Arrêt en cours…"
+  "ruview.stopping": "Arrêt en cours…",
+  "ruview.device_offline": "Aucune donnée récente du capteur",
+  "ruview.devices_known": "Les cartes connues restent visibles sans réception. Les données CSI actuelles sont indiquées séparément.",
+  "ruview.devices_empty": "Aucune carte enregistrée pour le moment. Les cartes déjà configurées seront ajoutées dès leur prochaine transmission ; inutile de réinstaller le micrologiciel.",
+  "ruview.device_save_failed": "Les réglages de la carte sont confirmés, mais la liste des appareils n’a pas pu être enregistrée. Répète la confirmation."
 }

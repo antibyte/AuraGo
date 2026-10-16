@@ -744,8 +744,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   receiver/port defaults through the administrative `board-setup` read, preserve
   typed values and require explicit acceptance of unverified LAN suggestions.
   On each wizard opening, suggest the lowest unused node ID in 1–255 from the
-  existing nodes read, including stale nodes. Preserve manually typed IDs; the
-  suggestion is not a reservation and cannot account for unreported boards.
+  AuraGo nodes read, including saved offline nodes. Preserve manually typed IDs;
+  the suggestion is not a reservation and cannot account for boards never observed
+  or confirmed. After matching readback, register only the node ID with AuraGo;
+  report a save failure without claiming that device registration succeeded.
+  Keep known boards visible after empty/upstream failure replies and app/runtime
+  restarts, separately from fresh CSI. Retained readings cannot cross receivers.
   Failed/malformed reads or exhausted IDs leave the unedited field empty with
   an explanation. Configuration requires a valid ID; manual IDs still allow
   reconfiguring an existing board. Never change IDs on retries or readback.

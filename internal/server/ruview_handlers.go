@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
@@ -74,6 +75,18 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 		w.Header().Set("Cache-Control", "no-store")
 		if r.Method == http.MethodGet {
 			switch rel {
+			case "nodes":
+				if !s.ConfigSnapshot().RuView.Enabled {
+					jsonError(w, "RuView is disabled", http.StatusForbidden)
+					return
+				}
+				nodes, err := s.RuView.Nodes(r.Context())
+				if err != nil {
+					jsonError(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(nodes)
+				return
 			case "status":
 				_ = json.NewEncoder(w).Encode(s.RuView.Status())
 				return
@@ -105,6 +118,17 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 		defer cancel()
 		var err error
 		switch rel {
+		case "nodes":
+			var body struct {
+				NodeID int `json:"node_id"`
+			}
+			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+			decoder.DisallowUnknownFields()
+			if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF || body.NodeID < 1 || body.NodeID > 255 {
+				jsonError(w, "Invalid RuView node ID", http.StatusBadRequest)
+				return
+			}
+			err = s.RuView.RememberNode(ctx, body.NodeID)
 		case "test":
 			var status ruview.Status
 			status, err = s.RuView.Test(ctx)

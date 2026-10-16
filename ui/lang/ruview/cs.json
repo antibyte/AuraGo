@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Aktualizace selhala. Poslední údaje jsou zastaralé.",
   "ruview.process_exited": "Služba byla ukončena. Můžeš ji znovu spustit.",
   "ruview.stop_failed": "Zastavení se nepodařilo potvrdit. Zkontroluj službu.",
-  "ruview.stopping": "Zastavování…"
+  "ruview.stopping": "Zastavování…",
+  "ruview.device_offline": "Žádná aktuální data ze senzoru",
+  "ruview.devices_known": "Známé desky zůstávají viditelné i bez příjmu dat. Aktuální data CSI jsou označena samostatně.",
+  "ruview.devices_empty": "Zatím nejsou uloženy žádné desky. Dříve nastavené desky se přidají při příštím příjmu dat; firmware není nutné znovu nahrávat.",
+  "ruview.device_save_failed": "Nastavení desky bylo potvrzeno, ale seznam zařízení se nepodařilo uložit. Zopakuj potvrzení."
 }

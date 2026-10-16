@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Odświeżanie nie powiodło się. Ostatnie dane są nieaktualne.",
   "ruview.process_exited": "Usługa zakończyła działanie. Możesz uruchomić ją ponownie.",
   "ruview.stop_failed": "Nie udało się potwierdzić zatrzymania. Sprawdź usługę.",
-  "ruview.stopping": "Zatrzymywanie…"
+  "ruview.stopping": "Zatrzymywanie…",
+  "ruview.device_offline": "Brak aktualnych danych z czujnika",
+  "ruview.devices_known": "Znane płytki pozostają widoczne bez odbioru danych. Aktualne dane CSI są oznaczane osobno.",
+  "ruview.devices_empty": "Nie zapisano jeszcze żadnych płytek. Wcześniej skonfigurowane płytki zostaną dodane po ponownym wysłaniu danych; nie trzeba ponownie wgrywać oprogramowania.",
+  "ruview.device_save_failed": "Ustawienia płytki potwierdzone, ale nie udało się zapisać listy urządzeń. Powtórz potwierdzenie."
 }

@@ -147,5 +147,9 @@
   "ruview.devices_stale": "Aktualisierung fehlgeschlagen. Die letzten Daten sind veraltet.",
   "ruview.process_exited": "Der Dienst wurde beendet. Du kannst ihn erneut starten.",
   "ruview.stop_failed": "Das Stoppen konnte nicht bestätigt werden. Prüfe den Dienst.",
-  "ruview.stopping": "Wird gestoppt…"
+  "ruview.stopping": "Wird gestoppt…",
+  "ruview.device_offline": "Keine aktuellen Sensordaten",
+  "ruview.devices_known": "Bekannte Boards bleiben auch ohne Empfang sichtbar. Aktuelle CSI-Daten werden gesondert angezeigt.",
+  "ruview.devices_empty": "Noch keine Boards gespeichert. Bereits eingerichtete Boards werden beim nächsten Datenempfang übernommen; erneutes Flashen ist nicht nötig.",
+  "ruview.device_save_failed": "Board-Einstellungen bestätigt, aber die Geräteliste konnte nicht gespeichert werden. Wiederhole die Bestätigung."
 }

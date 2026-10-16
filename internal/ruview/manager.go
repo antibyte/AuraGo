@@ -42,6 +42,7 @@ type Manager struct {
 	logger        *slog.Logger
 	mu            sync.Mutex
 	opMu          sync.Mutex
+	nodesMu       sync.Mutex
 	status        Status
 	observed      time.Time
 	generation    context.Context
@@ -265,7 +266,16 @@ func (m *Manager) StartBackground(parent context.Context) {
 					probing = true
 					// Network latency must not delay process reaping or the storage limit.
 					go func() {
-						_, _ = m.test(ctx, generation)
+						probe, cancel := context.WithCancel(ctx)
+						stop := context.AfterFunc(generation, cancel)
+						defer cancel()
+						defer stop()
+						status, err := m.test(probe, generation)
+						if err == nil && status.Ready && status.Source == "esp32" && !status.Simulated && generation.Err() == nil {
+							if _, err := m.Nodes(probe); err != nil && probe.Err() == nil {
+								m.logger.Warn("RuView device inventory refresh failed", "error", err)
+							}
+						}
 						probeDone <- struct{}{}
 					}()
 				}

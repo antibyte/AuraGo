@@ -147,5 +147,9 @@
   "ruview.devices_stale": "刷新失败。上次的数据已过时。",
   "ruview.process_exited": "服务已退出。你可以重新启动。",
   "ruview.stop_failed": "无法确认停止。请检查服务。",
-  "ruview.stopping": "正在停止…"
+  "ruview.stopping": "正在停止…",
+  "ruview.device_offline": "暂无最新传感器数据",
+  "ruview.devices_known": "已知开发板在未收到数据时仍会显示。当前 CSI 数据会单独标明。",
+  "ruview.devices_empty": "尚未保存开发板。已配置的开发板将在下次发送数据时自动加入，无需重新刷写固件。",
+  "ruview.device_save_failed": "开发板设置已确认，但无法保存设备列表。请重新执行确认。"
 }

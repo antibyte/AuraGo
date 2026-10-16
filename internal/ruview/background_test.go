@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -80,6 +81,8 @@ func managedBackgroundFixture(t *testing.T, statusHandler http.HandlerFunc) (*Ma
 				return
 			}
 			io.WriteString(w, `{"status":"ready","source":"esp32","source_state":"live_unverified","last_frame_age_ms":0}`)
+		case path == "/api/v1/nodes":
+			io.WriteString(w, `{"nodes":[{"node_id":5,"csi_status":"active","csi_last_seen_ms":0,"csi_sequence":1}]}`)
 		default:
 			t.Errorf("unexpected background request: %s %s", r.Method, path)
 			w.WriteHeader(http.StatusNotFound)
@@ -111,13 +114,18 @@ func awaitBackground(t *testing.T, condition func() bool) {
 }
 
 func TestBackgroundStartsEnabledManagedRuntimeAndRefreshesStatus(t *testing.T) {
-	m, _, f := managedBackgroundFixture(t, nil)
+	m, c, f := managedBackgroundFixture(t, nil)
 	m.StartBackground(context.Background())
 	m.StartBackground(context.Background())
 	awaitBackground(t, func() bool { return m.Status().Ready })
 	if f.starts.Load() != 1 || f.creates.Load() != 1 || !m.Status().Fresh {
 		t.Fatal("startup did not create exactly one ready managed service")
 	}
+	name, err := nodeFile(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	awaitBackground(t, func() bool { data, _ := os.ReadFile(name); return string(data) == "[5]" })
 	f.failStatus.Store(true)
 	awaitBackground(t, func() bool { return !m.Status().Ready })
 	if m.Status().Error == "" {
