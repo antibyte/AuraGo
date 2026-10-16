@@ -50,15 +50,19 @@
             const result = job.result || {};
             return ['renderSegmentFailed', 'Rendering failed between {{from}} and {{to}}. Check the clips there and try again.', { from: clockSeconds(result.failed_from_seconds), to: clockSeconds(result.failed_to_seconds) }];
         }
-        return ({ reverse_range_too_long: ['reverseTooLong', 'Reverse works on up to 5 minutes at a time.'], reverse_failed: ['reverseFailed', 'The clip could not be reversed.'], still_failed: ['stillFailed', 'The frame could not be captured.'], project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
+        return ({ reverse_range_too_long: ['reverseTooLong', 'Reverse works on up to 5 minutes at a time.'], reverse_failed: ['reverseFailed', 'The clip could not be reversed.'], still_failed: ['stillFailed', 'The frame could not be captured.'], project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'], insufficient_disk_space: ['diskSpaceLow', 'The server does not have enough free disk space for this export.'], render_too_many_inputs: ['tooManyClipsAtOnce', 'Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.'], export_size_limit: ['exportTooLarge', 'The video is larger than the export size limit set in the Video Studio settings.'], duplicate_quota: ['duplicateTooLarge', 'The copy would exceed this project\'s storage limit.'], duplicate_failed: ['duplicateFailed', 'The project could not be copied.'], invalid_range: ['invalidRange', 'The in/out range is not valid.'], media_in_use: ['mediaInUse', 'This media is still in use. Save the project and try again.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
     }
-    function exportName(s) { return String(s.project && s.project.name || tr(s, 'untitled', 'Untitled project')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) + '.mp4'; }
+    // The download name: the project name, " (in-out)" for a range export, then ".mp4". The job says whether it is a range.
+    function exportName(s, job) {
+        const base = String(s.project && s.project.name || tr(s, 'untitled', 'Untitled project')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80);
+        return base + (job && job.result && job.result.range ? ' (in-out)' : '') + '.mp4';
+    }
     // Finished render and generation jobs get one toast; probes are quiet unless they fail.
     function announceJob(s, job) {
         if (s.notifiedJobs.has(job.id) || s.jobLocalStops.has(job.id) || s.disposed) return;
         s.notifiedJobs.add(job.id);
         const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
-        if (job.kind === 'render' && job.status === 'succeeded' && artifact) showNotice(s, 'exportReady', 'Your video is ready.', false, { href: artifact, download: exportName(s), label: tr(s, 'download', 'Download') });
+        if (job.kind === 'render' && job.status === 'succeeded' && artifact) showNotice(s, 'exportReady', 'Your video is ready.', false, { href: artifact, download: exportName(s, job), label: tr(s, 'download', 'Download') });
         else if (job.kind === 'generate' && job.status === 'succeeded') showNotice(s, 'generationReady', 'The generated clip is in your media library.', false);
         else if (job.kind === 'still' && job.status === 'succeeded' && artifact) showNotice(s, 'frameExported', 'Your frame is ready.', false, { href: artifact, download: job.artifact.name || 'frame.png', label: tr(s, 'download', 'Download') });
         else if (job.kind === 'reverse' && job.status === 'succeeded') showNotice(s, 'reverseReady', 'The reversed clip is in your media library.', false);
@@ -89,7 +93,7 @@
             const failure = job.status === 'failed' || (job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) ? jobFailure(job) : null;
             const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
             const kindIcon = job.kind === 'render' ? 'export' : job.kind === 'generate' ? 'sparkle' : 'film';
-            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading">${icon(kindIcon, 15)}<strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span class="vs-job-state">${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div>${terminal ? '' : `<progress max="100" value="${percent}" aria-label="${esc(s, tr(s, 'job_' + job.kind, job.kind))}"></progress>`}<div class="vs-job-footer"><small>${terminal ? '' : percent + ' %'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download="${esc(s, job.kind === 'render' ? exportName(s) : '')}">${icon('download', 14)} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${failure ? '<small class="vs-job-error">' + esc(s, fill(tr(s, failure[0], failure[1]), failure[2])) + '</small>' : ''}</article>`;
+            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading">${icon(kindIcon, 15)}<strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span class="vs-job-state">${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div>${terminal ? '' : `<progress max="100" value="${percent}" aria-label="${esc(s, tr(s, 'job_' + job.kind, job.kind))}"></progress>`}<div class="vs-job-footer"><small>${terminal ? '' : percent + ' %'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download="${esc(s, job.kind === 'render' ? exportName(s, job) : '')}">${icon('download', 14)} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${failure ? '<small class="vs-job-error">' + esc(s, fill(tr(s, failure[0], failure[1]), failure[2])) + '</small>' : ''}</article>`;
         }).join('') : `<p class="vs-hint">${esc(s, tr(s, 'noJobs', 'No tasks right now.'))}</p>`;
         renderJobsButton(s);
     }
@@ -241,19 +245,40 @@
         if (!s.projectId || s.readonly) return;
         const projectId = s.projectId, epoch = s.projectEpoch;
         const size = `${s.project.width}x${s.project.height}`;
-        const host = openModal(s, `<form class="vs-modal" data-export-form role="dialog" aria-modal="true" aria-labelledby="vs-export-title-${esc(s, s.id)}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><span class="vs-modal-icon">${icon('export', 22)}</span><h2 id="vs-export-title-${esc(s, s.id)}">${esc(s, tr(s, 'exportVideo', 'Export video'))}</h2><p>${esc(s, tr(s, 'exportIntro', 'The video is rendered on the server. You can keep editing while it runs and download it when it is ready.'))}</p><dl class="vs-facts"><div><dt>${esc(s, tr(s, 'length', 'Length'))}</dt><dd>${esc(s, I().formatTime(projectDuration(s), s.project))}</dd></div><div><dt>${esc(s, tr(s, 'fileName', 'File'))}</dt><dd>${esc(s, exportName(s))}</dd></div><div><dt>${esc(s, tr(s, 'fileFormat', 'Format'))}</dt><dd>MP4 · H.264 · ${esc(s, window.VideoStudioTime.rateLabel(s.project, P.uiLocale()))}</dd></div></dl><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'resolution', 'Resolution and aspect ratio'))}</span><select data-export-size>${s.q('[data-canvas]').innerHTML}</select></label><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'cancel', 'Cancel'))}</button><button type="submit" class="vs-primary">${icon('export', 16)}<span>${esc(s, tr(s, 'startExport', 'Start export'))}</span></button></div></form>`);
+        // The renderer's length (EnabledDuration in Go): the end of the last enabled clip. Disabled clips do not count.
+        const enabledEnd = project => {
+            let end = 0;
+            (project.tracks || []).forEach(track => (track.clips || []).forEach(clip => { if (!clip.disabled && clip.start >= 0 && clip.duration > 0) end = Math.max(end, clip.start + clip.duration); }));
+            return end;
+        };
+        // The in/out points are clamped to that length, so the request always satisfies 0 ≤ start < end ≤ EnabledDuration.
+        const range = P.inOut(s), length = enabledEnd(s.project);
+        const inFrame = range.in == null ? null : Math.max(0, Math.min(range.in, length));
+        const outFrame = range.out == null ? null : Math.max(0, Math.min(range.out, length));
+        const hasRange = inFrame != null && outFrame != null && outFrame > inFrame;
+        const rangeText = hasRange ? `${I().formatTime(inFrame, s.project)}–${I().formatTime(outFrame, s.project)}` : '';
+        const rangeScope = hasRange ? `<label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'exportScope', 'What to export'))}</span><select data-export-scope><option value="whole">${esc(s, tr(s, 'exportWhole', 'Whole project'))}</option><option value="range">${esc(s, fill(tr(s, 'exportInOut', 'Only the in/out range ({{range}})'), { range: rangeText }))}</option></select></label>` : '';
+        const host = openModal(s, `<form class="vs-modal" data-export-form role="dialog" aria-modal="true" aria-labelledby="vs-export-title-${esc(s, s.id)}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><span class="vs-modal-icon">${icon('export', 22)}</span><h2 id="vs-export-title-${esc(s, s.id)}">${esc(s, tr(s, 'exportVideo', 'Export video'))}</h2><p>${esc(s, tr(s, 'exportIntro', 'The video is rendered on the server. You can keep editing while it runs and download it when it is ready.'))}</p><dl class="vs-facts"><div><dt>${esc(s, tr(s, 'length', 'Length'))}</dt><dd>${esc(s, I().formatTime(projectDuration(s), s.project))}</dd></div><div><dt>${esc(s, tr(s, 'fileName', 'File'))}</dt><dd>${esc(s, exportName(s))}</dd></div><div><dt>${esc(s, tr(s, 'fileFormat', 'Format'))}</dt><dd>MP4 · H.264 · ${esc(s, window.VideoStudioTime.rateLabel(s.project, P.uiLocale()))}</dd></div></dl><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'resolution', 'Resolution and aspect ratio'))}</span><select data-export-size>${s.q('[data-canvas]').innerHTML}</select></label>${rangeScope}<div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'cancel', 'Cancel'))}</button><button type="submit" class="vs-primary">${icon('export', 16)}<span>${esc(s, tr(s, 'startExport', 'Start export'))}</span></button></div></form>`);
         host.querySelector('[data-export-size]').value = size;
+        // The facts follow the scope: the range's length and the name the download will get.
+        host.querySelector('[data-export-scope]')?.addEventListener('change', event => {
+            const ranged = event.target.value === 'range', facts = host.querySelectorAll('.vs-facts dd');
+            facts[0].textContent = I().formatTime(ranged ? outFrame - inFrame : projectDuration(s), s.project);
+            facts[1].textContent = exportName(s, ranged ? { result: { range: true } } : null);
+        });
         host.querySelector('[data-export-form]').addEventListener('submit', async event => {
             event.preventDefault();
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) { host.replaceChildren(); return; }
             const [width, height] = host.querySelector('[data-export-size]').value.split('x').map(Number);
+            const scope = host.querySelector('[data-export-scope]')?.value || 'whole';
+            const payload = scope === 'range' && hasRange ? { kind: 'render', range: { start: inFrame, end: outFrame } } : { kind: 'render' };
             if (width !== s.project.width || height !== s.project.height) mutate(s, 'export canvas', project => { project.width = width; project.height = height; });
             host.replaceChildren();
             await P.flushArtwork(s);
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (!(await P.saveUntilClean(s))) return;
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            const start = () => createJob(s, { kind: 'render' }, projectId, epoch);
+            const start = () => createJob(s, payload, projectId, epoch);
             try {
                 try { await start(); }
                 catch (error) {
