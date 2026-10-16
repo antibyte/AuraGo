@@ -13,7 +13,7 @@ import (
 func TestPromptCompactionRealTokenBaseline(t *testing.T) {
 	enc, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
-		t.Skipf("real tokenizer unavailable: %v", err)
+		t.Fatalf("real tokenizer required for prompt compaction baseline (populate TIKTOKEN_CACHE_DIR): %v", err)
 	}
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) { return enc, nil }, time.Second, time.Second)
 	// Measured before compaction on 2026-10-16, with these exact synthetic inputs.

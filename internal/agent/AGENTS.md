@@ -317,12 +317,18 @@ Tools are defined in `internal/tools/`:
   Record fit input/output tokens and guide counts in both loops, including
   unchanged prepared profiles. Failed fits are not measured zero-token inputs.
   Request/cache counters are process-lifetime local reuse, not provider cache
-  usage. Verify `TestPreparedPromptFitTelemetryBothLoops` and prompt metrics tests.
+  usage. Minimal-loop fits preserve the same reuse flag as usage observations,
+  including cross-invocation reuse, correction/tool rounds and finalization,
+  even when an unchanged prepared prompt exceeds its budget. Verify
+  `TestMinimalLoopPreparedPromptCacheTelemetry`,
+  `TestPreparedPromptFitTelemetryBothLoops` and prompt metrics tests.
 - Keep bundled identity/rules concise without removing policy obligations or
   applying sentence deduplication to user/external content. Preserve disk
   overrides, required section boundaries and source revisions. The real
   cl100k_base fixture matrix in `TestPromptCompactionRealTokenBaseline` guards
   chat, mission and co-agent prompt sizes independently of budget shedding.
+  Missing tokenizer data must fail this test, never skip it. The Go test CI job
+  provisions the checksummed vocabulary through `TIKTOKEN_CACHE_DIR`.
 
 - Game Maker's Voxel variant has its own prepared planning/editing/source
   profiles; build and repair share the same ordered four tools. Planning retains

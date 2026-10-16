@@ -42,10 +42,10 @@ func prepareMinimalLoopRequestWithProfileAndAnchor(ctx context.Context, cfg *con
 	if req != nil {
 		anchorIndex = protectedTaskMessageIndex(req.Messages, currentUserText)
 	}
-	return prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, currentUserText, anchorIndex, addenda...)
+	return prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, currentUserText, anchorIndex, false, addenda...)
 }
 
-func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, currentUserIndex int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, currentUserIndex int, cacheHit bool, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -138,6 +138,7 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 		}
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
 			Timestamp:       time.Now(),
+			CacheHit:        cacheHit,
 			InputChars:      promptResult.InputChars,
 			OutputChars:     len(promptResult.Text),
 			InputTokens:     promptResult.InputTokens,

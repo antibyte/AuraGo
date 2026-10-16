@@ -191,7 +191,8 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
+		localHit := profile != nil && (round > 0 || formatRetried || opts.PreparedPromptReused)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, localHit, addenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
 		}
@@ -209,7 +210,6 @@ func ExecuteMinimalLoop(
 			setRunDiscoverToolsState(dispatchCtx, all, req.Tools)
 		}
 		var err error
-		localHit := profile != nil && (round > 0 || formatRetried || opts.PreparedPromptReused)
 		callCtx, observe := observer.begin(ctx, req, prepared.ProviderType, profile.Revision(), localHit)
 		if opts != nil && opts.StreamText && noTools {
 			resp, err = minimalLoopStreamText(callCtx, client, req)
@@ -318,7 +318,7 @@ func ExecuteMinimalLoop(
 	} else {
 		req.Tools = nil
 	}
-	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
+	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, profile != nil, addenda...)
 	if err != nil {
 		return result, req.Messages, err
 	}
