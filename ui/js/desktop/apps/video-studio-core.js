@@ -25,6 +25,8 @@
     const PREF_QUALITY = 'aurago.videoStudio.previewQuality';
     const PREF_MEDIA_VIEW = 'aurago.videoStudio.mediaView';
     const PREF_MEDIA_SORT = 'aurago.videoStudio.mediaSort';
+    // Hidden per-viewer troubleshooting setting (no UI control): '2d' keeps the stage preview on the 2D painter.
+    const PREF_PREVIEW_ENGINE = 'aurago.videoStudio.previewEngine';
     // Colour labels: one palette, defined in video-studio-timeline.js (VideoStudioTimeline.LABEL_COLORS).
     const LABEL_COLORS = window.VideoStudioTimeline.LABEL_COLORS;
     const PREF_MAGNETIC = 'aurago.videoStudio.magnetic';
@@ -48,6 +50,9 @@
     function icon(name, size, cls) { return window.VideoStudioIcons ? window.VideoStudioIcons.svg(name, size || 16, cls) : ''; }
     function readPref(key) { try { return window.localStorage.getItem(key); } catch (_) { return null; } }
     function writePref(key, value) { try { window.localStorage.setItem(key, String(value)); } catch (_) { /* per-viewer convenience only */ } }
+    // The stage preview's painter request, P.previewEngine(s) (index §4.5): 'auto' (GL when available) unless the hidden
+    // per-viewer setting says '2d'. s is unused today; it keeps the contract's P.*(s) call shape.
+    function previewEngine(s) { return readPref(PREF_PREVIEW_ENGINE) === '2d' ? '2d' : 'auto'; }
     // Generated artwork files get readable names: the sticker's name or "Title".
     function assetDisplayName(s, asset) {
         const name = String(asset && asset.name || '');
@@ -540,5 +545,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, PREF_PREVIEW_ENGINE, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, previewEngine, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
 })();

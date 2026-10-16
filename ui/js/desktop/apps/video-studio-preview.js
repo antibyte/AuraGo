@@ -48,12 +48,31 @@
         // options.painter: 'auto' | 'gl' | '2d' (default '2d'). options.mediaURL(asset): the URL to play (a proxy), by
         // default asset.media_url; it still passes the same-origin check. The painter owns its canvas element, because a
         // canvas holds one context type only.
-        const painterChoice = options && (options.painter === 'auto' || options.painter === 'gl') ? options.painter : '2d';
         const pickURL = options && typeof options.mediaURL === 'function' ? options.mediaURL : null;
-        // Picks the painter for an element. The GL compositor joins here for painterChoice 'auto' and 'gl' (phase 2
-        // index §4.5); the 2D painter draws every other case and is the fallback.
-        function createPainter(element) { return window.VideoStudioPainter2D.create(element); }
-        let painter = createPainter(canvas);
+        // Painter selection (index §4.5): GL only when asked for ('auto' or 'gl'), WebGL2 exists and the compositor
+        // starts. A canvas that ever returned a WebGL context cannot give a 2D one, so after a failed GL attempt the 2D
+        // painter draws on a fresh shallow clone of the element (same attributes, including data-preview), which
+        // replaces it in the page. Nothing may cache the old element: callers re-query [data-preview].
+        const requestedPainter = options && (options.painter === 'auto' || options.painter === 'gl') ? options.painter : '2d';
+        function freshCanvas() {
+            const fresh = canvas.cloneNode(false);
+            if (canvas.parentNode) canvas.replaceWith(fresh);
+            canvas = fresh;
+        }
+        function glHooks() {
+            return { onLost() {}, onRestored() { if (!disposed) paint(frame); } };
+        }
+        function choosePainter() {
+            if (requestedPainter === '2d') return window.VideoStudioPainter2D.create(canvas);
+            const compositor = window.VideoStudioCompositor;
+            if (compositor && compositor.supported()) {
+                const gl = compositor.create(canvas, glHooks());
+                if (gl) return gl;
+                freshCanvas();
+            }
+            return window.VideoStudioPainter2D.create(canvas);
+        }
+        let painter = choosePainter();
         const sourceNodes = new Map(), gainNodes = new Map();
         let audioContext = null;
         let frame = 0, playing = false, raf = 0, playStartAt = 0, playStartFrame = 0, disposed = false;

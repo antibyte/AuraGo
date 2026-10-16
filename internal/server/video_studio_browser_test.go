@@ -66,6 +66,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-media.js"></script>
 <script src="/js/desktop/apps/video-studio-gl.js"></script>
 <script src="/js/desktop/apps/video-studio-shaders.js"></script>
+<script src="/js/desktop/apps/video-studio-compositor.js"></script>
 <script src="/js/desktop/apps/video-studio-painter2d.js"></script>
 <script src="/js/desktop/apps/video-studio-preview.js"></script>
 <script src="/js/desktop/apps/video-studio-timeline.js"></script>
@@ -153,10 +154,13 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 	wait(`() => VideoStudioApp.instances.get('e2e')?.project?.assets.length===1`)
 	page.MustElement(`[data-place-asset]`).MustClick()
 	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return s.project.tracks.some(t=>t.kind==='overlay'&&t.clips.length===1)&&!s.dirty;}`)
+	// The stage asks for the GL compositor, so a 2D context cannot be taken from the canvas: read the pixel through the
+	// preview instance, which reads whichever painter draws (Task 12 moves this to VideoStudioApp.capturePreview).
 	wait(`() => {
- const canvas=document.querySelector('[data-preview]'), ctx=canvas.getContext('2d');
- const pixel=ctx.getImageData(canvas.width/2,canvas.height/2,1,1).data;
- return pixel[2]>150 && pixel[1]>80 && pixel[0]<100;
+ const canvas=document.querySelector('[data-preview]'), s=VideoStudioApp.instances.get('e2e');
+ const shot=s.preview.capture({x:Math.floor(canvas.width/2),y:Math.floor(canvas.height/2),width:1,height:1});
+ const pixel=shot&&shot.data;
+ return !!pixel && pixel.length===4 && pixel[2]>150 && pixel[1]>80 && pixel[0]<100;
 }`)
 	page.MustEval(`() => {
  const clip=document.querySelector('.vs-clip'), rect=clip.getBoundingClientRect();
