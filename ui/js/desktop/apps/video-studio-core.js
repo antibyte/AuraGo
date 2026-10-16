@@ -236,7 +236,10 @@
         const target = redo ? s.history : s.redo;
         if (!source.length) return;
         target.push(snapshot(s));
+        const previous = s.project;
         s.project = hydrateProject(s, source.pop());
+        // The playhead keeps its time when an undo or redo changes the frame rate.
+        s.frame = window.VideoStudioTime.frameAtRate(s.frame, previous, s.project);
         if (s.selectedClipId && !T().clipFor(s.project, s.selectedClipId)) s.selectedClipId = '';
         P.resyncArtwork(s);
         s.dirty = true; s.revision++;

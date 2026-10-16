@@ -257,3 +257,29 @@ func TestVideoStudioTrackWiring(t *testing.T) {
 		t.Error("paste does not pass the target tracks")
 	}
 }
+
+func TestVideoStudioRateWiring(t *testing.T) {
+	projects, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-projects.js"))
+	if err != nil {
+		t.Fatalf("projects part: %v", err)
+	}
+	for _, want := range []string{"Time().rescaleFits(s.project, next.fps, next.ntsc)", "rateChangeLimit", "Time().frameAtRate(s.frame, before, next)"} {
+		if !bytes.Contains(projects, []byte(want)) {
+			t.Errorf("settings do not use %s", want)
+		}
+	}
+	core, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-core.js"))
+	if err != nil {
+		t.Fatalf("core: %v", err)
+	}
+	if !bytes.Contains(core, []byte("frameAtRate(s.frame, previous, s.project)")) {
+		t.Error("undo and redo do not keep the playhead's time")
+	}
+	jobs, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-jobs.js"))
+	if err != nil {
+		t.Fatalf("jobs: %v", err)
+	}
+	if !bytes.Contains(jobs, []byte("VideoStudioTime.clockSeconds")) {
+		t.Error("failure ranges do not use the hour-aware clock text")
+	}
+}

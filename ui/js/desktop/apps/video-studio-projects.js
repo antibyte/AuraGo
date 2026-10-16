@@ -50,16 +50,18 @@
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             const before = { fps: Number(s.project.fps) || 30, ntsc: !!s.project.ntsc };
             const rateChanged = next.fps !== before.fps || next.ntsc !== before.ntsc;
+            // A change that would push a clip past the 60-minute limit is refused before anything changes (the overlap
+            // message below is for clips that would collide).
+            if (rateChanged && !Time().rescaleFits(s.project, next.fps, next.ntsc)) return showNotice(s, 'rateChangeLimit', 'That frame rate would make the project longer than 60 minutes.', true);
             if (rateChanged && !(await s.ctx.confirmDialog(tr(s, 'changeRateTitle', 'Change the frame rate?'), tr(s, 'changeRateCopy', 'All clip times are rounded to {{rate}}. You can undo this.').replace('{{rate}}', Time().rateLabel(next, P.uiLocale()))))) return;
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            const ratio = Time().rate(next) / Time().rate(before);
             const renamed = !!next.name && next.name !== s.project.name;
             const ok = mutate(s, 'project settings', project => {
                 if (next.name) project.name = next.name;
                 project.width = next.width; project.height = next.height;
                 if (rateChanged) Time().rescaleProject(project, next.fps, next.ntsc);
             });
-            if (ok && rateChanged) { s.frame = Math.round(s.frame * ratio); s.preview.seek(s.frame); }
+            if (ok && rateChanged) { s.frame = Time().frameAtRate(s.frame, before, next); s.preview.seek(s.frame); }
             if (!ok && rateChanged) showNotice(s, 'rateChangeFailed', 'The frame rate could not be changed because some clips would overlap.', true);
             // The project list shows names from the server; refresh it once the new name is saved.
             if (ok && renamed) saveProject(s).then(() => loadProjects(s)).catch(() => {});

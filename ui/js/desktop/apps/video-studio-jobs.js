@@ -42,7 +42,7 @@
         renderJobs(s);
     }
     function fill(text, vars) { return Object.keys(vars || {}).reduce((out, key) => out.split('{{' + key + '}}').join(vars[key]), text); }
-    function clockSeconds(value) { const total = Math.max(0, Math.floor(Number(value) || 0)); return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0'); }
+    const clockSeconds = value => window.VideoStudioTime.clockSeconds(value);
     function jobFailure(job) {
         if (job.external_status_unknown && ['failed', 'cancelled', 'interrupted'].includes(job.status)) return ['generationStatusUnknown', 'The provider status is unclear; it may still be processing. Check its status before making another paid request.'];
         if (job.error === 'render_segment_failed') {
