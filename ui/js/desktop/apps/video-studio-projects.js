@@ -1,7 +1,8 @@
 (function () {
     'use strict';
 
-    // Project settings, the new-project dialog and the project manager ("All projects…": open, rename, delete).
+    // Project settings, the new-project dialog and the project manager ("All projects…": open, rename, duplicate, delete,
+    // and the versions of the open project).
     const P = window.VideoStudioParts = window.VideoStudioParts || {};
     const { CANVASES } = P;
     const canonicalProject = (...args) => P.canonicalProject(...args);
@@ -19,6 +20,7 @@
     const request = (...args) => P.request(...args);
     const saveProject = (...args) => P.saveProject(...args);
     const saveUntilClean = (...args) => P.saveUntilClean(...args);
+    const showConflict = (...args) => P.showConflict(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const switchProject = (...args) => P.switchProject(...args);
     const tr = (...args) => P.tr(...args);
@@ -58,6 +60,9 @@
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             const before = { fps: Number(s.project.fps) || 30, ntsc: !!s.project.ntsc };
             const rateChanged = next.fps !== before.fps || next.ntsc !== before.ntsc;
+            // Apply without a change records no undo step and does not touch the project.
+            const unchanged = (!next.name || next.name === s.project.name) && next.width === Number(s.project.width) && next.height === Number(s.project.height) && !rateChanged;
+            if (unchanged) return;
             // A change that would push a clip past the 60-minute limit is refused before anything changes (the overlap
             // message below is for clips that would collide).
             if (rateChanged && !Time().rescaleFits(s.project, next.fps, next.ntsc)) return showNotice(s, 'rateChangeLimit', 'That frame rate would make the project longer than 60 minutes.', true);
@@ -137,29 +142,37 @@
         return `<article class="vs-manager-row${current ? ' is-current' : ''}" role="listitem" data-manager-row="${esc(s, id)}"${current ? ' aria-current="true"' : ''}>`
             + `<span class="vs-manager-poster"${poster ? ` style="background-image:url('${esc(s, poster)}')"` : ''}>${poster ? '' : icon('film', 22)}</span>`
             + `<span class="vs-manager-main"><strong>${esc(s, storedName(s, item))}</strong><small>${esc(s, format)} · ${esc(s, length)}</small><small>${esc(s, tr(s, 'colStorage', 'Storage'))}: ${esc(s, storageText(item) || '–')} · ${esc(s, tr(s, 'colChanged', 'Last change'))}: ${esc(s, changedText(item))}</small></span>`
-            + `<span class="vs-manager-actions">${button('data-manager-open', 'openProject', 'Open', current)}${button('data-manager-rename', 'rename', 'Rename', s.readonly)}${button('data-manager-delete', 'delete', 'Delete', s.readonly, 'vs-danger')}</span></article>`;
+            + `<span class="vs-manager-actions">${button('data-manager-open', 'openProject', 'Open', current)}${button('data-manager-rename', 'rename', 'Rename', s.readonly)}${button('data-manager-duplicate', 'duplicate', 'Duplicate', s.readonly)}${button('data-manager-delete', 'delete', 'Delete', s.readonly, 'vs-danger')}</span></article>`;
     }
     function closeModal(s) { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); }
-    // All projects: poster, name, format, length, storage and last change, with open, rename and delete. `listed`
-    // reuses the list that was just loaded instead of asking for the sizes again.
+    function managerRows(s) { return (s.projects || []).map(item => projectRow(s, item)).join('') || `<p class="vs-hint">${esc(s, tr(s, 'noProjectsYet', 'No projects yet.'))}</p>`; }
+    // All projects: poster, name, format, length, storage and last change, with open, rename, duplicate and delete; the
+    // versions of the open project below. `listed` reuses the list that was just loaded instead of asking for the sizes again.
     async function openProjectManager(s, listed) {
         if (s.disposed || s.featureDisabled) return null;
         if (!listed) { try { await loadProjects(s, { sizes: true }); } catch (_) { /* the last list stays */ } }
         if (s.disposed) return null;
-        const rows = (s.projects || []).map(item => projectRow(s, item)).join('');
-        const host = openModal(s, `<section class="vs-modal vs-manager" role="dialog" aria-modal="true" aria-labelledby="vs-manager-title-${esc(s, s.id)}" data-manager><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><h2 id="vs-manager-title-${esc(s, s.id)}">${esc(s, tr(s, 'projectManagerTitle', 'All projects'))}</h2><p>${esc(s, tr(s, 'projectManagerIntro', 'Open, rename, duplicate or delete projects. Storage includes media, exports and versions.'))}</p><div class="vs-manager-list" role="list">${rows || `<p class="vs-hint">${esc(s, tr(s, 'noProjectsYet', 'No projects yet.'))}</p>`}</div><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'close', 'Close'))}</button></div></section>`);
+        const versions = s.projectId && s.project ? '' : `<p class="vs-hint">${esc(s, tr(s, 'versionsOpenFirst', 'Open this project to manage its versions.'))}</p>`;
+        const host = openModal(s, `<section class="vs-modal vs-manager" role="dialog" aria-modal="true" aria-labelledby="vs-manager-title-${esc(s, s.id)}" data-manager><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><h2 id="vs-manager-title-${esc(s, s.id)}">${esc(s, tr(s, 'projectManagerTitle', 'All projects'))}</h2><p>${esc(s, tr(s, 'projectManagerIntro', 'Open, rename, duplicate or delete projects. Storage includes media, exports and versions.'))}</p><div class="vs-manager-list" role="list">${managerRows(s)}</div><section class="vs-manager-versions" data-manager-versions>${versions}</section><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'close', 'Close'))}</button></div></section>`);
         // The listener sits on the dialog, not on the modal host the other dialogs share, so it goes away with it.
         const dialog = host.querySelector('[data-manager]');
         dialog.addEventListener('click', event => handleManagerClick(s, event));
         (dialog.querySelector('.vs-manager-actions button:not(:disabled)') || dialog.querySelector('.vs-modal-close')).focus();
+        if (s.projectId && s.project) renderVersions(s, dialog).catch(() => {});
         return dialog;
     }
+    // Shows the current project list in the open manager (after a background copy finished), keeping its versions panel.
+    function refreshManagerList(s) {
+        const list = s.q('[data-modal-host] [data-manager] .vs-manager-list');
+        if (list) list.innerHTML = managerRows(s);
+    }
     function handleManagerClick(s, event) {
-        const button = event.target.closest('[data-manager-open],[data-manager-rename],[data-manager-delete]');
+        const button = event.target.closest('[data-manager-open],[data-manager-rename],[data-manager-duplicate],[data-manager-delete]');
         if (!button || button.disabled) return;
-        const { managerOpen, managerRename, managerDelete } = button.dataset;
+        const { managerOpen, managerRename, managerDuplicate, managerDelete } = button.dataset;
         if (managerOpen) { closeModal(s); switchProject(s, managerOpen).catch(() => {}); }
         else if (managerRename) openRenameStoredProject(s, managerRename);
+        else if (managerDuplicate) openDuplicateProject(s, managerDuplicate);
         else if (managerDelete) deleteStoredProject(s, managerDelete).catch(() => {});
     }
     // A dialog opened from the manager returns to it when it is cancelled.
@@ -260,5 +273,155 @@
         openProjectManager(s, true).catch(() => {});
     }
 
-    Object.assign(P, { openProjectSettings, openNewProject, openProjectManager, openRenameStoredProject, deleteStoredProject, firstVisualAsset, handleManagerClick });
+    // ---- Duplicate ----
+
+    const DUPLICATE_TEXT = { duplicateTooLarge: 'The copy would exceed this project\'s storage limit.', duplicateNoSpace: 'There is not enough free disk space for the copy.', duplicateFailed: 'The project could not be copied.' };
+    function duplicateKey(code) { return code === 'duplicate_quota' ? 'duplicateTooLarge' : code === 'insufficient_disk_space' ? 'duplicateNoSpace' : 'duplicateFailed'; }
+    // Polls one job of any project until it ends; the jobs part's pollJob is bound to the open project. Returns the job,
+    // or null when the editor closed.
+    async function watchJob(s, jobId) {
+        while (!s.disposed) {
+            const response = await request(P.API + '/jobs/' + encodeURIComponent(jobId), { signal: s.abort.signal });
+            const job = response.body.job || response.body;
+            if (P.TERMINAL.includes(job.status)) return job;
+            await new Promise(resolve => window.setTimeout(resolve, 1200));
+        }
+        return null;
+    }
+    // Copies a saved project (project file, media and posters) in a background job. The size is shown first; the server
+    // checks the quota and the free space.
+    function openDuplicateProject(s, id) {
+        const item = storedItem(s, id);
+        if (!item || s.disposed) return;
+        if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return; }
+        const name = storedName(s, item), size = storageText(item);
+        const copy = size
+            ? fill(tr(s, 'duplicateCopy', 'Copies the project file, its media and posters. Exports, previews and versions are not copied. The copy needs {{size}}.'), { size })
+            : tr(s, 'duplicateCopyUnknown', 'Copies the project file, its media and posters. Exports, previews and versions are not copied. The size of the copy could not be measured.');
+        const host = openModal(s, `<form class="vs-modal" data-duplicate-form role="dialog" aria-modal="true" aria-labelledby="vs-duplicate-title-${esc(s, s.id)}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><span class="vs-modal-icon">${icon('copy', 22)}</span><h2 id="vs-duplicate-title-${esc(s, s.id)}">${esc(s, tr(s, 'duplicateTitle', 'Duplicate project'))}</h2><p data-duplicate-size>${esc(s, copy)}</p><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'duplicateNameLabel', 'Name of the copy'))}</span><input type="text" data-duplicate-name maxlength="120" required value="${esc(s, fill(tr(s, 'duplicateNameDefault', '{{name}} (copy)'), { name }).slice(0, 120))}"></label><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'cancel', 'Cancel'))}</button><button type="submit" class="vs-primary">${icon('copy', 16)}<span>${esc(s, tr(s, 'duplicateStart', 'Duplicate'))}</span></button></div></form>`);
+        backToManager(s, host);
+        const input = host.querySelector('[data-duplicate-name]');
+        input.select();
+        host.querySelector('[data-duplicate-form]').addEventListener('submit', event => {
+            event.preventDefault();
+            const copyName = input.value.trim().slice(0, 120);
+            closeModal(s);
+            if (copyName && !s.disposed) duplicateProject(s, id, copyName).catch(() => {});
+        });
+    }
+    async function duplicateProject(s, id, name) {
+        let job;
+        try {
+            const response = await request(P.API + '/projects/' + encodeURIComponent(id) + '/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': P.idempotencyKey() }, body: JSON.stringify({ kind: 'duplicate', name }), signal: s.abort.signal });
+            job = response.body.job || response.body;
+        } catch (error) {
+            if (s.disposed) return;
+            const key = duplicateKey(error.body && error.body.code);
+            showNotice(s, key, DUPLICATE_TEXT[key], true);
+            openProjectManager(s, true).catch(() => {});
+            return;
+        }
+        // The jobs list of the open project may show the copy too; the notices below are its only announcement.
+        s.notifiedJobs.add(job.id);
+        showNotice(s, 'duplicateStarted', 'The copy is being created. It appears in the project list when it is ready.', false);
+        openProjectManager(s, true).catch(() => {});
+        try {
+            const done = await watchJob(s, job.id);
+            if (!done || s.disposed) return;
+            if (done.status === 'succeeded') {
+                await loadProjects(s, { sizes: true }).catch(() => {});
+                if (s.disposed) return;
+                refreshManagerList(s);
+                showNotice(s, 'duplicateDone', 'Project copied.', false);
+            } else if (done.status !== 'cancelled') {
+                const key = duplicateKey(done.error);
+                showNotice(s, key, DUPLICATE_TEXT[key], true);
+            }
+        } catch (_) {
+            if (!s.disposed) showNotice(s, 'duplicateFailed', DUPLICATE_TEXT.duplicateFailed, true);
+        }
+    }
+
+    // ---- Versions of the open project ----
+
+    const VERSION_KINDS = { auto: ['versionAuto', 'Automatic'], manual: ['versionManual', 'Saved version'], before_restore: ['versionBeforeRestore', 'Before restore'] };
+    const RESTORE_TEXT = { versionNotFound: 'That version no longer exists.', versionMediaGone: 'This version uses media that was removed.', versionImportBusy: 'Media is still being imported. Try again when it is ready.', projectStorageFull: 'This project has reached its storage limit. Remove media or use another project.', versionRestoreFailed: 'The version could not be restored.' };
+    function versionRow(s, version) {
+        const kind = tr(s, ...(VERSION_KINDS[version.kind] || VERSION_KINDS.auto));
+        const date = new Date(version.created_at);
+        const facts = [version.label ? kind : '', Number.isNaN(date.getTime()) ? '' : date.toLocaleString(P.uiLocale(), { dateStyle: 'medium', timeStyle: 'short' }), P.formatBytes(version.size_bytes, P.uiLocale())].filter(Boolean).join(' · ');
+        return `<li class="vs-version-row" data-version-row="${esc(s, version.id)}"><span class="vs-version-main"><strong>${esc(s, version.label || kind)}</strong><small>${esc(s, facts)}</small></span><button type="button" data-version-restore="${esc(s, version.id)}"${s.readonly ? ' disabled' : ''}>${esc(s, tr(s, 'restoreVersion', 'Restore'))}</button></li>`;
+    }
+    // Automatic, manual and before-restore copies of the saved document, newest first (the server lists the oldest first).
+    async function renderVersions(s, host) {
+        const panel = host && host.querySelector('[data-manager-versions]');
+        if (!panel || !s.projectId || !s.project) return;
+        const projectId = s.projectId, epoch = s.projectEpoch;
+        const title = `<h3>${esc(s, tr(s, 'versionsTitle', 'Versions'))} · ${esc(s, s.project.name || tr(s, 'untitled', 'Untitled project'))}</h3>`;
+        let versions;
+        try {
+            versions = (await request(P.API + '/projects/' + encodeURIComponent(projectId) + '/versions', { signal: s.abort.signal })).body.versions || [];
+        } catch (_) {
+            if (panel.isConnected) panel.innerHTML = `${title}<p class="vs-hint">${esc(s, tr(s, 'versionsUnavailable', 'Versions could not be loaded.'))}</p>`;
+            return;
+        }
+        if (!panel.isConnected || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+        const rows = versions.slice().reverse().map(version => versionRow(s, version)).join('');
+        const off = s.readonly ? ' disabled' : '';
+        panel.innerHTML = `${title}<form class="vs-version-form" data-version-form><label class="vs-field"><span>${esc(s, tr(s, 'versionLabel', 'Label (optional)'))}</span><input type="text" data-version-label maxlength="120"${off}></label><button type="submit"${off}>${esc(s, tr(s, 'saveVersion', 'Save version now'))}</button></form>${rows ? `<ul class="vs-version-list">${rows}</ul>` : `<p class="vs-hint">${esc(s, tr(s, 'versionsEmpty', 'No versions yet.'))}</p>`}`;
+        panel.querySelector('[data-version-form]').addEventListener('submit', event => {
+            event.preventDefault();
+            event.target.querySelector('[type="submit"]').disabled = true;
+            saveVersion(s, host, panel.querySelector('[data-version-label]').value).catch(() => {});
+        });
+        panel.querySelectorAll('[data-version-restore]').forEach(button => button.addEventListener('click', () => { restoreVersion(s, button.dataset.versionRestore, host).catch(() => {}); }));
+    }
+    // "Save version now": the server copies the saved document, so pending titles and edits are saved first.
+    async function saveVersion(s, host, rawLabel) {
+        if (s.disposed || !s.projectId) return;
+        if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return; }
+        const projectId = s.projectId, label = String(rawLabel || '').trim().slice(0, 120);
+        await P.flushArtwork(s);
+        if (!(await saveUntilClean(s)) || projectId !== s.projectId) { renderVersions(s, host).catch(() => {}); return; }
+        try {
+            await request(P.API + '/projects/' + encodeURIComponent(projectId) + '/versions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(label ? { label } : {}), signal: s.abort.signal });
+            showNotice(s, 'versionSaved', 'Version saved.', false);
+        } catch (error) {
+            if (s.disposed) return;
+            if (error.status === 413) showNotice(s, 'projectStorageFull', RESTORE_TEXT.projectStorageFull, true);
+            else showNotice(s, 'versionSaveFailed', 'The version could not be saved.', true);
+        }
+        await renderVersions(s, host);
+    }
+    // Restores a version of the open project. The editor must be clean: it saves first and refuses when it stays dirty.
+    // The server keeps the replaced document as a before_restore version and answers the new ETag; the editor then opens
+    // the restored project like a project switch (new ETag, fresh undo history).
+    async function restoreVersion(s, versionId, host) {
+        if (s.disposed || !s.projectId) return;
+        if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return; }
+        if (!(await s.ctx.confirmDialog(tr(s, 'restoreVersionTitle', 'Restore this version?'), tr(s, 'restoreVersionCopy', 'Your changes are saved first, and the current state is kept as a version.'))) || s.disposed) return;
+        const projectId = s.projectId;
+        await P.flushArtwork(s);
+        const clean = await saveUntilClean(s);
+        if (s.disposed || projectId !== s.projectId) return;
+        if (!clean || s.dirty) { showNotice(s, 'versionRestoreDirty', 'Save your changes before restoring a version.', true); return; }
+        const epoch = s.projectEpoch;
+        try {
+            await request(P.API + '/projects/' + encodeURIComponent(projectId) + '/versions/' + encodeURIComponent(versionId) + '/restore', { method: 'POST', headers: { 'If-Match': s.etag }, signal: s.abort.signal });
+        } catch (error) {
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            if (error.status === 412 || error.status === 428) { s.conflict = true; await showConflict(s); return; }
+            const code = error.body && error.body.code;
+            const key = code === 'version_not_found' ? 'versionNotFound' : code === 'project_asset_invalid' ? 'versionMediaGone' : code === 'version_restore_dirty' ? 'versionImportBusy' : error.status === 413 ? 'projectStorageFull' : 'versionRestoreFailed';
+            showNotice(s, key, RESTORE_TEXT[key], true);
+            return;
+        }
+        if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+        if (host) host.closest('[data-modal-host]')?.replaceChildren();
+        try { await loadProject(s, projectId); }
+        catch (_) { showNotice(s, 'loadFailed', 'Could not load the current server version.', true); return; }
+        showNotice(s, 'versionRestored', 'Version restored.', false);
+    }
+
+    Object.assign(P, { openProjectSettings, openNewProject, openProjectManager, openRenameStoredProject, deleteStoredProject, firstVisualAsset, handleManagerClick, openDuplicateProject, renderVersions, restoreVersion, watchJob });
 })();
