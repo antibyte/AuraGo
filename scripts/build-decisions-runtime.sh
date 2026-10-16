@@ -28,6 +28,6 @@ name=aurago-decisions-runtime
 [[ "$target" == windows-* ]] && name=aurago-decisions-runtime.exe
 binary="$runtime_dir/$name"
 "$binary" --self-test-protocol
-"$binary" --discover | python -c 'import json,sys; x=json.load(sys.stdin); assert x["protocol"]=="aurago.decisions.v1" and x["build"]["llama_cpp_commit"]=="d81235049384534c167caea52b85a694f6103d14" and x["devices"]'
+"$binary" --discover | python -c 'import json,sys; x=json.load(sys.stdin); assert x["protocol"]=="aurago.decisions.v1" and x["build"]["llama_cpp_commit"]=="d81235049384534c167caea52b85a694f6103d14" and isinstance(x["devices"], list)'
 python "$repo/scripts/write-decisions-runtime-manifest.py" --binary "$binary" --target "$target" --backend "$backend"
 printf 'Built and locally verified %s\n' "$binary"

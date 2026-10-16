@@ -9,7 +9,13 @@ This small C++ service computes next-token logits for the pinned Jeff 2B GGUF mo
 - Model `jeff-2B.Q4_K_M.gguf`: SHA-256 `d4d9fbcf40345a1677dc92596c7c1e157fac5cba98e2a1b14ec92db94c67d46b`, size `1274396448`.
 - Projector `jeff-2B.mmproj.gguf`: SHA-256 `1601a51a07942318aacb7a7298847fe505f8beb592be37f538ab85577772bb68`, size `671372608`.
 
-Weights stay in the app-managed model store and are not included in source packages or images. A locally built runtime bundle contains `aurago-decisions-runtime[.exe]` and `release-manifest.json`; the manifest hashes the produced binary and includes the llama.cpp commit and safety-patch hash plus the model/projector source pins. It does not pretend that a local Docker image has a published immutable digest.
+Weights stay in the app-managed model store and are not included in source packages or images. A locally built runtime bundle contains `aurago-decisions-runtime[.exe]` and `release-manifest.json`; the manifest hashes the produced binary and includes the llama.cpp commit and safety-patch hash plus the model/projector source pins. Published v2 packages also inventory every redistributable library and license notice. The compiled application catalog pins their archives, manifests and GHCR image digests; local developer images do not substitute for published digest pins.
+
+End users use **Set up Decisions** in Configuration. The commands below are for
+runtime development and release builders. See [runtime publication](../documentation/decisions-runtime-release.md)
+for the six-platform build matrix, anonymous verification and the required
+generated catalog. Automatic installation remains unavailable until that release
+gate has been completed.
 
 ## Build locally
 

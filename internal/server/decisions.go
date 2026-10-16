@@ -108,6 +108,7 @@ func (s *Server) reconfigureDecisions(previous, next *config.Config) {
 	if next == nil {
 		return
 	}
+	setupActive := s.decisionsSetupConfigChanged(previous, next)
 	changed := previous == nil || previous.Decisions != next.Decisions
 	if router, ok := s.Decisions.(*routedDecisions); ok {
 		catalogCleanup := router.prepareCatalogConfiguration(next)
@@ -155,7 +156,7 @@ func (s *Server) reconfigureDecisions(previous, next *config.Config) {
 			}
 			return
 		}
-		if current := s.ConfigSnapshot(); current != nil && current.Decisions.Enabled {
+		if current := s.ConfigSnapshot(); !setupActive && current != nil && current.Decisions.Enabled {
 			s.startDecisions(localLLMLifecycleContext(s))
 		}
 	}()

@@ -56,3 +56,12 @@ func TestInstallationCheckHonorsCancellationAndDockerPolicy(t *testing.T) {
 		t.Fatalf("denied Docker check: %+v", check)
 	}
 }
+
+func TestInstallationCheckRecognizesManagedPackage(t *testing.T) {
+	data := t.TempDir()
+	manager := NewManager(config.DecisionsConfig{}, data, WithRuntimeDirectory(t.TempDir()))
+	writeTestRuntimeBundle(t, filepath.Join(data, "decisions", "runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), "cpu"), "cpu")
+	if result := manager.CheckInstallation(t.Context()); !result.RuntimeAvailable || result.Code != "" {
+		t.Fatalf("managed package: %+v", result)
+	}
+}

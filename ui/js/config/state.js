@@ -305,6 +305,22 @@
         return snapshot();
     }
 
+    // A section save must preserve other drafts and edits made while saving.
+    function commitSectionSent(section, config, sent) {
+        syncFromDOM();
+        const current = clone(read(draftConfig, section) || {});
+        write(savedConfig, section, config);
+        for (const key of Object.keys(sent)) {
+            if (same(current[key], sent[key])) current[key] = clone(config[key]);
+        }
+        write(draftConfig, section, current);
+        Array.from(changed).filter(path => path === section || path.startsWith(section + '.')).forEach(path => changed.delete(path));
+        new Set([...Object.keys(config), ...Object.keys(current)]).forEach(key => track(section + '.' + key));
+        restoreDOM();
+        notify();
+        return snapshot();
+    }
+
     function discard() {
         draftConfig = clone(savedConfig);
         changed.clear();
@@ -344,6 +360,7 @@
         setRules: setRules,
         commit: commit,
         commitSent: commitSent,
+        commitSectionSent: commitSectionSent,
         discard: discard,
         bind: bind,
         syncFromDOM: syncFromDOM,

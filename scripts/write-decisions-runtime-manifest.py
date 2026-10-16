@@ -20,6 +20,7 @@ def main() -> None:
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--backend", choices=("cpu", "cuda", "vulkan", "metal"), required=True)
+    parser.add_argument("--release", action="store_true", help="Inventory a complete flat redistributable package")
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
     digest = hashlib.sha256()
@@ -50,6 +51,27 @@ def main() -> None:
         ],
     }
     output = binary.parent / "release-manifest.json"
+    if args.release:
+        manifest["schema"] = "aurago.decisions.runtime-manifest.v2"
+        manifest["files"] = []
+        for member in sorted(binary.parent.iterdir()):
+            if member == output:
+                continue
+            if member.is_symlink() or not member.is_file():
+                raise ValueError(f"Release members must be regular files: {member.name}")
+            with member.open("rb") as stream:
+                sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+            manifest["files"].append({"file": member.name, "size_bytes": member.stat().st_size, "sha256": sha256})
+        manifest["build"]["required_system_components"] = {
+            "cpu": ["compatible operating system"], "cuda": ["compatible NVIDIA driver"],
+            "vulkan": ["compatible Vulkan device driver"], "metal": ["compatible macOS Metal device"]
+        }[args.backend]
+        manifest["build"]["required_system_components"].insert(0, {
+            "windows": "Windows 10/11 or Server 2022+", "linux": "glibc 2.39+ (Ubuntu 24.04 or compatible)",
+            "darwin": "macOS 14+"
+        }[args.target.split('-')[0]])
+        if args.target == "windows-arm64":
+            manifest["build"]["required_system_components"][0] = "Windows 11 arm64"
     temporary = output.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     temporary.replace(output)

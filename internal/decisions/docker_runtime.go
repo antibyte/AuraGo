@@ -62,6 +62,9 @@ func dockerBackendOrder() []string { return []string{"cuda", "vulkan", "cpu"} }
 func (docker *decisionsDocker) image(ctx context.Context, backend string) (dockerImageMetadata, error) {
 	var info dockerImageMetadata
 	image := "aurago-decisions-runtime:" + backend
+	if pinned := releaseRuntimeCatalog.image(backend); pinned != "" {
+		image = pinned
+	}
 	_, err := docker.client.DoJSON(ctx, http.MethodGet, "images/"+url.PathEscape(image)+"/json", nil, &info)
 	if err != nil {
 		return dockerImageMetadata{}, err
@@ -142,12 +145,17 @@ func discoverDockerDevices(ctx context.Context, access RuntimeAccess, paths mode
 
 func (docker *decisionsDocker) runDiscover(ctx context.Context, backend, imageID string, paths modelPaths, access RuntimeAccess, resolveSelf func(context.Context, string) (string, error)) ([]byte, error) {
 	name := "aurago-decisions-discover-" + backend + "-" + randomSuffix()
-	modelMount, _, err := dockerResolvedModelMount(ctx, docker, access, filepath.Dir(paths.Model), resolveSelf)
-	if err != nil {
-		return nil, err
+	var mounts []map[string]any
+	args := []string{"--discover"}
+	if paths.Model != "" {
+		modelMount, _, err := dockerResolvedModelMount(ctx, docker, access, filepath.Dir(paths.Model), resolveSelf)
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, modelMount)
+		args = append(args, "--model", "/models/"+filepath.Base(paths.Model))
 	}
-	args := []string{"--discover", "--model", "/models/" + filepath.Base(paths.Model)}
-	container, err := docker.createContainer(ctx, name, imageID, args, []map[string]any{modelMount}, dockerHostConfig(backend, "none", nil))
+	container, err := docker.createContainer(ctx, name, imageID, args, mounts, dockerHostConfig(backend, "none", nil))
 	if err != nil {
 		return nil, err
 	}

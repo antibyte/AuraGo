@@ -92,6 +92,8 @@ type Usage struct {
 
 // Status is a detached, safe-to-publish snapshot of the managed service.
 type Status struct {
+	SetupID            string      `json:"setup_id,omitempty"`
+	SetupActive        bool        `json:"setup_active,omitempty"`
 	Enabled            bool        `json:"enabled"`
 	Installed          bool        `json:"installed"`
 	Ready              bool        `json:"ready"`

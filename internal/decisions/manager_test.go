@@ -71,7 +71,7 @@ func (factory *testFactory) start(ctx context.Context, _ string, device runtimeD
 	return &testSession{metadataValue: metadataForDevice(device), closed: make(chan struct{})}, nil
 }
 
-func (factory *testFactory) install(context.Context, string, RuntimeAccess, string) error {
+func (factory *testFactory) install(context.Context, string, RuntimeAccess, string, bool, func(string, int64, int64)) error {
 	factory.installRuns++
 	return factory.installErr
 }

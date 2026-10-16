@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/fileutil"
+
 	"github.com/gofrs/flock"
 )
 
@@ -139,8 +141,11 @@ func (c *AssetCache) EnsureRuntime(ctx context.Context, spec AssetSpec) (string,
 		if err := c.ensureFileUnlocked(ctx, spec, archivePath); err != nil {
 			return err
 		}
-		if runtimeManifestMatches(target, spec) {
+		if runtimeManifestMatchesContext(ctx, target, spec) {
 			return nil
+		}
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 
 		if err := SafeRemoveAll(runtimesRoot, target); err != nil {
@@ -164,10 +169,10 @@ func (c *AssetCache) EnsureRuntime(ctx context.Context, spec AssetSpec) (string,
 			}
 		}()
 
-		if err := extractRuntimeArchive(spec, archivePath, tempTarget); err != nil {
+		if err := extractRuntimeArchiveContext(ctx, spec, archivePath, tempTarget); err != nil {
 			return fmt.Errorf("extract runtime %s: %w", spec.ID, err)
 		}
-		files, err := buildRuntimeFileManifest(tempTarget)
+		files, err := buildRuntimeFileManifestContext(ctx, tempTarget)
 		if err != nil {
 			return fmt.Errorf("inventory runtime %s: %w", spec.ID, err)
 		}
@@ -185,7 +190,7 @@ func (c *AssetCache) EnsureRuntime(ctx context.Context, spec AssetSpec) (string,
 		if err := os.WriteFile(filepath.Join(tempTarget, ".complete.json"), raw, 0o600); err != nil {
 			return fmt.Errorf("write runtime marker: %w", err)
 		}
-		if err := os.Rename(tempTarget, target); err != nil {
+		if err := fileutil.RenameContext(ctx, tempTarget, target); err != nil {
 			return fmt.Errorf("activate runtime directory: %w", err)
 		}
 		cleanup = false
@@ -220,11 +225,15 @@ func validateRuntimeArchiveKind(spec AssetSpec) error {
 }
 
 func extractRuntimeArchive(spec AssetSpec, archivePath, target string) error {
+	return extractRuntimeArchiveContext(context.Background(), spec, archivePath, target)
+}
+
+func extractRuntimeArchiveContext(ctx context.Context, spec AssetSpec, archivePath, target string) error {
 	switch spec.Kind {
 	case AssetZip:
-		return extractZipSecure(archivePath, target)
+		return extractZipSecureContext(ctx, archivePath, target)
 	case AssetTarGzip:
-		return extractTarGzipSecure(archivePath, target)
+		return extractTarGzipSecureContext(ctx, archivePath, target)
 	case AssetWheel:
 		return extractWheelMembers(archivePath, target, spec.Members)
 	default:
@@ -254,11 +263,14 @@ func (c *AssetCache) ensureFileUnlocked(ctx context.Context, spec AssetSpec, des
 	if err := ValidateAssetSpec(spec); err != nil {
 		return err
 	}
-	if FileMatches(destination, spec.Size, spec.SHA256) {
+	if fileMatchesContext(ctx, destination, spec.Size, spec.SHA256) {
 		if c.onProgress != nil {
 			c.onProgress(DownloadStatus{Asset: spec.ID, Downloaded: spec.Size, Total: spec.Size, Percent: 100})
 		}
 		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
 		return fmt.Errorf("create asset directory: %w", err)
@@ -311,11 +323,7 @@ func (c *AssetCache) ensureFileUnlocked(ctx context.Context, spec AssetSpec, des
 		_ = os.Remove(partPath)
 		return fmt.Errorf("download %s: SHA-256 %s, want %s", spec.ID, actualHash, spec.SHA256)
 	}
-	if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
-		_ = os.Remove(partPath)
-		return fmt.Errorf("replace invalid cached asset: %w", err)
-	}
-	if err := os.Rename(partPath, destination); err != nil {
+	if err := fileutil.RenameContext(ctx, partPath, destination); err != nil {
 		_ = os.Remove(partPath)
 		return fmt.Errorf("activate downloaded asset: %w", err)
 	}
@@ -366,7 +374,11 @@ func ValidateAssetSpec(spec AssetSpec) error {
 // FileMatches reports whether path is a regular file with the given size and
 // SHA-256.
 func FileMatches(path string, size int64, sha256Hex string) bool {
-	info, err := os.Stat(path)
+	return fileMatchesContext(context.Background(), path, size, sha256Hex)
+}
+
+func fileMatchesContext(ctx context.Context, path string, size int64, sha256Hex string) bool {
+	info, err := os.Lstat(path)
 	if err != nil || !info.Mode().IsRegular() || info.Size() != size {
 		return false
 	}
@@ -376,13 +388,17 @@ func FileMatches(path string, size int64, sha256Hex string) bool {
 	}
 	defer file.Close()
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err := io.Copy(hash, &assetContextReader{ctx, file}); err != nil {
 		return false
 	}
 	return strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), sha256Hex)
 }
 
 func runtimeManifestMatches(root string, spec AssetSpec) bool {
+	return runtimeManifestMatchesContext(context.Background(), root, spec)
+}
+
+func runtimeManifestMatchesContext(ctx context.Context, root string, spec AssetSpec) bool {
 	raw, err := os.ReadFile(filepath.Join(root, ".complete.json"))
 	if err != nil {
 		return false
@@ -459,7 +475,7 @@ func runtimeManifestMatches(root string, spec AssetSpec) bool {
 		}
 		file, ok := expected[relative]
 		if !ok || !info.Mode().IsRegular() || info.Size() != file.Size ||
-			!FileMatches(entryPath, file.Size, file.SHA256) {
+			!fileMatchesContext(ctx, entryPath, file.Size, file.SHA256) {
 			return fmt.Errorf("runtime entry %s failed manifest validation", relative)
 		}
 		seen[relative] = true
@@ -469,6 +485,10 @@ func runtimeManifestMatches(root string, spec AssetSpec) bool {
 }
 
 func buildRuntimeFileManifest(root string) ([]runtimeManifestFile, error) {
+	return buildRuntimeFileManifestContext(context.Background(), root)
+}
+
+func buildRuntimeFileManifestContext(ctx context.Context, root string) ([]runtimeManifestFile, error) {
 	var files []runtimeManifestFile
 	err := filepath.WalkDir(root, func(entryPath string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -488,7 +508,7 @@ func buildRuntimeFileManifest(root string) ([]runtimeManifestFile, error) {
 		if err != nil {
 			return err
 		}
-		hash, err := hashFile(entryPath)
+		hash, err := hashFileContext(ctx, entryPath)
 		if err != nil {
 			return err
 		}
@@ -509,13 +529,17 @@ func buildRuntimeFileManifest(root string) ([]runtimeManifestFile, error) {
 }
 
 func hashFile(filePath string) (string, error) {
+	return hashFileContext(context.Background(), filePath)
+}
+
+func hashFileContext(ctx context.Context, filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err := io.Copy(hash, &assetContextReader{ctx, file}); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
@@ -553,12 +577,19 @@ func archiveSuffix(kind AssetKind) string {
 }
 
 func extractZipSecure(archivePath, target string) error {
+	return extractZipSecureContext(context.Background(), archivePath, target)
+}
+
+func extractZipSecureContext(ctx context.Context, archivePath, target string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("open zip: %w", err)
 	}
 	defer reader.Close()
 	for _, entry := range reader.File {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if entry.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("zip entry %q is a symlink", entry.Name)
 		}
@@ -588,7 +619,7 @@ func extractZipSecure(archivePath, target string) error {
 			source.Close()
 			return fmt.Errorf("create zip output: %w", err)
 		}
-		_, copyErr := io.Copy(destinationFile, source)
+		_, copyErr := io.Copy(destinationFile, &assetContextReader{ctx, source})
 		closeDestinationErr := destinationFile.Close()
 		closeSourceErr := source.Close()
 		if copyErr != nil {
@@ -605,6 +636,10 @@ func extractZipSecure(archivePath, target string) error {
 }
 
 func extractTarGzipSecure(archivePath, target string) error {
+	return extractTarGzipSecureContext(context.Background(), archivePath, target)
+}
+
+func extractTarGzipSecureContext(ctx context.Context, archivePath, target string) error {
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("open tar.gz: %w", err)
@@ -617,6 +652,9 @@ func extractTarGzipSecure(archivePath, target string) error {
 	defer gzipReader.Close()
 	reader := tar.NewReader(gzipReader)
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		header, err := reader.Next()
 		if err == io.EOF {
 			return nil
@@ -642,7 +680,7 @@ func extractTarGzipSecure(archivePath, target string) error {
 			if err != nil {
 				return fmt.Errorf("create tar output: %w", err)
 			}
-			_, copyErr := io.Copy(destinationFile, reader)
+			_, copyErr := io.Copy(destinationFile, &assetContextReader{ctx, reader})
 			closeErr := destinationFile.Close()
 			if copyErr != nil {
 				return fmt.Errorf("extract tar entry: %w", copyErr)

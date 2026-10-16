@@ -20,6 +20,7 @@ $buildDir = Join-Path $repo "bin/decisions-runtime/build-$Target-$Backend"
 New-Item -ItemType Directory -Force $runtimeDir, $buildDir | Out-Null
 $configure = @('-S', $source, '-B', $buildDir, ('-DAURAGO_RUNTIME_BACKEND=' + $Backend), ('-DAURAGO_RUNTIME_OUTPUT_DIR=' + $runtimeDir), ('-DCMAKE_BUILD_TYPE=' + $BuildType), '-DCMAKE_TRY_COMPILE_CONFIGURATION=Release')
 if ($Generator) { $configure += @('-G', $Generator) }
+if (($IsWindows -or $env:OS -eq 'Windows_NT') -and (!$Generator -or $Generator.StartsWith('Visual Studio')) -and !(Test-Path (Join-Path $buildDir 'CMakeCache.txt'))) { $configure += @('-A', $(if ($Target.EndsWith('-arm64')) { 'ARM64' } else { 'x64' })) }
 $localSource = Join-Path $repo 'bin/decisions-runtime/llama-src'
 if (Test-Path (Join-Path $localSource '.git')) { $configure += ('-DFETCHCONTENT_SOURCE_DIR_LLAMA_CPP=' + $localSource) }
 & cmake @configure
@@ -34,7 +35,7 @@ if ($LASTEXITCODE -ne 0) { throw "Runtime protocol self-test failed ($LASTEXITCO
 $discoverText = & $binary --discover
 if ($LASTEXITCODE -ne 0) { throw "Runtime discovery self-test failed ($LASTEXITCODE)" }
 $discover = $discoverText | ConvertFrom-Json
-if ($discover.protocol -ne 'aurago.decisions.v1' -or $discover.build.llama_cpp_commit -ne 'd81235049384534c167caea52b85a694f6103d14' -or $discover.devices.Count -lt 1) {
+if ($discover.protocol -ne 'aurago.decisions.v1' -or $discover.build.llama_cpp_commit -ne 'd81235049384534c167caea52b85a694f6103d14' -or $null -eq $discover.devices) {
     throw 'Runtime discovery output did not match the pinned protocol.'
 }
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) { throw 'Python 3 is required to write the release manifest.' }

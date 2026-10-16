@@ -19,8 +19,9 @@ import (
 const runtimeManifestSchema = "aurago.decisions.runtime-manifest.v1"
 
 type runtimeManifest struct {
-	Schema   string `json:"schema"`
-	Protocol string `json:"protocol"`
+	Schema   string                `json:"schema"`
+	Protocol string                `json:"protocol"`
+	Files    []runtimeManifestFile `json:"files,omitempty"`
 	Build    struct {
 		Target              string `json:"target"`
 		Backend             string `json:"backend"`
@@ -40,6 +41,12 @@ type runtimeManifest struct {
 		SHA256    string `json:"sha256"`
 		SizeBytes int64  `json:"size_bytes"`
 	} `json:"models"`
+}
+
+type runtimeManifestFile struct {
+	File   string `json:"file"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size_bytes"`
 }
 
 func runtimeTarget(goos, goarch string) string {
@@ -62,6 +69,13 @@ func validateRuntimeManifest(ctx context.Context, directory, backend string, goo
 		return "", "", err
 	}
 	manifestPath := filepath.Join(directory, "release-manifest.json")
+	info, err := os.Lstat(manifestPath)
+	if err != nil {
+		return "", "", err
+	}
+	if !info.Mode().IsRegular() || info.Size() > 1<<20 {
+		return "", "", fmt.Errorf("invalid runtime manifest file")
+	}
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return "", "", err
@@ -70,7 +84,7 @@ func validateRuntimeManifest(ctx context.Context, directory, backend string, goo
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return "", "", fmt.Errorf("decode runtime release manifest")
 	}
-	if manifest.Schema != runtimeManifestSchema || manifest.Protocol != runtimeProtocol ||
+	if (manifest.Schema != runtimeManifestSchema && manifest.Schema != "aurago.decisions.runtime-manifest.v2") || manifest.Protocol != runtimeProtocol ||
 		manifest.Build.Target != runtimeTarget(goos, goarch) || manifest.Build.Backend != backend || manifest.Build.LlamaCPPCommit != llamaCPPCommit ||
 		manifest.Build.LlamaCPPPatchSHA256 != llamaCPPPatchSHA256 ||
 		manifest.Artifact.File != executableName(goos) || manifest.Artifact.SizeBytes <= 0 || !validSHA256(manifest.Artifact.SHA256) {
@@ -92,8 +106,13 @@ func validateRuntimeManifest(ctx context.Context, directory, backend string, goo
 	if !modelFound || !projectorFound {
 		return "", "", fmt.Errorf("runtime manifest does not pin both model files")
 	}
+	if manifest.Schema == "aurago.decisions.runtime-manifest.v2" {
+		if err := validateRuntimeFiles(ctx, directory, manifest); err != nil {
+			return "", "", err
+		}
+	}
 	binaryPath := filepath.Join(directory, manifest.Artifact.File)
-	info, err := os.Lstat(binaryPath)
+	info, err = os.Lstat(binaryPath)
 	if err != nil {
 		return "", "", err
 	}
@@ -206,7 +225,25 @@ func copyVerifiedRuntimeBundle(ctx context.Context, sourceDir, destinationDir st
 	if err := os.MkdirAll(destinationDir, 0o700); err != nil {
 		return err
 	}
-	for _, name := range []string{executableName(runtime.GOOS), "release-manifest.json"} {
+	raw, err := os.ReadFile(filepath.Join(sourceDir, "release-manifest.json"))
+	if err != nil {
+		return err
+	}
+	var manifest runtimeManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return err
+	}
+	names := []string{executableName(runtime.GOOS)}
+	if manifest.Schema == "aurago.decisions.runtime-manifest.v2" {
+		if err := validateRuntimeFiles(ctx, sourceDir, manifest); err != nil {
+			return err
+		}
+		names = nil
+		for _, entry := range manifest.Files {
+			names = append(names, entry.File)
+		}
+	}
+	for _, name := range append(names, "release-manifest.json") {
 		source := filepath.Join(sourceDir, name)
 		destination := filepath.Join(destinationDir, name)
 		if err := copyAtomic(ctx, source, destination); err != nil {

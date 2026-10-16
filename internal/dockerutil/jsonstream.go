@@ -40,6 +40,12 @@ func (e *JSONMessageError) Error() string {
 // the stream runs; callers bound the duration with their context or client
 // timeout.
 func DrainJSONMessages(r io.Reader) error {
+	return DrainJSONMessagesWithProgress(r, nil)
+}
+
+// DrainJSONMessagesWithProgress retains the stream error checks and reports
+// per-layer download bytes. Callbacks must not block the stream reader.
+func DrainJSONMessagesWithProgress(r io.Reader, progress func(id string, current, total int64)) error {
 	if r == nil {
 		return errors.New("Docker message stream is missing")
 	}
@@ -59,6 +65,12 @@ func DrainJSONMessages(r io.Reader) error {
 			continue
 		}
 		var event struct {
+			ID       string `json:"id"`
+			Status   string `json:"status"`
+			Progress struct {
+				Current int64 `json:"current"`
+				Total   int64 `json:"total"`
+			} `json:"progressDetail"`
 			Error       string `json:"error"`
 			ErrorDetail struct {
 				Message string `json:"message"`
@@ -80,6 +92,9 @@ func DrainJSONMessages(r io.Reader) error {
 		}
 		if msg := strings.TrimSpace(event.Error); msg != "" {
 			return &JSONMessageError{Message: msg}
+		}
+		if progress != nil && event.Status == "Downloading" && event.ID != "" && event.Progress.Total > 0 && event.Progress.Current >= 0 && event.Progress.Current <= event.Progress.Total {
+			progress(event.ID, event.Progress.Current, event.Progress.Total)
 		}
 	}
 	if err := scanner.Err(); err != nil {

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/onnxrt"
 )
 
 type managedRuntimeFactory struct {
@@ -29,14 +30,14 @@ func newManagedRuntimeFactory(options managerOptions) runtimeFactory {
 	return &managedRuntimeFactory{options: options}
 }
 
-func (factory *managedRuntimeFactory) install(ctx context.Context, deployment string, access RuntimeAccess, dataDir string) error {
+func (factory *managedRuntimeFactory) install(ctx context.Context, deployment string, access RuntimeAccess, dataDir string, cpuAllowed bool, progress func(string, int64, int64)) error {
 	if deployment == config.DecisionsDeploymentDocker {
 		if !dockerMayMutate(access) {
 			return NewError(CodeDeploymentDenied, nil)
 		}
-		return verifyLocalDockerRuntimeImages(ctx, access, runtimeBackends(runtime.GOOS))
+		return ensureDockerRuntimeImages(ctx, access, cpuAllowed, progress)
 	}
-	return provisionNativeRuntime(ctx, runtimeBuildDirectory(factory.options), filepath.Join(dataDir, "decisions", "runtime"))
+	return ensureNativeRuntime(ctx, runtimeBuildDirectory(factory.options), filepath.Join(dataDir, "decisions", "runtime"), cpuAllowed, progress)
 }
 
 func (factory *managedRuntimeFactory) discover(ctx context.Context, deployment string, access RuntimeAccess, paths modelPaths, dataDir string) ([]runtimeDevice, error) {
@@ -60,6 +61,7 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 	}
 	devices := make([]runtimeDevice, 0)
 	checked := false
+	executed := false
 	managedTarget := filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH))
 	_, managedErr := os.Stat(managedTarget)
 	searchManaged := managedErr == nil
@@ -71,13 +73,24 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 		if searchManaged {
 			candidates = []string{filepath.Join(managedTarget, backend)}
 		}
+		if entry, ok := releaseRuntimeCatalog.native(runtime.GOOS, runtime.GOARCH, backend); ok {
+			candidates = append([]string{onnxrt.RuntimeDir(filepath.Join(managedRoot, "packages"), entry.asset())}, candidates...)
+		}
 		for _, directory := range candidates {
+			if err := validateDownloadedRuntime(ctx, directory, backend); err != nil {
+				continue
+			}
 			binary, digest, err := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH)
 			if err != nil {
 				continue
 			}
 			checked = true
-			command := exec.CommandContext(ctx, binary, "--discover", "--model", modelPath)
+			args := []string{"--discover"}
+			if modelPath != "" {
+				args = append(args, "--model", modelPath)
+			}
+			command := exec.CommandContext(ctx, binary, args...)
+			onnxrt.ConfigureWorkerCommand(command, directory)
 			configureHiddenProcess(command)
 			command.Stdout = nil
 			output, err := command.Output()
@@ -103,6 +116,7 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 				!strings.EqualFold(result.Build.Backend, backend) || !strings.EqualFold(result.Build.BinarySHA256, digest) {
 				continue
 			}
+			executed = true
 			for _, device := range result.Devices {
 				if device.ID == "" || device.Name == "" || !strings.EqualFold(device.Backend, backend) {
 					continue
@@ -125,6 +139,9 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 	}
 	if len(devices) == 0 && !checked {
 		return nil, NewError(CodeRuntimeArtifactMissing, fmt.Errorf("no verified native runtime bundles are installed"))
+	}
+	if checked && !executed {
+		return nil, NewError("runtime_dependencies_missing", nil)
 	}
 	return devices, nil
 }
@@ -164,6 +181,7 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 	}
 	commandCtx, cancel := context.WithCancel(ctx)
 	command := exec.CommandContext(commandCtx, device.BinaryPath, args...)
+	onnxrt.ConfigureWorkerCommand(command, filepath.Dir(device.BinaryPath))
 	configureHiddenProcess(command)
 	command.Stdout = io.Discard
 	startupStderr := &nativeStartupStderr{}

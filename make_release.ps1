@@ -423,7 +423,7 @@ Write-Host "[5/5] Cleaning up old releases (keeping latest 3)..." -ForegroundCol
 
 try {
     $releases = gh release list --limit 20 --json tagName | ConvertFrom-Json
-    $toDelete = $releases | Select-Object -Skip 3
+    $toDelete = $releases | Where-Object { $_.tagName -match '^v[0-9]' } | Select-Object -Skip 3
     foreach ($rel in $toDelete) {
         Write-Host "    Deleting old release: $($rel.tagName)" -ForegroundColor Gray
         gh release delete $rel.tagName --yes --cleanup-tag 2>$null

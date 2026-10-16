@@ -66,9 +66,17 @@ attestation, request validation, candidate-logit normalization, and status.
   Explicit Install also stops an active generation before runtime files can
   be provisioned or replaced; user-facing install controls should make that
   effect clear.
+- Setup is a single server-owned operation: save only Decisions settings, acquire
+  the pinned runtime/model, start, and validate a text score before publishing
+  ready. A low score is valid. HTTP disconnects do not cancel accepted setup;
+  stop, saved policy changes and shutdown do. Setup suppresses duplicate autostart.
 - Downloads are resumable but are published only after exact size and SHA-256
-  verification. Native runtime bundles are local release-manifest packages;
-  verify the pinned build identity and binary digest before provisioning.
+  verification. Native runtime bundles use a compiled release catalog with fixed
+  archive and manifest hashes; v2 inventories include every library and license.
+  Published Docker images use compiled immutable digests and need no BUILD grant.
+  Developer bundles remain supported. Never invent missing release pins. See
+  `documentation/decisions-runtime-release.md` for the publication gate.
+  Verify the pinned build identity and binary digest before provisioning.
   Publish with `fileutil.RenameContext` without deleting the existing target.
   Verification and publication must observe cancellation; failed replacement
   preserves the previous file.

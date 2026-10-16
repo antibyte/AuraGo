@@ -402,7 +402,7 @@ for %%F in (
 REM -- [5/5] Cleanup old releases
 echo.
 echo [5/5] Cleaning up old releases (keeping latest 3)...
-for /f "skip=3 tokens=*" %%T in ('gh release list --limit 20 --json tagName --jq ".[].tagName" 2^>nul') do (
+for /f "skip=3 tokens=*" %%T in ('gh release list --limit 20 --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
     echo     Deleting: %%T
     gh release delete "%%T" --yes --cleanup-tag 2>nul
 )

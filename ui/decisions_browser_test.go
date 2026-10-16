@@ -222,7 +222,7 @@ func TestDecisionsLifecycleFeedbackBrowser(t *testing.T) {
 	page.MustEval(`async()=>{document.querySelector('[data-path="decisions.enabled"]').click();await saveConfig();}`)
 	page.MustEval(`()=>document.querySelector('[data-decisions-action="check"]').click()`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-action="install"]')?.disabled===false`)
-	if !page.MustEval(`()=>document.querySelector('[data-decisions-settings] a[href*="decisions_runtime/README.md"]')?.textContent.includes('Anleitung') && document.querySelector('[data-decisions-check]').textContent.includes('linux-amd64')`).Bool() {
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-settings] a[href*="documentation/decisions.md"]')?.textContent.includes('Anleitung') && document.querySelector('[data-decisions-check]').textContent.includes('linux-amd64')`).Bool() {
 		t.Fatal("runtime prerequisites are not discoverable before installation")
 	}
 	page.MustEval(`()=>document.querySelector('[data-decisions-action="install"]').click()`)

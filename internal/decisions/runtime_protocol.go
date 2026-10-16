@@ -15,7 +15,7 @@ const maxRuntimeRequestBytes = 40 << 20
 type runtimeFactory interface {
 	discover(context.Context, string, RuntimeAccess, modelPaths, string) ([]runtimeDevice, error)
 	start(context.Context, string, runtimeDevice, modelPaths, config.DecisionsConfig, RuntimeAccess, string, func(string)) (runtimeSession, error)
-	install(context.Context, string, RuntimeAccess, string) error
+	install(context.Context, string, RuntimeAccess, string, bool, func(string, int64, int64)) error
 }
 
 type runtimeSession interface {

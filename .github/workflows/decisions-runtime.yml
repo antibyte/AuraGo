@@ -1,0 +1,138 @@
+name: Build and publish Decisions runtimes
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Immutable runtime version (major.minor.patch)
+        required: true
+        type: string
+      publish:
+        description: Publish successfully verified artifacts
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: decisions-runtime-release
+  cancel-in-progress: false
+jobs:
+  native:
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: windows-2022, target: windows-amd64, arch: amd64, backend: cpu}
+          - {runner: windows-2022, target: windows-amd64, arch: amd64, backend: vulkan}
+          - {runner: windows-2022, target: windows-amd64, arch: amd64, backend: cuda}
+          - {runner: windows-11-arm, target: windows-arm64, arch: arm64, backend: cpu}
+          - {runner: windows-11-arm, target: windows-arm64, arch: arm64, backend: vulkan}
+          - {runner: ubuntu-24.04, target: linux-amd64, arch: amd64, backend: cpu}
+          - {runner: ubuntu-24.04, target: linux-amd64, arch: amd64, backend: vulkan}
+          - {runner: ubuntu-24.04, target: linux-amd64, arch: amd64, backend: cuda}
+          - {runner: ubuntu-24.04-arm, target: linux-arm64, arch: arm64, backend: cpu}
+          - {runner: ubuntu-24.04-arm, target: linux-arm64, arch: arm64, backend: vulkan}
+          - {runner: ubuntu-24.04-arm, target: linux-arm64, arch: arm64, backend: cuda}
+          - {runner: macos-15-intel, target: darwin-amd64, arch: amd64, backend: cpu}
+          - {runner: macos-15-intel, target: darwin-amd64, arch: amd64, backend: metal}
+          - {runner: macos-14, target: darwin-arm64, arch: arm64, backend: cpu}
+          - {runner: macos-14, target: darwin-arm64, arch: arm64, backend: metal}
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUNTIME_VERSION: ${{ inputs.version }}
+      RUNTIME_TARGET: ${{ matrix.target }}
+      RUNTIME_BACKEND: ${{ matrix.backend }}
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate release identifier
+        shell: python {0}
+        run: |
+          import os, re
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', os.environ['RUNTIME_VERSION'])
+      - name: Test package verification
+        run: python scripts/decisions/test_release_catalog.py
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends cmake ninja-build g++ python3 libvulkan-dev glslc spirv-headers
+      - name: Install pinned Windows Vulkan SDK
+        if: runner.os == 'Windows' && matrix.backend == 'vulkan'
+        shell: pwsh
+        run: ./scripts/decisions/install-vulkan-sdk.ps1 -Architecture '${{ matrix.arch }}'
+      - uses: Jimver/cuda-toolkit@3d45d157f327c09c04b50ee6ccdea2d9d017ec76 # v0.2.35
+        if: matrix.backend == 'cuda'
+        with:
+          cuda: '12.9.1'
+          method: network
+          sub-packages: ${{ runner.os == 'Linux' && '["toolkit"]' || '["nvcc", "cudart", "cublas", "cublas_dev", "visual_studio_integration"]' }}
+      - name: Build Windows runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-decisions-runtime.ps1 -Backend $env:RUNTIME_BACKEND -Target $env:RUNTIME_TARGET
+      - name: Build Unix runtime
+        if: runner.os != 'Windows'
+        run: bash scripts/build-decisions-runtime.sh --backend "$RUNTIME_BACKEND" --target "$RUNTIME_TARGET"
+      - name: Package and test without SDK search paths
+        shell: bash
+        run: python scripts/decisions/package-runtime.py --target "$RUNTIME_TARGET" --backend "$RUNTIME_BACKEND" --version "$RUNTIME_VERSION"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: decisions-${{ matrix.target }}-${{ matrix.backend }}
+          path: artifacts/
+          if-no-files-found: error
+  publish:
+    needs: native
+    if: inputs.publish && github.repository == 'antibyte/AuraGo'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      packages: write
+    env:
+      RUNTIME_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: decisions-*
+          path: artifacts
+          merge-multiple: true
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Reject an existing immutable release
+        run: |
+          if gh release view "decisions-runtime-v$RUNTIME_VERSION" >/dev/null 2>&1; then
+            echo 'This version already exists. Use a new version; never replace its assets.' >&2
+            exit 1
+          fi
+      - name: Prepare verified image contents
+        run: python scripts/decisions/release-catalog.py --version "$RUNTIME_VERSION" --directory artifacts --prepare-images images
+      - name: Reserve the immutable version and publish native assets
+        run: gh release create "decisions-runtime-v$RUNTIME_VERSION" artifacts/*.zip artifacts/decisions-*.json --prerelease --latest=false --target "$GITHUB_SHA" --title "Decisions runtime $RUNTIME_VERSION" --notes "Native packages passed protocol tests. Publication is complete only after anonymous archive and multi-architecture image verification. GPU qualification is separate."
+      - name: Publish both Docker architectures
+        run: |
+          for backend in cuda vulkan cpu; do
+            docker buildx build --platform linux/amd64,linux/arm64 --build-arg BACKEND="$backend" -f scripts/decisions/Dockerfile --push --provenance=false --metadata-file "artifacts/docker-$backend.json" -t "ghcr.io/antibyte/aurago-decisions-runtime:$RUNTIME_VERSION-$backend" images
+          done
+      - name: Verify anonymous access and generate application pins
+        run: python scripts/decisions/release-catalog.py --version "$RUNTIME_VERSION" --directory artifacts --verify-published --write
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: decisions-verified-catalog
+          path: |
+            internal/decisions/runtime_catalog_generated.go
+            artifacts/runtime-catalog.json
+          if-no-files-found: error

@@ -31,6 +31,7 @@ type Manager struct {
 	options           managerOptions
 	factory           runtimeFactory
 	resolveModelPaths func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
+	installModelPaths func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
 	session           runtimeSession
 	sessionStop       context.CancelFunc
 	operationCancel   context.CancelFunc
@@ -71,6 +72,26 @@ func NewManager(cfg config.DecisionsConfig, dataDir string, options ...ManagerOp
 		cleanupChanged: make(chan struct{}),
 	}
 	manager.lastAccess = managerOpts.access()
+	manager.installModelPaths = func(ctx context.Context, dataDir string, progress func(string, int64, int64)) (modelPaths, error) {
+		root := filepath.Join(dataDir, "decisions", "models")
+		var needed int64
+		for _, artifact := range []Artifact{DefaultManifest().Model, DefaultManifest().Projector} {
+			info, err := os.Lstat(filepath.Join(root, artifact.Filename))
+			if err != nil || !info.Mode().IsRegular() || info.Size() != artifact.Size {
+				remaining := artifact.Size
+				if partial, err := partialFileSize(filepath.Join(root, artifact.Filename+".part")); err == nil && partial <= artifact.Size {
+					remaining -= partial
+				}
+				needed += remaining
+			}
+		}
+		if needed > 0 {
+			if err := requireRuntimeDiskSpace(root, needed); err != nil {
+				return modelPaths{}, err
+			}
+		}
+		return newArtifactCache(root, managerOpts.httpClient, progress).ensure(ctx, DefaultManifest())
+	}
 	if managerOpts.runtimeFactory != nil {
 		manager.factory = managerOpts.runtimeFactory()
 	} else {
@@ -302,6 +323,12 @@ func (manager *Manager) Install(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
+	_, err = manager.installArtifacts(ctx, operationID, false)
+	return err
+}
+
+func (manager *Manager) installArtifacts(ctx context.Context, operationID uint64, setup bool) (modelPaths, error) {
+	callerCtx := ctx
 	manager.mu.RLock()
 	cfg := manager.cfg
 	manager.mu.RUnlock()
@@ -309,42 +336,61 @@ func (manager *Manager) Install(ctx context.Context) error {
 	deployment, err := deploymentForInstall(cfg, access)
 	if err != nil {
 		manager.setInstallError(err)
-		return err
+		return modelPaths{}, err
 	}
 	// Verify or provision the pinned runtime first. A missing local native
 	// bundle or Docker image should fail before downloading the 2 GB model.
 	manager.setState("installing", "", Progress{Phase: "verifying_runtime"})
-	err = manager.factory.install(ctx, deployment, access, manager.dataDir)
+	err = manager.factory.install(ctx, deployment, access, manager.dataDir, cfg.CPUFallbackAllowed, func(phase string, current, total int64) {
+		manager.updateProgress(operationID, phase, current, total)
+	})
+	if ctx.Err() != nil {
+		return modelPaths{}, NewError(CodeCancelled, ctx.Err())
+	}
 	if err != nil {
 		if ErrorCode(err) == CodeInferenceFailed {
 			err = NewError(CodeRuntimeArtifactMissing, err)
 		}
 		manager.setInstallError(err)
-		return err
+		return modelPaths{}, err
+	}
+	if setup {
+		manager.setState("discovering_devices", "", Progress{Phase: "verifying_runtime"})
+		devices, err := manager.factory.discover(ctx, deployment, access, modelPaths{}, manager.dataDir)
+		if err == nil {
+			usable := false
+			for _, device := range devices {
+				if !strings.EqualFold(device.Type, "CPU") || cfg.CPUFallbackAllowed {
+					usable = true
+				}
+			}
+			if !usable {
+				code := CodeHardwareUnavailable
+				if !cfg.CPUFallbackAllowed {
+					code = CodeCPUConsentRequired
+				}
+				err = NewError(code, nil)
+			}
+		}
+		if err != nil {
+			manager.setInstallError(err)
+			return modelPaths{}, err
+		}
 	}
 	manager.setState("installing", "", Progress{Phase: "verifying_model"})
 	progress := func(phase string, current, total int64) { manager.updateProgress(operationID, phase, current, total) }
-	cache := newArtifactCache(filepath.Join(manager.dataDir, "decisions", "models"), manager.options.httpClient, progress)
-	paths, err := cache.ensure(ctx, DefaultManifest())
+	paths, err := manager.installModelPaths(ctx, manager.dataDir, progress)
 	if ctx.Err() != nil {
-		return NewError(CodeCancelled, cancellationCause(callerCtx))
+		return modelPaths{}, NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
 	if err != nil {
 		manager.setInstallError(err)
-		return err
-	}
-	if _, err := validateInstalledModelPaths(ctx, filepath.Dir(paths.Model), DefaultManifest(), progress); err != nil {
-		if ctx.Err() != nil {
-			return NewError(CodeCancelled, cancellationCause(callerCtx))
-		}
-		wrapped := WrapError(CodeModelIntegrityFailed, err)
-		manager.setInstallError(wrapped)
-		return wrapped
+		return modelPaths{}, err
 	}
 	manager.mu.Lock()
 	if ctx.Err() != nil || manager.closed || !manager.cfg.Enabled || manager.operationID != operationID || manager.operationCancel == nil {
 		manager.mu.Unlock()
-		return NewError(CodeCancelled, cancellationCause(callerCtx))
+		return modelPaths{}, NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
 	manager.status.Installed = true
 	manager.status.State = "installed"
@@ -352,7 +398,7 @@ func (manager *Manager) Install(ctx context.Context) error {
 	manager.status.ErrorMessage = ""
 	manager.status.Progress = Progress{Phase: "complete", Current: 1, Total: 1, Percent: 100}
 	manager.mu.Unlock()
-	return nil
+	return paths, nil
 }
 
 // AutoStart starts only a previously installed model; startup never downloads.
@@ -420,6 +466,21 @@ func (manager *Manager) AutoStart(ctx context.Context) error {
 // Start discovers only real accelerator devices first. CPU is selected only
 // when the current configuration contains persistent explicit consent.
 func (manager *Manager) Start(ctx context.Context) error {
+	return manager.start(ctx, false)
+}
+
+// Setup installs and starts under one lifecycle lock and cancellation generation.
+func (manager *Manager) Setup(ctx context.Context) error {
+	if err := manager.waitForCleanup(ctx); err != nil {
+		return NewError(CodeCancelled, err)
+	}
+	return manager.start(ctx, true)
+}
+
+func (manager *Manager) start(ctx context.Context, setup bool) error {
+	if err := ctx.Err(); err != nil {
+		return NewError(CodeCancelled, err)
+	}
 	if !manager.lifecycle.TryLock() {
 		return NewError(CodeLifecycleBusy, nil)
 	}
@@ -451,10 +512,18 @@ func (manager *Manager) Start(ctx context.Context) error {
 	manager.mu.RLock()
 	startPolicyGeneration := manager.policyGeneration
 	manager.mu.RUnlock()
-	manager.setState("starting", "", Progress{Phase: "verifying_model"})
-	paths, err := manager.resolveModelPaths(ctx, manager.dataDir, func(phase string, current, total int64) {
-		manager.updateProgress(operationID, phase, current, total)
-	})
+	var paths modelPaths
+	if setup {
+		paths, err = manager.installArtifacts(ctx, operationID, true)
+		if err != nil {
+			return err
+		}
+	} else {
+		manager.setState("starting", "", Progress{Phase: "verifying_model"})
+		paths, err = manager.resolveModelPaths(ctx, manager.dataDir, func(phase string, current, total int64) {
+			manager.updateProgress(operationID, phase, current, total)
+		})
+	}
 	if ctx.Err() != nil {
 		return NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
@@ -605,6 +674,19 @@ func (manager *Manager) Start(ctx context.Context) error {
 		}
 		manager.setRuntimeError(lastErr)
 		return lastErr
+	}
+	if setup {
+		manager.updateProgress(operationID, "testing_runtime", 0, 0)
+		probeCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		err := verifySetupScore(probeCtx, session, metadata, chosen, deployment, cfg.CPUFallbackAllowed)
+		cancel()
+		if err != nil {
+			closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = session.Close(closeCtx)
+			closeCancel()
+			manager.setRuntimeError(err)
+			return err
+		}
 	}
 	manager.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
@@ -1127,6 +1209,9 @@ func (manager *Manager) setRuntimeError(err error) {
 }
 
 func (manager *Manager) beginOperation(parent context.Context) (context.Context, context.CancelFunc, uint64, func() bool, error) {
+	if err := parent.Err(); err != nil {
+		return nil, nil, 0, nil, NewError(CodeCancelled, err)
+	}
 	operationCtx, cancel := context.WithCancel(context.Background())
 	stopParent := context.AfterFunc(parent, cancel)
 	manager.mu.Lock()

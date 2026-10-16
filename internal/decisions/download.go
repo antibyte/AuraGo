@@ -244,6 +244,10 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 		} else {
 			current = 0
 		}
+		if err := requireRuntimeDiskSpace(cache.root, artifact.Size-current); err != nil {
+			_ = response.Body.Close()
+			return err
+		}
 		flags := os.O_CREATE | os.O_WRONLY
 		if current == 0 {
 			flags |= os.O_TRUNC

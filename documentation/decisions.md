@@ -10,61 +10,57 @@ sends bounded task text and may incur cost, booked once under `routing`.
 
 ## Setup and permissions
 
-For local processing, open **Configuration → Decisions**, enable the service,
-select **On the AuraGo server** and its deployment under **Run mode and CPU permission**,
-and save. `auto` selects a native process for a native AuraGo installation and a
-managed container when AuraGo itself runs in Docker. Container management also
-requires the existing Docker enable/write permissions.
+For local processing, open **Configuration → Decisions**, select **On the
+AuraGo server**, and click **Set up Decisions**. This enables the local feature,
+saves its deployment and explicit CPU permission, installs the runtime and model,
+starts the service, and runs a fixed text probe. Other unsaved settings are kept.
+The model and image projector need approximately 2 GB; runtime packages and
+temporary extraction space are additional. No compiler or CUDA SDK is required
+on the user's machine. Compatible graphics drivers remain a prerequisite.
 
-The local setup has three steps: **Check setup → Download model → Start service**.
-The explicit check reads the trusted runtime bundle or local Docker image
-metadata and shows the resolved deployment and native platform. It neither
-downloads files nor starts a process, container or inference, and can be used
-before enabling Decisions. It checks package prerequisites, not GPU suitability.
-The download button requires a successful check; changed deployment drafts
-invalidate that result and must be saved before checking again.
+The phases show system/runtime checks, runtime download, model download,
+verification, loading/warmup, and a function check. Download and hashing phases
+show bytes when measurable; loading uses an activity indicator. **Decisions is
+ready** appears only after actual device attestation and a valid score response.
+Low confidence in that probe does not indicate an installation failure.
 
-**Download model** verifies the runtime bundle and downloads the model plus
-image projector (about 1.9 GB) with progress. Successful installation shows
-**Model downloaded and verified**; it does not make the service ready.
-**Start service** loads one resident model
-for all callers and grants readiness only after device attestation.
-**Test decision** runs a small explicit text test; merely opening settings only
-reads status. **Stop** stops the process or container. Disabling the feature
-cancels requests and stops it while preserving verified downloads.
-Editing unrelated provider connections does not restart a stopped local runtime.
-Reinstalling stops a loaded runtime before replacing its files. A runtime or
-device failure retires the active generation and cancels queued work; **Start**
-performs device selection again. The failed evaluation is never silently replayed.
+**Cancel** stops the whole setup. Closing the page leaves the server-owned
+operation running, and reopening it restores progress from status. Duplicate
+clicks do not start another installation. Disabling Decisions, revoking CPU
+permission, changing its saved deployment or Docker permissions, and server
+shutdown cancel the current operation and prevent a delayed start. Verified
+downloads remain reusable. Setup repairs missing or damaged files.
 
-Runtime bundles must be built and packaged from the pinned native source under
-[`decisions_runtime`](../decisions_runtime/). Local native bundles are staged in
-`bin/decisions-runtime/<os>-<arch>/<backend>/` under the trusted AuraGo install
-directory. The manager provisions verified bundles into its data directory.
-Docker requires a locally built, verified image; a mutable tag alone never
-establishes a trusted running image. There are no fabricated remote release URLs
-or automatic pulls of an unpinned runtime. A missing bundle is a setup error.
-Install does not build the runtime or pull a Docker image. On Windows, prepare
-the matching bundle with `scripts/build-decisions-runtime.ps1 -Backend vulkan`
-or `-Backend cuda` before installing. Docker expects the corresponding local
-`aurago-decisions-runtime:<backend>` image. See the
-[runtime README](../decisions_runtime/README.md#build-locally) for toolchain,
-build and packaging commands.
+Under **Run mode and CPU permission**, `auto` selects a native process for a
+native AuraGo installation and a managed container when AuraGo itself runs in
+Docker. Containers require existing Docker enable/write permissions. The Docker
+socket proxy keeps `BUILD=0`: setup pulls published digest-pinned images and
+does not build them. GPU/iGPU is preferred; CPU and mixed operation require the
+separate explicitly selected, saved permission. A missing accelerator opens
+that setting and explains the choice.
 
-For example, a native Linux x86-64 server using a supported AMD or Intel GPU
-needs a Linux Vulkan bundle, not a Windows executable. Build with
-`scripts/build-decisions-runtime.sh --backend vulkan` on a compatible Linux
-machine with the documented toolchain, then place the complete package in
-`bin/decisions-runtime/linux-amd64/vulkan/` under the server's AuraGo install
-directory. Both `aurago-decisions-runtime` and `release-manifest.json` are
-required. The presence of a GPU render device alone does not prove runtime
-compatibility. CPU execution still requires separate saved permission.
+After setup, **Test decision** runs another explicit text test; merely opening
+settings only reads status. **Stop** stops the process or container. Advanced
+options retain the independent check, installation, and start actions for
+diagnosis and compatibility. Installation alone leaves the service installed;
+it does not grant readiness. Reinstallation stops a serving generation before
+replacing files. Evaluation failures never silently replay the request or change
+the active backend.
 
-Installation and start may return HTTP 202 while work continues. The settings
-keep the operation pending and show its eventual success or failure. File
-verification reports byte progress; model loading and warmup show the current
-phase without a fabricated percentage. Stop cancels either operation, including
-verification. Failed replacement leaves the previous artifact in place.
+Runtime downloads are authorized exclusively by the catalog compiled into
+AuraGo: fixed release URLs, archive sizes/hashes, manifest hashes and Docker
+digests. Versioned packages are fully verified, including all bundled libraries,
+before execution. New runtime versions have separate directories. File hashing
+and extraction observe cancellation, and Windows file replacement uses the shared
+retry handling. User requests cannot choose download URLs or runtime paths.
+
+**Release integration gate:** this source change requires the generated runtime
+catalog from a successfully published and anonymously verified runtime release.
+Until that catalog is present, a missing runtime reports
+`runtime_release_unavailable`; automatic installation is not delivered by source
+code alone. See [runtime publication](decisions-runtime-release.md). Locally
+built, verified developer bundles and existing local Docker images remain usable
+for development; they are not a prerequisite of the published installation flow.
 
 Each runtime launch has a five-minute readiness budget after AuraGo's own file
 verification. This includes the runtime's independent hashes, loading and first
@@ -198,6 +194,7 @@ The authenticated administrator API provides:
 | --- | --- | --- |
 | GET | `/api/decisions/status` | Passive status and actual runtime/device metadata |
 | GET | `/api/decisions/models?provider=<saved-id>` | Explicit external decision-model catalog lookup |
+| POST | `/api/decisions/setup` | Save local Decisions settings, install, start, and verify; returns 202 with operation ID |
 | POST | `/api/decisions/install` | Start managed installation |
 | POST | `/api/decisions/check` | Read local installation prerequisites; no download, start or inference |
 | POST | `/api/decisions/start` | Start the installed service |
@@ -205,7 +202,9 @@ The authenticated administrator API provides:
 | POST | `/api/decisions/test` | Explicit text evaluation |
 | POST | `/api/decisions/evaluate` | Evaluate authorized input |
 
-Example body:
+Setup accepts `{ "deployment": "auto", "cpu_fallback_allowed": false }`. CPU permission must be explicitly present. Its response contains `setup_id` and the saved `decisions` section; status adds `setup_id`, `setup_active`, and phase/byte progress. The legacy endpoints remain supported.
+
+Evaluation example:
 
 ```json
 {

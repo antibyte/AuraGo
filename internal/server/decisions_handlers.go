@@ -18,7 +18,7 @@ type decisionsAPIRequest struct {
 }
 
 func registerDecisionsRoutes(mux *http.ServeMux, s *Server) {
-	for _, action := range []string{"status", "models", "check", "install", "start", "stop", "test", "evaluate"} {
+	for _, action := range []string{"status", "models", "check", "setup", "install", "start", "stop", "test", "evaluate"} {
 		mux.Handle("/api/decisions/"+action, requireAdmin(s, handleDecisions(s, action)))
 	}
 }
@@ -46,6 +46,10 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		if action == "setup" {
+			s.handleDecisionsSetup(w, r)
+			return
+		}
 		if action == "check" {
 			if cfg := s.ConfigSnapshot(); cfg != nil && cfg.Decisions.Backend == "provider" {
 				writeDecisionsError(w, "provider_lifecycle_unavailable", http.StatusConflict)
@@ -82,7 +86,7 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		if action == "status" {
-			writeDecisionsJSON(w, http.StatusOK, s.Decisions.Status())
+			writeDecisionsJSON(w, http.StatusOK, s.decisionsSetupStatus())
 			return
 		}
 		if action == "install" || action == "start" {
@@ -100,6 +104,7 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 				writeDecisionsError(w, decisions.CodeLifecycleBusy, http.StatusConflict)
 				return
 			}
+			s.cancelDecisionsSetup()
 			// Installation and model loading outlive the HTTP request, but never the server.
 			// Answer only after a transitional state is visible, or with the
 			// operation's own error if that arrives first.
@@ -155,6 +160,7 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
 		if action == "stop" {
+			s.cancelDecisionsSetup()
 			if err := s.Decisions.Stop(ctx); err != nil {
 				writeDecisionsFailure(w, err)
 				return
