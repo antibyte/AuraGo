@@ -17,7 +17,7 @@
     const clipKeys = ['id', 'name', 'start', 'length', 'notes', 'controllers'];
     const noteKeys = ['id', 'pitch', 'start', 'duration', 'velocity'];
     const controllerKeys = ['tick', 'type', 'value'];
-    const paramKeys = ['tone', 'attack', 'release', 'reverb', 'delay'];
+    const paramKeys = ['tone', 'resonance', 'drive', 'attack', 'release', 'chorus', 'phaser', 'reverb', 'delay'];
     const presetKeys = ['drums-kit', 'gm-drums'];
 
     function error(code, message) {
@@ -194,6 +194,28 @@
         return result;
     }
 
+    function optionalParam(params, key, min, max, fallback = 0) {
+        if (!Object.prototype.hasOwnProperty.call(params, key)) return fallback;
+        return number(params[key], `track.params.${key}`, min, max);
+    }
+
+    function defaultParamsFor(instrument) {
+        const catalog = root.SynthStudioPresets;
+        const preset = catalog && typeof catalog.get === 'function' ? catalog.get(instrument) : null;
+        const fx = (preset && preset.patch && preset.patch.fx) || {};
+        return {
+            tone: typeof fx.tone === 'number' ? fx.tone : 0.5,
+            resonance: typeof fx.resonance === 'number' ? fx.resonance : 0,
+            drive: typeof fx.drive === 'number' ? fx.drive : 0,
+            attack: typeof fx.attack === 'number' ? fx.attack : 0.01,
+            release: typeof fx.release === 'number' ? fx.release : 0.3,
+            chorus: typeof fx.chorus === 'number' ? fx.chorus : 0,
+            phaser: typeof fx.phaser === 'number' ? fx.phaser : 0,
+            reverb: typeof fx.reverb === 'number' ? fx.reverb : 0,
+            delay: typeof fx.delay === 'number' ? fx.delay : 0
+        };
+    }
+
     function validate(value) {
         let source = value;
         if (typeof source === 'string') {
@@ -239,8 +261,12 @@
                 solo: bool(required(track, 'solo', 'track'), 'track.solo'),
                 params: {
                     tone: number(required(params, 'tone', 'track.params'), 'track.params.tone', 0, 1),
+                    resonance: optionalParam(params, 'resonance', 0, 1, 0),
+                    drive: optionalParam(params, 'drive', 0, 1, 0),
                     attack: number(required(params, 'attack', 'track.params'), 'track.params.attack', 0, 10),
                     release: number(required(params, 'release', 'track.params'), 'track.params.release', 0, 30),
+                    chorus: optionalParam(params, 'chorus', 0, 1, 0),
+                    phaser: optionalParam(params, 'phaser', 0, 1, 0),
                     reverb: number(required(params, 'reverb', 'track.params'), 'track.params.reverb', 0, 1),
                     delay: number(required(params, 'delay', 'track.params'), 'track.params.delay', 0, 1)
                 },
@@ -292,7 +318,7 @@
             pan: 0,
             mute: false,
             solo: false,
-            params: { tone: 0.5, attack: 0.01, release: 0.3, reverb: 0, delay: 0 },
+            params: defaultParamsFor(instrument),
             clips: []
         };
         project.tracks.push(track);
@@ -365,11 +391,20 @@
     function demo() {
         const project = create('Neon Sketch');
         project.tempo = 112;
-        for (const pattern of [patterns[0], patterns[2], patterns[4], patterns[6], patterns[8]]) {
+        const fxProfiles = [
+            { pan: 0, params: { tone: 0.72, resonance: 0.12, drive: 0.18, attack: 0.005, release: 0.18, chorus: 0, phaser: 0, reverb: 0.12, delay: 0 } },
+            { pan: -0.08, params: { tone: 0.48, resonance: 0.34, drive: 0.26, attack: 0.008, release: 0.16, chorus: 0.14, phaser: 0, reverb: 0.08, delay: 0.1 } },
+            { pan: 0.18, params: { tone: 0.76, resonance: 0.24, drive: 0.16, attack: 0.01, release: 0.22, chorus: 0.32, phaser: 0.14, reverb: 0.28, delay: 0.24 } },
+            { pan: -0.25, params: { tone: 0.58, resonance: 0.18, drive: 0.08, attack: 0.28, release: 0.65, chorus: 0.48, phaser: 0.28, reverb: 0.44, delay: 0.18 } },
+            { pan: 0.22, params: { tone: 0.82, resonance: 0.15, drive: 0.12, attack: 0.006, release: 0.28, chorus: 0.3, phaser: 0.18, reverb: 0.26, delay: 0.2 } }
+        ];
+        [patterns[0], patterns[2], patterns[4], patterns[6], patterns[8]].forEach((pattern, idx) => {
             const track = addTrack(project, pattern.instrument);
             track.name = pattern.name;
+            track.pan = fxProfiles[idx].pan;
+            track.params = { ...track.params, ...fxProfiles[idx].params };
             for (let bar = 0; bar < 4; bar++) track.clips.push(cloneClip(pattern.clip, bar * BAR));
-        }
+        });
         return validate(project);
     }
 
@@ -398,5 +433,5 @@
         };
     }
 
-    return { PPQ, BAR, newID: randomId, create, validate, addTrack, createClip, patterns, demo, events, endTick, clone, cloneClip, history };
+    return { PPQ, BAR, newID: randomId, create, validate, addTrack, defaultParamsFor, createClip, patterns, demo, events, endTick, clone, cloneClip, history };
 });

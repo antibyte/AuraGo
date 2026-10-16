@@ -240,6 +240,22 @@ async function main() {
     expectCode(() => Model.addTrack(project, 'gm-drums'), 'E_PROJECT_LIMIT');
     assert.equal(Model.validate(project).tracks.length, 16);
 
+    const legacyProject = Model.create('Legacy Params');
+    const legacyTrack = Model.addTrack(legacyProject, 'gm-0');
+    legacyTrack.params = { tone: 0.5, attack: 0.01, release: 0.3, reverb: 0.1, delay: 0.2 };
+    const validatedLegacy = Model.validate(legacyProject);
+    assert.equal(validatedLegacy.tracks[0].params.resonance, 0);
+    assert.equal(validatedLegacy.tracks[0].params.drive, 0);
+    assert.equal(validatedLegacy.tracks[0].params.chorus, 0);
+    assert.equal(validatedLegacy.tracks[0].params.phaser, 0);
+    legacyTrack.params = { ...validatedLegacy.tracks[0].params, resonance: 0.65, drive: 0.4, chorus: 0.5, phaser: 0.3 };
+    const validatedFx = Model.validate(legacyProject);
+    assert.equal(validatedFx.tracks[0].params.resonance, 0.65);
+    assert.equal(validatedFx.tracks[0].params.drive, 0.4);
+    assert.equal(validatedFx.tracks[0].params.chorus, 0.5);
+    assert.equal(validatedFx.tracks[0].params.phaser, 0.3);
+    expectCode(() => Model.validate({ ...legacyProject, tracks: [{ ...legacyTrack, params: { ...legacyTrack.params, drive: 1.5 } }] }), 'E_PROJECT_NUMBER');
+
     const demo = Model.demo();
     assert.equal(demo.tracks.length, 5);
     equalJSON(demo.tracks.map(track => track.clips.map(clip => clip.start)), Array.from({ length: 5 }, () => [0, 1920, 3840, 5760]));

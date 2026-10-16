@@ -112,9 +112,12 @@
 .ss-inspector {min-width:0;overflow:auto;padding:14px 12px;border-left:1px solid var(--ss-border);background:var(--ss-panel);scrollbar-width:thin}
 .ss-inspector h3 {margin:0 0 12px;font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--ss-muted)}
 .ss-inspector>input {width:100%;margin-bottom:14px}
-.ss-inspector>label {display:flex;flex-direction:column;gap:6px;color:var(--ss-muted);font-size:10px;margin-bottom:16px}
+.ss-inspector>label {display:flex;flex-direction:column;gap:6px;color:var(--ss-muted);font-size:10px;margin-bottom:14px}
+.ss-param-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 8px;margin-bottom:14px}
+.ss-parameter {display:flex;flex-direction:column;gap:4px;color:var(--ss-muted);font-size:10px;min-width:0}
+.ss-parameter>span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ss-inspector select {width:100%;color:var(--ss-text)}
-.ss-mini-keys {display:flex;margin:20px 0 15px;border:1px solid var(--ss-border);border-radius:4px;overflow:hidden}
+.ss-mini-keys {display:flex;margin:16px 0 14px;border:1px solid var(--ss-border);border-radius:4px;overflow:hidden}
 .ss-mini-keys button {flex:1;padding:22px 0 3px;border-radius:0;min-width:0;font-size:9px;border-right:1px solid var(--ss-border);color:var(--ss-muted);background:color-mix(in srgb,var(--ss-text) 7%,var(--ss-panel))}
 .ss-delete-track {font-size:10px!important;color:#d99094!important;border:1px solid var(--ss-border)!important;width:100%}
 .ss-help {font-size:10px;color:var(--ss-muted);line-height:1.8;margin:18px 0 0}

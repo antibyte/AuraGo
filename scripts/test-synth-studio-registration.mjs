@@ -63,7 +63,7 @@ assert.match(routeFiles, /aurasynth:\s*'synth-studio'/);
 const locales = ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 const english = JSON.parse(readFileSync('ui/lang/desktop/en.json', 'utf8'));
 const translatedKeys = Object.keys(english).filter(key => key.startsWith('synthStudio.')).sort();
-assert.equal(translatedKeys.length, 103, 'all current Synth Studio labels and pattern names are translated');
+assert.equal(translatedKeys.length, 107, 'all current Synth Studio labels and pattern names are translated');
 for (const locale of locales) {
     const dictionary = JSON.parse(readFileSync('ui/lang/desktop/' + locale + '.json', 'utf8'));
     assert.deepEqual(Object.keys(dictionary).filter(key => key.startsWith('synthStudio.')).sort(), translatedKeys, locale + ' has the complete Synth Studio section');

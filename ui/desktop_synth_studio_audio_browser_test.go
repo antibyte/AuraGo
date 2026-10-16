@@ -45,13 +45,13 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  const check=(condition,message)=>{if(!condition)throw Error(message)};
  const catalog=window.SynthStudioPresets;
  check(catalog.categories.length===5,'five preset categories');
- check(catalog.presets.length===50,'50 curated presets');
- check(['drums','bass','leads','pads','keys'].every(category=>catalog.presets.filter(p=>p.category===category).length===10),'10 presets in each category');
+ check(catalog.presets.length===80,'80 curated presets');
+ check(['drums','bass','leads','pads','keys'].every(category=>catalog.presets.filter(p=>p.category===category).length===16),'16 presets in each category');
  check(catalog.gm.length===128&&catalog.gm[0].id==='gm-0'&&catalog.gm[127].id==='gm-127','128 GM melodic patches');
- check(catalog.drums.length===10&&catalog.get('drum-shaker').drumNote===70,'ten standard-note kit sounds');
+ check(catalog.drums.length===16&&catalog.get('drum-shaker').drumNote===70&&catalog.get('drum-cowbell').drumNote===56,'sixteen standard-note kit sounds');
  check(window.SynthStudioGMData.drums.length===47,'GM drum map spans notes 35 through 81');
 
- const makeProject=(instrument,notes)=>({version:1,name:'Audio test',tempo:120,ppq:480,beatsPerBar:4,loop:{enabled:false,start:0,end:0},tracks:[{id:'track',name:'Track',instrument,volume:0.8,pan:0,mute:false,solo:false,params:{tone:0.5,attack:0.01,release:0.12,reverb:0,delay:0},clips:[{id:'clip',name:'Clip',start:0,length:notes.length?notes.at(-1).start+notes.at(-1).duration:0,notes,controllers:[]}]}]});
+ const makeProject=(instrument,notes)=>({version:1,name:'Audio test',tempo:120,ppq:480,beatsPerBar:4,loop:{enabled:false,start:0,end:0},tracks:[{id:'track',name:'Track',instrument,volume:0.8,pan:0,mute:false,solo:false,params:{tone:0.5,resonance:0,drive:0,attack:0.01,release:0.12,chorus:0,phaser:0,reverb:0,delay:0},clips:[{id:'clip',name:'Clip',start:0,length:notes.length?notes.at(-1).start+notes.at(-1).duration:0,notes,controllers:[]}]}]});
  const render=(instrument,notes)=>window.SynthStudioAudio.renderWav(makeProject(instrument,notes));
  const readPCM=async blob=>{
    const bytes=await blob.arrayBuffer(),view=new DataView(bytes);
@@ -99,6 +99,11 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  let difference=0;
  for(let i=0;i<Math.min(saw.samples.length,bell.samples.length);i++)difference+=Math.abs(saw.samples[i]-bell.samples[i]);
  check(difference>100000,'different presets render distinct timbres');
+
+ const fxProj=makeProject('lead-supersaw',one);
+ fxProj.tracks[0].params={tone:0.7,resonance:0.5,drive:0.45,attack:0.01,release:0.15,chorus:0.55,phaser:0.4,reverb:0.25,delay:0.2};
+ const fxRendered=await readPCM(await window.SynthStudioAudio.renderWav(fxProj));
+ check(fxRendered.rms(0.05,0.18)>0.01,'new supersaw preset and full FX chain render audible output');
 
  const overlap=makeProject('lead-saw',Array.from({length:257},(_,i)=>({id:'o'+i,pitch:60,start:0,duration:480,velocity:0.6})));
  let overlapCode='';try{await window.SynthStudioAudio.renderWav(overlap)}catch(error){overlapCode=error.code}

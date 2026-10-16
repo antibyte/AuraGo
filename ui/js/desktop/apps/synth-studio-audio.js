@@ -79,8 +79,12 @@
         clips: []
       };
       track.params.tone = clamp(track.params.tone, 0, 1, DEFAULT_PARAMS.tone);
+      track.params.resonance = clamp(track.params.resonance, 0, 1, DEFAULT_PARAMS.resonance);
+      track.params.drive = clamp(track.params.drive, 0, 1, DEFAULT_PARAMS.drive);
       track.params.attack = clamp(track.params.attack, 0, 10, DEFAULT_PARAMS.attack);
       track.params.release = clamp(track.params.release, 0, 30, DEFAULT_PARAMS.release);
+      track.params.chorus = clamp(track.params.chorus, 0, 1, DEFAULT_PARAMS.chorus);
+      track.params.phaser = clamp(track.params.phaser, 0, 1, DEFAULT_PARAMS.phaser);
       track.params.reverb = clamp(track.params.reverb, 0, 1, DEFAULT_PARAMS.reverb);
       track.params.delay = clamp(track.params.delay, 0, 1, DEFAULT_PARAMS.delay);
       for (let clipIndex = 0; clipIndex < (Array.isArray(source.clips) ? source.clips.length : 0); clipIndex++) {
@@ -324,7 +328,10 @@
 
     function disconnectBuses() {
       for (const bus of buses.values()) {
-        for (const node of Object.values(bus)) try { node.disconnect(); } catch (_) {}
+        for (const node of Object.values(bus)) {
+          if (node && typeof node.stop === "function") try { node.stop(); } catch (_) {}
+          try { node.disconnect(); } catch (_) {}
+        }
       }
       buses.clear();
       retireBuses = false;

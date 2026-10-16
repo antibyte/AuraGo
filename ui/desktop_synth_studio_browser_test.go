@@ -53,7 +53,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			t.Fatalf("%s; errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
-	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===10`)
+	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===16`)
 	check("clip repeat bounds allocation before expansion", `()=>{
         const p=SynthStudioModel.create('Repeat limit'),t=SynthStudioModel.addTrack(p,'bass-sub'),c=SynthStudioModel.createClip(t.instrument,0);
         c.length=1;c.notes=Array.from({length:10},(_,i)=>({id:'bounded-'+i,pitch:60,start:0,duration:1,velocity:.5}));t.clips.push(c);
@@ -67,7 +67,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length>=5`)
 	check("demo has audible notes", `()=>synthInstance().project().tracks.every(t=>t.clips.some(c=>c.notes.length))`)
 	page.MustElement(".ss-clip").MustClick()
-	check("clip opens notes", `()=>document.querySelectorAll('.ss-note').length>0`)
+	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===10`)
 	before := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
 	page.MustElement("[data-category=leads]").MustClick()
 	page.MustElement("[data-library-id=lead-saw] [data-insert]").MustClick()
