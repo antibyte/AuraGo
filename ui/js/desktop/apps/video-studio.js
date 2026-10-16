@@ -51,6 +51,7 @@
     const recoverDraft = (...args) => P.recoverDraft(...args);
     const refreshProject = (...args) => P.refreshProject(...args);
     const renameProject = (...args) => P.renameProject(...args);
+    const openProjectManager = (...args) => P.openProjectManager(...args);
     const wireMediaBin = (...args) => P.wireMediaBin(...args);
     const renderAIPanel = (...args) => P.renderAIPanel(...args);
     const renderAssets = (...args) => P.renderAssets(...args);
@@ -295,6 +296,7 @@
             label: tr(s, 'project', 'Project'), items: [
                 { label: tr(s, 'newProject', 'New project'), action: () => createProjectPrompt(s) },
                 { label: tr(s, 'projectSettings', 'Project settings…'), action: () => openProjectSettings(s) },
+                { label: tr(s, 'allProjects', 'All projects…'), action: () => openProjectManager(s) },
                 { label: tr(s, 'save', 'Save'), action: () => saveProject(s) },
                 { label: tr(s, 'export', 'Export'), action: () => openExport(s) }
             ]
@@ -348,8 +350,9 @@
     function disableWriteControls(s) {
         s.app.querySelectorAll(['new-project', 'save', 'export', 'upload', 'browse', 'add-media', 'add-title'].map(action => `[data-action="${action}"]`).join(',') + ',[data-sticker],[data-place-asset],[data-canvas]').forEach(control => { control.disabled = true; });
     }
-    async function loadProjects(s) {
-        const response = await request(API + '/projects', { signal: s.abort.signal });
+    // The project manager asks for storage sizes (`{ sizes: true }`); the popover keeps the cheap list.
+    async function loadProjects(s, options = {}) {
+        const response = await request(API + '/projects' + (options.sizes ? '?sizes=1' : ''), { signal: s.abort.signal });
         s.projects = Array.isArray(response.body.projects) ? response.body.projects : [];
         if (!s.q('[data-project-popover]').hidden) renderProjectPopover(s);
     }
@@ -701,6 +704,7 @@
         else if (action === 'shortcuts') togglePopover(s, 'shortcuts');
         else if (action === 'rename-project') renameProject(s);
         else if (action === 'project-settings') openProjectSettings(s);
+        else if (action === 'all-projects') openProjectManager(s);
         else if (action === 'dismiss-notice') clearNotice(s);
         else if (action === 'toggle-inspector') setInspectorOpen(s, !s.app.classList.contains('vs-show-inspector'), true);
         else if (action === 'close-inspector') { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); }

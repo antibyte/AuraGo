@@ -138,7 +138,9 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-tb-actions .vs-popover { left: auto; right: 0; }
 .vs-popover h3, .vs-popover h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--vs-muted); }
 .vs-pop-section + .vs-pop-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--vs-border); }
-.vs-pop-foot { margin-top: 12px; display: flex; }
+.vs-pop-foot { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.vs-pop-foot button:not(.vs-primary) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); white-space: nowrap; }
+.vs-pop-foot button:not(.vs-primary):hover { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
 .vs-pop-foot .vs-primary { flex: 1; }
 .vs-project-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .vs-project-list button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
@@ -489,6 +491,24 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb .vs-icon { width: 14px; height: 14px; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-progress { left: 4px; right: 4px; bottom: 3px; height: 3px; }
 .vs-insp-meta small .vs-icon { margin-right: 4px; vertical-align: -2px; }
+/* Project manager (phase 1e): one row per project with poster, facts and actions. */
+.vs-modal.vs-manager { width: min(760px, 100%); }
+.vs-manager-list { display: grid; gap: 8px; margin-top: 12px; }
+.vs-manager-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); }
+.vs-manager-row.is-current { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-manager-poster { display: flex; align-items: center; justify-content: center; width: 96px; height: 54px; border-radius: 6px; background: var(--vs-control-hover) center / cover no-repeat; color: var(--vs-muted); }
+.vs-manager-main { display: grid; gap: 2px; min-width: 0; }
+.vs-manager-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-manager-main small { color: var(--vs-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.vs-manager-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.vs-manager-actions button { min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-manager-actions button:hover:not(:disabled) { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
+.vs-manager-actions button:disabled { opacity: .45; cursor: default; }
+@container (max-width: 650px) {
+    .vs-manager-row { grid-template-columns: 72px minmax(0, 1fr); }
+    .vs-manager-poster { width: 72px; height: 40px; }
+    .vs-manager-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }

@@ -1,18 +1,26 @@
 (function () {
     'use strict';
 
-    // Project settings and the new-project dialog. Phase 1e adds the project manager here.
+    // Project settings, the new-project dialog and the project manager ("All projects…": open, rename, delete).
     const P = window.VideoStudioParts = window.VideoStudioParts || {};
     const { CANVASES } = P;
+    const canonicalProject = (...args) => P.canonicalProject(...args);
+    const clearDraft = (...args) => P.clearDraft(...args);
     const createProject = (...args) => P.createProject(...args);
     const esc = (...args) => P.esc(...args);
+    const fill = (...args) => P.fill(...args);
+    const hydrateProject = (...args) => P.hydrateProject(...args);
     const icon = (...args) => P.icon(...args);
+    const loadProject = (...args) => P.loadProject(...args);
     const loadProjects = (...args) => P.loadProjects(...args);
     const mutate = (...args) => P.mutate(...args);
     const openModal = (...args) => P.openModal(...args);
+    const renderEmptyProject = (...args) => P.renderEmptyProject(...args);
+    const request = (...args) => P.request(...args);
     const saveProject = (...args) => P.saveProject(...args);
     const saveUntilClean = (...args) => P.saveUntilClean(...args);
     const showNotice = (...args) => P.showNotice(...args);
+    const switchProject = (...args) => P.switchProject(...args);
     const tr = (...args) => P.tr(...args);
     const Time = () => window.VideoStudioTime;
 
@@ -88,5 +96,169 @@
         });
     }
 
-    Object.assign(P, { openProjectSettings, openNewProject });
+    // ---- Project manager ----
+
+    // The asset of the first visual clip in timeline order (earliest start, then track order): the manager's picture.
+    // Audio tracks, hidden tracks and disabled clips do not count.
+    function firstVisualAsset(project) {
+        let best = null;
+        ((project && project.tracks) || []).forEach((track, index) => {
+            if (track.kind === 'audio' || track.hidden) return;
+            (track.clips || []).forEach(clip => {
+                if (clip.disabled) return;
+                if (!best || clip.start < best.start || (clip.start === best.start && index < best.index)) best = { start: clip.start, index, assetId: clip.asset_id };
+            });
+        });
+        return best ? (project.assets || []).find(asset => asset.id === best.assetId) || null : null;
+    }
+    function listedId(item) { return item.id || item.project_id || ''; }
+    function storedItem(s, id) { return (s.projects || []).find(entry => listedId(entry) === id) || null; }
+    // The open project shows its local name (an unsaved rename included); the others show their saved name.
+    function storedName(s, item) {
+        if (listedId(item) === s.projectId && s.project && s.project.name) return s.project.name;
+        return (item.project && item.project.name) || tr(s, 'untitled', 'Untitled project');
+    }
+    // The listed storage (only GET /projects?sizes=1 has it): '' when the server's capped size walk gave up.
+    function storageText(item) { return item && typeof item.storage_bytes === 'number' ? P.formatBytes(item.storage_bytes, P.uiLocale()) || '0 B' : ''; }
+    function changedText(item) {
+        const date = item.updated_at ? new Date(item.updated_at) : null;
+        return date && date.getFullYear() > 1970 ? date.toLocaleString(P.uiLocale(), { dateStyle: 'medium', timeStyle: 'short' }) : '–';
+    }
+    // encodeURIComponent leaves quotes and parentheses alone; a CSS url() must not see them.
+    function cssURL(url) { return url.replace(/['()]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()); }
+    function projectRow(s, item) {
+        const id = listedId(item), current = id === s.projectId && !!s.project;
+        const project = current ? s.project : item.project || {};
+        const asset = firstVisualAsset(project);
+        const poster = asset && asset.has_poster ? cssURL(P.API + '/projects/' + encodeURIComponent(id) + '/media/' + encodeURIComponent(asset.id) + '/poster.jpg') : '';
+        const format = `${Number(project.width) || 0}×${Number(project.height) || 0} · ${Time().rateLabel(project, P.uiLocale())}`;
+        const length = Time().formatTime(window.VideoStudioTimeline.projectEnd(project), project);
+        const button = (attr, key, fallback, off, cls) => `<button type="button"${cls ? ` class="${cls}"` : ''} ${attr}="${esc(s, id)}"${off ? ' disabled' : ''}>${esc(s, tr(s, key, fallback))}</button>`;
+        return `<article class="vs-manager-row${current ? ' is-current' : ''}" role="listitem" data-manager-row="${esc(s, id)}"${current ? ' aria-current="true"' : ''}>`
+            + `<span class="vs-manager-poster"${poster ? ` style="background-image:url('${esc(s, poster)}')"` : ''}>${poster ? '' : icon('film', 22)}</span>`
+            + `<span class="vs-manager-main"><strong>${esc(s, storedName(s, item))}</strong><small>${esc(s, format)} · ${esc(s, length)}</small><small>${esc(s, tr(s, 'colStorage', 'Storage'))}: ${esc(s, storageText(item) || '–')} · ${esc(s, tr(s, 'colChanged', 'Last change'))}: ${esc(s, changedText(item))}</small></span>`
+            + `<span class="vs-manager-actions">${button('data-manager-open', 'openProject', 'Open', current)}${button('data-manager-rename', 'rename', 'Rename', s.readonly)}${button('data-manager-delete', 'delete', 'Delete', s.readonly, 'vs-danger')}</span></article>`;
+    }
+    function closeModal(s) { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); }
+    // All projects: poster, name, format, length, storage and last change, with open, rename and delete. `listed`
+    // reuses the list that was just loaded instead of asking for the sizes again.
+    async function openProjectManager(s, listed) {
+        if (s.disposed || s.featureDisabled) return null;
+        if (!listed) { try { await loadProjects(s, { sizes: true }); } catch (_) { /* the last list stays */ } }
+        if (s.disposed) return null;
+        const rows = (s.projects || []).map(item => projectRow(s, item)).join('');
+        const host = openModal(s, `<section class="vs-modal vs-manager" role="dialog" aria-modal="true" aria-labelledby="vs-manager-title-${esc(s, s.id)}" data-manager><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><h2 id="vs-manager-title-${esc(s, s.id)}">${esc(s, tr(s, 'projectManagerTitle', 'All projects'))}</h2><p>${esc(s, tr(s, 'projectManagerIntro', 'Open, rename, duplicate or delete projects. Storage includes media, exports and versions.'))}</p><div class="vs-manager-list" role="list">${rows || `<p class="vs-hint">${esc(s, tr(s, 'noProjectsYet', 'No projects yet.'))}</p>`}</div><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'close', 'Close'))}</button></div></section>`);
+        // The listener sits on the dialog, not on the modal host the other dialogs share, so it goes away with it.
+        const dialog = host.querySelector('[data-manager]');
+        dialog.addEventListener('click', event => handleManagerClick(s, event));
+        (dialog.querySelector('.vs-manager-actions button:not(:disabled)') || dialog.querySelector('.vs-modal-close')).focus();
+        return dialog;
+    }
+    function handleManagerClick(s, event) {
+        const button = event.target.closest('[data-manager-open],[data-manager-rename],[data-manager-delete]');
+        if (!button || button.disabled) return;
+        const { managerOpen, managerRename, managerDelete } = button.dataset;
+        if (managerOpen) { closeModal(s); switchProject(s, managerOpen).catch(() => {}); }
+        else if (managerRename) openRenameStoredProject(s, managerRename);
+        else if (managerDelete) deleteStoredProject(s, managerDelete).catch(() => {});
+    }
+    // A dialog opened from the manager returns to it when it is cancelled.
+    function backToManager(s, host) { host.querySelectorAll('[data-modal-close]').forEach(button => button.addEventListener('click', () => { openProjectManager(s, true).catch(() => {}); }, { once: true })); }
+    function openRenameStoredProject(s, id) {
+        const item = storedItem(s, id);
+        if (!item || s.disposed) return;
+        if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return; }
+        const current = storedName(s, item);
+        const host = openModal(s, `<form class="vs-modal" data-rename-form role="dialog" aria-modal="true" aria-labelledby="vs-rename-title-${esc(s, s.id)}"><button type="button" class="vs-modal-close" data-modal-close aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 18)}</button><span class="vs-modal-icon">${icon('edit', 22)}</span><h2 id="vs-rename-title-${esc(s, s.id)}">${esc(s, tr(s, 'renameProjectTitle', 'Rename project'))}</h2><label class="vs-field vs-field-wide"><span>${esc(s, tr(s, 'projectNameLabel', 'Project name'))}</span><input type="text" data-rename-input maxlength="120" required value="${esc(s, current)}"></label><div class="vs-modal-actions"><button type="button" data-modal-close>${esc(s, tr(s, 'cancel', 'Cancel'))}</button><button type="submit" class="vs-primary">${esc(s, tr(s, 'apply', 'Apply'))}</button></div></form>`);
+        backToManager(s, host);
+        const input = host.querySelector('[data-rename-input]');
+        input.select();
+        host.querySelector('[data-rename-form]').addEventListener('submit', async event => {
+            event.preventDefault();
+            const value = input.value.trim().slice(0, 120);
+            closeModal(s);
+            if (s.disposed) return;
+            if (value && value !== current) await renameStoredProject(s, id, value);
+            if (!s.disposed) openProjectManager(s).catch(() => {});
+        });
+    }
+    // The open project is renamed through the normal edit and save path (one undo step). Another project's document is
+    // read and saved again with the new name, with the If-Match of the copy just read.
+    async function renameStoredProject(s, id, name) {
+        try {
+            if (id === s.projectId && s.project) {
+                if (!mutate(s, 'rename', project => { project.name = name; })) throw new Error('rename_refused');
+                // A failed save explains itself (its notice or the conflict choices).
+                if (!(await saveUntilClean(s))) return false;
+            } else {
+                const url = P.API + '/projects/' + encodeURIComponent(id);
+                const stored = await request(url, { signal: s.abort.signal });
+                const project = hydrateProject(s, stored.body.project || stored.body);
+                project.name = name;
+                await request(url, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': stored.etag }, body: JSON.stringify(canonicalProject(project)), signal: s.abort.signal });
+            }
+            showNotice(s, 'projectRenamed', 'Project renamed.', false);
+            return true;
+        } catch (_) {
+            if (!s.disposed) showNotice(s, 'renameFailed', 'The project could not be renamed.', true);
+            return false;
+        }
+    }
+    // Forgets the open project after it was deleted: pending saves, draft, undo history, jobs and the source monitor.
+    function leaveDeletedProject(s) {
+        s.projectEpoch = (s.projectEpoch || 0) + 1;
+        clearTimeout(s.autosaveTimer);
+        if (s.preview) s.preview.pause();
+        if (s.sourceAssetId && P.closeSource) P.closeSource(s);
+        clearDraft(s);
+        P.cancelTextApplies(s);
+        Object.assign(s, { projectId: '', project: null, etag: '', desktopPath: '', savedProject: null, dirty: false, conflict: false, saveError: '', history: [], redo: [], textBefore: null, jobs: [], selectedClipId: '', selectedAssetId: '', mediaFolder: '', frame: 0 });
+        s.artworkRevision++;
+    }
+    // Opens the first remaining project, or shows the empty state when there is none (or it cannot be opened).
+    async function openFirstProject(s) {
+        const next = (s.projects || [])[0];
+        if (next) {
+            try { await loadProject(s, listedId(next)); } catch (_) { showNotice(s, 'loadFailed', 'Could not open this project.', true); }
+        }
+        if (s.project || s.disposed) return;
+        renderEmptyProject(s);
+        P.renderFilters(s);
+        P.renderToolbar(s);
+        P.renderJobs(s);
+    }
+    // Deletes a project after a confirm that names its size; the server cancels the project's running tasks. Deleting the
+    // open project opens the first remaining one, or the empty state when none is left. The manager shows the new list.
+    async function deleteStoredProject(s, id) {
+        const item = storedItem(s, id);
+        if (!item || s.disposed) return;
+        if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return; }
+        const name = storedName(s, item), size = storageText(item);
+        const copy = size
+            ? fill(tr(s, 'deleteProjectCopy', '{{name}} and its {{size}} (media, exports and versions) are deleted. Running tasks are cancelled. This cannot be undone.'), { name, size })
+            : fill(tr(s, 'deleteProjectCopyUnknown', '{{name}} and all its media, exports and versions are deleted. Running tasks are cancelled. This cannot be undone.'), { name });
+        if (!(await s.ctx.confirmDialog(tr(s, 'deleteProjectTitle', 'Delete this project?'), copy)) || s.disposed) return;
+        if (id === s.projectId) {
+            // A save that is still running would answer 404 after the delete; let it finish first.
+            clearTimeout(s.autosaveTimer);
+            if (s.savePromise) await s.savePromise.catch(() => {});
+        }
+        try {
+            await request(P.API + '/projects/' + encodeURIComponent(id), { method: 'DELETE', signal: s.abort.signal });
+        } catch (error) {
+            // Deleted elsewhere already: the new list drops it like a delete from here.
+            if (error.status !== 404) { if (!s.disposed) showNotice(s, 'projectDeleteFailed', 'The project could not be deleted.', true); return; }
+        }
+        if (s.disposed) return;
+        const wasOpen = id === s.projectId;
+        if (wasOpen) leaveDeletedProject(s);
+        try { await loadProjects(s, { sizes: true }); } catch (_) { s.projects = (s.projects || []).filter(entry => listedId(entry) !== id); }
+        if (s.disposed) return;
+        if (wasOpen) await openFirstProject(s);
+        if (s.disposed) return;
+        showNotice(s, 'projectDeleted', 'Project deleted.', false);
+        openProjectManager(s, true).catch(() => {});
+    }
+
+    Object.assign(P, { openProjectSettings, openNewProject, openProjectManager, openRenameStoredProject, deleteStoredProject, firstVisualAsset, handleManagerClick });
 })();
