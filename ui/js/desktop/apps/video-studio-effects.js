@@ -157,5 +157,26 @@
         };
     }
 
-    window.VideoStudioEffects = { BUILTIN, adopt, registry, transitions, transition, isTransition, base, effect, defaults, valueAt, clipState, placement };
+    // Fade through black (export: xfade fadeblack on the premultiplied track layers). Weights of the outgoing layer,
+    // the incoming layer and opaque black at progress p = i / D; they sum to 1. Same formula and numbers as Go
+    // fadeBlackWeights (internal/videostudio/effects.go, which documents the measured fit), parity fixture
+    // testdata/parity/transitions.json. With S the smoothstep: out = (1 - p) * (1 - S(p; 0, 0.2)),
+    // inc = p * S(p; 0, 0.8), black = 1 - out - inc.
+    function fadeRamp(x, edge0, edge1) { return Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); }
+    function fadeEase(x, edge0, edge1) { const t = fadeRamp(x, edge0, edge1); return t * t * (3 - 2 * t); }
+    function fadeBlackWeights(p) {
+        const t = Math.max(0, Math.min(1, Number(p) || 0));
+        const out = (1 - t) * (1 - fadeEase(t, 0, 0.2)), inc = t * fadeEase(t, 0, 0.8);
+        return { out, inc, black: 1 - out - inc };
+    }
+    // Wipes reveal the incoming layer across the full frame: the incoming layer shows in [left, left + reveal).
+    // "wipeleft" reveals from the left edge (export xfade wiperight), "wiperight" from the right edge (xfade wipeleft).
+    // Any other type has no edge (null).
+    function wipeEdge(type, p, width) {
+        if (type !== 'wipeleft' && type !== 'wiperight') return null;
+        const w = Math.max(0, Number(width) || 0), reveal = w * Math.max(0, Math.min(1, Number(p) || 0));
+        return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
+    }
+
+    window.VideoStudioEffects = { BUILTIN, adopt, registry, transitions, transition, isTransition, base, effect, defaults, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

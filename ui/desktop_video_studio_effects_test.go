@@ -167,6 +167,12 @@ const videoStudioParityRunners = `{
     const project = {width: input.canvas.width, height: input.canvas.height};
     return E.placement(E.clipState(input.clip, 0, project), project, project, null).box;
   }},
+  // Fade-through-black weights and wipe edges (phase 2 index §4.13, topic "transitions"); numbers within 1e-6.
+  transitions: {exact: false, run(input) {
+    if (input.kind === 'fade_black') { const w = E.fadeBlackWeights(input.p); return {out: w.out, inc: w.inc, black: w.black}; }
+    if (input.kind === 'wipe') return E.wipeEdge(input.type, input.p, input.width);
+    throw new Error('unknown transitions input kind ' + input.kind);
+  }},
 }`
 
 // Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.

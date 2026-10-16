@@ -1,5 +1,7 @@
 package videostudio
 
+import "math"
+
 // Effect registry (spec §4.2): base properties, effects, transitions, blend modes, in/out animation presets and
 // looks, each table in menu order. The status endpoint serves EffectRegistry() to the editor; the DOM-free module
 // video-studio-effects.js mirrors it as BUILTIN, and TestVideoStudioEffectsRegistryMatchesGo (ui) keeps the two
@@ -221,4 +223,65 @@ func (r Registry) Unavailable(missing []string) UnavailableSet {
 		}
 	}
 	return set
+}
+
+// fadeBlackWeights splits a fade through black at transition progress p = i/D (transition-local frame i of D, as xfade
+// counts it) into the weights of the outgoing track layer, the incoming track layer and opaque black. The export runs
+// xfade fadeblack on the premultiplied layers, so both painters compose out·outgoing + inc·incoming +
+// black·(0, 0, 0, 1) with these numbers; the GL shader evaluates the same formula. The weights sum to 1.
+//
+// The curve is not linear. It was fitted to FFmpeg's output (TestFadeBlackMatchesFFmpeg renders every transition
+// frame of D=20 and D=8 through the export graph; a 200-frame run read at p steps of 0.005 fixed the edges) and never
+// taken from FFmpeg's source. With S(p; a, b) the smoothstep t²(3−2t) of t = clamp((p−a)/(b−a), 0, 1):
+//
+//	out   = (1 − p) · (1 − S(p; 0, 0.2))
+//	inc   = p · S(p; 0, 0.8)
+//	black = 1 − out − inc
+//
+// In words: the outgoing layer is weighted by (1−p) and by an eased fade that is gone at p = 0.2; the incoming layer
+// is weighted by p and by an eased rise that is complete at p = 0.8. Between the two, black carries the rest, so
+// the picture is at its darkest around p = 0.2 (black ≈ 0.97) and black falls back to exactly 1−p once p ≥ 0.8.
+// FFmpeg 5.1.9 (the production floor) lies within 1/255 of the formula; FFmpeg 8.1.1's 8-bit arithmetic truncates and
+// sits up to 1.9/255 below it. The test tolerates 2/255. The fit holds for any colour: the planes are mixed linearly
+// in code values (checked at levels 255 and 128).
+func fadeBlackWeights(p float64) (out, inc, black float64) {
+	if !(p > 0) {
+		p = 0
+	} else if p > 1 {
+		p = 1
+	}
+	out = (1 - p) * (1 - fadeEase(p, 0, 0.2))
+	inc = p * fadeEase(p, 0, 0.8)
+	return out, inc, 1 - out - inc
+}
+
+// fadeRamp rises linearly from 0 at edge0 to 1 at edge1 and is clamped outside.
+func fadeRamp(x, edge0, edge1 float64) float64 {
+	return math.Max(0, math.Min(1, (x-edge0)/(edge1-edge0)))
+}
+
+// fadeEase is fadeRamp eased with smoothstep, t²(3−2t).
+func fadeEase(x, edge0, edge1 float64) float64 {
+	t := fadeRamp(x, edge0, edge1)
+	return t * t * (3 - 2*t)
+}
+
+// wipeEdge is the export's wipe geometry: at progress p the incoming layer shows in [left, left+reveal) of a frame
+// width pixels wide. The user's "wipeleft" reveals from the left edge (xfade wiperight), "wiperight" from the right
+// edge (xfade wipeleft). ok is false for every other transition.
+func wipeEdge(kind TransitionType, p, width float64) (left, reveal float64, ok bool) {
+	if kind != TransitionWipeLeft && kind != TransitionWipeRight {
+		return 0, 0, false
+	}
+	if !(p > 0) {
+		p = 0
+	} else if p > 1 {
+		p = 1
+	}
+	width = math.Max(0, width)
+	reveal = width * p
+	if kind == TransitionWipeLeft {
+		return 0, reveal, true
+	}
+	return width - reveal, reveal, true
 }

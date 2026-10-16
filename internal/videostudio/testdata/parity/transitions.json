@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {"name":"fade_black p=0","input":{"kind":"fade_black","p":0},"want":{"out":1,"inc":0,"black":0}},
+    {"name":"fade_black p=0.1","input":{"kind":"fade_black","p":0.1},"want":{"out":0.45,"inc":0.004296875,"black":0.5457031250000001}},
+    {"name":"fade_black p=0.125","input":{"kind":"fade_black","p":0.125},"want":{"out":0.27685546875,"inc":0.00820159912109375,"black":0.7149429321289062}},
+    {"name":"fade_black p=0.2","input":{"kind":"fade_black","p":0.2},"want":{"out":0,"inc":0.03125,"black":0.96875}},
+    {"name":"fade_black p=0.25","input":{"kind":"fade_black","p":0.25},"want":{"out":0,"inc":0.0579833984375,"black":0.9420166015625}},
+    {"name":"fade_black p=0.375","input":{"kind":"fade_black","p":0.375},"want":{"out":0,"inc":0.16994476318359375,"black":0.8300552368164062}},
+    {"name":"fade_black p=0.5","input":{"kind":"fade_black","p":0.5},"want":{"out":0,"inc":0.341796875,"black":0.658203125}},
+    {"name":"fade_black p=0.625","input":{"kind":"fade_black","p":0.625},"want":{"out":0,"inc":0.5483627319335938,"black":0.45163726806640625}},
+    {"name":"fade_black p=0.75","input":{"kind":"fade_black","p":0.75},"want":{"out":0,"inc":0.7415771484375,"black":0.2584228515625}},
+    {"name":"fade_black p=0.8","input":{"kind":"fade_black","p":0.8},"want":{"out":0,"inc":0.8,"black":0.19999999999999996}},
+    {"name":"fade_black p=0.875","input":{"kind":"fade_black","p":0.875},"want":{"out":0,"inc":0.875,"black":0.125}},
+    {"name":"fade_black p=1","input":{"kind":"fade_black","p":1},"want":{"out":0,"inc":1,"black":0}},
+    {"name":"fade_black p=1.5","input":{"kind":"fade_black","p":1.5},"want":{"out":0,"inc":1,"black":0}},
+    {"name":"fade_black p=-0.5","input":{"kind":"fade_black","p":-0.5},"want":{"out":1,"inc":0,"black":0}},
+    {"name":"wipe wipeleft p=0.25 w=1280","input":{"kind":"wipe","p":0.25,"type":"wipeleft","width":1280},"want":{"left":0,"reveal":320}},
+    {"name":"wipe wiperight p=0.25 w=1280","input":{"kind":"wipe","p":0.25,"type":"wiperight","width":1280},"want":{"left":960,"reveal":320}},
+    {"name":"wipe wipeleft p=0.5 w=640","input":{"kind":"wipe","p":0.5,"type":"wipeleft","width":640},"want":{"left":0,"reveal":320}},
+    {"name":"wipe wiperight p=1 w=640","input":{"kind":"wipe","p":1,"type":"wiperight","width":640},"want":{"left":0,"reveal":640}},
+    {"name":"wipe dissolve p=0.5 w=1280","input":{"kind":"wipe","p":0.5,"type":"dissolve","width":1280},"want":null},
+    {"name":"wipe black p=0.5 w=1280","input":{"kind":"wipe","p":0.5,"type":"black","width":1280},"want":null}
+  ]
+}
