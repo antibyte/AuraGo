@@ -13,6 +13,22 @@
             if (selected) { c.fillRect(x + 5, y + 5, 3, 3); c.fillRect(x + w - 8, y + h - 8, 3, 3); }
         }
         function renderTitle() {
+            const c = ctx.c, G = ctx.G;
+            if (!ctx.settings.reducedMotion && G.titleParts && G.titleParts.length) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.titleParts.length; i++) {
+                    const tp = G.titleParts[i];
+                    const a = Math.max(0, 1 - tp.t / tp.life) * 0.65;
+                    if (a <= 0.02) continue;
+                    c.globalAlpha = a;
+                    c.fillStyle = tp.col || '#e1be7d';
+                    c.beginPath();
+                    c.arc(tp.x, tp.y, tp.r || 1.5, 0, Math.PI * 2);
+                    c.fill();
+                }
+                c.restore();
+            }
             label('GALAXA', ctx.W / 2 + 2, 99, 54, '#283e5c'); label('GALAXA', ctx.W / 2, 95, 54, '#d5e8f7');
             label('D E L U X E', ctx.W / 2, 126, 20, '#e1be7d');
             label(ctx.t('galaxa.ship_select'), ctx.W / 2, 165, 11, '#809bb6');

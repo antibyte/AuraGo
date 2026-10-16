@@ -244,6 +244,7 @@
             if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
             if (!reducedMotion()) {
                 if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
+                fxScreenShatter(x, y);
             } else {
                 ctx.G.flashT = Math.max(ctx.G.flashT || 0, 120);
             }
@@ -540,10 +541,41 @@
             } else if (G.superReadyFired && G.superMeter < 100) {
                 G.superReadyFired = false;
             }
+            if (G.fxShatter) {
+                G.fxShatter.t += dtMs;
+                if (G.fxShatter.t >= G.fxShatter.dur) G.fxShatter = null;
+            }
+            if (G.fxRankSlamBurst) {
+                G.fxRankSlamBurst.t += dtMs;
+                if (G.fxRankSlamBurst.t >= G.fxRankSlamBurst.dur) G.fxRankSlamBurst = null;
+            }
+            if (G.fxHeatHazeT > 0) G.fxHeatHazeT = Math.max(0, G.fxHeatHazeT - dtMs);
+            G.beatPhase = ((G.beatPhase || 0) + dt * 2.1) % 1;
             if (G.st === 'PLAYING') fxBiomeWeatherTick(dtMs);
         }
 
-        function fxScreenShatter() {}
+        function fxScreenShatter(x, y) {
+            if (reducedMotion()) return;
+            const cx = x != null ? x : ctx.W / 2;
+            const cy = y != null ? y : ctx.H / 3;
+            const cracks = [];
+            const count = ctx.settings.particles === 'low' ? 5 : 9;
+            for (let i = 0; i < count; i++) {
+                const baseAng = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+                const segs = [];
+                let px = cx, py = cy;
+                const steps = 4;
+                for (let s = 1; s <= steps; s++) {
+                    const a = baseAng + (Math.random() - 0.5) * 0.45;
+                    const len = 18 + Math.random() * 28;
+                    px += Math.cos(a) * len;
+                    py += Math.sin(a) * len;
+                    segs.push({ x: px, y: py });
+                }
+                cracks.push(segs);
+            }
+            ctx.G.fxShatter = { x: cx, y: cy, t: 0, dur: 650, cracks };
+        }
 
         function fxBulletTime() {
             ctx.G.fxBulletTimeT = 650;
@@ -562,14 +594,21 @@
                     ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H * 0.4, vx: (Math.random() - 0.5) * 40, vy: 20 + Math.random() * 30, life: 200, t: 0, col: '#ffff88', size: 1, spark: true }));
                     if (ctx.SFX.weatherCrack && Math.random() < 0.2) ctx.SFX.weatherCrack();
                 } else if (biome === 'crystal') {
-                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H, vx: (Math.random() - 0.5) * 10, vy: 8 + Math.random() * 12, life: 400, t: 0, col: '#aaddff', size: 1, spark: true }));
-                } else if (biome === 'debris') {
+                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H, vx: (Math.random() - 0.5) * 10, vy: 8 + Math.random() * 12, life: 400, t: 0, col: '#aaddff', size: 1, spark: true, shape: 'diamond' }));
+                } else if (biome === 'debris' || biome === 'asteroid') {
                     ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: -5, vx: (Math.random() - 0.5) * 20, vy: 30 + Math.random() * 40, life: 500, t: 0, col: '#aa6644', size: 2, debris: true }));
+                } else if (biome === 'blackhole' || biome === 'void') {
+                    ctx.G.part.push(ctx.getParticle({ x: Math.random() * ctx.W, y: Math.random() * ctx.H, vx: (ctx.W / 2 - Math.random() * ctx.W) * 0.15, vy: 12 + Math.random() * 18, life: 360, t: 0, col: '#bb66ff', size: 1, spark: true, shape: 'diamond' }));
                 }
             }
         }
 
-        function fxRankSlam() {}
+        function fxRankSlam(x, y, col) {
+            const cx = x != null ? x : ctx.W / 2;
+            const cy = y != null ? y : ctx.H / 2;
+            ctx.G.fxRankSlamBurst = { x: cx, y: cy, t: 0, dur: 500, col: col || '#ffd700' };
+            if (ctx.SFX && ctx.SFX.rankSlam) ctx.SFX.rankSlam();
+        }
 
         function fxHyperTunnel() {
             ctx.G.fxHyperTunnelT = 2200;
@@ -581,7 +620,9 @@
             ctx.G.chromAb = Math.max(ctx.G.chromAb || 0, 180);
         }
 
-        function fxHeatHaze() {}
+        function fxHeatHaze(dur) {
+            ctx.G.fxHeatHazeT = Math.max(ctx.G.fxHeatHazeT || 0, dur || 900);
+        }
 
         // --- Draw: warp streaks behind the game layer -------------------------
         function fxDrawBack(c) {
@@ -630,6 +671,324 @@
             c.globalAlpha = 1;
         }
 
+        // --- Draw: world-space combat effects (inside camera transform) -------
+        function fxDrawWorld(c) {
+            const G = ctx.G;
+            c.save();
+
+            // 1. Ship afterimage ghosts
+            if (G.fxGhosts && G.fxGhosts.length) {
+                for (let i = 0; i < G.fxGhosts.length; i++) {
+                    const g = G.fxGhosts[i];
+                    const a = Math.max(0, 1 - g.t / g.life) * 0.42;
+                    if (a <= 0.02) continue;
+                    c.save();
+                    c.globalCompositeOperation = 'lighter';
+                    c.globalAlpha = a;
+                    if (g.frame && ctx.drawS) {
+                        ctx.drawS(c, g.frame, g.x - 15, g.y - 12, 2);
+                    }
+                    c.strokeStyle = g.col || '#66ccff';
+                    c.lineWidth = 1.2;
+                    c.beginPath();
+                    c.arc(g.x, g.y, 11 * (1 - g.t / g.life * 0.3), 0, Math.PI * 2);
+                    c.stroke();
+                    c.restore();
+                }
+            }
+
+            // 2. Magnet pull energy lines
+            if (G.fxPullLines && G.fxPullLines.length && G.p && G.p.alive) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.fxPullLines.length; i++) {
+                    const pl = G.fxPullLines[i];
+                    const p = Math.min(1, pl.t / pl.life);
+                    c.globalAlpha = (1 - p) * 0.65;
+                    c.strokeStyle = i % 2 === 0 ? '#66eeff' : '#ffee88';
+                    c.lineWidth = 1.2;
+                    c.beginPath();
+                    c.moveTo(pl.x, pl.y);
+                    const mx = (pl.x + G.p.x) * 0.5 + Math.sin(pl.t * 0.04 + i) * 10;
+                    const my = (pl.y + G.p.y) * 0.5;
+                    c.quadraticCurveTo(mx, my, G.p.x, G.p.y);
+                    c.stroke();
+                }
+                c.restore();
+            }
+
+            // 3. Respawn teleport light pillar & converging halo
+            if (G.fxRespawnFx) {
+                const rf = G.fxRespawnFx;
+                const p = Math.min(1, rf.t / rf.dur);
+                const a = 1 - p;
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                const beamW = Math.max(2, (1 - p) * 26);
+                const grad = c.createLinearGradient(rf.x - beamW, 0, rf.x + beamW, 0);
+                grad.addColorStop(0, 'rgba(80,220,255,0)');
+                grad.addColorStop(0.5, `rgba(180,245,255,${(a * 0.7).toFixed(3)})`);
+                grad.addColorStop(1, 'rgba(80,220,255,0)');
+                c.fillStyle = grad;
+                c.fillRect(rf.x - beamW, 0, beamW * 2, rf.y + 18);
+                c.strokeStyle = '#88eeff';
+                c.lineWidth = 2;
+                c.globalAlpha = a * 0.85;
+                c.beginPath();
+                c.arc(rf.x, rf.y, (1 - easeOutCubic(p)) * 42 + 8, 0, Math.PI * 2);
+                c.stroke();
+                c.restore();
+            }
+
+            // 4. Boss shockwave rings (staggered with chromatic fringe)
+            if (G.fxRings && G.fxRings.length) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.fxRings.length; i++) {
+                    const r = G.fxRings[i];
+                    if (r.t < r.delay) continue;
+                    const p = Math.min(1, (r.t - r.delay) / r.dur);
+                    const rad = easeOutCubic(p) * r.maxR;
+                    const a = (1 - p) * 0.8;
+                    if (a <= 0.02) continue;
+                    c.lineWidth = Math.max(1, r.w * (1 - p * 0.5));
+                    c.globalAlpha = a * 0.55;
+                    c.strokeStyle = '#ff4488';
+                    c.beginPath(); c.arc(r.x, r.y, rad + 2, 0, Math.PI * 2); c.stroke();
+                    c.globalAlpha = a * 0.55;
+                    c.strokeStyle = '#44ddff';
+                    c.beginPath(); c.arc(r.x, r.y, Math.max(1, rad - 2), 0, Math.PI * 2); c.stroke();
+                    c.globalAlpha = a;
+                    c.strokeStyle = '#ffffff';
+                    c.beginPath(); c.arc(r.x, r.y, rad, 0, Math.PI * 2); c.stroke();
+                }
+                c.restore();
+            }
+
+            // 5. Boss death rumble rings
+            if (G.fxRumbleRings && G.fxRumbleRings.length) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.fxRumbleRings.length; i++) {
+                    const r = G.fxRumbleRings[i];
+                    if (r.t < r.delay) continue;
+                    const p = Math.min(1, (r.t - r.delay) / r.dur);
+                    const rad = easeOutCubic(p) * r.maxR;
+                    c.globalAlpha = (1 - p) * 0.75;
+                    c.strokeStyle = i % 2 === 0 ? '#ff6622' : '#ffcc44';
+                    c.lineWidth = Math.max(1, r.w);
+                    c.beginPath();
+                    c.arc(r.x, r.y, rad, 0, Math.PI * 2);
+                    c.stroke();
+                }
+                c.restore();
+            }
+
+            // 6. Powerup rising glints (4-point star flares)
+            if (G.fxGlints && G.fxGlints.length) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.fxGlints.length; i++) {
+                    const g = G.fxGlints[i];
+                    const p = g.t / g.life;
+                    const a = (1 - p) * (0.65 + 0.35 * Math.sin(g.t * 0.02 + g.ph));
+                    if (a <= 0.02) continue;
+                    const rad = g.r * (1 - p * 0.3);
+                    c.globalAlpha = a;
+                    c.fillStyle = g.col || '#ffffff';
+                    c.fillRect(g.x - rad * 1.8, g.y - 0.5, rad * 3.6, 1);
+                    c.fillRect(g.x - 0.5, g.y - rad * 1.8, 1, rad * 3.6);
+                }
+                c.restore();
+            }
+
+            // 7. Player death hull shards (G.deathParts)
+            if (G.deathParts && G.deathParts.length) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < G.deathParts.length; i++) {
+                    const dp = G.deathParts[i];
+                    const a = Math.max(0, 1 - dp.t / dp.life);
+                    if (a <= 0.02) continue;
+                    c.save();
+                    c.translate(dp.x, dp.y);
+                    c.rotate(dp.rot || 0);
+                    c.globalAlpha = a;
+                    c.fillStyle = dp.col || '#88ccff';
+                    const sz = dp.size || 4;
+                    c.beginPath();
+                    c.moveTo(0, -sz);
+                    c.lineTo(sz * 0.85, sz * 0.8);
+                    c.lineTo(-sz * 0.85, sz * 0.8);
+                    c.closePath();
+                    c.fill();
+                    c.restore();
+                }
+                c.restore();
+            }
+
+            c.restore();
+        }
+
+        // --- Draw: screen-space overlays, vignettes, shatter & banners --------
+        function fxDrawOverlay(c) {
+            const G = ctx.G;
+            const W = ctx.W, H = ctx.H;
+            c.save();
+
+            // 1. Directional Player Death Flash rings
+            if (G.fxDeathFlash) {
+                const df = G.fxDeathFlash;
+                const p = Math.min(1, df.t / df.dur);
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < df.rings.length; i++) {
+                    const rg = df.rings[i];
+                    if (df.t < rg.delay) continue;
+                    const rp = Math.min(1, (df.t - rg.delay) / rg.dur);
+                    c.globalAlpha = (1 - rp) * 0.7;
+                    c.strokeStyle = i % 2 === 0 ? '#ff6644' : '#ffffff';
+                    c.lineWidth = 2.5 - i * 0.4;
+                    c.beginPath();
+                    c.arc(df.x, df.y, easeOutCubic(rp) * rg.maxR, 0, Math.PI * 2);
+                    c.stroke();
+                }
+                c.restore();
+            }
+
+            // 2. Screen Shatter crystalline fractures (on Boss Kill)
+            if (G.fxShatter && !reducedMotion()) {
+                const sh = G.fxShatter;
+                const p = Math.min(1, sh.t / sh.dur);
+                const a = (1 - p) * 0.75;
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                c.strokeStyle = '#ccf2ff';
+                c.lineWidth = 1.5 * (1 - p * 0.5);
+                c.globalAlpha = a;
+                for (let i = 0; i < sh.cracks.length; i++) {
+                    const segs = sh.cracks[i];
+                    c.beginPath();
+                    c.moveTo(sh.x, sh.y);
+                    for (let s = 0; s < segs.length; s++) {
+                        c.lineTo(segs[s].x, segs[s].y);
+                    }
+                    c.stroke();
+                }
+                c.restore();
+            }
+
+            // 3. Stage-Clear Confetti
+            if (G.fxConfetti && G.fxConfetti.length) {
+                for (let i = 0; i < G.fxConfetti.length; i++) {
+                    const cf = G.fxConfetti[i];
+                    const a = Math.max(0, 1 - cf.t / cf.life);
+                    if (a <= 0.02) continue;
+                    c.save();
+                    c.translate(cf.x, cf.y);
+                    c.rotate(cf.rot);
+                    c.globalAlpha = a;
+                    c.fillStyle = cf.col;
+                    const wMod = Math.max(0.25, Math.abs(Math.cos(cf.rot * 2)));
+                    c.fillRect(-cf.w * 0.5 * wMod, -cf.h * 0.5, cf.w * wMod, cf.h);
+                    c.restore();
+                }
+            }
+
+            // 4. Screen-edge pulses (Combo Pulse, Damage Vignette, Last-Life Alarm, Boss Rumble)
+            const drawEdgeGlow = (col, alpha, thickness) => {
+                if (alpha <= 0.01) return;
+                c.save();
+                c.globalAlpha = Math.min(0.65, alpha);
+                c.strokeStyle = col;
+                c.lineWidth = thickness;
+                c.strokeRect(thickness * 0.5, thickness * 0.5, W - thickness, H - thickness);
+                c.restore();
+            };
+
+            if (G.fxEdgePulse) {
+                const ep = G.fxEdgePulse;
+                const a = Math.sin(Math.min(1, ep.t / ep.dur) * Math.PI) * 0.55;
+                drawEdgeGlow(ep.col || '#ffcc00', a, 8);
+            }
+            if (G.fxLastLifePulse) {
+                const lp = G.fxLastLifePulse;
+                const a = Math.sin(Math.min(1, lp.t / lp.dur) * Math.PI) * 0.45;
+                drawEdgeGlow('#ff2233', a, 10);
+            }
+            if (G.damageVignetteT > 0) {
+                const a = Math.min(1, G.damageVignetteT / 350) * 0.55;
+                drawEdgeGlow('#ff1122', a, 12);
+            }
+            if (G.fxRumbleVignette) {
+                const rv = G.fxRumbleVignette;
+                const a = (1 - Math.min(1, rv.t / rv.dur)) * 0.45;
+                drawEdgeGlow('#ff6600', a, 10);
+            }
+            if (G.fxMirrorRefractT > 0) {
+                const a = Math.min(1, G.fxMirrorRefractT / 350) * 0.5;
+                drawEdgeGlow('#88eeff', a, 6);
+            }
+
+            // 5. Screen Flash (G.flashT)
+            if (G.flashT > 0 && !reducedMotion()) {
+                c.fillStyle = '#ffffff';
+                c.globalAlpha = Math.min(0.38, (G.flashT / 200) * 0.32);
+                c.fillRect(0, 0, W, H);
+                c.globalAlpha = 1;
+            }
+
+            // 6. Boss Approaching Hazard Banner (G.bossWarningT)
+            if (G.bossWarningT > 0 && G.st === 'PLAYING') {
+                const pulse = 0.5 + 0.5 * Math.sin(G.bossWarningT * 0.018);
+                c.save();
+                c.globalAlpha = 0.25 + pulse * 0.55;
+                c.fillStyle = '#330008';
+                c.fillRect(0, 74, W, 28);
+                c.fillStyle = '#ff2244';
+                c.fillRect(0, 74, W, 2);
+                c.fillRect(0, 100, W, 2);
+                c.font = 'bold 10px monospace';
+                c.textAlign = 'center';
+                c.fillStyle = '#ffccd5';
+                c.fillText('⚠ WARNING — BOSS SIGNATURE DETECTED ⚠', W / 2, 92);
+                c.restore();
+            }
+
+            // 7. Combo Milestone Banner & Upgrade Banner
+            if (G.comboBanner && G.comboBanner.t < G.comboBanner.dur && G.st === 'PLAYING') {
+                const cb = G.comboBanner;
+                const p = cb.t / cb.dur;
+                const a = p < 0.15 ? p / 0.15 : (p > 0.75 ? (1 - p) / 0.25 : 1);
+                c.save();
+                c.globalAlpha = Math.max(0, Math.min(1, a)) * 0.92;
+                c.font = 'bold 11px monospace';
+                c.textAlign = 'center';
+                c.fillStyle = cb.col || '#ffcc00';
+                c.fillText(cb.text || '', W / 2, 66 - p * 8);
+                c.restore();
+            }
+            if (G.upgradeBanner && G.upgradeBanner.t < G.upgradeBanner.dur && G.st === 'PLAYING') {
+                const ub = G.upgradeBanner;
+                const p = ub.t / ub.dur;
+                const a = p < 0.15 ? p / 0.15 : (p > 0.75 ? (1 - p) / 0.25 : 1);
+                c.save();
+                c.globalAlpha = Math.max(0, Math.min(1, a)) * 0.95;
+                c.font = 'bold 10px monospace';
+                c.textAlign = 'center';
+                c.fillStyle = ub.col || '#66eeff';
+                c.fillText(ub.text || '', W / 2, H - 56 - p * 6);
+                if (ub.sub) {
+                    c.font = '8px monospace';
+                    c.fillStyle = '#d8f4ff';
+                    c.fillText(ub.sub, W / 2, H - 45 - p * 6);
+                }
+                c.restore();
+            }
+
+            c.restore();
+        }
+
         ctx.fxSpawnPhaseDashGhosts = fxSpawnPhaseDashGhosts;
         ctx.fxBossShockwave = fxBossShockwave;
         ctx.fxBossKillSetPiece = fxBossKillSetPiece;
@@ -643,6 +1002,8 @@
         ctx.fxStageClearSetPiece = fxStageClearSetPiece;
         ctx.updateFX = updateFX;
         ctx.fxDrawBack = fxDrawBack;
+        ctx.fxDrawWorld = fxDrawWorld;
+        ctx.fxDrawOverlay = fxDrawOverlay;
         ctx.fxBossDeathRumble = fxBossDeathRumble;
         ctx.fxGrazeSpark = fxGrazeSpark;
         ctx.fxParryRing = fxParryRing;
