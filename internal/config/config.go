@@ -620,6 +620,7 @@ func Load(path string) (*Config, error) {
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.Infra.Enabled = true
 	cfg.VirtualDesktop.Layerling.AgentAccess = "off"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.MaxWSClients = 8
@@ -3176,6 +3177,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"omniroute", "health_path"}, c.OmniRoute.HealthPath},
 		{[]string{"omniroute", "memory_mb"}, c.OmniRoute.MemoryMB},
 		{[]string{"virtual_desktop", "enabled"}, c.VirtualDesktop.Enabled},
+		{[]string{"virtual_desktop", "infra", "enabled"}, c.VirtualDesktop.Infra.Enabled},
 		{[]string{"virtual_desktop", "readonly"}, c.VirtualDesktop.ReadOnly},
 		{[]string{"virtual_desktop", "allow_agent_control"}, c.VirtualDesktop.AllowAgentControl},
 		{[]string{"virtual_desktop", "allow_generated_apps"}, c.VirtualDesktop.AllowGeneratedApps},

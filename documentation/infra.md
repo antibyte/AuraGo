@@ -5,15 +5,16 @@ containers, applications and network segments. Atlas, topology and inventory
 show the same entries. Positions belong to the AuraGo instance; view, selection
 and navigation belong to the current window.
 
-## Enable it
+## Configuration
 
-Open Configuration → Virtual Desktop → Infra. Infra starts disabled. Local
-editing, source editing and device control are separate capabilities:
+Open Configuration → Virtual Desktop → Infra. Infra is enabled by default when
+the Desktop is enabled; an explicitly saved disabled setting remains respected.
+Local editing, source editing and device control are separate capabilities:
 
 ```yaml
 virtual_desktop:
     infra:
-        enabled: false
+        enabled: true
         read_only: false
         allow_source_edit: false
         allow_control: false

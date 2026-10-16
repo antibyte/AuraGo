@@ -1124,7 +1124,7 @@ dograh:
     # aurago_mcp_token: optional metadata copy, stored in vault
 virtual_desktop:
     infra:
-        enabled: false                                    # shared homelab atlas; explicit source import only
+        enabled: true                                     # shared homelab atlas; explicit source import only
         read_only: false                                  # block Infra edits and source actions
         allow_source_edit: false                          # also requires source write permission
         allow_control: false                              # explicit power actions; also requires source permission
