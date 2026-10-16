@@ -19,10 +19,14 @@ type RuntimeStatus struct {
 	FFprobePath string `json:"ffprobe_path,omitempty"`
 	Version     string `json:"version,omitempty"`
 	Error       string `json:"error,omitempty"`
+	// Missing lists the optional phase 2 capabilities a ready binary lacks (ProbeCapabilities entries).
+	Missing []string `json:"missing,omitempty"`
 }
 
 // CheckRuntime resolves FFmpeg and its adjacent FFprobe binary and checks that
-// both can start. It does not change host configuration.
+// both can start. For a ready binary it also lists the optional phase 2
+// capabilities it lacks (Missing, memoized per binary). It does not change host
+// configuration.
 func CheckRuntime(ctx context.Context, path string) RuntimeStatus {
 	status := RuntimeStatus{}
 	ffmpeg, err := resolveBinary(path, "ffmpeg")
@@ -65,6 +69,11 @@ func CheckRuntime(ctx context.Context, path string) RuntimeStatus {
 		return status
 	}
 	status.Ready = true
+	// Phase 2 filters are optional: a missing one makes the features that need it unavailable, not the runtime. A
+	// probe that fails leaves Missing empty; renders then report FFmpeg's own error.
+	if missing, err := ProbeCapabilities(ctx, ffmpeg); err == nil && len(missing) > 0 {
+		status.Missing = missing
+	}
 	return status
 }
 

@@ -1109,6 +1109,14 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if errors.Is(err, videostudio.ErrReverseRangeTooLong) {
 		return "failed", "reverse_range_too_long", "Reverse works on up to 5 minutes at a time."
 	}
+	if errors.Is(err, videostudio.ErrFeatureUnavailable) {
+		message := "The server's FFmpeg lacks a filter this project needs."
+		var capability *videostudio.CapabilityError
+		if errors.As(err, &capability) {
+			message = "The server's FFmpeg lacks a filter this project needs (" + capability.Feature + ")."
+		}
+		return "failed", "feature_unavailable", message
+	}
 	var segment *videostudio.SegmentError
 	if kind == "render" && errors.As(err, &segment) {
 		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."

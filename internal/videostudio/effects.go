@@ -188,3 +188,37 @@ func cloneEffect(effect EffectSpec) EffectSpec {
 	effect.Filters = append(make([]string, 0, len(effect.Filters)), effect.Filters...)
 	return effect
 }
+
+// Unavailable maps the entries ProbeCapabilities reports ("filter:<name>", "xfade:<name>") to the registry ids the
+// editor greys out:
+//   - an effect when one of its Filters is missing;
+//   - a transition when its xfade transition is missing;
+//   - a blend mode with an FFmpeg blend name when the blend filter is missing.
+//
+// Animation presets (2e) add their rule here. Unknown entries are ignored, and no list is nil.
+func (r Registry) Unavailable(missing []string) UnavailableSet {
+	lacking := make(map[string]bool, len(missing))
+	for _, entry := range missing {
+		lacking[entry] = true
+	}
+	set := UnavailableSet{Effects: []string{}, Transitions: []string{}, BlendModes: []string{}, AnimPresets: []string{}}
+	for _, effect := range r.Effects {
+		for _, filter := range effect.Filters {
+			if lacking["filter:"+filter] {
+				set.Effects = append(set.Effects, effect.ID)
+				break
+			}
+		}
+	}
+	for _, spec := range r.Transitions {
+		if lacking["xfade:"+spec.XFade] {
+			set.Transitions = append(set.Transitions, string(spec.ID))
+		}
+	}
+	for _, mode := range r.BlendModes {
+		if mode.Blend != "" && lacking["filter:blend"] {
+			set.BlendModes = append(set.BlendModes, mode.ID)
+		}
+	}
+	return set
+}

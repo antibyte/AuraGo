@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"aurago/internal/videostudio"
@@ -40,5 +41,21 @@ func TestVideoStudioRenderFailureCodes(t *testing.T) {
 	}
 	if err := videoStudioRenderLimitError(segment, 1, 2); err != segment {
 		t.Fatalf("a segment error was rewritten to %v", err)
+	}
+}
+
+// A render that needs a filter or xfade transition the server's FFmpeg lacks fails with feature_unavailable and names
+// the feature. The check runs before the kind switch, so the range_render kind (Task 16) maps the same way.
+func TestVideoStudioFeatureUnavailableFailureCode(t *testing.T) {
+	ctx := context.Background()
+	missing := &videostudio.CapabilityError{Feature: "transition:black", Missing: "xfade:fadeblack"}
+	for _, kind := range []string{"render", "range_render"} {
+		status, code, message := videoStudioJobFailure(kind, fmt.Errorf("render: %w", missing), ctx)
+		if status != "failed" || code != "feature_unavailable" || !strings.Contains(message, "transition:black") {
+			t.Fatalf("%s with a missing FFmpeg feature = %s %s %q", kind, status, code, message)
+		}
+	}
+	if _, code, message := videoStudioJobFailure("render", videostudio.ErrFeatureUnavailable, ctx); code != "feature_unavailable" || strings.Contains(message, "(") {
+		t.Fatalf("bare ErrFeatureUnavailable = %s %q", code, message)
 	}
 }
