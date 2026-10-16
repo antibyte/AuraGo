@@ -54,13 +54,12 @@ before execution. New runtime versions have separate directories. File hashing
 and extraction observe cancellation, and Windows file replacement uses the shared
 retry handling. User requests cannot choose download URLs or runtime paths.
 
-**Release integration gate:** this source change requires the generated runtime
-catalog from a successfully published and anonymously verified runtime release.
-Until that catalog is present, a missing runtime reports
-`runtime_release_unavailable`; automatic installation is not delivered by source
-code alone. See [runtime publication](decisions-runtime-release.md). Locally
-built, verified developer bundles and existing local Docker images remain usable
-for development; they are not a prerequisite of the published installation flow.
+The bundled catalog pins [runtime 1.0.0](https://github.com/antibyte/AuraGo/releases/tag/decisions-runtime-v1.0.0):
+15 native packages and three Docker images for amd64 and arm64. Every native
+archive and both architectures of every image passed anonymous download/pull
+verification. See [runtime publication and system requirements](decisions-runtime-release.md).
+Locally built, verified developer bundles and existing local Docker images
+remain usable for development; normal setup downloads the published packages.
 
 Each runtime launch has a five-minute readiness budget after AuraGo's own file
 verification. This includes the runtime's independent hashes, loading and first

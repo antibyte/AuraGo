@@ -5,9 +5,55 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"testing"
+
+	"aurago/internal/onnxrt"
 )
+
+func TestPublishedRuntimeCatalogCoversSupportedPlatforms(t *testing.T) {
+	catalog := releaseRuntimeCatalog
+	if matched, _ := regexp.MatchString(`^[0-9]+\.[0-9]+\.[0-9]+$`, catalog.Version); !matched {
+		t.Fatal("a published and anonymously verified runtime catalog is required")
+	}
+	want := map[string][]string{
+		"windows-amd64": {"cuda", "vulkan", "cpu"},
+		"windows-arm64": {"vulkan", "cpu"},
+		"linux-amd64":   {"cuda", "vulkan", "cpu"},
+		"linux-arm64":   {"cuda", "vulkan", "cpu"},
+		"darwin-amd64":  {"metal", "cpu"},
+		"darwin-arm64":  {"metal", "cpu"},
+	}
+	if len(catalog.Packages) != 15 || len(catalog.Images) != 3 {
+		t.Fatalf("incomplete runtime catalog: %d packages, %d images", len(catalog.Packages), len(catalog.Images))
+	}
+	for target, backends := range want {
+		goos, goarch, _ := strings.Cut(target, "-")
+		for _, backend := range backends {
+			entry, ok := catalog.native(goos, goarch, backend)
+			if !ok {
+				t.Fatalf("missing runtime: %s/%s", target, backend)
+			}
+			id := "decisions-" + catalog.Version + "-" + target + "-" + backend
+			url := "https://github.com/antibyte/AuraGo/releases/download/decisions-runtime-v" + catalog.Version + "/" + id + ".zip"
+			if entry.ID != id || entry.URL != url || !validSHA256(entry.ManifestSHA256) || entry.UnpackedSize <= 0 || len(entry.Requirements) == 0 {
+				t.Fatalf("incomplete or unversioned package pins: %s", id)
+			}
+			if err := onnxrt.ValidateAssetSpec(entry.asset()); err != nil {
+				t.Fatalf("invalid package %s: %v", id, err)
+			}
+		}
+	}
+	const prefix = "ghcr.io/antibyte/aurago-decisions-runtime@sha256:"
+	for _, backend := range []string{"cuda", "vulkan", "cpu"} {
+		reference := catalog.image(backend)
+		if !strings.HasPrefix(reference, prefix) || !validSHA256(strings.TrimPrefix(reference, prefix)) {
+			t.Fatalf("missing immutable image pin: %s", backend)
+		}
+	}
+}
 
 func TestReleaseRuntimeValidatesEveryPackagedFile(t *testing.T) {
 	directory := t.TempDir()
