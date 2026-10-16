@@ -375,7 +375,8 @@ func (m *videoStudioManager) load() error {
 			return fmt.Errorf("decode video studio job state")
 		}
 		for _, job := range state.Jobs {
-			if job == nil || job.ID == "" || !validVideoStudioProjectID(job.ProjectID) {
+			// Job ids name files (previews/<project>/<id>.mp4), so a stored id outside the uid format is dropped.
+			if job == nil || !validVideoStudioProjectID(job.ID) || !validVideoStudioProjectID(job.ProjectID) {
 				continue
 			}
 			if job.Status == "queued" || job.Status == "running" {

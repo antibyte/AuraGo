@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -73,6 +76,63 @@ func TestVideoStudioManagerRestartMarksJobsInterruptedAndPreservesUncertainty(t 
 	}
 	if !strings.Contains(runningAfterRestart.Message, "Check the provider") || !strings.Contains(runningAfterRestart.Message, "paid request") {
 		t.Fatalf("uncertain generation message = %q, want provider-check guidance", runningAfterRestart.Message)
+	}
+}
+
+// A stored job whose id is not in the uid format is dropped on load. Trimming deletes previews/<project>/<id>.mp4, so
+// an id such as "../../victim" would name a file outside the preview folder. The sentinel sits where that path leads
+// (video_studio/victim.mp4) and the oldest stored jobs are the malformed ones, which trimming removes first.
+func TestVideoStudioManagerLoadDropsJobsWithMalformedIDs(t *testing.T) {
+	dataDir := t.TempDir()
+	root := filepath.Join(dataDir, "video_studio")
+	if err := os.MkdirAll(filepath.Join(root, "previews"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(root, "victim.mp4")
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldest := time.Now().Add(-2 * time.Hour).UTC()
+	good := &videoStudioJob{ID: uidNew(), ProjectID: lifecycleProjectID, Kind: "range_render", Status: "succeeded", CreatedAt: oldest.Add(time.Hour)}
+	state := videoStudioDiskState{Version: 1, Jobs: []*videoStudioJob{good}}
+	malformed := []string{"../../victim", "victim", strings.ToUpper(lifecycleProjectID), good.ID + "/.."}
+	for i, id := range malformed {
+		state.Jobs = append(state.Jobs, &videoStudioJob{ID: id, ProjectID: lifecycleProjectID, Kind: "range_render", Status: "succeeded", CreatedAt: oldest.Add(time.Duration(i) * time.Minute)})
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "jobs.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := newLifecycleVideoStudioManager(t, nil, dataDir)
+	t.Cleanup(manager.close)
+	if manager.job(good.ID) == nil {
+		t.Fatalf("the job with the well-formed id %s was not loaded", good.ID)
+	}
+	for _, id := range malformed {
+		if manager.job(id) != nil {
+			t.Errorf("a stored job with the malformed id %q was loaded", id)
+		}
+	}
+	manager.mu.Lock()
+	for i := 0; i < videoStudioJobRetention-1; i++ {
+		filler := &videoStudioJob{ID: uidNew(), ProjectID: lifecycleProjectID, Kind: "probe", Status: "succeeded", CreatedAt: time.Now().UTC()}
+		manager.jobs[filler.ID] = filler
+	}
+	manager.trimJobsLocked()
+	manager.mu.Unlock()
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Errorf("trimming reached the file outside the preview folder: %v", err)
+	}
+	persisted, err := os.ReadFile(filepath.Join(root, "jobs.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(persisted), "victim") {
+		t.Errorf("the rewritten job state still holds a malformed id: %s", persisted)
 	}
 }
 
