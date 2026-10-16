@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -92,6 +91,9 @@ func handleVideoStudioPoster(s *Server, w http.ResponseWriter, r *http.Request, 
 // handleVideoStudioMediaDelete removes an imported asset with its file, poster, cached previews and record. The saved
 // project must no longer reference the asset, and no render, preview, probe, reverse, still or duplicate job of the
 // project may be queued or running, because those read the file. A generation only adds new media, so it does not block.
+// The removal is recorded first (markMediaRemoving), so the asset is gone for every reader at once, and then runs in
+// order (finishMediaRemoval). When a step fails, the answer is an error and the record stays marked: a retry skips the
+// checks and finishes the removal, and so do the next start and the next listing of the project.
 func handleVideoStudioMediaDelete(s *Server, w http.ResponseWriter, r *http.Request, projectID, assetID string) {
 	if !validVideoStudioAssetID(assetID) {
 		writeVideoStudioError(w, http.StatusNotFound, "media_not_found", "Media not found.")
@@ -104,41 +106,35 @@ func handleVideoStudioMediaDelete(s *Server, w http.ResponseWriter, r *http.Requ
 	lock := manager.projectLock(projectID)
 	lock.Lock()
 	defer lock.Unlock()
-	record, ok := manager.mediaRecord(projectID, assetID)
+	record, ok := manager.mediaRecordForRemoval(projectID, assetID)
 	if !ok {
 		writeVideoStudioError(w, http.StatusNotFound, "media_not_found", "Media not found.")
 		return
 	}
-	project, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID))
-	if err != nil {
-		writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
-		return
-	}
-	if videoStudioProjectUsesAsset(project, assetID) || manager.projectHasActiveJobs(projectID, "render", "preview", "probe", "reverse", "still", "duplicate") {
-		writeVideoStudioError(w, http.StatusConflict, "media_in_use", "This media is still in use. Save the project and try again.")
-		return
-	}
-	// The manifest only holds validated paths; the check keeps a damaged record from naming another file.
-	if videoStudioMediaPathValid(record.Path, assetID) {
-		if err := svc.DeletePath(r.Context(), videoStudioProjectPath(projectID)+"/"+record.Path, desktop.SourceUser); err != nil && !errors.Is(err, os.ErrNotExist) {
-			writeVideoStudioMediaDeleteError(w, r, err, "The media file could not be removed.")
+	if !record.Removing {
+		project, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID))
+		if err != nil {
+			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
+			return
+		}
+		if videoStudioProjectUsesAsset(project, assetID) || manager.projectHasActiveJobs(projectID, "render", "preview", "probe", "reverse", "still", "duplicate") {
+			writeVideoStudioError(w, http.StatusConflict, "media_in_use", "This media is still in use. Save the project and try again.")
+			return
+		}
+		if record, err = manager.markMediaRemoving(projectID, assetID); err != nil {
+			writeVideoStudioError(w, http.StatusInternalServerError, "media_delete_failed", "The media could not be removed.")
 			return
 		}
 	}
-	if err := svc.DeletePath(r.Context(), manager.posterPath(projectID, assetID), desktop.SourceUser); err != nil && !errors.Is(err, os.ErrNotExist) {
-		writeVideoStudioMediaDeleteError(w, r, err, "The media poster could not be removed.")
-		return
-	}
-	manager.discardAssetPreviews(projectID, assetID)
-	if err := manager.removeMedia(projectID, assetID); err != nil {
-		writeVideoStudioError(w, http.StatusInternalServerError, "media_delete_failed", "The media record could not be removed.")
+	if err := manager.finishMediaRemoval(r.Context(), svc, projectID, record); err != nil {
+		writeVideoStudioMediaDeleteError(w, r, err, "The media could not be removed completely. Try again.")
 		return
 	}
 	writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"deleted": true, "id": assetID})
 }
 
 // writeVideoStudioMediaDeleteError answers a failed media removal: 409 when a publication gate (configuration change,
-// read-only, shutdown) refused the write, 500 otherwise. Nothing was recorded as removed, so the user can retry.
+// read-only, shutdown) refused the write, 500 otherwise. The removal stays recorded, so a retry finishes it.
 func writeVideoStudioMediaDeleteError(w http.ResponseWriter, r *http.Request, err error, message string) {
 	if videoStudioPublicationRevoked(r, err) {
 		writeVideoStudioError(w, http.StatusConflict, "configuration_changed", "Video Studio configuration changed before the media was removed.")

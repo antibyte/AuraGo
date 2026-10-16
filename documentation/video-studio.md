@@ -182,7 +182,9 @@ grid and list scroll up and down, and the list shows the name, the duration and 
 and size when there is room); search and the type filters need a wider window. Search looks through every folder. The item menu opens a clip in the source monitor, renames it, moves it,
 selects the clips that use it, or removes it. Removing media that the timeline uses first takes its clips off the timeline
 (one undo step, gaps stay) and then deletes the file; **Remove unused media** deletes every item no clip uses. While the
-files are deleted, editing and undo wait a moment. A window that has the same project open drops removed media it does not
+files are deleted, editing and undo wait a moment. If a removal is interrupted (for example by a restart), the media is
+already gone from the bin; removing it again finishes the job, and so do the next start and the next time the bin loads,
+which also clears files that interrupted imports left behind. A window that has the same project open drops removed media it does not
 use the next time it saves; if its timeline still uses that media, it asks which version to keep, and **Replace the latest
 version** keeps its changes without the removed media and the clips that used it. The inspector shows the metadata of the
 selected media. Visual media gets a poster when it is imported; older media shows its thumbnails.

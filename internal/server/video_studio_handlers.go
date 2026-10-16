@@ -568,6 +568,8 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 			}
 			items = append(items, videoStudioMediaItem{Asset: videoStudioAssetAtRate(record.Asset, rate), MediaURL: fmt.Sprintf("%s/projects/%s/media/%s", videoStudioAPIBase, projectID, record.Asset.ID), State: state, JobID: jobID})
 		}
+		// Leftovers of interrupted work are cleaned up in the background (video_studio_media_upkeep.go).
+		manager.requestMediaSweep(projectID)
 		writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"media": items})
 		return
 	}

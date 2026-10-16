@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 
@@ -41,18 +40,13 @@ type duplicateSnapshot struct {
 
 // videoStudioDirFiles lists the regular files of a desktop folder with their sizes; a missing folder is empty.
 func videoStudioDirFiles(ctx context.Context, svc *desktop.Service, dir string) (map[string]int64, error) {
-	entries, err := svc.ListFiles(ctx, dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return map[string]int64{}, nil
-	}
+	entries, err := videoStudioDirEntries(ctx, svc, dir)
 	if err != nil {
 		return nil, err
 	}
 	files := make(map[string]int64, len(entries))
-	for _, entry := range entries {
-		if entry.Type == "file" {
-			files[entry.Name] = entry.Size
-		}
+	for name, entry := range entries {
+		files[name] = entry.Size
 	}
 	return files, nil
 }

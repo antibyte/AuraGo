@@ -92,6 +92,9 @@ type videoStudioMediaRecord struct {
 	Path      string            `json:"path"`
 	SHA256    string            `json:"sha256"`
 	CreatedAt time.Time         `json:"created_at"`
+	// Removing is persisted before a removal deletes any file. Such a record is hidden from every reader except the
+	// removal, and a removal that stopped part-way finishes on a retry, at the next start or at the next listing.
+	Removing bool `json:"removing,omitempty"`
 }
 
 type videoStudioIdempotency struct {
@@ -170,6 +173,12 @@ type videoStudioManager struct {
 	configChanging bool
 	epoch          uint64
 	wg             sync.WaitGroup
+	// Media upkeep (video_studio_media_upkeep.go): a bounded queue of background chores, the chores already queued,
+	// when each project was last swept and which assets already had a poster attempt in this run.
+	maintenance       chan videoStudioMaintenanceTask
+	maintenanceQueued map[string]bool
+	sweptAt           map[string]time.Time
+	posterTried       map[string]bool
 }
 
 func (s *Server) videoStudioManager() (*videoStudioManager, error) {
@@ -340,15 +349,18 @@ func newVideoStudioManager(s *Server, dataDir string) (*videoStudioManager, erro
 		path: filepath.Join(root, "jobs.json"), previewDir: previewDir,
 		jobs: make(map[string]*videoStudioJob), media: make(map[string]map[string]videoStudioMediaRecord),
 		idem: make(map[string]videoStudioIdempotency), works: make(map[string]*videoStudioWork),
-		active: make(map[string]context.CancelFunc),
-		queue:  make(chan string, videoStudioQueueSize),
+		active:      make(map[string]context.CancelFunc),
+		queue:       make(chan string, videoStudioQueueSize),
+		maintenance: make(chan videoStudioMaintenanceTask, videoStudioMaintenanceQueueSize), maintenanceQueued: make(map[string]bool),
+		sweptAt: make(map[string]time.Time), posterTried: make(map[string]bool),
 	}
 	if err := m.load(); err != nil {
 		cancel()
 		return nil, err
 	}
-	m.wg.Add(1)
+	m.wg.Add(2)
 	go m.worker()
+	go m.maintenanceWorker()
 	return m, nil
 }
 
@@ -511,6 +523,7 @@ func (m *videoStudioManager) worker() {
 	defer m.wg.Done()
 	// Before the first job runs, so no duplicate is copying while its predecessors' folders are checked.
 	m.cleanupInterruptedDuplicates()
+	m.finishInterruptedMediaRemovals()
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -895,12 +908,15 @@ func (m *videoStudioManager) expirePreviewJobs(projectID, assetID string, ids []
 	_ = m.persistLocked()
 }
 
+// mediaForProject lists the project's media records, oldest first, without records whose removal has started.
 func (m *videoStudioManager) mediaForProject(projectID string) []videoStudioMediaRecord {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var out []videoStudioMediaRecord
 	for _, record := range m.media[projectID] {
-		out = append(out, record)
+		if !record.Removing {
+			out = append(out, record)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
 	return out

@@ -110,3 +110,15 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   document before canonicalizing, so a stale editor that lists removed media gets 412, not 400. A duplicate job records
   `copy_project_id` before copying and clears it when the copy is complete or removed; when the worker starts, a recorded
   copy folder without project.json is deleted with its media records, and a finished copy is never touched.
+- Media removal (`video_studio_media_files.go`, `video_studio_media_upkeep.go`): DELETE persists `removing` on the record
+  before it deletes anything (from then on `mediaRecord` and `mediaForProject` treat the asset as gone), then deletes the
+  media file, poster and cached previews and last the record; a file that is already gone counts as removed. A failed
+  step answers 500 (409 for a publication gate) and keeps the mark: a retry skips the in-use checks and finishes, and so
+  do the worker start (`finishInterruptedMediaRemovals`) and the sweep a media listing queues (`requestMediaSweep`).
+- Upkeep runs in one background goroutine fed by a queue of 64 chores (`queueMaintenanceLocked` never waits; a full
+  queue drops the chore and the next listing asks again), only while Video Studio and the Desktop are writable. A listing
+  queues a sweep at most once a minute per project; the sweep takes the project lock with `TryLock` (a busy project is
+  swept later), finishes marked removals and removes a record whose media file is gone, and media files
+  (`<asset id>_…`) and posters (`<asset id>.jpg`) without a record. It never touches what the saved project lists, other
+  file names, records or files younger than 10 minutes (`videoStudioLeftoverMinAge`), or files while a generate,
+  reverse or still job of the project runs (they write the file before the record).

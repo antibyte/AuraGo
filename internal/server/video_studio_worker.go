@@ -684,12 +684,13 @@ func (m *videoStudioManager) newStageDir(suffix string) (string, func(), error) 
 	return dir, func() { _ = os.RemoveAll(dir) }, nil
 }
 
+// mediaRecord returns an asset's media record; a record whose removal has started counts as gone.
 func (m *videoStudioManager) mediaRecord(projectID, assetID string) (videoStudioMediaRecord, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	items := m.media[projectID]
 	record, ok := items[assetID]
-	return record, ok
+	return record, ok && !record.Removing
 }
 
 func (m *videoStudioManager) recordMedia(record videoStudioMediaRecord) error {
