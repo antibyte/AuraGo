@@ -153,6 +153,35 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		}
 		page.MustScreenshot(filepath.Join(screenshotDir, fmt.Sprintf("library-rail-%dx900.png", size.width)))
 	}
+	// Phones: the library is a strip below the preview. The import buttons and the media bar share one row, grid and
+	// list scroll vertically only, and the first item and its add button are visible in both views and both themes.
+	for _, size := range []struct{ width, height int }{{390, 844}, {650, 900}} {
+		page.MustSetViewport(size.width, size.height, 1, false)
+		for _, theme := range []string{"standard", "fruity"} {
+			for _, view := range []string{"grid", "list"} {
+				got := page.MustEval(`(theme,view)=>{const q=s=>document.querySelector(s),box=el=>el.getBoundingClientRect();
+					document.body.dataset.theme=theme;q('[data-notice]:not([hidden]) [data-action="dismiss-notice"]')?.click();q('[data-action="media-view"][data-view="'+view+'"]').click();
+					const app=q('.vs-app'),bin=q('[data-assets]'),area=box(bin),lib=box(q('.vs-library')),center=box(q('.vs-center')),imp=box(q('.vs-import')),acts=box(q('.vs-media-bar-actions'));
+					const inside=el=>{const r=box(el);return r.width>0&&r.top>=area.top-1&&r.left>=area.left-1&&r.bottom<=area.top+bin.clientHeight+1&&r.right<=area.left+bin.clientWidth+1};
+					const hit=el=>{const r=box(el),at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return !!at&&el.contains(at)};
+					const item=bin.querySelector('[data-asset-id]'),add=item&&item.querySelector('[data-place-asset]'),problems=[];
+					if(app.scrollWidth>app.clientWidth+1)problems.push('the app scrolls sideways');
+					if(lib.top<center.bottom-1)problems.push('the library is not below the preview');
+					if(Math.abs(imp.top+imp.bottom-acts.top-acts.bottom)>8)problems.push('the import buttons and the media bar are not on one row');
+					if(bin.scrollWidth>bin.clientWidth)problems.push('the '+view+' scrolls sideways');
+					if(!item||!inside(item))problems.push('the first item is not fully visible');
+					if(!add||!hit(add))problems.push('its add button cannot be clicked');
+					if(view==='list'&&!inside(bin.querySelector('.vs-asset-head')))problems.push('the list header is not visible');
+					if(view==='list'&&box(item.querySelector('.vs-asset-cell-name')).width<100)problems.push('the name column is narrower than 100px');
+					return problems.length?JSON.stringify({problems,lib,area,scroll:[bin.scrollWidth,bin.clientWidth],item:item&&box(item)}):'ok'}`, theme, view).Str()
+				if got != "ok" {
+					t.Fatalf("phone library at %dx%d (%s, %s): %s", size.width, size.height, theme, view, got)
+				}
+				page.MustScreenshot(filepath.Join(screenshotDir, fmt.Sprintf("phone-%s-%dx%d-%s.png", theme, size.width, size.height, view)))
+			}
+		}
+	}
+	page.MustEval(`()=>{document.body.dataset.theme='fruity';document.querySelector('[data-action="media-view"][data-view="grid"]').click()}`)
 	page.MustSetViewport(390, 844, 1, false)
 	page.MustEval(`()=>document.querySelector('.vs-inspector-toggle').click()`)
 	if page.MustEval(`()=>document.querySelector('.vs-app').scrollWidth>document.querySelector('.vs-app').clientWidth+1`).Bool() {

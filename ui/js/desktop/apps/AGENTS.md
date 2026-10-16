@@ -1627,9 +1627,17 @@ buttons and menu popovers remain excluded from those gestures.
   container: a rail of 260 px or less (medium and narrow windows) stacks the import buttons, shows the filters two by
   two, keeps the media bar on one line with icon view buttons (`aria-label` carries the name), uses two grid columns
   and a two-line list that never scrolls sideways (name; duration and the sorted column, from `[data-assets]
-  [data-sort]` and the header cells' `data-column`). The wide rail keeps the full list, which scrolls sideways. Use
+  [data-sort]` and the header cells' `data-column`). The wide rail keeps the full list, which scrolls sideways. On
+  phones (app 650 px or less) the library is a strip below the preview, 46 % of the workspace and at most 224 px. The
+  import buttons, view switch and folder actions share one row (`.vs-media-bar` is `display: contents` in the media
+  panel's grid; labels end in an ellipsis instead of overflowing); search, filters and the count stay hidden. Grid,
+  list and the Text and Stickers panels scroll vertically only. The list shows name, duration and the sorted column
+  (a strip of 560 px or more also resolution and size) in fixed columns shared with its header, switched by
+  `[data-assets][data-sort]`; like the narrow rail, it sorts only by visible columns. Below 600 px the breadcrumb
+  shows only inside a folder, on its own line. Use
   the real Standard/Fruity theme tokens and all sixteen Desktop locale dictionaries. Verify UI behavior with
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`,
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'` (its phone pass checks 390x844
+  and 650x900 in both themes and saves `phone-*.png` to `AURAGO_VIDEO_STUDIO_SCREENSHOTS`),
   `go test ./ui -run 'TestVideoStudio(Helpers|TimelineEdits)$'` and the real-FFmpeg
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestVideoStudioBrowserRealExport$'`.
 - Without a project (zero projects or the feature switched off),

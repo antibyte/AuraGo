@@ -743,20 +743,16 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-format { padding: 0; }
     .vs-format select { max-width: 92px; padding: 5px 4px; font-size: 12px; }
     .vs-export-button { width: 36px; padding: 0; }
-    .vs-workspace, .vs-without-project .vs-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(120px, 1fr) minmax(0, 168px); }
+    .vs-workspace, .vs-without-project .vs-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(120px, 1fr) minmax(0, min(224px, 46%)); }
     .vs-center { grid-row: 1; }
     .vs-library { grid-row: 2; border-right: 0; border-top: 1px solid var(--vs-border); }
     .vs-tabs { padding: 4px 6px 0; }
     .vs-tabs button { flex-direction: row; justify-content: center; padding: 5px 2px; }
     .vs-tab-panel { padding: 8px; }
     .vs-media-panel { padding: 0; }
-    .vs-import { padding: 6px 8px; }
     .vs-media-tools, .vs-media-foot { display: none; }
-    .vs-asset-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 112px; overflow-x: auto; overflow-y: hidden; padding: 0 8px 8px; }
-    .vs-asset-grid[data-view="list"] { overflow: auto; }
-    .vs-media-bar { padding: 0 8px 6px; }
-    .vs-preset-list { grid-auto-flow: column; grid-auto-columns: 210px; overflow-x: auto; }
-    .vs-sticker-grid { grid-template-columns: repeat(6, 72px); overflow-x: auto; }
+    .vs-preset-list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+    .vs-sticker-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
     .vs-preview-stage { padding: 8px; }
     .vs-transport { min-height: 46px; padding: 4px 8px; gap: 6px; }
     .vs-app .vs-transport button { width: 32px; height: 32px; }
@@ -769,6 +765,49 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-track-actions button { width: 22px; }
     .vs-toast { bottom: calc(var(--vs-drawer-bottom, 36%) + 56px); }
     .vs-popover { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
+}
+/* Phones: the media strip. The import buttons, the view switch and the folder actions share one row (labels end in an
+   ellipsis before the row overflows); grid and list scroll vertically, never sideways. The list keeps the name, the
+   duration and the column it is sorted by (a strip of 560 px or more also resolution and size), in columns aligned
+   with its header. Below 600 px the breadcrumb shows only inside a folder, on a line of its own. */
+@container vs-app (max-width: 650px) {
+    .vs-media-panel { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr); align-items: center; column-gap: 6px; }
+    .vs-import { grid-area: 1 / 1; display: flex; gap: 4px; min-width: 0; padding: 6px 0 6px 8px; }
+    .vs-import button { flex: 0 1 auto; min-width: 0; min-height: 30px; padding: 4px 9px; }
+    .vs-import button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .vs-media-bar { display: contents; }
+    .vs-breadcrumb { grid-area: 1 / 2; flex-wrap: nowrap; overflow: hidden; }
+    .vs-breadcrumb > * { flex: none; }
+    .vs-breadcrumb button { flex: 0 1 auto; min-width: 28px; }
+    .vs-media-bar-actions { grid-area: 1 / 3; gap: 2px; padding-right: 8px; }
+    .vs-media-bar-actions .vs-segmented button { display: grid; place-items: center; padding: 2px 6px; }
+    .vs-media-bar-actions .vs-segmented .vs-icon { display: block; }
+    .vs-media-bar-actions .vs-segmented span { display: none; }
+    .vs-asset-grid { grid-area: 3 / 1 / 4 / -1; align-self: stretch; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; padding: 2px 8px 8px; }
+    .vs-asset-grid[data-view="list"] { padding: 0 8px 8px; }
+    .vs-asset-grid[data-view="list"] > * { min-width: 0; }
+    .vs-asset-grid:not([data-sort="frame_rate"]) [data-column="frame_rate"],
+    .vs-asset-grid:not([data-sort="codec"]) [data-column="codec"],
+    .vs-asset-grid:not([data-sort="usage"]) [data-column="usage"] { display: none; }
+    .vs-asset-head, .vs-asset-row { gap: 8px; padding: 4px; }
+    .vs-asset-row .vs-asset-thumb-small, .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb { width: 32px; height: 20px; }
+    .vs-asset-grid[data-view="list"] .vs-asset.is-uploading { grid-template-columns: 32px minmax(0, 1fr) auto; }
+    .vs-folder-row { padding: 4px; }
+    .vs-folder-row .vs-folder-icon { width: 32px; }
+    @container vs-library (max-width: 559px) {
+        .vs-asset-grid:not([data-sort="resolution"]) [data-column="resolution"],
+        .vs-asset-grid:not([data-sort="size"]) [data-column="size"] { display: none; }
+        .vs-asset-head, .vs-asset-row { grid-template-columns: 32px minmax(0, 1fr) 72px 26px; }
+        .vs-asset-grid:is([data-sort="resolution"], [data-sort="frame_rate"], [data-sort="codec"], [data-sort="size"], [data-sort="usage"]) :is(.vs-asset-head, .vs-asset-row) { grid-template-columns: 32px minmax(0, 1fr) 72px 76px 26px; }
+    }
+    @container vs-library (min-width: 560px) {
+        .vs-asset-head, .vs-asset-row { grid-template-columns: 32px minmax(0, 1fr) 72px 88px 72px 26px; }
+        .vs-asset-grid:is([data-sort="frame_rate"], [data-sort="codec"], [data-sort="usage"]) :is(.vs-asset-head, .vs-asset-row) { grid-template-columns: 32px minmax(0, 1fr) 72px 88px 72px 76px 26px; }
+    }
+    @container vs-library (max-width: 599px) {
+        .vs-breadcrumb { grid-area: 2 / 1 / 3 / -1; padding: 0 8px 4px; }
+        .vs-breadcrumb:has(> :only-child) { display: none; }
+    }
 }
 @container vs-app (max-width: 420px) {
     .vs-tb-edit [data-action="redo"] { display: none; }
