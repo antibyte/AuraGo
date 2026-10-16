@@ -824,7 +824,8 @@
             const reorderId = event.dataTransfer.getData('application/x-video-studio-track');
             // Dropping media overwrites at the drop point; Ctrl inserts and moves later clips. A header dropped on a
             // lane goes above that track.
-            if (assetId) options.onDropAsset(assetId, track.id, at, event.ctrlKey || event.metaKey ? 'insert' : 'overwrite');
+            const part = event.dataTransfer.getData('application/x-video-studio-part');
+            if (assetId) options.onDropAsset(assetId, track.id, at, event.ctrlKey || event.metaKey ? 'insert' : 'overwrite', part);
             else if (reorderId && reorderId !== track.id) options.onReorderTrack(reorderId, track.id, 'above');
         }
         // Leaving the rename field commits it (Enter commits, Escape cancels; see keyDown).

@@ -521,6 +521,21 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		if(v1().length!==0)throw new Error('undo did not remove the source insert: '+JSON.stringify(v1()));
 	}`)
 
+	// Picture and sound handles: a sound handle is refused on a video lane; a picture handle places the still's range.
+	page.MustEval(`()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const lane=document.querySelector('.vs-track-lane[data-track-id="v2"]'),r=lane.getBoundingClientRect();
+		const drop=part=>{const dt=new DataTransfer();dt.setData('application/x-video-studio-asset','art1');dt.setData('application/x-video-studio-part',part);lane.dispatchEvent(new DragEvent('drop',{dataTransfer:dt,clientX:r.left+20,clientY:r.top+10,bubbles:true,cancelable:true}));};
+		const v2=()=>s.project.tracks.find(t=>t.id==='v2').clips;
+		drop('sound');
+		if(v2().length!==0)throw new Error('a sound drop of a still was not refused: '+JSON.stringify(v2()));
+		drop('picture');
+		if(v2().length!==1||v2()[0].duration!==150||v2()[0].asset_id!=='art1')throw new Error('a picture drop did not place the still on the lane: '+JSON.stringify(v2()));
+		key('z',{ctrlKey:true});
+		if(v2().length!==0)throw new Error('undo did not remove the dropped still');
+	}`)
+
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")
 	page.MustWaitLoad()

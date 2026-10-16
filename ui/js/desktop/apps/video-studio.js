@@ -566,17 +566,18 @@
             onTrackMenu: (id, x, y) => P.openTrackMenu(s, id, x, y),
             onTrackRename: (id, value) => P.renameTrack(s, id, value),
             onAddTrack: kind => addTrack(s, kind),
-            onDropAsset: (assetId, trackId, at, mode) => addAssetToTrack(s, assetId, trackId, at, mode),
+            onDropAsset: (assetId, trackId, at, mode, part) => addAssetToTrack(s, assetId, trackId, at, mode, part),
             onReorderTrack: (from, to, side) => reorderTrack(s, from, to, side),
             onSnap: value => writePref(PREF_SNAP, value)
         };
     }
-    function addAssetToTrack(s, assetId, trackId, at, mode) {
+    function addAssetToTrack(s, assetId, trackId, at, mode, part) {
         if (s.readonly || s.timelineDragging || !s.project) return false;
         const asset = s.project.assets.find(item => item.id === assetId);
         if (!asset) return false;
         if (!asset.kind) { showNotice(s, 'mediaPreparing', 'This media is still being prepared. Try again in a moment.', true); return false; }
         if (totalClipCount(s.project) >= MAX_CLIPS) { showNotice(s, 'clipLimit', 'This project reached its clip limit.', true); return false; }
+        if (part === 'picture' || part === 'sound') return P.dropSourcePart(s, asset, trackId, at, mode, part);
         const kind = asset.kind === 'image' ? 'overlay' : asset.kind === 'audio' ? 'audio' : 'video';
         let track = s.project.tracks.find(item => item.id === trackId);
         if (!track || track.locked || !T().accepts(track, asset)) track = s.project.tracks.find(item => item.kind === kind && !item.locked);
