@@ -1603,8 +1603,11 @@ buttons and menu popovers remain excluded from those gestures.
   but a running job must not show that warning.
 - Keep the media bin, preview and inspector responsive; below 920 px the
   Inspector control opens a keyboard-dismissable drawer without hiding the
-  timeline. Use the real Standard/Fruity theme tokens and all sixteen Desktop
-  locale dictionaries. Verify UI behavior with
+  timeline. Width queries name their container: `vs-app` for the app breakpoints (1180, 920, 650, 420 px) and
+  `vs-center` for the transport drop-outs, which measure the preview column (above 1180 px it is the app width
+  minus 592 px). A query never styles its own container, so the breakpoints set `--vs-lib-w`, `--vs-insp-w` and
+  `--vs-head-w` on `.vs-workspace` and `.vs-timeline-panel`, never on `.vs-app`. Use the real Standard/Fruity theme
+  tokens and all sixteen Desktop locale dictionaries. Verify UI behavior with
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`,
   `go test ./ui -run 'TestVideoStudio(Helpers|TimelineEdits)$'` and the real-FFmpeg
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestVideoStudioBrowserRealExport$'`.

@@ -46,7 +46,10 @@
     color: var(--vs-text);
     font: 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow: hidden;
-    container-type: inline-size;
+    /* Width queries name this container (`@container vs-app`): an unnamed query would pick the nearest container,
+       and the library and preview column are containers too. A query never styles its own container, so the
+       breakpoints set --vs-lib-w, --vs-insp-w and --vs-head-w on .vs-workspace and .vs-timeline-panel. */
+    container: vs-app / inline-size;
     outline: none;
 }
 .vs-app *, .vs-app *::before, .vs-app *::after { box-sizing: border-box; }
@@ -509,7 +512,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-manager-actions button { min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
 .vs-manager-actions button:hover:not(:disabled) { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
 .vs-manager-actions button:disabled { opacity: .45; cursor: default; }
-@container (max-width: 650px) {
+@container vs-app (max-width: 650px) {
     .vs-manager-row { grid-template-columns: 72px minmax(0, 1fr); }
     .vs-manager-poster { width: 72px; height: 40px; }
     .vs-manager-actions { grid-column: 1 / -1; justify-content: flex-start; }
@@ -656,8 +659,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app.is-readonly .vs-import, .vs-app.is-readonly .vs-preset-list, .vs-app.is-readonly .vs-sticker-grid { opacity: .55; }
 
 /* Medium windows */
-@container (max-width: 1180px) {
-    .vs-app { --vs-lib-w: 248px; --vs-insp-w: 280px; --vs-head-w: 180px; }
+@container vs-app (max-width: 1180px) {
+    .vs-workspace, .vs-timeline-panel { --vs-lib-w: 248px; --vs-insp-w: 280px; --vs-head-w: 180px; }
     .vs-edit-tools button span { display: none; }
     .vs-timeline-zoom input { width: 70px; }
     .vs-save-chip span { display: none; }
@@ -668,9 +671,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 }
 
 /* Narrow windows: the inspector becomes a keyboard-dismissable drawer. */
-@container (max-width: 920px) {
-    .vs-app { --vs-lib-w: 224px; }
-    .vs-workspace { grid-template-columns: var(--vs-lib-w) minmax(0, 1fr); }
+@container vs-app (max-width: 920px) {
+    .vs-workspace { --vs-lib-w: 224px; grid-template-columns: var(--vs-lib-w) minmax(0, 1fr); }
     .vs-inspector-toggle { display: inline-flex; }
     .vs-inspector-toggle span { display: none; }
     .vs-inspector-close { display: grid; }
@@ -684,8 +686,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 }
 
 /* Phones: library below the preview, compact toolbar. */
-@container (max-width: 650px) {
-    .vs-app { --vs-head-w: 118px; }
+@container vs-app (max-width: 650px) {
+    .vs-timeline-panel { --vs-head-w: 118px; }
     .vs-toolbar { gap: 6px; padding: 6px 8px; }
     .vs-tb-group { gap: 3px; }
     .vs-save-chip span, .vs-export-button span, .vs-jobs-button [data-jobs-label], .vs-tb-actions [data-action="shortcuts"], .vs-format > .vs-icon { display: none; }
@@ -723,7 +725,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-toast { bottom: calc(var(--vs-drawer-bottom, 36%) + 56px); }
     .vs-popover { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
 }
-@container (max-width: 420px) {
+@container vs-app (max-width: 420px) {
     .vs-tb-edit [data-action="redo"] { display: none; }
     .vs-project-button { max-width: 104px; }
     .vs-track-name { display: none; }
@@ -740,20 +742,18 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-quality { display: flex; align-items: center; }
 .vs-app .vs-quality select { flex: none; height: 30px; max-width: 112px; padding: 0 8px; border: 1px solid var(--vs-border); border-radius: 7px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-text); font-size: 12px; }
 /* The transport row holds time, the playback buttons and the marks cluster (in, out, loop, marker), the preview
-   quality and full screen. The preview column is the app width minus the library (288 px) and the inspector
-   (304 px), so what no longer fits drops out by priority at fixed app widths: the in and out buttons (keys I and O),
-   the total time, the preview quality, then the buttons shrink to the phone size and the skip buttons (Home and End)
-   go last. */
-@container (max-width: 1306px) {
+   quality and full screen. What no longer fits in the preview column drops out by priority: the in and out buttons
+   (keys I and O), the total time, the preview quality, then the buttons shrink to the phone size and the skip buttons
+   (Home and End) go last. The queries measure the column itself, so they hold whatever the library and inspector
+   take (above 1180 px the column is the app width minus 592 px). */
+.vs-center { container: vs-center / inline-size; }
+@container vs-center (max-width: 714px) {
     .vs-app .vs-transport .vs-mark-buttons [data-action="mark-in"], .vs-app .vs-transport .vs-mark-buttons [data-action="mark-out"] { display: none; }
 }
-@container (max-width: 1230px) { .vs-timecode { display: none; } }
-@container (max-width: 1162px) { .vs-quality { display: none; } }
-@container (min-width: 921px) and (max-width: 1079px) { .vs-transport { min-height: 46px; padding: 4px 8px; gap: 6px; } .vs-app .vs-transport button { width: 32px; height: 32px; } .vs-app .vs-transport .vs-play { width: 38px; height: 38px; margin: 0 2px; } .vs-time-current { font-size: 13px; } }
-@container (max-width: 775px) { .vs-transport { min-height: 46px; padding: 4px 8px; gap: 6px; } .vs-app .vs-transport button { width: 32px; height: 32px; } .vs-app .vs-transport .vs-play { width: 38px; height: 38px; margin: 0 2px; } .vs-time-current { font-size: 13px; } }
-@container (min-width: 921px) and (max-width: 989px) { .vs-app .vs-transport [data-action="seek-start"], .vs-app .vs-transport [data-action="seek-end"] { display: none; } }
-@container (min-width: 651px) and (max-width: 695px) { .vs-app .vs-transport [data-action="seek-start"], .vs-app .vs-transport [data-action="seek-end"] { display: none; } }
-@container (max-width: 389px) { .vs-app .vs-transport [data-action="seek-start"], .vs-app .vs-transport [data-action="seek-end"] { display: none; } }
+@container vs-center (max-width: 638px) { .vs-timecode { display: none; } }
+@container vs-center (max-width: 570px) { .vs-quality { display: none; } }
+@container vs-center (max-width: 487px) { .vs-transport { min-height: 46px; padding: 4px 8px; gap: 6px; } .vs-app .vs-transport button { width: 32px; height: 32px; } .vs-app .vs-transport .vs-play { width: 38px; height: 38px; margin: 0 2px; } .vs-time-current { font-size: 13px; } }
+@container vs-center (max-width: 407px) { .vs-app .vs-transport [data-action="seek-start"], .vs-app .vs-transport [data-action="seek-end"] { display: none; } }
 
 /* Phase 1c: navigation, markers and tracks */
 .vs-transport .vs-mark-buttons { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; }
