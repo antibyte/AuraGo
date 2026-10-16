@@ -23,6 +23,7 @@ import (
 	"aurago/internal/videostudio/goldenframe"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/ysmood/gson"
 )
 
@@ -680,5 +681,94 @@ func TestDesktopVideoStudioSlowImageBrowser(t *testing.T) {
 		if px := got.Image.RGBAAt(320, 180); !rgbaNear(px, color.RGBA{R: solid.R, G: solid.G, B: solid.B, A: 255}, 3) {
 			t.Errorf("%s: centre pixel %v of the settled frame, want the solid block %v (the image was drawn before it finished loading)", painter, px, solid)
 		}
+	}
+}
+
+// The GL stage keeps showing new frames while a video plays. The preview's media elements are created with
+// document.createElement and never enter the page, and the compositor re-uploads a playing video only after a
+// requestVideoFrameCallback or when its time moved. Every other golden seeks a paused element, so none of them would
+// notice a stage stuck on one frame. The moving gradient plays for 600 ms between two captures taken while it plays.
+func TestDesktopVideoStudioGLPlaybackRefreshBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("the playback check needs ffmpeg on the PATH")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	media, err := goldenframe.MakeMedia(ctx, ffmpeg, t.TempDir())
+	if err != nil {
+		t.Fatalf("MakeMedia: %v", err)
+	}
+	asset := videostudio.AssetAtRate(media.Assets[goldenframe.MediaGradient], videostudio.Rate{Num: 25, Den: 1})
+	project := videostudio.Project{Version: videostudio.CurrentVersion, Name: "Playback", Width: 640, Height: 360, FPS: 25,
+		Assets: []videostudio.Asset{asset},
+		Tracks: []videostudio.Track{{ID: "v1", Kind: videostudio.TrackVideo, Name: "Video 1", Clips: []videostudio.Clip{
+			{ID: "g", AssetID: asset.ID, Start: 0, Duration: asset.DurationFrames, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: videostudio.FitContain},
+		}}}}
+	page := goldenEnginePage(t, newVideoStudioEngineServer(t, media.Dir), media.Files)
+	requireWebGL2(t, page)
+	t.Logf("browser: %s", page.Browser().MustVersion().Product)
+	// The editor starts playback from a click on Play. The preview routes its media through Web Audio, which makes the
+	// autoplay policy refuse play() without a user gesture (NotAllowedError), so the test clicks the page first.
+	page.Mouse.MustMoveTo(20, 20)
+	page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	timed := page.Timeout(time.Minute)
+	defer timed.CancelTimeout()
+	out := timed.MustEval(`async (project, file) => {
+		const stage = document.getElementById('stage'), videos = [], create = document.createElement;
+		// The preview keeps its media elements to itself; collect the videos it creates to read their clocks.
+		document.createElement = function (...args) { const el = create.apply(this, args); if (el instanceof HTMLVideoElement) videos.push(el); return el; };
+		const plays = [], realPlay = HTMLMediaElement.prototype.play;
+		HTMLMediaElement.prototype.play = function (...args) { const result = realPlay.apply(this, args); result.then(() => plays.push('ok'), error => plays.push(String(error && error.name))); return result; };
+		const canvas = document.createElement('canvas'); canvas.width = project.width; canvas.height = project.height;
+		stage.replaceChildren(canvas);
+		let shown = 0;
+		const preview = VideoStudioPreview.mount(canvas, () => project, () => shown, value => { shown = value; }, () => {}, () => 1, { painter: 'gl', mediaURL: () => '/media/' + file });
+		const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+		const out = { kindBefore: preview.painterKind() };
+		try {
+			out.settled = await preview.settle(15000);
+			const el = videos[0];
+			out.videos = videos.length; out.detached = !!el && !el.isConnected; out.hasRVFC = !!el && typeof el.requestVideoFrameCallback === 'function';
+			preview.play();
+			const deadline = Date.now() + 8000;
+			while (el && el.currentTime < 0.15 && Date.now() < deadline) await sleep(20);
+			// Counts the frames the element presents between the captures (a second callback chain next to the compositor's own).
+			let presented = 0;
+			const countFrames = () => { presented++; el.requestVideoFrameCallback(countFrames); };
+			if (out.hasRVFC) el.requestVideoFrameCallback(countFrames);
+			const shotA = preview.capture(), timeA = el ? el.currentTime : -1;
+			await sleep(600);
+			const shotB = preview.capture(), timeB = el ? el.currentTime : -1;
+			out.kindAfter = preview.painterKind(); out.timeA = timeA; out.timeB = timeB; out.paused = el ? el.paused : null; out.presented = presented; out.plays = plays;
+			let sum = 0, count = 0;
+			for (let i = 0; i < shotA.data.length; i += 4) { sum += Math.abs(shotA.data[i] - shotB.data[i]) + Math.abs(shotA.data[i + 1] - shotB.data[i + 1]) + Math.abs(shotA.data[i + 2] - shotB.data[i + 2]); count += 3; }
+			out.meanDiff = sum / count;
+			preview.pause();
+		} finally {
+			document.createElement = create; HTMLMediaElement.prototype.play = realPlay;
+			preview.dispose();
+			stage.replaceChildren();
+		}
+		return out;
+	}`, project, media.Files[goldenframe.MediaGradient]).Map()
+	summary := fmt.Sprintf("%v", out)
+	if out["kindBefore"].Str() != "gl" || out["kindAfter"].Str() != "gl" {
+		t.Fatalf("the check needs the GL painter: before %q, after %q (%s)", out["kindBefore"].Str(), out["kindAfter"].Str(), summary)
+	}
+	if !out["settled"].Bool() || out["videos"].Int() != 1 {
+		t.Fatalf("the gradient did not settle on one video element (%s)", summary)
+	}
+	// A paused element would move only through the preview's own seeks, and the paused path of the upload gate would hide a
+	// stuck playing path, so the check insists on real playback.
+	if out["paused"].Bool() || out["timeB"].Num()-out["timeA"].Num() < 0.3 {
+		t.Fatalf("the video did not play between the captures (%s)", summary)
+	}
+	t.Logf("detached element %v, requestVideoFrameCallback %v (%d frames presented between the captures), paused %v, video time %.2f s -> %.2f s, mean RGB difference %.2f of 255 (%s)",
+		out["detached"].Bool(), out["hasRVFC"].Bool(), out["presented"].Int(), out["paused"].Bool(), out["timeA"].Num(), out["timeB"].Num(), out["meanDiff"].Num(), summary)
+	// The gradient moves by tens of levels in 600 ms; a stage stuck on one frame differs by exactly zero.
+	if diff := out["meanDiff"].Num(); diff < 4 {
+		t.Errorf("the GL preview kept one frame while the video played: mean RGB difference %.2f between captures 600 ms apart, want at least 4 (%s)", diff, summary)
 	}
 }
