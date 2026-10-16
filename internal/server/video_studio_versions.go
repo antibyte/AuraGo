@@ -50,6 +50,12 @@ func videoStudioVersionsDir(projectID string) string {
 	return videoStudioProjectPath(projectID) + "/versions"
 }
 
+// validVideoStudioVersionID accepts the ids snapshotVideoStudioVersion creates (lowercase UUIDs from uid.New). Every
+// version path is built from an id that passed it: index.json is a Desktop file, and a crafted id such as
+// "../../<project>/project" would otherwise name a file outside the versions folder.
+func validVideoStudioVersionID(value string) bool { return validVideoStudioProjectID(value) }
+
+// videoStudioVersionDocPath is the document of a version; callers pass a validated id (validVideoStudioVersionID).
 func videoStudioVersionDocPath(projectID, versionID string) string {
 	return videoStudioVersionsDir(projectID) + "/" + versionID + ".json"
 }
@@ -59,6 +65,8 @@ func videoStudioVersionIndexPath(projectID string) string {
 }
 
 // readVideoStudioVersionIndex returns the versions of a project, oldest first. A missing index is an empty list.
+// Entries whose id is not a version id are dropped: they are never listed, read, restored or pruned, and the next
+// index write leaves them out.
 func readVideoStudioVersionIndex(ctx context.Context, svc *desktop.Service, projectID string) (videoStudioVersionIndex, error) {
 	data, _, err := svc.ReadFileBytes(ctx, videoStudioVersionIndexPath(projectID))
 	if errors.Is(err, os.ErrNotExist) {
@@ -71,11 +79,21 @@ func readVideoStudioVersionIndex(ctx context.Context, svc *desktop.Service, proj
 	if err := json.Unmarshal(data, &index); err != nil {
 		return videoStudioVersionIndex{}, fmt.Errorf("decode version index: %w", err)
 	}
+	valid := index.Versions[:0]
+	for _, entry := range index.Versions {
+		if validVideoStudioVersionID(entry.ID) {
+			valid = append(valid, entry)
+		}
+	}
+	index.Versions = valid
 	return index, nil
 }
 
 // readVideoStudioVersion finds a version in the index and reads its document; found is false when either is missing.
 func readVideoStudioVersion(ctx context.Context, svc *desktop.Service, projectID, versionID string) (videoStudioVersion, []byte, bool, error) {
+	if !validVideoStudioVersionID(versionID) {
+		return videoStudioVersion{}, nil, false, nil
+	}
 	index, err := readVideoStudioVersionIndex(ctx, svc, projectID)
 	if err != nil {
 		return videoStudioVersion{}, nil, false, err
@@ -165,7 +183,10 @@ func snapshotVideoStudioVersion(ctx context.Context, svc *desktop.Service, proje
 		return videoStudioVersion{}, err
 	}
 	for _, old := range removed {
-		_ = svc.DeletePath(ctx, videoStudioVersionDocPath(projectID, old.ID), desktop.SourceUser)
+		// The index read already dropped invalid ids; the check keeps this delete safe on its own.
+		if validVideoStudioVersionID(old.ID) {
+			_ = svc.DeletePath(ctx, videoStudioVersionDocPath(projectID, old.ID), desktop.SourceUser)
+		}
 	}
 	return entry, nil
 }
@@ -264,7 +285,7 @@ func handleVideoStudioVersion(s *Server, w http.ResponseWriter, r *http.Request,
 		writeVideoStudioMethodError(w)
 		return
 	}
-	if !validVideoStudioAssetID(versionID) {
+	if !validVideoStudioVersionID(versionID) {
 		writeVideoStudioError(w, http.StatusNotFound, "version_not_found", "Version not found.")
 		return
 	}
@@ -306,7 +327,7 @@ func handleVideoStudioVersionRestore(s *Server, w http.ResponseWriter, r *http.R
 		writeVideoStudioFileError(w, err)
 		return
 	}
-	if !validVideoStudioAssetID(versionID) {
+	if !validVideoStudioVersionID(versionID) {
 		writeVideoStudioError(w, http.StatusNotFound, "version_not_found", "Version not found.")
 		return
 	}

@@ -467,6 +467,17 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 		lock := manager.projectLock(id)
 		lock.Lock()
 		defer lock.Unlock()
+		oldProject, oldData, oldVersion, readErr := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(id))
+		if readErr != nil {
+			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
+			return
+		}
+		// A stale editor learns about the newer document first: its body may list media that was removed since, and
+		// answering that with 400 would hide the conflict it can resolve. The conditional write below checks again.
+		if err := precondition(desktop.FileWriteState{Exists: true, Data: oldData, Version: oldVersion, Entry: desktop.FileEntry{Path: videoStudioProjectPath(id) + "/project.json"}}); err != nil {
+			writeVideoStudioFileError(w, err)
+			return
+		}
 		project, err = manager.canonicalizeProject(id, project)
 		if err != nil {
 			writeVideoStudioError(w, http.StatusBadRequest, "project_asset_invalid", "Project may only reference media imported into this project.")
@@ -483,11 +494,6 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 		}
 		used, err := manager.projectStorageSize(r.Context(), svc, id)
 		if err != nil {
-			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
-			return
-		}
-		oldProject, oldData, _, readErr := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(id))
-		if readErr != nil {
 			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 			return
 		}

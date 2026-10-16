@@ -357,3 +357,62 @@ func TestVideoStudioVersionPruningKeepsNewestPerPool(t *testing.T) {
 		t.Fatal("a version ten minutes old must allow the automatic version")
 	}
 }
+
+// index.json is a Desktop file. An entry whose id is not a version id ("../../<other project>/project") must never name
+// a file: it is not listed, cannot be read, and pruning does not delete what it points at.
+func TestVideoStudioVersionIndexIgnoresInvalidIDs(t *testing.T) {
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	victim, _ := videoStudioAPICreate(t, s, writeToken)
+	project, _ := videoStudioAPICreate(t, s, writeToken)
+	ctx := context.Background()
+	svc, _, err := s.getDesktopService(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crafted := "../../" + victim.ID + "/project"
+	base := time.Now().UTC().Add(-48 * time.Hour)
+	index := videoStudioVersionIndex{Versions: []videoStudioVersion{{ID: crafted, Kind: videoStudioVersionManual, CreatedAt: base, Name: "x"}}}
+	// With the crafted entry the manual pool is full, so the next manual version would prune it.
+	for i := 1; i < videoStudioManualVersionLimit; i++ {
+		id := fmt.Sprintf("123e4567-e89b-12d3-a456-4266141780%02d", i)
+		index.Versions = append(index.Versions, videoStudioVersion{ID: id, Kind: videoStudioVersionManual, CreatedAt: base.Add(time.Duration(i) * time.Minute), Name: "x"})
+		if err := svc.WriteFileBytes(ctx, videoStudioVersionDocPath(project.ID, id), []byte(`{"version":2,"name":"x","width":1280,"height":720,"fps":30,"assets":[],"tracks":[]}`), desktop.SourceUser); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := json.Marshal(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.WriteFileBytes(ctx, videoStudioVersionIndexPath(project.ID), data, desktop.SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	listed := videoStudioVersionsOf(t, s, readToken, project.ID)
+	if len(listed) != videoStudioManualVersionLimit-1 {
+		t.Fatalf("listed %d versions, want the %d valid ones: %+v", len(listed), videoStudioManualVersionLimit-1, listed)
+	}
+	for _, version := range listed {
+		if version.ID == crafted {
+			t.Fatal("the crafted index entry was listed")
+		}
+	}
+	if found := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+project.ID+"/versions/..%2F..%2F"+victim.ID+"%2Fproject", nil, nil); found.Code != http.StatusNotFound {
+		t.Fatalf("crafted version id was readable: %d %s", found.Code, found.Body.String())
+	}
+	if post := videoStudioAPIRequest(s, writeToken, http.MethodPost, "/projects/"+project.ID+"/versions", bytes.NewBufferString(`{}`), nil); post.Code != http.StatusCreated {
+		t.Fatalf("manual version: %d %s", post.Code, post.Body.String())
+	}
+	if after := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+victim.ID, nil, nil); after.Code != http.StatusOK {
+		t.Fatalf("pruning another project's versions deleted its project.json: GET = %d %s", after.Code, after.Body.String())
+	}
+	rewritten, _, err := svc.ReadFileBytes(ctx, videoStudioVersionIndexPath(project.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(rewritten), victim.ID) {
+		t.Fatalf("the rewritten index kept the crafted entry: %s", rewritten)
+	}
+	if got := videoStudioVersionsOf(t, s, readToken, project.ID); len(got) != videoStudioManualVersionLimit {
+		t.Fatalf("after the new version %d versions are listed, want %d", len(got), videoStudioManualVersionLimit)
+	}
+}

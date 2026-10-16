@@ -308,3 +308,50 @@ func TestVideoStudioMediaRemovalAPI(t *testing.T) {
 		t.Fatalf("invalid asset id: %d", bad.Code)
 	}
 }
+
+// A second editor window still lists media that the first window removed. Its save carries the old ETag and must be
+// answered with the conflict (412) it can resolve, not with the 400 its stale media list would earn. A save with the
+// current ETag that still lists the removed media is refused with 400 project_asset_invalid.
+func TestVideoStudioStaleSaveAfterMediaRemovalIsAConflict(t *testing.T) {
+	s, _, writeToken := videoStudioAPIFixture(t)
+	project, etag := videoStudioAPICreate(t, s, writeToken)
+	const removed, kept = "123e4567-e89b-12d3-a456-426614179901", "123e4567-e89b-12d3-a456-426614179902"
+	videoStudioSeedMedia(t, s, project.ID, videostudio.Asset{ID: removed, Name: "x.bin", Kind: videostudio.AssetImage, Width: 2, Height: 2}, []byte("x"))
+	videoStudioSeedMedia(t, s, project.ID, videostudio.Asset{ID: kept, Name: "y.bin", Kind: videostudio.AssetImage, Width: 2, Height: 2}, []byte("y"))
+	save := func(document videostudio.Project, ifMatch string) (int, string, string) {
+		t.Helper()
+		body, err := json.Marshal(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w := videoStudioAPIRequest(s, writeToken, http.MethodPut, "/projects/"+project.ID, bytes.NewReader(body), map[string]string{"If-Match": ifMatch})
+		return w.Code, w.Header().Get("ETag"), w.Body.String()
+	}
+	both := project.Project
+	both.Assets = []videostudio.Asset{{ID: removed, Name: "x.bin"}, {ID: kept, Name: "y.bin"}}
+	code, windowB, body := save(both, etag)
+	if code != http.StatusOK {
+		t.Fatalf("seed save: %d %s", code, body)
+	}
+	// Window A removes the media: it saves without it, then deletes it.
+	onlyKept := both
+	onlyKept.Assets = []videostudio.Asset{{ID: kept, Name: "y.bin"}}
+	code, current, body := save(onlyKept, windowB)
+	if code != http.StatusOK {
+		t.Fatalf("window A save: %d %s", code, body)
+	}
+	if deleted := videoStudioAPIRequest(s, writeToken, http.MethodDelete, "/projects/"+project.ID+"/media/"+removed, nil, nil); deleted.Code != http.StatusOK {
+		t.Fatalf("delete: %d %s", deleted.Code, deleted.Body.String())
+	}
+	// Window B edits its stale copy, which still lists the removed media, and saves with its old ETag.
+	stale := both
+	stale.Name = "Renamed in window B"
+	code, _, body = save(stale, windowB)
+	if code != http.StatusPreconditionFailed || !strings.Contains(body, `"file_conflict"`) || !strings.Contains(body, strings.Trim(current, `"`)) {
+		t.Fatalf("stale save after media removal: %d %s, want 412 file_conflict naming the current version", code, body)
+	}
+	code, _, body = save(stale, current)
+	if code != http.StatusBadRequest || !strings.Contains(body, "project_asset_invalid") {
+		t.Fatalf("current-version save listing removed media: %d %s, want 400 project_asset_invalid", code, body)
+	}
+}

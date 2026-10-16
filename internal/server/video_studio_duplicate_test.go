@@ -108,6 +108,9 @@ func TestVideoStudioDuplicateJobCopiesMediaAndSkipsExports(t *testing.T) {
 	if finished.Result["name"] != "Copy" || finished.Artifact != nil {
 		t.Fatalf("duplicate result: %+v artifact %+v", finished.Result, finished.Artifact)
 	}
+	if finished.CopyProjectID != "" {
+		t.Fatalf("a finished copy is still recorded as in progress: %q", finished.CopyProjectID)
+	}
 	copied, _, _, err := readVideoStudioProject(ctx, svc, videoStudioProjectPath(copyID))
 	if err != nil || copied.Name != "Copy" || len(copied.Assets) != 1 || copied.Assets[0].Name != "Renamed clip" || copied.Assets[0].Folder != "Shots" {
 		t.Fatalf("copy document: %+v, %v", copied, err)
@@ -377,5 +380,84 @@ func TestVideoStudioRangeRenderExportsTheRange(t *testing.T) {
 	}
 	if frames := videostudio.ProjectRate(saved).FramesAt(probed.DurationUs); frames < 59 || frames > 61 {
 		t.Fatalf("the range export has %d frames, want 60 (%d us)", frames, probed.DurationUs)
+	}
+}
+
+// A restart in the middle of a duplicate leaves a copy folder without project.json. The job recorded the folder before
+// copying, so the next start removes it with its media records. A copy that was finished (it holds project.json) is
+// never touched, even when its job did not get to record the success.
+func TestVideoStudioRestartRemovesInterruptedDuplicateCopy(t *testing.T) {
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	ctx := context.Background()
+	svc, _, err := s.getDesktopService(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const orphanID = "123e4567-e89b-12d3-a456-426614175601"
+	const orphanAsset, finishedAsset = "123e4567-e89b-12d3-a456-426614175611", "123e4567-e89b-12d3-a456-426614175612"
+	videoStudioSeedMedia(t, s, orphanID, videostudio.Asset{ID: orphanAsset, Name: "half.bin", Kind: videostudio.AssetImage, Width: 2, Height: 2}, []byte("half"))
+	finished, _ := videoStudioAPICreate(t, s, writeToken)
+	videoStudioSeedMedia(t, s, finished.ID, videostudio.Asset{ID: finishedAsset, Name: "done.bin", Kind: videostudio.AssetImage, Width: 2, Height: 2}, []byte("done"))
+	source, _ := videoStudioAPICreate(t, s, writeToken)
+
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	interrupted := &videoStudioJob{ID: uidNew(), ProjectID: source.ID, Kind: "duplicate", Status: "running", CreatedAt: time.Now().UTC(), CopyProjectID: orphanID}
+	completed := &videoStudioJob{ID: uidNew(), ProjectID: source.ID, Kind: "duplicate", Status: "running", CreatedAt: time.Now().UTC(), CopyProjectID: finished.ID}
+	manager.mu.Lock()
+	manager.jobs[interrupted.ID] = interrupted
+	manager.jobs[completed.ID] = completed
+	err = manager.persistLocked()
+	manager.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An abrupt exit: the worker stops without the orderly shutdown that would mark the jobs cancelled.
+	manager.cancel()
+	manager.wg.Wait()
+	s.videoStudioMu.Lock()
+	s.videoStudio = nil
+	s.videoStudioMu.Unlock()
+	restarted, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		a, b := restarted.job(interrupted.ID), restarted.job(completed.ID)
+		if a != nil && b != nil && a.CopyProjectID == "" && b.CopyProjectID == "" {
+			if a.Status != "interrupted" || b.Status != "interrupted" {
+				t.Fatalf("jobs after restart: %s and %s, want interrupted", a.Status, b.Status)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the restart did not check the recorded copies: %+v %+v", a, b)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	entries, err := svc.ListFiles(ctx, "Documents/Video Studio")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.Name == orphanID {
+			t.Fatal("the incomplete copy folder survived the restart")
+		}
+	}
+	if _, ok := restarted.mediaRecord(orphanID, orphanAsset); ok {
+		t.Fatal("the media record of the incomplete copy survived the restart")
+	}
+	if got := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+finished.ID, nil, nil); got.Code != http.StatusOK {
+		t.Fatalf("the finished copy was touched: GET = %d %s", got.Code, got.Body.String())
+	}
+	if _, ok := restarted.mediaRecord(finished.ID, finishedAsset); !ok {
+		t.Fatal("the media record of the finished copy was removed")
+	}
+	if _, _, err := svc.ReadFileBytes(ctx, videoStudioProjectPath(finished.ID)+"/media/"+finishedAsset+"_done.bin"); err != nil {
+		t.Fatalf("the media file of the finished copy was removed: %v", err)
 	}
 }

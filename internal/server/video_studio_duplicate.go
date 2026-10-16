@@ -233,17 +233,100 @@ func (m *videoStudioManager) recordMediaBatch(projectID string, records []videoS
 	return nil
 }
 
+// setDuplicateCopy records (copyID set) or clears (copyID empty) the folder a duplicate job writes. Recording happens
+// before anything is copied, so a restart in the middle of the copy still knows which folder to remove; clearing
+// happens once the copy is complete or removed. The cleared state is best effort: a stale entry only makes the next
+// start check a folder that holds project.json (and leaves it) or is already gone.
+func (m *videoStudioManager) setDuplicateCopy(jobID, copyID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	job := m.jobs[jobID]
+	if job == nil {
+		return fmt.Errorf("duplicate job is unknown")
+	}
+	previous := job.CopyProjectID
+	job.CopyProjectID = copyID
+	if err := m.persistLocked(); err != nil {
+		job.CopyProjectID = previous
+		return err
+	}
+	return nil
+}
+
+// cleanupInterruptedDuplicates removes what duplicate jobs left behind when the server stopped during their copy. A
+// copy becomes a project only when its project.json is written last, so a recorded copy folder without one is
+// incomplete: the folder and its media records are removed. A folder with project.json is a finished copy and is never
+// touched. Each step is best effort and logged; a copy that could not be checked or removed is tried again at the next
+// start.
+func (m *videoStudioManager) cleanupInterruptedDuplicates() {
+	type pendingCopy struct{ jobID, copyID string }
+	var pending []pendingCopy
+	m.mu.Lock()
+	for _, job := range m.jobs {
+		if job.Kind == "duplicate" && job.CopyProjectID != "" && job.Status != "queued" && job.Status != "running" {
+			pending = append(pending, pendingCopy{jobID: job.ID, copyID: job.CopyProjectID})
+		}
+	}
+	m.mu.Unlock()
+	if len(pending) == 0 {
+		return
+	}
+	svc, _, err := m.server.getDesktopService(m.ctx)
+	if err != nil {
+		videoStudioLog(m.server.Logger, "Video Studio could not check the folders of interrupted duplicates", "error", err)
+		return
+	}
+	for _, item := range pending {
+		if m.ctx.Err() != nil {
+			return
+		}
+		if validVideoStudioProjectID(item.copyID) {
+			folder := videoStudioProjectPath(item.copyID)
+			files, err := videoStudioDirFiles(m.ctx, svc, folder)
+			if err != nil {
+				videoStudioLog(m.server.Logger, "Video Studio could not check an interrupted duplicate", "job_id", item.jobID, "project_id", item.copyID, "error", err)
+				continue
+			}
+			if _, complete := files["project.json"]; !complete {
+				if err := svc.DeletePath(m.ctx, folder, desktop.SourceUser); err != nil {
+					videoStudioLog(m.server.Logger, "Video Studio could not remove an interrupted duplicate", "job_id", item.jobID, "project_id", item.copyID, "error", err)
+					continue
+				}
+				m.removeProject(item.copyID)
+				if m.server.Logger != nil {
+					m.server.Logger.Info("Video Studio removed the incomplete copy of an interrupted duplicate", "job_id", item.jobID, "project_id", item.copyID)
+				}
+			}
+		}
+		if err := m.setDuplicateCopy(item.jobID, ""); err != nil {
+			videoStudioLog(m.server.Logger, "Video Studio could not record a checked duplicate", "job_id", item.jobID, "error", err)
+		}
+	}
+}
+
 // copyDuplicate writes a snapshot as a new project: its media files and posters (same asset ids), the media records,
 // and the project.json last, so the copy is not a project until it is complete. A copy that fails or is cancelled
-// removes what it made. jobID, when set, receives progress.
+// removes what it made. jobID, when set, receives progress and records the copy folder on the job before the copy
+// starts (cleanupInterruptedDuplicates removes it after a restart).
 func (m *videoStudioManager) copyDuplicate(ctx context.Context, svc *desktop.Service, jobID, sourceID string, snap duplicateSnapshot) (map[string]interface{}, error) {
 	copyID := uid.New()
 	destination := videoStudioProjectPath(copyID)
 	staging := videoStudioStagingContext(ctx)
+	if jobID != "" {
+		if err := m.setDuplicateCopy(jobID, copyID); err != nil {
+			return nil, err
+		}
+	}
 	fail := func(err error) (map[string]interface{}, error) {
 		// Without project.json the folder is not a project, so it is removed whatever state the job is in.
-		_ = svc.DeletePath(context.Background(), destination, desktop.SourceUser)
+		deleteErr := svc.DeletePath(context.Background(), destination, desktop.SourceUser)
 		m.removeProject(copyID)
+		if deleteErr != nil {
+			// The job keeps the copy id, so the next start removes the folder.
+			videoStudioLog(m.server.Logger, "Video Studio could not remove a failed duplicate", "job_id", jobID, "project_id", copyID, "error", deleteErr)
+		} else if jobID != "" {
+			_ = m.setDuplicateCopy(jobID, "")
+		}
 		return nil, err
 	}
 	if err := svc.CreateDirectory(staging, destination+"/media", desktop.SourceUser); err != nil {
@@ -286,6 +369,10 @@ func (m *videoStudioManager) copyDuplicate(ctx context.Context, svc *desktop.Ser
 		return nil
 	}); err != nil {
 		return fail(err)
+	}
+	if jobID != "" {
+		// The copy is a project now; a failure to record that only makes the next start look at it and leave it.
+		_ = m.setDuplicateCopy(jobID, "")
 	}
 	return map[string]interface{}{"project_id": copyID, "name": snap.project.Name, "size_bytes": snap.size}, nil
 }

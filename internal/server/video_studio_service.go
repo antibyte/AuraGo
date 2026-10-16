@@ -77,6 +77,7 @@ type videoStudioJob struct {
 	Error                 string                 `json:"error,omitempty"`
 	Message               string                 `json:"message,omitempty"`
 	ExternalStatusUnknown bool                   `json:"external_status_unknown,omitempty"`
+	CopyProjectID         string                 `json:"copy_project_id,omitempty"` // duplicate: copy folder in progress (setDuplicateCopy)
 	KeyHash               string                 `json:"-"`
 	Fingerprint           string                 `json:"-"`
 	progressPersistedAt   time.Time              `json:"-"`
@@ -503,6 +504,8 @@ func (m *videoStudioManager) enqueue(projectID, kind, fingerprint, key string, w
 
 func (m *videoStudioManager) worker() {
 	defer m.wg.Done()
+	// Before the first job runs, so no duplicate is copying while its predecessors' folders are checked.
+	m.cleanupInterruptedDuplicates()
 	for {
 		select {
 		case <-m.ctx.Done():
