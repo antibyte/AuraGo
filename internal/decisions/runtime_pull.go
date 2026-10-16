@@ -50,6 +50,11 @@ func ensureDockerRuntimeImages(ctx context.Context, access RuntimeAccess, cpuAll
 			return NewError(CodeDockerUnavailable, err)
 		}
 		if status == http.StatusNotFound {
+			if _, err := docker.image(ctx, backend); err == nil {
+				continue
+			} else if ErrorCode(err) == CodeRuntimeAttestationFailed {
+				return err
+			}
 			if progress != nil {
 				progress("downloading_runtime", 0, 0)
 			}
