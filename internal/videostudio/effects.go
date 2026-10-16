@@ -1,0 +1,190 @@
+package videostudio
+
+// Effect registry (spec §4.2): base properties, effects, transitions, blend modes, in/out animation presets and
+// looks, each table in menu order. The status endpoint serves EffectRegistry() to the editor; the DOM-free module
+// video-studio-effects.js mirrors it as BUILTIN, and TestVideoStudioEffectsRegistryMatchesGo (ui) keeps the two
+// equal. Later slices append rows: effects and looks (2c), blend modes (2d), transitions and animation presets
+// (2e). Label keys omit the "videoStudio." prefix; the editor's tr() adds it.
+
+// ParamType is the value type of a base property or effect parameter.
+type ParamType string
+
+const (
+	ParamNumber ParamType = "number"
+	ParamColor  ParamType = "color"
+	ParamBool   ParamType = "bool"
+	ParamChoice ParamType = "choice"
+	ParamLUT    ParamType = "lut"
+)
+
+// ParamSpec is one base property or effect parameter.
+type ParamSpec struct {
+	ID          string    `json:"id"`
+	Type        ParamType `json:"type"`
+	Min         float64   `json:"min"`
+	Max         float64   `json:"max"`
+	Default     any       `json:"default"` // float64, string (#rrggbb, choice, lut ref) or bool
+	Step        float64   `json:"step,omitempty"`
+	Keyframable bool      `json:"keyframable,omitempty"`
+	Unit        string    `json:"unit,omitempty"`
+	Choices     []string  `json:"choices,omitempty"`
+	LabelKey    string    `json:"label_key"` // without the "videoStudio." prefix (tr() adds it)
+}
+
+// EffectSpec is one effect of the clip effect stack.
+type EffectSpec struct {
+	ID       string      `json:"id"`
+	Category string      `json:"category"`
+	LabelKey string      `json:"label_key"`
+	Params   []ParamSpec `json:"params"`
+	Filters  []string    `json:"filters"` // FFmpeg filters the export needs (capability check)
+	// plan 2c adds the unexported FFmpeg builder field here; it is never serialized.
+}
+
+// TransitionSpec is one transition type and the xfade transition the export uses for it. The name avoids a clash
+// with the clip's Transition type.
+type TransitionSpec struct {
+	ID       TransitionType `json:"id"`
+	XFade    string         `json:"xfade"`
+	Category string         `json:"category"`
+	LabelKey string         `json:"label_key"`
+}
+
+// BlendModeSpec is one clip blend mode and its FFmpeg blend filter mode (2d).
+type BlendModeSpec struct {
+	ID       string `json:"id"`
+	Blend    string `json:"blend"` // FFmpeg blend mode name (2d)
+	LabelKey string `json:"label_key"`
+}
+
+// AnimPresetSpec is one in/out animation preset (2e).
+type AnimPresetSpec struct {
+	ID       string `json:"id"`
+	LabelKey string `json:"label_key"`
+}
+
+// LookSpec is one built-in look (2c).
+type LookSpec struct {
+	ID       string `json:"id"`
+	LabelKey string `json:"label_key"`
+}
+
+// RegistryVersion changes when the registry JSON changes shape, not when rows are added.
+const RegistryVersion = 1
+
+// Registry is the JSON the status endpoint serves under "registry".
+type Registry struct {
+	Version     int              `json:"version"`
+	Base        []ParamSpec      `json:"base"`
+	Effects     []EffectSpec     `json:"effects"`
+	Transitions []TransitionSpec `json:"transitions"`
+	BlendModes  []BlendModeSpec  `json:"blend_modes"`
+	AnimPresets []AnimPresetSpec `json:"anim_presets"`
+	Looks       []LookSpec       `json:"looks"`
+}
+
+// UnavailableSet lists the registry ids this FFmpeg cannot export (Registry.Unavailable). All four lists are always
+// present in JSON.
+type UnavailableSet struct {
+	Effects     []string `json:"effects"`
+	Transitions []string `json:"transitions"`
+	BlendModes  []string `json:"blend_modes"`
+	AnimPresets []string `json:"anim_presets"`
+}
+
+// registryBase holds the fixed picture properties of a clip. The label keys are the inspector's existing keys
+// (box_x and box_y label the fine-tune X and Y fields). Number defaults are float64, as JSON decodes them.
+// 2c adds crop.l|t|r|b, flip_h and flip_v; 2d adds blend and mask.*.
+var registryBase = []ParamSpec{
+	{ID: "x", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_x"},
+	{ID: "y", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_y"},
+	{ID: "width", Type: ParamNumber, Min: 0, Max: 1, Default: 1.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "width"},
+	{ID: "height", Type: ParamNumber, Min: 0, Max: 1, Default: 1.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "height"},
+	{ID: "rotation", Type: ParamNumber, Min: -360, Max: 360, Default: 0.0, Step: 0.1, Keyframable: true, Unit: "deg", LabelKey: "rotation"},
+	{ID: "opacity", Type: ParamNumber, Min: 0, Max: 1, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "opacity"},
+	{ID: "fit", Type: ParamChoice, Default: string(FitContain), Choices: []string{string(FitContain), string(FitCover)}, LabelKey: "fit"},
+}
+
+// registryTransitions keeps the phase 1 ids, export mapping and label keys. A wipe id names the edge the incoming
+// clip enters from: "wipeleft" enters from the left, which is xfade's wiperight (the edge moves right), and
+// "wiperight" is xfade's wipeleft. 2e appends 20 rows whose ids equal their xfade names (label keys transition_<id>).
+var registryTransitions = []TransitionSpec{
+	{ID: TransitionDissolve, XFade: "fade", Category: "basic", LabelKey: "dissolve"},
+	{ID: TransitionBlack, XFade: "fadeblack", Category: "basic", LabelKey: "black"},
+	{ID: TransitionWipeLeft, XFade: "wiperight", Category: "wipe", LabelKey: "wipeleft"},
+	{ID: TransitionWipeRight, XFade: "wipeleft", Category: "wipe", LabelKey: "wiperight"},
+}
+
+var (
+	registryEffects     = []EffectSpec{}     // 2c
+	registryBlendModes  = []BlendModeSpec{}  // 2d
+	registryAnimPresets = []AnimPresetSpec{} // 2e
+	registryLooks       = []LookSpec{}       // 2c
+)
+
+// EffectRegistry returns a deep copy of the registry in menu order. No list is nil.
+func EffectRegistry() Registry {
+	registry := Registry{
+		Version:     RegistryVersion,
+		Base:        make([]ParamSpec, len(registryBase)),
+		Effects:     make([]EffectSpec, len(registryEffects)),
+		Transitions: append([]TransitionSpec{}, registryTransitions...),
+		BlendModes:  append([]BlendModeSpec{}, registryBlendModes...),
+		AnimPresets: append([]AnimPresetSpec{}, registryAnimPresets...),
+		Looks:       append([]LookSpec{}, registryLooks...),
+	}
+	for i, param := range registryBase {
+		registry.Base[i] = cloneParam(param)
+	}
+	for i, effect := range registryEffects {
+		registry.Effects[i] = cloneEffect(effect)
+	}
+	return registry
+}
+
+// TransitionByID returns the registry entry of a transition type.
+func TransitionByID(id TransitionType) (TransitionSpec, bool) {
+	for _, spec := range registryTransitions {
+		if spec.ID == id {
+			return spec, true
+		}
+	}
+	return TransitionSpec{}, false
+}
+
+// EffectByID returns a copy of an effect's registry entry. The table is empty until 2c.
+func EffectByID(id string) (EffectSpec, bool) {
+	for _, effect := range registryEffects {
+		if effect.ID == id {
+			return cloneEffect(effect), true
+		}
+	}
+	return EffectSpec{}, false
+}
+
+// BaseParam returns a copy of a base property's registry entry.
+func BaseParam(id string) (ParamSpec, bool) {
+	for _, param := range registryBase {
+		if param.ID == id {
+			return cloneParam(param), true
+		}
+	}
+	return ParamSpec{}, false
+}
+
+func cloneParam(param ParamSpec) ParamSpec {
+	if param.Choices != nil {
+		param.Choices = append([]string(nil), param.Choices...)
+	}
+	return param
+}
+
+func cloneEffect(effect EffectSpec) EffectSpec {
+	params := make([]ParamSpec, len(effect.Params))
+	for i, param := range effect.Params {
+		params[i] = cloneParam(param)
+	}
+	effect.Params = params
+	effect.Filters = append(make([]string, 0, len(effect.Filters)), effect.Filters...)
+	return effect
+}

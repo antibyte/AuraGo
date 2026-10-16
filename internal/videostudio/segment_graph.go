@@ -222,11 +222,17 @@ func appendTransition(filters []string, join func() string, combined, incoming s
 			fmt.Sprintf("[%s]trim=start_frame=%d,setpts=PTS-STARTPTS[%s]", tail, overlap, after))
 		incomingSource = head
 	}
+	// The xfade name comes from the registry. Validate admits only registry transitions; the fallback keeps the graph
+	// well-formed and equals the old default.
+	xfade := "fade"
+	if spec, ok := TransitionByID(transition.Type); ok {
+		xfade = spec.XFade
+	}
 	outgoingPart, incomingPart, mixed := join(), join(), join()
 	filters = append(filters,
 		fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", outgoingSource, clip.Start, clip.Start+overlap, timebase, outgoingPart),
 		fmt.Sprintf("[%s]trim=end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", incomingSource, overlap, timebase, incomingPart),
-		fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoingPart, incomingPart, mapTransition(transition.Type), rate.SecondsArg(overlap), rate.SecondsArg(0), mixed))
+		fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoingPart, incomingPart, xfade, rate.SecondsArg(overlap), rate.SecondsArg(0), mixed))
 	parts = append(parts, mixed)
 	if after != "" {
 		parts = append(parts, after)
@@ -376,19 +382,6 @@ func tempoChain(speed float64) string {
 
 func transparentGapFilter(label string, frames, width, height int, rate Rate) string {
 	return fmt.Sprintf("color=c=black@0:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[%s]", width, height, rate, rate.SecondsArg(frames), frames, label)
-}
-
-func mapTransition(value TransitionType) string {
-	switch value {
-	case TransitionBlack:
-		return "fadeblack"
-	case TransitionWipeLeft:
-		return "wiperight"
-	case TransitionWipeRight:
-		return "wipeleft"
-	default:
-		return "fade"
-	}
 }
 
 func evenPixels(value float64, bound int) int {

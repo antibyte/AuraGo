@@ -290,9 +290,8 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 		if clip.Transition.Duration <= 0 || clip.Transition.Duration > clip.Duration {
 			return fmt.Errorf("clip %q has invalid transition duration", clip.ID)
 		}
-		switch clip.Transition.Type {
-		case TransitionDissolve, TransitionBlack, TransitionWipeLeft, TransitionWipeRight:
-		default:
+		// The registry is the one list of transition types (plan index §4.9).
+		if _, ok := TransitionByID(clip.Transition.Type); !ok {
 			return fmt.Errorf("clip %q has unsupported transition %q", clip.ID, clip.Transition.Type)
 		}
 	}
