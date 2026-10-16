@@ -37,11 +37,11 @@
         return value === 'live' || value === 'detections' ? value : 'snapshots';
     }
 
-    // launchContext accepts the notification-center context {event_id, camera_id} (shell-chrome-runtime.js).
+    // Notifications target an event; Infra targets a configured camera without starting live playback.
     function launchContext(context) {
         const eventID = context ? context.event_id : undefined;
-        if (!Number.isSafeInteger(eventID) || eventID <= 0) return null;
-        const cameraID = typeof context.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(context.camera_id) ? context.camera_id : '';
+        const cameraID = context && typeof context.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(context.camera_id) ? context.camera_id : '';
+        if (!Number.isSafeInteger(eventID) || eventID <= 0) return cameraID ? { camera_id: cameraID } : null;
         return cameraID ? { event_id: eventID, camera_id: cameraID } : { event_id: eventID };
     }
 
@@ -74,7 +74,7 @@
             error: '',
             filter: '',
             selected: preferences.selected,
-            mode: launchContext(ctx) ? 'detections' : preferences.mode,
+            mode: launchContext(ctx) ? (launchContext(ctx).event_id ? 'detections' : 'snapshots') : preferences.mode,
             focus: false,
             modal: null,
             deletingID: '',
@@ -127,6 +127,17 @@
     }
 
     function ensureSelection(state) {
+        const launch = state.pendingLaunch;
+        if (launch && launch.camera_id && !launch.event_id) {
+            state.pendingLaunch = null;
+            const camera = activeStreams(state).find(stream => stream.id === launch.camera_id);
+            state.selected = camera ? camera.id : '';
+            state.focus = !!camera;
+            state.filter = '';
+            if (!camera) state.error = text(state.ctx, 'no_results');
+            savePreferences(state);
+            return;
+        }
         if (selectedStream(state)) return;
         const first = activeStreams(state)[0];
         state.selected = first ? first.id : '';
@@ -821,8 +832,9 @@
         const launch = launchContext(context);
         if (!state || state.disposed || !launch) return;
         state.pendingLaunch = launch;
-        state.mode = 'detections';
+        state.mode = launch.event_id ? 'detections' : 'snapshots';
         state.focus = false;
+        if (state.data && !launch.event_id) ensureSelection(state);
         savePreferences(state);
         draw(state);
     }

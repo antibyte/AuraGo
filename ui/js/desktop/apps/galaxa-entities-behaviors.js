@@ -11,14 +11,17 @@
                 e.shotWarning = ctx.settings.diff === 'hard' ? 300 : 500;
                 ctx.scheduleGame(() => {
                     e.shotPending = false; e.shotWarning = 0;
-                    if (e.st !== 'DEAD' && ctx.G.freezeT <= 0) { e.shotReady = true; enemyFire(e); e.shotReady = false; }
+                    if (e.st !== 'DEAD' && e.st !== 'SMOLDER' && ctx.G.freezeT <= 0) { e.shotReady = true; enemyFire(e); e.shotReady = false; }
                 }, e.shotWarning);
                 return;
             }
             if (ctx.G.ebul.length >= 180) return;
             const _ebStart = ctx.G.ebul.length;
             const spd = ctx.EB_SPEED * ctx.diffMod('ebSpd');
-            const px = e.x, py = e.y + 8;
+            // Quirk "fakeout": the tell is longer and the shot leaves from a
+            // laterally jittered muzzle, so the aim is harder to read.
+            const _fake = e.quirk === 'fakeout' ? (ctx.random() - 0.5) * 36 : 0;
+            const px = e.x + _fake, py = e.y + 8;
 
             function mirrorBullet(b) {
                 if (!ctx.modesIsMirrorPermanent || !ctx.modesIsMirrorPermanent()) return;
@@ -109,7 +112,15 @@
                     }
                     break;
                 default:
-                    if (e.type === 'bee') break;
+                    if (e.type === 'bee') {
+                        // Quirk "volley": an otherwise harmless bee returns fire once.
+                        if (e.quirk === 'volley' && ctx.G.p.alive) {
+                            const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy) || 1;
+                            ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6, vx: (dx / dist) * spd * 0.5, vy: (dy / dist) * spd * 0.5, kind: 'hunter' });
+                            if (ctx.SFX.hunterShot) ctx.SFX.hunterShot(e.x);
+                        }
+                        break;
+                    }
                     ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6 });
                     if (ctx.G.stage >= 5 && e.type === 'boss') { ctx.G.ebul.push({ x: px - 8, y: py, w: 2, h: 6 }); ctx.G.ebul.push({ x: px + 8, y: py, w: 2, h: 6 }); }
                     if (ctx.G.stage >= 8 && e.type === 'boss') { for (let k = 0; k < 3; k++) ctx.scheduleGame(() => { if (!ctx.state.disposed && e.st === 'DIVING') pushEbul({ x: e.x, y: e.y + 8, w: 2, h: 6 }); }, k * 150); }
@@ -127,27 +138,103 @@
             if (e.type === 'kamikaze') return 4;
             return 1;
         }
-        function startDive(e) {
+        function isHomingType(e) { return e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze'; }
+
+        // Seeded weighted pick of a dive path shape; later stages unlock wilder
+        // shapes so early waves stay readable.
+        function pickDivePath(e) {
+            const defs = GC.DIVE_PATHS;
+            if (!defs) return 'sine';
+            let total = 0;
+            const pool = [];
+            for (const k in defs) { if (ctx.G.stage >= (defs[k].stageMin || 1)) { pool.push(k); total += defs[k].weight || 1; } }
+            if (!pool.length) return 'sine';
+            let roll = ctx.random() * total;
+            for (const k of pool) { roll -= (defs[k].weight || 1); if (roll <= 0) return k; }
+            return pool[pool.length - 1];
+        }
+
+        // Apply one tick of the assigned dive path shape.
+        function moveDivePath(e, eDt) {
+            const d = e.dPath;
+            d.ph += eDt * 3;
+            const k = d.kind || 'sine';
+            if (k === 'zigzag') {
+                e.x += (d.vx + Math.sin(d.ph) * d.amp * 2.4) * eDt;
+                d.vx *= 0.995;
+            } else if (k === 'arc') {
+                const t = Math.min(1, d.ph / 6);
+                e.x += (d.vx * (1 - 2 * t) + Math.sin(d.ph) * d.amp * 2) * eDt;
+            } else if (k === 'bounce') {
+                e.x += d.vx * eDt;
+                if (e.x < 30) { e.x = 30; d.vx = Math.abs(d.vx); }
+                else if (e.x > ctx.W - 30) { e.x = ctx.W - 30; d.vx = -Math.abs(d.vx); }
+            } else if (k === 'weave') {
+                e.x += (d.vx + Math.cos(d.ph) * d.amp * 3 + Math.sin(d.ph * 2.3) * d.amp * 1.6) * eDt;
+            } else {
+                e.x += d.vx * eDt + Math.cos(d.ph) * d.amp * 3 * eDt;
+            }
+        }
+
+        // Assign a behaviour quirk to a freshly spawned enemy. Always driven by
+        // the seeded RNG; no quirks on easy difficulty.
+        function assignEnemyQuirk(e) {
+            if (!e || e.quirk) return;
+            if (e.type === 'boss' || e.type === 'miniboss' || e.sectorBoss) return;
+            const table = GC.ENEMY_QUIRKS; const chances = GC.QUIRK_CHANCE;
+            if (!table || !chances) return;
+            const base = chances[ctx.settings.diff];
+            if (!base) return;
+            const stageMin = table.reduce((m, q) => Math.min(m, q.stageMin), Infinity);
+            if (ctx.G.stage < stageMin) return;
+            const chance = Math.min(0.8, base * Math.min(2, 1 + (ctx.G.stage - stageMin) * 0.06));
+            if (ctx.random() >= chance) return;
+            const pool = table.filter(q => ctx.G.stage >= q.stageMin && (!q.types || q.types.indexOf(e.type) >= 0));
+            if (!pool.length) return;
+            let total = 0; for (const q of pool) total += q.weight;
+            let roll = ctx.random() * total;
+            for (const q of pool) { roll -= q.weight; if (roll <= 0) { e.quirk = q.id; break; } }
+            if (!e.quirk) e.quirk = pool[pool.length - 1].id;
+            // A volleying bee must not fire the instant it reaches formation.
+            if (e.quirk === 'volley') e.sTmr = 900 + ctx.random() * 900;
+        }
+
+        function startDive(e, opts) {
             if (e.st !== 'FORM') return;
+            const warnMs = opts && opts.fast ? GC.REVENGE_DIVE.telegraphMs : 500;
             if (!e.diveReady) {
                 if (e.divePending) return;
-                e.divePending = true; e.shotWarning = 500; e.attackAnim = 1000;
-                ctx.scheduleGame(() => { e.divePending = false; if (e.st === 'FORM') { e.diveReady = true; startDive(e); } }, 500);
+                e.divePending = true; e.shotWarning = warnMs; e.attackAnim = 1000;
+                ctx.scheduleGame(() => { e.divePending = false; if (e.st === 'FORM') { e.diveReady = true; startDive(e, opts); } }, warnMs);
                 return;
             }
             e.diveReady = false; e.st = 'DIVING';
-            e.dPath = { ph: 0, amp: e.type === 'hunter' ? 18 + ctx.random() * 20 : 30 + ctx.random() * 40, vx: (ctx.random() - 0.5) * (e.type === 'hunter' ? 70 : 130) };
+            e.dPath = { ph: 0, kind: pickDivePath(e), amp: e.type === 'hunter' ? 18 + ctx.random() * 20 : 30 + ctx.random() * 40, vx: (ctx.random() - 0.5) * (e.type === 'hunter' ? 70 : 130) };
             e.dTmr = e.type === 'hunter' ? 4500 : 3000;
             e.sTmr = e.type === 'hunter' ? 280 + ctx.random() * 420 : 500 + ctx.random() * 1000;
-            if (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') {
+            if (isHomingType(e)) {
                 e.rot = 0;
                 e.rotTarget = Math.PI;
                 e.rotTimer = 0;
                 e.rotDuration = 500;
-                if (window.__galaxaDebug) console.log('[rot]', e.type, 'startDive rotTarget=', e.rotTarget);
             }
-            if (e.type === 'hunter') ctx.SFX.hunterDive(e.x); else ctx.SFX.dive();
-            if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && ctx.random() < 0.3) ctx.G.beam = { active: true, owner: e, x: e.x, y: e.y + 16, h: 0, t: 0, cap: false, capT: 0 };
+            // Quirk "feint": dive a short way, then abort and climb back. Never
+            // applied to homing types (they already rotate/flip on the way in).
+            // Feint dives are shorter and can end in the air (no bottom reset).
+            const quirk = (!opts || !opts.noQuirk) ? e.quirk : null;
+            if (quirk === 'feint' && !isHomingType(e) && ctx.random() < GC.FEINT.chance) {
+                e.st = 'FEINT';
+                e.dTmr = GC.FEINT.minMs + ctx.random() * (GC.FEINT.maxMs - GC.FEINT.minMs);
+            }
+            if (quirk === 'feint' && e.st === 'FEINT' && ctx.SFX.feintWhistle) ctx.SFX.feintWhistle(e.x);
+            else if (e.type === 'hunter') ctx.SFX.hunterDive(e.x);
+            else ctx.SFX.dive();
+            if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && ctx.random() < 0.3) {
+                // Beam "feint": with a chance the tractor beam collapses before
+                // it can pull the player, then recharges.
+                const feintBeam = ctx.random() < 0.3;
+                ctx.G.beam = { active: true, owner: e, x: e.x, y: e.y + 16, h: 0, t: 0, cap: false, capT: 0, feint: feintBeam, abortAt: feintBeam ? 1100 + ctx.random() * 700 : 0 };
+            }
         }
                 function updateE(dt) {
             const eDt = dt * ctx.G.timeScale;
@@ -254,7 +341,7 @@
                             e.sTmr = 1500 + ctx.random() * 1000;
                         }
                     }
-                    if ((e.type === 'sniper' || e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher' || e.type === 'weaver' || e.type === 'splitter' || e.type === 'shield_bee' || e.type === 'carrier' || e.type === 'teleporter') && ctx.G.p.alive && ctx.G.freezeT <= 0) {
+                    if ((e.type === 'sniper' || e.type === 'spinner' || e.type === 'bomber' || e.type === 'lasher' || e.type === 'weaver' || e.type === 'splitter' || e.type === 'shield_bee' || e.type === 'carrier' || e.type === 'teleporter' || e.st === 'DIVING' || e.st === 'FEINT' || e.quirk === 'volley') && ctx.G.p.alive && ctx.G.freezeT <= 0) {
                         e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0) {
                             ctx.enemyFire(e);
@@ -296,7 +383,7 @@
                             e.x += (kdx / kdist) * diveSpd * 1.8 * eDt;
                             e.y += (kdy / kdist) * diveSpd * 1.8 * eDt;
                         }
-                        else if (e.dPath) { e.dPath.ph += eDt * 3; e.x += e.dPath.vx * eDt + Math.cos(e.dPath.ph) * e.dPath.amp * 3 * eDt; }
+                        else if (e.dPath) moveDivePath(e, eDt);
                         if (ctx.G.beam && ctx.G.beam.owner === e) { ctx.G.beam.x = e.x; ctx.G.beam.y = e.y + 16; }
                         e.sTmr -= _sTmrDt;
                         if (e.sTmr <= 0 && !ctx.G.chal) {
@@ -316,6 +403,20 @@
                         }
                     }
                 }
+                else if (e.st === 'FEINT') {
+                    // Aborted dive: shorter, slower and non-lethal by contact.
+                    // No shots while feinting: a fake dive must stay a fake.
+                    e.dTmr -= dtMs;
+                    if (e.dTmr <= 0 || e.y > ctx.H - 40) {
+                        e.st = 'RETURN';
+                        if (ctx.fxEnemyFeint) ctx.fxEnemyFeint(e.x, e.y);
+                        if (ctx.SFX.whoosh) ctx.SFX.whoosh(120, e.x);
+                    } else {
+                        const diveSpd = ctx.DIVE_SPD * GC.FEINT.speedMult * (e.rageSpeedMult || 1);
+                        e.y += diveSpd * eDt;
+                        if (e.dPath) moveDivePath(e, eDt);
+                    }
+                }
                 else if (e.st === 'RETURN') {
                     e.x += (e.fx + ctx.G.fX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3;
                     if ((e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && e.rotTimer < e.rotDuration) {
@@ -330,7 +431,16 @@
                 ctx.G.archetypeFailed = true;
                 ctx.G.vipShip = null;
             }
-            if (ctx.G.beam && ctx.G.beam.active) { ctx.G.beam.t += dtMs; ctx.G.beam.h = Math.min(Math.max(0, ctx.H - ctx.G.beam.y), ctx.G.beam.h + eDt * 300); if (ctx.G.beam.t > 3000) { ctx.G.beam.active = false; if (ctx.G.beam.cap && ctx.G.p.cap) { ctx.G.beam.owner.hasCap = true; ctx.G.p.cap = null; } } }
+            if (ctx.G.beam && ctx.G.beam.active) {
+                const _bm = ctx.G.beam;
+                _bm.t += dtMs; _bm.h = Math.min(Math.max(0, ctx.H - _bm.y), _bm.h + eDt * 300);
+                if (_bm.feint && _bm.t > _bm.abortAt) {
+                    // Beam feint collapsed: the captured fighter is released.
+                    _bm.active = false; ctx.G.p.cap = null; ctx.G.beam = null;
+                } else if (_bm.t > 3000) {
+                    _bm.active = false; if (_bm.cap && ctx.G.p.cap) { _bm.owner.hasCap = true; ctx.G.p.cap = null; }
+                }
+            }
             ctx.G.dTmr -= dtMs;
             if (ctx.G.asteroids) {
                 for (let a of ctx.G.asteroids) {
@@ -344,11 +454,60 @@
             if (ctx.G.dTmr <= 0 && !ctx.G.chal && ctx.G.st === 'PLAYING') {
                 const fe = ctx.G.enemies.filter(e => e.st === 'FORM' && !e.sectorBoss);
                 if (fe.length) {
-                    const hunters = fe.filter(e => e.type === 'hunter' || e.type === 'stalker');
-                    const pick = hunters.length && ctx.random() < 0.45 ? hunters[Math.floor(ctx.random() * hunters.length)] : fe[Math.floor(ctx.random() * fe.length)];
-                    ctx.startDive(pick);
+                    let launched = false;
+                    // Squad dive: a whole formation row attacks in a staggered wave.
+                    if (ctx.G.stage >= GC.SQUAD_DIVE.stageMin && fe.length >= GC.SQUAD_DIVE.minSize
+                        && ctx.random() < Math.min(0.75, GC.SQUAD_DIVE.chance * ctx.diffMod('diveRate'))) {
+                        const byRow = {};
+                        for (const e of fe) { (byRow[e.r] = byRow[e.r] || []).push(e); }
+                        let group = null;
+                        for (const k in byRow) { if (byRow[k].length >= GC.SQUAD_DIVE.minSize) { group = byRow[k]; break; } }
+                        if (group) {
+                            const size = Math.min(group.length, GC.SQUAD_DIVE.maxSize);
+                            for (let i = 0; i < size; i++) {
+                                const sq = group[i];
+                                ctx.scheduleGame(() => { if (!ctx.state.disposed && sq.st === 'FORM') ctx.startDive(sq, { noQuirk: true }); }, i * GC.SQUAD_DIVE.staggerMs);
+                            }
+                            ctx.G.fxSquadDive = { t: 0, dur: 620 };
+                            if (ctx.fxSquadDiveCue) ctx.fxSquadDiveCue();
+                            launched = true;
+                        }
+                    }
+                    // Formation shuffle: two neighbours quietly swap slots.
+                    if (!launched && ctx.G.stage >= GC.FORMATION_SHUFFLE.stageMin && ctx.random() < GC.FORMATION_SHUFFLE.chance) {
+                        const rows = {};
+                        for (const e of fe) { (rows[e.r] = rows[e.r] || []).push(e); }
+                        for (const k in rows) {
+                            const row = rows[k];
+                            if (row.length < 2) continue;
+                            row.sort((a, b) => a.fx - b.fx);
+                            const i = Math.floor(ctx.random() * (row.length - 1));
+                            const a = row[i], b = row[i + 1];
+                            const ax = a.fx, ay = a.fy; a.fx = b.fx; a.fy = b.fy; b.fx = ax; b.fy = ay;
+                            if (ctx.fxFormationShuffle) ctx.fxFormationShuffle(ax, ay, b.fx, b.fy);
+                            launched = true;
+                            break;
+                        }
+                    }
+                    if (!launched) {
+                        const hunters = fe.filter(e => e.type === 'hunter' || e.type === 'stalker');
+                        const pick = hunters.length && ctx.random() < 0.45 ? hunters[Math.floor(ctx.random() * hunters.length)] : fe[Math.floor(ctx.random() * fe.length)];
+                        ctx.startDive(pick);
+                    }
                 }
                 ctx.G.dTmr = Math.max(500, (2000 - ctx.G.stage * 100) / ctx.diffMod('diveRate'));
+            }
+            // Quirk "shy": only joins the attack once the player is nearby.
+            if (ctx.G.st === 'PLAYING' && !ctx.G.chal && ctx.G.p.alive) {
+                ctx._shyT = (ctx._shyT || 0) + dtMs;
+                if (ctx._shyT >= 600) {
+                    ctx._shyT = 0;
+                    for (const e of ctx.G.enemies) {
+                        if (e.st !== 'FORM' || e.quirk !== 'shy' || e.sectorBoss) continue;
+                        const dist = Math.hypot(e.x - ctx.G.p.x, e.y - ctx.G.p.y);
+                        if (dist < 120 && ctx.random() < 0.25) ctx.startDive(e, { noQuirk: true });
+                    }
+                }
             }
             const alive = ctx.G.enemies.filter(e => e.st !== 'DEAD');
             if (alive.length === 0 && !ctx.hasPendingWaves() && !ctx.G.encounterBoss && ctx.G.levelSkipTimer <= 0 && ctx.G.st === 'PLAYING' && ctx.G.stageClearLock <= 0) {
@@ -428,6 +587,30 @@
             }
         }
 
+        // Revenge dive: when a formation comrade dies, nearby wingmates may break
+        // formation and strike back immediately (briefened telegraph, rage aura).
+        function onEnemyKilled(x, y) {
+            const G = ctx.G;
+            // Legacy formation commanders dive without telegraph; they are
+            // always fair game (handled first so the RNG stream below stays
+            // attached to the filtered candidate loop only).
+            if (G.st !== 'PLAYING' || G.chal || G.freezeT > 0 || !G.p.alive) return;
+            if (G.stage < GC.REVENGE_DIVE.stageMin || ctx.random() >= GC.REVENGE_DIVE.chance) return;
+            const cands = [];
+            for (const e of G.enemies) {
+                if (e.st !== 'FORM' || e.sectorBoss || e.type === 'boss' || e.type === 'miniboss') continue;
+                if (Math.abs(e.x - x) < GC.REVENGE_DIVE.radius && Math.abs(e.y - y) < GC.REVENGE_DIVE.radius) cands.push(e);
+            }
+            if (!cands.length) return;
+            const n = Math.min(GC.REVENGE_DIVE.max, cands.length);
+            for (let i = 0; i < n && cands.length; i++) {
+                const e = cands.splice(Math.floor(ctx.random() * cands.length), 1)[0];
+                e.rageMode = GC.REVENGE_DIVE.rageMs; e.rageSpeedMult = GC.REVENGE_DIVE.rageMult;
+                ctx.startDive(e, { noQuirk: true, fast: true });
+            }
+            if (ctx.SFX.rageGrowl) ctx.SFX.rageGrowl(x);
+        }
+
         function startChalDive(e) {
             if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 50 + ctx.random() * 30, vx: (ctx.random() - 0.5) * 130 }; e.dTmr = 4000; e.sTmr = 99999; ctx.SFX.dive();
         }
@@ -435,6 +618,8 @@
         ctx.diveRateMult = diveRateMult;
         ctx.startDive = startDive;
         ctx.startChalDive = startChalDive;
+        ctx.assignEnemyQuirk = assignEnemyQuirk;
+        ctx.onEnemyKilled = onEnemyKilled;
         ctx.updateE = updateE;
         ctx.updateHazards = updateHazards;
     };

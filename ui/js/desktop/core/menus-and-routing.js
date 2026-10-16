@@ -1632,6 +1632,13 @@
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'infra' && window.InfraApp) {
+            return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, openApp, setWindowMenus, clearWindowMenus, confirmDialog, readonly: desktopReadonly(),
+                showConfirmModal: confirmDialog,
+                showNotify: message => showDesktopNotification({ title: 'Infra', message })
+            }));
+        }
         if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
@@ -1688,7 +1695,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp }));
-        } if (appId === 'quick-connect') return renderQuickConnect(id);
+        } if (appId === 'quick-connect') return renderQuickConnect(id, context);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, officeAppContext(context));
         }
@@ -1733,7 +1740,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.SoftwareStoreApp.render === 'function') {
-                return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+                return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, (state.windows.get(id) || {}).context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
             }
         }
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
@@ -1754,7 +1761,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('network-cameras').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
+            if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, (state.windows.get(id) || {}).context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'meshcore') {
             if (!window.MeshCoreApp) {

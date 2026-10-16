@@ -1263,6 +1263,7 @@
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
+            infra: { width: 1280, height: 820 },
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
@@ -1301,9 +1302,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'infra' || appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'infra') return { width: 360, height: 480 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
@@ -1363,7 +1365,8 @@
     }
 
     function matchesExistingAppWindow(win, appId, context) {
-        if (win.appId !== appId || appId === 'quick-connect') return false;
+        if (win.appId !== appId) return false;
+        if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
         if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
@@ -1523,12 +1526,23 @@
             if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);
             if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
+            if (appId === 'quick-connect' && context && context.device_id) {
+                updateWindowContext(existing.id, { device_id: context.device_id });
+                applyQuickConnectLaunchContext(existing.id, context);
+            }
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
+            if (appId === 'software-store' && context && context.app_id) {
+                updateWindowContext(existing.id, { app_id: context.app_id });
+                window.SoftwareStoreApp?.open?.(existing.id, context);
+            }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
-            if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);
+            if (appId === 'network-cameras' && context && (context.event_id || context.camera_id)) {
+                updateWindowContext(existing.id, context);
+                window.NetworkCamerasApp?.open?.(existing.id, context);
+            }
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }

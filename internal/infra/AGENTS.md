@@ -1,0 +1,12 @@
+# Infra Store Contract
+
+`internal/infra` owns the persistent editable infrastructure graph and its safe, typed observations of configured source adapters. It shares the inventory `*sql.DB`; the store never closes it or changes SQLite `user_version`.
+
+- Keep nodes, explicit source links, edges, source freshness, layout revisions, and action request outcomes in this package. Never persist raw provider payloads, credentials, Fritz!Box MAC identities, or arbitrary provider JSON.
+- Schema changes are additive and backward compatible. Back up the existing main database before the first schema migration with the SQLite backup pattern, and test migration against existing inventory rows. Do not alter inventory schema or execution credentials here.
+- Node, source-link, edge, and layout mutations use persisted version checks. Layout batches are atomic. Parent hierarchy cycles are invalid; network-edge cycles are allowed. Provider-owned edges are read-only.
+- Manual device nodes atomically create protocol-`none` inventory rows. Explicit registry links may associate existing inventory devices with Infra devices, VMs, or containers; they never create synthetic inventory rows for VMs or containers. Editing or deleting an Infra node must preserve operator-configured inventory protocol and credentials, and deleting Infra never deletes inventory devices.
+- Source identities are `(kind, instance, key)`. Linking is always explicit. Incomplete observations stale unseen records; only complete enumerations remove them. Startup marks current observations stale. Linked last-known source data and nodes persist through outages and source removal. Only unlinked removed candidate observations may expire after the declared retention window.
+- Server-populated `Node` action and app-link fields are runtime projections only. Reset them on store reads/writes and never persist caller-supplied permissions. Per-source action maps use `CandidateID(SourceIdentity)` as the key so actions remain scoped to their source.
+- Reserve each mutating action request before dispatch. A lingering `running` reservation becomes `unknown` after restart; final `accepted`, `completed`, `failed`, and `unknown` results remain replayable. Reusing a request ID with a different action fingerprint is a conflict.
+- Keep source validation bounded and typed. Only absolute HTTP(S) links without userinfo are accepted. Add focused tests for migration, identity/link uniqueness, validation, freshness/removal, layout CAS, action replay, and manual registry safety.

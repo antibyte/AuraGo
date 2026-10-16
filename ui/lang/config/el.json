@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Ενεργοποίηση Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Ενεργοποίησε το Bookshelf για να οργανώνεις και να διαβάζεις βιβλία από επιλεγμένους τοπικούς φακέλους και συνδεδεμένες πηγές. Είναι απενεργοποιημένο από προεπιλογή.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Εκτελέσιμο μετατροπέα βιβλίων",
-  "help.virtual_desktop.bookshelf_converter_path": "Διαδρομή Linux προς το ebook-convert. Η μετατροπή απαιτεί επίσης απομόνωση με bwrap και prlimit· άφησε το πεδίο κενό για απενεργοποίηση. Παράδειγμα: /usr/bin/ebook-convert ή /opt/calibre/ebook-convert. Σε μη υποστηριζόμενες πλατφόρμες, εισήγαγε ένα ήδη μετατραπέν βιβλίο."
+  "help.virtual_desktop.bookshelf_converter_path": "Διαδρομή Linux προς το ebook-convert. Η μετατροπή απαιτεί επίσης απομόνωση με bwrap και prlimit· άφησε το πεδίο κενό για απενεργοποίηση. Παράδειγμα: /usr/bin/ebook-convert ή /opt/calibre/ebook-convert. Σε μη υποστηριζόμενες πλατφόρμες, εισήγαγε ένα ήδη μετατραπέν βιβλίο.",
+  "config.infra.enabled": "Ενεργοποίηση Infra",
+  "config.infra.help": "Κοινός χάρτης οικιακής υποδομής με ρητή εισαγωγή. Χωρίς αυτόματες σαρώσεις δικτύου.",
+  "config.infra.read_only": "Μόνο για ανάγνωση",
+  "config.infra.read_only_help": "Επιτρέπεται η προβολή, αλλά αποκλείονται οι τοπικές αλλαγές, οι αλλαγές πηγών και ο έλεγχος.",
+  "config.infra.source_edit": "Επιτρέπονται αλλαγές πηγών",
+  "config.infra.source_edit_help": "Επιτρέπει υποστηριζόμενες αλλαγές μεταδεδομένων. Τα δικαιώματα πηγών και η προστασία εγγραφής εξακολουθούν να ισχύουν.",
+  "config.infra.control": "Επιτρέπεται έλεγχος συσκευών",
+  "config.infra.control_help": "Επιτρέπει ρητή εκκίνηση, διακοπή, επανεκκίνηση και Wake-on-LAN. Τα δικαιώματα πηγών εξακολουθούν να ισχύουν."
 }

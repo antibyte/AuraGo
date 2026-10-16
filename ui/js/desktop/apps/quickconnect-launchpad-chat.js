@@ -6,7 +6,14 @@
     let sdkChallengeSequence = 0;
     let sdkFrameObserver = null;
 
-    function renderQuickConnect(id) {
+    const quickConnectTargets = new Map();
+
+    function applyQuickConnectLaunchContext(id, context) {
+        const selectTarget = quickConnectTargets.get(id);
+        if (selectTarget) selectTarget(context);
+    }
+
+    function renderQuickConnect(id, context) {
         const host = contentEl(id);
         if (!host) return;
         host.classList.add('vd-qc-window');
@@ -25,6 +32,7 @@
                     <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
                 <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
+                <div class="vd-qc-target" data-qc-target hidden></div>
                 <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
@@ -67,6 +75,51 @@
         let loadGeneration = 0;
         let activeSFTPNav = null;
         const pendingConfirmations = new Set();
+        let targetDeviceId = '';
+        let focusTarget = false;
+        const targetPanel = host.querySelector('[data-qc-target]');
+        function targetID(launch) {
+            return launch && typeof launch.device_id === 'string' && launch.device_id.length <= 128 ? launch.device_id : '';
+        }
+        targetDeviceId = targetID((state.windows.get(id) || {}).context || context);
+        focusTarget = !!targetDeviceId;
+        function renderTarget() {
+            targetPanel.hidden = !targetDeviceId;
+            if (!targetDeviceId || !cachedDevices) return;
+            const device = cachedDevices.find(item => item.id === targetDeviceId);
+            targetPanel.replaceChildren();
+            const label = document.createElement('p');
+            label.setAttribute('role', 'status');
+            label.textContent = device ? t('desktop.qc_target_selected').replace('{name}', device.name) : t('desktop.qc_no_devices');
+            targetPanel.appendChild(label);
+            if (!device) return;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-qc-btn vd-qc-btn-primary';
+            button.textContent = t('desktop.qc_connect');
+            button.disabled = device.protocol === 'none';
+            if (button.disabled) button.title = t('desktop.qc_no_connection');
+            button.addEventListener('click', () => connectToDevice(device.id));
+            targetPanel.appendChild(button);
+            if (focusTarget) {
+                const item = Array.from(deviceList.querySelectorAll('[data-device-id]')).find(node => node.dataset.deviceId === targetDeviceId);
+                if (item) item.scrollIntoView({ block: 'nearest' });
+                (button.disabled ? item : button)?.focus({ preventScroll: true });
+                focusTarget = false;
+            }
+        }
+        quickConnectTargets.set(id, launch => {
+            const next = targetID(launch);
+            if (!next || disposed) return;
+            targetDeviceId = next;
+            focusTarget = true;
+            searchInput.value = '';
+            activeProtocolFilter = 'all';
+            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'all'));
+            if (!cachedDevices || !cachedDevices.some(item => item.id === next)) { loadAll(); return; }
+            filterDevices();
+            renderTarget();
+        });
         const serialTerminal = window.QuickConnectSerial.create({
             list: serialList, content: serialContent, searchInput, api, t,
             getBootstrap: () => state.bootstrap || {}, confirmDialog: showConfirmModal,
@@ -135,6 +188,7 @@
         });
 
         registerWindowCleanup(id, () => {
+            quickConnectTargets.delete(id);
             host.classList.remove('vd-qc-window');
             disposed = true;
             connectionGeneration++;
@@ -174,13 +228,14 @@
                     api('/api/desktop/integrations/credentials')
                 ]);
                 if (disposed || generation !== loadGeneration) return;
-                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || d.protocol === 'ssh' || d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                     return;
                 }
                 renderDeviceList(cachedDevices);
+                renderTarget();
             } catch (err) {
                 if (disposed || generation !== loadGeneration) return;
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
@@ -227,9 +282,9 @@
             deviceList.innerHTML = filtered.map(d => {
                 const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
                 const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
-                const protoLabel = d.protocol === 'vnc' ? 'VNC' : 'SSH';
+                const protoLabel = d.protocol === 'none' ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
                 const protoIcon = d.protocol === 'vnc' ? 'monitor' : 'terminal';
-                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}">
+                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}">
                     <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : protoIcon, 'S', 'vd-qc-device-papirus-icon', 22)}</span>
                     <div class="vd-qc-device-main">
                         <div class="vd-qc-device-name">${esc(d.name)}</div>
@@ -527,8 +582,9 @@
         }
 
         function connectToDevice(deviceId) {
-            const device = cachedDevices.find(d => d.id === deviceId);
-            if (device && device.protocol === 'vnc') {
+            const device = cachedDevices && cachedDevices.find(d => d.id === deviceId);
+            if (!device || device.protocol === 'none') { showNotify(t('desktop.qc_no_connection')); return; }
+            if (device.protocol === 'vnc') {
                 connectVNC(deviceId);
             } else {
                 connectSSH(deviceId);

@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Ativar Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Ativa o Bookshelf para gerir e ler livros das pastas locais selecionadas e das fontes ligadas. Está desativado por predefinição.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Executável de conversão de livros",
-  "help.virtual_desktop.bookshelf_converter_path": "Caminho Linux para ebook-convert. A conversão também exige isolamento com bwrap e prlimit; deixa vazio para desativar. Exemplo: /usr/bin/ebook-convert ou /opt/calibre/ebook-convert. Nas plataformas não suportadas, importa um livro já convertido."
+  "help.virtual_desktop.bookshelf_converter_path": "Caminho Linux para ebook-convert. A conversão também exige isolamento com bwrap e prlimit; deixa vazio para desativar. Exemplo: /usr/bin/ebook-convert ou /opt/calibre/ebook-convert. Nas plataformas não suportadas, importa um livro já convertido.",
+  "config.infra.enabled": "Ativar Infra",
+  "config.infra.help": "Atlas partilhado do laboratório doméstico com importação explícita. Sem análises automáticas da rede.",
+  "config.infra.read_only": "Apenas leitura",
+  "config.infra.read_only_help": "Permite consultar o atlas e bloqueia alterações locais, edições das fontes e ações de controlo.",
+  "config.infra.source_edit": "Permitir editar fontes",
+  "config.infra.source_edit_help": "Permite alterações de metadados suportadas. As permissões e a proteção de escrita das fontes continuam em vigor.",
+  "config.infra.control": "Permitir controlar dispositivos",
+  "config.infra.control_help": "Permite iniciar, parar, reiniciar e enviar Wake-on-LAN explicitamente. As permissões das fontes continuam em vigor."
 }

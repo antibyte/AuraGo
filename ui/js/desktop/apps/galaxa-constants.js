@@ -260,6 +260,60 @@
         sniper: { pulse: { amp: 0.04, speed: 1.2 }, blink: { on: 140, off: 3400, blinkAim: true } }
     };
 
+    // NEW: Enemy unpredictability — per-enemy behaviour quirks plus extra dive
+    // path profiles. Gameplay decisions must go through ctx.random (seeded) so
+    // runs stay reproducible per seed; visual-only randomness may use Math.random.
+    // Quirks are never applied on easy difficulty and unlock by stage, so the
+    // surprise curve grows with the player's skill and difficulty.
+    GC.ENEMY_QUIRKS = [
+        // Finte: dives a short way, then aborts and climbs back (never lethal by contact)
+        { id: 'feint', stageMin: 3, weight: 3, types: ['bee', 'butterfly', 'sniper', 'spinner', 'bomber', 'lasher', 'weaver', 'splitter', 'shield_bee', 'carrier', 'teleporter'] },
+        // Scheinangriff: long telegraph, then a laterally jittered shot
+        { id: 'fakeout', stageMin: 4, weight: 3 },
+        // Ausweichend: only joins the attack when the player is close
+        { id: 'shy', stageMin: 5, weight: 2, types: ['bee', 'butterfly', 'shield_bee'] },
+        // Salve: a normally harmless type returns fire once
+        { id: 'volley', stageMin: 6, weight: 2, types: ['bee', 'shield_bee'] }
+    ];
+    GC.QUIRK_CHANCE = { easy: 0, normal: 0.2, hard: 0.36 }; // fraction of spawned enemies that receive a quirk
+    GC.FEINT = { minMs: 700, maxMs: 1250, chance: 0.55, speedMult: 0.78 };
+    GC.SQUAD_DIVE = { stageMin: 5, chance: 0.24, minSize: 3, maxSize: 5, staggerMs: 150 };
+    GC.REVENGE_DIVE = { stageMin: 6, chance: 0.32, max: 2, radius: 88, telegraphMs: 180, rageMs: 1600, rageMult: 1.35 };
+    // Occasionally two neighbouring enemies swap formation slots (with a puff),
+    // so the formation never reads as a fully static wall.
+    GC.FORMATION_SHUFFLE = { stageMin: 7, chance: 0.05 };
+    // Dive path shapes; later stages unlock the wilder shapes. `weight` biases
+    // the seeded pick inside GC.createEntitiesBehaviors pickDivePath().
+    GC.DIVE_PATHS = {
+        sine: { stageMin: 1, weight: 4 },
+        zigzag: { stageMin: 3, weight: 3 },
+        arc: { stageMin: 4, weight: 3 },
+        bounce: { stageMin: 5, weight: 2 },
+        weave: { stageMin: 6, weight: 2 }
+    };
+    // Rage aura + biome tint colours for enemy motion FX / auras (galaxa-enemy-fx.js).
+    GC.ENEMY_RAGE_COL = '#ff4a2a';
+    GC.ENEMY_BIOME_TINT = { nebula: '#88ccff', asteroid: '#ffaa66', crystal: '#aaffee', storm: '#ffe066', blackhole: '#c59bff', void: '#ff88ff' };
+
+    // Smoldering crash dives (galaxa-enemy-fx.js): a hit enemy sometimes does
+    // not explode at once but tumbles toward the player, trailing smoke and
+    // embers, and detonates after a seeded random delay. Seeded per delay/count
+    // so fixed-step runs stay deterministic; wobble phases are visual-only.
+    GC.SMOLDER = {
+        stageMin: 3, chance: 0.22, hardBonus: 0.12,
+        minMs: 700, maxMs: 2600,          // detonation delay after ignition
+        maxSimultaneous: 3,               // cap of active smolder divers
+        fallBias: 0.62,                  // steering weight toward the player
+        baseFall: 120,                   // downward drift px/s
+        maxSpin: 7.5,                    // spin rad/s extremes
+        contactRadius: 20,               // kills the player on touch
+        // Ignition comes as smoke/ember variants with slight particle profile.
+        variants: [
+            { id: 'ember', smoke: 0.7, sparks: 1.2 },
+            { id: 'smoke', smoke: 1.4, sparks: 0.6 }
+        ]
+    };
+
     // NEW: Parry tuning
     GC.PARRY_WINDOW = 120;     // ms active parry window
     GC.PARRY_COOLDOWN = 600;   // ms cooldown after window ends
@@ -288,9 +342,9 @@
     // NEW: FX module tuning (galaxa-fx.js) — per-particle-setting caps so every
     // new effect scales with the PARTICLES setting (low/medium/high).
     GC.FX_CAPS = {
-        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2, graze: 2, fireTrail: 4, confetti: 8, deathFlash: 2, muzzle: 2, respawn: 6 },
-        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3, graze: 4, fireTrail: 8, confetti: 16, deathFlash: 3, muzzle: 3, respawn: 10 },
-        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3, graze: 6, fireTrail: 12, confetti: 28, deathFlash: 5, muzzle: 4, respawn: 14 }
+        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2, graze: 2, fireTrail: 4, confetti: 8, deathFlash: 2, muzzle: 2, respawn: 6, telegraph: 2, enemyMarks: 10, chain: 4, smolder: 2 },
+        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3, graze: 4, fireTrail: 8, confetti: 16, deathFlash: 3, muzzle: 3, respawn: 10, telegraph: 3, enemyMarks: 18, chain: 6, smolder: 4 },
+        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3, graze: 6, fireTrail: 12, confetti: 28, deathFlash: 5, muzzle: 4, respawn: 14, telegraph: 4, enemyMarks: 28, chain: 8, smolder: 6 }
     };
     GC.FX_WARP_DUR = 1400;      // ms warp speed-line streaks stay active after a stage advance
     GC.FX_GHOST_INTERVAL = 90;  // ms between ship afterimage snapshots

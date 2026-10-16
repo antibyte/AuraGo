@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Bookshelf aktivieren",
   "help.virtual_desktop.bookshelf_enabled": "Aktiviere Bookshelf, um Bücher aus ausgewählten lokalen Ordnern und verbundenen Quellen zu verwalten und zu lesen. Standardmäßig ist Bookshelf ausgeschaltet.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Programm für die Buchkonvertierung",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux-Pfad zu ebook-convert. Die Konvertierung benötigt außerdem bwrap und prlimit zur Isolierung. Ein leeres Feld deaktiviert sie. Beispiel: /usr/bin/ebook-convert oder /opt/calibre/ebook-convert. Auf anderen Plattformen kannst Du ein bereits konvertiertes Buch importieren."
+  "help.virtual_desktop.bookshelf_converter_path": "Linux-Pfad zu ebook-convert. Die Konvertierung benötigt außerdem bwrap und prlimit zur Isolierung. Ein leeres Feld deaktiviert sie. Beispiel: /usr/bin/ebook-convert oder /opt/calibre/ebook-convert. Auf anderen Plattformen kannst Du ein bereits konvertiertes Buch importieren.",
+  "config.infra.enabled": "Infra aktivieren",
+  "config.infra.help": "Gemeinsamer Homelab-Atlas mit ausdrücklicher Übernahme. Keine automatischen Netzwerkscans.",
+  "config.infra.read_only": "Schreibgeschützt",
+  "config.infra.read_only_help": "Du kannst den Atlas ansehen; lokale Änderungen, Quellenänderungen und Steuerung bleiben gesperrt.",
+  "config.infra.source_edit": "Quellenänderungen erlauben",
+  "config.infra.source_edit_help": "Erlaubt unterstützte Stammdatenänderungen. Quellenberechtigungen und Schreibschutz gelten weiterhin.",
+  "config.infra.control": "Gerätesteuerung erlauben",
+  "config.infra.control_help": "Erlaubt ausdrückliches Starten, Stoppen, Neustarten und Wake-on-LAN. Quellenberechtigungen gelten weiterhin."
 }

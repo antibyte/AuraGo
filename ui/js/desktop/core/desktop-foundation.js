@@ -596,6 +596,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            infra: 'InfraApp',
             'ruview': 'RuViewApp',
             files: 'FileManager',
             writer: 'WriterApp',

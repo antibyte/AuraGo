@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Attiva Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Attiva Bookshelf per gestire e leggere i libri delle cartelle locali selezionate e delle sorgenti collegate. È disattivato per impostazione predefinita.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Eseguibile per la conversione dei libri",
-  "help.virtual_desktop.bookshelf_converter_path": "Percorso Linux di ebook-convert. La conversione richiede anche l’isolamento con bwrap e prlimit; lascia vuoto per disattivarla. Esempio: /usr/bin/ebook-convert o /opt/calibre/ebook-convert. Sulle piattaforme non supportate, importa un libro già convertito."
+  "help.virtual_desktop.bookshelf_converter_path": "Percorso Linux di ebook-convert. La conversione richiede anche l’isolamento con bwrap e prlimit; lascia vuoto per disattivarla. Esempio: /usr/bin/ebook-convert o /opt/calibre/ebook-convert. Sulle piattaforme non supportate, importa un libro già convertito.",
+  "config.infra.enabled": "Attiva Infra",
+  "config.infra.help": "Atlante condiviso del laboratorio domestico con importazione esplicita. Nessuna scansione automatica della rete.",
+  "config.infra.read_only": "Sola lettura",
+  "config.infra.read_only_help": "Consente di consultare l’atlante e blocca modifiche locali, modifiche alle fonti e comandi.",
+  "config.infra.source_edit": "Consenti modifiche alle fonti",
+  "config.infra.source_edit_help": "Consente le modifiche dei metadati supportate. Restano validi i permessi e la protezione da scrittura delle fonti.",
+  "config.infra.control": "Consenti controllo dei dispositivi",
+  "config.infra.control_help": "Consente avvio, arresto, riavvio e Wake-on-LAN espliciti. Restano validi i permessi delle fonti."
 }

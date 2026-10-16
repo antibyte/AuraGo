@@ -394,3 +394,5 @@
 .vd-gev-config { max-height: 85vh; overflow-y: auto; }
 .vd-gev-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
 .vd-gev-key-row .vd-store-choice { margin-bottom: 12px; }
+
+.vd-store-card[aria-current="true"] { outline: 2px solid var(--accent-color, #35a9a1); outline-offset: 2px; }

@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Bookshelf を有効にする",
   "help.virtual_desktop.bookshelf_enabled": "Bookshelf を有効にすると、選択したローカルフォルダーや接続済みのソースにある本を管理して読めます。初期設定では無効です。",
   "config.virtual_desktop.bookshelf_converter_path_label": "電子書籍変換プログラム",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux 上の ebook-convert のパス。変換には bwrap と prlimit による隔離も必要です。空欄にすると無効になります。例：/usr/bin/ebook-convert または /opt/calibre/ebook-convert。非対応の環境では変換済みの本を取り込んでください。"
+  "help.virtual_desktop.bookshelf_converter_path": "Linux 上の ebook-convert のパス。変換には bwrap と prlimit による隔離も必要です。空欄にすると無効になります。例：/usr/bin/ebook-convert または /opt/calibre/ebook-convert。非対応の環境では変換済みの本を取り込んでください。",
+  "config.infra.enabled": "Infra を有効にする",
+  "config.infra.help": "明示的にインポートする共有ホームラボ地図です。ネットワークの自動スキャンは行いません。",
+  "config.infra.read_only": "読み取り専用",
+  "config.infra.read_only_help": "地図の閲覧を許可し、ローカル編集、ソース編集、制御操作を禁止します。",
+  "config.infra.source_edit": "ソースの編集を許可",
+  "config.infra.source_edit_help": "対応するメタデータの変更を許可します。ソースの権限と書き込み保護は引き続き適用されます。",
+  "config.infra.control": "デバイスの制御を許可",
+  "config.infra.control_help": "明示的な起動、停止、再起動、Wake-on-LAN を許可します。ソースの権限は引き続き適用されます。"
 }

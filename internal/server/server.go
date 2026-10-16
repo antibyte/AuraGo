@@ -164,6 +164,8 @@ type Server struct {
 	lockdownLogOnce sync.Once
 	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	infraMu         sync.Mutex
+	infraRuntime    *desktopInfraRuntime
 	bookshelfMu     sync.Mutex
 	bookshelf       *desktopBookshelfRuntime
 

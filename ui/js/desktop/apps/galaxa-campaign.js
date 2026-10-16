@@ -21,13 +21,15 @@
         ctx.hasPendingWaves = () => !!ctx.G.wavePlan && (ctx.G.waveIndex < ctx.G.wavePlan.length || (ctx.G.chal && ctx.G.bonusStageT > 0));
         ctx.newEnemy = function (type, x, y, index, hp) {
             const core = type === 'boss' || type === 'miniboss';
-            return { type, x: x < ctx.W / 2 ? -30 : ctx.W + 30, y: -40 - index * 15, fx: x, fy: y,
+            const e = { type, x: x < ctx.W / 2 ? -30 : ctx.W + 30, y: -40 - index * 15, fx: x, fy: y,
                 r: Math.floor(index / 8), col: index % 8, hp: hp || (core ? 4 : ['hunter','shield_bee','carrier'].includes(type) ? 3 : 1),
                 maxHp: hp || (core ? 4 : ['hunter','shield_bee','carrier'].includes(type) ? 3 : 1),
                 st: 'ENTER', eTmr: index * 100, dTmr: 3000 + index * 250, sTmr: 1800 + index * 120,
                 fr: 0, frT: 0, animFrame: 0, animTimer: 0, animTime: 0, animSpeed: 85, animFrames: 8,
                 hitF: 0, shootPh: 0, dPath: null, bossPhase: 0, bossPhaseTransition: 0,
                 spawnAnim: 0, spawnDur: 400, rowPhase: index * 0.7, bobAmp: 2, elite: type === 'hunter' };
+            if (ctx.assignEnemyQuirk) ctx.assignEnemyQuirk(e);
+            return e;
         };
         ctx.spawnCampaignWave = function () {
             const G = ctx.G, plan = G.wavePlan[G.waveIndex++];
@@ -182,7 +184,12 @@
             e.coreOpen = Math.max(0, (e.coreOpen || 0) - ms);
             e.reflectT = Math.max(0, (e.reflectT || 0) - ms);
             if (e.bossState === 'windup') {
-                if (e.attackClock <= 0) { e.telegraph = null; fireBoss(e); e.bossState = 'recover'; e.attackClock = 1500 - e.bossPhase * 150; }
+                if (e.attackClock <= 0) {
+                    // Sudden lane swap right after the telegraph: the marked gap
+                    // moves once, so the safe lane is not fully predictable.
+                    if (e.safeLane != null && ctx.random() < 0.4) e.safeLane = Math.max(1, Math.min(5, e.safeLane + (ctx.random() < 0.5 ? -1 : 1)));
+                    e.telegraph = null; fireBoss(e); e.bossState = 'recover'; e.attackClock = 1500 - e.bossPhase * 150;
+                }
             } else if (e.attackClock <= 0) {
                 e.bossState = 'windup'; e.attackClock = ctx.settings.diff === 'easy' ? 800 : ctx.settings.diff === 'hard' ? 450 : 600;
                 e.targetX = G.p.x; e.safeLane = Math.max(1, Math.min(5, Math.floor(G.p.x / 65)));
@@ -204,7 +211,10 @@
                 e.hp = Math.max(floor, e.hp - damage);
                 if (floor && e.hp === floor) e.hp = floor - 0.01;
             } else e.hp -= damage;
-            e.hitF = 90; return damage;
+            const _fresh = e.hitF <= 0;
+            e.hitF = 90;
+            if (_fresh && ctx.fxEnemyHit) ctx.fxEnemyHit(e.x, e.y, '#ffffff');
+            return damage;
         };
         ctx.reflectPlayerShot = function (bullet) {
             const e = ctx.G.encounterBoss;

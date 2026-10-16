@@ -353,6 +353,8 @@
             }
             // NEW: Supplementary FX state update (rings, glints, ghosts, warp streaks, edge pulse)
             if (ctx.updateFX) ctx.updateFX(dt);
+            // NEW: Enemy-side FX state update (telegraph glints, feint rings, kill chains, rage auras)
+            if (ctx.updateEnemyFx) ctx.updateEnemyFx(dt);
         }
 
         function update(dt, now) {

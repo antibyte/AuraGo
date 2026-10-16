@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Enable Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Enable Bookshelf to manage and read books from selected local folders and connected sources. It is off by default.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Ebook converter executable",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux path to ebook-convert. Conversion also requires bwrap and prlimit isolation; leave empty to disable. Example: /usr/bin/ebook-convert or /opt/calibre/ebook-convert. On unsupported platforms, import a converted book instead."
+  "help.virtual_desktop.bookshelf_converter_path": "Linux path to ebook-convert. Conversion also requires bwrap and prlimit isolation; leave empty to disable. Example: /usr/bin/ebook-convert or /opt/calibre/ebook-convert. On unsupported platforms, import a converted book instead.",
+  "config.infra.enabled": "Enable Infra",
+  "config.infra.help": "A shared homelab atlas with explicit imports. No automatic network scans.",
+  "config.infra.read_only": "Read-only",
+  "config.infra.read_only_help": "Keep the atlas browsable and block local edits, source edits and control actions.",
+  "config.infra.source_edit": "Allow source edits",
+  "config.infra.source_edit_help": "Allow supported metadata changes. Source permissions and read-only settings still apply.",
+  "config.infra.control": "Allow device control",
+  "config.infra.control_help": "Allow explicit start, stop, restart and Wake-on-LAN actions. Source permissions still apply."
 }

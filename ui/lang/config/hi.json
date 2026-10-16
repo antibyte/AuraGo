@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Bookshelf चालू करें",
   "help.virtual_desktop.bookshelf_enabled": "चुने गए स्थानीय फ़ोल्डरों और जुड़े स्रोतों से किताबों को व्यवस्थित करने और पढ़ने के लिए Bookshelf चालू करें। यह डिफ़ॉल्ट रूप से बंद रहता है।",
   "config.virtual_desktop.bookshelf_converter_path_label": "ईबुक रूपांतरण प्रोग्राम",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux पर ebook-convert का पथ। रूपांतरण के लिए bwrap और prlimit का पृथक्करण भी ज़रूरी है; बंद रखने के लिए खाली छोड़ें। उदाहरण: /usr/bin/ebook-convert या /opt/calibre/ebook-convert। असमर्थित प्लेटफ़ॉर्म पर पहले से रूपांतरित किताब आयात करें।"
+  "help.virtual_desktop.bookshelf_converter_path": "Linux पर ebook-convert का पथ। रूपांतरण के लिए bwrap और prlimit का पृथक्करण भी ज़रूरी है; बंद रखने के लिए खाली छोड़ें। उदाहरण: /usr/bin/ebook-convert या /opt/calibre/ebook-convert। असमर्थित प्लेटफ़ॉर्म पर पहले से रूपांतरित किताब आयात करें।",
+  "config.infra.enabled": "Infra सक्षम करें",
+  "config.infra.help": "स्पष्ट आयात वाला साझा होमलैब एटलस। कोई स्वचालित नेटवर्क स्कैन नहीं।",
+  "config.infra.read_only": "केवल पढ़ने के लिए",
+  "config.infra.read_only_help": "एटलस देखा जा सकता है; स्थानीय संपादन, स्रोत संपादन और नियंत्रण क्रियाएँ बंद रहती हैं।",
+  "config.infra.source_edit": "स्रोत संपादन की अनुमति दें",
+  "config.infra.source_edit_help": "समर्थित मेटाडेटा बदलाव की अनुमति देता है। स्रोत की अनुमतियाँ और लेखन सुरक्षा लागू रहती हैं।",
+  "config.infra.control": "डिवाइस नियंत्रण की अनुमति दें",
+  "config.infra.control_help": "स्पष्ट रूप से चालू करने, रोकने, पुनः आरंभ करने और Wake-on-LAN की अनुमति देता है। स्रोत की अनुमतियाँ लागू रहती हैं।"
 }

@@ -338,6 +338,45 @@
                 ctx.fm(95 * _p, 38 * _p, 0.18, 0.42 * _v, panX, 1.8);
                 beep('sawtooth', 220 * _p, 110 * _p, 0.12, 0.23 * _v, panX);
                 ctx.scheduleSfx(() => { if (ctx.G.muted) return; beep('square', 392 * _p, 588 * _p, 0.14, 0.24 * _v, panX, { reverb: 0.24 }); beep('triangle', 588 * _p, 784 * _p, 0.12, 0.15 * _v, panX, { reverb: 0.24 }); }, 70);
+            },
+            // NEW: Dive feint — an aborting trill that falls away as the enemy pulls up
+            feintWhistle(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('triangle', 1400 * _p, 700 * _p, 0.1, 0.16 * _v, panX, { q: 2.4, reverb: 0.2 });
+                beep('sine', 900 * _p, 1500 * _p, 0.14, 0.12 * _v, panX, { reverb: 0.22 });
+                noise(0.06, 0.08 * _v, 3200, panX);
+            },
+            // NEW: Squad dive — a staggered three-note launch call
+            squadDive(panX) { if (ctx.G.muted) return;
+                const _v = vv();
+                [0, 1, 2].forEach(i => ctx.scheduleSfx(() => { if (ctx.G.muted) return; ctx.fm((320 + i * 60), (150 + i * 30), 0.16, 0.2 * _v, panX, 2.0, { reverb: 0.2 }); }, i * 130));
+                noise(0.12, 0.14 * _v, 2600, panX);
+            },
+            // NEW: Rage mode — a low growl under a revenge dive
+            rageGrowl(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(150 * _p, 74 * _p, 0.28, 0.3 * _v, panX, 2.2, { reverb: 0.2 });
+                beep('sawtooth', 240 * _p, 120 * _p, 0.22, 0.2 * _v, panX, { q: 2.4 });
+                noise(0.16, 0.14 * _v, 900, panX);
+            },
+            // NEW: Formation shuffle — a short mechanical displacement rumble
+            shuffleRumble(panX) { if (ctx.G.muted) return;
+                const _v = vv();
+                noise(0.16, 0.16 * _v, 520, panX, { filterType: 'bandpass', q: 2.0 });
+                beep('triangle', 300, 210, 0.14, 0.12 * _v, panX);
+            },
+            // NEW: Smolder ignition — a sputtering flame-up as the diver catches fire
+            smolderIgnite(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                noise(0.22, 0.2 * _v, 1400, panX, { filterType: 'bandpass', q: 1.6 });
+                beep('sawtooth', 620 * _p, 190 * _p, 0.2, 0.18 * _v, panX, { q: 2.0, reverb: 0.18 });
+            },
+            // NEW: Smolder detonation — a deep delayed blast for the crash diver
+            smolderBlast(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(120 * _p, 36 * _p, 0.42, 0.42 * _v, panX, 2.4, { reverb: 0.26 });
+                noise(0.3, 0.3 * _v, 700, panX);
+                beep('sine', 190 * _p, 60 * _p, 0.3, 0.22 * _v, panX, { reverb: 0.24 });
             }
         };
         SFX.attackWarning = pan => ctx.fm(680, 920, 0.10, 0.18, pan, 1.5, { reverb: 0.18 });

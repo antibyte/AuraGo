@@ -28,6 +28,7 @@
                     weakPoint: (type === 'boss' || type === 'miniboss') ? { x: 0, y: -10, angle: 0 } : null,
                     rageMode: 0, rageSpeedMult: 1, phaseTimer: 0 };
                 ctx.G.enemies.push(enemy);
+                if (ctx.assignEnemyQuirk) ctx.assignEnemyQuirk(enemy);
                 idx++;
             }
 

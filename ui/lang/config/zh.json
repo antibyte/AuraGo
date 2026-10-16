@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "启用 Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "启用 Bookshelf，以管理和阅读所选本地文件夹及已连接来源中的图书。默认关闭。",
   "config.virtual_desktop.bookshelf_converter_path_label": "电子书转换程序",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux 上 ebook-convert 的路径。转换还需要 bwrap 和 prlimit 提供隔离；留空即可禁用。例如：/usr/bin/ebook-convert 或 /opt/calibre/ebook-convert。不支持的平台可以导入已转换的图书。"
+  "help.virtual_desktop.bookshelf_converter_path": "Linux 上 ebook-convert 的路径。转换还需要 bwrap 和 prlimit 提供隔离；留空即可禁用。例如：/usr/bin/ebook-convert 或 /opt/calibre/ebook-convert。不支持的平台可以导入已转换的图书。",
+  "config.infra.enabled": "启用 Infra",
+  "config.infra.help": "通过明确导入建立共享家庭实验室地图，不自动扫描网络。",
+  "config.infra.read_only": "只读",
+  "config.infra.read_only_help": "允许浏览地图，但禁止本地编辑、来源编辑和控制操作。",
+  "config.infra.source_edit": "允许编辑来源",
+  "config.infra.source_edit_help": "允许受支持的元数据更改。来源权限和写入保护仍然生效。",
+  "config.infra.control": "允许控制设备",
+  "config.infra.control_help": "允许明确执行启动、停止、重启和网络唤醒。来源权限仍然生效。"
 }

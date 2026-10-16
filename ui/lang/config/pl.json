@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Włącz Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Włącz Bookshelf, aby zarządzać książkami z wybranych folderów lokalnych i połączonych źródeł oraz je czytać. Domyślnie funkcja jest wyłączona.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Program do konwersji książek",
-  "help.virtual_desktop.bookshelf_converter_path": "Ścieżka do ebook-convert w systemie Linux. Konwersja wymaga także izolacji za pomocą bwrap i prlimit; puste pole ją wyłącza. Przykład: /usr/bin/ebook-convert lub /opt/calibre/ebook-convert. Na nieobsługiwanych platformach zaimportuj już przekonwertowaną książkę."
+  "help.virtual_desktop.bookshelf_converter_path": "Ścieżka do ebook-convert w systemie Linux. Konwersja wymaga także izolacji za pomocą bwrap i prlimit; puste pole ją wyłącza. Przykład: /usr/bin/ebook-convert lub /opt/calibre/ebook-convert. Na nieobsługiwanych platformach zaimportuj już przekonwertowaną książkę.",
+  "config.infra.enabled": "Włącz Infra",
+  "config.infra.help": "Wspólny atlas domowego laboratorium z jawnym importem. Bez automatycznego skanowania sieci.",
+  "config.infra.read_only": "Tylko do odczytu",
+  "config.infra.read_only_help": "Umożliwia przeglądanie atlasu i blokuje zmiany lokalne, edycję źródeł oraz sterowanie.",
+  "config.infra.source_edit": "Zezwalaj na edycję źródeł",
+  "config.infra.source_edit_help": "Zezwala na obsługiwane zmiany metadanych. Uprawnienia i ochrona przed zapisem źródeł nadal obowiązują.",
+  "config.infra.control": "Zezwalaj na sterowanie urządzeniami",
+  "config.infra.control_help": "Zezwala na jawne uruchamianie, zatrzymywanie, ponowne uruchamianie i Wake-on-LAN. Uprawnienia źródeł nadal obowiązują."
 }

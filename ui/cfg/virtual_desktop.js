@@ -83,6 +83,12 @@ function renderVirtualDesktopSection(section) {
 
     html += vdCfgVideoStudio();
     html += vdCfgRetroGames();
+    const infra = data.infra || {};
+    html += '<h3>Infra</h3>';
+    html += vdCfgToggleRow('config.infra.enabled', 'config.infra.help', infra.enabled === true, 'virtual_desktop.infra.enabled');
+    html += vdCfgToggleRow('config.infra.read_only', 'config.infra.read_only_help', infra.read_only === true, 'virtual_desktop.infra.read_only');
+    html += vdCfgToggleRow('config.infra.source_edit', 'config.infra.source_edit_help', infra.allow_source_edit === true, 'virtual_desktop.infra.allow_source_edit');
+    html += vdCfgToggleRow('config.infra.control', 'config.infra.control_help', infra.allow_control === true, 'virtual_desktop.infra.allow_control');
     const layerling = data.layerling || {};
     html += '<h3>Layerling</h3>';
     html += vdCfgToggleRow('config.layerling.enabled', 'config.layerling.help', layerling.enabled === true, 'virtual_desktop.layerling.enabled');

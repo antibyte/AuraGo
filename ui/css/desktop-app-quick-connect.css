@@ -1095,3 +1095,7 @@
 @container (max-width: 380px) {
     .vd-qc-serial-profile-form { grid-template-columns: minmax(0, 1fr); }
 }
+
+.vd-qc-target { padding: 10px 14px; border-bottom: 1px solid var(--border-color, #56616b); }
+.vd-qc-target p { margin: 0 0 8px; font-size: 12px; line-height: 1.5; }
+.vd-qc-device[aria-current="true"] { outline: 2px solid var(--accent, #2ba6a0); outline-offset: -3px; }

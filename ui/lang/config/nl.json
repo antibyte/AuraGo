@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Bookshelf inschakelen",
   "help.virtual_desktop.bookshelf_enabled": "Schakel Bookshelf in om boeken uit geselecteerde lokale mappen en verbonden bronnen te beheren en te lezen. Het staat standaard uit.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Programma voor boekconversie",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux-pad naar ebook-convert. Conversie vereist ook isolatie met bwrap en prlimit; laat leeg om uit te schakelen. Voorbeeld: /usr/bin/ebook-convert of /opt/calibre/ebook-convert. Importeer op niet-ondersteunde platforms een al geconverteerd boek."
+  "help.virtual_desktop.bookshelf_converter_path": "Linux-pad naar ebook-convert. Conversie vereist ook isolatie met bwrap en prlimit; laat leeg om uit te schakelen. Voorbeeld: /usr/bin/ebook-convert of /opt/calibre/ebook-convert. Importeer op niet-ondersteunde platforms een al geconverteerd boek.",
+  "config.infra.enabled": "Infra inschakelen",
+  "config.infra.help": "Gedeelde homelab-atlas met uitdrukkelijke import. Geen automatische netwerkscans.",
+  "config.infra.read_only": "Alleen-lezen",
+  "config.infra.read_only_help": "De atlas blijft zichtbaar; lokale wijzigingen, bronwijzigingen en bediening worden geblokkeerd.",
+  "config.infra.source_edit": "Bronwijzigingen toestaan",
+  "config.infra.source_edit_help": "Staat ondersteunde wijzigingen van metadata toe. Bronrechten en schrijfbeveiliging blijven gelden.",
+  "config.infra.control": "Apparaatbediening toestaan",
+  "config.infra.control_help": "Staat uitdrukkelijk starten, stoppen, herstarten en Wake-on-LAN toe. Bronrechten blijven gelden."
 }

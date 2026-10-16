@@ -275,6 +275,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
 | CYD Creator domain, device template, builder image, generator, storage, build queue, agent jobs and HTTP API | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md` |
 | God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
+| Infra homelab atlas, source identity, layout and durable action outcomes | `internal/infra/AGENTS.md` |
 | Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |

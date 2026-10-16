@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Aktivér Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Aktivér Bookshelf for at administrere og læse bøger fra valgte lokale mapper og tilsluttede kilder. Funktionen er som standard slået fra.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Program til bogkonvertering",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux-sti til ebook-convert. Konvertering kræver også isolering med bwrap og prlimit; lad feltet være tomt for at deaktivere den. Eksempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importér en allerede konverteret bog på andre platforme."
+  "help.virtual_desktop.bookshelf_converter_path": "Linux-sti til ebook-convert. Konvertering kræver også isolering med bwrap og prlimit; lad feltet være tomt for at deaktivere den. Eksempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importér en allerede konverteret bog på andre platforme.",
+  "config.infra.enabled": "Aktivér Infra",
+  "config.infra.help": "Et fælles homelab-atlas med udtrykkelig import. Ingen automatisk netværksscanning.",
+  "config.infra.read_only": "Skrivebeskyttet",
+  "config.infra.read_only_help": "Atlasset kan vises, mens lokale ændringer, kildeændringer og styring blokeres.",
+  "config.infra.source_edit": "Tillad kildeændringer",
+  "config.infra.source_edit_help": "Tillad understøttede ændringer af metadata. Kildernes tilladelser og skrivebeskyttelse gælder stadig.",
+  "config.infra.control": "Tillad enhedsstyring",
+  "config.infra.control_help": "Tillad udtrykkelig start, stop, genstart og Wake-on-LAN. Kildernes tilladelser gælder stadig."
 }

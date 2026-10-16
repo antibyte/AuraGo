@@ -46,6 +46,8 @@
             }
             for (const e of G.enemies) {
                 if (e.st === 'DEAD') continue;
+                // NEW: smoldering crash divers rotate through their own draw path.
+                if (e.st === 'SMOLDER') continue;
                 if (!ctx.settings.reducedMotion && ctx.drawEnemyMotionTrail) ctx.drawEnemyMotionTrail(c, e);
                 if (e.mSkipDraw) continue;
                 const { sp } = ctx.enemySpriteFor(e);

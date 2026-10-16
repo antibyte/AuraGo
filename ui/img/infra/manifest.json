@@ -1,0 +1,599 @@
+{
+  "version": 1,
+  "icons": [
+    {
+      "id": "rack-server",
+      "family": "device",
+      "label_key": "desktop.infra_icon_rack_server",
+      "path": "/img/infra/rack-server.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "515dcf05b50b79c22bda8eddb25987bc223977e1eed7219f2db820b5b8cbe5b9"
+    },
+    {
+      "id": "tower-server",
+      "family": "device",
+      "label_key": "desktop.infra_icon_tower_server",
+      "path": "/img/infra/tower-server.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "4b32d28264de0c31922c04504dd35f6ae3f3a8608cf23ff5c348dd2e91231309"
+    },
+    {
+      "id": "mini-pc",
+      "family": "device",
+      "label_key": "desktop.infra_icon_mini_pc",
+      "path": "/img/infra/mini-pc.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "72945f68bdcf1175e6296c732f1497ef8934fcc57e97b2833d4fb16fc3096063"
+    },
+    {
+      "id": "sbc",
+      "family": "device",
+      "label_key": "desktop.infra_icon_sbc",
+      "path": "/img/infra/sbc.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "7f12195ff49dc5c74f40d103b73a9116af9e3bcd84d900869525ee1edb67db5c"
+    },
+    {
+      "id": "nas",
+      "family": "device",
+      "label_key": "desktop.infra_icon_nas",
+      "path": "/img/infra/nas.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "134d8f6244b3d396de883a9f43e25c44bab2b59e7a6048b0857c54ae50dd4236"
+    },
+    {
+      "id": "disk-shelf",
+      "family": "device",
+      "label_key": "desktop.infra_icon_disk_shelf",
+      "path": "/img/infra/disk-shelf.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "b42b5c2d7ca4734329f22f9ba6c724fc2b70cfd47a6148655b08e370c88b6363"
+    },
+    {
+      "id": "workstation",
+      "family": "device",
+      "label_key": "desktop.infra_icon_workstation",
+      "path": "/img/infra/workstation.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "a71412584e0e584a7d7d34dd5d4956945e364f9a69a91a809571976233f6c34e"
+    },
+    {
+      "id": "laptop",
+      "family": "device",
+      "label_key": "desktop.infra_icon_laptop",
+      "path": "/img/infra/laptop.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "e798247c3748cfe96677697bd376af167f2246a2503bf00138b0ed144c392e1a"
+    },
+    {
+      "id": "tablet",
+      "family": "device",
+      "label_key": "desktop.infra_icon_tablet",
+      "path": "/img/infra/tablet.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "282af70ca0dc9d2f291733351c282ef3c71d166b59a401d4ecf62d8edf37be27"
+    },
+    {
+      "id": "smartphone",
+      "family": "device",
+      "label_key": "desktop.infra_icon_smartphone",
+      "path": "/img/infra/smartphone.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "3948a3bba800da40e3a52233fd041353a39afb585cbf3d24459449d579f8dacd"
+    },
+    {
+      "id": "router",
+      "family": "device",
+      "label_key": "desktop.infra_icon_router",
+      "path": "/img/infra/router.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "41d7840ca15255ec618da10c59a9e223ef75d79feefaab73b4a9beba1e9953f3"
+    },
+    {
+      "id": "firewall",
+      "family": "device",
+      "label_key": "desktop.infra_icon_firewall",
+      "path": "/img/infra/firewall.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "dadd0d3ee08592b196783f59f7e71f3eecb2ed3efa2e2d25897dd21c4ab22893"
+    },
+    {
+      "id": "modem-ont",
+      "family": "device",
+      "label_key": "desktop.infra_icon_modem_ont",
+      "path": "/img/infra/modem-ont.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "6527f1c54b183fb98346880211ceb40b2b8a6183558f8eb3f8e722a88c9f20c1"
+    },
+    {
+      "id": "managed-switch",
+      "family": "device",
+      "label_key": "desktop.infra_icon_managed_switch",
+      "path": "/img/infra/managed-switch.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "f6aeac4e33bcdf68c98ec846fa0d4b870bb784649e9e24f9dd92afe8f45d46a5"
+    },
+    {
+      "id": "switch",
+      "family": "device",
+      "label_key": "desktop.infra_icon_switch",
+      "path": "/img/infra/switch.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "fc8093787dfb0afe8f786c001c57cbd9e87d3921010da26d1ccc96ff2635533e"
+    },
+    {
+      "id": "access-point",
+      "family": "device",
+      "label_key": "desktop.infra_icon_access_point",
+      "path": "/img/infra/access-point.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "33461b4b2fcfe392b5de79ed435e7e4cdd61acfd13ef6fd510979e861373d066"
+    },
+    {
+      "id": "mesh-node",
+      "family": "device",
+      "label_key": "desktop.infra_icon_mesh_node",
+      "path": "/img/infra/mesh-node.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "d5f240f0ce0cec8a56bc6a594e7ce4a4d6301a6621ea81efe69ee594e727e8a4"
+    },
+    {
+      "id": "ups",
+      "family": "device",
+      "label_key": "desktop.infra_icon_ups",
+      "path": "/img/infra/ups.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "37ebf5a424faa937fe4d73f1a5c9d41d224ce7a2061f72d0c9c7a9e85ce476a4"
+    },
+    {
+      "id": "pdu",
+      "family": "device",
+      "label_key": "desktop.infra_icon_pdu",
+      "path": "/img/infra/pdu.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "66804568afe66730af2443ad321cad225dff2b14616c7bbe52b70b8bf781b4e9"
+    },
+    {
+      "id": "patch-panel",
+      "family": "device",
+      "label_key": "desktop.infra_icon_patch_panel",
+      "path": "/img/infra/patch-panel.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "72e09ac60288279b92cfb82eeb73220f8599b4ca7802fd40786880f1092323e4"
+    },
+    {
+      "id": "camera",
+      "family": "device",
+      "label_key": "desktop.infra_icon_camera",
+      "path": "/img/infra/camera.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "d7e31980f0b42c9a307bd8322c2e1d513cd14a3ec3186d5bf7854b1a9decd8d6"
+    },
+    {
+      "id": "nvr",
+      "family": "device",
+      "label_key": "desktop.infra_icon_nvr",
+      "path": "/img/infra/nvr.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "bcdeb00d96c7b25e0503f746a31ed62137e536895ed2a71e85b8b58947cc17c7"
+    },
+    {
+      "id": "printer",
+      "family": "device",
+      "label_key": "desktop.infra_icon_printer",
+      "path": "/img/infra/printer.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "aaa714c6c3d67c6943897ce4abaa39cd3440f6a6204c21c0e5be309e6da3b857"
+    },
+    {
+      "id": "3d-printer",
+      "family": "device",
+      "label_key": "desktop.infra_icon_3d_printer",
+      "path": "/img/infra/3d-printer.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "18ff840a4cd64d6b6db8ad2ef130f12f206a17e362581fe95835689d17cfc515"
+    },
+    {
+      "id": "smart-hub",
+      "family": "device",
+      "label_key": "desktop.infra_icon_smart_hub",
+      "path": "/img/infra/smart-hub.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "c8bfb59266d491c51dff720aa4e4de7cbe6666ecaec98cc2930f512fb06596b2"
+    },
+    {
+      "id": "sensor",
+      "family": "device",
+      "label_key": "desktop.infra_icon_sensor",
+      "path": "/img/infra/sensor.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "f0661cacdef8454e0610c39740915671f712d66d7b485f251c685a9b49165cf8"
+    },
+    {
+      "id": "smart-plug",
+      "family": "device",
+      "label_key": "desktop.infra_icon_smart_plug",
+      "path": "/img/infra/smart-plug.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "20561d51316b33d149ec50d4723f6ea5ee247d6fe332fa02f1428cfd370ffec1"
+    },
+    {
+      "id": "tv",
+      "family": "device",
+      "label_key": "desktop.infra_icon_tv",
+      "path": "/img/infra/tv.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "a838f6d1b0ecdd73b1e69dfa97637cf91e6b67b91e4af88d31e3857142fd6129"
+    },
+    {
+      "id": "console",
+      "family": "device",
+      "label_key": "desktop.infra_icon_console",
+      "path": "/img/infra/console.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "e7cf4d0ea4187e0c10a9e951c6a4698201891aff6ca54e4b2f17c2deec343303"
+    },
+    {
+      "id": "radio-gateway",
+      "family": "device",
+      "label_key": "desktop.infra_icon_radio_gateway",
+      "path": "/img/infra/radio-gateway.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "7a12c29bce791fdeec5b6e41e69b504fc3eab9b5297992d8423cfcd5b760ee44"
+    },
+    {
+      "id": "usb-gateway",
+      "family": "device",
+      "label_key": "desktop.infra_icon_usb_gateway",
+      "path": "/img/infra/usb-gateway.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "be49450fb4dbcdadbd01b5ffb16848a54d0894120d841fd2cc0b5a3f35e0b8e3"
+    },
+    {
+      "id": "generic-device",
+      "family": "device",
+      "label_key": "desktop.infra_icon_generic_device",
+      "path": "/img/infra/generic-device.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "939aca227ddc81e876de5c9ec8040adef544b65bda8e549a8958dd8b8ddb48ee"
+    },
+    {
+      "id": "vm",
+      "family": "application",
+      "label_key": "desktop.infra_icon_vm",
+      "path": "/img/infra/vm.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "8e6441b766311217137a73a8bef02e27e79b4079bc04310b97a2c6e1ccc15b42"
+    },
+    {
+      "id": "container",
+      "family": "application",
+      "label_key": "desktop.infra_icon_container",
+      "path": "/img/infra/container.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "236069bb05158042bd24875fd3146e2542420e56e06f87799f2896c5aa5ff68a"
+    },
+    {
+      "id": "hypervisor",
+      "family": "application",
+      "label_key": "desktop.infra_icon_hypervisor",
+      "path": "/img/infra/hypervisor.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "82ad177888f28ed80b818b79989785fd1ad7c7b129b5f74d484b4b21bcf0f7fe"
+    },
+    {
+      "id": "kubernetes",
+      "family": "application",
+      "label_key": "desktop.infra_icon_kubernetes",
+      "path": "/img/infra/kubernetes.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "2e596c7d8265278617d71c4bcfed30b1b13faffb2590e3c00989760ce002a47f"
+    },
+    {
+      "id": "database",
+      "family": "application",
+      "label_key": "desktop.infra_icon_database",
+      "path": "/img/infra/database.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "3afec048b44f88f83dc7412b571a0311f22c7ec80989aa8c8464980b9e918377"
+    },
+    {
+      "id": "web-service",
+      "family": "application",
+      "label_key": "desktop.infra_icon_web_service",
+      "path": "/img/infra/web-service.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "b1074975e7ccaf5b98a97d77ad483ee752ef099998b904fe0cf2e9bcad3524b7"
+    },
+    {
+      "id": "reverse-proxy",
+      "family": "application",
+      "label_key": "desktop.infra_icon_reverse_proxy",
+      "path": "/img/infra/reverse-proxy.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "c8e294939cc478f1304fcdb93ecdcd5087c16485ae3149e1773b2f8e3c2f413d"
+    },
+    {
+      "id": "dns-dhcp",
+      "family": "application",
+      "label_key": "desktop.infra_icon_dns_dhcp",
+      "path": "/img/infra/dns-dhcp.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "442204d2fe26a7112a8de9bd323fbdfd33d157b56c4a6841859d1b499d6389bc"
+    },
+    {
+      "id": "vpn",
+      "family": "application",
+      "label_key": "desktop.infra_icon_vpn",
+      "path": "/img/infra/vpn.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "079bb47bc79333715b380765cf58340efb8b55dfdb663a7e8078c606a4aa238f"
+    },
+    {
+      "id": "storage-share",
+      "family": "application",
+      "label_key": "desktop.infra_icon_storage_share",
+      "path": "/img/infra/storage-share.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "b9fc6a44c4ffed7a6536286de4c53a8c36fd8487d73105da04f07a4cf2c543ce"
+    },
+    {
+      "id": "backup",
+      "family": "application",
+      "label_key": "desktop.infra_icon_backup",
+      "path": "/img/infra/backup.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "084339a8b50906831b9ae2aa2ada234563a6088fa423ca22dc7db2ab33eb916a"
+    },
+    {
+      "id": "monitoring",
+      "family": "application",
+      "label_key": "desktop.infra_icon_monitoring",
+      "path": "/img/infra/monitoring.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "f15820d253834b245a58f04152676898c0fd354e719d894058956da2a629880c"
+    },
+    {
+      "id": "home-automation",
+      "family": "application",
+      "label_key": "desktop.infra_icon_home_automation",
+      "path": "/img/infra/home-automation.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "a4766203350c61250dd2a4047782144b7dd610e8697d32521a845e9c131ae4cc"
+    },
+    {
+      "id": "media-server",
+      "family": "application",
+      "label_key": "desktop.infra_icon_media_server",
+      "path": "/img/infra/media-server.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "9118a5374064fb6db4374356322ab005e74dd2e28b368764baafdcef8f67d782"
+    },
+    {
+      "id": "ai-runtime",
+      "family": "application",
+      "label_key": "desktop.infra_icon_ai_runtime",
+      "path": "/img/infra/ai-runtime.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "571568658f8e11e04e1f74ea5e5f8db14624d9f28643fe7e2f11d3a968952da2"
+    },
+    {
+      "id": "mqtt",
+      "family": "application",
+      "label_key": "desktop.infra_icon_mqtt",
+      "path": "/img/infra/mqtt.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "f9e0ee56ddd0e609ad4d09bf5649d51c2b5a8b98e74b8090c803a3015e97f8e7"
+    },
+    {
+      "id": "logs",
+      "family": "application",
+      "label_key": "desktop.infra_icon_logs",
+      "path": "/img/infra/logs.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "d54b4fc55e18708479b50912fdb8c9988df21e48e97c4118898fc5d8e29791e0"
+    },
+    {
+      "id": "git-ci",
+      "family": "application",
+      "label_key": "desktop.infra_icon_git_ci",
+      "path": "/img/infra/git-ci.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "ffc10a05c6a02dadf97f515c01450c297d706936bdf9bae48efeac6c76ccbfd3"
+    },
+    {
+      "id": "mail-server",
+      "family": "application",
+      "label_key": "desktop.infra_icon_mail_server",
+      "path": "/img/infra/mail-server.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "9e2bdaa058fe747dcfa3a8d8ced72fd15668b2677a6770ba8d33b63d267df860"
+    },
+    {
+      "id": "photo-library",
+      "family": "application",
+      "label_key": "desktop.infra_icon_photo_library",
+      "path": "/img/infra/photo-library.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "9d46c105208f4f5caeb3490cf4ce78c9accb764fc86d40ec8702a3b812fb0b6c"
+    },
+    {
+      "id": "password-manager",
+      "family": "application",
+      "label_key": "desktop.infra_icon_password_manager",
+      "path": "/img/infra/password-manager.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "62c0ccdf5d3539a14e8451a4597f060a0dd8dc61d5dbe7b49fb495bc77a5978c"
+    },
+    {
+      "id": "cloud-service",
+      "family": "application",
+      "label_key": "desktop.infra_icon_cloud_service",
+      "path": "/img/infra/cloud-service.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "f9b58a08d5ea9f911b95005865c48cbeb8b0702904b43e274cb3af0b740b3f15"
+    },
+    {
+      "id": "automation",
+      "family": "application",
+      "label_key": "desktop.infra_icon_automation",
+      "path": "/img/infra/automation.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "20a88186164fa0854ec3fd7be84f7a506db52feb84a28eeb342386ff64852580"
+    },
+    {
+      "id": "generic-app",
+      "family": "application",
+      "label_key": "desktop.infra_icon_generic_app",
+      "path": "/img/infra/generic-app.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "a296f80b78c5995cb82e5174d21e055f06df46df25e967338d812db662493d5b"
+    },
+    {
+      "id": "rack",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_rack",
+      "path": "/img/infra/rack.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "67cc65f6049ef2ad0b76e03353455d255bcf6674a6e11dc99df990418df45ca9"
+    },
+    {
+      "id": "site",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_site",
+      "path": "/img/infra/site.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "cdcb2abebb91a1aadbe57018aa10bbf1464eff3526d5083efad3e8e98906d39e"
+    },
+    {
+      "id": "room",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_room",
+      "path": "/img/infra/room.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "8fbf25d0bc30dd7c2c4a2e203b39b82af1c9168350727a91073348a0022ef206"
+    },
+    {
+      "id": "lan",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_lan",
+      "path": "/img/infra/lan.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "644e6ad80e21842e2c75dcb6997d16d920d239450d17532c5d93adad0d44d4f4"
+    },
+    {
+      "id": "vlan",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_vlan",
+      "path": "/img/infra/vlan.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "30c0a58da3909c5f0c7c698d8081395786fcc6ca1a620619633d85b223a75c34"
+    },
+    {
+      "id": "wlan",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_wlan",
+      "path": "/img/infra/wlan.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "a1f45134c2300dd8faa34299807be6fc301013f59050520f6a60a0cff7685c19"
+    },
+    {
+      "id": "internet",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_internet",
+      "path": "/img/infra/internet.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "ee90fcff7047faf0c1ed75703a4ea9c0292468702fa14e1b017046186653b255"
+    },
+    {
+      "id": "group",
+      "family": "structure",
+      "label_key": "desktop.infra_icon_group",
+      "path": "/img/infra/group.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "6f2315b4b9b99549c6a5a699ab9d8c18f37105f99af88cf179766887876a205e"
+    },
+    {
+      "id": "icon",
+      "family": "app",
+      "label_key": "desktop.infra_icon_icon",
+      "path": "/img/infra/icon.webp",
+      "width": 512,
+      "height": 512,
+      "sha256": "8330ef2ad9b824e4996df36788b9b1517e7d68c467be8c9e7705913c6df6a980"
+    },
+    {
+      "id": "empty-atlas",
+      "family": "app",
+      "label_key": "desktop.infra_icon_empty_atlas",
+      "path": "/img/infra/empty-atlas.webp",
+      "width": 768,
+      "height": 768,
+      "sha256": "61ed4f8af7f7f31f661cdc6a14f870da594f52bafd2023a6ba1ef8c95610413c"
+    }
+  ]
+}

@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Aktivera Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Aktivera Bookshelf för att hantera och läsa böcker från valda lokala mappar och anslutna källor. Funktionen är avstängd som standard.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Program för bokkonvertering",
-  "help.virtual_desktop.bookshelf_converter_path": "Linux-sökväg till ebook-convert. Konvertering kräver även isolering med bwrap och prlimit; lämna tomt för att inaktivera. Exempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importera en redan konverterad bok på plattformar som inte stöds."
+  "help.virtual_desktop.bookshelf_converter_path": "Linux-sökväg till ebook-convert. Konvertering kräver även isolering med bwrap och prlimit; lämna tomt för att inaktivera. Exempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importera en redan konverterad bok på plattformar som inte stöds.",
+  "config.infra.enabled": "Aktivera Infra",
+  "config.infra.help": "En gemensam homelab-atlas med uttrycklig import. Ingen automatisk nätverksskanning.",
+  "config.infra.read_only": "Skrivskyddad",
+  "config.infra.read_only_help": "Atlasen kan visas, men lokala ändringar, källändringar och styrning blockeras.",
+  "config.infra.source_edit": "Tillåt källändringar",
+  "config.infra.source_edit_help": "Tillåt metadataändringar som stöds. Källornas behörigheter och skrivskydd gäller fortfarande.",
+  "config.infra.control": "Tillåt enhetsstyrning",
+  "config.infra.control_help": "Tillåt uttrycklig start, stopp, omstart och Wake-on-LAN. Källornas behörigheter gäller fortfarande."
 }

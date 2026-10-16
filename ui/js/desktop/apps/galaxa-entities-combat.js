@@ -183,7 +183,22 @@
             }
         }
         function getComboTimeout() { const _rb = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses() : { comboBonus: 0 }; return ctx.COMBO_TIMEOUT + _rb.comboBonus; }
+        // Smolder detonation reuses the same XP/evo step via shared helpers.
+        function grantWeaponLevel() {
+            const x = ctx.G.weaponLv * 10;
+            if (ctx.G.weaponXP >= x && ctx.G.weaponLv < 4) { ctx.G.weaponXP -= x; ctx.G.weaponLv++; ctx.SFX.weaponUp(); ctx.G.upgradeBanner = { text: 'W' + ctx.G.weaponLv, type: 'weapon', t: 0, dur: 1000 }; }
+        }
+        function checkWeaponEvo() { const g = ctx.G; if (g.weaponLv < 4) return; if (!g.weaponEvo && !g.evoChoiceOpen) g.evoChoiceOpen = true; ctx.unlockAchievement('weapon_master'); }
         function registerKill(kx, ky) {
+            // Kill-chain cue: link rapid consecutive kills with a lightning arc,
+            // then notify the behaviour layer (revenge dives).
+            const _kx = kx !== undefined ? kx : ctx.G.p.x, _ky = ky !== undefined ? ky : ctx.G.p.y;
+            const _sim = ctx.G.simTime || 0;
+            if (ctx.G._lastKillT > 0 && _sim >= ctx.G._lastKillT && _sim - ctx.G._lastKillT < 320 && ctx.fxKillChain) {
+                ctx.fxKillChain({ x: ctx.G._lastKillX, y: ctx.G._lastKillY }, { x: _kx, y: _ky });
+            }
+            ctx.G._lastKillX = _kx; ctx.G._lastKillY = _ky; ctx.G._lastKillT = _sim;
+            if (ctx.onEnemyKilled) ctx.onEnemyKilled(_kx, _ky);
             ctx.G.combo++;
             ctx.G.comboTimer = getComboTimeout();
             // NEW: Fill super meter on kill (only when no super is active)
@@ -826,6 +841,12 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         if (e.hp <= 0 && !e.sectorBoss) {
                             const pts = e.sectorBoss ? 5000 + ctx.stagePlan().sector * 1000 : ctx.PTS[e.type] ? ctx.PTS[e.type][e.st === 'DIVING' ? 1 : 0] : 200;
                             ctx.registerKill(e.x, e.y);
+                            // Smoldering crash dive: sometimes a hit enemy does not
+                            // explode right away but tumbles toward the player and
+                            // detonates later. All death bookkeeping stays in the
+                            // final blast (ctx.smolderDetonate), so nothing here
+                            // awards, explodes, drops or splits yet.
+                            if (ctx.maybeSmolder(e, b)) continue;
                             ctx.addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
                             if (e.st === 'DIVING') {
                                 ctx.G.scorePopups.push({ x: e.x, y: e.y - 16, text: 'HEADSHOT!', t: 0, dur: 800, col: '#ff8844', big: true });
@@ -843,7 +864,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch (e2) {}
                             if (e.sectorBoss) { ctx.G.hitstopT = 100; }
                             if (e.hasCap) ctx.G.p.cap = { x: e.x, y: e.y };
-                            if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD';
+                              if (ctx.G.chal) ctx.G.chalHits++; e.st = 'DEAD';
                             // NEW: Splitter splits into 2 mini enemies on death
                             if (e.type === 'splitter') {
                                 const _splitType = ctx.G.stage >= 15 && !(e._chained) ? 'splitter' : 'bee';
@@ -865,22 +886,13 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             ctx.G.stageKills = (ctx.G.stageKills || 0) + 1;
                             if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
                             if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
-                            ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
+                              ctx.G.weaponXP += (e.type === 'boss' ? 3 : e.type === 'miniboss' ? 2 : e.st === 'DIVING' ? 1.5 : 1);
+                            ctx.grantWeaponLevel();
                             // NEW: Floating combat text — damage on hit, crit on headshot/weakpoint
                             if (e.weakPoint && Math.hypot(b.x - (e.x + e.weakPoint.x), b.y - (e.y + e.weakPoint.y)) < 6) {
                                 ctx.G.combatText.push({ x: e.x, y: e.y - 12, text: 'CRIT!', t: 0, dur: 600, col: '#ff4444', big: true });
                             }
-                            const xpNeeded = ctx.G.weaponLv * 10;
-                            if (ctx.G.weaponXP >= xpNeeded && ctx.G.weaponLv < 4) {
-                                ctx.G.weaponXP -= xpNeeded;
-                                ctx.G.weaponLv++;
-                                ctx.SFX.weaponUp();
-                                ctx.G.upgradeBanner = { text: 'W' + ctx.G.weaponLv, type: 'weapon', t: 0, dur: 1000 };
-                            }
-                            if (ctx.G.weaponLv >= 4 && !ctx.G.weaponEvo && !ctx.G.evoChoiceOpen) {
-                                ctx.G.evoChoiceOpen = true;
-                            }
-                            if (ctx.G.weaponLv >= 4) ctx.unlockAchievement('weapon_master');
+                            ctx.checkWeaponEvo();
                             if (!e.sectorBoss && (e.type === 'boss' || e.type === 'miniboss')) { ctx.G.bossKillTotal++; if (ctx.G.bossKillTotal >= 10) ctx.unlockAchievement('boss_slayer'); try { localStorage.setItem('galaxa_boss_kills', String(ctx.G.bossKillTotal)); } catch(e2) {} }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
                         }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); } }
@@ -1058,6 +1070,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
         ctx.updateCombo = updateCombo;
         ctx.getComboTimeout = getComboTimeout;
         ctx.registerKill = registerKill;
+        ctx.grantWeaponLevel = grantWeaponLevel;
+        ctx.checkWeaponEvo = checkWeaponEvo;
         ctx.hit = hit;
         ctx.dropPU = dropPU;
         ctx.collectPU = collectPU;

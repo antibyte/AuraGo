@@ -663,6 +663,15 @@ type VirtualDesktopConfig struct {
 	CodeStudio               CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                                 // built-in Code Studio development container
 	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
 	Layerling                LayerlingConfig  `yaml:"layerling" json:"layerling"`
+	Infra                    InfraConfig      `yaml:"infra" json:"infra"`
+}
+
+// InfraConfig controls the shared homelab atlas and explicit source actions.
+type InfraConfig struct {
+	Enabled         bool `yaml:"enabled" json:"enabled"`
+	ReadOnly        bool `yaml:"read_only" json:"read_only"`
+	AllowSourceEdit bool `yaml:"allow_source_edit" json:"allow_source_edit"`
+	AllowControl    bool `yaml:"allow_control" json:"allow_control"`
 }
 
 // LayerlingConfig controls the local browser CAD editor and its agent bridge.

@@ -2175,7 +2175,8 @@ registration lives in `internal/desktop/types.go`.
   `galaxa-constants.js` and `galaxa-tweens.js` must load before factory modules.
   Split modules (soft budget **≤1000 lines** per file): `galaxa-entities-{core,
   spawning, behaviors, combat, weapons}.js`, `galaxa-render-{effects, stage, hud,
-  world}.js`, `galaxa-audio-{core, sfx, music}.js`, `galaxa-enemy-motion.js`.
+  world}.js`, `galaxa-audio-{core, sfx, music}.js`, `galaxa-enemy-motion.js`,
+  `galaxa-enemy-fx.js`.
   Orchestrator glue stays in `galaxa-entities.js`, `galaxa-render.js`, and
   `galaxa-audio.js`.
 - `galaxa-campaign.js` owns seeded run randomness, the pause-aware game
@@ -2209,6 +2210,28 @@ registration lives in `internal/desktop/types.go`.
   `AURAGO_BROWSER_ARTIFACT_DIR` optionally saves screenshots/audio/metrics.
 - Enemy movement visuals live in `galaxa-enemy-motion.js` with per-type presets
   in `GC.ENEMY_MOTION_FX` (pulse scale, dive trails, blink invisibility).
+- Enemy-side effects live in `galaxa-enemy-fx.js` (`GC.createEnemyFx`, called from
+  `galaxa-entities.js`): charge-up telegraph glints, feint/formation-shuffle blink
+  rings, rage auras, rapid-kill lightning chains, per-hit impact pops, plus the
+  smoldering crash-dive state (`SMOLDER`, tuned by `GC.SMOLDER`): hit enemies
+  that tumble toward the player trailing smoke/embers and detonate after a seeded
+  delay. It is
+  drawn by `ctx.drawEnemyFxWorld(c)` between `fxDrawWorld` and `renderDangers`, and
+  ticked by `ctx.updateEnemyFx(dt)` from `updateExp`. Pools are bounded by
+  `GC.FX_CAPS` (`telegraph`, `enemyMarks`, `chain`, `smolder`) via `ctx.settings.particles`,
+  honour `ctx.settings.reducedMotion`/`prefers-reduced-motion`, and are cleared
+  whenever the game leaves `PLAYING`/`STAGE_INTRO` so no mark freezes over menus.
+- Enemy unpredictability (quirks, feints, squad/revenge dives, dive path
+  profiles) lives in `galaxa-entities-behaviors.js` with tuning in
+  `galaxa-constants.js` (`GC.ENEMY_QUIRKS`, `GC.QUIRK_CHANCE`, `GC.FEINT`,
+  `GC.SQUAD_DIVE`, `GC.REVENGE_DIVE`, `GC.FORMATION_SHUFFLE`, `GC.DIVE_PATHS`).
+  Quirks are assigned at both spawn sites through `ctx.assignEnemyQuirk` and are
+  disabled on easy difficulty. The new `FEINT` state aborts a dive and can never
+  kill by body contact. Every gameplay decision (quirk roll, dive path, squad and
+  revenge picks) must use the seeded `ctx.random`; only visual randomness may use
+  `Math.random`, so fixed-step runs stay deterministic. Revenge dives are
+  reported by `ctx.onEnemyKilled` from `registerKill`; rapid kills also spawn
+  `ctx.fxKillChain`, and `damageEnemy` spawns the hit pop once per damage window.
 - Weapon power-ups (rare/legendary): `rocket_launcher` / `mega_rocket` (homing
   salvo), `mine_layer` / `mega_mine_layer` (player mines via `ctx.pushPlayerMine`,
   cap `GC.PLAYER_MINE_MAX`), and instant `megabomb`. Mirror shots use
@@ -2771,6 +2794,15 @@ registration lives in `internal/desktop/types.go`.
   gates the one-shot super-ready cue in `updateFX`. Menu states (SHOP, evo
   choice) tick `updateFX` so leftover gameplay FX decay instead of freezing
   as artifacts over the menu panels.
+- Enemy-behaviour pass (2026-10) adds `feintWhistle`, `squadDive`, `rageGrowl`,
+  `shuffleRumble`, `smolderIgnite` and `smolderBlast` SFX (mute-guarded) plus
+  the `galaxa-enemy-fx.js` effects
+  and the quirk tables listed above. Keep quirk rolls, dive-path picks and
+  squad/revenge/smolder selection on the seeded `ctx.random` (only the particle
+  seeds may use `Math.random`, because particles never enter the simulation
+  signature); smolder divers steer toward the player and detonate centrally in
+  `smolderDetonate`. New enemy FX belongs in
+  `galaxa-enemy-fx.js`, not in `galaxa-fx.js` (which is near the line budget).
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
@@ -3067,6 +3099,11 @@ registration lives in `internal/desktop/types.go`.
   fixed transform after camera shake. Do not restore removed overlay/ghost
   drawing passes or ordinary-hit hitstop. Respect particles, shake and
   reduced-motion settings. No child DOX file needed.
+- `galaxa-enemy-fx.js` owns the enemy-side FX (telegraph glints, feint/shuffle
+  rings, rage auras, kill chains, hit pops) via `GC.createEnemyFx`, drawn between
+  `fxDrawWorld` and `renderDangers` and ticked from `updateExp`. Keep its pools
+  bounded by `GC.FX_CAPS` and clear them outside `PLAYING`/`STAGE_INTRO`.
+  No child DOX file needed.
 - `writer.js`, `writer-session.js`, `writer-panels.js` - Native DOCX Autor,
   revision-aware persistence, document panels and isolated AI suggestions.
   `desktop-app-writer.css` owns chrome only; the engine owns document geometry.

@@ -30,6 +30,7 @@
                 if (!ctx.settings.reducedMotion && ctx.fxDrawBack) ctx.fxDrawBack(c);
                 ctx.renderGame();
                 if (ctx.fxDrawWorld) ctx.fxDrawWorld(c);
+                if (ctx.drawEnemyFxWorld) ctx.drawEnemyFxWorld(c);
                 ctx.renderDangers();
                 c.restore();
                 if (ctx.fxDrawOverlay) ctx.fxDrawOverlay(c);

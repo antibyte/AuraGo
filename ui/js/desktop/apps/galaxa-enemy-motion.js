@@ -22,11 +22,13 @@
         }
 
         function trailTint(e, cols) {
+            if (e.rageMode) return '#ff4a2a';
             if (e.type === 'hunter') return '#ff7722';
             if (e.type === 'kamikaze') return '#ff4444';
             if (e.type === 'stalker') return '#aa66ee';
             if (cols && (cols[2] || cols['2'])) return cols[2] || cols['2'];
-            return '#88ccff';
+            const biome = GC.ENEMY_BIOME_TINT && GC.ENEMY_BIOME_TINT[ctx.G.biome];
+            return biome || '#88ccff';
         }
 
         function updateEnemyMotionFx(e, dtMs) {
@@ -52,7 +54,7 @@
                 }
             }
 
-            if (fx.diveScale && e.st === 'DIVING') {
+            if (fx.diveScale && (e.st === 'DIVING' || e.st === 'FEINT')) {
                 const prog = Math.min(1, Math.max(0, (e.y - ctx.FTOP) / Math.max(1, ctx.H * 0.45)));
                 scale *= fx.diveScale.min + (fx.diveScale.max - fx.diveScale.min) * prog;
             }
@@ -70,7 +72,7 @@
             e.mAlpha = alpha;
             e.mSkipDraw = alpha < 0.06 && e.st !== 'DIVING';
 
-            if (fx.diveTrail && e.st === 'DIVING') {
+            if (fx.diveTrail && (e.st === 'DIVING' || e.st === 'FEINT')) {
                 e.trailAcc = (e.trailAcc || 0) + dtMs;
                 const interval = e.type === 'kamikaze' ? 16 : e.type === 'hunter' ? 22 : 30;
                 if (e.trailAcc >= interval) {

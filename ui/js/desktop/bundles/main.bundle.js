@@ -828,6 +828,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            infra: 'InfraApp',
             'ruview': 'RuViewApp',
             files: 'FileManager',
             writer: 'WriterApp',
@@ -6433,6 +6434,7 @@
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
+            infra: { width: 1280, height: 820 },
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
@@ -6471,9 +6473,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'infra' || appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'infra') return { width: 360, height: 480 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
@@ -6533,7 +6536,8 @@
     }
 
     function matchesExistingAppWindow(win, appId, context) {
-        if (win.appId !== appId || appId === 'quick-connect') return false;
+        if (win.appId !== appId) return false;
+        if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
         if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
@@ -6693,12 +6697,23 @@
             if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);
             if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
+            if (appId === 'quick-connect' && context && context.device_id) {
+                updateWindowContext(existing.id, { device_id: context.device_id });
+                applyQuickConnectLaunchContext(existing.id, context);
+            }
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
+            if (appId === 'software-store' && context && context.app_id) {
+                updateWindowContext(existing.id, { app_id: context.app_id });
+                window.SoftwareStoreApp?.open?.(existing.id, context);
+            }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
-            if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);
+            if (appId === 'network-cameras' && context && (context.event_id || context.camera_id)) {
+                updateWindowContext(existing.id, context);
+                window.NetworkCamerasApp?.open?.(existing.id, context);
+            }
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
@@ -17740,6 +17755,13 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'infra' && window.InfraApp) {
+            return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, openApp, setWindowMenus, clearWindowMenus, confirmDialog, readonly: desktopReadonly(),
+                showConfirmModal: confirmDialog,
+                showNotify: message => showDesktopNotification({ title: 'Infra', message })
+            }));
+        }
         if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
@@ -17796,7 +17818,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp }));
-        } if (appId === 'quick-connect') return renderQuickConnect(id);
+        } if (appId === 'quick-connect') return renderQuickConnect(id, context);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, officeAppContext(context));
         }
@@ -17841,7 +17863,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.SoftwareStoreApp.render === 'function') {
-                return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+                return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, (state.windows.get(id) || {}).context || {}, { esc, api, t, iconMarkup, themeIconPath, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
             }
         }
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
@@ -17862,7 +17884,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('network-cameras').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
+            if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, (state.windows.get(id) || {}).context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'meshcore') {
             if (!window.MeshCoreApp) {
@@ -19325,7 +19347,14 @@ if (appId === 'pixel') {
     let sdkChallengeSequence = 0;
     let sdkFrameObserver = null;
 
-    function renderQuickConnect(id) {
+    const quickConnectTargets = new Map();
+
+    function applyQuickConnectLaunchContext(id, context) {
+        const selectTarget = quickConnectTargets.get(id);
+        if (selectTarget) selectTarget(context);
+    }
+
+    function renderQuickConnect(id, context) {
         const host = contentEl(id);
         if (!host) return;
         host.classList.add('vd-qc-window');
@@ -19344,6 +19373,7 @@ if (appId === 'pixel') {
                     <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
                 <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
+                <div class="vd-qc-target" data-qc-target hidden></div>
                 <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
@@ -19386,6 +19416,51 @@ if (appId === 'pixel') {
         let loadGeneration = 0;
         let activeSFTPNav = null;
         const pendingConfirmations = new Set();
+        let targetDeviceId = '';
+        let focusTarget = false;
+        const targetPanel = host.querySelector('[data-qc-target]');
+        function targetID(launch) {
+            return launch && typeof launch.device_id === 'string' && launch.device_id.length <= 128 ? launch.device_id : '';
+        }
+        targetDeviceId = targetID((state.windows.get(id) || {}).context || context);
+        focusTarget = !!targetDeviceId;
+        function renderTarget() {
+            targetPanel.hidden = !targetDeviceId;
+            if (!targetDeviceId || !cachedDevices) return;
+            const device = cachedDevices.find(item => item.id === targetDeviceId);
+            targetPanel.replaceChildren();
+            const label = document.createElement('p');
+            label.setAttribute('role', 'status');
+            label.textContent = device ? t('desktop.qc_target_selected').replace('{name}', device.name) : t('desktop.qc_no_devices');
+            targetPanel.appendChild(label);
+            if (!device) return;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-qc-btn vd-qc-btn-primary';
+            button.textContent = t('desktop.qc_connect');
+            button.disabled = device.protocol === 'none';
+            if (button.disabled) button.title = t('desktop.qc_no_connection');
+            button.addEventListener('click', () => connectToDevice(device.id));
+            targetPanel.appendChild(button);
+            if (focusTarget) {
+                const item = Array.from(deviceList.querySelectorAll('[data-device-id]')).find(node => node.dataset.deviceId === targetDeviceId);
+                if (item) item.scrollIntoView({ block: 'nearest' });
+                (button.disabled ? item : button)?.focus({ preventScroll: true });
+                focusTarget = false;
+            }
+        }
+        quickConnectTargets.set(id, launch => {
+            const next = targetID(launch);
+            if (!next || disposed) return;
+            targetDeviceId = next;
+            focusTarget = true;
+            searchInput.value = '';
+            activeProtocolFilter = 'all';
+            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'all'));
+            if (!cachedDevices || !cachedDevices.some(item => item.id === next)) { loadAll(); return; }
+            filterDevices();
+            renderTarget();
+        });
         const serialTerminal = window.QuickConnectSerial.create({
             list: serialList, content: serialContent, searchInput, api, t,
             getBootstrap: () => state.bootstrap || {}, confirmDialog: showConfirmModal,
@@ -19454,6 +19529,7 @@ if (appId === 'pixel') {
         });
 
         registerWindowCleanup(id, () => {
+            quickConnectTargets.delete(id);
             host.classList.remove('vd-qc-window');
             disposed = true;
             connectionGeneration++;
@@ -19493,13 +19569,14 @@ if (appId === 'pixel') {
                     api('/api/desktop/integrations/credentials')
                 ]);
                 if (disposed || generation !== loadGeneration) return;
-                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || d.protocol === 'ssh' || d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                     return;
                 }
                 renderDeviceList(cachedDevices);
+                renderTarget();
             } catch (err) {
                 if (disposed || generation !== loadGeneration) return;
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
@@ -19546,9 +19623,9 @@ if (appId === 'pixel') {
             deviceList.innerHTML = filtered.map(d => {
                 const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
                 const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
-                const protoLabel = d.protocol === 'vnc' ? 'VNC' : 'SSH';
+                const protoLabel = d.protocol === 'none' ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
                 const protoIcon = d.protocol === 'vnc' ? 'monitor' : 'terminal';
-                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}">
+                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}">
                     <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : protoIcon, 'S', 'vd-qc-device-papirus-icon', 22)}</span>
                     <div class="vd-qc-device-main">
                         <div class="vd-qc-device-name">${esc(d.name)}</div>
@@ -19846,8 +19923,9 @@ if (appId === 'pixel') {
         }
 
         function connectToDevice(deviceId) {
-            const device = cachedDevices.find(d => d.id === deviceId);
-            if (device && device.protocol === 'vnc') {
+            const device = cachedDevices && cachedDevices.find(d => d.id === deviceId);
+            if (!device || device.protocol === 'none') { showNotify(t('desktop.qc_no_connection')); return; }
+            if (device.protocol === 'vnc') {
                 connectVNC(deviceId);
             } else {
                 connectSSH(deviceId);

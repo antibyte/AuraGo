@@ -739,5 +739,13 @@
   "config.virtual_desktop.bookshelf_enabled_label": "Zapnout Bookshelf",
   "help.virtual_desktop.bookshelf_enabled": "Zapni Bookshelf pro správu a čtení knih z vybraných místních složek a připojených zdrojů. Ve výchozím nastavení je vypnutý.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Spustitelný soubor převodníku knih",
-  "help.virtual_desktop.bookshelf_converter_path": "Cesta k ebook-convert v Linuxu. Převod vyžaduje také izolaci pomocí bwrap a prlimit; prázdné pole jej vypne. Například /usr/bin/ebook-convert nebo /opt/calibre/ebook-convert. Na nepodporovaných platformách importuj již převedenou knihu."
+  "help.virtual_desktop.bookshelf_converter_path": "Cesta k ebook-convert v Linuxu. Převod vyžaduje také izolaci pomocí bwrap a prlimit; prázdné pole jej vypne. Například /usr/bin/ebook-convert nebo /opt/calibre/ebook-convert. Na nepodporovaných platformách importuj již převedenou knihu.",
+  "config.infra.enabled": "Zapnout Infra",
+  "config.infra.help": "Sdílený atlas domácí laboratoře s výslovným importem. Bez automatického skenování sítě.",
+  "config.infra.read_only": "Pouze pro čtení",
+  "config.infra.read_only_help": "Atlas lze prohlížet; místní úpravy, změny zdrojů a ovládání jsou zakázány.",
+  "config.infra.source_edit": "Povolit změny zdrojů",
+  "config.infra.source_edit_help": "Povolí podporované změny metadat. Oprávnění zdrojů a režim pouze pro čtení nadále platí.",
+  "config.infra.control": "Povolit ovládání zařízení",
+  "config.infra.control_help": "Povolí výslovné spuštění, zastavení, restart a Wake-on-LAN. Oprávnění zdrojů nadále platí."
 }

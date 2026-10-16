@@ -38,6 +38,16 @@
         let pendingCatalogRequest = null;
         let initialCatalogLoaded = false;
         instances.set(windowId, instance);
+        let targetAppID = '';
+        let focusTarget = false;
+        instance.selectTarget = context => {
+            const value = context && context.app_id;
+            if (instance.disposed || typeof value !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,127}$/.test(value)) return;
+            targetAppID = value;
+            focusTarget = true;
+            if (initialCatalogLoaded) renderCards();
+        };
+        instance.selectTarget(deps);
 
         function trackOverlay(overlay) {
             if (instance.disposed) return;
@@ -233,7 +243,7 @@
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed');
                 const warningText = hostAccessWarning(entry);
                 const operationError = operationErrors.get(entry.id) || (app && app.error);
-                return `<article class="vd-store-card" data-app-id="${esc(entry.id)}">
+                return `<article class="vd-store-card" data-app-id="${esc(entry.id)}" tabindex="-1" aria-current="${entry.id === targetAppID ? 'true' : 'false'}">
                     <div class="vd-store-card-head">
                         <div class="vd-store-logo-wrap">${logo}${fallback}</div>
                         <div class="vd-store-card-title-wrap">
@@ -269,6 +279,14 @@
                     card.querySelectorAll('[data-action]').forEach(button => {
                         button.addEventListener('click', () => handleAction(appId, button.dataset.action, button.dataset.portId));
                     });
+                    if (focusTarget && appId === targetAppID) {
+                        requestAnimationFrame(() => {
+                            if (instance.disposed || !card.isConnected || appId !== targetAppID) return;
+                            card.scrollIntoView({ block: 'nearest' });
+                            card.focus({ preventScroll: true });
+                            focusTarget = false;
+                        });
+                    }
                 });
             } catch (err) {
                 console.error('Software store render failed', err);
@@ -729,5 +747,9 @@
         instances.delete(windowId);
     }
 
-    window.SoftwareStoreApp = { render, dispose };
+    function open(windowId, context) {
+        instances.get(windowId)?.selectTarget(context);
+    }
+
+    window.SoftwareStoreApp = { render, dispose, open };
 })();

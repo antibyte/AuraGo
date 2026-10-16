@@ -1,0 +1,599 @@
+{
+  "generator": "Built-in Imagegen, one independent call per motif",
+  "assets": [
+    {
+      "id": "rack-server",
+      "source_sha256": "f6a7b83b12f7a1d29100d8828a294236cd1376959e16679dc3025c0f126483e1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": null,
+      "prompt": null,
+      "style_brief": "Orthographic isometric homelab miniature; titanium silver, ceramic white, graphite recesses, small teal and copper accents; upper-left studio light; transparent margins; no text or logos."
+    },
+    {
+      "id": "tower-server",
+      "source_sha256": "ddb7ca924124d8647c647a94a2b305f159157c6502473a835160d940abdf064c",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: upright enterprise tower server with four stacked front drive bays. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "mini-pc",
+      "source_sha256": "e1372d2f2ad2427bab9c567d3ede5da522f651aa9136d4e35f13bc418a93dd5e",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact square mini computer, brushed silver case, one small front power button and two ports. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "sbc",
+      "source_sha256": "cd492f2dfbccf7b9090b5e33213d605a43b6ee9d17ee994e779e4cc7a29f557c",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: single board computer on a small green circuit board, silver heatsink and tiny copper connectors, no text. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "nas",
+      "source_sha256": "5fe0b13e068e8b0ea19f3d8140b6aaf5fec35526913b4e860fdaa9f580793497",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact four-bay desktop network attached storage enclosure with four vertical removable drive trays. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "disk-shelf",
+      "source_sha256": "c95766e493a3f588053012a250627460c1bf514ce8d0c8d22851d1759d6e91f0",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: wide eight-bay disk storage enclosure, eight distinct front trays. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "workstation",
+      "source_sha256": "07373159321dd72bc7732cf2c15b4532a28a33da5f56c586b2afd4017b72ba02",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: desktop workstation tower and a single flat display showing a plain subtle teal screen. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "laptop",
+      "source_sha256": "89ada29333ea4cd9ff33ce742bdec593fd54db5ddfedfa1910b3358a0876709c",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: open slim silver laptop with blank dark teal display and refined keyboard. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "tablet",
+      "source_sha256": "11948bd8d737de7ea71803cef39c2d60dd2d5c26e241ac02091456933a2281b9",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: slim tablet resting at a slight incline, blank muted teal screen. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "smartphone",
+      "source_sha256": "a8f14347c0df369ea295ce7bd078799f88e102c080163220a3cc00fba77a4955",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: single slim smartphone standing at a slight incline, blank muted teal screen. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "router",
+      "source_sha256": "658048148d97da90f7ec7bf012379f1373f7f5ea6fd4e7a86c23fe6d0b9726a1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: premium rectangular home router with two short antennas and clearly defined Ethernet ports. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "firewall",
+      "source_sha256": "57434cb5cb18aad719889a5f5af622b4d7052b559beb8fa7d7b34787dce7929b",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small robust hardware firewall appliance with a tiny embossed shield shape on its top and four ports. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "modem-ont",
+      "source_sha256": "187995ef220619c1e2c0d31ddbacee4208ff9a59a3f2466f589eae6a4615c3e2",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact fiber modem optical network terminal, one small fiber socket and two status dots. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "managed-switch",
+      "source_sha256": "db343069366fea36417f6dfba3324fa98aaae6954df870b157705189a2c001e2",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: wide rackmount managed network switch with two neat rows of 12 tiny Ethernet ports. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "switch",
+      "source_sha256": "f92747bc8f9fe9cedc5ca5113bc35b1bbdc6dc268e4842e5b2a0ec635fd382c3",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small eight-port desktop Ethernet switch without antennas. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "access-point",
+      "source_sha256": "6c4a839302f1c42c31628013c5bfb04380bdfff36fbe8313ef124fda7bc5b7ce",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: single circular ceramic-white ceiling WiFi access point disc with thin teal light ring. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "mesh-node",
+      "source_sha256": "85a44402b786a54d69537271ac09aa341553a5fb7700f6ef8861f8ee6332d628",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: upright compact rounded white mesh WiFi node with a fine teal indicator line. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "ups",
+      "source_sha256": "55b920081dacedf9a90c14d05e84fbaccb1f3a5361c0e01c03720e337c592d39",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact upright uninterruptible power supply tower, front battery glyph in a tiny teal display, no text. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "pdu",
+      "source_sha256": "b9181e26f249df344ebf9c1cde13d9151e72368916b87658f922a5ffc92338ff",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: long rack power distribution unit strip with six dark power outlets and copper switch. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "patch-panel",
+      "source_sha256": "0f0e5a77ac78f5fa5081b56adebff0338bdd28a5b33b3be90c1f2539123795ea",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: rack patch panel with two orderly rows of empty Ethernet sockets, no text labels. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "camera",
+      "source_sha256": "e6d55b373bbda3a27d89e911c3d30708fa3e3d546daf5be43c65b6b03d642735",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: outdoor turret security camera with a black optical lens in a white housing. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "nvr",
+      "source_sha256": "facc3052e281b4602dab81d108cb12dcf13d999442c54f4c581b60ed7e1589c6",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact rectangular network video recorder with front drive bay and tiny camera-lens symbol. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "printer",
+      "source_sha256": "5e66fae660c19fc839b5e1f65e170bb5a836a58b429cd0466c0ab349ac938b32",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small office laser printer with one clean blank paper sheet. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "3d-printer",
+      "source_sha256": "d83eb13cd679d0f05b744e49af783cb89d9c35c7569aaf10d04dd92b5073273e",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: open-frame 3D printer with a teal small cube on the build plate, silver frame and black motion rails. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "smart-hub",
+      "source_sha256": "bf0815b4af00f3f886ed65bb610bf4c388be0fa2201f331dc2e6bfd602a62eb9",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small ceramic-white smart home gateway hub with a fine house-shaped embossed mark. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "sensor",
+      "source_sha256": "62b224129b27d85e81bc5e8050baf75e729047cce0de279ea8b6231ac394c05d",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact white environmental sensor with a small dark circular sensing aperture. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "smart-plug",
+      "source_sha256": "ecc005e6559c4cec8743386abc03b9c413e7827126a56e4078cc76763a1eeca1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact smart power plug with European round outlet and subtle teal indicator. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "tv",
+      "source_sha256": "6a090f75166cdd61ba0b88b85eabf0aeb5e2f4a6dde495188ed3f895b3671cb7",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: sleek large television screen on a short silver stand, abstract calm teal screen. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "console",
+      "source_sha256": "32b7fde45eef96d73c5738d99e898630f878524be231130fbb719270b035305f",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: minimal white and graphite home game console accompanied by a small controller. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "radio-gateway",
+      "source_sha256": "54eea4d2454384e00a45ff1f171133c14b094685b911ede0fd8a382e59d5bd12",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact radio gateway transceiver with one antenna and two small copper controls. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "usb-gateway",
+      "source_sha256": "f1a049d4ff343e1159a0fb9592361404014acea29d5f4f1b217b1b9ec7d9284a",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small brushed silver USB gateway hub with four sockets and one short attached connector. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "generic-device",
+      "source_sha256": "eac6b58dc34ed26f0e7ea40c28921f74e1f28b843ead2adc3a6c4812b1ce88dd",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: recognizable neutral compact silver electronics enclosure with two front ports. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "vm",
+      "source_sha256": "54791a29297919b06b15e06a3bd71bb48c626a7b9bbd77fcbe9dabc2e266cb7a",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: transparent glass cube containing one miniature silver computer server, virtualization metaphor. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "container",
+      "source_sha256": "2d992c4abf63472f2bcfcb217c85e32a521950acf8ae4858752d3d7705d0c9a7",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: miniature silver intermodal software container box with a teal inset cube symbol, no logos. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "hypervisor",
+      "source_sha256": "5d10a006489c783c43c0702d877f88c9279501f5156261a713e327fe6fe31d01",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three neatly stacked translucent glass compute plates above a silver base. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "kubernetes",
+      "source_sha256": "c8f60945118470cb8a9d1b0fe8eb2e8cb896dce6b8dd20a4e71bfa1d3149d77a",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three linked miniature silver compute cubes arranged around a small teal central hub, no logos. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "database",
+      "source_sha256": "20d1d206873f7ae1bfa5e8f58157642852e38cf2bee5914cd2d871fcc9198144",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: polished silver database cylinder with three stacked discs and a fine teal band. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "web-service",
+      "source_sha256": "671f8504a61a39aa32328586060e168e4f4611616164db746e7379578468985c",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: freestanding miniature silver browser window sculpture with a teal content panel, no text. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "reverse-proxy",
+      "source_sha256": "4aa4597f3c5f0dd0e5e4d5869d1d4df484c3c4793e47fea2763a31888ba725bf",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small silver gateway arch routing one teal path into two copper paths, self-contained icon. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "dns-dhcp",
+      "source_sha256": "2659bd982a92d7c959576427e3517ae67e961a691edebf710754f453d739625d",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small silver directory appliance with three teal network endpoint dots connected on its face. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "vpn",
+      "source_sha256": "541b82c1ba79ea288031ed95a5023c0e25c4ba59fb93bac806efd5b9ab0a73f9",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver shield enclosing a small teal tunnel opening, refined solid sculptural object. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "storage-share",
+      "source_sha256": "e5f5551fb9541d897538ad584c68cadad4fb433e4b0521b99f7581c9ec5bf755",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver folder-shaped storage object with two small connected endpoint nodes. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "backup",
+      "source_sha256": "f69760ceb5602c82d31bfe8ba0712708851aa092a92c2402c2dea18aa7a85674",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: compact silver storage cartridge with a teal curved return arrow sculpture. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "monitoring",
+      "source_sha256": "e493849e5dcea266af16bcc539a923e862050877444439b0c9e31028e2de6efb",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small silver instrument display showing a simple teal health line, no numbers. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "home-automation",
+      "source_sha256": "3f269537ef2bf55de8330da451a8ba13940da8c8481f6b8f9fda1869a6ca5a57",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small ceramic house with a silver base and a teal central control hub. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "media-server",
+      "source_sha256": "6bd44f82e6afd0ac616977f4c4823950d92c1d3e8d08e0f2414fdc9b6b271cb7",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver media server box with a small teal triangular play symbol. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "ai-runtime",
+      "source_sha256": "bd941532a314d5d0c04467c55f77c84a83f4dc0189a85af60e53a01896cc0c32",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver compute module with a translucent teal geometric neural core, no brain or face. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "mqtt",
+      "source_sha256": "bb11653cec547ac153d3391118a867b442503b172f7bcdcdb1b57fb953b2fab1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver message hub with three small floating teal message tiles joined by short copper branches. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "logs",
+      "source_sha256": "ed5d1b6c8c8117b6185a105e4540fce97651ded7ba4355650809521dffb1feb0",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three neatly stacked silver logbook sheets with embossed short horizontal grooves, no text. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "git-ci",
+      "source_sha256": "62f010a0f00ba78c5ccafe3f4d722d850c1e30dda168573cf2d7b791d2b9072d",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver branching rail with three teal nodes forming a compact development workflow sculpture. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "mail-server",
+      "source_sha256": "ce98efbd92a1edc0fa9d8f45aa65b7d82f8ce10a0abe2f25847b8a49711d65ca",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver server block with a small ceramic-white envelope attached to its front. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "photo-library",
+      "source_sha256": "3e59f3db9c48fd8bfee5f39d8d8077c6396d72d8fa6af1a52119bd0c3fe6b0e7",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three overlapping framed miniature abstract landscape photographs, silver edges and teal hills. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "password-manager",
+      "source_sha256": "e4daac07ee186d75496ba33896305d9463793e2ab9dc0cb6f0e28fab27b32be0",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver vault safe with a small copper dial and teal keyhole. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "cloud-service",
+      "source_sha256": "64b3c16d0b55754a39880081f3c130ca187bf3c2748cd706174ad1bbce64cce6",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: soft sculpted ceramic-white cloud atop a small silver compute base. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "automation",
+      "source_sha256": "8d812b7a9fb729fc08423403bb7967f27f7f9254728f04ced8f94cd64dac4a49",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: two interlocking silver and copper gears with a tiny teal center. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "generic-app",
+      "source_sha256": "971dc091f7d3528d4c714a9f43a150ce51bdd09bc7f5255b53979449662708b3",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small ceramic-white application tile with a raised silver inset square and teal corner detail. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "rack",
+      "source_sha256": "f3873bdb2d6a980ad22e9f96eaf583c5b9bbed2d5ad3a1b5f0faf50ec730358d",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: empty open-frame black-and-silver 12U homelab rack cabinet with clearly defined mounting rails. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "site",
+      "source_sha256": "54a837cd8e79ae919daad3211f24955fa40d4b8aa8f766ce5cf9a796e049c9f3",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: miniature small modern building with silver roof and ceramic walls, no surrounding scenery. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "room",
+      "source_sha256": "1c996536d80acc551b8eeaa6d4479edc8baad0974c50ff9c27652e6141f509ef",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: small isometric cutaway room with two ceramic walls and subtle silver floor, no furniture. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "lan",
+      "source_sha256": "4abede385a1162e2589b3cbae1e3872ce44d4362969b1a86ae134d0556d08fd1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three small silver endpoint boxes joined by a compact teal branching network path. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "vlan",
+      "source_sha256": "9bf9673f5302dbbe37c82e1a404924cd923e0fa3d3ff8f7d0f7df9b2c6ba4e15",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: two distinct clusters of small silver endpoint boxes separated by a translucent teal partition. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "wlan",
+      "source_sha256": "8f7b74263481404c6e09216a0ad47c7d21edcb64833cc68c709f381f61209ec1",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: silver wireless endpoint disc with three sculpted teal radio-wave arcs above it. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "internet",
+      "source_sha256": "5abc95347ce2e84b88465ba4271a26206e6cc6db137e7da3f60641064b37436d",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: polished silver globe with restrained teal latitude and longitude lines. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "group",
+      "source_sha256": "6afed9eca7fbab5f1fb7a4cf64f55c314afe83037e81ac90b81cd10eba2f52f7",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: three small silver device blocks on a shared thin ceramic base. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "icon",
+      "source_sha256": "caff70b10661b951a11003dd244617073d2e29098c1021f00df0285632ca8e72",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: an elegant Infra app emblem: three miniature silver homelab appliances on a tiny isometric ceramic tile connected by teal paths, no letters. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    },
+    {
+      "id": "empty-atlas",
+      "source_sha256": "3adde74687f72dca297b8308ec137aac24ae932aaebf0af2c50f2e38483ad708",
+      "tool": "image_gen.imagegen",
+      "transparent_background": true,
+      "style_reference": "rack-server",
+      "prompt": "Create ONE original production transparent UI icon for Infra, a premium isometric homelab atlas. Use the attached rack server ONLY as material, lighting and perspective STYLE REFERENCE, never copy its subject. NEW SUBJECT: a refined spacious miniature homelab island with one silver rack, small router and empty placement tile linked by delicate teal paths; inviting restrained composition for an empty-state illustration. Fixed orthographic isometric perspective matching reference, front and right side visible, upper-left soft studio light. Brushed titanium silver and ceramic-white main surfaces, graphite recesses, restrained tiny copper connectors and teal accent. Crisp finely sculpted industrial miniature, sophisticated product rendering, clear silhouette readable at64px. Exactly ONE icon, centered, complete object occupies72% of square canvas with generous transparent margins. Actual transparent RGBA background, clean anti-aliased edges, no colored or white background, no checkerboard. No text, letters, numbers, labels, logos, watermark, border, extra scene or platform (except when subject itself requires a base). No clipped elements.",
+      "style_brief": null
+    }
+  ]
+}
