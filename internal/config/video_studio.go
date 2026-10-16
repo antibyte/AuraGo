@@ -49,8 +49,13 @@ func NormalizeVideoStudioConfig(c *VideoStudioConfig) error {
 	if c.HardwareDevice != "" && (!filepath.IsAbs(c.HardwareDevice) && !strings.HasPrefix(c.HardwareDevice, "/") || len(c.HardwareDevice) > 255 || strings.ContainsAny(c.HardwareDevice, "\r\n\x00,:@=")) {
 		return fmt.Errorf("video_studio: hardware_device must be an absolute device path without , : @ or =")
 	}
-	if c.MaxAssetSizeMB < 1 || c.MaxAssetSizeMB > 32768 || c.MaxProjectSizeMB < 1 || c.MaxProjectSizeMB > 65536 || c.RenderTimeoutSeconds < 30 || c.RenderTimeoutSeconds > 14400 || c.MaxExportSizeMB < 1 {
-		return fmt.Errorf("video_studio: asset size must be 1–32768 MB, project size 1–65536 MB, timeout 30–14400 seconds and export size at least 1 MB")
+	// The export limit starts at 512 MB; smaller values from older configs are raised, not rejected. A project
+	// limit below 512 MB still caps the export limit through the clamp below.
+	if c.MaxExportSizeMB > 0 && c.MaxExportSizeMB < 512 {
+		c.MaxExportSizeMB = 512
+	}
+	if c.MaxAssetSizeMB < 1 || c.MaxAssetSizeMB > 32768 || c.MaxProjectSizeMB < 1 || c.MaxProjectSizeMB > 65536 || c.RenderTimeoutSeconds < 30 || c.RenderTimeoutSeconds > 14400 || c.MaxExportSizeMB < min(512, c.MaxProjectSizeMB) {
+		return fmt.Errorf("video_studio: asset size must be 1–32768 MB, project size 1–65536 MB, timeout 30–14400 seconds and export size at least min(512, project limit) MB")
 	}
 	// The update merge keeps an older config's explicit project limit and adds the template's asset
 	// and export defaults, which can exceed it. Neither an asset nor an export can outgrow the

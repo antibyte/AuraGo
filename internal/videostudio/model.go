@@ -199,6 +199,15 @@ func AssetAtRate(asset Asset, rate Rate) Asset {
 	return asset
 }
 
+// BackfillDurationUs derives the microsecond duration of a version 1 asset from its whole frames at 30 fps. Images
+// and assets that already carry a duration are returned unchanged. Upgrade and the server use this one function.
+func BackfillDurationUs(asset Asset) Asset {
+	if asset.DurationUs == 0 && asset.DurationFrames > 0 && asset.Kind != AssetImage {
+		asset.DurationUs = int64(asset.DurationFrames) * 1_000_000 / FramesPerSecond
+	}
+	return asset
+}
+
 // LabelColors are the clip label colors in menu order; a clip without a label has "".
 var LabelColors = []string{"red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"}
 

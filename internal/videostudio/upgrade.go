@@ -16,9 +16,7 @@ func Upgrade(project Project) (Project, error) {
 		project.Version = CurrentVersion
 		project.Assets = append([]Asset(nil), project.Assets...)
 		for i := range project.Assets {
-			if project.Assets[i].DurationUs == 0 && project.Assets[i].DurationFrames > 0 && project.Assets[i].Kind != AssetImage {
-				project.Assets[i].DurationUs = int64(project.Assets[i].DurationFrames) * 1_000_000 / FramesPerSecond
-			}
+			project.Assets[i] = BackfillDurationUs(project.Assets[i])
 		}
 		return project, nil
 	default:

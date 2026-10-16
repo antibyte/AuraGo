@@ -66,4 +66,23 @@ func TestVideoStudioConfigRoundTripAndLimits(t *testing.T) {
 	if err := NormalizeVideoStudioConfig(&small); err != nil || small.MaxAssetSizeMB != 2048 {
 		t.Fatalf("an explicit small project limit must cap the asset default: %+v (%v)", small, err)
 	}
+	// The export limit starts at 512 MB: a smaller value from an older config is raised, then clamped to a project
+	// limit below 512 MB. An unset export limit still takes its default.
+	for _, tc := range []struct {
+		name            string
+		export, project int
+		want            int
+	}{
+		{"raised to the minimum", 100, 16384, 512},
+		{"raised, then clamped to the project", 300, 256, 256},
+		{"a tiny project keeps its tiny export", 1, 1, 1},
+		{"unset takes the default", 0, 16384, 8192},
+		{"unset under a small project", 0, 256, 256},
+	} {
+		limits := cfg.VideoStudio
+		limits.MaxExportSizeMB, limits.MaxProjectSizeMB, limits.MaxAssetSizeMB = tc.export, tc.project, 0
+		if err := NormalizeVideoStudioConfig(&limits); err != nil || limits.MaxExportSizeMB != tc.want {
+			t.Errorf("%s: export %d MB with a %d MB project = %d MB (%v), want %d MB", tc.name, tc.export, tc.project, limits.MaxExportSizeMB, err, tc.want)
+		}
+	}
 }

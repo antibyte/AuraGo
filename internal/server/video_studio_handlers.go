@@ -182,6 +182,15 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 	for _, size := range videostudio.CanvasSizes() {
 		sizes = append(sizes, map[string]int{"width": size[0], "height": size[1]})
 	}
+	// The same table Validate uses, so the editor offers exactly the accepted rates.
+	frameRates := make([]map[string]interface{}, 0, len(videostudio.FrameRateOptions()))
+	for _, option := range videostudio.FrameRateOptions() {
+		rate := map[string]interface{}{"fps": option.FPS}
+		if option.NTSC {
+			rate["ntsc"] = true
+		}
+		frameRates = append(frameRates, rate)
+	}
 	limits := map[string]interface{}{
 		"max_asset_size_bytes":   int64(cfg.VideoStudio.MaxAssetSizeMB) << 20,
 		"max_project_size_bytes": int64(cfg.VideoStudio.MaxProjectSizeMB) << 20,
@@ -189,14 +198,11 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		// Kept for editors that still count 30 fps frames; per-project limits use max_duration_seconds.
 		"max_duration_frames": videostudio.MaxDurationSeconds * videostudio.FramesPerSecond,
 		"fps":                 videostudio.FramesPerSecond,
-		"frame_rates": []map[string]interface{}{
-			{"fps": 24}, {"fps": 24, "ntsc": true}, {"fps": 25}, {"fps": 30}, {"fps": 30, "ntsc": true},
-			{"fps": 50}, {"fps": 60}, {"fps": 60, "ntsc": true},
-		},
-		"max_tracks":         map[string]int{"video": videostudio.MaxVideoTracks, "audio": videostudio.MaxAudioTracks, "overlay": videostudio.MaxOverlayTracks},
-		"max_clips":          videostudio.MaxClipsPerProject,
-		"max_segment_inputs": videostudio.MaxSegmentInputs,
-		"canvas_sizes":       sizes,
+		"frame_rates":         frameRates,
+		"max_tracks":          map[string]int{"video": videostudio.MaxVideoTracks, "audio": videostudio.MaxAudioTracks, "overlay": videostudio.MaxOverlayTracks},
+		"max_clips":           videostudio.MaxClipsPerProject,
+		"max_segment_inputs":  videostudio.MaxSegmentInputs,
+		"canvas_sizes":        sizes,
 	}
 	generation := map[string]interface{}{
 		"enabled":           cfg.VideoGeneration.Enabled,

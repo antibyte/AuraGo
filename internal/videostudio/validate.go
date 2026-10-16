@@ -11,7 +11,28 @@ import (
 	"unicode/utf8"
 )
 
-var supportedFrameRates = map[int]bool{24: true, 25: true, 30: true, 50: true, 60: true}
+// FrameRateOption is one frame rate a project may use. NTSC variants exist for 24, 30 and 60 fps.
+type FrameRateOption struct {
+	FPS  int  `json:"fps"`
+	NTSC bool `json:"ntsc,omitempty"`
+}
+
+var frameRateOptions = []FrameRateOption{{FPS: 24}, {FPS: 24, NTSC: true}, {FPS: 25}, {FPS: 30}, {FPS: 30, NTSC: true}, {FPS: 50}, {FPS: 60}, {FPS: 60, NTSC: true}}
+
+// FrameRateOptions lists the frame rates Validate accepts, in menu order.
+func FrameRateOptions() []FrameRateOption { return append([]FrameRateOption(nil), frameRateOptions...) }
+
+// supportedFrameRates and ntscFrameRates are derived from frameRateOptions, the one table of accepted rates.
+var supportedFrameRates, ntscFrameRates = func() (map[int]bool, map[int]bool) {
+	rates, ntsc := make(map[int]bool, len(frameRateOptions)), make(map[int]bool)
+	for _, option := range frameRateOptions {
+		rates[option.FPS] = true
+		if option.NTSC {
+			ntsc[option.FPS] = true
+		}
+	}
+	return rates, ntsc
+}()
 
 var sourceFPSPattern = regexp.MustCompile(`^[1-9][0-9]{0,6}/[1-9][0-9]{0,6}$`)
 
@@ -30,7 +51,7 @@ func Validate(project Project) error {
 	if !supportedFrameRates[project.FPS] {
 		return fmt.Errorf("unsupported frame rate %d fps", project.FPS)
 	}
-	if project.NTSC && project.FPS != 24 && project.FPS != 30 && project.FPS != 60 {
+	if project.NTSC && !ntscFrameRates[project.FPS] {
 		return fmt.Errorf("NTSC timing is available for 24, 30 and 60 fps only")
 	}
 	if len(project.Assets) > MaxAssetsPerProject {

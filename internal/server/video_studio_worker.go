@@ -827,13 +827,10 @@ func (m *videoStudioManager) canonicalizeProject(projectID string, project video
 	return project, nil
 }
 
-// videoStudioAssetAtRate expresses a trusted media record in a project's frame rate. Records probed before
-// version 2 carry 30 fps frames only; their microsecond duration is derived from those frames.
+// videoStudioAssetAtRate expresses a trusted media record in a project's frame rate. Records probed before version 2
+// carry 30 fps frames only; their microsecond duration comes from BackfillDurationUs.
 func videoStudioAssetAtRate(asset videostudio.Asset, rate videostudio.Rate) videostudio.Asset {
-	if asset.DurationUs == 0 && asset.DurationFrames > 0 && asset.Kind != videostudio.AssetImage {
-		asset.DurationUs = int64(asset.DurationFrames) * 1_000_000 / videostudio.FramesPerSecond
-	}
-	return videostudio.AssetAtRate(asset, rate)
+	return videostudio.AssetAtRate(videostudio.BackfillDurationUs(asset), rate)
 }
 
 func validateVideoStudioProject(project videostudio.Project) error {
