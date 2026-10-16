@@ -142,6 +142,7 @@
   <div class="vs-tab-panel vs-media-panel" data-panel="media" role="tabpanel" id="vs-panel-${s.id}-media" aria-labelledby="vs-tab-${s.id}-media">
    <div class="vs-import"><button type="button" class="vs-import-main" data-action="upload">${icon('upload', 16)}<span>${label('upload', 'Upload')}</span></button><button type="button" data-action="browse">${icon('folder', 16)}<span>${label('browseShort', 'From files')}</span></button><input type="file" data-file-input accept="video/*,audio/*,image/png,image/webp" multiple hidden></div>
    <div class="vs-media-tools"><label class="vs-search">${icon('search', 15)}<input type="search" data-search placeholder="${label('searchMedia', 'Search media')}" aria-label="${label('searchMedia', 'Search media')}"></label><div class="vs-filter" role="group" aria-label="${label('filterMedia', 'Filter media')}" data-filters></div></div>
+   <div class="vs-media-bar" data-media-bar></div>
    <div class="vs-asset-grid" data-assets></div>
    <div class="vs-media-foot"><span data-asset-count></span><span>${label('dropHint', 'Drop files anywhere to import')}</span></div>
   </div>
@@ -191,7 +192,7 @@
         const s = {
             id, host, ctx, abort: new AbortController(), disposed: false, project: null, projectId: '', desktopPath: '', etag: '',
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
-            selectionSet: new Set(), selectionPrimary: '', clipboard: null, tool: 'select', trimMode: '', peekReturn: null,
+            selectionSet: new Set(), selectionPrimary: '', clipboard: null, tool: 'select', trimMode: '', peekReturn: null, ...P.readMediaPrefs(), mediaFolder: '', selectedAssetId: '',
             zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', loop: false, soloIds: new Set(), renamingTrackId: '', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
@@ -236,7 +237,8 @@
             if (!card) return;
             if (s.readonly || card.getAttribute('draggable') !== 'true') { event.preventDefault(); return; }
             event.dataTransfer.setData('application/x-video-studio-asset', card.dataset.assetId);
-            event.dataTransfer.effectAllowed = 'copy';
+            // Folders in the media bin move the item; the timeline and the preview copy it into the edit.
+            event.dataTransfer.effectAllowed = 'copyMove';
         }, { signal });
         host.addEventListener('dragenter', event => fileDrag(s, event, true), { signal });
         host.addEventListener('dragover', event => {

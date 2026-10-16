@@ -444,6 +444,47 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-context-menu .vs-menu-gap { flex: 0 0 15px; width: 15px; }
 .vs-context-menu kbd { margin-left: auto; padding-left: 16px; color: var(--vs-muted); font: inherit; font-size: 11px; }
 .vs-context-menu hr { margin: 4px 2px; border: 0; border-top: 1px solid var(--vs-border); }
+/* Media bin (phase 1e): breadcrumb bar, folder tiles and rows, list view with sortable columns. */
+.vs-media-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; padding: 0 12px 8px; }
+.vs-media-bar:empty { display: none; }
+.vs-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; font-size: 12px; color: var(--vs-muted); }
+.vs-breadcrumb button { max-width: 140px; min-height: 24px; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-breadcrumb button:hover, .vs-breadcrumb button:focus-visible, .vs-breadcrumb button.is-drop { background: var(--vs-control-hover); color: var(--vs-text); outline: 2px solid var(--vs-accent-border); outline-offset: -2px; }
+.vs-breadcrumb button[aria-current="page"] { color: var(--vs-text); font-weight: 600; }
+.vs-media-bar-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.vs-media-bar-actions .vs-segmented { margin-top: 0; padding: 2px; }
+.vs-media-bar-actions .vs-segmented button { min-height: 24px; padding: 2px 9px; }
+.vs-media-bar-actions .vs-icon-button { width: 28px; min-height: 28px; }
+.vs-folder-tile { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 3px; min-width: 0; min-height: 92px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); color: var(--vs-text); font: inherit; text-align: left; }
+.vs-folder-tile:hover, .vs-folder-tile:focus-visible, .vs-folder-tile.is-drop { border-color: var(--vs-accent-border); outline: none; box-shadow: 0 0 0 2px var(--vs-accent-border); }
+.vs-folder-tile .vs-folder-icon { margin-bottom: auto; }
+.vs-folder-icon { display: inline-flex; color: var(--vs-accent); }
+.vs-folder-name { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; }
+.vs-asset.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-asset-grid[data-view="list"] { display: flex; flex-direction: column; gap: 2px; padding-top: 0; }
+.vs-asset-grid[data-view="list"] > * { flex: none; min-width: 640px; }
+.vs-asset-grid[data-view="list"] > .vs-empty-media { min-width: 0; }
+.vs-asset-head, .vs-asset-row { display: grid; grid-template-columns: 40px minmax(140px, 2.4fr) repeat(6, minmax(58px, 1fr)) 28px; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px; border-radius: 8px; font-size: 12px; }
+.vs-asset-head { position: sticky; top: 0; z-index: 2; min-height: 30px; border-radius: 0; background: var(--vs-panel-strong); color: var(--vs-muted); box-shadow: 0 1px 0 var(--vs-border); }
+.vs-asset-head button { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 24px; padding: 2px 4px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs-asset-head button:hover { color: var(--vs-text); background: var(--vs-control-hover); }
+.vs-asset-head button.is-sorted { color: var(--vs-text); }
+.vs-asset-head button[aria-sort="ascending"] .vs-icon { transform: rotate(180deg); }
+.vs-asset-row { gap: 8px; padding: 4px 6px; border: 1px solid transparent; }
+.vs-asset-row:hover, .vs-asset-row:focus-visible, .vs-folder-row:hover, .vs-folder-row:focus-visible, .vs-folder-row.is-drop { background: var(--vs-control-hover); border-color: var(--vs-border); outline: none; }
+.vs-folder-row.is-drop { border-color: var(--vs-accent-border); box-shadow: inset 0 0 0 1px var(--vs-accent-border); }
+.vs-asset-row.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-asset-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
+.vs-asset-cell-name { color: var(--vs-text); font-weight: 600; }
+.vs-asset-row .vs-asset-thumb-small { width: 40px; height: 24px; aspect-ratio: auto; border-radius: 4px; }
+.vs-folder-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--vs-text); font: inherit; font-size: 12px; text-align: left; }
+.vs-folder-row .vs-folder-icon { justify-content: center; width: 40px; }
+.vs-folder-row .vs-asset-meta { margin-left: auto; }
+.vs-asset-row .vs-asset-add { position: static; width: 26px; height: 26px; box-shadow: none; }
+.vs-asset-grid[data-view="list"] .vs-asset.is-uploading { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb { width: 40px; height: 24px; aspect-ratio: auto; border-radius: 4px; }
+.vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb .vs-icon { width: 14px; height: 14px; }
+.vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-progress { left: 4px; right: 4px; bottom: 3px; height: 3px; }
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }
@@ -623,6 +664,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-import { padding: 6px 8px; }
     .vs-media-tools, .vs-media-foot { display: none; }
     .vs-asset-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 112px; overflow-x: auto; overflow-y: hidden; padding: 0 8px 8px; }
+    .vs-asset-grid[data-view="list"] { overflow: auto; }
+    .vs-media-bar { padding: 0 8px 6px; }
     .vs-preset-list { grid-auto-flow: column; grid-auto-columns: 210px; overflow-x: auto; }
     .vs-sticker-grid { grid-template-columns: repeat(6, 72px); overflow-x: auto; }
     .vs-preview-stage { padding: 8px; }
