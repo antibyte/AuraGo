@@ -1,5 +1,12 @@
 # Externe Projekte und Lizenzbedingungen
 
+Der native Codegraph verwendet zusätzlich `github.com/odvcencio/gotreesitter`
+`v0.56.0` (MIT, Copyright (c) 2026 Oscar Villavicencio). Eingebunden sind nur die
+Go-, JavaScript-, TypeScript-/TSX- und Python-Grammatiken (MIT; Max Brunsfeld,
+2014 für Go/JavaScript, 2017 für TypeScript/TSX, 2016 für Python). Die genauen
+Revisionen und Urheberzeilen stehen in `THIRD_PARTY_NOTICES.md`, der Lizenztext
+in `licences/texts/MIT.txt`.
+
 Stand: 14. Oktober 2026. AuraGo selbst steht unter der MIT-Lizenz in `LICENSE`.
 Diese Datei listet fremde Projekte, die der Quellbaum direkt einbindet, auf dem
 virtuellen Desktop mitliefert oder als Docker-Image startet.

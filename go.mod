@@ -45,6 +45,7 @@ require (
 	github.com/mdlayher/vsock v1.3.0
 	github.com/miekg/dns v1.1.73
 	github.com/minio/minio-go/v7 v7.4.1
+	github.com/odvcencio/gotreesitter v0.56.0
 	github.com/pdfcpu/pdfcpu v0.15.0
 	github.com/philippgille/chromem-go v0.7.0
 	github.com/phpdave11/gofpdf v1.4.3

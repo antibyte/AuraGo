@@ -1,5 +1,27 @@
 # Third-party notices
 
+## Native code graph
+
+`github.com/odvcencio/gotreesitter v0.56.0` is MIT licensed,
+Copyright (c) 2026 Oscar Villavicencio. AuraGo links only its Go, JavaScript,
+TypeScript/TSX and Python grammar packages. The upstream grammar license audit
+in that exact module records these MIT works:
+
+- tree-sitter-go, `2346a3ab1bb3857b48b29d779a1ef9799a248cd7`:
+  Copyright (c) 2014 Max Brunsfeld.
+- tree-sitter-javascript, `58404d8cf191d69f2674a8fd507bd5776f46cb11`:
+  Copyright (c) 2014 Max Brunsfeld.
+- tree-sitter-typescript (including TSX), `75b3874edb2dc714fb1fd77a32013d0f8699989f`:
+  Copyright (c) 2017 Max Brunsfeld.
+- tree-sitter-python, `26855eabccb19c6abf499fbc5b8dc7cc9ab8bc64`:
+  Copyright (c) 2016 Max Brunsfeld.
+
+The complete MIT terms are retained in `licences/texts/MIT.txt`.
+Source and pinned grammar provenance:
+[gotreesitter v0.56.0](https://github.com/odvcencio/gotreesitter/tree/v0.56.0),
+[`licenses/grammars.json`](https://github.com/odvcencio/gotreesitter/blob/v0.56.0/licenses/grammars.json).
+
+
 AuraGo links the listed Go modules or retrieves the listed optional model/runtime artifacts. When `embeddings.provider` is `local-granite`, native runtimes and model weights are downloaded on demand and verified by exact size and SHA-256 rather than embedded in the primary binary. The person-detection mode of the Network Cameras app downloads its detector model and ONNX Runtime the same way (see "Person detection models and runtime" below).
 
 | Component | Use | License |
