@@ -1421,8 +1421,10 @@ buttons and menu popovers remain excluded from those gestures.
   loop and navigation keys), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
-  `-projects.js`), `-projects.js` (settings and new-project dialogs) and
-  `-menus.js` (context menus), and `video-studio.js` last (25 scripts, same
+  `-projects.js`), `-projects.js` (settings and new-project dialogs),
+  `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
+  removal, drops onto folders, library metadata) and
+  `-menus.js` (context menus), and `video-studio.js` last (26 scripts, same
   order in `module-loader.js` and both browser fixtures). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so

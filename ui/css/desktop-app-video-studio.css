@@ -461,7 +461,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-folder-icon { display: inline-flex; color: var(--vs-accent); }
 .vs-folder-name { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; }
 .vs-asset.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
-.vs-asset-grid[data-view="list"] { display: flex; flex-direction: column; gap: 2px; padding-top: 0; }
+.vs-asset-grid[data-view="list"] { display: flex; flex-direction: column; gap: 2px; padding-top: 0; padding-right: 0; }
 .vs-asset-grid[data-view="list"] > * { flex: none; min-width: 640px; }
 .vs-asset-grid[data-view="list"] > .vs-empty-media { min-width: 0; }
 .vs-asset-head, .vs-asset-row { display: grid; grid-template-columns: 40px minmax(140px, 2.4fr) repeat(6, minmax(58px, 1fr)) 28px; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px; border-radius: 8px; font-size: 12px; }
@@ -480,11 +480,15 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-folder-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--vs-text); font: inherit; font-size: 12px; text-align: left; }
 .vs-folder-row .vs-folder-icon { justify-content: center; width: 40px; }
 .vs-folder-row .vs-asset-meta { margin-left: auto; }
-.vs-asset-row .vs-asset-add { position: static; width: 26px; height: 26px; box-shadow: none; }
+/* The narrow rail scrolls the list sideways; the add button stays at the visible right edge. */
+.vs-asset-row .vs-asset-add { position: sticky; top: auto; right: 2px; width: 26px; height: 26px; background: color-mix(in srgb, #0c0e12 88%, var(--vs-accent)); box-shadow: 0 0 0 4px var(--vs-panel); }
+/* Scoped under .vs-app so the white plus outranks `.vs-app button { color: inherit }` (light themes drew it dark). */
+.vs-app .vs-asset-add { color: #fff; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb { width: 40px; height: 24px; aspect-ratio: auto; border-radius: 4px; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb .vs-icon { width: 14px; height: 14px; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-progress { left: 4px; right: 4px; bottom: 3px; height: 3px; }
+.vs-insp-meta small .vs-icon { margin-right: 4px; vertical-align: -2px; }
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }

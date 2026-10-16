@@ -153,9 +153,18 @@
         return `<section class="vs-insp-section vs-clip-section"><h3>${v.icon('sliders', 14)}${v.esc(v.tr('clipSection', 'Clip'))}</h3>${speedRow}<div class="vs-swatches" role="group" aria-label="${v.esc(v.tr('label', 'Label'))}">${[''].concat(colors).map(swatch).join('')}</div><div class="vs-clip-actions"><button type="button" data-action="clip-link" aria-pressed="${!!caps.linked}" ${caps.linkable ? '' : 'disabled'}>${v.icon(caps.linked ? 'unlink' : 'link', 14)}<span>${v.esc(caps.linked ? v.tr('unlink', 'Unlink') : v.tr('link', 'Link'))}</span></button>${audio}<button type="button" data-action="clip-disable" aria-pressed="${!!clip.disabled}">${v.icon(clip.disabled ? 'eye' : 'eyeOff', 14)}<span>${v.esc(clip.disabled ? v.tr('enable', 'Enable') : v.tr('disable', 'Disable'))}</span></button></div>${derived}</section>`;
     }
 
+    // Metadata of the selected library item (rows are prepared by the app part; this module only lays them out).
+    function assetMarkup(v) {
+        const info = v.libraryAsset;
+        const thumb = info.thumb ? ` style="background-image:url('${v.esc(info.thumb)}')"` : '';
+        const rows = info.rows.map(([label, value]) => `<div><dt>${v.esc(label)}</dt><dd title="${v.esc(value)}">${v.esc(value)}</dd></div>`).join('');
+        const folder = info.folderPath || v.tr('rootFolder', 'Media (top level)');
+        return `<div class="vs-insp-head"><span class="vs-insp-thumb vs-kind-${v.esc(info.kind)}"${thumb}>${info.thumb ? '' : v.icon(info.icon, 18)}</span><div class="vs-insp-title"><strong title="${v.esc(info.name)}">${v.esc(info.name)}</strong><span class="vs-insp-meta"><small title="${v.esc(folder)}">${v.icon('folder', 12)}${v.esc(folder)}</small></span></div></div><section class="vs-insp-section"><h3>${v.icon('info', 14)}${v.esc(v.tr('inspectorMedia', 'Media'))}</h3><dl class="vs-facts">${rows}</dl></section><p class="vs-hint">${v.esc(v.tr('libraryInspectorHint', 'Double-click to open it in the source monitor, or drag it onto the timeline.'))}</p>`;
+    }
+
     function render(host, v) {
         if (!host) return;
-        if (!v.selected) { host.innerHTML = emptyMarkup(v); return; }
+        if (!v.selected) { host.innerHTML = v.libraryAsset ? assetMarkup(v) : emptyMarkup(v); return; }
         const { clip, track } = v.selected;
         const asset = v.asset || {};
         const kind = clip.text ? 'text' : asset.kind || track.kind;

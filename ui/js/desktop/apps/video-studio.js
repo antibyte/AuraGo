@@ -51,6 +51,7 @@
     const recoverDraft = (...args) => P.recoverDraft(...args);
     const refreshProject = (...args) => P.refreshProject(...args);
     const renameProject = (...args) => P.renameProject(...args);
+    const wireMediaBin = (...args) => P.wireMediaBin(...args);
     const renderAIPanel = (...args) => P.renderAIPanel(...args);
     const renderAssets = (...args) => P.renderAssets(...args);
     const renderFilters = (...args) => P.renderFilters(...args);
@@ -258,6 +259,7 @@
                 if (assetId) addAssetToTrack(s, assetId, '', s.frame);
             }
         }, { signal });
+        wireMediaBin(s);
         s.q('[data-file-input]').addEventListener('change', async event => {
             await importFiles(s, Array.from(event.target.files || []));
             event.target.value = '';
@@ -359,6 +361,8 @@
         try {
             const response = await request(API + '/projects/' + encodeURIComponent(id), { signal: s.abort.signal });
             if (s.disposed || epoch !== s.projectEpoch || s.timelineDragging) return false;
+            // Another project opens at the top of its media bin; reloading the same project keeps the open folder.
+            if (s.projectId !== id) { s.mediaFolder = ''; s.selectedAssetId = ''; }
             s.projectId = id;
             s.etag = response.etag;
             s.desktopPath = response.body.desktop_path || '';
@@ -399,7 +403,7 @@
         s.project.name = name || s.project.name;
         s.savedProject = canonicalProject(s.project);
         s.dirty = true;
-        s.history = []; s.redo = []; s.selectedClipId = ''; s.frame = 0; s.jobs = []; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++; s.soloIds = new Set(); s.renamingTrackId = '';
+        s.history = []; s.redo = []; s.selectedClipId = ''; s.mediaFolder = ''; s.selectedAssetId = ''; s.frame = 0; s.jobs = []; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++; s.soloIds = new Set(); s.renamingTrackId = '';
         await saveProject(s);
         await loadProjects(s);
         renderUI(s);
@@ -520,7 +524,7 @@
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s)
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s)
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -670,6 +674,7 @@
         const markerEdit = event.target.closest('[data-marker-edit]'); if (markerEdit) { if (P.openMarkerPopover) P.openMarkerPopover(s, markerEdit.dataset.markerEdit, P.pointOf(markerEdit)); return; }
         const projectItem = event.target.closest('[data-project-id]');
         if (projectItem) { switchProject(s, projectItem.dataset.projectId); return; }
+        if (P.handleMediaClick(s, event)) return;
         const place = event.target.closest('[data-place-asset]');
         if (place) { if (!place.disabled) addAssetToTrack(s, place.dataset.placeAsset, '', s.frame); return; }
         const cancel = event.target.closest('[data-cancel-job]'); if (cancel) { cancelJob(s, cancel.dataset.cancelJob); return; }
