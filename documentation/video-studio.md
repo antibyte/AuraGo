@@ -141,6 +141,26 @@ Project saves use strong ETags. A second window cannot silently overwrite a
 newer save. The editor retains a small local timeline draft for recovery; copied
 media stays on the server. Closing the editor waits for its save guard.
 
+### Source monitor
+
+The **Source | Timeline** switch above the preview shows one library item in the source monitor, with its own
+transport, `J`/`K`/`L` shuttle, `I`/`O` marks (`Shift+I`/`Shift+O` go to them, `Alt+X` clears them) and a waveform for
+audio. Double-click a library item to open it; `Escape` returns to the timeline. Playback stops at the end of the item
+(it does not wrap). Marks are remembered per item in this browser.
+
+`,` inserts and `.` overwrites the item on the target tracks (the Video, Audio and Overlay targets); the item stays
+loaded when you return to the timeline, so both keys work there too. With timeline in and out set, the item lands at in
+with out − in frames, and its in mark decides where the source starts; nothing is stretched, so a source too short for
+that length is refused. With only in set, it lands at in with its full length; with only out set, it ends at out; with
+neither, it lands at the playhead. Afterwards the playhead moves to the end of the edit. Images last 5 s unless the in
+and out points define the length. A video with sound lands as a linked pair (picture detached from its sound, sound on
+the audio target) when an audio target is active, otherwise as one clip with its sound.
+
+Drag the **Picture only** or **Sound only** handle onto a track to place only that part at the drop point (`Ctrl`
+inserts). A drop places the marked range, or the whole item, and ignores the timeline in and out points; the picture
+needs a track that accepts it and the sound needs an audio track, otherwise the drop is refused and nothing changes. A
+picture-only video clip keeps its embedded sound silent.
+
 ## Exports and background jobs
 
 Exports are rendered in segments of about ten seconds. Every clip is read from its own position in the

@@ -1474,6 +1474,16 @@ buttons and menu popovers remain excluded from those gestures.
   in/out (`rescaleProject`), is refused when a clip would pass 60 minutes (`rescaleFits`), and the playhead keeps its
   time through it and through undo and redo (`frameAtRate`). Node checks:
   `go test ./ui -run 'TestVideoStudio(Navigation|Ruler|Marker|Track|Rate)'`.
+- Source monitor (phase 1d): `VideoStudioSourceEdit` (`video-studio-source-edit.js`, DOM-free) plans the 3-point
+  placement (`plan`) and the clips it places (`placements`: linked pair, picture-only or sound-only); the source
+  part (`video-studio-source.js`) mounts the item as a second `VideoStudioPreview` instance over a one-clip project,
+  so playback elements come from preview.js (`stopAtEnd` keeps an item from wrapping). Source edits run through
+  `applyEdit`. In source mode `handleKeys` routes every key to `P.handleSourceKeys` and stops; Escape returns to the
+  timeline. Marks are per item and viewer in
+  `aurago.videoStudio.sourceMarks.<projectId>` (seconds, at most 200 entries). The picture and sound handles set
+  `application/x-video-studio-part`; the timeline drop passes it as the fifth argument of `onDropAsset`, and
+  `addAssetToTrack` hands such a drop to `P.dropSourcePart`, which places only on the lane dropped on. Node checks:
+  `go test ./ui -run TestVideoStudioSource`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
