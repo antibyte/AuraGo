@@ -233,6 +233,7 @@ func checkLearningAction(ctx context.Context, tc ToolCall, dc *DispatchContext) 
 		}
 		boundCall := tc
 		boundCall.Params = args
+		boundCall.Todo = ""
 		b, _ := json.Marshal([]any{boundCall, targets, writes, revisions})
 		hash := sha256.Sum256(b)
 		key := hex.EncodeToString(hash[:])
