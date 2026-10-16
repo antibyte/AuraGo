@@ -91,6 +91,31 @@ function check(s, label) {
   assert.equal(s.project.fps, 60, 'the draft rate is restored');
   assert.equal(byId(s, 'b').duration_frames, 600, 'recoverDraft: server assets follow the draft rate');
   assert(T.validTimeline(s.project), 'recoverDraft: the recovered project stays valid');
+
+  // Name and folder belong to the project document: a server copy refreshes every other field (the poster flag
+  // included) but never overwrites a rename or move the editor holds.
+  const importedCopy = (id, extra) => { const project = latest(); Object.assign(project.assets.find(item => item.id === id), {name: 'imported.png', folder: 'Upload', has_poster: true}, extra || {}); return project; };
+  s = session();
+  Object.assign(byId(s, 'a'), {name: 'Hero', folder: 'Trips'});
+  respond(importedCopy('a'), '"3"');
+  assert.equal(await P.adoptServerMedia(s, 'p', 1), true, 'a rename does not make the copies differ');
+  assert.equal(byId(s, 'a').name, 'Hero', 'adoptServerMedia keeps the local name');
+  assert.equal(byId(s, 'a').folder, 'Trips', 'adoptServerMedia keeps the local folder');
+  assert.equal(byId(s, 'a').has_poster, true, 'adoptServerMedia takes the server poster flag');
+  assert.equal(s.savedProject.assets.find(item => item.id === 'a').name, 'imported.png', 'the saved copy mirrors the server');
+  check(s, 'owned fields');
+
+  s = session();
+  Object.assign(byId(s, 'c'), {name: 'Pending'});
+  respond(importedCopy('c'), '"3"');
+  await P.refreshProject(s);
+  assert.equal(s.conflict, undefined);
+  assert.equal(byId(s, 'c').name, 'Pending', 'refreshProject keeps the local name of a probed asset');
+  assert.ok(!byId(s, 'c').folder, 'a local top-level asset does not take the upload folder');
+  assert.equal(byId(s, 'c').has_poster, true, 'refreshProject takes the server poster flag');
+  assert.equal(byId(s, 'c').kind, 'video', 'the probe result still arrives');
+  assert.equal(P.keepOwnedAssetFields({name: '', folder: ''}, {name: 'n', folder: 'F', kind: 'video'}).name, 'n', 'a blank local name falls back to the server name');
+  assert.equal('folder' in P.keepOwnedAssetFields({name: 'x'}, {name: 'n', folder: 'F'}), false, 'no local folder, no folder key');
 })().catch(error => { console.error(error); process.exit(1); });
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {

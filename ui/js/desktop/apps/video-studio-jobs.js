@@ -14,6 +14,7 @@
     const hydrateProject = (...args) => P.hydrateProject(...args);
     const icon = (...args) => P.icon(...args);
     const idempotencyKey = (...args) => P.idempotencyKey(...args);
+    const keepOwnedAssetFields = (...args) => P.keepOwnedAssetFields(...args);
     const mutate = (...args) => P.mutate(...args);
     const projectDuration = (...args) => P.projectDuration(...args);
     const renderUI = (...args) => P.renderUI(...args);
@@ -212,7 +213,7 @@
             const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
             // Assets that finished probing replace their pending entry; new ones are appended.
             // The server counts frames at its saved rate; the local project may already be at a new, unsaved one.
-            next.assets.forEach(asset => { const local = known.get(asset.id); if (local && !local.kind && asset.kind) Object.assign(local, assetAtProjectRate(asset, s.project)); });
+            next.assets.forEach(asset => { const local = known.get(asset.id); if (local && !local.kind && asset.kind) Object.assign(local, keepOwnedAssetFields(local, assetAtProjectRate(asset, s.project))); });
             const additions = next.assets.filter(asset => !known.has(asset.id)).map(asset => assetAtProjectRate(asset, s.project));
             s.project.assets = (s.project.assets || []).concat(additions);
             s.savedProject.assets = next.assets.map(({ media_url, ...asset }) => asset);

@@ -59,6 +59,19 @@ const timed = Object.assign({}, live, {markers: [{id: 'm1', frame: 0, name: 'Sta
 assert.deepEqual(Object.keys(P.canonicalProject(timed)), ['version','name','width','height','fps','assets','tracks','markers','in_point','out_point'], 'marker and in/out keys follow the Go struct order');
 assert.deepEqual(P.canonicalProject(timed).markers, [{id: 'm1', frame: 0, name: 'Start', color: 'teal'}, {id: 'm2', frame: 30, duration: 12}], 'empty marker fields are omitted');
 assert.deepEqual(Object.keys(P.canonicalProject(Object.assign({}, live, {markers: []}))), ['version','name','width','height','fps','assets','tracks'], 'no markers, no key');
+// Folders: asset folder and has_poster sit at their Go positions, project.folders comes after the 1c keys, and all are omitted when unset.
+const owned = Object.assign({}, asset, {folder: 'Trips', has_poster: true});
+const loose = Object.assign({}, asset, {id: 'l', name: 'l.mp4'});
+const foldered = Object.assign({}, live, {assets: [owned, loose], folders: ['Empty'], markers: [{id: 'm1', frame: 0}], in_point: 0, out_point: 90});
+const fc = P.canonicalProject(foldered);
+assert.deepEqual(Object.keys(fc.assets[0]), ['id','name','folder','path','kind','duration_frames','duration_us','video_duration_us','width','height','has_audio','has_poster','source_fps','codec','size_bytes'], 'folder follows name and has_poster follows has_audio');
+assert.equal(JSON.stringify(fc.assets[0]), JSON.stringify({id:'a',name:'a.mp4',folder:'Trips',path:'media/a',kind:'video',duration_frames:30,duration_us:1000000,video_duration_us:1000000,width:64,height:36,has_audio:true,has_poster:true,source_fps:'30/1',codec:'h264',size_bytes:99}), 'a canonical asset stringifies like the server copy');
+assert.deepEqual(Object.keys(fc.assets[1]), ['id','name','path','kind','duration_frames','duration_us','video_duration_us','width','height','has_audio','source_fps','codec','size_bytes'], 'a top-level asset without a poster has neither key');
+assert.deepEqual(Object.keys(fc), ['version','name','width','height','fps','assets','tracks','markers','in_point','out_point','folders'], 'folders is the last project key');
+assert.deepEqual(fc.folders, ['Empty']);
+assert.equal(P.canonicalProject(Object.assign({}, foldered, {folders: []})).folders, undefined, 'no folders, no key');
+assert.equal('folders' in P.canonicalProject(Object.assign({}, foldered, {folders: undefined})), false);
+assert.equal(P.canonicalProject(Object.assign({}, foldered, {assets: [Object.assign({}, owned, {folder: '', has_poster: false})]})).assets[0].folder, undefined, 'an empty folder and a false poster flag are omitted');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("canonical form checks: %v\n%s", err, output)

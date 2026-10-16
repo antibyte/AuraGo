@@ -23,6 +23,8 @@
     const PREF_TIMELINE = 'aurago.videoStudio.timelineHeight';
     const PREF_SNAP = 'aurago.videoStudio.snap';
     const PREF_QUALITY = 'aurago.videoStudio.previewQuality';
+    const PREF_MEDIA_VIEW = 'aurago.videoStudio.mediaView';
+    const PREF_MEDIA_SORT = 'aurago.videoStudio.mediaSort';
     // Colour labels: one palette, defined in video-studio-timeline.js (VideoStudioTimeline.LABEL_COLORS).
     const LABEL_COLORS = window.VideoStudioTimeline.LABEL_COLORS;
     const PREF_MAGNETIC = 'aurago.videoStudio.magnetic';
@@ -63,9 +65,10 @@
         return { body, etag: response.headers.get('ETag') || body.etag || '' };
     }
     // Go struct order, so a canonical copy and a server-ordered copy stringify the same.
-    const ASSET_FIELDS = ['id', 'name', 'path', 'kind', 'duration_frames', 'duration_us', 'video_duration_us', 'width', 'height', 'has_audio', 'source_fps', 'codec', 'size_bytes'];
-    // Server-owned version 2 metadata; like Go's omitempty JSON they appear only when set.
-    const OPTIONAL_ASSET_FIELDS = new Set(['duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes']);
+    // folder (project-owned) and has_poster (server-owned) appear only when set, like Go's omitempty JSON.
+    const ASSET_FIELDS = ['id', 'name', 'folder', 'path', 'kind', 'duration_frames', 'duration_us', 'video_duration_us', 'width', 'height', 'has_audio', 'has_poster', 'source_fps', 'codec', 'size_bytes'];
+    // Optional fields (version 2 metadata, folder, poster flag); like Go's omitempty JSON they appear only when set.
+    const OPTIONAL_ASSET_FIELDS = new Set(['folder', 'has_poster', 'duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes']);
     function canonicalAsset(asset) {
         const out = {};
         ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
@@ -102,7 +105,7 @@
     // The top level is built explicitly in the order of Go's videostudio.Project (version, name, width, height, fps,
     // ntsc when set, assets, tracks), whatever order the keys were added to the live project (rescaleProject appends
     // ntsc late). New Project fields must be inserted here at their Go struct position; unknown keys are dropped
-    // (markers, in_point and out_point come last, from `timingExtras`).
+    // (markers, in_point and out_point follow, from `timingExtras`; folders comes last).
     function canonicalProject(project) {
         const source = clone(project);
         const copy = Object.assign({
@@ -121,6 +124,8 @@
                 text: String(clip.text || ''), text_style: normalizeTextStyle(clip.text_style), transition: clip.transition || null
             }, canonicalClipExtras(clip)))
         }));
+        // project.folders comes last in Go's Project struct; empty folders are omitted like the server omits them.
+        if (Array.isArray(source.folders) && source.folders.length) copy.folders = source.folders.map(String);
         return copy;
     }
     // Mirrors the server's omitempty JSON (no false, 0 or empty values; stable key order), so a saved
@@ -136,6 +141,14 @@
     function assetAtProjectRate(asset, project) {
         if (!asset || asset.kind === 'image' || !(Number(asset.duration_us) > 0)) return asset;
         return Object.assign({}, asset, { duration_frames: window.VideoStudioTime.framesAt(asset.duration_us, project) });
+    }
+    // Name and folder belong to the project document. A server copy refreshes every other field; for an asset the editor
+    // already knows, the local name and folder win (the server took them from the document it saved). A top-level asset
+    // has no folder key, like the server's omitempty JSON.
+    function keepOwnedAssetFields(local, server) {
+        const out = Object.assign({}, server, { name: local.name || server.name });
+        if (local.folder) out.folder = local.folder; else delete out.folder;
+        return out;
     }
     function hydrateProject(s, project) {
         const p = clone(project || {});
@@ -338,7 +351,7 @@
         if (content(next) !== content(s.savedProject)) return false;
         const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
         // The server counts frames at its saved rate; the local project may already be at a new, unsaved one.
-        next.assets.forEach(asset => { const local = known.get(asset.id); if (local) Object.assign(local, assetAtProjectRate(asset, s.project)); });
+        next.assets.forEach(asset => { const local = known.get(asset.id); if (local) Object.assign(local, keepOwnedAssetFields(local, assetAtProjectRate(asset, s.project))); });
         s.project.assets = (s.project.assets || []).concat(next.assets.filter(asset => !known.has(asset.id)).map(asset => assetAtProjectRate(asset, s.project)));
         s.savedProject.assets = next.assets.map(({ media_url, ...asset }) => asset);
         s.etag = fresh.etag;
@@ -418,5 +431,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();
