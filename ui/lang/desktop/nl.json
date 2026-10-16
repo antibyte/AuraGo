@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Nieuwste versie vervangen",
   "videoStudio.keepEditing": "Verder bewerken",
   "videoStudio.conflictAgain": "Het project is opnieuw gewijzigd. Controleer het conflict en probeer het opnieuw.",
+  "videoStudio.conflictMediaDropped": "Media die in een ander venster zijn verwijderd, zijn weggelaten, samen met de clips die ze gebruikten.",
   "videoStudio.createFailed": "Project maken is mislukt.",
   "videoStudio.loadFailed": "Project laden is mislukt. Controleer je verbinding en probeer het opnieuw.",
   "videoStudio.cancelFailed": "Taak annuleren is mislukt.",

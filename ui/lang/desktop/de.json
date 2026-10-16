@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Neueste Version ersetzen",
   "videoStudio.keepEditing": "Weiter bearbeiten",
   "videoStudio.conflictAgain": "Das Projekt wurde erneut geändert. Prüfe den Konflikt und versuche es noch einmal.",
+  "videoStudio.conflictMediaDropped": "Medien, die in einem anderen Fenster gelöscht wurden, wurden samt den Clips weggelassen, die sie verwendet haben.",
   "videoStudio.createFailed": "Das Projekt konnte nicht erstellt werden.",
   "videoStudio.loadFailed": "Das Projekt konnte nicht geladen werden. Prüfe die Verbindung und versuche es erneut.",
   "videoStudio.cancelFailed": "Die Aufgabe konnte nicht abgebrochen werden.",

@@ -1499,7 +1499,12 @@ buttons and menu popovers remain excluded from those gestures.
   list sort and the folder and name edits; edits return `true` or a reason. The bin (`video-studio-library.js`: media bar,
   grid, list, folder tiles, poster fallback) and its actions (`video-studio-mediabin.js`: dialogs, item and folder menus,
   removal, drops, library metadata) run their edits through `folderEdit` (one `mutate` undo step). Names and folders are
-  project-owned: `keepOwnedAssetFields` keeps the local values in `adoptServerMedia` and `refreshProject`. The project
+  project-owned: `keepOwnedAssetFields` keeps the local values in `adoptServerMedia` and `refreshProject`. While a removal
+  deletes files, `s.mediaRemoving` (a counter) makes `mutate` and `undo` refuse and disables undo/redo; afterwards
+  `P.forgetMedia` strips the deleted media and its clips from the project and its history. The list view is an ARIA
+  table: `[data-assets]` gets `role="table"` named after the open folder, the header row holds `role="columnheader"`
+  cells with the sort buttons (`aria-sort` only on the sorted column), and item, folder and upload rows are
+  `role="row"` with `role="cell"` children (the thumbnail is `aria-hidden`); the grid has no table roles. The project
   manager and versions live in `video-studio-projects.js`; a restore needs `If-Match` and a clean editor. The export
   dialog offers the in/out range when both points are set (`P.inOut(s)` clamped to the enabled length, as Go's
   `EnabledDuration`) and sends `range {start, end}`; `exportName(s, job)` adds ` (in-out)` for a range result. Node
@@ -1535,7 +1540,13 @@ buttons and menu popovers remain excluded from those gestures.
   when its content (everything but `assets`) equals the last saved project, adopt
   its assets and the observed ETag and retry once (`adoptServerMedia`). Any other
   412/428 must present Reload, Replace latest or Keep editing; never retry a real
-  conflict without an explicit choice and the observed latest ETag. The canonical
+  conflict without an explicit choice and the observed latest ETag. Media removed in
+  another window (missing from `GET …/media`, which also lists unprobed imports) leaves
+  the local copy and its undo snapshots when no clip uses it: in `adoptServerMedia`, in a
+  save answered 400 `project_asset_invalid` (`forgetServerRemovedMedia`, one retry) and in
+  `recoverDraft`. A clip of removed media is a conflict, never a retry loop; Replace latest
+  drops removed media with its clips (`forgetMedia`, notice `conflictMediaDropped`) and
+  Reload discards the local draft. The canonical
   form normalizes `text_style` like the server's omitempty JSON (no false/0/empty
   values, sorted keys), or every refresh of a title project reports a conflict. Bind imports, jobs,
   project refreshes and draft recovery to the captured project ID and epoch.

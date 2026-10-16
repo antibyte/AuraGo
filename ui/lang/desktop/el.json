@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Αντικατάσταση της πιο πρόσφατης έκδοσης",
   "videoStudio.keepEditing": "Συνέχεια επεξεργασίας",
   "videoStudio.conflictAgain": "Το έργο άλλαξε ξανά. Έλεγξε τη σύγκρουση και δοκίμασε ξανά.",
+  "videoStudio.conflictMediaDropped": "Τα πολυμέσα που διαγράφηκαν σε άλλο παράθυρο παραλείφθηκαν, μαζί με τα κλιπ που τα χρησιμοποιούσαν.",
   "videoStudio.createFailed": "Δεν ήταν δυνατή η δημιουργία του έργου.",
   "videoStudio.loadFailed": "Δεν ήταν δυνατή η φόρτωση του έργου. Έλεγξε τη σύνδεση και δοκίμασε ξανά.",
   "videoStudio.cancelFailed": "Δεν ήταν δυνατή η ακύρωση της εργασίας.",

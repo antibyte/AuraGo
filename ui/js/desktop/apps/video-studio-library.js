@@ -131,16 +131,19 @@
         const action = (name, iconName, key, fallback) => `<button type="button" class="vs-icon-button" data-action="${name}" title="${esc(s, tr(s, key, fallback))}" aria-label="${esc(s, tr(s, key, fallback))}" ${s.readonly ? 'disabled' : ''}>${icon(iconName, 15)}</button>`;
         redraw(host, `<nav class="vs-breadcrumb" aria-label="${esc(s, root)}"><button type="button" data-folder="" ${trail.length ? '' : 'aria-current="page"'}>${esc(s, root)}</button>${crumbs}</nav><div class="vs-media-bar-actions"><div class="vs-segmented" role="group" aria-label="${esc(s, tr(s, 'mediaView', 'View'))}">${viewButton('grid')}${viewButton('list')}</div>${action('new-folder', 'folder', 'newFolder', 'New folder')}${action('remove-unused', 'trash', 'removeUnused', 'Remove unused media')}</div>`);
     }
-    function uploadCard(s, key, item) {
-        return `<article class="vs-asset is-uploading${item.failed ? ' is-failed' : ''}" data-upload-key="${esc(s, key)}"><span class="vs-asset-thumb">${icon(item.failed ? 'alert' : 'upload', 22)}<span class="vs-asset-progress"><i style="width:${Math.round(item.progress * 100)}%"></i></span></span><span class="vs-asset-name" title="${esc(s, item.name)}">${esc(s, item.name)}</span><span class="vs-asset-meta">${esc(s, uploadLabel(s, item))}</span></article>`;
+    // In the list view an upload is a table row: the progress thumbnail is decoration, name and state are its cells.
+    function uploadCard(s, key, item, list) {
+        const tag = list ? 'div' : 'article', row = list ? ' role="row"' : '', cell = list ? ' role="cell"' : '';
+        return `<${tag} class="vs-asset is-uploading${item.failed ? ' is-failed' : ''}"${row} data-upload-key="${esc(s, key)}"><span class="vs-asset-thumb"${list ? ' aria-hidden="true"' : ''}>${icon(item.failed ? 'alert' : 'upload', 22)}<span class="vs-asset-progress"><i style="width:${Math.round(item.progress * 100)}%"></i></span></span><span class="vs-asset-name"${cell} title="${esc(s, item.name)}">${esc(s, item.name)}</span><span class="vs-asset-meta"${cell}>${esc(s, uploadLabel(s, item))}</span></${tag}>`;
     }
     function folderTile(s, path) {
         const count = F().assetsIn(s.project, path, true).filter(asset => !window.VideoStudioMedia.isArtwork(asset)).length;
         return `<button type="button" class="vs-folder-tile" data-folder="${esc(s, path)}" title="${esc(s, path)}"><span class="vs-folder-icon">${icon('folder', 22)}</span><span class="vs-folder-name">${esc(s, F().nameOf(path))}</span><span class="vs-asset-meta">${esc(s, countLabel(s, count))}</span></button>`;
     }
+    // A folder in the list view: a table row whose one cell holds the folder button (open, drop target, menu).
     function folderRow(s, path) {
         const count = F().assetsIn(s.project, path, true).filter(asset => !window.VideoStudioMedia.isArtwork(asset)).length;
-        return `<button type="button" class="vs-folder-row" data-folder="${esc(s, path)}" title="${esc(s, path)}"><span class="vs-folder-icon">${icon('folder', 16)}</span><span class="vs-folder-name">${esc(s, F().nameOf(path))}</span><span class="vs-asset-meta">${esc(s, countLabel(s, count))}</span></button>`;
+        return `<div class="vs-folder-line" role="row"><span class="vs-folder-cell" role="cell"><button type="button" class="vs-folder-row" data-folder="${esc(s, path)}" title="${esc(s, path)}"><span class="vs-folder-icon">${icon('folder', 16)}</span><span class="vs-folder-name">${esc(s, F().nameOf(path))}</span><span class="vs-asset-meta">${esc(s, countLabel(s, count))}</span></button></span></div>`;
     }
     function addButton(s, asset, ready) {
         const label = tr(s, 'addToTimeline', 'Add at the playhead');
@@ -164,17 +167,19 @@
         const kindIcon = kindIconOf(asset);
         const cells = [asset.name, durationLabel(s, asset), resolutionLabel(asset), frameRateLabel(asset), asset.codec || '', formatBytes(asset.size_bytes, P.uiLocale()), String(usage.get(asset.id) || 0)];
         const selected = s.selectedAssetId === asset.id ? ' is-selected' : '';
-        return `<article class="vs-asset vs-asset-row vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb vs-asset-thumb-small"${style}>${poster ? '' : icon(kindIcon, 14, 'vs-icon' + (ready ? '' : ' vs-spin'))}</span>${cells.map((value, index) => `<span class="vs-asset-cell${index === 0 ? ' vs-asset-cell-name' : ''}" data-column="${LIST_COLUMNS[index]}">${esc(s, value)}</span>`).join('')}${addButton(s, asset, ready)}</article>`;
+        return `<div class="vs-asset vs-asset-row vs-asset-${esc(s, asset.kind || 'pending')}${used ? ' is-used' : ''}${selected}" role="row" draggable="${!s.readonly && ready}" data-asset-id="${esc(s, asset.id)}" tabindex="0" title="${esc(s, asset.name)}"><span class="vs-asset-thumb vs-asset-thumb-small" aria-hidden="true"${style}>${poster ? '' : icon(kindIcon, 14, 'vs-icon' + (ready ? '' : ' vs-spin'))}</span>${cells.map((value, index) => `<span class="vs-asset-cell${index === 0 ? ' vs-asset-cell-name' : ''}" role="cell" data-column="${LIST_COLUMNS[index]}">${esc(s, value)}</span>`).join('')}<span class="vs-asset-cell-add" role="cell">${addButton(s, asset, ready)}</span></div>`;
     }
-    // The list header: sort buttons with aria-sort, aligned with the row cells (spacers for the thumbnail and add button).
+    // The list header row: one column header per sort column, each holding its sort button. Only the sorted column
+    // carries aria-sort (ascending or descending). The thumbnail column is decoration; the add-button column is named
+    // for assistive technology only. Columns line up with the row cells.
     function listHeader(s) {
         const headers = SORT_KEYS.map(key => {
             const active = s.mediaSort === key;
             const label = tr(s, COLUMN_KEYS[key], COLUMN_FALLBACKS[key]);
-            const sort = active ? (s.mediaSortDir === 'desc' ? 'descending' : 'ascending') : 'none';
-            return `<button type="button" role="columnheader" data-media-sort="${key}" aria-sort="${sort}" class="${active ? 'is-sorted' : ''}">${esc(s, label)}${active ? icon('chevronDown', 12) : ''}</button>`;
+            const sort = active ? ` aria-sort="${s.mediaSortDir === 'desc' ? 'descending' : 'ascending'}"` : '';
+            return `<div class="vs-asset-col${active ? ' is-sorted' : ''}" role="columnheader"${sort}><button type="button" data-media-sort="${key}" class="${active ? 'is-sorted' : ''}">${esc(s, label)}${active ? icon('chevronDown', 12) : ''}</button></div>`;
         }).join('');
-        return `<div class="vs-asset-head" role="row"><span></span>${headers}<span></span></div>`;
+        return `<div class="vs-asset-head" role="row"><span aria-hidden="true"></span>${headers}<div class="vs-asset-col" role="columnheader"><span class="vs-sr-only">${esc(s, tr(s, 'addToTimeline', 'Add at the playhead'))}</span></div></div>`;
     }
     // The open folder, or its closest ancestor that still exists (an undo or a server refresh may remove it).
     function existingFolder(s) {
@@ -201,12 +206,17 @@
         const uploads = Array.from(s.uploads.entries()).filter(([, item]) => item.projectId === s.projectId).map(([key, item]) => uploadCard(s, key, item)).join('');
         const list = s.mediaView === 'list';
         root.dataset.view = list ? 'list' : 'grid';
+        const uploadRows = list ? Array.from(s.uploads.entries()).filter(([, item]) => item.projectId === s.projectId).map(([key, item]) => uploadCard(s, key, item, true)).join('') : '';
         let markup;
         if (!uploads && !visible.length && !tiles.length) {
             const searching = search || s.filter !== 'all';
             markup = `<div class="vs-empty-media">${icon(searching ? 'search' : 'upload', 28)}<strong>${esc(s, searching ? tr(s, 'noMatches', 'Nothing matches') : tr(s, 'emptyMedia', 'Your media will appear here'))}</strong><small>${esc(s, searching ? tr(s, 'noMatchesHint', 'Try another search or filter.') : tr(s, 'emptyMediaDrop', 'Upload clips, music or pictures, or drop files into this window.'))}</small></div>`;
-        } else if (list) markup = `${listHeader(s)}${uploads}${tiles.map(path => folderRow(s, path)).join('')}${visible.map(asset => listRow(s, asset, usage.has(asset.id), usage)).join('')}`;
+        } else if (list) markup = `${listHeader(s)}${uploadRows}${tiles.map(path => folderRow(s, path)).join('')}${visible.map(asset => listRow(s, asset, usage.has(asset.id), usage)).join('')}`;
         else markup = `${uploads}${tiles.map(path => folderTile(s, path)).join('')}${visible.map(asset => gridCard(s, asset, usage.has(asset.id))).join('')}`;
+        // The list view is a table named after the open folder; the grid and the empty state are no table.
+        const table = list && (uploads || visible.length || tiles.length);
+        if (table) { root.setAttribute('role', 'table'); root.setAttribute('aria-label', s.mediaFolder ? F().nameOf(s.mediaFolder) : tr(s, 'mediaFolderRoot', 'Media')); }
+        else { root.removeAttribute('role'); root.removeAttribute('aria-label'); }
         redraw(root, markup);
         const total = s.project.assets.filter(asset => !window.VideoStudioMedia.isArtwork(asset)).length;
         s.q('[data-asset-count]').textContent = countLabel(s, total);

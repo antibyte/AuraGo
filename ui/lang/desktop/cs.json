@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Nahradit nejnovější verzi",
   "videoStudio.keepEditing": "Pokračovat v úpravách",
   "videoStudio.conflictAgain": "Projekt se znovu změnil. Zkontroluj konflikt a zkus to znovu.",
+  "videoStudio.conflictMediaDropped": "Média smazaná v jiném okně byla vynechána i s klipy, které je používaly.",
   "videoStudio.createFailed": "Projekt se nepodařilo vytvořit.",
   "videoStudio.loadFailed": "Projekt se nepodařilo načíst. Zkontroluj připojení a zkus to znovu.",
   "videoStudio.cancelFailed": "Úlohu se nepodařilo zrušit.",

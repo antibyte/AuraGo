@@ -98,4 +98,9 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
 - Versions, duplicates and the poster/removal routes are server code (`internal/server/video_studio_versions.go`,
   `video_studio_duplicate.go`, `video_studio_media_files.go`); this package supplies only the document rules they use
   (`Upgrade`, `Validate`). A restore runs a version through `Upgrade`, `canonicalizeProject` and `Validate`, so a
-  version that references removed media is refused (409 `project_asset_invalid`).
+  version that references removed media is refused (409 `project_asset_invalid`). Version paths are built only from ids
+  that pass `validVideoStudioVersionID` (the `uid.New` format); `readVideoStudioVersionIndex` drops other index.json
+  entries, so a crafted id never names a file to read or prune. A save (PUT) checks `If-Match` against the stored
+  document before canonicalizing, so a stale editor that lists removed media gets 412, not 400. A duplicate job records
+  `copy_project_id` before copying and clears it when the copy is complete or removed; when the worker starts, a recorded
+  copy folder without project.json is deleted with its media records, and a finished copy is never touched.

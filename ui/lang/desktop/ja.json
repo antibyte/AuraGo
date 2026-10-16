@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "最新バージョンを置き換える",
   "videoStudio.keepEditing": "編集を続ける",
   "videoStudio.conflictAgain": "プロジェクトが再び変更されました。競合を確認してやり直してください。",
+  "videoStudio.conflictMediaDropped": "別のウィンドウで削除されたメディアは、それを使っていたクリップとともに除外されました。",
   "videoStudio.createFailed": "プロジェクトを作成できませんでした。",
   "videoStudio.loadFailed": "プロジェクトを読み込めませんでした。接続を確認してやり直してください。",
   "videoStudio.cancelFailed": "タスクをキャンセルできませんでした。",

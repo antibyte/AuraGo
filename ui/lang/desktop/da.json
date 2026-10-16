@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Erstat den nyeste version",
   "videoStudio.keepEditing": "Fortsæt med at redigere",
   "videoStudio.conflictAgain": "Projektet blev ændret igen. Gennemgå konflikten, og prøv igen.",
+  "videoStudio.conflictMediaDropped": "Medier, der blev slettet i et andet vindue, er udeladt sammen med de klip, der brugte dem.",
   "videoStudio.createFailed": "Kunne ikke oprette projektet.",
   "videoStudio.loadFailed": "Kunne ikke indlæse projektet. Tjek forbindelsen, og prøv igen.",
   "videoStudio.cancelFailed": "Kunne ikke annullere opgaven.",

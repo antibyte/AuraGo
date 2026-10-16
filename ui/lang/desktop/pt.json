@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Substituir a versão mais recente",
   "videoStudio.keepEditing": "Continuar editando",
   "videoStudio.conflictAgain": "O projeto mudou novamente. Confira o conflito e tente outra vez.",
+  "videoStudio.conflictMediaDropped": "As mídias excluídas em outra janela foram deixadas de fora, junto com os clipes que as usavam.",
   "videoStudio.createFailed": "Não foi possível criar o projeto.",
   "videoStudio.loadFailed": "Não foi possível carregar o projeto. Confira a conexão e tente novamente.",
   "videoStudio.cancelFailed": "Não foi possível cancelar a tarefa.",

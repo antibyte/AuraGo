@@ -468,10 +468,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-grid[data-view="list"] > .vs-empty-media { min-width: 0; }
 .vs-asset-head, .vs-asset-row { display: grid; grid-template-columns: 40px minmax(140px, 2.4fr) repeat(6, minmax(58px, 1fr)) 28px; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px; border-radius: 8px; font-size: 12px; }
 .vs-asset-head { position: sticky; top: 0; z-index: 2; min-height: 30px; border-radius: 0; background: var(--vs-panel-strong); color: var(--vs-muted); box-shadow: 0 1px 0 var(--vs-border); }
-.vs-asset-head button { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 24px; padding: 2px 4px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Each column header holds its sort button; the header cell lets the button shrink to an ellipsis. */
+.vs-asset-col { display: flex; align-items: center; min-width: 0; }
+.vs-asset-head button { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; min-width: 0; min-height: 24px; padding: 2px 4px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vs-asset-head button:hover { color: var(--vs-text); background: var(--vs-control-hover); }
 .vs-asset-head button.is-sorted { color: var(--vs-text); }
-.vs-asset-head button[aria-sort="ascending"] .vs-icon { transform: rotate(180deg); }
+.vs-asset-head [aria-sort="ascending"] .vs-icon { transform: rotate(180deg); }
 .vs-asset-row { gap: 8px; padding: 4px 6px; border: 1px solid transparent; }
 .vs-asset-row:hover, .vs-asset-row:focus-visible, .vs-folder-row:hover, .vs-folder-row:focus-visible, .vs-folder-row.is-drop { background: var(--vs-control-hover); border-color: var(--vs-border); outline: none; }
 .vs-folder-row.is-drop { border-color: var(--vs-accent-border); box-shadow: inset 0 0 0 1px var(--vs-accent-border); }
@@ -479,11 +481,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
 .vs-asset-cell-name { color: var(--vs-text); font-weight: 600; }
 .vs-asset-row .vs-asset-thumb-small { width: 40px; height: 24px; aspect-ratio: auto; border-radius: 4px; }
+.vs-folder-line, .vs-folder-cell { display: flex; min-width: 0; }
+.vs-folder-cell { flex: 1 1 auto; }
 .vs-folder-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--vs-text); font: inherit; font-size: 12px; text-align: left; }
 .vs-folder-row .vs-folder-icon { justify-content: center; width: 40px; }
 .vs-folder-row .vs-asset-meta { margin-left: auto; }
-/* The narrow rail scrolls the list sideways; the add button stays at the visible right edge. */
-.vs-asset-row .vs-asset-add { position: sticky; top: auto; right: 2px; width: 26px; height: 26px; background: color-mix(in srgb, #0c0e12 88%, var(--vs-accent)); box-shadow: 0 0 0 4px var(--vs-panel); }
+/* The narrow rail scrolls the list sideways; the add button's cell stays at the visible right edge. */
+.vs-asset-row .vs-asset-cell-add { position: sticky; right: 2px; display: grid; place-items: center; }
+.vs-asset-row .vs-asset-add { position: static; width: 26px; height: 26px; background: color-mix(in srgb, #0c0e12 88%, var(--vs-accent)); box-shadow: 0 0 0 4px var(--vs-panel); }
 /* Scoped under .vs-app so the white plus outranks `.vs-app button { color: inherit }` (light themes drew it dark). */
 .vs-app .vs-asset-add { color: #fff; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; }

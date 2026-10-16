@@ -177,8 +177,11 @@ above after a confirm. Drag media onto a folder or a breadcrumb crumb to move it
 folder**. Switch between grid and list with the view buttons; in the list, click a column header to sort (click again to
 reverse). Search looks through every folder. The item menu opens a clip in the source monitor, renames it, moves it,
 selects the clips that use it, or removes it. Removing media that the timeline uses first takes its clips off the timeline
-(one undo step, gaps stay) and then deletes the file; **Remove unused media** deletes every item no clip uses. The inspector
-shows the metadata of the selected media. Visual media gets a poster when it is imported; older media shows its thumbnails.
+(one undo step, gaps stay) and then deletes the file; **Remove unused media** deletes every item no clip uses. While the
+files are deleted, editing and undo wait a moment. A window that has the same project open drops removed media it does not
+use the next time it saves; if its timeline still uses that media, it asks which version to keep, and **Replace the latest
+version** keeps its changes without the removed media and the clips that used it. The inspector shows the metadata of the
+selected media. Visual media gets a poster when it is imported; older media shows its thumbnails.
 
 Each project keeps automatic versions: when you save and the newest version is at least ten minutes old, the previous
 saved state is kept (up to 20). **Save version now** keeps a copy with an optional label (up to 10). Versions count toward
@@ -187,8 +190,8 @@ reloads the restored project; a version that uses media you have since removed c
 
 **All projects…** in the project menu lists every project with its poster, format, length, storage and last change. Open,
 rename, duplicate or delete from there. A duplicate copies the project file, its media and posters (not exports, previews
-or versions) in the background and shows up in the list when it is ready. Deleting a project asks you first and cancels
-its running tasks.
+or versions) in the background and shows up in the list when it is ready; a copy that the server could not finish (it
+stopped during the copy) is removed when it starts again. Deleting a project asks you first and cancels its running tasks.
 
 Export can render only the in/out range when both points are set: the export dialog offers the range with its times, and
 the download is named `<project> (in-out).mp4`.

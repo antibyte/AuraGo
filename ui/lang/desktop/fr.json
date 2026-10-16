@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Remplacer la version la plus récente",
   "videoStudio.keepEditing": "Continuer la modification",
   "videoStudio.conflictAgain": "Le projet a encore changé. Vérifiez le conflit et réessayez.",
+  "videoStudio.conflictMediaDropped": "Les médias supprimés dans une autre fenêtre ont été retirés, avec les clips qui les utilisaient.",
   "videoStudio.createFailed": "Impossible de créer le projet.",
   "videoStudio.loadFailed": "Impossible de charger le projet. Vérifiez votre connexion et réessayez.",
   "videoStudio.cancelFailed": "Impossible d’annuler la tâche.",

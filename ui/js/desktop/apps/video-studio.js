@@ -376,12 +376,14 @@
             s.soloIds = new Set(); s.renamingTrackId = '';
             s.history = []; s.redo = []; s.dirty = false; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++;
             if (s.preview) s.preview.seek(0);
-            await recoverDraft(s, id, epoch);
+            const draftConflict = await recoverDraft(s, id, epoch);
             if (s.disposed || epoch !== s.projectEpoch || id !== s.projectId) return false;
             ensureTracks(s);
             await loadJobs(s).catch(() => {});
             if (s.disposed || epoch !== s.projectEpoch || id !== s.projectId) return false;
             renderUI(s);
+            // The recovered draft uses media removed elsewhere: the choices open over the recovered project.
+            if (draftConflict && s.conflict) P.showConflict(s).catch(() => {});
             return true;
         } finally { s.busy = false; }
     }
@@ -461,8 +463,8 @@
             chip.disabled = s.featureDisabled || !s.project;
         }
         const undo = s.q('[data-action="undo"]'), redo = s.q('[data-action="redo"]');
-        if (undo) undo.disabled = !s.history.length || s.readonly;
-        if (redo) redo.disabled = !s.redo.length || s.readonly;
+        if (undo) undo.disabled = !s.history.length || s.readonly || !!s.mediaRemoving;
+        if (redo) redo.disabled = !s.redo.length || s.readonly || !!s.mediaRemoving;
         const exportButton = s.q('.vs-export-button');
         if (exportButton) {
             const hasRenderableClip = !!s.project && s.project.tracks.some(track => track.clips.some(clip => s.project.assets.some(asset => asset.id === clip.asset_id)));

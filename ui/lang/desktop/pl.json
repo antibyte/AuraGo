@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Zastąp najnowszą wersję",
   "videoStudio.keepEditing": "Kontynuuj edycję",
   "videoStudio.conflictAgain": "Projekt zmienił się ponownie. Sprawdź konflikt i spróbuj jeszcze raz.",
+  "videoStudio.conflictMediaDropped": "Multimedia usunięte w innym oknie zostały pominięte razem z klipami, które z nich korzystały.",
   "videoStudio.createFailed": "Nie udało się utworzyć projektu.",
   "videoStudio.loadFailed": "Nie udało się wczytać projektu. Sprawdź połączenie i spróbuj ponownie.",
   "videoStudio.cancelFailed": "Nie udało się anulować zadania.",

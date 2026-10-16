@@ -236,8 +236,24 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			if(countText!==window.fixtureLocales[window.fixtureLang]['videoStudio.assetCountOne'])throw new Error('one item does not use the singular label: '+countText);
 			document.querySelector('[data-action="media-view"][data-view="list"]').click();
 			if(document.querySelector('[data-assets]').dataset.view!=='list'||!document.querySelector('.vs-asset-head'))throw new Error('the list view did not render');
+			// The list is an ARIA table: a named table, a header row of column headers that hold the sort buttons (aria-sort
+			// only on the sorted column), and item rows of cells.
+			const table=document.querySelector('[data-assets]');
+			const headers=[...table.querySelectorAll('.vs-asset-head [role="columnheader"]')];
+			const sorted=headers.filter(header=>header.hasAttribute('aria-sort'));
+			const rows=[...table.querySelectorAll('[data-asset-id]')];
+			if(table.getAttribute('role')!=='table'||!table.getAttribute('aria-label')||table.querySelector('.vs-asset-head').getAttribute('role')!=='row')throw new Error('the list is not a named table with a header row: '+table.outerHTML.slice(0,300));
+			if(headers.length!==8||headers.slice(0,7).some(header=>!header.querySelector('button[data-media-sort]'))||table.querySelector('button[role="columnheader"],button[aria-sort]'))throw new Error('the column headers do not hold the sort buttons');
+			if(sorted.length!==1||sorted[0].getAttribute('aria-sort')!=='ascending')throw new Error('aria-sort is not on the sorted column only: '+sorted.map(header=>header.outerHTML).join(' '));
+			if(!rows.length||rows.some(row=>row.getAttribute('role')!=='row'||[...row.children].some(child=>child.getAttribute('role')!=='cell'&&child.getAttribute('aria-hidden')!=='true')||row.querySelectorAll('[role="cell"]').length!==8))throw new Error('an item is not a row of cells: '+rows.map(row=>row.outerHTML.slice(0,200)).join(' '));
+			if(table.querySelectorAll(':scope > :not([role="row"])').length)throw new Error('the table holds something that is not a row');
+			sorted[0].querySelector('button').focus();sorted[0].querySelector('button').click();
+			const descending=document.querySelector('[data-assets] .vs-asset-head [aria-sort]');
+			if(!descending||descending.getAttribute('aria-sort')!=='descending'||document.activeElement!==descending.querySelector('button'))throw new Error('sorting again did not announce descending on the focused header');
+			descending.querySelector('button').click();
 			document.querySelector('[data-action="media-view"][data-view="grid"]').click();
 			if(document.querySelector('[data-assets]').dataset.view!=='grid')throw new Error('the grid view did not come back');
+			if(document.querySelector('[data-assets]').hasAttribute('role')||document.querySelector('[data-assets] [role="row"]'))throw new Error('the grid view kept the table roles');
 			document.querySelector('[data-action="new-folder"]').click();
 			const folderName=await until(()=>document.querySelector('[data-folder-name]'),'the folder dialog did not open');
 			folderName.value='Trips';

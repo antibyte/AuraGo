@@ -156,29 +156,15 @@
         P.T().revealFrame(s.q('[data-timeline]'), s, Math.min(...clips.map(clip => clip.start)));
     }
     function mediaBusy(s) { return (s.jobs || []).some(job => MEDIA_READERS.includes(job.kind) && !TERMINAL.includes(job.status)); }
-    // Deleted media cannot come back: the undo and redo snapshots drop it with its clips, so an undo never restores a
-    // clip whose file is gone (the server would refuse to save it). A step that no longer changes anything (the removal
-    // itself, when nothing else happened) leaves the history.
+    // Deleted media cannot come back: the project and its undo and redo snapshots drop it with its clips (P.forgetMedia),
+    // so an undo never restores a clip whose file is gone (the server would refuse to save it). A step that no longer
+    // changes anything (the removal itself, when nothing else happened) leaves the history. Edits and undo/redo wait
+    // while the files are deleted (s.mediaRemoving), so the project normally has nothing left to drop; if it had, the
+    // change is saved.
     function forgetDeletedMedia(s, deleted) {
         if (!deleted.size) return;
-        const strip = snapshot => {
-            snapshot.assets = (snapshot.assets || []).filter(asset => !deleted.has(asset.id));
-            (snapshot.tracks || []).forEach(track => { track.clips = (track.clips || []).filter(clip => !deleted.has(clip.asset_id)); });
-            P.T().repairTransitions(snapshot);
-            return snapshot;
-        };
-        const key = project => JSON.stringify(P.canonicalProject(project));
-        const dedupe = list => {
-            let neighbour = key(s.project);
-            for (let i = list.length - 1; i >= 0; i--) {
-                const current = key(list[i]);
-                if (current === neighbour) list.splice(i, 1); else neighbour = current;
-            }
-            return list;
-        };
-        s.history = dedupe(s.history.map(strip));
-        s.redo = dedupe(s.redo.map(strip));
-        P.renderToolbar(s);
+        if (P.forgetMedia(s, deleted)) P.scheduleSave(s);
+        P.renderUI(s);
     }
     // Removes the media: the clips leave the timeline in one undo step (gaps stay), the project is saved, and then the
     // server deletes the media files. Nothing is deleted when the save fails; a refused delete keeps the file, and the
@@ -208,17 +194,29 @@
         if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
         const deleted = new Set();
         let failure = null;
-        for (const asset of assets) {
-            try {
-                await request(API + '/projects/' + encodeURIComponent(projectId) + '/media/' + encodeURIComponent(asset.id), { method: 'DELETE', signal: s.abort.signal });
-                deleted.add(asset.id);
-            } catch (error) {
-                failure = error;
-                break;
+        // Edits and undo/redo wait until the deleted media has left the project and its history. A counter, because
+        // removals may overlap; released exactly once, whatever happens.
+        let released = false;
+        const release = () => { if (!released) { released = true; s.mediaRemoving = Math.max(0, (s.mediaRemoving || 0) - 1); } };
+        s.mediaRemoving = (s.mediaRemoving || 0) + 1;
+        P.renderToolbar(s);
+        try {
+            for (const asset of assets) {
+                try {
+                    await request(API + '/projects/' + encodeURIComponent(projectId) + '/media/' + encodeURIComponent(asset.id), { method: 'DELETE', signal: s.abort.signal });
+                    deleted.add(asset.id);
+                } catch (error) {
+                    failure = error;
+                    break;
+                }
             }
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
+            // Synchronous from here: no edit can slip in between the release and the cleanup that re-renders.
+            release();
+            forgetDeletedMedia(s, deleted);
+        } finally {
+            if (!released) { release(); if (!s.disposed) P.renderToolbar(s); }
         }
-        if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
-        forgetDeletedMedia(s, deleted);
         if (failure) {
             const inUse = failure.body && failure.body.code === 'media_in_use';
             showNotice(s, inUse ? 'mediaInUse' : 'mediaRemoveFailed', inUse ? REMOVE_TEXT.mediaInUse : REMOVE_TEXT.mediaRemoveFailed, true);

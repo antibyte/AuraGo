@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Replace the latest version",
   "videoStudio.keepEditing": "Keep editing",
   "videoStudio.conflictAgain": "The project changed again. Review the conflict and try again.",
+  "videoStudio.conflictMediaDropped": "Media deleted in another window was left out, with the clips that used it.",
   "videoStudio.createFailed": "Could not create the project.",
   "videoStudio.loadFailed": "Could not load the project. Check your connection and try again.",
   "videoStudio.cancelFailed": "Could not cancel the task.",

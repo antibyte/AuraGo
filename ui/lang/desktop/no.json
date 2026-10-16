@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Erstatt den nyeste versjonen",
   "videoStudio.keepEditing": "Fortsett å redigere",
   "videoStudio.conflictAgain": "Prosjektet ble endret igjen. Se gjennom konflikten og prøv på nytt.",
+  "videoStudio.conflictMediaDropped": "Medier som ble slettet i et annet vindu, er utelatt sammen med klippene som brukte dem.",
   "videoStudio.createFailed": "Kunne ikke opprette prosjektet.",
   "videoStudio.loadFailed": "Kunne ikke laste inn prosjektet. Sjekk forbindelsen og prøv igjen.",
   "videoStudio.cancelFailed": "Kunne ikke avbryte oppgaven.",

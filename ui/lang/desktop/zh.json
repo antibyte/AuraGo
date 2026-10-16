@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "替换最新版本",
   "videoStudio.keepEditing": "继续编辑",
   "videoStudio.conflictAgain": "项目再次更改。请检查冲突并重试。",
+  "videoStudio.conflictMediaDropped": "在另一个窗口中删除的媒体已被省略，使用它们的片段也一并移除。",
   "videoStudio.createFailed": "无法创建项目。",
   "videoStudio.loadFailed": "无法加载项目。请检查连接后重试。",
   "videoStudio.cancelFailed": "无法取消任务。",

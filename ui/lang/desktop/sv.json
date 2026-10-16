@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "Ersätt den senaste versionen",
   "videoStudio.keepEditing": "Fortsätt redigera",
   "videoStudio.conflictAgain": "Projektet ändrades igen. Granska konflikten och försök igen.",
+  "videoStudio.conflictMediaDropped": "Media som raderades i ett annat fönster har utelämnats, tillsammans med klippen som använde dem.",
   "videoStudio.createFailed": "Det gick inte att skapa projektet.",
   "videoStudio.loadFailed": "Det gick inte att läsa in projektet. Kontrollera anslutningen och försök igen.",
   "videoStudio.cancelFailed": "Det gick inte att avbryta uppgiften.",

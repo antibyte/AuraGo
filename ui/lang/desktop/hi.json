@@ -5844,6 +5844,7 @@
   "videoStudio.replaceServer": "नवीनतम संस्करण बदलें",
   "videoStudio.keepEditing": "संपादन जारी रखें",
   "videoStudio.conflictAgain": "प्रोजेक्ट फिर बदला है। टकराव देखें और दोबारा कोशिश करें।",
+  "videoStudio.conflictMediaDropped": "दूसरी विंडो में हटाया गया मीडिया छोड़ दिया गया, साथ ही वे क्लिप भी जो उसका इस्तेमाल करती थीं।",
   "videoStudio.createFailed": "प्रोजेक्ट नहीं बनाया जा सका।",
   "videoStudio.loadFailed": "प्रोजेक्ट लोड नहीं हो सका। कनेक्शन जाँचें और फिर प्रयास करें।",
   "videoStudio.cancelFailed": "काम रद्द नहीं हो सका।",
