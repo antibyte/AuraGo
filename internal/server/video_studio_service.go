@@ -134,6 +134,15 @@ type videoStudioJobRequest struct {
 	Duration          int      `json:"duration,omitempty"`
 	Frame             int      `json:"frame,omitempty"`
 	Purpose           string   `json:"purpose,omitempty"`
+	// Name is the name of a duplicate's copy; Range is the timeline range of a render.
+	Name  string            `json:"name,omitempty"`
+	Range *videoStudioRange `json:"range,omitempty"`
+}
+
+// videoStudioRange is a render range in timeline frames: [Start, End).
+type videoStudioRange struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 type videoStudioManager struct {
@@ -1080,6 +1089,9 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if kind == "render" && errors.As(err, &segment) {
 		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."
 	}
+	if errors.Is(err, errVideoStudioDuplicateQuota) {
+		return "failed", "duplicate_quota", "The copy would exceed this project's storage limit."
+	}
 	switch kind {
 	case "probe":
 		return "failed", "probe_failed", "Media inspection failed. Check that the file is supported and FFmpeg is configured."
@@ -1091,6 +1103,8 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		return "failed", "reverse_failed", "The clip could not be reversed."
 	case "still":
 		return "failed", "still_failed", "The frame could not be captured."
+	case "duplicate":
+		return "failed", "duplicate_failed", "The project could not be copied."
 	case "generate":
 		if errors.Is(err, errVideoStudioGenerationImport) {
 			return "failed", "generation_import_failed", "The provider returned a video, but AuraGo could not import it into this project."

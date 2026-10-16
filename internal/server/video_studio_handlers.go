@@ -39,6 +39,8 @@ type videoStudioProjectItem struct {
 	DesktopPath string              `json:"desktop_path"`
 	ETag        string              `json:"etag"`
 	UpdatedAt   time.Time           `json:"updated_at,omitempty"`
+	// StorageBytes is listed only for GET /projects?sizes=1, and omitted when the capped size walk gave up.
+	StorageBytes int64 `json:"storage_bytes,omitempty"`
 }
 
 type videoStudioMediaItem struct {
@@ -281,7 +283,8 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 		if !ok {
 			return
 		}
-		_ = manager
+		// Sizes walk every listed project folder, so only the project manager asks for them.
+		withSizes := r.URL.Query().Get("sizes") == "1"
 		entries, err := svc.ListFiles(r.Context(), "Documents/Video Studio")
 		if errors.Is(err, os.ErrNotExist) {
 			writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"projects": []videoStudioProjectItem{}})
@@ -316,7 +319,13 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 			if readErr != nil || !cfg.VideoStudio.Enabled {
 				continue
 			}
-			items = append(items, videoStudioProjectItem{ID: entry.Name, Project: project, DesktopPath: videoStudioProjectPath(entry.Name), ETag: desktop.NoteVersion(body), UpdatedAt: entry.ModTime})
+			item := videoStudioProjectItem{ID: entry.Name, Project: project, DesktopPath: videoStudioProjectPath(entry.Name), ETag: desktop.NoteVersion(body), UpdatedAt: videoStudioProjectFileTime(r.Context(), svc, entry.Name, entry.ModTime)}
+			if withSizes {
+				if storage, ok := manager.listedProjectStorage(r.Context(), svc, entry.Name); ok {
+					item.StorageBytes = storage
+				}
+			}
+			items = append(items, item)
 		}
 		response := map[string]interface{}{"projects": items}
 		if truncated {
@@ -386,6 +395,21 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 	default:
 		writeVideoStudioMethodError(w)
 	}
+}
+
+// videoStudioProjectFileTime is the modification time of a project's document; the folder time also changes when
+// media, exports or versions change.
+func videoStudioProjectFileTime(ctx context.Context, svc *desktop.Service, projectID string, fallback time.Time) time.Time {
+	entries, err := svc.ListFiles(ctx, videoStudioProjectPath(projectID))
+	if err != nil {
+		return fallback
+	}
+	for _, entry := range entries {
+		if entry.Name == "project.json" && entry.Type == "file" {
+			return entry.ModTime
+		}
+	}
+	return fallback
 }
 
 func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request, id string) {
@@ -794,27 +818,29 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 	}
 	var request videoStudioJobRequest
 	var body struct {
-		Kind              string   `json:"kind"`
-		AssetID           string   `json:"asset_id,omitempty"`
-		Prompt            string   `json:"prompt,omitempty"`
-		NegativePrompt    string   `json:"negative_prompt,omitempty"`
-		DurationSeconds   int      `json:"duration_seconds,omitempty"`
-		Resolution        string   `json:"resolution,omitempty"`
-		AspectRatio       string   `json:"aspect_ratio,omitempty"`
-		FirstFrameAssetID string   `json:"first_frame_asset_id,omitempty"`
-		LastFrameAssetID  string   `json:"last_frame_asset_id,omitempty"`
-		ReferenceAssetIDs []string `json:"reference_asset_ids,omitempty"`
-		IdempotencyKey    string   `json:"idempotency_key,omitempty"`
-		Offset            int      `json:"offset,omitempty"`
-		Duration          int      `json:"duration,omitempty"`
-		Frame             int      `json:"frame,omitempty"`
-		Purpose           string   `json:"purpose,omitempty"`
+		Kind              string            `json:"kind"`
+		AssetID           string            `json:"asset_id,omitempty"`
+		Prompt            string            `json:"prompt,omitempty"`
+		NegativePrompt    string            `json:"negative_prompt,omitempty"`
+		DurationSeconds   int               `json:"duration_seconds,omitempty"`
+		Resolution        string            `json:"resolution,omitempty"`
+		AspectRatio       string            `json:"aspect_ratio,omitempty"`
+		FirstFrameAssetID string            `json:"first_frame_asset_id,omitempty"`
+		LastFrameAssetID  string            `json:"last_frame_asset_id,omitempty"`
+		ReferenceAssetIDs []string          `json:"reference_asset_ids,omitempty"`
+		IdempotencyKey    string            `json:"idempotency_key,omitempty"`
+		Offset            int               `json:"offset,omitempty"`
+		Duration          int               `json:"duration,omitempty"`
+		Frame             int               `json:"frame,omitempty"`
+		Purpose           string            `json:"purpose,omitempty"`
+		Name              string            `json:"name,omitempty"`
+		Range             *videoStudioRange `json:"range,omitempty"`
 	}
 	if err := decodeVideoStudioJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Job request is invalid.")
 		return
 	}
-	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey, Offset: body.Offset, Duration: body.Duration, Frame: body.Frame, Purpose: body.Purpose}
+	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey, Offset: body.Offset, Duration: body.Duration, Frame: body.Frame, Purpose: body.Purpose, Name: strings.TrimSpace(body.Name), Range: body.Range}
 	if request.IdempotencyKey == "" {
 		request.IdempotencyKey = r.Header.Get("Idempotency-Key")
 	}
@@ -824,8 +850,8 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		return
 	}
 	kind := strings.ToLower(strings.TrimSpace(body.Kind))
-	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" && kind != "reverse" && kind != "still" {
-		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, generate, reverse, and still.")
+	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" && kind != "reverse" && kind != "still" && kind != "duplicate" {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, generate, reverse, still, and duplicate.")
 		return
 	}
 	if kind == "generate" && !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
@@ -879,6 +905,25 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 	if err := videostudio.Validate(project); err != nil {
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project timeline exceeds supported editing limits.")
 		return
+	}
+	if body.Range != nil && kind != "render" {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Only render jobs take a range.")
+		return
+	}
+	// The renderer ends at the last enabled clip, so a range must lie inside EnabledDuration, not Duration.
+	if body.Range != nil && (body.Range.Start < 0 || body.Range.End <= body.Range.Start || body.Range.End > videostudio.EnabledDuration(project)) {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The in/out range must lie inside the project.")
+		return
+	}
+	if kind == "duplicate" {
+		if n := utf8.RuneCountInString(request.Name); n < 1 || n > 120 {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "A copy needs a name of 1 to 120 characters.")
+			return
+		}
+		if status, code, message := manager.duplicateAdmission(r.Context(), svc, cfg, projectID, project, projectBytes); code != "" {
+			writeVideoStudioError(w, status, code, message)
+			return
+		}
 	}
 	if kind == "generate" {
 		if !cfg.VideoGeneration.Enabled || cfg.VideoGeneration.APIKey == "" || cfg.VideoGeneration.ProviderType == "" {

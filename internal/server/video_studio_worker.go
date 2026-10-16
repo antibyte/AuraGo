@@ -52,6 +52,9 @@ func (m *videoStudioManager) process(ctx context.Context, job *videoStudioJob, w
 	if work.kind == "still" {
 		return m.processStill(ctx, svc, job, work, cfg)
 	}
+	if work.kind == "duplicate" {
+		return m.processDuplicate(ctx, svc, job, work, cfg)
+	}
 	if work.kind == "generate" {
 		return m.processGenerate(ctx, svc, job, work, cfg)
 	}
@@ -252,12 +255,19 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	output := filepath.Join(stageDir, "render.mp4")
 	encoder := videoStudioEncoder(ctx, cfg)
 	fallback := false
+	// A range export renders [start, end) of the timeline; 0, 0 renders the whole project.
+	start, end := 0, 0
+	if work.request.Range != nil {
+		start, end = work.request.Range.Start, work.request.Range.End
+	}
 	err = videostudio.RenderWithOptions(ctx, videostudio.RenderOptions{
 		FFmpegPath: cfg.VideoStudio.FFmpegPath, Project: work.project, AssetPaths: paths, Output: output,
 		MaxOutputBytes:    min64(exportLimit, maxProject-usedBefore),
 		Encoder:           encoder.Encoder,
 		OnEncoderFallback: func(error) { fallback = true; invalidateVideoStudioEncoder() },
 		Progress:          func(progress float64) { m.updateProgress(job.ID, progress) },
+		Start:             start,
+		End:               end,
 	})
 	if err != nil {
 		_ = os.Remove(output)
@@ -299,8 +309,16 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if fallback {
 		encoderName = videostudio.CodecX264
 	}
-	return artifact, map[string]interface{}{"duration_frames": videostudio.EnabledDuration(work.project), "width": work.project.Width, "height": work.project.Height,
-		"encoder": encoderName, "encoder_fallback": fallback}, nil
+	frames := videostudio.EnabledDuration(work.project)
+	if work.request.Range != nil {
+		frames = end - start
+	}
+	result := map[string]interface{}{"duration_frames": frames, "width": work.project.Width, "height": work.project.Height,
+		"encoder": encoderName, "encoder_fallback": fallback}
+	if work.request.Range != nil {
+		result["range"] = map[string]int{"start": start, "end": end}
+	}
+	return artifact, result, nil
 }
 
 // videoStudioRenderLimitError names the limit that stopped an export: the remaining project storage when it was

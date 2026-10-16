@@ -181,6 +181,53 @@ func (m *videoStudioManager) projectHasActiveJobs(projectID string, kinds ...str
 	return false
 }
 
+// videoStudioProjectSizeWalkEntries caps the entries one project-list size walk visits (a variable for tests).
+var videoStudioProjectSizeWalkEntries = 20000
+
+// listedProjectStorage is the storage of a project for the project manager: its desktop tree plus its cached
+// previews, the measure the quota uses. ok is false when the walk reached videoStudioProjectSizeWalkEntries or a
+// folder could not be listed; the project is then listed without a size. The duplicate size check is not capped.
+func (m *videoStudioManager) listedProjectStorage(ctx context.Context, svc *desktop.Service, projectID string) (int64, bool) {
+	budget := videoStudioProjectSizeWalkEntries
+	desktopBytes, ok := videoStudioTreeSizeWithin(ctx, svc, videoStudioProjectPath(projectID), &budget)
+	if !ok {
+		return 0, false
+	}
+	previewBytes, err := videoStudioPrivateTreeSize(filepath.Join(m.previewDir, projectID))
+	if err != nil {
+		return 0, false
+	}
+	return desktopBytes + previewBytes, true
+}
+
+// videoStudioTreeSizeWithin sums the files below a desktop folder. Every listed entry spends one unit of budget.
+func videoStudioTreeSizeWithin(ctx context.Context, svc *desktop.Service, dir string, budget *int) (int64, bool) {
+	if ctx.Err() != nil {
+		return 0, false
+	}
+	entries, err := svc.ListFiles(ctx, dir)
+	if err != nil {
+		return 0, false
+	}
+	var total int64
+	for _, entry := range entries {
+		*budget--
+		if *budget < 0 {
+			return 0, false
+		}
+		if entry.Type == "directory" {
+			size, ok := videoStudioTreeSizeWithin(ctx, svc, dir+"/"+entry.Name, budget)
+			if !ok {
+				return 0, false
+			}
+			total += size
+			continue
+		}
+		total += entry.Size
+	}
+	return total, true
+}
+
 // discardAssetPreviews deletes the cached previews of a removed asset, so that they stop counting toward the project
 // quota, and withdraws their download from the finished preview jobs.
 func (m *videoStudioManager) discardAssetPreviews(projectID, assetID string) {
