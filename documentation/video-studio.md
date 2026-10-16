@@ -100,7 +100,9 @@ playhead (a second `M` on a marker opens it), `Shift+M` and `Ctrl+Shift+M` step 
 `Ctrl+G` (or a click on the time) goes to a timecode. Markers appear as flags in the ruler: click to go there, drag to
 move (snapping to clips, the playhead and the in/out points), double-click to edit the name, colour, note and duration.
 The overview strip above the ruler shows the whole project; drag the window to scroll, its edges to zoom. The
-Properties panel lists the markers when no clip is selected. `Shift`+wheel scrolls the timeline sideways.
+Properties panel lists the markers and the in and out points when no clip is selected; its Set in and Set out buttons
+set a point at the playhead (the transport's In and Out buttons make room for other controls in a narrow window).
+`Shift`+wheel scrolls the timeline sideways.
 
 Tracks: each track header has a kind badge that makes it the paste target (one per kind), a solo button on audio tracks
 (it only changes what the preview plays, and is not saved), mute, hide and lock buttons, and a `…` menu. In narrow

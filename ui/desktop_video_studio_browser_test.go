@@ -442,6 +442,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		if(s.preview.rate()!==1)throw new Error('stopping did not return the preview to 1x');
 		s.preview.seek(120); key('i');
 		if(s.project.in_point!==120)throw new Error('I did not set the in point: '+JSON.stringify(s.project.in_point));
+		{const steps=s.history.length;key('i');if(s.history.length!==steps)throw new Error('I at the frame the in point already has added an undo step');}
 		s.preview.seek(240); key('o');
 		if(s.project.out_point!==240)throw new Error('O did not set the out point');
 		key('x',{altKey:true});
@@ -468,6 +469,19 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		input.value='Lead';
 		input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
 		if(s.project.tracks.find(t=>t.id===trackId).name!=='Lead')throw new Error('Enter did not rename the track');
+		// A rename that is still open when a press on a clip begins is committed first (the gesture would drop it).
+		document.querySelector('[data-track-name="'+trackId+'"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));
+		const second=document.querySelector('[data-track-rename]');
+		if(!second)throw new Error('double-click did not start the second rename');
+		second.value='Kept';
+		const pressed=document.querySelector('[data-clip-id]'),box=pressed.getBoundingClientRect();
+		pressed.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,pointerId:7,clientX:box.left+box.width/2,clientY:box.top+box.height/2}));
+		window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:7}));
+		if(s.project.tracks.find(t=>t.id===trackId).name!=='Kept')throw new Error('pressing a clip dropped the open track rename');
+		if(document.querySelector('[data-track-rename]'))throw new Error('the rename field stayed open after the press');
+		// The time button is named by its content: the time first, then what the button does.
+		const timeButton=document.querySelector('[data-action="goto-time"]');
+		if(timeButton.hasAttribute('aria-label')||!timeButton.querySelector('[data-time]')||!timeButton.querySelector('.vs-sr-only'))throw new Error('the time button lost its accessible text');
 		// Put back what the flow changed.
 		s.project.tracks.find(t=>t.id===trackId).name=originalName;
 		const restore=JSON.parse(base||'{}');

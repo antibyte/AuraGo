@@ -71,7 +71,9 @@
 
     // Marker colour dots use the timeline palette only; anything else is not drawn.
     function palette(color) { return !!color && window.VideoStudioTimeline.LABEL_COLORS.includes(color); }
-    // The project view's marker list: jump to a marker, edit it, and the in and out points.
+    // The project view's marker list: jump to a marker, edit it, and the in and out points. Set in / Set out put a point at
+    // the playhead for a mouse user (the transport hides its In and Out buttons in a narrow window); the app's data-action
+    // handler runs them and a read-only editor disables them with the rest of the inspector.
     function markersSection(v) {
         const markers = v.markers || [], io = v.inOut || {}, at = frame => (frame == null ? '–' : formatTime(frame, v.project));
         const rows = markers.map(marker => {
@@ -82,7 +84,9 @@
         const range = io.in == null && io.out == null
             ? `<p class="vs-hint">${v.esc(v.tr('noInOut', 'No in or out point set.'))}</p>`
             : `<p class="vs-hint">${v.esc(v.tr('markIn', 'In'))} ${v.esc(at(io.in))} · ${v.esc(v.tr('markOut', 'Out'))} ${v.esc(at(io.out))} <button type="button" class="vs-link-button" data-action="clear-inout">${v.esc(v.tr('clearInOut', 'Clear in and out'))}</button></p>`;
-        return `<section class="vs-insp-section"><h3>${v.icon('flag', 14)}${v.esc(v.tr('markersList', 'Markers'))}</h3>${range}${rows ? `<ul class="vs-marker-list">${rows}</ul>` : `<p class="vs-hint">${v.esc(v.tr('noMarkers', 'No markers yet. Press M at the playhead to add one.'))}</p>`}</section>`;
+        const setIn = v.tr('setIn', 'Set in'), setOut = v.tr('setOut', 'Set out');
+        const setPoints = `<div class="vs-inout-actions"><button type="button" class="vs-chip-button" data-action="mark-in" title="${v.esc(setIn)} (I)"><span>${v.esc(setIn)}</span></button><button type="button" class="vs-chip-button" data-action="mark-out" title="${v.esc(setOut)} (O)"><span>${v.esc(setOut)}</span></button></div>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('flag', 14)}${v.esc(v.tr('markersList', 'Markers'))}</h3>${range}${setPoints}${rows ? `<ul class="vs-marker-list">${rows}</ul>` : `<p class="vs-hint">${v.esc(v.tr('noMarkers', 'No markers yet. Press M at the playhead to add one.'))}</p>`}</section>`;
     }
 
     function emptyMarkup(v) {

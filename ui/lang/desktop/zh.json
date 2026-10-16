@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "还没有标记。在播放头处按 M 即可添加。",
   "videoStudio.noInOut": "未设置入点或出点。",
   "videoStudio.clearInOut": "清除入点和出点",
+  "videoStudio.setIn": "设置入点",
+  "videoStudio.setOut": "设置出点",
   "videoStudio.shortcutShuttle": "倒放 / 停止 / 正放（K + J/L：一帧）",
   "videoStudio.shortcutEditPoint": "上一个 / 下一个编辑点",
   "videoStudio.shortcutInOut": "设置入点 / 出点",

@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Ingen markører endnu. Tryk på M ved afspilningshovedet for at tilføje en.",
   "videoStudio.noInOut": "Intet ind- eller udpunkt er angivet.",
   "videoStudio.clearInOut": "Ryd ind- og udpunkt",
+  "videoStudio.setIn": "Angiv indpunkt",
+  "videoStudio.setOut": "Angiv udpunkt",
   "videoStudio.shortcutShuttle": "Spol tilbage / stop / frem (K + J/L: ét billede)",
   "videoStudio.shortcutEditPoint": "Forrige / næste klippepunkt",
   "videoStudio.shortcutInOut": "Angiv ind- / udpunkt",

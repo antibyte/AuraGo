@@ -98,7 +98,8 @@
         const [moved] = list.splice(from, 1);
         const target = list.findIndex(track => track.id === toId);
         list.splice(arraySide === 'after' ? target + 1 : target, 0, moved);
-        return list;
+        // Dropping a track where it already is changes nothing.
+        return list.every((track, index) => track === tracks[index]) ? null : list;
     }
 
     window.VideoStudioNavigation = { MAX_RATE, MAX_MARKERS, createShuttle, editPoints, markerStep, loopRange, overviewBox, laneForStrip, zoomForSpan, arraySideFor, trackInsertIndex, moveWithinKind };

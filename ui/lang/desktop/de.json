@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Noch keine Markierungen. Mit M an der Abspielposition eine setzen.",
   "videoStudio.noInOut": "Kein Ein- oder Ausgangspunkt gesetzt.",
   "videoStudio.clearInOut": "Ein- und Ausgangspunkt löschen",
+  "videoStudio.setIn": "Einpunkt setzen",
+  "videoStudio.setOut": "Auspunkt setzen",
   "videoStudio.shortcutShuttle": "Rückwärts / Stopp / Vorwärts (K + J/L: ein Bild)",
   "videoStudio.shortcutEditPoint": "Vorheriger / nächster Schnittpunkt",
   "videoStudio.shortcutInOut": "Ein- / Ausgangspunkt setzen",

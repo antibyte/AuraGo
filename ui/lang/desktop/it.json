@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Ancora nessun marcatore. Premi M alla testina per aggiungerne uno.",
   "videoStudio.noInOut": "Nessun punto di ingresso o di uscita impostato.",
   "videoStudio.clearInOut": "Cancella ingresso e uscita",
+  "videoStudio.setIn": "Imposta In",
+  "videoStudio.setOut": "Imposta Out",
   "videoStudio.shortcutShuttle": "Indietro / stop / avanti (K + J/L: un fotogramma)",
   "videoStudio.shortcutEditPoint": "Punto di taglio precedente / successivo",
   "videoStudio.shortcutInOut": "Imposta punto di ingresso / uscita",

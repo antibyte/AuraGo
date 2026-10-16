@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Δεν υπάρχουν δείκτες ακόμη. Πάτα M στην κεφαλή αναπαραγωγής για να προσθέσεις έναν.",
   "videoStudio.noInOut": "Δεν έχει οριστεί σημείο εισόδου ή εξόδου.",
   "videoStudio.clearInOut": "Εκκαθάριση σημείων εισόδου και εξόδου",
+  "videoStudio.setIn": "Ορισμός εισόδου",
+  "videoStudio.setOut": "Ορισμός εξόδου",
   "videoStudio.shortcutShuttle": "Πίσω / στοπ / μπροστά (K + J/L: ένα καρέ)",
   "videoStudio.shortcutEditPoint": "Προηγούμενο / επόμενο σημείο κοπής",
   "videoStudio.shortcutInOut": "Ορισμός σημείου εισόδου / εξόδου",

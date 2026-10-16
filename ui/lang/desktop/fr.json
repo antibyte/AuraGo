@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Aucun marqueur pour l’instant. Appuyez sur M à la tête de lecture pour en ajouter un.",
   "videoStudio.noInOut": "Aucun point d’entrée ou de sortie défini.",
   "videoStudio.clearInOut": "Effacer l’entrée et la sortie",
+  "videoStudio.setIn": "Définir l’entrée",
+  "videoStudio.setOut": "Définir la sortie",
   "videoStudio.shortcutShuttle": "Reculer / arrêter / avancer (K + J/L : une image)",
   "videoStudio.shortcutEditPoint": "Point de montage précédent / suivant",
   "videoStudio.shortcutInOut": "Définir le point d’entrée / de sortie",

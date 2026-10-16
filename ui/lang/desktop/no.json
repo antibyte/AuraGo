@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Ingen markører ennå. Trykk M ved avspillingshodet for å legge til en.",
   "videoStudio.noInOut": "Ingen inn- eller utpunkt er satt.",
   "videoStudio.clearInOut": "Fjern inn- og utpunkt",
+  "videoStudio.setIn": "Sett innpunkt",
+  "videoStudio.setOut": "Sett utpunkt",
   "videoStudio.shortcutShuttle": "Bakover / stopp / forover (K + J/L: ett bilde)",
   "videoStudio.shortcutEditPoint": "Forrige / neste klippepunkt",
   "videoStudio.shortcutInOut": "Sett inn- / utpunkt",

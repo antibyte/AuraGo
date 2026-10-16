@@ -133,8 +133,11 @@
         if (s.readonly) return false;
         const reference = trackOf(s, toId);
         if (!reference) return false;
+        const side = Nav().arraySideFor(reference.kind, displaySide || 'below');
+        // A drop where the track already is (or onto another kind) changes nothing: no undo step, not dirty, no save.
+        if (!Nav().moveWithinKind(s.project.tracks, fromId, toId, side)) return false;
         return mutate(s, 'reorder tracks', project => {
-            const next = Nav().moveWithinKind(project.tracks, fromId, toId, Nav().arraySideFor(reference.kind, displaySide || 'below'));
+            const next = Nav().moveWithinKind(project.tracks, fromId, toId, side);
             if (!next) return false;
             project.tracks = next;
         });

@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "マーカーはまだありません。再生ヘッドの位置で M キーを押すと追加できます。",
   "videoStudio.noInOut": "イン点またはアウト点が設定されていません。",
   "videoStudio.clearInOut": "イン点とアウト点をクリア",
+  "videoStudio.setIn": "イン点を設定",
+  "videoStudio.setOut": "アウト点を設定",
   "videoStudio.shortcutShuttle": "逆再生 / 停止 / 再生（K + J/L：1フレーム）",
   "videoStudio.shortcutEditPoint": "前 / 次の編集点",
   "videoStudio.shortcutInOut": "イン点 / アウト点を設定",

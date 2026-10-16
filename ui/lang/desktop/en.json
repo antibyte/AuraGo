@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "No markers yet. Press M at the playhead to add one.",
   "videoStudio.noInOut": "No in or out point set.",
   "videoStudio.clearInOut": "Clear in and out",
+  "videoStudio.setIn": "Set in",
+  "videoStudio.setOut": "Set out",
   "videoStudio.shortcutShuttle": "Shuttle back / stop / forward (K + J/L: one frame)",
   "videoStudio.shortcutEditPoint": "Previous / next edit point",
   "videoStudio.shortcutInOut": "Set in / out point",

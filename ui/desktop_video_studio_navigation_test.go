@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -123,7 +125,84 @@ const four = [{id: 'v1', kind: 'video'}, {id: 'v2', kind: 'video'}, {id: 'o1', k
 assert.deepEqual(N.moveWithinKind(four, 'v1', 'v3', 'after').map(track => track.id), ['v2', 'o1', 'v3', 'v1']);
 assert.equal(N.moveWithinKind(four, 'v1', 'o1', 'after'), null, 'a different kind does not move');
 assert.equal(N.moveWithinKind(four, 'v1', 'v1', 'after'), null, 'the same track does not move');
+assert.equal(N.moveWithinKind(four, 'v1', 'v2', 'before'), null, 'dropping a track just before the one it already precedes changes nothing');
+assert.equal(N.moveWithinKind(four, 'v2', 'v1', 'after'), null, 'dropping a track just after the one it already follows changes nothing');
+assert.equal(N.moveWithinKind(four, 'v1', 'v3', 'before').map(track => track.id).join(), 'v2,o1,v1,v3', 'a real move keeps the other tracks in order');
+assert.deepEqual(four.map(track => track.id), ['v1', 'v2', 'o1', 'v3'], 'the input list is never changed');
 `)
+}
+
+func TestVideoStudioReviewFixesWiring(t *testing.T) {
+	read := func(name string) string {
+		data, err := os.ReadFile(filepath.Join("js", "desktop", "apps", name))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return string(data)
+	}
+	app := read("video-studio.js")
+	// Tab: dialogs first, then an open marker popover (it lives outside the drawer), then the narrow inspector drawer.
+	trapAt := strings.Index(app, "const trap = ")
+	if trapAt < 0 {
+		t.Fatal("the app shell has no Tab trap")
+	}
+	trap := app[trapAt : trapAt+strings.Index(app[trapAt:], "\n")]
+	last := -1
+	for _, want := range []string{"[data-conflict-host] .vs-modal", "[data-modal-host] .vs-modal", "s.markerPop", ".vs-inspector"} {
+		at := strings.Index(trap, want)
+		if at < 0 || at < last {
+			t.Fatalf("the Tab trap does not check %q in order: %s", want, trap)
+		}
+		last = at
+	}
+	// The time button takes its name from its content (the time), so it carries no fixed aria-label.
+	button := regexp.MustCompile(`<button[^>]*data-action="goto-time"[^>]*>`).FindString(app)
+	if button == "" || strings.Contains(button, "aria-label") || !strings.Contains(app, `class="vs-sr-only"> – `) {
+		t.Errorf("the time button must be named by its content plus a visually hidden hint: %s", button)
+	}
+	if !strings.Contains(app, `<div class="vs-time" aria-live="off"><button type="button" class="vs-time-button"`) {
+		t.Error("the time display must stay a silent live region")
+	}
+	inspector := read("video-studio-inspector.js")
+	for _, want := range []string{`data-action="mark-in"`, `data-action="mark-out"`, "v.tr('setIn'", "v.tr('setOut'"} {
+		if !strings.Contains(inspector, want) {
+			t.Errorf("the inspector's in/out row lacks %s", want)
+		}
+	}
+	timeline := read("video-studio-timeline.js")
+	press := timeline[strings.Index(timeline, "function pointerDown(event)"):]
+	if commit, drag := strings.Index(press, "commitOpenRename(event)"), strings.Index(press, "timelineDragging = true"); commit < 0 || drag < 0 || commit > drag {
+		t.Error("a press must commit an open track rename before any gesture state is set")
+	}
+	// Edits that change nothing return before mutate.
+	for file, wants := range map[string][]string{
+		"video-studio-transport.js": {"if (io[which] === frame) return false;"},
+		"video-studio-markers.js":   {"marker.frame === io.in && (marker.duration || 0) === io.out - io.in", "marker.frame === clamp(Math.round(s.frame), 0, maxFrames(s))"},
+		"video-studio-tracks.js":    {"if (!Nav().moveWithinKind(s.project.tracks, fromId, toId, side)) return false;"},
+	} {
+		src := read(file)
+		for _, want := range wants {
+			if !strings.Contains(src, want) {
+				t.Errorf("%s does not skip the no-op edit (%s)", file, want)
+			}
+		}
+	}
+	// Every locale carries the two new button labels.
+	files, err := filepath.Glob(filepath.Join("lang", "desktop", "*.json"))
+	if err != nil || len(files) != 16 {
+		t.Fatalf("desktop locales: %d files, %v", len(files), err)
+	}
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, key := range []string{`"videoStudio.setIn"`, `"videoStudio.setOut"`} {
+			if !bytes.Contains(data, []byte(key)) {
+				t.Errorf("%s lacks %s", file, key)
+			}
+		}
+	}
 }
 
 func TestVideoStudioMarkerValidation(t *testing.T) {

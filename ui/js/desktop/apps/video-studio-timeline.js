@@ -674,12 +674,25 @@
             }
         }
 
+        // A track rename that is still open when a press begins is committed first, as its own undo step (the same path
+        // as Enter). The gestures below set timelineDragging and mutate refuses edits while it is set, so a rename left to
+        // the focus change that follows would be dropped. The commit repaints the timeline: the pressed element is looked
+        // up again. A press inside the field itself keeps it open.
+        function commitOpenRename(event) {
+            const field = root.querySelector('[data-track-rename]');
+            if (!field || !options.onTrackRename || field.contains(event.target)) return event.target;
+            options.onTrackRename(field.dataset.trackRename, field.value);
+            if (root.contains(event.target)) return event.target;
+            return document.elementFromPoint(event.clientX, event.clientY) || event.target;
+        }
+
         function pointerDown(event) {
             suppressClick = false;
             if (event.button !== 0) return;
-            const markerEl = event.target.closest('[data-marker-id]');
+            const hit = commitOpenRename(event);
+            const markerEl = hit.closest('[data-marker-id]');
             if (markerEl && !s().readonly) { markerDown(event, markerEl.dataset.markerId); return; }
-            const ruler = event.target.closest('[data-ruler]') || (event.target.closest('[data-playhead]') && root.querySelector('[data-ruler]'));
+            const ruler = hit.closest('[data-ruler]') || (hit.closest('[data-playhead]') && root.querySelector('[data-ruler]'));
             if (ruler) {
                 scrub = { ruler };
                 capture(event);
@@ -688,15 +701,15 @@
                 event.preventDefault();
                 return;
             }
-            const clipEl = event.target.closest('[data-clip-id]');
+            const clipEl = hit.closest('[data-clip-id]');
             if (!clipEl) {
-                if (event.target.closest('.vs-track-lane') && !s().readonly && options.onSelectMany) band = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, additive: event.shiftKey || event.ctrlKey || event.metaKey, altKey: event.altKey, base: options.selectedIds ? options.selectedIds() : [], ids: [], el: null };
+                if (hit.closest('.vs-track-lane') && !s().readonly && options.onSelectMany) band = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, additive: event.shiftKey || event.ctrlKey || event.metaKey, altKey: event.altKey, base: options.selectedIds ? options.selectedIds() : [], ids: [], el: null };
                 return;
             }
             if (s().readonly || tool() === 'blade') return;
             const target = clipFor(s().project, clipEl.dataset.clipId);
             if (!target || target.track.locked) return;
-            const handle = event.target.closest('[data-trim]')?.dataset.trim || '';
+            const handle = hit.closest('[data-trim]')?.dataset.trim || '';
             const selected = !!(options.isSelected && options.isSelected(target.clip.id));
             const E = Edit(), id = target.clip.id, unlinked = event.altKey;
             // Shift/Ctrl+click changes the selection on click and never starts a move or edge drag (the trim tool still trims).

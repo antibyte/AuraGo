@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Ainda não há marcadores. Pressione M no indicador de reprodução para adicionar um.",
   "videoStudio.noInOut": "Nenhum ponto de entrada ou de saída definido.",
   "videoStudio.clearInOut": "Limpar entrada e saída",
+  "videoStudio.setIn": "Definir entrada",
+  "videoStudio.setOut": "Definir saída",
   "videoStudio.shortcutShuttle": "Voltar / parar / avançar (K + J/L: um quadro)",
   "videoStudio.shortcutEditPoint": "Ponto de edição anterior / seguinte",
   "videoStudio.shortcutInOut": "Definir ponto de entrada / saída",

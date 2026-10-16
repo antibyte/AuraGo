@@ -74,9 +74,17 @@
     function markerRangeFromInOut(s, id) {
         const io = inOut(s);
         if (io.in == null || io.out == null) return showNotice(s, 'markerNeedsRange', 'Set the in and out points first.', true);
+        const marker = markerById(s, id);
+        // A marker that already spans the range stays as it is (no undo step, no save).
+        if (marker && marker.frame === io.in && (marker.duration || 0) === io.out - io.in) return false;
         return updateMarker(s, id, { frame: io.in, duration: io.out - io.in });
     }
-    function moveMarkerToPlayhead(s, id) { return updateMarker(s, id, { frame: s.frame }); }
+    function moveMarkerToPlayhead(s, id) {
+        const marker = markerById(s, id);
+        // A marker that already sits on the playhead frame stays as it is (no undo step, no save).
+        if (marker && marker.frame === clamp(Math.round(s.frame), 0, maxFrames(s))) return false;
+        return updateMarker(s, id, { frame: s.frame });
+    }
 
     // The popover fields as updateMarker would store them, compared with the marker (Apply with no change is no undo step).
     function sameFields(marker, fields) {

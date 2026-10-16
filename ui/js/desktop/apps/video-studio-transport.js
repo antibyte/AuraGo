@@ -59,13 +59,15 @@
     }
     function toggleLoop(s) { s.loop = !s.loop; syncTransport(s); }
 
-    // I and O set the point at the playhead. A point that would break in < out is refused (nothing moves).
+    // I and O set the point at the playhead. A point that would break in < out is refused (nothing moves); a point that
+    // already sits on the playhead frame stays as it is (no undo step, no save).
     function setInOut(s, which) {
         if (s.readonly) return readonlyNotice(s);
         if (!s.project) return false;
         const frame = clampFrame(s, s.frame), max = maxFrames(s), io = inOut(s);
         const valid = which === 'in' ? frame < max && (io.out == null || frame < io.out) : frame >= 1 && (io.in == null || frame > io.in);
         if (!valid) return showNotice(s, 'inOutOrder', 'The in point must stay before the out point.', true);
+        if (io[which] === frame) return false;
         return mutate(s, which === 'in' ? 'in point' : 'out point', project => { project[which === 'in' ? 'in_point' : 'out_point'] = frame; });
     }
     // Alt+X clears both points (one undo step).

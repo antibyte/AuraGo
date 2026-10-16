@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Brak znaczników. Naciśnij M w miejscu głowicy odtwarzania, aby dodać pierwszy.",
   "videoStudio.noInOut": "Nie ustawiono punktu wejścia ani wyjścia.",
   "videoStudio.clearInOut": "Wyczyść punkty wejścia i wyjścia",
+  "videoStudio.setIn": "Ustaw wejście",
+  "videoStudio.setOut": "Ustaw wyjście",
   "videoStudio.shortcutShuttle": "Wstecz / stop / naprzód (K + J/L: jedna klatka)",
   "videoStudio.shortcutEditPoint": "Poprzedni / następny punkt cięcia",
   "videoStudio.shortcutInOut": "Ustaw punkt wejścia / wyjścia",

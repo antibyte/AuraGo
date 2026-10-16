@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Zatím žádné značky. Stiskni M u přehrávací hlavy a přidej první.",
   "videoStudio.noInOut": "Není nastaven vstupní ani výstupní bod.",
   "videoStudio.clearInOut": "Zrušit vstupní a výstupní bod",
+  "videoStudio.setIn": "Nastavit vstup",
+  "videoStudio.setOut": "Nastavit výstup",
   "videoStudio.shortcutShuttle": "Zpět / stop / vpřed (K + J/L: o snímek)",
   "videoStudio.shortcutEditPoint": "Předchozí / další bod střihu",
   "videoStudio.shortcutInOut": "Nastavit vstupní / výstupní bod",

@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "Nog geen markeringen. Druk op M bij de afspeelkop om er een toe te voegen.",
   "videoStudio.noInOut": "Geen inpunt of uitpunt ingesteld.",
   "videoStudio.clearInOut": "In- en uitpunt wissen",
+  "videoStudio.setIn": "Inpunt instellen",
+  "videoStudio.setOut": "Uitpunt instellen",
   "videoStudio.shortcutShuttle": "Terug / stop / vooruit (K + J/L: één frame)",
   "videoStudio.shortcutEditPoint": "Vorig / volgend montagepunt",
   "videoStudio.shortcutInOut": "Inpunt / uitpunt instellen",

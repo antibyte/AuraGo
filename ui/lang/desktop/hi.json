@@ -6128,6 +6128,8 @@
   "videoStudio.noMarkers": "अभी कोई मार्कर नहीं है। जोड़ने के लिए प्लेहेड पर M दबाएँ।",
   "videoStudio.noInOut": "कोई इन या आउट पॉइंट सेट नहीं है।",
   "videoStudio.clearInOut": "इन और आउट पॉइंट हटाएँ",
+  "videoStudio.setIn": "इन सेट करें",
+  "videoStudio.setOut": "आउट सेट करें",
   "videoStudio.shortcutShuttle": "पीछे / रोकें / आगे (K + J/L: एक फ़्रेम)",
   "videoStudio.shortcutEditPoint": "पिछला / अगला एडिट पॉइंट",
   "videoStudio.shortcutInOut": "इन / आउट पॉइंट सेट करें",
