@@ -61,11 +61,16 @@ func dockerBackendOrder() []string { return []string{"cuda", "vulkan", "cpu"} }
 
 func (docker *decisionsDocker) image(ctx context.Context, backend string) (dockerImageMetadata, error) {
 	var info dockerImageMetadata
-	image := "aurago-decisions-runtime:" + backend
+	localImage := "aurago-decisions-runtime:" + backend
+	image := localImage
 	if pinned := releaseRuntimeCatalog.image(backend); pinned != "" {
 		image = pinned
 	}
-	_, err := docker.client.DoJSON(ctx, http.MethodGet, "images/"+url.PathEscape(image)+"/json", nil, &info)
+	status, err := docker.client.DoJSON(ctx, http.MethodGet, "images/"+url.PathEscape(image)+"/json", nil, &info)
+	// Keep verified developer images usable when the published image is not cached.
+	if status == http.StatusNotFound && image != localImage {
+		_, err = docker.client.DoJSON(ctx, http.MethodGet, "images/"+url.PathEscape(localImage)+"/json", nil, &info)
+	}
 	if err != nil {
 		return dockerImageMetadata{}, err
 	}
