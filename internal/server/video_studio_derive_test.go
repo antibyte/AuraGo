@@ -47,6 +47,36 @@ func TestVideoStudioDeriveNames(t *testing.T) {
 	}
 }
 
+// A still request with a speed names the clip position; Frame must be the source frame floor(offset + clip_frame·speed)
+// it shows, and the capture then samples at that speed. Without a speed, Frame is the source frame at 1x.
+func TestVideoStudioStillPosition(t *testing.T) {
+	cases := []struct {
+		name    string
+		request videoStudioJobRequest
+		valid   bool
+		want    videostudio.StillOptions
+	}{
+		{"legacy source frame", videoStudioJobRequest{Frame: 37}, true, videostudio.StillOptions{Offset: 37, Speed: 1}},
+		{"clip at 1.5x", videoStudioJobRequest{Frame: 8, Offset: 2, ClipFrame: 4, Speed: 1.5}, true, videostudio.StillOptions{Offset: 2, Frame: 4, Speed: 1.5}},
+		{"clip at 1x", videoStudioJobRequest{Frame: 9, Offset: 5, ClipFrame: 4, Speed: 1}, true, videostudio.StillOptions{Offset: 5, Frame: 4, Speed: 1}},
+		{"frame past the position", videoStudioJobRequest{Frame: 9, Offset: 2, ClipFrame: 4, Speed: 1.5}, false, videostudio.StillOptions{}},
+		{"frame before the offset", videoStudioJobRequest{Frame: 1, Offset: 2, ClipFrame: 0, Speed: 1.5}, false, videostudio.StillOptions{}},
+		{"negative clip frame", videoStudioJobRequest{Frame: 2, Offset: 3, ClipFrame: -1, Speed: 1}, false, videostudio.StillOptions{}},
+		{"speed below the minimum", videoStudioJobRequest{Frame: 2, Offset: 2, ClipFrame: 1, Speed: 0.1}, false, videostudio.StillOptions{}},
+		{"offset without a speed", videoStudioJobRequest{Frame: 8, Offset: 2}, false, videostudio.StillOptions{}},
+	}
+	for _, tc := range cases {
+		if got := validVideoStudioStillPosition(tc.request); got != tc.valid {
+			t.Fatalf("%s: valid = %v, want %v", tc.name, got, tc.valid)
+		}
+		if tc.valid {
+			if got := videoStudioStillOptions(tc.request); got != tc.want {
+				t.Fatalf("%s: options = %+v, want %+v", tc.name, got, tc.want)
+			}
+		}
+	}
+}
+
 // videoStudioDeriveRecord records trusted media metadata without a file; enqueue validation reads only the record.
 func videoStudioDeriveRecord(t *testing.T, m *videoStudioManager, projectID, name string, kind videostudio.AssetKind, durationUs int64) string {
 	t.Helper()
@@ -95,6 +125,9 @@ func TestVideoStudioDeriveEnqueueValidationAndPermissions(t *testing.T) {
 		{"negative frame", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":-1,"purpose":"export"}`, video), http.StatusBadRequest, "invalid_range"},
 		{"no purpose", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":59}`, video), http.StatusBadRequest, "invalid_purpose"},
 		{"unknown purpose", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":59,"purpose":"thumbnail"}`, video), http.StatusBadRequest, "invalid_purpose"},
+		{"frame not at the clip position", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":10,"offset":2,"clip_frame":4,"speed":1.5,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},
+		{"speed out of range", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":42,"offset":2,"clip_frame":2,"speed":20,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},
+		{"clip frame without a speed", writeToken, fmt.Sprintf(`{"kind":"still","asset_id":%q,"frame":8,"offset":2,"clip_frame":4,"purpose":"freeze"}`, video), http.StatusBadRequest, "invalid_range"},
 	}
 	for i, tc := range cases {
 		w := videoStudioAPIRequest(s, tc.token, http.MethodPost, path, strings.NewReader(tc.body), map[string]string{"Idempotency-Key": fmt.Sprintf("derive-validation-%d", i)})

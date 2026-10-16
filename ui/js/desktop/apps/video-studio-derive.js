@@ -78,6 +78,13 @@
         return ok;
     }
 
+    // A still job names the clip position (offset, clip frame and speed), so the server samples the source the way the
+    // renderer does at that speed; frame is the source frame E.sourceFrameAt reports there, which the server checks.
+    function stillPayload(s, clip, point, purpose) {
+        return { kind: 'still', asset_id: clip.asset_id, frame: E().sourceFrameAt(s.project, clip, point), offset: Number(clip.offset || 0),
+            clip_frame: point - clip.start, speed: E().speedOf(clip), purpose };
+    }
+
     // Freeze frame (spec 4.4): the captured frame becomes a still inserted at the playhead on the clip's own track. The
     // request remembers the asset and source frame it captures; the edit applies only while the clip still shows that
     // frame at the cut.
@@ -92,7 +99,7 @@
         const tried = trial(s, { id: 'freeze-trial', kind: 'image', width: 1, height: 1 },
             project => E().freezeFrame(project, clipId, point, Object.assign({}, captured, { asset_id: 'freeze-trial' })));
         if (tried !== true) { refuse(s, tried); return false; }
-        start(s, { kind: 'still', asset_id: asset.id, frame, purpose: 'freeze' }, job => applyFreeze(s, clipId, point, captured, job));
+        start(s, stillPayload(s, found.clip, point, 'freeze'), job => applyFreeze(s, clipId, point, captured, job));
         return true;
     }
     function applyFreeze(s, clipId, point, captured, job) {
@@ -110,7 +117,7 @@
         const asset = assetOf(s, found.clip);
         if (!asset || asset.kind !== 'video') return false;
         if (!insidePlayhead(s, found.clip)) { showNotice(s, 'freezeOutside', 'Move the playhead inside the clip first.', true); return false; }
-        start(s, { kind: 'still', asset_id: asset.id, frame: E().sourceFrameAt(s.project, found.clip, s.frame), purpose: 'export' }, null);
+        start(s, stillPayload(s, found.clip, s.frame, 'export'), null);
         return true;
     }
 

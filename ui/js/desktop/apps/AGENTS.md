@@ -1473,7 +1473,9 @@ buttons and menu popovers remain excluded from those gestures.
   same-asset members around it (`start' = anchor.start + anchor.end − end`, offset mirrored within the union), so linked
   picture and sound stay in sync; a moved member that would overlap a clip, touch a transition or leave the project
   refuses with reason `room` (`reverseNoRoom`), before the job and when applying; freeze remembers the asset and
-  source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Both edits are tried on a
+  source frame (`E.sourceFrameAt`) and refuses when the clip shows another frame at the cut. Still jobs (freeze and
+  export frame) send the clip position (`stillPayload`: `offset`, `clip_frame`, `speed`) with that `frame`, so the
+  server samples at the clip's speed like the renderer. Both edits are tried on a
   copy before the job starts. Load order: `derive` loads directly before `projects` (`…-transport.js, -derive.js,
   -projects.js, -menus.js, video-studio.js`). The inspector's label swatches share `data-action="clip-label"` and
   differ by `data-value`, which `focusKey` remembers so a re-render keeps focus on the clicked swatch.

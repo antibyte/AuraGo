@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,7 +70,9 @@ func (m *videoStudioManager) processStill(ctx context.Context, svc *desktop.Serv
 		return nil, nil, err
 	}
 	output := filepath.Join(stageDir, "frame.png")
-	if err := videostudio.ExtractStill(ctx, cfg.VideoStudio.FFmpegPath, staged, output, work.request.Frame, videostudio.ProjectRate(work.project)); err != nil {
+	options := videoStudioStillOptions(work.request)
+	options.FFmpegPath, options.Input, options.Output, options.Rate = cfg.VideoStudio.FFmpegPath, staged, output, videostudio.ProjectRate(work.project)
+	if err := videostudio.ExtractStill(ctx, options); err != nil {
 		return nil, nil, err
 	}
 	if work.request.Purpose == "export" {
@@ -80,6 +83,32 @@ func (m *videoStudioManager) processStill(ctx context.Context, svc *desktop.Serv
 		return nil, nil, err
 	}
 	return nil, map[string]interface{}{"asset": asset, "purpose": "freeze"}, nil
+}
+
+// videoStudioStillOptions is the clip position a still job captures. A request with a speed names clip frame ClipFrame
+// of a clip that starts at source frame Offset, so the capture samples the source the way the renderer does at that
+// speed; a request without one names source frame Frame at 1x.
+func videoStudioStillOptions(request videoStudioJobRequest) videostudio.StillOptions {
+	if request.Speed == 0 {
+		return videostudio.StillOptions{Offset: request.Frame, Speed: 1}
+	}
+	return videostudio.StillOptions{Offset: request.Offset, Frame: request.ClipFrame, Speed: request.Speed}
+}
+
+// validVideoStudioStillPosition checks a still request's clip position: a clip speed, a non-negative offset and clip
+// frame, and Frame equal to the source frame floor(Offset + ClipFrame·Speed) that position shows (the client computes
+// it the same way, with the same 1e-9 tolerance), so the frame range check covers the frame the job captures.
+func validVideoStudioStillPosition(request videoStudioJobRequest) bool {
+	if request.Speed == 0 {
+		return request.Offset == 0 && request.ClipFrame == 0
+	}
+	if math.IsNaN(request.Speed) || request.Speed < videostudio.MinClipSpeed || request.Speed > videostudio.MaxClipSpeed {
+		return false
+	}
+	if request.Offset < 0 || request.ClipFrame < 0 || request.Offset > request.Frame {
+		return false
+	}
+	return math.Floor(float64(request.Offset)+float64(request.ClipFrame)*request.Speed+1e-9) == float64(request.Frame)
 }
 
 // publishStillExport stores a captured frame in the project's exports folder, under the export and quota limits.

@@ -76,9 +76,12 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   pixels, shortened so one chunk's decoded frames fit in 256 MiB: frames are converted to yuv420p, 1.5 bytes per pixel,
   before the `reverse` filter buffers the chunk; `ReverseChunkFrames` uses the probed size) and joins them with the
   render mux; the chunks keep the source's colour tags (the renderer's BT.709 tags are
-  left off, so FFmpeg does not convert the pixels). `ExtractStill` picks one source frame with the renderer's
-  sampling and writes PNG. The server (`video_studio_derive.go`) imports results as project assets and publishes
-  PNG exports.
+  left off, so FFmpeg does not convert the pixels). `ExtractStill` takes a clip position (`StillOptions`: `Offset`,
+  clip frame `Frame`, `Speed`) and samples the source with the renderer's own filter (`videoResample`, shared with
+  `buildVisualClipFilter`), so a 30 fps source in a 25 fps project at 1.5x shows the rendered frame; it writes PNG. A
+  still job carries `offset`, `clip_frame` and `speed` with `frame = floor(offset + clip_frame·speed)` (checked, else
+  400 `invalid_range`); without `speed`, `frame` is the source frame at 1x. The server (`video_studio_derive.go`)
+  imports results as project assets and publishes PNG exports.
 - Tests: `go test ./internal/videostudio -run 'TestRenderSpeed|TestRenderDisabled|TestRenderImage|TestTempoChain|TestReverse|TestExtractStill|TestValidateSpeed' -count=1`
   (the render and still tests need FFmpeg 5.1+).
 

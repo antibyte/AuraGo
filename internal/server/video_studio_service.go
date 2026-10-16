@@ -134,7 +134,11 @@ type videoStudioJobRequest struct {
 	Offset            int      `json:"offset,omitempty"`
 	Duration          int      `json:"duration,omitempty"`
 	Frame             int      `json:"frame,omitempty"`
-	Purpose           string   `json:"purpose,omitempty"`
+	// A still's clip position: ClipFrame of a clip starting at source frame Offset and playing at Speed. Frame is
+	// then floor(Offset + ClipFrame·Speed); without a speed, Frame alone names the source frame at 1x.
+	ClipFrame int     `json:"clip_frame,omitempty"`
+	Speed     float64 `json:"speed,omitempty"`
+	Purpose   string  `json:"purpose,omitempty"`
 	// Name is the name of a duplicate's copy; Range is the timeline range of a render.
 	Name  string            `json:"name,omitempty"`
 	Range *videoStudioRange `json:"range,omitempty"`

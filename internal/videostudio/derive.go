@@ -267,30 +267,56 @@ func renderReverseAudio(ctx context.Context, ffmpeg, input string, opts ReverseO
 	return runFFmpeg(ctx, ffmpeg, args, rate.Seconds(last-first), progress, inputPaths(inputs), output)
 }
 
-// ExtractStill writes the source frame that the renderer shows at project frame frame as a PNG. The frame is picked
-// with the renderer's sampling (fps on absolute source positions), and colours use the BT.709 matrix the renderer
-// assumes for HD sources.
-func ExtractStill(ctx context.Context, ffmpegPath, input, output string, frame int, rate Rate) error {
-	if frame < 0 {
+// StillOptions names the frame a clip shows: clip frame Frame of a clip that starts at source frame Offset and plays at
+// Speed (absent = 1). All three are in project frames, so {Offset: k} is source frame k at speed 1.
+type StillOptions struct {
+	FFmpegPath string
+	Input      string // private staged file
+	Output     string
+	Rate       Rate
+	Offset     int
+	Frame      int
+	Speed      float64
+}
+
+// ExtractStill writes the source frame that the renderer shows at clip frame opts.Frame as a PNG. The frame is picked
+// with the renderer's sampling (videoResample: fps on absolute source positions, retimed around Offset at a speed, so
+// clip frame n shows the last source frame at or before Offset + n·speed), and colours use the BT.709 matrix the
+// renderer assumes for HD sources.
+func ExtractStill(ctx context.Context, opts StillOptions) error {
+	if opts.Offset < 0 || opts.Frame < 0 {
 		return fmt.Errorf("still frame must not be negative")
 	}
-	ffmpeg, err := resolveBinary(ffmpegPath, "ffmpeg")
+	speed := opts.Speed
+	if speed == 0 {
+		speed = 1
+	}
+	if !finite(speed) || speed < MinClipSpeed || speed > MaxClipSpeed {
+		return fmt.Errorf("still speed must be between %g and %g", float64(MinClipSpeed), float64(MaxClipSpeed))
+	}
+	ffmpeg, err := resolveBinary(opts.FFmpegPath, "ffmpeg")
 	if err != nil {
 		return err
 	}
-	inputPath, err := ensureRegularLocalFile(input)
+	inputPath, err := ensureRegularLocalFile(opts.Input)
 	if err != nil {
 		return fmt.Errorf("open still source: %w", err)
 	}
-	outputPath, err := validateNewOutput(output, inputPath)
+	outputPath, err := validateNewOutput(opts.Output, inputPath)
 	if err != nil {
 		return err
 	}
-	seekFrame := reverseSeekFrame(frame, rate)
-	filter := fmt.Sprintf("fps=%s,trim=start_pts=%d:end_pts=%d,setpts=N/FRAME_RATE/TB,scale=in_color_matrix=bt709:out_range=pc,format=rgb24", rate, frame, frame+1)
+	rate := opts.Rate
+	// The renderer's window for this one frame: it starts at source position from, and fps frame first is the clip frame.
+	from := float64(opts.Offset) + float64(opts.Frame)*speed
+	first := opts.Offset + opts.Frame
+	seekFrame := reverseSeekFrame(int(math.Floor(from)), rate)
+	limit := rate.SecondsFloat(from+speed-float64(seekFrame)) + 1
+	filter := videoResample(from, opts.Offset, speed, rate) +
+		fmt.Sprintf(",trim=start_pts=%d:end_pts=%d,setpts=N/FRAME_RATE/TB,scale=in_color_matrix=bt709:out_range=pc,format=rgb24", first, first+1)
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-copyts", "-start_at_zero",
 		"-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers,
-		"-ss", fmt.Sprintf("%.6f", rate.Seconds(seekFrame)), "-t", rate.SecondsArg(frame - seekFrame + 1),
+		"-ss", fmt.Sprintf("%.6f", rate.Seconds(seekFrame)), "-t", fmt.Sprintf("%.6f", limit),
 		"-i", inputPath, "-map", "0:V:0", "-vf", filter, "-frames:v", "1", "-an", "-c:v", "png", "-f", "image2", outputPath}
 	if _, err := runSmallCommand(ctx, ffmpeg, args, 1<<20); err != nil {
 		_ = os.Remove(outputPath)
@@ -299,7 +325,7 @@ func ExtractStill(ctx context.Context, ffmpegPath, input, output string, frame i
 	info, err := os.Stat(outputPath)
 	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 {
 		_ = os.Remove(outputPath)
-		return fmt.Errorf("the source has no frame %d", frame)
+		return fmt.Errorf("the source has no frame at %g", from)
 	}
 	return nil
 }

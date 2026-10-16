@@ -844,6 +844,8 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		Offset            int               `json:"offset,omitempty"`
 		Duration          int               `json:"duration,omitempty"`
 		Frame             int               `json:"frame,omitempty"`
+		ClipFrame         int               `json:"clip_frame,omitempty"`
+		Speed             float64           `json:"speed,omitempty"`
 		Purpose           string            `json:"purpose,omitempty"`
 		Name              string            `json:"name,omitempty"`
 		Range             *videoStudioRange `json:"range,omitempty"`
@@ -852,7 +854,7 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Job request is invalid.")
 		return
 	}
-	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey, Offset: body.Offset, Duration: body.Duration, Frame: body.Frame, Purpose: body.Purpose, Name: strings.TrimSpace(body.Name), Range: body.Range}
+	request = videoStudioJobRequest{AssetID: body.AssetID, Prompt: body.Prompt, NegativePrompt: body.NegativePrompt, DurationSeconds: body.DurationSeconds, Resolution: body.Resolution, AspectRatio: body.AspectRatio, FirstFrameAssetID: body.FirstFrameAssetID, LastFrameAssetID: body.LastFrameAssetID, ReferenceAssetIDs: body.ReferenceAssetIDs, IdempotencyKey: body.IdempotencyKey, Offset: body.Offset, Duration: body.Duration, Frame: body.Frame, ClipFrame: body.ClipFrame, Speed: body.Speed, Purpose: body.Purpose, Name: strings.TrimSpace(body.Name), Range: body.Range}
 	if request.IdempotencyKey == "" {
 		request.IdempotencyKey = r.Header.Get("Idempotency-Key")
 	}
@@ -1033,7 +1035,7 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 				return
 			}
 		} else {
-			if request.Frame < 0 || request.Frame >= asset.DurationFrames {
+			if request.Frame < 0 || request.Frame >= asset.DurationFrames || !validVideoStudioStillPosition(request) {
 				writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The frame is outside the media.")
 				return
 			}

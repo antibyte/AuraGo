@@ -239,6 +239,24 @@ func appendTransition(filters []string, join func() string, combined, incoming s
 	return out, filters
 }
 
+// videoResample samples a video clip's source on the project's frame grid. from is the source position, in project
+// frames, of the first frame the graph needs; fps works on absolute source timestamps, so fps frame offset+n is clip
+// frame n. A still capture uses the same filters, so it shows the frame the renderer shows.
+func videoResample(from float64, offset int, speed float64, rate Rate) string {
+	start := rate.SecondsFloat(from)
+	if speed == 1 {
+		return fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',fps=%s", start, rate)
+	}
+	// Retime around the clip's first source frame (Offset) before fps: clip frame n shows the last source
+	// frame at or before Offset + n*s, so a 2x clip reads every second source frame. Each source frame is
+	// moved onto the whole fps frame where it first shows (ceil, with 1 ms of tolerance for container
+	// timestamp rounding), in microseconds: setpts truncates, and the half-frame positions of even speeds
+	// would otherwise leave the choice to rounding noise. The same Offset anchor in every segment keeps the
+	// fps frames whole, so every segmentation samples the same source frames.
+	return fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',settb=AVTB,setpts='(%d+ceil(((PTS*TB-0.001)*%d/%d-%d)/%s))*%d/%d/TB',fps=%s",
+		start, offset, rate.Num, rate.Den, offset, strconv.FormatFloat(speed, 'f', -1, 64), rate.Den, rate.Num, rate)
+}
+
 func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidth, canvasHeight int, rate Rate, output string) string {
 	clip := item.clip
 	boxWidth := evenPixels(clip.Width*float64(canvasWidth), canvasWidth)
@@ -260,18 +278,7 @@ func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidt
 	// moved back to from, so fps holds it there instead of the clip running short.
 	resample := fmt.Sprintf("setpts=PTS-STARTPTS,fps=%s", rate)
 	if !item.image {
-		from := rate.SecondsFloat(item.from)
-		resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',fps=%s", from, rate)
-		if speed := ClipSpeed(clip); speed != 1 {
-			// Retime around the clip's first source frame (Offset) before fps: clip frame n shows the last source
-			// frame at or before Offset + n*s, so a 2x clip reads every second source frame. Each source frame is
-			// moved onto the whole fps frame where it first shows (ceil, with 1 ms of tolerance for container
-			// timestamp rounding), in microseconds: setpts truncates, and the half-frame positions of even speeds
-			// would otherwise leave the choice to rounding noise. The same Offset anchor in every segment keeps the
-			// fps frames whole, so every segmentation samples the same source frames.
-			resample = fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',settb=AVTB,setpts='(%d+ceil(((PTS*TB-0.001)*%d/%d-%d)/%s))*%d/%d/TB',fps=%s",
-				from, clip.Offset, rate.Num, rate.Den, clip.Offset, strconv.FormatFloat(speed, 'f', -1, 64), rate.Den, rate.Num, rate)
-		}
+		resample = videoResample(item.from, clip.Offset, ClipSpeed(clip), rate)
 	}
 	// Shift into the clip and bound clone padding to a small multiple of the clip's duration.
 	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.first, clip.Duration)
