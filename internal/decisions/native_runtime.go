@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,7 +16,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -49,11 +47,11 @@ func (factory *managedRuntimeFactory) discover(ctx context.Context, deployment s
 	return discoverNativeDevices(ctx, managedRoot, runtimeBuildDirectory(factory.options), paths.Model)
 }
 
-func (factory *managedRuntimeFactory) start(ctx context.Context, deployment string, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string) (runtimeSession, error) {
+func (factory *managedRuntimeFactory) start(ctx context.Context, deployment string, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string, progress func(string)) (runtimeSession, error) {
 	if deployment == config.DecisionsDeploymentDocker {
-		return startDockerRuntime(ctx, device, paths, cfg, access, dataDir, factory.options.dockerSelfContainer)
+		return startDockerRuntime(ctx, device, paths, cfg, access, dataDir, factory.options.dockerSelfContainer, progress)
 	}
-	return startNativeRuntime(ctx, device, paths, cfg, dataDir)
+	return startNativeRuntime(ctx, device, paths, cfg, dataDir, progress)
 }
 
 func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPath string) ([]runtimeDevice, error) {
@@ -131,7 +129,7 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 	return devices, nil
 }
 
-func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, dataDir string) (runtimeSession, error) {
+func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, dataDir string, progress func(string)) (runtimeSession, error) {
 	if device.BinaryPath == "" || device.BinarySHA == "" {
 		return nil, NewError(CodeRuntimeArtifactMissing, nil)
 	}
@@ -182,87 +180,27 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		cpuAllowed: cfg.CPUFallbackAllowed, deployment: config.DecisionsDeploymentNative,
 	}
 	go func() { session.wait <- command.Wait(); close(session.wait) }()
-	ready := false
-	deadline := time.NewTimer(60 * time.Second)
-	defer deadline.Stop()
-	for !ready {
-		metadata, healthErr := session.metadata(ctx)
-		if healthErr == nil && metadata.Ready {
-			session.cached = metadata
-			ready = true
-			break
+	err = waitRuntimeReady(ctx, runtimeStartupTimeout, func(probeCtx context.Context) (bool, error) {
+		if phase := startupStderr.progress(); progress != nil && phase != "" {
+			progress(phase)
 		}
 		select {
-		case <-ctx.Done():
-			_ = session.Close(context.Background())
-			return nil, NewError(CodeCancelled, ctx.Err())
-		case <-deadline.C:
-			_ = session.Close(context.Background())
-			return nil, NewError(CodeRuntimeStartFailed, fmt.Errorf("runtime did not become ready"))
-		case err := <-session.wait:
-			_ = os.Remove(token)
-			if code := startupStderr.code(); code != "" {
-				err = nativeStartupFailure{code: code}
-			}
-			if err == nil {
-				err = fmt.Errorf("runtime exited before readiness")
-			}
-			return nil, NewError(CodeRuntimeStartFailed, err)
-		case <-time.After(200 * time.Millisecond):
+		case <-session.wait:
+			return false, runtimeStartupError(startupStderr.code())
+		default:
 		}
+		metadata, err := session.metadata(probeCtx)
+		if err == nil && metadata.Ready {
+			session.cached = metadata
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		_ = session.Close(context.Background())
+		return nil, err
 	}
 	return session, nil
-}
-
-type nativeStartupFailure struct{ code string }
-
-func (failure nativeStartupFailure) Error() string { return failure.code }
-
-type nativeStartupStderr struct {
-	mu   sync.Mutex
-	line []byte
-}
-
-func (buffer *nativeStartupStderr) Write(data []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	for _, value := range data {
-		if value == '\n' || len(buffer.line) >= 128 {
-			break
-		}
-		buffer.line = append(buffer.line, value)
-	}
-	return len(data), nil
-}
-
-func (buffer *nativeStartupStderr) code() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	line := strings.TrimSpace(string(buffer.line))
-	const prefix = "AURAGO_DECISIONS_STARTUP_ERROR code="
-	if !strings.HasPrefix(line, prefix) {
-		return ""
-	}
-	code := strings.TrimPrefix(line, prefix)
-	if _, ok := nativeStartupCodes[code]; ok {
-		return code
-	}
-	return ""
-}
-
-var nativeStartupCodes = map[string]struct{}{
-	"invalid_configuration": {}, "model_pin_mismatch": {}, "projector_pin_mismatch": {}, "model_load_failed": {},
-	"projector_load_failed": {}, "device_unavailable": {}, "offload_unavailable": {}, "unauthorized_cpu_compute": {}, "runtime_start_failed": {},
-}
-
-func runtimeFailureReason(err error) string {
-	var startupFailure nativeStartupFailure
-	if errors.As(err, &startupFailure) {
-		if _, allowed := nativeStartupCodes[startupFailure.code]; allowed {
-			return startupFailure.code
-		}
-	}
-	return ErrorCode(err)
 }
 
 type nativeRuntimeSession struct {

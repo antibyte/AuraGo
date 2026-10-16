@@ -165,7 +165,7 @@ func (docker *decisionsDocker) runDiscover(ctx context.Context, backend, imageID
 	if !dockerContainerImageMatches(imageID, current.Image) || current.State.ExitCode != 0 {
 		return nil, fmt.Errorf("runtime discovery process exited unsuccessfully")
 	}
-	return docker.containerLogs(ctx, container.ID)
+	return docker.containerLogs(ctx, container.ID, 1)
 }
 
 func (docker *decisionsDocker) createContainer(ctx context.Context, name, image string, command []string, mounts []map[string]any, hostConfig map[string]any) (dockerContainerMetadata, error) {
@@ -275,8 +275,12 @@ func withDockerCleanupContext(timeout time.Duration, cleanup func(context.Contex
 	cleanup(ctx)
 }
 
-func (docker *decisionsDocker) containerLogs(ctx context.Context, id string) ([]byte, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dockerutil.Endpoint("containers/"+url.PathEscape(id)+"/logs?stdout=1&stderr=0"), nil)
+func (docker *decisionsDocker) containerLogs(ctx context.Context, id string, stream byte) ([]byte, error) {
+	query := "stdout=1&stderr=0"
+	if stream == 2 {
+		query = "stdout=0&stderr=1&tail=64"
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dockerutil.Endpoint("containers/"+url.PathEscape(id)+"/logs?"+query), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -295,17 +299,15 @@ func (docker *decisionsDocker) containerLogs(ctx context.Context, id string) ([]
 	if len(data) > 1<<20 {
 		return nil, fmt.Errorf("Docker runtime discovery output exceeded limit")
 	}
-	stdout, err := dockerStdoutFromMultiplexedLogs(data)
+	stdout, err := dockerLogStream(data, stream)
 	if err != nil {
 		return nil, err
 	}
-	return bytes.TrimSpace(stdout), nil
+	return stdout, nil
 }
 
-// dockerStdoutFromMultiplexedLogs decodes the 8-byte Docker log framing used
-// when Tty=false and retains only stdout. In particular, compiler/backend
-// diagnostics on stderr must never be concatenated with the discovery JSON.
-func dockerStdoutFromMultiplexedLogs(data []byte) ([]byte, error) {
+// dockerLogStream keeps discovery stdout separate from startup diagnostics on stderr.
+func dockerLogStream(data []byte, wanted byte) ([]byte, error) {
 	var stdout bytes.Buffer
 	for len(data) > 0 {
 		if len(data) < 8 {
@@ -324,7 +326,7 @@ func dockerStdoutFromMultiplexedLogs(data []byte) ([]byte, error) {
 			return nil, fmt.Errorf("Docker runtime discovery log frame payload is truncated")
 		}
 		frameLength := int(frameLengthBytes)
-		if stream == 1 {
+		if stream == wanted {
 			_, _ = stdout.Write(data[:frameLength])
 		}
 		data = data[frameLength:]
@@ -332,7 +334,7 @@ func dockerStdoutFromMultiplexedLogs(data []byte) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string, resolveSelf func(context.Context, string) (string, error)) (runtimeSession, error) {
+func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPaths, cfg config.DecisionsConfig, access RuntimeAccess, dataDir string, resolveSelf func(context.Context, string) (string, error), progress func(string)) (runtimeSession, error) {
 	if !dockerMayMutate(access) {
 		return nil, NewError(CodeDeploymentDenied, nil)
 	}
@@ -411,9 +413,9 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		_ = session.Close(context.Background())
 		return nil, NewError(CodeRuntimeAttestationFailed, fmt.Errorf("running container image differs from inspected image"))
 	}
-	if err := docker.waitRuntimeReady(ctx, session.nativeRuntimeSession); err != nil {
+	if err := docker.waitRuntimeReady(ctx, session, progress); err != nil {
 		_ = session.Close(context.Background())
-		return nil, NewError(CodeRuntimeStartFailed, err)
+		return nil, err
 	}
 	return session, nil
 }
@@ -602,23 +604,32 @@ func (session *dockerRuntimeSession) Close(ctx context.Context) error {
 	return nil
 }
 
-func (docker *decisionsDocker) waitRuntimeReady(ctx context.Context, session *nativeRuntimeSession) error {
-	deadline := time.NewTimer(60 * time.Second)
-	defer deadline.Stop()
-	for {
-		metadata, err := session.metadata(ctx)
+func (docker *decisionsDocker) waitRuntimeReady(ctx context.Context, session *dockerRuntimeSession, progress func(string)) error {
+	return waitRuntimeReady(ctx, runtimeStartupTimeout, func(probeCtx context.Context) (bool, error) {
+		var container dockerContainerMetadata
+		if _, err := docker.client.DoJSON(probeCtx, http.MethodGet, "containers/"+url.PathEscape(session.containerID)+"/json", nil, &container); err != nil {
+			return false, nil
+		}
+		if !dockerContainerImageMatches(session.imageID, container.Image) {
+			return false, NewError(CodeRuntimeAttestationFailed, nil)
+		}
+		startup := &nativeStartupStderr{}
+		if logs, err := docker.containerLogs(probeCtx, session.containerID, 2); err == nil {
+			_, _ = startup.Write(logs)
+		}
+		if phase := startup.progress(); progress != nil && phase != "" {
+			progress(phase)
+		}
+		if !container.State.Running {
+			return false, runtimeStartupError(startup.code())
+		}
+		metadata, err := session.nativeRuntimeSession.metadata(probeCtx)
 		if err == nil && metadata.Ready {
 			session.cached = metadata
-			return nil
+			return true, nil
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-deadline.C:
-			return fmt.Errorf("Docker decisions runtime did not become ready")
-		case <-time.After(250 * time.Millisecond):
-		}
-	}
+		return false, nil
+	})
 }
 
 func randomSuffix() string {

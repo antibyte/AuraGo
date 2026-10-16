@@ -480,10 +480,12 @@ struct Runtime {
 
     void validate_artifacts() {
         uint64_t size = 0;
+        std::cerr << "AURAGO_DECISIONS_STARTUP phase=verifying_model\n";
         if (config.model_revision != kRevision || lower(config.model_sha) != kModelSHA ||
             sha256_file(config.model_path, &size) != kModelSHA || size != kModelSize) {
             throw std::runtime_error("model_pin_mismatch");
         }
+        std::cerr << "AURAGO_DECISIONS_STARTUP phase=verifying_projector\n";
         if (config.projector_revision != kRevision || lower(config.projector_sha) != kProjectorSHA ||
             sha256_file(config.projector_path, &size) != kProjectorSHA || size != kProjectorSize) {
             throw std::runtime_error("projector_pin_mismatch");
@@ -532,6 +534,7 @@ struct Runtime {
             model_params.tensor_buft_overrides = tensor_overrides.data();
             model_params.no_host = true;
         }
+        std::cerr << "AURAGO_DECISIONS_STARTUP phase=loading_model\n";
         model = llama_model_load_from_file(config.model_path.string().c_str(), model_params);
         if (!model) throw std::runtime_error("model_load_failed");
         if (config.allow_cpu_offload && (config.gpu_layers < 1 || config.gpu_layers >= static_cast<int>(model->layers.size()))) throw std::runtime_error("gpu_layer_count_invalid");
@@ -555,10 +558,12 @@ struct Runtime {
         mtmd_params.warmup = false;
         mtmd_params.preflight_callback = preflight_node;
         mtmd_params.preflight_callback_user_data = &projector_ops;
+        std::cerr << "AURAGO_DECISIONS_STARTUP phase=loading_projector\n";
         mtmd = mtmd_init_from_file(config.projector_path.string().c_str(), model, mtmd_params);
         if (!mtmd) throw std::runtime_error("projector_load_failed");
         marker = mtmd_get_marker(mtmd) ? mtmd_get_marker(mtmd) : "";
         if (marker.empty()) throw std::runtime_error("image_marker_unavailable");
+        std::cerr << "AURAGO_DECISIONS_STARTUP phase=warming_up\n";
         warmup_and_attest();
         if (!offload.attested) throw std::runtime_error("device_attestation_incomplete");
         if (!config.allow_cpu_offload && !config.allow_cpu && (!offload.model_layers_on_device || !offload.projector_on_device || !offload.kv_on_device ||

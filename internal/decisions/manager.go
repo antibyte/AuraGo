@@ -30,7 +30,7 @@ type Manager struct {
 	dataDir           string
 	options           managerOptions
 	factory           runtimeFactory
-	resolveModelPaths func(string) (modelPaths, error)
+	resolveModelPaths func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
 	session           runtimeSession
 	sessionStop       context.CancelFunc
 	operationCancel   context.CancelFunc
@@ -63,8 +63,8 @@ func NewManager(cfg config.DecisionsConfig, dataDir string, options ...ManagerOp
 		cfg:     cfg,
 		dataDir: dataDir,
 		options: managerOpts,
-		resolveModelPaths: func(dataDir string) (modelPaths, error) {
-			return validateInstalledModelPaths(filepath.Join(dataDir, "decisions", "models"), DefaultManifest())
+		resolveModelPaths: func(ctx context.Context, dataDir string, progress func(string, int64, int64)) (modelPaths, error) {
+			return validateInstalledModelPaths(ctx, filepath.Join(dataDir, "decisions", "models"), DefaultManifest(), progress)
 		},
 		evalGate:       make(chan struct{}, 1),
 		evalSlots:      make(chan struct{}, 5),
@@ -323,13 +323,20 @@ func (manager *Manager) Install(ctx context.Context) error {
 		return err
 	}
 	manager.setState("installing", "", Progress{Phase: "verifying_model"})
-	cache := newArtifactCache(filepath.Join(manager.dataDir, "decisions", "models"), manager.options.httpClient, manager.updateProgress)
+	progress := func(phase string, current, total int64) { manager.updateProgress(operationID, phase, current, total) }
+	cache := newArtifactCache(filepath.Join(manager.dataDir, "decisions", "models"), manager.options.httpClient, progress)
 	paths, err := cache.ensure(ctx, DefaultManifest())
+	if ctx.Err() != nil {
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	if err != nil {
 		manager.setInstallError(err)
 		return err
 	}
-	if _, err := validateInstalledModelPaths(filepath.Dir(paths.Model), DefaultManifest()); err != nil {
+	if _, err := validateInstalledModelPaths(ctx, filepath.Dir(paths.Model), DefaultManifest(), progress); err != nil {
+		if ctx.Err() != nil {
+			return NewError(CodeCancelled, cancellationCause(callerCtx))
+		}
 		wrapped := WrapError(CodeModelIntegrityFailed, err)
 		manager.setInstallError(wrapped)
 		return wrapped
@@ -357,7 +364,10 @@ func (manager *Manager) AutoStart(ctx context.Context) error {
 	if !enabled {
 		return nil
 	}
-	_, err := manager.resolveModelPaths(manager.dataDir)
+	_, err := manager.resolveModelPaths(ctx, manager.dataDir, nil)
+	if ctx.Err() != nil {
+		return NewError(CodeCancelled, ctx.Err())
+	}
 	manager.mu.Lock()
 	current := manager.cfg.Enabled && !manager.closed && manager.policyGeneration == policyGeneration &&
 		manager.generation == generation && manager.operationID == operationID
@@ -441,7 +451,13 @@ func (manager *Manager) Start(ctx context.Context) error {
 	manager.mu.RLock()
 	startPolicyGeneration := manager.policyGeneration
 	manager.mu.RUnlock()
-	paths, err := manager.resolveModelPaths(manager.dataDir)
+	manager.setState("starting", "", Progress{Phase: "verifying_model"})
+	paths, err := manager.resolveModelPaths(ctx, manager.dataDir, func(phase string, current, total int64) {
+		manager.updateProgress(operationID, phase, current, total)
+	})
+	if ctx.Err() != nil {
+		return NewError(CodeCancelled, cancellationCause(callerCtx))
+	}
 	if err != nil {
 		wrapped := NewError(CodeModelNotInstalled, err)
 		manager.setInstallError(wrapped)
@@ -496,7 +512,9 @@ func (manager *Manager) Start(ctx context.Context) error {
 			lastErr = NewError(CodeCancelled, cancellationCause(callerCtx))
 			return false
 		}
-		candidateSession, startErr := manager.factory.start(ctx, deployment, device, paths, cfg, access, manager.dataDir)
+		candidateSession, startErr := manager.factory.start(ctx, deployment, device, paths, cfg, access, manager.dataDir, func(phase string) {
+			manager.updateProgress(operationID, phase, 0, 0)
+		})
 		closeCandidate := func() {
 			if candidateSession != nil {
 				closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -537,7 +555,8 @@ func (manager *Manager) Start(ctx context.Context) error {
 			break
 		}
 		acceleratorErr = lastErr
-		if ErrorCode(lastErr) == CodeCancelled {
+		if terminalRuntimeStartError(lastErr) {
+			manager.setRuntimeError(lastErr)
 			return lastErr
 		}
 	}
@@ -552,7 +571,8 @@ func (manager *Manager) Start(ctx context.Context) error {
 					break
 				}
 				acceleratorErr = lastErr
-				if ErrorCode(lastErr) == CodeCancelled {
+				if terminalRuntimeStartError(lastErr) {
+					manager.setRuntimeError(lastErr)
 					return lastErr
 				}
 			}
@@ -569,7 +589,8 @@ func (manager *Manager) Start(ctx context.Context) error {
 			if startCandidate(device) {
 				break
 			}
-			if ErrorCode(lastErr) == CodeCancelled {
+			if terminalRuntimeStartError(lastErr) {
+				manager.setRuntimeError(lastErr)
 				return lastErr
 			}
 		}
@@ -1011,10 +1032,10 @@ func (manager *Manager) authorizeEnabled() error {
 	return nil
 }
 
-func (manager *Manager) updateProgress(phase string, current, total int64) {
+func (manager *Manager) updateProgress(operationID uint64, phase string, current, total int64) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
-	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil {
+	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil || manager.operationID != operationID {
 		return
 	}
 	progress := Progress{Phase: phase, Current: current, Total: total}

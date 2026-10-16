@@ -69,6 +69,16 @@ attestation, request validation, candidate-logit normalization, and status.
 - Downloads are resumable but are published only after exact size and SHA-256
   verification. Native runtime bundles are local release-manifest packages;
   verify the pinned build identity and binary digest before provisioning.
+  Publish with `fileutil.RenameContext` without deleting the existing target.
+  Verification and publication must observe cancellation; failed replacement
+  preserves the previous file.
+- Native and Docker readiness share a five-minute startup budget and bounded
+  probes. A timeout is not evidence of device failure: timeout, cancellation,
+  pin mismatch and invalid startup configuration end the attempt without
+  another device or CPU fallback. Only allowlisted, bounded startup diagnostics
+  may reach status. Progress updates are fenced by the active operation ID.
+  Installation success means installed, not ready; only attested Start grants
+  readiness. The UI keeps accepted operations pending until status resolves.
 
 ## Verification
 

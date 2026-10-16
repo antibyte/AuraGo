@@ -132,7 +132,7 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func validateInstalledModelPaths(directory string, manifest Manifest) (modelPaths, error) {
+func validateInstalledModelPaths(ctx context.Context, directory string, manifest Manifest, progress func(string, int64, int64)) (modelPaths, error) {
 	if err := manifest.Validate(); err != nil {
 		return modelPaths{}, err
 	}
@@ -144,10 +144,10 @@ func validateInstalledModelPaths(directory string, manifest Manifest) (modelPath
 	if err := validateManagedFilePath(directory, projectorPath); err != nil {
 		return modelPaths{}, err
 	}
-	if err := verifyArtifactFile(modelPath, manifest.Model); err != nil {
+	if err := verifyArtifactFile(ctx, modelPath, manifest.Model, progress); err != nil {
 		return modelPaths{}, err
 	}
-	if err := verifyArtifactFile(projectorPath, manifest.Projector); err != nil {
+	if err := verifyArtifactFile(ctx, projectorPath, manifest.Projector, progress); err != nil {
 		return modelPaths{}, err
 	}
 	return modelPaths{Model: modelPath, Projector: projectorPath}, nil
@@ -214,7 +214,7 @@ func copyAtomic(ctx context.Context, source, destination string) error {
 	if err != nil {
 		return err
 	}
-	_, copyErr := io.Copy(output, input)
+	_, copyErr := io.Copy(&artifactProgressWriter{ctx: ctx, writer: output}, input)
 	if copyErr == nil {
 		copyErr = output.Sync()
 	}

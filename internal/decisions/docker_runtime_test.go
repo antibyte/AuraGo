@@ -1,13 +1,53 @@
 package decisions
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
+	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDockerReadinessReportsEarlyExitFromBoundedStderr(t *testing.T) {
+	for _, code := range []string{"model_pin_mismatch", "invalid_configuration", "offload_unavailable", "private/path"} {
+		t.Run(code, func(t *testing.T) {
+			docker := newDecisionsDocker("")
+			logCalls := 0
+			docker.client.HTTPClient().Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				var body []byte
+				if strings.HasSuffix(r.URL.Path, "/json") {
+					body = []byte(`{"Image":"sha256:pinned","State":{"Running":false,"ExitCode":2}}`)
+				} else if strings.HasSuffix(r.URL.Path, "/logs") {
+					logCalls++
+					if r.URL.Query().Get("stderr") != "1" || r.URL.Query().Get("stdout") != "0" || r.URL.Query().Get("tail") != "64" {
+						t.Fatalf("unbounded or wrong stream: %s", r.URL)
+					}
+					payload := []byte("AURAGO_DECISIONS_STARTUP phase=loading_model\nAURAGO_DECISIONS_STARTUP_ERROR code=" + code + "\n")
+					body = make([]byte, 8+len(payload))
+					body[0] = 2
+					binary.BigEndian.PutUint32(body[4:8], uint32(len(payload)))
+					copy(body[8:], payload)
+				} else {
+					t.Fatalf("unexpected request: %s", r.URL)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+			})
+			phase := ""
+			session := &dockerRuntimeSession{nativeRuntimeSession: &nativeRuntimeSession{}, containerID: "test", imageID: "sha256:pinned"}
+			err := docker.waitRuntimeReady(t.Context(), session, func(value string) { phase = value })
+			if ErrorCode(err) != ErrorCode(runtimeStartupError(code)) || logCalls != 1 || phase != "loading_model" {
+				t.Fatalf("early failure: %v, logs=%d phase=%s", err, logCalls, phase)
+			}
+			if strings.Contains(err.Error(), "private") {
+				t.Fatal("raw startup error escaped")
+			}
+		})
+	}
+}
 
 func TestDockerCreatePayloadKeepsReadOnlyMountsAndGPUAccessInHostConfig(t *testing.T) {
 	mounts := []map[string]any{
@@ -67,14 +107,14 @@ func TestDockerDiscoveryLogsSeparateStdoutFromBackendStderr(t *testing.T) {
 	}
 	data := append(frame(2, stderr), frame(1, stdoutOne)...)
 	data = append(data, frame(1, stdoutTwo)...)
-	got, err := dockerStdoutFromMultiplexedLogs(data)
+	got, err := dockerLogStream(data, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != string(append(stdoutOne, stdoutTwo...)) {
 		t.Fatalf("decoded discovery stdout = %q, want only protocol JSON %q", got, append(stdoutOne, stdoutTwo...))
 	}
-	if _, err := dockerStdoutFromMultiplexedLogs(data[:len(data)-1]); err == nil {
+	if _, err := dockerLogStream(data[:len(data)-1], 1); err == nil {
 		t.Fatal("truncated Docker frame was accepted")
 	}
 }
