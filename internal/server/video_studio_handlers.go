@@ -81,6 +81,12 @@ func handleVideoStudio(s *Server) http.HandlerFunc {
 				handleVideoStudioMediaFile(s, w, r, parts[1], parts[3])
 			case len(parts) == 5 && parts[2] == "media" && parts[4] == "poster.jpg":
 				handleVideoStudioPoster(s, w, r, parts[1], parts[3])
+			case len(parts) == 3 && parts[2] == "versions":
+				handleVideoStudioVersions(s, w, r, parts[1])
+			case len(parts) == 4 && parts[2] == "versions":
+				handleVideoStudioVersion(s, w, r, parts[1], parts[3])
+			case len(parts) == 5 && parts[2] == "versions" && parts[4] == "restore":
+				handleVideoStudioVersionRestore(s, w, r, parts[1], parts[3])
 			case len(parts) == 3 && parts[2] == "jobs":
 				if r.Method == http.MethodGet {
 					handleVideoStudioJobList(s, w, r, parts[1])
@@ -450,20 +456,30 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 			return
 		}
-		_, oldData, _, readErr := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(id))
+		oldProject, oldData, _, readErr := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(id))
 		if readErr != nil {
 			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 			return
 		}
+		maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
 		newSize := used - int64(len(oldData)) + int64(len(data))
-		if newSize > int64(cfg.VideoStudio.MaxProjectSizeMB)<<20 {
+		if newSize > maxProject {
 			writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "project_size_limit", "Project storage exceeds the configured project limit.")
 			return
+		}
+		// The document being replaced is kept as an automatic version when none is recent. The snapshot never
+		// blocks the save: it is taken only when it fits the quota, and it is written after the save.
+		snapshot := false
+		if index, indexErr := readVideoStudioVersionIndex(r.Context(), svc, id); indexErr == nil && autoVersionDue(index, videoStudioNow()) && newSize+int64(len(oldData))+videoStudioVersionIndexReserve <= maxProject {
+			snapshot = true
 		}
 		entry, err := svc.WriteFileBytesConditional(r.Context(), videoStudioProjectPath(id)+"/project.json", data, desktop.SourceUser, precondition)
 		if err != nil {
 			writeVideoStudioFileError(w, err)
 			return
+		}
+		if snapshot {
+			_, _ = snapshotVideoStudioVersion(r.Context(), svc, id, videoStudioVersionAuto, "", oldProject.Name, oldData)
 		}
 		version := desktop.NoteVersion(data)
 		w.Header().Set("ETag", version)
