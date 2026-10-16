@@ -83,6 +83,14 @@ not mean offline browser storage: the browser still needs AuraGo. Private book
 responses use `Cache-Control: no-store`; the shared service worker must not cache
 them. Removing a grant blocks cached access too.
 
+Content access is checked again for every request. Closing a reader releases its
+cache lease immediately. Unused reader URLs expire after five minutes; after a
+successful content request they expire after 24 idle hours as a fallback for a
+lost browser session. Active transfers finish without an expiry interruption,
+and expired tickets release their cache leases automatically.
+An unchanged scan preserves reading state even when a source provides no file
+version. For these sources, preparing the book checks its bytes for changes.
+
 Bookshelf requires Desktop administrator access. Source read-only grants permit
 reading and separate library edits when Desktop permits them. Global Desktop
 read-only prevents library, annotation and progress changes while retaining

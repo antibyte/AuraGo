@@ -17,6 +17,9 @@ import (
 	"aurago/internal/bookshelf"
 )
 
+const bookshelfContentTicketIdleTTL = 24 * time.Hour
+const bookshelfInitialContentTicketTTL = 5 * time.Minute
+
 func (s *Server) bookshelfListBooks(w http.ResponseWriter, r *http.Request, runtime *desktopBookshelfRuntime) {
 	query := r.URL.Query()
 	offset, _ := strconv.Atoi(query.Get("offset"))
@@ -200,6 +203,12 @@ func (s *Server) bookshelfBookRoute(w http.ResponseWriter, r *http.Request, runt
 			}
 			s.bookshelfPrepare(w, r, runtime, id)
 			return
+		case "release":
+			if r.Method != http.MethodPost {
+				break
+			}
+			s.bookshelfReleaseTicket(w, r, runtime, id)
+			return
 		case "content":
 			if r.Method == http.MethodGet || r.Method == http.MethodHead {
 				s.bookshelfServeContent(w, r, runtime, id)
@@ -331,7 +340,7 @@ func (s *Server) bookshelfPrepare(w http.ResponseWriter, r *http.Request, runtim
 		return
 	}
 	ticketID := randomBookshelfID()
-	ticket := &bookshelfTicket{BookID: id, SourceID: book.SourceID, SourceGeneration: source.Generation, Path: book.Path, Size: lease.Size, SourceSize: book.Size, BookRevision: book.Revision, CatalogRevision: book.ContentRevision, Revision: lease.Revision, BaseRevision: baseRevision, Format: bookshelfContentType(format), Pinned: book.CachePinned, Expires: time.Now().Add(5 * time.Minute), Lease: lease}
+	ticket := &bookshelfTicket{BookID: id, SourceID: book.SourceID, SourceGeneration: source.Generation, Path: book.Path, Size: lease.Size, SourceSize: book.Size, BookRevision: book.Revision, CatalogRevision: book.ContentRevision, Revision: lease.Revision, BaseRevision: baseRevision, Format: bookshelfContentType(format), Pinned: book.CachePinned, Expires: time.Now().Add(bookshelfInitialContentTicketTTL), Lease: lease}
 	s.bookshelfMu.Lock()
 	if s.bookshelf != runtime || runtime.closed {
 		s.bookshelfMu.Unlock()
@@ -340,10 +349,39 @@ func (s *Server) bookshelfPrepare(w http.ResponseWriter, r *http.Request, runtim
 		return
 	}
 	evicted := pruneBookshelfTickets(runtime)
+	if len(runtime.tickets) >= 128 {
+		s.bookshelfMu.Unlock()
+		closeBookshelfTickets(evicted)
+		_ = lease.Close()
+		writeBookshelfErrorStatus(w, "limit_exceeded", http.StatusTooManyRequests)
+		return
+	}
 	runtime.tickets[ticketID] = ticket
+	ticket.mu.Lock()
+	s.scheduleBookshelfTicketExpiryLocked(runtime, ticketID, ticket)
+	ticket.mu.Unlock()
 	s.bookshelfMu.Unlock()
 	closeBookshelfTickets(evicted)
 	writeJSON(w, map[string]any{"content_url": "/api/desktop/bookshelf/books/" + url.PathEscape(id) + "/content?ticket=" + url.QueryEscape(ticketID), "revision": lease.Revision, "format": format, "size": lease.Size, "book_revision": book.Revision})
+}
+
+func (s *Server) bookshelfReleaseTicket(w http.ResponseWriter, r *http.Request, runtime *desktopBookshelfRuntime, bookID string) {
+	ticketID := strings.TrimSpace(r.URL.Query().Get("ticket"))
+	if ticketID != "" {
+		s.bookshelfMu.Lock()
+		ticket := runtime.tickets[ticketID]
+		if ticket != nil && ticket.BookID == bookID {
+			ticket.revoked.Store(true)
+			delete(runtime.tickets, ticketID)
+		} else {
+			ticket = nil
+		}
+		s.bookshelfMu.Unlock()
+		if ticket != nil {
+			closeBookshelfTickets([]*bookshelfTicket{ticket})
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // enrichBookshelfMetadata performs bounded archive parsing only after an
@@ -392,21 +430,87 @@ func pruneBookshelfTickets(runtime *desktopBookshelfRuntime) []*bookshelfTicket 
 	var evicted []*bookshelfTicket
 	now := time.Now()
 	for id, ticket := range runtime.tickets {
-		if now.After(ticket.Expires) {
+		if !ticket.mu.TryLock() {
+			continue
+		}
+		if ticket.revoked.Load() || ticket.Lease == nil || now.After(ticket.Expires) {
 			ticket.revoked.Store(true)
+			stopBookshelfTicketExpiryLocked(ticket)
 			evicted = append(evicted, ticket)
 			delete(runtime.tickets, id)
 		}
+		ticket.mu.Unlock()
 	}
 	for len(runtime.tickets) >= 128 {
+		removed := false
 		for id, ticket := range runtime.tickets {
+			if !ticket.mu.TryLock() {
+				continue
+			}
 			ticket.revoked.Store(true)
+			stopBookshelfTicketExpiryLocked(ticket)
 			evicted = append(evicted, ticket)
 			delete(runtime.tickets, id)
+			ticket.mu.Unlock()
+			removed = true
+			break
+		}
+		if !removed {
 			break
 		}
 	}
 	return evicted
+}
+
+func stopBookshelfTicketExpiryLocked(ticket *bookshelfTicket) {
+	ticket.expiryGeneration++
+	if ticket.expiryTimer != nil {
+		ticket.expiryTimer.Stop()
+		ticket.expiryTimer = nil
+	}
+}
+
+// scheduleBookshelfTicketExpiryLocked requires ticket.mu and fences callbacks
+// from timers that raced with a successful content request.
+func (s *Server) scheduleBookshelfTicketExpiryLocked(runtime *desktopBookshelfRuntime, id string, ticket *bookshelfTicket) {
+	if ticket.expiryTimer != nil {
+		ticket.expiryTimer.Stop()
+	}
+	ticket.expiryGeneration++
+	generation := ticket.expiryGeneration
+	ticket.expiryTimer = time.AfterFunc(time.Until(ticket.Expires), func() {
+		s.expireBookshelfTicket(runtime, id, ticket, generation)
+	})
+}
+
+func (s *Server) expireBookshelfTicket(runtime *desktopBookshelfRuntime, id string, ticket *bookshelfTicket, generation uint64) {
+	ticket.mu.Lock()
+	if ticket.expiryGeneration != generation || ticket.revoked.Load() || ticket.Lease == nil {
+		ticket.mu.Unlock()
+		return
+	}
+	if time.Now().Before(ticket.Expires) {
+		s.scheduleBookshelfTicketExpiryLocked(runtime, id, ticket)
+		ticket.mu.Unlock()
+		return
+	}
+	ticket.revoked.Store(true)
+	stopBookshelfTicketExpiryLocked(ticket)
+	_ = ticket.Lease.Close()
+	ticket.Lease = nil
+	ticket.mu.Unlock()
+
+	s.bookshelfMu.Lock()
+	if runtime.tickets[id] == ticket {
+		delete(runtime.tickets, id)
+	}
+	s.bookshelfMu.Unlock()
+}
+
+func bookshelfTicketExpired(ticket *bookshelfTicket, now time.Time) bool {
+	ticket.mu.Lock()
+	defer ticket.mu.Unlock()
+	return ticket.revoked.Load() || ticket.Lease == nil || now.After(ticket.Expires)
 }
 
 func (s *Server) bookshelfServeContent(w http.ResponseWriter, r *http.Request, runtime *desktopBookshelfRuntime, bookID string) {
@@ -414,7 +518,7 @@ func (s *Server) bookshelfServeContent(w http.ResponseWriter, r *http.Request, r
 	s.bookshelfMu.Lock()
 	ticket := runtime.tickets[ticketID]
 	s.bookshelfMu.Unlock()
-	if ticket == nil || ticket.revoked.Load() || ticket.BookID != bookID || time.Now().After(ticket.Expires) {
+	if ticket == nil || ticket.BookID != bookID || bookshelfTicketExpired(ticket, time.Now()) {
 		writeBookshelfErrorStatus(w, "content_ticket_expired", http.StatusGone)
 		return
 	}
@@ -454,7 +558,8 @@ func (s *Server) bookshelfServeContent(w http.ResponseWriter, r *http.Request, r
 	}
 	ticket.mu.Lock()
 	defer ticket.mu.Unlock()
-	if ticket.revoked.Load() || ticket.BookID != bookID || time.Now().After(ticket.Expires) || ticket.Lease == nil || !s.bookshelfEnabled() {
+	now := time.Now()
+	if ticket.revoked.Load() || ticket.BookID != bookID || now.After(ticket.Expires) || ticket.Lease == nil || !s.bookshelfEnabled() {
 		writeBookshelfErrorStatus(w, "content_ticket_expired", http.StatusGone)
 		return
 	}
@@ -464,6 +569,10 @@ func (s *Server) bookshelfServeContent(w http.ResponseWriter, r *http.Request, r
 	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
 	w.Header().Set("Cache-Control", "no-store")
 	http.ServeContent(w, r, path.Base(ticket.Path), time.Time{}, &bookshelfContentReader{ctx: r.Context(), server: s, ticket: ticket, source: ticket.Lease.File})
+	if r.Context().Err() == nil && !ticket.revoked.Load() && s.bookshelfEnabled() {
+		ticket.Expires = time.Now().Add(bookshelfContentTicketIdleTTL)
+		s.scheduleBookshelfTicketExpiryLocked(runtime, ticketID, ticket)
+	}
 }
 
 type bookshelfContentReader struct {
@@ -477,7 +586,7 @@ func (r *bookshelfContentReader) check() error {
 	if err := r.ctx.Err(); err != nil {
 		return err
 	}
-	if r.ticket == nil || r.ticket.revoked.Load() || time.Now().After(r.ticket.Expires) || r.server == nil || !r.server.bookshelfEnabled() {
+	if r.ticket == nil || r.ticket.revoked.Load() || r.server == nil || !r.server.bookshelfEnabled() {
 		return bookshelf.ErrSourceRevoked
 	}
 	return nil

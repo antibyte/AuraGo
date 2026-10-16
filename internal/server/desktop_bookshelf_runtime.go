@@ -77,6 +77,8 @@ type bookshelfTicket struct {
 	Format           string
 	Pinned           bool
 	Expires          time.Time
+	expiryTimer      *time.Timer
+	expiryGeneration uint64
 	Lease            *bookshelf.Lease
 }
 
@@ -248,6 +250,7 @@ func (s *Server) shutdownDesktopBookshelf() {
 func closeBookshelfTickets(tickets []*bookshelfTicket) {
 	for _, ticket := range tickets {
 		ticket.mu.Lock()
+		stopBookshelfTicketExpiryLocked(ticket)
 		if ticket.Lease != nil {
 			_ = ticket.Lease.Close()
 			ticket.Lease = nil

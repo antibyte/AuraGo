@@ -26,7 +26,9 @@
         function progress() {
             if (!pdf || disposed) return;
             const y = Math.max(0, Math.min(1, viewport.scrollTop / Math.max(1, spread.clientHeight)));
-            options.onProgress?.({ locator: { page: pageNumber, y }, fraction: Math.min(1, (pageNumber - 1 + y) / pdf.numPages) });
+            const visibleEnd = Math.max(0, Math.min(1, (viewport.scrollTop + viewport.clientHeight) / Math.max(1, spread.clientHeight)));
+            const pages = Math.min(settings.spread ? 2 : 1, pdf.numPages - pageNumber + 1);
+            options.onProgress?.({ locator: { page: pageNumber, y }, fraction: Math.min(1, (pageNumber - 1 + visibleEnd * pages) / pdf.numPages) });
         }
         function drawAnnotations() {
             spread.querySelectorAll('[data-bookshelf-highlight]').forEach(el => el.remove());

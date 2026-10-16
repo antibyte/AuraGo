@@ -103,6 +103,63 @@
         return window.BookshelfPDFReader.create(container, options);
     }
 
-    window.BookshelfReader = Object.freeze({ create: (container, options) =>
-        String(options.book.format).toLowerCase() === 'pdf' ? createPDF(container, options) : createEbook(container, options) });
+    async function create(container, options) {
+        const url = new URL(contentURL(options.contentURL));
+        if (!/^\/api\/desktop\/bookshelf\/books\/[^/]+\/content$/.test(url.pathname)) throw new Error('bookshelf_invalid_resource');
+        const releaseURL = new URL(url.href);
+        releaseURL.pathname = releaseURL.pathname.replace(/\/content$/, '/release');
+        releaseURL.hash = '';
+
+        const originalSignal = options.signal;
+        const lifecycle = new AbortController();
+        let disposed = false, released = false, reader = null, innerDispose = null;
+        function cleanup() {
+            window.removeEventListener('pagehide', dispose);
+            originalSignal?.removeEventListener('abort', dispose);
+        }
+        function release() {
+            if (released) return;
+            released = true;
+            cleanup();
+            if (!releaseURL.searchParams.get('ticket')) return;
+            try {
+                void fetch(releaseURL.href, { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => {});
+            } catch (_) { /* Best-effort lease cleanup; the server expires unconsumed tickets. */ }
+        }
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            cleanup();
+            try { innerDispose?.(); } finally {
+                lifecycle.abort();
+                release();
+            }
+        }
+
+        window.addEventListener('pagehide', dispose, { once: true });
+        originalSignal?.addEventListener('abort', dispose, { once: true });
+        if (originalSignal?.aborted) {
+            dispose();
+            throw new DOMException('Reader closed', 'AbortError');
+        }
+
+        try {
+            const createOptions = Object.assign({}, options, { contentURL: url.href, signal: lifecycle.signal });
+            reader = String(options.book.format).toLowerCase() === 'pdf'
+                ? await createPDF(container, createOptions)
+                : await createEbook(container, createOptions);
+            if (disposed) {
+                reader?.dispose?.();
+                throw new DOMException('Reader closed', 'AbortError');
+            }
+            innerDispose = reader?.dispose?.bind(reader) || null;
+            reader.dispose = dispose;
+            return reader;
+        } catch (error) {
+            dispose();
+            throw error;
+        }
+    }
+
+    window.BookshelfReader = Object.freeze({ create });
 }());

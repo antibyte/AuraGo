@@ -29,6 +29,8 @@ AuraGo adaptation:
   uses a bounded stream in the AuraGo adapter.
 - `source/paginator.js` guards late resize/font callbacks after its section
   document has been disposed, including rapid chapter/book changes.
+- `source/comic-book.js` matches image extensions without case sensitivity and
+  preserves the original archive paths when loading pages.
 - Upstream's experimental PDF import is replaced at bundle time; AuraGo's
   existing PDF.js supplies text selection, search and passive canvas rendering.
 

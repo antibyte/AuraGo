@@ -318,24 +318,26 @@
         }
 
         async function loadBooks(pageOffset = 0) {
-            if (state.loading || state.disposed || appDisabled()) return;
+            if (state.disposed || appDisabled()) return;
             const generation = ++state.bookLoadGeneration;
+            const offset = Math.max(0, Math.floor(Number(pageOffset) / PAGE_SIZE) * PAGE_SIZE);
+            const params = {
+                q: state.query, source_id: state.sourceId, collection_id: state.collectionId,
+                status: state.statusFilter, sort: state.sort,
+                offset, limit: PAGE_SIZE
+            };
             state.loading = true;
-            state.offset = Math.max(0, Math.floor(Number(pageOffset) / PAGE_SIZE) * PAGE_SIZE);
+            state.offset = offset;
             state.books = [];
             state.error = '';
             paintShelf();
             try {
-                const result = await request(api.books, {
-                    q: state.query, source_id: state.sourceId, collection_id: state.collectionId,
-                    status: state.statusFilter, sort: state.sort,
-                    offset: state.offset, limit: PAGE_SIZE
-                });
+                const result = await request(api.books, params);
                 if (state.disposed || generation !== state.bookLoadGeneration) return;
                 const page = Array.isArray(result.books) ? result.books : [];
                 state.books = page;
                 state.total = Number(result.total) || 0;
-                state.offset = Math.max(0, Math.floor(Number(pageOffset) / PAGE_SIZE) * PAGE_SIZE);
+                state.offset = offset;
                 state.selected = state.books.find(item => item.id === state.selected?.id) || state.books.find(item => Number(item.progress?.fraction) > 0) || state.books[0] || null;
                 if (!state.books.some(item => item.id === state.focusedBookId)) state.focusedBookId = state.selected?.id || '';
                 state.metadata = state.selected;
@@ -1010,7 +1012,24 @@
             const panel = by('[data-reader-panel]');
             panel.hidden = !state.panel;
             if (!state.panel) return;
-            if (state.panel === 'toc') panel.innerHTML = `<h2>${esc(t('contents'))}</h2>${state.toc.length ? `<ol>${state.toc.map((item, index) => `<li><button type="button" data-toc="${index}">${esc(item.label || item.title || t('chapter') + ' ' + (index + 1))}</button></li>`).join('')}</ol>` : `<p>${esc(t('contents_unavailable'))}</p>`}`;
+            if (state.panel === 'toc') {
+                let renderedItems = 0;
+                const renderToc = (items, parentPath = '', depth = 0) => {
+                    if (depth >= 16 || renderedItems >= 8000) return '';
+                    const entries = [];
+                    for (let index = 0; index < items.length && renderedItems < 8000; index++) {
+                        renderedItems++;
+                        const item = items[index];
+                        if (!item || typeof item !== 'object') continue;
+                        const path = parentPath ? `${parentPath}.${index}` : String(index);
+                        const children = Array.isArray(item.subitems) && item.subitems.length ? renderToc(item.subitems, path, depth + 1) : '';
+                        entries.push(`<li><button type="button" data-toc="${path}">${esc(item.label || item.title || t('chapter') + ' ' + (index + 1))}</button>${children}</li>`);
+                    }
+                    return entries.length ? `<ol>${entries.join('')}</ol>` : '';
+                };
+                const contents = renderToc(state.toc);
+                panel.innerHTML = `<h2>${esc(t('contents'))}</h2>${contents || `<p>${esc(t('contents_unavailable'))}</p>`}`;
+            }
             if (state.panel === 'search') panel.innerHTML = `<h2>${esc(t('find_in_book'))}</h2><form data-reader-search><label>${esc(t('search'))}<input type="search" name="query" autofocus></label><button type="submit" class="bs-primary">${esc(t('search'))}</button></form><div data-reader-results></div>`;
             if (state.panel === 'settings') {
                 const format = String(state.selected?.format || '').toLowerCase();
@@ -1029,10 +1048,6 @@
                 if (zoom) zoom.value = state.readerPrefs.zoom == null ? 'auto' : String(state.readerPrefs.zoom);
             }
             if (state.panel === 'thumbnails') renderThumbnails(panel);
-            if (state.panel === 'settings') {
-                panel.querySelector('[data-pref="width"]').value = state.readerPrefs.width;
-                panel.querySelector('[data-pref="theme"]').value = state.readerPrefs.theme;
-            }
             if (state.panel === 'annotations') {
                 panel.innerHTML = `<h2>${esc(t('notes_bookmarks'))}</h2><div class="bs-annotation-actions"><button type="button" data-annotation-add="bookmark">☆ ${esc(t('add_bookmark'))}</button><button type="button" data-annotation-add="highlight">▰ ${esc(t('highlight'))}</button><button type="button" data-annotation-add="note">✎ ${esc(t('add_note'))}</button></div><div class="bs-annotation-list">${state.annotations.length ? state.annotations.map((item, index) => { const currentRendition = Boolean(item.rendition_revision) && item.rendition_revision === state.renditionRevision; return `<article class="${currentRendition ? '' : 'is-historical'}"><button type="button" class="bs-annotation-jump" data-annotation-jump="${index}" ${currentRendition ? '' : 'disabled'}><strong>${esc(t(item.kind || 'bookmark'))}</strong><span>${esc(item.text || (item.locator?.page ? t('page') + ' ' + item.locator.page : t('bookmarked_location')))}</span>${currentRendition ? '' : `<small>${esc(t('annotation_previous_edition'))}</small>`}</button><button type="button" data-annotation-delete="${esc(item.id)}" aria-label="${esc(t('delete_annotation'))}" ${readOnly() ? 'disabled' : ''}>×</button></article>`; }).join('') : `<p>${esc(t('no_annotations'))}</p>`}</div>`;
             }
@@ -1280,7 +1295,16 @@
             if (addChoice) { addChoice === 'source' ? openAddDialog() : uploadDialog(); return; }
             if (event.target.closest('[data-dialog-close]')) { closeDialog(); return; }
             if (event.target.closest('[data-position]')) return;
-            if (event.target.closest('[data-toc]')) { const index = Number(event.target.closest('[data-toc]').dataset.toc); state.reader?.goTo?.(state.toc[index]?.href || state.toc[index]?.locator || state.toc[index]); return; }
+            if (event.target.closest('[data-toc]')) {
+                let items = state.toc, item;
+                for (const index of event.target.closest('[data-toc]').dataset.toc.split('.').map(Number)) {
+                    item = Array.isArray(items) ? items[index] : null;
+                    if (!item) return;
+                    items = item.subitems;
+                }
+                state.reader?.goTo?.(item.href || item.locator || item);
+                return;
+            }
             if (event.target.closest('[data-annotation-add]')) { addAnnotation(event.target.closest('[data-annotation-add]').dataset.annotationAdd).catch(error => inform(readableError(error, t('save_failed')), true)); return; }
             if (event.target.closest('[data-annotation-jump]')) {
                 const item = state.annotations[Number(event.target.closest('[data-annotation-jump]').dataset.annotationJump)];
@@ -1456,6 +1480,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        state.bookLoadGeneration++;
         state.readerToken++;
         clearTimeout(state.searchTimer);
         clearTimeout(state.progressTimer);

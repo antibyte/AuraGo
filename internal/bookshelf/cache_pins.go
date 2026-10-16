@@ -24,6 +24,7 @@ func (s *Service) SetCachePinned(ctx context.Context, bookID string, expectedBoo
 	if book.Revision != expectedBookRevision {
 		return CacheInfo{}, ErrConflict
 	}
+	pinRevision := expectedBookRevision
 	var lease *Lease
 	var source Source
 	if pinned {
@@ -35,6 +36,16 @@ func (s *Service) SetCachePinned(ctx context.Context, bookID string, expectedBoo
 		source, err = s.GetSource(ctx, book.SourceID)
 		if err != nil {
 			return CacheInfo{}, err
+		}
+		preparedBook, err := s.GetBook(ctx, bookID)
+		if err != nil {
+			return CacheInfo{}, err
+		}
+		if preparedBook.Revision != expectedBookRevision {
+			if book.ContentRevision == lease.Revision || preparedBook.Revision != expectedBookRevision+1 || preparedBook.ContentRevision != lease.Revision {
+				return CacheInfo{}, ErrConflict
+			}
+			pinRevision = preparedBook.Revision
 		}
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -49,7 +60,7 @@ func (s *Service) SetCachePinned(ctx context.Context, bookID string, expectedBoo
 	} else if err != nil {
 		return CacheInfo{}, err
 	}
-	if currentRevision != expectedBookRevision {
+	if currentRevision != pinRevision {
 		return CacheInfo{}, ErrConflict
 	}
 	if pinned {
@@ -72,7 +83,7 @@ func (s *Service) SetCachePinned(ctx context.Context, bookID string, expectedBoo
 			return CacheInfo{}, fmt.Errorf("unpin bookshelf cache snapshot: %w", err)
 		}
 	}
-	res, err := tx.ExecContext(ctx, `UPDATE books SET revision=revision+1 WHERE id=? AND revision=?`, bookID, expectedBookRevision)
+	res, err := tx.ExecContext(ctx, `UPDATE books SET revision=revision+1 WHERE id=? AND revision=?`, bookID, pinRevision)
 	if err != nil {
 		return CacheInfo{}, fmt.Errorf("update bookshelf cache pin revision: %w", err)
 	}

@@ -76,6 +76,11 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	books := sampleBookshelfFixtureBooks()
 	byID := make(map[string]map[string]any, len(books))
 	createdSources := make(chan map[string]any, 1)
+	bookLoadRequests := make(chan string, 8)
+	slowSearchStarted := make(chan struct{})
+	releaseSlowSearch := make(chan struct{})
+	var releaseSlowSearchOnce sync.Once
+	t.Cleanup(func() { releaseSlowSearchOnce.Do(func() { close(releaseSlowSearch) }) })
 	var collectionMu sync.Mutex
 	collectionIDs := []string{"siddhartha", "1984", "dispossessed", "stranger"}
 	collectionRevision := 1
@@ -183,6 +188,23 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"collection": collection()})
 		case "books":
 			query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+			if query == "__bookshelf_slow_search__" {
+				bookLoadRequests <- query + ":" + r.URL.Query().Get("offset")
+				close(slowSearchStarted)
+				<-releaseSlowSearch
+				_ = json.NewEncoder(w).Encode(map[string]any{"books": []any{}, "total": 0})
+				return
+			}
+			if query == "__bookshelf_latest_search__" {
+				offset := r.URL.Query().Get("offset")
+				bookLoadRequests <- query + ":" + offset
+				book := books[2]
+				if offset == "36" {
+					book = books[0]
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"books": []map[string]any{book}, "total": 37})
+				return
+			}
 			filtered := make([]map[string]any, 0, len(books))
 			candidates := books
 			if r.URL.Query().Get("collection_id") == "classics" {
@@ -217,7 +239,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/bookshelf-fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{if(opts.body && !(opts.body instanceof FormData) && typeof opts.body==="object"){opts={...opts,body:JSON.stringify(opts.body),headers:{"Content-Type":"application/json",...(opts.headers||{})}};}const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async()=>true};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];window.__slowResponseParsed=false;window.__disposeRequestStarted=false;window.__disposeResponseParsed=false;const nativeFetch=window.fetch.bind(window);window.fetch=(input,...args)=>{const url=String(input);if(url.includes('__bookshelf_dispose_search__')){window.__disposeRequestStarted=true;return new Promise(resolve=>{window.__releaseDisposeRequest=()=>resolve({ok:true,statusText:'OK',json:async()=>{window.__disposeResponseParsed=true;return{books:[],total:0};}});});}return nativeFetch(input,...args).then(response=>{if(url.includes('__bookshelf_slow_search__')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__slowResponseParsed=true;return body;});}return response;});};addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{if(opts.body && !(opts.body instanceof FormData) && typeof opts.body==="object"){opts={...opts,body:JSON.stringify(opts.body),headers:{"Content-Type":"application/json",...(opts.headers||{})}};}const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async()=>true};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
 	})
 	fixtureURL := ""
 	if address := os.Getenv("AURAGO_BOOKSHELF_FIXTURE_ADDR"); address != "" {
@@ -318,13 +340,80 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	page.MustElement(`[data-action="library"]`).MustClick()
 	page.MustWait(`() => document.querySelectorAll('.bs-book').length===9`)
 	page.MustElement(`.bs-book-select[data-book="1984"]`).MustClick()
-	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && !!document.querySelector('[data-toc]')`)
+	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && !!document.querySelector('[data-toc]') && typeof BookshelfApp.instances.get('bookshelf-fixture').reader?.goTo==='function'`)
+	page.MustEval(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); state.readerData={isFixedLayout:true}; state.selected.format='pdf'; state.toc=[{label:'Part I',href:'part.xhtml',subitems:[{label:'Nested chapter',locator:{cfi:'epubcfi(/6/4[chapter2]!)'}}]}]; state.__originalGoTo=state.reader.goTo; state.reader.goTo=locator=>{window.__bookshelfTOCLocator=locator;}; }`)
+	page.MustElement(`[data-reader-action="settings"]`).MustClick()
+	if !page.MustEval(`() => !!document.querySelector('[data-pref="fit"]') && !!document.querySelector('[data-pref="zoom"]') && !document.querySelector('[data-pref="width"]') && !document.querySelector('[data-pref="theme"]')`).Bool() {
+		t.Fatal("fixed-layout settings did not render only their supported controls")
+	}
+	if errs := page.MustEval(`() => JSON.stringify(window.errors)`).Str(); errs != "[]" {
+		t.Fatalf("fixed-layout settings raised a browser error: %s", errs)
+	}
+	page.MustElement(`[data-reader-action="toc"]`).MustClick()
+	if !page.MustEval(`() => { const child=document.querySelector('[data-toc="0.0"]'); return child instanceof HTMLButtonElement && !!child.closest('ol ol') && child.tabIndex>=0; }`).Bool() {
+		t.Fatal("nested table-of-contents chapter is missing or not keyboard accessible")
+	}
+	page.MustElement(`[data-toc="0.0"]`).MustClick()
+	if !page.MustEval(`() => window.__bookshelfTOCLocator?.cfi === 'epubcfi(/6/4[chapter2]!)'`).Bool() {
+		t.Fatal("nested table-of-contents navigation lost its chapter locator")
+	}
+	page.MustEval(`() => { let item={label:'Deepest',locator:'deepest'}; for(let i=0;i<10000;i++) item={label:'Depth '+i,subitems:[item]}; BookshelfApp.instances.get('bookshelf-fixture').toc=[item]; }`)
+	page.MustElement(`[data-reader-action="settings"]`).MustClick()
+	page.MustElement(`[data-reader-action="toc"]`).MustClick()
+	if count := page.MustEval(`() => document.querySelectorAll('[data-toc]').length`).Int(); count != 16 {
+		t.Fatalf("deep table of contents rendered %d items before the depth bound, want 16", count)
+	}
+	if errs := page.MustEval(`() => JSON.stringify(window.errors)`).Str(); errs != "[]" {
+		t.Fatalf("deep table of contents raised a browser error: %s", errs)
+	}
 	if visible := page.MustEval(`() => document.querySelector('.bs-library-view').getBoundingClientRect().height > 0`).Bool(); visible {
 		t.Fatal("reader mode must hide the library and use the available window")
 	}
 	page.MustScreenshot(filepath.Join(dir, "reader-from-shelf.png"))
 	page.MustElement(`[data-action="back"]`).MustClick()
 	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='library' && !document.querySelector('[data-reader-host] iframe')`)
+	search.MustSelectAllText().MustInput("__bookshelf_slow_search__")
+	select {
+	case <-slowSearchStarted:
+	case <-time.After(3 * time.Second):
+		t.Fatal("slow Bookshelf query did not start")
+	}
+	if request := <-bookLoadRequests; request != "__bookshelf_slow_search__:0" {
+		t.Fatalf("slow Bookshelf query used unexpected page: %q", request)
+	}
+	search.MustSelectAllText().MustInput("__bookshelf_latest_search__")
+	select {
+	case request := <-bookLoadRequests:
+		if request != "__bookshelf_latest_search__:0" {
+			t.Fatalf("latest Bookshelf query used unexpected page: %q", request)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("latest Bookshelf query was dropped while an older request was pending")
+	}
+	page.MustWait(`() => document.querySelector('[data-book="dispossessed"]') && BookshelfApp.instances.get('bookshelf-fixture').query==='__bookshelf_latest_search__'`)
+	page.MustElement(`[data-action="page"][data-offset="36"]`).MustClick()
+	select {
+	case request := <-bookLoadRequests:
+		if request != "__bookshelf_latest_search__:36" {
+			t.Fatalf("Bookshelf next page used an unexpected offset: %q", request)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Bookshelf next-page request did not start")
+	}
+	page.MustWait(`() => document.querySelector('[data-book="siddhartha"]') && BookshelfApp.instances.get('bookshelf-fixture').offset===36`)
+	releaseSlowSearchOnce.Do(func() { close(releaseSlowSearch) })
+	page.MustWait(`() => window.__slowResponseParsed && document.querySelector('[data-book="siddhartha"]') && BookshelfApp.instances.get('bookshelf-fixture').offset===36`)
+	if errs := page.MustEval(`() => JSON.stringify(window.errors)`).Str(); errs != "[]" {
+		t.Fatalf("overlapping Bookshelf queries raised a browser error: %s", errs)
+	}
+	search.MustSelectAllText().MustInput("__bookshelf_dispose_search__")
+	page.MustWait(`() => window.__disposeRequestStarted`)
+	page.MustEval(`() => { window.__shelfBeforeDispose=document.querySelector('[data-shelf]').innerHTML; window.__bookshelfStateBeforeDispose=BookshelfApp.instances.get('bookshelf-fixture'); window.__totalBeforeDispose=window.__bookshelfStateBeforeDispose.total; }`)
+	page.MustEval(`() => { BookshelfApp.dispose('bookshelf-fixture'); window.__releaseDisposeRequest(); }`)
+	page.MustWait(`() => window.__disposeResponseParsed`)
+	if !page.MustEval(`() => document.querySelector('[data-shelf]').innerHTML===window.__shelfBeforeDispose && window.__bookshelfStateBeforeDispose.total===window.__totalBeforeDispose`).Bool() {
+		t.Fatal("a Bookshelf request completed into a disposed app instance")
+	}
 	if errs := page.MustEval(`() => JSON.stringify(window.errors)`).Str(); errs != "[]" {
 		t.Fatalf("browser errors: %s", errs)
 	}

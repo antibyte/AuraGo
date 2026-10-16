@@ -149,6 +149,9 @@ func checkSourceGeneration(ctx context.Context, tx *sql.Tx, id string, expected 
 // ResolveLocal materializes a selected path using the source's read-only Stat
 // adapter. It never reads or changes the source file contents.
 func (s *Service) ResolveLocal(ctx context.Context, sourceID, relativePath string) (Book, error) {
+	lock := s.sourceLock(sourceID)
+	lock.Lock()
+	defer lock.Unlock()
 	source, err := s.GetSource(ctx, sourceID)
 	if err != nil {
 		return Book{}, err
@@ -255,16 +258,20 @@ func (s *Service) AddBook(ctx context.Context, sourceID string, entry Entry, met
 	contentChanged := false
 	if !newBook {
 		revision = oldRevision
-		contentChanged = oldContentRevision != entry.Revision || oldSize != entry.Size || oldFormat != format
+		contentChanged = oldSize != entry.Size || oldFormat != format || entry.Revision != "" && oldContentRevision != entry.Revision
 		if contentChanged {
 			revision++
 		}
+	}
+	contentRevision := entry.Revision
+	if !newBook && contentRevision == "" && !contentChanged {
+		contentRevision = oldContentRevision
 	}
 	tags, _ := json.Marshal(metadata.Tags)
 	_, err = tx.ExecContext(ctx, `INSERT INTO books(id,source_id,path,content_revision,size,format,title,author,series,description,tags,available,revision,last_scanned_at)
 		VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?) ON CONFLICT(id) DO UPDATE SET content_revision=excluded.content_revision,size=excluded.size,format=excluded.format,
 		title=CASE WHEN books.title='' THEN excluded.title ELSE books.title END,available=1,revision=excluded.revision,last_scanned_at=excluded.last_scanned_at`,
-		id, source.ID, entry.Path, entry.Revision, entry.Size, format, metadata.Title, metadata.Author, metadata.Series, metadata.Description, string(tags), revision, nowText())
+		id, source.ID, entry.Path, contentRevision, entry.Size, format, metadata.Title, metadata.Author, metadata.Series, metadata.Description, string(tags), revision, nowText())
 	if err != nil {
 		return Book{}, fmt.Errorf("add bookshelf book: %w", err)
 	}

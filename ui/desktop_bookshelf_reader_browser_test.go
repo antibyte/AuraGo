@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -65,9 +66,12 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 		t.Fatal("Chrome or Edge required")
 	}
 	var sink, exceptions atomic.Int32
+	var releaseMu sync.Mutex
+	releases := make(map[string]int)
 	var epub []byte
 	formats := bookshelfFormatFixtures(t)
-	corpus := []string{"txt", "html", "fb2", "fb2.zip", "mobi", "cbz", "pdf", "epub-fixed"}
+	formats["cbz-uppercase"] = bytes.ReplaceAll(formats["cbz"], []byte(".png"), []byte(".PNG"))
+	corpus := []string{"txt", "html", "fb2", "fb2.zip", "mobi", "cbz", "cbz-uppercase", "pdf", "pdf-single", "epub-fixed"}
 	if fixture := os.Getenv("AURAGO_BOOKSHELF_KF8_FIXTURE"); fixture != "" {
 		data, err := os.ReadFile(fixture)
 		if err != nil {
@@ -84,11 +88,25 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/sink", func(w http.ResponseWriter, r *http.Request) { sink.Add(1); w.WriteHeader(204) })
 	mux.HandleFunc("/api/desktop/bookshelf/books/fixture/content", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("format") == "broken" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		data := epub
 		if f := r.URL.Query().Get("format"); f != "" {
 			data = formats[f]
 		}
 		http.ServeContent(w, r, "fixture", time.Time{}, bytes.NewReader(data))
+	})
+	mux.HandleFunc("/api/desktop/bookshelf/books/fixture/release", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Query().Get("ticket") == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		releaseMu.Lock()
+		releases[r.URL.Query().Get("ticket")]++
+		releaseMu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/api/desktop/bookshelf/reader", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -98,8 +116,9 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 	mux.HandleFunc("/bookshelf-reader-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><title>Bookshelf reader fixture</title><style>html,body{margin:0;height:100%}#host{height:600px;width:800px}</style><div id="host"></div><script src="/js/desktop/apps/bookshelf/reader.js"></script><script>
-        window.progress=[];window.messages=[];window.bookshelfEscaped=false;
-        window.openBook=async function(saved){window.controller?.dispose();window.readerError=null;try{window.controller=await BookshelfReader.create(document.querySelector('#host'),{book:{title:'Reader fixture',format:'epub'},contentURL:'/api/desktop/bookshelf/books/fixture/content',progress:saved,onProgress:p=>progress.push(p),onReady:r=>window.readerReady=r,onError:e=>window.readerError=e.message,settings:{fontSize:19}});return true}catch(e){window.readerError=e.message;return false}};
+        window.progress=[];window.messages=[];window.bookshelfEscaped=false;window.issuedTickets=0;
+        window.createReader=options=>{const url=new URL(options.contentURL,location.href);url.searchParams.set('ticket','fixture-'+(++issuedTickets));return BookshelfReader.create(document.querySelector('#host'),{...options,contentURL:url.href});};
+        window.openBook=async function(saved){window.controller?.dispose();window.readerError=null;try{window.controller=await createReader({book:{title:'Reader fixture',format:'epub'},contentURL:'/api/desktop/bookshelf/books/fixture/content',progress:saved,onProgress:p=>progress.push(p),onReady:r=>window.readerReady=r,onError:e=>window.readerError=e.message,settings:{fontSize:19}});return true}catch(e){window.readerError=e.message;return false}};
         window.openBook();</script>`)
 	})
 	srv := httptest.NewServer(mux)
@@ -155,7 +174,7 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 	}
 	for _, format := range corpus {
 		t.Run(format, func(t *testing.T) {
-			result := page.MustEval(`async format=>{controller.dispose();window.readerReady=null;window.readerError=null;window.progress=[];const readerFormat=format==='epub-fixed'?'epub':format;try{controller=await BookshelfReader.create(document.querySelector('#host'),{book:{title:'Corpus',format:readerFormat,path:'fixture.'+readerFormat},contentURL:'/api/desktop/bookshelf/books/fixture/content?format='+encodeURIComponent(format),onReady:r=>window.readerReady=r,onProgress:p=>progress.push(p),onError:e=>window.readerError=e.message});return ''}catch(e){return e.message}}`, format).Str()
+			result := page.MustEval(`async format=>{controller.dispose();window.readerReady=null;window.readerError=null;window.progress=[];const readerFormat=format.split('-')[0];try{controller=await createReader({book:{title:'Corpus',format:readerFormat,path:'fixture.'+readerFormat},contentURL:'/api/desktop/bookshelf/books/fixture/content?format='+encodeURIComponent(format),onReady:r=>window.readerReady=r,onProgress:p=>progress.push(p),onError:e=>window.readerError=e.message});return ''}catch(e){return e.message}}`, format).Str()
 			if result != "" {
 				t.Fatal(result)
 			}
@@ -168,13 +187,38 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 				}
 				page.MustEval(`async()=>{await controller.setPreferences({fit:'page',spread:true,direction:'rtl'});await controller.next();await controller.prev()}`)
 			}
-			if format == "cbz" || format == "pdf" {
+			if strings.HasPrefix(format, "cbz") || strings.HasPrefix(format, "pdf") {
 				if !page.MustEval(`async()=>{const blob=await controller.getThumbnail(0);return blob instanceof Blob&&blob.size>0}`).Bool() {
 					t.Fatal("missing page thumbnail")
 				}
 				page.MustEval(`async()=>{await controller.setPreferences({fit:'page',spread:true,direction:'rtl'});await controller.next();await controller.prev();}`)
 			}
-			if format != "cbz" {
+			if strings.HasPrefix(format, "cbz") {
+				if count := page.MustEval(`()=>readerReady.toc.length`).Int(); count != 2 {
+					t.Fatalf("CBZ omitted pages with capitalized extensions: %d", count)
+				}
+			}
+			if strings.HasPrefix(format, "pdf") {
+				page.MustEval(`async()=>{await controller.setPreferences({fit:'page',spread:false,zoom:0});await controller.goTo({page:1})}`)
+				if !page.MustEval(`()=>progress.at(-1).fraction===1/readerReady.pageCount&&progress.at(-1).locator.y===0`).Bool() {
+					t.Fatal("fit-page progress does not include the visible page", page.MustEval(`()=>progress.at(-1)`))
+				}
+				page.MustEval(`async()=>{await controller.setPreferences({spread:true});await controller.goTo({page:1})}`)
+				if !page.MustEval(`()=>progress.at(-1).fraction===Math.min(2,readerReady.pageCount)/readerReady.pageCount`).Bool() {
+					t.Fatal("spread progress omits the second page")
+				}
+				page.MustEval(`async()=>{await controller.setPreferences({spread:false,zoom:4});await controller.goTo({page:readerReady.pageCount})}`)
+				if !page.MustEval(`()=>progress.at(-1).fraction<1`).Bool() {
+					t.Fatal("partly visible last page finished prematurely")
+				}
+				page.MustEval(`()=>{const viewport=document.querySelector('.bookshelf-pdf-viewport');viewport.scrollTop=viewport.scrollHeight}`)
+				page.MustWait(`()=>progress.at(-1).fraction===1&&progress.at(-1).locator.y>0`)
+				page.MustEval(`async()=>{const saved=progress.at(-1).locator;await controller.goTo({page:1});await controller.goTo(saved)}`)
+				if !page.MustEval(`()=>progress.at(-1).fraction===1&&progress.at(-1).locator.y>0`).Bool() {
+					t.Fatal("PDF scroll locator did not restore the completed page")
+				}
+			}
+			if !strings.HasPrefix(format, "cbz") {
 				query := "lighthouse"
 				if format == "azw3" {
 					query = "Rabbit"
@@ -185,9 +229,35 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 			}
 		})
 	}
-	page.MustEval(`()=>controller.dispose()`)
+	page.MustEval(`()=>{window.dispatchEvent(new Event('pagehide'));controller.dispose();controller.dispose()}`)
 	if page.MustEval(`()=>document.querySelectorAll('#host iframe').length`).Int() != 0 {
 		t.Fatal("frame leaked after disposal")
+	}
+	if !page.MustEval(`async()=>{try{await createReader({book:{title:'Broken',format:'txt'},contentURL:'/api/desktop/bookshelf/books/fixture/content?format=broken'});return false}catch{return true}}`).Bool() {
+		t.Fatal("failed content transfer unexpectedly opened a reader")
+	}
+	if !page.MustEval(`async()=>{const abort=new AbortController();abort.abort();try{await createReader({book:{title:'Aborted',format:'txt'},contentURL:'/api/desktop/bookshelf/books/fixture/content?format=txt',signal:abort.signal});return false}catch{return true}}`).Bool() {
+		t.Fatal("aborted reader unexpectedly opened")
+	}
+	expectedReleases := page.MustEval(`()=>issuedTickets`).Int()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		releaseMu.Lock()
+		count := len(releases)
+		for ticket, released := range releases {
+			if released != 1 {
+				releaseMu.Unlock()
+				t.Fatalf("ticket %s released %d times, want exactly once", ticket, released)
+			}
+		}
+		releaseMu.Unlock()
+		if count == expectedReleases {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("closed/failed readers released %d tickets, want %d", count, expectedReleases)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	if exceptions.Load() != 0 {
 		t.Fatalf("%d unexpected reader exceptions", exceptions.Load())
@@ -285,11 +355,19 @@ func bookshelfFormatFixtures(t *testing.T) map[string][]byte {
 	binary.BigEndian.PutUint32(pdb[78:], 94)
 	binary.BigEndian.PutUint32(pdb[86:], 94+uint32(len(header)))
 	mobi := append(append(pdb, header...), text...)
+	return map[string][]byte{"txt": []byte("The lighthouse shines over the harbor."), "html": text, "fb2": fb2, "fb2.zip": makeZip(map[string][]byte{"book.fb2": fb2}), "mobi": mobi, "cbz": makeZip(map[string][]byte{"001.png": cover.Bytes(), "002.PNG": cover.Bytes()}), "pdf": bookshelfPDFfixture(2), "pdf-single": bookshelfPDFfixture(1)}
+}
+
+func bookshelfPDFfixture(pageCount int) []byte {
 	var pdf bytes.Buffer
 	fmt.Fprint(&pdf, "%PDF-1.4\n")
 	offsets := []int{0}
 	stream := "BT /F1 18 Tf 30 130 Td (The lighthouse shines.) Tj ET"
 	objects := []string{"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(stream), stream), "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"}
+	if pageCount == 1 {
+		objects[1] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>"
+		objects = objects[:5]
+	}
 	for i, obj := range objects {
 		offsets = append(offsets, pdf.Len())
 		fmt.Fprintf(&pdf, "%d 0 obj\n%s\nendobj\n", i+1, obj)
@@ -300,5 +378,5 @@ func bookshelfFormatFixtures(t *testing.T) map[string][]byte {
 		fmt.Fprintf(&pdf, "%010d 00000 n \n", offset)
 	}
 	fmt.Fprintf(&pdf, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF", len(objects)+1, xref)
-	return map[string][]byte{"txt": []byte("The lighthouse shines over the harbor."), "html": text, "fb2": fb2, "fb2.zip": makeZip(map[string][]byte{"book.fb2": fb2}), "mobi": mobi, "cbz": makeZip(map[string][]byte{"001.png": cover.Bytes(), "002.png": cover.Bytes()}), "pdf": pdf.Bytes()}
+	return pdf.Bytes()
 }

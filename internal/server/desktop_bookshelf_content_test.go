@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"aurago/internal/bookshelf"
 	"aurago/internal/config"
@@ -172,6 +174,27 @@ func TestBookshelfPrepareServesReadOnlyRevisionBoundSnapshots(t *testing.T) {
 			}
 
 			contentRequest := httptest.NewRequest("GET", prepared.ContentURL, nil)
+			ticketID := contentRequest.URL.Query().Get("ticket")
+			server.bookshelfMu.Lock()
+			ticket := runtime.tickets[ticketID]
+			server.bookshelfMu.Unlock()
+			if ticket == nil {
+				t.Fatal("prepared content ticket was not retained")
+			}
+			initialRemaining := time.Until(ticket.Expires)
+			if initialRemaining <= 0 || initialRemaining > bookshelfInitialContentTicketTTL {
+				t.Fatalf("unconsumed ticket lifetime = %s, want at most %s", initialRemaining, bookshelfInitialContentTicketTTL)
+			}
+			// Model the first successful reader request six minutes ago. Its
+			// completed transfer renewed the ticket, so later PDF ranges remain valid.
+			simulatedIssue := time.Now().Add(-6 * time.Minute)
+			ticket.mu.Lock()
+			ticket.Expires = simulatedIssue.Add(bookshelfContentTicketIdleTTL)
+			server.scheduleBookshelfTicketExpiryLocked(runtime, ticketID, ticket)
+			ticket.mu.Unlock()
+			if bookshelfTicketExpired(ticket, time.Now()) {
+				t.Fatal("content ticket expired six minutes after issue")
+			}
 			contentRequest.Header.Set("Range", "bytes=2-6")
 			contentResponse := httptest.NewRecorder()
 			server.bookshelfServeContent(contentResponse, contentRequest, runtime, book.ID)
@@ -179,16 +202,189 @@ func TestBookshelfPrepareServesReadOnlyRevisionBoundSnapshots(t *testing.T) {
 				t.Fatalf("range status/body = %d/%q, want 206/%q", contentResponse.Code, contentResponse.Body.String(), "fline")
 			}
 
-			var ticket *bookshelfTicket
-			for _, current := range runtime.tickets {
-				ticket = current
+			// Drive the ticket close to its idle deadline, then prove a later
+			// authorized range request renews the deadline and fences its old timer.
+			ticket.mu.Lock()
+			ticket.Expires = time.Now().Add(time.Minute)
+			oldGeneration := ticket.expiryGeneration
+			ticket.mu.Unlock()
+			renewalRequest := httptest.NewRequest("GET", prepared.ContentURL, nil)
+			renewalRequest.Header.Set("Range", "bytes=0-2")
+			renewalResponse := httptest.NewRecorder()
+			server.bookshelfServeContent(renewalResponse, renewalRequest, runtime, book.ID)
+			if renewalResponse.Code != http.StatusPartialContent || renewalResponse.Body.String() != "off" {
+				t.Fatalf("renewal range status/body = %d/%q, want 206/%q", renewalResponse.Code, renewalResponse.Body.String(), "off")
 			}
-			server.revokeDesktopBookshelfSourceTickets(runtime, "remote-books")
-			if ticket == nil || !ticket.revoked.Load() {
+			ticket.mu.Lock()
+			remaining := time.Until(ticket.Expires)
+			ticket.mu.Unlock()
+			if remaining < 23*time.Hour {
+				t.Fatalf("successful content request did not renew the idle expiry: remaining=%s", remaining)
+			}
+			server.expireBookshelfTicket(runtime, ticketID, ticket, oldGeneration)
+			if ticket.revoked.Load() || ticket.Lease == nil {
+				t.Fatal("stale expiry timer revoked a renewed ticket")
+			}
+
+			// Simulate an admitted transfer crossing its idle deadline. Pruning
+			// must skip the locked ticket; source revocation must still set its
+			// atomic gate before waiting to close the lease.
+			ticket.mu.Lock()
+			ticket.Expires = time.Now().Add(-time.Second)
+			if _, err := ticket.Lease.File.Seek(0, io.SeekStart); err != nil {
+				ticket.mu.Unlock()
+				t.Fatal(err)
+			}
+			activeReader := &bookshelfContentReader{ctx: ctx, server: server, ticket: ticket, source: ticket.Lease.File}
+			buf := make([]byte, len(adapter.content))
+			n, err := activeReader.Read(buf)
+			if err != nil || string(buf[:n]) != string(adapter.content) {
+				ticket.mu.Unlock()
+				t.Fatalf("active transfer failed after idle expiry: read=%q err=%v", buf[:n], err)
+			}
+			pruned := make(chan []*bookshelfTicket, 1)
+			go func() {
+				server.bookshelfMu.Lock()
+				evicted := pruneBookshelfTickets(runtime)
+				server.bookshelfMu.Unlock()
+				pruned <- evicted
+			}()
+			select {
+			case evicted := <-pruned:
+				if len(evicted) != 0 || ticket.revoked.Load() {
+					ticket.mu.Unlock()
+					t.Fatalf("pruning evicted an active transfer: evicted=%d revoked=%v", len(evicted), ticket.revoked.Load())
+				}
+			case <-time.After(time.Second):
+				ticket.mu.Unlock()
+				<-pruned
+				t.Fatal("ticket pruning blocked behind an active transfer")
+			}
+			revoked := make(chan struct{})
+			go func() {
+				server.revokeDesktopBookshelfSourceTickets(runtime, "remote-books")
+				close(revoked)
+			}()
+			deadline := time.NewTimer(time.Second)
+			for !ticket.revoked.Load() {
+				select {
+				case <-deadline.C:
+					ticket.mu.Unlock()
+					<-revoked
+					t.Fatal("source revocation could not reach an active transfer")
+				default:
+					time.Sleep(time.Millisecond)
+				}
+			}
+			deadline.Stop()
+			ticket.mu.Unlock()
+			<-revoked
+			if !ticket.revoked.Load() {
 				t.Fatal("source revocation did not invalidate the active ticket")
 			}
 			if err := (&bookshelfContentReader{ctx: ctx, server: server, ticket: ticket, source: bytes.NewReader(nil)}).check(); !errors.Is(err, bookshelf.ErrSourceRevoked) {
 				t.Fatalf("revoked range reader check = %v, want source revoked", err)
+			}
+
+			cleanupResponse := httptest.NewRecorder()
+			server.bookshelfPrepare(cleanupResponse, httptest.NewRequest("POST", "/api/desktop/bookshelf/books/"+book.ID+"/prepare", nil), runtime, book.ID)
+			if cleanupResponse.Code != 200 {
+				t.Fatalf("prepare for idle cleanup status = %d: %s", cleanupResponse.Code, cleanupResponse.Body.String())
+			}
+			var cleanupPrepared struct {
+				ContentURL string `json:"content_url"`
+			}
+			if err := json.Unmarshal(cleanupResponse.Body.Bytes(), &cleanupPrepared); err != nil {
+				t.Fatal(err)
+			}
+			cleanupRequest := httptest.NewRequest("GET", cleanupPrepared.ContentURL, nil)
+			cleanupTicketID := cleanupRequest.URL.Query().Get("ticket")
+			server.bookshelfMu.Lock()
+			cleanupTicket := runtime.tickets[cleanupTicketID]
+			server.bookshelfMu.Unlock()
+			if cleanupTicket == nil || cleanupTicket.Lease == nil {
+				t.Fatal("second prepared ticket did not retain a cache lease")
+			}
+			leaseFile := cleanupTicket.Lease.File
+			cleanupTicket.mu.Lock()
+			cleanupTicket.Expires = time.Now().Add(-time.Second)
+			generation := cleanupTicket.expiryGeneration
+			cleanupTicket.mu.Unlock()
+			server.expireBookshelfTicket(runtime, cleanupTicketID, cleanupTicket, generation)
+			server.bookshelfMu.Lock()
+			remainingTicket := runtime.tickets[cleanupTicketID]
+			server.bookshelfMu.Unlock()
+			if remainingTicket != nil || !cleanupTicket.revoked.Load() || cleanupTicket.Lease != nil {
+				t.Fatal("idle expiry did not revoke and remove the ticket lease without another prepare")
+			}
+			if _, err := leaseFile.Stat(); err == nil {
+				t.Fatal("expired cache lease file remains open")
+			}
+
+			busyTickets := make([]*bookshelfTicket, 128)
+			server.bookshelfMu.Lock()
+			for i := range busyTickets {
+				busyTickets[i] = &bookshelfTicket{Expires: time.Now().Add(-time.Hour)}
+				busyTickets[i].mu.Lock()
+				runtime.tickets[randomBookshelfID()] = busyTickets[i]
+			}
+			server.bookshelfMu.Unlock()
+			capacityResponse := httptest.NewRecorder()
+			server.bookshelfPrepare(capacityResponse, httptest.NewRequest("POST", "/api/desktop/bookshelf/books/"+book.ID+"/prepare", nil), runtime, book.ID)
+			for _, busy := range busyTickets {
+				busy.mu.Unlock()
+			}
+			if capacityResponse.Code != http.StatusTooManyRequests {
+				t.Fatalf("prepare with 128 active tickets returned %d: %s", capacityResponse.Code, capacityResponse.Body.String())
+			}
+			server.bookshelfMu.Lock()
+			runtime.tickets = make(map[string]*bookshelfTicket)
+			server.bookshelfMu.Unlock()
+
+			releasePrepareResponse := httptest.NewRecorder()
+			server.bookshelfPrepare(releasePrepareResponse, httptest.NewRequest("POST", "/api/desktop/bookshelf/books/"+book.ID+"/prepare", nil), runtime, book.ID)
+			if releasePrepareResponse.Code != http.StatusOK {
+				t.Fatalf("prepare for explicit release status = %d: %s", releasePrepareResponse.Code, releasePrepareResponse.Body.String())
+			}
+			var releasePrepared struct {
+				ContentURL string `json:"content_url"`
+			}
+			if err := json.Unmarshal(releasePrepareResponse.Body.Bytes(), &releasePrepared); err != nil {
+				t.Fatal(err)
+			}
+			releaseURL := strings.Replace(releasePrepared.ContentURL, "/content?", "/release?", 1)
+			releaseRequest := httptest.NewRequest("POST", releaseURL, nil)
+			releaseTicketID := releaseRequest.URL.Query().Get("ticket")
+			server.bookshelfMu.Lock()
+			releaseTicket := runtime.tickets[releaseTicketID]
+			server.bookshelfMu.Unlock()
+			if releaseTicket == nil || releaseTicket.Lease == nil {
+				t.Fatal("prepared release ticket did not retain a cache lease")
+			}
+			releaseFile := releaseTicket.Lease.File
+			wrongBookRelease := httptest.NewRecorder()
+			server.bookshelfBookRoute(wrongBookRelease, releaseRequest, runtime, "different-book/release")
+			server.bookshelfMu.Lock()
+			stillPresent := runtime.tickets[releaseTicketID] == releaseTicket
+			server.bookshelfMu.Unlock()
+			if wrongBookRelease.Code != http.StatusNoContent || !stillPresent || releaseTicket.revoked.Load() {
+				t.Fatalf("mismatched-book release status=%d present=%v revoked=%v", wrongBookRelease.Code, stillPresent, releaseTicket.revoked.Load())
+			}
+			releaseResponse := httptest.NewRecorder()
+			server.bookshelfBookRoute(releaseResponse, releaseRequest, runtime, book.ID+"/release")
+			server.bookshelfMu.Lock()
+			stillPresent = runtime.tickets[releaseTicketID] == releaseTicket
+			server.bookshelfMu.Unlock()
+			if releaseResponse.Code != http.StatusNoContent || stillPresent || !releaseTicket.revoked.Load() || releaseTicket.Lease != nil || releaseTicket.expiryTimer != nil {
+				t.Fatalf("ticket release status=%d present=%v revoked=%v lease=%v timer=%v", releaseResponse.Code, stillPresent, releaseTicket.revoked.Load(), releaseTicket.Lease != nil, releaseTicket.expiryTimer != nil)
+			}
+			if _, err := releaseFile.Stat(); err == nil {
+				t.Fatal("released cache lease file remains open")
+			}
+			repeatRelease := httptest.NewRecorder()
+			server.bookshelfBookRoute(repeatRelease, releaseRequest, runtime, book.ID+"/release")
+			if repeatRelease.Code != http.StatusNoContent {
+				t.Fatalf("repeated release status = %d, want 204", repeatRelease.Code)
 			}
 		})
 	}

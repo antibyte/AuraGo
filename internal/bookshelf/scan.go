@@ -187,16 +187,20 @@ func (s *Service) applyScan(ctx context.Context, source Source, seen map[string]
 		contentChanged := false
 		if !isNew {
 			revision = oldRevision
-			contentChanged = oldContentRevision != entry.revision || oldSize != entry.size || oldFormat != entry.format
+			contentChanged = oldSize != entry.size || oldFormat != entry.format || entry.revision != "" && oldContentRevision != entry.revision
 			changed = contentChanged || oldAvailable == 0
 			if changed {
 				revision++
 			}
 		}
+		contentRevision := entry.revision
+		if !isNew && contentRevision == "" && !contentChanged {
+			contentRevision = oldContentRevision
+		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO books(id,source_id,path,content_revision,size,format,title,available,revision,scan_token,last_scanned_at)
 			VALUES(?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(id) DO UPDATE SET content_revision=excluded.content_revision,size=excluded.size,format=excluded.format,
 				title=CASE WHEN books.title='' THEN excluded.title ELSE books.title END,available=1,revision=excluded.revision,scan_token=excluded.scan_token,last_scanned_at=excluded.last_scanned_at`,
-			id, source.ID, entry.path, entry.revision, entry.size, entry.format, entry.title, revision, token, nowText())
+			id, source.ID, entry.path, contentRevision, entry.size, entry.format, entry.title, revision, token, nowText())
 		if err != nil {
 			return fmt.Errorf("write bookshelf scan result: %w", err)
 		}

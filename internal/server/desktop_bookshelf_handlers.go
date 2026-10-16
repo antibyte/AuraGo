@@ -150,9 +150,9 @@ func bookshelfRouteWrites(r *http.Request, action string) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		return false
 	}
-	// Preparing content reads the source and writes only the private bounded
-	// cache. It remains available when the catalog is globally read-only.
-	if r.Method == http.MethodPost && strings.HasSuffix(action, "/prepare") {
+	// Preparing and releasing content leases only read the source or change the
+	// private bounded cache. They remain available when the catalog is read-only.
+	if r.Method == http.MethodPost && (strings.HasSuffix(action, "/prepare") || strings.HasSuffix(action, "/release")) {
 		return false
 	}
 	return true

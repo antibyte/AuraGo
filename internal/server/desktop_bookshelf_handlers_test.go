@@ -100,11 +100,51 @@ func TestBookshelfPrepareIsReadOnlyWhileCatalogChangesAreWrites(t *testing.T) {
 	if bookshelfRouteWrites(request, "/books/book-1/prepare") {
 		t.Fatal("preparing a bounded content cache must remain available in desktop read-only mode")
 	}
+	request = httptest.NewRequest("POST", "/api/desktop/bookshelf/books/book-1/release?ticket=ticket", nil)
+	if bookshelfRouteWrites(request, "/books/book-1/release") {
+		t.Fatal("releasing a private content lease must remain available in desktop read-only mode")
+	}
 	if !bookshelfRouteWrites(request, "/books/book-1/convert") {
 		t.Fatal("conversion creates a managed rendition and must be a catalog write")
 	}
 	if !bookshelfRouteWrites(request, "/books/resolve") {
 		t.Fatal("explicit local catalog resolution must be treated as a write")
+	}
+}
+
+func TestBookshelfReleaseRequiresAdminAndExactOriginButAllowsReadOnly(t *testing.T) {
+	s, _, adminToken, readerToken := newBearerSchemeTestServer(t)
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	cases := []struct {
+		name       string
+		token      string
+		origin     string
+		wantStatus int
+	}{
+		{name: "admin can release in read-only mode", token: adminToken, origin: "https://bookshelf.test", wantStatus: http.StatusOK},
+		{name: "non-admin cannot release", token: readerToken, origin: "https://bookshelf.test", wantStatus: http.StatusForbidden},
+		{name: "missing origin rejected", token: adminToken, wantStatus: http.StatusForbidden},
+		{name: "wrong origin rejected", token: adminToken, origin: "https://evil.test", wantStatus: http.StatusForbidden},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "https://bookshelf.test/api/desktop/bookshelf/books/book-1/release?ticket=ticket", nil)
+			request.Header.Set("Authorization", "Bearer "+test.token)
+			if test.origin != "" {
+				request.Header.Set("Origin", test.origin)
+			}
+			response := httptest.NewRecorder()
+			allowed := bookshelfAuthorize(s, response, request, bookshelfRouteWrites(request, "/books/book-1/release"))
+			if test.wantStatus == http.StatusOK {
+				if !allowed {
+					t.Fatalf("authorized release rejected: %d %s", response.Code, response.Body.String())
+				}
+				return
+			}
+			if allowed || response.Code != test.wantStatus {
+				t.Fatalf("release allowed=%v status=%d, want rejected with %d", allowed, response.Code, test.wantStatus)
+			}
+		})
 	}
 }
 
