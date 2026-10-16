@@ -233,8 +233,6 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 		"function speedOf(clip) { const speed = Number(clip.speed); return speed > 0 ? speed : 1; }",
 		"return !clip.disabled && at >= Number(clip.start || 0)",
 		"(Number(clip.offset || 0) + (at - Number(clip.start || 0)) * speedOf(clip)) / fps()",
-		"if (index <= 0 || sorted[index - 1].disabled) return null;",
-		"if (!after || after.disabled) return null;",
 		"near = !current && !clip.disabled && clip.start > at",
 		"!clip.audio_detached && speedOf(clip) <= 4 && soloed && !shuttleMuted()",
 		"const playRate = clamp(speedOf(clip) * (forwardPlayback ? rate : 1), 0.0625, 16);",
@@ -243,6 +241,39 @@ func TestVideoStudioPreviewKeepsSpeedAndDisabledRules(t *testing.T) {
 		if !bytes.Contains(preview, []byte(want)) {
 			t.Errorf("preview part lost a 1b rule: %s", want)
 		}
+	}
+	if t.Failed() {
+		return
+	}
+	// The transition rules (formerly the string-pinned transitionIn/transitionOut) are checked by behaviour.
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for the preview rule checks")
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = {};
+require('./js/desktop/apps/video-studio-preview.js');
+const R = window.VideoStudioPreview.rules;
+assert.deepEqual(Object.keys(R).sort(), ['activeAt', 'playBounds', 'transitionPair']);
+const c = (id, start, duration, extra) => Object.assign({id, start, duration}, extra || {});
+const track = clips => ({id: 't', kind: 'video', clips});
+const out = c('a', 0, 40, {transition: {type: 'dissolve', duration: 10}});
+assert.equal(R.transitionPair(track([out, c('b', 30, 40, {disabled: true})]), 35), null, 'a disabled incoming clip cancels the transition (the export agrees)');
+assert.equal(R.transitionPair(track([Object.assign({}, out, {disabled: true}), c('b', 30, 40)]), 35), null, 'a disabled outgoing clip cancels it too');
+const pair = R.transitionPair(track([c('b', 30, 40), out]), 35);
+assert.deepEqual([pair.out.id, pair.inc.id, pair.type, pair.progress], ['a', 'b', 'dissolve', 0.5], 'pairs in timeline order with p = (frame - inc.start) / duration');
+const fade = track([c('x', 0, 40, {transition: {type: 'black', duration: 20}}), c('y', 20, 40)]);
+const black = R.transitionPair(fade, 25);
+assert.deepEqual([black.out.id, black.inc.id, black.type, black.progress], ['x', 'y', 'black', 0.25], 'fade through black is a track-layer pair like the export fadeblack');
+assert.equal(R.transitionPair(fade, 10), null, 'no pair outside the overlap');
+assert.equal(R.activeAt(c('d', 10, 5, {disabled: true}), 12), false, 'disabled clips are never active');
+assert.equal(R.activeAt(c('e', 10, 5), 15), false, 'the clip end is exclusive');
+assert.deepEqual(R.playBounds({tracks: [track([c('f', 0, 30), c('g', 30, 90, {disabled: true})])]}, null), {start: 0, end: 30}, 'disabled clips do not extend playback');
+assert.deepEqual(R.playBounds({tracks: []}, {start: 5, end: 9}), {start: 5, end: 9}, 'the loop range wins');
+`
+	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
+		t.Fatalf("preview rule checks: %v\n%s", err, output)
 	}
 }
 
@@ -377,7 +408,7 @@ func TestVideoStudioNavigationLoadOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("server browser fixture: %v", err)
 	}
-	order := []string{"video-studio-effects.js", "video-studio-timeline.js", "video-studio-ruler.js", "video-studio-edit.js", "video-studio-navigation.js", "video-studio-source-edit.js", "video-studio-folders.js", "video-studio-inspector.js", "video-studio-editing.js", "video-studio-source.js", "video-studio-tracks.js", "video-studio-markers.js", "video-studio-transport.js", "video-studio-derive.js", "video-studio-projects.js", "video-studio-mediabin.js", "video-studio-menus.js", "video-studio.js"}
+	order := []string{"video-studio-effects.js", "video-studio-painter2d.js", "video-studio-preview.js", "video-studio-timeline.js","video-studio-ruler.js", "video-studio-edit.js", "video-studio-navigation.js", "video-studio-source-edit.js", "video-studio-folders.js", "video-studio-inspector.js", "video-studio-editing.js", "video-studio-source.js", "video-studio-tracks.js", "video-studio-markers.js", "video-studio-transport.js", "video-studio-derive.js", "video-studio-projects.js", "video-studio-mediabin.js", "video-studio-menus.js", "video-studio.js"}
 	for name, source := range map[string][]byte{"module loader": loader, "ui browser fixture": fixture, "server browser fixture": server} {
 		last := -1
 		for _, file := range order {

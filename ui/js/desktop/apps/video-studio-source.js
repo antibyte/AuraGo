@@ -91,7 +91,7 @@
         s.sourceProject = sourceProject(s.project, asset);
         s.sourcePreview = window.VideoStudioPreview.mount(s.q('[data-source-canvas]'), () => s.sourceProject, () => s.sourceFrame,
             frame => { const current = currentAsset(s); s.sourceFrame = current ? Math.min(frame, lastFrame(s, current)) : frame; renderSourceTime(s); },
-            playing => { if (!playing && s.sourceShuttle) s.sourceShuttle.reset(); syncSourcePlay(s, playing); }, () => previewScale(s), { stopAtEnd: true });
+            playing => { if (!playing && s.sourceShuttle) s.sourceShuttle.reset(); syncSourcePlay(s, playing); }, () => previewScale(s), { stopAtEnd: true, painter: '2d' });
         s.sourceShuttle = P.createShuttle({
             getFrame: () => s.sourceFrame,
             seek: frame => { if (s.sourcePreview) s.sourcePreview.seek(frame); },

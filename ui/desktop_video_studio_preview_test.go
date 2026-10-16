@@ -54,11 +54,12 @@ class AudioContext {
 }
 window.AudioContext=AudioContext;
 let imageDraws=0;
-const layerDraws=[];
-const drawing={fillRect(){},save(){},translate(){},rotate(){},beginPath(){},rect(){},clip(){},drawImage(el){if(el instanceof ImageElement){assert(el.naturalWidth>0&&el.naturalHeight>0,'unloaded or broken image reached canvas');imageDraws++;}if(layers.includes(el))layerDraws.push(el);},restore(){},clearRect(){}};
-const layerDrawing={...drawing,drawImage(el){this.alphas=(this.alphas||[]).concat([[el.src,this.globalAlpha,this.globalCompositeOperation||'source-over']]);}};
+const layerDraws=[], mainFills=[];
+const drawing={fillRect(){mainFills.push([this.fillStyle,this.globalAlpha==null?1:this.globalAlpha,this.globalCompositeOperation||'source-over']);},save(){},translate(){},rotate(){},beginPath(){},rect(){},clip(){},drawImage(el){if(el instanceof ImageElement){assert(el.naturalWidth>0&&el.naturalHeight>0,'unloaded or broken image reached canvas');imageDraws++;}if(layers.includes(el))layerDraws.push(el);},restore(){},clearRect(){},getImageData(x,y,w,h){return {width:w,height:h,data:new Uint8ClampedArray(w*h*4)};}};
+const layerDrawing={...drawing,fillRect(){this.fills=(this.fills||[]).concat([[this.fillStyle,this.globalAlpha,this.globalCompositeOperation||'source-over']]);},drawImage(el){this.alphas=(this.alphas||[]).concat([[el.src,this.globalAlpha,this.globalCompositeOperation||'source-over']]);}};
 const canvas={width:0,height:0,getContext:()=>drawing};
 require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-painter2d.js');
 require('./js/desktop/apps/video-studio-preview.js');
 const T=window.VideoStudioTimeline, Preview=window.VideoStudioPreview;
 const clip=(id,assetId,start,duration,transition=null)=>({id,asset_id:assetId,start,offset:0,duration,x:0,y:0,width:1,height:1,rotation:0,opacity:1,volume:1,fade_in:0,fade_out:0,fit:'contain',transition});
@@ -120,6 +121,28 @@ assert(transitionAudio.closed);
 assert(transitionAudio.sources.every(node=>node.disconnects===1));
 assert(transitionAudio.gains.every(node=>node.disconnects===1));
 
+// Fade through black is a track-layer pair like the export's fadeblack: out·w.out + in·w.inc + opaque black·w.black in
+// the layer (black adds coverage with 'lighter'); the main canvas only gets its opaque background, no black overlay.
+const blackProject={version:3,name:'Black',width:1280,height:720,fps:30,assets:[red,blue],tracks:[{id:'video',kind:'video',clips:[clip('fade-out','red',0,80,{type:'black',duration:20}),clip('fade-in','blue',60,60)]}]};
+assert(T.validTimeline(blackProject),'a black transition overlaps like the others');
+const weights=window.VideoStudioEffects.fadeBlackWeights(0.25), round=value=>Math.round(value*100)/100;
+const drawsBefore=(layerDrawing.alphas||[]).length, fillsBefore=(layerDrawing.fills||[]).length;
+mainFills.length=0;
+const black=Preview.mount(canvas,()=>blackProject,()=>65,()=>{},()=>{});
+assert.equal(layers.length,2,'the black pair composes in its own track layer');
+const wantDraws=[];
+if (weights.out>0) wantDraws.push(['http://localhost/media/red.mp4',round(weights.out),'source-over']);
+if (weights.inc>0) wantDraws.push(['http://localhost/media/blue.mp4',round(weights.inc),'lighter']);
+assert.deepEqual(layerDrawing.alphas.slice(drawsBefore).map(([src,alpha,mode])=>[src,round(alpha),mode]),wantDraws,'each clip carries its fadeblack weight in the layer');
+assert.deepEqual((layerDrawing.fills||[]).slice(fillsBefore).map(([style,alpha,mode])=>[style,round(alpha),mode]),weights.black>0?[['#000',round(weights.black),'lighter']]:[],'opaque black adds its weight in the layer');
+assert(mainFills.length>0&&mainFills.every(([style,alpha,mode])=>style==='#000'&&alpha===1&&mode==='source-over'),'the main canvas only gets its opaque background');
+assert.equal(black.painterKind(),'2d','the default painter is 2D');
+const shot=black.capture();
+assert.deepEqual([shot.width,shot.height,shot.data.length],[1280,720,1280*720*4],'capture paints and reads the whole canvas through the painter');
+const corner=black.capture({x:10,y:20,width:4,height:2});
+assert.deepEqual([corner.width,corner.height],[4,2],'capture reads a rectangle');
+black.dispose();
+
 const imageAsset={...shared,id:'image',kind:'image',has_audio:false,media_url:'/media/image.png'};
 const imageProject={...longProject,assets:[imageAsset],tracks:[{id:'overlay',kind:'overlay',clips:[clip('image-clip','image',0,30)]}]};
 const imagePreview=Preview.mount(canvas,()=>imageProject,()=>0,()=>{},()=>{});
@@ -159,6 +182,19 @@ shuttle.setRate(4); assert.equal(gain.value,0,'fast forward above 2x is silent')
 shuttle.setRate(1); shuttle.setSolo(['a1']); assert.equal(gain.value,0,'a solo silences embedded video audio');
 shuttle.setSolo([]); assert.equal(gain.value,1);
 shuttle.dispose();
+
+// settle(): a decoded video at its position settles at once; one without decoded data times out with false.
+const settleProject={...longProject,tracks:[{id:'video',kind:'video',clips:[clip('settle','shared',0,30)]}]};
+const settling=Preview.mount(canvas,()=>settleProject,()=>10,()=>{},()=>{});
+const settleElement=allMedia.at(-1);
+settling.settle(500).then(ok=>{
+  assert.equal(ok,true,'a decoded video at its position settles');
+  settleElement.readyState=1;
+  return settling.settle(60);
+}).then(ok=>{
+  assert.equal(ok,false,'a video without decoded data does not settle');
+  settling.dispose();
+});
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("Video Studio preview lifecycle checks: %v\n%s", err, output)
