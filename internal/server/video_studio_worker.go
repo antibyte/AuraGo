@@ -76,16 +76,17 @@ func (m *videoStudioManager) processProbe(ctx context.Context, svc *desktop.Serv
 	if err != nil {
 		return nil, nil, err
 	}
-	asset.ID, asset.Name, asset.Path = record.Asset.ID, record.Asset.Name, record.Path
+	asset.ID, asset.Name, asset.Path, asset.Folder = record.Asset.ID, record.Asset.Name, record.Path, record.Asset.Folder
 	record.Asset = asset
 	record.CreatedAt = time.Now().UTC()
 	if err := m.recordMedia(record); err != nil {
 		return nil, nil, err
 	}
-	if err := m.mergeProjectAsset(ctx, svc, cfg, work.projectID, asset); err != nil {
+	saved, err := m.mergeProjectAsset(ctx, svc, cfg, work.projectID, asset)
+	if err != nil {
 		return nil, nil, err
 	}
-	return nil, map[string]interface{}{"asset": asset}, nil
+	return nil, map[string]interface{}{"asset": saved}, nil
 }
 
 func (m *videoStudioManager) processPreview(ctx context.Context, svc *desktop.Service, job *videoStudioJob, work *videoStudioWork, cfg *config.Config) (*videoStudioArtifact, map[string]interface{}, error) {
@@ -525,11 +526,12 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	if err := m.recordMedia(assetRecord); err != nil {
 		return nil, nil, err
 	}
-	if err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset); err != nil {
+	saved, err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset)
+	if err != nil {
 		return nil, nil, err
 	}
 	mediaPublished = false
-	return nil, map[string]interface{}{"asset": asset, "provider": result.Provider, "model": result.Model, "cost_estimate": result.CostEstimate}, nil
+	return nil, map[string]interface{}{"asset": saved, "provider": result.Provider, "model": result.Model, "cost_estimate": result.CostEstimate}, nil
 }
 
 // providerRequestContext records the uncertain provider outcome when the first
@@ -705,7 +707,9 @@ func (m *videoStudioManager) canonicalProjectAssets(projectID string, input []vi
 	return assets
 }
 
-func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID string, asset videostudio.Asset) error {
+// mergeProjectAsset stores a probed or imported asset in the project document and returns it as saved: at the
+// project's rate, with the name and folder the document owns. A rename or move that landed while the job ran is kept.
+func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID string, asset videostudio.Asset) (videostudio.Asset, error) {
 	lock := m.projectLock(projectID)
 	lock.Lock()
 	defer lock.Unlock()
@@ -713,42 +717,45 @@ func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop
 	for attempt := 0; attempt < 6; attempt++ {
 		project, body, version, err := readVideoStudioProject(ctx, svc, path)
 		if err != nil {
-			return err
+			return videostudio.Asset{}, err
 		}
 		found := false
 		for i := range project.Assets {
-			if project.Assets[i].ID == asset.ID {
-				project.Assets[i] = asset
-				found = true
-				break
+			if project.Assets[i].ID != asset.ID {
+				continue
 			}
+			merged := asset
+			if strings.TrimSpace(project.Assets[i].Name) != "" {
+				merged.Name = project.Assets[i].Name
+			}
+			merged.Folder = project.Assets[i].Folder
+			project.Assets[i] = merged
+			found = true
+			break
 		}
 		if !found {
 			project.Assets = append(project.Assets, asset)
 		}
 		canonical, err := m.canonicalizeProject(projectID, project)
 		if err != nil {
-			return err
+			return videostudio.Asset{}, err
 		}
 		if err := validateVideoStudioProject(canonical); err != nil {
-			return err
+			return videostudio.Asset{}, err
 		}
 		encoded, err := json.Marshal(canonical)
 		if err != nil {
-			return err
+			return videostudio.Asset{}, err
 		}
 		maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
 		used, err := m.projectStorageSize(ctx, svc, projectID)
 		if err != nil {
-			return err
+			return videostudio.Asset{}, err
 		}
-		newTotal := used - int64(len(body)) + int64(len(encoded))
-		if newTotal > maxProject || int64(len(encoded)) > maxProject {
-			return errVideoStudioProjectSizeLimit
+		if used-int64(len(body))+int64(len(encoded)) > maxProject || int64(len(encoded)) > maxProject {
+			return videostudio.Asset{}, errVideoStudioProjectSizeLimit
 		}
 		precondition := func(state desktop.FileWriteState) error {
-			if state.Exists && state.Version != "" { /* byte writer does not populate Version */
-			}
 			current := desktop.NoteVersion(state.Data)
 			if state.Exists && current == version {
 				return nil
@@ -757,16 +764,23 @@ func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop
 		}
 		_, err = svc.WriteFileBytesConditional(ctx, path+"/project.json", encoded, desktop.SourceUser, precondition)
 		if err == nil {
-			return nil
+			for _, item := range canonical.Assets {
+				if item.ID == asset.ID {
+					return item, nil
+				}
+			}
+			return asset, nil
 		}
 		var conflict *desktopFileConflict
 		if !errors.As(err, &conflict) {
-			return err
+			return videostudio.Asset{}, err
 		}
 	}
-	return fmt.Errorf("project changed repeatedly while media metadata was being merged")
+	return videostudio.Asset{}, fmt.Errorf("project changed repeatedly while media metadata was being merged")
 }
 
+// canonicalizeProject replaces every asset with the imported media record, except for the fields the project
+// document owns: the name (a blank name falls back to the imported name) and the folder. Validate checks them.
 func (m *videoStudioManager) canonicalizeProject(projectID string, project videostudio.Project) (videostudio.Project, error) {
 	rate := videostudio.ProjectRate(project)
 	canonical := make([]videostudio.Asset, 0, len(project.Assets))
@@ -778,7 +792,12 @@ func (m *videoStudioManager) canonicalizeProject(projectID string, project video
 		if !videoStudioMediaPathValid(record.Path, record.Asset.ID) {
 			return project, fmt.Errorf("project asset path is not valid")
 		}
-		canonical = append(canonical, videoStudioAssetAtRate(record.Asset, rate))
+		asset := videoStudioAssetAtRate(record.Asset, rate)
+		if name := strings.TrimSpace(item.Name); name != "" {
+			asset.Name = name
+		}
+		asset.Folder = item.Folder
+		canonical = append(canonical, asset)
 	}
 	project.Assets = canonical
 	return project, nil

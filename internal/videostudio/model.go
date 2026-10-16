@@ -44,6 +44,7 @@ type Project struct {
 	Markers  []Marker `json:"markers,omitempty"`
 	InPoint  *int     `json:"in_point,omitempty"`
 	OutPoint *int     `json:"out_point,omitempty"`
+	Folders  []string `json:"folders,omitempty"`
 }
 
 // Marker is a named point (Duration 0) or range on the timeline. Markers never render; they guide editing.
@@ -62,6 +63,7 @@ type Marker struct {
 type Asset struct {
 	ID              string    `json:"id"`
 	Name            string    `json:"name"`
+	Folder          string    `json:"folder,omitempty"`
 	Path            string    `json:"path,omitempty"`
 	Kind            AssetKind `json:"kind"`
 	DurationFrames  int       `json:"duration_frames"`
@@ -70,6 +72,7 @@ type Asset struct {
 	Width           int       `json:"width,omitempty"`
 	Height          int       `json:"height,omitempty"`
 	HasAudio        bool      `json:"has_audio"`
+	HasPoster       bool      `json:"has_poster,omitempty"`
 	SourceFPS       string    `json:"source_fps,omitempty"`
 	Codec           string    `json:"codec,omitempty"`
 	SizeBytes       int64     `json:"size_bytes,omitempty"`
@@ -143,6 +146,11 @@ const (
 	MaxSegmentInputs   = 32
 	MaxSourceDimension = 16384
 	MaxSourcePixels    = 64_000_000
+	// MaxProjectFolders bounds project.folders; empty folders persist there.
+	MaxProjectFolders     = 128
+	MaxFolderDepth        = 4
+	MaxFolderSegmentRunes = 64
+	MaxFolderPathRunes    = 255
 	// MinClipSpeed and MaxClipSpeed bound Clip.Speed; an absent speed (0) plays at 1.
 	MinClipSpeed = 0.25
 	MaxClipSpeed = 16

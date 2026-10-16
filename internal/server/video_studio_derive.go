@@ -196,11 +196,12 @@ func (m *videoStudioManager) importDerivedMedia(ctx context.Context, svc *deskto
 	if err := m.recordMedia(record); err != nil {
 		return videostudio.Asset{}, err
 	}
-	if err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset); err != nil {
+	saved, err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset)
+	if err != nil {
 		return videostudio.Asset{}, err
 	}
 	published = false
-	return asset, nil
+	return saved, nil
 }
 
 // reversedAssetName names a reversed copy after its source: "<name> (reversed).mp4".

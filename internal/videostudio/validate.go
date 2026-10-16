@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var supportedFrameRates = map[int]bool{24: true, 25: true, 30: true, 50: true, 60: true}
@@ -45,6 +47,9 @@ func Validate(project Project) error {
 			return fmt.Errorf("duplicate asset id %q", asset.ID)
 		}
 		assets[asset.ID] = asset
+	}
+	if err := validateProjectFolders(project.Folders); err != nil {
+		return err
 	}
 
 	var videoTracks, audioTracks, overlayTracks, clipCount int
@@ -134,8 +139,11 @@ func validateAsset(asset Asset) error {
 	if !validIdentifier(asset.ID) {
 		return fmt.Errorf("asset id is required and must be at most 128 characters")
 	}
-	if strings.TrimSpace(asset.Name) == "" || len([]rune(asset.Name)) > 255 {
+	if asset.Name == "" || asset.Name != strings.TrimSpace(asset.Name) || len([]rune(asset.Name)) > 255 {
 		return fmt.Errorf("asset %q must have a name of at most 255 characters", asset.ID)
+	}
+	if folder, err := NormalizeFolder(asset.Folder); err != nil || folder != asset.Folder {
+		return fmt.Errorf("asset %q has an invalid folder", asset.ID)
 	}
 	if asset.DurationFrames < 0 || asset.Width < 0 || asset.Height < 0 || asset.DurationUs < 0 || asset.VideoDurationUs < 0 || asset.SizeBytes < 0 {
 		return fmt.Errorf("asset %q has negative media metadata", asset.ID)
@@ -282,6 +290,59 @@ func safeCodecName(name string) string {
 		}
 	}
 	return name
+}
+
+// NormalizeFolder returns the canonical form of a project folder path: "" for the top level, otherwise one to
+// MaxFolderDepth segments joined by "/". Each segment is trimmed, has one to MaxFolderSegmentRunes runes, no control
+// characters and is not "." or ".."; the whole path has at most MaxFolderPathRunes runes.
+func NormalizeFolder(raw string) (string, error) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return "", nil
+	}
+	parts := strings.Split(text, "/")
+	if len(parts) > MaxFolderDepth {
+		return "", fmt.Errorf("folder path has more than %d levels", MaxFolderDepth)
+	}
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "." || part == ".." {
+			return "", fmt.Errorf("folder path has an empty or relative segment")
+		}
+		if utf8.RuneCountInString(part) > MaxFolderSegmentRunes {
+			return "", fmt.Errorf("folder name exceeds %d characters", MaxFolderSegmentRunes)
+		}
+		for _, r := range part {
+			if unicode.IsControl(r) {
+				return "", fmt.Errorf("folder name contains a control character")
+			}
+		}
+		parts[i] = part
+	}
+	path := strings.Join(parts, "/")
+	if utf8.RuneCountInString(path) > MaxFolderPathRunes {
+		return "", fmt.Errorf("folder path exceeds %d characters", MaxFolderPathRunes)
+	}
+	return path, nil
+}
+
+// validateProjectFolders checks project.folders: canonical, non-empty, unique and at most MaxProjectFolders.
+func validateProjectFolders(folders []string) error {
+	if len(folders) > MaxProjectFolders {
+		return fmt.Errorf("project exceeds %d folders", MaxProjectFolders)
+	}
+	seen := make(map[string]struct{}, len(folders))
+	for _, folder := range folders {
+		canonical, err := NormalizeFolder(folder)
+		if err != nil || canonical == "" || canonical != folder {
+			return fmt.Errorf("project folder %q is invalid", folder)
+		}
+		if _, dup := seen[folder]; dup {
+			return fmt.Errorf("duplicate project folder %q", folder)
+		}
+		seen[folder] = struct{}{}
+	}
+	return nil
 }
 
 func validIdentifier(value string) bool {
