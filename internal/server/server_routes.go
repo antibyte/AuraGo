@@ -664,6 +664,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerGameMakerRoutes(mux, s)
 	registerDetectiveRoutes(mux, s)
 	registerNewspaperRoutes(mux, s)
+	registerMailerRoutes(mux, s)
 	registerLocalWikipediaDesktopRoutes(mux, s)
 	registerRetroGamesRoutes(mux, s)
 	registerFlowsRoutes(mux, s)

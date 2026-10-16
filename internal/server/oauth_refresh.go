@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"aurago/internal/agent"
@@ -87,6 +88,9 @@ func refreshAllOAuthTokens(s *Server) {
 			}
 		}
 
+		// Register the refresh token before the network call so transport errors
+		// and provider responses cannot disclose it through shared logs.
+		security.RegisterSensitive(tok.RefreshToken)
 		// Refresh the token
 		s.Logger.Info("[OAuth Refresh] Refreshing token", "provider", prov.ID)
 		newTok, err := refreshOAuthToken(prov, tok.RefreshToken)
@@ -96,21 +100,30 @@ func refreshAllOAuthTokens(s *Server) {
 		}
 
 		// Update vault
-		updated := config.OAuthToken{
-			AccessToken:  newTok.AccessToken,
-			TokenType:    newTok.TokenType,
-			RefreshToken: newTok.RefreshToken,
-		}
+		updated := tok
+		updated.AccessToken = newTok.AccessToken
+		updated.TokenType = newTok.TokenType
+		security.RegisterSensitive(updated.AccessToken)
 		// Some providers don't return a new refresh_token; keep the old one
+		if newTok.RefreshToken != "" {
+			updated.RefreshToken = newTok.RefreshToken
+		}
+		security.RegisterSensitive(updated.RefreshToken)
 		if updated.RefreshToken == "" {
 			updated.RefreshToken = tok.RefreshToken
+		}
+		// The token endpoint is authoritative when it returns scopes. If omitted,
+		// preserve the exact previously granted set rather than deriving it from
+		// current local permission settings.
+		if strings.TrimSpace(newTok.Scope) != "" {
+			updated.Scopes = strings.Fields(newTok.Scope)
 		}
 		if newTok.ExpiresIn > 0 {
 			updated.Expiry = time.Now().Add(time.Duration(newTok.ExpiresIn) * time.Second).UTC().Format(time.RFC3339)
 		}
 
 		tokJSON, _ := json.Marshal(updated)
-		if err := s.Vault.WriteSecret("oauth_"+prov.ID, string(tokJSON)); err != nil {
+		if err := s.Vault.CompareAndSwapSecret("oauth_"+prov.ID, raw, string(tokJSON)); err != nil {
 			s.Logger.Error("[OAuth Refresh] Failed to store refreshed token", "provider", prov.ID, "error", err)
 			continue
 		}

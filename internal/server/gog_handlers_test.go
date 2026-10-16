@@ -61,8 +61,18 @@ func TestGogOAuthUsesPKCEAndRejectsWrongCallback(t *testing.T) {
 	raw, _ := s.Vault.ReadSecret("oauth_state_" + state)
 	var saved gogOAuthSession
 	_ = json.Unmarshal([]byte(raw), &saved)
-	if saved.CodeVerifier == "" || saved.Previous == "" {
+	if saved.CodeVerifier == "" || saved.State != state || saved.ExpiresAt.IsZero() {
 		t.Fatal("missing state")
+	}
+	if saved.Previous == "" {
+		t.Fatal("first authorization did not pin an atomic token marker")
+	}
+	var marker gog.Token
+	if json.Unmarshal([]byte(saved.Previous), &marker) != nil || marker.PendingLogin != state || marker.AccessToken != "" {
+		t.Fatalf("first-login marker is invalid: %#v", marker)
+	}
+	if current, err := s.Vault.ReadSecret(gog.TokenKey("fixture")); err != nil || current != saved.Previous {
+		t.Fatal("first-login marker was not stored before redirect")
 	}
 	callback := "https://evil.invalid/api/gog/oauth/callback?state=" + state + "&code=fixture-code"
 	body, _ := json.Marshal(map[string]string{"url": callback})

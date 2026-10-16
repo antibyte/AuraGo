@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -162,6 +163,7 @@ func oauthTokenFromExchange(tokenResp *tokenExchangeResponse, now time.Time) con
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: tokenResp.RefreshToken,
 		TokenType:    tokenResp.TokenType,
+		Scopes:       strings.Fields(tokenResp.Scope),
 	}
 	if tokenResp.ExpiresIn > 0 {
 		tok.Expiry = now.Add(time.Duration(tokenResp.ExpiresIn) * time.Second).UTC().Format(time.RFC3339)

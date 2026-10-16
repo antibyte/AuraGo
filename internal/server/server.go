@@ -45,6 +45,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/localllm"
 	"aurago/internal/localwiki"
+	"aurago/internal/mailer"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
@@ -291,6 +292,7 @@ type Server struct {
 	cydCreatorProblem         string // generic reason (no paths) initCYDCreator left an enabled feature off
 	Detective                 *detective.Service
 	Newspaper                 *newspaper.Service
+	Mailer                    *mailer.Service
 	Flows                     *flows.Service
 	flowsCatalog              *flowCatalogEnv
 	flowNotify                flowFailureNotifier // flood rule and send slots of flow failure notifications
@@ -812,6 +814,9 @@ func Start(opts StartOptions) error {
 		if s.Newspaper != nil {
 			_ = s.Newspaper.Close()
 		}
+		if s.Mailer != nil {
+			_ = s.Mailer.Close()
+		}
 		if gamemaker.DefaultService() == s.GameMaker {
 			gamemaker.SetDefaultService(nil)
 		}
@@ -942,6 +947,7 @@ func Start(opts StartOptions) error {
 	s.initCYDCreator()
 	s.initDetective()
 	s.initNewspaper()
+	s.initMailer(serverCtx)
 	s.initPersonalRadio()
 	s.initRTLSDR()
 	s.initBluetoothLive(serverCtx)

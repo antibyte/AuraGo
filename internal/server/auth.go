@@ -709,37 +709,38 @@ func ClientIP(r *http.Request, behindProxy bool) string {
 // The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
 // password is configured, so the setup flow still works without a bypass here.
 var authBypassExactPaths = map[string]bool{
-	"/api/health":                      true,
-	"/api/ready":                       true,
-	"/api/i18n":                        true,
-	"/api/auth/status":                 true,
-	"/api/auth/logout":                 true,
-	"/api/security/status":             true,
-	"/api/setup":                       true,
-	"/api/openrouter/models":           true,
-	"/api/composio/callback":           true,
-	"/api/oauth/callback":              true,
-	"/api/remote/ws":                   true, // Remote agent WebSocket — has its own key-based auth
-	"/api/agodesk/ws":                  true, // agodesk WebSocket — performs pairing inside the socket protocol
-	"/api/invasion/ws":                 true, // Egg WebSocket — has its own HMAC-based auth handshake
-	"/mcp":                             true, // MCP endpoint — Bearer token or session checked by the handler
-	"/api/space-agent/bridge/messages": true, // Space Agent bridge has its own Bearer token auth
-	"/api/cyd/snapshot":                true, // CYD device snapshot — Bearer scope cyd
-	"/api/cyd/heartbeat":               true, // CYD device heartbeat — Bearer scope cyd
-	"/api/cyd/ack":                     true, // CYD overlay dismiss — Bearer scope cyd
-	"/api/cyd/ws":                      true, // CYD WebSocket — Bearer scope cyd
-	"/api/cyd/persona":                 true, // CYD persona portrait — Bearer scope cyd
-	"/setup":                           true,
-	"/shared.css":                      true,
-	"/shared-variables.css":            true,
-	"/shared-utilities.css":            true,
-	"/shared-components.css":           true,
-	"/shared-animations.css":           true,
-	"/shared.js":                       true,
-	"/site.webmanifest":                true,
-	"/sw.js":                           true,
-	"/tailwind.min.js":                 true,
-	"/chart.min.js":                    true,
+	"/api/health":                        true,
+	"/api/ready":                         true,
+	"/api/i18n":                          true,
+	"/api/auth/status":                   true,
+	"/api/auth/logout":                   true,
+	"/api/security/status":               true,
+	"/api/setup":                         true,
+	"/api/openrouter/models":             true,
+	"/api/composio/callback":             true,
+	"/api/oauth/callback":                true,
+	"/api/desktop/mailer/oauth/callback": true, // One-use OAuth state and a bound temporary cookie authorize the callback.
+	"/api/remote/ws":                     true, // Remote agent WebSocket — has its own key-based auth
+	"/api/agodesk/ws":                    true, // agodesk WebSocket — performs pairing inside the socket protocol
+	"/api/invasion/ws":                   true, // Egg WebSocket — has its own HMAC-based auth handshake
+	"/mcp":                               true, // MCP endpoint — Bearer token or session checked by the handler
+	"/api/space-agent/bridge/messages":   true, // Space Agent bridge has its own Bearer token auth
+	"/api/cyd/snapshot":                  true, // CYD device snapshot — Bearer scope cyd
+	"/api/cyd/heartbeat":                 true, // CYD device heartbeat — Bearer scope cyd
+	"/api/cyd/ack":                       true, // CYD overlay dismiss — Bearer scope cyd
+	"/api/cyd/ws":                        true, // CYD WebSocket — Bearer scope cyd
+	"/api/cyd/persona":                   true, // CYD persona portrait — Bearer scope cyd
+	"/setup":                             true,
+	"/shared.css":                        true,
+	"/shared-variables.css":              true,
+	"/shared-utilities.css":              true,
+	"/shared-components.css":             true,
+	"/shared-animations.css":             true,
+	"/shared.js":                         true,
+	"/site.webmanifest":                  true,
+	"/sw.js":                             true,
+	"/tailwind.min.js":                   true,
+	"/chart.min.js":                      true,
 }
 
 // authBypassSubtrees are public path subtrees: static UI code without secrets,
@@ -1119,7 +1120,7 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		return ok
 	}
 	if isDesktopScopedAPIPath(path) {
-		if strings.HasPrefix(path, "/api/desktop/chat") || strings.HasPrefix(path, "/api/desktop/logs/") {
+		if strings.HasPrefix(path, "/api/desktop/chat") || strings.HasPrefix(path, "/api/desktop/logs/") || strings.HasPrefix(path, "/api/desktop/mailer/") {
 			return desktopTokenHasScope(s, token, desktopScopeAdmin)
 		}
 		if isFlowsAPIPath(path) {

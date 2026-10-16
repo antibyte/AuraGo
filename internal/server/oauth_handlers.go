@@ -423,6 +423,8 @@ func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI, codeVeri
 
 // refreshOAuthToken refreshes an OAuth2 token using the refresh_token grant.
 func refreshOAuthToken(prov config.ProviderEntry, refreshToken string) (*tokenExchangeResponse, error) {
+	security.RegisterSensitive(refreshToken)
+	security.RegisterSensitive(prov.OAuthClientSecret)
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {refreshToken},
@@ -447,14 +449,17 @@ func refreshOAuthToken(prov config.ProviderEntry, refreshToken string) (*tokenEx
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, (64<<10)+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if len(body) > 64<<10 {
+		return nil, fmt.Errorf("OAuth token response exceeds size limit")
 	}
 
 	var tokenResp tokenExchangeResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
-		return nil, fmt.Errorf("failed to parse token response: %w — body: %s", err, string(body))
+		return nil, fmt.Errorf("failed to parse OAuth token response")
 	}
 
 	if tokenResp.Error != "" {
@@ -463,6 +468,8 @@ func refreshOAuthToken(prov config.ProviderEntry, refreshToken string) (*tokenEx
 	if tokenResp.AccessToken == "" {
 		return nil, fmt.Errorf("no access_token in refresh response")
 	}
+	security.RegisterSensitive(tokenResp.AccessToken)
+	security.RegisterSensitive(tokenResp.RefreshToken)
 
 	return &tokenResp, nil
 }
