@@ -108,5 +108,54 @@
         };
     }
 
-    window.VideoStudioEffects = { BUILTIN, adopt, registry, transitions, transition, isTransition, base, effect, defaults, valueAt, clipState };
+    // Go's math.Round, which rounds halves away from zero (Math.round rounds them up).
+    const roundHalfAway = value => (value < 0 ? -Math.round(-value) : Math.round(value));
+    // evenPixels, evenPosition and clipBox mirror internal/videostudio/clip_chain.go: the export's clip box in project
+    // pixels, even-sized and even-placed, at least 2 px and inside the canvas (parity fixture geometry.json).
+    function evenPixels(value, bound) {
+        const pixels = roundHalfAway(value / 2) * 2;
+        return pixels < 2 ? 2 : Math.min(pixels, bound);
+    }
+    function evenPosition(value, box, bound) {
+        const position = roundHalfAway(value / 2) * 2;
+        return position <= 0 ? 0 : Math.min(position, bound - box);
+    }
+    function clipBox(state, width, height) {
+        const w = evenPixels(Number(state.width) * width, width), h = evenPixels(Number(state.height) * height, height);
+        return { x: evenPosition(Number(state.x) * width, w, width), y: evenPosition(Number(state.y) * height, h, height), w, h };
+    }
+    // FFmpeg's av_rescale for picture sizes: a * b / c rounded to the nearest integer (non-negative integers).
+    const rescale = (a, b, c) => Math.floor((a * b + Math.floor(c / 2)) / c);
+    // The size the export's scale filter gives the source in a box (force_original_aspect_ratio with
+    // force_divisible_by=2, as documented): the largest even size inside it for contain, the smallest even size covering
+    // it for cover. Without a source size the picture fills the box.
+    function fittedSize(box, source, cover) {
+        const sw = Math.round(Number(source && source.width) || 0), sh = Math.round(Number(source && source.height) || 0);
+        if (sw <= 0 || sh <= 0) return { w: box.w, h: box.h };
+        const tw = rescale(box.h, sw, sh), th = rescale(box.w, sh, sw);
+        if (cover) return { w: Math.ceil(Math.max(tw, box.w) / 2) * 2, h: Math.ceil(Math.max(th, box.h) / 2) * 2 };
+        return { w: Math.floor(Math.min(tw, box.w) / 2) * 2, h: Math.floor(Math.min(th, box.h) / 2) * 2 };
+    }
+    // Geometry of one clip in canvas pixels (index §4.4). box is the export's clip box (clipBox in project pixels)
+    // scaled to the canvas per axis; draw is where the source picture lands (contain: inside the box, centred; cover:
+    // over the box, with clip true so the painter clips to box); angle is the rotation in radians, clockwise on screen,
+    // around the box centre. state comes from clipState; canvas and project are {width, height}; source is the picture's
+    // intrinsic {width, height} or null. For 4:2:0 video the export's centred crop may land one pixel off (chroma
+    // alignment); SSIM absorbs that.
+    function placement(state, canvas, project, source) {
+        const pw = Number(project && project.width) || 1280, ph = Number(project && project.height) || 720;
+        const kx = (Number(canvas && canvas.width) || pw) / pw, ky = (Number(canvas && canvas.height) || ph) / ph;
+        const box = clipBox(state, pw, ph), cover = state.fit === 'cover', size = fittedSize(box, source, cover);
+        // Centred like the export's pad ((ow-iw)/2) and crop defaults; box and picture sizes are even, so the offsets
+        // are whole project pixels.
+        const dx = box.x + (box.w - size.w) / 2, dy = box.y + (box.h - size.h) / 2;
+        return {
+            box: { x: box.x * kx, y: box.y * ky, w: box.w * kx, h: box.h * ky },
+            draw: { x: dx * kx, y: dy * ky, w: size.w * kx, h: size.h * ky },
+            clip: cover,
+            angle: (Number(state.rotation) || 0) * Math.PI / 180
+        };
+    }
+
+    window.VideoStudioEffects = { BUILTIN, adopt, registry, transitions, transition, isTransition, base, effect, defaults, valueAt, clipState, placement };
 })();

@@ -158,3 +158,67 @@ assert(html.includes('<span>[transition_circleopen]</span>'), 'a registry transi
 console.log('ok');
 `)
 }
+
+// videoStudioParityRunners maps a fixture topic (a file name under internal/videostudio/testdata/parity) to its JS side:
+// run(input) returns the value compared with want. Exact topics compare with deepStrictEqual (pixel geometry); the
+// others compare number by number within 1e-6. A slice that adds a fixture file adds its entry here in the same task.
+const videoStudioParityRunners = `{
+  geometry: {exact: true, run(input) {
+    const project = {width: input.canvas.width, height: input.canvas.height};
+    return E.placement(E.clipState(input.clip, 0, project), project, project, null).box;
+  }},
+}`
+
+// Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.
+func TestVideoStudioEffectsParity(t *testing.T) {
+	output := runVideoStudioEffectsScript(t, `
+const fs = require('node:fs'), path = require('node:path');
+const runners = `+videoStudioParityRunners+`;
+const dir = path.join('..', 'internal', 'videostudio', 'testdata', 'parity');
+function match(got, want, label) {
+  if (typeof want === 'number') { assert.equal(typeof got, 'number', label); assert(Math.abs(got - want) <= 1e-6, label + ': ' + got + ' != ' + want); return; }
+  if (Array.isArray(want)) { assert(Array.isArray(got) && got.length === want.length, label + ': length'); want.forEach((item, i) => match(got[i], item, label + '[' + i + ']')); return; }
+  if (want && typeof want === 'object') { assert(got && typeof got === 'object', label); Object.keys(want).forEach(key => match(got[key], want[key], label + '.' + key)); return; }
+  assert.equal(got, want, label);
+}
+const files = fs.readdirSync(dir).filter(name => name.endsWith('.json')).sort();
+assert(files.length > 0, 'no parity fixtures');
+let checked = 0;
+for (const file of files) {
+  const topic = file.slice(0, -5), runner = runners[topic];
+  assert(runner, 'no JS runner for parity topic ' + topic);
+  const fixture = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+  assert(Array.isArray(fixture.cases) && fixture.cases.length > 0, topic + ' has no cases');
+  for (const c of fixture.cases) {
+    const got = runner.run(c.input), label = topic + '/' + c.name;
+    if (runner.exact) assert.deepStrictEqual(got, c.want, label); else match(got, c.want, label);
+    checked++;
+  }
+}
+console.log('parity cases: ' + checked);
+`)
+	t.Logf("%s", output)
+}
+
+// placement: the export's even box scaled to the preview canvas, the picture rectangle FFmpeg's scale produces, and
+// the rotation in radians (index §4.4). The GL compositor draws from it; the 2D painter keeps today's math in 2a.
+func TestVideoStudioEffectsPlacement(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+const project = {width: 1280, height: 720}, half = {width: 640, height: 360};
+const full = E.clipState({x: 0, y: 0, width: 1, height: 1, fit: 'contain'}, 0, project);
+// No source size: the picture fills the box. The preview canvas at half quality scales the export's box.
+assert.deepEqual(E.placement(full, half, project, null), {box: {x: 0, y: 0, w: 640, h: 360}, draw: {x: 0, y: 0, w: 640, h: 360}, clip: false, angle: 0});
+// Contain: the largest even size inside the box (404x720 for a 720x1280 source), centred like the export's pad.
+assert.deepEqual(E.placement(full, half, project, {width: 720, height: 1280}).draw, {x: 219, y: 0, w: 202, h: 360});
+// Cover: the smallest even size covering the box (1280x2276), centred like crop, and clipped to the box.
+const cover = E.placement(Object.assign({}, full, {fit: 'cover'}), half, project, {width: 720, height: 1280});
+assert.deepEqual(cover.draw, {x: 0, y: -389, w: 640, h: 1138});
+assert.equal(cover.clip, true);
+// A quarter box at full quality: a 16:9 source fills it exactly; rotation is in radians around the box centre.
+const quarter = E.placement(E.clipState({x: 0.25, y: 0.25, width: 0.5, height: 0.5, rotation: 30, fit: 'contain'}, 0, project), project, project, {width: 1920, height: 1080});
+assert.deepEqual(quarter.box, {x: 320, y: 180, w: 640, h: 360});
+assert.deepEqual(quarter.draw, quarter.box);
+assert(Math.abs(quarter.angle - Math.PI / 6) < 1e-12);
+console.log('ok');
+`)
+}

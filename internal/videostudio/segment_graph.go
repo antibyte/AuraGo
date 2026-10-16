@@ -162,7 +162,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 	labels := make([]string, len(layer))
 	for i, item := range layer {
 		labels[i] = fmt.Sprintf("vs_clip_%d_%d", trackIndex, i)
-		filters = append(filters, buildVisualClipFilter(trackIndex, i, item, canvasWidth, canvasHeight, rate, labels[i]))
+		filters = append(filters, clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate}.filter(labels[i]))
 	}
 	// concat outputs a microsecond timebase; settb after every concat and on both xfade inputs keeps xfade on the
 	// frame timebase (a no-op where the input already uses it).
@@ -263,48 +263,6 @@ func videoResample(from float64, offset int, speed float64, rate Rate) string {
 		start, offset, rate.Num, rate.Den, offset, strconv.FormatFloat(speed, 'f', -1, 64), rate.Den, rate.Num, rate)
 }
 
-func buildVisualClipFilter(trackIndex, clipIndex int, item layerClip, canvasWidth, canvasHeight int, rate Rate, output string) string {
-	clip := item.clip
-	boxWidth := evenPixels(clip.Width*float64(canvasWidth), canvasWidth)
-	boxHeight := evenPixels(clip.Height*float64(canvasHeight), canvasHeight)
-	x := evenPosition(clip.X*float64(canvasWidth), boxWidth, canvasWidth)
-	y := evenPosition(clip.Y*float64(canvasHeight), boxHeight, canvasHeight)
-	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
-	if clip.Fit == FitCover {
-		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
-	}
-	rotation := ""
-	if math.Abs(clip.Rotation) > 0.000001 {
-		angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
-		rotation = fmt.Sprintf(",rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
-	}
-	// Images start at zero. Video keeps absolute timestamps, so fps samples it on the source's own cadence and
-	// output frame from becomes the clip's first frame. When the video stream starts after the container (for
-	// example behind leading audio) no source frame covers the first positions; the first decoded frame is then
-	// moved back to from, so fps holds it there instead of the clip running short.
-	resample := fmt.Sprintf("setpts=PTS-STARTPTS,fps=%s", rate)
-	if !item.image {
-		resample = videoResample(item.from, clip.Offset, ClipSpeed(clip), rate)
-	}
-	// Shift into the clip and bound clone padding to a small multiple of the clip's duration.
-	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", item.first, clip.Duration)
-	source := fmt.Sprintf(
-		"[%d:V:0]%s,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
-		item.input, resample, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
-	)
-	if clip.Opacity < 0.999999 {
-		source += fmt.Sprintf(",colorchannelmixer=aa=%.6f", clip.Opacity)
-	}
-	layer := fmt.Sprintf("vs_layer_%d_%d", trackIndex, clipIndex)
-	background := fmt.Sprintf("vs_clip_bg_%d_%d", trackIndex, clipIndex)
-	positionX, positionY := fmt.Sprintf("%d", x), fmt.Sprintf("%d", y)
-	if math.Abs(clip.Rotation) > 0.000001 {
-		positionX = fmt.Sprintf("'%d+%d/2-overlay_w/2'", x, boxWidth)
-		positionY = fmt.Sprintf("'%d+%d/2-overlay_h/2'", y, boxHeight)
-	}
-	return fmt.Sprintf("%s[%s];color=c=black@0:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[%s];[%s][%s]overlay=x=%s:y=%s:format=auto:shortest=1[%s]", source, layer, canvasWidth, canvasHeight, rate, rate.SecondsArg(clip.Duration), clip.Duration, background, background, layer, positionX, positionY, output)
-}
-
 // buildAudioSegment mixes every audible clip of seg into exactly SampleAt(End)-SampleAt(Start) samples.
 // When seg starts or ends inside a fade the window covers the whole fade and is trimmed back. A clip above 4x is
 // left out of the mix, which is silence in preview and export alike.
@@ -382,29 +340,6 @@ func tempoChain(speed float64) string {
 
 func transparentGapFilter(label string, frames, width, height int, rate Rate) string {
 	return fmt.Sprintf("color=c=black@0:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[%s]", width, height, rate, rate.SecondsArg(frames), frames, label)
-}
-
-func evenPixels(value float64, bound int) int {
-	pixels := int(math.Round(value/2) * 2)
-	if pixels < 2 {
-		return 2
-	}
-	if pixels > bound {
-		return bound
-	}
-	return pixels
-}
-
-func evenPosition(value float64, box, bound int) int {
-	position := int(math.Round(value/2) * 2)
-	maxPosition := bound - box
-	if position < 0 {
-		return 0
-	}
-	if position > maxPosition {
-		position = maxPosition
-	}
-	return position
 }
 
 func gapLabel(trackIndex, sequence int) string {

@@ -1,0 +1,13 @@
+{
+  "cases": [
+    {"name": "full_1280x720", "input": {"clip": {"x": 0, "y": 0, "width": 1, "height": 1}, "canvas": {"width": 1280, "height": 720}}, "want": {"x": 0, "y": 0, "w": 1280, "h": 720}},
+    {"name": "quarter_box_1920x1080", "input": {"clip": {"x": 0.25, "y": 0.25, "width": 0.5, "height": 0.5}, "canvas": {"width": 1920, "height": 1080}}, "want": {"x": 480, "y": 270, "w": 960, "h": 540}},
+    {"name": "odd_values_1280x720", "input": {"clip": {"x": 0.1234, "y": 0.0567, "width": 0.3333, "height": 0.2777}, "canvas": {"width": 1280, "height": 720}}, "want": {"x": 158, "y": 40, "w": 426, "h": 200}},
+    {"name": "halves_round_away_from_zero", "input": {"clip": {"x": 0.00390625, "y": 0.0625, "width": 0.50390625, "height": 0.5}, "canvas": {"width": 1280, "height": 720}}, "want": {"x": 6, "y": 46, "w": 646, "h": 360}},
+    {"name": "minimum_size_and_far_edge", "input": {"clip": {"x": 0.9995, "y": 0.999, "width": 0.0005, "height": 0.001}, "canvas": {"width": 1280, "height": 720}}, "want": {"x": 1278, "y": 718, "w": 2, "h": 2}},
+    {"name": "position_clamped_to_edge", "input": {"clip": {"x": 0.7, "y": 0.5, "width": 0.31, "height": 0.5}, "canvas": {"width": 1280, "height": 720}}, "want": {"x": 884, "y": 360, "w": 396, "h": 360}},
+    {"name": "portrait_720x1280", "input": {"clip": {"x": 0.1, "y": 0.3, "width": 0.8, "height": 0.25}, "canvas": {"width": 720, "height": 1280}}, "want": {"x": 72, "y": 384, "w": 576, "h": 320}},
+    {"name": "feed_1080x1350", "input": {"clip": {"x": 0.123, "y": 0.456, "width": 0.5, "height": 0.4}, "canvas": {"width": 1080, "height": 1350}}, "want": {"x": 132, "y": 616, "w": 540, "h": 540}},
+    {"name": "square_2160_at_max_position", "input": {"clip": {"x": 0.333, "y": 0.667, "width": 0.333, "height": 0.333}, "canvas": {"width": 2160, "height": 2160}}, "want": {"x": 720, "y": 1440, "w": 720, "h": 720}}
+  ]
+}
