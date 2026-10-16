@@ -77,6 +77,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ### Render and asynchronous ownership
 
+- Dashboard prompt analytics show module selection, base formatting and request
+  fitting separately. Base history uses `recent`, budget history `recent_fits`;
+  never stack or sum these different populations. Label text sizes as UTF-8
+  bytes, distinguish buffered windows from lifetime request/cache counters, and
+  show missing metrics as unknown rather than zero. Positive percentages below
+  0.1 display `< 0.1 %` in the active locale. Verify `TestDashboardPromptLocales`
+  and `TestDashboardPromptStagesBrowser` in both dashboard themes and widths.
+
 - Google Workspace exposes separate Gmail read, send and label-change grants. Revocation applies after saving; enabling additional OAuth scopes may require reconnecting. Label changes default off and readonly overrides them. Verify TestGmailLabelPermissionBrowser and all sixteen locale bundles.
 
 - LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.

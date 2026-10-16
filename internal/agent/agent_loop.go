@@ -1598,7 +1598,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
 			if basePromptTokens > flags.TokenBudget {
-				return openai.ChatCompletionResponse{}, promptBudgetExceededForRoutes(requestBudget, basePromptTokens)
+				promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: basePromptTokens}
 			}
 		} else {
 			promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
@@ -1610,6 +1610,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			OutputChars:     len(promptResult.Text),
 			InputTokens:     promptResult.InputTokens,
 			OutputTokens:    promptResult.Tokens,
+			InputGuides:     promptResult.InputGuides,
+			OutputGuides:    promptResult.OutputGuides,
+			FitFailed:       promptFitErr != nil,
 			TokenBudget:     flags.TokenBudget,
 			RemovedSections: promptResult.RemovedSections,
 			BudgetExceeded:  promptResult.BudgetExceeded != nil,

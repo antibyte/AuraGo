@@ -149,8 +149,8 @@
                             callbacks: {
                                 label: (item) => {
                                     const total = values.reduce((a, b) => a + b, 0);
-                                    const pct = total > 0 ? ((item.parsed / total) * 100).toFixed(1) : 0;
-                                    return ` ${item.label}: ${item.parsed.toLocaleString()} (${pct}%)`;
+                                    const pct = formatPromptNumber(total > 0 ? item.parsed / total * 100 : 0, true);
+                                    return ` ${item.label}: ${formatPromptNumber(item.parsed)} (${pct})`;
                                 }
                             }
                         }
@@ -335,7 +335,7 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: t('dashboard.prompt_chart_raw'),
+                            label: t('dashboard.prompt_chart_raw_bytes'),
                             data: recent.map(r => r.raw_len),
                             borderColor: cv('--text-secondary'),
                             backgroundColor: 'transparent',
@@ -344,7 +344,7 @@
                             tension: 0.3,
                         },
                         {
-                            label: t('dashboard.prompt_chart_optimized'),
+                            label: t('dashboard.prompt_chart_opt_bytes'),
                             data: recent.map(r => r.optimized_len),
                             borderColor: cv('--accent'),
                             backgroundColor: cv('--accent') + '22',
@@ -356,7 +356,7 @@
                     ]
                 },
                 options: {
-                    plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 6 } } },
+                    plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 6, color: cv('--text-primary') } } },
                     scales: {
                         x: { display: false },
                         y: { grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
@@ -394,52 +394,38 @@
         function createPromptSavingsChart(canvasId, recent) {
             const ctx = document.getElementById(canvasId);
             if (!ctx || !recent || recent.length === 0) return null;
+            recent = recent.filter(r => !r.fit_failed && Number.isFinite(r.input_tokens) && r.input_tokens >= 0 && Number.isFinite(r.output_tokens) && r.output_tokens >= 0);
+            if (recent.length === 0) return null;
             const labels = recent.map((_, i) => '#' + (i + 1));
-            // Stacked: show all three savings components per build
-            // Falls back gracefully for older records where breakdown fields are 0
+            // Request fits have a separate population from base builds.
             return new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
                         {
-                            label: t('dashboard.prompt_chart_format_savings'),
-                            data: recent.map(r => r.format_savings || r.saved_chars || 0),
-                            backgroundColor: cv('--success') + 'cc',
-                            borderRadius: 3,
-                            stack: 'savings',
+                            label: t('dashboard.prompt_chart_input_tokens'),
+                            data: recent.map(r => r.input_tokens),
+                            borderColor: cv('--text-secondary'),
+                            pointRadius: 2,
+                            borderWidth: 1.5,
                         },
                         {
-                            label: t('dashboard.prompt_chart_shed_savings'),
-                            data: recent.map(r => r.shed_savings || 0),
-                            backgroundColor: '#f59e0b' + 'cc',
-                            borderRadius: 3,
-                            stack: 'savings',
-                        },
-                        {
-                            label: t('dashboard.prompt_chart_filter_savings'),
-                            data: recent.map(r => r.filter_savings || 0),
-                            backgroundColor: '#8b5cf6' + 'cc',
-                            borderRadius: 3,
-                            stack: 'savings',
+                            label: t('dashboard.prompt_chart_output_tokens'),
+                            data: recent.map(r => r.output_tokens),
+                            borderColor: cv('--accent'),
+                            pointRadius: 2,
+                            borderWidth: 2,
                         },
                     ]
                 },
                 options: {
                     plugins: {
                         legend: { display: true, position: 'top', labels: { boxWidth: 10, padding: 6, color: cv('--text-primary'), font: { size: 10 } } },
-                        tooltip: {
-                            callbacks: {
-                                footer: (items) => {
-                                    const total = items.reduce((s, i) => s + i.parsed.y, 0);
-                                    return 'Total: ' + total.toLocaleString();
-                                }
-                            }
-                        }
                     },
                     scales: {
-                        x: { display: false, stacked: true },
-                        y: { stacked: true, grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
+                        x: { display: false },
+                        y: { grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
                     }
                 }
             });

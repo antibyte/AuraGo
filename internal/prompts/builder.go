@@ -452,7 +452,18 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 
 // FitSystemPromptToBudget appends trusted request-local addenda and sheds only
 // optional sections. It never truncates required system instructions.
-func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *slog.Logger) (PromptBuildResult, error) {
+func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *slog.Logger) (result PromptBuildResult, fitErr error) {
+	// Count actual guide sections, including guides without optimizer provenance.
+	defer func() {
+		for _, section := range req.OptionalSections {
+			if strings.HasPrefix(section.ID, "tool_guide:") && strings.TrimSpace(section.Text) != "" {
+				result.InputGuides++
+				if strings.Contains(result.Text, section.Text) {
+					result.OutputGuides++
+				}
+			}
+		}
+	}()
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
 	text := req.Text
@@ -520,11 +531,11 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	collector := &promptBuildDetailsCollector{}
 	fitCtx := promptBuildContextWithCollector(ctx, collector)
 	flags := &ContextFlags{Model: req.Model, TokenBudget: req.TokenBudget}
-	var result string
+	var fittedText string
 	var fittedTokens int
 	var err error
 	if len(addendumSections) == 0 {
-		result, _, fittedTokens, err = budgetShedDetailedContextWithTokens(fitCtx, text, flags, tokens, logger)
+		fittedText, _, fittedTokens, err = budgetShedDetailedContextWithTokens(fitCtx, text, flags, tokens, logger)
 	} else {
 		document := newPromptDocumentContext(fitCtx, baseText, req.Model, 0)
 		for index := range addendumSections {
@@ -533,7 +544,7 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 		}
 		document.TotalTokens = tokens
 		document.Revision = PromptRevision(text)
-		result, _, fittedTokens, err = budgetShedPromptDocumentContextWithTokens(fitCtx, text, flags, tokens, logger, document)
+		fittedText, _, fittedTokens, err = budgetShedPromptDocumentContextWithTokens(fitCtx, text, flags, tokens, logger, document)
 	}
 	var budgetErr *PromptBudgetExceededError
 	if err != nil && !errors.As(err, &budgetErr) {
@@ -543,13 +554,13 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 		}, err
 	}
 	return PromptBuildResult{
-		GuideExposures: exposedToolGuides(result, req.OptionalSections), ExposedSections: exposedOptionalSections(result, req.OptionalSections),
-		Text:            result,
+		GuideExposures: exposedToolGuides(fittedText, req.OptionalSections), ExposedSections: exposedOptionalSections(fittedText, req.OptionalSections),
+		Text:            fittedText,
 		Tokens:          fittedTokens,
 		InputChars:      inputChars,
 		InputTokens:     inputTokens,
 		RemovedSections: append([]string(nil), collector.removed...),
-		Revision:        PromptRevision(result),
+		Revision:        PromptRevision(fittedText),
 		BudgetExceeded:  budgetErr,
 	}, nil
 }
@@ -782,9 +793,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		// native function calling API. This prompt section is critical for reliable
 		// tool dispatch with these models.
 		finalPrompt.WriteString("## TOOL CALLING MODE (TEXT JSON)\n")
-		finalPrompt.WriteString("You MUST invoke tools by outputting a single raw JSON object " +
-			"as your ENTIRE response. Do NOT wrap it in markdown fences, XML tags, or code blocks. " +
-			"Do NOT add any explanation before or after the JSON.\n\n")
+		finalPrompt.WriteString("Tool calls must be a single raw JSON object as your ENTIRE response: no markdown fences, XML, code blocks or surrounding explanation.\n\n")
 		finalPrompt.WriteString("Required format:\n" +
 			"{\"action\": \"tool_name\", \"param1\": \"value1\", \"param2\": \"value2\"}\n\n")
 		finalPrompt.WriteString("**Critical rules:**\n" +
@@ -792,12 +801,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			"- Use the `action` field for the tool name (not `tool`, `tool_call`, or `name`)\n" +
 			"- Do NOT use [TOOL_CALL] tags, <tool_call XML, or minimax:tool_call markers\n" +
 			"- Do NOT announce what you are about to do before the JSON (no preamble)\n" +
-			"- If you need to call multiple tools, output one tool call per turn — " +
-			"the system will return the result and you can call the next tool\n\n")
-		finalPrompt.WriteString("**Preamble rule:** Text JSON mode has no preamble exception. " +
-			"When calling a tool, your response must be ONLY the JSON object. " +
-			"If a behavioral rule asks for an acknowledgment before a long action, skip the acknowledgment " +
-			"and emit the tool JSON directly.\n\n")
+			"- Multiple tools: one call per turn; wait for its result before the next\n\n")
+		finalPrompt.WriteString("**Preamble rule:** Text JSON mode has no preamble exception. Skip even requested long-action acknowledgments; emit only the tool JSON.\n\n")
 	}
 
 	// Language Instruction
@@ -2043,6 +2048,7 @@ func OptimizePrompt(raw string) (string, int) {
 		return "", 0
 	}
 
+	originalLen := len(raw)
 	// 1. Remove HTML comments outside code fences.
 	raw = stripHTMLCommentsOutsideCodeFences(raw)
 
@@ -2163,7 +2169,7 @@ func OptimizePrompt(raw string) (string, int) {
 	}
 
 	optimized := strings.TrimSpace(strings.Join(result, "\n"))
-	saved := len(raw) - len(optimized)
+	saved := originalLen - len(optimized)
 
 	return optimized, saved
 }

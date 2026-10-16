@@ -61,9 +61,20 @@ func TestHandleDashboardPromptStatsContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"total_builds", "request_count", "cold_build_count", "cache_hit_count", "fit_count", "budget_exceeded_count", "recent_fits", "cache_hit_rate_pct", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent"} {
+	for _, key := range []string{"total_builds", "request_count", "cold_build_count", "cache_hit_count", "fit_count", "budget_exceeded_count", "recent_fits", "cache_hit_rate_pct", "avg_raw_len", "avg_optimized_len", "avg_saved_chars", "tier_distribution", "recent", "text_size_unit", "avg_modules_filtered", "measured_fit_count", "avg_fit_input_tokens", "avg_fit_output_tokens", "avg_fit_saved_tokens", "avg_fit_input_guides", "avg_fit_output_guides"} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("prompt stats missing key %q", key)
+		}
+	}
+	if body["text_size_unit"] != "utf8_bytes" {
+		t.Fatalf("unexpected text unit: %v", body["text_size_unit"])
+	}
+	for _, fit := range body["recent_fits"].([]interface{}) {
+		record := fit.(map[string]interface{})
+		for _, key := range []string{"input_guides", "output_guides", "fit_failed"} {
+			if _, ok := record[key]; !ok {
+				t.Fatalf("fit record missing %q", key)
+			}
 		}
 	}
 	if got := int(body["total_builds"].(float64)); got < 1 {

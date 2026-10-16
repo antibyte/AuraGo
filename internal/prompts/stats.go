@@ -15,7 +15,7 @@ type PromptBuildRecord struct {
 	OptimizedLen  int       `json:"optimized_len"`
 	FormatSavings int       `json:"format_savings"` // explicit name for format-only savings (whitespace/markdown)
 	ShedSavings   int       `json:"shed_savings"`   // legacy per-build field; fit aggregates use PromptFitRecord
-	FilterSavings int       `json:"filter_savings"` // chars in loaded modules that were filtered out
+	FilterSavings int       `json:"filter_savings"` // UTF-8 bytes in loaded modules that were filtered out
 	Tokens        int       `json:"tokens"`
 	TokenBudget   int       `json:"token_budget"`
 	ModulesLoaded int       `json:"modules_loaded"`
@@ -24,7 +24,7 @@ type PromptBuildRecord struct {
 	ShedSections  []string  `json:"shed_sections,omitempty"`
 	BudgetShed    bool      `json:"budget_shed"`
 	MessageCount  int       `json:"message_count"`
-	// Per-section character lengths (before optimization)
+	// Per-section UTF-8 byte lengths (before optimization)
 	SectionSizes map[string]int `json:"section_sizes,omitempty"`
 }
 
@@ -38,6 +38,9 @@ type PromptFitRecord struct {
 	OutputChars     int       `json:"output_chars"`
 	InputTokens     int       `json:"input_tokens"`
 	OutputTokens    int       `json:"output_tokens"`
+	InputGuides     int       `json:"input_guides"`
+	OutputGuides    int       `json:"output_guides"`
+	FitFailed       bool      `json:"fit_failed"`
 	TokenBudget     int       `json:"token_budget"`
 	RemovedSections []string  `json:"removed_sections,omitempty"`
 	BudgetExceeded  bool      `json:"budget_exceeded"`
@@ -45,20 +48,29 @@ type PromptFitRecord struct {
 
 // PromptStatsAggregated is the JSON-friendly aggregate returned by the dashboard API.
 type PromptStatsAggregated struct {
-	TotalBuilds         int `json:"total_builds"`
-	RequestCount        int `json:"request_count"`
-	ColdBuildCount      int `json:"cold_build_count"`
-	CacheHitCount       int `json:"cache_hit_count"`
-	FitCount            int `json:"fit_count"`
-	BudgetExceededCount int `json:"budget_exceeded_count"`
-	AvgRawLen           int `json:"avg_raw_len"`
-	AvgOptimizedLen     int `json:"avg_optimized_len"`
+	// Text sizes in the legacy *_chars and *_len fields are UTF-8 bytes.
+	TextSizeUnit        string  `json:"text_size_unit"`
+	MeasuredFitCount    int     `json:"measured_fit_count"`
+	AvgFitInputTokens   float64 `json:"avg_fit_input_tokens"`
+	AvgFitOutputTokens  float64 `json:"avg_fit_output_tokens"`
+	AvgFitSavedTokens   float64 `json:"avg_fit_saved_tokens"`
+	AvgFitInputGuides   float64 `json:"avg_fit_input_guides"`
+	AvgFitOutputGuides  float64 `json:"avg_fit_output_guides"`
+	AvgModulesFiltered  float64 `json:"avg_modules_filtered"`
+	TotalBuilds         int     `json:"total_builds"`
+	RequestCount        int     `json:"request_count"`
+	ColdBuildCount      int     `json:"cold_build_count"`
+	CacheHitCount       int     `json:"cache_hit_count"`
+	FitCount            int     `json:"fit_count"`
+	BudgetExceededCount int     `json:"budget_exceeded_count"`
+	AvgRawLen           int     `json:"avg_raw_len"`
+	AvgOptimizedLen     int     `json:"avg_optimized_len"`
 	// AvgSavedChars and TotalSavedChars represent base-build savings
 	// (RawLen - OptimizedLen), excluding request-local fitting.
 	AvgSavedChars   int   `json:"avg_saved_chars"`
 	TotalSavedChars int64 `json:"total_saved_chars"`
 	AvgTokens       int   `json:"avg_tokens"`
-	// AvgOptimizationPct = avg((RawLen - OptimizedLen) / RawLen * 100) — true total reduction.
+	// AvgOptimizationPct is the average base-build reduction, excluding filtering and request fits.
 	AvgOptimizationPct float64             `json:"avg_optimization_pct"`
 	CacheHitRatePct    float64             `json:"cache_hit_rate_pct"`
 	BudgetShedCount    int                 `json:"budget_shed_count"`
@@ -141,6 +153,7 @@ func GetAggregatedStats() PromptStatsAggregated {
 	n := len(globalStats.records)
 	fitN := len(globalStats.fitRecords)
 	agg := PromptStatsAggregated{
+		TextSizeUnit:      "utf8_bytes",
 		TotalBuilds:       n,
 		RequestCount:      globalStats.requestCount,
 		ColdBuildCount:    globalStats.coldBuildCount,
@@ -154,6 +167,14 @@ func GetAggregatedStats() PromptStatsAggregated {
 	}
 	var sumShedSavings int64
 	for _, fit := range globalStats.fitRecords {
+		if !fit.FitFailed && fit.InputTokens >= 0 && fit.OutputTokens >= 0 {
+			agg.MeasuredFitCount++
+			agg.AvgFitInputTokens += float64(fit.InputTokens)
+			agg.AvgFitOutputTokens += float64(fit.OutputTokens)
+			agg.AvgFitSavedTokens += float64(max(0, fit.InputTokens-fit.OutputTokens))
+			agg.AvgFitInputGuides += float64(fit.InputGuides)
+			agg.AvgFitOutputGuides += float64(fit.OutputGuides)
+		}
 		if fit.BudgetExceeded {
 			agg.BudgetExceededCount++
 		}
@@ -169,6 +190,14 @@ func GetAggregatedStats() PromptStatsAggregated {
 		for _, section := range fit.RemovedSections {
 			agg.ShedSectionCounts[section]++
 		}
+	}
+	if agg.MeasuredFitCount > 0 {
+		count := float64(agg.MeasuredFitCount)
+		agg.AvgFitInputTokens /= count
+		agg.AvgFitOutputTokens /= count
+		agg.AvgFitSavedTokens /= count
+		agg.AvgFitInputGuides /= count
+		agg.AvgFitOutputGuides /= count
 	}
 	if fitN > 0 {
 		agg.AvgShedSavings = int(sumShedSavings / int64(fitN))
@@ -201,7 +230,7 @@ func GetAggregatedStats() PromptStatsAggregated {
 		sumModUsed += int64(r.ModulesUsed)
 		sumGuides += int64(r.GuidesCount)
 
-		// True total savings = all reduction combined (format + shed + filter)
+		// Base-build reduction only; filtering happened before RawLen was measured.
 		trueSaved := int64(r.RawLen - r.OptimizedLen)
 		if trueSaved < 0 {
 			trueSaved = 0
@@ -222,6 +251,7 @@ func GetAggregatedStats() PromptStatsAggregated {
 
 		// Module filter rate
 		if r.ModulesLoaded > 0 {
+			agg.AvgModulesFiltered += float64(max(0, r.ModulesLoaded-r.ModulesUsed))
 			sumModFilterRate += float64(r.ModulesLoaded-r.ModulesUsed) / float64(r.ModulesLoaded) * 100.0
 		}
 
@@ -240,6 +270,7 @@ func GetAggregatedStats() PromptStatsAggregated {
 	agg.AvgOptimizationPct = sumOptPct / float64(n)
 	agg.AvgModulesLoaded = int(sumModLoaded / int64(n))
 	agg.AvgModulesUsed = int(sumModUsed / int64(n))
+	agg.AvgModulesFiltered /= float64(n)
 	agg.AvgGuidesCount = int(sumGuides / int64(n))
 	// Savings breakdown averages
 	agg.AvgFormatSavings = int(sumFormatSavings / int64(n))

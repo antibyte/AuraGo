@@ -125,8 +125,10 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 				return minimalPromptPreparation{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
 			}
 			promptResult = prompts.PromptBuildResult{Text: profile.system, Tokens: tokenCache.Count(profile.system, req.Model), Revision: profile.revision}
+			promptResult.InputChars = len(profile.system)
+			promptResult.InputTokens = promptResult.Tokens
 			if promptResult.Tokens > systemBudget {
-				return minimalPromptPreparation{}, promptBudgetExceededForRoutes(budget, promptResult.Tokens)
+				promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: systemBudget, RequiredTokens: promptResult.Tokens}
 			}
 		} else {
 			promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{
@@ -140,6 +142,9 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 			OutputChars:     len(promptResult.Text),
 			InputTokens:     promptResult.InputTokens,
 			OutputTokens:    promptResult.Tokens,
+			InputGuides:     promptResult.InputGuides,
+			OutputGuides:    promptResult.OutputGuides,
+			FitFailed:       err != nil,
 			TokenBudget:     systemBudget,
 			RemovedSections: promptResult.RemovedSections,
 			BudgetExceeded:  promptResult.BudgetExceeded != nil,

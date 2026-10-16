@@ -43,7 +43,8 @@ func (charRatioEncoder) Encode(text string, _, _ []string) []int {
 
 func TestBalancedCorePromptModulesStayCompact(t *testing.T) {
 	limits := map[string]int{
-		"rules.md":                   10500,
+		"rules.md":                   6400,
+		"identity.md":                1400,
 		"ctx_capability_creation.md": 2400,
 		"ctx_daemon_skills.md":       1400,
 	}
@@ -102,8 +103,8 @@ func TestAggressiveCoreSystemPromptStaysUnderBudget(t *testing.T) {
 		NativeToolsEnabled: true,
 	}, "", slog.Default())
 
-	if tokens > 3200 {
-		t.Fatalf("aggressive core system prompt tokens = %d, want <= 3200; prompt chars=%d", tokens, len(prompt))
+	if tokens > 2500 {
+		t.Fatalf("aggressive core system prompt tokens = %d, want <= 2500; prompt bytes=%d", tokens, len(prompt))
 	}
 	if strings.Contains(prompt, "# PERSONALITY STATE") {
 		t.Fatalf("personality state module should not be auto-loaded in aggressive core prompt:\n%s", prompt)
@@ -640,9 +641,9 @@ func TestRulesPromptCompletionSignalOnlyAfterCompletion(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"ONLY when the current user request is fully handled",
-		"Never use `<done/>` as an acknowledgement, promise, preamble, progress update, or mid-task marker",
-		"If work remains, call the required tool now instead of writing text",
+		"End a text-only response with `<done/>` ONLY after fully handling the current request with no tools remaining",
+		"Never use it for acknowledgements, promises, preambles, progress or unfinished tasks",
+		"call the required tool instead",
 	} {
 		if !strings.Contains(rules, want) {
 			t.Fatalf("rules prompt missing strict completion wording %q", want)
@@ -659,10 +660,10 @@ func TestRulesPromptRequiresAnnouncedActionsToBeExecuted(t *testing.T) {
 
 	for _, want := range []string{
 		"Action-execution integrity",
-		"Never announce, promise, imply, or describe an action as future work unless you will actually perform it",
-		"your next assistant action must be the corresponding tool call",
-		"Do not say you will inspect, edit, run, test, create, save, register, deploy, open, send, or document anything and then stop with text only",
-		"If a tool is unavailable, blocked, unsafe, or needs user confirmation, state that constraint plainly",
+		"Announce future work only if you will perform it",
+		"Your next action must be the corresponding tool call",
+		"never stop at a text-only promise",
+		"State unavailable, blocked, unsafe or approval-dependent tool constraints plainly",
 	} {
 		if !strings.Contains(rules, want) {
 			t.Fatalf("rules prompt missing action-execution integrity wording %q", want)

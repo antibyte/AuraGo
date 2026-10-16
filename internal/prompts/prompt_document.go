@@ -38,6 +38,8 @@ type PromptBuildResult struct {
 	Tokens          int
 	InputChars      int
 	InputTokens     int
+	InputGuides     int
+	OutputGuides    int
 	RemovedSections []string
 	Revision        string
 	BudgetExceeded  *PromptBudgetExceededError

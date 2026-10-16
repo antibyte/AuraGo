@@ -311,6 +311,19 @@ Tools are defined in `internal/tools/`:
 
 ### Prompt and Runtime Drift Contract
 
+- Prompt analytics separate buffered base builds from buffered request fits.
+  Legacy `*_chars`/`*_len` sizes are UTF-8 bytes; filtering occurs before the
+  base raw-size measurement and must never be added to request-fit savings.
+  Record fit input/output tokens and guide counts in both loops, including
+  unchanged prepared profiles. Failed fits are not measured zero-token inputs.
+  Request/cache counters are process-lifetime local reuse, not provider cache
+  usage. Verify `TestPreparedPromptFitTelemetryBothLoops` and prompt metrics tests.
+- Keep bundled identity/rules concise without removing policy obligations or
+  applying sentence deduplication to user/external content. Preserve disk
+  overrides, required section boundaries and source revisions. The real
+  cl100k_base fixture matrix in `TestPromptCompactionRealTokenBaseline` guards
+  chat, mission and co-agent prompt sizes independently of budget shedding.
+
 - Game Maker's Voxel variant has its own prepared planning/editing/source
   profiles; build and repair share the same ordered four tools. Planning retains
   three tools. `design.voxel` is a bounded JSON-encoded definition in native calls,
