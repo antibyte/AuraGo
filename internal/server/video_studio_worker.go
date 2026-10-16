@@ -55,6 +55,9 @@ func (m *videoStudioManager) process(ctx context.Context, job *videoStudioJob, w
 	if work.kind == "duplicate" {
 		return m.processDuplicate(ctx, svc, job, work, cfg)
 	}
+	if work.kind == "range_render" {
+		return m.processRangeRender(ctx, svc, job, work, cfg)
+	}
 	if work.kind == "generate" {
 		return m.processGenerate(ctx, svc, job, work, cfg)
 	}
@@ -216,32 +219,14 @@ func videoStudioPrivateTreeSize(root string) (int64, error) {
 }
 
 func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Service, job *videoStudioJob, work *videoStudioWork, cfg *config.Config) (*videoStudioArtifact, map[string]interface{}, error) {
-	if err := validateVideoStudioProject(work.project); err != nil {
-		return nil, nil, err
-	}
-	assets := m.canonicalProjectAssets(job.ProjectID, work.project.Assets)
-	if len(assets) != len(work.project.Assets) {
-		return nil, nil, fmt.Errorf("project references untrusted media")
-	}
-	active := videoStudioRenderAssetIDs(work.project)
 	stageDir, cleanup, err := m.newStageDir(job.ID)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer cleanup()
-	paths := make(map[string]string, len(assets))
-	var stagedTotal int64
-	for _, asset := range work.project.Assets {
-		if _, used := active[asset.ID]; !used {
-			continue
-		}
-		record := assets[asset.ID]
-		staged, size, err := m.stageAssetSized(ctx, svc, cfg, record, stageDir, stagedTotal)
-		if err != nil {
-			return nil, nil, err
-		}
-		stagedTotal += size
-		paths[asset.ID] = staged
+	paths, err := m.stageRenderAssets(ctx, svc, cfg, job.ProjectID, work.project, stageDir)
+	if err != nil {
+		return nil, nil, err
 	}
 	exportLimit := int64(cfg.VideoStudio.MaxExportSizeMB) << 20
 	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
@@ -260,8 +245,11 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if work.request.Range != nil {
 		start, end = work.request.Range.Start, work.request.Range.End
 	}
+	// Exports keep the project canvas; the result reports the size that was rendered (index §4.15).
+	width, height := work.project.Width, work.project.Height
 	err = videostudio.RenderWithOptions(ctx, videostudio.RenderOptions{
 		FFmpegPath: cfg.VideoStudio.FFmpegPath, Project: work.project, AssetPaths: paths, Output: output,
+		Width: width, Height: height,
 		MaxOutputBytes:    min64(exportLimit, maxProject-usedBefore),
 		Encoder:           encoder.Encoder,
 		OnEncoderFallback: func(error) { fallback = true; invalidateVideoStudioEncoder() },
@@ -313,12 +301,167 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if work.request.Range != nil {
 		frames = end - start
 	}
-	result := map[string]interface{}{"duration_frames": frames, "width": work.project.Width, "height": work.project.Height,
+	result := map[string]interface{}{"duration_frames": frames, "width": width, "height": height,
 		"encoder": encoderName, "encoder_fallback": fallback}
 	if work.request.Range != nil {
 		result["range"] = map[string]int{"start": start, "end": end}
 	}
 	return artifact, result, nil
+}
+
+// stageRenderAssets checks that the admitted project still validates and lists only media imported into the project,
+// then stages the media a render reads (videoStudioRenderAssetIDs) into stageDir. It returns asset id -> staged path.
+// Exports and range checks share it.
+func (m *videoStudioManager) stageRenderAssets(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID string, project videostudio.Project, stageDir string) (map[string]string, error) {
+	if err := validateVideoStudioProject(project); err != nil {
+		return nil, err
+	}
+	assets := m.canonicalProjectAssets(projectID, project.Assets)
+	if len(assets) != len(project.Assets) {
+		return nil, fmt.Errorf("project references untrusted media")
+	}
+	active := videoStudioRenderAssetIDs(project)
+	paths := make(map[string]string, len(assets))
+	var stagedTotal int64
+	for _, asset := range project.Assets {
+		if _, used := active[asset.ID]; !used {
+			continue
+		}
+		staged, size, err := m.stageAssetSized(ctx, svc, cfg, assets[asset.ID], stageDir, stagedTotal)
+		if err != nil {
+			return nil, err
+		}
+		stagedTotal += size
+		paths[asset.ID] = staged
+	}
+	return paths, nil
+}
+
+// processRangeRender renders a timeline range through the export pipeline at RangeRenderSize ("render range exactly",
+// index §4.15) with the configured encoder and its libx264 fallback. The result is a temporary file in the project's
+// preview folder: it counts toward the project quota, replaces the project's previous range render, and is removed with
+// the project or when its job is trimmed. It is never written to exports/.
+func (m *videoStudioManager) processRangeRender(ctx context.Context, svc *desktop.Service, job *videoStudioJob, work *videoStudioWork, cfg *config.Config) (*videoStudioArtifact, map[string]interface{}, error) {
+	if work.request.Range == nil {
+		return nil, nil, fmt.Errorf("range render needs a range")
+	}
+	start, end := work.request.Range.Start, work.request.Range.End
+	if start < 0 || end <= start || end > videostudio.EnabledDuration(work.project) || end-start > videostudio.MaxRangeRenderFrames(videostudio.ProjectRate(work.project)) {
+		return nil, nil, fmt.Errorf("range render range is outside the admitted bounds")
+	}
+	stageDir, cleanup, err := m.newStageDir(job.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer cleanup()
+	paths, err := m.stageRenderAssets(ctx, svc, cfg, job.ProjectID, work.project, stageDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	previewDir := filepath.Join(m.previewDir, job.ProjectID)
+	exportLimit := int64(cfg.VideoStudio.MaxExportSizeMB) << 20
+	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
+	usedBefore, err := m.projectStorageSize(ctx, svc, job.ProjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	// The previous range render is replaced, so its bytes are available to this one.
+	_, replacedBefore, err := videoStudioRangeFiles(previewDir, m.rangeRenderJobIDs(job.ProjectID, job.ID))
+	if err != nil {
+		return nil, nil, err
+	}
+	budget := maxProject - usedBefore + replacedBefore
+	if budget <= 0 {
+		return nil, nil, errVideoStudioProjectSizeLimit
+	}
+	width, height := videostudio.RangeRenderSize(work.project)
+	output := filepath.Join(stageDir, "range.mp4")
+	encoder := videoStudioEncoder(ctx, cfg)
+	fallback := false
+	err = videostudio.RenderWithOptions(ctx, videostudio.RenderOptions{
+		FFmpegPath: cfg.VideoStudio.FFmpegPath, Project: work.project, AssetPaths: paths, Output: output,
+		Start: start, End: end, Width: width, Height: height,
+		MaxOutputBytes:    min64(exportLimit, budget),
+		Encoder:           encoder.Encoder,
+		OnEncoderFallback: func(error) { fallback = true; invalidateVideoStudioEncoder() },
+		Progress:          func(progress float64) { m.updateProgress(job.ID, progress) },
+	})
+	if err != nil {
+		_ = os.Remove(output)
+		return nil, nil, videoStudioRenderLimitError(err, exportLimit, budget)
+	}
+	info, err := os.Stat(output)
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 {
+		_ = os.Remove(output)
+		return nil, nil, fmt.Errorf("range render output is unavailable")
+	}
+	projectLock := m.projectLock(job.ProjectID)
+	projectLock.Lock()
+	defer projectLock.Unlock()
+	projectBytes, previewBytes, err := m.projectStorageUsage(ctx, svc, job.ProjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	oldJobs := m.rangeRenderJobIDs(job.ProjectID, job.ID)
+	oldPaths, oldBytes, err := videoStudioRangeFiles(previewDir, oldJobs)
+	if err != nil {
+		return nil, nil, err
+	}
+	if projectBytes > maxProject || previewBytes < oldBytes || info.Size() > maxProject-projectBytes || previewBytes-oldBytes > maxProject-projectBytes-info.Size() {
+		return nil, nil, errVideoStudioProjectSizeLimit
+	}
+	finalPath := filepath.Join(previewDir, job.ID+".mp4")
+	if _, statErr := os.Lstat(finalPath); !os.IsNotExist(statErr) {
+		return nil, nil, fmt.Errorf("range render result already exists")
+	}
+	// Inside the publication gate: a deleted project or a revoked job creates no folder and leaves no file.
+	if err := fileutil.PublishContext(ctx, func() error {
+		if err := os.MkdirAll(previewDir, 0o700); err != nil {
+			return err
+		}
+		_ = os.Chmod(previewDir, 0o700)
+		if err := os.Rename(output, finalPath); err != nil {
+			return err
+		}
+		for _, oldPath := range oldPaths {
+			if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
+				_ = os.Remove(finalPath)
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, nil, err
+	}
+	m.expireRangeRenderJobs(job.ProjectID, oldJobs)
+	encoderName := encoder.Name
+	if fallback {
+		encoderName = videostudio.CodecX264
+	}
+	artifact := &videoStudioArtifact{Name: "range.mp4", DownloadURL: fmt.Sprintf("/api/desktop/video-studio/projects/%s/previews/%s", job.ProjectID, job.ID), Size: info.Size()}
+	result := map[string]interface{}{"range": map[string]int{"start": start, "end": end}, "duration_frames": end - start, "width": width, "height": height,
+		"encoder": encoderName, "encoder_fallback": fallback}
+	return artifact, result, nil
+}
+
+// videoStudioRangeFiles lists the result files of earlier range renders that exist in dir, with their total size. The
+// ids come from rangeRenderJobIDs, which returns only ids in the uid format.
+func videoStudioRangeFiles(dir string, ids []string) ([]string, int64, error) {
+	var paths []string
+	var total int64
+	for _, id := range ids {
+		path := filepath.Join(dir, id+".mp4")
+		info, err := os.Lstat(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil || !info.Mode().IsRegular() {
+			return nil, 0, fmt.Errorf("range render result is not a regular file")
+		}
+		total += info.Size()
+		paths = append(paths, path)
+	}
+	return paths, total, nil
 }
 
 // videoStudioRenderLimitError names the limit that stopped an export: the remaining project storage when it was

@@ -107,8 +107,8 @@ func handleVideoStudioPoster(s *Server, w http.ResponseWriter, r *http.Request, 
 }
 
 // handleVideoStudioMediaDelete removes an imported asset with its file, poster, cached previews and record. The saved
-// project must no longer reference the asset, and no render, preview, probe, reverse, still or duplicate job of the
-// project may be queued or running, because those read the file. A generation only adds new media, so it does not block.
+// project must no longer reference the asset, and no render, preview, probe, reverse, still, duplicate or range_render
+// job of the project may be queued or running, because those read the file. A generation only adds new media, so it does not block.
 // The removal is recorded first (markMediaRemoving), so the asset is gone for every reader at once, and then runs in
 // order (finishMediaRemoval). When a step fails, the answer is an error and the record stays marked: a retry skips the
 // checks and finishes the removal, and so do the next start and the next listing of the project.
@@ -135,7 +135,7 @@ func handleVideoStudioMediaDelete(s *Server, w http.ResponseWriter, r *http.Requ
 			writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 			return
 		}
-		if videoStudioProjectUsesAsset(project, assetID) || manager.projectHasActiveJobs(projectID, "render", "preview", "probe", "reverse", "still", "duplicate") {
+		if videoStudioProjectUsesAsset(project, assetID) || manager.projectHasActiveJobs(projectID, "render", "preview", "probe", "reverse", "still", "duplicate", "range_render") {
 			writeVideoStudioError(w, http.StatusConflict, "media_in_use", "This media is still in use. Save the project and try again.")
 			return
 		}

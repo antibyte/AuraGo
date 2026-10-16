@@ -908,6 +908,40 @@ func (m *videoStudioManager) expirePreviewJobs(projectID, assetID string, ids []
 	_ = m.persistLocked()
 }
 
+// rangeRenderJobIDs lists the project's finished range renders other than exceptID. Only ids in the uid format are
+// returned, so a damaged jobs.json entry never names a file outside the project's preview folder.
+func (m *videoStudioManager) rangeRenderJobIDs(projectID, exceptID string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var ids []string
+	for _, job := range m.jobs {
+		if job.ID == exceptID || job.ProjectID != projectID || job.Kind != "range_render" || job.Status != "succeeded" || !validVideoStudioProjectID(job.ID) {
+			continue
+		}
+		ids = append(ids, job.ID)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// expireRangeRenderJobs withdraws the download of range renders whose file a newer range render replaced.
+func (m *videoStudioManager) expireRangeRenderJobs(projectID string, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, id := range ids {
+		job := m.jobs[id]
+		if job == nil || job.ProjectID != projectID || job.Kind != "range_render" || job.Artifact == nil {
+			continue
+		}
+		job.Artifact = nil
+		job.Message = "This range check was replaced by a newer one."
+	}
+	_ = m.persistLocked()
+}
+
 // mediaForProject lists the project's media records, oldest first, without records whose removal has started.
 func (m *videoStudioManager) mediaForProject(projectID string) []videoStudioMediaRecord {
 	m.mu.Lock()
@@ -1118,7 +1152,7 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		return "failed", "feature_unavailable", message
 	}
 	var segment *videostudio.SegmentError
-	if kind == "render" && errors.As(err, &segment) {
+	if (kind == "render" || kind == "range_render") && errors.As(err, &segment) {
 		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."
 	}
 	if errors.Is(err, errVideoStudioDuplicateQuota) {
@@ -1131,6 +1165,8 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		return "failed", "preview_failed", "A preview could not be created."
 	case "render":
 		return "failed", "render_failed", "The project could not be rendered."
+	case "range_render":
+		return "failed", "range_render_failed", "The range could not be rendered."
 	case "reverse":
 		return "failed", "reverse_failed", "The clip could not be reversed."
 	case "still":

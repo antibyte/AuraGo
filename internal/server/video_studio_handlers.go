@@ -886,8 +886,8 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		return
 	}
 	kind := strings.ToLower(strings.TrimSpace(body.Kind))
-	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" && kind != "reverse" && kind != "still" && kind != "duplicate" {
-		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, generate, reverse, still, and duplicate.")
+	if kind != "render" && kind != "preview" && kind != "probe" && kind != "generate" && kind != "reverse" && kind != "still" && kind != "duplicate" && kind != "range_render" {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job_kind", "Supported jobs are probe, preview, render, range_render, generate, reverse, still, and duplicate.")
 		return
 	}
 	if kind == "generate" && !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
@@ -908,7 +908,8 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 	}
 	r = r.WithContext(manager.publicationContext(r.Context(), ""))
 	var renderPrecondition desktop.FileWritePrecondition
-	if kind == "render" {
+	// A range check renders the saved project like an export, so it binds to the saved ETag the same way.
+	if kind == "render" || kind == "range_render" {
 		if strings.TrimSpace(r.Header.Get("If-Match")) == "" {
 			writeVideoStudioError(w, http.StatusPreconditionRequired, "precondition_required", "Render requires the current saved project ETag in If-Match.")
 			return
@@ -942,13 +943,22 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project timeline exceeds supported editing limits.")
 		return
 	}
-	if body.Range != nil && kind != "render" {
-		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Only render jobs take a range.")
+	if body.Range != nil && kind != "render" && kind != "range_render" {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_job", "Only render and range_render jobs take a range.")
+		return
+	}
+	if kind == "range_render" && body.Range == nil {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "A range check needs a timeline range.")
 		return
 	}
 	// The renderer ends at the last enabled clip, so a range must lie inside EnabledDuration, not Duration.
 	if body.Range != nil && (body.Range.Start < 0 || body.Range.End <= body.Range.Start || body.Range.End > videostudio.EnabledDuration(project)) {
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_range", "The in/out range must lie inside the project.")
+		return
+	}
+	// A range check covers at most MaxRangeRenderSeconds; a longer range is refused, never shortened.
+	if kind == "range_render" && body.Range.End-body.Range.Start > videostudio.MaxRangeRenderFrames(videostudio.ProjectRate(project)) {
+		writeVideoStudioError(w, http.StatusBadRequest, "range_too_long", "A range check covers at most 60 seconds.")
 		return
 	}
 	if kind == "duplicate" {
@@ -1197,12 +1207,17 @@ func handleVideoStudioPreviewFile(s *Server, w http.ResponseWriter, r *http.Requ
 		return
 	}
 	job := manager.job(jobID)
-	if job == nil || job.ProjectID != projectID || job.Kind != "preview" || job.Status != "succeeded" || job.Artifact == nil {
+	// Proxies (preview) and range checks (range_render) keep their file in the project's preview folder.
+	if job == nil || job.ProjectID != projectID || (job.Kind != "preview" && job.Kind != "range_render") || job.Status != "succeeded" || job.Artifact == nil {
 		writeVideoStudioError(w, http.StatusNotFound, "preview_not_found", "Preview not found.")
 		return
 	}
+	name := "preview.mp4"
+	if job.Kind == "range_render" {
+		name = "range.mp4"
+	}
 	path := filepath.Join(manager.previewDir, projectID, jobID+".mp4")
-	serveVideoStudioLocalFile(w, r, path, "video/mp4", "preview.mp4")
+	serveVideoStudioLocalFile(w, r, path, "video/mp4", name)
 }
 
 func handleVideoStudioExportFile(s *Server, w http.ResponseWriter, r *http.Request, projectID, filename string) {
