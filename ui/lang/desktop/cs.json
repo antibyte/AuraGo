@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Zachycení snímku",
   "videoStudio.editTracks": "Všech osm zvukových stop je obsazených. Nejdřív uvolni zvukovou stopu.",
   "videoStudio.editLinkLimit": "Skupina propojených klipů může mít nejvýše 16 klipů.",
+  "videoStudio.editRamp": "Klipy s rampou rychlosti tuto úpravu nepovolují. Nejdřív nastav konstantní rychlost.",
   "videoStudio.shortcutLink": "Propojit / zrušit propojení vybraných klipů",
   "videoStudio.shortcutDisable": "Vypnout / zapnout vybrané klipy",
   "videoStudio.goToTitle": "Přejít na timecode",

@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Bildrutefångst",
   "videoStudio.editTracks": "Alla åtta ljudspår används. Frigör först ett ljudspår.",
   "videoStudio.editLinkLimit": "En länkgrupp rymmer högst 16 klipp.",
+  "videoStudio.editRamp": "Klipp med hastighetsramp tillåter inte den här ändringen. Ange en konstant hastighet först.",
   "videoStudio.shortcutLink": "Länka / ta bort länk för markerade klipp",
   "videoStudio.shortcutDisable": "Inaktivera / aktivera markerade klipp",
   "videoStudio.goToTitle": "Gå till tidskod",

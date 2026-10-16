@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Captura de fotograma",
   "videoStudio.editTracks": "Las ocho pistas de audio están en uso. Libera primero una pista de audio.",
   "videoStudio.editLinkLimit": "Un grupo vinculado admite como máximo 16 clips.",
+  "videoStudio.editRamp": "Los clips con rampa de velocidad no permiten esta edición. Establece primero una velocidad constante.",
   "videoStudio.shortcutLink": "Vincular / desvincular los clips seleccionados",
   "videoStudio.shortcutDisable": "Desactivar / activar los clips seleccionados",
   "videoStudio.goToTitle": "Ir al código de tiempo",

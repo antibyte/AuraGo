@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Λήψη καρέ",
   "videoStudio.editTracks": "Και τα οκτώ κομμάτια ήχου χρησιμοποιούνται. Ελευθέρωσε πρώτα ένα κομμάτι ήχου.",
   "videoStudio.editLinkLimit": "Μια ομάδα σύνδεσης χωράει το πολύ 16 κλιπ.",
+  "videoStudio.editRamp": "Τα κλιπ με ράμπα ταχύτητας δεν επιτρέπουν αυτή την επεξεργασία. Όρισε πρώτα σταθερή ταχύτητα.",
   "videoStudio.shortcutLink": "Σύνδεση / αποσύνδεση των επιλεγμένων κλιπ",
   "videoStudio.shortcutDisable": "Απενεργοποίηση / ενεργοποίηση των επιλεγμένων κλιπ",
   "videoStudio.goToTitle": "Μετάβαση σε timecode",

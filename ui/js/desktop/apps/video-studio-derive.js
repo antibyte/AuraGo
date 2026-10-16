@@ -79,10 +79,12 @@
     }
 
     // A still job names the clip position (offset, clip frame and speed), so the server samples the source the way the
-    // renderer does at that speed; frame is the source frame E.sourceFrameAt reports there, which the server checks.
+    // renderer does at that speed; frame is the source frame E.sourceFrameAt reports there, which the server checks. A
+    // ramped clip sends its mean speed up to the frame (VideoStudioEffects.meanSpeed). The server then picks
+    // floor(offset + S(t)), the frame the export shows, without knowing about ramps (index §4.18).
     function stillPayload(s, clip, point, purpose) {
         return { kind: 'still', asset_id: clip.asset_id, frame: E().sourceFrameAt(s.project, clip, point), offset: Number(clip.offset || 0),
-            clip_frame: point - clip.start, speed: E().speedOf(clip), purpose };
+            clip_frame: point - clip.start, speed: window.VideoStudioEffects.meanSpeed(clip, point - clip.start), purpose };
     }
 
     // Freeze frame (spec 4.4): the captured frame becomes a still inserted at the playhead on the clip's own track. The

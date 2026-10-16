@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "फ़्रेम कैप्चर",
   "videoStudio.editTracks": "आठों ऑडियो ट्रैक उपयोग में हैं। पहले कोई ऑडियो ट्रैक खाली करें।",
   "videoStudio.editLinkLimit": "एक लिंक समूह में अधिकतम 16 क्लिप हो सकती हैं।",
+  "videoStudio.editRamp": "स्पीड रैंप वाली क्लिप इस संपादन की अनुमति नहीं देतीं। पहले एक स्थिर गति सेट करें।",
   "videoStudio.shortcutLink": "चुनी गई क्लिप को लिंक / अनलिंक करें",
   "videoStudio.shortcutDisable": "चुनी गई क्लिप को अक्षम / सक्षम करें",
   "videoStudio.goToTitle": "टाइमकोड पर जाएँ",

@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Frame capture",
   "videoStudio.editTracks": "All eight audio tracks are in use. Free an audio track first.",
   "videoStudio.editLinkLimit": "A link group holds at most 16 clips.",
+  "videoStudio.editRamp": "Clips with a speed ramp do not allow this edit. Set a constant speed first.",
   "videoStudio.shortcutLink": "Link / unlink the selected clips",
   "videoStudio.shortcutDisable": "Disable / enable the selected clips",
   "videoStudio.goToTitle": "Go to timecode",

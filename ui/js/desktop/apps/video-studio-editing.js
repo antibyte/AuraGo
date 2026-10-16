@@ -27,7 +27,8 @@
         transition: ['editTransition', 'Move the playhead out of the transition first.'],
         tracks: ['editTracks', 'All eight audio tracks are in use. Free an audio track first.'],
         link: ['editLinkLimit', 'A link group holds at most 16 clips.'],
-        room: ['reverseNoRoom', 'There is no room to place the reversed linked sound. Make room on its track or unlink it.']
+        room: ['reverseNoRoom', 'There is no room to place the reversed linked sound. Make room on its track or unlink it.'],
+        ramp: ['editRamp', 'Clips with a speed ramp do not allow this edit. Set a constant speed first.']
     };
 
     function renderTimeline(s) { if (s.project && s.q('[data-timeline]')) T().render(s.q('[data-timeline]'), s.timelineOptions); }

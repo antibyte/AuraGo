@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Acquisizione fotogramma",
   "videoStudio.editTracks": "Tutte le otto tracce audio sono in uso. Libera prima una traccia audio.",
   "videoStudio.editLinkLimit": "Un gruppo collegato contiene al massimo 16 clip.",
+  "videoStudio.editRamp": "Le clip con rampa di velocità non consentono questa modifica. Imposta prima una velocità costante.",
   "videoStudio.shortcutLink": "Collega / scollega le clip selezionate",
   "videoStudio.shortcutDisable": "Disattiva / attiva le clip selezionate",
   "videoStudio.goToTitle": "Vai al timecode",

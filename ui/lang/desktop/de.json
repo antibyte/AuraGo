@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Bilderfassung",
   "videoStudio.editTracks": "Alle acht Audiospuren sind belegt. Gib zuerst eine Audiospur frei.",
   "videoStudio.editLinkLimit": "Eine Verknüpfung umfasst höchstens 16 Clips.",
+  "videoStudio.editRamp": "Clips mit Geschwindigkeitsrampe lassen diese Änderung nicht zu. Lege zuerst eine konstante Geschwindigkeit fest.",
   "videoStudio.shortcutLink": "Ausgewählte Clips verknüpfen / Verknüpfung lösen",
   "videoStudio.shortcutDisable": "Ausgewählte Clips deaktivieren / aktivieren",
   "videoStudio.goToTitle": "Zu Timecode springen",

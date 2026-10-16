@@ -90,12 +90,20 @@
             clip.start = start;
             clip.duration = Math.max(1, end - start);
             clip.offset = edge(clip.offset);
-            const asset = assets.get(clip.asset_id);
+            const asset = assets.get(clip.asset_id), FX = window.VideoStudioEffects;
+            // Ramp points scale like durations (VideoStudioEffects.rescaleAnimation, read at call time because this file
+            // loads before video-studio-effects.js). A ramp left with one point becomes that point's constant speed.
+            if (FX) {
+                const anim = FX.rescaleAnimation(clip, ratio);
+                if (anim.ramp && anim.ramp.length > 1) clip.ramp = anim.ramp;
+                else if (anim.ramp) { delete clip.ramp; if (anim.ramp[0].speed !== 1) clip.speed = anim.ramp[0].speed; }
+            }
             if (asset && asset.kind !== 'image') {
-                // Source extent rule: offset + (duration - 1) * speed <= duration_frames - 1.
+                // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1 (a ramp: maxDurationFor).
                 const speed = clip.speed > 0 ? Number(clip.speed) : 1;
                 clip.offset = Math.min(clip.offset, Math.max(0, asset.duration_frames - 1));
-                clip.duration = Math.max(1, Math.min(clip.duration, Math.floor((asset.duration_frames - 1 - clip.offset) / speed + 1e-9) + 1));
+                const fits = FX && FX.hasRamp(clip) ? FX.maxDurationFor(clip, asset.duration_frames, clip.offset) : Math.floor((asset.duration_frames - 1 - clip.offset) / speed + 1e-9) + 1;
+                clip.duration = Math.max(1, Math.min(clip.duration, fits));
             }
             clip.fade_in = Math.min(edge(clip.fade_in), clip.duration);
             clip.fade_out = Math.min(edge(clip.fade_out), clip.duration);

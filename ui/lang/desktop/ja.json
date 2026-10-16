@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "フレームの取得",
   "videoStudio.editTracks": "8つのオーディオトラックがすべて使用中です。先にオーディオトラックを空けてください。",
   "videoStudio.editLinkLimit": "リンクグループに含められるクリップは最大16個です。",
+  "videoStudio.editRamp": "スピードランプのあるクリップではこの編集はできません。先に一定の速度を設定してください。",
   "videoStudio.shortcutLink": "選択したクリップをリンク／リンク解除",
   "videoStudio.shortcutDisable": "選択したクリップを無効／有効にする",
   "videoStudio.goToTitle": "タイムコードへ移動",

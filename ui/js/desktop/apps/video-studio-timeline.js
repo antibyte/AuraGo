@@ -373,8 +373,8 @@
         return clamp(visible / (seconds * BASE_PX_PER_SECOND), MIN_ZOOM, MAX_ZOOM);
     }
 
-    // A drag edits the clip (a move changes track and start; an edge trims the source, where the offset moves by
-    // speed per timeline frame). linkedIds lists the partners of an edge on the same frame: each keeps its own
+    // A drag edits the clip (a move changes track and start; an edge trims the source, where the offset follows the
+    // speed or ramp via headShift). linkedIds lists the partners of an edge on the same frame: each keeps its own
     // media limits and the drag stops where the first of them stops. Returns the edited copy, or null when invalid.
     function dragClip(before, clipId, mode, delta, targetTrackId, snapFrames, extraPoints, linkedIds) {
         const project = clone(before), source = clipFor(project, clipId);
@@ -400,17 +400,18 @@
             const members = [clip];
             (linkedIds || []).forEach(id => { const found = id !== clipId ? clipFor(project, id) : null; if (found && !found.track.locked) members.push(found.clip); });
             const media = item => { const a = project.assets.find(x => x.id === item.asset_id); return a && a.kind !== 'image' ? a : null; };
-            const speedOf = item => (Number(item.speed) > 0 ? Number(item.speed) : 1);
+            const speedOf = item => (Number(item.speed) > 0 ? Number(item.speed) : 1), FX = window.VideoStudioEffects;
+            const room = item => (FX.hasRamp(item) ? FX.headroom(item) : Math.floor(item.offset / speedOf(item) + 1e-9));
             let lo = -Infinity, hi = Infinity;
             if (mode === 'start') {
                 members.forEach(item => {
-                    lo = Math.max(lo, media(item) ? Math.max(-item.start, -Math.floor(item.offset / speedOf(item) + 1e-9)) : -item.start);
+                    lo = Math.max(lo, media(item) ? Math.max(-item.start, -room(item)) : -item.start);
                     hi = Math.min(hi, item.duration - 1);
                 });
             } else {
                 members.forEach(item => {
                     const a = media(item), speed = speedOf(item);
-                    const sourceMax = a ? Math.floor((Number(a.duration_frames) - 1 - item.offset) / speed + 1e-9) + 1 : max;
+                    const sourceMax = !a ? max : FX.hasRamp(item) ? FX.maxDurationFor(item, Number(a.duration_frames), item.offset) : Math.floor((Number(a.duration_frames) - 1 - item.offset) / speed + 1e-9) + 1;
                     lo = Math.max(lo, 1 - item.duration);
                     hi = Math.min(hi, Math.min(sourceMax, max - item.start) - item.duration);
                 });
@@ -421,7 +422,8 @@
             if (snapped != null) actual = clamp(snapped - edge, lo, hi);
             members.forEach(item => {
                 if (mode === 'start') {
-                    item.offset = media(item) ? Math.max(0, Math.floor(item.offset + actual * speedOf(item) + 1e-9)) : 0;
+                    const head = media(item) ? FX.headShift(item, actual) : { offset: 0, ramp: null };
+                    item.offset = head.offset; if (head.ramp) item.ramp = head.ramp;
                     item.start += actual;
                     item.duration -= actual;
                 } else item.duration += actual;

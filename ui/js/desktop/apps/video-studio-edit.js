@@ -6,7 +6,8 @@
     // inside mutate, which restores its snapshot). Locked tracks never change.
     const T = () => window.VideoStudioTimeline;
     const Time = () => window.VideoStudioTime;
-    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room' });
+    const FX = () => window.VideoStudioEffects;
+    const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room', ramp: 'ramp' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
     const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'] };
     const clone = value => JSON.parse(JSON.stringify(value));
@@ -22,17 +23,20 @@
         clip.fade_in = Math.min(Number(clip.fade_in) || 0, clip.duration);
         clip.fade_out = Math.min(Number(clip.fade_out) || 0, clip.duration);
     }
-    // Source extent rule: offset + (duration - 1) * speed <= duration_frames - 1. Stills are unbounded.
+    // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1. Without a ramp that is phase 1's
+    // (duration - 1) * speed; with one it is S (VideoStudioEffects.maxDurationFor). Stills are unbounded.
     function maxDurationFrom(project, clip, offset) {
         if (isStill(project, clip)) return Infinity;
         const frames = Number(assetOf(project, clip).duration_frames) || 0;
+        if (FX().hasRamp(clip)) return FX().maxDurationFor(clip, frames, offset);
         return Math.floor((frames - 1 - offset) / speedOf(clip) + 1e-9) + 1;
     }
-    // Source offset after the clip's first frame moves by `frames` timeline frames. Rounding down keeps the
-    // last source frame inside the media.
-    function shifted(clip, frames) { return Math.max(0, Math.floor(clip.offset + frames * speedOf(clip) + 1e-9)); }
-    // Timeline frames the head can grow before the source runs out.
-    function headroom(project, clip) { return isStill(project, clip) ? Infinity : Math.floor(clip.offset / speedOf(clip) + 1e-9); }
+    // Moves the clip's first frame by `frames` timeline frames in place (VideoStudioEffects.headShift). The source the
+    // head passes goes into the offset, rounded down so that the last source frame stays inside the media. Ramp points
+    // (clip time) shift with the head, so the curve stays on the same timeline frames.
+    function moveHead(clip, frames) { const head = FX().headShift(clip, frames); clip.offset = head.offset; if (head.ramp) clip.ramp = head.ramp; }
+    // Timeline frames the head can grow before the source runs out (a ramp continues its curve before the clip).
+    function headroom(project, clip) { return isStill(project, clip) ? Infinity : FX().hasRamp(clip) ? FX().headroom(clip) : Math.floor(clip.offset / speedOf(clip) + 1e-9); }
     // A clip never gets shorter than one frame, than a transition it shares with a neighbor, or than its
     // incoming and outgoing transitions together (they may touch but must not overlap).
     function minDuration(track, clip) {
@@ -100,7 +104,7 @@
     function piece(project, clip, from, to, id) {
         const copy = clone(clip);
         copy.id = id; copy.start = from; copy.duration = to - from;
-        if (!isStill(project, clip)) copy.offset = shifted(clip, from - clip.start);
+        if (!isStill(project, clip)) moveHead(copy, from - clip.start);
         copy.fade_in = from === clip.start ? Math.min(Number(clip.fade_in) || 0, copy.duration) : 0;
         copy.fade_out = to === endOf(clip) ? Math.min(Number(clip.fade_out) || 0, copy.duration) : 0;
         if (to !== endOf(clip)) copy.transition = null;
@@ -291,7 +295,7 @@
                 clip.duration += d;
                 later.forEach(item => { item.start += d; });
             } else {
-                if (!isStill(project, clip)) clip.offset = shifted(clip, d);
+                if (!isStill(project, clip)) moveHead(clip, d);
                 clip.duration -= d;
                 later.forEach(item => { item.start -= d; });
             }
@@ -322,7 +326,7 @@
         if (!d) return delta ? REASON.bounds : REASON.nothing;
         items.forEach(({ left, right }) => {
             left.duration += d;
-            if (!isStill(project, right)) right.offset = shifted(right, d);
+            if (!isStill(project, right)) moveHead(right, d);
             right.start += d; right.duration -= d;
             clampFades(left); clampFades(right);
         });
@@ -334,6 +338,8 @@
         if (!items.length) return refusal(project, ids);
         const moving = items.filter(({ clip }) => !isStill(project, clip));
         if (!moving.length) return REASON.media;
+        // A ramped clip keeps its curve on the timeline; slipping would move the curve against the content (index §4.18).
+        if (moving.some(({ clip }) => FX().hasRamp(clip))) return REASON.ramp;
         let lo = -Infinity, hi = Infinity;
         moving.forEach(({ clip }) => {
             const frames = Number(assetOf(project, clip).duration_frames) || 0, speed = speedOf(clip);
@@ -343,7 +349,7 @@
         const d = clampDelta(lo, hi, delta);
         if (d === null) return REASON.bounds;
         if (!d) return delta ? REASON.bounds : REASON.nothing;
-        moving.forEach(({ clip }) => { clip.offset = shifted(clip, d); });
+        moving.forEach(({ clip }) => moveHead(clip, d));
         return finish(project);
     }
     // Moves a clip between its neighbors: a joined left neighbor ends with it, a joined right neighbor starts
@@ -367,7 +373,7 @@
         clip.start += d;
         if (leftJoined) { prev.duration += d; clampFades(prev); }
         if (rightJoined) {
-            if (!isStill(project, next)) next.offset = shifted(next, d);
+            if (!isStill(project, next)) moveHead(next, d);
             next.start += d; next.duration -= d;
             clampFades(next);
         }
@@ -633,10 +639,11 @@
         return changed ? finish(project) : REASON.nothing;
     }
 
-    // ---- Speed (spec 4.4). The default keeps the source range and changes the duration to round(duration × old / new)
-    // (at most what the media holds at the new speed), rippling later clips on each track. keepDuration keeps the
-    // duration and changes the source range. Stills have no speed; every clip keeps the source extent rule, its
-    // transitions and the project length. ----
+    // ---- Speed (spec 4.4). The default keeps the source range: round(duration × old / new) frames at a constant
+    // speed (phase 1), round(sourceExtent / new) + 1 frames on a ramp (index §4.18), at most what the media holds at
+    // the new speed, and later clips on each track ripple. keepDuration keeps the duration and changes the source
+    // range. The new constant speed replaces a ramp. Stills have no speed. Every clip keeps the source extent rule,
+    // its transitions and the project length. ----
     function setSpeed(project, ids, speed, keepDuration) {
         if (!(speed >= 0.25 && speed <= 16)) return REASON.nothing;
         const items = editable(project, ids);
@@ -649,7 +656,9 @@
                 continue;
             }
             const fits = Math.floor((Number(assetOf(project, clip).duration_frames) - 1 - clip.offset) / speed + 1e-9) + 1;
-            const duration = keepDuration ? clip.duration : Math.max(1, Math.min(fits, Math.round(clip.duration * speedOf(clip) / speed)));
+            // A ramp keeps its source range sourceExtent (index §4.18); a constant speed keeps phase 1's formula.
+            const kept = FX().hasRamp(clip) ? Math.round(FX().sourceExtent(clip) / speed) + 1 : Math.round(clip.duration * speedOf(clip) / speed);
+            const duration = keepDuration ? clip.duration : Math.max(1, Math.min(fits, kept));
             if (!(duration <= fits)) return REASON.media;
             if (duration < minDuration(track, clip)) return REASON.bounds;
             plans.push({ track, clip, duration });
@@ -658,7 +667,7 @@
             const delta = duration - clip.duration;
             if (delta) track.clips.filter(item => item !== clip && item.start > clip.start).forEach(item => { item.start += delta; });
             clip.duration = duration;
-            if (speed === 1) delete clip.speed; else clip.speed = speed;
+            if (speed === 1) delete clip.speed; else clip.speed = speed; delete clip.ramp;
             clampFades(clip);
         });
         if (T().projectEnd(project) > Time().maxFrames(project)) return REASON.limit;
@@ -675,6 +684,8 @@
         const clip = found.clip, asset = assetOf(project, clip);
         if (!asset || asset.kind !== 'video' || !asset.has_audio) return REASON.media;
         if (clip.audio_detached) return REASON.nothing;
+        // The sound of a ramped clip plays at 1x (ramps and keyframes animate the picture only), so its range must fit at 1x.
+        if (FX().hasRamp(clip) && clip.offset + clip.duration > (Number(asset.duration_frames) || 0)) return REASON.media;
         if ((clip.link ? linkMembers(project, clip.link).length : 1) + 1 > maxLinkClips()) return REASON.link;
         const start = clip.start, end = endOf(clip);
         const audioTracks = project.tracks.filter(track => track.kind === 'audio');
@@ -688,7 +699,7 @@
         const audio = Object.assign(clone(clip), {
             id: ids.clip, link, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', text: '', text_style: null, transition: null
         });
-        delete audio.audio_detached;
+        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp;
         clip.link = link;
         clip.audio_detached = true;
         track.clips.push(audio);
@@ -740,9 +751,11 @@
 
     // ---- Derived media (spec 4.4). ----
     // The source frame the renderer shows at timeline frame `frame`: offset + (frame - start) × speed, rounded down and
-    // kept inside the media. A freeze frame captures this frame.
+    // kept inside the media. A ramped clip uses its mean speed up to the frame (VideoStudioEffects.meanSpeed). That is
+    // floor(offset + S(t)), computed exactly as the server checks a still request. A freeze frame captures this frame.
     function sourceFrameAt(project, clip, frame) {
-        const asset = assetOf(project, clip), value = Math.floor(Number(clip.offset || 0) + (frame - clip.start) * speedOf(clip) + 1e-9);
+        const asset = assetOf(project, clip), t = frame - clip.start;
+        const value = Math.floor(Number(clip.offset || 0) + t * FX().meanSpeed(clip, t) + 1e-9);
         return Math.max(0, Math.min(Math.max(0, Number(asset && asset.duration_frames) - 1), value));
     }
     // The name of a reversed copy, without extension (the server adds .mp4): the name with the localized
@@ -766,8 +779,9 @@
         if (!found) return null;
         let first = Infinity, end = -Infinity;
         sameAssetMembers(project, found).forEach(({ clip }) => {
+            const extent = FX().hasRamp(clip) ? FX().sourceExtent(clip) : (clip.duration - 1) * speedOf(clip);
             first = Math.min(first, clip.offset);
-            end = Math.max(end, clip.offset + Math.ceil((clip.duration - 1) * speedOf(clip) - 1e-9) + 1);
+            end = Math.max(end, clip.offset + Math.ceil(extent - 1e-9) + 1);
         });
         return { rangeStart: first, frames: end - first };
     }
@@ -779,10 +793,13 @@
     // the mapped frame each member shows the source frame it showed before, so picture and sound stay in sync. Members of
     // other assets stay. A member outside the range, a clip that no longer reads the reversed source, or a moved member
     // that would overlap another clip, touch a transition or leave the project refuses (reason room) without changes.
+    // A ramped member refuses (reason ramp): a mirrored ramp with hold spans is not representable, so reverse first and
+    // ramp afterwards (index §4.18).
     function reverseClips(project, clipId, reversed) {
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
         if (found.track.locked) return REASON.locked;
+        if (sameAssetMembers(project, found).some(({ clip }) => FX().hasRamp(clip))) return REASON.ramp;
         const target = (project.assets || []).find(asset => asset.id === reversed.assetId);
         if (!target) return REASON.media;
         if (reversed.sourceAssetId && found.clip.asset_id !== reversed.sourceAssetId) return REASON.media;

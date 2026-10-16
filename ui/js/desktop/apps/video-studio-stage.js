@@ -86,13 +86,15 @@
             if (frames == null) { showNotice(s, 'invalidTime', 'Enter a time like 4,5 or 1:04.5.', true); renderInspector(s); return; }
             const asset = s.project.assets.find(item => item.id === found.clip.asset_id) || {};
             mutate(s, field, project => {
-                const target = T().clipFor(project, found.clip.id).clip;
-                // The source extent rule with speed: offset + (duration - 1) * speed <= duration_frames - 1.
-                const maxOffset = asset.kind === 'image' ? 0 : Math.max(0, Math.floor(asset.duration_frames - 1 - (target.duration - 1) * speedOf(target)));
+                const target = T().clipFor(project, found.clip.id).clip, FX = window.VideoStudioEffects, ramped = FX.hasRamp(target);
+                // The source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1, with (duration - 1) × speed
+                // or a ramp's sourceExtent. The absolute offset stays editable on a ramped clip (index §4.18).
+                const extent = ramped ? FX.sourceExtent(target) - 1e-9 : (target.duration - 1) * speedOf(target);
+                const maxOffset = asset.kind === 'image' ? 0 : Math.max(0, Math.floor(asset.duration_frames - 1 - extent));
                 if (field === 'start') target.start = clamp(frames, 0, maxFrames(s) - target.duration);
                 else if (field === 'offset') target.offset = asset.kind === 'image' ? 0 : clamp(frames, 0, maxOffset);
                 else {
-                    const sourceLimit = asset.kind === 'image' || target.text ? maxFrames(s) : Math.floor((asset.duration_frames - 1 - target.offset) / speedOf(target) + 1e-9) + 1;
+                    const sourceLimit = asset.kind === 'image' || target.text ? maxFrames(s) : ramped ? FX.maxDurationFor(target, asset.duration_frames, target.offset) : Math.floor((asset.duration_frames - 1 - target.offset) / speedOf(target) + 1e-9) + 1;
                     target.duration = clamp(frames, 1, Math.min(sourceLimit, maxFrames(s) - target.start));
                     target.fade_in = Math.min(target.fade_in, target.duration); target.fade_out = Math.min(target.fade_out, target.duration);
                 }

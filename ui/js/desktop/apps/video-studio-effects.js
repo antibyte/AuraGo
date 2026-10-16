@@ -388,5 +388,43 @@
         return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    // ---- Plan 2b Task 9: head edits, still requests and rate changes of ramped clips (index §4.18). ----
+    // {offset, ramp} after the clip's first frame moves by `frames` timeline frames.
+    // - Positive frames move the head later: a split's right part, a start trim, roll or slide. Negative frames grow it.
+    // - The source that the head passes is baked into the offset, rounded down and never below 0, exactly like phase 1
+    //   (offset + frames x speed without a ramp).
+    // - Ramp points are in clip time, so they shift by -frames and the curve stays on the same timeline frames.
+    // - ramp is null without a ramp.
+    function headShift(clip, frames) {
+        const d = Number(frames) || 0, offset = Number(clip && clip.offset) || 0;
+        if (!hasRamp(clip)) {
+            const speed = Number(clip && clip.speed) > 0 ? Number(clip.speed) : 1;
+            return { offset: Math.max(0, Math.floor(offset + d * speed + 1e-9)), ramp: null };
+        }
+        // Pieces over a range that holds 0 and d. Their nodes depend only on the spans, so the range does not change S.
+        const passed = rampSource(rampPieces(clip.ramp, Math.min(0, d) - 1, Math.max(0, d) + 1), d);
+        return { offset: Math.max(0, Math.floor(offset + passed + 1e-9)), ramp: clip.ramp.map(point => ({ f: point.f - d, speed: point.speed, e: point.e })) };
+    }
+    // The constant speed that consumes as much source over the clip's first t frames as the clip does:
+    // clipSource(clip, t) / t, kept inside 0.25..16 against float rounding, and 1 at t <= 0. Without a ramp it is the
+    // clip's own speed. Still requests (freeze frame, export frame) of a ramped clip send it. The server's unchanged
+    // floor(offset + t x speed) check and ExtractStill then pick floor(offset + S(t)), the frame the export shows.
+    function meanSpeed(clip, t) {
+        const speed = Number(clip && clip.speed) > 0 ? Number(clip.speed) : 1, n = Number(t) || 0;
+        if (!hasRamp(clip)) return speed;
+        return n > 0 ? Math.max(0.25, Math.min(16, clipSource(clip, n) / n)) : 1;
+    }
+    // Frame-rate change (VideoStudioTime.rescaleProject): {keyframes, ramp} of the clip at ratio = new rate / old rate.
+    // - Ramp points are clip durations, so f scales and rounds like a duration.
+    // - A point that rounds onto the one before is dropped. One point left means a constant speed; rescaleProject
+    //   applies it.
+    // - Speeds are frames per frame and stay. ramp is null without a ramp.
+    // Plan 2b Task 10 adds the keyframe part (f scales like the offset); until then keyframes pass unchanged.
+    function rescaleAnimation(clip, ratio) {
+        const ramp = hasRamp(clip) ? clip.ramp.map(point => ({ f: Math.round(point.f * ratio), speed: point.speed, e: point.e }))
+            .filter((point, index, list) => index === 0 || point.f !== list[index - 1].f) : null;
+        return { keyframes: clip && clip.keyframes, ramp };
+    }
+
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

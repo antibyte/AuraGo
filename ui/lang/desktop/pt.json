@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Captura de quadro",
   "videoStudio.editTracks": "As oito faixas de áudio estão em uso. Libere primeiro uma faixa de áudio.",
   "videoStudio.editLinkLimit": "Um grupo vinculado comporta no máximo 16 clipes.",
+  "videoStudio.editRamp": "Clipes com rampa de velocidade não permitem esta edição. Defina primeiro uma velocidade constante.",
   "videoStudio.shortcutLink": "Vincular / desvincular os clipes selecionados",
   "videoStudio.shortcutDisable": "Desativar / ativar os clipes selecionados",
   "videoStudio.goToTitle": "Ir para o timecode",

@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Frame vastleggen",
   "videoStudio.editTracks": "Alle acht audiosporen zijn in gebruik. Maak eerst een audiospoor vrij.",
   "videoStudio.editLinkLimit": "Een koppelgroep bevat maximaal 16 clips.",
+  "videoStudio.editRamp": "Clips met een snelheidsramp staan deze bewerking niet toe. Stel eerst een constante snelheid in.",
   "videoStudio.shortcutLink": "Geselecteerde clips koppelen / ontkoppelen",
   "videoStudio.shortcutDisable": "Geselecteerde clips uitschakelen / inschakelen",
   "videoStudio.goToTitle": "Naar timecode gaan",

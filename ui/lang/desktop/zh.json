@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "帧捕获",
   "videoStudio.editTracks": "八条音频轨道均已占用。请先腾出一条音频轨道。",
   "videoStudio.editLinkLimit": "一个链接组最多包含 16 个片段。",
+  "videoStudio.editRamp": "带速度渐变的片段不允许此编辑。请先设置恒定速度。",
   "videoStudio.shortcutLink": "链接 / 取消链接所选片段",
   "videoStudio.shortcutDisable": "停用 / 启用所选片段",
   "videoStudio.goToTitle": "跳转到时间码",

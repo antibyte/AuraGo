@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Bildefangst",
   "videoStudio.editTracks": "Alle åtte lydsporene er i bruk. Frigjør først et lydspor.",
   "videoStudio.editLinkLimit": "En sammenkobling kan ha maks 16 klipp.",
+  "videoStudio.editRamp": "Klipp med hastighetsrampe tillater ikke denne endringen. Angi en konstant hastighet først.",
   "videoStudio.shortcutLink": "Koble sammen / fjern kobling for valgte klipp",
   "videoStudio.shortcutDisable": "Deaktiver / aktiver valgte klipp",
   "videoStudio.goToTitle": "Gå til tidskode",

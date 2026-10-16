@@ -6110,6 +6110,7 @@
   "videoStudio.job_still": "Przechwycenie klatki",
   "videoStudio.editTracks": "Wszystkie osiem ścieżek audio jest zajętych. Najpierw zwolnij jedną ścieżkę audio.",
   "videoStudio.editLinkLimit": "Grupa połączonych klipów może zawierać najwyżej 16 klipów.",
+  "videoStudio.editRamp": "Klipy z rampą prędkości nie pozwalają na tę zmianę. Najpierw ustaw stałą prędkość.",
   "videoStudio.shortcutLink": "Połącz / rozłącz zaznaczone klipy",
   "videoStudio.shortcutDisable": "Wyłącz / włącz zaznaczone klipy",
   "videoStudio.goToTitle": "Przejdź do kodu czasowego",
