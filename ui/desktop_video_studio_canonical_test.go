@@ -111,6 +111,8 @@ func canonicalGuardProject() videostudio.Project {
 				AudioDetached: true,
 				Disabled:      true,
 				Label:         "red",
+				Keyframes:     map[string][]videostudio.Keyframe{"opacity": {{F: 0, V: 0, E: videostudio.EaseLinear}, {F: 25, V: 1, E: videostudio.EaseHold}}, "x": {{F: 3, V: 0.1, E: videostudio.EaseInOut}}},
+				Ramp:          []videostudio.RampPoint{{F: 0, Speed: 1, E: videostudio.EaseInOut}, {F: 20, Speed: 2, E: videostudio.EaseLinear}},
 			}},
 		}},
 		Markers:  []videostudio.Marker{{ID: "m", Frame: 5}},
@@ -200,5 +202,52 @@ process.stdout.write(JSON.stringify({project: Object.keys(c), asset: Object.keys
 		if want := goJSONKeys(check.typ); !slices.Equal(check.keys, want) {
 			t.Fatalf("canonicalProject %s keys = %v, want the Go JSON order %v", check.name, check.keys, want)
 		}
+	}
+}
+
+// Keyframes and ramps reach the server in Go's JSON form (plan index §4.1). The guard project's canonical copy
+// stringifies exactly like json.Marshal, even when the live editor state differs: paths in insertion order, keys in
+// another order, unsorted lists, an emptied path and editor-only keys.
+func TestVideoStudioCanonicalKeyframesMatchGo(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio canonical form checks")
+	}
+	data, err := json.Marshal(canonicalGuardProject())
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const P = window.VideoStudioParts;
+const live = ` + string(data) + `;
+const clip = live.tracks[0].clips[0];
+clip.keyframes = {
+  x: clip.keyframes.x.map(k => ({e: k.e, selected: true, v: k.v, f: k.f})),
+  rotation: [],
+  opacity: clip.keyframes.opacity.slice().reverse().map(k => ({v: k.v, f: k.f, e: k.e}))
+};
+clip.ramp = clip.ramp.slice().reverse().map(p => ({speed: p.speed, e: p.e, f: p.f, dragging: false}));
+const bare = JSON.parse(JSON.stringify(live));
+bare.tracks[0].clips[0].keyframes = {opacity: []};
+bare.tracks[0].clips[0].ramp = [];
+const bareKeys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+assert(!bareKeys.includes('keyframes') && !bareKeys.includes('ramp'), 'empty keyframe lists and an empty ramp are omitted like Go omitempty');
+process.stdout.write(JSON.stringify(P.canonicalProject(live)));
+`
+	cmd := exec.Command(node, "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("canonical keyframes: %v\n%s", err, stderr.String())
+	}
+	if string(output) != string(data) {
+		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)
 	}
 }

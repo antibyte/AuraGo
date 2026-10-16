@@ -43,6 +43,13 @@
     const finite = value => typeof value === 'number' && Number.isFinite(value);
     const clamp01 = value => Math.max(0, Math.min(1, value));
     const emptyUnavailable = () => ({ effects: new Set(), transitions: new Set(), blend_modes: new Set(), anim_presets: new Set() });
+    // Keyframe and speed-ramp names and limits (index §4.4, §4.18), the same as Go: the Easing constants
+    // (keyframes.go), MaxKeyframesPerParam, MaxKeyframesPerClip, MaxRampPoints, MaxRampPieces and the unexported
+    // rampEaseSteps (ramp.go).
+    const EASINGS = Object.freeze(['linear', 'ease_in', 'ease_out', 'ease_in_out', 'hold']);
+    const LIMITS = Object.freeze({ keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4 });
+    // Go's MinClipSpeed and MaxClipSpeed.
+    const MIN_SPEED = 0.25, MAX_SPEED = 16;
     let current = BUILTIN, missing = emptyUnavailable();
 
     // A registry from the server is used only when it has this build's version and every list is well formed.
@@ -77,6 +84,48 @@
         const out = {};
         ((effect(effectId) || {}).params || []).forEach(param => { out[param.id] = param.default; });
         return out;
+    }
+
+    // Mirror of Go validateKeyframes and validateRamp (index §4.18).
+    // Keyframes:
+    //  - only on visual tracks, and only on keyframable number paths;
+    //  - 1..64 per path and at most 512 per clip;
+    //  - strictly increasing integer frames within ±16·maxFrames;
+    //  - values inside the registry range (width and height above 0) and known easings.
+    // Ramps:
+    //  - only on a video track with a video asset, with speed absent or 1;
+    //  - 2..16 points with strictly increasing integer frames within ±maxFrames;
+    //  - speeds 0.25..16 and known easings.
+    // The source extent rule stays in validTimeline.
+    function validAnimation(clip, track, asset, maxFrames) {
+        const keyframes = clip ? clip.keyframes : null, ramp = clip ? clip.ramp : null;
+        if (keyframes != null) {
+            if (typeof keyframes !== 'object' || Array.isArray(keyframes)) return false;
+            const paths = Object.keys(keyframes);
+            if (paths.length && (!track || track.kind === 'audio')) return false;
+            if (paths.reduce((n, path) => n + (Array.isArray(keyframes[path]) ? keyframes[path].length : 0), 0) > LIMITS.keyframesPerClip) return false;
+            const bound = MAX_SPEED * maxFrames;
+            for (const path of paths) {
+                const spec = base(path), list = keyframes[path];
+                if (!spec || !spec.keyframable || spec.type !== 'number' || !Array.isArray(list) || !list.length || list.length > LIMITS.keyframesPerParam) return false;
+                for (let i = 0; i < list.length; i++) {
+                    const key = list[i];
+                    if (!key || !Number.isSafeInteger(key.f) || Math.abs(key.f) > bound || (i > 0 && key.f <= list[i - 1].f)) return false;
+                    if (!finite(key.v) || key.v < spec.min || key.v > spec.max || ((path === 'width' || path === 'height') && key.v <= 0) || !EASINGS.includes(key.e)) return false;
+                }
+            }
+        }
+        if (ramp != null && !Array.isArray(ramp)) return false;
+        if (Array.isArray(ramp) && ramp.length) {
+            if (!track || track.kind !== 'video' || !asset || asset.kind !== 'video') return false;
+            if (ramp.length < 2 || ramp.length > LIMITS.rampPoints || (clip.speed != null && Number(clip.speed) !== 1)) return false;
+            for (let i = 0; i < ramp.length; i++) {
+                const point = ramp[i];
+                if (!point || !Number.isSafeInteger(point.f) || Math.abs(point.f) > maxFrames || (i > 0 && point.f <= ramp[i - 1].f)) return false;
+                if (!finite(point.speed) || point.speed < MIN_SPEED || point.speed > MAX_SPEED || !EASINGS.includes(point.e)) return false;
+            }
+        }
+        return true;
     }
 
     // The value of a parameter path at an absolute timeline frame. Paths: x, y, width, height, rotation, opacity,
@@ -178,5 +227,5 @@
         return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
     }
 
-    window.VideoStudioEffects = { BUILTIN, adopt, registry, transitions, transition, isTransition, base, effect, defaults, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

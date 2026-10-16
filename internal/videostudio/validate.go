@@ -215,6 +215,10 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 	if clip.Speed != 0 && (!finite(clip.Speed) || clip.Speed < MinClipSpeed || clip.Speed > MaxClipSpeed) {
 		return fmt.Errorf("clip %q speed must be between 0.25 and 16", clip.ID)
 	}
+	// The ramp's shape is checked before the source extent rule reads it (plan index §4.18).
+	if err := validateRamp(track, clip, asset, maxFrames); err != nil {
+		return err
+	}
 	speed := ClipSpeed(clip)
 	if asset.Kind == AssetImage {
 		if speed != 1 {
@@ -294,6 +298,9 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 		if _, ok := TransitionByID(clip.Transition.Type); !ok {
 			return fmt.Errorf("clip %q has unsupported transition %q", clip.ID, clip.Transition.Type)
 		}
+	}
+	if err := validateKeyframes(track, clip, maxFrames); err != nil {
+		return err
 	}
 	return nil
 }

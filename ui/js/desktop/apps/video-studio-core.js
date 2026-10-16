@@ -86,8 +86,20 @@
         ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
         return out;
     }
-    // Version 2 clip fields after transition, in Go's order. Each appears only when set (omitempty): speed 1 is
-    // removed by the editor, and an enabled, unlinked, labelless clip carries none of them.
+    // Keyframes (2b) in Go's JSON form: paths sorted like Go's map keys, every list sorted by f with exactly {f, v, e};
+    // empty lists and an empty map are left out (omitempty; Validate refuses an empty list). null when nothing is left.
+    function canonicalKeyframes(keyframes) {
+        if (!keyframes || typeof keyframes !== 'object') return null;
+        const out = {};
+        Object.keys(keyframes).sort().forEach(path => {
+            const list = Array.isArray(keyframes[path]) ? keyframes[path] : [];
+            if (list.length) out[path] = list.map(key => ({ f: Math.round(Number(key.f)), v: Number(key.v), e: String(key.e || '') })).sort((a, b) => a.f - b.f);
+        });
+        return Object.keys(out).length ? out : null;
+    }
+    // Version 2 and 3 clip fields after transition, in Go's order (plan index §4.1). Each appears only when set
+    // (omitempty): speed 1 is removed by the editor, and an enabled, unlinked, labelless clip without keyframes or ramp
+    // carries none of them. A ramp is [{f, speed, e}] sorted by f.
     function canonicalClipExtras(clip) {
         const out = {};
         if (clip.speed != null && Number(clip.speed) !== 1) out.speed = Number(clip.speed);
@@ -95,6 +107,9 @@
         if (clip.audio_detached) out.audio_detached = true;
         if (clip.disabled) out.disabled = true;
         if (clip.label) out.label = String(clip.label);
+        const keyframes = canonicalKeyframes(clip.keyframes);
+        if (keyframes) out.keyframes = keyframes;
+        if (Array.isArray(clip.ramp) && clip.ramp.length) out.ramp = clip.ramp.map(point => ({ f: Math.round(Number(point.f)), speed: Number(point.speed), e: String(point.e || '') })).sort((a, b) => a.f - b.f);
         return out;
     }
     // Markers and the in/out points follow Go's omitempty JSON: markers only when there are some, each field only when

@@ -92,29 +92,31 @@ type Track struct {
 // is also the JSON order and the order of canonicalClipExtras in video-studio-core.js: keyframes (2b), ramp (2b),
 // crop (2c), flip_h (2c), flip_v (2c), blend (2d), mask (2d), effects (2c), anim_in (2e), anim_out (2e).
 type Clip struct {
-	ID            string      `json:"id"`
-	AssetID       string      `json:"asset_id"`
-	Start         int         `json:"start"`
-	Offset        int         `json:"offset"`
-	Duration      int         `json:"duration"`
-	X             float64     `json:"x"`
-	Y             float64     `json:"y"`
-	Width         float64     `json:"width"`
-	Height        float64     `json:"height"`
-	Rotation      float64     `json:"rotation"`
-	Opacity       float64     `json:"opacity"`
-	Volume        float64     `json:"volume"`
-	FadeIn        int         `json:"fade_in"`
-	FadeOut       int         `json:"fade_out"`
-	Fit           FitMode     `json:"fit"`
-	Text          string      `json:"text,omitempty"`
-	TextStyle     *TextStyle  `json:"text_style,omitempty"`
-	Transition    *Transition `json:"transition,omitempty"`
-	Speed         float64     `json:"speed,omitempty"`
-	Link          string      `json:"link,omitempty"`
-	AudioDetached bool        `json:"audio_detached,omitempty"`
-	Disabled      bool        `json:"disabled,omitempty"`
-	Label         string      `json:"label,omitempty"`
+	ID            string                `json:"id"`
+	AssetID       string                `json:"asset_id"`
+	Start         int                   `json:"start"`
+	Offset        int                   `json:"offset"`
+	Duration      int                   `json:"duration"`
+	X             float64               `json:"x"`
+	Y             float64               `json:"y"`
+	Width         float64               `json:"width"`
+	Height        float64               `json:"height"`
+	Rotation      float64               `json:"rotation"`
+	Opacity       float64               `json:"opacity"`
+	Volume        float64               `json:"volume"`
+	FadeIn        int                   `json:"fade_in"`
+	FadeOut       int                   `json:"fade_out"`
+	Fit           FitMode               `json:"fit"`
+	Text          string                `json:"text,omitempty"`
+	TextStyle     *TextStyle            `json:"text_style,omitempty"`
+	Transition    *Transition           `json:"transition,omitempty"`
+	Speed         float64               `json:"speed,omitempty"`
+	Link          string                `json:"link,omitempty"`
+	AudioDetached bool                  `json:"audio_detached,omitempty"`
+	Disabled      bool                  `json:"disabled,omitempty"`
+	Label         string                `json:"label,omitempty"`
+	Keyframes     map[string][]Keyframe `json:"keyframes,omitempty"` // base paths (2b: x, y, width, height, rotation, opacity)
+	Ramp          []RampPoint           `json:"ramp,omitempty"`
 }
 
 type TextStyle struct {

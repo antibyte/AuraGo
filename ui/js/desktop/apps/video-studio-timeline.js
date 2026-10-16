@@ -116,6 +116,7 @@
                 if (![clip.start, clip.offset, clip.duration, clip.fade_in, clip.fade_out].every(Number.isSafeInteger) ||
                     clip.start < 0 || clip.duration <= 0 || clip.duration > max - clip.start || clip.offset < 0 ||
                     clip.fade_in < 0 || clip.fade_out < 0 || clip.fade_in > clip.duration || clip.fade_out > clip.duration) return false;
+                if (!window.VideoStudioEffects.validAnimation(clip, track, asset, max)) return false;
                 // Speed (absent = 1) and the source extent rule: offset + (duration - 1) * speed <= duration_frames - 1.
                 const speed = clip.speed == null ? 1 : Number(clip.speed);
                 if (!(speed >= 0.25 && speed <= 16) || asset.kind === 'image' && speed !== 1) return false;
