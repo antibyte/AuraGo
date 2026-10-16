@@ -62,9 +62,21 @@ func inputPaths(inputs []segmentInput) []string {
 	return paths
 }
 
-// buildVideoSegment composes the visual tracks of seg. When seg starts or ends inside a transition the graph
-// covers the whole transition (pre-roll) and trims the composed frames back to seg.
+// videoTail says how a composed video segment leaves the graph.
+type videoTail struct {
+	width, height int    // output size; the project size keeps the canvas
+	upload        string // hardware upload (format=nv12,hwupload) appended after the YUV conversion
+	rgb           bool   // RenderFrame: 8-bit RGB (rgb24) instead of the BT.709 YUV tail
+}
+
+// buildVideoSegment composes the visual tracks of seg for the encoder (BT.709 YUV tail).
 func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, error) {
+	return buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: outWidth, height: outHeight, upload: upload})
+}
+
+// buildVideoSegmentWith composes the visual tracks of seg. When seg starts or ends inside a transition the graph
+// covers the whole transition (pre-roll) and trims the composed frames back to seg.
+func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, error) {
 	window := expandRange(seg, videoForbiddenSpans(project))
 	layers, inputs, err := segmentLayers(project, window, sources, rate)
 	if err != nil {
@@ -81,14 +93,23 @@ func buildVideoSegment(project Project, seg Segment, sources map[string]renderSo
 		output = next
 	}
 	tail := fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS", output, seg.Start-window.Start, seg.End-window.Start)
+	if out.rgb {
+		// Golden frames: lossless 8-bit RGB straight from the RGBA composition, before any YUV or 4:2:0 conversion.
+		finish := "format=rgb24"
+		if out.width != width || out.height != height {
+			finish = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic,format=rgb24", out.width, out.height)
+		}
+		filters = append(filters, tail+","+finish+"[vs_video_out]")
+		return inputs, strings.Join(filters, ";\n"), nil
+	}
 	// Convert RGBA to limited-range BT.709 YUV here, together with the optional resize: left to the encoder's
 	// automatic conversion, FFmpeg before 7.1 uses BT.601 while the stream is tagged BT.709. Hardware encoders
 	// append their upload (format=nv12,hwupload) after this format.
 	convert := "scale=out_color_matrix=bt709:out_range=tv"
-	if outWidth != width || outHeight != height {
-		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", outWidth, outHeight)
+	if out.width != width || out.height != height {
+		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", out.width, out.height)
 	}
-	filters = append(filters, tail+","+convert+",format=yuv420p"+upload+"[vs_video_out]")
+	filters = append(filters, tail+","+convert+",format=yuv420p"+out.upload+"[vs_video_out]")
 	return inputs, strings.Join(filters, ";\n"), nil
 }
 
