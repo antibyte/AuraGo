@@ -167,3 +167,65 @@ func TestVideoStudioPreviewPainterSelection(t *testing.T) {
 }
 `)
 }
+
+// Fallback (index §4.5): the reasons reach onPainterChange with the element in use, fallback('forced') and the
+// compositor's onFallback swap in a fresh element once, and failed programs are reported once and listed.
+func TestVideoStudioPreviewPainterFallback(t *testing.T) {
+	runVideoStudioPainterScript(t, `
+{
+  fake.failNext = true;
+  const changes = [], failures = [];
+  const {canvas, preview} = mount('gl', changes, failures);
+  assert.deepEqual(changes.map(([kind, reason]) => [kind, reason]), [['2d', 'init_failed']], 'a failed GL start is reported with the compositor reason');
+  const fresh = changes[0][2];
+  assert.notEqual(fresh, canvas);
+  assert.equal(fresh.getAttribute('data-preview'), '');
+  assert.equal(fresh.getAttribute('aria-label'), 'Preview');
+  assert.equal(preview.fallback('forced'), false, 'a 2D preview has nothing to fall back from');
+  preview.dispose();
+}
+{
+  fake.supported = false;
+  const changes = [], failures = [];
+  const {canvas, preview} = mount('auto', changes, failures);
+  assert.deepEqual(changes.map(([kind, reason, element]) => [kind, reason, element === canvas]), [['2d', 'unsupported', true]]);
+  preview.dispose();
+  fake.supported = true;
+}
+{
+  const changes = [], failures = [];
+  const {canvas, preview} = mount('auto', changes, failures);
+  assert.equal(changes.length, 0, 'a working GL start reports nothing');
+  const gl = glPainters.at(-1);
+  gl.hooks.onProgramFailed('transition', 'wipeleft');
+  gl.hooks.onProgramFailed('transition', 'wipeleft');
+  assert.deepEqual(failures, [['transition', 'wipeleft']], 'a failed program is reported once');
+  assert.deepEqual(preview.failedPrograms(), [{kind: 'transition', id: 'wipeleft'}]);
+  assert.equal(preview.painterKind(), 'gl', 'a failed transition program keeps GL');
+  const before = swaps.length;
+  assert.equal(preview.fallback('forced'), true);
+  assert.equal(preview.fallback('forced'), false);
+  assert.equal(preview.painterKind(), '2d');
+  assert(gl.disposed, 'the GL painter is disposed on fallback');
+  assert.equal(swaps.length, before + 1);
+  assert.deepEqual(changes.map(([kind, reason]) => [kind, reason]), [['2d', 'forced']]);
+  const fresh = changes[0][2];
+  assert.equal(swaps.at(-1)[1], fresh.serial, 'the reported element is the one swapped in');
+  assert.deepEqual(canvas.contexts, ['webgl2'], 'the old element never got a 2D context');
+  assert(fresh.contexts.includes('2d'));
+  assert.deepEqual(preview.failedPrograms(), [], 'program failures belong to the GL painter');
+  assert.equal(preview.capture({x: 0, y: 0, width: 1, height: 1}).data[0], 7, 'capture reads the 2D painter');
+  preview.dispose();
+}
+{
+  const changes = [], failures = [];
+  const {preview} = mount('auto', changes, failures);
+  const gl = glPainters.at(-1);
+  gl.hooks.onFallback('context_lost');
+  assert.equal(preview.painterKind(), '2d');
+  assert(gl.disposed);
+  assert.deepEqual(changes.map(([kind, reason]) => [kind, reason]), [['2d', 'context_lost']]);
+  preview.dispose();
+}
+`)
+}

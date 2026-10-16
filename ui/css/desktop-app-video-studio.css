@@ -289,6 +289,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-preview-empty-icon { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 4px; border: 1px dashed rgba(255, 255, 255, .28); border-radius: 16px; color: #d6dcff; }
 .vs-preview-empty strong { font-size: 15px; color: #f1f3f7; }
 .vs-preview-empty small { max-width: 340px; font-size: 12.5px; line-height: 1.5; color: #9aa4b2; }
+.vs-preview-notice { position: absolute; left: 10px; bottom: 10px; z-index: 2; box-sizing: border-box; max-width: calc(100% - 20px); padding: 5px 10px; border-radius: 8px; background: rgba(12, 15, 21, .8); color: #e8ebf0; font-size: 12px; line-height: 1.4; pointer-events: none; }
+.vs-preview-notice[hidden], .vs-no-project .vs-preview-notice { display: none !important; }
 .vs-transform { position: absolute; z-index: 3; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), 0 0 0 9999px rgba(0, 0, 0, 0); cursor: move; touch-action: none; }
 .vs-transform::after { content: ""; position: absolute; inset: 0; outline: 1px dashed var(--vs-accent); outline-offset: -4px; opacity: .8; pointer-events: none; }
 .vs-transform.is-dragging { border-color: var(--vs-accent); }

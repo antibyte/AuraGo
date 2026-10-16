@@ -278,6 +278,19 @@
         box.style.transform = clip.rotation ? `rotate(${clip.rotation}deg)` : '';
         box.title = tr(s, 'dragToMove', 'Drag to move, corners to resize');
     }
+    // The persistent preview notice (index §4.5): the 2D painter cannot show effects, blend modes, masks or keying, and a
+    // transition shader that failed shows as a cut. It is a status line inside the mat, not a toast.
+    function syncPreviewNotice(s) {
+        const notice = s.q('[data-preview-notice]');
+        if (!notice) return;
+        const preview = s.preview;
+        const kind = s.project && preview && typeof preview.painterKind === 'function' ? preview.painterKind() : '';
+        const transitionFailed = kind === 'gl' && typeof preview.failedPrograms === 'function' && preview.failedPrograms().some(item => item.kind === 'transition');
+        const text = kind === '2d' ? tr(s, 'previewFallback', 'Simple preview: effects, blend modes, masks and keying are not shown here.')
+            : transitionFailed ? tr(s, 'previewTransitionFallback', 'A transition cannot be drawn in this preview and shows as a cut. The export is not affected.') : '';
+        if (notice.textContent !== text) notice.textContent = text;
+        notice.hidden = !text;
+    }
     function wireTransform(s) {
         const box = s.q('[data-transform]'), mat = s.q('.vs-preview-mat'), signal = s.abort.signal;
         let gesture = null;
@@ -343,5 +356,5 @@
         }, { signal });
     }
 
-    Object.assign(P, { syncInert, focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform });
+    Object.assign(P, { syncInert, focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform, syncPreviewNotice });
 })();

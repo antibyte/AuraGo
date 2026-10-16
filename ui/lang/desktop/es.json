@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "Velocidad de fotogramas",
   "videoStudio.fullscreen": "Vista previa a pantalla completa",
   "videoStudio.previewQuality": "Calidad de la vista previa",
+  "videoStudio.previewFallback": "Vista previa simple: aquí no se muestran efectos, modos de fusión, máscaras ni incrustación por croma.",
+  "videoStudio.previewTransitionFallback": "Una transición no se puede dibujar en esta vista previa y se muestra como un corte. La exportación no se ve afectada.",
   "videoStudio.quality_auto": "Automática",
   "videoStudio.quality_full": "Completa",
   "videoStudio.quality_half": "Media",

@@ -50,29 +50,60 @@
         // canvas holds one context type only.
         const pickURL = options && typeof options.mediaURL === 'function' ? options.mediaURL : null;
         // Painter selection (index §4.5): GL only when asked for ('auto' or 'gl'), WebGL2 exists and the compositor
-        // starts. A canvas that ever returned a WebGL context cannot give a 2D one, so after a failed GL attempt the 2D
-        // painter draws on a fresh shallow clone of the element (same attributes, including data-preview), which
-        // replaces it in the page. Nothing may cache the old element: callers re-query [data-preview].
+        // starts. A canvas that ever returned a WebGL context cannot give a 2D one, so after a failed GL attempt, and on
+        // every fallback, the 2D painter draws on a fresh shallow clone of the element (same attributes, including
+        // data-preview), which replaces it in the page. Nothing may cache the old element: callers re-query
+        // [data-preview]. options.onPainterChange(kind, reason, canvas) reports each switch to 2D, and
+        // options.onProgramFailed(kind, id) each program the GL painter could not compile.
         const requestedPainter = options && (options.painter === 'auto' || options.painter === 'gl') ? options.painter : '2d';
+        let programFailures = [], initialFallback = '';
         function freshCanvas() {
             const fresh = canvas.cloneNode(false);
             if (canvas.parentNode) canvas.replaceWith(fresh);
             canvas = fresh;
         }
+        function notifyPainter(reason) {
+            if (options && typeof options.onPainterChange === 'function') options.onPainterChange(painter.kind, reason, canvas);
+        }
         function glHooks() {
-            return { onLost() {}, onRestored() { if (!disposed) paint(frame); } };
+            return {
+                onLost() {},
+                onRestored() { if (!disposed) paint(frame); },
+                onFallback(reason) { fallback(reason); },
+                onProgramFailed(kind, id) {
+                    if (programFailures.some(item => item.kind === kind && item.id === id)) return;
+                    programFailures.push({ kind, id });
+                    if (options && typeof options.onProgramFailed === 'function') options.onProgramFailed(kind, id);
+                }
+            };
         }
         function choosePainter() {
             if (requestedPainter === '2d') return window.VideoStudioPainter2D.create(canvas);
             const compositor = window.VideoStudioCompositor;
+            initialFallback = 'unsupported';
             if (compositor && compositor.supported()) {
                 const gl = compositor.create(canvas, glHooks());
-                if (gl) return gl;
+                if (gl) { initialFallback = ''; return gl; }
+                initialFallback = compositor.lastError || 'init_failed';
                 freshCanvas();
             }
             return window.VideoStudioPainter2D.create(canvas);
         }
+        // Switches to the 2D painter on a fresh element (a fallback trigger, or 'forced'); false when it already draws in 2D.
+        function fallback(reason) {
+            if (disposed || !painter || painter.kind === '2d') return false;
+            const previous = painter;
+            try { previous.dispose(); } catch (_) { /* a lost context may refuse cleanup */ }
+            freshCanvas();
+            painter = window.VideoStudioPainter2D.create(canvas);
+            programFailures = [];
+            notifyPainter(reason || 'forced');
+            paint(frame);
+            return true;
+        }
+        function failedPrograms() { return programFailures.map(item => ({ kind: item.kind, id: item.id })); }
         let painter = choosePainter();
+        if (initialFallback) notifyPainter(initialFallback);
         const sourceNodes = new Map(), gainNodes = new Map();
         let audioContext = null;
         let frame = 0, playing = false, raf = 0, playStartAt = 0, playStartFrame = 0, disposed = false;
@@ -368,7 +399,7 @@
             return painter.read(rect);
         }
         paint(Number(getFrame() || 0));
-        return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, dispose,
+        return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, fallback, failedPrograms, dispose,
             painterKind: () => painter.kind, capture, settle };
     }
 

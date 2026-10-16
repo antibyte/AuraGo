@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "Bildrate",
   "videoStudio.fullscreen": "Vorschau im Vollbild",
   "videoStudio.previewQuality": "Vorschauqualität",
+  "videoStudio.previewFallback": "Einfache Vorschau: Effekte, Mischmodi, Masken und Keying werden hier nicht angezeigt.",
+  "videoStudio.previewTransitionFallback": "Ein Übergang kann in dieser Vorschau nicht gezeichnet werden und erscheint als harter Schnitt. Der Export ist davon nicht betroffen.",
   "videoStudio.quality_auto": "Automatisch",
   "videoStudio.quality_full": "Voll",
   "videoStudio.quality_half": "Halb",

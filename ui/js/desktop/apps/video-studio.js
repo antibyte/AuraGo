@@ -154,7 +154,7 @@
  </aside>
  <main class="vs-center">
   <div class="vs-monitor-bar"><div class="vs-segmented vs-stage-switch" data-stage-switch role="group" aria-label="${label('monitor', 'Monitor')}"><button type="button" data-stage-mode="source" aria-pressed="false">${label('sourceMonitor', 'Source')}</button><button type="button" data-stage-mode="timeline" aria-pressed="true">${label('timelineMonitor', 'Timeline')}</button></div></div>
-  <div class="vs-preview-stage" data-stage="timeline"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
+  <div class="vs-preview-stage" data-stage="timeline"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-notice" data-preview-notice role="status" hidden></div><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
   <div class="vs-transport" data-stage="timeline"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><button type="button" class="vs-time-button" data-action="goto-time" title="${label('goToTitle', 'Go to timecode')} (${esc(s, key('Ctrl'))}+G)"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-sr-only"> – ${label('goToTitle', 'Go to timecode')}</span></button><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><div class="vs-mark-buttons"><button type="button" data-action="mark-in" aria-label="${label('markIn', 'In')}" title="${label('markIn', 'In')} (I)">I</button><button type="button" data-action="mark-out" aria-label="${label('markOut', 'Out')}" title="${label('markOut', 'Out')} (O)">O</button><button type="button" data-action="loop" aria-pressed="false" aria-label="${label('loop', 'Loop')}" title="${label('loopHint', 'Play from in to out, or the whole timeline, repeatedly')}">${icon('loop', 17)}</button><button type="button" data-action="add-marker" aria-label="${label('addMarker', 'Add marker')}" title="${label('addMarker', 'Add marker')} (M)">${icon('flag', 17)}</button></div><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
  <section class="vs-source" data-source hidden aria-label="${label('sourceMonitor', 'Source')}">
   <div class="vs-source-stage"><p class="vs-source-empty" data-source-empty>${label('sourceEmpty', 'Double-click a media item in the library to open it here.')}</p><div class="vs-source-body" data-source-body hidden><div class="vs-source-mat"><canvas data-source-canvas width="1280" height="720" aria-label="${label('sourceMonitor', 'Source')}"></canvas></div><div class="vs-source-wave" data-source-wave hidden></div></div></div>
@@ -223,7 +223,7 @@
             if (!playing && s.shuttle) s.shuttle.reset();
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
-        }, () => previewScale(s), { painter: P.previewEngine(s) });
+        }, () => previewScale(s), { painter: P.previewEngine(s), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => P.syncPreviewNotice(s) });
         // The JKL shuttle drives the preview; the preview reports its play state back (see the playing callback).
         s.shuttle = P.createShuttle({ getFrame: () => s.frame, seek: frame => s.preview.seek(frame), play: () => s.preview.play(), pause: () => s.preview.pause(), setRate: rate => s.preview.setRate(rate), maxFrame: () => maxFrames(s) });
         const signal = s.abort.signal;
@@ -495,6 +495,7 @@
         s.q('.vs-preview-mat').style.aspectRatio = `${Number(s.project.width || 1280)} / ${Number(s.project.height || 720)}`;
         s.q('.vs-preview-mat').style.setProperty('--vs-ar', String(Number(s.project.width || 1280) / Number(s.project.height || 720)));
         renderPreviewEmpty(s);
+        P.syncPreviewNotice(s);
         s.q('[data-canvas]').disabled = s.readonly;
         renderToolbar(s);
         renderAssets(s);
@@ -793,5 +794,12 @@
 
     Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, previewScale, renderUI, renderInspector, syncInspectorLock, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
 
-    window.VideoStudioApp = { render: appRender, dispose, instances };
+    // The stage preview's current frame ({width, height, data}: top-down RGBA of rect in backing pixels) for smokes;
+    // it reads only the app's own preview painter. null without a preview.
+    function capturePreview(id, rect) {
+        const s = instances.get(id);
+        return s && s.preview && typeof s.preview.capture === 'function' ? s.preview.capture(rect) : null;
+    }
+
+    window.VideoStudioApp = { render: appRender, dispose, instances, capturePreview };
 })();

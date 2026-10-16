@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ysmood/gson"
@@ -242,5 +243,135 @@ func TestDesktopVideoStudioCompositorBrowser(t *testing.T) {
 		if got := jsonRGBA(hold[name]); !rgbaNear(got, want, 3) {
 			t.Errorf("hold last frame %s = %v, want %v", name, got, want)
 		}
+	}
+}
+
+// Fallback on the engine page (SwiftShader): one loss and restore stays GL and repaints; three losses within 60 s switch
+// to 2D on a fresh element that keeps its attributes; fallback('forced') and painter '2d' work; a transition program
+// that does not compile draws a hard cut at p >= 0.5 and is reported once.
+func TestDesktopVideoStudioPreviewFallbackBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	dir := t.TempDir()
+	writeEngineTestPNG(t, filepath.Join(dir, "red.png"), 320, 180, color.RGBA{255, 0, 0, 255}, 0)
+	writeEngineTestPNG(t, filepath.Join(dir, "blue.png"), 320, 180, color.RGBA{0, 0, 255, 255}, 0)
+	page := openVideoStudioEngine(t, newWebGLSmokeBrowser(t), newVideoStudioEngineServer(t, dir))
+	requireWebGL2(t, page)
+	assets := []map[string]any{engineTestAsset("red", 320, 180), engineTestAsset("blue", 320, 180)}
+	still := engineTestProject(assets, engineTestTrack("v1", "video", engineTestClip("c1", "red", 0, 50, nil)))
+	dissolve := engineTestProject(assets, engineTestTrack("v1", "video",
+		engineTestClip("c1", "red", 0, 30, map[string]any{"transition": map[string]any{"type": "dissolve", "duration": 10}}),
+		engineTestClip("c2", "blue", 20, 30, nil)))
+	out := page.MustEval(`async (still, dissolve) => {
+		const out = {}, stage = document.getElementById('stage');
+		Object.assign(vsGolden.files, { red: 'red.png', blue: 'blue.png' });
+		// An event that never comes fails the run after 10 s instead of hanging it. restoreContext() needs a pause after
+		// the lost event: Chrome ignores it inside the dispatch, and an await continuation still runs inside it.
+		const next = (target, name) => new Promise((resolve, reject) => {
+			const timer = setTimeout(() => reject(new Error('timed out waiting for ' + name)), 10000);
+			target.addEventListener(name, event => { clearTimeout(timer); resolve(event); }, { once: true });
+		});
+		const afterDispatch = () => new Promise(resolve => setTimeout(resolve, 50));
+		const centre = preview => { const c = stage.querySelector('canvas'); return Array.from(preview.capture({ x: Math.floor(c.width / 2), y: Math.floor(c.height / 2), width: 1, height: 1 }).data); };
+		const mount = (project, painter, frame, changes, failures) => {
+			const canvas = document.createElement('canvas');
+			canvas.setAttribute('data-preview', ''); canvas.setAttribute('aria-label', 'Preview');
+			canvas.width = project.width; canvas.height = project.height;
+			stage.replaceChildren(canvas);
+			let shown = frame;
+			const preview = VideoStudioPreview.mount(canvas, () => project, () => shown, value => { shown = value; }, () => {}, () => 1, {
+				painter, mediaURL: asset => vsGolden.mediaURL(asset),
+				onPainterChange: (kind, reason, element) => changes.push([kind, reason, element === stage.querySelector('canvas'), element.hasAttribute('data-preview'), element.getAttribute('aria-label')]),
+				onProgramFailed: (kind, id) => failures.push([kind, id])
+			});
+			return { preview, canvas };
+		};
+		let changes = [], failures = [];
+		let { preview, canvas } = mount(still, 'gl', 0, changes, failures);
+		await preview.settle(15000);
+		out.startKind = preview.painterKind(); out.startPixel = centre(preview);
+		const lose = canvas.getContext('webgl2') && canvas.getContext('webgl2').getExtension('WEBGL_lose_context');
+		out.hasLoseContext = !!lose;
+		let lost = next(canvas, 'webglcontextlost'); lose.loseContext(); await lost; await afterDispatch();
+		let restored = next(canvas, 'webglcontextrestored'); lose.restoreContext(); await restored;
+		await preview.settle(15000);
+		out.afterRestoreKind = preview.painterKind(); out.afterRestorePixel = centre(preview);
+		out.sameElement = stage.querySelector('canvas') === canvas;
+		lost = next(canvas, 'webglcontextlost'); lose.loseContext(); await lost; await afterDispatch();
+		restored = next(canvas, 'webglcontextrestored'); lose.restoreContext(); await restored;
+		lost = next(canvas, 'webglcontextlost'); lose.loseContext(); await lost;
+		await preview.settle(15000);
+		const swapped = stage.querySelector('canvas');
+		out.fallbackKind = preview.painterKind();
+		out.replaced = swapped !== canvas && !canvas.isConnected;
+		out.keepsAttributes = swapped.hasAttribute('data-preview') && swapped.getAttribute('aria-label') === 'Preview';
+		out.fallbackPixel = centre(preview); out.lossChanges = changes.slice();
+		preview.dispose();
+		changes = []; failures = [];
+		({ preview, canvas } = mount(still, 'gl', 0, changes, failures));
+		await preview.settle(15000);
+		out.forcedStart = preview.painterKind();
+		out.forcedFirst = preview.fallback('forced'); out.forcedSecond = preview.fallback('forced');
+		out.forcedKind = preview.painterKind(); out.forcedReplaced = stage.querySelector('canvas') !== canvas;
+		await preview.settle(15000);
+		out.forcedPixel = centre(preview); out.forcedChanges = changes.slice();
+		preview.dispose();
+		changes = []; failures = [];
+		({ preview, canvas } = mount(still, '2d', 0, changes, failures));
+		await preview.settle(15000);
+		out.plainKind = preview.painterKind(); out.plainSame = stage.querySelector('canvas') === canvas;
+		out.plainPixel = centre(preview); out.plainChanges = changes.length;
+		preview.dispose();
+		const original = VideoStudioShaders.transition;
+		VideoStudioShaders.transition = () => '#version 300 es\nnot glsl';
+		try {
+			changes = []; failures = [];
+			({ preview, canvas } = mount(dissolve, 'gl', 22, changes, failures));
+			preview.seek(22); await preview.settle(15000);
+			out.cutEarly = centre(preview);
+			preview.seek(28); await preview.settle(15000);
+			out.cutLate = centre(preview);
+			out.cutKind = preview.painterKind(); out.cutFailures = failures.slice(); out.cutList = preview.failedPrograms();
+			preview.dispose();
+		} finally {
+			VideoStudioShaders.transition = original;
+		}
+		stage.replaceChildren();
+		return out;
+	}`, still, dissolve)
+	checks := out.Map()
+	compact := func(name string) string { return strings.Join(strings.Fields(checks[name].JSON("", "")), "") }
+	for name, want := range map[string]string{"startKind": "gl", "afterRestoreKind": "gl", "fallbackKind": "2d", "forcedStart": "gl", "forcedKind": "2d", "plainKind": "2d", "cutKind": "gl"} {
+		if got := checks[name].Str(); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	for _, name := range []string{"hasLoseContext", "sameElement", "replaced", "keepsAttributes", "forcedFirst", "forcedReplaced", "plainSame"} {
+		if !checks[name].Bool() {
+			t.Errorf("%s is false: %s", name, out.JSON("", ""))
+		}
+	}
+	if checks["forcedSecond"].Bool() {
+		t.Error("a second fallback must report false")
+	}
+	red, blue := color.RGBA{255, 0, 0, 255}, color.RGBA{0, 0, 255, 255}
+	for name, want := range map[string]color.RGBA{"startPixel": red, "afterRestorePixel": red, "fallbackPixel": red, "forcedPixel": red, "plainPixel": red, "cutEarly": red, "cutLate": blue} {
+		if got := jsonRGBA(checks[name]); !rgbaNear(got, want, 3) {
+			t.Errorf("%s = %v, want %v", name, got, want)
+		}
+	}
+	for name, want := range map[string]string{
+		"lossChanges":   `[["2d","context_lost",true,true,"Preview"]]`,
+		"forcedChanges": `[["2d","forced",true,true,"Preview"]]`,
+		"cutFailures":   `[["transition","dissolve"]]`,
+	} {
+		if got := compact(name); got != want {
+			t.Errorf("%s = %s, want %s", name, got, want)
+		}
+	}
+	if checks["plainChanges"].Int() != 0 {
+		t.Errorf("an explicit 2D preview must not report a painter change: %s", out.JSON("", ""))
+	}
+	if list := checks["cutList"].Arr(); len(list) != 1 || list[0].Get("kind").Str() != "transition" || list[0].Get("id").Str() != "dissolve" {
+		t.Errorf("failedPrograms() = %s", checks["cutList"].JSON("", ""))
 	}
 }

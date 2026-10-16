@@ -154,11 +154,10 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 	wait(`() => VideoStudioApp.instances.get('e2e')?.project?.assets.length===1`)
 	page.MustElement(`[data-place-asset]`).MustClick()
 	wait(`() => {const s=VideoStudioApp.instances.get('e2e');return s.project.tracks.some(t=>t.kind==='overlay'&&t.clips.length===1)&&!s.dirty;}`)
-	// The stage asks for the GL compositor, so a 2D context cannot be taken from the canvas: read the pixel through the
-	// preview instance, which reads whichever painter draws (Task 12 moves this to VideoStudioApp.capturePreview).
+	// The stage may draw with either painter; the app hook reads whichever one draws.
 	wait(`() => {
- const canvas=document.querySelector('[data-preview]'), s=VideoStudioApp.instances.get('e2e');
- const shot=s.preview.capture({x:Math.floor(canvas.width/2),y:Math.floor(canvas.height/2),width:1,height:1});
+ const canvas=document.querySelector('[data-preview]');
+ const shot=VideoStudioApp.capturePreview('e2e',{x:Math.floor(canvas.width/2),y:Math.floor(canvas.height/2),width:1,height:1});
  const pixel=shot&&shot.data;
  return !!pixel && pixel.length===4 && pixel[2]>150 && pixel[1]>80 && pixel[0]<100;
 }`)

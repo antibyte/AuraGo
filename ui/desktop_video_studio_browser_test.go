@@ -111,6 +111,43 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if errs := page.MustEval(`()=>JSON.stringify(window.fixtureErrors)`).Str(); errs != "[]" {
 		t.Fatalf("Video Studio fixture errors: %s", errs)
 	}
+	// The stage asks for GL ('auto'); this launcher usually has no WebGL, so either painter is fine. The notice must show
+	// exactly when the 2D painter draws, one preview canvas exists after a fallback swap, and the capture hook works.
+	type painterProbe struct {
+		Kind     string `json:"kind"`
+		Notice   bool   `json:"notice"`
+		Hidden   bool   `json:"hidden"`
+		Text     string `json:"text"`
+		Expected string `json:"expected"`
+		Canvases int    `json:"canvases"`
+		Shot     []int  `json:"shot"`
+	}
+	readPainter := func() painterProbe {
+		t.Helper()
+		var state painterProbe
+		if err := json.Unmarshal([]byte(page.MustEval(`()=>{const s=window.VideoStudioApp.instances.get('fixture'),notice=document.querySelector('[data-preview-notice]'),shot=window.VideoStudioApp.capturePreview('fixture',{x:0,y:0,width:2,height:2});return JSON.stringify({kind:s.preview.painterKind(),notice:!!notice,hidden:notice?notice.hidden:false,text:notice?notice.textContent:'',expected:window.fixtureLocales.en['videoStudio.previewFallback']||'',canvases:document.querySelectorAll('[data-preview]').length,shot:shot?[shot.width,shot.height,shot.data.length]:null})}`).Str()), &state); err != nil {
+			t.Fatal(err)
+		}
+		return state
+	}
+	painterState := readPainter()
+	if !painterState.Notice || painterState.Hidden != (painterState.Kind != "2d") || (painterState.Kind == "2d" && (painterState.Expected == "" || painterState.Text != painterState.Expected)) || painterState.Canvases != 1 || len(painterState.Shot) != 3 || painterState.Shot[0] != 2 || painterState.Shot[1] != 2 || painterState.Shot[2] != 16 {
+		t.Fatalf("preview painter notice or capture hook is wrong: %+v", painterState)
+	}
+	// The hidden setting forces the 2D painter whatever the launcher offers: the notice shows its localized text, the
+	// mat still holds one preview canvas and the capture hook reads the 2D canvas. The setting is removed afterwards.
+	page.MustEval(`()=>localStorage.setItem('aurago.videoStudio.previewEngine','2d')`)
+	page.MustNavigate(server.URL + "/fixture")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>!!document.querySelector('.vs-clip') && !!window.VideoStudioApp.instances.get('fixture')?.preview`)
+	forced := readPainter()
+	page.MustEval(`()=>localStorage.removeItem('aurago.videoStudio.previewEngine')`)
+	if forced.Kind != "2d" || !forced.Notice || forced.Hidden || forced.Expected == "" || forced.Text != forced.Expected || forced.Canvases != 1 || len(forced.Shot) != 3 || forced.Shot[2] != 16 {
+		t.Fatalf("forced 2D preview notice or capture hook is wrong: %+v", forced)
+	}
+	page.MustNavigate(server.URL + "/fixture")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>document.querySelectorAll('.vs-track-row').length===5 && !!document.querySelector('.vs-clip')`)
 	if !page.MustEval(`()=>document.querySelector('.vs-app').getBoundingClientRect().width===1280 && document.querySelector('.vs-export-button').disabled===false`).Bool() {
 		t.Fatalf("wide editor did not render a usable project: %s", page.MustEval(`()=>JSON.stringify({rect:document.querySelector('.vs-app').getBoundingClientRect().toJSON(),disabled:document.querySelector('.vs-export-button').disabled,readonly:window.VideoStudioApp.instances.get('fixture').readonly,status:window.VideoStudioApp.instances.get('fixture').status})`).Str())
 	}

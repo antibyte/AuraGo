@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "帧率",
   "videoStudio.fullscreen": "全屏预览",
   "videoStudio.previewQuality": "预览质量",
+  "videoStudio.previewFallback": "简易预览：此处不显示效果、混合模式、蒙版和抠像。",
+  "videoStudio.previewTransitionFallback": "此预览无法绘制某个转场，将显示为硬切。导出不受影响。",
   "videoStudio.quality_auto": "自动",
   "videoStudio.quality_full": "完整",
   "videoStudio.quality_half": "一半",

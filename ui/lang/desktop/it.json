@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "Frequenza fotogrammi",
   "videoStudio.fullscreen": "Anteprima a schermo intero",
   "videoStudio.previewQuality": "Qualità dell'anteprima",
+  "videoStudio.previewFallback": "Anteprima semplice: effetti, metodi di fusione, maschere e chroma key non vengono mostrati qui.",
+  "videoStudio.previewTransitionFallback": "Una transizione non può essere disegnata in questa anteprima e appare come uno stacco netto. L'esportazione non è interessata.",
   "videoStudio.quality_auto": "Automatica",
   "videoStudio.quality_full": "Piena",
   "videoStudio.quality_half": "Metà",

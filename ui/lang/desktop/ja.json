@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "フレームレート",
   "videoStudio.fullscreen": "全画面プレビュー",
   "videoStudio.previewQuality": "プレビュー画質",
+  "videoStudio.previewFallback": "簡易プレビュー：エフェクト、描画モード、マスク、キーイングはここには表示されません。",
+  "videoStudio.previewTransitionFallback": "このプレビューではトランジションを描画できないため、カットとして表示されます。書き出しには影響しません。",
   "videoStudio.quality_auto": "自動",
   "videoStudio.quality_full": "フル",
   "videoStudio.quality_half": "1/2",

@@ -11,6 +11,8 @@
     const isVideo = el => typeof HTMLVideoElement === 'function' && el instanceof HTMLVideoElement;
     const isImage = el => typeof HTMLImageElement === 'function' && el instanceof HTMLImageElement;
     const api = { supported, create, lastError: '' };
+    // Three context losses within 60 s give up on GL (spec §6.6).
+    const LOSS_WINDOW_MS = 60000, MAX_LOSSES = 3;
 
     function supported() { return typeof WebGL2RenderingContext === 'function'; }
 
@@ -33,7 +35,7 @@
     }
 
     // Returns the GL painter, or null with lastError 'unsupported' (no WebGL2 context) or 'init_failed' (a base program
-    // does not compile or a render target is incomplete). options: { onLost, onRestored, onFallback(reason) }.
+    // does not compile or a render target is incomplete). options: { onLost, onRestored, onFallback(reason), onProgramFailed(kind, id) }.
     function create(canvas, options) {
         const hooks = options || {};
         api.lastError = '';
@@ -42,6 +44,7 @@
         if (!ctx) { api.lastError = 'unsupported'; return null; }
         // clip id -> { texture, frame (a frame was uploaded), el, time (currentTime at upload), dirty, armed }
         const clips = new Map();
+        const reported = new Set(); // 'kind:id' of program failures already reported
         let composite = null, current = null, disposed = false;
         if (!baseReady()) { ctx.dispose(); api.lastError = 'init_failed'; return null; }
 
@@ -132,7 +135,11 @@
                 const p = clamp(Number(transition.progress) || 0, 0, 1);
                 const program = transitionProgram(transition.type);
                 if (program) ctx.draw(program, target, Object.assign({ u_progress: p, u_size: [width, height] }, transitionUniforms(transition.type, p, width)), { u_from: from, u_to: to }, { blend: 'normal' });
-                else ctx.draw(copyProgram(), target, { u_flipY: 0 }, { u_source: p >= 0.5 ? to : from }, { blend: 'normal' });
+                else {
+                    // The shader did not compile: a hard cut at p >= 0.5, and the stage shows a notice.
+                    reportFailure('transition', transition.type);
+                    ctx.draw(copyProgram(), target, { u_flipY: 0 }, { u_source: p >= 0.5 ? to : from }, { blend: 'normal' });
+                }
             } finally {
                 ctx.release(from);
                 ctx.release(to);
@@ -181,17 +188,28 @@
             clips.delete(clipId);
         }
 
-        // A lost context drops every GPU resource; the GL helper rebuilds its own state when the context returns, and
-        // the programs compile again on first use.
+        // A lost context drops every GPU resource. The third loss within 60 s gives up on GL (index §4.5); otherwise the
+        // restore rebuilds the programs, and a rebuild that fails gives up too.
         function handleLost() {
             clips.forEach(entry => entry.texture.dispose());
             clips.clear();
             composite = null;
+            if (ctx.lossesWithin(LOSS_WINDOW_MS) >= MAX_LOSSES) { giveUp('context_lost'); return; }
             if (typeof hooks.onLost === 'function') hooks.onLost();
         }
         function handleRestored() {
-            if (disposed || !baseReady()) return;
+            if (disposed) return;
+            if (!baseReady()) { giveUp('init_failed'); return; }
             if (typeof hooks.onRestored === 'function') hooks.onRestored();
+        }
+        // The preview switches to the 2D painter in onFallback and disposes this painter.
+        function giveUp(reason) { if (!disposed && typeof hooks.onFallback === 'function') hooks.onFallback(reason); }
+        // A program that failed to compile is reported once per kind and id (2a: transitions; 2c adds effects).
+        function reportFailure(kind, id) {
+            const key = kind + ':' + id;
+            if (reported.has(key)) return;
+            reported.add(key);
+            if (typeof hooks.onProgramFailed === 'function') hooks.onProgramFailed(kind, id);
         }
 
         function dispose() {

@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "Snímková frekvence",
   "videoStudio.fullscreen": "Náhled na celou obrazovku",
   "videoStudio.previewQuality": "Kvalita náhledu",
+  "videoStudio.previewFallback": "Zjednodušený náhled: efekty, režimy prolnutí, masky a klíčování se zde nezobrazují.",
+  "videoStudio.previewTransitionFallback": "Přechod nelze v tomto náhledu vykreslit, a proto se zobrazí jako střih. Export tím není ovlivněn.",
   "videoStudio.quality_auto": "Automaticky",
   "videoStudio.quality_full": "Plná",
   "videoStudio.quality_half": "Poloviční",

@@ -5910,6 +5910,8 @@
   "videoStudio.frameRate": "Fréquence d'images",
   "videoStudio.fullscreen": "Aperçu en plein écran",
   "videoStudio.previewQuality": "Qualité de l'aperçu",
+  "videoStudio.previewFallback": "Aperçu simplifié : les effets, modes de fusion, masques et incrustations ne sont pas affichés ici.",
+  "videoStudio.previewTransitionFallback": "Une transition ne peut pas être dessinée dans cet aperçu et s'affiche comme une coupe franche. L'exportation n'est pas concernée.",
   "videoStudio.quality_auto": "Automatique",
   "videoStudio.quality_full": "Pleine",
   "videoStudio.quality_half": "Moitié",
