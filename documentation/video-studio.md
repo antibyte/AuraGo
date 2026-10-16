@@ -31,6 +31,10 @@ be available. The regular AuraGo Docker image already includes FFmpeg; Video
 Studio does not create another container. Native installations must provide a
 compatible FFmpeg build separately.
 
+Newer effects and transitions need further FFmpeg filters. **Check Video Studio** and the editor report what the
+server's FFmpeg lacks; the editor greys those choices out, and an export or range check of a project that uses one
+stops at once with a message saying so.
+
 Size settings use MiB (1,048,576 bytes). The asset limit is 1–32768 MiB; the
 project limit must be at least the asset limit and at most 65536 MiB. The export
 limit is at least 512 MiB (a smaller value from an older configuration is raised to
@@ -202,6 +206,53 @@ stopped during the copy) is removed when it starts again. Deleting a project ask
 Export can render only the in/out range when both points are set: the export dialog offers the range with its times, and
 the download is named `<project> (in-out).mp4`.
 
+## Preview engine, proxies and range check
+
+**Preview engine.** The timeline preview draws with WebGL2 when the browser offers it. It shows what the export
+renders for position, size, rotation, opacity, contain / cover and the four transitions; fade through black darkens
+the tracks below as well, like the export. When WebGL2 is missing, fails to start, or the browser loses the graphics
+context three times within a minute, the preview switches to a simpler 2D drawing and shows a notice in the preview
+area; editing and exporting are not affected. A single lost context is restored without a notice. The source monitor
+always uses the 2D drawing because it shows the media unchanged.
+
+Troubleshooting a graphics driver: the hidden browser setting `aurago.videoStudio.previewEngine` forces the 2D
+drawing. In the browser's developer console run `localStorage.setItem('aurago.videoStudio.previewEngine', '2d')` and
+reopen Video Studio; `localStorage.removeItem('aurago.videoStudio.previewEngine')` turns it off again. Only the value
+`2d` has an effect. The setting applies to this browser only and has no control in the editor.
+
+Known differences between preview and export:
+- Hold last frame: while a video seeks or buffers, the WebGL2 preview keeps the clip's last frame. The 2D drawing skips
+  a clip that has no decoded frame yet, as before.
+- Sources without colour tags: browsers and FFmpeg may convert untagged video with different colour matrices (FFmpeg
+  assumes BT.601 for untagged input). Such sources can look slightly different in the preview than in the export;
+  BT.709-tagged sources, which cameras and phones write for HD video, match.
+- Fade through black uses the curve measured from FFmpeg's `fadeblack` output. Go, the preview and the golden tests
+  share the same numbers, so preview and export agree within two brightness steps of 255 on the FFmpeg versions tested
+  (5.1 and 8.1).
+
+**Proxies.** After a video is imported, the server makes a preview proxy: 960 × 540 at the source frame rate (at most
+60 fps; an unknown rate uses 30 fps). Proxies are made one at a time per project so exports are not held up. The
+library shows each video's proxy state. The preview quality decides what plays: **Full** plays the originals, and
+**Auto**, **Half** and **Quarter** play the proxy once it is ready. If a proxy fails, the original plays. The source
+monitor always plays originals. Media imported before this version gets a proxy from its item menu with **Create
+preview proxy**. Proxies count toward the project's storage.
+
+**Render range exactly.** The transport button next to full screen renders a short part of the timeline through the
+export pipeline, so you can check what the export will show: the in/out range when both points are set, otherwise
+5 seconds around the playhead. It renders at 540 lines (the width follows the project's aspect ratio) with the export
+encoder, falling back to the CPU like an export. A range longer than 60 seconds is refused with a notice; nothing is
+shortened. The project is saved first. While the range renders, the preview shows the progress; then the result plays
+over the preview with its own controls. **Rendered** and **Live preview** switch between the rendered video and the
+live preview at the same timeline frame. `Escape` or the close button ends the comparison and cancels a render that is
+still running; closing the window lets it finish like other jobs. A failure shows in the comparison with **Render
+again**. Each project keeps one temporary result in its preview folder: it counts toward the project's storage, is
+replaced by the next range check, and is removed with the project or when old jobs are cleaned up. It is never listed
+among exports.
+
+**Project version 3.** Projects are now saved as version 3. Older projects and older saved versions are upgraded when
+they are opened or restored; the upgrade changes no content. The upgrade is one-way: earlier AuraGo releases refuse to
+open a version 3 project, so update every AuraGo installation that opens the same projects.
+
 ## Exports and background jobs
 
 Exports are rendered in segments of about ten seconds. Every clip is read from its own position in the
@@ -212,9 +263,10 @@ timeline where it failed. `max_export_size_mb` limits one export file (at most t
 export stops with a message that names the export size limit or the project storage limit.
 
 Export produces H.264 / AAC MP4 in the Desktop project files, with a download
-link. Preview preparation, import probing, rendering, project duplication, and
-AI generation are background jobs. Closing an app window does not cancel a job. Reopening the
-project reattaches to its status, and the job list offers explicit cancellation.
+link. Preview proxies, import probing, rendering, range checks, project duplication, and AI generation are background
+jobs; proxies and range checks show where they are used (the library and the preview), not in the job list. Closing an
+app window does not cancel a job. Reopening the project reattaches to its status, and the job list offers explicit
+cancellation.
 
 Shutdown interrupts unfinished work. Interrupted imports and renders are not
 reported as successful. An interrupted AI request may already have incurred a
@@ -229,7 +281,7 @@ Publication is checked again before a completed background job writes its result
 ## Hardware encoding
 
 `hardware_encoding: auto` tests the graphics hardware once (VAAPI, Intel Quick Sync and NVIDIA NVENC on Linux;
-NVENC, Quick Sync and AMD AMF on Windows) and uses the first encoder that works for exports and preview
+NVENC, Quick Sync and AMD AMF on Windows) and uses the first encoder that works for exports, range checks and preview
 proxies. `off` always uses the CPU (libx264); `vaapi`, `qsv`, `nvenc` or `amf` test only that encoder.
 `hardware_device` selects the render node for VAAPI and Quick Sync on Linux (default `/dev/dri/renderD128`).
 Decoding and picture composition stay on the CPU; the GPU only encodes. When the GPU

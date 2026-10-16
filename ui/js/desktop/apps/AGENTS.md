@@ -1418,8 +1418,10 @@ buttons and menu popovers remain excluded from those gestures.
 ### Video Studio contract
 
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
-  `video-studio-icons.js`, `video-studio-time.js`, `video-studio-media.js`,
-  `video-studio-preview.js`, `video-studio-timeline.js`,
+  `video-studio-icons.js`, `video-studio-time.js`, `video-studio-effects.js` (DOM-free registry mirror and shared
+  math), `video-studio-media.js`, `video-studio-gl.js` (WebGL2 helper), `video-studio-shaders.js`,
+  `video-studio-compositor.js` (GL painter), `video-studio-painter2d.js` (2D painter), `video-studio-preview.js`,
+  `video-studio-timeline.js`,
   `video-studio-ruler.js` (in/out shade, marker flags, overview strip),
   `video-studio-edit.js` (DOM-free edit operations),
   `video-studio-navigation.js` (DOM-free shuttle, edit points and track order),
@@ -1433,14 +1435,15 @@ buttons and menu popovers remain excluded from those gestures.
   (selection, clipboard, tools, edit commands and shortcuts), `-source.js`
   (source monitor), `-tracks.js` (track commands, targets, heights, solo),
   `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
-  loop and navigation keys), `-derive.js`
+  loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (26 scripts, same
-  order in `module-loader.js` and both browser fixtures). The parts share
+  `-menus.js` (context menus), and `video-studio.js` last (32 scripts, same
+  order in `module-loader.js`, both browser fixtures and `TestVideoStudioNavigationLoadOrder`; lists only get
+  insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
   every file stays below the 1100-line budget; the shell exposes
@@ -1528,6 +1531,49 @@ buttons and menu popovers remain excluded from those gestures.
   dialog offers the in/out range when both points are set (`P.inOut(s)` clamped to the enabled length, as Go's
   `EnabledDuration`) and sends `range {start, end}`; `exportName(s, job)` adds ` (in-out)` for a range result. Node
   checks: `go test ./ui -run TestVideoStudioFolderModel`.
+- Preview engine, proxies and range check (phase 2a): `video-studio-preview.js` keeps the clock, media sync and audio
+  and paints through a painter (`kind`, `canvas`, `frame(scene)`, `read(rect)`, `release(clipId)`, `dispose()`):
+  `VideoStudioCompositor` (WebGL2; `video-studio-compositor.js` with `VideoStudioGL` and `VideoStudioShaders`, named
+  stages `sourceTexture`, `clipPasses`, `placeClip`, `compositeClip`, `drawTransition`, `present`) or
+  `VideoStudioPainter2D`. `describeFrame` builds the scene (visual tracks in paint order, items with
+  `VideoStudioEffects.clipState`, one transition pair per layer). The painter is chosen only by `options.painter`
+  (default `'2d'`; the stage passes `P.previewEngine(s)`, i.e. `'auto'` unless the hidden setting
+  `aurago.videoStudio.previewEngine` is `2d`; the source monitor passes `'2d'`), never by probing `getContext`. Every
+  fallback (no WebGL2, failed `create`, three `webglcontextlost` within 60 s, `fallback(reason)`) swaps in
+  `canvas.cloneNode(false)`: never cache the canvas, re-query `[data-preview]`, hang overlays on `.vs-preview-mat`. The
+  persistent notice `[data-preview-notice]` (`P.syncPreviewNotice`) shows if and only if the stage's
+  `painterKind() === '2d'`. Smokes read pixels through `capture(rect)`, `settle(ms)`, `painterKind()` and
+  `VideoStudioApp.capturePreview(id, rect)`, never `getContext('2d')`. Hold-last-frame is GL-only; the 2D painter keeps
+  the earlier geometry. Paused seeks stay at frame starts (Task 13 found no off-by-one frames), so the preview adds no
+  frame-centre seeking. `VideoStudioEffects` (DOM-free) mirrors the Go registry (`BUILTIN`, parity-tested), adopts
+  `status.registry`/`unavailable`, feeds the inspector's transition buttons and `validTimeline`, and holds
+  `fadeBlackWeights`, the measured fade-through-black curve (not linear; the GL shader takes it as `u_weights`).
+  An image is ready (`Item.ready`) only when `naturalWidth && naturalHeight && complete !== false`, and
+  `VideoStudioGL` refuses an incomplete image: a half-loaded PNG used to upload as black and never refresh
+  (`TestDesktopVideoStudioSlowImageBrowser`).
+  Proxies (`video-studio-jobs.js`): `P.queueProxy`/`P.pumpProxies` keep at most one queued or running `preview` job
+  per project; `P.previewMediaURL` plays the proxy for Auto/Half/Quarter once ready and originals for Full or after a
+  failure; the media cache key includes the URL; `visibleJobs` hides `preview` and `range_render`, and `loadJobs` does
+  not refresh the project for them; library cards carry `[data-proxy-state]` (in the list view the badge sits after
+  the file name in the ellipsized name cell, so a very long name can clip it: known minor issue).
+  Range check (`video-studio-rangerender.js`): `P.rangeRenderRange(s)` (both in/out points clamped to `P.enabledEnd`,
+  the helper the export dialog shares; else 5 s around the playhead; more than 60 s is `{error: 'too_long'}`, notice
+  `rangeTooLong`, never clamped); `P.startRangeRender(s, range?)` saves with `P.saveUntilClean`, posts
+  `{kind: 'range_render', range}` with `If-Match` and polls without toasts; the overlay `[data-range-overlay]`
+  (`data-range-state`, `data-range-view`) sits in `.vs-preview-mat` with `<video data-range-video>` (same-origin URL
+  only) and the actions `range-view` (`data-view`), `range-retry`, `range-close`. Rendered → Live seeks to
+  `start + round(video.currentTime · fps)`; Live → Rendered puts the video at the playhead. Escape
+  (`P.handleRangeKeys`, after dialogs, popovers and the narrow drawer) and Close cancel a running render; dispose and
+  project switches close it with `keepJob`, so server jobs outlive the editor as before. Range results come back with
+  alphabetically ordered JSON keys, so tests compare fields, not strings. Node checks:
+  `go test ./ui -run 'TestVideoStudio(Effects|Canonical|Preview|Navigation|Proxy|RangeRender)|TestDesktopVideoStudioPreviewMediaLifecycle' -count=1`;
+  browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopVideoStudio -count=1 -timeout 30m` (GL tests,
+  the fallback test and the goldens use `newWebGLSmokeBrowser`; missing WebGL2 there fails) and
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run VideoStudioBrowser -count=1 -timeout 20m`. Both default
+  smoke launchers on the development machine expose WebGL2, so a smoke that is not about the painter reads
+  `painterKind()` instead of assuming one; the UI fixture also runs a forced-2D pass through the hidden setting. Never
+  call `restoreContext()` in the same microtask as `webglcontextlost` (Chrome ignores it): wait a task first, and give
+  every event wait a timeout.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
@@ -1599,9 +1645,10 @@ buttons and menu popovers remain excluded from those gestures.
 - Bound preview media to the active/near clips during playback and release clips
   that leave that window. Preserve both players for an actual transition overlap;
   backward seeks must rehydrate released media and dispose must release all media.
-  Dissolves and wipes compose the clip pair in a track layer like the export's
-  xfade (the outgoing layer fades out / is wiped away across the full frame);
-  fade through black darkens the whole frame in both. Empty areas are black.
+  Dissolves, wipes and fade through black compose the clip pair in a track layer like the export's xfade
+  (`VideoStudioPreview.rules.transitionPair` includes `black`; the 2D painter mixes out·w.out + in·w.inc + opaque
+  black·w.black with `fadeBlackWeights`), so fade through black darkens the tracks below too, in both painters.
+  Empty areas are black.
 - A title's PNG is derived from its text and style. Edits mark the clip stale and
   start a per-clip 900 ms debounce (`markTextStale`), independent of the selection.
   Commit generated artwork only if its project, clip, text, normalized style and

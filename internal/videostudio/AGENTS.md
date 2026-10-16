@@ -6,8 +6,8 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 - Inputs passed to FFmpeg are server-staged local regular files. Never accept URLs,
   shell fragments, arbitrary filter expressions, or demuxer names from project data.
 - Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
-  24/30/60 with a 1001 denominator). Convert with `Rate` methods only. Version 1 projects (fixed 30 fps) pass
-  through `Upgrade`; `Validate` accepts version 2 only. Projects are limited to sixty minutes and the sizes in
+  24/30/60 with a 1001 denominator). Convert with `Rate` methods only. `Upgrade` steps version 1 (fixed 30 fps) → 2 → 3
+  without modifying its input; `Validate` accepts version 3 only. Projects are limited to sixty minutes and the sizes in
   `CanvasSizes`.
 - Markers (`markers`, at most 500) and the in/out points (`in_point`, `out_point`) are frames of the project rate.
   `validateMarkers` keeps a marker's frame and range inside `[0, MaxDurationFrames]`, its colour in the label palette
@@ -35,8 +35,7 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   threads, a four-hour ceiling, bounded diagnostics with scrubbed paths, and `MaxOutputBytes` (default 2 GiB;
   the server passes `max_export_size_mb`); an output that reaches it fails with `ErrOutputLimit` (FFmpeg 8 may
   write past `-fs` on stream copy, so the size check decides). `checkRenderSpace` fails early with `ErrInsufficientDiskSpace`;
-  segment failures are `*SegmentError`. Preview proxies are complete-source 540p/30 fps MP4s capped at
-  `MaxPreviewBytes` (2 GiB).
+  segment failures are `*SegmentError`. Preview proxies are complete-source 960×540 MP4s at `PreviewRate` (the source rate, capped at `MaxPreviewFPS` = 60; 30 fps when unknown), capped at `MaxPreviewBytes` (2 GiB).
 - `Encoder` (`encode.go`) holds codec, render node and CRF-equivalent quality. `SelectEncoder` tests candidates
   with a one-second encode (`testEncode` is replaceable in tests). Hardware encoders only encode: segment graphs
   end in `format=nv12,hwupload` for VAAPI/QSV, device setup comes from `globalArgs`. `RenderWithOptions`
@@ -125,3 +124,52 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   (`<asset id>_…`) and posters (`<asset id>.jpg`) without a record. It never touches what the saved project lists, other
   file names, records or files younger than 10 minutes (`videoStudioLeftoverMinAge`), or files while a generate,
   reverse or still job of the project runs (they write the file before the record).
+
+## Foundation for effects and animation (2a)
+
+- Model version 3: `CurrentVersion = 3`; `Upgrade` runs 1 → 2 (`BackfillDurationUs` at 30 fps) → 3 (no data
+  change); older builds refuse version 3 (one-way, spec §4.3). New `Clip` fields keep the canonical order `label,
+  keyframes, ramp, crop, flip_h, flip_v, blend, mask, effects, anim_in, anim_out` (Go struct = JSON = JS
+  `canonicalProject`); the reflection guard in `ui/desktop_video_studio_canonical_test.go` checks it.
+- Registry (`effects.go`): `EffectRegistry()` (deep copy in menu order, never-nil slices), `TransitionByID`,
+  `EffectByID`, `BaseParam`, `Registry.Unavailable`, `RegistryVersion = 1`. The four transitions map to xfade `fade`,
+  `fadeblack`, `wiperight` (for `wipeleft`) and `wipeleft` (for `wiperight`); `validateClip` and `appendTransition`
+  read the table, so a new transition is one row. The status endpoint serves `registry` and `unavailable`;
+  `video-studio-effects.js` mirrors it (`TestVideoStudioEffectsRegistryMatchesGo`). `fadeBlackWeights` holds the
+  fade-through-black curve measured from FFmpeg. The curve is not linear: `out = (1−p)·(1−S(p; 0, 0.2))`,
+  `inc = p·S(p; 0, 0.8)`, `black = 1−out−inc`, with S the smoothstep (darkest near p ≈ 0.2); FFmpeg 5.1.9 matches within
+  1/255, 8.1.1 within 2/255. `testdata/parity/transitions.json` shares the numbers with JS and the GL shader.
+- Capabilities (`capabilities.go`): `ProbeCapabilities` runs `-filters` and `-h filter=xfade` once per binary
+  (memoized by resolved path, size and modification time) and lists `filter:<name>` / `xfade:<name>` gaps for the
+  phase 2 filters and the registry transitions. `CheckRuntime` fills `RuntimeStatus.Missing`; `renderOnce` fails at
+  once with `*CapabilityError` (unwraps to `ErrFeatureUnavailable`, job error `feature_unavailable`). Readiness
+  (`hasRequiredRenderFilters`) is unchanged. The `-filters` flag column has three characters on FFmpeg 5.1 (`TSC`) and
+  two on 8.x (`TS`); the parser accepts both. The captured `-h filter=xfade` outputs are
+  `testdata/xfade-help-5.1.txt` and `testdata/xfade-help-8.txt`.
+- Per-clip chain (`clip_chain.go`): `clipChain` stages `retime`, `window`, `picture`, `effects`, `mask`, `transform`,
+  `opacity`, `place` own one clip's filters and its geometry (`clipBox`, `evenPixels`, `evenPosition`);
+  `segment_graph.go` keeps segment, layer, gap, transition and audio assembly. The 2a chain is byte-identical to the
+  former `buildVisualClipFilter` (snapshot test). Later slices extend a stage, never the assembly.
+  `buildVideoSegmentWith(…, videoTail)` takes the output tail; `videoTail{rgb: true}` ends in `format=rgb24`.
+- Golden frames: `RenderFrame` (`frame.go`) writes one timeline frame as an 8-bit RGB PNG through the export graph,
+  before any YUV conversion; its output path goes through `validateNewOutput`. `goldenframe` (imported only by tests)
+  holds `SSIM`, the thresholds (geometry 0.98, colour 0.97, transition 0.96, detail 0.95), `MakeMedia` (BT.709-tagged
+  all-intra H.264 and Go-written PNGs; nothing binary is committed) and the case sets; later slices register cases in
+  their own `cases_2x.go`. `MakeMedia` sets the BT.709 tags with `setparams` in the filter chain as well as the encoder
+  flags: on FFmpeg 8 the encoder flags alone left primaries and transfer unknown. The browser side is
+  `TestDesktopVideoStudioGoldenFrames` (`ui`).
+- Shared math fixtures: `testdata/parity/<topic>.json` (2a: `geometry`, `transitions`). Go reads them with
+  `readParityCases` (`parity_fixture_test.go`) in `TestParity<Topic>`; the JS side is one `{exact, run(input)}` entry
+  per topic in `videoStudioParityRunners` (`ui/desktop_video_studio_effects_test.go`). A new topic adds the file, both
+  implementations and the runner entry in one task.
+- Proxies: `PreviewRate(asset)` is the source rate from `SourceFPS` capped at `MaxPreviewFPS` (60), 30 fps when
+  unknown; `runPreview` keeps 960×540 and uses the encoder's `videoArgs(rate)`.
+- Range render (`range_render.go`): `RangeRenderSize(project)` is `RangeRenderHeight` (540) lines and the nearest
+  even width for the project's aspect ratio; `MaxRangeRenderFrames(rate)` is `MaxRangeRenderSeconds` (60) rounded
+  down to whole frames. The server's `range_render` job renders `[start, end)` with `RenderWithOptions` at that size
+  and the configured encoder (libx264 fallback), stores one result per project in its preview folder and refuses
+  longer ranges with `range_too_long`. Job results report the size they rendered, exports included.
+- Known limits: untagged sources may be converted with BT.601 by FFmpeg but BT.709 by the browser (goldens use tagged
+  media; plan 2c revisits this); hold-last-frame exists only in the GL preview.
+- Tests: `go test ./internal/videostudio -run 'Upgrade|Validate|Registry|Capabilit|ClipChain|RenderFrame|FadeBlack|Parity|PreviewRate|RangeRender' -count=1`;
+  `go test ./internal/videostudio/... -count=1` includes `goldenframe`; FFmpeg 5.1 container check per plan index §6.
