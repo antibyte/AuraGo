@@ -1541,8 +1541,10 @@ buttons and menu popovers remain excluded from those gestures.
   `aurago.videoStudio.previewEngine` is `2d`; the source monitor passes `'2d'`), never by probing `getContext`. Every
   fallback (no WebGL2, failed `create`, three `webglcontextlost` within 60 s, `fallback(reason)`) swaps in
   `canvas.cloneNode(false)`: never cache the canvas, re-query `[data-preview]`, hang overlays on `.vs-preview-mat`. The
-  persistent notice `[data-preview-notice]` (`P.syncPreviewNotice`) shows if and only if the stage's
-  `painterKind() === '2d'`. Smokes read pixels through `capture(rect)`, `settle(ms)`, `painterKind()` and
+  persistent notice `[data-preview-notice]` (`P.syncPreviewNotice`) shows `previewFallback` while the 2D painter
+  draws, or `previewTransitionFallback` while the GL painter draws and `preview.failedPrograms()` lists a transition
+  program (that transition then renders as a hard cut at p ≥ 0.5); otherwise, and with no project open, it is hidden.
+  Smokes read pixels through `capture(rect)`, `settle(ms)`, `painterKind()` and
   `VideoStudioApp.capturePreview(id, rect)`, never `getContext('2d')`. Hold-last-frame is GL-only; the 2D painter keeps
   the earlier geometry. Paused seeks stay at frame starts (Task 13 found no off-by-one frames), so the preview adds no
   frame-centre seeking. `VideoStudioEffects` (DOM-free) mirrors the Go registry (`BUILTIN`, parity-tested), adopts

@@ -249,9 +249,10 @@ again**. Each project keeps one temporary result in its preview folder: it count
 replaced by the next range check, and is removed with the project or when old jobs are cleaned up. It is never listed
 among exports.
 
-**Project version 3.** Projects are now saved as version 3. Older projects and older saved versions are upgraded when
-they are opened or restored; the upgrade changes no content. The upgrade is one-way: earlier AuraGo releases refuse to
-open a version 3 project, so update every AuraGo installation that opens the same projects.
+**Project version 3.** Projects are now saved as version 3. Older projects and older saved versions are upgraded
+step by step to version 3 when they are opened, restored or saved. The step from version 2 to 3 changes no content
+(version 1 projects first get the version 2 duration backfill as before). The upgrade is one-way: older AuraGo builds
+cannot open version 3 projects, so update every AuraGo installation that opens the same projects.
 
 ## Exports and background jobs
 
