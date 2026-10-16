@@ -17,6 +17,7 @@
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
                 <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
             </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
         wireTerminalResize();
@@ -32,6 +33,8 @@
         });
         const addBtn = terminal.querySelector('[data-terminal-add]');
         if (addBtn) addBtn.addEventListener('click', bind(() => addTerminalSession()));
+        const stopBtn = terminal.querySelector('[data-terminal-stop]');
+        if (stopBtn) stopBtn.addEventListener('click', bind(() => stopTerminalRun()));
         const hideBtn = terminal.querySelector('[data-terminal-hide]');
         if (hideBtn) hideBtn.addEventListener('click', bind(() => toggleTerminal()));
     }
@@ -83,6 +86,20 @@
         if (ws.readyState !== WebSocket.CLOSED) {
             try { ws.close(); } catch (_) {}
         }
+    }
+
+    function writeTerminalBytes(bytes, session) {
+        if (!session || !state || !state.terminalSessions || !state.terminalSessions.includes(session)) return;
+        const ws = session.ws;
+        if (!ws || typeof WebSocket === 'undefined' || ws.readyState !== WebSocket.OPEN) return;
+        const payload = bytes instanceof Uint8Array ? bytes : new TextEncoder().encode(String(bytes));
+        try { ws.send(payload); } catch (_) {}
+    }
+
+    function stopTerminalRun() {
+        const session = state && state.runSession;
+        if (!session) return;
+        writeTerminalBytes(new Uint8Array([0x03]), session);
     }
 
     function refitTerminal() {

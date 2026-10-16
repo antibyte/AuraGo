@@ -14,6 +14,7 @@ func TestDesktopCodeStudioC(t *testing.T) {
 	backend.files["/workspace/hello.py"] = "print('Hello from Code Studio')\n"
 	backend.files["/workspace/hello.c"] = "#include <stdio.h>\nint main(void) { puts(\"Hello from Code Studio\"); return 0; }\n"
 	backend.files["/workspace/hello.h"] = "int greeting(void);\n"
+	backend.files["/workspace/hello.ts"] = "export const n: number = 1;\n"
 	backend.mu.Unlock()
 	page.MustReload().MustWaitLoad()
 	result := page.MustEval(`async()=>{
@@ -35,19 +36,40 @@ func TestDesktopCodeStudioC(t *testing.T) {
         await app.openFile('/workspace/hello.h',true,id);
         const header=target.openTabs[target.activeTabIndex].language==='c';
         await app.command('runCurrentFile',[],id);
+        const headerIdle=csRoot().querySelector('.cs-status-message')?.textContent==='Für diese Datei gibt es keinen Startbefehl';
+        await app.openFile('/workspace/hello.ts',true,id);
+        await app.command('runCurrentFile',[],id);
+        const tsTab=target.openTabs[target.activeTabIndex];
+        const noTypeScript=tsTab.path==='/workspace/hello.ts' && csRoot().querySelector('.cs-status-message')?.textContent==='Für diese Datei gibt es keinen Startbefehl';
+        await app.command('closeTab',[target.openTabs.indexOf(tsTab),true],id);
         await app.openFile('/workspace/hello.c',true,id);
-        return examples && highlighted && saved && header && fixtureErrors.length===0;
+        return examples && highlighted && saved && header && headerIdle && noTypeScript && fixtureErrors.length===0;
     }`)
 	if !result.Bool() {
 		t.Fatalf("C examples, highlighting or save/run failed: %s", page.MustEval(`()=>fixtureErrors`).JSON("", ""))
 	}
 	backend.mu.Lock()
 	execs := append([]string(nil), backend.execs...)
+	inputs := append([]string(nil), backend.inputs...)
 	backend.mu.Unlock()
-	if len(execs) != 3 || !strings.Contains(execs[0], "gcc -std=c17 -Wall -Wextra -x c '/workspace/hello.c'") ||
-		!strings.Contains(execs[0], "mktemp -d") || !strings.Contains(execs[0], "trap '") ||
-		!strings.Contains(execs[1], "'/workspace/it'\"'\"'s a sample.c'") || execs[2] != "cat '/workspace/hello.h'" {
-		t.Fatalf("unexpected C/header commands: %q", execs)
+	if len(execs) != 0 {
+		t.Fatalf("run posted /api/code-studio/exec: %q", execs)
+	}
+	var commands []string
+	for _, input := range inputs {
+		if strings.Contains(input, "gcc ") || strings.Contains(input, "node ") || strings.Contains(input, "cat ") {
+			commands = append(commands, input)
+		}
+	}
+	if len(commands) != 2 || !strings.Contains(commands[0], "gcc -std=c17 -Wall -Wextra -x c '/workspace/hello.c'") ||
+		!strings.Contains(commands[0], "mktemp -d") || !strings.Contains(commands[0], "trap '") ||
+		!strings.Contains(commands[1], "'/workspace/it'\"'\"'s a sample.c'") {
+		t.Fatalf("unexpected C commands: %q", inputs)
+	}
+	for _, input := range inputs {
+		if strings.Contains(input, "hello.h") || strings.Contains(input, "hello.ts") {
+			t.Fatalf("header or TypeScript ran: %q", inputs)
+		}
 	}
 	for _, theme := range []string{"standard", "fruity"} {
 		page.MustEval(`async theme=>{

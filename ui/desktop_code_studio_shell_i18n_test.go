@@ -70,6 +70,13 @@ func TestDesktopCodeStudioShellI18n(t *testing.T) {
 		if lang != "en" && lineMode == "Line mode" {
 			t.Fatalf("%s must not copy the English line-mode label", path)
 		}
+		noRunner := strings.TrimSpace(values["codeStudio.noRunner"])
+		if noRunner == "" {
+			t.Fatalf("%s missing non-empty codeStudio.noRunner", path)
+		}
+		if lang != "en" && noRunner == "No runner for this file" {
+			t.Fatalf("%s must not copy the English no-runner label", path)
+		}
 	}
 }
 

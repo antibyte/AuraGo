@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Geen bestanden open",
   "codeStudio.noRepo": "Geen git-repository",
   "codeStudio.noResults": "Geen resultaten gevonden",
+  "codeStudio.noRunner": "Geen uitvoeropdracht voor dit bestand",
   "codeStudio.pinPanel": "Paneel vastzetten",
   "codeStudio.quickOpen": "Snel openen",
   "codeStudio.recentFiles": "Recente bestanden",

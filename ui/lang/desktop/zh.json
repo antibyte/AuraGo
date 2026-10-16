@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "没有打开的文件",
   "codeStudio.noRepo": "没有 Git 仓库",
   "codeStudio.noResults": "未找到结果",
+  "codeStudio.noRunner": "此文件没有运行命令",
   "codeStudio.pinPanel": "固定面板",
   "codeStudio.quickOpen": "快速打开",
   "codeStudio.recentFiles": "最近文件",

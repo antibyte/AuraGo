@@ -321,21 +321,12 @@ func TestDesktopCodeStudioTerminalRouting(t *testing.T) {
                 const origin=target.terminalSessions[1],first=target.terminalSessions[0];
                 const aliases=target.terminal===origin.term&&target.ws===origin.ws&&target.fitAddon===origin.fitAddon;
                 const text=term=>Array.from({length:term.buffer.active.length},(_,i)=>term.buffer.active.getLine(i)?.translateToString()||'').join('\n');
-                const originalFetch=window.fetch;let release;
-                window.fetch=async(url,opts)=>{
-                    if(String(url)==='/api/code-studio/exec'){
-                        await new Promise(r=>{release=r;});
-                        return new Response(JSON.stringify({output:'origin-only-output',exit_code:0}),{status:200});
-                    }
-                    return originalFetch(url,opts);
-                };
-                try {
-                    const running=app.command('runCurrentFile',[],id);await csWait(()=>release);
-                    csRoot().querySelector(closeOrigin?'[data-terminal-close="1"]':'[data-terminal-tab="0"]').click();
-                    release();await running;await new Promise(r=>requestAnimationFrame(r));
-                    if(!closeOrigin)await csWait(()=>text(origin.term).includes('origin-only-output'));
-                    return aliases && !text(first.term).includes('origin-only-output') && target.terminal===first.term && fixtureErrors.length===0;
-                } finally {window.fetch=originalFetch;release?.();}
+                const marker="node '/workspace/src/app.js'";
+                await app.command('runCurrentFile',[],id);
+                csRoot().querySelector(closeOrigin?'[data-terminal-close="1"]':'[data-terminal-tab="0"]').click();
+                await new Promise(r=>requestAnimationFrame(r));
+                if(!closeOrigin)await csWait(()=>text(origin.term).includes(marker));
+                return aliases && !text(first.term).includes(marker) && target.terminal===first.term && fixtureErrors.length===0;
             }`, closeOrigin).Bool() {
 				t.Fatal("Run output or terminal aliases followed the wrong session")
 			}

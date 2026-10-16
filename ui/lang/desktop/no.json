@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Ingen filer åpne",
   "codeStudio.noRepo": "Ingen git-repository",
   "codeStudio.noResults": "Ingen resultater funnet",
+  "codeStudio.noRunner": "Ingen kjøringskommando for denne filen",
   "codeStudio.pinPanel": "Fest panel",
   "codeStudio.quickOpen": "Hurtigåpning",
   "codeStudio.recentFiles": "Nylige filer",

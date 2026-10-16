@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Inga filer öppna",
   "codeStudio.noRepo": "Inget git-repository",
   "codeStudio.noResults": "Inga resultat hittades",
+  "codeStudio.noRunner": "Ingen körkommando för den här filen",
   "codeStudio.pinPanel": "Fäst panel",
   "codeStudio.quickOpen": "Snabböppna",
   "codeStudio.recentFiles": "Senaste filer",

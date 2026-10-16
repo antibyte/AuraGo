@@ -2386,8 +2386,12 @@ registration lives in `internal/desktop/types.go`.
   `close()`. A server text frame `{"type":"line"}` sets
   `codeStudio.terminalLineMode` on the status label and is not written into
   xterm. The welcome line stays. The active session owns terminal/WebSocket/fit
-  aliases. Callbacks retain the session object across tab removal; delayed Run
-  output never moves to another terminal when its original session closes.
+  aliases. F5 and Run save through the tab queue, then write the command and a
+  newline as one binary frame to the session active when Run started. They do
+  not call `POST /api/code-studio/exec`. The terminal Stop button sends byte
+  `0x03` only to that session. Bytes for a session that has already closed are
+  discarded. A file without a runner (`codeStudio.noRunner`) does not write to
+  the terminal. Runners are `go`, `python`, `.js`/`.mjs`, `.c`, and `rust`.
 - Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
   bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
   `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for
@@ -2404,9 +2408,11 @@ registration lives in `internal/desktop/types.go`.
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
-  directory, executes only a successful build and cleans up afterward. Headers
-  remain editable, not standalone programs. With no restored tabs or launch
-  path, open available `hello.go`, `hello.py` and `hello.c` samples as tabs.
+  directory, executes only a successful build and cleans up afterward. Rust
+  uses that same `mktemp` directory and `"$cs_run_dir/program"`. Headers,
+  TypeScript, TSX, JSX, and other files stay editable and do not run. With no
+  restored tabs or launch path, open available `hello.go`, `hello.py` and
+  `hello.c` samples as tabs.
   Verify `TestDesktopCodeStudioC` and the CodeContainer sample/runtime tests.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
   then `sysworld.js`.

@@ -23,11 +23,12 @@ import (
 // Code Studio API so the real shell, bundle, CodeMirror and xterm can run
 // headless without a container.
 type codeStudioFixtureBackend struct {
-	mu    sync.Mutex
-	files map[string]string
-	dirs  map[string]bool
-	execs []string
-	chats []map[string]interface{}
+	mu     sync.Mutex
+	files  map[string]string
+	dirs   map[string]bool
+	execs  []string
+	inputs []string
+	chats  []map[string]interface{}
 }
 
 func newCodeStudioFixtureBackend() *codeStudioFixtureBackend {
@@ -201,6 +202,9 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 			if strings.HasPrefix(string(payload), "{") {
 				continue
 			}
+			b.mu.Lock()
+			b.inputs = append(b.inputs, string(payload))
+			b.mu.Unlock()
 			_ = conn.WriteMessage(websocket.TextMessage, payload)
 		}
 	})

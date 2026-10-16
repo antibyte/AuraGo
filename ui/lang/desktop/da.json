@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Ingen filer åbne",
   "codeStudio.noRepo": "Intet git-repository",
   "codeStudio.noResults": "Ingen resultater fundet",
+  "codeStudio.noRunner": "Ingen kørsel for denne fil",
   "codeStudio.pinPanel": "Fastgør panel",
   "codeStudio.quickOpen": "Hurtig åbning",
   "codeStudio.recentFiles": "Seneste filer",

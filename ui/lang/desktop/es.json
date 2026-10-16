@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "No hay archivos abiertos",
   "codeStudio.noRepo": "Sin repositorio git",
   "codeStudio.noResults": "No se encontraron resultados",
+  "codeStudio.noRunner": "Este archivo no tiene un comando de ejecución",
   "codeStudio.pinPanel": "Fijar panel",
   "codeStudio.quickOpen": "Apertura rápida",
   "codeStudio.recentFiles": "Archivos recientes",

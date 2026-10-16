@@ -1493,6 +1493,33 @@
         await runAsyncStep(target, () => openFile(desktopToCodeStudioPath(result.path)));
     }
 
+    function focusRunTerminal(session) {
+        const root = ensureShellRoot();
+        let revealed = false;
+        if (state.zenMode) {
+            state.zenMode = false;
+            if (root) root.dataset.zen = 'false';
+            revealed = true;
+        }
+        if (!state.terminalVisible) {
+            state.terminalVisible = true;
+            if (root) root.dataset.terminal = 'visible';
+            revealed = true;
+        }
+        if (revealed) {
+            saveState();
+            renderActivityBar();
+            renderWindowMenus();
+        }
+        if (session && state.terminalSessions && state.terminalSessions.includes(session)) {
+            const index = state.terminalSessions.indexOf(session);
+            if (index !== (state.activeTerminalSession || 0)) switchTerminalSession(index);
+            else if (session.term && typeof session.term.focus === 'function') session.term.focus();
+        }
+        if (revealed && state.fitAddon) setTimeout(bind(() => { if (state.fitAddon) state.fitAddon.fit(); }), 50);
+        scheduleTerminalFit();
+    }
+
     async function runCurrentFile() {
         const target = state;
         if (!isLiveInstance(target)) return;
@@ -1506,30 +1533,18 @@
         }
         if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
         const command = runCommandFor(path);
-        const cwd = parentPath(path);
-        runWithInstance(target, () => {
-            renderStatus(tr('codeStudio.running', 'Running...'));
-            writeTerminalLine('$ ' + command, terminal);
-        });
-        try {
-            const result = await api('/api/code-studio/exec', {
-                method: 'POST',
-                body: JSON.stringify({ command, cwd, timeout_seconds: 300 })
-            });
-            if (!isLiveInstance(target)) return;
+        if (!command) {
             runWithInstance(target, () => {
-                writeTerminalLine(result.output || '', terminal);
-                writeTerminalLine('exit ' + result.exit_code, terminal);
-                renderStatus(tr('codeStudio.stopped', 'Stopped'));
+                renderStatus(tr('codeStudio.noRunner', 'No runner for this file'));
             });
-        } catch (err) {
-            if (isLiveInstance(target)) {
-                runWithInstance(target, () => {
-                    writeTerminalLine(err.message || String(err), terminal);
-                    renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: err.message || String(err) }));
-                });
-            }
+            return;
         }
+        runWithInstance(target, () => {
+            state.runSession = terminal;
+            focusRunTerminal(terminal);
+            renderStatus(tr('codeStudio.running', 'Running...'));
+            writeTerminalBytes(command + '\n', terminal);
+        });
     }
 
     function toggleSidebar() {
@@ -1626,17 +1641,22 @@
 
     function runCommandFor(path) {
         const quoted = "'" + String(path).replaceAll("'", "'\"'\"'") + "'";
+        const ext = String(path || '').split('.').pop().toLowerCase();
         const lang = languageForPath(path);
         if (lang === 'go') return 'go run ' + quoted;
         if (lang === 'python') return 'python3 ' + quoted;
-        if (lang === 'c' && /\.c$/i.test(path)) {
+        if (ext === 'js' || ext === 'mjs') return 'node ' + quoted;
+        if (ext === 'c') {
             return '(cs_run_dir=$(mktemp -d /tmp/cs-run.XXXXXX) && ' +
                 'trap \'rm -rf "$cs_run_dir"\' EXIT && ' +
                 'gcc -std=c17 -Wall -Wextra -x c ' + quoted + ' -o "$cs_run_dir/program" && "$cs_run_dir/program")';
         }
-        if (lang === 'javascript') return 'node ' + quoted;
-        if (lang === 'rust') return 'rustc ' + quoted + ' -o /tmp/cs-run && /tmp/cs-run';
-        return 'cat ' + quoted;
+        if (lang === 'rust') {
+            return '(cs_run_dir=$(mktemp -d /tmp/cs-run.XXXXXX) && ' +
+                'trap \'rm -rf "$cs_run_dir"\' EXIT && ' +
+                'rustc ' + quoted + ' -o "$cs_run_dir/program" && "$cs_run_dir/program")';
+        }
+        return null;
     }
 
     function fileIcon(name) {
@@ -2548,6 +2568,7 @@
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
                 <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
             </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
         wireTerminalResize();
@@ -2563,6 +2584,8 @@
         });
         const addBtn = terminal.querySelector('[data-terminal-add]');
         if (addBtn) addBtn.addEventListener('click', bind(() => addTerminalSession()));
+        const stopBtn = terminal.querySelector('[data-terminal-stop]');
+        if (stopBtn) stopBtn.addEventListener('click', bind(() => stopTerminalRun()));
         const hideBtn = terminal.querySelector('[data-terminal-hide]');
         if (hideBtn) hideBtn.addEventListener('click', bind(() => toggleTerminal()));
     }
@@ -2614,6 +2637,20 @@
         if (ws.readyState !== WebSocket.CLOSED) {
             try { ws.close(); } catch (_) {}
         }
+    }
+
+    function writeTerminalBytes(bytes, session) {
+        if (!session || !state || !state.terminalSessions || !state.terminalSessions.includes(session)) return;
+        const ws = session.ws;
+        if (!ws || typeof WebSocket === 'undefined' || ws.readyState !== WebSocket.OPEN) return;
+        const payload = bytes instanceof Uint8Array ? bytes : new TextEncoder().encode(String(bytes));
+        try { ws.send(payload); } catch (_) {}
+    }
+
+    function stopTerminalRun() {
+        const session = state && state.runSession;
+        if (!session) return;
+        writeTerminalBytes(new Uint8Array([0x03]), session);
     }
 
     function refitTerminal() {

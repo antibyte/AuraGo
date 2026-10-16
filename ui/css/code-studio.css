@@ -2530,6 +2530,25 @@ button.cs-sidebar-crumb:focus-visible {
     color: var(--cs-text);
 }
 
+.cs-terminal-stop {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    margin-left: 8px;
+    padding: 0 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-text);
+    font: 11px/1 inherit;
+    cursor: pointer;
+}
+
+.cs-terminal-stop:hover {
+    background: var(--cs-accent-soft);
+}
+
 /* ── Command palette details ── */
 .cs-command-palette-input .cs-cp-hint {
     flex-shrink: 0;

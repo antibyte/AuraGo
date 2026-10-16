@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "कोई फ़ाइल खुली नहीं है",
   "codeStudio.noRepo": "कोई git रिपॉजिटरी नहीं",
   "codeStudio.noResults": "कोई परिणाम नहीं मिला",
+  "codeStudio.noRunner": "इस फ़ाइल को चलाने का कोई आदेश नहीं है",
   "codeStudio.pinPanel": "पैनल पिन करें",
   "codeStudio.quickOpen": "त्वरित खोलें",
   "codeStudio.recentFiles": "हाल की फ़ाइलें",

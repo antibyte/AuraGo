@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Nejsou otevřené žádné soubory",
   "codeStudio.noRepo": "Žádné git úložiště",
   "codeStudio.noResults": "Žádné výsledky",
+  "codeStudio.noRunner": "Pro tento soubor není spouštěcí příkaz",
   "codeStudio.pinPanel": "Připnout panel",
   "codeStudio.quickOpen": "Rychlé otevření",
   "codeStudio.recentFiles": "Nedávné soubory",

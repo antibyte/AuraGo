@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "開いているファイルはありません",
   "codeStudio.noRepo": "Gitリポジトリがありません",
   "codeStudio.noResults": "結果が見つかりません",
+  "codeStudio.noRunner": "このファイルには実行コマンドがありません",
   "codeStudio.pinPanel": "パネルを固定",
   "codeStudio.quickOpen": "クイックオープン",
   "codeStudio.recentFiles": "最近のファイル",

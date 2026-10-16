@@ -313,6 +313,7 @@
   "codeStudio.noFiles": "Δεν υπάρχουν ανοιχτά αρχεία",
   "codeStudio.noRepo": "Δεν υπάρχει αποθετήριο git",
   "codeStudio.noResults": "Δεν βρέθηκαν αποτελέσματα",
+  "codeStudio.noRunner": "Δεν υπάρχει εντολή εκτέλεσης για αυτό το αρχείο",
   "codeStudio.pinPanel": "Καρφίτσωμα πίνακα",
   "codeStudio.quickOpen": "Γρήγορο άνοιγμα",
   "codeStudio.recentFiles": "Πρόσφατα αρχεία",

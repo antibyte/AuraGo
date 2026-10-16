@@ -17,7 +17,7 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"const sockets = new Set()",
 		"sockets.add(instance.ws)",
 		"sockets.add(session.ws)",
-		"socket.close()",
+		"endTerminalSocket(socket)",
 		"function runWithInstance(instance, fn)",
 		"finally {",
 		"async function runAsyncStep",
@@ -67,6 +67,71 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	}
 	if !strings.Contains(source, "window.CodeStudio = window.CodeStudioApp") {
 		t.Fatalf("Code Studio compatibility export missing")
+	}
+}
+
+func TestDesktopCodeStudioRunUsesTerminalSession(t *testing.T) {
+	t.Parallel()
+
+	core := readDesktopAssetText(t, "js/desktop/apps/code-studio/core.js")
+	terminal := readDesktopAssetText(t, "js/desktop/apps/code-studio/terminal.js")
+	bundle := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
+	for _, want := range []string{
+		"writeTerminalBytes(command + '\\n', terminal)",
+		"tr('codeStudio.noRunner'",
+		"state.runSession = terminal",
+		"if (ext === 'js' || ext === 'mjs') return 'node ' + quoted;",
+		"gcc -std=c17 -Wall -Wextra -x c",
+		`rustc ' + quoted + ' -o "$cs_run_dir/program"`,
+		"mktemp -d /tmp/cs-run.XXXXXX",
+		"return null;",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("Code Studio run path missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"return 'cat '",
+		"if (lang === 'javascript')",
+		"-o /tmp/cs-run",
+	} {
+		if strings.Contains(core, forbidden) {
+			t.Fatalf("Code Studio run path still contains %q", forbidden)
+		}
+	}
+	start := strings.Index(core, "async function runCurrentFile()")
+	end := strings.Index(core, "function toggleSidebar()")
+	if start < 0 || end < start {
+		t.Fatal("runCurrentFile body missing")
+	}
+	if strings.Contains(core[start:end], "/api/code-studio/exec") {
+		t.Fatal("runCurrentFile must write the terminal session instead of posting /api/code-studio/exec")
+	}
+	for _, want := range []string{
+		"function writeTerminalBytes(",
+		"function stopTerminalRun()",
+		"data-terminal-stop",
+		"new Uint8Array([0x03])",
+	} {
+		if !strings.Contains(terminal, want) {
+			t.Fatalf("Code Studio terminal run control missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"writeTerminalBytes(command + '\\n', terminal)",
+		"function writeTerminalBytes(",
+		"new Uint8Array([0x03])",
+		"data-terminal-stop",
+		`rustc ' + quoted + ' -o "$cs_run_dir/program"`,
+	} {
+		if !strings.Contains(bundle, want) {
+			t.Fatalf("Code Studio bundle missing run marker %q", want)
+		}
+	}
+	bundleStart := strings.Index(bundle, "async function runCurrentFile()")
+	bundleEnd := strings.Index(bundle, "function toggleSidebar()")
+	if bundleStart < 0 || bundleEnd < bundleStart || strings.Contains(bundle[bundleStart:bundleEnd], "/api/code-studio/exec") {
+		t.Fatal("Code Studio bundle run still posts /api/code-studio/exec")
 	}
 }
 
