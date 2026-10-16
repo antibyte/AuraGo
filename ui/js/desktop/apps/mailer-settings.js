@@ -62,7 +62,8 @@
                 account_disabled: 'reason_account_disabled', integration_disabled: 'reason_integration_disabled', disabled: 'reason_account_disabled',
                 desktop_access_required: 'reason_desktop_access_required', mail_read_required: 'reason_mail_read_required',
                 network_disabled: 'reason_network_disabled', missing_scope: 'reason_missing_scope', auth_required: 'reason_auth_required',
-                permission_denied: 'reason_permission_denied', offline: 'reason_offline', sync_failed: 'reason_sync_failed', storage_full: 'reason_storage_full'
+                permission_denied: 'reason_permission_denied', offline: 'reason_offline', sync_failed: 'reason_sync_failed', storage_full: 'reason_storage_full',
+                rule_error: 'reason_rule_error'
             };
             return t(inst.ctx, keys[String(code).toLowerCase()] || 'reason_unknown');
         }
@@ -436,6 +437,7 @@
 
         return {
             show: () => showSettings(inst),
+            reasonText: code => reasonText(inst, code),
             paint: () => paintSettings(inst),
             connectSource: sourceId => connectSource(inst, sourceId),
             createFolder: accountId => createFolder(inst, accountId),

@@ -36,6 +36,9 @@ Test incoming and outgoing connections separately. These tests authenticate and
 check capabilities without sending a message. Sending an actual test email is a
 separate explicit action. Never disable certificate verification to work around
 an incorrect hostname or an untrusted certificate.
+Classic account TLS/STARTTLS choices also apply when explicitly enabling the
+shared agent email tools or watcher; changing the port does not override an
+explicit transport choice.
 
 ## OAuth application registration
 
@@ -100,6 +103,10 @@ Rules support sender, recipient, subject, and attachment conditions, with folder
 or label actions, read state, starring, and archiving. Preview affected messages
 before applying a rule to historical mail. Enabled rules otherwise apply to
 new arrivals. Rules cannot forward mail or permanently delete messages.
+Automatic rule progress is saved with newly synchronized messages. Interrupted
+or failed actions remain visible on the message; already completed actions are
+not repeated. Review an uncertain provider outcome before explicitly retrying
+the current action. Searching older mail does not queue automatic rules.
 Snooze hides a message inside Mailer until the chosen time without changing other
 clients. Templates and signatures are account-specific.
 
@@ -115,10 +122,17 @@ closing; a conflicting revision cannot overwrite newer edits. Rich text uses the
 bundled Milkdown/ProseMirror editor, and outgoing mail contains sanitized HTML
 and a plain-text alternative. Imported HTML must not be silently flattened into
 Markdown. Attachment uploads report progress and enforce size and storage limits.
+After a concurrent edit, choose whether to keep your local composition against
+the latest revision or reload the saved draft. Reloading asks before discarding
+local edits; missing attachments remain visible until explicitly resolved.
+Sending waits for uploads and forwarded attachment copies. Failed uploads and
+attachments removed by another draft editor require attention before sending.
 
 The persistent outbox distinguishes waiting, sending, sent, failed, and unknown
 delivery. **Undo send** holds a newly queued message for ten seconds. It cancels a
 queued submission; it cannot recall a message already delivered to a server.
+The outbox loads older entries in pages; cancellation and retry address the
+selected job directly, independently of the displayed page.
 
 Scheduled messages retain their chosen time and timezone. After an outage,
 unambiguously unsent overdue jobs run automatically when Mailer and the account

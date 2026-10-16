@@ -78,14 +78,15 @@
             recipients: { to: emailList(draft.to), cc: emailList(draft.cc), bcc: emailList(draft.bcc) },
             contacts: [], editor: null, disposed: false, editorPromise: null, saveTimer: 0,
             saveQueue: Promise.resolve(), editGeneration: 0, savedGeneration: 0, saveError: null,
-            assistController: null, assistPreview: null, uploads: new Map(), committed: false, editorLib: null, editorView: null,
+            assistController: null, assistPreview: null, uploads: new Map(), failedUploads: new Map(), uploadQueueCount: 0, attachmentBusy: false,
+            committed: false, sending: false, sendLockSnapshot: null, sendLockActive: false, draftConflict: false, conflictResolving: false, conflictMissingAttachments: [], conflictLocalPayload: null, conflictLocalAttachments: [], editorLib: null, editorView: null,
             forwardSources: (options.forwardMessage?.attachments || []).map(item => ({
                 messageId: String(options.forwardMessage.id || ''),
                 attachmentId: String(item.id || ''),
                 filename: String(item.filename || item.name || ''),
                 size: Number(item.size) || 0
             })).filter(item => item.messageId && item.attachmentId),
-            forwardCopied: new Set(), forwardCopying: false, forwardCopyPromise: Promise.resolve(),
+            forwardCopied: new Set(), forwardSkipped: new Set(), forwardCopying: false, forwardCopyPromise: Promise.resolve(), attachmentTask: Promise.resolve(),
             preserveHTML: !!draft.html && normalizeHTML(draft.html) !== normalizeHTML(cleanHtml(draft.text || '')),
             bodyChanged: false,
             statusTimer: 0, listeners: [], onClose: null, uploadTask: Promise.resolve()
@@ -113,6 +114,7 @@
                 <p class="vd-mailer-compose-hint" data-editor-error hidden role="status"></p>
                 <div class="vd-mailer-attachments" data-attachments aria-live="polite"></div>
                 <div class="vd-mailer-forward-copy" data-forward-copy hidden role="status" aria-live="polite"><p data-forward-copy-status></p><div data-forward-copy-actions></div></div>
+                <div class="vd-mailer-forward-copy vd-mailer-draft-conflict" data-draft-conflict hidden role="alert" aria-live="assertive"><p data-draft-conflict-message></p><div data-draft-conflict-attachments></div><div data-draft-conflict-actions><button type="button" class="vd-mailer-button vd-mailer-primary" data-resolve-draft-conflict>${esc(t(ctx, 'draft_conflict_keep'))}</button><button type="button" class="vd-mailer-button" data-reload-latest-draft>${esc(t(ctx, 'draft_conflict_reload'))}</button></div></div>
                 <section class="vd-mailer-assist-panel" data-assist-panel hidden aria-label="${esc(t(ctx, 'assist'))}">
                     <div class="vd-mailer-assist-grid"><label><span>${esc(t(ctx, 'assist_action'))}</span><select data-assist-action ${inst.readonly ? 'disabled' : ''}><option value="draft">${esc(t(ctx, 'assist_draft'))}</option><option value="reply">${esc(t(ctx, 'assist_reply'))}</option><option value="rewrite">${esc(t(ctx, 'assist_rewrite'))}</option><option value="shorten">${esc(t(ctx, 'assist_shorten'))}</option><option value="tone">${esc(t(ctx, 'assist_tone'))}</option><option value="translate">${esc(t(ctx, 'assist_translate'))}</option><option value="summarize">${esc(t(ctx, 'assist_summarize'))}</option></select></label>
             <label><span>${esc(t(ctx, 'provider'))}</span><select data-assist-provider><option value="">${esc(defaultProviderLabel(ctx))}</option>${providerRows(ctx).map(provider => `<option value="${esc(provider.id)}">${esc(provider.name || provider.id)} · ${esc(provider.model || provider.type || '')}</option>`).join('')}</select></label>
@@ -135,6 +137,7 @@
         renderRecipients(inst);
         renderAttachments(inst);
         paintForwardCopy(inst);
+        renderDraftConflict(inst);
         loadContacts(inst);
         loadComposerRecords(inst);
         if (inst.preserveHTML) {
@@ -168,7 +171,7 @@
             await crepe.create();
             if (inst.disposed) { crepe.destroy(); return; }
             inst.editorLib = lib;
-            crepe.setReadonly(inst.readonly);
+            crepe.setReadonly(editingLocked(inst));
             inst.editor = crepe;
             const view = crepe.editor.action(ctx => ctx.get(lib.editorViewCtx));
             inst.editorView = view;
@@ -179,7 +182,7 @@
             view.setProps({ dispatchTransaction(transaction) {
                 if (previousDispatch) previousDispatch.call(view, transaction);
                 else view.updateState(view.state.apply(transaction));
-                if (transaction.docChanged && !inst.readonly) { inst.bodyChanged = true; changed(inst); }
+                if (transaction.docChanged && !editingLocked(inst)) { inst.bodyChanged = true; changed(inst); }
             }});
             inst.editorView = view;
             inst.markdown = () => crepe.getMarkdown();
@@ -189,7 +192,7 @@
             };
             root.closest('.vd-mailer-compose-body').classList.remove('is-fallback');
             fallback.hidden = true;
-            if (inst.readonly) root.setAttribute('aria-readonly', 'true');
+            root.toggleAttribute('aria-readonly', editingLocked(inst));
         } catch (_) {
             if (inst.disposed) return;
             root.hidden = true;
@@ -232,9 +235,11 @@
     }
 
     async function insertTemplate(inst, id) {
+        if (editingLocked(inst)) return;
         const item = (inst.templates || []).find(record => String(record.id) === String(id));
         if (!item) return;
         await inst.editorPromise;
+        if (editingLocked(inst)) return;
         if (item.subject) inst.host.querySelector('[data-subject]').value = item.subject;
         inst.bodyChanged = true;
         inst.setMarkdown?.(item.text || '');
@@ -242,9 +247,11 @@
     }
 
     async function insertSignature(inst, id) {
+        if (editingLocked(inst)) return;
         const item = (inst.signatures || []).find(record => String(record.id) === String(id));
         if (!item) return;
         await inst.editorPromise;
+        if (editingLocked(inst)) return;
         const current = inst.markdown?.() || '';
         inst.bodyChanged = true;
         inst.setMarkdown?.([current.trimEnd(), '--', item.text || ''].filter(Boolean).join('\n\n'));
@@ -252,9 +259,9 @@
     }
 
     async function convertForeignHTML(inst) {
-        if (!inst.preserveHTML || inst.readonly) return;
+        if (!inst.preserveHTML || editingLocked(inst)) return;
         const accepted = await inst.ctx.confirmDialog(t(inst.ctx, 'convert_html_title'), t(inst.ctx, 'convert_html_confirm'));
-        if (!accepted || inst.disposed) return;
+        if (!accepted || inst.disposed || editingLocked(inst)) return;
         const container = document.createElement('div');
         container.innerHTML = normalizeHTML(inst.draft.html);
         const text = String(container.innerText || container.textContent || '').trim();
@@ -308,6 +315,16 @@
         });
         listen(inst, form, 'submit', event => { event.preventDefault(); send(inst); });
         listen(inst, form, 'click', event => {
+            const retryUpload = event.target.closest('[data-retry-upload]');
+            if (retryUpload) { retryFailedUpload(inst, retryUpload.dataset.retryUpload); return; }
+            const removeUpload = event.target.closest('[data-remove-upload]');
+            if (removeUpload) { removeFailedUpload(inst, removeUpload.dataset.removeUpload); return; }
+            const skipForward = event.target.closest('[data-skip-forward-attachment]');
+            if (skipForward) { skipForwardAttachment(inst, skipForward.dataset.skipForwardAttachment); return; }
+            const removeConflictAttachment = event.target.closest('[data-remove-conflict-attachment]');
+            if (removeConflictAttachment) { removeConflictAttachmentItem(inst, removeConflictAttachment.dataset.removeConflictAttachment); return; }
+            if (event.target.closest('[data-resolve-draft-conflict]')) { resolveDraftConflict(inst); return; }
+            if (event.target.closest('[data-reload-latest-draft]')) { reloadLatestDraft(inst); return; }
             const retryForward = event.target.closest('[data-retry-forward-attachment]');
             if (retryForward) { copyForwardAttachment(inst, retryForward.dataset.retryForwardAttachment); return; }
             const remove = event.target.closest('[data-remove-recipient]');
@@ -334,11 +351,11 @@
         const files = host.querySelector('[data-file-input]');
         listen(inst, files, 'change', () => trackUpload(inst, Array.from(files.files || [])));
         const drop = host.querySelector('[data-compose-body]');
-        listen(inst, drop, 'dragover', event => { if (!inst.readonly) { event.preventDefault(); drop.classList.add('is-drop-target'); } });
+        listen(inst, drop, 'dragover', event => { if (!editingLocked(inst)) { event.preventDefault(); drop.classList.add('is-drop-target'); } });
         listen(inst, drop, 'dragleave', () => drop.classList.remove('is-drop-target'));
         listen(inst, drop, 'drop', event => {
             drop.classList.remove('is-drop-target');
-            if (!inst.readonly && event.dataTransfer?.files?.length) { event.preventDefault(); trackUpload(inst, Array.from(event.dataTransfer.files)); }
+            if (!editingLocked(inst) && event.dataTransfer?.files?.length) { event.preventDefault(); trackUpload(inst, Array.from(event.dataTransfer.files)); }
         });
     }
 
@@ -346,11 +363,12 @@
         Object.keys(inst.recipients).forEach(field => {
             const chips = inst.host.querySelector(`[data-chips="${field}"]`);
             if (!chips) return;
-            chips.innerHTML = inst.recipients[field].map((address, index) => `<span class="vd-mailer-recipient-chip" role="listitem"><span>${esc(address)}</span><button type="button" data-field="${field}" data-remove-recipient="${index}" aria-label="${esc(t(inst.ctx, 'remove_recipient', { email: address }))}" ${inst.readonly ? 'disabled' : ''}>×</button></span>`).join('');
+            chips.innerHTML = inst.recipients[field].map((address, index) => `<span class="vd-mailer-recipient-chip" role="listitem"><span>${esc(address)}</span><button type="button" data-field="${field}" data-remove-recipient="${index}" aria-label="${esc(t(inst.ctx, 'remove_recipient', { email: address }))}" ${editingLocked(inst) ? 'disabled' : ''}>×</button></span>`).join('');
         });
     }
 
     function addRecipient(inst, field, value) {
+        if (editingLocked(inst)) return;
         const address = String(value || '').trim().replace(/[;,]+$/, '');
         const input = inst.host.querySelector(`[data-recipient-input="${field}"]`);
         if (!address) return;
@@ -361,6 +379,10 @@
         hideSuggestions(inst, field);
         input.focus();
         changed(inst);
+    }
+
+    function editingLocked(inst) {
+        return !!inst.readonly || !!inst.sending || !!inst.committed || !!inst.conflictResolving;
     }
 
     function showSuggestions(inst, field) {
@@ -399,11 +421,13 @@
         const state = inst.host.querySelector('[data-save-state]');
         if (state) { state.textContent = t(inst.ctx, 'draft_saving'); state.classList.remove('is-error'); }
         clearTimeout(inst.saveTimer);
+        if (inst.attachmentBusy || inst.forwardCopying || inst.draftConflict || inst.sending) return;
         inst.saveTimer = setTimeout(() => save(inst).catch(error => setStatus(inst, errorText(inst, error), true)), 650);
     }
 
     async function save(inst) {
         if (inst.readonly || inst.committed || inst.disposed) return inst.draft;
+        if (inst.draftConflict) throw Object.assign(new Error('draft_conflict'), { status: 409 });
         clearTimeout(inst.saveTimer);
         if (inst.savedGeneration === inst.editGeneration && inst.draft.id) return inst.draft;
         inst.saveQueue = inst.saveQueue.catch(() => {}).then(async () => {
@@ -412,7 +436,12 @@
             const currentGeneration = inst.editGeneration;
             const currentPayload = snapshot(inst);
             currentPayload.revision = Number(inst.draft.revision || 0);
-            const result = await inst.api.saveDraft(currentPayload);
+            let result;
+            try { result = await inst.api.saveDraft(currentPayload); }
+            catch (error) {
+                if (error && error.status === 409) setDraftConflict(inst, error, currentPayload);
+                throw error;
+            }
             inst.draft = Object.assign({}, currentPayload, result);
             inst.accountId = inst.draft.account_id || inst.accountId;
             inst.savedGeneration = currentGeneration;
@@ -420,6 +449,7 @@
             if (status) { status.textContent = t(inst.ctx, 'draft_saved'); status.classList.remove('is-error'); }
             const discard = inst.host.querySelector('[data-discard-draft]');
             if (discard) discard.disabled = !inst.draft.id;
+            renderDraftConflict(inst);
             return inst.draft;
         });
         const result = await inst.saveQueue;
@@ -427,10 +457,158 @@
         return result;
     }
 
+    function setDraftConflict(inst, error, payload) {
+        inst.draftConflict = true;
+        if (!inst.conflictLocalPayload) inst.conflictLocalPayload = payload || snapshot(inst);
+        if (!inst.conflictLocalAttachments.length) inst.conflictLocalAttachments = (inst.draft.attachments || []).map(item => Object.assign({}, item));
+        renderDraftConflict(inst);
+        syncSendButton(inst);
+        if (error) setStatus(inst, errorText(inst, error), true);
+    }
+
+    function renderDraftConflict(inst) {
+        const panel = inst.host.querySelector('[data-draft-conflict]');
+        if (!panel) return;
+        panel.hidden = !inst.draftConflict && !inst.conflictMissingAttachments.length;
+        const message = panel.querySelector('[data-draft-conflict-message]');
+        if (message) {
+            message.textContent = inst.conflictMissingAttachments.length
+                ? t(inst.ctx, 'draft_conflict_attachments_changed')
+                : t(inst.ctx, 'draft_conflict_message');
+        }
+        const attachments = panel.querySelector('[data-draft-conflict-attachments]');
+        if (attachments) attachments.innerHTML = inst.conflictMissingAttachments.map(item => `<div class="vd-mailer-attachment is-upload-failed"><span aria-hidden="true">⚠</span><span><b>${esc(item.filename || item.name || t(inst.ctx, 'attachment'))}</b><small>${esc(t(inst.ctx, 'draft_conflict_attachment_missing'))}</small></span><button type="button" data-remove-conflict-attachment="${esc(item.id)}">${esc(t(inst.ctx, 'remove_attachment'))}</button></div>`).join('');
+        const keep = panel.querySelector('[data-resolve-draft-conflict]');
+        const reload = panel.querySelector('[data-reload-latest-draft]');
+        if (keep) keep.hidden = !inst.draftConflict || inst.conflictResolving;
+        if (reload) reload.hidden = !inst.draftConflict || inst.conflictResolving;
+        if (keep) keep.disabled = !!inst.conflictResolving;
+        if (reload) reload.disabled = !!inst.conflictResolving;
+        syncSendButton(inst);
+    }
+
+    async function resolveDraftConflict(inst) {
+        if (!inst.draftConflict || inst.conflictResolving || !inst.draft.id) return;
+        const local = snapshot(inst);
+        inst.conflictResolving = true;
+        renderDraftConflict(inst);
+        try {
+            const response = await inst.api.draft(inst.draft.id);
+            const latest = response && response.draft ? response.draft : response;
+            if (!latest || !latest.id) throw new Error('draft_missing');
+            const latestIDs = new Set((latest.attachments || []).map(item => String(item.id)));
+            const missingById = new Map(inst.conflictMissingAttachments.map(item => [String(item.id), item]));
+            for (const item of inst.conflictLocalAttachments) {
+                if (!latestIDs.has(String(item.id))) missingById.set(String(item.id), item);
+            }
+            inst.conflictMissingAttachments = Array.from(missingById.values());
+            inst.draft = Object.assign({}, inst.draft, latest);
+            const accountSelect = inst.host.querySelector('[data-account]');
+            const localAccountIsAvailable = Array.from(accountSelect?.options || []).some(option => option.value === local.account_id);
+            const accountId = localAccountIsAvailable ? local.account_id : (latest.account_id || inst.accountId);
+            if (accountSelect && accountId) accountSelect.value = accountId;
+            inst.accountId = accountId;
+            // Use the latest server revision while retaining this window's editable fields.
+            // Imported HTML has no live editor value, so preserve its local payload explicitly.
+            for (const key of ['reply_remote_id', 'in_reply_to', 'references', 'to', 'cc', 'bcc', 'subject', 'text', 'html']) {
+                if (Object.prototype.hasOwnProperty.call(local, key)) inst.draft[key] = local[key];
+            }
+            inst.draft.account_id = accountId;
+            inst.recipients = { to: emailList(local.to), cc: emailList(local.cc), bcc: emailList(local.bcc) };
+            inst.host.querySelector('[data-subject]').value = String(local.subject || '');
+            inst.preserveHTML = !!local.html && normalizeHTML(local.html) !== normalizeHTML(cleanHtml(local.text || ''));
+            inst.bodyChanged = false;
+            if (inst.preserveHTML) {
+                inst.host.querySelector('[data-preserved-html-frame]').srcdoc = previewHTML(local.html);
+                inst.host.querySelector('[data-preserved-html]').hidden = false;
+                inst.host.querySelector('[data-rich-editor]').hidden = true;
+                inst.host.querySelector('[data-format-toolbar]').hidden = true;
+            }
+            inst.conflictLocalPayload = snapshot(inst);
+            inst.conflictLocalAttachments = (inst.draft.attachments || []).map(item => Object.assign({}, item));
+            inst.draftConflict = false;
+            inst.conflictResolving = false;
+            renderRecipients(inst);
+            renderAttachments(inst);
+            renderDraftConflict(inst);
+            changed(inst);
+            await save(inst);
+            inst.conflictLocalPayload = null;
+            inst.conflictLocalAttachments = [];
+            setStatus(inst, inst.conflictMissingAttachments.length ? t(inst.ctx, 'draft_conflict_attachments_changed') : t(inst.ctx, 'draft_conflict_rebased'));
+        } catch (error) {
+            inst.conflictResolving = false;
+            if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
+            else renderDraftConflict(inst);
+            setStatus(inst, errorText(inst, error), true);
+        }
+    }
+
+    async function reloadLatestDraft(inst) {
+        if (!inst.draftConflict || inst.conflictResolving || !inst.draft.id) return;
+        const confirmed = await inst.ctx.confirmDialog(t(inst.ctx, 'draft_conflict_reload'), t(inst.ctx, 'draft_conflict_reload_confirm'));
+        if (!confirmed || inst.disposed) return;
+        inst.conflictResolving = true;
+        renderDraftConflict(inst);
+        try {
+            const response = await inst.api.draft(inst.draft.id);
+            const latest = response && response.draft ? response.draft : response;
+            if (!latest || !latest.id) throw new Error('draft_missing');
+            inst.draft = Object.assign({}, inst.draft, latest);
+            inst.recipients = { to: emailList(latest.to), cc: emailList(latest.cc), bcc: emailList(latest.bcc) };
+            inst.accountId = latest.account_id || inst.accountId;
+            const accountSelect = inst.host.querySelector('[data-account]');
+            if (accountSelect && inst.accountId) accountSelect.value = inst.accountId;
+            inst.host.querySelector('[data-subject]').value = String(latest.subject || '');
+            inst.preserveHTML = !!latest.html && normalizeHTML(latest.html) !== normalizeHTML(cleanHtml(latest.text || ''));
+            inst.bodyChanged = false;
+            inst.editorPromise = Promise.resolve(inst.editorPromise).then(() => {
+                if (inst.preserveHTML) {
+                    inst.host.querySelector('[data-preserved-html-frame]').srcdoc = previewHTML(latest.html);
+                    inst.host.querySelector('[data-preserved-html]').hidden = false;
+                    inst.host.querySelector('[data-rich-editor]').hidden = true;
+                    inst.host.querySelector('[data-format-toolbar]').hidden = true;
+                } else {
+                    inst.host.querySelector('[data-preserved-html]').hidden = true;
+                    inst.host.querySelector('[data-rich-editor]').hidden = false;
+                    inst.host.querySelector('[data-format-toolbar]').hidden = false;
+                    inst.setMarkdown?.(String(latest.text || ''));
+                }
+            });
+            await inst.editorPromise;
+            inst.draftConflict = false;
+            inst.conflictMissingAttachments = [];
+            inst.conflictLocalPayload = null;
+            inst.conflictLocalAttachments = [];
+            inst.failedUploads.clear();
+            inst.savedGeneration = inst.editGeneration;
+            inst.conflictResolving = false;
+            renderRecipients(inst);
+            renderAttachments(inst);
+            renderDraftConflict(inst);
+            setStatus(inst, t(inst.ctx, 'draft_conflict_reloaded'));
+        } catch (error) {
+            inst.conflictResolving = false;
+            renderDraftConflict(inst);
+            setStatus(inst, errorText(inst, error), true);
+        }
+    }
+
+    function removeConflictAttachmentItem(inst, attachmentId) {
+        inst.conflictMissingAttachments = inst.conflictMissingAttachments.filter(item => String(item.id) !== String(attachmentId));
+        renderDraftConflict(inst);
+        if (!inst.conflictMissingAttachments.length) setStatus(inst, t(inst.ctx, 'draft_conflict_rebased'));
+    }
+
     async function beforeClose(inst) {
         clearTimeout(inst.saveTimer);
         await inst.uploadTask;
         await inst.forwardCopyPromise;
+        await inst.attachmentTask;
+        if (inst.failedUploads.size) {
+            const keep = await inst.ctx.confirmDialog(t(inst.ctx, 'upload_failed_title'), t(inst.ctx, 'upload_failed_close_confirm'));
+            if (!keep) return false;
+        }
         if (inst.readonly || inst.committed || inst.savedGeneration === inst.editGeneration) return true;
         try { await save(inst); return true; }
         catch (_) {
@@ -440,8 +618,15 @@
     }
 
     function trackUpload(inst, files) {
-        if (!files.length || inst.readonly) return;
-        inst.uploadTask = inst.uploadTask.catch(() => {}).then(() => uploadFiles(inst, files));
+        if (!files.length || editingLocked(inst)) return;
+        inst.uploadQueueCount++;
+        inst.attachmentBusy = true;
+        syncSendButton(inst);
+        inst.uploadTask = inst.uploadTask.catch(() => {}).then(() => uploadFiles(inst, files)).finally(() => {
+            inst.uploadQueueCount = Math.max(0, inst.uploadQueueCount - 1);
+            inst.attachmentBusy = inst.uploadQueueCount > 0 || !!inst.attachmentMutation;
+            syncSendButton(inst);
+        });
         return inst.uploadTask;
     }
 
@@ -466,25 +651,60 @@
                     } else {
                         inst.draft.attachments = (inst.draft.attachments || []).concat([result.attachment || result]);
                     }
+                    inst.failedUploads.delete(key);
+                } catch (error) {
+                    inst.failedUploads.set(key, { file, name: file.name, error });
+                    if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
+                    else setStatus(inst, t(inst.ctx, 'upload_failed_block_send'), true);
                 } finally { inst.uploads.delete(key); renderAttachments(inst); }
             }
-            changed(inst);
-            await save(inst);
-        } catch (error) { setStatus(inst, errorText(inst, error), true); }
-        finally { inst.host.querySelector('[data-file-input]').value = ''; }
+            if (!inst.draftConflict && inst.failedUploads.size === 0) {
+                changed(inst);
+                await save(inst);
+            }
+        } catch (error) {
+            for (const file of files) {
+                if (!Array.from(inst.failedUploads.values()).some(item => item.file === file)) {
+                    const key = 'upload-' + Math.random().toString(36).slice(2);
+                    inst.failedUploads.set(key, { file, name: file.name, error });
+                }
+            }
+            if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
+            setStatus(inst, errorText(inst, error), true);
+        } finally { inst.host.querySelector('[data-file-input]').value = ''; renderAttachments(inst); syncSendButton(inst); }
+    }
+
+    function retryFailedUpload(inst, key) {
+        const pending = inst.failedUploads.get(String(key));
+        if (!pending || editingLocked(inst)) return;
+        inst.failedUploads.delete(String(key));
+        renderAttachments(inst);
+        trackUpload(inst, [pending.file]);
+    }
+
+    function removeFailedUpload(inst, key) {
+        if (editingLocked(inst)) return;
+        if (!inst.failedUploads.delete(String(key))) return;
+        renderAttachments(inst);
+        changed(inst);
+        save(inst).catch(error => setStatus(inst, errorText(inst, error), true));
+        syncSendButton(inst);
+        setStatus(inst, t(inst.ctx, 'upload_removed'));
     }
 
     function renderAttachments(inst) {
         const root = inst.host.querySelector('[data-attachments]');
         if (!root) return;
         const attachments = inst.draft.attachments || [];
-        const rows = attachments.map(item => `<div class="vd-mailer-attachment" data-attachment-id="${esc(item.id)}"><span aria-hidden="true">📎</span><span><b>${esc(item.filename || item.name)}</b><small>${formatBytes(item.size)}</small></span><button type="button" data-remove-attachment="${esc(item.id)}" aria-label="${esc(t(inst.ctx, 'remove_attachment'))}" ${inst.readonly ? 'disabled' : ''}>×</button></div>`).join('');
+        const rows = attachments.map(item => `<div class="vd-mailer-attachment" data-attachment-id="${esc(item.id)}"><span aria-hidden="true">📎</span><span><b>${esc(item.filename || item.name)}</b><small>${formatBytes(item.size)}</small></span><button type="button" data-remove-attachment="${esc(item.id)}" aria-label="${esc(t(inst.ctx, 'remove_attachment'))}" ${editingLocked(inst) || inst.attachmentBusy ? 'disabled' : ''}>×</button></div>`).join('');
         const uploads = Array.from(inst.uploads, ([key, item]) => `<div class="vd-mailer-attachment is-uploading" data-upload-id="${esc(key)}"><span>${esc(item.name)}</span><progress max="1" value="${item.progress}" aria-label="${esc(t(inst.ctx, 'upload_progress'))}"></progress><span>${Math.round(item.progress * 100)}%</span></div>`).join('');
-        root.innerHTML = rows + uploads;
+        const failed = Array.from(inst.failedUploads, ([key, item]) => `<div class="vd-mailer-attachment is-upload-failed" data-upload-failed="${esc(key)}" role="group" aria-label="${esc(t(inst.ctx, 'upload_failed_named', { filename: item.name }))}"><span aria-hidden="true">⚠</span><span><b>${esc(item.name)}</b><small>${esc(t(inst.ctx, 'upload_failed_block_send'))}</small></span><button type="button" data-retry-upload="${esc(key)}">${esc(t(inst.ctx, 'retry'))}</button><button type="button" data-remove-upload="${esc(key)}">${esc(t(inst.ctx, 'remove_attachment'))}</button></div>`).join('');
+        root.innerHTML = rows + uploads + failed;
+        syncSendButton(inst);
     }
 
     async function applyFormat(inst, format) {
-        if (inst.readonly || inst.preserveHTML || !inst.editorView || !inst.editorLib) return;
+        if (editingLocked(inst) || inst.preserveHTML || !inst.editorView || !inst.editorLib) return;
         const view = inst.editorView;
         const lib = inst.editorLib;
         let command = null;
@@ -510,17 +730,59 @@
     function paintForwardCopy(inst) {
         const panel = inst.host.querySelector('[data-forward-copy]');
         if (!panel) return;
-        const pending = inst.forwardSources.filter(item => !inst.forwardCopied.has(item.attachmentId));
+        const pending = inst.forwardSources.filter(item => !inst.forwardCopied.has(item.attachmentId) && !inst.forwardSkipped.has(item.attachmentId));
         panel.hidden = !inst.forwardSources.length;
         const status = panel.querySelector('[data-forward-copy-status]');
         if (inst.forwardCopying) status.textContent = t(inst.ctx, 'forward_attachment_copying');
         else if (pending.length) status.textContent = t(inst.ctx, 'forward_attachment_copy_review');
+        else if (inst.forwardSkipped.size) status.textContent = t(inst.ctx, 'forward_attachment_skipped');
         else status.textContent = '';
         panel.querySelector('[data-forward-copy-actions]').innerHTML = !inst.forwardCopying && pending.length
-            ? pending.map(item => `<button type="button" class="vd-mailer-button" data-retry-forward-attachment="${esc(item.attachmentId)}">${esc(t(inst.ctx, 'retry'))}: ${esc(item.filename || t(inst.ctx, 'attachment'))}</button>`).join('')
+            ? pending.map(item => `<span class="vd-mailer-forward-copy-item"><button type="button" class="vd-mailer-button" data-retry-forward-attachment="${esc(item.attachmentId)}">${esc(t(inst.ctx, 'retry'))}: ${esc(item.filename || t(inst.ctx, 'attachment'))}</button><button type="button" class="vd-mailer-button" data-skip-forward-attachment="${esc(item.attachmentId)}">${esc(t(inst.ctx, 'forward_attachment_skip'))}</button></span>`).join('')
             : '';
+        syncSendButton(inst);
+    }
+
+    function skipForwardAttachment(inst, attachmentId) {
+        const item = inst.forwardSources.find(candidate => candidate.attachmentId === String(attachmentId));
+        if (!item || inst.forwardCopying || editingLocked(inst)) return;
+        inst.forwardSkipped.add(item.attachmentId);
+        paintForwardCopy(inst);
+        setStatus(inst, t(inst.ctx, 'forward_attachment_skipped'));
+    }
+
+    function syncSendButton(inst) {
         const send = inst.host.querySelector('[data-send]');
-        if (send && !inst.committed) send.disabled = !!inst.readonly || inst.forwardCopying || pending.length > 0;
+        if (!send) return;
+        const forwardPending = inst.forwardSources.some(item => !inst.forwardCopied.has(item.attachmentId) && !inst.forwardSkipped.has(item.attachmentId));
+        send.disabled = !!inst.readonly || !!inst.committed || !!inst.sending || !!inst.draftConflict || inst.conflictMissingAttachments.length > 0 || inst.failedUploads.size > 0 || (forwardPending && !inst.forwardCopying);
+        const editLocked = editingLocked(inst);
+        const form = inst.host.querySelector('[data-compose-form]');
+        if (editLocked) {
+            if (!inst.sendLockActive) {
+                inst.sendLockSnapshot = new Map();
+                inst.sendLockActive = true;
+            }
+            form.querySelectorAll('input, textarea, select, button').forEach(control => {
+                // These two controls have state derived outside the edit lock.
+                if (control.matches('[data-undo-send], [data-send]')) return;
+                if (!inst.sendLockSnapshot.has(control)) inst.sendLockSnapshot.set(control, control.disabled);
+                control.disabled = true;
+            });
+        } else if (inst.sendLockActive) {
+            for (const [control, wasDisabled] of inst.sendLockSnapshot || []) {
+                if (control.isConnected) control.disabled = wasDisabled;
+            }
+            inst.sendLockSnapshot = null;
+            inst.sendLockActive = false;
+        }
+        if (!editLocked) {
+            const discard = inst.host.querySelector('[data-discard-draft]');
+            if (discard) discard.disabled = !inst.draft.id;
+        }
+        inst.editor?.setReadonly?.(editLocked);
+        const editorRoot = inst.host.querySelector('[data-rich-editor]');
+        if (editorRoot) editorRoot.toggleAttribute('aria-readonly', editLocked);
     }
 
     async function reconcileForwardDraft(inst) {
@@ -548,12 +810,15 @@
         } finally {
             inst.forwardCopying = false;
             paintForwardCopy(inst);
+            if (!inst.disposed && !inst.draftConflict && inst.savedGeneration < inst.editGeneration) {
+                try { await save(inst); } catch (error) { setStatus(inst, errorText(inst, error), true); }
+            }
         }
     }
 
     async function copyForwardAttachment(inst, attachmentId, fromQueue) {
         const item = inst.forwardSources.find(candidate => candidate.attachmentId === String(attachmentId));
-        if (!item || inst.readonly || inst.forwardCopied.has(item.attachmentId) || inst.forwardCopying && !fromQueue) return;
+        if (!item || editingLocked(inst) && !fromQueue || inst.forwardCopied.has(item.attachmentId) || inst.forwardCopying && !fromQueue) return;
         if (!fromQueue) inst.forwardCopying = true;
         paintForwardCopy(inst);
         const task = (async () => {
@@ -589,18 +854,31 @@
     }
 
     async function removeAttachmentItem(inst, attachmentId) {
-        if (inst.readonly || !inst.draft.id) return;
-        try {
-            const updated = await inst.api.removeAttachment(inst.draft.id, attachmentId, inst.draft.revision);
-            inst.draft = Object.assign({}, inst.draft, updated);
-            inst.draft.attachments = (inst.draft.attachments || []).filter(item => String(item.id) !== String(attachmentId));
-            renderAttachments(inst);
-            changed(inst);
-        } catch (error) { setStatus(inst, errorText(inst, error), true); }
+        if (editingLocked(inst) || inst.attachmentBusy || !inst.draft.id) return;
+        inst.attachmentBusy = true;
+        syncSendButton(inst);
+        inst.attachmentTask = inst.attachmentTask.catch(() => {}).then(async () => {
+            try {
+                const updated = await inst.api.removeAttachment(inst.draft.id, attachmentId, inst.draft.revision);
+                inst.draft = Object.assign({}, inst.draft, updated);
+                inst.draft.attachments = (inst.draft.attachments || []).filter(item => String(item.id) !== String(attachmentId));
+                renderAttachments(inst);
+                changed(inst);
+                await save(inst);
+            } catch (error) {
+                if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
+                setStatus(inst, errorText(inst, error), true);
+            } finally {
+                inst.attachmentBusy = false;
+                renderAttachments(inst);
+                syncSendButton(inst);
+            }
+        });
+        return inst.attachmentTask;
     }
 
     async function discard(inst) {
-        if (inst.readonly || !inst.draft.id || !await inst.ctx.confirmDialog(t(inst.ctx, 'discard_draft'), t(inst.ctx, 'discard_draft_confirm'))) return;
+        if (editingLocked(inst) || !inst.draft.id || !await inst.ctx.confirmDialog(t(inst.ctx, 'discard_draft'), t(inst.ctx, 'discard_draft_confirm')) || editingLocked(inst)) return;
         try {
             await inst.api.deleteDraft(inst.draft);
             inst.committed = true;
@@ -610,11 +888,24 @@
     }
 
     async function send(inst) {
-        if (inst.readonly || inst.committed) return;
+        if (inst.readonly || inst.committed || inst.sending) return;
         const recipients = [...inst.recipients.to, ...inst.recipients.cc, ...inst.recipients.bcc];
         if (!recipients.length) { inst.host.querySelector('[data-recipient-input="to"]').focus(); setStatus(inst, t(inst.ctx, 'recipient_required'), true); return; }
         if (recipients.some(address => !validAddress(address))) { setStatus(inst, t(inst.ctx, 'invalid_address'), true); return; }
+        cancelAssist(inst);
+        const assistRun = inst.host.querySelector('[data-assist-run]');
+        if (assistRun) assistRun.disabled = false;
+        inst.sending = true;
+        syncSendButton(inst);
         try {
+            await Promise.all([inst.uploadTask, inst.forwardCopyPromise, inst.attachmentTask]);
+            if (inst.draftConflict) { setStatus(inst, t(inst.ctx, 'draft_conflict_message'), true); return; }
+            if (inst.failedUploads.size) { setStatus(inst, t(inst.ctx, 'upload_failed_block_send'), true); return; }
+            if (inst.conflictMissingAttachments.length) { setStatus(inst, t(inst.ctx, 'draft_conflict_attachments_changed'), true); return; }
+            if (inst.forwardSources.some(item => !inst.forwardCopied.has(item.attachmentId) && !inst.forwardSkipped.has(item.attachmentId))) {
+                setStatus(inst, t(inst.ctx, 'forward_attachment_copy_review'), true);
+                return;
+            }
             const draft = await save(inst);
             if (!draft.id || !draft.account_id) throw new Error('draft_missing');
             const sendAt = inst.host.querySelector('[data-send-at]').value;
@@ -622,18 +913,14 @@
             if (sendAt) { payload.send_at = new Date(sendAt).toISOString(); payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
             const item = await inst.api.enqueue(payload);
             inst.committed = true;
+            inst.sending = false;
             inst.outboxItem = item.item || item;
-            inst.host.querySelector('[data-send]').disabled = true;
-            inst.host.querySelector('[data-save-now]').disabled = true;
-            inst.host.querySelector('[data-discard-draft]').disabled = true;
+            syncSendButton(inst);
             const undo = inst.host.querySelector('[data-send-undo]');
             const scheduled = !!sendAt;
             undo.hidden = !inst.outboxItem.undo_until;
             inst.host.querySelector('[data-send-undo-copy]').textContent = scheduled ? t(inst.ctx, 'scheduled_status') : t(inst.ctx, 'send_undo_window');
             inst.host.querySelector('[data-compose-form]').classList.add('is-send-queued');
-            inst.host.querySelectorAll('[data-compose-form] input, [data-compose-form] textarea, [data-compose-form] select, [data-compose-form] button').forEach(control => {
-                if (!control.matches('[data-undo-send]')) control.disabled = true;
-            });
             if (inst.outboxItem.undo_until && !scheduled) {
                 const until = new Date(inst.outboxItem.undo_until).getTime();
                 inst.statusTimer = setInterval(() => {
@@ -644,6 +931,7 @@
             }
             setStatus(inst, scheduled ? t(inst.ctx, 'scheduled_status') : t(inst.ctx, 'send_queued'));
         } catch (error) { setStatus(inst, errorText(inst, error), true); }
+        finally { if (!inst.committed) { inst.sending = false; syncSendButton(inst); } }
     }
 
     async function undoSend(inst) {
@@ -651,17 +939,13 @@
         try {
             await inst.api.cancelSend(inst.outboxItem.id);
             inst.committed = false;
+            inst.sending = false;
             inst.outboxItem = null;
             clearInterval(inst.statusTimer);
-            inst.host.querySelector('[data-send]').disabled = false;
-            inst.host.querySelector('[data-save-now]').disabled = false;
-            inst.host.querySelector('[data-discard-draft]').disabled = !inst.draft.id;
             inst.host.querySelector('[data-send-undo]').hidden = true;
             inst.host.querySelector('[data-compose-form]').classList.remove('is-send-queued');
-            inst.host.querySelectorAll('[data-compose-form] input, [data-compose-form] textarea, [data-compose-form] select, [data-compose-form] button').forEach(control => {
-                if (!inst.readonly) control.disabled = false;
-            });
             inst.host.querySelector('[data-undo-send]').disabled = false;
+            syncSendButton(inst);
             changed(inst);
             setStatus(inst, t(inst.ctx, 'send_undone'));
         } catch (error) { setStatus(inst, errorText(inst, error), true); }
@@ -687,7 +971,7 @@
     }
 
     async function runAssist(inst) {
-        if (inst.readonly || inst.preserveHTML) return;
+        if (editingLocked(inst) || inst.preserveHTML) return;
         try { await save(inst); } catch (error) { setStatus(inst, errorText(inst, error), true); return; }
         const markdown = inst.markdown ? inst.markdown() : '';
         const context = inst.host.querySelector('[data-assist-context]').value;
@@ -714,7 +998,7 @@
         inst.host.querySelector('[data-assist-status]').textContent = t(inst.ctx, 'assist_working');
         try {
             const result = await inst.api.assist(Object.assign(request, { signal: controller.signal }));
-            if (inst.disposed || controller.signal.aborted) return;
+            if (inst.disposed || controller.signal.aborted || editingLocked(inst)) return;
             const preview = result.preview || result;
             const providerId = result.provider_id || request.provider_id || inst.ctx.state?.default_provider_id || '';
             const providerConfig = providerRows(inst.ctx).find(item => item.id === providerId);
@@ -727,7 +1011,7 @@
             inst.host.querySelector('[data-assist-status]').textContent = t(inst.ctx, 'assist_ready');
         } catch (error) {
             if (error.name !== 'AbortError') inst.host.querySelector('[data-assist-status]').textContent = errorText(inst, error);
-        } finally { if (!inst.disposed) inst.host.querySelector('[data-assist-run]').disabled = false; }
+        } finally { if (!inst.disposed) inst.host.querySelector('[data-assist-run]').disabled = editingLocked(inst); }
     }
 
     function cancelAssist(inst) {
@@ -736,12 +1020,14 @@
     }
 
     function discardAssist(inst) {
+        if (editingLocked(inst)) return;
         inst.assistPreview = null;
         inst.host.querySelector('[data-assist-preview]').hidden = true;
         inst.host.querySelector('[data-assist-status]').textContent = t(inst.ctx, 'assist_discarded');
     }
 
     function applyAssist(inst) {
+        if (editingLocked(inst)) return;
         const state = inst.assistPreview;
         if (!state) return;
         if (state.generation !== inst.editGeneration || state.revision !== Number(inst.draft.revision || 0)) {

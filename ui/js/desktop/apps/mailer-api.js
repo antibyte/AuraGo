@@ -63,7 +63,11 @@
             }),
             removeAttachment: (draftId, attachmentId, revision) => request('/drafts/' + id(draftId) + '/attachments/' + id(attachmentId) + '?revision=' + encodeURIComponent(revision || 0), { method: 'DELETE' }),
             copyMessageAttachment: (draftId, revision, messageId, attachmentId) => request('/drafts/' + id(draftId) + '/attachments/from-message?revision=' + encodeURIComponent(revision || 0), json('POST', { message_id: messageId, attachment_id: attachmentId })),
-            outbox: () => collection('outbox'),
+            outbox: params => {
+                const query = new URLSearchParams(params || {});
+                const search = query.toString();
+                return request('/outbox' + (search ? '?' + search : ''));
+            },
             enqueue: payload => request('/outbox', json('POST', payload)),
             cancelSend: sendId => request('/outbox/' + id(sendId), { method: 'DELETE' }),
             retrySend: sendId => request('/outbox/' + id(sendId) + '/retry', json('POST', {})),
@@ -84,6 +88,8 @@
             saveTemplate: item => request('/' + (item.kind === 'signature' ? 'signatures' : 'templates') + (item.id ? '/' + id(item.id) : ''), json(item.id ? 'PUT' : 'POST', item)),
             deleteTemplate: item => request('/' + (item.kind === 'signature' ? 'signatures' : 'templates') + '/' + id(item.id) + '?revision=' + encodeURIComponent(item.revision || 0), { method: 'DELETE' }),
             rules: () => collection('rules'),
+            ruleRuns: messageId => request('/messages/' + id(messageId) + '/rule-runs'),
+            retryRuleRun: (messageId, ruleId) => request('/messages/' + id(messageId) + '/rule-runs/' + id(ruleId) + '/retry', json('POST', {})),
             saveRule: rule => request('/rules' + (rule.id ? '/' + id(rule.id) : ''), json(rule.id ? 'PUT' : 'POST', rule)),
             deleteRule: rule => request('/rules/' + id(rule.id) + '?revision=' + encodeURIComponent(rule.revision || 0), { method: 'DELETE' }),
             previewRule: (rule, messageIds) => request('/rules/preview', json('POST', { rule, message_ids: messageIds })),

@@ -55,8 +55,8 @@
         if (launchContext && launchContext.compose) return window.MailerCompose.render(host, windowId, ctx, launchContext);
         const inst = {
             windowId, host, ctx, api: window.MailerAPI.create(ctx.api), state: null, folders: [], threads: [], drafts: [], outbox: [],
-            view: localPrefs().view || 'inbox', accountId: localPrefs().accountId || '', folderId: '', query: '', nextCursor: '', loadingMore: false,
-            selected: new Set(), activeThread: null, activeThreadData: null, loadGeneration: 0, searchTimer: 0, remoteSearch: false,
+            view: localPrefs().view || 'inbox', accountId: localPrefs().accountId || '', folderId: '', query: '', nextCursor: '', outboxCursor: '', outboxHasMore: false, loadingMore: false,
+            selected: new Set(), activeThread: null, activeThreadData: null, ruleRunsByMessage: Object.create(null), loadGeneration: 0, searchTimer: 0, remoteSearch: false,
             refreshTimer: 0, disposed: false, listeners: [], abort: null, remoteImages: new Set(), inlineImageURLs: new Set(), readerRenderGeneration: 0, readerAbort: null, selectedLabel: '',
             resizeState: null, settingsTab: 'accounts', records: {}, eventHandler: null, footerMessage: ''
         };
@@ -165,13 +165,17 @@
             if (settingTab) { inst.settingsTab = settingTab.dataset.settingTab; inst.settings.paint(); return; }
             if (event.target.closest('[data-create-folder]')) { inst.settings.createFolder(event.target.closest('[data-create-folder]').dataset.createFolder); return; }
             if (event.target.closest('[data-cancel-account-form]')) { inst.settings.paint(); return; }
-            if (event.target.closest('[data-load-more]')) { if (inst.nextCursor && !inst.loadingMore) loadCurrent(inst, true); return; }
+            if (event.target.closest('[data-load-more]')) { if ((inst.view === 'outbox' ? inst.outboxHasMore : inst.nextCursor) && !inst.loadingMore) loadCurrent(inst, true); return; }
             const remoteImages = event.target.closest('[data-load-images]');
             if (remoteImages) { inst.remoteImages.add(inst.activeThread); paintReader(inst); return; }
             if (event.target.closest('[data-reader-back]')) { clearInlineImages(inst); inst.activeThread = null; inst.activeThreadData = null; inst.mailerRoot.classList.remove('has-active-reader'); host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`; return; }
             if (event.target.closest('[data-remove-label]')) { const button = event.target.closest('[data-remove-label]'); runOneAction(inst, inst.activeThread, 'label_remove', { label_id: button.dataset.removeLabel }); return; }
             if (event.target.closest('[data-reader-action]')) { const button = event.target.closest('[data-reader-action]'); readerAction(inst, button.dataset.readerAction, button); return; }
             if (event.target.closest('[data-eml]')) { const message = findMessage(inst, event.target.closest('[data-eml]').dataset.eml); if (message) window.open(inst.api.emlURL(message.id), '_blank', 'noopener'); return; }
+            const retryRuleRuns = event.target.closest('[data-retry-rule-runs]');
+            if (retryRuleRuns) { loadRuleRuns(inst, inst.activeThread, [findMessage(inst, retryRuleRuns.dataset.retryRuleRuns)].filter(Boolean)); return; }
+            const retryRuleRun = event.target.closest('[data-retry-rule-run]');
+            if (retryRuleRun) { retryMessageRule(inst, retryRuleRun.dataset.messageId, retryRuleRun.dataset.retryRuleRun, retryRuleRun.dataset.runStatus); return; }
             if (event.target.closest('[data-retry]')) { retryOutbox(inst, event.target.closest('[data-retry]').dataset.retry); return; }
             if (event.target.closest('[data-cancel-send]')) { cancelOutbox(inst, event.target.closest('[data-cancel-send]').dataset.cancelSend); return; }
             if (event.target.closest('[data-connect-source]')) { inst.settings.connectSource(event.target.closest('[data-connect-source]').dataset.connectSource); return; }
@@ -342,12 +346,18 @@
         const more = inst.host.querySelector('[data-load-more]');
         if (more) more.disabled = !!append;
         if (!append) list.innerHTML = `<div class="vd-mailer-skeleton"><i></i><i></i><i></i><i></i></div>`;
+        if (!append && inst.view === 'outbox') { inst.outbox = []; inst.outboxCursor = ''; inst.outboxHasMore = false; }
         inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'true');
         try {
             if (['drafts', 'outbox'].includes(inst.view)) {
-                const result = inst.view === 'drafts' ? await inst.api.drafts() : await inst.api.outbox();
+                const result = inst.view === 'drafts' ? await inst.api.drafts() : await inst.api.outbox(Object.assign({ limit: 50 }, append && inst.outboxCursor ? { cursor: inst.outboxCursor } : {}));
                 if (generation !== inst.loadGeneration || inst.disposed) return;
-                if (inst.view === 'drafts') inst.drafts = responseItems(result, 'drafts'); else inst.outbox = responseItems(result, 'items');
+                if (inst.view === 'drafts') inst.drafts = responseItems(result, 'drafts'); else {
+                    const rows = responseItems(result, 'items');
+                    inst.outbox = append ? inst.outbox.concat(rows) : rows;
+                    inst.outboxCursor = String(result?.next_cursor || '');
+                    inst.outboxHasMore = !!result?.has_more && !!inst.outboxCursor;
+                }
                 paintFolders(inst); paintSpecialList(inst);
                 return;
             }
@@ -368,7 +378,7 @@
             inst.loadingRemote = false;
             inst.loadingMore = false;
             syncProviderSearchButton(inst);
-            if (more) more.disabled = !inst.nextCursor;
+            if (more) more.disabled = inst.view === 'outbox' ? !inst.outboxHasMore || inst.loadingMore : !inst.nextCursor || inst.loadingMore;
             if (generation === inst.loadGeneration) inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'false');
         }
     }
@@ -416,7 +426,9 @@
         inst.host.querySelector('[data-select-all]').disabled = true;
         inst.host.querySelectorAll('[data-action], [data-move-folder], [data-label-select]').forEach(button => button.disabled = true);
         inst.host.querySelector('[data-list-count]').textContent = t(inst.ctx, 'messages_count', { count: inst.view === 'drafts' ? inst.drafts.length : inst.outbox.length });
-        inst.host.querySelector('[data-load-more]').hidden = true;
+        const more = inst.host.querySelector('[data-load-more]');
+        more.hidden = inst.view !== 'outbox' || !inst.outboxHasMore;
+        more.disabled = inst.view !== 'outbox' || !inst.outboxHasMore || inst.loadingMore;
     }
 
     function outboxDiagnostics(inst, item) {
@@ -453,6 +465,7 @@
             const item = inst.threads.find(row => row.id === threadId);
             if (item && readConfirmed) { item.unread_count = 0; item.unread = false; }
             paintReader(inst);
+            loadRuleRuns(inst, threadId, thread.messages || []);
             if (markRead) paintList(inst);
         } catch (_) {
             if (current === inst.loadGeneration) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty"><b>${esc(t(inst.ctx, 'message_load_failed'))}</b><button type="button" class="vd-mailer-button" data-reader-action="reload">${esc(t(inst.ctx, 'retry'))}</button></div>`;
@@ -509,7 +522,77 @@
             ${hasRemoteImages ? `<div class="vd-mailer-remote-warning"><span>${esc(t(inst.ctx, remoteEnabled ? 'remote_images_loaded' : 'remote_images_blocked'))}</span>${remoteEnabled ? '' : `<button type="button" data-load-images>${esc(t(inst.ctx, 'load_remote_images'))}</button>`}</div>` : ''}
             <div class="vd-mailer-message-body">${body}</div>
             ${attachments.length ? `<ul class="vd-mailer-message-attachments" aria-label="${esc(t(inst.ctx, 'attachments'))}">${attachments.map(item => `<li><a href="${esc(inst.api.attachmentURL(message.id, item.id))}" download="${esc(item.filename)}">📎 ${esc(item.filename)} <small>${formatBytes(item.size)}</small></a></li>`).join('')}</ul>` : ''}
+            <div class="vd-mailer-rule-runs" data-rule-runs-for="${esc(message.id)}"></div>
             <footer><button type="button" data-eml="${esc(message.id)}">${esc(t(inst.ctx, 'download_message_eml'))}</button>${index + 1 < total ? `<span>${esc(t(inst.ctx, 'quoted_message'))}</span>` : ''}</footer></article>`;
+    }
+
+    function paintRuleRunsForMessage(inst, messageId) {
+        const root = inst.host.querySelector(`[data-rule-runs-for="${cssEscape(messageId)}"]`);
+        if (!root) return;
+        const state = inst.ruleRunsByMessage[String(messageId)] || {};
+        if (state.loading) {
+            root.innerHTML = `<p role="status">${esc(t(inst.ctx, 'rule_runs_loading'))}</p>`;
+            return;
+        }
+        if (state.error) {
+            root.innerHTML = `<p>${esc(t(inst.ctx, 'rule_runs_unavailable'))}</p><button type="button" class="vd-mailer-button" data-retry-rule-runs="${esc(messageId)}">${esc(t(inst.ctx, 'retry'))}</button>`;
+            return;
+        }
+        const items = state.items || [];
+        if (!items.length) { root.innerHTML = ''; return; }
+        root.innerHTML = `<section aria-label="${esc(t(inst.ctx, 'rule_runs_title'))}"><h3>${esc(t(inst.ctx, 'rule_runs_title'))}</h3><ul>${items.map(run => {
+            const runStatus = String(run.status);
+            const statusKey = ({ pending: 'rule_run_pending', executing: 'rule_run_executing', unknown: 'rule_run_unknown', failed: 'rule_run_failed', completed: 'rule_run_completed', skipped: 'rule_run_skipped' })[runStatus] || 'rule_run_unknown';
+            const actionCount = Number(run.action_count) || 0;
+            const actionNumber = runStatus === 'completed' ? actionCount : Math.min(actionCount || Number.MAX_SAFE_INTEGER, (Number(run.action_index) || 0) + 1);
+            const progress = actionCount && runStatus !== 'skipped' ? `<small>${esc(t(inst.ctx, 'rule_run_action_progress', { current: actionNumber, total: actionCount }))}</small>` : '';
+            const explanationKey = ({ unknown: 'rule_run_unknown_help', failed: 'rule_run_failed_help' })[runStatus];
+            const explanation = explanationKey ? `<p class="vd-mailer-rule-run-error">${esc(t(inst.ctx, explanationKey))}</p>` : '';
+            const diagnostic = run.error ? `<details class="vd-mailer-rule-run-diagnostic"><summary>${esc(t(inst.ctx, 'rule_run_error_details'))}</summary><p>${esc(run.error)}</p></details>` : '';
+            const retry = ['failed', 'unknown'].includes(String(run.status)) && !inst.state.readonly
+                ? `<button type="button" class="vd-mailer-button" data-retry-rule-run="${esc(run.rule_id)}" data-message-id="${esc(messageId)}" data-run-status="${esc(run.status)}">${esc(t(inst.ctx, 'retry'))}</button>` : '';
+            return `<li data-rule-id="${esc(run.rule_id)}"><b>${esc(t(inst.ctx, statusKey))}</b>${progress}${explanation}${diagnostic}${retry}</li>`;
+        }).join('')}</ul></section>`;
+    }
+
+    async function loadRuleRuns(inst, threadId, messages) {
+        if (!threadId || !messages.length || typeof inst.api.ruleRuns !== 'function') return;
+        const targets = messages.filter(message => message.id);
+        for (const message of targets) {
+            const id = String(message.id);
+            const state = inst.ruleRunsByMessage[id] || (inst.ruleRunsByMessage[id] = {});
+            state.loading = true;
+            state.error = false;
+            paintRuleRunsForMessage(inst, id);
+        }
+        await Promise.all(targets.map(async message => {
+            const id = String(message.id);
+            const state = inst.ruleRunsByMessage[id];
+            try {
+                const response = await inst.api.ruleRuns(id);
+                state.items = responseItems(response, 'items');
+                state.error = false;
+            } catch (_) { state.error = true; }
+            finally {
+                state.loading = false;
+                if (!inst.disposed && inst.activeThread === threadId) paintRuleRunsForMessage(inst, id);
+            }
+        }));
+    }
+
+    async function retryMessageRule(inst, messageId, ruleId, status) {
+        if (inst.state.readonly || !messageId || !ruleId) return;
+        if (status === 'unknown') {
+            const accepted = await inst.ctx.confirmDialog(t(inst.ctx, 'rule_run_retry_unknown_title'), t(inst.ctx, 'rule_run_retry_unknown_confirm'));
+            if (!accepted || inst.disposed) return;
+        }
+        try {
+            await inst.api.retryRuleRun(messageId, ruleId);
+            setStatus(inst, t(inst.ctx, 'rule_run_retry_queued'));
+            const threadId = inst.activeThread;
+            const messages = inst.activeThreadData?.messages || [];
+            await loadRuleRuns(inst, threadId, messages);
+        } catch (error) { showError(inst, error); }
     }
 
     function initials(value) {
@@ -874,11 +957,16 @@
 
     function subscribe(inst) {
         const handler = event => {
-            const payload = event && (event.payload || event.detail || event);
-            if (payload && (payload.type === 'mailer_changed' || event?.type === 'mailer_changed')) {
-                const accountId = payload.account_id || '';
-                if (!accountId || !inst.accountId || accountId === inst.accountId) refreshCurrent(inst, true);
+            const envelope = event && (event.detail || event) || {};
+            if (envelope.type !== 'mailer_changed') return;
+            const change = envelope.payload || {};
+            const accountId = change.account_id || '';
+            if (change.type === 'rule_run' && inst.activeThreadData?.messages?.some(message => String(message.id) === String(change.id))) {
+                const message = inst.activeThreadData.messages.find(item => String(item.id) === String(change.id));
+                loadRuleRuns(inst, inst.activeThread, [message]);
             }
+            if (change.type === 'account_sync' && (!inst.accountId || !accountId || accountId === inst.accountId)) refreshAccountSyncStatus(inst, change);
+            if (!accountId || !inst.accountId || accountId === inst.accountId) refreshCurrent(inst, true);
         };
         inst.eventHandler = handler;
         if (window.AuraSSE?.on) window.AuraSSE.on('virtual_desktop_event', handler);
@@ -887,6 +975,23 @@
             inst.listeners.push([document, 'aurago:mailer-change', domHandler]);
             document.addEventListener('aurago:mailer-change', domHandler);
         }
+    }
+
+    async function refreshAccountSyncStatus(inst, change) {
+        try {
+            const latest = await inst.api.state();
+            if (inst.disposed) return;
+            inst.state.accounts = latest.accounts || inst.state.accounts || [];
+            inst.state.sources = latest.sources || inst.state.sources || [];
+            inst.state.account_settings = latest.account_settings || inst.state.account_settings || {};
+            for (const account of inst.state.accounts) Object.assign(account, accountSettingsRecord(inst.state, account.id));
+            // A background sync event must not open the settings overlay.
+            if (!inst.host.querySelector('[data-settings]').hidden) await inst.settings.paint();
+            const account = inst.state.accounts.find(item => item.id === change.account_id);
+            const code = account?.sync_error || (change.status === 'error' ? 'sync_failed' : '');
+            if (code) setStatus(inst, inst.settings.reasonText(code), true);
+            else if (change.status === 'ok') setStatus(inst, t(inst.ctx, 'refreshed'));
+        } catch (error) { showError(inst, error); }
     }
 
     async function retryOutbox(inst, id) {

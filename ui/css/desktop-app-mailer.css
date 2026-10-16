@@ -231,6 +231,22 @@
 .vd-mailer-forward-copy { margin: 4px 16px 10px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--mail-accent) 38%, var(--mail-border)); border-radius: 7px; background: color-mix(in srgb, var(--mail-accent) 8%, var(--mail-panel)); color: var(--mail-text); }
 .vd-mailer-forward-copy p { margin: 0 0 7px; color: var(--mail-muted); font-size: 12px; }
 .vd-mailer-forward-copy [data-forward-copy-actions] { display: flex; flex-wrap: wrap; gap: 6px; }
+.vd-mailer-forward-copy-item { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.vd-mailer-draft-conflict { border-color: color-mix(in srgb, var(--mail-danger, #c54b45) 55%, var(--mail-border)); background: color-mix(in srgb, var(--mail-danger, #c54b45) 8%, var(--mail-panel)); }
+.vd-mailer-draft-conflict [data-draft-conflict-actions] { display: flex; flex-wrap: wrap; gap: 8px; }
+.vd-mailer-attachment.is-upload-failed { border-color: color-mix(in srgb, var(--mail-danger, #c54b45) 45%, var(--mail-border)); }
+.vd-mailer-rule-runs { margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--mail-border); border-radius: 7px; background: color-mix(in srgb, var(--mail-accent) 5%, var(--mail-panel)); color: var(--mail-text); }
+.vd-mailer-rule-runs:empty { display: none; }
+.vd-mailer-rule-runs h3 { margin: 0 0 6px; font-size: 13px; }
+.vd-mailer-rule-runs ul { display: grid; gap: 8px; margin: 0; padding-left: 18px; }
+.vd-mailer-rule-runs li { padding-left: 2px; }
+.vd-mailer-rule-runs li > b { margin-right: 8px; }
+.vd-mailer-rule-runs li > small { color: var(--mail-muted); }
+.vd-mailer-rule-runs li > p { margin: 5px 0; color: var(--mail-danger, #b5433e); overflow-wrap: anywhere; }
+.vd-mailer-rule-run-diagnostic { margin: 4px 0; color: var(--mail-muted); font-size: 11px; }
+.vd-mailer-rule-run-diagnostic summary { cursor: pointer; }
+.vd-mailer-rule-run-diagnostic p { margin: 4px 0; overflow-wrap: anywhere; }
+.vd-mailer-rule-runs li > button { margin-top: 4px; }
 .vd-mailer-attachment { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--mail-border); border-radius: 7px; }
 .vd-mailer-attachment > span:nth-child(2) { display: flex; flex-direction: column; }
 .vd-mailer-attachment small { color: var(--mail-muted); }
