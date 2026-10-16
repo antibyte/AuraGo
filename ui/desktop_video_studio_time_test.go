@@ -14,6 +14,7 @@ func TestVideoStudioTimeModule(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 const V = window.VideoStudioTime;
 const p30 = {fps: 30}, ntsc = {fps: 30, ntsc: true}, p25 = {fps: 25};

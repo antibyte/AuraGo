@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Par le noir",
   "videoStudio.wipeleft": "Balayage vers la gauche",
   "videoStudio.wiperight": "Balayage vers la droite",
+  "videoStudio.transitionUnavailable": "Indisponible : le FFmpeg de ce serveur ne prend pas en charge cette transition",
   "videoStudio.transitionFrames": "Durée (images)",
   "videoStudio.applyTransition": "Appliquer au clip suivant",
   "videoStudio.text": "Titre",

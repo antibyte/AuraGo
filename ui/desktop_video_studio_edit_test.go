@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 global.window = {};
 global.crypto = global.crypto || require('node:crypto').webcrypto;
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-edit.js');
 const T = window.VideoStudioTimeline, E = window.VideoStudioEdit;

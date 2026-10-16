@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Por preto",
   "videoStudio.wipeleft": "Varredura à esquerda",
   "videoStudio.wiperight": "Varredura à direita",
+  "videoStudio.transitionUnavailable": "Indisponível: o FFmpeg deste servidor não suporta esta transição",
   "videoStudio.transitionFrames": "Duração (quadros)",
   "videoStudio.applyTransition": "Aplicar ao próximo clipe",
   "videoStudio.text": "Título",

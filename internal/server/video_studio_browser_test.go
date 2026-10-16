@@ -62,6 +62,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script>window.fixtureErrors=[];addEventListener('error',e=>fixtureErrors.push(e.message));addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));</script>
 <script src="/js/desktop/apps/video-studio-icons.js"></script>
 <script src="/js/desktop/apps/video-studio-time.js"></script>
+<script src="/js/desktop/apps/video-studio-effects.js"></script>
 <script src="/js/desktop/apps/video-studio-media.js"></script>
 <script src="/js/desktop/apps/video-studio-preview.js"></script>
 <script src="/js/desktop/apps/video-studio-timeline.js"></script>

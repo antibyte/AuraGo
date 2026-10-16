@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Con nero",
   "videoStudio.wipeleft": "Scorrimento a sinistra",
   "videoStudio.wiperight": "Scorrimento a destra",
+  "videoStudio.transitionUnavailable": "Non disponibile: l'FFmpeg di questo server non supporta questa transizione",
   "videoStudio.transitionFrames": "Durata (fotogrammi)",
   "videoStudio.applyTransition": "Applica alla clip successiva",
   "videoStudio.text": "Titolo",

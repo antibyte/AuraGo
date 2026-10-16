@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Via zwart",
   "videoStudio.wipeleft": "Veeg naar links",
   "videoStudio.wiperight": "Veeg naar rechts",
+  "videoStudio.transitionUnavailable": "Niet beschikbaar: de FFmpeg van deze server ondersteunt deze overgang niet",
   "videoStudio.transitionFrames": "Duur (frames)",
   "videoStudio.applyTransition": "Toepassen op volgende clip",
   "videoStudio.text": "Titel",

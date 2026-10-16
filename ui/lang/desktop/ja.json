@@ -5752,6 +5752,7 @@
   "videoStudio.black": "黒を挟む",
   "videoStudio.wipeleft": "左ワイプ",
   "videoStudio.wiperight": "右ワイプ",
+  "videoStudio.transitionUnavailable": "利用できません：このサーバーの FFmpeg はこのトランジションに対応していません",
   "videoStudio.transitionFrames": "長さ（フレーム）",
   "videoStudio.applyTransition": "次のクリップに適用",
   "videoStudio.text": "タイトル",

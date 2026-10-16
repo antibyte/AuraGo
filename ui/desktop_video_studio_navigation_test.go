@@ -14,6 +14,7 @@ const videoStudioNavPrelude = `
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-navigation.js');
 const T = window.VideoStudioTimeline, N = window.VideoStudioNavigation, Time = window.VideoStudioTime;
@@ -376,7 +377,7 @@ func TestVideoStudioNavigationLoadOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("server browser fixture: %v", err)
 	}
-	order := []string{"video-studio-timeline.js", "video-studio-ruler.js", "video-studio-edit.js", "video-studio-navigation.js", "video-studio-source-edit.js", "video-studio-folders.js", "video-studio-inspector.js", "video-studio-editing.js", "video-studio-source.js", "video-studio-tracks.js", "video-studio-markers.js", "video-studio-transport.js", "video-studio-derive.js", "video-studio-projects.js", "video-studio-mediabin.js", "video-studio-menus.js", "video-studio.js"}
+	order := []string{"video-studio-effects.js", "video-studio-timeline.js", "video-studio-ruler.js", "video-studio-edit.js", "video-studio-navigation.js", "video-studio-source-edit.js", "video-studio-folders.js", "video-studio-inspector.js", "video-studio-editing.js", "video-studio-source.js", "video-studio-tracks.js", "video-studio-markers.js", "video-studio-transport.js", "video-studio-derive.js", "video-studio-projects.js", "video-studio-mediabin.js", "video-studio-menus.js", "video-studio.js"}
 	for name, source := range map[string][]byte{"module loader": loader, "ui browser fixture": fixture, "server browser fixture": server} {
 		last := -1
 		for _, file := range order {

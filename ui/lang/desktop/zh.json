@@ -5752,6 +5752,7 @@
   "videoStudio.black": "黑场",
   "videoStudio.wipeleft": "向左擦除",
   "videoStudio.wiperight": "向右擦除",
+  "videoStudio.transitionUnavailable": "不可用：此服务器的 FFmpeg 不支持此转场",
   "videoStudio.transitionFrames": "时长（帧）",
   "videoStudio.applyTransition": "应用到下一个片段",
   "videoStudio.text": "标题",

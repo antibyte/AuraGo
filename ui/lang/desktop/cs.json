@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Přes černou",
   "videoStudio.wipeleft": "Setření doleva",
   "videoStudio.wiperight": "Setření doprava",
+  "videoStudio.transitionUnavailable": "Nedostupné: FFmpeg na tomto serveru tento přechod nepodporuje",
   "videoStudio.transitionFrames": "Délka (snímky)",
   "videoStudio.applyTransition": "Použít na následující klip",
   "videoStudio.text": "Titulek",

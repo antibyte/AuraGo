@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Μέσω μαύρου",
   "videoStudio.wipeleft": "Σάρωση αριστερά",
   "videoStudio.wiperight": "Σάρωση δεξιά",
+  "videoStudio.transitionUnavailable": "Μη διαθέσιμο: Το FFmpeg αυτού του διακομιστή δεν υποστηρίζει αυτή τη μετάβαση",
   "videoStudio.transitionFrames": "Διάρκεια (καρέ)",
   "videoStudio.applyTransition": "Εφαρμογή στο επόμενο κλιπ",
   "videoStudio.text": "Τίτλος",

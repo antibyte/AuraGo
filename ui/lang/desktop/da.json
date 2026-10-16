@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Via sort",
   "videoStudio.wipeleft": "Skub mod venstre",
   "videoStudio.wiperight": "Skub mod højre",
+  "videoStudio.transitionUnavailable": "Ikke tilgængelig: Serverens FFmpeg mangler denne overgang",
   "videoStudio.transitionFrames": "Varighed (billeder)",
   "videoStudio.applyTransition": "Anvend på næste klip",
   "videoStudio.text": "Titel",

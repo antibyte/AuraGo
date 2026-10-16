@@ -5752,6 +5752,7 @@
   "videoStudio.black": "A negro",
   "videoStudio.wipeleft": "Barrido a la izquierda",
   "videoStudio.wiperight": "Barrido a la derecha",
+  "videoStudio.transitionUnavailable": "No disponible: el FFmpeg de este servidor no admite esta transición",
   "videoStudio.transitionFrames": "Duración (fotogramas)",
   "videoStudio.applyTransition": "Aplicar al siguiente clip",
   "videoStudio.text": "Título",

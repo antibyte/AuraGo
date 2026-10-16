@@ -21,6 +21,7 @@ func TestVideoStudioCanonicalProjectV2(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-core.js');
 const P = window.VideoStudioParts;
@@ -169,6 +170,7 @@ func TestVideoStudioCanonicalKeyOrderFollowsGo(t *testing.T) {
 	script := `
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-core.js');
 const c = window.VideoStudioParts.canonicalProject(` + string(data) + `);

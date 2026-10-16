@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Via svart",
   "videoStudio.wipeleft": "Svep åt vänster",
   "videoStudio.wiperight": "Svep åt höger",
+  "videoStudio.transitionUnavailable": "Inte tillgänglig: den här serverns FFmpeg saknar den här övergången",
   "videoStudio.transitionFrames": "Längd (bildrutor)",
   "videoStudio.applyTransition": "Använd på nästa klipp",
   "videoStudio.text": "Titel",

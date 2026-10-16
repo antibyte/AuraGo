@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Przez czerń",
   "videoStudio.wipeleft": "Zasłona w lewo",
   "videoStudio.wiperight": "Zasłona w prawo",
+  "videoStudio.transitionUnavailable": "Niedostępne: FFmpeg na tym serwerze nie obsługuje tego przejścia",
   "videoStudio.transitionFrames": "Czas (klatki)",
   "videoStudio.applyTransition": "Zastosuj do następnego klipu",
   "videoStudio.text": "Tytuł",

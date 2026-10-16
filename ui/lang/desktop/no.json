@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Via svart",
   "videoStudio.wipeleft": "Sveip mot venstre",
   "videoStudio.wiperight": "Sveip mot høyre",
+  "videoStudio.transitionUnavailable": "Ikke tilgjengelig: Serverens FFmpeg mangler denne overgangen",
   "videoStudio.transitionFrames": "Varighet (bilder)",
   "videoStudio.applyTransition": "Bruk på neste klipp",
   "videoStudio.text": "Tittel",

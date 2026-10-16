@@ -14,6 +14,7 @@ func TestVideoStudioTimelineEdits(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 const T = window.VideoStudioTimeline;
 const asset = {id:'a',kind:'video',has_audio:true,duration_frames:300};

@@ -2,12 +2,12 @@
     'use strict';
 
     const MARGIN = 0.04;
-    const TRANSITIONS = ['none', 'dissolve', 'black', 'wipeleft', 'wiperight'];
     const FONTS = ['Arial', 'Georgia', 'Trebuchet MS', 'Impact', 'Verdana', 'Courier New'];
     const round6 = value => Math.round(value * 1e6) / 1e6;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
     const Time = () => window.VideoStudioTime;
+    const Effects = () => window.VideoStudioEffects;
     // Kept for app parts and tests; the project is optional (30 fps when missing).
     function formatTime(frames, project) { return Time().formatTime(frames, project); }
     function parseTime(text, project) { return Time().parseTime(text, project); }
@@ -116,6 +116,18 @@
         return `<section class="vs-insp-section"><h3>${v.icon('speaker', 14)}${v.esc(v.tr('sound', 'Sound'))}</h3>${slider(v, 'volume', v.tr('volume', 'Volume'), 0, 200, 1, volume, volume + ' %')}${slider(v, 'fade_in', v.tr('fadeInSound', 'Fade in'), 0, maxFade, step, Math.min(maxFade, clip.fade_in || 0), formatSeconds(clip.fade_in || 0, v.locale, v.project) + ' s')}${slider(v, 'fade_out', v.tr('fadeOutSound', 'Fade out'), 0, maxFade, step, Math.min(maxFade, clip.fade_out || 0), formatSeconds(clip.fade_out || 0, v.locale, v.project) + ' s')}</section>`;
     }
 
+    // 'none' plus the registry's transitions in menu order (VideoStudioEffects, read at call time). A transition the
+    // server's FFmpeg lacks is disabled with a title; the clip's current one stays enabled and pressed even then, so it is
+    // still shown and can be replaced. Labels come from each entry's label_key; the icon class stays vs-tx-<id>.
+    function transitionButtons(v, current, disabled) {
+        const unavailable = v.tr('transitionUnavailable', "Not available: this server's FFmpeg lacks this transition");
+        return [{ id: 'none', label_key: 'none', available: true }].concat(Effects().transitions()).map(spec => {
+            const off = disabled || (!spec.available && spec.id !== current) ? ' disabled' : '';
+            const title = spec.available ? '' : ` title="${v.esc(unavailable)}"`;
+            return `<button type="button" data-transition="${v.esc(spec.id)}" aria-pressed="${current === spec.id}"${title}${off}><i class="vs-tx-${v.esc(spec.id)}"></i><span>${v.esc(v.tr(spec.label_key, spec.id))}</span></button>`;
+        }).join('');
+    }
+
     function transitionSection(v, clip, info) {
         const current = clip.transition && clip.transition.type || 'none';
         const next = info && info.next;
@@ -123,7 +135,7 @@
         const maxFrames = next ? Math.max(step, Math.min(longest, Math.min(clip.duration, next.duration) - 1)) : longest;
         const duration = clip.transition && clip.transition.duration || Math.min(Math.round(rate / 2), maxFrames);
         const disabled = next ? '' : 'disabled';
-        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${TRANSITIONS.map(type => `<button type="button" data-transition="${type}" aria-pressed="${current === type}" ${disabled}><i class="vs-tx-${type}"></i><span>${v.esc(v.tr(type, type))}</span></button>`).join('')}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${step}" max="${maxFrames}" step="1" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${transitionButtons(v, current, disabled)}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${step}" max="${maxFrames}" step="1" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
     }
 
     function textSection(v, clip) {

@@ -16,6 +16,7 @@ func TestVideoStudioMergedServerAssetsFollowTheProjectRate(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-core.js');
 require('./js/desktop/apps/video-studio-jobs.js');
@@ -135,6 +136,7 @@ func TestVideoStudioMediaRemovedElsewhereClientPaths(t *testing.T) {
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-core.js');
 const P = window.VideoStudioParts;

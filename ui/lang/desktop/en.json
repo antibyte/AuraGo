@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Through black",
   "videoStudio.wipeleft": "Wipe left",
   "videoStudio.wiperight": "Wipe right",
+  "videoStudio.transitionUnavailable": "Not available: this server's FFmpeg lacks this transition",
   "videoStudio.transitionFrames": "Duration (frames)",
   "videoStudio.applyTransition": "Apply to next clip",
   "videoStudio.text": "Title",

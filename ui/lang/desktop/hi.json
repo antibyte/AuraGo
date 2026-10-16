@@ -5752,6 +5752,7 @@
   "videoStudio.black": "काले पर्दे से",
   "videoStudio.wipeleft": "बाएँ वाइप",
   "videoStudio.wiperight": "दाएँ वाइप",
+  "videoStudio.transitionUnavailable": "उपलब्ध नहीं: इस सर्वर के FFmpeg में यह ट्रांज़िशन नहीं है",
   "videoStudio.transitionFrames": "अवधि (फ़्रेम)",
   "videoStudio.applyTransition": "अगली क्लिप पर लागू करें",
   "videoStudio.text": "शीर्षक",

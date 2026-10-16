@@ -321,6 +321,8 @@
     async function initialize(s) {
         const response = await request(API + '/status', { signal: s.abort.signal });
         s.status = response.body;
+        // The server's effect registry and what its FFmpeg lacks; a server from before 2a sends neither (built-in copy).
+        window.VideoStudioEffects.adopt(s.status.registry, s.status.unavailable);
         if (!s.status.enabled || !s.status.desktop_enabled || !s.status.ffmpeg_ready) {
             const disabled = s.q('[data-disabled]');
             disabled.hidden = false;

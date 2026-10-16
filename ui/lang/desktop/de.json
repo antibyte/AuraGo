@@ -5752,6 +5752,7 @@
   "videoStudio.black": "Über Schwarz",
   "videoStudio.wipeleft": "Wischblende nach links",
   "videoStudio.wiperight": "Wischblende nach rechts",
+  "videoStudio.transitionUnavailable": "Nicht verfügbar: Dem FFmpeg dieses Servers fehlt dieser Übergang",
   "videoStudio.transitionFrames": "Dauer (Einzelbilder)",
   "videoStudio.applyTransition": "Auf nächsten Clip anwenden",
   "videoStudio.text": "Titel",

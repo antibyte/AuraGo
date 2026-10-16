@@ -127,7 +127,7 @@
                     Math.abs(clip.rotation) > 360 || clip.opacity < 0 || clip.opacity > 1 || !['contain', 'cover'].includes(clip.fit))) return false;
                 if (clip.transition) {
                     const duration = clip.transition.duration;
-                    if (track.kind === 'audio' || !next || !['dissolve', 'black', 'wipeleft', 'wiperight'].includes(clip.transition.type) ||
+                    if (track.kind === 'audio' || !next || !window.VideoStudioEffects.isTransition(clip.transition.type) ||
                         !Number.isSafeInteger(duration) || duration <= 0 || duration >= Math.min(clip.duration, next.duration) ||
                         next.start <= clip.start || clip.start + clip.duration - next.start !== duration) return false;
                 } else if (next && clip.start + clip.duration > next.start) return false;
