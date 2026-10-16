@@ -23,6 +23,10 @@ Select the hardware backend explicitly when its SDK/toolchain is available: Wind
 
 The local `--self-test-protocol` first runs a synthetic two-input ggml graph: the scheduler preflight denial must abort before changing a sentinel output, and the allowed path must compute the expected sum. It then starts a loopback HTTP server and checks bearer rejection, authenticated health, invalid-score rejection, request-ID echo, and the cancel route. Neither test loads model weights. `--discover [--model PATH]` reports real llama.cpp backend devices; with a model path it parses layer metadata without allocating model weights or running inference.
 
+Windows ARM64 developer builds require Visual Studio's Clang tools (`ClangCL`).
+The build script selects them for a fresh ARM64 build so packages do not inherit
+the build machine's optional instruction set.
+
 ## Launch modes
 
 The manager passes immutable model/projector paths, revisions and SHA-256 values, an exact enumerated device id, loopback bind address, port, and a private token file.

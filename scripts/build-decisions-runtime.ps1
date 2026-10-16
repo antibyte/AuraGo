@@ -20,7 +20,11 @@ $buildDir = Join-Path $repo "bin/decisions-runtime/build-$Target-$Backend"
 New-Item -ItemType Directory -Force $runtimeDir, $buildDir | Out-Null
 $configure = @('-S', $source, '-B', $buildDir, ('-DAURAGO_RUNTIME_BACKEND=' + $Backend), ('-DAURAGO_RUNTIME_OUTPUT_DIR=' + $runtimeDir), ('-DCMAKE_BUILD_TYPE=' + $BuildType), '-DCMAKE_TRY_COMPILE_CONFIGURATION=Release')
 if ($Generator) { $configure += @('-G', $Generator) }
-if (($IsWindows -or $env:OS -eq 'Windows_NT') -and (!$Generator -or $Generator.StartsWith('Visual Studio')) -and !(Test-Path (Join-Path $buildDir 'CMakeCache.txt'))) { $configure += @('-A', $(if ($Target.EndsWith('-arm64')) { 'ARM64' } else { 'x64' })) }
+if (($IsWindows -or $env:OS -eq 'Windows_NT') -and (!$Generator -or $Generator.StartsWith('Visual Studio')) -and !(Test-Path (Join-Path $buildDir 'CMakeCache.txt'))) {
+    $configure += @('-A', $(if ($Target.EndsWith('-arm64')) { 'ARM64' } else { 'x64' }))
+    # MSVC ARM requires host-specific instructions; Clang keeps redistributable builds portable.
+    if ($Target.EndsWith('-arm64')) { $configure += @('-T', 'ClangCL') }
+}
 $localSource = Join-Path $repo 'bin/decisions-runtime/llama-src'
 if (Test-Path (Join-Path $localSource '.git')) { $configure += ('-DFETCHCONTENT_SOURCE_DIR_LLAMA_CPP=' + $localSource) }
 & cmake @configure
