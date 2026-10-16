@@ -7,6 +7,7 @@
   "config.video_studio.asset_limit": "Taille maximale d’un média (Mo)",
   "config.video_studio.project_limit": "Taille maximale du projet (Mo)",
   "config.video_studio.export_limit": "Taille maximale d’un export (Mo)",
+  "config.video_studio.export_limit_help": "Au moins 512 Mo (une valeur inférieure est relevée à 512 Mo) et jamais plus que la taille maximale du projet.",
   "config.video_studio.timeout": "Délai maximal du rendu (secondes)",
   "config.video_studio.check": "Vérifier Video Studio",
   "config.video_studio.checking": "Vérification…",

@@ -7,6 +7,7 @@
   "config.video_studio.asset_limit": "媒体文件大小上限（MB）",
   "config.video_studio.project_limit": "项目大小上限（MB）",
   "config.video_studio.export_limit": "导出文件大小上限（MB）",
+  "config.video_studio.export_limit_help": "至少 512 MB（更小的值会被提高到 512 MB），且不会超过项目大小上限。",
   "config.video_studio.timeout": "渲染超时（秒）",
   "config.video_studio.check": "检查Video Studio",
   "config.video_studio.checking": "正在检查…",

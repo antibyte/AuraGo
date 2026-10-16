@@ -73,6 +73,10 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			if(path==='/api/desktop/video-studio/status')return json({enabled:true,desktop_enabled:true,ffmpeg_ready:true,read_only:window.fixtureReadonly,limits:{max_duration_frames:18000,max_duration_seconds:3600,frame_rates:[{fps:24,ntsc:true},{fps:25},{fps:30},{fps:60}],canvas_sizes:[{width:1280,height:720},{width:720,height:1280},{width:720,height:720}]},generation:{enabled:true,configured:true,provider:'Fixture provider',model:'fixture-model',durations_seconds:[5,10],image_modes:[]}});
 			if(path==='/api/desktop/video-studio/projects'&&method==='GET')return json({projects:[{id:'p1',project:{name:'Browser fixture'},desktop_path:'Documents/Video Studio/p1/project.json'}]});
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='GET'){const p=window.fixtureConflict?window.fixtureLatest:window.fixtureProject;return json({id:'p1',project:p,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:window.fixtureConflict?'"vRemote"':'"v1"'});}
+			if(path==='/api/desktop/video-studio/projects?sizes=1'&&method==='GET')return json({projects:(window.fixtureDeleted||[]).length?[]:[{id:'p1',project:{name:'Browser fixture'},desktop_path:'Documents/Video Studio/p1/project.json',storage_bytes:2097152,updated_at:'2026-10-15T09:00:00Z'}]});
+			if(path==='/api/desktop/video-studio/projects/p1'&&method==='DELETE'){window.fixtureDeleted=(window.fixtureDeleted||[]).concat(path);return json({deleted:true,id:'p1'});}
+			if(path==='/api/desktop/video-studio/projects/p1/versions'&&method==='GET')return json({versions:[{id:'11111111-1111-4111-8111-111111111111',kind:'auto',label:'',created_at:'2026-10-15T10:00:00Z',size_bytes:1000,name:'Browser fixture'}]});
+			if(path==='/api/desktop/video-studio/projects/p1/versions/11111111-1111-4111-8111-111111111111/restore'&&method==='POST'){window.fixtureRestoreIfMatch=new Headers(options.headers).get('If-Match');window.fixtureRestoreSaves=window.fixtureSaves.length;return json({id:'p1',project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='PUT'){window.fixtureSaves.push(JSON.parse(options.body));window.fixtureLastIfMatch=new Headers(options.headers).get('If-Match');if(window.fixtureConflict&&!window.fixtureConflictUsed){window.fixtureConflictUsed=true;return json({error:'file_conflict',code:'file_conflict' },412);}window.fixtureProject=JSON.parse(options.body);return json({project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
 			if(path==='/api/desktop/video-studio/projects/p1/media'&&method==='POST'){const id='art-job-'+(window.fixtureArtworkRequests.length+1),assetId='art-asset-'+(window.fixtureArtworkRequests.length+1),job={id,project_id:'p1',kind:'probe',status:'queued',progress:0};window.fixtureArtworkStates[id]=job;window.fixtureArtworkRequests.push({id,assetId});return json({job,asset:{id:assetId,name:'Title.png',path:'media/'+assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false}},202);}if(path.startsWith('/api/desktop/video-studio/jobs/art-job-'))return json({job:window.fixtureArtworkStates[path.split('/').pop()]});if(path==='/api/desktop/video-studio/jobs?project_id=p1')return json({jobs:window.fixtureJobs});
 			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'){window.fixtureLastRenderIfMatch=new Headers(options.headers).get('If-Match');window.fixtureLastJobBody=JSON.parse(options.body);const job={id:'j1',project_id:'p1',kind:'render',status:'queued',progress:0};window.fixtureJobs=[job];return json({job},202);}
@@ -199,6 +203,84 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`()=>window.fixtureConflictUsed && !window.VideoStudioApp.instances.get('fixture').conflict`).Bool() {
 		t.Fatal("conflict Replace did not use the observed latest version")
 	}
+
+	// Media and projects: the export dialog offers the in/out range, the bin switches views and creates a folder, the
+	// project manager duplicates and deletes, and the versions list restores with If-Match. Waits are short polls. The page
+	// is navigated right after, so the fixture state starts fresh; the switches, preferences and draft this flow touched are
+	// put back anyway.
+	page.MustEval(`async()=>{
+		const P=window.VideoStudioParts, s=window.VideoStudioApp.instances.get('fixture');
+		const until=async(test,message)=>{for(let i=0;i<150;i++){const value=test();if(value)return value;await new Promise(resolve=>setTimeout(resolve,20));}throw new Error(message+': '+JSON.stringify({calls:window.fixtureCalls.slice(-8),notice:document.querySelector('[data-notice]')?.textContent,errors:window.fixtureErrors}));};
+		const openManager=async()=>{if(document.querySelector('[data-project-popover]').hidden)document.querySelector('[data-action="project-menu"]').click();document.querySelector('[data-action="all-projects"]').click();await until(()=>document.querySelector('[data-manager] [data-manager-row]')||document.querySelector('[data-manager] .vs-hint'),'the project manager did not open');};
+		const sizeCalls=()=>window.fixtureCalls.filter(([method,path])=>method==='GET'&&path==='/api/desktop/video-studio/projects?sizes=1').length;
+		const previous={conflict:window.fixtureConflict,confirm:window.fixtureConfirm};
+		window.fixtureConflict=false;window.fixtureConfirm=true;
+		try{
+			// Range export: both points set, so the dialog offers the range; the clip ends at frame 150, inside the points.
+			P.mutate(s,'in/out',project=>{project.in_point=30;project.out_point=90;});
+			document.querySelector('[data-action="export"]').click();
+			const scope=await until(()=>document.querySelector('[data-export-scope]'),'the export dialog did not offer the range');
+			if(scope.options.length!==2||!scope.options[1].textContent.includes('–'))throw new Error('the range option does not show its times: '+scope.innerHTML);
+			if(P.exportName(s,{result:{range:{start:30,end:90}}})!=='Browser fixture (in-out).mp4'||P.exportName(s,{result:{}})!=='Browser fixture.mp4')throw new Error('the download name does not follow the range');
+			scope.value='range';scope.dispatchEvent(new Event('change',{bubbles:true}));
+			if(!document.querySelector('[data-export-form] .vs-facts').textContent.includes('(in-out).mp4'))throw new Error('the dialog facts did not follow the range');
+			window.fixtureLastJobBody=null;
+			document.querySelector('[data-export-form] [type="submit"]').click();
+			await until(()=>window.fixtureLastJobBody,'the range export was not requested');
+			const range=window.fixtureLastJobBody.range;
+			if(window.fixtureLastJobBody.kind!=='render'||!range||range.start!==30||range.end!==90)throw new Error('the render job did not carry the in/out range: '+JSON.stringify(window.fixtureLastJobBody));
+			P.mutate(s,'in/out',project=>{delete project.in_point;delete project.out_point;});
+
+			// Media bin: one item reads in the singular, list and grid views, a new folder that opens and then shows as a tile.
+			const countText=document.querySelector('[data-asset-count]').textContent;
+			if(countText!==window.fixtureLocales[window.fixtureLang]['videoStudio.assetCountOne'])throw new Error('one item does not use the singular label: '+countText);
+			document.querySelector('[data-action="media-view"][data-view="list"]').click();
+			if(document.querySelector('[data-assets]').dataset.view!=='list'||!document.querySelector('.vs-asset-head'))throw new Error('the list view did not render');
+			document.querySelector('[data-action="media-view"][data-view="grid"]').click();
+			if(document.querySelector('[data-assets]').dataset.view!=='grid')throw new Error('the grid view did not come back');
+			document.querySelector('[data-action="new-folder"]').click();
+			const folderName=await until(()=>document.querySelector('[data-folder-name]'),'the folder dialog did not open');
+			folderName.value='Trips';
+			document.querySelector('[data-folder-form] [type="submit"]').click();
+			await until(()=>s.mediaFolder==='Trips'&&document.querySelector('[data-media-bar] [data-folder="Trips"]'),'the folder was not created and opened');
+			document.querySelector('[data-media-bar] [data-folder=""]').click();
+			if(s.mediaFolder!==''||!document.querySelector('[data-assets] [data-folder="Trips"]'))throw new Error('the new folder is not a tile at the top level');
+
+			// Project manager: it asks for the sizes, and duplicate sends the copy name as a duplicate job.
+			await openManager();
+			if(!sizeCalls())throw new Error('the project manager did not ask for the sizes');
+			document.querySelector('[data-manager-duplicate="p1"]').click();
+			const copyName=await until(()=>document.querySelector('[data-duplicate-name]'),'the duplicate dialog did not open');
+			copyName.value='Browser copy';
+			window.fixtureLastJobBody=null;
+			const sizeCallsBefore=sizeCalls();
+			document.querySelector('[data-duplicate-form] [type="submit"]').click();
+			await until(()=>window.fixtureLastJobBody&&window.fixtureLastJobBody.kind==='duplicate','duplicate was not requested');
+			if(window.fixtureLastJobBody.name!=='Browser copy')throw new Error('duplicate sent the wrong name: '+JSON.stringify(window.fixtureLastJobBody));
+			await until(()=>sizeCalls()>sizeCallsBefore,'the project list was not reloaded when the copy finished');
+
+			// Versions: restore saves the editor first, then sends the saved ETag and loads the restored project.
+			await openManager();
+			await until(()=>document.querySelectorAll('[data-version-restore]').length===1,'the versions list did not show the fixture version');
+			document.querySelector('[data-version-restore]').click();
+			await until(()=>window.fixtureRestoreIfMatch,'restore was not requested');
+			if(window.fixtureRestoreIfMatch!=='"v2"')throw new Error('restore did not send the saved ETag: '+window.fixtureRestoreIfMatch);
+			if(!((window.fixtureSaves[window.fixtureRestoreSaves-1]||{}).folders||[]).includes('Trips'))throw new Error('the editor did not save its folder before the restore');
+			await until(()=>s.etag==='"v1"'&&s.project,'the restored project was not loaded');
+
+			// Delete: the confirm answers yes, the endpoint is called, and the editor shows the empty state.
+			await openManager();
+			document.querySelector('[data-manager-delete="p1"]').click();
+			await until(()=>(window.fixtureDeleted||[]).length,'delete did not call the project endpoint');
+			if(!window.fixtureCalls.some(([method,path])=>method==='DELETE'&&path==='/api/desktop/video-studio/projects/p1'))throw new Error('delete did not call the project endpoint');
+			await until(()=>!s.project&&!s.projectId,'the deleted project stayed open');
+			if(window.fixtureErrors.length)throw new Error('script errors during the media and project flow: '+JSON.stringify(window.fixtureErrors));
+		}finally{
+			window.fixtureConflict=previous.conflict;
+			if(previous.confirm===undefined)delete window.fixtureConfirm;else window.fixtureConfirm=previous.confirm;
+			Object.keys(localStorage).filter(key=>key.startsWith('video-studio-draft:')||key==='aurago.videoStudio.mediaView'||key==='aurago.videoStudio.mediaSort').forEach(key=>localStorage.removeItem(key));
+		}
+	}`)
 
 	// Isolate asynchronous editing from the preceding pointer, export, and conflict flows.
 	page.MustEval(`()=>window.VideoStudioApp.dispose('fixture')`)

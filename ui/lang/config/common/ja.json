@@ -7,6 +7,7 @@
   "config.video_studio.asset_limit": "メディアファイルの最大サイズ（MB）",
   "config.video_studio.project_limit": "プロジェクトの最大サイズ（MB）",
   "config.video_studio.export_limit": "エクスポートの最大サイズ（MB）",
+  "config.video_studio.export_limit_help": "最小は512 MBです（これより小さい値は512 MBに引き上げられます）。プロジェクトの最大サイズを超えることはありません。",
   "config.video_studio.timeout": "レンダリングの制限時間（秒）",
   "config.video_studio.check": "Video Studioを確認",
   "config.video_studio.checking": "確認中…",

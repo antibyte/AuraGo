@@ -81,3 +81,21 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   PNG exports.
 - Tests: `go test ./internal/videostudio -run 'TestRenderSpeed|TestRenderDisabled|TestRenderImage|TestTempoChain|TestReverse|TestExtractStill|TestValidateSpeed' -count=1`
   (the render and still tests need FFmpeg 5.1+).
+
+## Media and projects (1e)
+
+- Folders: `NormalizeFolder` is the one rule set (trimmed segments, 1 to 4 levels of 1 to 64 runes, no control characters,
+  no `.`/`..`, at most 255 runes). `Validate` requires canonical asset folders and at most 128 unique `project.folders`.
+- Names: a project document's asset name is its own; `canonicalizeProject` keeps it (a blank name falls back to the
+  imported name) and keeps the folder.
+- Posters: `WritePoster` makes a JPEG whose longest side is `PosterLongestSide` (320 px) from one second in (or the first
+  frame of a clip shorter than two seconds) or from a still image; audio has none. Posters are best effort and count
+  toward the project quota.
+- Frame rates: `FrameRateOptions()` is the only table; `Validate` accepts exactly its rates.
+- Legacy durations: `BackfillDurationUs` is the only place that derives `duration_us` from 30 fps frames.
+- Range renders use `RenderOptions.Start` and `End` in frames (`[Start, End)`); the server admits `0 ≤ Start < End ≤
+  EnabledDuration` (else 400 `invalid_range`), and the job result carries `range` and `duration_frames = End − Start`.
+- Versions, duplicates and the poster/removal routes are server code (`internal/server/video_studio_versions.go`,
+  `video_studio_duplicate.go`, `video_studio_media_files.go`); this package supplies only the document rules they use
+  (`Upgrade`, `Validate`). A restore runs a version through `Upgrade`, `canonicalizeProject` and `Validate`, so a
+  version that references removed media is refused (409 `project_asset_invalid`).

@@ -111,7 +111,8 @@
         host.innerHTML = markup;
         if (focus) host.querySelector(focus)?.focus({ preventScroll: true });
     }
-    function countLabel(s, count) { return tr(s, 'assetCount', '{{count}} items').replace('{{count}}', String(count)); }
+    // One item has its own wording ("1 item"); every other count uses the plural key.
+    function countLabel(s, count) { return count === 1 ? tr(s, 'assetCountOne', '1 item') : tr(s, 'assetCount', '{{count}} items').replace('{{count}}', String(count)); }
     // The media bar: the breadcrumb of the open folder, the view switch and the folder and cleanup actions.
     function renderMediaBar(s) {
         const host = s.q('[data-media-bar]');

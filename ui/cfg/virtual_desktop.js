@@ -167,13 +167,16 @@ function vdCfgVideoStudio() {
     html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'video_studio.enabled');
     html += vdCfgToggleRow(prefix + 'readonly', '', data.readonly === true, 'video_studio.readonly');
     html += vdCfgField(prefix + 'ffmpeg', '', '<input class="field-input" type="text" value="' + escapeAttr(data.ffmpeg_path || '') + '" data-path="video_studio.ffmpeg_path">');
-    for (const [name, label, fallback, min, max] of [
+    // The server raises an export limit below 512 MB to 512 MB and never lets it exceed the project limit, so the
+    // smallest useful value is min(512, project limit).
+    const exportMin = Math.min(512, Number(data.max_project_size_mb) || 16384);
+    for (const [name, label, fallback, min, max, help] of [
         ['max_asset_size_mb', 'asset_limit', 4096, 1, 32768],
         ['max_project_size_mb', 'project_limit', 16384, 1, 65536],
-        ['max_export_size_mb', 'export_limit', 8192, 1, 65536],
+        ['max_export_size_mb', 'export_limit', 8192, exportMin, 65536, 'export_limit_help'],
         ['render_timeout_seconds', 'timeout', 7200, 30, 14400]
     ]) {
-        html += vdCfgField(prefix + label, '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
+        html += vdCfgField(prefix + label, help ? prefix + help : '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
     }
     const hwModes = { auto: t(prefix + 'hw_auto'), off: t(prefix + 'hw_off'), vaapi: 'VAAPI', qsv: 'Intel Quick Sync', nvenc: 'NVIDIA NVENC', amf: 'AMD AMF' };
     html += vdCfgField(prefix + 'hardware_encoding', prefix + 'hardware_encoding_help', '<select class="field-select" data-path="video_studio.hardware_encoding">' + Object.keys(hwModes).map(value => '<option value="' + value + '"' + ((data.hardware_encoding || 'auto') === value ? ' selected' : '') + '>' + escapeAttr(hwModes[value]) + '</option>').join('') + '</select>');

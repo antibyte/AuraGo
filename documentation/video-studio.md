@@ -32,8 +32,9 @@ Studio does not create another container. Native installations must provide a
 compatible FFmpeg build separately.
 
 Size settings use MiB (1,048,576 bytes). The asset limit is 1–32768 MiB; the
-project limit must be at least the asset limit and at most 65536 MiB. The render
-timeout is 30–14400 seconds. These are admission and job limits, not operating
+project limit must be at least the asset limit and at most 65536 MiB. The export
+limit is at least 512 MiB (a smaller value from an older configuration is raised to
+512 MiB) and never exceeds the project limit. The render timeout is 30–14400 seconds. These are admission and job limits, not operating
 system memory isolation. FFmpeg runs under the AuraGo server account; allow
 enough free disk space for source copies, staging, previews, and exports.
 The project quota includes its cached previews. Uploads have an overall read
@@ -168,6 +169,30 @@ the Overlay target when that one takes the media; sound on the Audio target), ov
 marks), the same refusals appear, and the playhead moves to the end of the edit. Opening a library item is by
 double-click for now; opening one from the keyboard comes with the library's item menu.
 
+## Media and projects
+
+The media bin shows the open folder as a breadcrumb. Folders are created with **New folder** (use `/` for subfolders, up
+to four levels), renamed and deleted from their menus; deleting a folder moves its media and subfolders to the folder
+above after a confirm. Drag media onto a folder or a breadcrumb crumb to move it, or use the item menu's **Move to
+folder**. Switch between grid and list with the view buttons; in the list, click a column header to sort (click again to
+reverse). Search looks through every folder. The item menu opens a clip in the source monitor, renames it, moves it,
+selects the clips that use it, or removes it. Removing media that the timeline uses first takes its clips off the timeline
+(one undo step, gaps stay) and then deletes the file; **Remove unused media** deletes every item no clip uses. The inspector
+shows the metadata of the selected media. Visual media gets a poster when it is imported; older media shows its thumbnails.
+
+Each project keeps automatic versions: when you save and the newest version is at least ten minutes old, the previous
+saved state is kept (up to 20). **Save version now** keeps a copy with an optional label (up to 10). Versions count toward
+the project's storage limit. Restoring a version first saves your changes and keeps the current state as a version, then
+reloads the restored project; a version that uses media you have since removed cannot be restored.
+
+**All projects…** in the project menu lists every project with its poster, format, length, storage and last change. Open,
+rename, duplicate or delete from there. A duplicate copies the project file, its media and posters (not exports, previews
+or versions) in the background and shows up in the list when it is ready. Deleting a project asks you first and cancels
+its running tasks.
+
+Export can render only the in/out range when both points are set: the export dialog offers the range with its times, and
+the download is named `<project> (in-out).mp4`.
+
 ## Exports and background jobs
 
 Exports are rendered in segments of about ten seconds. Every clip is read from its own position in the
@@ -178,8 +203,8 @@ timeline where it failed. `max_export_size_mb` limits one export file (at most t
 export stops with a message that names the export size limit or the project storage limit.
 
 Export produces H.264 / AAC MP4 in the Desktop project files, with a download
-link. Preview preparation, import probing, rendering, and AI generation are
-background jobs. Closing an app window does not cancel a job. Reopening the
+link. Preview preparation, import probing, rendering, project duplication, and
+AI generation are background jobs. Closing an app window does not cancel a job. Reopening the
 project reattaches to its status, and the job list offers explicit cancellation.
 
 Shutdown interrupts unfinished work. Interrupted imports and renders are not

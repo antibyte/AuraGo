@@ -7,6 +7,7 @@
   "config.video_studio.asset_limit": "Maximální velikost média (MB)",
   "config.video_studio.project_limit": "Maximální velikost projektu (MB)",
   "config.video_studio.export_limit": "Maximální velikost exportu (MB)",
+  "config.video_studio.export_limit_help": "Nejméně 512 MB (menší hodnota se zvýší na 512 MB) a nikdy více než maximální velikost projektu.",
   "config.video_studio.timeout": "Časový limit vykreslování (sekundy)",
   "config.video_studio.check": "Ověřit Video Studio",
   "config.video_studio.checking": "Ověřování…",

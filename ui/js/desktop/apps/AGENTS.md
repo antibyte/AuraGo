@@ -1494,6 +1494,16 @@ buttons and menu popovers remain excluded from those gestures.
   watches `.vs-app` as well as the preview stage, because the stage is hidden in source mode and the narrow drawer's
   "widening closes it" logic depends on the app width. Node checks:
   `go test ./ui -run TestVideoStudioSource`.
+- Media and projects (phase 1e): `VideoStudioFolders` (`video-studio-folders.js`, DOM-free) holds the folder rules
+  (`normalizeFolder`, 1 to 4 segments of 1 to 64 runes, no control characters or `.`/`..`), the tree, usage counts, the
+  list sort and the folder and name edits; edits return `true` or a reason. The bin (`video-studio-library.js`: media bar,
+  grid, list, folder tiles, poster fallback) and its actions (`video-studio-mediabin.js`: dialogs, item and folder menus,
+  removal, drops, library metadata) run their edits through `folderEdit` (one `mutate` undo step). Names and folders are
+  project-owned: `keepOwnedAssetFields` keeps the local values in `adoptServerMedia` and `refreshProject`. The project
+  manager and versions live in `video-studio-projects.js`; a restore needs `If-Match` and a clean editor. The export
+  dialog offers the in/out range when both points are set (`P.inOut(s)` clamped to the enabled length, as Go's
+  `EnabledDuration`) and sends `range {start, end}`; `exportName(s, job)` adds ` (in-out)` for a range result. Node
+  checks: `go test ./ui -run TestVideoStudioFolderModel`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
@@ -1506,7 +1516,7 @@ buttons and menu popovers remain excluded from those gestures.
   cycles inside, Escape in the conflict dialog is "Keep editing", and a kept
   conflict shows in the save chip until resolved. Finished probe
   jobs are not listed; a finished render announces once with a download named
-  `<project>.mp4`. A cancel answered with 409 `job_finished` (ended, or already
+  `<project>.mp4` (`<project> (in-out).mp4` for a range export). A cancel answered with 409 `job_finished` (ended, or already
   saving its result) is not an error: the list reloads and polling reports it.
 - `video-studio-media.js` extracts up to eight thumbnails per video with one
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;

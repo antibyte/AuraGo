@@ -7,6 +7,7 @@
   "config.video_studio.asset_limit": "Maximale Mediendateigröße (MB)",
   "config.video_studio.project_limit": "Maximale Projektgröße (MB)",
   "config.video_studio.export_limit": "Maximale Exportgröße (MB)",
+  "config.video_studio.export_limit_help": "Mindestens 512 MB (ein kleinerer Wert wird auf 512 MB angehoben) und nie mehr als die maximale Projektgröße.",
   "config.video_studio.timeout": "Zeitlimit für das Rendern (Sekunden)",
   "config.video_studio.check": "Video Studio prüfen",
   "config.video_studio.checking": "Wird geprüft…",
