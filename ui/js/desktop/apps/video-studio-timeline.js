@@ -197,10 +197,12 @@
             kind !== 'audio' ? button('hide', !!track.hidden, 'eyeOff', 'eye', 'show', 'Show', 'hide', 'Hide') : '',
             button('lock', !!track.locked, 'lock', 'unlock', 'unlock', 'Unlock', 'lock', 'Lock'),
             kind === 'audio' ? `<button type="button" data-track-action="solo" aria-pressed="${!!st.solo}" title="${esc(label(options, 'soloHint', 'Hear only soloed audio in the preview (not saved).'))}" aria-label="${esc(label(options, 'solo', 'Solo'))} – ${esc(track.name)}">${icon(options, 'headphones', 15)}</button>` : '',
-            `<button type="button" data-track-action="menu" aria-haspopup="menu" title="${esc(trackActions)}" aria-label="${esc(trackActions)} – ${esc(track.name)}">${icon(options, 'more', 15)}</button>`,
-            !(track.clips || []).length ? `<button type="button" data-track-action="remove" title="${esc(label(options, 'removeTrack', 'Remove empty track'))}" aria-label="${esc(label(options, 'removeTrack', 'Remove empty track'))} – ${esc(track.name)}">${icon(options, 'trash', 14)}</button>` : ''
+            // Deleting goes through the menu (an empty track at once, otherwise after a confirmation); a trash button
+            // here would squeeze the name at the 204 px header width.
+            `<button type="button" data-track-action="menu" aria-haspopup="menu" title="${esc(trackActions)}" aria-label="${esc(trackActions)} – ${esc(track.name)}">${icon(options, 'more', 15)}</button>`
         ].join('');
-        return `<div class="vs-track-label" draggable="${st.renaming ? 'false' : 'true'}" data-track-drag="${esc(track.id)}" title="${esc(label(options, 'dragTrack', 'Drag to reorder'))}">${kindButton}${name}<span class="vs-track-actions">${actions}</span></div>`;
+        // While renaming, the field takes the room of the header buttons (they would leave it about 40 px).
+        return `<div class="vs-track-label" draggable="${st.renaming ? 'false' : 'true'}" data-track-drag="${esc(track.id)}" title="${esc(label(options, 'dragTrack', 'Drag to reorder'))}">${kindButton}${name}${st.renaming ? '' : `<span class="vs-track-actions">${actions}</span>`}</div>`;
     }
 
     function clipMarkup(options, project, track, clip, pps) {
@@ -325,7 +327,7 @@
         root.querySelectorAll('[data-trim]').forEach(button => { button.disabled = s.readonly || !!trackFor(project, button.closest('[data-track-id]').dataset.trackId)?.locked; });
         if (s.readonly) {
             // Targets, solo, heights and the menu are view settings and stay available; changes to the project do not.
-            root.querySelectorAll('[data-track-action="mute"], [data-track-action="hide"], [data-track-action="lock"], [data-track-action="remove"], [data-add-track], [data-action="split"], [data-action="duplicate"], [data-action="delete"], [data-action="tool-trim"], [data-action="tool-blade"], [data-action="magnetic"]').forEach(button => { button.disabled = true; });
+            root.querySelectorAll('[data-track-action="mute"], [data-track-action="hide"], [data-track-action="lock"], [data-add-track], [data-action="split"], [data-action="duplicate"], [data-action="delete"], [data-action="tool-trim"], [data-action="tool-blade"], [data-action="magnetic"]').forEach(button => { button.disabled = true; });
             root.querySelectorAll('[draggable]').forEach(element => { element.draggable = false; });
         }
         root.dataset.tool = tool;

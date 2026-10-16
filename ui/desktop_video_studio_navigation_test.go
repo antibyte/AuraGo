@@ -229,3 +229,31 @@ func TestVideoStudioMarkerWiring(t *testing.T) {
 		t.Error("the app shell does not wire the marker callbacks")
 	}
 }
+
+func TestVideoStudioTrackWiring(t *testing.T) {
+	tracks, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-tracks.js"))
+	if err != nil {
+		t.Fatalf("track part: %v", err)
+	}
+	for _, want := range []string{"targetTracks", "pasteTargets", "trackHeight", "setTrackHeight", "toggleTarget", "toggleSolo", "trackState", "renameTrack", "addTrackBeside", "deleteTrack", "moveTrack", "openTrackMenu", "runTrackAction"} {
+		if !bytes.Contains(tracks, []byte(want)) {
+			t.Errorf("track part does not define %s", want)
+		}
+	}
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatalf("app shell: %v", err)
+	}
+	for _, want := range []string{"P.runTrackAction(s, id, action, element)", "P.moveTrack(s, from, to, side)", "P.trackState(s, track)", "P.renameTrack(s, id, value)", "P.openTrackMenu(s, id, x, y)"} {
+		if !bytes.Contains(app, []byte(want)) {
+			t.Errorf("app shell does not wire %s", want)
+		}
+	}
+	editing, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-editing.js"))
+	if err != nil {
+		t.Fatalf("editing part: %v", err)
+	}
+	if !bytes.Contains(editing, []byte("targets: P.pasteTargets(s)")) {
+		t.Error("paste does not pass the target tracks")
+	}
+}

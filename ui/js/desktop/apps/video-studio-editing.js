@@ -175,7 +175,7 @@
         if (s.clipboard.projectId !== s.projectId) { showNotice(s, 'clipboardOtherProject', 'Clips can only be pasted into the project they were copied from.', false); return false; }
         const track = trackId ? s.project.tracks.find(item => item.id === trackId) : null;
         const frame = Number.isFinite(at) ? at : s.frame, data = s.clipboard.data;
-        return applyEdit(s, mode === 'insert' ? 'paste insert' : 'paste', (project, out) => E().paste(project, data, frame, mode, track ? { out, targets: { [track.kind]: track.id } } : { out }), out => out.created);
+        return applyEdit(s, mode === 'insert' ? 'paste insert' : 'paste', (project, out) => E().paste(project, data, frame, mode, track ? { out, targets: { [track.kind]: track.id } } : { out, targets: P.pasteTargets(s) }), out => out.created);
     }
     function openPasteAttributes(s) {
         if (s.readonly || !s.project) return;

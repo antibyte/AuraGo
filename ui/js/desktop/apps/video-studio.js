@@ -534,10 +534,13 @@
             onMarkerEdit: (id, element) => P.openMarkerPopover(s, id, P.pointOf(element)),
             onMarkerMenu: (id, x, y) => P.openMarkerMenu(s, id, x, y),
             onContextMenu: info => (info.clipId ? P.openClipMenu(s, info.clipId, info.x, info.y) : P.openGapMenu(s, info.trackId, info.frame, info.x, info.y)),
-            onTrackAction: (id, action) => trackAction(s, id, action),
+            onTrackAction: (id, action, element) => trackAction(s, id, action, element),
+            trackState: track => P.trackState(s, track),
+            onTrackMenu: (id, x, y) => P.openTrackMenu(s, id, x, y),
+            onTrackRename: (id, value) => P.renameTrack(s, id, value),
             onAddTrack: kind => addTrack(s, kind),
             onDropAsset: (assetId, trackId, at, mode) => addAssetToTrack(s, assetId, trackId, at, mode),
-            onReorderTrack: (from, to) => reorderTrack(s, from, to),
+            onReorderTrack: (from, to, side) => reorderTrack(s, from, to, side),
             onSnap: value => writePref(PREF_SNAP, value)
         };
     }
@@ -592,35 +595,15 @@
         else if (action === 'duplicate') P.duplicateSelection(s);
         else if (action === 'split') P.splitSelection(s);
     }
-    function trackAction(s, id, action) {
-        // Only the project changes are handled here; the header's view actions (target, solo, menu, rename) are not.
-        if (!['remove', 'mute', 'hide', 'lock'].includes(action)) return;
-        if (action === 'remove') {
-            const track = s.project.tracks.find(item => item.id === id);
-            if (!track || track.clips.length) return;
-            mutate(s, 'remove track', project => { project.tracks = project.tracks.filter(item => item.id !== id); });
-            return;
-        }
-        mutate(s, 'track', project => {
-            const track = project.tracks.find(item => item.id === id);
-            if (!track) return;
-            if (action === 'mute') track.muted = !track.muted;
-            if (action === 'hide') track.hidden = !track.hidden;
-            if (action === 'lock') track.locked = !track.locked;
-        });
-        updateTransform(s);
-    }
+    // Header buttons (video-studio-tracks.js): target, solo, the menu and starting a rename are view settings and never
+    // create an undo step or mark the project dirty; mute, hide, lock and delete go through mutate.
+    function trackAction(s, id, action, element) { return P.runTrackAction(s, id, action, element); }
     function addTrack(s, kind) {
         if (!T().trackCapacity(s.project, kind)) return;
         mutate(s, 'add track', project => { addTrackTo(s, project, kind); });
     }
-    function reorderTrack(s, from, to) {
-        mutate(s, 'reorder tracks', project => {
-            const a = project.tracks.findIndex(track => track.id === from), b = project.tracks.findIndex(track => track.id === to);
-            if (a < 0 || b < 0) return false;
-            const [track] = project.tracks.splice(a, 1); project.tracks.splice(b, 0, track);
-        });
-    }
+    // Same-kind reorder only; `side` is 'above' or 'below' as displayed (arraySideFor maps it to the array).
+    function reorderTrack(s, from, to, side) { return P.moveTrack(s, from, to, side); }
     function handleInput(s, event) {
         const input = event.target;
         if (input.matches('[data-search]')) { renderAssets(s); return; }
