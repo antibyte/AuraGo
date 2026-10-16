@@ -436,6 +436,7 @@ func handleDetect(eng engine, request workerRequest, diagnostics io.Writer) (res
 	if err != nil {
 		return errorResponse{ID: request.ID, Type: "result", Error: "inference failed: " + err.Error()}
 	}
+	boxes = keepPersonShaped(boxes, width, height)
 	if boxes == nil {
 		boxes = []Box{}
 	}

@@ -131,6 +131,32 @@ func DecodePersons(logits, boxes []float32, queries, classes, personClass int, m
 	return found
 }
 
+// maxPersonAspect is the widest box (frame pixels, width / height) that still
+// counts as a person. Upright, crouching and partly hidden persons stay below
+// it (the widest true detection on a live camera was about 1.6:1, an upper body
+// behind a parked car). In infrared night frames D-FINE scores parked cars cut
+// off by the frame edge as persons, with boxes of about 3.4:1.
+const maxPersonAspect = 2.0
+
+// keepPersonShaped returns the boxes whose pixel aspect, (X2-X1)*width /
+// ((Y2-Y1)*height) for a frame of width×height px, is at most maxPersonAspect
+// (a box at exactly that aspect is kept), in their original order. The pixel
+// aspect decides, not the normalized one, so the frame shape is taken into
+// account. It filters in place; with a non-positive width or height the boxes
+// are returned unchanged.
+func keepPersonShaped(boxes []Box, width, height int) []Box {
+	if width <= 0 || height <= 0 {
+		return boxes
+	}
+	kept := boxes[:0]
+	for _, box := range boxes {
+		if (box.X2-box.X1)*float64(width) <= maxPersonAspect*(box.Y2-box.Y1)*float64(height) {
+			kept = append(kept, box)
+		}
+	}
+	return kept
+}
+
 // IoU is the intersection over union of two boxes (0 for empty unions and for
 // boxes with non-finite coordinates).
 func IoU(a, b Box) float64 {
