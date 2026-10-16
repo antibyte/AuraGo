@@ -90,31 +90,40 @@
         }
         function tone(type, f0, f1, dur, vol, panX, time, destination, fm, opts) {
             const a = audio(); if (!a || ctx.G.muted) return null;
-            const start = Math.max(a.currentTime, time ?? ctx.sfxTime ?? a.currentTime), end = start + dur + 0.025;
+            if (fm && typeof fm === 'object') { opts = fm; fm = opts.fm || 0; }
+            const safeDur = Number.isFinite(dur) && dur > 0 ? dur : 0.08;
+            const safeVol = Number.isFinite(vol) && vol > 0 ? vol : 0.01;
+            const start = Math.max(a.currentTime, Number.isFinite(time) ? time : (ctx.sfxTime ?? a.currentTime));
+            const end = start + safeDur + 0.025;
             const o = a.createOscillator(), g = a.createGain(), filter = a.createBiquadFilter(), nodes = [o, g, filter];
-            o.type = type;
-            const p0 = Math.max(20, f0), p1 = Math.max(20, f1);
+            o.type = type || 'sine';
+            const p0 = Math.max(20, Number.isFinite(f0) ? f0 : 220);
+            const p1 = Math.max(20, Number.isFinite(f1) ? f1 : p0);
             o.frequency.setValueAtTime(p0, start);
-            o.frequency.exponentialRampToValueAtTime(p1, start + Math.max(0.008, dur));
-            if (opts && opts.detune) o.detune.setValueAtTime(opts.detune, start);
+            o.frequency.exponentialRampToValueAtTime(p1, start + Math.max(0.008, safeDur));
+            if (opts && Number.isFinite(opts.detune) && opts.detune !== 0) o.detune.setValueAtTime(opts.detune, start);
             filter.type = (opts && opts.filterType) || 'lowpass';
-            const cut0 = Math.min(14000, Math.max(p0 * 6, 2200));
-            const cut1 = Math.min(12000, Math.max(Math.min(p0, p1) * 3.8, 1200));
-            filter.frequency.setValueAtTime(opts?.cut0 || cut0, start);
-            filter.frequency.exponentialRampToValueAtTime(Math.max(80, opts?.cut1 || cut1), start + Math.max(0.01, dur));
-            filter.Q.value = opts?.q ?? 1.2;
-            const attack = opts?.attack ?? 0.003;
+            const defCut0 = Math.min(14000, Math.max(p0 * 6, 2200));
+            const defCut1 = Math.min(12000, Math.max(Math.min(p0, p1) * 3.8, 1200));
+            const c0 = Math.max(80, Number.isFinite(opts?.cut0) ? opts.cut0 : defCut0);
+            const c1 = Math.max(80, Number.isFinite(opts?.cut1) ? opts.cut1 : defCut1);
+            filter.frequency.setValueAtTime(c0, start);
+            filter.frequency.exponentialRampToValueAtTime(c1, start + Math.max(0.01, safeDur));
+            filter.Q.value = Number.isFinite(opts?.q) ? opts.q : 1.2;
+            const attack = Number.isFinite(opts?.attack) ? Math.max(0.001, opts.attack) : 0.003;
             g.gain.setValueAtTime(0.0001, start);
-            g.gain.linearRampToValueAtTime(Math.min(0.4, vol) * 0.42, start + attack);
+            g.gain.linearRampToValueAtTime(Math.max(0.0002, Math.min(0.4, safeVol) * 0.42), start + attack);
             g.gain.exponentialRampToValueAtTime(0.0001, end);
-            o.connect(filter).connect(g); output(g, panX, nodes, destination || ctx.sfxBus, opts?.reverb || 0);
+            o.connect(filter).connect(g); output(g, panX, nodes, destination || ctx.sfxBus, Number.isFinite(opts?.reverb) ? opts.reverb : 0);
             const voice = claim(nodes, o, end, destination === ctx.musicBus); if (!voice) return null;
-            if (fm) {
+            const fmRatio = Number.isFinite(fm) && fm > 0 ? fm : 0;
+            if (fmRatio > 0) {
                 const mod = a.createOscillator(), depth = a.createGain();
                 mod.type = opts?.fmType || 'sine';
-                mod.frequency.setValueAtTime(p0 * fm, start);
-                mod.frequency.exponentialRampToValueAtTime(Math.max(20, p1 * fm), start + Math.max(0.01, dur));
-                depth.gain.setValueAtTime(p0 * (opts?.fmDepth || 1.8), start);
+                mod.frequency.setValueAtTime(Math.max(20, p0 * fmRatio), start);
+                mod.frequency.exponentialRampToValueAtTime(Math.max(20, p1 * fmRatio), start + Math.max(0.01, safeDur));
+                const fmDepth = Number.isFinite(opts?.fmDepth) ? opts.fmDepth : 1.8;
+                depth.gain.setValueAtTime(Math.max(1, p0 * fmDepth), start);
                 depth.gain.exponentialRampToValueAtTime(Math.max(1, p1 * 0.15), end);
                 mod.connect(depth).connect(o.frequency); nodes.push(mod, depth); voice.sources.push(mod); mod.start(start); mod.stop(end);
             }
@@ -122,18 +131,24 @@
         }
         function schedNoise(time, dur, vol, freq, dest, panX, opts) {
             const a = audio(); if (!a || ctx.G.muted) return null;
-            const start = Math.max(a.currentTime, time ?? ctx.sfxTime ?? a.currentTime), end = start + dur + 0.008;
+            const safeDur = Number.isFinite(dur) && dur > 0 ? dur : 0.05;
+            const safeVol = Number.isFinite(vol) && vol > 0 ? vol : 0.01;
+            const start = Math.max(a.currentTime, Number.isFinite(time) ? time : (ctx.sfxTime ?? a.currentTime));
+            const end = start + safeDur + 0.008;
             const source = a.createBufferSource(), filter = a.createBiquadFilter(), gain = a.createGain(), nodes = [source, filter, gain];
             source.buffer = ctx.noiseBuffer; source.loop = true;
-            const baseFreq = freq || 1500;
+            const baseFreq = Number.isFinite(freq) && freq > 0 ? freq : 1500;
             filter.type = opts?.filterType || (baseFreq > 5000 ? 'highpass' : 'lowpass');
-            filter.Q.value = opts?.q ?? 1.15;
-            filter.frequency.setValueAtTime(Math.min(16000, opts?.cut0 || (baseFreq <= 5000 ? baseFreq * 1.55 : baseFreq)), start);
-            filter.frequency.exponentialRampToValueAtTime(Math.max(60, opts?.cut1 || (baseFreq <= 5000 ? baseFreq * 0.42 : baseFreq * 0.85)), start + Math.max(0.01, dur));
+            filter.Q.value = Number.isFinite(opts?.q) ? opts.q : 1.15;
+            const nc0 = Math.min(16000, Math.max(60, Number.isFinite(opts?.cut0) ? opts.cut0 : (baseFreq <= 5000 ? baseFreq * 1.55 : baseFreq)));
+            const nc1 = Math.max(60, Number.isFinite(opts?.cut1) ? opts.cut1 : (baseFreq <= 5000 ? baseFreq * 0.42 : baseFreq * 0.85));
+            filter.frequency.setValueAtTime(nc0, start);
+            filter.frequency.exponentialRampToValueAtTime(nc1, start + Math.max(0.01, safeDur));
+            const attack = Number.isFinite(opts?.attack) ? Math.max(0.001, opts.attack) : 0.002;
             gain.gain.setValueAtTime(0.0001, start);
-            gain.gain.linearRampToValueAtTime(Math.min(0.5, vol) * 0.35, start + (opts?.attack ?? 0.002));
+            gain.gain.linearRampToValueAtTime(Math.max(0.0002, Math.min(0.5, safeVol) * 0.35), start + attack);
             gain.gain.exponentialRampToValueAtTime(0.0001, end);
-            source.connect(filter).connect(gain); output(gain, panX, nodes, dest || ctx.sfxBus, opts?.reverb || 0);
+            source.connect(filter).connect(gain); output(gain, panX, nodes, dest || ctx.sfxBus, Number.isFinite(opts?.reverb) ? opts.reverb : 0);
             if (!claim(nodes, source, end, dest === ctx.musicBus)) return null;
             source.start(start); source.stop(end); return source;
         }

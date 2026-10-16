@@ -206,6 +206,10 @@ func TestGalaxaArcadeAudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>game.actx.state==='running'`)
 	page.MustEval(`()=>{game.settings.mode='classic';game.G.demoMode=false;game.MusicEngine.play('nebula')}`)
 	waitForJSBool(t, page, `()=>game.audioStats().music>0`)
+	page.MustEval(`()=>{game.MusicEngine.play('victory')}`)
+	if errCount := page.MustEval(`()=>errors.length`).Int(); errCount != 0 {
+		t.Fatalf("unexpected browser audio errors: %s", page.MustEval(`()=>JSON.stringify(errors)`).Str())
+	}
 	page.MustEval(`()=>game.MusicEngine.setPaused(true)`)
 	if page.MustEval(`()=>game.audioStats().music`).Int() != 0 {
 		t.Fatal("pause retained music voices")

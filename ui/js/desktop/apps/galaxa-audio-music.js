@@ -175,8 +175,8 @@
                 });
                 if (!quiet) {
                     // Punchy synthesized kick drum (pitch sweep + transient click)
-                    ctx.synthTone('sine', 128, 36, 0.14, 0.25, ctx.W * 0.5, time, ctx.musicBus, { exp: true });
-                    ctx.synthTone('triangle', 420, 75, 0.028, 0.055, ctx.W * 0.5, time, ctx.musicBus, { exp: true });
+                    ctx.synthTone('sine', 128, 36, 0.14, 0.25, ctx.W * 0.5, time, ctx.musicBus, 0, { exp: true });
+                    ctx.synthTone('triangle', 420, 75, 0.028, 0.055, ctx.W * 0.5, time, ctx.musicBus, 0, { exp: true });
                 }
             } else if (!quiet && stepInBar % 4 === 2) {
                 tone('sawtooth', root - 12 + bassRoot, beat * 0.28, 0.095, ctx.W * 0.54, 0, {
@@ -184,7 +184,7 @@
                 });
             } else if (boss && stepInBar === 14) {
                 // Syncopated double-kick before bar turnaround on boss tracks
-                ctx.synthTone('sine', 118, 38, 0.11, 0.20, ctx.W * 0.5, time, ctx.musicBus, { exp: true });
+                ctx.synthTone('sine', 118, 38, 0.11, 0.20, ctx.W * 0.5, time, ctx.musicBus, 0, { exp: true });
             }
 
             // 4. Snare, Hi-Hat Groove & 4-Bar Turnaround Fills
@@ -194,7 +194,7 @@
                 ctx.schedNoise(time, isFillStep ? 0.08 : 0.115, snVol, 2800, ctx.musicBus, ctx.W * 0.52, {
                     cut0: 5400, cut1: 1400, q: 1.1, reverb: 0.12
                 });
-                ctx.synthTone('triangle', isFillStep ? 240 : 205, 110, 0.055, snVol * 0.55, ctx.W * 0.5, time, ctx.musicBus, { exp: true });
+                ctx.synthTone('triangle', isFillStep ? 240 : 205, 110, 0.055, snVol * 0.55, ctx.W * 0.5, time, ctx.musicBus, 0, { exp: true });
             }
             if (!quiet && (stepInBar % (boss ? 1 : 2) === 0 || stepInBar % 4 === 2)) {
                 const openHat = stepInBar % 4 === 2;
@@ -218,7 +218,7 @@
             if (stepInBar === 0) for (const layer of layers.values()) {
                 const n = layer.def.notes && layer.def.notes[bar % layer.def.notes.length];
                 if (n && n.f > 0) {
-                    ctx.synthTone(layer.def.wave, n.f, n.f, Math.min(2, beat * 3.5), layer.gain, ctx.W * 0.5, time, ctx.musicBus, {
+                    ctx.synthTone(layer.def.wave, n.f, n.f, Math.min(2, beat * 3.5), layer.gain, ctx.W * 0.5, time, ctx.musicBus, 0, {
                         cut0: 2400, cut1: 900, detune: 5, reverb: 0.22
                     });
                 }
@@ -233,7 +233,12 @@
                 if (nextTime < a.currentTime - 0.1) nextTime = a.currentTime + 0.02;
                 while (nextTime < a.currentTime + 0.12) {
                     if (step % 16 === 0 && pending) { MusicEngine.playing = pending; pending = null; }
-                    sequence(nextTime);
+                    try {
+                        sequence(nextTime);
+                    } catch (_) {
+                        nextTime += 0.125;
+                        step++;
+                    }
                 }
             }
             timer = setTimeout(pump, 25);
