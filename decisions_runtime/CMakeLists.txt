@@ -104,7 +104,7 @@ else()
 endif()
 set(LLAMA_PATCH_DIFF "${CMAKE_BINARY_DIR}/llama_cpp_aura_patch.diff")
 execute_process(
-  COMMAND "${GIT_EXECUTABLE}" -C "${llama_cpp_SOURCE_DIR}" diff --binary
+  COMMAND "${GIT_EXECUTABLE}" -C "${llama_cpp_SOURCE_DIR}" diff --binary --abbrev=7 --no-ext-diff --no-textconv --no-color
   OUTPUT_FILE "${LLAMA_PATCH_DIFF}" RESULT_VARIABLE LLAMA_DIFF_RESULT)
 if(NOT LLAMA_DIFF_RESULT EQUAL 0)
   message(FATAL_ERROR "Could not inspect llama.cpp working-tree changes")

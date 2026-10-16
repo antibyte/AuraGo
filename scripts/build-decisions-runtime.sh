@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 backend=
-target="$(go env GOOS)-$(go env GOARCH)"
+target=
 build_type=Release
 while (($#)); do
   case "$1" in
@@ -14,6 +14,11 @@ while (($#)); do
   esac
 done
 case "$backend" in cpu|cuda|vulkan|metal) ;; *) echo 'usage: build-decisions-runtime.sh --backend {vulkan|cuda|metal|cpu} [--target TARGET] [--build-type TYPE]' >&2; exit 2 ;; esac
+if [[ -z "$target" ]]; then
+  case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) echo 'Unsupported host OS; pass --target' >&2; exit 2 ;; esac
+  case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo 'Unsupported host architecture; pass --target' >&2; exit 2 ;; esac
+  target="$os-$arch"
+fi
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source="$repo/decisions_runtime"
 runtime_dir="$repo/bin/decisions-runtime/$target/$backend"
