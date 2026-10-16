@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {"name": "sample_linear", "input": {"keyframes": [{"f": 0, "v": 0, "e": "linear"}, {"f": 20, "v": 1, "e": "linear"}], "f": 5}, "want": {"v": 0.25}},
+    {"name": "sample_fractional_position", "input": {"keyframes": [{"f": 0, "v": 0, "e": "linear"}, {"f": 20, "v": 1, "e": "linear"}], "f": 12.5}, "want": {"v": 0.625}},
+    {"name": "sample_before_first", "input": {"keyframes": [{"f": 10, "v": 0.2, "e": "linear"}, {"f": 30, "v": 0.6, "e": "linear"}], "f": 4}, "want": {"v": 0.2}},
+    {"name": "sample_after_last", "input": {"keyframes": [{"f": 10, "v": 0.2, "e": "linear"}, {"f": 30, "v": 0.6, "e": "linear"}], "f": 31.5}, "want": {"v": 0.6}},
+    {"name": "sample_on_last_key", "input": {"keyframes": [{"f": 10, "v": 0.2, "e": "linear"}, {"f": 30, "v": 0.6, "e": "linear"}], "f": 30}, "want": {"v": 0.6}},
+    {"name": "sample_ease_in_out", "input": {"keyframes": [{"f": 0, "v": 10, "e": "ease_in_out"}, {"f": 40, "v": 50, "e": "linear"}], "f": 10}, "want": {"v": 12.5}},
+    {"name": "sample_easing_of_left_key", "input": {"keyframes": [{"f": 0, "v": 0, "e": "linear"}, {"f": 10, "v": 1, "e": "ease_in"}, {"f": 20, "v": 3, "e": "ease_out"}], "f": 15}, "want": {"v": 1.25}},
+    {"name": "sample_hold_until_next", "input": {"keyframes": [{"f": 0, "v": 0.3, "e": "hold"}, {"f": 8, "v": 0.9, "e": "linear"}], "f": 7.99}, "want": {"v": 0.3}},
+    {"name": "sample_hold_reaches_next", "input": {"keyframes": [{"f": 0, "v": 0.3, "e": "hold"}, {"f": 8, "v": 0.9, "e": "linear"}], "f": 8}, "want": {"v": 0.9}},
+    {"name": "sample_single_key", "input": {"keyframes": [{"f": 12, "v": -45, "e": "ease_out"}], "f": 100}, "want": {"v": -45}},
+    {"name": "sample_negative_frames", "input": {"keyframes": [{"f": -10, "v": 0, "e": "linear"}, {"f": 10, "v": 1, "e": "linear"}], "f": 0}, "want": {"v": 0.5}},
+    {"name": "sample_falling_ease_out", "input": {"keyframes": [{"f": 0, "v": 1, "e": "ease_out"}, {"f": 4, "v": 0, "e": "linear"}], "f": 1}, "want": {"v": 0.421875}},
+    {"name": "sample_many_keys", "input": {"keyframes": [{"f": 0, "v": 0, "e": "linear"}, {"f": 10, "v": 1, "e": "linear"}, {"f": 20, "v": 4, "e": "linear"}, {"f": 30, "v": 9, "e": "linear"}, {"f": 40, "v": 16, "e": "linear"}], "f": 35}, "want": {"v": 12.5}},
+    {"name": "value_speed_one", "input": {"clip": {"start": 100, "offset": 30, "duration": 60, "keyframes": {"x": [{"f": 30, "v": 0, "e": "linear"}, {"f": 50, "v": 0.5, "e": "linear"}]}}, "path": "x", "frame": 110}, "want": {"v": 0.25}},
+    {"name": "value_speed_two_same_content", "input": {"clip": {"start": 100, "offset": 30, "duration": 60, "speed": 2, "keyframes": {"x": [{"f": 30, "v": 0, "e": "linear"}, {"f": 50, "v": 0.5, "e": "linear"}]}}, "path": "x", "frame": 105}, "want": {"v": 0.25}},
+    {"name": "value_speed_half", "input": {"clip": {"start": 100, "offset": 30, "duration": 60, "speed": 0.5, "keyframes": {"x": [{"f": 30, "v": 0, "e": "linear"}, {"f": 50, "v": 0.5, "e": "linear"}]}}, "path": "x", "frame": 120}, "want": {"v": 0.25}},
+    {"name": "value_before_clip_start", "input": {"clip": {"start": 100, "offset": 30, "duration": 60, "keyframes": {"x": [{"f": 30, "v": 0, "e": "linear"}, {"f": 50, "v": 0.5, "e": "linear"}]}}, "path": "x", "frame": 90}, "want": {"v": 0}},
+    {"name": "value_still_offset_zero", "input": {"clip": {"start": 50, "offset": 0, "duration": 75, "keyframes": {"opacity": [{"f": 0, "v": 0, "e": "linear"}, {"f": 25, "v": 1, "e": "linear"}]}}, "path": "opacity", "frame": 60}, "want": {"v": 0.4}},
+    {"name": "value_static_path", "input": {"clip": {"start": 0, "offset": 0, "duration": 30, "opacity": 0.5, "keyframes": {"x": [{"f": 0, "v": 0.1, "e": "linear"}]}}, "path": "opacity", "frame": 10}, "want": {"v": 0.5}},
+    {"name": "value_rotation_ease_out", "input": {"clip": {"start": 0, "offset": 12, "duration": 50, "speed": 1.5, "keyframes": {"rotation": [{"f": 12, "v": 0, "e": "ease_out"}, {"f": 72, "v": 90, "e": "linear"}]}}, "path": "rotation", "frame": 10}, "want": {"v": 52.03125}},
+    {"name": "value_fractional_source", "input": {"clip": {"start": 0, "offset": 12, "duration": 50, "speed": 1.5, "keyframes": {"rotation": [{"f": 12, "v": 0, "e": "ease_out"}, {"f": 72, "v": 90, "e": "linear"}]}}, "path": "rotation", "frame": 3}, "want": {"v": 18.76921875}}
+  ]
+}

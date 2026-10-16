@@ -128,19 +128,66 @@
         return true;
     }
 
+    // Easing curves (spec §5.2, index §4.18), the same numbers as Go Ease:
+    //  - linear t; ease_in t³; ease_out 1 − (1 − t)³;
+    //  - ease_in_out 4t³ below one half, 1 − (2 − 2t)³ / 2 from there;
+    //  - hold 0 until t reaches 1.
+    // t is clamped to 0..1; unknown names are linear.
+    function ease(name, t) {
+        const x = Math.max(0, Math.min(1, Number(t) || 0));
+        switch (name) {
+            case 'ease_in': return x * x * x;
+            case 'ease_out': { const u = 1 - x; return 1 - u * u * u; }
+            case 'ease_in_out': {
+                if (x < 0.5) return 4 * x * x * x;
+                const u = -2 * x + 2;
+                return 1 - u * u * u / 2;
+            }
+            case 'hold': return x < 1 ? 0 : 1;
+            default: return x;
+        }
+    }
+    // The value of a keyframe list [{f, v, e}] at source position f (fractional), like Go sampleKeyframes. Before the
+    // first key it is the first value, after the last key the last value, and between keys i and i + 1 the value eased
+    // with key i's easing. null for an empty list.
+    function sample(list, f) {
+        if (!Array.isArray(list) || !list.length) return null;
+        const x = Number(f), last = list[list.length - 1];
+        if (!(x > list[0].f)) return list[0].v;
+        if (x >= last.f) return last.v;
+        let lo = 0, hi = list.length - 1; // list[lo].f <= x < list[hi].f
+        while (hi - lo > 1) {
+            const mid = (lo + hi) >> 1;
+            if (list[mid].f <= x) lo = mid; else hi = mid;
+        }
+        const a = list[lo], b = list[hi];
+        return a.v + (b.v - a.v) * ease(a.e, (x - a.f) / (b.f - a.f));
+    }
+    // The keyframable base parameters of the registry (2b: x, y, width, height, rotation, opacity), in registry order.
+    function keyframable() { return current.base.filter(spec => spec.keyframable && spec.type === 'number').map(spec => spec.id); }
+    // The source position (project frames, fractional) a clip shows at timeline frame frame: offset + (frame - start) *
+    // speed. Keyframes are sampled there, so they stay on the same picture content (spec §5.1).
+    function sourceAt(clip, frame) {
+        const speed = Number(clip && clip.speed) > 0 ? Number(clip.speed) : 1;
+        return (Number(clip && clip.offset) || 0) + (Number(frame) - (Number(clip && clip.start) || 0)) * speed;
+    }
     // The value of a parameter path at an absolute timeline frame. Paths: x, y, width, height, rotation, opacity,
-    // crop.l|t|r|b, mask.<param> and effects.<index>.<param> (the effect entry's params). 2a has no keyframes: the clip's
-    // own number, else the registry default, else null. Plan 2b replaces the body with keyframe sampling; the signature
-    // stays (frame and project are used from then on).
+    // crop.l|t|r|b, mask.<param> and effects.<index>.<param> (the effect entry's params and keyframes). With keyframes,
+    // the path's list is sampled at sourceAt(clip, frame), like Go ValueAt. Without keyframes it is the clip's own
+    // number, else the registry default, else null. project is not used yet; the signature stays for later slices.
     function valueAt(clip, path, frame, project) {
         const parts = String(path || '').split('.');
         if (parts[0] === 'effects' && parts.length === 3) {
             const entry = clip && Array.isArray(clip.effects) ? clip.effects[Number(parts[1])] : null;
+            const keys = entry && entry.keyframes ? entry.keyframes[parts[2]] : null;
+            if (Array.isArray(keys) && keys.length) return sample(keys, sourceAt(clip, frame));
             const value = entry && entry.params ? entry.params[parts[2]] : undefined;
             if (finite(value)) return value;
             const param = entry ? ((effect(entry.id) || {}).params || []).find(item => item.id === parts[2]) : null;
             return param && finite(param.default) ? param.default : null;
         }
+        const keys = clip && clip.keyframes ? clip.keyframes[path] : null;
+        if (Array.isArray(keys) && keys.length) return sample(keys, sourceAt(clip, frame));
         const value = parts.reduce((node, key) => (node && typeof node === 'object' ? node[key] : undefined), clip);
         if (finite(value)) return value;
         const spec = base(path);
@@ -227,5 +274,5 @@
         return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {"name": "linear_quarter", "input": {"easing": "linear", "t": 0.25}, "want": {"v": 0.25}},
+    {"name": "ease_in_quarter", "input": {"easing": "ease_in", "t": 0.25}, "want": {"v": 0.015625}},
+    {"name": "ease_in_half", "input": {"easing": "ease_in", "t": 0.5}, "want": {"v": 0.125}},
+    {"name": "ease_in_three_quarters", "input": {"easing": "ease_in", "t": 0.75}, "want": {"v": 0.421875}},
+    {"name": "ease_out_quarter", "input": {"easing": "ease_out", "t": 0.25}, "want": {"v": 0.578125}},
+    {"name": "ease_out_half", "input": {"easing": "ease_out", "t": 0.5}, "want": {"v": 0.875}},
+    {"name": "ease_out_three_quarters", "input": {"easing": "ease_out", "t": 0.75}, "want": {"v": 0.984375}},
+    {"name": "ease_in_out_tenth", "input": {"easing": "ease_in_out", "t": 0.1}, "want": {"v": 0.004}},
+    {"name": "ease_in_out_quarter", "input": {"easing": "ease_in_out", "t": 0.25}, "want": {"v": 0.0625}},
+    {"name": "ease_in_out_half", "input": {"easing": "ease_in_out", "t": 0.5}, "want": {"v": 0.5}},
+    {"name": "ease_in_out_three_quarters", "input": {"easing": "ease_in_out", "t": 0.75}, "want": {"v": 0.9375}},
+    {"name": "ease_in_out_ninety", "input": {"easing": "ease_in_out", "t": 0.9}, "want": {"v": 0.996}},
+    {"name": "hold_start", "input": {"easing": "hold", "t": 0}, "want": {"v": 0}},
+    {"name": "hold_inside", "input": {"easing": "hold", "t": 0.999}, "want": {"v": 0}},
+    {"name": "hold_end", "input": {"easing": "hold", "t": 1}, "want": {"v": 1}},
+    {"name": "clamped_above", "input": {"easing": "ease_in", "t": 1.5}, "want": {"v": 1}},
+    {"name": "clamped_below", "input": {"easing": "ease_out", "t": -0.5}, "want": {"v": 0}},
+    {"name": "linear_clamped", "input": {"easing": "linear", "t": 2}, "want": {"v": 1}}
+  ]
+}

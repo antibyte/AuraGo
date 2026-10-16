@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sort"
 )
 
 // Keyframes (spec §5.1, §5.2, §5.8, plan index §4.18). Clip.Keyframes maps a base parameter path to its keys. F is
@@ -100,4 +101,122 @@ func validateKeyframes(track Track, clip Clip, maxFrames int) error {
 		}
 	}
 	return nil
+}
+
+// Ease maps a span's progress t (clamped to 0..1) through an easing curve (spec §5.2, plan index §4.18):
+//   - linear: t;
+//   - ease_in: t³;
+//   - ease_out: 1 − (1 − t)³;
+//   - ease_in_out: 4t³ below one half, 1 − (2 − 2t)³/2 from there;
+//   - hold: 0 until t reaches 1.
+//
+// Unknown names are linear. JS VideoStudioEffects.ease computes the same numbers (parity topic "easing").
+func Ease(e Easing, t float64) float64 {
+	if !(t > 0) {
+		t = 0
+	} else if t > 1 {
+		t = 1
+	}
+	switch e {
+	case EaseIn:
+		return t * t * t
+	case EaseOut:
+		u := 1 - t
+		return 1 - u*u*u
+	case EaseInOut:
+		if t < 0.5 {
+			return 4 * t * t * t
+		}
+		u := -2*t + 2
+		return 1 - u*u*u/2
+	case EaseHold:
+		if t < 1 {
+			return 0
+		}
+		return 1
+	}
+	return t
+}
+
+// sampleKeyframes is the value of a keyframe list at source position f (fractional):
+//   - up to the first key, the first value;
+//   - from the last key on, the last value;
+//   - between keys i and i+1, the value eased with key i's easing.
+//
+// The list must be sorted by F (Validate guarantees it); an empty list gives 0. JS: VideoStudioEffects.sample.
+func sampleKeyframes(list []Keyframe, f float64) float64 {
+	if len(list) == 0 {
+		return 0
+	}
+	if !(f > float64(list[0].F)) {
+		return list[0].V
+	}
+	last := list[len(list)-1]
+	if f >= float64(last.F) {
+		return last.V
+	}
+	i := sort.Search(len(list), func(i int) bool { return float64(list[i].F) > f }) - 1
+	a, b := list[i], list[i+1]
+	t := (f - float64(a.F)) / float64(b.F-a.F)
+	return a.V + (b.V-a.V)*Ease(a.E, t)
+}
+
+// ValueAt returns a keyframable base path (x, y, width, height, rotation or opacity) of a clip at absolute timeline
+// frame frame. With keyframes on the path, the list is sampled at the source position the clip shows at that frame,
+// offset + (frame − start)·speed, so keyframes stay on the picture content (spec §5.1). Without keyframes it returns
+// the clip's static field. The frame may lie outside the clip. ok is false for any other path. JS:
+// VideoStudioEffects.valueAt.
+func ValueAt(clip Clip, path string, frame int) (float64, bool) {
+	var static float64
+	switch path {
+	case "x":
+		static = clip.X
+	case "y":
+		static = clip.Y
+	case "width":
+		static = clip.Width
+	case "height":
+		static = clip.Height
+	case "rotation":
+		static = clip.Rotation
+	case "opacity":
+		static = clip.Opacity
+	default:
+		return 0, false
+	}
+	if list := clip.Keyframes[path]; len(list) > 0 {
+		return sampleKeyframes(list, float64(clip.Offset)+float64(frame-clip.Start)*ClipSpeed(clip)), true
+	}
+	return static, true
+}
+
+// clipFrame is the resolved picture state of a visual clip at one timeline frame. It is the Go side of the JS
+// clipState for the keyframable base properties. The export's animated chain and its tests read it, and 2e applies
+// in/out animation here, on top of the keyframes.
+type clipFrame struct {
+	X, Y, Width, Height, Rotation, Opacity float64
+}
+
+// clipFrameAt resolves every keyframable base property of a clip at absolute timeline frame frame through ValueAt.
+func clipFrameAt(clip Clip, frame int) clipFrame {
+	value := func(path string) float64 {
+		v, _ := ValueAt(clip, path, frame)
+		return v
+	}
+	return clipFrame{X: value("x"), Y: value("y"), Width: value("width"), Height: value("height"), Rotation: value("rotation"), Opacity: value("opacity")}
+}
+
+// clipAnimation reports which parts of a clip's picture can change over time:
+//   - geometry, when x, y, width, height or rotation has keyframes;
+//   - opacity, when opacity has keyframes.
+//
+// A path with a single keyframe counts, because its value replaces the static field. 2e also marks clips with in/out
+// animation.
+func clipAnimation(clip Clip) (geometry, opacity bool) {
+	for _, path := range []string{"x", "y", "width", "height", "rotation"} {
+		if len(clip.Keyframes[path]) > 0 {
+			geometry = true
+		}
+	}
+	return geometry, len(clip.Keyframes["opacity"]) > 0
 }

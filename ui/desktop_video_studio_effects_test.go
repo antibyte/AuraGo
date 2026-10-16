@@ -91,7 +91,7 @@ assert.equal(E.base('fit').default, 'contain');
 assert.equal(E.base('nope'), null);
 assert.equal(E.effect('color'), null, 'the effect table stays empty until 2c');
 assert.deepEqual(E.defaults('color'), {});
-// valueAt: the clip's own number, else the registry default, else null (no keyframes before 2b).
+// valueAt without keyframes: the clip's own number, else the registry default, else null.
 assert.equal(E.valueAt({opacity: 0.25}, 'opacity', 10, {fps: 30}), 0.25);
 assert.equal(E.valueAt({}, 'opacity', 10, {fps: 30}), 1);
 assert.equal(E.valueAt({rotation: null}, 'rotation', 0, {fps: 30}), 0);
@@ -173,6 +173,12 @@ const videoStudioParityRunners = `{
     if (input.kind === 'wipe') return E.wipeEdge(input.type, input.p, input.width);
     throw new Error('unknown transitions input kind ' + input.kind);
   }},
+  // Easing curves and keyframe sampling (phase 2 index §4.13, topics "easing" and "keyframes"); numbers within 1e-6.
+  easing: {exact: false, run(input) { return {v: E.ease(input.easing, input.t)}; }},
+  keyframes: {exact: false, run(input) {
+    if (input.clip) return {v: E.valueAt(input.clip, input.path, input.frame, {fps: 25})};
+    return {v: E.sample(input.keyframes, input.f)};
+  }},
 }`
 
 // Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.
@@ -225,6 +231,49 @@ const quarter = E.placement(E.clipState({x: 0.25, y: 0.25, width: 0.5, height: 0
 assert.deepEqual(quarter.box, {x: 320, y: 180, w: 640, h: 360});
 assert.deepEqual(quarter.draw, quarter.box);
 assert(Math.abs(quarter.angle - Math.PI / 6) < 1e-12);
+console.log('ok');
+`)
+}
+
+// Keyframes are sampled at the source position the clip shows (plan index §4.18): the cubic easing curves, constant
+// values outside the keys, the left key's easing between them, and clipState following content at any speed.
+func TestVideoStudioEffectsKeyframeSampling(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+const near = (got, want, label) => assert(Math.abs(got - want) < 1e-12, label + ': ' + got + ' != ' + want);
+assert.deepEqual(E.keyframable(), ['x', 'y', 'width', 'height', 'rotation', 'opacity']);
+near(E.ease('ease_in', 0.5), 0.125, 'ease_in');
+near(E.ease('ease_out', 0.5), 0.875, 'ease_out');
+near(E.ease('ease_in_out', 0.25), 0.0625, 'ease_in_out');
+near(E.ease('hold', 0.99), 0, 'hold');
+near(E.ease('hold', 1), 1, 'hold at the end');
+near(E.ease('linear', 7), 1, 't is clamped');
+near(E.ease('nope', 0.3), 0.3, 'unknown names are linear');
+const keys = [{f: 10, v: 1, e: 'linear'}, {f: 20, v: 3, e: 'ease_in'}, {f: 30, v: 2, e: 'hold'}, {f: 40, v: 5, e: 'ease_out'}];
+near(E.sample(keys, -100), 1, 'before the first key');
+near(E.sample(keys, 15), 2, 'linear');
+near(E.sample(keys, 25), 2.875, 'ease_in of the left key');
+near(E.sample(keys, 39.999), 2, 'hold until the next key');
+near(E.sample(keys, 40), 5, 'on the last key');
+near(E.sample(keys, 1e9), 5, 'after the last key');
+assert.equal(E.sample([], 3), null);
+// clipState reads keyframes at the source position the clip shows (content anchor).
+const kf = {x: [{f: 40, v: 0, e: 'linear'}, {f: 80, v: 0.4, e: 'linear'}], opacity: [{f: 40, v: 1, e: 'hold'}, {f: 60, v: 0, e: 'linear'}]};
+const clip = {start: 100, offset: 40, duration: 50, x: 0.9, y: 0.1, width: 0.5, height: 0.5, rotation: 0, opacity: 0.7, fit: 'contain', keyframes: kf};
+const project = {fps: 25};
+near(E.clipState(clip, 120, project).x, 0.2, 'source 60 at speed 1');
+near(E.clipState(Object.assign({}, clip, {speed: 2}), 110, project).x, 0.2, 'speed 2 shows the same content after half the frames');
+near(E.clipState(Object.assign({}, clip, {speed: 0.5}), 140, project).x, 0.2, 'speed 0.5 after twice the frames');
+near(E.clipState(clip, 90, project).x, 0, 'before the first key the first value holds');
+near(E.clipState(clip, 149, project).x, 0.4, 'after the last key the last value holds');
+near(E.clipState(clip, 119, project).opacity, 1, 'hold keeps the value until the next key');
+near(E.clipState(clip, 120, project).opacity, 0, 'and switches on it');
+near(E.clipState(clip, 105, project).y, 0.1, 'a path without keyframes keeps its static value');
+near(E.clipState(clip, 105, project).x, 0.05, 'keyframes replace the static value');
+// Effect parameters keep their keyframes inside the effect entry (spec §5.4), sampled the same way.
+const fx = {start: 0, offset: 0, effects: [{id: 'blur', params: {radius: 3}, keyframes: {radius: [{f: 0, v: 0, e: 'linear'}, {f: 10, v: 10, e: 'linear'}]}}]};
+near(E.valueAt(fx, 'effects.0.radius', 5, project), 5, 'effect keyframes');
+near(E.valueAt({start: 50, offset: 0, duration: 75, keyframes: {opacity: [{f: 0, v: 0, e: 'linear'}, {f: 25, v: 1, e: 'linear'}]}}, 'opacity', 60, project), 0.4, 'a still uses offset 0');
+near(E.valueAt({opacity: 0.25, keyframes: {opacity: []}}, 'opacity', 0, project), 0.25, 'an empty list counts as no keyframes');
 console.log('ok');
 `)
 }
