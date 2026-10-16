@@ -34,8 +34,14 @@ Publishing runtimes is separate from releasing or deploying AuraGo.
    `runtime_catalog_generated.go` into `internal/decisions/`, review the exact
    pins, and run the application tests before the application commit/release.
 
-Partial publication is not a verified release. Repair the cause and publish a
-new version; do not replace an existing archive or reuse an image version tag.
+Partial publication is not a verified release. Missing or defective artifacts
+require a new version; never replace an archive or reuse an image version tag.
+If all artifacts were published and only verification failed, dispatch the same
+workflow with `verify_existing=true` and `publish=false`. This read-only job
+downloads the existing release, resolves its versioned image tags, and repeats
+all anonymous checks before generating a catalog. It never builds, uploads or
+replaces runtime packages or images. Pulls use each architecture's manifest
+digest from the pinned index, avoiding classic Docker image-store conflicts.
 The generated JSON catalog can be retained as release evidence. The generator's
 `--write` option requires `--verify-published`; it cannot generate unchecked pins.
 

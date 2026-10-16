@@ -99,11 +99,17 @@ def verify_public(catalog):
         for image in catalog['images']:
             raw = subprocess.check_output(['docker', 'manifest', 'inspect', image['reference']], env=env)
             index = json.loads(raw)
-            platforms = {(entry['platform']['os'], entry['platform']['architecture']) for entry in index['manifests']}
-            if platforms != {('linux', 'amd64'), ('linux', 'arm64')}:
+            members = index['manifests']
+            platforms = {(entry['platform']['os'], entry['platform']['architecture']) for entry in members}
+            if len(members) != 2 or platforms != {('linux', 'amd64'), ('linux', 'arm64')}:
                 raise ValueError('Docker image architecture set mismatch')
-            for arch in ['amd64', 'arm64']:
-                subprocess.run(['docker', 'pull', '--platform', f'linux/{arch}', image['reference']], env=env, check=True)
+            if any(not re.fullmatch(r'sha256:[a-f0-9]{64}', entry['digest']) for entry in members):
+                raise ValueError('Invalid platform manifest digest')
+            # Classic image stores cannot retain two architectures under one index reference.
+            for entry in members:
+                reference = image['reference'].split('@', 1)[0] + '@' + entry['digest']
+                arch = entry['platform']['architecture']
+                subprocess.run(['docker', 'pull', '--platform', f'linux/{arch}', reference], env=env, check=True)
 
 def main():
     parser = argparse.ArgumentParser()

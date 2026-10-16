@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -58,6 +59,37 @@ class ReleaseGateTests(unittest.TestCase):
         self.assertEqual(sum(map(len, catalog.MATRIX.values())), 15)
         self.assertEqual(catalog.MATRIX['linux-arm64'], ['cuda', 'vulkan', 'cpu'])
         self.assertEqual(catalog.MATRIX['windows-arm64'], ['vulkan', 'cpu'])
+
+    def test_anonymous_pulls_use_distinct_platform_manifests(self):
+        repository = 'ghcr.io/antibyte/aurago-decisions-runtime'
+        reference = repository + '@sha256:' + 'a' * 64
+        members = [dict(platform=dict(os='linux', architecture=arch), digest='sha256:' + char * 64)
+                   for arch, char in [('amd64', 'b'), ('arm64', 'c')]]
+        stored = {}
+        def pull(command, **options):
+            image, platform = command[-1], command[-2]
+            if image in stored and stored[image] != platform:
+                raise RuntimeError('classic image store cannot overwrite a digest with another architecture')
+            stored[image] = platform
+            self.assertTrue(options['check'])
+            self.assertIn('decisions-anonymous-docker-', options['env']['DOCKER_CONFIG'])
+        with mock.patch.object(catalog.subprocess, 'check_output', return_value=json.dumps(dict(manifests=members)).encode()), \
+                mock.patch.object(catalog.subprocess, 'run', side_effect=pull):
+            catalog.verify_public(dict(packages=[], images=[dict(reference=reference)]))
+        self.assertEqual(stored, {repository + '@' + member['digest']: 'linux/' + member['platform']['architecture']
+                                  for member in members})
+
+    def test_rejects_ambiguous_or_unpinned_image_manifests(self):
+        valid = [dict(platform=dict(os='linux', architecture=arch), digest='sha256:' + char * 64)
+                 for arch, char in [('amd64', 'b'), ('arm64', 'c')]]
+        invalid = [valid + [valid[0]], [valid[0], dict(platform=valid[1]['platform'], digest='latest')], valid[:1]]
+        for members in invalid:
+            with self.subTest(members=members), \
+                    mock.patch.object(catalog.subprocess, 'check_output', return_value=json.dumps(dict(manifests=members)).encode()), \
+                    mock.patch.object(catalog.subprocess, 'run') as pull:
+                with self.assertRaises(ValueError):
+                    catalog.verify_public(dict(packages=[], images=[dict(reference='ghcr.io/antibyte/aurago-decisions-runtime@sha256:' + 'a' * 64)]))
+                pull.assert_not_called()
 
     def test_insecure_redirect_is_rejected(self):
         with self.assertRaises(ValueError):
