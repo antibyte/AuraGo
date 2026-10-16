@@ -1,0 +1,909 @@
+{
+  "version": 1,
+  "generator": "Codex built-in Imagegen",
+  "transparent_background": true,
+  "size": 1024,
+  "thumbnail_size": 192,
+  "items": [
+    {
+      "id": "emotion-joy",
+      "category": "emotion",
+      "style": "comic",
+      "subject": "joyful smiling face",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: joyful smiling face. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-laughing",
+      "category": "emotion",
+      "style": "clay",
+      "subject": "face laughing with tears of joy",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: face laughing with tears of joy. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-surprised",
+      "category": "emotion",
+      "style": "watercolor",
+      "subject": "astonished surprised face",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: astonished surprised face. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-sad",
+      "category": "emotion",
+      "style": "retro",
+      "subject": "sad face with one tear",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: sad face with one tear. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-angry",
+      "category": "emotion",
+      "style": "neon",
+      "subject": "angry expressive face",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: angry expressive face. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-heart-eyes",
+      "category": "emotion",
+      "style": "papercut",
+      "subject": "face with heart-shaped eyes",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: face with heart-shaped eyes. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-cool",
+      "category": "emotion",
+      "style": "kawaii",
+      "subject": "cool smiling face wearing sunglasses",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: cool smiling face wearing sunglasses. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-wink",
+      "category": "emotion",
+      "style": "ink",
+      "subject": "playful winking face",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: playful winking face. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-thumbs-up",
+      "category": "emotion",
+      "style": "photo",
+      "subject": "one hand giving a thumbs-up",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: one hand giving a thumbs-up. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "emotion-peace",
+      "category": "emotion",
+      "style": "embroidered",
+      "subject": "one hand giving the peace V gesture",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: one hand giving the peace V gesture. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-cat",
+      "category": "animals",
+      "style": "clay",
+      "subject": "cat",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: cat. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-dog",
+      "category": "animals",
+      "style": "watercolor",
+      "subject": "dog",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: dog. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-fox",
+      "category": "animals",
+      "style": "retro",
+      "subject": "fox",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: fox. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-panda",
+      "category": "animals",
+      "style": "neon",
+      "subject": "panda",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: panda. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-penguin",
+      "category": "animals",
+      "style": "papercut",
+      "subject": "penguin",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: penguin. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-owl",
+      "category": "animals",
+      "style": "kawaii",
+      "subject": "owl",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: owl. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-bee",
+      "category": "animals",
+      "style": "ink",
+      "subject": "bee",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: bee. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-butterfly",
+      "category": "animals",
+      "style": "photo",
+      "subject": "butterfly",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: butterfly. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-octopus",
+      "category": "animals",
+      "style": "embroidered",
+      "subject": "octopus",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: octopus. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "animals-axolotl",
+      "category": "animals",
+      "style": "comic",
+      "subject": "axolotl",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: axolotl. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-sun",
+      "category": "nature",
+      "style": "watercolor",
+      "subject": "radiant sun",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: radiant sun. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-moon",
+      "category": "nature",
+      "style": "retro",
+      "subject": "crescent moon",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: crescent moon. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-rain-cloud",
+      "category": "nature",
+      "style": "neon",
+      "subject": "small rain cloud with raindrops",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: small rain cloud with raindrops. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-rainbow",
+      "category": "nature",
+      "style": "papercut",
+      "subject": "rainbow arch",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: rainbow arch. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-lightning",
+      "category": "nature",
+      "style": "kawaii",
+      "subject": "lightning bolt",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: lightning bolt. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-snowflake",
+      "category": "nature",
+      "style": "ink",
+      "subject": "snowflake",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: snowflake. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-sunflower",
+      "category": "nature",
+      "style": "photo",
+      "subject": "sunflower bloom",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: sunflower bloom. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-cactus",
+      "category": "nature",
+      "style": "embroidered",
+      "subject": "potted cactus",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: potted cactus. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-mushroom",
+      "category": "nature",
+      "style": "comic",
+      "subject": "woodland mushroom",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: woodland mushroom. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "nature-palm",
+      "category": "nature",
+      "style": "clay",
+      "subject": "palm tree",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: palm tree. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-pizza",
+      "category": "food",
+      "style": "retro",
+      "subject": "slice of pizza",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: slice of pizza. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-burger",
+      "category": "food",
+      "style": "neon",
+      "subject": "burger",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: burger. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-sushi",
+      "category": "food",
+      "style": "papercut",
+      "subject": "sushi roll",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: sushi roll. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-donut",
+      "category": "food",
+      "style": "kawaii",
+      "subject": "frosted donut",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: frosted donut. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-ice-cream",
+      "category": "food",
+      "style": "ink",
+      "subject": "ice cream cone",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: ice cream cone. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-coffee",
+      "category": "food",
+      "style": "photo",
+      "subject": "cup of coffee",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: cup of coffee. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-bubble-tea",
+      "category": "food",
+      "style": "embroidered",
+      "subject": "cup of bubble tea",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 75-80 percent of the canvas, at least 8 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: cup of bubble tea. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif. Composition correction: the entire cup, embroidered border, and the complete straw must fit well inside the frame. Leave at least eight percent fully transparent margin on every side. Nothing touches the canvas edge. Do not crop any part.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-avocado",
+      "category": "food",
+      "style": "comic",
+      "subject": "avocado half",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: avocado half. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-strawberry",
+      "category": "food",
+      "style": "clay",
+      "subject": "strawberry",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: strawberry. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "food-taco",
+      "category": "food",
+      "style": "watercolor",
+      "subject": "taco",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: taco. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-airplane",
+      "category": "travel",
+      "style": "neon",
+      "subject": "airplane",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: airplane. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-camper",
+      "category": "travel",
+      "style": "papercut",
+      "subject": "camper van",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: camper van. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-suitcase",
+      "category": "travel",
+      "style": "kawaii",
+      "subject": "travel suitcase",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: travel suitcase. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-tent",
+      "category": "travel",
+      "style": "ink",
+      "subject": "camping tent",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: camping tent. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-compass",
+      "category": "travel",
+      "style": "photo",
+      "subject": "compass with unlettered dial",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: compass with unlettered dial. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-camera",
+      "category": "travel",
+      "style": "embroidered",
+      "subject": "camera",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: camera. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-balloon",
+      "category": "travel",
+      "style": "comic",
+      "subject": "hot-air balloon with basket",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: hot-air balloon with basket. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-sailboat",
+      "category": "travel",
+      "style": "clay",
+      "subject": "sailboat",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: sailboat. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-boot",
+      "category": "travel",
+      "style": "watercolor",
+      "subject": "hiking boot",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: hiking boot. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "travel-signpost",
+      "category": "travel",
+      "style": "retro",
+      "subject": "wooden direction signpost with blank unlettered arrows",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: wooden direction signpost with blank unlettered arrows. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-robot",
+      "category": "tech",
+      "style": "papercut",
+      "subject": "friendly robot",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: friendly robot. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-gamepad",
+      "category": "tech",
+      "style": "kawaii",
+      "subject": "game controller",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: game controller. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-joystick",
+      "category": "tech",
+      "style": "ink",
+      "subject": "retro joystick",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: retro joystick. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-vr",
+      "category": "tech",
+      "style": "photo",
+      "subject": "VR headset",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: VR headset. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-laptop",
+      "category": "tech",
+      "style": "embroidered",
+      "subject": "open laptop with abstract unlettered screen",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: open laptop with abstract unlettered screen. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-retro-computer",
+      "category": "tech",
+      "style": "comic",
+      "subject": "retro personal computer with abstract unlettered screen",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: retro personal computer with abstract unlettered screen. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-cartridge",
+      "category": "tech",
+      "style": "clay",
+      "subject": "video game cartridge with abstract unlettered label",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: video game cartridge with abstract unlettered label. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-arcade",
+      "category": "tech",
+      "style": "watercolor",
+      "subject": "arcade cabinet with abstract game screen",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: arcade cabinet with abstract game screen. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-server",
+      "category": "tech",
+      "style": "retro",
+      "subject": "small server rack",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: small server rack. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "tech-floppy",
+      "category": "tech",
+      "style": "neon",
+      "subject": "floppy disk with blank label",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: floppy disk with blank label. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-guitar",
+      "category": "creative",
+      "style": "kawaii",
+      "subject": "electric guitar",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: electric guitar. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-microphone",
+      "category": "creative",
+      "style": "ink",
+      "subject": "microphone",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: microphone. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-headphones",
+      "category": "creative",
+      "style": "photo",
+      "subject": "headphones",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: headphones. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-record",
+      "category": "creative",
+      "style": "embroidered",
+      "subject": "vinyl record",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: vinyl record. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-drum",
+      "category": "creative",
+      "style": "comic",
+      "subject": "snare drum with drumsticks",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: snare drum with drumsticks. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-piano",
+      "category": "creative",
+      "style": "clay",
+      "subject": "short section of piano keys",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: short section of piano keys. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-notes",
+      "category": "creative",
+      "style": "watercolor",
+      "subject": "musical notes",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: musical notes. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-clapperboard",
+      "category": "creative",
+      "style": "retro",
+      "subject": "film clapperboard without any lettering or numerals",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: film clapperboard without any lettering or numerals. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-palette",
+      "category": "creative",
+      "style": "neon",
+      "subject": "artist paint palette",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: artist paint palette. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "creative-brush",
+      "category": "creative",
+      "style": "papercut",
+      "subject": "artist paintbrush",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: artist paintbrush. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-football",
+      "category": "sports",
+      "style": "ink",
+      "subject": "soccer ball",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: soccer ball. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-basketball",
+      "category": "sports",
+      "style": "photo",
+      "subject": "basketball",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: basketball. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-tennis",
+      "category": "sports",
+      "style": "embroidered",
+      "subject": "tennis ball",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: tennis ball. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-dumbbell",
+      "category": "sports",
+      "style": "comic",
+      "subject": "dumbbell",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: dumbbell. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-skateboard",
+      "category": "sports",
+      "style": "clay",
+      "subject": "skateboard",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: skateboard. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-bicycle",
+      "category": "sports",
+      "style": "watercolor",
+      "subject": "bicycle",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: bicycle. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-trophy",
+      "category": "sports",
+      "style": "retro",
+      "subject": "gold trophy cup",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: gold trophy cup. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-medal",
+      "category": "sports",
+      "style": "neon",
+      "subject": "gold medal on ribbon without lettering",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: gold medal on ribbon without lettering. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-target",
+      "category": "sports",
+      "style": "papercut",
+      "subject": "bullseye target with a dart",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: bullseye target with a dart. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "sports-shoes",
+      "category": "sports",
+      "style": "kawaii",
+      "subject": "pair of running shoes",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: pair of running shoes. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-cake",
+      "category": "celebration",
+      "style": "photo",
+      "subject": "birthday cake with candles",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: birthday cake with candles. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-gift",
+      "category": "celebration",
+      "style": "embroidered",
+      "subject": "wrapped gift box",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: wrapped gift box. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-balloons",
+      "category": "celebration",
+      "style": "comic",
+      "subject": "three party balloons with strings",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: three party balloons with strings. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-party-hat",
+      "category": "celebration",
+      "style": "clay",
+      "subject": "party hat",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: party hat. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-fireworks",
+      "category": "celebration",
+      "style": "watercolor",
+      "subject": "colorful firework burst",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: colorful firework burst. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-confetti",
+      "category": "celebration",
+      "style": "retro",
+      "subject": "confetti party popper with a compact spray of confetti",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: confetti party popper with a compact spray of confetti. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-crown",
+      "category": "celebration",
+      "style": "neon",
+      "subject": "royal crown",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: royal crown. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-wand",
+      "category": "celebration",
+      "style": "papercut",
+      "subject": "magic wand with a star tip",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: magic wand with a star tip. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-unicorn",
+      "category": "celebration",
+      "style": "kawaii",
+      "subject": "friendly unicorn",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: friendly unicorn. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "celebration-dragon",
+      "category": "celebration",
+      "style": "ink",
+      "subject": "friendly small dragon",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: friendly small dragon. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-arrow",
+      "category": "effects",
+      "style": "embroidered",
+      "subject": "curved directional arrow",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: curved directional arrow. Style: beautiful embroidered fabric patch, fine visible stitches, crisp stitched border shaped to the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-double-arrow",
+      "category": "effects",
+      "style": "comic",
+      "subject": "double-headed horizontal arrow",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: double-headed horizontal arrow. Style: bold polished comic illustration, expressive ink outlines and saturated colors.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-speech",
+      "category": "effects",
+      "style": "clay",
+      "subject": "empty speech bubble",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: empty speech bubble. Style: tactile sculpted clay 3D miniature, soft studio lighting, delightful handmade material.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-thought",
+      "category": "effects",
+      "style": "watercolor",
+      "subject": "empty thought bubble",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: empty thought bubble. Style: beautiful hand-painted watercolor illustration, pigment detail and controlled translucent edges.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-heart",
+      "category": "effects",
+      "style": "retro",
+      "subject": "heart shape",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: heart shape. Style: vintage screen-printed illustration, restrained retro colors and subtle printed texture inside the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-star",
+      "category": "effects",
+      "style": "neon",
+      "subject": "five-pointed star",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: five-pointed star. Style: vibrant neon tubing and luminous accents, compact controlled glow fading into transparent alpha.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-sparkle",
+      "category": "effects",
+      "style": "papercut",
+      "subject": "sparkle cluster",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: sparkle cluster. Style: layered cut-paper craft, clean silhouette and subtle depth within the motif.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-exclamation",
+      "category": "effects",
+      "style": "kawaii",
+      "subject": "bold exclamation mark symbol",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: bold exclamation mark symbol. Style: charming kawaii illustration, rounded shapes, pastel colors and tiny expressive features where appropriate.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-check",
+      "category": "effects",
+      "style": "ink",
+      "subject": "checkmark symbol",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: checkmark symbol. Style: elegant expressive ink illustration with selective rich color accents, clean confident strokes.",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "id": "effects-burst",
+      "category": "effects",
+      "style": "photo",
+      "subject": "comic explosion burst without letters",
+      "prompt": "Create exactly ONE original premium sticker for a video editor and image editor. Square 1024x1024 PNG composition. Entire single motif centered and occupying 85-90 percent of the canvas, at least 5 percent clear margin, nothing cropped. Genuine transparent alpha background, no background plate, floor, rectangle, checkerboard texture or surrounding scene. Contour appropriate to the style. No text, lettering, numerals, logos, watermark, labels, or multiple alternatives. Clean antialiased edges without a white matte. Subject: comic explosion burst without letters. Style: high-end photorealistic studio cutout of the object or a tangible sculptural interpretation of the symbol, convincing materials and clean light.",
+      "width": 1024,
+      "height": 1024
+    }
+  ]
+}

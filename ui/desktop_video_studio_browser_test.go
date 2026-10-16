@@ -55,7 +55,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		}
 		locales[language] = make(map[string]string)
 		for key, value := range source {
-			if strings.HasPrefix(key, "videoStudio.") {
+			if strings.HasPrefix(key, "videoStudio.") || strings.HasPrefix(key, "stickers.") {
 				locales[language][key] = value
 			}
 		}
@@ -64,7 +64,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-icons.js"></script><script src="/js/desktop/apps/video-studio-time.js"></script><script src="/js/desktop/apps/video-studio-media.js"></script><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio-ruler.js"></script><script src="/js/desktop/apps/video-studio-edit.js"></script><script src="/js/desktop/apps/video-studio-navigation.js"></script><script src="/js/desktop/apps/video-studio-source-edit.js"></script><script src="/js/desktop/apps/video-studio-folders.js"></script><script src="/js/desktop/apps/video-studio-inspector.js"></script><script src="/js/desktop/apps/video-studio-core.js"></script><script src="/js/desktop/apps/video-studio-library.js"></script><script src="/js/desktop/apps/video-studio-artwork.js"></script><script src="/js/desktop/apps/video-studio-jobs.js"></script><script src="/js/desktop/apps/video-studio-stage.js"></script><script src="/js/desktop/apps/video-studio-editing.js"></script><script src="/js/desktop/apps/video-studio-source.js"></script><script src="/js/desktop/apps/video-studio-tracks.js"></script><script src="/js/desktop/apps/video-studio-markers.js"></script><script src="/js/desktop/apps/video-studio-transport.js"></script><script src="/js/desktop/apps/video-studio-derive.js"></script><script src="/js/desktop/apps/video-studio-projects.js"></script><script src="/js/desktop/apps/video-studio-mediabin.js"></script><script src="/js/desktop/apps/video-studio-menus.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><link rel="stylesheet" href="/css/desktop-stickers.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/shared/sticker-catalog.js"></script><script src="/js/desktop/shared/sticker-library.js"></script><script src="/js/desktop/apps/video-studio-icons.js"></script><script src="/js/desktop/apps/video-studio-time.js"></script><script src="/js/desktop/apps/video-studio-media.js"></script><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio-ruler.js"></script><script src="/js/desktop/apps/video-studio-edit.js"></script><script src="/js/desktop/apps/video-studio-navigation.js"></script><script src="/js/desktop/apps/video-studio-source-edit.js"></script><script src="/js/desktop/apps/video-studio-folders.js"></script><script src="/js/desktop/apps/video-studio-inspector.js"></script><script src="/js/desktop/apps/video-studio-core.js"></script><script src="/js/desktop/apps/video-studio-library.js"></script><script src="/js/desktop/apps/video-studio-artwork.js"></script><script src="/js/desktop/apps/video-studio-jobs.js"></script><script src="/js/desktop/apps/video-studio-stage.js"></script><script src="/js/desktop/apps/video-studio-editing.js"></script><script src="/js/desktop/apps/video-studio-source.js"></script><script src="/js/desktop/apps/video-studio-tracks.js"></script><script src="/js/desktop/apps/video-studio-markers.js"></script><script src="/js/desktop/apps/video-studio-transport.js"></script><script src="/js/desktop/apps/video-studio-derive.js"></script><script src="/js/desktop/apps/video-studio-projects.js"></script><script src="/js/desktop/apps/video-studio-mediabin.js"></script><script src="/js/desktop/apps/video-studio-menus.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
 			window.fixtureErrors=[];window.fixtureCalls=[];window.addEventListener('error',e=>fixtureErrors.push(String(e.message)));
 			window.fixtureLocales=`+mustJSON(t, locales)+`;const fixtureParams=new URLSearchParams(location.search);window.fixtureLang=fixtureParams.get('lang')||'en';document.body.dataset.theme=fixtureParams.get('theme')||'standard';document.documentElement.lang=window.fixtureLang;
 			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];window.fixtureArtworkRequests=[];window.fixtureArtworkStates={};window.fixtureLastJobBody=null;
@@ -769,6 +769,57 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			window.VideoStudioParts.setStageMode(s,'timeline');
 		});
 	}`)
+
+	// Shared catalog selection, real PNG upload payload and project-scoped asynchronous insertion.
+	page.MustNavigate(server.URL + "/fixture")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>!!document.querySelector('.vs-clip')`)
+	page.MustEval(`async()=>{
+		const P=VideoStudioParts, s=VideoStudioApp.instances.get('fixture'), check=(v,m)=>{if(!v)throw Error(m)};
+		P.setTab(s,'stickers');
+		check(s.q('[data-sticker-library]').querySelectorAll('[data-sticker-id]').length===100,'100 shared stickers');
+		const library=s.q('[data-sticker-library]'), filters=library.querySelectorAll('select'), search=library.querySelector('input');
+		filters[0].value='animals';filters[0].dispatchEvent(new Event('input'));check(library.querySelectorAll('[data-sticker-id]').length===10,'category filter');
+		filters[1].value='comic';filters[1].dispatchEvent(new Event('input'));check(library.querySelectorAll('[data-sticker-id]').length===1,'style filter');
+		filters[0].value='';filters[1].value='';search.value='no-such-sticker';search.dispatchEvent(new Event('input'));check(library.querySelectorAll('[data-sticker-id]').length===0,'empty search');
+		search.value='';search.dispatchEvent(new Event('input'));
+		const request=P.request, fetchBefore=window.fetch, initial=structuredClone(s.project);let imports=0;
+		P.request=async(url,options)=>{if(url.endsWith('/media')&&options?.method==='POST'){
+			const file=options.body.get('file'), bitmap=await createImageBitmap(file);
+			check(file.name==='sticker-emotion-joy.png'&&bitmap.width===1024&&bitmap.height===1024,'original upload');bitmap.close();
+			check(!!options.headers['Idempotency-Key'],'idempotency key');imports++;
+			const asset={id:'sticker-'+imports,name:file.name,path:'media/sticker-'+imports+'.png',kind:'image',width:1024,height:1024,duration_frames:18000};
+			s.project.assets.push(asset);return{body:{asset}};
+		}return request(url,options)};
+		try{
+			s.frame=180;await P.addSticker(s,'emotion-joy');
+			let clip=s.project.tracks.flatMap(t=>t.clips).find(c=>c.asset_id==='sticker-1');
+			check(clip&&clip.start===180&&clip.duration===120&&Math.abs(clip.height-.24)<.00001,'four seconds at playhead and 24% size');
+			check(P.assetDisplayName(s,s.project.assets.at(-1))===fixtureLocales.en['stickers.name.emotion-joy'],'catalog display name');
+			check(VideoStudioMedia.isArtwork({kind:'image',name:'sticker-heart.png'})&&!VideoStudioMedia.isArtwork({kind:'image',name:'sticker-logo.png'}),'legacy artwork recognition');
+			P.undo(s,false);check(!s.project.tracks.flatMap(t=>t.clips).some(c=>c.asset_id==='sticker-1'),'undo insertion');
+			P.undo(s,true);check(s.project.tracks.flatMap(t=>t.clips).some(c=>c.asset_id==='sticker-1'),'redo insertion');
+			for(const locked of [false,true]){
+				s.project.tracks=Array.from({length:4},(_,i)=>({id:'full-'+i,kind:'overlay',locked,clips:[{id:'busy-'+i,start:0,duration:500,asset_id:'art1'}]}));
+				await P.addSticker(s,'emotion-joy');check(imports===1,'full or locked overlays must not import');
+			}
+			s.project=structuredClone(initial);const before=s.projectEpoch;let release;
+			const waiting=new Promise(resolve=>{release=resolve});
+			window.fetch=async(url,options)=>{if(String(url).includes('/img/stickers/emotion-joy.png'))await waiting;return fetchBefore(url,options)};
+			const pending=P.addSticker(s,'emotion-joy');s.projectEpoch++;s.project=structuredClone(initial);release();await pending;
+			check(imports===1,'project switch during image fetch');s.projectEpoch=before;
+		}finally{P.request=request;window.fetch=fetchBefore;s.project=initial;clearTimeout(s.autosaveTimer)}
+	}`)
+	for _, theme := range []string{"standard", "fruity"} {
+		for _, width := range []int{1280, 390} {
+			page.MustSetViewport(width, 900, 1, false)
+			page.MustEval(`theme=>{document.body.dataset.theme=theme;VideoStudioParts.setTab(VideoStudioApp.instances.get('fixture'),'stickers')}`, theme)
+			if !page.MustEval(`()=>{const p=document.querySelector('[data-sticker-library]');return p.scrollWidth<=p.clientWidth+1}`).Bool() {
+				t.Fatal("sticker library overflows")
+			}
+			page.MustScreenshot(filepath.Join(screenshotDir, fmt.Sprintf("stickers-%s-%d.png", theme, width)))
+		}
+	}
 
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")

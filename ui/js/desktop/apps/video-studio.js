@@ -89,6 +89,7 @@
         if (!s) return;
         s.disposed = true;
         s.abort.abort();
+        if (s.stickerPicker) s.stickerPicker.dispose();
         if (P.closeMenu) P.closeMenu(s, false);
         if (P.closeMarkerPopover) P.closeMarkerPopover(s, false);
         clearTimeout(s.autosaveTimer);
@@ -110,7 +111,7 @@
         const label = (key, fallback) => esc(s, tr(s, key, fallback));
         const tab = (name, iconName, key, fallback) => `<button type="button" role="tab" data-tab="${name}" aria-selected="${name === 'media'}" aria-controls="vs-panel-${s.id}-${name}" id="vs-tab-${s.id}-${name}" title="${label(key, fallback)}" ${name === 'media' ? '' : 'tabindex="-1"'}>${icon(iconName, 16)}<span>${label(key, fallback)}</span></button>`;
         const presets = Object.keys(TITLE_PRESETS).map(name => `<button type="button" class="vs-preset vs-preset-${name}" data-action="add-title" data-preset="${name}"><span class="vs-preset-sample" aria-hidden="true">${label('presetSample_' + name, name === 'lower' ? 'Name' : 'Aa')}</span><span class="vs-preset-text"><strong>${label('preset_' + name, name)}</strong><small>${label('presetHint_' + name, '')}</small></span>${icon('plus', 16, 'vs-icon vs-preset-add')}</button>`).join('');
-        const stickers = STICKERS.map(name => `<button type="button" class="vs-sticker" data-sticker="${name}" title="${label('sticker_' + name, name)}"><span class="vs-sticker-art" aria-hidden="true">${stickerSVG(name, 56)}</span><small>${label('sticker_' + name, name)}</small></button>`).join('');
+
         const key = name => tr(s, 'key' + name, name);
         const shortcuts = [
             [[key('Space')], 'shortcutPlay', 'Play / pause'], [['J', 'K', 'L'], 'shortcutShuttle', 'Shuttle back / stop / forward (K + J/L: one frame)'],
@@ -149,7 +150,7 @@
    <div class="vs-media-foot"><span data-asset-count></span><span>${label('dropHint', 'Drop files anywhere to import')}</span></div>
   </div>
   <div class="vs-tab-panel" data-panel="text" role="tabpanel" id="vs-panel-${s.id}-text" aria-labelledby="vs-tab-${s.id}-text" hidden><p class="vs-panel-intro">${label('textIntro', 'Text lands at the playhead on a free overlay track. Select it to change words and style.')}</p><div class="vs-preset-list">${presets}</div></div>
-  <div class="vs-tab-panel" data-panel="stickers" role="tabpanel" id="vs-panel-${s.id}-stickers" aria-labelledby="vs-tab-${s.id}-stickers" hidden><p class="vs-panel-intro">${label('stickerHint', 'Add a small original graphic at the playhead.')}</p><div class="vs-sticker-grid">${stickers}</div></div>
+  <div class="vs-tab-panel" data-panel="stickers" role="tabpanel" id="vs-panel-${s.id}-stickers" aria-labelledby="vs-tab-${s.id}-stickers" hidden><p class="vs-panel-intro">${label('stickerHint', 'Add a small original graphic at the playhead.')}</p><div data-sticker-library></div></div>
   <div class="vs-tab-panel vs-ai-panel" data-panel="ai" role="tabpanel" id="vs-panel-${s.id}-ai" aria-labelledby="vs-tab-${s.id}-ai" hidden data-ai-panel></div>
  </aside>
  <main class="vs-center">
@@ -206,6 +207,8 @@
         s.q = selector => host.querySelector(selector);
         s.q('[data-preview-quality]').value = s.previewQuality;
         s.app = s.q('.vs-app');
+        s.stickerPicker = window.AuraStickerLibrary.mount(s.q('[data-sticker-library]'), { t: key => ctx.t(key), onSelect: name => addSticker(s, name) });
+        s.stickerPicker.setDisabled(true);
         const savedHeight = Number(readPref(PREF_TIMELINE));
         if (savedHeight >= 120) s.app.style.setProperty('--vs-timeline-h', savedHeight + 'px');
         s.notice = (key, fallback, error) => showNotice(s, key, fallback, error);
@@ -331,6 +334,7 @@
         s.featureDisabled = !s.status.enabled || !s.status.desktop_enabled;
         s.readonly = !!s.status.read_only || s.featureDisabled;
         s.app.classList.toggle('is-readonly', s.readonly);
+        s.stickerPicker.setDisabled(s.readonly || !s.project);
         renderAIPanel(s);
         if (s.featureDisabled) {
             // Every project endpoint refuses while the feature is off; show the calm empty state, not a load error.

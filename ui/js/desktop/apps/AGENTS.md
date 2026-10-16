@@ -1417,7 +1417,8 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Video Studio contract
 
-- Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
+- Video Studio is a lazy app. Load `desktop-app-video-studio.css` and `desktop-stickers.css`, then
+  `shared/sticker-catalog.js`, `shared/sticker-library.js`,
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-media.js`,
   `video-studio-preview.js`, `video-studio-timeline.js`,
   `video-studio-ruler.js` (in/out shade, marker flags, overview strip),
@@ -1439,7 +1440,7 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (26 scripts, same
+  `-menus.js` (context menus), and `video-studio.js` last (28 scripts, same
   order in `module-loader.js` and both browser fixtures). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
@@ -1978,7 +1979,7 @@ buttons and menu popovers remain excluded from those gestures.
   selections, gradient, airbrush, dodge/burn and blur brush), contextual
   options bar, adjustments, a 29-filter gallery in 4 categories with
   favorites and before/after compare, plus colors, transform, layers (max
-  20), click-to-jump history and AI generate/enhance/remove-bg/upscale
+  20), editable stickers, click-to-jump history and AI generate/enhance/remove-bg/upscale
   panels. Split across `pixel-state.js` (constants, tool SVGs/groups,
   canvas pool, MAX_LAYERS), `pixel-view.js` (rail/panel markup),
   `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
@@ -1986,7 +1987,8 @@ buttons and menu popovers remain excluded from those gestures.
   (tools, selections, floating move, clone-stamp stroke snapshot, layers, history
   panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`
   (filter catalog, gallery, non-destructive preview), `pixel-events.js`
-  (mouse handlers, shortcuts modal, context menu, option wiring) and
+  (mouse handlers, shortcuts modal, context menu, option wiring), `pixel-stickers.js`
+  (shared picker, original-backed affine objects, transform controls and rasterization) and
   `pixel.js` (shell, runtime, event wiring).
 
 ## Ownership
@@ -2487,8 +2489,9 @@ registration lives in `internal/desktop/types.go`.
 - SIP Phone visible UI strings use `desktop.sip_phone_*` keys in all 16
   `ui/lang/sip_phone/*.json` files (identical key sets); the dock/start name
   uses `desktop.app_sip_phone` in `ui/lang/desktop/*.json`.
-- Pixel load order in `module-loader.js` must be: state, view, canvas, tools,
-  actions, filters, events, pixel.js. Modules attach via
+- Pixel loads `shared/sticker-catalog.js` and `shared/sticker-library.js` first,
+  followed by state, view, canvas, tools, actions, filters, events, stickers,
+  and pixel.js. Load `desktop-stickers.css` and `pixel-stickers.css` with `pixel.css`. Modules attach via
   `Pixel.install<Domain>(runtime)` with `bindRuntime` (no eval); shared state
   lives in the getter/setter runtime object created by `pixel.js`.
 - Pixel exposes `window.PixelApp = { render, dispose }`; every window
@@ -2497,15 +2500,36 @@ registration lives in `internal/desktop/types.go`.
 - Pixel layout contract: toolbar + panel tabs on top, contextual options bar
   (`data-options-bar`) below it, tool rail (`data-tool-rail`) left, canvas
   center, panel right. Panel tabs: adjust, filters, colors, transform,
-  layers, history, ai. Tool options render into the options bar via
+  layers, history, ai, stickers. Tool options render into the options bar via
   `renderOptionsBar()`; there is no draw panel tab.
 - Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`) with
   css/pixel/canvas implementations across the categories color/light/style/
   detail; legacy filter IDs stay valid. Selecting a filter previews
   non-destructively (layer snapshot + strength blend); Apply commits to
   history, leaving the filters tab resets the preview.
-- Pixel visible UI strings use `pixel.*` keys in all 16
+- Pixel visible UI strings use `pixel.*` and shared `stickers.*` keys in all 16
   `ui/lang/desktop/*.json` files.
+- The shared sticker catalog contains 100 stable IDs, ten categories and ten styles.
+  Both apps use versioned local 192px thumbnails and 1024px RGBA PNG originals under
+  `ui/img/stickers`; originals load only on insertion. `assets/stickers/production.json`
+  records the individual Imagegen prompts; `node scripts/build-stickers.mjs --check`
+  checks the generated catalog, files and translations. There is no sticker REST API.
+- Video Studio imports originals through the existing project media importer before
+  adding a four-second overlay at the playhead, at 24% of the shorter canvas edge.
+  Recheck project identity/epoch after asynchronous work and keep busy/locked overlay
+  handling. Catalog filenames and the six legacy names remain recognizable artwork.
+- Pixel sticker layers keep an immutable source image and `{id, matrix}` affine metadata.
+  Every transformation redraws the original. History and duplicates preserve metadata;
+  whole-image transforms left-multiply it and also transform raster masks. Pixel edits,
+  filters, adjustments, masks and selection mutations require explicit rasterization.
+  Adjustment snapshots belong to the active raster layer, including after rasterization.
+  Merge/flatten create raster layers; undo restores objects. `renderComposition` is shared
+  by preview, save and export, including visibility, masks, opacity and alpha. Saved files
+  are flat; the live session stays editable. Document revisions and abort controllers fence
+  late insertion; disposal releases listeners, pointer capture and pending loads.
+- Run `scripts/test-desktop-stickers.mjs` with the existing `PLAYWRIGHT_MODULE` /
+  `PLAYWRIGHT_CHANNEL` overrides for browser checks; `TestDesktopStickerAssets` decodes
+  every original and thumbnail, and `TestRenderBundledSticker1080p` performs an FFmpeg export.
 - System World keeps one browser data subscription/polling set across windows.
   Reuse `system_metrics` SSE, with REST bootstrap/fallback; never poll the OS per
   window. Closing the last subscriber aborts requests and removes timers/SSE.
@@ -3520,7 +3544,7 @@ registration lives in `internal/desktop/types.go`.
   revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
-  `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -
+  `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel-stickers.js`, `pixel.js` -
   Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
   with mask selections, gradient, airbrush, dodge/burn, blur brush plus the
   classic set), 21-filter catalog gallery with live thumbnails and strength

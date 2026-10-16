@@ -43,6 +43,7 @@
                 else if (this.activeTool === 'blur-brush') this.blurAt(x, y);
             }),
             onCanvasMouseDown: Pixel.bindRuntime(runtime, function onCanvasMouseDown(e) {
+                if (![null, 'move', 'eyedropper', 'select-rect', 'select-ellipse', 'magic-wand', 'lasso'].includes(this.activeTool) && !this.requireRasterLayer()) return;
                 if (!this.canvas.width || e.button === 1) return;
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
@@ -83,6 +84,7 @@
                 }
 
                 if (this.activeTool === 'move') {
+                    if (this.selection && !this.requireRasterLayer()) return;
                     this.moveLayerStartX = coords.x;
                     this.moveLayerStartY = coords.y;
                     if (this.selection) {
@@ -126,7 +128,7 @@
                         const color = this.activeTool === 'eraser' ? '#000000' : this.primaryColor;
                         this.drawBrushStroke(actx, coords.x, coords.y, coords.x, coords.y, size, opacity, color, op, this.brushHardness);
                     }
-                    if (this.layers.length > 1) this.compositeLayers();
+                    this.compositeLayers();
                     return;
                 }
 
@@ -207,7 +209,7 @@
                         const maskErase = this.editMaskMode && this.activeTool === 'eraser';
                         this.drawBrushStroke(actx, this.lastDrawX, this.lastDrawY, coords.x, coords.y, size, opacity, maskErase ? '#000000' : color, maskErase ? 'source-over' : op, this.brushHardness);
                     }
-                    if (this.layers.length > 1) this.compositeLayers();
+                    this.compositeLayers();
                     this.lastDrawX = coords.x;
                     this.lastDrawY = coords.y;
                     return;

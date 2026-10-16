@@ -3,7 +3,8 @@
 AuraGo's backend is a portable executable. The complete browser interface is a
 separate, platform-independent resource set served locally by that executable.
 Chat, Config, Desktop, animated personas, speech WASM/ONNX, NassCAD, desktop pets
-and Game Maker runtime/art resources are in this set. Browser URLs remain on the
+and Game Maker runtime/art resources are in this set, together with the shared
+100-sticker library for Video Studio and Pixel. Browser URLs remain on the
 AuraGo origin; there is no new browser CDN dependency.
 
 Only a small recovery/login page, prompts, model catalog, setup defaults and
@@ -48,6 +49,10 @@ archive SHA-256 and compressed byte length. Use `-release v...` on the packer
 to pin its immutable GitHub release download URL. `make_release.bat` does this
 with its selected tag; `make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
+
+The compressed archive limit is 640 MiB; the expanded set remains limited to
+1 GiB and 20,000 files. The updater installs resources with the staged candidate
+binary, so it applies the matching version's limits before activation.
 
 The release builders require a clean worktree so the binary identity matches
 the reviewed commit. A local `make_deploy.sh` diagnostic build from modified

@@ -52,7 +52,8 @@
     function assetDisplayName(s, asset) {
         const name = String(asset && asset.name || '');
         if (!window.VideoStudioMedia.isArtwork(asset)) return name;
-        const sticker = /^sticker-([a-z]+)\.png$/i.exec(name);
+        const sticker = /^sticker-([a-z-]+)\.png$/i.exec(name);
+        if (sticker && window.AuraStickerLibrary?.byId.has(sticker[1].toLowerCase())) return s.ctx.t('stickers.name.' + sticker[1].toLowerCase());
         if (sticker) return tr(s, 'sticker_' + sticker[1].toLowerCase(), sticker[1]);
         if (/^title-[\w.-]+\.png$/i.test(name)) return tr(s, 'preset_title', 'Title');
         return name;
