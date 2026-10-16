@@ -191,6 +191,92 @@ func TestDecisionsProviderConfigBrowser(t *testing.T) {
 	}
 }
 
+func TestDecisionsLifecycleFeedbackBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview").Timeout(60 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1440, 900, 1, false)
+	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`()=>{
+		window.decisionStatus={enabled:true,installed:true,ready:false,state:'installed',deployment:'native'};
+		const previous=window.fetch;
+		window.fetch=async(url,options)=>{
+			if(url==='/api/decisions/status') return new Response(JSON.stringify(decisionStatus));
+			if(url==='/api/decisions/install'||url==='/api/decisions/start') {
+				window.decisionStatus={...decisionStatus,state:url.endsWith('install')?'installing':'starting',code:'',progress:{phase:url.endsWith('install')?'verifying_runtime':'loading_model'}};
+				if(window.holdDecisionStart) return new Promise(resolve=>window.resolveDecisionStart=resolve);
+				return new Response('{"status":"accepted"}',{status:202});
+			}
+			if(url==='/api/decisions/stop') {
+				window.decisionStatus={...decisionStatus,state:'stopped',code:'',ready:false};
+				return new Response('{}');
+			}
+			return previous(url,options);
+		};
+	}`)
+	page.MustElement(`.sidebar-group:has([data-section="decisions"]) .sidebar-group-header`).MustClick()
+	page.MustElement(`[data-section="decisions"]`).MustClick()
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]')?.textContent.includes('Installiert und geprüft')`)
+	page.MustEval(`async()=>{document.querySelector('[data-path="decisions.enabled"]').click();await saveConfig();}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-action="install"]')?.disabled===false`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-settings] a[href*="decisions_runtime/README.md"]')?.textContent.includes('Anleitung') && document.querySelector('[data-decisions-settings]').textContent.includes('nicht gebaut')`).Bool() {
+		t.Fatal("runtime prerequisites are not discoverable before installation")
+	}
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="install"]').click()`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Hintergrund') && document.querySelector('[data-decisions-progress]')?.textContent.includes('Laufzeitdateien')`)
+	page.MustEval(`()=>{decisionStatus.progress={phase:'verifying_model',total_bytes:100,downloaded_bytes:40,percent:40};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-settings] progress')?.value===40 && document.querySelector('[data-decisions-progress]')?.textContent.includes('Modellintegrität')`)
+	// Let the real poll finish the accepted action without re-rendering the section.
+	page.MustEval(`async()=>{decisionStatus={...decisionStatus,state:'installed',progress:null};await new Promise(resolve=>setTimeout(resolve,5500));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Installiert und geprüft') && document.querySelector('[data-decisions-status]')?.textContent.includes('Installiert und geprüft')`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="start"]').disabled===false && document.querySelector('[data-decisions-action="test"]').disabled===true`).Bool() {
+		t.Fatal("installed was confused with ready")
+	}
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="start"]').click()`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-progress]')?.textContent.includes('Modell wird geladen')`)
+	if !page.MustEval(`()=>{const p=document.querySelector('[data-decisions-settings] progress');return !p.hidden && !p.hasAttribute('value') && !document.querySelector('[data-decisions-action="stop"]').disabled;}`).Bool() {
+		t.Fatal("startup without byte progress must be indeterminate and cancellable")
+	}
+	page.MustEval(`()=>{decisionStatus.progress={phase:'warming_up'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-progress]')?.textContent.includes('Erster Lauf')`)
+	for _, width := range []int{390, 1440} {
+		for _, theme := range []string{"standard", "fruity"} {
+			page.MustSetViewport(width, 900, 1, width == 390)
+			page.MustEval(`theme=>{document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;}`, theme)
+			page.MustEval(`()=>document.querySelector('[data-decisions-status]').scrollIntoView({block:'center'})`)
+			page.MustEval(`()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`)
+			if page.MustEval(`()=>document.documentElement.scrollWidth>innerWidth+1 || document.getElementById('content').scrollWidth>document.getElementById('content').clientWidth+1`).Bool() {
+				t.Fatalf("startup feedback overflows at %dpx in %s", width, theme)
+			}
+			if dir := os.Getenv("AURAGO_DECISIONS_SCREENSHOTS"); dir != "" {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("decisions-startup-%d-%s.png", width, theme)))
+			}
+		}
+	}
+	page.MustEval(`()=>{decisionStatus={...decisionStatus,state:'error',code:'runtime_start_timeout'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('fünf Minuten') && document.querySelector('[data-decisions-status]')?.textContent.includes('runtime_start_timeout')`)
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="start"]').click()`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Hintergrund')`)
+	page.MustEval(`()=>{decisionStatus={...decisionStatus,state:'ready',ready:true};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-action="test"]')?.disabled===false && document.querySelector('[data-decisions-result]')?.textContent===document.querySelector('[data-decisions-status]')?.textContent`)
+	// Stop also interrupts the initial POST, and a late 202 cannot revive it.
+	page.MustEval(`()=>{window.holdDecisionStart=true;document.querySelector('[data-decisions-action="start"]').click();}`)
+	waitForJSBool(t, page, `()=>typeof resolveDecisionStart==='function'`)
+	if page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').disabled`).Bool() {
+		t.Fatal("Stop disabled during startup POST")
+	}
+	page.MustEval(`()=>document.querySelector('[data-decisions-action="stop"]').click()`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Gestoppt')`)
+	page.MustEval(`async()=>{resolveDecisionStart(new Response('{"status":"accepted"}',{status:202}));await new Promise(r=>setTimeout(r,0));}`)
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-result]').textContent.includes('Gestoppt')`).Bool() {
+		t.Fatal("late startup response replaced Stop")
+	}
+}
+
 func TestDecisionsConfigBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	browser := newSmokeBrowser(t)
@@ -258,7 +344,7 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 		t.Fatal("late test response changed or unlocked a pending Stop")
 	}
 	page.MustEval(`()=>{window.holdDecisionStop=false;resolveDecisionStop(new Response('{}'));}`)
-	waitForJSBool(t, page, `()=>!document.querySelector('[data-decisions-action="stop"]').disabled && document.querySelector('[data-decisions-result]')?.textContent===''`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-decisions-action="stop"]').disabled && document.querySelector('[data-decisions-result]')?.textContent.includes('Gestoppt')`)
 	if page.MustEval(`()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Entscheidungstest abgeschlossen')`).Bool() {
 		t.Fatal("late test response overwrote the completed Stop result")
 	}
