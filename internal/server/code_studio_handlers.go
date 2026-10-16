@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"aurago/internal/desktop"
 	"aurago/internal/tools"
@@ -91,6 +92,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/diff", handlers.handleGitDiff)
 	mux.HandleFunc("/api/code-studio/git/commit", handlers.handleGitCommit)
 	mux.HandleFunc("/api/code-studio/git/branch", handlers.handleGitBranch)
+	mux.HandleFunc("/api/code-studio/git/identity", handlers.handleGitIdentity)
 	mux.HandleFunc("/api/code-studio/git/log", handlers.handleGitLog)
 }
 
@@ -680,105 +682,291 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var body struct {
-		Message string `json:"message"`
-		AddAll  bool   `json:"add_all"`
+		Message string   `json:"message"`
+		AddAll  bool     `json:"add_all"`
+		Paths   []string `json:"paths"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 	message := strings.TrimSpace(body.Message)
-	if message == "" {
+	if message == "" || strings.ContainsRune(message, 0) {
 		jsonError(w, "commit message is required", http.StatusBadRequest)
 		return
+	}
+	rels := []string{}
+	if !body.AddAll {
+		for _, raw := range body.Paths {
+			rel, err := codeStudioGitAddPath(raw)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			rels = append(rels, rel)
+		}
 	}
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	safeMsg := strings.ReplaceAll(message, "'", "'\\''")
-	cmd := "cd /workspace && "
 	if body.AddAll {
-		cmd += "git add -A && "
+		result, err := h.execGit(r.Context(), containerID, 30*time.Second, "add", "-A")
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if result.ExitCode != 0 {
+			jsonError(w, codeStudioGitExecError(result.Output, "git add failed"), http.StatusBadRequest)
+			return
+		}
+	} else {
+		for _, rel := range rels {
+			result, err := h.execGit(r.Context(), containerID, 30*time.Second, "add", "--", rel)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			if result.ExitCode != 0 {
+				jsonError(w, codeStudioGitExecError(result.Output, "git add failed"), http.StatusBadRequest)
+				return
+			}
+		}
 	}
-	cmd += "git commit -m '" + safeMsg + "'"
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 30*time.Second)
+	result, err := h.execGit(r.Context(), containerID, 30*time.Second, "commit", "-m", message)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	if result.ExitCode != 0 {
-		errMsg := strings.TrimSpace(result.Output)
-		if errMsg == "" {
-			errMsg = "commit failed"
+		if codeStudioGitIdentityMissing(result.Output) {
+			jsonError(w, "git_identity_required", http.StatusConflict)
+			return
 		}
-		jsonError(w, errMsg, http.StatusBadRequest)
+		jsonError(w, codeStudioGitExecError(result.Output, "commit failed"), http.StatusBadRequest)
 		return
 	}
-	hashResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git rev-parse --short HEAD"}, 5*time.Second)
+	hashResult, _ := h.execGit(r.Context(), containerID, 5*time.Second, "rev-parse", "--short", "HEAD")
 	writeJSON(w, map[string]interface{}{"status": "ok", "hash": strings.TrimSpace(hashResult.Output)})
 }
 
 func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Request) {
-	if !h.requirePermission(w, r, desktopScopeRead) {
-		return
-	}
-	if r.Method != http.MethodGet {
-		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	name := strings.TrimSpace(r.URL.Query().Get("name"))
-	action := strings.TrimSpace(r.URL.Query().Get("action"))
-	mutating := name != "" && (action == "create" || action == "switch")
-	if mutating {
+	switch r.Method {
+	case http.MethodGet:
+		action := strings.TrimSpace(r.URL.Query().Get("action"))
+		if action == "create" || action == "switch" {
+			jsonError(w, "use POST", http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requirePermission(w, r, desktopScopeRead) {
+			return
+		}
+		h.listGitBranches(w, r)
+	case http.MethodPost:
 		if !h.requirePermission(w, r, desktopScopeWrite) {
 			return
 		}
 		if h.rejectReadOnly(w) {
 			return
 		}
+		h.mutateGitBranch(w, r)
+	default:
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
 
+func (h codeStudioHandlers) listGitBranches(w http.ResponseWriter, r *http.Request) {
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-
-	if mutating {
-		safeName := strings.ReplaceAll(name, "'", "'\\''")
-		cmd := "cd /workspace && git checkout "
-		if action == "create" {
-			cmd += "-b "
-		}
-		cmd += "'" + safeName + "'"
-		result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 15*time.Second)
-		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		if result.ExitCode != 0 {
-			jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-			return
-		}
-	}
-
 	listResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch -a"}, 10*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	currentResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch --show-current"}, 5*time.Second)
-
-	branches := parseGitBranches(listResult.Output)
-	current := strings.TrimSpace(currentResult.Output)
-
 	writeJSON(w, map[string]interface{}{
 		"status":   "ok",
-		"branches": branches,
-		"current":  current,
+		"branches": parseGitBranches(listResult.Output),
+		"current":  strings.TrimSpace(currentResult.Output),
 	})
+}
+
+func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Action string `json:"action"`
+		Name   string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	action := strings.TrimSpace(body.Action)
+	if action != "create" && action != "switch" {
+		jsonError(w, "action must be create or switch", http.StatusBadRequest)
+		return
+	}
+	name, err := sanitizeGitRef(body.Name)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	args := []string{"checkout"}
+	if action == "create" {
+		args = append(args, "-b")
+	}
+	args = append(args, name)
+	result, err := h.execGit(r.Context(), containerID, 15*time.Second, args...)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if result.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(result.Output, "git checkout failed"), http.StatusBadRequest)
+		return
+	}
+	h.listGitBranches(w, r)
+}
+
+func (h codeStudioHandlers) handleGitIdentity(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	name, err := sanitizeGitIdentity(body.Name)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	email, err := sanitizeGitIdentity(body.Email)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	for _, args := range [][]string{
+		{"config", "--local", "user.name", name},
+		{"config", "--local", "user.email", email},
+	} {
+		result, err := h.execGit(r.Context(), containerID, 10*time.Second, args...)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if result.ExitCode != 0 {
+			jsonError(w, codeStudioGitExecError(result.Output, "git config failed"), http.StatusBadRequest)
+			return
+		}
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok"})
+}
+
+func (h codeStudioHandlers) execGit(ctx context.Context, containerID string, timeout time.Duration, args ...string) (codeStudioExecResult, error) {
+	cmd := make([]string, 0, len(args)+3)
+	cmd = append(cmd, "git", "-C", codeStudioWorkspaceRoot)
+	cmd = append(cmd, args...)
+	return h.docker.Exec(ctx, containerID, cmd, timeout)
+}
+
+func codeStudioGitAddPath(raw string) (string, error) {
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	if raw == "" {
+		return "", fmt.Errorf("code studio path is empty")
+	}
+	if !strings.HasPrefix(raw, "/") {
+		raw = codeStudioWorkspaceRoot + "/" + strings.TrimPrefix(raw, "./")
+	}
+	cleaned, err := sanitizeCodeStudioPath(raw)
+	if err != nil {
+		return "", err
+	}
+	if cleaned == codeStudioWorkspaceRoot {
+		return "", fmt.Errorf("code studio path must name a file")
+	}
+	return strings.TrimPrefix(cleaned, codeStudioWorkspaceRoot+"/"), nil
+}
+
+func sanitizeGitRef(raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	if name == "" || len([]rune(name)) > 200 || strings.HasPrefix(name, "-") {
+		return "", fmt.Errorf("invalid git ref")
+	}
+	if strings.Contains(name, "..") || strings.Contains(name, "@{") || strings.Contains(name, "//") {
+		return "", fmt.Errorf("invalid git ref")
+	}
+	if strings.HasSuffix(name, "/") || strings.HasSuffix(name, ".") || strings.HasSuffix(name, ".lock") {
+		return "", fmt.Errorf("invalid git ref")
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid git ref")
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			continue
+		}
+		switch r {
+		case '/', '-', '_', '.':
+			continue
+		default:
+			return "", fmt.Errorf("invalid git ref")
+		}
+	}
+	return name, nil
+}
+
+func sanitizeGitIdentity(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" || len([]rune(value)) > 200 || strings.HasPrefix(value, "-") {
+		return "", fmt.Errorf("invalid git identity")
+	}
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid git identity")
+		}
+	}
+	return value, nil
+}
+
+func codeStudioGitIdentityMissing(output string) bool {
+	text := strings.ToLower(output)
+	return strings.Contains(text, "please tell me who you are") ||
+		strings.Contains(text, "author identity unknown") ||
+		strings.Contains(text, "unable to auto-detect email") ||
+		strings.Contains(text, "empty ident name")
+}
+
+func codeStudioGitExecError(output, fallback string) string {
+	errMsg := strings.TrimSpace(output)
+	if errMsg == "" {
+		return fallback
+	}
+	return errMsg
 }
 
 func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request) {
@@ -836,7 +1024,11 @@ func parseGitPorcelain(output string) []map[string]string {
 		if statusCode != "??" {
 			status = string(statusCode[0])
 		}
-		changes = append(changes, map[string]string{"path": path, "status": status})
+		staged := "false"
+		if line[0] != ' ' && line[0] != '?' {
+			staged = "true"
+		}
+		changes = append(changes, map[string]string{"path": path, "status": status, "staged": staged})
 	}
 	return changes
 }

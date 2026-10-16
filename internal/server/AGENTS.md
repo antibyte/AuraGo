@@ -161,9 +161,9 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Code Studio
 
-- Managed terminal, Run and Git shell commands retain the container image's
-  environment with `sh -c`; login profiles must not hide installed toolchains.
-  Explicit exec argument arrays stay unchanged. Verify
+- Managed terminal, Run, and Git status, diff and log retain the container
+  image's environment with `sh -c`; login profiles must not hide installed
+  toolchains. Explicit exec argument arrays stay unchanged. Verify
   `TestNormalizeCodeStudioExecCommandPreservesEnvironment` and the terminal tests.
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a
   single generated regular staging file through the Docker archive API. Never
@@ -205,9 +205,20 @@ Server-owned HTTP and cross-component integration contracts.
   shell commands do not persist cwd. Stop on cancellation or socket failure.
   Verify `TestCodeStudioTerminal*` including the WebSocket test.
 - Git status uses porcelain v1 with NUL-delimited records, including the second
-  rename/copy path. Preserve filename bytes through diff requests. Search uses
+  rename/copy path. Each change reports `staged` from the index column.
+  Preserve filename bytes through diff requests. Search uses
   an explicit grep pattern operand (`-e`) and option terminator (`--`). Verify
   `TestCodeStudioGitPorcelain*` and `TestCodeStudioSearchLeadingDash*`.
+- Git branch changes are POST. GET lists branches and returns 405 when
+  `action` is `create` or `switch`. POST runs `git checkout` or
+  `git checkout -b` with the sanitized name as its own argument. Commit stages
+  only the given paths with `git add --`, unless `add_all` is true. A commit
+  with neither stages only the index. The message is a `git commit -m`
+  argument. Missing name or email returns 409 `git_identity_required`.
+  Identity writes only `git config --local user.name` and `user.email`.
+  Verify `TestCodeStudioGitBranchGetDoesNotMutate`,
+  `TestCodeStudioGitCommitStagesOnlyGivenPaths` and
+  `TestCodeStudioGitIdentityIsLocal`.
 
 ### Game Maker Voxel persistence
 

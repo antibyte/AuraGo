@@ -52,6 +52,11 @@
             gitBranch: '',
             gitChanges: [],
             gitLog: [],
+            gitSelected: new Set(),
+            gitCommitMessage: '',
+            gitIdentityPrompt: false,
+            gitIdentityName: '',
+            gitIdentityEmail: '',
             splitMode: null,
             splitRatio: 0.5,
             selectedDir: WORKSPACE_ROOT,
@@ -326,11 +331,23 @@
         }),
         gitStatus: () => api('/api/code-studio/git/status'),
         gitDiff: (file, staged) => api('/api/code-studio/git/diff?file=' + encodeURIComponent(file || '') + '&staged=' + (staged ? 'true' : 'false')),
-        gitCommit: (message, addAll) => api('/api/code-studio/git/commit', {
+        gitCommit: (message, paths) => api('/api/code-studio/git/commit', {
             method: 'POST',
-            body: JSON.stringify({ message, add_all: addAll })
+            body: JSON.stringify({ message, add_all: false, paths: paths || [] })
         }),
-        gitBranch: (name, action) => api('/api/code-studio/git/branch?' + new URLSearchParams({ name: name || '', action: action || 'list' })),
+        gitIdentity: (name, email) => api('/api/code-studio/git/identity', {
+            method: 'POST',
+            body: JSON.stringify({ name, email })
+        }),
+        gitBranch: (name, action) => {
+            if (action === 'create' || action === 'switch') {
+                return api('/api/code-studio/git/branch', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, action })
+                });
+            }
+            return api('/api/code-studio/git/branch');
+        },
         gitLog: (path, count) => api('/api/code-studio/git/log?' + new URLSearchParams({ path: path || '', count: String(count || 20) })),
         agentStream: (message, context) => api('/api/code-studio/agent/stream?' + new URLSearchParams({ message, context: JSON.stringify(context || {}) }))
     };

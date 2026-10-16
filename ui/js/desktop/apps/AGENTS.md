@@ -2429,6 +2429,11 @@ registration lives in `internal/desktop/types.go`.
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
+  The panel checkboxes start unchecked and the commit sends those paths with
+  `add_all: false`. A commit with no selection and no staged change stays on
+  `codeStudio.commitNeedsSelection`. HTTP 409 `git_identity_required` shows
+  name and email fields and posts `/api/code-studio/git/identity`. Branch
+  create and switch use POST.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
   directory, executes only a successful build and cleans up afterward. Rust
@@ -3360,8 +3365,9 @@ registration lives in `internal/desktop/types.go`.
 - `code-studio/agent.js` - Agent chat panel, SSE streaming, diff preview,
   code actions (explain/comments/tests/refactor), markdown rendering. No child
   DOX file needed.
-- `code-studio/git.js` - Git panel: branch display, change list, diff view,
-  commit dialog, recent log. No child DOX file needed.
+- `code-studio/git.js` - Git panel: branch display, change list with
+  checkboxes, diff view, selected-path commit, local identity fields, recent
+  log. No child DOX file needed.
 - `code-studio/panels.js` - Split editor (right/down) with two synced views of
   the active tab and a resizable divider. No child DOX file needed.
 - `code-studio/shortcuts.js` - Keyboard shortcuts, shortcut overlay, command

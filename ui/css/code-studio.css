@@ -2180,8 +2180,29 @@ button.cs-sidebar-crumb:focus-visible {
     transition: background var(--cs-transition-fast);
 }
 
-.cs-git-change:hover {
+.cs-git-change-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 8px;
+}
+
+.cs-git-change-row:hover {
     background: rgba(255, 255, 255, 0.04);
+}
+
+.cs-git-check {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.cs-git-change-row .cs-git-change {
+    flex: 1;
+    min-width: 0;
+}
+
+.cs-git-change:hover {
+    background: transparent;
 }
 
 .cs-git-status {
@@ -2260,6 +2281,29 @@ button.cs-sidebar-crumb:focus-visible {
     display: flex;
     gap: 6px;
     margin-top: 6px;
+}
+
+.cs-git-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.cs-git-identity p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--cs-muted);
+}
+
+.cs-git-identity input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-input-bg, var(--cs-panel-soft));
+    color: var(--cs-text);
+    font: 12px var(--cs-ui-font);
 }
 
 .cs-git-log {
