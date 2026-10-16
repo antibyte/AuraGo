@@ -681,6 +681,13 @@ func multiTask(first, second fixtureChoice, language string, sequence int) strin
 }
 
 func naturalTaskClause(choice fixtureChoice, language string) string {
+	if choice.Tool.Name == "remember_learning" {
+		args, _ := json.Marshal(choice.Arguments)
+		if language == "de" {
+			return "Speichere diese belegte Erkenntnis mit ihrer Begründung. Der Nutzerbeleg ist meine aktuelle ausdrückliche Entscheidung; Bereich und Aktivierung legt der Server fest: " + string(args)
+		}
+		return "Remember this evidenced insight with its rationale. The user evidence is my current explicit decision; the server determines scope and activation: " + string(args)
+	}
 	if choice.Tool.Name == "correct_memory" {
 		args, _ := json.Marshal(choice.Arguments)
 		if language == "de" {
