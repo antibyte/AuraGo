@@ -1,9 +1,11 @@
 package decisions
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -83,5 +85,32 @@ func TestProvisionNativeRuntimeDoesNotInventMissingArtifacts(t *testing.T) {
 	err := provisionNativeRuntime(t.Context(), t.TempDir(), t.TempDir())
 	if ErrorCode(err) != CodeRuntimeArtifactMissing {
 		t.Fatalf("missing local bundle error = %v", err)
+	}
+}
+
+func TestCopyAtomicCancelledPublicationPreservesRuntime(t *testing.T) {
+	root := t.TempDir()
+	source, destination := filepath.Join(root, "source"), filepath.Join(root, "runtime")
+	for path, value := range map[string]string{source: "new", destination: "old"} {
+		if err := os.WriteFile(path, []byte(value), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := copyAtomic(ctx, source, destination); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation lost: %v", err)
+	}
+	if got, err := os.ReadFile(destination); err != nil || string(got) != "old" {
+		t.Fatalf("original lost: %q, %v", got, err)
+	}
+	if _, err := os.Stat(destination + ".tmp"); !os.IsNotExist(err) {
+		t.Fatalf("temporary file retained: %v", err)
+	}
+	if err := copyAtomic(t.Context(), source, destination); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(destination); err != nil || string(got) != "new" {
+		t.Fatalf("replacement failed: %q, %v", got, err)
 	}
 }

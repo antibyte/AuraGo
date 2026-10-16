@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -93,5 +94,70 @@ func TestContentRangeStartRejectsMalformedValues(t *testing.T) {
 		if _, err := contentRangeStart(value); err == nil {
 			t.Fatalf("contentRangeStart(%q) succeeded", value)
 		}
+	}
+}
+
+func TestPublishArtifactPreservesDestinationOnFailure(t *testing.T) {
+	for _, mode := range []string{"missing_source", "cancelled", "directory", "success"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			part, destination := filepath.Join(root, "model.part"), filepath.Join(root, "model")
+			original := destination
+			if mode == "directory" {
+				if err := os.Mkdir(destination, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				original = filepath.Join(destination, "retained")
+			}
+			if err := os.WriteFile(original, []byte("old"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if mode != "missing_source" {
+				if err := os.WriteFile(part, []byte("new"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if mode == "cancelled" {
+				cancel()
+			}
+			err := publishArtifact(ctx, part, destination)
+			if (err == nil) != (mode == "success") {
+				t.Fatalf("publication: %v", err)
+			}
+			if mode == "cancelled" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancellation lost: %v", err)
+			}
+			want := "old"
+			if mode == "success" {
+				want = "new"
+			}
+			if got, err := os.ReadFile(original); err != nil || string(got) != want {
+				t.Fatalf("target = %q, %v", got, err)
+			}
+			if mode == "cancelled" || mode == "directory" {
+				if got, err := os.ReadFile(part); err != nil || string(got) != "new" {
+					t.Fatalf("partial lost: %q, %v", got, err)
+				}
+			}
+		})
+	}
+}
+
+func TestFailedModelRepairPreservesExistingFile(t *testing.T) {
+	root := t.TempDir()
+	artifact := Artifact{Name: "model", Filename: "model.gguf", Size: 3, SHA256: strings.Repeat("0", 64)}
+	destination := filepath.Join(root, artifact.Filename)
+	if err := os.WriteFile(destination, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") })}
+	cache := newArtifactCache(root, client, nil)
+	if _, err := cache.ensureFile(t.Context(), Manifest{}, artifact, "downloading_model"); err == nil {
+		t.Fatal("offline repair succeeded")
+	}
+	if got, err := os.ReadFile(destination); err != nil || string(got) != "old" {
+		t.Fatalf("original lost: %q, %v", got, err)
 	}
 }

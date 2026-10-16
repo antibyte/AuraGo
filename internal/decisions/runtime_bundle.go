@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 )
 
 const runtimeManifestSchema = "aurago.decisions.runtime-manifest.v1"
@@ -171,7 +172,7 @@ func provisionNativeRuntime(ctx context.Context, sourceRoot, dataRoot string) er
 		}
 		found = true
 		destinationDir := filepath.Join(dataRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
-		if err := copyVerifiedRuntimeBundle(sourceDir, destinationDir); err != nil {
+		if err := copyVerifiedRuntimeBundle(ctx, sourceDir, destinationDir); err != nil {
 			return err
 		}
 	}
@@ -181,14 +182,14 @@ func provisionNativeRuntime(ctx context.Context, sourceRoot, dataRoot string) er
 	return nil
 }
 
-func copyVerifiedRuntimeBundle(sourceDir, destinationDir string) error {
+func copyVerifiedRuntimeBundle(ctx context.Context, sourceDir, destinationDir string) error {
 	if err := os.MkdirAll(destinationDir, 0o700); err != nil {
 		return err
 	}
 	for _, name := range []string{executableName(runtime.GOOS), "release-manifest.json"} {
 		source := filepath.Join(sourceDir, name)
 		destination := filepath.Join(destinationDir, name)
-		if err := copyAtomic(source, destination); err != nil {
+		if err := copyAtomic(ctx, source, destination); err != nil {
 			return err
 		}
 	}
@@ -198,7 +199,7 @@ func copyVerifiedRuntimeBundle(sourceDir, destinationDir string) error {
 	return nil
 }
 
-func copyAtomic(source, destination string) error {
+func copyAtomic(ctx context.Context, source, destination string) error {
 	input, err := os.Open(source)
 	if err != nil {
 		return err
@@ -225,7 +226,7 @@ func copyAtomic(source, destination string) error {
 		_ = os.Remove(temporary)
 		return copyErr
 	}
-	if err := os.Rename(temporary, destination); err != nil {
+	if err := fileutil.RenameContext(ctx, temporary, destination); err != nil {
 		_ = os.Remove(temporary)
 		return err
 	}

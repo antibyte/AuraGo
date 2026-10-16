@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/fileutil"
+
 	"github.com/gofrs/flock"
 )
 
@@ -109,9 +111,6 @@ func (cache *artifactCache) ensureFile(ctx context.Context, manifest Manifest, a
 		if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
 			return "", WrapError(CodeModelInstallFailed, statErr)
 		}
-		if err := os.Remove(destination); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return "", WrapError(CodeModelInstallFailed, err)
-		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", WrapError(CodeModelInstallFailed, err)
 	}
@@ -175,7 +174,10 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 			}
 		} else if info.Size() == artifact.Size {
 			if err := verifyArtifactFile(partPath, artifact); err == nil {
-				return publishArtifact(partPath, destination)
+				if err := publishArtifact(ctx, partPath, destination); err != nil {
+					return WrapError(CodeModelInstallFailed, err)
+				}
+				return nil
 			} else if !errors.Is(err, errArtifactIntegrity) {
 				return WrapError(CodeModelInstallFailed, err)
 			}
@@ -272,7 +274,7 @@ func (cache *artifactCache) download(ctx context.Context, manifest Manifest, art
 			_ = os.Remove(partPath)
 			return WrapError(CodeModelIntegrityFailed, err)
 		}
-		if err := publishArtifact(partPath, destination); err != nil {
+		if err := publishArtifact(ctx, partPath, destination); err != nil {
 			return WrapError(CodeModelInstallFailed, err)
 		}
 		return nil
@@ -326,16 +328,13 @@ func contentRangeStart(value string) (int64, error) {
 	return strconv.ParseInt(startEnd[0], 10, 64)
 }
 
-func publishArtifact(partPath, destination string) error {
+func publishArtifact(ctx context.Context, partPath, destination string) error {
 	if info, err := os.Lstat(destination); err == nil {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("managed artifact destination is not a regular file")
 		}
-		if err := os.Remove(destination); err != nil {
-			return err
-		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.Rename(partPath, destination)
+	return fileutil.RenameContext(ctx, partPath, destination)
 }
