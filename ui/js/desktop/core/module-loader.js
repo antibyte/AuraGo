@@ -435,6 +435,10 @@
             styles: appStyles('/css/desktop-app-newspaper.css'),
             scripts: ['/js/desktop/apps/newspaper.js']
         },
+        'mailer': {
+            styles: appStyles('/css/desktop-app-mailer.css'),
+            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
+        },
         'local-wikipedia': {
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
             scripts: ['/js/desktop/apps/local-wikipedia-views.js', '/js/desktop/apps/local-wikipedia.js']
@@ -586,6 +590,7 @@
         'sip-phone': ['sip_phone'],
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
+        'mailer': ['mailer'],
         'personal-radio': ['personalRadio'],
         'layerling': ['layerling'],
         'synth-studio': ['synthStudio'],

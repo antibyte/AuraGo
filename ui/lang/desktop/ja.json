@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "GoogleドキュメントID",
   "desktop.gog.parent": "保存先フォルダID（root = マイドライブ）",
   "desktop.detective_provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません",
-  "game_maker.provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません"
+  "game_maker.provider_unavailable": "Decisions 専用プロファイル — ここでは使用できません",
+  "desktop.app_mailer": "Mailer"
 }

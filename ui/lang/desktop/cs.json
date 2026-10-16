@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "ID dokumentu Google",
   "desktop.gog.parent": "ID cílové složky (root = Můj disk)",
   "desktop.detective_provider_unavailable": "Profil pouze pro Decisions — zde nedostupný",
-  "game_maker.provider_unavailable": "Profil pouze pro Decisions — zde nedostupný"
+  "game_maker.provider_unavailable": "Profil pouze pro Decisions — zde nedostupný",
+  "desktop.app_mailer": "Mailer"
 }

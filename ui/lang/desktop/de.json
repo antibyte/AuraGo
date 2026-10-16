@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google-Dokument-ID",
   "desktop.gog.parent": "Zielordner-ID (root = Meine Ablage)",
   "desktop.detective_provider_unavailable": "Nur für Decisions — hier nicht verfügbar",
-  "game_maker.provider_unavailable": "Nur für Decisions — hier nicht verfügbar"
+  "game_maker.provider_unavailable": "Nur für Decisions — hier nicht verfügbar",
+  "desktop.app_mailer": "Mailer"
 }

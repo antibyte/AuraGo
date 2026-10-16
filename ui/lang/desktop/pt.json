@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "ID do documento Google",
   "desktop.gog.parent": "ID da pasta de destino (root = O meu disco)",
   "desktop.detective_provider_unavailable": "Perfil exclusivo de Decisions — indisponível aqui",
-  "game_maker.provider_unavailable": "Perfil exclusivo de Decisions — indisponível aqui"
+  "game_maker.provider_unavailable": "Perfil exclusivo de Decisions — indisponível aqui",
+  "desktop.app_mailer": "Mailer"
 }

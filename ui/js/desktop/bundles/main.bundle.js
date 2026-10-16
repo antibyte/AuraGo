@@ -17935,6 +17935,19 @@ if (appId === 'pixel') {
             }
             if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'mailer') {
+            if (!window.MailerApp) {
+                window.AuraDesktopModules.loadAppScript('mailer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.MailerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
+                registerWindowCleanup,
+                providers: (state.bootstrap || {}).providers || [],
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                closeWindow
+            }), context || {});
+        }
         if (appId === 'detective') {
             if (!window.DetectiveApp) {
                 window.AuraDesktopModules.loadAppScript('detective').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

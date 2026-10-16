@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google दस्तावेज़ ID",
   "desktop.gog.parent": "गंतव्य फ़ोल्डर ID (root = मेरी ड्राइव)",
   "desktop.detective_provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं",
-  "game_maker.provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं"
+  "game_maker.provider_unavailable": "केवल Decisions के लिए प्रोफ़ाइल — यहाँ उपलब्ध नहीं",
+  "desktop.app_mailer": "Mailer"
 }

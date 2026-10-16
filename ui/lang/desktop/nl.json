@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google-document-ID",
   "desktop.gog.parent": "Doelmap-ID (root = Mijn Drive)",
   "desktop.detective_provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar",
-  "game_maker.provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar"
+  "game_maker.provider_unavailable": "Alleen voor Decisions — hier niet beschikbaar",
+  "desktop.app_mailer": "Mailer"
 }

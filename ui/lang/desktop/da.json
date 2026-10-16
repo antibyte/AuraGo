@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google-dokument-ID",
   "desktop.gog.parent": "Målmappens ID (root = Mit drev)",
   "desktop.detective_provider_unavailable": "Kun til Decisions — ikke tilgængelig her",
-  "game_maker.provider_unavailable": "Kun til Decisions — ikke tilgængelig her"
+  "game_maker.provider_unavailable": "Kun til Decisions — ikke tilgængelig her",
+  "desktop.app_mailer": "Mailer"
 }

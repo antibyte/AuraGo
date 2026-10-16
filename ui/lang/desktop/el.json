@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "ID εγγράφου Google",
   "desktop.gog.parent": "ID φακέλου προορισμού (root = Το Drive μου)",
   "desktop.detective_provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ",
-  "game_maker.provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ"
+  "game_maker.provider_unavailable": "Μόνο για το Decisions — μη διαθέσιμο εδώ",
+  "desktop.app_mailer": "Mailer"
 }

@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google document ID",
   "desktop.gog.parent": "Destination folder ID (root = My Drive)",
   "desktop.detective_provider_unavailable": "Decisions-only profile — unavailable here",
-  "game_maker.provider_unavailable": "Decisions-only profile — unavailable here"
+  "game_maker.provider_unavailable": "Decisions-only profile — unavailable here",
+  "desktop.app_mailer": "Mailer"
 }

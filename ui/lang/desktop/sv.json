@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google-dokument-ID",
   "desktop.gog.parent": "Målmappens ID (root = Min enhet)",
   "desktop.detective_provider_unavailable": "Endast för Decisions – inte tillgänglig här",
-  "game_maker.provider_unavailable": "Endast för Decisions – inte tillgänglig här"
+  "game_maker.provider_unavailable": "Endast för Decisions – inte tillgänglig här",
+  "desktop.app_mailer": "Mailer"
 }

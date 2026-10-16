@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Google文档ID",
   "desktop.gog.parent": "目标文件夹ID（root = 我的云端硬盘）",
   "desktop.detective_provider_unavailable": "仅限 Decisions 的配置 — 此处不可用",
-  "game_maker.provider_unavailable": "仅限 Decisions 的配置 — 此处不可用"
+  "game_maker.provider_unavailable": "仅限 Decisions 的配置 — 此处不可用",
+  "desktop.app_mailer": "Mailer"
 }

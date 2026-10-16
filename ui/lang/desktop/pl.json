@@ -6327,5 +6327,6 @@
   "desktop.gog.resource_id": "Identyfikator dokumentu Google",
   "desktop.gog.parent": "Identyfikator folderu docelowego (root = Mój dysk)",
   "desktop.detective_provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj",
-  "game_maker.provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj"
+  "game_maker.provider_unavailable": "Profil tylko dla Decisions — niedostępny tutaj",
+  "desktop.app_mailer": "Mailer"
 }
