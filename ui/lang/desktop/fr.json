@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Enregistrer les métadonnées de la source",
   "desktop.infra_remove_node": "Retirer d’Infra",
   "desktop.infra_discard": "Abandonner",
+  "desktop.infra_unsaved_close": "Fermer Infra et abandonner les modifications non enregistrées ?",
   "desktop.infra_saving": "Enregistrement…",
   "desktop.infra_read_only": "Accès en lecture seule",
   "desktop.infra_relations": "Relations",

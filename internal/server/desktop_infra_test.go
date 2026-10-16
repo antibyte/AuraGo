@@ -123,6 +123,7 @@ func TestDesktopInfraRegistryProjectionOmitsCredentialReferences(t *testing.T) {
 func TestDesktopInfraDockerActionPersistsUncertainOutcomeWithoutRetry(t *testing.T) {
 	var reads, writes int
 	cfg := &config.Config{}
+	configureDesktopInfraTestWrite(cfg)
 	cfg.Docker.Enabled = true
 	cfg.Docker.Host = "mock://docker"
 	runtime := &desktopInfraRuntime{dockerRequest: func(_ context.Context, _ tools.DockerConfig, method, endpoint, _ string) ([]byte, int, error) {
@@ -139,7 +140,7 @@ func TestDesktopInfraDockerActionPersistsUncertainOutcomeWithoutRetry(t *testing
 	}}
 	source := infra.Source{SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: desktopInfraDockerInstance(cfg), Key: "deadbeef"}}
 	request := desktopInfraActionRequest{Action: "restart", RequestID: "action-1", Confirmed: true}
-	response := desktopInfraRunAction(context.Background(), nil, cfg, runtime, source, request)
+	response := desktopInfraRunAction(context.Background(), nil, cfg, nil, runtime, "", source, request)
 	if response.Status != infra.ActionUnknown || reads != 1 || writes != 1 {
 		t.Fatalf("uncertain action = %+v, inspect requests=%d, mutation requests=%d", response, reads, writes)
 	}
@@ -164,6 +165,7 @@ func TestDesktopInfraDockerActionCompletesOnlyAfterStateReadback(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &config.Config{}
+			configureDesktopInfraTestWrite(cfg)
 			cfg.Docker.Enabled = true
 			cfg.Docker.Host = "mock://docker"
 			reads, writes := 0, 0
@@ -190,7 +192,7 @@ func TestDesktopInfraDockerActionCompletesOnlyAfterStateReadback(t *testing.T) {
 				}
 			}}
 			source := infra.Source{SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: desktopInfraDockerInstance(cfg), Key: "deadbeef"}}
-			response := desktopInfraRunAction(context.Background(), nil, cfg, runtime, source,
+			response := desktopInfraRunAction(context.Background(), nil, cfg, nil, runtime, "", source,
 				desktopInfraActionRequest{Action: tc.action, RequestID: "action-readback", Confirmed: true})
 			if response.Status != tc.want || reads != 2 || writes != 1 {
 				t.Fatalf("action = %+v, reads=%d writes=%d, want status=%s", response, reads, writes, tc.want)
@@ -202,6 +204,7 @@ func TestDesktopInfraDockerActionCompletesOnlyAfterStateReadback(t *testing.T) {
 func TestDesktopInfraDockerRenameReportsUnknownAfterTransportFailure(t *testing.T) {
 	var reads, writes int
 	cfg := &config.Config{}
+	configureDesktopInfraTestWrite(cfg)
 	cfg.Docker.Enabled = true
 	cfg.Docker.Host = "mock://docker"
 	runtime := &desktopInfraRuntime{dockerRequest: func(_ context.Context, _ tools.DockerConfig, method, endpoint, _ string) ([]byte, int, error) {
@@ -220,12 +223,19 @@ func TestDesktopInfraDockerRenameReportsUnknownAfterTransportFailure(t *testing.
 	before := desktopInfraDockerInspect{ID: "deadbeef", Name: "/web"}
 	before.Config.Image = "nginx"
 	before.State.Status = "running"
-	result, status, err := desktopInfraWriteSourceEdit(context.Background(), nil, cfg, nil, runtime, source, desktopInfraSourceEditRequest{
+	result, status, err := desktopInfraWriteSourceEdit(context.Background(), nil, cfg, nil, runtime, "", source, desktopInfraSourceEditRequest{
 		Source: "docker", Version: desktopInfraDockerVersion(before), Fields: json.RawMessage(`{"name":"web-new"}`),
 	})
 	if err != nil || status != http.StatusOK || result.Status != infra.ActionUnknown || writes != 1 || reads != 1 {
 		t.Fatalf("rename uncertainty = result=%+v status=%d err=%v reads=%d writes=%d", result, status, err, reads, writes)
 	}
+}
+
+func configureDesktopInfraTestWrite(cfg *config.Config) {
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.Infra.Enabled = true
+	cfg.VirtualDesktop.Infra.AllowControl = true
+	cfg.VirtualDesktop.Infra.AllowSourceEdit = true
 }
 
 func TestDesktopInfraActionPoliciesHonorProviderReadOnlyAndDestructiveGates(t *testing.T) {

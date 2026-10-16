@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Save source metadata",
   "desktop.infra_remove_node": "Remove from Infra",
   "desktop.infra_discard": "Discard",
+  "desktop.infra_unsaved_close": "Zavřít Infra a zahodit neuložené změny?",
   "desktop.infra_saving": "Saving…",
   "desktop.infra_read_only": "Read-only access",
   "desktop.infra_relations": "Relations",

@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "स्रोत मेटाडेटा सहेजें",
   "desktop.infra_remove_node": "Infra से हटाएँ",
   "desktop.infra_discard": "खारिज करें",
+  "desktop.infra_unsaved_close": "Infra बंद करके अपने सहेजे न गए बदलाव छोड़ें?",
   "desktop.infra_saving": "सहेजा जा रहा है…",
   "desktop.infra_read_only": "केवल पढ़ने की पहुँच",
   "desktop.infra_relations": "संबंध",

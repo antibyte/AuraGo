@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Quellmetadaten speichern",
   "desktop.infra_remove_node": "Aus Infra entfernen",
   "desktop.infra_discard": "Verwerfen",
+  "desktop.infra_unsaved_close": "Infra schließen und nicht gespeicherte Änderungen verwerfen?",
   "desktop.infra_saving": "Speichern…",
   "desktop.infra_read_only": "Schreibgeschützter Zugriff",
   "desktop.infra_relations": "Beziehungen",

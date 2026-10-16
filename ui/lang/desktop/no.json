@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Lagre kildemetadata",
   "desktop.infra_remove_node": "Fjern fra Infra",
   "desktop.infra_discard": "Forkast",
+  "desktop.infra_unsaved_close": "Lukke Infra og forkaste ulagrede endringer?",
   "desktop.infra_saving": "Lagrer…",
   "desktop.infra_read_only": "Skrivebeskyttet tilgang",
   "desktop.infra_relations": "Relasjoner",

@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "ソースのメタデータを保存",
   "desktop.infra_remove_node": "Infraから削除",
   "desktop.infra_discard": "破棄",
+  "desktop.infra_unsaved_close": "Infra を閉じて、未保存の変更を破棄しますか？",
   "desktop.infra_saving": "保存中…",
   "desktop.infra_read_only": "読み取り専用アクセス",
   "desktop.infra_relations": "関係",

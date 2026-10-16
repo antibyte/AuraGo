@@ -1097,14 +1097,14 @@
             try { await request(`/edges/${encodeURIComponent(edge.id)}?version=${encodeURIComponent(edge.version)}`, { method: 'DELETE' }); state.edges = state.edges.filter(item => item.id !== edge.id); closeOwnedDialog(dialogOwner); paintAll(); }
             catch (error) { setNotice(messageFor(error), 'error'); }
         }
-        async function confirmAction(title, message, {withOwner = false} = {}) {
+        async function confirmAction(title, message, {withOwner = false, confirmLabel} = {}) {
             const initialOwner = q('[data-dialog]')?.dataset.infraOwner || '';
             if (typeof ctx.showConfirmModal === 'function') {
-                const confirmed = !!(await ctx.showConfirmModal(title, message));
+                const confirmed = !!(await ctx.showConfirmModal(title, message, confirmLabel));
                 return withOwner ? { confirmed, owner: initialOwner } : confirmed;
             }
             return new Promise(resolve => {
-                const dialog = openDialog(title, `<p class="infra-dialog-intro">${esc(message)}</p><div class="infra-form-actions"><button type="button" data-answer="no">${esc(t('desktop.cancel', 'Cancel'))}</button><button type="button" data-answer="yes" class="infra-button-primary">${esc(t('desktop.confirm', 'Confirm'))}</button></div>`, dlg => {
+                const dialog = openDialog(title, `<p class="infra-dialog-intro">${esc(message)}</p><div class="infra-form-actions"><button type="button" data-answer="no">${esc(t('desktop.cancel', 'Cancel'))}</button><button type="button" data-answer="yes" class="infra-button-primary">${esc(confirmLabel || t('desktop.confirm', 'Confirm'))}</button></div>`, dlg => {
                     const owner = dlg.dataset.infraOwner;
                     let done = false;
                     const finish = confirmed => { if (done) return; done = true; resolve(withOwner ? { confirmed, owner } : confirmed); };
@@ -1417,6 +1417,14 @@
         };
         document.addEventListener('aurago:desktop-policy', onPolicy);
         bindEvents();
+        ctx.setWindowBeforeClose?.(windowId, async () => {
+            if (!state.dirty.size && !state.sourceDirty.size && !state.pendingLayout.size && !state.busy.has('layout')) return true;
+            return confirmAction(
+                t('desktop.app_infra', 'Infra'),
+                t('desktop.infra_unsaved_close', 'Close Infra and discard your unsaved changes?'),
+                { confirmLabel: t('desktop.infra_discard', 'Discard') }
+            );
+        });
         syncMenus();
         const observer = typeof IntersectionObserver === 'function' ? intersection : null;
         if (!observer) state.inView = true;
@@ -1428,6 +1436,7 @@
             observer?.disconnect(); windowObserver?.disconnect();
             document.removeEventListener('visibilitychange', visibilityChanged);
             document.removeEventListener('aurago:desktop-policy', onPolicy);
+            ctx.setWindowBeforeClose?.(windowId, null);
             ctx.setWindowMenus?.(windowId, []);
             if (q('[data-dialog]')?.open) q('[data-dialog]').close();
             root.replaceChildren();

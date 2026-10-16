@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Spara källmetadata",
   "desktop.infra_remove_node": "Ta bort från Infra",
   "desktop.infra_discard": "Kassera",
+  "desktop.infra_unsaved_close": "Stäng Infra och kasta bort dina osparade ändringar?",
   "desktop.infra_saving": "Sparar…",
   "desktop.infra_read_only": "Skrivskyddad åtkomst",
   "desktop.infra_relations": "Relationer",

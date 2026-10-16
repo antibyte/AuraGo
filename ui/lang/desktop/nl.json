@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Bronmetadata opslaan",
   "desktop.infra_remove_node": "Verwijderen uit Infra",
   "desktop.infra_discard": "Verwerpen",
+  "desktop.infra_unsaved_close": "Infra sluiten en je niet-opgeslagen wijzigingen verwerpen?",
   "desktop.infra_saving": "Opslaan…",
   "desktop.infra_read_only": "Alleen-lezen toegang",
   "desktop.infra_relations": "Relaties",

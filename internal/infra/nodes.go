@@ -197,18 +197,6 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	if err := updateNodeTx(ctx, tx, node, previous.Version); err != nil {
 		return Node{}, err
 	}
-	if node.RegistryID != "" {
-		if err := syncRegistryDevice(ctx, tx, node); err != nil {
-			return Node{}, err
-		}
-		identity := SourceIdentity{Kind: "registry", Instance: "inventory", Key: node.RegistryID}
-		if err := upsertSourceTx(ctx, tx, identity, node.Name, sourceObservedFromNode(node), SourceCurrent, time.Now().UTC()); err != nil {
-			return Node{}, err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=? WHERE kind=? AND instance=? AND source_key=?`, node.ID, identity.Kind, identity.Instance, identity.Key); err != nil {
-			return Node{}, fmt.Errorf("refresh manual inventory source: %w", err)
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return Node{}, fmt.Errorf("commit infra node update: %w", err)
 	}
@@ -416,30 +404,6 @@ func insertRegistryDevice(ctx context.Context, tx *sql.Tx, registryID string, no
 		node.Profile.IPAddress, node.Profile.Notes, string(tagsJSON), node.Profile.MACAddress)
 	if err != nil {
 		return fmt.Errorf("insert manual inventory device: %w", err)
-	}
-	return nil
-}
-
-func syncRegistryDevice(ctx context.Context, tx *sql.Tx, node Node) error {
-	tagsJSON, err := json.Marshal(node.Profile.Tags)
-	if err != nil {
-		return fmt.Errorf("encode inventory device tags: %w", err)
-	}
-	deviceType := node.Profile.Role
-	if deviceType == "" {
-		deviceType = node.Icon
-	}
-	res, err := tx.ExecContext(ctx, `UPDATE devices SET name=?, type=?, ip_address=?, description=?, tags=?, mac_address=? WHERE id=?`,
-		node.Name, deviceType, node.Profile.IPAddress, node.Profile.Notes, string(tagsJSON), node.Profile.MACAddress, node.RegistryID)
-	if err != nil {
-		return fmt.Errorf("sync manual inventory device: %w", err)
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("count synced inventory devices: %w", err)
-	}
-	if n != 1 {
-		return fmt.Errorf("%w: registry device no longer exists", ErrNotFound)
 	}
 	return nil
 }

@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Αποθήκευση μεταδεδομένων πηγής",
   "desktop.infra_remove_node": "Αφαίρεση από το Infra",
   "desktop.infra_discard": "Απόρριψη",
+  "desktop.infra_unsaved_close": "Να κλείσει το Infra και να απορριφθούν οι μη αποθηκευμένες αλλαγές;",
   "desktop.infra_saving": "Αποθήκευση…",
   "desktop.infra_read_only": "Πρόσβαση μόνο για ανάγνωση",
   "desktop.infra_relations": "Σχέσεις",

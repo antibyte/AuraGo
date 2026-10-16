@@ -552,7 +552,15 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('[data-action="add"]').disabled`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{enabled:true}}))`)
 	page.MustWait(`()=>!document.querySelector('[data-action="add"]').disabled`)
-	page.MustEval(`async()=>{const id=document.querySelector('.vd-window[data-app-id="infra"]').dataset.windowId;await auditTest.closeWindow(id);}`)
+	page.MustEval(`()=>{
+		const win=document.querySelector('.vd-window[data-app-id="infra"]');
+		window.infraCloseAttempt=auditTest.closeWindow(win.dataset.windowId);
+	}`)
+	page.MustWait(`()=>!!document.querySelector('.vd-modal [data-choice="discard"]')`)
+	page.MustEval(`async()=>{
+		document.querySelector('.vd-modal [data-choice="discard"]').click();
+		await window.infraCloseAttempt;
+	}`)
 	page.MustWait(`()=>!document.querySelector('.vd-window[data-app-id="infra"]')`)
 	if count := page.MustEval(`()=>fixtureErrors.length`).Int(); count != 0 {
 		t.Fatalf("browser reported uncaught errors: %s", page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())

@@ -25,10 +25,14 @@ const (
 )
 
 type desktopInfraRuntime struct {
-	store         *infra.Store
-	mu            sync.Mutex
-	cache         map[string]*desktopInfraProviderCache
-	dockerRequest func(context.Context, tools.DockerConfig, string, string, string) ([]byte, int, error)
+	store          *infra.Store
+	mu             sync.Mutex
+	cache          map[string]*desktopInfraProviderCache
+	operations     map[uint64]context.CancelFunc
+	nextOperation  uint64
+	configKey      string
+	configSnapshot *config.Config
+	dockerRequest  func(context.Context, tools.DockerConfig, string, string, string) ([]byte, int, error)
 }
 
 type desktopInfraProviderCache struct {
@@ -54,9 +58,12 @@ func handleDesktopInfra(s *Server) http.HandlerFunc {
 			return
 		}
 		write := r.Method != http.MethodGet && r.Method != http.MethodHead
-		cfg, store, runtime, ok := desktopInfraAccess(s, w, r, write)
+		cfg, store, runtime, finish, ok := desktopInfraAccess(s, w, r, write)
 		if !ok {
 			return
+		}
+		if finish != nil {
+			defer finish()
 		}
 		switch {
 		case path == "snapshot" && r.Method == http.MethodGet:
@@ -97,38 +104,135 @@ func desktopInfraRoutePath(path string) (string, bool) {
 	return value, true
 }
 
-func desktopInfraAccess(s *Server, w http.ResponseWriter, r *http.Request, write bool) (*config.Config, *infra.Store, *desktopInfraRuntime, bool) {
+func desktopInfraAccess(s *Server, w http.ResponseWriter, r *http.Request, write bool) (*config.Config, *infra.Store, *desktopInfraRuntime, context.CancelFunc, bool) {
 	if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || !cfg.VirtualDesktop.Enabled {
 		desktopInfraError(w, http.StatusServiceUnavailable, "desktop_disabled", "Virtual Desktop is disabled")
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
 	if !cfg.VirtualDesktop.Infra.Enabled {
 		desktopInfraError(w, http.StatusServiceUnavailable, "infra_disabled", "Infra is disabled")
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
 	if write {
 		if !checkDesktopOperation(s, w, r, desktopWrite) {
-			return nil, nil, nil, false
+			return nil, nil, nil, nil, false
 		}
 		if cfg.VirtualDesktop.Infra.ReadOnly {
 			desktopInfraError(w, http.StatusForbidden, "infra_readonly", "Infra is read-only")
-			return nil, nil, nil, false
+			return nil, nil, nil, nil, false
 		}
 	}
 	if s.InventoryDB == nil {
 		desktopInfraError(w, http.StatusServiceUnavailable, "infra_unavailable", "Infra storage is unavailable")
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
 	runtime, err := s.desktopInfraRuntime()
 	if err != nil {
 		desktopInfraError(w, http.StatusServiceUnavailable, "infra_unavailable", "Infra storage is unavailable")
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
-	return cfg, runtime.store, runtime, true
+	if !write {
+		return cfg, runtime.store, runtime, nil, true
+	}
+	ctx, finish := runtime.beginOperation(r.Context(), desktopInfraRuntimeConfigKey(s, cfg), cfg)
+	if ctx.Err() != nil || !s.desktopInfraConfigAdmitted(cfg) {
+		finish()
+		desktopInfraError(w, http.StatusForbidden, "infra_policy_changed", "Infra access changed; reload and try again")
+		return nil, nil, nil, nil, false
+	}
+	*r = *r.WithContext(ctx)
+	return cfg, runtime.store, runtime, finish, true
+}
+
+func (s *Server) desktopInfraConfigAdmitted(snapshot *config.Config) bool {
+	if s == nil || snapshot == nil || s.ConfigSnapshot() != snapshot {
+		return false
+	}
+	admitted := s.infraConfigAdmission.Load()
+	return admitted == nil || admitted == snapshot
+}
+
+func (r *desktopInfraRuntime) beginOperation(parent context.Context, configKey string, snapshot *config.Config) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	if r == nil {
+		return ctx, cancel
+	}
+	r.mu.Lock()
+	if r.configSnapshot != nil && r.configSnapshot != snapshot {
+		r.mu.Unlock()
+		cancel()
+		return ctx, cancel
+	}
+	operations := map[uint64]context.CancelFunc(nil)
+	if r.configKey != "" && r.configKey != configKey {
+		operations = r.operations
+		r.operations = make(map[uint64]context.CancelFunc)
+	}
+	r.configKey = configKey
+	r.configSnapshot = snapshot
+	if r.operations == nil {
+		r.operations = make(map[uint64]context.CancelFunc)
+	}
+	r.nextOperation++
+	id := r.nextOperation
+	r.operations[id] = cancel
+	r.mu.Unlock()
+	for _, stop := range operations {
+		stop()
+	}
+	return ctx, func() {
+		cancel()
+		r.mu.Lock()
+		delete(r.operations, id)
+		r.mu.Unlock()
+	}
+}
+
+func (r *desktopInfraRuntime) cancelOperations(configKey string, snapshot *config.Config) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	operations := r.operations
+	r.operations = make(map[uint64]context.CancelFunc)
+	r.configKey = configKey
+	r.configSnapshot = snapshot
+	r.mu.Unlock()
+	for _, cancel := range operations {
+		cancel()
+	}
+}
+
+func (s *Server) cancelDesktopInfraOperations(cfg *config.Config) {
+	if s == nil {
+		return
+	}
+	s.infraMu.Lock()
+	runtime := s.infraRuntime
+	s.infraMu.Unlock()
+	if runtime != nil {
+		runtime.cancelOperations(desktopInfraRuntimeConfigKey(s, cfg), cfg)
+	}
+}
+
+func (s *Server) updateDesktopInfraConfigSnapshot(cfg *config.Config) {
+	if s == nil || cfg == nil {
+		return
+	}
+	s.infraMu.Lock()
+	runtime := s.infraRuntime
+	s.infraMu.Unlock()
+	if runtime == nil {
+		return
+	}
+	runtime.mu.Lock()
+	runtime.configKey = desktopInfraRuntimeConfigKey(s, cfg)
+	runtime.configSnapshot = cfg
+	runtime.mu.Unlock()
 }
 
 func (s *Server) desktopInfraRuntime() (*desktopInfraRuntime, error) {

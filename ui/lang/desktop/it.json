@@ -6950,6 +6950,7 @@
   "desktop.infra_save_source": "Salva metadati origine",
   "desktop.infra_remove_node": "Rimuovi da Infra",
   "desktop.infra_discard": "Scarta",
+  "desktop.infra_unsaved_close": "Chiudere Infra e scartare le modifiche non salvate?",
   "desktop.infra_saving": "Salvataggio…",
   "desktop.infra_read_only": "Accesso in sola lettura",
   "desktop.infra_relations": "Relazioni",
