@@ -77,23 +77,10 @@ func handleLearnings(s *Server) http.HandlerFunc {
 				json.NewEncoder(w).Encode(map[string]any{"learning": l, "history": history})
 				return
 			}
-			queryProject := project
-			if project == "global" {
-				queryProject = ""
-			}
-			list, err := s.ShortTermMem.ListLearningsForAdmin(r.Context(), queryProject, r.URL.Query().Get("query"), r.URL.Query().Get("status"))
+			list, err := s.ShortTermMem.ListLearningsForAdmin(r.Context(), project, r.URL.Query().Get("query"), r.URL.Query().Get("status"))
 			if err != nil {
 				jsonError(w, "Learning query failed", http.StatusInternalServerError)
 				return
-			}
-			if project == "global" {
-				filtered := list[:0]
-				for _, l := range list {
-					if l.Scope.Project == "" {
-						filtered = append(filtered, l)
-					}
-				}
-				list = filtered
 			}
 			metrics, err := s.ShortTermMem.LearningMetrics(r.Context())
 			if err != nil {

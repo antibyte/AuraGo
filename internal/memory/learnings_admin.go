@@ -8,7 +8,7 @@ import (
 
 // ListLearningsForAdmin is exclusively for authenticated human management, never model retrieval.
 func (s *SQLiteMemory) ListLearningsForAdmin(ctx context.Context, project, query, status string) ([]Learning, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT payload FROM memory_learnings WHERE (?='' OR project=?) AND (?='' OR status=?) ORDER BY rowid DESC LIMIT 1000`, project, project, status, status)
+	rows, err := s.db.QueryContext(ctx, `SELECT payload FROM memory_learnings WHERE (?='' OR (?='global' AND project='') OR project=?) AND (?='' OR status=?) ORDER BY rowid DESC`, project, project, project, status, status)
 	if err != nil {
 		return nil, err
 	}

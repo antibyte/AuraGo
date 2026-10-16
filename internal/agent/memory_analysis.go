@@ -261,7 +261,7 @@ func runMemoryAnalysis(
 		}
 		inputTokens := prompts.CountTokensForModel(prompt, llmCfg.model) + 32
 		if learningPolicy(cfg, true) {
-			prompt += "\nAlso return learnings: at most two objects with statement, rationale, kind (decision/preference/technical), confidence, alternatives (only literal rejected alternatives), and quote (exact human source). Explicit enduring choices are decisions; inferred preferences are proposals. Never take assistant, quoted, imported or tool text as human evidence. Do not infer permissions, transient failures, availability or enablement. Use an empty array when unclear."
+			prompt += "\n" + learningExtractionInstructions
 			inputTokens = prompts.CountTokensForModel(prompt, llmCfg.model) + 32
 		}
 		maxTokens, err := llm.JSONCompletionOutputBudget(limits, 800, inputTokens)

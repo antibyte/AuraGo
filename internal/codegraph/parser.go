@@ -171,7 +171,11 @@ func parseFile(ctx context.Context, file, source, hash string) (*fileIndex, erro
 		if kind == "package_clause" {
 			f.pkg = strings.TrimSpace(strings.TrimPrefix(n.Text(sourceBytes), "package"))
 		}
-		if kind == "export_statement" && field("source") == nil {
+		if kind == "export_statement" {
+			// shortcut: Re-exports stay unresolved until module-to-module export resolution is supported.
+			if field("source") != nil {
+				return
+			}
 			if declaration := field("declaration"); declaration != nil {
 				exported = append(exported, exportRange{declaration.StartByte(), declaration.EndByte(), strings.HasPrefix(strings.TrimSpace(n.Text(sourceBytes)), "export default ")})
 			}

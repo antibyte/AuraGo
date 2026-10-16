@@ -703,7 +703,7 @@ func isTransientHelperError(err error) bool {
 	return false
 }
 
-func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput) (helperTurnBatchResult, error) {
+func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, learningsEnabled ...bool) (helperTurnBatchResult, error) {
 	if m == nil || m.client == nil || m.model == "" {
 		return helperTurnBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
@@ -726,9 +726,12 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		return userPrompt
 	}
 	userPrompt := buildPrompt(1)
-
-	cacheKey := m.helperCacheKey("analyze_turn_v2", m.model, userPrompt)
-	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, helperTurnBatchPrompt, userPrompt, 1800, helperJSONPolicy{
+	systemPrompt := helperTurnBatchPrompt
+	if len(learningsEnabled) > 0 && learningsEnabled[0] {
+		systemPrompt += "\nInside memory_analysis: " + learningExtractionInstructions
+	}
+	cacheKey := m.helperCacheKey("analyze_turn_v3", m.model, systemPrompt+"\n"+userPrompt)
+	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, systemPrompt, userPrompt, 1800, helperJSONPolicy{
 		retryPrompt: func() string { return buildPrompt(2) },
 		validate: func(raw string) error {
 			fields := []string{"memory_analysis", "activity_digest"}

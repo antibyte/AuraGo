@@ -124,7 +124,7 @@ func dispatchMemoryCorrection(ctx context.Context, tc ToolCall, dc *DispatchCont
 	if err != nil {
 		return respond("error", nil, err)
 	}
-	service := memory.MemoryCorrectionService{Memory: dc.ShortTermMem, Vector: dc.LongTermMem, Graph: dc.KG, LearningsEnabled: dc.Cfg.Learnings.Enabled, LearningScope: dc.LearningScope, Access: memory.CorrectionAccess{
+	service := memory.MemoryCorrectionService{Memory: dc.ShortTermMem, Vector: dc.LongTermMem, Graph: dc.KG, LearningsEnabled: learningPolicy(dc.Cfg, false) && learningScopeAuthorized(dc.LearningScope, dc.CodeProject, dc.LearningProjectValid), LearningScope: dc.LearningScope, Access: memory.CorrectionAccess{
 		MemoryWrite:    !dc.Cfg.Tools.Memory.ReadOnly,
 		GraphWrite:     dc.Cfg.Tools.KnowledgeGraph.Enabled && !dc.Cfg.Tools.KnowledgeGraph.ReadOnly,
 		ProfileEnabled: dc.Cfg.Personality.UserProfiling,

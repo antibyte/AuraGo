@@ -59,6 +59,7 @@ func inheritProjectRun(ctx context.Context, run *RunConfig) {
 		run.CodeGraph, run.CodeProject, run.LearningScope = dc.CodeGraph, dc.CodeProject, dc.LearningScope
 		run.WriteTargets, run.WorkChainID = dc.WriteTargets, dc.WorkChainID
 		run.LearningTargetScope = dc.LearningTargetScope
+		run.LearningProjectValid = dc.LearningProjectValid
 	}
 }
 

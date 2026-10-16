@@ -1096,9 +1096,10 @@ type RunConfig struct {
 	WorkChainID           string
 	AllowProjectLearnings bool
 	// LearningScope is supplied only by server-owned workspace/project resolution.
-	LearningScope       memory.LearningScope
-	LearningTargetScope func(action, resource string) (memory.LearningScope, bool)
-	LearningFingerprint string
+	LearningScope        memory.LearningScope
+	LearningTargetScope  func(action, resource string) (memory.LearningScope, bool)
+	LearningProjectValid func(codegraph.Project) bool
+	LearningFingerprint  string
 	// Empty mode follows the interactive source policy; off/pinned bypass routing.
 	// Auto is for explicit routing preparation such as the administrator preview.
 	TaskRoutingMode string

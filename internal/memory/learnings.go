@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -204,6 +205,10 @@ func (s *SQLiteMemory) ObserveLearning(ctx context.Context, d LearningDraft, sco
 	if err == nil {
 		if l.Status == "archived" || l.Status == "superseded" || l.Status == "revalidation" || l.Protected {
 			return l, nil
+		}
+		// Evidence for a different claim must not authorize the stored rationale or kind.
+		if l.Statement != d.Statement || l.Rationale != d.Rationale || l.Kind != d.Kind || !slices.Equal(l.Alternatives, d.Alternatives) || l.Fingerprint != fingerprint {
+			return l, fmt.Errorf("learning differs from the stored draft; review or correct it explicitly")
 		}
 		for _, e := range l.Sources {
 			if e.Session == source.Session && e.Hash == source.Hash {
@@ -419,6 +424,7 @@ func supersedeLearning(ctx context.Context, tx *sql.Tx, old Learning, statement,
 	next.ID = "learning_" + learningHash(old.ID + ":" + fmt.Sprint(old.Revision) + ":" + statement)[:24]
 	next.PreviousID, next.SupersededBy = old.ID, ""
 	next.Statement, next.Rationale, next.Condition = statement, reason, nil
+	next.Alternatives = nil
 	next.Status, next.Revision, next.Confidence = "active", 1, 1
 	next.CreatedAt, next.UpdatedAt = time.Now().UTC(), time.Now().UTC()
 	next.Sources = []LearningSource{{Reference: actor, Session: actor, Kind: "user", Quote: statement, Hash: learningHash(statement)}}

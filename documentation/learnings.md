@@ -26,6 +26,9 @@ Explicit human decisions with sufficiently clear evidence can activate immediate
 An inferred preference needs confidence of at least 0.95 from two independent
 sessions and no unresolved structured contradiction. Duplicate observations do
 not create independent evidence. Model confidence alone is not proof.
+Additional evidence must match the stored assertion, rationale, kind, alternatives
+and resource fingerprint; a differing draft needs explicit review or correction.
+Corrections retain superseded alternatives only in the old entry's history.
 
 The runtime resolves `user:current` and supported structured technical evidence.
 Quoted/fenced/imported source text and assistant responses cannot authorize a
@@ -55,6 +58,8 @@ Co-agents receive only their inherited project scope and cannot persist insights
 The paired local-agent memory adapter has global scope only: client-supplied
 paths cannot authorize project memory. Normal channel loops share the server's
 project resolver; project jobs use their own registered working copies.
+Active runs recheck project registration for recall, correction and publication.
+Prepared observations refresh between model calls, including after revocation.
 
 Content fingerprints mark relevant resource insights for revalidation. A changed
 file is not proof that its decision is wrong. Active graph indexes poll every
@@ -71,6 +76,8 @@ audited. Completed siblings are never replayed. Natural-language observations
 are hints, not semantic conflict proofs. Shell/Python programs and unknown
 effects are explicitly outside this preflight coverage. Security, approval and
 write gates remain authoritative after reconsideration.
+Read-only memory and co-agents do not persist conflict metrics or deviations;
+their deliberate deviations are recorded in the server log instead.
 
 An in-process advisory list records known write targets for active runs. Related
 subtasks share a work-chain identity. Completion, cancellation and shutdown
@@ -88,8 +95,8 @@ binding is required. C/C++ and other languages are outside coverage.
 Definitions, types/classes, imports, static calls and inheritance have source
 positions and short snippets. Lexical names and unique project-local imports
 can resolve; dynamic dispatch, ambiguous bindings, reflection and external
-dependencies remain unresolved. Missing edges never establish that a change
-has no effects. This feature does not rename symbols or modify source.
+dependencies and JS/TS re-exports remain unresolved. Missing edges never establish
+that a change has no effects. This feature does not rename symbols or modify source.
 
 First use indexes a registered workspace; source and index stay in RAM. Restart
 rebuilds them lazily. Container `/workspace` maps only to the configured Desktop

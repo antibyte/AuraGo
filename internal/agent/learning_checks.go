@@ -5,10 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"path"
 	"strings"
 
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/services"
 )
 
@@ -31,7 +33,14 @@ func learningToolTarget(tc ToolCall) (resource, field, value string, write bool)
 	switch tc.Action {
 	case "filesystem", "filesystem_op":
 		r := decodeFilesystemArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
+		if r.Operation == "write" {
+			r.Operation = "write_file"
+		}
 		resource = r.FilePath
+		if resource == "" {
+			resource = r.Destination
+		}
 		if r.Operation == "copy" || r.Operation == "move" {
 			resource = r.Destination
 		}
@@ -46,12 +55,14 @@ func learningToolTarget(tc ToolCall) (resource, field, value string, write bool)
 		}
 	case "file_editor":
 		r := decodeFileEditorArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
 		resource = r.FilePath
 		write = r.Operation != "read" && r.Operation != "view"
 		field = "operation"
 		value = r.Operation
 	case "json_editor":
 		r := decodeJSONEditorArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
 		resource = r.FilePath
 		field = r.JsonPath
 		value = learningScalar(r.SetValue)
@@ -61,6 +72,7 @@ func learningToolTarget(tc ToolCall) (resource, field, value string, write bool)
 		}
 	case "yaml_editor":
 		r := decodeYAMLEditorArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
 		resource = r.FilePath
 		field = r.JsonPath
 		value = learningScalar(r.SetValue)
@@ -70,6 +82,7 @@ func learningToolTarget(tc ToolCall) (resource, field, value string, write bool)
 		}
 	case "toml_editor":
 		r := decodeTOMLEditorArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
 		resource = r.FilePath
 		field = r.TomlPath
 		value = learningScalar(r.SetValue)
@@ -138,6 +151,7 @@ func learningToolTargets(tc ToolCall) []learningWriteTarget {
 	}
 	if tc.Action == "filesystem" || tc.Action == "filesystem_op" {
 		r := decodeFilesystemArgs(tc)
+		r.Operation = strings.ToLower(strings.TrimSpace(r.Operation))
 		if strings.HasSuffix(r.Operation, "_batch") {
 			for _, item := range r.Items[:min(len(r.Items), 1000)] {
 				call := ToolCall{Action: tc.Action, Operation: strings.TrimSuffix(r.Operation, "_batch"), Params: item}
@@ -234,12 +248,20 @@ func checkLearningAction(ctx context.Context, tc ToolCall, dc *DispatchContext) 
 				run.learningChecks[key] = true
 			}
 			run.mu.Unlock()
-			_ = dc.ShortTermMem.RecordLearningMetric(ctx, "conflicts", 1)
+			if !dc.IsCoAgent && !isCoAgentSession(dc.SessionID) && learningPolicy(dc.Cfg, true) {
+				_ = dc.ShortTermMem.RecordLearningMetric(ctx, "conflicts", 1)
+			}
 			return learningResponse(map[string]any{"status": "review_required", "executed": false, "conflicts": conflicts, "next_action": "Reconsider this action. Adjust it, or resubmit the same action with learning_reason explaining the deliberate deviation. Permissions still apply."}, nil), ""
 		}
 		run.mu.Unlock()
-		if err := dc.ShortTermMem.RecordLearningDeviation(ctx, run.id, key, reason, revisions); err != nil {
-			return learningResponse(nil, err), ""
+		if !dc.IsCoAgent && !isCoAgentSession(dc.SessionID) && learningPolicy(dc.Cfg, true) {
+			if err := dc.ShortTermMem.RecordLearningDeviation(ctx, run.id, key, reason, revisions); err != nil {
+				return learningResponse(nil, err), ""
+			}
+		} else if dc.Logger != nil {
+			dc.Logger.Info("Learning conflict reconsidered without memory writes", "run", run.id, "arguments_hash", key, "reason", security.Scrub(reason), "revisions", revisions)
+		} else {
+			return learningResponse(nil, fmt.Errorf("learning deviation audit unavailable")), ""
 		}
 	}
 	if dc.WriteTargets != nil {

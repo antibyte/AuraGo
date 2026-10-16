@@ -214,6 +214,7 @@ func (s *Server) configureRunKnowledge(run *agent.RunConfig) {
 		run.CodeGraph = s.codeGraphService()
 	}
 	if run.Config.Learnings.Enabled {
+		run.LearningProjectValid = s.authorizeGraphProject
 		run.WriteTargets = &s.knowledge.targets
 		if run.LearningTargetScope == nil {
 			run.LearningTargetScope = func(action, resource string) (memory.LearningScope, bool) {

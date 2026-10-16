@@ -237,6 +237,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		WorkChainID:          s.runCfg.WorkChainID,
 		LearningScope:        s.runCfg.LearningScope,
 		LearningTargetScope:  s.runCfg.LearningTargetScope,
+		LearningProjectValid: s.runCfg.LearningProjectValid,
 		LearningFingerprint:  s.runCfg.LearningFingerprint,
 		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
@@ -1335,6 +1336,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if runCfg.PreparedPrompt == nil && !runCfg.StableSystemPrompt {
 			s.learningContext = learningPromptContext(ctx, runCfg, s.initialUserMsg, req.Model)
 			flags.LearnedRulesContext += s.learningContext
+		} else {
+			observation := learningPromptContext(ctx, runCfg, s.initialUserMsg, req.Model)
+			req.Messages = replaceLearningObservation(req.Messages, s.learningContext, observation)
+			s.learningContext = observation
 		}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
@@ -2442,7 +2447,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 				defer cancel()
 
-				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput)
+				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, learningPolicy(cfg, true))
 				if err != nil {
 					helperManager.ObserveFallback("analyze_turn", err.Error())
 					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
@@ -2471,7 +2476,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityBasis,
 						)
 					}
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, learningAnalysisScope{Scope: runCfg.LearningScope, Fingerprint: runCfg.LearningFingerprint})
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 					captureActivityTurn(
 						cfg,
 						s.currentLogger,
@@ -2490,6 +2495,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 
 				applyMemoryAnalysisResultWithContext(analysisCtx, cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
+				applyExtractedLearnings(analysisCtx, cfg, shortTermMem, sid, userMsg, batchResult.MemoryAnalysis.Learnings, runCfg.learningAnalysisScope())
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
 						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
@@ -2560,7 +2566,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				_ = sideEffects.Go(func(taskCtx context.Context) {
 					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 					defer cancel()
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, learningAnalysisScope{Scope: runCfg.LearningScope, Fingerprint: runCfg.LearningFingerprint})
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 				})
 			}
 
