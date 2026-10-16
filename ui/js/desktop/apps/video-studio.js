@@ -88,6 +88,7 @@
         s.disposed = true;
         s.abort.abort();
         if (P.closeMenu) P.closeMenu(s, false);
+        if (P.closeMarkerPopover) P.closeMarkerPopover(s, false);
         clearTimeout(s.autosaveTimer);
         clearTimeout(s.toastTimer);
         if (s.textTimers) P.cancelTextApplies(s);
@@ -464,7 +465,7 @@
         if (s.readonly) s.q('.vs-import').setAttribute('aria-disabled', 'true'); else s.q('.vs-import').removeAttribute('aria-disabled');
         s.app.querySelectorAll('[data-action="upload"],[data-action="browse"],[data-action="add-title"],[data-sticker]').forEach(control => { control.disabled = s.readonly; });
         if (s.readonly) {
-            s.q('[data-inspector]').querySelectorAll('input,select,textarea,button').forEach(control => { control.disabled = true; });
+            s.q('[data-inspector]').querySelectorAll('input,select,textarea,button:not([data-marker-jump])').forEach(control => { control.disabled = true; });
             s.q('[data-file-input]').disabled = true;
         }
         if (s.preview) s.preview.seek(s.frame);
@@ -496,7 +497,7 @@
     function syncInspectorLock(s) {
         const selected = T().clipFor(s.project, s.selectedClipId);
         if (s.readonly || selected && selected.track.locked) {
-            s.q('[data-inspector]').querySelectorAll('input,select,textarea,button').forEach(control => { control.disabled = true; });
+            s.q('[data-inspector]').querySelectorAll('input,select,textarea,button:not([data-marker-jump])').forEach(control => { control.disabled = true; });
         }
     }
     function timelineOptions(s) {
@@ -529,6 +530,9 @@
             onAction: (action, id) => timelineAction(s, action, id),
             onCommand: name => P.timelineCommand(s, name),
             onBlade: (trackId, frame, allTracks, unlinked) => P.bladeAt(s, trackId, frame, allTracks, unlinked),
+            onMarkerClick: id => P.jumpToMarker(s, id),
+            onMarkerEdit: (id, element) => P.openMarkerPopover(s, id, P.pointOf(element)),
+            onMarkerMenu: (id, x, y) => P.openMarkerMenu(s, id, x, y),
             onContextMenu: info => (info.clipId ? P.openClipMenu(s, info.clipId, info.x, info.y) : P.openGapMenu(s, info.trackId, info.frame, info.x, info.y)),
             onTrackAction: (id, action) => trackAction(s, id, action),
             onAddTrack: kind => addTrack(s, kind),

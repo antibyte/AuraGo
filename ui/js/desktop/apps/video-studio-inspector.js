@@ -69,11 +69,27 @@
         return `<label class="vs-slider"><span>${v.esc(label)}</span><input type="range" data-field="${field}" min="${min}" max="${max}" step="${step}" value="${value}"><output>${v.esc(output)}</output></label>`;
     }
 
+    // Marker colour dots use the timeline palette only; anything else is not drawn.
+    function palette(color) { return !!color && window.VideoStudioTimeline.LABEL_COLORS.includes(color); }
+    // The project view's marker list: jump to a marker, edit it, and the in and out points.
+    function markersSection(v) {
+        const markers = v.markers || [], io = v.inOut || {}, at = frame => (frame == null ? '–' : formatTime(frame, v.project));
+        const rows = markers.map(marker => {
+            const name = marker.name || v.tr('marker', 'Marker'), dot = palette(marker.color) ? ` style="--vs-marker-color:var(--vs-label-${marker.color})"` : '';
+            const edit = v.tr('markerEdit', 'Edit marker…');
+            return `<li><button type="button" class="vs-chip-button" data-marker-jump="${v.esc(marker.id)}"><span class="vs-marker-dot"${dot}></span><span>${v.esc(formatTime(marker.frame, v.project))}</span><span>${v.esc(name)}</span></button><button type="button" class="vs-icon-button" data-marker-edit="${v.esc(marker.id)}" title="${v.esc(edit)}" aria-label="${v.esc(edit)}">${v.icon('edit', 14)}</button></li>`;
+        }).join('');
+        const range = io.in == null && io.out == null
+            ? `<p class="vs-hint">${v.esc(v.tr('noInOut', 'No in or out point set.'))}</p>`
+            : `<p class="vs-hint">${v.esc(v.tr('markIn', 'In'))} ${v.esc(at(io.in))} · ${v.esc(v.tr('markOut', 'Out'))} ${v.esc(at(io.out))} <button type="button" class="vs-link-button" data-action="clear-inout">${v.esc(v.tr('clearInOut', 'Clear in and out'))}</button></p>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('flag', 14)}${v.esc(v.tr('markersList', 'Markers'))}</h3>${range}${rows ? `<ul class="vs-marker-list">${rows}</ul>` : `<p class="vs-hint">${v.esc(v.tr('noMarkers', 'No markers yet. Press M at the playhead to add one.'))}</p>`}</section>`;
+    }
+
     function emptyMarkup(v) {
         const p = v.project || {}, summary = v.summary || {};
         const ratio = aspectLabel(Number(p.width) || 0, Number(p.height) || 0);
         const tips = [['tipImport', 'Import videos, music or pictures in the library on the left.'], ['tipPlace', 'Drag media onto the timeline or use + to place it at the playhead.'], ['tipSelect', 'Select a clip to adjust timing, picture, sound and transitions here.'], ['tipExport', 'Export creates an MP4 you can download.']];
-        return `<div class="vs-insp-empty"><section class="vs-insp-section"><h3>${v.icon('project', 14)}${v.esc(v.tr('projectDetails', 'Project'))}</h3><dl class="vs-facts"><div><dt>${v.esc(v.tr('format', 'Format'))}</dt><dd>${v.esc(ratio)} · ${Number(p.width || 0)}×${Number(p.height || 0)} · ${v.esc(Time().rateLabel(p, v.locale))}</dd></div><div><dt>${v.esc(v.tr('length', 'Length'))}</dt><dd>${v.esc(formatTime(summary.durationFrames || 0, v.project))}</dd></div><div><dt>${v.esc(v.tr('clips', 'Clips'))}</dt><dd>${Number(summary.clipCount || 0)}</dd></div></dl></section><section class="vs-insp-section vs-insp-tips"><h3>${v.icon('info', 14)}${v.esc(v.tr('howItWorks', 'How it works'))}</h3><ol>${tips.map(([key, fallback]) => `<li>${v.esc(v.tr(key, fallback))}</li>`).join('')}</ol><p class="vs-hint">${v.esc(v.tr('selectClipHint', 'Nothing selected. Click a clip on the timeline to edit it.'))}</p></section></div>`;
+        return `<div class="vs-insp-empty"><section class="vs-insp-section"><h3>${v.icon('project', 14)}${v.esc(v.tr('projectDetails', 'Project'))}</h3><dl class="vs-facts"><div><dt>${v.esc(v.tr('format', 'Format'))}</dt><dd>${v.esc(ratio)} · ${Number(p.width || 0)}×${Number(p.height || 0)} · ${v.esc(Time().rateLabel(p, v.locale))}</dd></div><div><dt>${v.esc(v.tr('length', 'Length'))}</dt><dd>${v.esc(formatTime(summary.durationFrames || 0, v.project))}</dd></div><div><dt>${v.esc(v.tr('clips', 'Clips'))}</dt><dd>${Number(summary.clipCount || 0)}</dd></div></dl></section>${markersSection(v)}<section class="vs-insp-section vs-insp-tips"><h3>${v.icon('info', 14)}${v.esc(v.tr('howItWorks', 'How it works'))}</h3><ol>${tips.map(([key, fallback]) => `<li>${v.esc(v.tr(key, fallback))}</li>`).join('')}</ol><p class="vs-hint">${v.esc(v.tr('selectClipHint', 'Nothing selected. Click a clip on the timeline to edit it.'))}</p></section></div>`;
     }
 
     function timeSection(v, clip, asset) {
@@ -103,7 +119,7 @@
         const maxFrames = next ? Math.max(step, Math.min(longest, Math.min(clip.duration, next.duration) - 1)) : longest;
         const duration = clip.transition && clip.transition.duration || Math.min(Math.round(rate / 2), maxFrames);
         const disabled = next ? '' : 'disabled';
-        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${TRANSITIONS.map(type => `<button type="button" data-transition="${type}" aria-pressed="${current === type}" ${disabled}><i class="vs-tx-${type}"></i><span>${v.esc(v.tr(type, type))}</span></button>`).join('')}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${step}" max="${maxFrames}" step="${step}" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${TRANSITIONS.map(type => `<button type="button" data-transition="${type}" aria-pressed="${current === type}" ${disabled}><i class="vs-tx-${type}"></i><span>${v.esc(v.tr(type, type))}</span></button>`).join('')}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${step}" max="${maxFrames}" step="1" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
     }
 
     function textSection(v, clip) {

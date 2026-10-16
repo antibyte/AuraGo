@@ -203,3 +203,29 @@ func TestVideoStudioNavigationWiring(t *testing.T) {
 		}
 	}
 }
+
+func TestVideoStudioMarkerWiring(t *testing.T) {
+	markers, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-markers.js"))
+	if err != nil {
+		t.Fatalf("marker part: %v", err)
+	}
+	for _, want := range []string{"addMarkerAtPlayhead", "openMarkerPopover", "openMarkerMenu", "pointOf", "updateMarker", "markerRangeFromInOut", "closeMarkerPopover", "syncMarkerPopover"} {
+		if !bytes.Contains(markers, []byte(want)) {
+			t.Errorf("marker part does not define %s", want)
+		}
+	}
+	inspector, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-inspector.js"))
+	if err != nil {
+		t.Fatalf("inspector: %v", err)
+	}
+	if !bytes.Contains(inspector, []byte("data-marker-jump")) || !bytes.Contains(inspector, []byte(`step="1" value`)) {
+		t.Error("inspector lacks the marker list or the one-frame transition step")
+	}
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatalf("app shell: %v", err)
+	}
+	if !bytes.Contains(app, []byte("P.openMarkerMenu(s, id, x, y)")) || !bytes.Contains(app, []byte("P.jumpToMarker(s, id)")) {
+		t.Error("the app shell does not wire the marker callbacks")
+	}
+}
