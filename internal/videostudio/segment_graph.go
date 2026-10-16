@@ -42,6 +42,8 @@ type layerClip struct {
 	whole  Clip
 	at     int
 	pieces []rampPiece
+	// sourceAspect is the asset's width / height (0 when unknown); the cover bound of keyframed geometry uses it.
+	sourceAspect float64
 }
 
 // sendCmdFile is one clip's sendcmd script for one FFmpeg process. name is the bare file name the graph reads
@@ -163,6 +165,9 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 			if len(clip.Ramp) > 0 {
 				item.pieces = rampPieces(clip.Ramp, 0, float64(clip.Duration))
 			}
+			if source.asset.Height > 0 {
+				item.sourceAspect = float64(source.asset.Width) / float64(source.asset.Height)
+			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
 				// The source position of the first window frame: a clip at speed s advances s source frames per frame.
@@ -201,9 +206,14 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 	}
 	timebase := fmt.Sprintf("settb=%d/%d", rate.Den, rate.Num)
 	labels := make([]string, len(layer))
+	var commands []sendCmdFile
 	for i, item := range layer {
 		labels[i] = fmt.Sprintf("vs_clip_%d_%d", trackIndex, i)
-		filters = append(filters, clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate}.filter(labels[i]))
+		chain := clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate}
+		filters = append(filters, chain.filter(labels[i]))
+		if file, ok := chain.commandFile(); ok {
+			commands = append(commands, file)
+		}
 	}
 	// concat outputs a microsecond timebase; settb after every concat and on both xfade inputs keeps xfade on the
 	// frame timebase (a no-op where the input already uses it).
@@ -234,7 +244,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 		combined = out
 		combinedEnd = clip.Start + clip.Duration
 	}
-	return combined, filters, nil
+	return combined, filters, commands
 }
 
 // appendTransition joins incoming (a clip starting at clip.Start) to combined, whose last transition.Duration

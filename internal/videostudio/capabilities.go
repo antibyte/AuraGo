@@ -200,8 +200,8 @@ func xfadeTransitionNames(output string) map[string]bool {
 
 // CheckProjectCapabilities returns a *CapabilityError for the first feature of project that needs an entry of
 // missing (as reported by ProbeCapabilities), or nil. Only what renders counts: transitions on hidden tracks, of
-// disabled clips or before a disabled clip are skipped, as in segmentLayers. 2c adds effect checks, 2d blend and
-// mask checks.
+// disabled clips or before a disabled clip are skipped, as in segmentLayers. 2b adds the keyframes check (sendcmd);
+// 2c adds effect checks, 2d blend and mask checks.
 func CheckProjectCapabilities(project Project, missing []string) error {
 	if len(missing) == 0 {
 		return nil
@@ -213,6 +213,14 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 	for _, track := range project.Tracks {
 		if !visualClip(track) {
 			continue
+		}
+		// Keyframes drive opacity and the cover crop through sendcmd (index §4.11). Disabled clips never render.
+		if lacking["filter:sendcmd"] {
+			for _, clip := range track.Clips {
+				if !clip.Disabled && len(clip.Keyframes) > 0 {
+					return &CapabilityError{Feature: "keyframes", Missing: "filter:sendcmd"}
+				}
+			}
 		}
 		ordered := sortedClips(track.Clips)
 		for i, clip := range ordered {

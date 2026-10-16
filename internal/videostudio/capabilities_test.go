@@ -289,3 +289,32 @@ func TestProbeCapabilitiesLocalFFmpegMissesNothing(t *testing.T) {
 		t.Fatalf("CheckRuntime() = %+v", status)
 	}
 }
+
+func TestCheckProjectCapabilitiesKeyframes(t *testing.T) {
+	keyframed := func(edit func(*Project)) Project {
+		project := validProject()
+		project.Tracks[0].Clips[0].Keyframes = map[string][]Keyframe{"opacity": {{F: 0, V: 0, E: EaseLinear}, {F: 10, V: 1, E: EaseLinear}}}
+		if edit != nil {
+			edit(&project)
+		}
+		return project
+	}
+	err := CheckProjectCapabilities(keyframed(nil), []string{"filter:sendcmd"})
+	var capability *CapabilityError
+	if !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) || capability.Feature != "keyframes" || capability.Missing != "filter:sendcmd" {
+		t.Fatalf("keyframes without sendcmd = %v", err)
+	}
+	for name, c := range map[string]struct {
+		project Project
+		missing []string
+	}{
+		"sendcmd present": {keyframed(nil), []string{"filter:lut3d"}},
+		"no keyframes":    {validProject(), []string{"filter:sendcmd"}},
+		"disabled clip":   {keyframed(func(p *Project) { p.Tracks[0].Clips[0].Disabled = true }), []string{"filter:sendcmd"}},
+		"hidden track":    {keyframed(func(p *Project) { p.Tracks[0].Hidden = true }), []string{"filter:sendcmd"}},
+	} {
+		if err := CheckProjectCapabilities(c.project, c.missing); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
