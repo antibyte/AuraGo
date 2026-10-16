@@ -12,7 +12,7 @@
         catch (_) { return ''; }
     }
 
-    function mount(canvas, getProject, getFrame, setFrame, onPlayState, getScale) {
+    function mount(canvas, getProject, getFrame, setFrame, onPlayState, getScale, options) {
         const fps = () => window.VideoStudioTime.rate(getProject());
         const scale = () => { const value = typeof getScale === 'function' ? Number(getScale()) : 1; return Math.max(0.1, Math.min(1, value || 1)); };
         const context = canvas.getContext('2d', { alpha: false });
@@ -24,6 +24,8 @@
         // loopRange is {start, end} or null. soloIds are the audio tracks that alone sound in the preview.
         let rate = 1, loopRange = null, soloIds = new Set(), lastPaint = 0;
         let layer = null, layerContext = null;
+        // options.stopAtEnd (source monitor): playback stops at the end at every rate instead of wrapping at 1x.
+        const stopAtEnd = !!(options && options.stopAtEnd);
         // Forward playback runs the media clocks; backward and paused playback only seek the media.
         const forward = () => playing && rate > 0;
         // Fast forward above 2x and every backward rate are silent.
@@ -268,8 +270,9 @@
             const bounds = playBounds(getProject());
             let next = nowFrame(now);
             if (rate > 0 && next >= bounds.end) {
-                // Looping wraps to the range start; normal speed wraps to the start as before; a shuttle stops at the end.
-                if (!loopRange && rate !== 1) { halt(bounds.end - 1); return; }
+                // Looping wraps to the range start; normal speed wraps to the start as before unless stopAtEnd is set;
+                // a shuttle stops at the end.
+                if (!loopRange && (stopAtEnd || rate !== 1)) { halt(bounds.end - 1); return; }
                 next = loopRange ? loopRange.start : 0; playStartFrame = next; playStartAt = now;
             } else if (rate < 0 && next <= bounds.start) {
                 // Backward playback stops at the start, or wraps to the range end when looping.

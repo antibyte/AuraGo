@@ -97,6 +97,7 @@
         if (s.resizeObserver) s.resizeObserver.disconnect();
         if (s.modalObserver) s.modalObserver.disconnect();
         if (s.preview) s.preview.dispose();
+        if (P.disposeSource) P.disposeSource(s);
         if (s.media) s.media.dispose();
         if (s.detachTimeline) s.detachTimeline();
         if (s.keyHandler) window.removeEventListener('keydown', s.keyHandler, true);
@@ -125,7 +126,8 @@
             [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
             [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), key('Wheel')], 'shortcutHScroll', 'Scroll the timeline sideways'],
             [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
-            [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips']
+            [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips'],
+            [[',', '.'], 'shortcutSourceEdit', 'Source monitor: insert (,) / overwrite (.)']
         ];
         return `<div class="vs-app" tabindex="0">
 <header class="vs-toolbar">
@@ -148,8 +150,30 @@
   <div class="vs-tab-panel vs-ai-panel" data-panel="ai" role="tabpanel" id="vs-panel-${s.id}-ai" aria-labelledby="vs-tab-${s.id}-ai" hidden data-ai-panel></div>
  </aside>
  <main class="vs-center">
-  <div class="vs-preview-stage"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
-  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><button type="button" class="vs-time-button" data-action="goto-time" title="${label('goToTitle', 'Go to timecode')} (${esc(s, key('Ctrl'))}+G)"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-sr-only"> – ${label('goToTitle', 'Go to timecode')}</span></button><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><div class="vs-mark-buttons"><button type="button" data-action="mark-in" aria-label="${label('markIn', 'In')}" title="${label('markIn', 'In')} (I)">I</button><button type="button" data-action="mark-out" aria-label="${label('markOut', 'Out')}" title="${label('markOut', 'Out')} (O)">O</button><button type="button" data-action="loop" aria-pressed="false" aria-label="${label('loop', 'Loop')}" title="${label('loopHint', 'Play from in to out, or the whole timeline, repeatedly')}">${icon('loop', 17)}</button><button type="button" data-action="add-marker" aria-label="${label('addMarker', 'Add marker')}" title="${label('addMarker', 'Add marker')} (M)">${icon('flag', 17)}</button></div><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
+  <div class="vs-monitor-bar"><div class="vs-segmented vs-stage-switch" data-stage-switch role="group" aria-label="${label('monitor', 'Monitor')}"><button type="button" data-stage-mode="source" aria-pressed="false">${label('sourceMonitor', 'Source')}</button><button type="button" data-stage-mode="timeline" aria-pressed="true">${label('timelineMonitor', 'Timeline')}</button></div></div>
+  <div class="vs-preview-stage" data-stage="timeline"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
+  <div class="vs-transport" data-stage="timeline"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><button type="button" class="vs-time-button" data-action="goto-time" title="${label('goToTitle', 'Go to timecode')} (${esc(s, key('Ctrl'))}+G)"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-sr-only"> – ${label('goToTitle', 'Go to timecode')}</span></button><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><div class="vs-mark-buttons"><button type="button" data-action="mark-in" aria-label="${label('markIn', 'In')}" title="${label('markIn', 'In')} (I)">I</button><button type="button" data-action="mark-out" aria-label="${label('markOut', 'Out')}" title="${label('markOut', 'Out')} (O)">O</button><button type="button" data-action="loop" aria-pressed="false" aria-label="${label('loop', 'Loop')}" title="${label('loopHint', 'Play from in to out, or the whole timeline, repeatedly')}">${icon('loop', 17)}</button><button type="button" data-action="add-marker" aria-label="${label('addMarker', 'Add marker')}" title="${label('addMarker', 'Add marker')} (M)">${icon('flag', 17)}</button></div><label class="vs-quality" title="${label('previewQuality', 'Preview quality')}"><select data-preview-quality aria-label="${label('previewQuality', 'Preview quality')}">${['auto', 'full', 'half', 'quarter'].map(q => `<option value="${q}">${label('quality_' + q, q)}</option>`).join('')}</select></label><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
+ <section class="vs-source" data-source hidden aria-label="${label('sourceMonitor', 'Source')}">
+  <div class="vs-source-stage"><p class="vs-source-empty" data-source-empty>${label('sourceEmpty', 'Double-click a media item in the library to open it here.')}</p><div class="vs-source-body" data-source-body hidden><div class="vs-source-mat"><canvas data-source-canvas width="1280" height="720" aria-label="${label('sourceMonitor', 'Source')}"></canvas></div><div class="vs-source-wave" data-source-wave hidden></div></div></div>
+  <div class="vs-source-meta"><span data-source-name></span><span class="vs-source-time"><span data-source-time>0:00.00</span> / <span data-source-length>0:00.00</span></span></div>
+  <div class="vs-source-bar">
+   <button type="button" data-source-action="to-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button>
+   <button type="button" data-source-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button>
+   <button type="button" class="vs-play" data-source-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 18)}</button>
+   <button type="button" data-source-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button>
+   <button type="button" data-source-action="to-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button>
+   <input type="range" class="vs-source-scrub" data-source-scrub min="0" max="0" step="1" value="0" aria-label="${label('sourcePosition', 'Source position')}">
+   <button type="button" data-source-action="mark-in" title="${label('sourceMarkIn', 'Mark in')} (I)">${label('sourceMarkIn', 'Mark in')} <small data-source-in-text>-</small></button>
+   <button type="button" data-source-action="mark-out" title="${label('sourceMarkOut', 'Mark out')} (O)">${label('sourceMarkOut', 'Mark out')} <small data-source-out-text>-</small></button>
+   <button type="button" data-source-action="go-in">${label('sourceGoIn', 'Go to in')}</button>
+   <button type="button" data-source-action="go-out">${label('sourceGoOut', 'Go to out')}</button>
+   <button type="button" data-source-action="clear-marks">${label('sourceClearMarks', 'Clear in and out')}</button>
+   <button type="button" data-source-drag="picture" draggable="true" title="${label('sourceDragHint', 'Drag onto a track to place it')}">${icon('video', 15)}<span>${label('sourcePicture', 'Picture only')}</span></button>
+   <button type="button" data-source-drag="sound" draggable="true" title="${label('sourceDragHint', 'Drag onto a track to place it')}">${icon('audio', 15)}<span>${label('sourceSound', 'Sound only')}</span></button>
+   <button type="button" class="vs-source-insert" data-source-action="insert" title="${label('sourceInsert', 'Insert')} (,)">${label('sourceInsert', 'Insert')}</button>
+   <button type="button" data-source-action="overwrite" title="${label('sourceOverwrite', 'Overwrite')} (.)">${label('sourceOverwrite', 'Overwrite')}</button>
+  </div>
+ </section>
  </main>
  <button type="button" class="vs-inspector-scrim" data-action="close-inspector" aria-label="${label('close', 'Close')}"></button>
  <aside class="vs-inspector" aria-label="${label('inspector', 'Inspector')}"><div class="vs-inspector-head"><h2>${label('properties', 'Properties')}</h2><button type="button" class="vs-inspector-close" data-action="close-inspector" aria-label="${label('close', 'Close')}" title="${label('close', 'Close')}">${icon('close', 16)}</button></div><div data-inspector class="vs-inspector-body"></div></aside>
@@ -171,7 +195,8 @@
             zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', loop: false, soloIds: new Set(), renamingTrackId: '', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
-            textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
+            textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null,
+            stageMode: 'timeline', sourceAssetId: '', sourceProjectId: '', sourceIn: null, sourceOut: null, sourceFrame: 0, sourceRate: '', sourceProject: null, sourcePreview: null, sourceShuttle: null
         };
         instances.set(id, s);
         host.innerHTML = layoutMarkup(s);
@@ -237,6 +262,7 @@
         }, { signal });
         wireResize(s);
         wireTransform(s);
+        P.wireSource(s);
         if (typeof MutationObserver === 'function') {
             s.modalObserver = new MutationObserver(() => P.syncInert(s));
             [s.q('[data-modal-host]'), s.q('[data-conflict-host]')].forEach(node => s.modalObserver.observe(node, { childList: true }));
@@ -468,6 +494,7 @@
             s.q('[data-inspector]').querySelectorAll('input,select,textarea,button:not([data-marker-jump])').forEach(control => { control.disabled = true; });
             s.q('[data-file-input]').disabled = true;
         }
+        if (P.syncSource) P.syncSource(s);
         if (s.preview) s.preview.seek(s.frame);
         updateTransform(s);
     }
@@ -696,7 +723,7 @@
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
         if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
-        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event)) return;
+        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event) && !P.isSourceShortcut(s, event)) return;
         if (event.key === 'Escape') {
             // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
             const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
@@ -717,12 +744,17 @@
         }
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
         if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        // Escape leaves the source monitor. It sits after the text-field guard (Escape in the library search or a rename
+        // stays there) and before the button guard (Escape on a focused source button still returns to the timeline).
+        if (event.key === 'Escape' && s.stageMode === 'source' && !s.menu) { P.setStageMode(s, 'timeline'); event.preventDefault(); return; }
         if (undoShortcut) { event.preventDefault(); undo(s, event.shiftKey); return; }
         // A focused timeline clip takes the clip shortcuts; Space and Enter stay with the timeline.
         const focusedClip = target.closest('[data-clip-id]') && !target.closest('button') ? target.closest('[data-clip-id]').dataset.clipId : '';
         if (!focusedClip && target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"]')) return;
         if (focusedClip && (event.code === 'Space' || event.key === 'Enter')) return;
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
+        // In source mode every key goes to the source monitor; timeline keys do nothing there (undo ran above).
+        if (s.stageMode === 'source') { P.handleSourceKeys(s, event); return; }
         if (P.handleEditKeys(s, event, focusedClip)) return;
         if (P.handleNavKeys(s, event)) return;
         if (event.code === 'Space') { event.preventDefault(); P.togglePlay(s); }

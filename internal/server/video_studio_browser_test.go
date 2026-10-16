@@ -68,6 +68,7 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 <script src="/js/desktop/apps/video-studio-ruler.js"></script>
 <script src="/js/desktop/apps/video-studio-edit.js"></script>
 <script src="/js/desktop/apps/video-studio-navigation.js"></script>
+<script src="/js/desktop/apps/video-studio-source-edit.js"></script>
 <script src="/js/desktop/apps/video-studio-inspector.js"></script>
 <script src="/js/desktop/apps/video-studio-core.js"></script>
 <script src="/js/desktop/apps/video-studio-library.js"></script>
@@ -75,6 +76,7 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 <script src="/js/desktop/apps/video-studio-jobs.js"></script>
 <script src="/js/desktop/apps/video-studio-stage.js"></script>
 <script src="/js/desktop/apps/video-studio-editing.js"></script>
+<script src="/js/desktop/apps/video-studio-source.js"></script>
 <script src="/js/desktop/apps/video-studio-tracks.js"></script>
 <script src="/js/desktop/apps/video-studio-markers.js"></script>
 <script src="/js/desktop/apps/video-studio-transport.js"></script>

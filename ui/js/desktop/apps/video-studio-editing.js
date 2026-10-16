@@ -330,6 +330,8 @@
         if (key === 'n') return { run: () => s.q('[data-timeline] [data-action="snap"]')?.click() };
         if (key === 'q' || key === 'w') return { run: () => trimToPlayhead(s, key === 'q' ? 'start' : 'end') };
         if (key === 's') return { run: () => splitSelection(s), selection: true };
+        // Source monitor edits (video-studio-source.js) also work from the timeline view while an item is loaded.
+        if ((key === ',' || key === '.') && s.sourceAssetId) return { run: () => P.sourceEdit(s, key === ',' ? 'insert' : 'overwrite'), always: true };
         return null;
     }
     function isEditShortcut(s, event) { return !!editCommand(s, event); }

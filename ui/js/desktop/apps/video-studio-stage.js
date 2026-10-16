@@ -259,6 +259,7 @@
     }
     // Direct manipulation: the selected visual clip gets a box over the preview canvas.
     function transformTarget(s) {
+        if (s.stageMode === 'source') return null;
         const found = selectedClip(s);
         if (!found || s.readonly || found.track.locked || found.track.hidden || found.track.kind === 'audio') return null;
         const clip = found.clip;

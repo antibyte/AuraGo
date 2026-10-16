@@ -105,6 +105,7 @@
             s.mediaFrame = 0;
             if (s.disposed || !s.project) return;
             renderAssets(s);
+            if (P.renderSource) P.renderSource(s);
             if (!s.timelineDragging && !s.transformDrag) T().render(s.q('[data-timeline]'), s.timelineOptions);
             const thumb = s.q('.vs-insp-thumb'), selected = selectedClip(s);
             const asset = selected && s.project.assets.find(item => item.id === selected.clip.asset_id);

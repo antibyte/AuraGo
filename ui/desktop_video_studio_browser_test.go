@@ -64,7 +64,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-icons.js"></script><script src="/js/desktop/apps/video-studio-time.js"></script><script src="/js/desktop/apps/video-studio-media.js"></script><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio-ruler.js"></script><script src="/js/desktop/apps/video-studio-edit.js"></script><script src="/js/desktop/apps/video-studio-navigation.js"></script><script src="/js/desktop/apps/video-studio-inspector.js"></script><script src="/js/desktop/apps/video-studio-core.js"></script><script src="/js/desktop/apps/video-studio-library.js"></script><script src="/js/desktop/apps/video-studio-artwork.js"></script><script src="/js/desktop/apps/video-studio-jobs.js"></script><script src="/js/desktop/apps/video-studio-stage.js"></script><script src="/js/desktop/apps/video-studio-editing.js"></script><script src="/js/desktop/apps/video-studio-tracks.js"></script><script src="/js/desktop/apps/video-studio-markers.js"></script><script src="/js/desktop/apps/video-studio-transport.js"></script><script src="/js/desktop/apps/video-studio-derive.js"></script><script src="/js/desktop/apps/video-studio-projects.js"></script><script src="/js/desktop/apps/video-studio-menus.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-icons.js"></script><script src="/js/desktop/apps/video-studio-time.js"></script><script src="/js/desktop/apps/video-studio-media.js"></script><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio-ruler.js"></script><script src="/js/desktop/apps/video-studio-edit.js"></script><script src="/js/desktop/apps/video-studio-navigation.js"></script><script src="/js/desktop/apps/video-studio-source-edit.js"></script><script src="/js/desktop/apps/video-studio-inspector.js"></script><script src="/js/desktop/apps/video-studio-core.js"></script><script src="/js/desktop/apps/video-studio-library.js"></script><script src="/js/desktop/apps/video-studio-artwork.js"></script><script src="/js/desktop/apps/video-studio-jobs.js"></script><script src="/js/desktop/apps/video-studio-stage.js"></script><script src="/js/desktop/apps/video-studio-editing.js"></script><script src="/js/desktop/apps/video-studio-source.js"></script><script src="/js/desktop/apps/video-studio-tracks.js"></script><script src="/js/desktop/apps/video-studio-markers.js"></script><script src="/js/desktop/apps/video-studio-transport.js"></script><script src="/js/desktop/apps/video-studio-derive.js"></script><script src="/js/desktop/apps/video-studio-projects.js"></script><script src="/js/desktop/apps/video-studio-menus.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
 			window.fixtureErrors=[];window.fixtureCalls=[];window.addEventListener('error',e=>fixtureErrors.push(String(e.message)));
 			window.fixtureLocales=`+mustJSON(t, locales)+`;const fixtureParams=new URLSearchParams(location.search);window.fixtureLang=fixtureParams.get('lang')||'en';document.body.dataset.theme=fixtureParams.get('theme')||'standard';document.documentElement.lang=window.fixtureLang;
 			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];window.fixtureArtworkRequests=[];window.fixtureArtworkStates={};window.fixtureLastJobBody=null;
@@ -490,6 +490,35 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		s.preview.seek(startFrame);
 		window.VideoStudioParts.renderTimeline(s);
 		if(JSON.stringify({markers:s.project.markers,in_point:s.project.in_point,out_point:s.project.out_point})!==base)throw new Error('the navigation flow did not restore the markers and in/out points');
+	}`)
+
+	// Source monitor insert: timeline in/out, double-click the still in the library, `,` inserts at in with out - in.
+	// The still lands on the video track because 1b lets video tracks accept stills.
+	page.MustEval(`async()=>{
+		const s=window.VideoStudioApp.instances.get('fixture'),app=document.querySelector('.vs-app');
+		const key=(k,o={},target=app)=>{const e=new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o));target.dispatchEvent(e);return e;};
+		const v1=()=>s.project.tracks.find(t=>t.id==='v1').clips.slice().sort((a,b)=>a.start-b.start);
+		app.focus();
+		s.preview.seek(30);key('i');s.preview.seek(90);key('o');
+		if(s.project.in_point!==30||s.project.out_point!==90)throw new Error('timeline in and out were not set: '+JSON.stringify({in:s.project.in_point,out:s.project.out_point}));
+		document.querySelector('[data-asset-id="art1"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));
+		if(s.stageMode!=='source'||s.sourceAssetId!=='art1')throw new Error('double-click did not open the source monitor');
+		if(document.querySelector('[data-source]').hidden)throw new Error('the source monitor section stayed hidden');
+		// The source stops at its end (no wrap): from the last frame it stops at once and stays there. The still has 150 frames.
+		s.sourcePreview.seek(149);s.sourcePreview.play();
+		await new Promise(resolve=>setTimeout(resolve,400));
+		if(s.sourcePreview.isPlaying()||s.sourceFrame<149)throw new Error('the source did not stop at its end: '+JSON.stringify({playing:s.sourcePreview.isPlaying(),frame:s.sourceFrame}));
+		// Escape in the library search field edits the text and keeps the source monitor open.
+		const search=document.querySelector('[data-search]');search.focus();key('Escape',{},search);
+		if(s.stageMode!=='source')throw new Error('Escape in the library search field left the source monitor');
+		app.focus();
+		key(',');
+		if(v1().length!==1||v1()[0].start!==30||v1()[0].duration!==60)throw new Error('insert with timeline in and out did not place 60 frames at in: '+JSON.stringify(v1()));
+		if(s.frame!==90)throw new Error('the playhead did not move to the end of the edit: '+s.frame);
+		key('Escape');
+		if(s.stageMode!=='timeline')throw new Error('Escape did not return to the timeline');
+		key('z',{ctrlKey:true});
+		if(v1().length!==0)throw new Error('undo did not remove the source insert: '+JSON.stringify(v1()));
 	}`)
 
 	// Read-only is enforced in the app, not merely by disabled presentation.

@@ -1408,18 +1408,20 @@ buttons and menu popovers remain excluded from those gestures.
   `video-studio-ruler.js` (in/out shade, marker flags, overview strip),
   `video-studio-edit.js` (DOM-free edit operations),
   `video-studio-navigation.js` (DOM-free shuttle, edit points and track order),
+  `video-studio-source-edit.js` (DOM-free source rules),
   `video-studio-inspector.js`, then the app parts
   `video-studio-core.js` (constants, requests, model, history, saving,
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
   drawer, timeline height, transform box, field edits), `-editing.js`
-  (selection, clipboard, tools, edit commands and shortcuts), `-tracks.js`
-  (track commands, targets, heights, solo), `-markers.js` (marker commands and
-  popover), `-transport.js` (JKL, in/out, loop and navigation keys), `-derive.js`
+  (selection, clipboard, tools, edit commands and shortcuts), `-source.js`
+  (source monitor), `-tracks.js` (track commands, targets, heights, solo),
+  `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
+  loop and navigation keys), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
   `-projects.js`), `-projects.js` (settings and new-project dialogs) and
-  `-menus.js` (context menus), and `video-studio.js` last (22 scripts, same
+  `-menus.js` (context menus), and `video-studio.js` last (24 scripts, same
   order in `module-loader.js` and both browser fixtures). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
