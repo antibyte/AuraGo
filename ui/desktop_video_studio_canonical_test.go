@@ -1,8 +1,15 @@
 package ui
 
 import (
+	"bytes"
+	"encoding/json"
 	"os/exec"
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
+
+	"aurago/internal/videostudio"
 )
 
 func TestVideoStudioCanonicalProjectV2(t *testing.T) {
@@ -27,9 +34,11 @@ const serverOrdered = {id:'a',name:'a.mp4',path:'media/a',kind:'video',duration_
 assert.equal(JSON.stringify(c.assets[0]), JSON.stringify(serverOrdered), 'a canonical asset stringifies like the server copy');
 assert.equal(P.canonicalProject(Object.assign({}, project, {ntsc:true})).ntsc, true);
 const s = {projectId:'p'};
-assert.equal(P.hydrateProject(s, {version:1,name:'old',width:1280,height:720,fps:30,assets:[],tracks:[]}).version, 2, 'hydrating a 30 fps version 1 copy upgrades it like the server');
+assert.equal(P.hydrateProject(s, {version:1,name:'old',width:1280,height:720,fps:30,assets:[],tracks:[]}).version, 3, 'hydrating a 30 fps version 1 copy upgrades it through version 2 to 3 like the server');
 assert.equal(P.hydrateProject(s, {version:1,fps:30,ntsc:true,assets:[],tracks:[]}).version, 1, 'an invalid version 1 copy is not upgraded');
-assert.equal(P.hydrateProject(s, {version:2,fps:25,assets:[],tracks:[]}).version, 2);
+assert.equal(P.hydrateProject(s, {version:2,fps:25,assets:[],tracks:[]}).version, 3, 'a version 2 copy becomes version 3 without data changes');
+assert.equal(P.hydrateProject(s, {version:3,fps:25,assets:[],tracks:[]}).version, 3);
+assert.equal(P.defaultProject('New', {ctx: {}}).version, 3, 'new projects are version 3');
 const image = {id:'b',name:'b.png',path:'media/b',kind:'image',duration_frames:0,width:1,height:1,has_audio:false};
 const bare = P.canonicalProject(Object.assign({}, project, {assets:[image]}));
 assert.deepEqual(Object.keys(bare.assets[0]), ['id','name','path','kind','duration_frames','width','height','has_audio'], 'absent v2 fields stay absent');
@@ -75,5 +84,119 @@ assert.equal(P.canonicalProject(Object.assign({}, foldered, {assets: [Object.ass
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("canonical form checks: %v\n%s", err, output)
+	}
+}
+
+// canonicalGuardProject fills every field of Project, Asset, Track and Clip with a non-zero value, so canonicalProject
+// must emit every key. Each later slice adds its new fields here with non-zero values (plan index §4.1).
+func canonicalGuardProject() videostudio.Project {
+	in, out := 10, 90
+	return videostudio.Project{
+		Version: videostudio.CurrentVersion, Name: "Guard", Width: 1280, Height: 720, FPS: 30, NTSC: true,
+		Assets: []videostudio.Asset{{
+			ID: "a", Name: "a.mp4", Folder: "Trips", Path: "media/a", Kind: videostudio.AssetVideo, DurationFrames: 300,
+			DurationUs: 10_010_000, VideoDurationUs: 10_010_000, Width: 64, Height: 36, HasAudio: true, HasPoster: true,
+			SourceFPS: "30000/1001", Codec: "h264", SizeBytes: 99,
+		}},
+		Tracks: []videostudio.Track{{
+			ID: "t", Kind: videostudio.TrackVideo, Name: "Video 1", Muted: true, Hidden: true, Locked: true,
+			Clips: []videostudio.Clip{{
+				ID: "c", AssetID: "a", Start: 1, Offset: 2, Duration: 30, X: 0.1, Y: 0.2, Width: 0.5, Height: 0.25,
+				Rotation: 15, Opacity: 0.5, Volume: 0.8, FadeIn: 3, FadeOut: 4, Fit: videostudio.FitCover, Text: "Hi",
+				TextStyle:     &videostudio.TextStyle{FontSize: 32},
+				Transition:    &videostudio.Transition{Type: videostudio.TransitionDissolve, Duration: 5},
+				Speed:         2,
+				Link:          "l1",
+				AudioDetached: true,
+				Disabled:      true,
+				Label:         "red",
+			}},
+		}},
+		Markers:  []videostudio.Marker{{ID: "m", Frame: 5}},
+		InPoint:  &in,
+		OutPoint: &out,
+		Folders:  []string{"Trips"},
+	}
+}
+
+// goJSONKeys lists the JSON keys of a struct type in field order, as encoding/json writes them.
+func goJSONKeys(typ reflect.Type) []string {
+	keys := make([]string, 0, typ.NumField())
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			name = field.Name
+		}
+		keys = append(keys, name)
+	}
+	return keys
+}
+
+// requirePopulated fails when an exported field of the fixture struct holds its zero value: a field added in Go but
+// not in canonicalGuardProject would otherwise escape the key-order check.
+func requirePopulated(t *testing.T, label string, value reflect.Value) {
+	t.Helper()
+	for i := 0; i < value.NumField(); i++ {
+		if field := value.Type().Field(i); field.IsExported() && value.Field(i).IsZero() {
+			t.Fatalf("%s.%s is empty in canonicalGuardProject; give every new field a non-zero value", label, field.Name)
+		}
+	}
+}
+
+// The project PUT decodes with DisallowUnknownFields and the editor compares canonical copies as strings, so
+// canonicalProject must emit exactly Go's JSON keys in Go's struct order (plan index §4.1).
+func TestVideoStudioCanonicalKeyOrderFollowsGo(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio canonical form checks")
+	}
+	fixture := canonicalGuardProject()
+	requirePopulated(t, "Project", reflect.ValueOf(fixture))
+	requirePopulated(t, "Asset", reflect.ValueOf(fixture.Assets[0]))
+	requirePopulated(t, "Track", reflect.ValueOf(fixture.Tracks[0]))
+	requirePopulated(t, "Clip", reflect.ValueOf(fixture.Tracks[0].Clips[0]))
+	data, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `
+global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const c = window.VideoStudioParts.canonicalProject(` + string(data) + `);
+process.stdout.write(JSON.stringify({project: Object.keys(c), asset: Object.keys(c.assets[0]), track: Object.keys(c.tracks[0]), clip: Object.keys(c.tracks[0].clips[0])}));
+`
+	cmd := exec.Command(node, "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("canonical key order: %v\n%s", err, stderr.String())
+	}
+	var got struct{ Project, Asset, Track, Clip []string }
+	if err := json.Unmarshal(output, &got); err != nil {
+		t.Fatalf("decode %s: %v", output, err)
+	}
+	for _, check := range []struct {
+		name string
+		typ  reflect.Type
+		keys []string
+	}{
+		{"Project", reflect.TypeOf(videostudio.Project{}), got.Project},
+		{"Asset", reflect.TypeOf(videostudio.Asset{}), got.Asset},
+		{"Track", reflect.TypeOf(videostudio.Track{}), got.Track},
+		{"Clip", reflect.TypeOf(videostudio.Clip{}), got.Clip},
+	} {
+		if want := goJSONKeys(check.typ); !slices.Equal(check.keys, want) {
+			t.Fatalf("canonicalProject %s keys = %v, want the Go JSON order %v", check.name, check.keys, want)
+		}
 	}
 }

@@ -88,6 +88,9 @@ type Track struct {
 	Clips  []Clip    `json:"clips"`
 }
 
+// Clip is one item on a track. Model version 3 (phase 2) adds optional fields after Label in this fixed order, which
+// is also the JSON order and the order of canonicalClipExtras in video-studio-core.js: keyframes (2b), ramp (2b),
+// crop (2c), flip_h (2c), flip_v (2c), blend (2d), mask (2d), effects (2c), anim_in (2e), anim_out (2e).
 type Clip struct {
 	ID            string      `json:"id"`
 	AssetID       string      `json:"asset_id"`
@@ -135,7 +138,7 @@ type Transition struct {
 const (
 	// FramesPerSecond is the version 1 frame rate and the default for new projects.
 	FramesPerSecond     = 30
-	CurrentVersion      = 2
+	CurrentVersion      = 3
 	MaxDurationSeconds  = 3600
 	MaxVideoTracks      = 8
 	MaxAudioTracks      = 8

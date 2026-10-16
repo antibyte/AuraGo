@@ -36,8 +36,8 @@ var supportedFrameRates, ntscFrameRates = func() (map[int]bool, map[int]bool) {
 
 var sourceFPSPattern = regexp.MustCompile(`^[1-9][0-9]{0,6}/[1-9][0-9]{0,6}$`)
 
-// Validate checks a version 2 project and all frame and overlap rules. Stored or submitted
-// version 1 documents must pass through Upgrade first.
+// Validate checks a current (version 3) project and all frame and overlap rules. Stored or submitted
+// version 1 and 2 documents must pass through Upgrade first.
 func Validate(project Project) error {
 	if project.Version != CurrentVersion {
 		return fmt.Errorf("unsupported project version %d", project.Version)

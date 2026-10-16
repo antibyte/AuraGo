@@ -159,8 +159,11 @@
     }
     function hydrateProject(s, project) {
         const p = clone(project || {});
-        // Mirrors Go's videostudio.Upgrade: a recovered draft or a tab opened before the upgrade compares as version 2.
+        // Mirrors Go's videostudio.Upgrade step by step: a 30 fps, non-NTSC version 1 copy becomes version 2, and a
+        // version 2 copy becomes version 3 without data changes. A recovered draft or a tab opened before an upgrade
+        // then compares equal to the server copy.
         if (Number(p.version) === 1 && (Number(p.fps) || 30) === 30 && !p.ntsc) p.version = 2;
+        if (Number(p.version) === 2) p.version = 3;
         p.assets = (p.assets || []).map(asset => assetAtProjectRate(Object.assign({}, asset, {
             media_url: API + '/projects/' + encodeURIComponent(s.projectId) + '/media/' + encodeURIComponent(asset.id)
         }), p));
@@ -184,7 +187,7 @@
         return tracks;
     }
     function defaultProject(name, s) {
-        return { version: 2, name, width: 1280, height: 720, fps: 30, assets: [], tracks: defaultTracks(s) };
+        return { version: 3, name, width: 1280, height: 720, fps: 30, assets: [], tracks: defaultTracks(s) };
     }
     function showNotice(s, key, fallback, error, action) {
         if (s.disposed || !s.q('[data-notice]')) return;

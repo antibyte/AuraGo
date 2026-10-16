@@ -47,7 +47,7 @@ func TestRenderTransitionAfterGap(t *testing.T) {
 	}
 	for name, clips := range cases {
 		t.Run(name, func(t *testing.T) {
-			project := Project{Version: 2, Name: name, Width: 720, Height: 720, FPS: 30, Assets: []Asset{red, blue},
+			project := Project{Version: CurrentVersion, Name: name, Width: 720, Height: 720, FPS: 30, Assets: []Asset{red, blue},
 				Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: clips}}}
 			if err := Validate(project); err != nil {
 				t.Fatalf("fixture project invalid: %v", err)
@@ -76,7 +76,7 @@ func TestRenderRotationMatchesPreviewDirection(t *testing.T) {
 		t.Fatal(err)
 	}
 	asset.ID = "split"
-	project := Project{Version: 2, Name: "Rotation direction", Width: 720, Height: 720, FPS: 30, Assets: []Asset{asset},
+	project := Project{Version: CurrentVersion, Name: "Rotation direction", Width: 720, Height: 720, FPS: 30, Assets: []Asset{asset},
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{
 			ID: "clip", AssetID: "split", Start: 0, Duration: 30, X: 0.25, Y: 0.25, Width: 0.5, Height: 0.5,
 			Rotation: 90, Opacity: 1, Volume: 1, Fit: FitCover,
@@ -115,7 +115,7 @@ func TestRenderDissolveKeepsPictureInPictureBrightness(t *testing.T) {
 		t.Fatal(err)
 	}
 	red.ID, blue.ID = "red", "blue"
-	project := Project{Version: 2, Name: "PiP dissolve", Width: 720, Height: 720, FPS: 30, Assets: []Asset{red, blue},
+	project := Project{Version: CurrentVersion, Name: "PiP dissolve", Width: 720, Height: 720, FPS: 30, Assets: []Asset{red, blue},
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
 			{ID: "a", AssetID: "red", Start: 0, Duration: 30, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitCover,
 				Transition: &Transition{Type: TransitionDissolve, Duration: 10}},

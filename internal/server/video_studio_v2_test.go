@@ -30,7 +30,7 @@ func TestVideoStudioV2CreateUpgradeAndRates(t *testing.T) {
 		}
 	}
 
-	// A version 1 file on disk is upgraded on read and saved as version 2.
+	// A version 1 file on disk is upgraded on read (through version 2) and saved as version 3.
 	project, _ := videoStudioAPICreate(t, s, writeToken)
 	file := filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, videoStudioProjectPath(project.ID), "project.json")
 	if err := os.WriteFile(file, []byte(`{"version":1,"name":"Old","width":1280,"height":720,"fps":30,"assets":[],"tracks":[]}`), 0o600); err != nil {
@@ -46,8 +46,8 @@ func TestVideoStudioV2CreateUpgradeAndRates(t *testing.T) {
 	if saved.Code != http.StatusOK {
 		t.Fatalf("save upgraded: %d %s", saved.Code, saved.Body.String())
 	}
-	if data, _ := os.ReadFile(file); !bytes.Contains(data, []byte(`"version":2`)) {
-		t.Fatalf("saved file is not version 2: %s", data)
+	if data, _ := os.ReadFile(file); !bytes.Contains(data, []byte(`"version":3`)) {
+		t.Fatalf("saved file is not version 3: %s", data)
 	}
 
 	// API clients may still submit version 1 documents.
@@ -72,6 +72,10 @@ func TestVideoStudioV2CreateUpgradeAndRates(t *testing.T) {
 	rated := videoStudioAPIRequest(s, writeToken, http.MethodPut, "/projects/"+project.ID, bytes.NewBufferString(sixty), map[string]string{"If-Match": submitted.Header().Get("ETag")})
 	if err := json.Unmarshal(rated.Body.Bytes(), &item); err != nil || rated.Code != http.StatusOK {
 		t.Fatalf("save 60 fps: %d %s (%v)", rated.Code, rated.Body.String(), err)
+	}
+	// That document was submitted as version 2: the server upgrades it and stores version 3.
+	if data, _ := os.ReadFile(file); item.Project.Version != 3 || !bytes.Contains(data, []byte(`"version":3`)) {
+		t.Fatalf("a version 2 PUT was not stored as version 3: %d %s", item.Project.Version, data)
 	}
 	if got := item.Project.Assets[0]; got.DurationFrames != 120 || got.DurationUs != 2_000_000 || got.Width != 64 {
 		t.Fatalf("asset at 60 fps = %+v", got)

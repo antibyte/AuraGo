@@ -416,3 +416,45 @@ func TestVideoStudioVersionIndexIgnoresInvalidIDs(t *testing.T) {
 		t.Fatalf("after the new version %d versions are listed, want %d", len(got), videoStudioManualVersionLimit)
 	}
 }
+
+// A version saved by a build before version 3 holds a version 2 document. Restoring it upgrades it like a read and
+// stores version 3.
+func TestVideoStudioVersionsRestoreUpgradesVersionTwo(t *testing.T) {
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	project, etag := videoStudioAPICreate(t, s, writeToken)
+	path := "/projects/" + project.ID + "/versions"
+	created := videoStudioAPIRequest(s, writeToken, http.MethodPost, path, nil, nil)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("save version: %d %s", created.Code, created.Body.String())
+	}
+	var saved struct {
+		Version videoStudioVersion `json:"version"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &saved); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	svc, _, err := s.getDesktopService(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := []byte(`{"version":2,"name":"Saved by 2","width":1280,"height":720,"fps":30,"assets":[],"tracks":[]}`)
+	if err := svc.WriteFileBytes(ctx, videoStudioVersionDocPath(project.ID, saved.Version.ID), legacy, desktop.SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	restored := videoStudioAPIRequest(s, writeToken, http.MethodPost, path+"/"+saved.Version.ID+"/restore", nil, map[string]string{"If-Match": etag})
+	if restored.Code != http.StatusOK {
+		t.Fatalf("restore a version 2 document: %d %s", restored.Code, restored.Body.String())
+	}
+	var item videoStudioProjectItem
+	if err := json.Unmarshal(restored.Body.Bytes(), &item); err != nil || item.Project.Version != 3 || item.Project.Name != "Saved by 2" {
+		t.Fatalf("restored project: %+v (%v)", item.Project, err)
+	}
+	stored, _, err := svc.ReadFileBytes(ctx, videoStudioProjectPath(project.ID)+"/project.json")
+	if err != nil || !strings.Contains(string(stored), `"version":3`) {
+		t.Fatalf("stored document after the restore: %s (%v)", stored, err)
+	}
+	if read := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+project.ID, nil, nil); read.Code != http.StatusOK || !strings.Contains(read.Body.String(), `"name":"Saved by 2"`) {
+		t.Fatalf("project after the restore: %d %s", read.Code, read.Body.String())
+	}
+}

@@ -8,7 +8,7 @@ import (
 
 func validProject() Project {
 	return Project{
-		Version: 2, Name: "Test", Width: 1280, Height: 720, FPS: 30,
+		Version: CurrentVersion, Name: "Test", Width: 1280, Height: 720, FPS: 30,
 		Assets: []Asset{{ID: "video", Name: "video.mp4", Kind: AssetVideo, DurationFrames: 300, Width: 640, Height: 360}},
 		Tracks: []Track{{
 			ID: "track", Name: "Video", Kind: TrackVideo,
@@ -208,15 +208,15 @@ func TestUpgradeVersionOne(t *testing.T) {
 	}
 	again, err := Upgrade(got)
 	if err != nil || again.Version != CurrentVersion {
-		t.Fatalf("Upgrade(v2) = %d, %v", again.Version, err)
+		t.Fatalf("Upgrade(current) = %d, %v", again.Version, err)
 	}
 	notThirty := v1
 	notThirty.FPS = 25
 	if _, err := Upgrade(notThirty); err == nil {
 		t.Fatal("a version 1 project at 25 fps was upgraded")
 	}
-	if _, err := Upgrade(Project{Version: 3}); err == nil {
-		t.Fatal("version 3 was upgraded")
+	if _, err := Upgrade(Project{Version: CurrentVersion + 1}); err == nil {
+		t.Fatal("a version newer than CurrentVersion was upgraded")
 	}
 }
 

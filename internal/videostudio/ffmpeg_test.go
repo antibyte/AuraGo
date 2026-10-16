@@ -83,7 +83,7 @@ func TestFFmpegProbePreviewAndMultitrackRender(t *testing.T) {
 	}
 	cover.ID = "cover"
 	project := Project{
-		Version: 2, Name: "Render test", Width: 720, Height: 720, FPS: 30,
+		Version: CurrentVersion, Name: "Render test", Width: 720, Height: 720, FPS: 30,
 		Assets: []Asset{red, blue, audio, cover},
 		Tracks: []Track{
 			{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
@@ -198,7 +198,7 @@ func TestRenderPadsShortVideoToClipDuration(t *testing.T) {
 	red.Transition = &Transition{Type: TransitionDissolve, Duration: 10}
 
 	transitionProject := Project{
-		Version: 2, Name: "Short video tail transition", Width: 720, Height: 720, FPS: FramesPerSecond,
+		Version: CurrentVersion, Name: "Short video tail transition", Width: 720, Height: 720, FPS: FramesPerSecond,
 		Assets: assets,
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
 			red,
@@ -235,7 +235,7 @@ func TestRenderPadsShortVideoToClipDuration(t *testing.T) {
 	for _, offset := range []int{15, 45} {
 		t.Run(fmt.Sprintf("offset_%d", offset), func(t *testing.T) {
 			project := Project{
-				Version: 2, Name: "Offset after short video", Width: 720, Height: 720, FPS: FramesPerSecond,
+				Version: CurrentVersion, Name: "Offset after short video", Width: 720, Height: 720, FPS: FramesPerSecond,
 				Assets: []Asset{short},
 				Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{clip("short", "short", 0, offset, 15)}}},
 			}
@@ -277,7 +277,7 @@ func TestRenderCoverRotationAndOpacity(t *testing.T) {
 	}
 	asset.ID = "split"
 	project := Project{
-		Version: 2, Name: "Geometry test", Width: 720, Height: 720, FPS: 30,
+		Version: CurrentVersion, Name: "Geometry test", Width: 720, Height: 720, FPS: 30,
 		Assets: []Asset{asset},
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{
 			ID: "clip", AssetID: "split", Start: 0, Duration: 30, X: 0.2, Y: 0.2, Width: 0.2, Height: 0.2,

@@ -42,7 +42,7 @@ func TestTenMinuteRenderPerformanceOptIn(t *testing.T) {
 		t.Fatalf("synthetic source metadata = %+v", asset)
 	}
 	project := Project{
-		Version: 2, Name: "10-minute local render check", Width: 1920, Height: 1080, FPS: FramesPerSecond,
+		Version: CurrentVersion, Name: "10-minute local render check", Width: 1920, Height: 1080, FPS: FramesPerSecond,
 		Assets: []Asset{asset},
 		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{
 			ID: "full-length", AssetID: asset.ID, Start: 0, Duration: tenMinutes,
