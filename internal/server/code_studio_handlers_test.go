@@ -540,7 +540,7 @@ func testCodeStudioServerWithFakeCodeContainer(t *testing.T, maxFileSizeMB int) 
 	svc.CodeContainer().SetDockerClient(&fakeServerCodeContainerDocker{
 		containers: []desktop.CodeDockerContainer{{ID: "code-1", Names: []string{"/aurago-code-studio"}}},
 		inspectByName: map[string]desktop.CodeDockerInspect{
-			"code-1": {ID: "code-1", Name: "/aurago-code-studio", State: desktop.CodeDockerState{Running: true}},
+			"code-1": {ID: "code-1", Name: "/aurago-code-studio", State: desktop.CodeDockerState{Running: true}, NetworkMode: "none"},
 		},
 	})
 	s.DesktopService = svc

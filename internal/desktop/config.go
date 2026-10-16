@@ -74,6 +74,7 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 			AutoStopMinutes: desktopCfg.CodeStudio.AutoStopMinutes,
 			MaxMemoryMB:     desktopCfg.CodeStudio.MaxMemoryMB,
 			MaxCPUCores:     desktopCfg.CodeStudio.MaxCPUCores,
+			AllowNetwork:    desktopCfg.CodeStudio.AllowNetwork,
 		},
 		OpenSCAD: OpenSCADConfig{
 			Enabled:                 desktopCfg.OpenSCAD.Enabled,

@@ -25,6 +25,7 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 15
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 2048
 	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 1
+	cfg.VirtualDesktop.CodeStudio.AllowNetwork = true
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 90
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 7
 
@@ -59,7 +60,7 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	if got.CodeStudio.Image != cfg.VirtualDesktop.CodeStudio.Image {
 		t.Fatalf("code studio image = %q, want %q", got.CodeStudio.Image, cfg.VirtualDesktop.CodeStudio.Image)
 	}
-	if got.CodeStudio.AutoStopMinutes != 15 || got.CodeStudio.MaxMemoryMB != 2048 || got.CodeStudio.MaxCPUCores != 1 {
+	if got.CodeStudio.AutoStopMinutes != 15 || got.CodeStudio.MaxMemoryMB != 2048 || got.CodeStudio.MaxCPUCores != 1 || !got.CodeStudio.AllowNetwork {
 		t.Fatalf("code studio config not preserved: %+v", got.CodeStudio)
 	}
 	if got.RemoteMaxSessionMinutes != 90 || got.RemoteIdleTimeoutMinutes != 7 {

@@ -1153,6 +1153,7 @@ virtual_desktop:
         auto_stop_minutes: 30                              # stop container after inactivity
         max_memory_mb: 4096                                # Docker memory limit
         max_cpu_cores: 2                                   # Docker CPU quota
+        allow_network: false                               # false keeps the container off the network; true lets go, pip, npm and git fetch out and recreates the container
     openscad:
         enabled: true                                      # built-in headless OpenSCAD compiler container
         image: openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37

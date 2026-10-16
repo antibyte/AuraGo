@@ -820,6 +820,7 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int    `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
 	MaxMemoryMB     int    `yaml:"max_memory_mb" json:"max_memory_mb"`
 	MaxCPUCores     int    `yaml:"max_cpu_cores" json:"max_cpu_cores"`
+	AllowNetwork    bool   `yaml:"allow_network" json:"allow_network"`
 }
 
 // OpenSCADConfig holds settings for the lazy OpenSCAD compiler container.

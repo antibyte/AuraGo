@@ -3192,6 +3192,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "code_studio", "auto_stop_minutes"}, c.VirtualDesktop.CodeStudio.AutoStopMinutes},
 		{[]string{"virtual_desktop", "code_studio", "max_memory_mb"}, c.VirtualDesktop.CodeStudio.MaxMemoryMB},
 		{[]string{"virtual_desktop", "code_studio", "max_cpu_cores"}, c.VirtualDesktop.CodeStudio.MaxCPUCores},
+		{[]string{"virtual_desktop", "code_studio", "allow_network"}, c.VirtualDesktop.CodeStudio.AllowNetwork},
 		{[]string{"virtual_desktop", "openscad", "enabled"}, c.VirtualDesktop.OpenSCAD.Enabled},
 		{[]string{"virtual_desktop", "openscad", "image"}, c.VirtualDesktop.OpenSCAD.Image},
 		{[]string{"virtual_desktop", "openscad", "auto_start"}, c.VirtualDesktop.OpenSCAD.AutoStart},

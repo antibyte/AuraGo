@@ -50,6 +50,15 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - Managed probes and workspace scripts use non-login shells to retain the image
   PATH, including `/usr/local/go/bin`. Never rebuild a healthy image because a
   login profile hid its tools. Verify `TestCodeStudioRuntimeRequiresCCompiler`.
+- `virtual_desktop.code_studio.allow_network` defaults false. Off creates the
+  container with Docker `NetworkMode` `none`. On leaves `NetworkMode` empty so
+  Docker uses its default bridge. The container still has no Docker socket and
+  no extra capabilities. `EnsureStarted` removes and recreates a container whose
+  mode does not match; workspace content stays on the host mount. Status
+  reports `network` as `none` or `bridge`. Verify
+  `TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits`,
+  `TestCodeContainerEnsureStartedReplacesIsolatedContainerWhenNetworkAllowed`
+  and `TestCodeContainerEnsureStartedReplacesBridgedContainerWhenNetworkDisabled`.
 
 - Desktop authority consists of scopes, readonly and runtime/tool grants.
   `control_level` is retired; old YAML remains readable and normal config saves

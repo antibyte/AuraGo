@@ -50,7 +50,7 @@ func TestCodeStudioDockerAdapterInspectKeepsBindSource(t *testing.T) {
 			t.Errorf("unexpected Docker request %s", r.URL.Path)
 		}
 		io.WriteString(w, `{"Id":"abc","Name":"/code-studio","State":{"Running":true,"Status":"running"},`+
-			`"HostConfig":{"ReadonlyRootfs":true,"Tmpfs":{"/tmp":"rw,nosuid,size=256m"}},`+
+			`"HostConfig":{"NetworkMode":"none","ReadonlyRootfs":true,"Tmpfs":{"/tmp":"rw,nosuid,size=256m"}},`+
 			`"Config":{"Env":["HOME=/tmp","PATH=/usr/bin"]},`+
 			`"Mounts":[{"Type":"bind","Source":"/home/aurago/workspace/code","Destination":"/workspace","RW":true},`+
 			`{"Type":"tmpfs","Source":"","Destination":"/tmp"}]}`)
@@ -73,5 +73,8 @@ func TestCodeStudioDockerAdapterInspectKeepsBindSource(t *testing.T) {
 	}
 	if !inspect.State.Running {
 		t.Fatalf("state = %+v, want running", inspect.State)
+	}
+	if inspect.NetworkMode != "none" {
+		t.Fatalf("network mode = %q, want none", inspect.NetworkMode)
 	}
 }
