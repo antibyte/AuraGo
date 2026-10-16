@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -294,15 +295,15 @@ func rangeHasAudio(project Project, sources map[string]renderSource, start, end 
 }
 
 func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, width, height int, encoder Encoder, output string, progress func(float64)) error {
-	inputs, graph, err := buildVideoSegment(project, seg, sources, rate, width, height, encoder.filterTail())
+	inputs, graph, commands, err := buildVideoSegment(project, seg, sources, rate, width, height, encoder.filterTail())
 	if err != nil {
 		return err
 	}
-	graphPath, err := writeGraph(filepath.Dir(output), graph)
+	workDir, graphPath, err := stageVideoGraph(filepath.Dir(output), graph, rate, commands)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(graphPath)
+	defer os.RemoveAll(workDir)
 	// -copyts -start_at_zero keeps every seeked input on the source's own timeline, so the graph can pick source
 	// frames by absolute position instead of restarting the frame-rate cadence at the first frame after the seek.
 	// Hardware encoders initialise their device (globalArgs) before the inputs.
@@ -317,7 +318,7 @@ func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg
 	// keeps B-frame timestamps valid.
 	args = append(args, "-threads", strconv.Itoa(threadLimit), "-an",
 		"-progress", "pipe:1", "-nostats", "-f", "mpegts", output)
-	return runFFmpeg(ctx, ffmpeg, args, rate.Seconds(seg.End-seg.Start), progress, inputPaths(inputs), output)
+	return runFFmpegIn(ctx, workDir, ffmpeg, args, rate.Seconds(seg.End-seg.Start), progress, inputPaths(inputs), output)
 }
 
 func renderAudioSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, output string, progress func(float64)) error {
@@ -403,8 +404,57 @@ func writeGraph(dir, graph string) (string, error) {
 	return file.Name(), nil
 }
 
+// sendCmdFileName is the only name a staged command file may have.
+var sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+\.txt$`)
+
+// stageVideoGraph creates a fresh vsg-* directory in dir for one video FFmpeg process (renderVideoSegment, RenderFrame)
+// and writes the filter graph (graph.txt) and every command file into it (index §4.11). FFmpeg runs with that
+// directory as its working directory (runFFmpegIn), so the graph names command files by bare name and no host path
+// reaches filter-graph escaping. The caller removes workDir; on error nothing is left behind.
+func stageVideoGraph(dir, graph string, rate Rate, commands []sendCmdFile) (workDir, graphPath string, err error) {
+	created, err := os.MkdirTemp(dir, "vsg-")
+	if err != nil {
+		return "", "", fmt.Errorf("create FFmpeg graph directory: %w", err)
+	}
+	fail := func(err error) (string, string, error) {
+		_ = os.RemoveAll(created)
+		return "", "", err
+	}
+	if workDir, err = filepath.Abs(created); err != nil {
+		return fail(fmt.Errorf("resolve FFmpeg graph directory: %w", err))
+	}
+	graphPath = filepath.Join(workDir, "graph.txt")
+	if err := os.WriteFile(graphPath, []byte(graph), 0o600); err != nil {
+		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
+	}
+	seen := make(map[string]bool, len(commands))
+	for _, file := range commands {
+		if !sendCmdFileName.MatchString(file.name) || seen[file.name] {
+			return fail(fmt.Errorf("invalid sendcmd file name %q", file.name))
+		}
+		seen[file.name] = true
+		if err := WriteSendCmd(filepath.Join(workDir, file.name), rate, file.tracks); err != nil {
+			return fail(err)
+		}
+	}
+	return workDir, graphPath, nil
+}
+
+// runFFmpeg runs FFmpeg in the current working directory (see runFFmpegIn).
 func runFFmpeg(ctx context.Context, ffmpeg string, args []string, seconds float64, progress func(float64), inputs []string, output string) error {
+	return runFFmpegIn(ctx, "", ffmpeg, args, seconds, progress, inputs, output)
+}
+
+// runFFmpegIn runs FFmpeg with dir as its working directory ("" keeps the current one), reports progress from
+// -progress pipe:1 and removes output on failure. Video processes run in their vsg-* staging directory, where the
+// graph names command files by bare name; every path in args and the binary must then be absolute (resolveBinary
+// returns absolute paths).
+func runFFmpegIn(ctx context.Context, dir, ffmpeg string, args []string, seconds float64, progress func(float64), inputs []string, output string) error {
+	if dir != "" && !filepath.IsAbs(ffmpeg) {
+		return fmt.Errorf("FFmpeg binary %q must be an absolute path when it runs in a staging directory", ffmpeg)
+	}
 	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	cmd.Dir = dir
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("open FFmpeg progress stream: %w", err)

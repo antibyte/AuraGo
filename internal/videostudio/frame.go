@@ -73,18 +73,18 @@ func RenderFrame(ctx context.Context, opts FrameOptions) error {
 		}
 	}
 	rate := ProjectRate(project)
-	inputs, graph, err := buildVideoSegmentWith(project, Segment{Start: opts.Frame, End: opts.Frame + 1}, sources, rate, videoTail{width: width, height: height, rgb: true})
+	inputs, graph, commands, err := buildVideoSegmentWith(project, Segment{Start: opts.Frame, End: opts.Frame + 1}, sources, rate, videoTail{width: width, height: height, rgb: true})
 	if err != nil {
 		return err
 	}
 	if len(inputs) > MaxSegmentInputs {
 		return fmt.Errorf("%w at frame %d", ErrTooManyInputs, opts.Frame)
 	}
-	graphPath, err := writeGraph(filepath.Dir(outputPath), graph)
+	workDir, graphPath, err := stageVideoGraph(filepath.Dir(outputPath), graph, rate, commands)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(graphPath)
+	defer os.RemoveAll(workDir)
 	// -copyts -start_at_zero as for video segments: seeked inputs keep the source's own timeline.
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-copyts", "-start_at_zero"}
 	args = append(args, segmentInputArgs(inputs, rate)...)
@@ -92,7 +92,7 @@ func RenderFrame(ctx context.Context, opts FrameOptions) error {
 		"-filter_threads", strconv.Itoa(threadLimit), "-filter_complex_threads", strconv.Itoa(threadLimit),
 		"-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-map_metadata", "-1",
 		"-frames:v", "1", "-c:v", "png", "-pix_fmt", "rgb24", "-update", "1", "-f", "image2", outputPath)
-	if err := runFFmpeg(frameCtx, ffmpeg, args, rate.Seconds(1), nil, inputPaths(inputs), outputPath); err != nil {
+	if err := runFFmpegIn(frameCtx, workDir, ffmpeg, args, rate.Seconds(1), nil, inputPaths(inputs), outputPath); err != nil {
 		return err
 	}
 	return ensureOutputSize(outputPath, maxFramePNGBytes)

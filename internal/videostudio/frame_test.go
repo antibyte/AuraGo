@@ -26,11 +26,11 @@ func TestRenderFrameGraphEndsInRGB(t *testing.T) {
 	sources := map[string]renderSource{"v": {asset: project.Assets[0], path: "v.mp4", videoEnd: 30}}
 
 	// The encoder wrapper produces exactly the generalized builder's graph, hardware upload included.
-	_, wrapped, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720, ",format=nv12,hwupload")
+	_, wrapped, _, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720, ",format=nv12,hwupload")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, direct, err := buildVideoSegmentWith(project, Segment{55, 80}, sources, rate, videoTail{width: 1280, height: 720, upload: ",format=nv12,hwupload"})
+	_, direct, _, err := buildVideoSegmentWith(project, Segment{55, 80}, sources, rate, videoTail{width: 1280, height: 720, upload: ",format=nv12,hwupload"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,14 +39,14 @@ func TestRenderFrameGraphEndsInRGB(t *testing.T) {
 	}
 	// One frame inside the dissolve (50–60): the window covers the whole transition, keeps its frame 5, and the
 	// tail stays 8-bit RGB without any YUV conversion.
-	_, graph, err := buildVideoSegmentWith(project, Segment{55, 56}, sources, rate, videoTail{width: 1280, height: 720, rgb: true})
+	_, graph, _, err := buildVideoSegmentWith(project, Segment{55, 56}, sources, rate, videoTail{width: 1280, height: 720, rgb: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(graph, "xfade=transition=fade") || !strings.HasSuffix(graph, "trim=start_frame=5:end_frame=6,setpts=PTS-STARTPTS,format=rgb24[vs_video_out]") || strings.Contains(graph, "yuv420p") {
 		t.Fatalf("RGB frame graph:\n%s", graph)
 	}
-	_, graph, err = buildVideoSegmentWith(project, Segment{10, 11}, sources, rate, videoTail{width: 640, height: 360, rgb: true})
+	_, graph, _, err = buildVideoSegmentWith(project, Segment{10, 11}, sources, rate, videoTail{width: 640, height: 360, rgb: true})
 	if err != nil || !strings.HasSuffix(graph, ",setpts=PTS-STARTPTS,scale=w=640:h=360:flags=bicubic,format=rgb24[vs_video_out]") {
 		t.Fatalf("scaled RGB frame graph (%v):\n%s", err, graph)
 	}

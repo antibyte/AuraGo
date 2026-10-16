@@ -35,6 +35,20 @@ type layerClip struct {
 	first int
 	image bool
 	input int
+	// whole is the clip as on the timeline. at is the absolute timeline frame of the clip's first window frame,
+	// max(clip.Start, window.Start) with pre-roll included, so window frame k is absolute frame at+k; every per-frame
+	// value (keyframes, ramp, commands) is computed from absolute frames. pieces are the ramp pieces over
+	// [0, whole.Duration] in clip time, nil without a ramp (index §4.10, §4.18).
+	whole  Clip
+	at     int
+	pieces []rampPiece
+}
+
+// sendCmdFile is one clip's sendcmd script for one FFmpeg process. name is the bare file name the graph reads
+// (vs_cmd_<layer>_<clip>.txt); stageVideoGraph writes it next to graph.txt in the process's working directory.
+type sendCmdFile struct {
+	name   string
+	tracks []SendCmdTrack
 }
 
 func segmentInputArgs(inputs []segmentInput, rate Rate) []string {
@@ -69,25 +83,28 @@ type videoTail struct {
 	rgb           bool   // RenderFrame: 8-bit RGB (rgb24) instead of the BT.709 YUV tail
 }
 
-// buildVideoSegment composes the visual tracks of seg for the encoder (BT.709 YUV tail).
-func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, error) {
+// buildVideoSegment composes the visual tracks of seg for the encoder (BT.709 YUV tail). The command files are the
+// sendcmd scripts the graph reads; stageVideoGraph writes them.
+func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, []sendCmdFile, error) {
 	return buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: outWidth, height: outHeight, upload: upload})
 }
 
 // buildVideoSegmentWith composes the visual tracks of seg. When seg starts or ends inside a transition the graph
 // covers the whole transition (pre-roll) and trims the composed frames back to seg.
-func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, error) {
+func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, []sendCmdFile, error) {
 	window := expandRange(seg, videoForbiddenSpans(project))
 	layers, inputs, err := segmentLayers(project, window, sources, rate)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 	width, height, frames := project.Width, project.Height, window.End-window.Start
 	filters := []string{fmt.Sprintf("color=c=black:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[vs_base0]", width, height, rate, rate.SecondsArg(frames), frames)}
 	output := "vs_base0"
+	var commands []sendCmdFile
 	for index, layer := range layers {
-		label, layerFilters := buildVisualLayer(layer, index, width, height, rate)
+		label, layerFilters, layerCommands := buildVisualLayer(layer, index, width, height, rate)
 		filters = append(filters, layerFilters...)
+		commands = append(commands, layerCommands...)
 		next := fmt.Sprintf("vs_base%d", index+1)
 		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", output, label, next))
 		output = next
@@ -100,7 +117,7 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 			finish = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic,format=rgb24", out.width, out.height)
 		}
 		filters = append(filters, tail+","+finish+"[vs_video_out]")
-		return inputs, strings.Join(filters, ";\n"), nil
+		return inputs, strings.Join(filters, ";\n"), commands, nil
 	}
 	// Convert RGBA to limited-range BT.709 YUV here, together with the optional resize: left to the encoder's
 	// automatic conversion, FFmpeg before 7.1 uses BT.601 while the stream is tagged BT.709. Hardware encoders
@@ -110,7 +127,7 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", out.width, out.height)
 	}
 	filters = append(filters, tail+","+convert+",format=yuv420p"+out.upload+"[vs_video_out]")
-	return inputs, strings.Join(filters, ";\n"), nil
+	return inputs, strings.Join(filters, ";\n"), commands, nil
 }
 
 // segmentLayers cuts every visual track to the window. Disabled clips are left out. A transition applies only when
@@ -142,7 +159,10 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 			if clip.Transition != nil && i+1 < len(ordered) && !ordered[i+1].Disabled && ordered[i+1].Start < window.End {
 				local.Transition = clip.Transition
 			}
-			item := layerClip{clip: local, image: source.asset.Kind == AssetImage, input: len(inputs)}
+			item := layerClip{clip: local, whole: clip, at: max(clip.Start, window.Start), image: source.asset.Kind == AssetImage, input: len(inputs)}
+			if len(clip.Ramp) > 0 {
+				item.pieces = rampPieces(clip.Ramp, 0, float64(clip.Duration))
+			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
 				// The source position of the first window frame: a clip at speed s advances s source frames per frame.
@@ -171,7 +191,7 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 	return layers, inputs, nil
 }
 
-func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate) (string, []string) {
+func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate) (string, []string, []sendCmdFile) {
 	filters := make([]string, 0, len(layer)*4)
 	sequence := 0
 	join := func() string {
@@ -214,7 +234,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 		combined = out
 		combinedEnd = clip.Start + clip.Duration
 	}
-	return combined, filters
+	return combined, filters, nil
 }
 
 // appendTransition joins incoming (a clip starting at clip.Start) to combined, whose last transition.Duration

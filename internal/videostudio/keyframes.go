@@ -3,8 +3,12 @@ package videostudio
 import (
 	"fmt"
 	"maps"
+	"os"
+	"regexp"
 	"slices"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 // Keyframes (spec §5.1, §5.2, §5.8, plan index §4.18). Clip.Keyframes maps a base parameter path to its keys. F is
@@ -219,4 +223,92 @@ func clipAnimation(clip Clip) (geometry, opacity bool) {
 		}
 	}
 	return geometry, len(clip.Keyframes["opacity"]) > 0
+}
+
+// SendCmdTrack is one runtime option of one Go-named single-input filter instance, with one value per window frame of a
+// clip (window frame k = absolute frame layerClip.at + k).
+type SendCmdTrack struct {
+	Target string    // "<filter>@vs_<role>_<layer>_<clip>", checked against ^[a-z]+@vs_[a-z]+_[0-9]+_[0-9]+$
+	Option string    // allowed per "<filter>@vs_<role>" in sendCmdOptions
+	Values []float64 // finite; all tracks of one file have the same length
+}
+
+// sendCmdTargetPattern is the only shape of a command target: a Go-named filter instance.
+var sendCmdTargetPattern = regexp.MustCompile(`^[a-z]+@vs_[a-z]+_[0-9]+_[0-9]+$`)
+
+// sendCmdOptions lists, per "<filter>@vs_<role>", the options a script may set. Only single-input filters belong here:
+// sendcmd to a two-input filter (overlay, blend) lands 1–3 frames early on FFmpeg 8.1 (index §4.11, risk 10). 2c/2d
+// extend the list.
+var sendCmdOptions = map[string][]string{
+	"colorchannelmixer@vs_opacity": {"aa"},
+	"crop@vs_crop":                 {"w", "h"},
+}
+
+// WriteSendCmd writes one clip's sendcmd script (0o600). Frame k's commands start half a frame early ((k − 0.5)·Den/Num
+// seconds, %.6f; frame 0 at 0), so NTSC microsecond rounding never moves a command to a neighbour frame. Commands of one
+// frame share one interval (comma-separated); a value equal to the previous frame's is skipped. Only Go-formatted
+// numbers, checked targets and allowed options are written.
+func WriteSendCmd(path string, rate Rate, tracks []SendCmdTrack) error {
+	script, err := sendCmdScript(rate, tracks)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
+		return fmt.Errorf("write sendcmd script: %w", err)
+	}
+	return nil
+}
+
+// sendCmdScript returns the script WriteSendCmd writes, or an error for an invalid rate or track.
+func sendCmdScript(rate Rate, tracks []SendCmdTrack) (string, error) {
+	if rate.Num <= 0 || rate.Den <= 0 {
+		return "", fmt.Errorf("sendcmd script needs a valid frame rate")
+	}
+	if len(tracks) == 0 || len(tracks[0].Values) == 0 {
+		return "", fmt.Errorf("sendcmd script needs a track with values")
+	}
+	frames := len(tracks[0].Values)
+	seen := make(map[string]bool, len(tracks))
+	for _, track := range tracks {
+		if !sendCmdTargetPattern.MatchString(track.Target) {
+			return "", fmt.Errorf("sendcmd target %q is not a Go-named filter instance", track.Target)
+		}
+		parts := strings.Split(track.Target, "_")
+		if !slices.Contains(sendCmdOptions[strings.Join(parts[:len(parts)-2], "_")], track.Option) {
+			return "", fmt.Errorf("sendcmd option %q is not allowed for %q", track.Option, track.Target)
+		}
+		key := track.Target + " " + track.Option
+		if seen[key] {
+			return "", fmt.Errorf("sendcmd track %s appears twice", key)
+		}
+		seen[key] = true
+		if len(track.Values) != frames {
+			return "", fmt.Errorf("sendcmd track %s has %d values, want %d", key, len(track.Values), frames)
+		}
+		for _, value := range track.Values {
+			if !finite(value) {
+				return "", fmt.Errorf("sendcmd track %s has a non-finite value", key)
+			}
+		}
+	}
+	var script strings.Builder
+	commands := make([]string, 0, len(tracks))
+	for k := range frames {
+		commands = commands[:0]
+		for _, track := range tracks {
+			if k > 0 && track.Values[k] == track.Values[k-1] {
+				continue
+			}
+			commands = append(commands, track.Target+" "+track.Option+" "+strconv.FormatFloat(track.Values[k], 'f', -1, 64))
+		}
+		if len(commands) == 0 {
+			continue
+		}
+		seconds := 0.0
+		if k > 0 {
+			seconds = (float64(k) - 0.5) * float64(rate.Den) / float64(rate.Num)
+		}
+		fmt.Fprintf(&script, "%.6f %s;\n", seconds, strings.Join(commands, ", "))
+	}
+	return script.String(), nil
 }
