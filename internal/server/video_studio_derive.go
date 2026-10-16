@@ -192,12 +192,15 @@ func (m *videoStudioManager) importDerivedMedia(ctx context.Context, svc *deskto
 		return videostudio.Asset{}, err
 	}
 	asset.ID, asset.Name, asset.Path = assetID, name, mediaPath
+	m.attachPoster(ctx, svc, cfg, job.ProjectID, stageDir, staged, &asset)
 	record.Asset = asset
 	if err := m.recordMedia(record); err != nil {
+		m.discardPoster(ctx, svc, job.ProjectID, asset)
 		return videostudio.Asset{}, err
 	}
 	saved, err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset)
 	if err != nil {
+		m.discardPoster(ctx, svc, job.ProjectID, asset)
 		return videostudio.Asset{}, err
 	}
 	published = false

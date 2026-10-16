@@ -268,6 +268,72 @@ func ensureOutputSize(path string, limit int64) error {
 	return nil
 }
 
+// PosterLongestSide is the longest side of a media poster in pixels.
+const PosterLongestSide = 320
+
+// maxPosterBytes bounds one poster JPEG.
+const maxPosterBytes = int64(1 << 20)
+
+// WritePoster writes a JPEG poster: one frame of a video (one second in, or the first frame when the clip is shorter
+// than two seconds) or the picture of a still image. The longest side is PosterLongestSide pixels. Audio has no
+// picture and therefore no poster.
+func WritePoster(ctx context.Context, ffmpegPath, input, output string, asset Asset) error {
+	if asset.Kind != AssetVideo && asset.Kind != AssetImage {
+		return fmt.Errorf("only video and image assets have posters")
+	}
+	inputPath, err := ensureRegularLocalFile(input)
+	if err != nil {
+		return fmt.Errorf("open poster source: %w", err)
+	}
+	ffmpeg, err := resolveBinary(ffmpegPath, "ffmpeg")
+	if err != nil {
+		return err
+	}
+	outputPath, err := validateNewOutput(output, inputPath)
+	if err != nil {
+		return err
+	}
+	seek := "1"
+	if asset.Kind == AssetImage || (asset.DurationUs > 0 && asset.DurationUs < 2_000_000) {
+		seek = "0"
+	}
+	err = runPoster(ctx, ffmpeg, inputPath, outputPath, seek)
+	if err != nil && seek != "0" && ctx.Err() == nil {
+		_ = os.Remove(outputPath)
+		err = runPoster(ctx, ffmpeg, inputPath, outputPath, "0")
+	}
+	if err != nil {
+		_ = os.Remove(outputPath)
+		return fmt.Errorf("create media poster: %w", err)
+	}
+	if err := ensureOutputSize(outputPath, maxPosterBytes); err != nil {
+		_ = os.Remove(outputPath)
+		return err
+	}
+	return nil
+}
+
+func runPoster(ctx context.Context, ffmpeg, input, output, seek string) error {
+	posterCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	args := []string{
+		"-hide_banner", "-nostdin", "-loglevel", "error",
+		"-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers,
+		"-ss", seek, "-i", input,
+		"-map", "0:V:0", "-frames:v", "1",
+		"-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease:force_divisible_by=2", PosterLongestSide, PosterLongestSide),
+		"-q:v", "4", "-f", "image2", output,
+	}
+	if _, err := runSmallCommand(posterCtx, ffmpeg, args, 1<<20); err != nil {
+		return err
+	}
+	info, err := os.Stat(output)
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 {
+		return fmt.Errorf("poster frame is missing")
+	}
+	return nil
+}
+
 func validSourceDimensions(width, height int) bool {
 	return width > 0 && height > 0 && width <= MaxSourceDimension && height <= MaxSourceDimension && int64(width)*int64(height) <= MaxSourcePixels
 }

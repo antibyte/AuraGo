@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -25,6 +26,9 @@ import (
 
 const videoStudioAPIBase = "/api/desktop/video-studio"
 const videoStudioJSONLimit = 8 << 20
+
+// videoStudioUploadFolderBytes bounds the multipart folder field (MaxFolderPathRunes runes of up to four bytes).
+const videoStudioUploadFolderBytes = 1024
 
 // videoStudioProjectListLimit bounds GET /projects to the most recently changed projects.
 var videoStudioProjectListLimit = 200
@@ -75,6 +79,8 @@ func handleVideoStudio(s *Server) http.HandlerFunc {
 				handleVideoStudioMedia(s, w, r, parts[1])
 			case len(parts) == 4 && parts[2] == "media":
 				handleVideoStudioMediaFile(s, w, r, parts[1], parts[3])
+			case len(parts) == 5 && parts[2] == "media" && parts[4] == "poster.jpg":
+				handleVideoStudioPoster(s, w, r, parts[1], parts[3])
 			case len(parts) == 3 && parts[2] == "jobs":
 				if r.Method == http.MethodGet {
 					handleVideoStudioJobList(s, w, r, parts[1])
@@ -548,10 +554,12 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	}
 	admittedEpoch := manager.admissionEpoch()
 	r = r.WithContext(manager.publicationContext(r.Context(), ""))
-	if _, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID)); err != nil {
+	uploadProject, _, _, err := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(projectID))
+	if err != nil {
 		writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
 		return
 	}
+	uploadRate := videostudio.ProjectRate(uploadProject)
 	key, err := videoStudioIdempotencyKey(r)
 	if err != nil {
 		writeVideoStudioError(w, http.StatusPreconditionRequired, "idempotency_key_required", "Media imports require an Idempotency-Key header.")
@@ -560,7 +568,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	maxAsset := int64(cfg.VideoStudio.MaxAssetSizeMB) << 20
 	assetLimit := maxAsset
 	r.Body = http.MaxBytesReader(w, r.Body, maxAsset+(1<<20))
-	var name string
+	var name, folder string
 	var source io.Reader
 	var sourceCloser io.Closer
 	var multipartReader *multipart.Reader
@@ -571,11 +579,18 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	if contentType == "application/json" {
 		var body struct {
 			SourcePath string `json:"source_path"`
+			Folder     string `json:"folder"`
 		}
 		if err := decodeVideoStudioJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil || strings.TrimSpace(body.SourcePath) == "" {
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_import", "A Desktop source_path is required.")
 			return
 		}
+		normalized, folderErr := videostudio.NormalizeFolder(body.Folder)
+		if folderErr != nil {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "The media folder is invalid.")
+			return
+		}
+		folder = normalized
 		file, entry, _, err := svc.OpenPreviewFile(r.Context(), body.SourcePath)
 		if err != nil {
 			writeVideoStudioError(w, http.StatusBadRequest, "import_source_invalid", "The Desktop source file could not be opened.")
@@ -594,13 +609,31 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "Upload must use multipart/form-data.")
 			return
 		}
-		part, err := reader.NextPart()
-		if err != nil || part.FormName() != "file" || part.FileName() == "" {
-			if part != nil {
-				_ = part.Close()
+		// The reader streams, so an optional folder field must come before the file part.
+		var part *multipart.Part
+		for part == nil {
+			next, err := reader.NextPart()
+			if err != nil {
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "Upload must include one file field named file.")
+				return
 			}
-			writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "Upload must include one file field named file.")
-			return
+			switch {
+			case next.FormName() == "folder" && next.FileName() == "":
+				raw, readErr := io.ReadAll(io.LimitReader(next, videoStudioUploadFolderBytes+1))
+				_ = next.Close()
+				normalized, folderErr := videostudio.NormalizeFolder(string(raw))
+				if readErr != nil || len(raw) > videoStudioUploadFolderBytes || !utf8.Valid(raw) || folderErr != nil {
+					writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "The media folder is invalid.")
+					return
+				}
+				folder = normalized
+			case next.FormName() == "file" && next.FileName() != "":
+				part = next
+			default:
+				_ = next.Close()
+				writeVideoStudioError(w, http.StatusBadRequest, "invalid_upload", "Upload must include one file field named file.")
+				return
+			}
 		}
 		multipartReader, uploadPart = reader, part
 		name, source, sourceCloser = part.FileName(), part, part
@@ -659,7 +692,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 		}
 	}
 	digest := hex.EncodeToString(hasher.Sum(nil))
-	record := videoStudioMediaRecord{ProjectID: projectID, Asset: videostudio.Asset{ID: assetID, Name: name, Path: mediaPath}, Path: mediaPath, SHA256: digest, CreatedAt: time.Now().UTC()}
+	record := videoStudioMediaRecord{ProjectID: projectID, Asset: videostudio.Asset{ID: assetID, Name: name, Folder: folder, Path: mediaPath}, Path: mediaPath, SHA256: digest, CreatedAt: time.Now().UTC()}
 	if err := manager.recordMedia(record); err != nil {
 		_ = svc.DeletePath(r.Context(), videoStudioProjectPath(projectID)+"/"+mediaPath, desktop.SourceUser)
 		writeVideoStudioError(w, http.StatusInternalServerError, "media_manifest_failed", "Media metadata could not be recorded.")
@@ -689,7 +722,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 			}
 		}
 	}
-	writeVideoStudioJSON(w, http.StatusAccepted, map[string]interface{}{"asset": record.Asset, "media_url": fmt.Sprintf("%s/projects/%s/media/%s", videoStudioAPIBase, projectID, record.Asset.ID), "job": job})
+	writeVideoStudioJSON(w, http.StatusAccepted, map[string]interface{}{"asset": videoStudioAssetAtRate(record.Asset, uploadRate), "media_url": fmt.Sprintf("%s/projects/%s/media/%s", videoStudioAPIBase, projectID, record.Asset.ID), "job": job})
 }
 
 func handleVideoStudioMediaFile(s *Server, w http.ResponseWriter, r *http.Request, projectID, assetID string) {

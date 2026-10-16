@@ -77,13 +77,16 @@ func (m *videoStudioManager) processProbe(ctx context.Context, svc *desktop.Serv
 		return nil, nil, err
 	}
 	asset.ID, asset.Name, asset.Path, asset.Folder = record.Asset.ID, record.Asset.Name, record.Path, record.Asset.Folder
+	m.attachPoster(ctx, svc, cfg, work.projectID, stageDir, staged, &asset)
 	record.Asset = asset
 	record.CreatedAt = time.Now().UTC()
 	if err := m.recordMedia(record); err != nil {
+		m.discardPoster(ctx, svc, work.projectID, asset)
 		return nil, nil, err
 	}
 	saved, err := m.mergeProjectAsset(ctx, svc, cfg, work.projectID, asset)
 	if err != nil {
+		m.discardPoster(ctx, svc, work.projectID, asset)
 		return nil, nil, err
 	}
 	return nil, map[string]interface{}{"asset": saved}, nil
@@ -522,12 +525,15 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 		return nil, nil, err
 	}
 	asset.ID, asset.Name, asset.Path = assetID, name, mediaPath
+	m.attachPoster(ctx, svc, cfg, job.ProjectID, stageDir, staged, &asset)
 	assetRecord.Asset = asset
 	if err := m.recordMedia(assetRecord); err != nil {
+		m.discardPoster(ctx, svc, job.ProjectID, asset)
 		return nil, nil, err
 	}
 	saved, err := m.mergeProjectAsset(ctx, svc, cfg, job.ProjectID, asset)
 	if err != nil {
+		m.discardPoster(ctx, svc, job.ProjectID, asset)
 		return nil, nil, err
 	}
 	mediaPublished = false
