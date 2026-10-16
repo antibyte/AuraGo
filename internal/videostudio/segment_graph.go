@@ -170,8 +170,13 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
-				// The source position of the first window frame: a clip at speed s advances s source frames per frame.
-				from := float64(clip.Offset) + float64(entered)*speed
+				// The source position of the first window frame: a clip at speed s advances s source frames per frame; a
+				// ramped clip has consumed S(entered) and reads S(entered + frames) − S(entered) more (index §4.18).
+				from, span := float64(clip.Offset)+float64(entered)*speed, float64(local.Duration)*speed
+				if item.pieces != nil {
+					consumed := rampSource(item.pieces, float64(entered))
+					from, span = float64(clip.Offset)+consumed, rampSource(item.pieces, float64(entered+local.Duration))-consumed
+				}
 				item.from, item.first = from, clip.Offset+entered
 				// Seek about a second early: the source frame that is current at from usually starts before it, and
 				// accurate seeking drops every frame before the seek point. The retimed timestamps keep the single
@@ -184,7 +189,7 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 					seekFrame = min(seekFrame, max(0, lastSafe))
 				}
 				input.seek = rate.Seconds(seekFrame)
-				input.limit = rate.SecondsFloat(from+float64(local.Duration)*speed-float64(seekFrame)) + 1
+				input.limit = rate.SecondsFloat(from+span-float64(seekFrame)) + 1
 			}
 			inputs = append(inputs, input)
 			layer = append(layer, item)

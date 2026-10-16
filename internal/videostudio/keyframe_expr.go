@@ -241,6 +241,36 @@ func rampSourceExpr(pieces []rampPiece, u ffExpr) ffExpr {
 	return balancedTree(len(pieces)+2, u, leaf, threshold)
 }
 
+// rampInverseExpr is Sinv(u), the clip time at which the clip has consumed u source frames (index §4.18). It is a
+// balanced tree over the pieces' source ranges:
+//   - Piece i gives t0 + 2d/(a + sqrt(a² + 2b·d)), with d = u − s0 in register 1. The form is stable, exact for b = 0,
+//     and its square root stays positive inside the piece, because speeds are at least 0.25.
+//   - Below the first piece the first piece's speed holds, above the last piece its end speed. Source frames before
+//     the offset or past the clip therefore map monotonically outside the clip.
+func rampInverseExpr(pieces []rampPiece, u ffExpr) ffExpr {
+	first, last := pieces[0], pieces[len(pieces)-1]
+	endSource, endSpeed := rampPieceEnd(last)
+	leaf := func(i int) ffExpr {
+		switch {
+		case i == 0:
+			return exprOp("+", exprNum(first.t0), exprOp("/", exprOp("-", u, exprNum(first.s0)), exprNum(first.a)))
+		case i == len(pieces)+1:
+			return exprOp("+", exprNum(last.t1), exprOp("/", exprOp("-", u, exprNum(endSource)), exprNum(endSpeed)))
+		}
+		p := pieces[i-1]
+		return exprOp(";", exprSt(1, exprOp("-", u, exprNum(p.s0))),
+			exprOp("+", exprNum(p.t0), exprOp("/", exprOp("*", exprNum(2), exprLd(1)),
+				exprOp("+", exprNum(p.a), exprOp("sqrt", exprOp("+", exprNum(p.a*p.a), exprOp("*", exprNum(2*p.b), exprLd(1))))))))
+	}
+	threshold := func(i int) float64 {
+		if i == len(pieces)+1 {
+			return endSource
+		}
+		return pieces[i-1].s0
+	}
+	return balancedTree(len(pieces)+2, u, leaf, threshold)
+}
+
 // windowSourceExpr stores the absolute frame and the source position of a window frame (index §4.11):
 //   - Register 0 holds T = at + round(t·Num/Den).
 //   - Register 1 holds offset + clipSource(T − start): linear for a constant speed, S by the ramp pieces otherwise

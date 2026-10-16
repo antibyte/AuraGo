@@ -37,9 +37,13 @@ func (c clipChain) filter(output string) string {
 // starts after the container (for example behind leading audio) no source frame covers the first positions; the
 // first decoded frame is then moved back to from, so fps holds it there instead of the clip running short. The video
 // path is videoResample, which the still capture (derive.go) shares so a still shows the frame the renderer shows.
+// A ramped clip uses rampResample instead (index §4.18).
 func (c clipChain) retime() string {
 	if c.item.image {
 		return fmt.Sprintf("setpts=PTS-STARTPTS,fps=%s", c.rate)
+	}
+	if len(c.item.pieces) > 0 {
+		return rampResample(c.item.from, c.item.clip.Offset, c.item.pieces, c.rate)
 	}
 	return videoResample(c.item.from, c.item.clip.Offset, ClipSpeed(c.item.clip), c.rate)
 }

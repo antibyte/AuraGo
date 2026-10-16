@@ -207,12 +207,13 @@ func assetMap(project Project) map[string]Asset {
 func visualClip(track Track) bool { return track.Kind != TrackAudio && !track.Hidden }
 
 // audibleClip mirrors the mix rules: visible, unmuted tracks; overlay tracks never play sound. Disabled clips are
-// silent, and a video clip whose audio was detached is silent here: its audio clip plays the sound.
+// silent, and a video clip whose audio was detached is silent here: its audio clip plays the sound. The linked audio of
+// a ramped video-track clip is muted too (index §4.18); detached audio keeps playing.
 func audibleClip(track Track, clip Clip, asset Asset) bool {
 	if clip.Disabled || track.Hidden || track.Muted || track.Kind == TrackOverlay || clip.Volume <= 0 || !asset.HasAudio {
 		return false
 	}
-	if track.Kind == TrackVideo && clip.AudioDetached {
+	if track.Kind == TrackVideo && (clip.AudioDetached || len(clip.Ramp) > 0) {
 		return false
 	}
 	return track.Kind == TrackVideo || asset.Kind == AssetAudio || asset.Kind == AssetVideo

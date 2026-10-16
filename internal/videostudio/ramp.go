@@ -233,3 +233,18 @@ func ClipSourceAt(clip Clip, frame float64) float64 {
 func clipSourceExtent(clip Clip) float64 {
 	return clipSource(clip, float64(clip.Duration-1))
 }
+
+// rampResample samples a ramped video clip's source on the project frame grid (index §4.18). It works like
+// videoResample does for a constant speed:
+//   - The first decoded frame moves back to from when the stream starts late.
+//   - Every source frame m moves to the clip frame offset + ceil(Sinv(m − offset)) where it first shows. This uses
+//     videoResample's 1 ms tolerance and works in microseconds.
+//   - fps fills the grid.
+//
+// Output frame n then shows floor(offset + S(n)): the largest source frame the clip has reached. The continuous
+// inverse alone rounds to the nearest frame and shows floor(S(n)) + 0/1/2 on FFmpeg 5.1 and 8.1 (spike 2026-10-16).
+// Sinv is rampInverseExpr's balanced if() tree on register 0.
+func rampResample(from float64, offset int, pieces []rampPiece, rate Rate) string {
+	return fmt.Sprintf("setpts='if(eq(N,0),min(PTS,floor(%.9f/TB)),PTS)',settb=AVTB,setpts='st(0,(PTS*TB-0.001)*%d/%d-%d);(%d+ceil(%s))*%d/%d/TB',fps=%s",
+		rate.SecondsFloat(from), rate.Num, rate.Den, offset, offset, rampInverseExpr(pieces, exprLd(0)).String(), rate.Den, rate.Num, rate)
+}

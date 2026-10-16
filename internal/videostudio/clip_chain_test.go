@@ -194,3 +194,26 @@ func TestCoverBound(t *testing.T) {
 		t.Fatalf("no source aspect: bound %dx%d, want 904x454", w, h)
 	}
 }
+
+func TestClipChainRampSnapshot(t *testing.T) {
+	ramp := []RampPoint{{F: 0, Speed: 1, E: EaseLinear}, {F: 50, Speed: 3, E: EaseLinear}}
+	clip := Clip{ID: "r", AssetID: "a", Offset: 20, Duration: 50, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, Ramp: ramp}
+	pieces := rampPieces(ramp, 0, 50)
+	pal := Rate{Num: 25, Den: 1}
+	item := layerClip{clip: clip, whole: clip, from: 20, first: 20, pieces: pieces}
+	got := clipChain{item: item, canvasWidth: 1280, canvasHeight: 720, rate: pal}.filter("vs_clip_0_0")
+	want := "[0:V:0]setpts='if(eq(N,0),min(PTS,floor(0.800000000/TB)),PTS)',settb=AVTB,setpts='st(0,(PTS*TB-0.001)*25/1-20);(20+ceil(" +
+		rampInverseExpr(pieces, exprLd(0)).String() +
+		"))*1/25/TB',fps=25,setpts='max(PTS-20,-50)',tpad=stop_mode=clone:stop=100,trim=start_pts=0:end_pts=50,setpts=PTS-STARTPTS," +
+		"scale=w=1280:h=720:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=1280:h=720:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,format=rgba[vs_layer_0_0];" +
+		"color=c=black@0:s=1280x720:r=25:d=2.000000,trim=end_frame=50,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_0];[vs_clip_bg_0_0][vs_layer_0_0]overlay=x=0:y=0:format=auto:shortest=1[vs_clip_0_0]"
+	if got != want {
+		t.Fatalf("ramp chain:\n got %s\nwant %s", got, want)
+	}
+	// Without ramp pieces the clip keeps its phase 1 retime.
+	plain := item
+	plain.pieces = nil
+	if got := (clipChain{item: plain, rate: pal}).retime(); got != videoResample(20, 20, 1, pal) {
+		t.Fatalf("unramped retime = %s", got)
+	}
+}
