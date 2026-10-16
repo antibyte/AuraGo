@@ -641,7 +641,12 @@
   below 1100 lines (`TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`). `P.designer.create(inst)` returns
   `{mountCanvas, mountPalette, mountScreens, mountInspector, reveal, dispose, state}` (`state`: the internal
   designer object, read-only, for tests and diagnostics). Snap and grid persist in `localStorage`
-  `aurago.cyd-creator.designer.view`; the clipboard is shared by all designer windows of the document.
+  `aurago.cyd-creator.designer.view`; the clipboard is shared by all designer windows of the document and stores
+  the source project id. Pasting into a different project (`sanitizeForeign`) drops catalog asset props whose id
+  is not in that project, and with them `icon_frames`, `icon_animate` and `icon_origin`; drops `icon_frames` that
+  are present but not exactly six known ids, and `icon_animate` with them; and removes `goto_screen` bindings
+  `findScreen` cannot resolve. A paste that removed something announces `designer.paste_adjusted`. The same
+  project, or a missing id, keeps the copied tree.
 - Every edit is one `inst.layoutStore.change` through `d.commands.run`/`transact` with ops from `P.model.apply`;
   the store keeps frozen snapshots, at most 16 MiB of history and the origins `local`/`undo`/`redo`/`remote`. The
   ops are the structural part of Go `ApplyOps` (`internal/cydcreator/patch.go`: fresh ids, catalog default sizes,
@@ -668,7 +673,15 @@
 - Gestures preview in the DOM and commit one change on release; `pointercancel`, lost capture, window blur, a
   screen switch, the lock and non-local changes cancel them. Coordinates are device pixels: the screen scales with
   `transform: scale(zoom)` (integer 1–4, images pixelated), the overlay does not, and children are relative to
-  `P.model.contentBox` (as `validate.go` bounds them: the whole panel, a tabview minus its tab bar). Read-only:
+  `P.model.contentBox` (as `validate.go` bounds them: the whole panel, a tabview minus its tab bar). Committed
+  move, nudge, resize position and place (`align`/`distribute`) run through `P.geometry.clampInto` into that
+  box: the size stays, a widget larger than the frame sticks to its top-left, and a group stays rigid through
+  `clampDelta`. Snap runs first; an axis the clamp moves drops that axis's guide. The marquee and Ctrl+A use
+  `P.model.visibleIds` (tree order, hidden widgets and their children out, only the active tab page) and
+  absolute rects. Multi-select z-order follows each parent list, not click order: front is the unselected
+  widgets then the selected ones, back is the reverse, and forward or backward is one shared step.
+  `reorderIndexes` emits `reorder_widget` ops that stay valid under splice-out-then-insert; an unchanged order
+  emits nothing. Locked widgets stay in the z-selection. Read-only:
   palette entries, inspector fieldsets and screen tools are disabled, no resize handles, commands return early;
   screens still open and layers still select.
 - Keys: `interact.handleKey(e)` runs a designer shortcut and returns true when it used the key (Delete/Backspace,

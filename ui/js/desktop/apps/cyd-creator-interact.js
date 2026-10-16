@@ -99,10 +99,12 @@
             if (!ids.length) return;
             const found = d.find(ids.includes(id) ? id : ids[0]);
             const moving = new Set(ids);
-            const abs0 = G.bounds(ids.map(x => M.absRect(p, x, env)));
+            const absById = new Map(ids.map(x => [x, M.absRect(p, x, env)]));
+            const abs0 = G.bounds(ids.map(x => absById.get(x)));
             const frame = d.frameOf(found);
             const targets = G.guideTargets(siblingRects(found, moving), frame);
             const parentId = found.parent ? found.parent.id : '';
+            const screenBox = () => { const s = d.screenSize(); return { x: 0, y: 0, w: s.w, h: s.h }; };
             const start = { x: event.clientX, y: event.clientY };
             const from = world(event);
             let moved = false;
@@ -114,10 +116,16 @@
                 const step = worldDelta(from, world(ev));
                 const raw = G.translate(abs0, step.x, step.y);
                 const snapped = ev.altKey ? Object.assign({ guides: { x: [], y: [] } }, raw) : G.snapMove(raw, targets, { step: d.snap, radius: radius(), origin: frame });
-                delta = { x: snapped.x - abs0.x, y: snapped.y - abs0.y };
+                drop = containerAt(canvas.clientToWorld(ev.clientX, ev.clientY), moving);
+                const dropId = drop ? drop.widget.id : '';
+                const inPlace = dropId === parentId;
+                const items = ids.map(x => ({ abs: absById.get(x), frame: inPlace ? d.frameOf(d.find(x)) : (drop ? drop.rect : screenBox()) }));
+                const rawDelta = { x: snapped.x - abs0.x, y: snapped.y - abs0.y };
+                delta = G.clampDelta(items, rawDelta);
+                if (delta.x !== rawDelta.x) snapped.guides.x = [];
+                if (delta.y !== rawDelta.y) snapped.guides.y = [];
                 canvas.previewMove(ids, delta);
                 canvas.showGuides(snapped.guides);
-                drop = containerAt(canvas.clientToWorld(ev.clientX, ev.clientY), moving);
                 canvas.showDrop(drop && drop.widget.id !== parentId ? drop.rect : null);
             }, (ev, cancelled) => {
                 gesture = null;
@@ -137,15 +145,22 @@
             const p = d.project();
             const env = d.env();
             const screen = d.screen();
+            if (!screen) return;
             const dropId = drop ? drop.widget.id : '';
             const inPlace = dropId === parentId;
-            // Layout ops take integers only (the server rejects anything else): every coordinate is rounded.
-            const ops = ids.map(id => {
+            const screenBox = { x: 0, y: 0, w: d.screenSize().w, h: d.screenSize().h };
+            const items = ids.map(id => {
                 const f = d.find(id);
-                if (inPlace || (f.parent ? f.parent.id : '') === dropId) return { op: 'move_widget', id, x: Math.round(f.widget.x + delta.x), y: Math.round(f.widget.y + delta.y) };
-                const abs = G.translate(M.absRect(p, id, env), delta.x, delta.y);
+                return f ? { id, found: f, abs: M.absRect(p, id, env), frame: inPlace ? d.frameOf(f) : (drop ? drop.rect : screenBox) } : null;
+            }).filter(it => it && it.abs);
+            const step = G.clampDelta(items, delta);
+            // Layout ops take integers only (the server rejects anything else): every coordinate is rounded.
+            const ops = items.map(it => {
+                const f = it.found;
+                if (inPlace || (f.parent ? f.parent.id : '') === dropId) return { op: 'move_widget', id: it.id, x: Math.round(f.widget.x + step.x), y: Math.round(f.widget.y + step.y) };
+                const abs = G.translate(it.abs, step.x, step.y);
                 const origin = drop ? drop.rect : { x: 0, y: 0 };
-                const op = { op: 'move_widget', id, screen: screen.id, x: Math.round(abs.x - origin.x), y: Math.round(abs.y - origin.y) };
+                const op = { op: 'move_widget', id: it.id, screen: screen.id, x: Math.round(abs.x - origin.x), y: Math.round(abs.y - origin.y) };
                 if (drop) { op.parent = dropId; if (drop.widget.type === 'tabview') op.tab = drop.tab; }
                 return op;
             });
@@ -181,16 +196,18 @@
                     canvas.showGuides(s.guides);
                     r = { x: s.x, y: s.y, w: s.w, h: s.h };
                 } else canvas.showGuides(null);
-                last = r;
-                canvas.previewResize(id, r);
+                last = G.clampInto(r, frame);
+                if (last.x !== r.x || last.y !== r.y) canvas.showGuides(null);
+                canvas.previewResize(id, last);
             }, (ev, cancelled) => {
                 gesture = null;
                 canvas.root.classList.remove('is-resizing');
                 canvas.showGuides(null);
                 if (!moved) return;
                 if (cancelled) { canvas.render(); return; }
+                const clamped = G.clampInto(last, frame);
                 const o = M.absOrigin(d.project(), id, d.env());
-                const set = { x: Math.round(last.x - o.x), y: Math.round(last.y - o.y), w: Math.round(last.w), h: Math.round(last.h) };
+                const set = { x: Math.round(clamped.x - o.x), y: Math.round(clamped.y - o.y), w: Math.round(clamped.w), h: Math.round(clamped.h) };
                 if (!d.commands.run('resize', [{ op: 'update_widget', id, set }])) canvas.render();
             });
         }
@@ -208,7 +225,9 @@
                 const box = G.normalizeRect(from, canvas.clientToWorld(ev.clientX, ev.clientY));
                 canvas.showMarquee(box);
                 const screen = d.screen();
-                const items = ((screen && screen.widgets) || []).filter(w => !w.hidden).map(w => ({ id: w.id, rect: { x: w.x, y: w.y, w: w.w, h: w.h } }));
+                const project = d.project();
+                const env = d.env();
+                const items = (screen ? M.visibleIds(screen, d.activeTab) : []).map(id => ({ id, rect: M.absRect(project, id, env) })).filter(it => it.rect);
                 const hits = G.inBox(items, box);
                 d.select(base.concat(hits.filter(id => !base.includes(id))));
             }, () => {

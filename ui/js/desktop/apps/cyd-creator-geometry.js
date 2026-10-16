@@ -226,10 +226,80 @@
         return { x, y, w: r.w, h: r.h };
     }
 
+    // restack reorders ids in list order. selectedIds may arrive in any order; the selected
+    // block keeps the order of ids. front puts that block last, back puts it first.
+    // forward/backward swap each selected id with the next/previous unselected sibling, once.
+    function restack(ids, selectedIds, dir) {
+        const list = (ids || []).slice();
+        const selected = new Set(selectedIds || []);
+        const pick = list.filter(id => selected.has(id));
+        const rest = list.filter(id => !selected.has(id));
+        if (dir === 'front') return rest.concat(pick);
+        if (dir === 'back') return pick.concat(rest);
+        const out = list.slice();
+        if (dir === 'forward') {
+            for (let i = out.length - 2; i >= 0; i--) {
+                if (selected.has(out[i]) && !selected.has(out[i + 1])) {
+                    const swap = out[i]; out[i] = out[i + 1]; out[i + 1] = swap;
+                }
+            }
+        } else if (dir === 'backward') {
+            for (let i = 1; i < out.length; i++) {
+                if (selected.has(out[i]) && !selected.has(out[i - 1])) {
+                    const swap = out[i]; out[i] = out[i - 1]; out[i - 1] = swap;
+                }
+            }
+        }
+        return out;
+    }
+
+    // reorderIndexes is the insert index reorder_widget needs: each id is removed first, then
+    // inserted so a left-to-right walk lands on `desired`. An unchanged order yields no steps.
+    function reorderIndexes(list, desired) {
+        const work = (list || []).slice();
+        const ops = [];
+        (desired || []).forEach((id, target) => {
+            if (work[target] === id) return;
+            const from = work.indexOf(id);
+            if (from < 0) return;
+            work.splice(from, 1);
+            work.splice(target, 0, id);
+            ops.push({ id, index: target });
+        });
+        return ops;
+    }
+
+    // clampDelta shrinks one shared move so every item stays inside its own frame the way
+    // clampInto would place it. An item larger than its frame sticks to that frame's origin.
+    // When the frames disagree (no overlap of the allowed deltas) the group stays still.
+    function clampDelta(items, delta) {
+        const d = delta || { x: 0, y: 0 };
+        let minX = -Infinity, maxX = Infinity, minY = -Infinity, maxY = Infinity;
+        (items || []).forEach(it => {
+            const abs = it && it.abs;
+            const frame = it && it.frame;
+            if (!abs || !frame) return;
+            const roomL = frame.x - abs.x;
+            const roomR = right(frame) - abs.w - abs.x;
+            const roomT = frame.y - abs.y;
+            const roomB = bottom(frame) - abs.h - abs.y;
+            if (abs.w > frame.w) { minX = Math.max(minX, roomL); maxX = Math.min(maxX, roomL); }
+            else { minX = Math.max(minX, roomL); maxX = Math.min(maxX, roomR); }
+            if (abs.h > frame.h) { minY = Math.max(minY, roomT); maxY = Math.min(maxY, roomT); }
+            else { minY = Math.max(minY, roomT); maxY = Math.min(maxY, roomB); }
+        });
+        const axis = (value, lo, hi) => {
+            if (lo === -Infinity || hi === Infinity) return value;
+            if (lo > hi) return 0;
+            return Math.max(lo, Math.min(hi, value));
+        };
+        return { x: axis(d.x || 0, minX, maxX), y: axis(d.y || 0, minY, maxY) };
+    }
+
     P.geometry = {
         ZOOM_MIN, ZOOM_MAX, SNAP_STEPS, GUIDE_RADIUS, MIN_SIZE, MAX_SIDE, HANDLES,
         rect, clampZoom, snapStep, fitZoom, screenSize, snapValue, contains, intersects, normalizeRect, translate,
         insideAll, bounds, lines, guideTargets, snapMove, resizeRect, snapResize, align, distribute, hitTest, inBox,
-        nudgeDelta, toWorld, clampInto
+        nudgeDelta, toWorld, clampInto, restack, reorderIndexes, clampDelta
     };
 })();

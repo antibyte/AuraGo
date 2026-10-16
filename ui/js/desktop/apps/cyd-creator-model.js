@@ -587,6 +587,73 @@
         });
     }
 
+    // visibleIds lists the widgets a click or the marquee can reach on one screen: hidden widgets
+    // and their children are out, and a tabview contributes only its active page. tabOf(id) is the
+    // active tab index. The order is tree order.
+    function visibleIds(screen, tabOf) {
+        const ids = [];
+        const tab = typeof tabOf === 'function' ? tabOf : () => 0;
+        (function visit(list, parent) {
+            (list || []).forEach(w => {
+                if (!w || w.hidden) return;
+                if (parent && parent.type === 'tabview' && (w.tab || 0) !== (tab(parent.id) || 0)) return;
+                ids.push(w.id);
+                if (w.children && w.children.length) visit(w.children, w);
+            });
+        })(screen && screen.widgets, null);
+        return ids;
+    }
+
+    // sanitizeForeign drops references a pasted widget cannot keep in `project`: catalog asset
+    // props whose id is not listed, icon_frames that are not six listed ids (and icon_animate
+    // with them), icon_origin when that asset prop goes, and goto_screen bindings findScreen
+    // cannot resolve. It mutates widget. specs is the type → WidgetSpec map.
+    function sanitizeForeign(widget, project, specs) {
+        const known = new Set();
+        ((project && project.assets) || []).forEach(a => { if (a && typeof a.id === 'string' && a.id) known.add(a.id); });
+        const map = specs && typeof specs.get === 'function' ? specs : null;
+        let adjusted = false;
+        const clear = (props, key) => {
+            if (!props || !Object.prototype.hasOwnProperty.call(props, key) || props[key] == null || props[key] === '') return false;
+            delete props[key];
+            return true;
+        };
+        const visit = w => {
+            if (!w || typeof w !== 'object') return;
+            const props = w.props;
+            if (props && typeof props === 'object') {
+                const spec = map ? map.get(w.type) : null;
+                (spec && spec.props || []).forEach(ps => {
+                    if (!ps || ps.kind !== 'asset') return;
+                    const id = props[ps.name];
+                    if (typeof id !== 'string' || !id || known.has(id)) return;
+                    if (clear(props, ps.name)) adjusted = true;
+                    if (clear(props, 'icon_frames')) adjusted = true;
+                    if (clear(props, 'icon_animate')) adjusted = true;
+                    if (clear(props, 'icon_origin')) adjusted = true;
+                });
+                const frames = props.icon_frames;
+                const present = Array.isArray(frames) ? frames.length > 0 : frames != null && frames !== '';
+                const ok = Array.isArray(frames) && frames.length === 6 && frames.every(id => typeof id === 'string' && known.has(id));
+                if (present && !ok) {
+                    if (clear(props, 'icon_frames')) adjusted = true;
+                    if (clear(props, 'icon_animate')) adjusted = true;
+                }
+            }
+            if (Array.isArray(w.events)) {
+                const next = w.events.filter(ev => {
+                    const action = ev && ev.action;
+                    if (!action || action.type !== 'goto_screen') return true;
+                    return !!(action.screen && findScreen(project || { screens: [] }, action.screen));
+                });
+                if (next.length !== w.events.length) { w.events = next; adjusted = true; }
+            }
+            (w.children || []).forEach(visit);
+        };
+        if (widget) visit(widget);
+        return { widget, adjusted };
+    }
+
     // applyOps is the atomic, pure form: the input project is never modified.
     function applyOps(project, ops, ctx) {
         const draft = clone(project);
@@ -599,6 +666,6 @@
         createStore, specMap, specOf, propSpec, propValue, tabCount, contentBox,
         walk, findScreen, findWidget, countWidgets, subtreeDepth, usedIds, usedNames, absOrigin, absRect, topLevel, prune,
         validName, reservedName, nameIssue, screenNameIssue, proposeName, proposeScreenName, cloneSubtree, newWidget,
-        apply, applyOps
+        visibleIds, sanitizeForeign, apply, applyOps
     };
 })();

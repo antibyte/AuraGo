@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Προσθήκη {name}: σύρε στην οθόνη ή πάτησε Enter",
   "cyd_creator.designer.palette_search": "Αναζήτηση στοιχείων",
   "cyd_creator.designer.palette_title": "Στοιχεία",
+  "cyd_creator.designer.paste_adjusted": "Επικολλήθηκε. Οι εικόνες και οι αλλαγές οθόνης που δεν υπάρχουν σε αυτό το έργο αφαιρέθηκαν.",
   "cyd_creator.designer.project_title": "Έργο",
   "cyd_creator.designer.screen_add": "Προσθήκη οθόνης",
   "cyd_creator.designer.screen_added": "Η οθόνη προστέθηκε",

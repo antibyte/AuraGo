@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Aggiungi {name}: trascina sulla schermata o premi Invio",
   "cyd_creator.designer.palette_search": "Cerca widget",
   "cyd_creator.designer.palette_title": "Widget",
+  "cyd_creator.designer.paste_adjusted": "Incollato. Immagini e salti di schermata che non esistono in questo progetto sono stati rimossi.",
   "cyd_creator.designer.project_title": "Progetto",
   "cyd_creator.designer.screen_add": "Aggiungi schermata",
   "cyd_creator.designer.screen_added": "Schermata aggiunta",

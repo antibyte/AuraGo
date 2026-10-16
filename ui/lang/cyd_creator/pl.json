@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Dodaj {name}: przeciągnij na ekran lub naciśnij Enter",
   "cyd_creator.designer.palette_search": "Szukaj widżetów",
   "cyd_creator.designer.palette_title": "Widżety",
+  "cyd_creator.designer.paste_adjusted": "Wklejono. Obrazy i przejścia do ekranów, których nie ma w tym projekcie, zostały usunięte.",
   "cyd_creator.designer.project_title": "Projekt",
   "cyd_creator.designer.screen_add": "Dodaj ekran",
   "cyd_creator.designer.screen_added": "Dodano ekran",

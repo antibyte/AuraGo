@@ -312,6 +312,7 @@
   "cyd_creator.designer.palette_item_hint": "Přidat {name}: přetáhni na obrazovku nebo stiskni Enter",
   "cyd_creator.designer.palette_search": "Hledat widgety",
   "cyd_creator.designer.palette_title": "Widgety",
+  "cyd_creator.designer.paste_adjusted": "Vloženo. Obrázky a přechody na obrazovky, které v tomto projektu nejsou, byly odebrány.",
   "cyd_creator.designer.project_title": "Projekt",
   "cyd_creator.designer.screen_add": "Přidat obrazovku",
   "cyd_creator.designer.screen_added": "Obrazovka přidána",
