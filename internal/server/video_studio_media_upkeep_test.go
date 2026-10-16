@@ -161,6 +161,8 @@ func TestVideoStudioInterruptedMediaRemovalFinishes(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+	// The sweep keeps running after the removal; let it end before another test changes the upkeep variables.
+	videoStudioWaitForUpkeep(t, manager)
 }
 
 // The sweep deletes media files and posters without a record and records without a media file, but never what the saved
