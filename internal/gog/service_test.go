@@ -35,7 +35,7 @@ func fixtureService(t *testing.T) (*Service, *config.Config) {
 	s := &Service{Root: filepath.Join(dir, "gog"), Vault: vault, Config: func() *config.Config { return cfg }, RunProcess: func(context.Context, string, []string, string, []string) (string, int, bool, error) {
 		return `{"items":[]}`, 0, true, nil
 	}}
-	tok := Token{AccessToken: "fixture-gog-access", ClientID: "fixture-client", Expiry: time.Now().Add(time.Hour), Scopes: []string{"https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/drive"}}
+	tok := Token{AccessToken: "fixture-gog-access", ClientID: "fixture-client", Expiry: time.Now().Add(time.Hour), Scopes: []string{"https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/drive"}}
 	raw, _ := json.Marshal(tok)
 	if e = vault.WriteSecret(TokenKey("primary"), string(raw)); e != nil {
 		t.Fatal(e)

@@ -1025,6 +1025,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	for i := range c.EmailAccounts {
 		a := &c.EmailAccounts[i]
 		apply("email_"+a.ID+"_password", &a.Password)
+		apply("email_"+a.ID+"_smtp_password", &a.SMTPPassword)
+		apply("email_"+a.ID+"_oauth_client_secret", &a.OAuthClientSecret)
 	}
 
 	// ── Outgoing webhook vault bundles ──

@@ -226,6 +226,12 @@ func migrateEmailAccountSecrets(rawCfg map[string]interface{}, vault SecretReadW
 		if migrateMapStringSecret(account, "password", "email_"+id+"_password", vault, log) {
 			migrated = true
 		}
+		if migrateMapStringSecret(account, "smtp_password", "email_"+id+"_smtp_password", vault, log) {
+			migrated = true
+		}
+		if migrateMapStringSecret(account, "oauth_client_secret", "email_"+id+"_oauth_client_secret", vault, log) {
+			migrated = true
+		}
 	}
 	return migrated
 }

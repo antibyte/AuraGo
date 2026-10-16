@@ -29,6 +29,9 @@ func TestOAuthRotationSurvivesStaleConfigAndConcurrentClients(t *testing.T) {
 			}
 			key := "oauth_" + provider
 			initial := `{"access_token":"fixture-old","refresh_token":"fixture-refresh-old","token_expiry":"2000-01-01T00:00:00Z"}`
+			if provider == "google_workspace" {
+				initial = `{"access_token":"fixture-old","refresh_token":"fixture-refresh-old","token_expiry":"2000-01-01T00:00:00Z","scopes":["https://www.googleapis.com/auth/gmail.readonly"]}`
+			}
 			if err := v.WriteSecret(key, initial); err != nil {
 				t.Fatal(err)
 			}
@@ -103,6 +106,9 @@ func TestOAuthRotationCannotReviveRevokedCredentials(t *testing.T) {
 			}
 			key := "oauth_" + provider
 			tok := config.OAuthToken{AccessToken: "fixture-old", RefreshToken: "fixture-refresh", Expiry: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)}
+			if provider == "google_workspace" {
+				tok.Scopes = []string{"https://www.googleapis.com/auth/gmail.readonly"}
+			}
 			raw, _ := json.Marshal(tok)
 			if err := v.WriteSecret(key, string(raw)); err != nil {
 				t.Fatal(err)
@@ -144,5 +150,36 @@ func TestOAuthRotationCannotReviveRevokedCredentials(t *testing.T) {
 				t.Fatal("stale in-memory credentials used after revocation")
 			}
 		})
+	}
+}
+
+func TestGoogleWorkspaceScopeLessTokenDoesNotRefreshRepeatedly(t *testing.T) {
+	v, err := security.NewVault(strings.Repeat("04", 32), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := `{"access_token":"fixture-old","refresh_token":"fixture-refresh","expiry":"2000-01-01T00:00:00Z"}`
+	if err := v.WriteSecret("oauth_google_workspace", initial); err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	client := &http.Client{Transport: oauthFixtureTransport(func(*http.Request) (*http.Response, error) {
+		calls.Add(1)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"access_token":"unexpected","expires_in":3600}`)), Header: make(http.Header)}, nil
+	})}
+	old := gwHTTPClient
+	gwHTTPClient = client
+	defer func() { gwHTTPClient = old }()
+	c, err := NewGWorkspaceClient(config.Config{}, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := c.refreshIfNeeded(); err == nil || !strings.Contains(err.Error(), "provider-granted scopes") {
+			t.Fatalf("scope-less token refresh %d returned %v", i, err)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("scope-less token triggered %d refresh requests", calls.Load())
 	}
 }

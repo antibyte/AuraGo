@@ -14,8 +14,16 @@ Integrated IMAP/SMTP email tool with **multi-account support**. Fetch inbox mess
 
 Multiple email accounts can be configured. Each account has a unique `id`.
 - Use `"account": "<id>"` in fetch_email / send_email to target a specific account.
-- Omit `account` to use the **default** (first) account.
+- Omit `account` to use the first enabled account that permits general agent access.
 - Use `list_email_accounts` to discover available accounts.
+
+New accounts created through Mailer start without general agent access or an
+email watcher. Connecting an existing account to Mailer preserves its grants.
+This tool lists only enabled, agent-permitted IMAP password accounts; POP3 and
+protocol OAuth accounts use the Desktop Mailer. Never bypass a missing grant by
+reading credentials or calling another transport. Separate SMTP credentials are
+resolved from the Vault. Background fetches use `BODY.PEEK` and preserve unread
+status; deliberately opening a message in Mailer can mark it read.
 
 ---
 
@@ -128,7 +136,7 @@ email_accounts:
     smtp_host: "smtp.gmail.com"
     smtp_port: 587
     username: "you@gmail.com"
-    password: "app-password-here"
+    # Set the password through Integrations; credentials stay in the Vault.
     from_address: "you@gmail.com"
     watch_enabled: true
     watch_interval_seconds: 120
@@ -140,7 +148,7 @@ email_accounts:
     smtp_host: "smtp.office365.com"
     smtp_port: 587
     username: "you@company.com"
-    password: "work-password"
+    # Set the password through Integrations; credentials stay in the Vault.
     from_address: "you@company.com"
     watch_enabled: false
     watch_folder: "INBOX"
@@ -155,7 +163,7 @@ email:
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
   username: "you@gmail.com"
-  password: "your-app-password"
+  # Set the password through Integrations; credentials stay in the Vault.
   from_address: ""
   watch_enabled: true
   watch_interval_seconds: 120

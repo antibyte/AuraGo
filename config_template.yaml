@@ -2104,17 +2104,30 @@ a2a:
     llm:
         provider: ""                        # empty = main LLM; use a configured provider ID
 
-# Multi-account IMAP/SMTP. Add accounts in Config UI; passwords stay in the Vault.
+# Multi-account IMAP/POP3/SMTP and OAuth sources. Add accounts in Mailer or the
+# Config UI; passwords, OAuth refresh tokens, and client secrets stay in the Vault.
 email_accounts: []
-# Example account fields (Vault password key: email_<id>_password):
+# Example account fields (Vault keys: email_<id>_password, email_<id>_smtp_password):
 # - id: personal
 #   name: Personal
+#   receive_protocol: imap                 # imap or pop3; omitted legacy accounts remain IMAP
+#   receive_tls: tls                        # tls or starttls; plaintext is not supported
 #   imap_host: imap.example.com
 #   imap_port: 993
+#   pop3_host: pop.example.com              # only for receive_protocol: pop3
+#   pop3_port: 995
 #   smtp_host: smtp.example.com
 #   smtp_port: 587
+#   smtp_tls: starttls                      # tls or starttls
 #   username: user@example.com
+#   smtp_username: user@example.com         # empty uses username
+#   smtp_auth_method: password              # password or xoauth2
 #   from_address: user@example.com
+#   oauth_source: mailer                    # mailer, gog, or google_workspace when using OAuth
+#   oauth_account_id: google-account         # canonical source account for GoG OAuth
+#   oauth_provider: microsoft                # provider for BYO OAuth client setup
+#   oauth_client_id: ""                      # public client ID; client secret stays in Vault
+#   agent_access: false                      # absent preserves legacy access; new Mailer accounts default false
 #   disabled: true
 #   readonly: true
 #   watch_enabled: false

@@ -263,6 +263,12 @@ func addInt(q url.Values, key string, value int) {
 	}
 }
 
+func addBool(q url.Values, key string, value bool) {
+	if value {
+		q.Set(key, "true")
+	}
+}
+
 func addString(q url.Values, key, value string) {
 	if strings.TrimSpace(value) != "" {
 		q.Set(key, strings.TrimSpace(value))
@@ -307,9 +313,11 @@ func (c *Client) DeleteInbox(ctx context.Context, inboxID string) error {
 func (c *Client) ListMessages(ctx context.Context, inboxID string, opts ListMessagesOptions) (*ListMessagesResponse, error) {
 	q := url.Values{}
 	addInt(q, "limit", opts.Limit)
-	addString(q, "cursor", opts.Cursor)
+	addString(q, "page_token", opts.Cursor)
 	addString(q, "after", opts.After)
 	addString(q, "thread_id", opts.Thread)
+	addBool(q, "include_spam", opts.IncludeSpam)
+	addBool(q, "include_trash", opts.IncludeTrash)
 	if len(opts.Labels) > 0 {
 		q.Set("labels", strings.Join(opts.Labels, ","))
 	}

@@ -94,7 +94,7 @@ func (ew *EmailWatcher) StartContext(parent context.Context) {
 	// Find minimum interval across accounts
 	interval := 120 * time.Second
 	for _, acct := range ew.cfg.EmailAccounts {
-		if acct.Disabled || !acct.WatchEnabled {
+		if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) {
 			continue
 		}
 		acctInterval := time.Duration(acct.WatchInterval) * time.Second
@@ -175,7 +175,7 @@ func (ew *EmailWatcher) seedAllAccounts(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+		if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 			continue
 		}
 		uids, err := searchUnseenUIDsContext(ctx,
@@ -201,7 +201,7 @@ func (ew *EmailWatcher) pollAllAccounts(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+		if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 			continue
 		}
 		ew.pollAccount(ctx, acct)
@@ -209,7 +209,7 @@ func (ew *EmailWatcher) pollAllAccounts(ctx context.Context) {
 }
 
 func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccount) {
-	if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+	if acct.Disabled || !acct.WatchEnabled || !acct.AllowsAgentAccess() || !emailAccountCanWatch(acct) || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 		return
 	}
 	uids, err := searchUnseenUIDsContext(ctx,
@@ -254,7 +254,11 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	)
 	if err != nil {
 		ew.logger.Warn("[EmailWatcher] Fetch for notification failed", "account", acct.ID, "error", err)
-		_ = ew.notifyAgent(ctx, fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID))
+		if err := ew.notifyAgent(ctx, fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID)); err != nil {
+			for _, uid := range newUIDs {
+				delete(ew.lastUIDs[acct.ID], uid)
+			}
+		}
 		return
 	}
 
@@ -272,7 +276,17 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	}
 
 	if ordinaryCount > 0 {
-		_ = ew.notifyAgent(ctx, buildEmailNotificationPrompt(acct, ordinaryCount, summary, ew.relaySheet))
+		if err := ew.notifyAgent(ctx, buildEmailNotificationPrompt(acct, ordinaryCount, summary, ew.relaySheet)); err != nil {
+			quarantinedUIDs := make(map[uint32]bool, len(quarantined))
+			for _, item := range quarantined {
+				quarantinedUIDs[item.uid] = true
+			}
+			for uid := range processedUIDs {
+				if !quarantinedUIDs[uid] {
+					delete(ew.lastUIDs[acct.ID], uid)
+				}
+			}
+		}
 	}
 	ew.notifyQuarantined(ctx, acct, quarantined)
 }
@@ -503,7 +517,7 @@ func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *securi
 func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, internalToken string, cheatsheetDBs ...*sql.DB) *EmailWatcher {
 	hasWatchAccount := false
 	for _, acct := range cfg.EmailAccounts {
-		if !acct.Disabled && acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
+		if !acct.Disabled && acct.WatchEnabled && acct.AllowsAgentAccess() && emailAccountCanWatch(acct) && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
 			hasWatchAccount = true
 			break
 		}
@@ -523,6 +537,11 @@ func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *s
 	}
 	watcher.StartContext(ctx)
 	return watcher
+}
+
+func emailAccountCanWatch(acct config.EmailAccount) bool {
+	protocol := strings.ToLower(strings.TrimSpace(acct.ReceiveProtocol))
+	return protocol == "" || protocol == "imap"
 }
 
 func loadEmailRelayCheatsheet(db *sql.DB, id string, logger *slog.Logger) EmailRelayCheatsheet {

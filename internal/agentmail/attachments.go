@@ -1,13 +1,60 @@
 package agentmail
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"mime"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// DownloadAttachment retrieves an attachment only from the configured
+// AgentMail origin and enforces the caller's byte limit before returning it.
+func (c *Client) DownloadAttachment(ctx context.Context, inboxID, messageID, attachmentID string, maxBytes int64) ([]byte, *Attachment, error) {
+	if maxBytes <= 0 || maxBytes > 25<<20 {
+		maxBytes = 25 << 20
+	}
+	meta, err := c.GetAttachment(ctx, inboxID, messageID, attachmentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	raw := strings.TrimSpace(meta.DownloadURL)
+	if raw == "" {
+		return nil, nil, fmt.Errorf("attachment download URL is missing")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid attachment URL")
+	}
+	if !u.IsAbs() {
+		u = c.baseURL.ResolveReference(u)
+	}
+	if !strings.EqualFold(u.Scheme, c.baseURL.Scheme) || !strings.EqualFold(u.Host, c.baseURL.Host) || u.User != nil || u.Fragment != "" {
+		return nil, nil, fmt.Errorf("attachment URL is outside the configured AgentMail origin")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("AgentMail attachment download failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, nil, fmt.Errorf("AgentMail attachment download rejected")
+	}
+	data, err := readBounded(resp.Body, maxBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, meta, nil
+}
 
 // PrepareAttachments converts either workspace-local paths or explicit base64
 // blobs into AgentMail send payload attachments.

@@ -72,18 +72,23 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 	googleWorkspaceTokenRefreshMu.Lock()
 	defer googleWorkspaceTokenRefreshMu.Unlock()
 	var previous string
+	var grantedScopes []string
 	if c.Vault != nil {
 		token, raw, err := readIntegrationOAuth(c.Vault, "oauth_google_workspace")
 		if err != nil {
 			return err
 		}
 		previous = raw
+		grantedScopes = append([]string(nil), token.Scopes...)
 		c.AccessToken, c.RefreshToken = token.AccessToken, token.RefreshToken
 		c.TokenExpiry, _ = time.Parse(time.RFC3339, token.Expiry)
 	}
 	security.RegisterSensitive(c.AccessToken)
 	security.RegisterSensitive(c.RefreshToken)
 	security.RegisterSensitive(c.ClientSecret)
+	if len(grantedScopes) == 0 {
+		return fmt.Errorf("stored OAuth token has no provider-granted scopes; reconnect the integration")
+	}
 
 	if c.RefreshToken == "" {
 		return nil // Cannot refresh without refresh token
@@ -117,6 +122,7 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 		ExpiresIn    int    `json:"expires_in"`
+		Scope        string `json:"scope"`
 	}
 	if err := json.Unmarshal(body, &tok); err != nil {
 		return fmt.Errorf("failed to parse token response: %w", err)
@@ -129,12 +135,19 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 	if nextRefresh == "" {
 		nextRefresh = c.RefreshToken
 	}
+	scopes := grantedScopes
+	if strings.TrimSpace(tok.Scope) != "" {
+		scopes = strings.Fields(tok.Scope)
+	}
+	if len(scopes) == 0 {
+		return fmt.Errorf("stored OAuth token has no provider-granted scopes; reconnect the integration")
+	}
 	expiry := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second).UTC()
-	token := config.OAuthToken{AccessToken: tok.AccessToken, RefreshToken: nextRefresh, TokenType: "Bearer", Expiry: expiry.Format(time.RFC3339)}
-	if err := persistIntegrationOAuth(c.Vault, "oauth_google_workspace", previous, token); err != nil {
+	rotated := config.OAuthToken{AccessToken: tok.AccessToken, RefreshToken: nextRefresh, TokenType: "Bearer", Expiry: expiry.Format(time.RFC3339), Scopes: scopes}
+	if err := persistIntegrationOAuth(c.Vault, "oauth_google_workspace", previous, rotated); err != nil {
 		return err
 	}
-	c.AccessToken, c.RefreshToken, c.TokenExpiry = token.AccessToken, token.RefreshToken, expiry
+	c.AccessToken, c.RefreshToken, c.TokenExpiry = rotated.AccessToken, rotated.RefreshToken, expiry
 
 	return nil
 }

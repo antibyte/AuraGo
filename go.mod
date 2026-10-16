@@ -19,6 +19,9 @@ require (
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/ebitengine/purego v0.11.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/emersion/go-imap v1.2.1
+	github.com/emersion/go-message v0.18.1
+	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 	github.com/emiago/diago v0.41.0
 	github.com/emiago/sipgo v1.6.0
 	github.com/evanw/esbuild v0.28.2

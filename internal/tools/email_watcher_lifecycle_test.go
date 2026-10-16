@@ -77,6 +77,19 @@ func TestEmailWatcherStopCancelsTLSHandshakeAndCanRestart(t *testing.T) {
 	}
 }
 
+func TestEmailWatcherDoesNotStartWithoutAgentAccess(t *testing.T) {
+	deny := false
+	cfg := &config.Config{EmailAccounts: []config.EmailAccount{{
+		ID: "private", IMAPHost: "mail.example.test", IMAPPort: 993,
+		Username: "user", Password: "password", WatchEnabled: true, AgentAccess: &deny,
+	}}}
+	watcher := StartEmailWatcherContext(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, "")
+	if watcher != nil {
+		watcher.Stop()
+		t.Fatal("watcher started for an account with agent_access=false")
+	}
+}
+
 // The watcher's loopback is an internal turn: it carries the internal
 // follow-up header and the per-process token like the other loopbacks, so the
 // server labels it internal and accepts it when web auth is enabled.

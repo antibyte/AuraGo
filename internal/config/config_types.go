@@ -32,6 +32,9 @@ type OAuthToken struct {
 	RefreshToken string `json:"refresh_token"`
 	TokenType    string `json:"token_type"`
 	Expiry       string `json:"expiry"` // RFC3339
+	// Scopes contains the provider-returned OAuth grant set. Local config grants
+	// must not be used as a substitute when this field is absent.
+	Scopes []string `json:"scopes,omitempty"`
 }
 
 // IndexingDirectory describes a single directory to index with an optional custom collection name.
@@ -152,22 +155,50 @@ type ModelCatalogConfig struct {
 	UpstreamVersion    string   `yaml:"upstream_version" json:"upstream_version"`
 }
 
-// EmailAccount defines a single IMAP/SMTP email account.
+// EmailAccount defines one mail transport account. OAuth tokens and credentials
+// are resolved from the Vault by the transport that owns the account.
 type EmailAccount struct {
-	ID            string `yaml:"id"             json:"id"`   // unique slug, e.g. "personal", "work"
-	Name          string `yaml:"name"           json:"name"` // human-readable label
-	IMAPHost      string `yaml:"imap_host"      json:"imap_host"`
-	IMAPPort      int    `yaml:"imap_port"      json:"imap_port"`
-	SMTPHost      string `yaml:"smtp_host"      json:"smtp_host"`
-	SMTPPort      int    `yaml:"smtp_port"      json:"smtp_port"`
-	Username      string `yaml:"username"       json:"username"`
-	Password      string `yaml:"-"              json:"-"` // excluded from YAML (secret)
-	FromAddress   string `yaml:"from_address"   json:"from_address"`
-	WatchEnabled  bool   `yaml:"watch_enabled"  json:"watch_enabled"`
-	WatchInterval int    `yaml:"watch_interval_seconds" json:"watch_interval_seconds"`
-	WatchFolder   string `yaml:"watch_folder"   json:"watch_folder"`
-	Disabled      bool   `yaml:"disabled"       json:"-"` // if true, account is inactive (default false = active)
-	ReadOnly      bool   `yaml:"readonly"       json:"-"` // if true, only fetch/read, block send
+	ID                string `yaml:"id" json:"id"`
+	Name              string `yaml:"name" json:"name"`
+	ReceiveProtocol   string `yaml:"receive_protocol,omitempty" json:"receive_protocol,omitempty"`
+	ReceiveTLS        string `yaml:"receive_tls,omitempty" json:"receive_tls,omitempty"`
+	IMAPHost          string `yaml:"imap_host" json:"imap_host"`
+	IMAPPort          int    `yaml:"imap_port" json:"imap_port"`
+	POP3Host          string `yaml:"pop3_host,omitempty" json:"pop3_host,omitempty"`
+	POP3Port          int    `yaml:"pop3_port,omitempty" json:"pop3_port,omitempty"`
+	SMTPHost          string `yaml:"smtp_host" json:"smtp_host"`
+	SMTPPort          int    `yaml:"smtp_port" json:"smtp_port"`
+	SMTPTransport     string `yaml:"smtp_tls,omitempty" json:"smtp_tls,omitempty"`
+	Username          string `yaml:"username" json:"username"`
+	Password          string `yaml:"-" json:"-"`
+	SMTPUsername      string `yaml:"smtp_username,omitempty" json:"smtp_username,omitempty"`
+	SMTPPassword      string `yaml:"-" json:"-"`
+	SMTPAuthMethod    string `yaml:"smtp_auth_method,omitempty" json:"smtp_auth_method,omitempty"`
+	SMTPAuthSource    string `yaml:"smtp_auth_source,omitempty" json:"smtp_auth_source,omitempty"`
+	FromAddress       string `yaml:"from_address" json:"from_address"`
+	OAuthSource       string `yaml:"oauth_source,omitempty" json:"oauth_source,omitempty"`
+	OAuthAccountID    string `yaml:"oauth_account_id,omitempty" json:"oauth_account_id,omitempty"`
+	OAuthProvider     string `yaml:"oauth_provider,omitempty" json:"oauth_provider,omitempty"`
+	OAuthClientID     string `yaml:"oauth_client_id,omitempty" json:"oauth_client_id,omitempty"`
+	OAuthClientSecret string `yaml:"-" json:"-"`
+	AgentMailInboxID  string `yaml:"agentmail_inbox_id,omitempty" json:"agentmail_inbox_id,omitempty"`
+	AgentAccess       *bool  `yaml:"agent_access,omitempty" json:"agent_access,omitempty"`
+	WatchEnabled      bool   `yaml:"watch_enabled" json:"watch_enabled"`
+	WatchInterval     int    `yaml:"watch_interval_seconds" json:"watch_interval_seconds"`
+	WatchFolder       string `yaml:"watch_folder" json:"watch_folder"`
+	Disabled          bool   `yaml:"disabled" json:"-"`
+	ReadOnly          bool   `yaml:"readonly" json:"-"`
+}
+
+// AllowsAgentAccess preserves access for legacy IMAP password accounts whose
+// setting is absent. POP3 and OAuth transports are not wired to the general
+// agent email tools, so they remain inaccessible even if explicitly toggled.
+func (a EmailAccount) AllowsAgentAccess() bool {
+	protocol := strings.ToLower(strings.TrimSpace(a.ReceiveProtocol))
+	if protocol != "" && protocol != "imap" || strings.TrimSpace(a.OAuthSource) != "" || strings.EqualFold(strings.TrimSpace(a.SMTPAuthMethod), "xoauth2") {
+		return false
+	}
+	return a.AgentAccess == nil || *a.AgentAccess
 }
 
 // AgentMailConfig configures the AgentMail API integration.

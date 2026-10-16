@@ -187,7 +187,7 @@ func FetchEmails(host string, port int, username, password, folder string, count
 	seqRange := fmt.Sprintf("%d:%d", from, exists)
 
 	// FETCH envelope and body
-	lines, status, err := ic.command("FETCH %s (UID BODY[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY[TEXT])", seqRange)
+	lines, status, err := ic.command("FETCH %s (UID BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY.PEEK[TEXT])", seqRange)
 	if err != nil {
 		return nil, fmt.Errorf("IMAP FETCH failed: %w", err)
 	}
@@ -244,7 +244,7 @@ func fetchEmailsByUIDContext(parent context.Context, host string, port int, user
 	uidSet := strings.Join(parts, ",")
 
 	// UID FETCH by specific UIDs
-	lines, status, err := ic.command("UID FETCH %s (UID BODY[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY[TEXT])", uidSet)
+	lines, status, err := ic.command("UID FETCH %s (UID BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY.PEEK[TEXT])", uidSet)
 	if err != nil {
 		return nil, fmt.Errorf("IMAP UID FETCH failed: %w", err)
 	}
@@ -364,7 +364,7 @@ func parseIMAPFetch(lines []string, logger *slog.Logger) []EmailMessage {
 		}
 
 		// Detect section start
-		if strings.Contains(line, "BODY[HEADER.FIELDS") {
+		if strings.Contains(line, "BODY[HEADER.FIELDS") || strings.Contains(line, "BODY.PEEK[HEADER.FIELDS") {
 			flushSection()
 			section = "header"
 			if n := parseLiteralSize(line); n > 0 {
@@ -372,7 +372,7 @@ func parseIMAPFetch(lines []string, logger *slog.Logger) []EmailMessage {
 			}
 			continue
 		}
-		if strings.Contains(line, "BODY[TEXT]") {
+		if strings.Contains(line, "BODY[TEXT]") || strings.Contains(line, "BODY.PEEK[TEXT]") {
 			flushSection()
 			section = "body"
 			if n := parseLiteralSize(line); n > 0 {

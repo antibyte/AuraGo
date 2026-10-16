@@ -134,21 +134,25 @@ func (r *ListInboxesResponse) normalize() {
 }
 
 type Message struct {
-	ID          string       `json:"message_id,omitempty"`
-	InboxID     string       `json:"inbox_id,omitempty"`
-	ThreadID    string       `json:"thread_id,omitempty"`
-	From        Address      `json:"from,omitempty"`
-	FromAlt     Address      `json:"from_,omitempty"`
-	To          []Address    `json:"to,omitempty"`
-	CC          []Address    `json:"cc,omitempty"`
-	BCC         []Address    `json:"bcc,omitempty"`
-	Subject     string       `json:"subject,omitempty"`
-	Text        string       `json:"text,omitempty"`
-	HTML        string       `json:"html,omitempty"`
-	Snippet     string       `json:"snippet,omitempty"`
-	Timestamp   string       `json:"timestamp,omitempty"`
-	Labels      []string     `json:"labels,omitempty"`
-	Attachments []Attachment `json:"attachments,omitempty"`
+	ID          string            `json:"message_id,omitempty"`
+	InboxID     string            `json:"inbox_id,omitempty"`
+	ThreadID    string            `json:"thread_id,omitempty"`
+	From        Address           `json:"from,omitempty"`
+	FromAlt     Address           `json:"from_,omitempty"`
+	ReplyTo     []Address         `json:"reply_to,omitempty"`
+	InReplyTo   string            `json:"in_reply_to,omitempty"`
+	References  []string          `json:"references,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	To          []Address         `json:"to,omitempty"`
+	CC          []Address         `json:"cc,omitempty"`
+	BCC         []Address         `json:"bcc,omitempty"`
+	Subject     string            `json:"subject,omitempty"`
+	Text        string            `json:"text,omitempty"`
+	HTML        string            `json:"html,omitempty"`
+	Snippet     string            `json:"snippet,omitempty"`
+	Timestamp   string            `json:"timestamp,omitempty"`
+	Labels      []string          `json:"labels,omitempty"`
+	Attachments []Attachment      `json:"attachments,omitempty"`
 }
 
 func (m *Message) UnmarshalJSON(data []byte) error {
@@ -172,23 +176,32 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 }
 
 type ListMessagesOptions struct {
-	Limit  int
-	Cursor string
-	After  string
-	Labels []string
-	Thread string
+	Limit        int
+	Cursor       string
+	After        string
+	Labels       []string
+	Thread       string
+	IncludeSpam  bool
+	IncludeTrash bool
 }
 
 type ListMessagesResponse struct {
-	Messages   []Message `json:"messages,omitempty"`
-	Data       []Message `json:"data,omitempty"`
-	NextCursor string    `json:"next_cursor,omitempty"`
-	HasMore    bool      `json:"has_more,omitempty"`
+	Messages      []Message `json:"messages,omitempty"`
+	Data          []Message `json:"data,omitempty"`
+	NextCursor    string    `json:"next_cursor,omitempty"`
+	NextPageToken string    `json:"next_page_token,omitempty"`
+	HasMore       bool      `json:"has_more,omitempty"`
 }
 
 func (r *ListMessagesResponse) normalize() {
 	if len(r.Messages) == 0 && len(r.Data) > 0 {
 		r.Messages = r.Data
+	}
+	if r.NextCursor == "" {
+		r.NextCursor = r.NextPageToken
+	}
+	if r.NextCursor != "" {
+		r.HasMore = true
 	}
 }
 
@@ -226,9 +239,13 @@ type SendMessageRequest struct {
 	Text        string               `json:"text,omitempty"`
 	HTML        string               `json:"html,omitempty"`
 	Attachments []OutgoingAttachment `json:"attachments,omitempty"`
+	Headers     map[string]string    `json:"headers,omitempty"`
 }
 
 type ReplyMessageRequest struct {
+	To          []string             `json:"to,omitempty"`
+	CC          []string             `json:"cc,omitempty"`
+	BCC         []string             `json:"bcc,omitempty"`
 	Text        string               `json:"text,omitempty"`
 	HTML        string               `json:"html,omitempty"`
 	Attachments []OutgoingAttachment `json:"attachments,omitempty"`

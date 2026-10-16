@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+func TestListMessagesResponseNormalizesNextPageToken(t *testing.T) {
+	var response ListMessagesResponse
+	if err := json.Unmarshal([]byte(`{"next_page_token":"next","messages":[]}`), &response); err != nil {
+		t.Fatal(err)
+	}
+	response.normalize()
+	if response.NextCursor != "next" || !response.HasMore {
+		t.Fatalf("pagination normalization = cursor %q, has_more %v; want next/true", response.NextCursor, response.HasMore)
+	}
+}
+
 func TestClientDisableRetriesForSend(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
@@ -42,11 +53,11 @@ func TestClientListMessagesUsesBearerAuthAndQuery(t *testing.T) {
 			t.Fatalf("Authorization = %q, want bearer token", got)
 		}
 		q := r.URL.Query()
-		if q.Get("limit") != "2" || q.Get("labels") != "unread" || q.Get("after") != "2026-05-15T00:00:00Z" {
+		if q.Get("limit") != "2" || q.Get("labels") != "unread" || q.Get("after") != "2026-05-15T00:00:00Z" || q.Get("page_token") != "page-2" || q.Get("include_spam") != "true" || q.Get("include_trash") != "true" {
 			t.Fatalf("unexpected query: %s", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"messages":[{"message_id":"msg-1","subject":"Hello","labels":["unread"]}],"next_cursor":"next"}`))
+		_, _ = w.Write([]byte(`{"messages":[{"message_id":"msg-1","subject":"Hello","labels":["unread"]}],"next_page_token":"next"}`))
 	}))
 	defer srv.Close()
 
@@ -56,9 +67,12 @@ func TestClientListMessagesUsesBearerAuthAndQuery(t *testing.T) {
 	}
 
 	res, err := client.ListMessages(context.Background(), "inbox-1", ListMessagesOptions{
-		Limit:  2,
-		Labels: []string{"unread"},
-		After:  "2026-05-15T00:00:00Z",
+		Limit:        2,
+		Cursor:       "page-2",
+		Labels:       []string{"unread"},
+		After:        "2026-05-15T00:00:00Z",
+		IncludeSpam:  true,
+		IncludeTrash: true,
 	})
 	if err != nil {
 		t.Fatalf("ListMessages() error = %v", err)

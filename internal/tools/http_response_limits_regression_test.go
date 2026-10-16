@@ -3,11 +3,15 @@ package tools
 import (
 	"aurago/internal/testutil"
 	"encoding/json"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestAnsibleRequestRejectsOversizedResponseBody(t *testing.T) {
@@ -26,16 +30,33 @@ func TestAnsibleRequestRejectsOversizedResponseBody(t *testing.T) {
 func TestGoogleWorkspaceRequestRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := gwHTTPClient
 	t.Cleanup(func() { gwHTTPClient = oldClient })
-
-	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(strings.Repeat("g", int(maxHTTPResponseSize)+1)))
-	}))
-	defer server.Close()
-
-	gwHTTPClient = server.Client()
-	client := &GWorkspaceClient{AccessToken: "token"}
-	_, _, err := client.request(http.MethodGet, server.URL, nil)
+	gwHTTPClient = &http.Client{Transport: oauthFixtureTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(strings.Repeat("g", int(maxHTTPResponseSize)+1))),
+			Header:     make(http.Header),
+		}, nil
+	})}
+	vault, err := security.NewVault(strings.Repeat("05", 32), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := json.Marshal(config.OAuthToken{
+		AccessToken: "token",
+		Expiry:      time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+		Scopes:      []string{"https://www.googleapis.com/auth/gmail.readonly"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vault.WriteSecret("oauth_google_workspace", string(token)); err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewGWorkspaceClient(config.Config{}, vault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = client.request(http.MethodGet, "https://gmail.googleapis.com/fixture", nil)
 	if err == nil || !strings.Contains(err.Error(), "response body exceeds limit") {
 		t.Fatalf("expected oversized response error, got %v", err)
 	}

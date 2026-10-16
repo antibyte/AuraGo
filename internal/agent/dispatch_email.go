@@ -161,12 +161,12 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account), true
 			}
 		} else {
-			acct = cfg.DefaultEmailAccount()
+			acct = defaultAgentEmailAccount(cfg)
 		}
 		if acct == nil {
 			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, true
 		}
-		if acct.Disabled {
+		if acct.Disabled || !acct.AllowsAgentAccess() {
 			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID), true
 		}
 		logger.Info("LLM requested email fetch", "account", acct.ID, "folder", req.Folder)
@@ -202,16 +202,19 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 				return toolErrorf("Email account '%s' not found. Use list_email_accounts to see available accounts.", boundedRunes(req.Account, logTextRunes)), true
 			}
 		} else {
-			acct = cfg.DefaultEmailAccount()
+			acct = defaultAgentEmailAccount(cfg)
 		}
 		if acct == nil {
 			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, true
 		}
-		if acct.Disabled {
+		if acct.Disabled || !acct.AllowsAgentAccess() {
 			return toolErrorf("Email account '%s' is disabled. Enable it in Settings > Email.", acct.ID), true
 		}
 		if acct.ReadOnly {
 			return toolErrorf("Email account '%s' is read-only. Enable sending in Settings > Email.", acct.ID), true
+		}
+		if strings.EqualFold(acct.SMTPAuthMethod, "xoauth2") {
+			return toolErrorf("Email account '%s' uses OAuth. Send through Mailer.", acct.ID), true
 		}
 		to := req.To
 		if to == "" {
@@ -235,6 +238,13 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			"subject", boundedRunes(subject, logTextRunes), "attachments", len(req.Attachments))
 		var sendErr error
 		var files []tools.EmailAttachment
+		smtpUsername, smtpPassword := acct.SMTPUsername, acct.SMTPPassword
+		if smtpUsername == "" {
+			smtpUsername = acct.Username
+		}
+		if smtpPassword == "" {
+			smtpPassword = acct.Password
+		}
 		if len(req.Attachments) > 0 {
 			var err error
 			files, err = tools.LoadEmailAttachments(cfg, req.Attachments)
@@ -242,14 +252,14 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 				return "Tool Output: " + tools.EncodeEmailResult(tools.EmailResult{Status: "error", Message: err.Error()}), true
 			}
 			if acct.SMTPPort == 465 {
-				sendErr = tools.SendEmailTLSWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+				sendErr = tools.SendEmailTLSWithAttachments(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, files, logger)
 			} else {
-				sendErr = tools.SendEmailWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+				sendErr = tools.SendEmailWithAttachments(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, files, logger)
 			}
 		} else if acct.SMTPPort == 465 {
-			sendErr = tools.SendEmailTLS(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
+			sendErr = tools.SendEmailTLS(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, logger)
 		} else {
-			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
+			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, smtpUsername, smtpPassword, acct.FromAddress, to, subject, body, logger)
 		}
 		if sendErr != nil {
 			return toolErrorf("SMTP send failed (%s): %v", acct.ID, sendErr), true
@@ -272,6 +282,9 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		}
 		var accts []acctInfo
 		for _, a := range cfg.EmailAccounts {
+			if a.Disabled || !a.AllowsAgentAccess() {
+				continue
+			}
 			accts = append(accts, acctInfo{
 				ID:        a.ID,
 				Name:      a.Name,
@@ -287,4 +300,13 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		return "Tool Output: " + tools.EncodeEmailResult(result), true
 	}
 	return "", false
+}
+
+func defaultAgentEmailAccount(cfg *config.Config) *config.EmailAccount {
+	for i := range cfg.EmailAccounts {
+		if !cfg.EmailAccounts[i].Disabled && cfg.EmailAccounts[i].AllowsAgentAccess() {
+			return &cfg.EmailAccounts[i]
+		}
+	}
+	return nil
 }

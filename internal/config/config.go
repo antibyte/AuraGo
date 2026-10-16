@@ -2331,11 +2331,33 @@ func Load(path string) (*Config, error) {
 	// Apply defaults per email account
 	for i := range cfg.EmailAccounts {
 		a := &cfg.EmailAccounts[i]
+		if a.ReceiveProtocol == "" {
+			a.ReceiveProtocol = "imap"
+		}
+		if a.ReceiveTLS == "" {
+			a.ReceiveTLS = "tls"
+		}
 		if a.IMAPPort <= 0 {
 			a.IMAPPort = 993
 		}
+		if a.POP3Port <= 0 {
+			a.POP3Port = 995
+		}
 		if a.SMTPPort <= 0 {
 			a.SMTPPort = 587
+		}
+		if a.SMTPTransport == "" {
+			if a.SMTPPort == 465 {
+				a.SMTPTransport = "tls"
+			} else {
+				a.SMTPTransport = "starttls"
+			}
+		}
+		if a.SMTPUsername == "" {
+			a.SMTPUsername = a.Username
+		}
+		if a.SMTPAuthMethod == "" {
+			a.SMTPAuthMethod = "password"
 		}
 		if a.WatchInterval <= 0 {
 			a.WatchInterval = 120
