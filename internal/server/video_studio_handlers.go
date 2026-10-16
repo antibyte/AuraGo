@@ -204,6 +204,10 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"max_segment_inputs":  videostudio.MaxSegmentInputs,
 		"canvas_sizes":        sizes,
 	}
+	// The effect registry (plan index §4.2) and what this server's FFmpeg lacks (§4.3). CheckRuntime leaves Missing empty
+	// when FFmpeg is not ready, so nothing is listed then; the four lists are always arrays.
+	registry := videostudio.EffectRegistry()
+	unavailable := videoStudioUnavailableJSON(registry.Unavailable(runtime.Missing))
 	generation := map[string]interface{}{
 		"enabled":           cfg.VideoGeneration.Enabled,
 		"configured":        configured,
@@ -229,8 +233,20 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"issue":           issue,
 		"generation":      generation,
 		"limits":          limits,
+		"registry":        registry,
+		"unavailable":     unavailable,
 		"encoder":         encoder,
 	})
+}
+
+// videoStudioUnavailableJSON returns set with every list as an array, so the status JSON never sends null for one.
+func videoStudioUnavailableJSON(set videostudio.UnavailableSet) videostudio.UnavailableSet {
+	for _, list := range []*[]string{&set.Effects, &set.Transitions, &set.BlendModes, &set.AnimPresets} {
+		if *list == nil {
+			*list = []string{}
+		}
+	}
+	return set
 }
 
 func videoStudioDurationOptions(cfg *config.Config, resolution string, hasReferences bool) []int {
