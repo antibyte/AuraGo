@@ -668,7 +668,10 @@ func (s *Store) getThreadByKey(ctx context.Context, accountID, threadID string) 
 }
 
 func messagePreview(m Message) string {
-	v := strings.TrimSpace(m.Text)
+	v := strings.TrimSpace(m.Snippet)
+	if v == "" {
+		v = strings.TrimSpace(m.Text)
+	}
 	if v == "" {
 		v = strings.TrimSpace(m.Subject)
 	}

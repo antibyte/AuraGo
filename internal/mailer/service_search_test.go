@@ -9,12 +9,18 @@ import (
 
 type mailerSearchFixture struct {
 	*coreTestAdapter
-	calls int
+	calls      int
+	lastCursor string
 }
 
 func (a *mailerSearchFixture) Search(_ context.Context, folder string, q MessageQuery) (MessagePage, error) {
 	a.calls++
-	return MessagePage{Messages: []Message{{RemoteID: "4:7", FolderID: folder, Subject: "Remote result", From: "sender@example.test", Date: time.Now(), Unread: true, MessageID: "<search@example.test>"}}, Total: 1}, nil
+	a.lastCursor = q.Cursor
+	page := MessagePage{Messages: []Message{{RemoteID: "4:7", FolderID: folder, Subject: "Remote result", From: "sender@example.test", Text: "indexed body", Date: time.Now(), Unread: true, MessageID: "<search@example.test>"}}, Total: 150}
+	if q.Cursor == "" {
+		page.NextCursor = "page-2"
+	}
+	return page, nil
 }
 
 func TestMailerRemoteSearchScopesResultsWithoutApplyingRules(t *testing.T) {
@@ -43,8 +49,14 @@ func TestMailerRemoteSearchScopesResultsWithoutApplyingRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Threads) != 1 || !page.Threads[0].Unread || base.mutates != 0 {
+	if len(page.Threads) != 1 || !page.Threads[0].Unread || base.mutates != 0 || page.NextCursor != "page-2" {
 		t.Fatal("search consumed unread or ran rules")
+	}
+	if _, err := s.SearchRemote(ctx, MessageQuery{AccountID: account.ID, FolderID: "INBOX", Query: "Remote", Cursor: page.NextCursor}); err != nil {
+		t.Fatal(err)
+	}
+	if searcher.lastCursor != "page-2" {
+		t.Fatalf("provider search cursor = %q", searcher.lastCursor)
 	}
 	message, err := s.GetMessage(ctx, page.Threads[0].Messages[0].ID)
 	if err != nil && !errors.Is(err, ErrNotFound) {

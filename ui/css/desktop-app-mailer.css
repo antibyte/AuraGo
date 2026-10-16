@@ -132,7 +132,7 @@
 .vd-mailer-plain-body { margin: 0; font: inherit; white-space: pre-wrap; }
 .vd-mailer-html-wrap { overflow: hidden; border: 1px solid var(--mail-border); border-radius: 7px; background: #fff; }
 .vd-mailer-html-wrap iframe { display: block; width: 100%; min-height: 210px; border: 0; background: #fff; }
-.vd-mailer-remote-warning { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 11px 0 0; color: var(--mail-muted); font-size: 11px; }
+.vd-mailer-remote-warning, .vd-mailer-message-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 11px 0 0; color: var(--mail-muted); font-size: 11px; }
 .vd-mailer-remote-warning button, .vd-mailer-message-attachments a, .vd-mailer-message footer button { color: var(--mail-accent); }
 .vd-mailer-message-attachments { display: flex; flex-wrap: wrap; gap: 7px; padding: 0; list-style: none; }
 .vd-mailer-message-attachments a { display: block; padding: 6px 8px; border: 1px solid var(--mail-border); border-radius: 6px; text-decoration: none; }

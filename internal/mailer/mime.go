@@ -200,7 +200,7 @@ func buildMIME(from string, draft Draft, now time.Time, includeBCC bool) ([]byte
 	return out.Bytes(), nil
 }
 
-func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []string, text, html string, attachments []Attachment, err error) {
+func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []string, text, html string, attachments []Attachment, htmlSkipped bool, err error) {
 	if maxBytes <= 0 || maxBytes > 32<<20 {
 		maxBytes = 32 << 20
 	}
@@ -263,10 +263,13 @@ func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []strin
 		case *mailmime.InlineHeader:
 			ct, _, _ := h.ContentType()
 			if strings.EqualFold(ct, "text/html") {
-				html, err = SanitizeHTML(string(data))
-				if err != nil {
-					return
+				sanitized, sanitizeErr := SanitizeHTML(string(data))
+				if sanitizeErr != nil {
+					html = ""
+					htmlSkipped = true
+					continue
 				}
+				html = sanitized
 			} else if strings.HasPrefix(strings.ToLower(ct), "text/") && text == "" {
 				text = string(data)
 			}

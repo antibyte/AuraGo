@@ -107,7 +107,10 @@ func (s *Service) GetThread(ctx context.Context, id string) (Thread, error) {
 	for i := range thread.Messages {
 		message, err := s.GetMessage(ctx, thread.Messages[i].ID)
 		if err != nil {
-			return Thread{}, err
+			kept := thread.Messages[i]
+			kept.ReadError = "message_unavailable"
+			thread.Messages[i] = kept
+			continue
 		}
 		thread.Messages[i] = message
 	}
@@ -186,7 +189,7 @@ func (s *Service) MessageAttachment(ctx context.Context, messageID, attachmentID
 		return Attachment{}, nil, ErrNotFound
 	}
 	if len(m.Raw) > 0 {
-		_, _, _, _, _, _, attachments, err := ParseMIME(m.Raw, int64(len(m.Raw)))
+		_, _, _, _, _, _, attachments, _, err := ParseMIME(m.Raw, int64(len(m.Raw)))
 		if err != nil {
 			return Attachment{}, nil, err
 		}

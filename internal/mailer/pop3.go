@@ -236,11 +236,8 @@ func (a *pop3Adapter) Sync(ctx context.Context, folder, cursor string) (SyncResu
 			if e != nil {
 				return e
 			}
-			subj, from, to, cc, body, html, attachments, e := ParseMIME(raw, maxPOP3MessageBytes)
-			if e != nil {
-				subj, from, to, cc, body, html, attachments = "", "", nil, nil, string(raw), "", nil
-			}
-			msg := Message{AccountID: a.cfg.Source + ":" + a.cfg.ID, FolderID: a.cfg.Source + ":" + a.cfg.ID + ":inbox", RemoteID: id, ThreadID: id, Subject: subj, From: from, To: to, CC: cc, Text: body, HTML: html, Date: time.Now(), Unread: true, Attachments: attachments}
+			subj, from, to, cc, body, html, attachments, htmlSkipped, readError := parsedPOP3Body(raw)
+			msg := Message{AccountID: a.cfg.Source + ":" + a.cfg.ID, FolderID: a.cfg.Source + ":" + a.cfg.ID + ":inbox", RemoteID: id, ThreadID: id, Subject: subj, From: from, To: to, CC: cc, Text: body, HTML: html, HTMLSkipped: htmlSkipped, ReadError: readError, Date: time.Now(), Unread: true, Attachments: attachments}
 			msg.ReplyTo = ParseReplyTo(raw)
 			msg.Raw = append([]byte(nil), raw...)
 			if m, e := mailDate(raw); e == nil {
@@ -356,11 +353,8 @@ func (a *pop3Adapter) Read(ctx context.Context, folder, id string) (Message, err
 	if e != nil {
 		return Message{}, e
 	}
-	subject, from, to, cc, body, html, attachments, e := ParseMIME(raw, maxPOP3MessageBytes)
-	if e != nil {
-		return Message{}, e
-	}
-	msg := Message{AccountID: a.cfg.Source + ":" + a.cfg.ID, FolderID: a.cfg.Source + ":" + a.cfg.ID + ":inbox", RemoteID: id, ThreadID: id, Subject: subject, From: from, To: to, CC: cc, Text: body, HTML: html, Date: time.Now(), Attachments: attachments, Raw: append([]byte(nil), raw...)}
+	subject, from, to, cc, body, html, attachments, htmlSkipped, readError := parsedPOP3Body(raw)
+	msg := Message{AccountID: a.cfg.Source + ":" + a.cfg.ID, FolderID: a.cfg.Source + ":" + a.cfg.ID + ":inbox", RemoteID: id, ThreadID: id, Subject: subject, From: from, To: to, CC: cc, Text: body, HTML: html, HTMLSkipped: htmlSkipped, ReadError: readError, Date: time.Now(), Attachments: attachments, Raw: append([]byte(nil), raw...)}
 	msg.ReplyTo = ParseReplyTo(raw)
 	if d, e := mailDate(raw); e == nil {
 		msg.Date = d
@@ -447,6 +441,41 @@ func decodePOPSyncCursor(raw string) (pop3SyncCursor, bool, error) {
 	return state, false, nil
 }
 
+func parsedPOP3Body(raw []byte) (subject, from string, to, cc []string, text, html string, attachments []Attachment, htmlSkipped bool, readError string) {
+	subject, from, to, cc, text, html, attachments, htmlSkipped, err := ParseMIME(raw, maxPOP3MessageBytes)
+	if err != nil {
+		subject, from, to, cc = pop3Headers(raw)
+		return subject, from, to, cc, "", "", nil, false, "message_unparsed"
+	}
+	return subject, from, to, cc, text, html, attachments, htmlSkipped, ""
+}
+
+func pop3Headers(raw []byte) (subject, from string, to, cc []string) {
+	msg, err := mail.ReadMessage(bytes.NewReader(raw))
+	if err != nil || msg == nil {
+		return "", "", nil, nil
+	}
+	subject = msg.Header.Get("Subject")
+	if addrs, err := msg.Header.AddressList("From"); err == nil && len(addrs) > 0 {
+		from = addrs[0].Address
+	}
+	if addrs, err := msg.Header.AddressList("To"); err == nil {
+		for _, addr := range addrs {
+			if addr.Address != "" {
+				to = append(to, addr.Address)
+			}
+		}
+	}
+	if addrs, err := msg.Header.AddressList("Cc"); err == nil {
+		for _, addr := range addrs {
+			if addr.Address != "" {
+				cc = append(cc, addr.Address)
+			}
+		}
+	}
+	return subject, from, to, cc
+}
+
 func encodePOPSyncCursor(state pop3SyncCursor) (string, error) {
 	data, err := json.Marshal(state)
 	if err != nil || len(data) > 1<<20 {
@@ -460,7 +489,7 @@ func (a *pop3Adapter) Attachment(ctx context.Context, folder, id, part string) (
 	if e != nil {
 		return nil, e
 	}
-	_, _, _, _, _, _, att, e := ParseMIME(raw, maxPOP3MessageBytes)
+	_, _, _, _, _, _, att, _, e := ParseMIME(raw, maxPOP3MessageBytes)
 	if e != nil {
 		return nil, e
 	}

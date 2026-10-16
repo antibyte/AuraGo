@@ -25,12 +25,15 @@ func TestBuildMIMEAlternativesAttachmentsAndSafeHeaders(t *testing.T) {
 	if err != nil || id == "" || inReplyTo != "parent@example.test" || len(refs) != 2 || refs[0] != "root@example.test" || refs[1] != "parent@example.test" {
 		t.Fatalf("thread headers were not preserved safely: %q %q %#v %v", id, inReplyTo, refs, err)
 	}
-	subject, _, to, cc, text, html, attachments, err := ParseMIME(raw, 1<<20)
+	subject, _, to, cc, text, html, attachments, htmlSkipped, err := ParseMIME(raw, 1<<20)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(subject, "hello") || !strings.Contains(subject, "Bcc: attacker@example.test") || len(to) != 1 || len(cc) != 1 || text != "plain body" || !strings.Contains(html, "safe") || strings.Contains(html, "script") {
 		t.Fatalf("MIME alternatives or sanitized headers incorrect: subject=%q to=%v cc=%v text=%q html=%q", subject, to, cc, text, html)
+	}
+	if htmlSkipped {
+		t.Fatal("safe HTML was reported as skipped")
 	}
 	if len(attachments) != 1 || !bytes.Equal(attachments[0].Data, []byte("attachment bytes")) || attachments[0].Filename != "note.txt" {
 		t.Fatalf("attachment round trip failed: %#v", attachments)
@@ -43,11 +46,11 @@ func TestBuildMIMEAlternativesAttachmentsAndSafeHeaders(t *testing.T) {
 
 func TestParseMIMECharsetAndBounds(t *testing.T) {
 	raw := []byte("From: sender@example.test\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=iso-8859-1\r\nContent-Transfer-Encoding: 8bit\r\n\r\ncaf\xe9")
-	_, _, _, _, text, _, _, err := ParseMIME(raw, 1024)
+	_, _, _, _, text, _, _, _, err := ParseMIME(raw, 1024)
 	if err != nil || text != "café" {
 		t.Fatalf("legacy charset was not decoded: text=%q err=%v", text, err)
 	}
-	if _, _, _, _, _, _, _, err = ParseMIME(bytes.Repeat([]byte("x"), 128), 64); err == nil {
+	if _, _, _, _, _, _, _, _, err = ParseMIME(bytes.Repeat([]byte("x"), 128), 64); err == nil {
 		t.Fatal("oversized raw MIME message was accepted")
 	}
 }
@@ -59,8 +62,47 @@ func TestParseMIMELimitsPartCount(t *testing.T) {
 		fmt.Fprintf(&raw, "--fixture\r\nContent-Type: text/plain\r\n\r\npart-%d\r\n", i)
 	}
 	fmt.Fprint(&raw, "--fixture--\r\n")
-	if _, _, _, _, _, _, _, err := ParseMIME(raw.Bytes(), 1<<20); err == nil || !strings.Contains(err.Error(), "too many parts") {
+	if _, _, _, _, _, _, _, _, err := ParseMIME(raw.Bytes(), 1<<20); err == nil || !strings.Contains(err.Error(), "too many parts") {
 		t.Fatalf("MIME part count was not bounded: %v", err)
+	}
+}
+
+func TestParsedPOP3BodyDoesNotStoreRawAsText(t *testing.T) {
+	var raw bytes.Buffer
+	fmt.Fprint(&raw, "From: sender@example.test\r\nTo: reader@example.test\r\nSubject: broken\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=fixture\r\n\r\n")
+	for i := 0; i < 513; i++ {
+		fmt.Fprintf(&raw, "--fixture\r\nContent-Type: text/plain\r\n\r\npart-%d\r\n", i)
+	}
+	fmt.Fprint(&raw, "--fixture--\r\n")
+	subject, from, _, _, text, html, attachments, htmlSkipped, readError := parsedPOP3Body(raw.Bytes())
+	if readError != "message_unparsed" || htmlSkipped || text != "" || html != "" || attachments != nil || subject != "broken" || from != "sender@example.test" {
+		t.Fatalf("unparsed POP3 body = subject=%q from=%q text=%q html=%q skipped=%v attachments=%v error=%q", subject, from, text, html, htmlSkipped, attachments, readError)
+	}
+	if strings.Contains(text, "part-0") || strings.Contains(string(raw.Bytes()), text) && text != "" {
+		t.Fatal("raw RFC822 was stored as the message text")
+	}
+}
+
+func TestParseMIMEKeepsLaterPartsWhenHTMLIsSkipped(t *testing.T) {
+	var nested strings.Builder
+	for i := 0; i < 80; i++ {
+		nested.WriteString("<div>")
+	}
+	nested.WriteString("hidden")
+	for i := 0; i < 80; i++ {
+		nested.WriteString("</div>")
+	}
+	raw := []byte("From: sender@example.test\r\nTo: reader@example.test\r\nSubject: mixed\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=bound\r\n\r\n" +
+		"--bound\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + nested.String() + "\r\n" +
+		"--bound\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nplain stays\r\n" +
+		"--bound\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename=\"note.txt\"\r\n\r\nfile-bytes\r\n" +
+		"--bound--\r\n")
+	_, _, _, _, text, html, attachments, htmlSkipped, err := ParseMIME(raw, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !htmlSkipped || html != "" || text != "plain stays" || len(attachments) != 1 || string(attachments[0].Data) != "file-bytes" {
+		t.Fatalf("skipped HTML hid later parts: skipped=%v html=%q text=%q attachments=%#v", htmlSkipped, html, text, attachments)
 	}
 }
 

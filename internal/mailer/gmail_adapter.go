@@ -482,13 +482,13 @@ func (a *gmailAdapter) readMessage(ctx context.Context, id, thread, folder strin
 	if e != nil {
 		return Message{}, e
 	}
-	subj, from, to, cc, body, html, atts, e := ParseMIME(raw, maxGmailResponseBytes)
+	subj, from, to, cc, body, html, atts, htmlSkipped, e := ParseMIME(raw, maxGmailResponseBytes)
 	if e != nil {
 		return Message{}, e
 	}
 	metadata.Subject, metadata.From, metadata.To, metadata.CC = subj, from, to, cc
 	metadata.ReplyTo = ParseReplyTo(raw)
-	metadata.Text, metadata.HTML, metadata.Attachments = body, html, atts
+	metadata.Text, metadata.HTML, metadata.HTMLSkipped, metadata.Attachments = body, html, htmlSkipped, atts
 	metadata.Raw = append([]byte(nil), raw...)
 	if mid, irt, refs, e := ParseThreadHeaders(raw); e == nil {
 		metadata.MessageID, metadata.InReplyTo, metadata.References = mid, irt, refs
@@ -603,7 +603,7 @@ func (a *gmailAdapter) Attachment(ctx context.Context, folder, id, part string) 
 	if e != nil {
 		return nil, e
 	}
-	_, _, _, _, _, _, atts, e := ParseMIME(raw, maxGmailResponseBytes)
+	_, _, _, _, _, _, atts, _, e := ParseMIME(raw, maxGmailResponseBytes)
 	if e != nil {
 		return nil, e
 	}

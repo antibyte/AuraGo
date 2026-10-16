@@ -12,7 +12,43 @@ import (
 const (
 	maxConcurrentAccountSyncs = 4
 	accountSyncTimeout        = 90 * time.Second
+	syncIdleInterval          = 5 * time.Minute
+	syncActiveInterval        = 60 * time.Second
 )
+
+func (s *Service) now() time.Time {
+	if s.opts.Now != nil {
+		return s.opts.Now()
+	}
+	return time.Now()
+}
+
+func (s *Service) syncDue(accountID string, now time.Time) bool {
+	s.scheduleMu.Lock()
+	defer s.scheduleMu.Unlock()
+	due, ok := s.syncDueAt[accountID]
+	if !ok {
+		return true
+	}
+	return !now.Before(due)
+}
+
+func (s *Service) noteSyncSchedule(accountID string, changed bool, err error) {
+	if accountID == "" {
+		return
+	}
+	interval := syncIdleInterval
+	if changed || (err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrReadOnly)) {
+		interval = syncActiveInterval
+	}
+	due := s.now().Add(interval)
+	s.scheduleMu.Lock()
+	defer s.scheduleMu.Unlock()
+	if s.syncDueAt == nil {
+		s.syncDueAt = map[string]time.Time{}
+	}
+	s.syncDueAt[accountID] = due
+}
 
 func (s *Service) SyncAccount(ctx context.Context, accountID string) error {
 	ctx, cancel, err := s.begin(ctx, true)
@@ -24,7 +60,9 @@ func (s *Service) SyncAccount(ctx context.Context, accountID string) error {
 		return ErrConflict
 	}
 	defer s.syncMu.Unlock()
-	return s.syncAccount(ctx, accountID)
+	changed, err := s.syncAccount(ctx, accountID)
+	s.noteSyncSchedule(accountID, changed, err)
+	return err
 }
 
 func (s *Service) syncAll(ctx context.Context) {
@@ -51,6 +89,9 @@ accountsLoop:
 		if account.Disabled {
 			continue
 		}
+		if !s.syncDue(account.ID, s.now()) {
+			continue
+		}
 		select {
 		case semaphore <- struct{}{}:
 		case <-ctx.Done():
@@ -64,7 +105,9 @@ accountsLoop:
 			defer cancel()
 			// Each account resolves current config and gets a revocable Desktop
 			// operation context. One broken source cannot hold up healthy accounts.
-			if err := s.syncAccount(accountCtx, accountID); err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrReadOnly) {
+			changed, err := s.syncAccount(accountCtx, accountID)
+			s.noteSyncSchedule(accountID, changed, err)
+			if err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrReadOnly) {
 				return
 			}
 		}(account.ID)
@@ -72,104 +115,119 @@ accountsLoop:
 	workers.Wait()
 }
 
-func (s *Service) syncAccount(parent context.Context, accountID string) error {
+func (s *Service) syncAccount(parent context.Context, accountID string) (bool, error) {
 	ctx, cancel, err := s.begin(parent, true)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer cancel()
 	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, accountID)
 	defer releaseAccount()
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 	account, err := s.authorizedAccount(ctx, accountID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if account.Disabled {
-		return ErrDisabled
+		return false, ErrDisabled
 	}
 	if !hasCapability(account.Capabilities, "read") {
-		return ErrCapability
+		return false, ErrCapability
 	}
 	adapter, resolved, err := s.resolve(ctx, accountID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if resolved.Disabled {
-		return ErrDisabled
+		return false, ErrDisabled
 	}
 	if !hasCapability(resolved.Capabilities, "read") {
-		return ErrCapability
+		return false, ErrCapability
 	}
 	if resolved.ReadOnly {
 		if err := s.store.SkipPendingRuleRuns(ctx, accountID, "account is read-only"); err != nil {
-			return err
+			return false, err
 		}
 	} else if err := s.processPendingRuleRuns(ctx, accountID); err != nil && ctx.Err() != nil {
-		return ctx.Err()
+		return false, ctx.Err()
 	}
+	var stopSession func()
+	defer func() {
+		if stopSession != nil {
+			stopSession()
+		}
+	}()
+	if opener, ok := adapter.(SyncSession); ok {
+		stop, sessionErr := opener.StartSyncSession(ctx)
+		if sessionErr != nil {
+			return false, s.failSync(ctx, accountID, sessionErr)
+		}
+		stopSession = stop
+	}
+	changed := false
 	folders, err := adapter.Folders(ctx)
 	if err != nil {
-		return s.failSync(ctx, accountID, err)
+		return false, s.failSync(ctx, accountID, err)
 	}
 	for i := range folders {
 		if folders[i].ID == "" {
-			return s.failSync(ctx, accountID, ErrInvalid)
+			return false, s.failSync(ctx, accountID, ErrInvalid)
 		}
 		folders[i].AccountID = accountID
 	}
 	if err := s.store.PutFolders(ctx, accountID, folders); err != nil {
-		return s.failSync(ctx, accountID, err)
+		return false, s.failSync(ctx, accountID, err)
 	}
 	isPop3 := isPOP3(resolved)
 	if isPop3 {
 		if err := s.ensureLocalPOP3Folders(ctx, resolved); err != nil {
-			return s.failSync(ctx, accountID, err)
+			return false, s.failSync(ctx, accountID, err)
 		}
 	}
 	for _, folder := range folders {
 		cursor, err := s.store.Cursor(ctx, accountID, folder.ID)
 		if err != nil {
-			return s.failSync(ctx, accountID, err)
+			return false, s.failSync(ctx, accountID, err)
 		}
 		snapshotActive, err := s.store.RemoteSnapshotActive(ctx, accountID, folder.ID)
 		if err != nil {
-			return s.failSync(ctx, accountID, err)
+			return false, s.failSync(ctx, accountID, err)
 		}
 		if cursor == "" && !isPop3 && !snapshotActive {
 			if err := s.store.BeginRemoteSnapshot(ctx, accountID, folder.ID); err != nil {
-				return s.failSync(ctx, accountID, err)
+				return false, s.failSync(ctx, accountID, err)
 			}
 			snapshotActive = true
 		}
+		hasMore := false
 		for pageNumber := 0; pageNumber < 10; pageNumber++ {
 			if err := ctx.Err(); err != nil {
-				return err
+				return false, err
 			}
 			result, err := adapter.Sync(ctx, folder.ID, cursor)
 			if err != nil {
-				return s.failSync(ctx, accountID, err)
+				return false, s.failSync(ctx, accountID, err)
 			}
 			if result.ResetSnapshot && !isPop3 {
 				if err := s.store.SetCursor(ctx, accountID, folder.ID, ""); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 				cursor = ""
 				if err := s.store.BeginRemoteSnapshot(ctx, accountID, folder.ID); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 				snapshotActive = true
 			}
 			previousValidity, err := s.store.CursorValidity(ctx, accountID, folder.ID)
 			if err != nil {
-				return s.failSync(ctx, accountID, err)
+				return false, s.failSync(ctx, accountID, err)
 			}
 			if !isPop3 && previousValidity != 0 && result.UIDValidity != 0 && previousValidity != result.UIDValidity {
 				if !snapshotActive {
 					if err := s.store.BeginRemoteSnapshot(ctx, accountID, folder.ID); err != nil {
-						return s.failSync(ctx, accountID, err)
+						return false, s.failSync(ctx, accountID, err)
 					}
 					snapshotActive = true
 				}
@@ -179,7 +237,7 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 				// complete snapshot can atomically reconcile it.
 				if !result.ResetSnapshot {
 					if err := s.store.SetCursor(ctx, accountID, folder.ID, ""); err != nil {
-						return s.failSync(ctx, accountID, err)
+						return false, s.failSync(ctx, accountID, err)
 					}
 					cursor = ""
 					continue
@@ -189,6 +247,10 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 				result.Messages[i].AccountID = accountID
 				result.Messages[i].FolderID = folder.ID
 			}
+			if len(result.Messages) > 0 || len(result.DeletedRemoteIDs) > 0 {
+				changed = true
+			}
+			hasMore = result.HasMore
 			// Keep sync-index insertion atomic with local permission changes. The
 			// gate is intentionally limited to this transaction; rule actions take
 			// their own gate through Mutate/Snooze.
@@ -196,18 +258,18 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 			gate.RLock()
 			if err := ctx.Err(); err != nil {
 				gate.RUnlock()
-				return err
+				return false, err
 			}
 			current, currentErr := s.authorizedAccount(ctx, accountID)
 			if currentErr != nil {
 				gate.RUnlock()
-				return currentErr
+				return false, currentErr
 			}
 			readOnly := resolved.ReadOnly || current.ReadOnly
 			if readOnly {
 				if err := s.store.SkipPendingRuleRuns(ctx, accountID, "account is read-only"); err != nil {
 					gate.RUnlock()
-					return err
+					return false, err
 				}
 				_, err = s.store.PutMessagesWithLimit(ctx, result.Messages, s.opts.MaxMessageCacheBytes)
 			} else {
@@ -215,7 +277,7 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 			}
 			gate.RUnlock()
 			if err != nil {
-				return s.failSync(ctx, accountID, err)
+				return false, s.failSync(ctx, accountID, err)
 			}
 			if !isPop3 && snapshotActive {
 				seen := make([]string, 0, len(result.Messages))
@@ -223,37 +285,37 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 					seen = append(seen, message.RemoteID)
 				}
 				if err := s.store.MarkRemoteSnapshotSeen(ctx, accountID, folder.ID, seen); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 			}
 			if len(result.DeletedRemoteIDs) > 0 && !isPop3 {
 				if err := s.store.DeleteRemoteMessages(ctx, accountID, folder.ID, result.DeletedRemoteIDs); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 			}
 			if result.UIDValidity != 0 {
 				if err := s.store.SetCursorValidity(ctx, accountID, folder.ID, result.UIDValidity); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 			}
 			if result.RemoteSnapshotComplete && !isPop3 && snapshotActive {
 				if err := s.store.FinishRemoteSnapshot(ctx, accountID, folder.ID); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 				snapshotActive = false
 			}
 			if !resolved.ReadOnly {
 				if err := s.processPendingRuleRuns(ctx, accountID); err != nil && ctx.Err() != nil {
-					return ctx.Err()
+					return false, ctx.Err()
 				}
 			}
 			next := result.NextCursor
 			if next == cursor && result.HasMore {
-				return s.failSync(ctx, accountID, ErrSyncFailed)
+				return false, s.failSync(ctx, accountID, ErrSyncFailed)
 			}
 			if next != cursor {
 				if err := s.store.SetCursor(ctx, accountID, folder.ID, next); err != nil {
-					return s.failSync(ctx, accountID, err)
+					return false, s.failSync(ctx, accountID, err)
 				}
 				cursor = next
 			}
@@ -261,23 +323,26 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 				break
 			}
 		}
+		if hasMore {
+			changed = true
+		}
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 	hasRuleErrors, err := s.store.HasRuleRunErrors(ctx, accountID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	status, code := "ok", ""
 	if hasRuleErrors {
 		status, code = "error", "rule_error"
 	}
-	if err := s.store.SetAccountSyncStatus(ctx, accountID, status, code, time.Now().UTC()); err != nil {
-		return err
+	if err := s.store.SetAccountSyncStatus(ctx, accountID, status, code, s.now().UTC()); err != nil {
+		return false, err
 	}
 	s.emit(Event{Type: "account_sync", AccountID: accountID, Status: status})
-	return nil
+	return changed, nil
 }
 
 func (s *Service) failSync(ctx context.Context, accountID string, cause ...error) error {

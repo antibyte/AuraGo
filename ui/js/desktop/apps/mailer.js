@@ -106,7 +106,6 @@
         listen(host, 'input', event => {
             if (event.target.matches('[data-search]')) {
                 inst.query = event.target.value.trim();
-                inst.remoteSearch = false;
                 host.querySelector('[data-clear-search]').hidden = !inst.query;
                 syncProviderSearchButton(inst);
                 clearTimeout(inst.searchTimer);
@@ -156,7 +155,7 @@
             const action = event.target.closest('[data-action]');
             if (action) { runToolbarAction(inst, action.dataset.action); return; }
             if (event.target.closest('[data-refresh]')) { refreshCurrent(inst, false); return; }
-            if (event.target.closest('[data-provider-search]')) { inst.remoteSearch = true; syncProviderSearchButton(inst); loadCurrent(inst); return; }
+            if (event.target.closest('[data-provider-search]')) { inst.remoteSearch = !inst.remoteSearch; syncProviderSearchButton(inst); loadCurrent(inst); return; }
             if (event.target.closest('[data-clear-search]')) { host.querySelector('[data-search]').value = ''; inst.query = ''; inst.remoteSearch = false; host.querySelector('[data-clear-search]').hidden = true; syncProviderSearchButton(inst); loadCurrent(inst); return; }
             if (event.target.closest('[data-compose]')) { openCompose(inst); return; }
             if (event.target.closest('[data-open-settings]')) { inst.settings.show(); return; }
@@ -305,12 +304,24 @@
         if (inst.view === 'folder') params.folder_id = inst.folderId;
         else if (['inbox', 'unread', 'starred', 'snoozed'].includes(inst.view)) params.view = inst.view;
         else if (inst.view === 'label') params.folder_id = inst.selectedLabel;
+        if (inst.remoteSearch) {
+            const folderId = providerSearchFolder(inst);
+            if (folderId) { params.folder_id = folderId; delete params.view; }
+        }
         return params;
+    }
+
+    function providerSearchFolder(inst) {
+        if (!inst.accountId) return '';
+        if (inst.view === 'folder' && inst.folderId) return inst.folderId;
+        if (inst.view !== 'inbox') return '';
+        const inbox = (inst.folders || []).find(folder => folder.kind === 'inbox' && (!folder.account_id || folder.account_id === inst.accountId));
+        return inbox ? inbox.id : '';
     }
 
     function providerSearchEligible(inst) {
         const account = inst.state?.accounts?.find(item => item.id === inst.accountId);
-        if (!inst.query || !inst.accountId || !inst.folderId || inst.view !== 'folder' || !account) return false;
+        if (!inst.query || !inst.accountId || !providerSearchFolder(inst) || !account || (inst.view !== 'folder' && inst.view !== 'inbox')) return false;
         const source = String(account.source || '').toLowerCase();
         return account.protocol === 'imap' || ['gog', 'google', 'google_workspace', 'gmail'].includes(source) || (account.capabilities || []).includes('search_remote');
     }
@@ -515,11 +526,14 @@
         const remoteEnabled = inst.remoteImages.has(inst.activeThread);
         const attachments = message.attachments || [];
         const hasRemoteImages = !!message.html && messageHasRemoteImages(message.html);
+        const readErrorKey = message.read_error === 'message_unavailable' || message.read_error === 'message_unparsed' ? message.read_error : (message.read_error ? 'message_unavailable' : '');
+        const notices = `${readErrorKey ? `<p class="vd-mailer-message-notice">${esc(t(inst.ctx, readErrorKey))}</p>` : ''}${message.html_skipped ? `<p class="vd-mailer-message-notice">${esc(t(inst.ctx, 'html_skipped'))}</p>` : ''}`;
         const body = message.html ? `<div class="vd-mailer-html-wrap"><iframe sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="${esc(t(inst.ctx, 'email_content'))}" data-email-frame="${esc(message.id)}"></iframe></div>` : `<pre class="vd-mailer-plain-body">${esc(message.text || '')}</pre>`;
         const sender = parseSender(message.from || t(inst.ctx, 'unknown_sender'));
         const recipientLine = [message.to, message.cc?.length ? 'Cc: ' + message.cc.join(', ') : ''].flat().filter(Boolean).join(' · ');
         return `<article class="vd-mailer-message"><header class="vd-mailer-message-head"><span class="vd-mailer-avatar" aria-hidden="true">${esc(initials(sender.name))}</span><div class="vd-mailer-message-meta"><b>${esc(sender.name)}</b>${sender.address ? `<details class="vd-mailer-sender-address"><summary>${esc(t(inst.ctx, 'email_address'))}</summary><span>${esc(sender.address)}</span></details>` : ''}<span>${esc(recipientLine)}</span></div><time>${esc(formatDate(message.date, inst.state.timezone))}</time>${canThreadCapability(inst, inst.activeThreadData || {}, 'star') ? `<button type="button" class="vd-mailer-reader-star" data-reader-action="${message.starred ? 'unstar' : 'star'}" data-message-id="${esc(message.id)}" aria-label="${esc(t(inst.ctx, message.starred ? 'unstar' : 'star'))}" aria-pressed="${message.starred ? 'true' : 'false'}">${message.starred ? '★' : '☆'}</button>` : ''}</header>
             ${hasRemoteImages ? `<div class="vd-mailer-remote-warning"><span>${esc(t(inst.ctx, remoteEnabled ? 'remote_images_loaded' : 'remote_images_blocked'))}</span>${remoteEnabled ? '' : `<button type="button" data-load-images>${esc(t(inst.ctx, 'load_remote_images'))}</button>`}</div>` : ''}
+            ${notices}
             <div class="vd-mailer-message-body">${body}</div>
             ${attachments.length ? `<ul class="vd-mailer-message-attachments" aria-label="${esc(t(inst.ctx, 'attachments'))}">${attachments.map(item => `<li><a href="${esc(inst.api.attachmentURL(message.id, item.id))}" download="${esc(item.filename)}">📎 ${esc(item.filename)} <small>${formatBytes(item.size)}</small></a></li>`).join('')}</ul>` : ''}
             <div class="vd-mailer-rule-runs" data-rule-runs-for="${esc(message.id)}"></div>
