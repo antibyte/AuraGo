@@ -56,13 +56,13 @@ func TestRuntimeManifestVerifiesLocalBundleAndRejectsTampering(t *testing.T) {
 	backend := runtimeBackends(runtime.GOOS)[0]
 	directory := t.TempDir()
 	binary := writeTestRuntimeBundle(t, directory, backend)
-	if _, _, err := validateRuntimeManifest(directory, backend, runtime.GOOS, runtime.GOARCH); err != nil {
+	if _, _, err := validateRuntimeManifest(t.Context(), directory, backend, runtime.GOOS, runtime.GOARCH); err != nil {
 		t.Fatalf("valid pinned runtime bundle rejected: %v", err)
 	}
 	if err := os.WriteFile(binary, []byte("tampered executable"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := validateRuntimeManifest(directory, backend, runtime.GOOS, runtime.GOARCH); err == nil {
+	if _, _, err := validateRuntimeManifest(t.Context(), directory, backend, runtime.GOOS, runtime.GOARCH); err == nil {
 		t.Fatal("modified runtime binary passed the release manifest")
 	}
 }
@@ -76,7 +76,7 @@ func TestProvisionNativeRuntimeCopiesOnlyVerifiedLocalBundle(t *testing.T) {
 		t.Fatalf("provision local runtime bundle: %v", err)
 	}
 	installed := filepath.Join(dataRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
-	if _, _, err := validateRuntimeManifest(installed, backend, runtime.GOOS, runtime.GOARCH); err != nil {
+	if _, _, err := validateRuntimeManifest(t.Context(), installed, backend, runtime.GOOS, runtime.GOARCH); err != nil {
 		t.Fatalf("provisioned runtime bundle did not verify: %v", err)
 	}
 }

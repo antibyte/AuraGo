@@ -57,7 +57,10 @@ func runtimeBackends(goos string) []string {
 	}
 }
 
-func validateRuntimeManifest(directory, backend string, goos, goarch string) (string, string, error) {
+func validateRuntimeManifest(ctx context.Context, directory, backend string, goos, goarch string) (string, string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
 	manifestPath := filepath.Join(directory, "release-manifest.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
@@ -97,7 +100,7 @@ func validateRuntimeManifest(directory, backend string, goos, goarch string) (st
 	if !info.Mode().IsRegular() || info.Size() != manifest.Artifact.SizeBytes {
 		return "", "", fmt.Errorf("runtime binary size or file type differs from manifest")
 	}
-	actualSHA, err := fileSHA256(binaryPath)
+	actualSHA, err := fileSHA256(ctx, binaryPath)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,14 +122,17 @@ func validSHA256(value string) bool {
 	return err == nil && len(decoded) == sha256.Size
 }
 
-func fileSHA256(path string) (string, error) {
+func fileSHA256(ctx context.Context, path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err := io.Copy(&artifactProgressWriter{ctx: ctx, writer: hash}, file); err != nil {
+		return "", err
+	}
+	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
@@ -154,32 +160,46 @@ func validateInstalledModelPaths(ctx context.Context, directory string, manifest
 }
 
 func provisionNativeRuntime(ctx context.Context, sourceRoot, dataRoot string) error {
+	backends, err := availableNativeRuntimeBundles(ctx, sourceRoot)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dataRoot, 0o700); err != nil {
 		return err
 	}
-	found := false
-	for _, backend := range runtimeBackends(runtime.GOOS) {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
+	for _, backend := range backends {
 		sourceDir := filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
-		_, _, err := validateRuntimeManifest(sourceDir, backend, runtime.GOOS, runtime.GOARCH)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return fmt.Errorf("verify %s runtime bundle: %w", backend, err)
-		}
-		found = true
 		destinationDir := filepath.Join(dataRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
 		if err := copyVerifiedRuntimeBundle(ctx, sourceDir, destinationDir); err != nil {
 			return err
 		}
 	}
-	if !found {
-		return NewError(CodeRuntimeArtifactMissing, fmt.Errorf("no locally built pinned decisions runtime bundle is available"))
-	}
 	return nil
+}
+
+func availableNativeRuntimeBundles(ctx context.Context, sourceRoot string) ([]string, error) {
+	var backends []string
+	for _, backend := range runtimeBackends(runtime.GOOS) {
+		if err := ctx.Err(); err != nil {
+			return nil, NewError(CodeCancelled, err)
+		}
+		sourceDir := filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
+		_, _, err := validateRuntimeManifest(ctx, sourceDir, backend, runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, NewError(CodeCancelled, ctx.Err())
+			}
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, NewError(CodeRuntimeAttestationFailed, err)
+		}
+		backends = append(backends, backend)
+	}
+	if len(backends) == 0 {
+		return nil, NewError(CodeRuntimeArtifactMissing, nil)
+	}
+	return backends, nil
 }
 
 func copyVerifiedRuntimeBundle(ctx context.Context, sourceDir, destinationDir string) error {
@@ -193,7 +213,7 @@ func copyVerifiedRuntimeBundle(ctx context.Context, sourceDir, destinationDir st
 			return err
 		}
 	}
-	if _, _, err := validateRuntimeManifest(destinationDir, filepath.Base(destinationDir), runtime.GOOS, runtime.GOARCH); err != nil {
+	if _, _, err := validateRuntimeManifest(ctx, destinationDir, filepath.Base(destinationDir), runtime.GOOS, runtime.GOARCH); err != nil {
 		return fmt.Errorf("verify provisioned runtime bundle: %w", err)
 	}
 	return nil

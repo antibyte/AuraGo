@@ -858,6 +858,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   bounded, cancelled on disposal, and cannot repaint another section. Install,
   start, and test require saved settings; stop remains available for containment,
   including while a test is pending. A superseded test response must not replace the stop result.
+  Local setup presents check, download, and start separately. The explicit check
+  never runs on page load, uses saved settings, and stale replies cannot unlock
+  download after a deployment/backend change. Keep missing-package guidance,
+  installed-versus-ready status and a single visible outcome clear; technical
+  codes belong in diagnostic details. Verify `TestDecisionsSetupCheckBrowser`
+  and `TestDecisionsLifecycleFeedbackBrowser` at narrow and wide sizes.
   Keep `config.decisions.*` in all sixteen locales aligned and verify
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
   hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.

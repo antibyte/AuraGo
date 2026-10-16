@@ -7631,6 +7631,23 @@ transform:none; filter:none;
     border-radius: 10px;
 }
 
+/* Decisions setup remains sequential on narrow screens. */
+[data-decisions-settings] .decisions-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 1rem; padding: 0; margin: 1.2rem 0; list-style: none; counter-reset: decisions-step; }
+[data-decisions-settings] .decisions-step { display: flex; flex-direction: column; align-items: flex-start; gap: .7rem; min-width: 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: 10px; counter-increment: decisions-step; }
+[data-decisions-settings] .decisions-step h4 { margin: 0; font-size: 1rem; }
+[data-decisions-settings] .decisions-step h4::before { content: counter(decisions-step) ". "; color: var(--text-secondary); }
+[data-decisions-settings] .decisions-step p { margin: 0 0 .3rem; flex: 1; }
+[data-decisions-settings] .decisions-step .cfg-note-banner { flex: none; margin: 0; }
+[data-decisions-settings] button { min-height: 44px; white-space: normal; }
+[data-decisions-settings] button:disabled { opacity: .5; cursor: not-allowed; }
+[data-decisions-settings] .decisions-step button { width: 100%; }
+[data-decisions-settings] .decisions-details { margin-top: 1rem; }
+[data-decisions-settings] .decisions-details summary { cursor: pointer; padding-block: .75rem; min-height: 44px; }
+[data-decisions-settings] .decisions-details code { overflow-wrap: anywhere; }
+[data-decisions-settings] progress { width: 100%; accent-color: var(--accent); }
+[data-decisions-settings] [hidden] { display: none !important; }
+@media (max-width: 1000px) { [data-decisions-settings] .decisions-steps { grid-template-columns: 1fr; } }
+
 /* Remote device controls retain focused drafts during status refreshes. */
 .pw-page[data-workspace-page="config"] .rc-managed-device { padding: 1rem; margin-block: .7rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-tertiary); min-width: 0; }
 .pw-page[data-workspace-page="config"] .rc-managed-device summary { cursor: pointer; min-height: 44px; padding-block: .7rem; }

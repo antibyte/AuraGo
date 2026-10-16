@@ -72,6 +72,10 @@ attestation, request validation, candidate-logit normalization, and status.
   Publish with `fileutil.RenameContext` without deleting the existing target.
   Verification and publication must observe cancellation; failed replacement
   preserves the previous file.
+- Explicit installation checks reuse the install package verification without
+  provisioning, downloads, process/container starts, or device inference.
+  Native checks hash the bundle with request cancellation; package availability
+  must never imply hardware readiness or CPU permission.
 - Native and Docker readiness share a five-minute startup budget and bounded
   probes. A timeout is not evidence of device failure: timeout, cancellation,
   pin mismatch and invalid startup configuration end the attempt without

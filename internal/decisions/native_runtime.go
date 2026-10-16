@@ -72,7 +72,7 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 			candidates = []string{filepath.Join(managedTarget, backend)}
 		}
 		for _, directory := range candidates {
-			binary, digest, err := validateRuntimeManifest(directory, backend, runtime.GOOS, runtime.GOARCH)
+			binary, digest, err := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH)
 			if err != nil {
 				continue
 			}

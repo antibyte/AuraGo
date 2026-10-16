@@ -11,14 +11,23 @@ sends bounded task text and may incur cost, booked once under `routing`.
 ## Setup and permissions
 
 For local processing, open **Configuration → Decisions**, enable the service,
-select the **Local** backend and its deployment,
+select **On the AuraGo server** and its deployment under **Run mode and CPU permission**,
 and save. `auto` selects a native process for a native AuraGo installation and a
 managed container when AuraGo itself runs in Docker. Container management also
 requires the existing Docker enable/write permissions.
 
-The **Install** action verifies the runtime bundle and downloads the model plus
-image projector with progress. Successful installation shows **Installed and
-verified**; it does not make the service ready. **Start** loads one resident model
+The local setup has three steps: **Check setup → Download model → Start service**.
+The explicit check reads the trusted runtime bundle or local Docker image
+metadata and shows the resolved deployment and native platform. It neither
+downloads files nor starts a process, container or inference, and can be used
+before enabling Decisions. It checks package prerequisites, not GPU suitability.
+The download button requires a successful check; changed deployment drafts
+invalidate that result and must be saved before checking again.
+
+**Download model** verifies the runtime bundle and downloads the model plus
+image projector (about 1.9 GB) with progress. Successful installation shows
+**Model downloaded and verified**; it does not make the service ready.
+**Start service** loads one resident model
 for all callers and grants readiness only after device attestation.
 **Test decision** runs a small explicit text test; merely opening settings only
 reads status. **Stop** stops the process or container. Disabling the feature
@@ -41,6 +50,15 @@ or `-Backend cuda` before installing. Docker expects the corresponding local
 `aurago-decisions-runtime:<backend>` image. See the
 [runtime README](../decisions_runtime/README.md#build-locally) for toolchain,
 build and packaging commands.
+
+For example, a native Linux x86-64 server using a supported AMD or Intel GPU
+needs a Linux Vulkan bundle, not a Windows executable. Build with
+`scripts/build-decisions-runtime.sh --backend vulkan` on a compatible Linux
+machine with the documented toolchain, then place the complete package in
+`bin/decisions-runtime/linux-amd64/vulkan/` under the server's AuraGo install
+directory. Both `aurago-decisions-runtime` and `release-manifest.json` are
+required. The presence of a GPU render device alone does not prove runtime
+compatibility. CPU execution still requires separate saved permission.
 
 Installation and start may return HTTP 202 while work continues. The settings
 keep the operation pending and show its eventual success or failure. File
@@ -181,6 +199,7 @@ The authenticated administrator API provides:
 | GET | `/api/decisions/status` | Passive status and actual runtime/device metadata |
 | GET | `/api/decisions/models?provider=<saved-id>` | Explicit external decision-model catalog lookup |
 | POST | `/api/decisions/install` | Start managed installation |
+| POST | `/api/decisions/check` | Read local installation prerequisites; no download, start or inference |
 | POST | `/api/decisions/start` | Start the installed service |
 | POST | `/api/decisions/stop` | Cancel and stop the service |
 | POST | `/api/decisions/test` | Explicit text evaluation |

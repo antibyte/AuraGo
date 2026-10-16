@@ -18,7 +18,7 @@ type decisionsAPIRequest struct {
 }
 
 func registerDecisionsRoutes(mux *http.ServeMux, s *Server) {
-	for _, action := range []string{"status", "models", "install", "start", "stop", "test", "evaluate"} {
+	for _, action := range []string{"status", "models", "check", "install", "start", "stop", "test", "evaluate"} {
 		mux.Handle("/api/decisions/"+action, requireAdmin(s, handleDecisions(s, action)))
 	}
 }
@@ -46,6 +46,27 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		if action == "check" {
+			if cfg := s.ConfigSnapshot(); cfg != nil && cfg.Decisions.Backend == "provider" {
+				writeDecisionsError(w, "provider_lifecycle_unavailable", http.StatusConflict)
+				return
+			}
+			service := s.Decisions
+			if routed, ok := service.(*routedDecisions); ok {
+				service = routed.local
+			}
+			checker, ok := service.(interface {
+				CheckInstallation(context.Context) decisions.InstallationCheck
+			})
+			if !ok {
+				writeDecisionsError(w, decisions.CodeRuntimeUnavailable, http.StatusServiceUnavailable)
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+			defer cancel()
+			writeDecisionsJSON(w, http.StatusOK, checker.CheckInstallation(ctx))
+			return
+		}
 		if action == "models" {
 			router, ok := s.Decisions.(*routedDecisions)
 			if !ok {
