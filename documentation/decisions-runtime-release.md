@@ -4,6 +4,17 @@ The application does not manufacture release pins. The first public runtime
 release and its generated catalog are mandatory before shipping one-click setup.
 Publishing runtimes is separate from releasing or deploying AuraGo.
 
+## Verified release
+
+[Runtime 1.0.0](https://github.com/antibyte/AuraGo/releases/tag/decisions-runtime-v1.0.0)
+contains all 15 native packages and the CUDA, Vulkan and CPU images for both
+Linux architectures. Native package/protocol checks passed in
+[build 38961574847](https://github.com/antibyte/AuraGo/actions/runs/38961574847).
+Anonymous archive and architecture-specific image pulls passed in
+[verification 38980077531](https://github.com/antibyte/AuraGo/actions/runs/38980077531),
+which generated the catalog shipped with AuraGo. Real GPU scoring and the
+AMD/Vulkan test-server acceptance remain separate from these package checks.
+
 ## Build and publication
 
 1. Review the runtime source pin and patch, then push the reviewed workflow commit
