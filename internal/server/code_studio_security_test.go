@@ -97,9 +97,3 @@ func (noopCodeStudioDocker) PutArchive(context.Context, string, []byte) error { 
 func (noopCodeStudioDocker) Exec(context.Context, string, []string, time.Duration) (codeStudioExecResult, error) {
 	return codeStudioExecResult{}, nil
 }
-
-func (noopCodeStudioDocker) CreateTerminalExec(context.Context, string, int, int) (string, error) {
-	return "", nil
-}
-func (noopCodeStudioDocker) StartExec(context.Context, string) ([]byte, error)  { return nil, nil }
-func (noopCodeStudioDocker) ResizeExec(context.Context, string, int, int) error { return nil }

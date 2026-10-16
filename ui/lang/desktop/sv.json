@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Stoppad",
   "codeStudio.tabAccept": "Slutför",
   "codeStudio.terminal": "Terminalfönster",
+  "codeStudio.terminalLineMode": "Radläge",
   "codeStudio.terminalUnavailable": "Terminal ej tillgänglig",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Växla terminal",

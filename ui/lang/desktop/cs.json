@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Zastaveno",
   "codeStudio.tabAccept": "Dokončit",
   "codeStudio.terminal": "Terminál",
+  "codeStudio.terminalLineMode": "Řádkový režim",
   "codeStudio.terminalUnavailable": "Terminál není dostupný",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Přepnout terminál",

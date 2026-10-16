@@ -345,6 +345,7 @@
   "codeStudio.stopped": "रुका हुआ",
   "codeStudio.tabAccept": "पूर्ण करें",
   "codeStudio.terminal": "टर्मिनल",
+  "codeStudio.terminalLineMode": "पंक्ति मोड",
   "codeStudio.terminalUnavailable": "टर्मिनल उपलब्ध नहीं",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "टर्मिनल दिखाएँ/छिपाएँ",

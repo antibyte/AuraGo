@@ -444,9 +444,7 @@
                 if (session && session.ws) sockets.add(session.ws);
             });
         }
-        sockets.forEach(socket => {
-            if (typeof WebSocket === 'undefined' || socket.readyState !== WebSocket.CLOSED) socket.close();
-        });
+        sockets.forEach(socket => endTerminalSocket(socket));
         instance.ws = null;
         if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
     }

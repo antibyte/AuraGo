@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Gestopt",
   "codeStudio.tabAccept": "Voltooien",
   "codeStudio.terminal": "Terminalvenster",
+  "codeStudio.terminalLineMode": "Regelmodus",
   "codeStudio.terminalUnavailable": "Terminal niet beschikbaar",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Terminal wisselen",

@@ -75,6 +75,16 @@
         if (label) label.textContent = tr(key);
     }
 
+    function endTerminalSocket(ws) {
+        if (!ws || typeof WebSocket === 'undefined') return;
+        if (ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ type: 'end' })); } catch (_) {}
+        }
+        if (ws.readyState !== WebSocket.CLOSED) {
+            try { ws.close(); } catch (_) {}
+        }
+    }
+
     function refitTerminal() {
         if (!state.terminalVisible || state.zenMode) return;
         const session = activeTerminalSession();
@@ -163,7 +173,7 @@
             session.dispose = () => {
                 if (terminalDisposed) return;
                 terminalDisposed = true;
-                if (session.ws) session.ws.close();
+                if (session.ws) endTerminalSocket(session.ws);
                 if (term && typeof term.dispose === 'function') term.dispose();
             };
             instance.disposers.push(session.dispose);
@@ -184,8 +194,11 @@
             syncTerminalAliases();
             ws.onopen = bindInstance(instance, () => {
                 if (!state.terminalSessions.includes(session)) return;
-                terminalSessionStatus(session, 'codeStudio.running');
-                const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
+                terminalSessionStatus(session, session.lineMode ? 'codeStudio.terminalLineMode' : 'codeStudio.running');
+                const termDataDispose = term.onData(bindInstance(instance, data => {
+                    if (ws.readyState !== WebSocket.OPEN) return;
+                    ws.send(new TextEncoder().encode(data));
+                }));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
                     instance.disposers.push(() => termDataDispose.dispose());
                 }
@@ -193,8 +206,17 @@
             });
             ws.onmessage = bindInstance(instance, event => {
                 if (terminalDisposed) return;
-                if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
-                else term.write(String(event.data));
+                if (event.data instanceof ArrayBuffer) {
+                    term.write(new Uint8Array(event.data));
+                    return;
+                }
+                const text = String(event.data);
+                if (!session.lineMode && text === '{"type":"line"}') {
+                    session.lineMode = true;
+                    terminalSessionStatus(session, 'codeStudio.terminalLineMode');
+                    return;
+                }
+                term.write(text);
             });
             ws.onerror = bindInstance(instance, () => {
                 terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
@@ -228,7 +250,9 @@
         syncTerminalAliases();
         if (label && session && session.ws) {
             const open = typeof WebSocket !== 'undefined' && session.ws.readyState === WebSocket.OPEN;
-            label.textContent = open ? tr('codeStudio.running', 'Running...') : tr('codeStudio.stopped', 'Stopped');
+            const key = session.lineMode ? 'codeStudio.terminalLineMode' : (open ? 'codeStudio.running' : 'codeStudio.stopped');
+            const fallback = session.lineMode ? 'Line mode' : (open ? 'Running...' : 'Stopped');
+            label.textContent = tr(key, fallback);
         }
         sendTerminalResize(session);
     }

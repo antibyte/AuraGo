@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Gestoppt",
   "codeStudio.tabAccept": "Vervollständigen",
   "codeStudio.terminal": "Terminalfenster",
+  "codeStudio.terminalLineMode": "Zeilenmodus",
   "codeStudio.terminalUnavailable": "Terminal nicht verfügbar",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Terminal umschalten",

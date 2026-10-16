@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Stoppet",
   "codeStudio.tabAccept": "Fuldfør",
   "codeStudio.terminal": "Terminalvindue",
+  "codeStudio.terminalLineMode": "Linjetilstand",
   "codeStudio.terminalUnavailable": "Terminalen er ikke tilgængelig",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Vis/skjul terminal",

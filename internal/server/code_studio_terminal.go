@@ -3,10 +3,16 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
 	pathpkg "path"
 	"strings"
 	"unicode/utf8"
+
+	"aurago/internal/tools"
 
 	"github.com/gorilla/websocket"
 )
@@ -185,4 +191,103 @@ func (s *codeStudioTerminalSession) consume(input string) (string, string, bool,
 		}
 	}
 	return "", output.String(), false, nil
+}
+
+// codeStudioTerminalLineModeMessage tells the page that this socket is the
+// line-mode fallback. The PTY path never sends it. Keystrokes and output stay
+// on binary frames; this text frame is not a shell command.
+const codeStudioTerminalLineModeMessage = `{"type":"line"}`
+
+// serveCodeStudioTerminal attaches a TTY exec, or the line terminal when that
+// exec cannot be created. Closing the socket does not end the shell.
+func (h codeStudioHandlers) serveCodeStudioTerminal(ctx context.Context, conn *websocket.Conn, containerID string) {
+	adapter, ok := h.docker.(codeStudioDockerAdapter)
+	if !ok {
+		h.fallbackCodeStudioLineTerminal(ctx, conn, containerID, errors.New("code studio docker adapter is unavailable"))
+		return
+	}
+	session, err := openCodeStudioTerminalSession(ctx, adapter.cfg, containerID)
+	if err != nil {
+		h.fallbackCodeStudioLineTerminal(ctx, conn, containerID, err)
+		return
+	}
+	serveContainerTerminalSession(ctx, conn, session)
+}
+
+func (h codeStudioHandlers) fallbackCodeStudioLineTerminal(ctx context.Context, conn *websocket.Conn, containerID string, cause error) {
+	h.codeStudioLogger().Warn("code studio terminal fell back to line mode", "error", cause)
+	_ = conn.WriteMessage(websocket.TextMessage, []byte(codeStudioTerminalLineModeMessage))
+	h.runLineTerminal(ctx, conn, containerID)
+}
+
+func (h codeStudioHandlers) codeStudioLogger() *slog.Logger {
+	if h.server != nil && h.server.Logger != nil {
+		return h.server.Logger
+	}
+	return slog.Default()
+}
+
+// codeStudioTerminalExecPayload is the Code Studio TTY exec. It adds the
+// container user and workspace to a fresh admin payload and does not change
+// containerTerminalExecPayload.
+func codeStudioTerminalExecPayload(cmd []string, nonce string) map[string]interface{} {
+	payload := containerTerminalExecPayload(cmd, nonce)
+	payload["User"] = "developer"
+	payload["WorkingDir"] = codeStudioWorkspaceRoot
+	return payload
+}
+
+// openCodeStudioTerminalSession starts a non-login shell. Bash is preferred.
+// A failed create or start retries /bin/sh so a missing bash does not hide the
+// image PATH behind a login profile.
+func openCodeStudioTerminalSession(ctx context.Context, cfg tools.DockerConfig, containerID string) (*dockerContainerTerminalSession, error) {
+	session, bashErr := startCodeStudioTerminalSession(ctx, cfg, containerID, []string{"/bin/bash"})
+	if bashErr == nil {
+		return session, nil
+	}
+	if ctx.Err() != nil {
+		return nil, bashErr
+	}
+	session, shErr := startCodeStudioTerminalSession(ctx, cfg, containerID, []string{"/bin/sh"})
+	if shErr == nil {
+		return session, nil
+	}
+	return nil, fmt.Errorf("bash: %v; sh: %w", bashErr, shErr)
+}
+
+func startCodeStudioTerminalSession(ctx context.Context, cfg tools.DockerConfig, containerID string, cmd []string) (*dockerContainerTerminalSession, error) {
+	nonce, err := newContainerTerminalNonce()
+	if err != nil {
+		return nil, fmt.Errorf("create terminal session tag: %w", err)
+	}
+	body, err := json.Marshal(codeStudioTerminalExecPayload(cmd, nonce))
+	if err != nil {
+		return nil, fmt.Errorf("encode code studio terminal exec: %w", err)
+	}
+	data, code, err := tools.DockerRequestContext(ctx, cfg, http.MethodPost, "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
+	if err != nil {
+		return nil, err
+	}
+	if code != http.StatusCreated {
+		return nil, fmt.Errorf("docker terminal create failed: %s", strings.TrimSpace(string(data)))
+	}
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if err := json.Unmarshal(data, &created); err != nil || created.ID == "" {
+		return nil, fmt.Errorf("parse docker terminal exec id: %w", err)
+	}
+	stream, err := openDockerExecStartStream(ctx, cfg, created.ID)
+	if err != nil {
+		return nil, err
+	}
+	session := &dockerContainerTerminalSession{
+		cfg:         cfg,
+		execID:      created.ID,
+		stream:      stream,
+		containerID: containerID,
+		nonce:       nonce,
+	}
+	_ = session.Resize(ctx, 120, 30)
+	return session, nil
 }

@@ -555,18 +555,6 @@ func (fakeCodeStudioDockerAPI) Exec(ctx context.Context, containerID string, cmd
 	return codeStudioExecResult{}, nil
 }
 
-func (fakeCodeStudioDockerAPI) CreateTerminalExec(ctx context.Context, containerID string, cols, rows int) (string, error) {
-	return "exec-id", nil
-}
-
-func (fakeCodeStudioDockerAPI) StartExec(ctx context.Context, execID string) ([]byte, error) {
-	return nil, nil
-}
-
-func (fakeCodeStudioDockerAPI) ResizeExec(ctx context.Context, execID string, cols, rows int) error {
-	return nil
-}
-
 type recordingCodeStudioDockerAPI struct {
 	commands [][]string
 	results  []codeStudioExecResult
@@ -582,18 +570,6 @@ func (f *recordingCodeStudioDockerAPI) Exec(ctx context.Context, containerID str
 	result := f.results[0]
 	f.results = f.results[1:]
 	return result, nil
-}
-
-func (f *recordingCodeStudioDockerAPI) CreateTerminalExec(context.Context, string, int, int) (string, error) {
-	return "exec-id", nil
-}
-
-func (f *recordingCodeStudioDockerAPI) StartExec(context.Context, string) ([]byte, error) {
-	return nil, nil
-}
-
-func (f *recordingCodeStudioDockerAPI) ResizeExec(context.Context, string, int, int) error {
-	return nil
 }
 
 type fakeServerCodeContainerDocker struct {

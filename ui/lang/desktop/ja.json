@@ -345,6 +345,7 @@
   "codeStudio.stopped": "停止中",
   "codeStudio.tabAccept": "補完",
   "codeStudio.terminal": "ターミナル",
+  "codeStudio.terminalLineMode": "行モード",
   "codeStudio.terminalUnavailable": "ターミナルを利用できません",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "ターミナル切替",

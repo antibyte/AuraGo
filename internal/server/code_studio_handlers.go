@@ -33,9 +33,6 @@ const (
 type codeStudioDockerAPI interface {
 	Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error)
 	PutArchive(ctx context.Context, containerID string, data []byte) error
-	CreateTerminalExec(ctx context.Context, containerID string, cols, rows int) (string, error)
-	StartExec(ctx context.Context, execID string) ([]byte, error)
-	ResizeExec(ctx context.Context, execID string, cols, rows int) error
 }
 
 type codeStudioExecResult struct {
@@ -604,7 +601,7 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer conn.Close()
-	h.runLineTerminal(r.Context(), conn, containerID)
+	h.serveCodeStudioTerminal(r.Context(), conn, containerID)
 }
 
 func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Request) {
@@ -1393,55 +1390,4 @@ func (a codeStudioDockerAdapter) exec(ctx context.Context, containerID string, c
 		}
 	}
 	return codeStudioExecResult{ExitCode: exitCode, Output: output}, nil
-}
-
-func (a codeStudioDockerAdapter) CreateTerminalExec(ctx context.Context, containerID string, cols, rows int) (string, error) {
-	payload := map[string]interface{}{
-		"AttachStdin":  true,
-		"AttachStdout": true,
-		"AttachStderr": true,
-		"Cmd":          []string{"/bin/bash", "-l"},
-		"Tty":          false,
-	}
-	body, _ := json.Marshal(payload)
-	data, code, err := tools.DockerRequestContext(ctx, a.cfg, http.MethodPost, "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
-	if err != nil {
-		return "", err
-	}
-	if code != http.StatusCreated {
-		return "", fmt.Errorf("docker terminal create failed: %s", strings.TrimSpace(string(data)))
-	}
-	var created struct {
-		ID string `json:"Id"`
-	}
-	if err := json.Unmarshal(data, &created); err != nil || created.ID == "" {
-		return "", fmt.Errorf("parse docker terminal exec id: %w", err)
-	}
-	_ = a.ResizeExec(ctx, created.ID, cols, rows)
-	return created.ID, nil
-}
-
-func (a codeStudioDockerAdapter) StartExec(ctx context.Context, execID string) ([]byte, error) {
-	data, code, err := tools.DockerRequestContext(ctx, a.cfg, http.MethodPost, "/exec/"+url.PathEscape(execID)+"/start", `{"Detach":false,"Tty":false}`)
-	if err != nil {
-		return nil, err
-	}
-	if code != http.StatusOK {
-		return nil, fmt.Errorf("docker terminal start failed: %s", strings.TrimSpace(string(data)))
-	}
-	return data, nil
-}
-
-func (a codeStudioDockerAdapter) ResizeExec(ctx context.Context, execID string, cols, rows int) error {
-	cols = parsePositiveInt(strconv.Itoa(cols), 120)
-	rows = parsePositiveInt(strconv.Itoa(rows), 30)
-	endpoint := fmt.Sprintf("/exec/%s/resize?h=%d&w=%d", url.PathEscape(execID), rows, cols)
-	data, code, err := tools.DockerRequestContext(ctx, a.cfg, http.MethodPost, endpoint, "")
-	if err != nil {
-		return err
-	}
-	if code != http.StatusOK && code != http.StatusCreated && code != http.StatusNoContent {
-		return fmt.Errorf("docker terminal resize failed: %s", strings.TrimSpace(string(data)))
-	}
-	return nil
 }

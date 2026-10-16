@@ -345,6 +345,7 @@
   "codeStudio.stopped": "Σταματημένο",
   "codeStudio.tabAccept": "Ολοκλήρωση",
   "codeStudio.terminal": "Τερματικό",
+  "codeStudio.terminalLineMode": "Λειτουργία γραμμής",
   "codeStudio.terminalUnavailable": "Το τερματικό δεν είναι διαθέσιμο",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "Εναλλαγή τερματικού",

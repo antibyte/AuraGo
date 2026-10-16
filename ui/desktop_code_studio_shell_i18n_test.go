@@ -63,5 +63,36 @@ func TestDesktopCodeStudioShellI18n(t *testing.T) {
 		if strings.TrimSpace(values["codeStudio.title"]) == "" {
 			t.Fatalf("%s missing non-empty codeStudio.title", path)
 		}
+		lineMode := strings.TrimSpace(values["codeStudio.terminalLineMode"])
+		if lineMode == "" {
+			t.Fatalf("%s missing non-empty codeStudio.terminalLineMode", path)
+		}
+		if lang != "en" && lineMode == "Line mode" {
+			t.Fatalf("%s must not copy the English line-mode label", path)
+		}
+	}
+}
+
+func TestDesktopCodeStudioTerminalFrames(t *testing.T) {
+	t.Parallel()
+
+	terminal := readDesktopAssetText(t, "js/desktop/apps/code-studio/terminal.js")
+	for _, want := range []string{
+		"ws.send(new TextEncoder().encode(data))",
+		"ws.send(JSON.stringify({ type: 'resize', cols, rows }))",
+		"JSON.stringify({ type: 'end' })",
+		"text === '{\"type\":\"line\"}'",
+		"codeStudio.terminalLineMode",
+	} {
+		if !strings.Contains(terminal, want) {
+			t.Fatalf("code studio terminal frame marker missing %q", want)
+		}
+	}
+	if strings.Contains(terminal, "ws.send(data)") {
+		t.Fatal("code studio keystrokes must not be sent as text frames")
+	}
+	core := readDesktopAssetText(t, "js/desktop/apps/code-studio/core.js")
+	if !strings.Contains(core, "endTerminalSocket(socket)") {
+		t.Fatal("closing code studio must end the terminal socket")
 	}
 }

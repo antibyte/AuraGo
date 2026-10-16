@@ -345,6 +345,7 @@
   "codeStudio.stopped": "已停止",
   "codeStudio.tabAccept": "补全",
   "codeStudio.terminal": "终端",
+  "codeStudio.terminalLineMode": "行模式",
   "codeStudio.terminalUnavailable": "终端不可用",
   "codeStudio.title": "Code Studio",
   "codeStudio.toggleTerminal": "切换终端",

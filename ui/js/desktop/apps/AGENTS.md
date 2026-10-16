@@ -1199,8 +1199,10 @@ buttons and menu popovers remain excluded from those gestures.
   not hardcode `Ln`/`Col` or `B`/`KiB`/`MiB` there.
 - Code Studio terminal tabs and the xterm welcome line use
   `codeStudio.shell_n` with `{{n}}` plus `codeStudio.title`. The zen
-  exit tooltip reuses `codeStudio.exitZen`. Do not hardcode English
-  `Shell N`, `Code Studio - Shell`, or `Exit Zen Mode (Esc)` there.
+  exit tooltip reuses `codeStudio.exitZen`. A line-mode fallback labels
+  the terminal status with `codeStudio.terminalLineMode`. Do not hardcode
+  English `Shell N`, `Code Studio - Shell`, `Line mode`, or
+  `Exit Zen Mode (Esc)` there.
 - Shell new-file and new-folder prompt defaults use
   `desktop.new_file_default` and `desktop.new_folder`. Do not hardcode
   `untitled.txt` or `New Folder` in those prompts. Leave editor path
@@ -2379,10 +2381,13 @@ registration lives in `internal/desktop/types.go`.
   before reading files. `openFile` remains the file-specific API. Launch errors
   use the existing Code Studio status/error surface.
 - The Code Studio terminal refits through a ResizeObserver and sends
-  `{"type":"resize","cols","rows"}` JSON, which the server line terminal ignores.
-  The active session owns terminal/WebSocket/fit aliases. Callbacks retain the
-  session object across tab removal; delayed Run output never moves to another
-  terminal when its original session closes.
+  `{"type":"resize","cols","rows"}` as a text frame. Keystrokes are binary
+  UTF-8 frames. Closing a tab or the window sends `{"type":"end"}` before
+  `close()`. A server text frame `{"type":"line"}` sets
+  `codeStudio.terminalLineMode` on the status label and is not written into
+  xterm. The welcome line stays. The active session owns terminal/WebSocket/fit
+  aliases. Callbacks retain the session object across tab removal; delayed Run
+  output never moves to another terminal when its original session closes.
 - Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
   bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
   `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for

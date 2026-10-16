@@ -179,17 +179,31 @@ Server-owned HTTP and cross-component integration contracts.
   before the container starts and before the WebSocket upgrade.
   `CheckOrigin` is `desktop.SameHostWebSocketOrigin`. Verify
   `TestCodeStudioTerminalRejectsEmptyOrForeignOrigin`.
+- The Code Studio terminal attaches a TTY exec as user `developer` in
+  `/workspace`. The command is `["/bin/bash"]` with no `-l`, or `["/bin/sh"]`
+  when that create or start fails. `TERM=xterm-256color` and
+  `AURAGO_TERMINAL_SESSION` match the admin terminal. Binary frames are
+  keystrokes and output. Text frames are only resize and `{"type":"end"}`.
+  Closing the socket does not send EOF or Ctrl-C. `{"type":"end"}` runs the
+  shared hangup helper. `containerTerminalExecPayload` stays free of `User`
+  and `WorkingDir`. If the TTY cannot be created, the handler logs
+  `code studio terminal fell back to line mode` once, writes `{"type":"line"}`,
+  and uses the line terminal. Verify `TestCodeStudioTerminalAttachesATTY`,
+  `TestCodeStudioTerminalUsesSHWhenBashCannotBeCreated`,
+  `TestCodeStudioTerminalCloseDoesNotEndTheShell`,
+  `TestCodeStudioTerminalFallsBackToLineMode` and `TestCodeStudioTerminal*`.
 - File PUT accepts additive `create_only`; New File must use it. Exclusive
   creation returns HTTP 409 on collision; overwrite publishes a complete sibling
   file atomically and preserves executable mode. Failed transfers leave the
   target intact. Keep Desktop/Docker write gates, workspace confinement and
   cleanup on failure. Verify `TestCodeStudioWrite*`, `TestCodeStudioUpload*`,
   `TestCodeStudioFailedTransfer*` and the Linux install-script tests.
-- `code_studio_terminal.go` drains bounded WebSocket input in order, retains
-  incomplete UTF-8/lines and collapses CRLF across frames. Simple literal `cd`
-  validates an accessible physical directory inside `/workspace` before changing
-  session cwd; compound shell commands do not persist cwd. Stop on cancellation
-  or socket failure. Verify `TestCodeStudioTerminal*` including the WebSocket test.
+- The line terminal remains the TTY fallback. It drains bounded WebSocket
+  input in order, retains incomplete UTF-8/lines and collapses CRLF across
+  frames. It ignores resize. Simple literal `cd` validates an accessible
+  physical directory inside `/workspace` before changing session cwd; compound
+  shell commands do not persist cwd. Stop on cancellation or socket failure.
+  Verify `TestCodeStudioTerminal*` including the WebSocket test.
 - Git status uses porcelain v1 with NUL-delimited records, including the second
   rename/copy path. Preserve filename bytes through diff requests. Search uses
   an explicit grep pattern operand (`-e`) and option terminator (`--`). Verify
