@@ -137,7 +137,31 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 // MaxPreviewBytes bounds one 540p preview proxy.
 const MaxPreviewBytes = int64(2 << 30)
 
-// PreparePreview writes a complete bounded 540p, 30 fps H.264 proxy for a local video with libx264.
+// MaxPreviewFPS caps the frame rate of a preview proxy.
+const MaxPreviewFPS = 60
+
+// PreviewRate is the frame rate of a source's preview proxy: the source rate from SourceFPS in lowest terms, capped at
+// MaxPreviewFPS, so frame steps in the editor show the source's own frames. An empty or malformed rate, or one below
+// 1 fps, gives 30 fps, the proxy rate before phase 2. Only sourceFPSPattern-validated numbers reach FFmpeg.
+func PreviewRate(source Asset) Rate {
+	fallback := Rate{Num: FramesPerSecond, Den: 1}
+	if !sourceFPSPattern.MatchString(source.SourceFPS) {
+		return fallback
+	}
+	num, den, ok := parseRational(source.SourceFPS)
+	if !ok || num < den {
+		return fallback
+	}
+	divisor := gcd(num, den)
+	num, den = num/divisor, den/divisor
+	if num > MaxPreviewFPS*den {
+		return Rate{Num: MaxPreviewFPS, Den: 1}
+	}
+	return Rate{Num: num, Den: den}
+}
+
+// PreparePreview writes a complete bounded H.264 proxy for a local video with libx264: at most 960x540, at the
+// source frame rate (PreviewRate: capped at 60 fps, 30 fps when unknown).
 func PreparePreview(ctx context.Context, ffmpegPath, input, output string) error {
 	return PreparePreviewWith(ctx, ffmpegPath, input, output, Encoder{})
 }
@@ -166,10 +190,11 @@ func PreparePreviewWith(ctx context.Context, ffmpegPath, input, output string, e
 	if err != nil {
 		return err
 	}
-	err = runPreview(ctx, ffmpeg, inputPath, outputPath, encoder)
+	rate := PreviewRate(source)
+	err = runPreview(ctx, ffmpeg, inputPath, outputPath, encoder, rate)
 	if err != nil && encoder.Hardware() && ctx.Err() == nil {
 		_ = os.Remove(outputPath)
-		err = runPreview(ctx, ffmpeg, inputPath, outputPath, Encoder{})
+		err = runPreview(ctx, ffmpeg, inputPath, outputPath, Encoder{}, rate)
 	}
 	if err != nil {
 		_ = os.Remove(outputPath)
@@ -191,26 +216,31 @@ func PreparePreviewWith(ctx context.Context, ffmpegPath, input, output string, e
 	return nil
 }
 
-func runPreview(ctx context.Context, ffmpeg, input, output string, encoder Encoder) error {
+func runPreview(ctx context.Context, ffmpeg, input, output string, encoder Encoder, rate Rate) error {
 	previewCtx, cancel := context.WithTimeout(ctx, 4*time.Hour)
 	defer cancel()
+	_, err := runSmallCommand(previewCtx, ffmpeg, previewArgs(input, output, encoder, rate), 1<<20)
+	return err
+}
+
+// previewArgs builds the proxy command: at most 960x540, at rate (PreviewRate), on the hardware encoder (its GOP follows
+// the rate) or libx264.
+func previewArgs(input, output string, encoder Encoder, rate Rate) []string {
 	args := append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, encoder.globalArgs()...)
 	args = append(args,
 		"-protocol_whitelist", allowedProtocols, "-format_whitelist", allowedDemuxers, "-i", input,
 		"-map", "0:V:0", "-map", "0:a:0?",
-		"-vf", "scale=960:540:force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30"+encoder.filterTail(),
+		"-vf", "scale=960:540:force_original_aspect_ratio=decrease:force_divisible_by=2,fps="+rate.String()+encoder.filterTail(),
 		"-threads", "2", "-filter_threads", "2")
 	if encoder.Hardware() {
 		proxy := encoder
 		proxy.Quality = 32
-		args = append(args, proxy.videoArgs(Rate{Num: 30, Den: 1})...)
+		args = append(args, proxy.videoArgs(rate)...)
 	} else {
 		args = append(args, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "32", "-pix_fmt", "yuv420p")
 	}
-	args = append(args, "-c:a", "aac", "-b:a", "64k", "-ar", "48000",
+	return append(args, "-c:a", "aac", "-b:a", "64k", "-ar", "48000",
 		"-movflags", "+faststart", "-fs", strconv.FormatInt(MaxPreviewBytes, 10), "-f", "mp4", output)
-	_, err := runSmallCommand(previewCtx, ffmpeg, args, 1<<20)
-	return err
 }
 
 func ensureRegularLocalFile(path string) (string, error) {
