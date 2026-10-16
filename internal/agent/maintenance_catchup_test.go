@@ -30,12 +30,12 @@ func TestRunConsolidationCatchupIsOptInAndHonorsMessageCap(t *testing.T) {
 		calls++
 		return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
 	}}
-	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
+	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, newMaintenanceRunLedger())
 	if calls != 0 {
 		t.Fatalf("disabled catch-up made %d LLM calls", calls)
 	}
 	cfg.Consolidation.CatchupMinutes = 15
-	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
+	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, newMaintenanceRunLedger())
 	if calls != 1 {
 		t.Fatalf("catch-up made %d LLM calls, want one capped batch", calls)
 	}
@@ -64,7 +64,7 @@ func TestRunConsolidationCatchupDeadlineReleasesClaims(t *testing.T) {
 			return openai.ChatCompletionResponse{}, ctx.Err()
 		}}
 		started := time.Now()
-		runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
+		runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, newMaintenanceRunLedger())
 		if elapsed := time.Since(started); elapsed != time.Minute {
 			t.Fatalf("catch-up elapsed = %v, want one minute", elapsed)
 		}

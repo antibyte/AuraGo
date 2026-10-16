@@ -267,8 +267,8 @@ func formatMorningBriefing(cfg *config.Config, finishedAt time.Time, status stri
 	}
 	consolidated := 0
 	for _, phase := range results.Phases {
-		if phase.Name == "consolidation" {
-			consolidated = phase.Processed
+		if phase.Name == "consolidation" || phase.Name == "consolidation_catchup" {
+			consolidated += phase.Processed
 		}
 	}
 	if results.ConsolidationBacklog > 0 || results.ConsolidationExcluded > 0 || consolidated > 0 {
@@ -286,6 +286,20 @@ func formatMorningBriefing(cfg *config.Config, finishedAt time.Time, status stri
 		b.WriteString(".\n")
 	}
 	for _, phase := range results.Phases {
+		if phase.Name == "consolidation_catchup" {
+			if german {
+				fmt.Fprintf(&b, "Nachhol-Lauf: %s; verarbeitete Archivnachrichten: %d; verbleibender Rückstand: %d.\n", phase.Status, phase.Processed, results.ConsolidationBacklog)
+			} else {
+				fmt.Fprintf(&b, "Catch-up: %s; archive messages processed: %d; remaining backlog: %d.\n", phase.Status, phase.Processed, results.ConsolidationBacklog)
+			}
+		}
+		if len(phase.WarningCodes) > 0 {
+			if german {
+				fmt.Fprintf(&b, "- Behobene Warnung %s: %s.\n", phase.Name, strings.Join(phase.WarningCodes, ", "))
+			} else {
+				fmt.Fprintf(&b, "- Recovered warning %s: %s.\n", phase.Name, strings.Join(phase.WarningCodes, ", "))
+			}
+		}
 		if phase.Status != "partial" && phase.Status != "failed" {
 			continue
 		}

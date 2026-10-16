@@ -91,6 +91,23 @@ func (l *maintenanceRunLedger) addError(msg string) {
 	}
 }
 
+func (l *maintenanceRunLedger) addWarning(code string) {
+	if l == nil {
+		return
+	}
+	code = sanitizeMaintenanceErrorCode(code)
+	if code == "" {
+		return
+	}
+	for i := range l.phaseResults.Phases {
+		phase := &l.phaseResults.Phases[i]
+		if phase.Name == l.currentPhase {
+			phase.WarningCodes = appendUniqueMaintenanceCode(phase.WarningCodes, code)
+			return
+		}
+	}
+}
+
 func (l *maintenanceRunLedger) markFailed() {
 	if l == nil {
 		return

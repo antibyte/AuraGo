@@ -82,7 +82,14 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	taskCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	defer func() {
-		ledger.recordNamedError("entity_extraction", "batched_kg_persist", maintenanceBatch.KGErr)
+		if ledger.currentPhase != "" {
+			ledger.addError("phase_interrupted")
+			ledger.finishPhase(ledger.currentPhase, true)
+		}
+		ledger.recordNamedError("entity_extraction", "batched_kg", maintenanceBatch.KGErr)
+		cancel()
+		// Catch-up has its own deadline, but still belongs to this controller run.
+		runConsolidationCatchup(ctx, cfg, logger, client, shortTermMem, longTermMem, kg, ledger)
 		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
 	}()
 
@@ -278,7 +285,11 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	} else {
 		dates, err := shortTermMem.MissingMaintenanceSummaryDates(startedAt)
 		ledger.recordError("daily_summary_dates", err)
-		summaryCtx, cancelSummary, available := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+		summaryReserve := maintenanceProtectedTailReserve
+		if kg != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+			summaryReserve += maintenanceEntityBudget
+		}
+		summaryCtx, cancelSummary, available := maintenanceContextWithReserve(taskCtx, summaryReserve)
 		for i, date := range dates {
 			if !available || summaryCtx.Err() != nil {
 				ledger.addDeferred("daily_summary", len(dates)-i)
@@ -286,7 +297,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			}
 			if date == yesterday && kg != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
 				maintenanceBatch = runBatchedMaintenanceSummaryAndKG(summaryCtx, cfg, logger, shortTermMem, kg, date)
-				ledger.recordError("daily_summary_batch", maintenanceBatch.SummaryErr)
 			}
 			if date == yesterday && maintenanceBatch.SummaryStored {
 				ledger.recordError("daily_summary_persist", maintenanceBatch.SummaryErr)
@@ -294,8 +304,15 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 				continue
 			}
 			if err := generateDailySummary(summaryCtx, cfg, logger, client, shortTermMem, date); err != nil {
+				if date == yesterday {
+					ledger.recordError("daily_summary_batch", maintenanceBatch.SummaryErr)
+				}
 				ledger.recordError("daily_summary", err)
 			} else {
+				if date == yesterday && maintenanceBatch.SummaryErr != nil {
+					ledger.addWarning("daily_summary_batch_recovered")
+					maintenanceBatch.SummaryErr = nil
+				}
 				ledger.addProcessed("daily_summary", 1)
 			}
 		}
@@ -307,6 +324,58 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "daily_summary") {
+		return
+	}
+	ledger.beginPhase("entity_extraction")
+
+	// Knowledge Graph: incremental file-based KG sync
+	entityWindow, cancelEntityWindow, entityBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+	entityCtx, cancelEntity := context.WithTimeout(entityWindow, maintenanceEntityBudget)
+	entityEnabled := kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction
+	if !entityEnabled {
+		ledger.skipPhase("entity_extraction")
+	} else if !entityBudgetAvailable {
+		ledger.addDeferred("entity_extraction", 1)
+	} else if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+		// Recover conversation extraction before file work can consume its budget.
+		if !maintenanceBatch.KGStored {
+			err := extractKGEntities(entityCtx, cfg, logger, client, shortTermMem, kg)
+			ledger.recordError("kg_extraction", err)
+			if err == nil {
+				if maintenanceBatch.KGErr != nil {
+					ledger.addWarning("batched_kg_recovered")
+				}
+				maintenanceBatch.KGStored, maintenanceBatch.KGErr = true, nil
+			}
+		}
+		syncer := services.NewFileKGSyncer(cfg, logger, client, longTermMem, shortTermMem, kg)
+		opts := services.FileKGSyncOptions{
+			DryRun:       false,
+			Backfill:     false,
+			MaxFiles:     50, // conservative nightly limit for first draft
+			MinRemaining: 30 * time.Second,
+		}
+		kgResult := syncer.SyncAllWithContext(entityCtx, opts)
+		logFileKGSyncResult(logger, kgResult)
+		ledger.phaseResults.KGFilesProcessed = kgResult.FilesProcessed
+		ledger.phaseResults.KGNodesExtracted = kgResult.NodesExtracted
+		ledger.addProcessed("entity_extraction", kgResult.FilesProcessed)
+		ledger.addDeferred("entity_extraction", kgResult.FilesDeferred)
+		budgetExpired := entityCtx.Err() != nil && taskCtx.Err() == nil
+		for _, syncErr := range kgResult.Errors {
+			if budgetExpired && isContextCancellationText(syncErr) {
+				continue
+			}
+			ledger.addError("file_kg_sync: " + syncErr)
+		}
+		if budgetExpired && kgResult.FilesDeferred == 0 {
+			ledger.addDeferred("entity_extraction", 1)
+		}
+	}
+
+	cancelEntity()
+	cancelEntityWindow()
+	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
 		return
 	}
 	ledger.beginPhase("activity_rollup")
@@ -418,49 +487,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "knowledge_graph") {
-		return
-	}
-	ledger.beginPhase("entity_extraction")
-
-	// Knowledge Graph: incremental file-based KG sync
-	entityCtx, cancelEntity, entityBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
-	entityEnabled := kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction
-	if !entityEnabled {
-		ledger.skipPhase("entity_extraction")
-	} else if !entityBudgetAvailable {
-		ledger.addDeferred("entity_extraction", 1)
-	} else if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
-		syncer := services.NewFileKGSyncer(cfg, logger, client, longTermMem, shortTermMem, kg)
-		opts := services.FileKGSyncOptions{
-			DryRun:       false,
-			Backfill:     false,
-			MaxFiles:     50, // conservative nightly limit for first draft
-			MinRemaining: 30 * time.Second,
-		}
-		kgResult := syncer.SyncAllWithContext(entityCtx, opts)
-		logFileKGSyncResult(logger, kgResult)
-		ledger.phaseResults.KGFilesProcessed = kgResult.FilesProcessed
-		ledger.phaseResults.KGNodesExtracted = kgResult.NodesExtracted
-		ledger.addProcessed("entity_extraction", kgResult.FilesProcessed)
-		ledger.addDeferred("entity_extraction", kgResult.FilesDeferred)
-		budgetExpired := entityCtx.Err() != nil && taskCtx.Err() == nil
-		for _, syncErr := range kgResult.Errors {
-			if budgetExpired && isContextCancellationText(syncErr) {
-				continue
-			}
-			ledger.addError("file_kg_sync: " + syncErr)
-		}
-		if budgetExpired && kgResult.FilesDeferred == 0 {
-			ledger.addDeferred("entity_extraction", 1)
-		}
-	}
-
-	// Knowledge Graph: nightly batch entity extraction from recent conversations
-	if entityBudgetAvailable && entityCtx.Err() == nil && !maintenanceBatch.KGStored && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
-		ledger.recordError("kg_extraction", extractKGEntities(entityCtx, cfg, logger, client, shortTermMem, kg))
-	}
-	cancelEntity()
-	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
 		return
 	}
 	ledger.beginPhase("memory_optimization")
@@ -1384,6 +1410,7 @@ const memoryConflictScanCursorKey = "memory_conflict_scan.cursor"
 
 const maintenanceProtectedTailReserve = 90 * time.Second
 const maintenanceConsolidationBudget = 2 * time.Minute
+const maintenanceEntityBudget = 2 * time.Minute
 const maintenanceOptimizationMinimum = 30 * time.Second
 
 type nightlyMemoryMaintenanceResult struct {

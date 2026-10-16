@@ -154,7 +154,6 @@ func newMaintenanceController(ctx context.Context, cfg *config.Config, deps Main
 				return
 			}
 			runMaintenanceTask(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.Vault, deps.Registry, deps.Manifest, deps.CronManager, deps.LongTermMem, deps.ShortTermMem, deps.HistoryManager, deps.KG, deps.InventoryDB, deps.ContactsDB, deps.PlannerDB, deps.CheatsheetDB, deps.MissionManagerV2, deps.Guardian, deps.DaemonSupervisor, deps.WebhookManager)
-			runConsolidationCatchup(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.ShortTermMem, deps.LongTermMem, deps.KG)
 		}
 	}
 	if opts.claimDay == nil {

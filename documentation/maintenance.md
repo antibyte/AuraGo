@@ -227,7 +227,9 @@ phases never resolve failures. Combined helper responses acknowledge summary
 and KG persistence independently and retry only the missing part. An absent or
 malformed KG field differs from a valid empty extraction.
 
-The run ledger precedes the typed, idempotent `morning_briefing` notification.
+The final run ledger includes the optional catch-up and precedes the typed,
+idempotent `morning_briefing` notification. A recovered helper attempt is retained
+as a sanitized phase warning; only an unresolved fallback remains a phase error.
 The notification source ID stays bound to the run start timestamp. Background
 maintenance does not send chat or Telegram notices directly.
 
@@ -240,7 +242,12 @@ unfinished claims without spending a retry. Explicit valid empty fact arrays
 complete extraction without creating facts or retrying the same conversation;
 missing/null arrays and invalid facts remain errors on both LLM paths.
 Direct summaries and consolidation reserve reasoning output within the selected
-helper/main provider's output and context limits.
+helper/main provider's output and context limits. Summaries reserve a separate
+two-minute entity-extraction window when automatic extraction is enabled.
+Conversation extraction and incremental file extraction run in that window before
+weekly reflection and the expensive graph reindex/synchronization work, while
+preserving the 90-second tail reserve. A missing half of the combined summary/KG
+result is retried first; a successfully stored half is not repeated.
 Small facts use one document embedding for both the duplicate check and storage;
 duplicate identity does not decay with age. The phase deadline reaches embedding
 calls, including chunked facts. Cancellation during storage releases archive claims
@@ -248,12 +255,16 @@ without consuming retries, while existing ownership checks protect reused memori
 during rollback. The maintenance log records extraction and storage durations
 separately to distinguish slow model responses from slow embeddings.
 For an old conversation backlog, `consolidation.catchup_minutes` can opt in to
-another daily consolidation run after the normal maintenance ledger and morning
-briefing are stored. The default is `0` (off); values above 60 are capped at
+another daily consolidation run after the normal maintenance phases and before
+the final ledger and morning briefing are stored. The default is `0` (off); values above 60 are capped at
 60 minutes. This work uses the same model and `max_batch_messages` cap, stops
 when maintenance is disabled or the service shuts down, and releases unfinished
-claims without consuming a retry. The next morning briefing reflects the
-previous catch-up; its own counts describe only the normal maintenance run.
+claims without consuming a retry. The normal phase and `consolidation_catchup`
+keep separate processed counts, durations and outcomes. The briefing totals include
+both passes and explicitly show catch-up progress. Outstanding archive work is
+transferred to the final pass so the remaining backlog is counted once; unrelated
+deferred phases remain unchanged. Increasing `max_batch_messages` permits more
+model and embedding work but does not extend either time budget.
 Archived turns keep their internal-origin flag. Internal turns never enter the
 consolidation queue or its reported backlog. On existing stores, an additive
 migration backs up populated archives before adding the nullable flag; legacy

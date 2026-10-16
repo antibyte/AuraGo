@@ -31,12 +31,13 @@ type MaintenancePhaseResults struct {
 
 // MaintenancePhaseResult is a sanitized per-phase ledger entry.
 type MaintenancePhaseResult struct {
-	Name       string   `json:"name"`
-	Status     string   `json:"status"`
-	DurationMS int64    `json:"duration_ms"`
-	Processed  int      `json:"processed"`
-	Deferred   int      `json:"deferred"`
-	ErrorCodes []string `json:"error_codes,omitempty"`
+	Name         string   `json:"name"`
+	Status       string   `json:"status"`
+	DurationMS   int64    `json:"duration_ms"`
+	Processed    int      `json:"processed"`
+	Deferred     int      `json:"deferred"`
+	ErrorCodes   []string `json:"error_codes,omitempty"`
+	WarningCodes []string `json:"warning_codes,omitempty"`
 }
 
 // IntegrationCheckResult describes one current, local, non-mutating check.
