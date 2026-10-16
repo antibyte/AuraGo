@@ -4,6 +4,9 @@
 collections, covers, annotations, reading progress and prepared-book cache.
 The server owns HTTP authorization and injects authorized source adapters.
 
+- Bookshelf is enabled by default in the config loader, template and settings UI.
+  Preserve explicit `bookshelf_enabled: false` values across save and reload;
+  activation still requires Desktop administrator authorization.
 - Source adapters expose only list/stat/open. Never add a source write, rename,
   move or delete operation. Source credentials stay in the Vault and never enter
   these records.

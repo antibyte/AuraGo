@@ -627,6 +627,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
 	cfg.VirtualDesktop.AllowGeneratedApps = true
+	cfg.VirtualDesktop.BookshelfEnabled = true
 	// Terminal Retro-Net is on by default; an explicit retronet_enabled: false
 	// keeps it off, and the grant still needs an enabled, writable Desktop.
 	cfg.VirtualDesktop.RetroNetEnabled = true
@@ -3188,6 +3189,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "remote_max_session_minutes"}, c.VirtualDesktop.RemoteMaxSessionMinutes},
 		{[]string{"virtual_desktop", "remote_idle_timeout_minutes"}, c.VirtualDesktop.RemoteIdleTimeoutMinutes},
 		{[]string{"virtual_desktop", "retronet_enabled"}, c.VirtualDesktop.RetroNetEnabled},
+		{[]string{"virtual_desktop", "bookshelf_enabled"}, c.VirtualDesktop.BookshelfEnabled},
 		{[]string{"virtual_desktop", "code_studio", "enabled"}, c.VirtualDesktop.CodeStudio.Enabled},
 		{[]string{"virtual_desktop", "code_studio", "image"}, c.VirtualDesktop.CodeStudio.Image},
 		{[]string{"virtual_desktop", "code_studio", "auto_start"}, c.VirtualDesktop.CodeStudio.AutoStart},

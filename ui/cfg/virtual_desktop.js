@@ -15,7 +15,7 @@ function vdCfgEnsureData() {
     if (!data.remote_max_session_minutes) data.remote_max_session_minutes = 60;
     if (!data.remote_idle_timeout_minutes) data.remote_idle_timeout_minutes = 5;
     if (typeof data.allow_generated_apps !== 'boolean') data.allow_generated_apps = true;
-    if (typeof data.bookshelf_enabled !== 'boolean') data.bookshelf_enabled = false;
+    if (typeof data.bookshelf_enabled !== 'boolean') data.bookshelf_enabled = true;
     if (typeof data.bookshelf_converter_path !== 'string') data.bookshelf_converter_path = '';
     if (!data.code_studio || typeof data.code_studio !== 'object') data.code_studio = {};
     if (typeof data.code_studio.allow_network !== 'boolean') data.code_studio.allow_network = false;

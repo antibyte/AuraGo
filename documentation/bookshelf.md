@@ -1,7 +1,8 @@
 # Bookshelf
 
-Bookshelf is an optional Virtual Desktop library and ebook reader. Enable it in
-the Virtual Desktop settings, then open **Bookshelf** from the app launcher.
+Bookshelf is a Virtual Desktop library and ebook reader, enabled by default.
+Open **Bookshelf** from the app launcher; you can disable it in the Virtual
+Desktop settings. An explicitly saved disabled setting stays disabled.
 The reading salon combines a warm paper reading area with a dark wooden shelf.
 Standard and Fruity retain their own Desktop window controls.
 
