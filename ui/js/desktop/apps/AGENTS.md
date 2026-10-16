@@ -1606,8 +1606,12 @@ buttons and menu popovers remain excluded from those gestures.
   timeline. Width queries name their container: `vs-app` for the app breakpoints (1180, 920, 650, 420 px) and
   `vs-center` for the transport drop-outs, which measure the preview column (above 1180 px it is the app width
   minus 592 px). A query never styles its own container, so the breakpoints set `--vs-lib-w`, `--vs-insp-w` and
-  `--vs-head-w` on `.vs-workspace` and `.vs-timeline-panel`, never on `.vs-app`. Use the real Standard/Fruity theme
-  tokens and all sixteen Desktop locale dictionaries. Verify UI behavior with
+  `--vs-head-w` on `.vs-workspace` and `.vs-timeline-panel`, never on `.vs-app`. The library is the `vs-library`
+  container: a rail of 260 px or less (medium and narrow windows) stacks the import buttons, shows the filters two by
+  two, keeps the media bar on one line with icon view buttons (`aria-label` carries the name), uses two grid columns
+  and a two-line list that never scrolls sideways (name; duration and the sorted column, from `[data-assets]
+  [data-sort]` and the header cells' `data-column`). The wide rail keeps the full list, which scrolls sideways. Use
+  the real Standard/Fruity theme tokens and all sixteen Desktop locale dictionaries. Verify UI behavior with
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`,
   `go test ./ui -run 'TestVideoStudio(Helpers|TimelineEdits)$'` and the real-FFmpeg
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestVideoStudioBrowserRealExport$'`.

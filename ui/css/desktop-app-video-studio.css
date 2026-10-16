@@ -189,7 +189,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Workspace */
 .vs-workspace { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--vs-lib-w) minmax(0, 1fr) var(--vs-insp-w); overflow: hidden; }
 .vs-library, .vs-inspector { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vs-panel); }
-.vs-library { border-right: 1px solid var(--vs-border); }
+.vs-library { border-right: 1px solid var(--vs-border); container: vs-library / inline-size; }
 .vs-inspector { border-left: 1px solid var(--vs-border); }
 
 /* Library */
@@ -459,6 +459,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-media-bar-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .vs-media-bar-actions .vs-segmented { margin-top: 0; padding: 2px; }
 .vs-media-bar-actions .vs-segmented button { min-height: 24px; padding: 2px 9px; }
+.vs-media-bar-actions .vs-segmented .vs-icon { display: none; }
 .vs-media-bar-actions .vs-icon-button { width: 28px; min-height: 28px; }
 .vs-folder-tile { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 3px; min-width: 0; min-height: 92px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); color: var(--vs-text); font: inherit; text-align: left; }
 .vs-folder-tile:hover, .vs-folder-tile:focus-visible, .vs-folder-tile.is-drop { border-color: var(--vs-accent-border); outline: none; box-shadow: 0 0 0 2px var(--vs-accent-border); }
@@ -499,6 +500,50 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-thumb .vs-icon { width: 14px; height: 14px; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading .vs-asset-progress { left: 4px; right: 4px; bottom: 3px; height: 3px; }
 .vs-insp-meta small .vs-icon { margin-right: 4px; vertical-align: -2px; }
+/* Narrow rail (the library at 260 px or less: medium and narrow windows). Tighter insets, filters two by two, a
+   one-line media bar with icon view buttons, two grid columns, and a list that fits without sideways scrolling: the
+   name above, the duration and the column it is sorted by below. */
+@container vs-library (max-width: 260px) {
+    /* One import button per row: side by side, long labels (Greek, Japanese, Spanish) were cut or broken mid-word. */
+    .vs-import { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 8px 8px; }
+    .vs-import button { min-width: 0; min-height: 30px; padding: 4px 8px; }
+    .vs-import button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .vs-media-tools { gap: 6px; padding: 0 8px 8px; }
+    .vs-filter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .vs-filter button { justify-content: center; min-width: 0; padding: 3px 6px; overflow: hidden; white-space: nowrap; }
+    .vs-media-bar { flex-wrap: nowrap; gap: 6px; padding: 0 8px 6px; }
+    .vs-breadcrumb { flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden; }
+    .vs-breadcrumb > * { flex: none; }
+    .vs-breadcrumb button { flex: 0 1 auto; min-width: 28px; }
+    .vs-media-bar-actions { flex: none; gap: 2px; }
+    .vs-media-bar-actions .vs-segmented button { display: grid; place-items: center; padding: 2px 6px; }
+    .vs-media-bar-actions .vs-segmented .vs-icon { display: block; }
+    .vs-media-bar-actions .vs-segmented span { display: none; }
+    .vs-asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 2px 8px 8px; }
+    .vs-asset-add { top: 8px; right: 8px; width: 24px; height: 24px; }
+    .vs-asset-badge { font-size: 10px; }
+    .vs-folder-tile { min-height: 76px; padding: 8px; }
+    .vs-media-foot { padding: 8px; }
+    .vs-asset-grid[data-view="list"] { padding-right: 8px; }
+    .vs-asset-grid[data-view="list"] > * { min-width: 0; }
+    .vs-asset-grid:not([data-sort="resolution"]) [data-column="resolution"],
+    .vs-asset-grid:not([data-sort="frame_rate"]) [data-column="frame_rate"],
+    .vs-asset-grid:not([data-sort="codec"]) [data-column="codec"],
+    .vs-asset-grid:not([data-sort="size"]) [data-column="size"],
+    .vs-asset-grid:not([data-sort="usage"]) [data-column="usage"] { display: none; }
+    /* The header is a row of sort buttons; the thumbnail column has no header. */
+    .vs-asset-head { display: flex; flex-wrap: wrap; gap: 0 2px; padding: 2px 0; }
+    .vs-asset-head > span[aria-hidden="true"] { display: none; }
+    .vs-asset-row { grid-template-columns: 32px minmax(0, 1fr) auto 26px; grid-template-rows: auto auto; gap: 0 8px; padding: 4px; }
+    .vs-asset-row > .vs-asset-thumb-small { grid-row: 1 / 3; width: 32px; height: 20px; }
+    .vs-asset-row > .vs-asset-cell-name { grid-column: 2 / 4; }
+    .vs-asset-row > .vs-asset-cell:not(.vs-asset-cell-name) { grid-row: 2; font-size: 11px; }
+    .vs-asset-row > [data-column="duration"] { grid-column: 2; }
+    .vs-asset-row > .vs-asset-cell:not(.vs-asset-cell-name):not([data-column="duration"]) { grid-column: 3; text-align: right; }
+    .vs-asset-row > .vs-asset-cell-add { grid-column: 4; grid-row: 1 / 3; }
+    .vs-folder-row { padding: 4px; }
+    .vs-folder-row .vs-folder-icon { width: 32px; }
+}
 /* Project manager (phase 1e): one row per project with poster, facts and actions. */
 .vs-modal.vs-manager { width: min(760px, 100%); }
 .vs-manager-list { display: grid; gap: 8px; margin-top: 12px; }

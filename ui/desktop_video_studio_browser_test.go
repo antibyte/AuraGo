@@ -140,6 +140,19 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		t.Fatal("selected clip and inspector are not both visible in the wide editor")
 	}
 	page.MustScreenshot(filepath.Join(screenshotDir, "selected-clip-inspector-1280x900.png"))
+	// Medium and narrow windows: the breakpoint widths reach the columns (a container query cannot style .vs-app
+	// itself), and the narrow library rail shows the list and the media bar without sideways scrolling.
+	for _, size := range []struct{ width, library, header int }{{1100, 248, 180}, {860, 224, 180}} {
+		page.MustSetViewport(size.width, 900, 1, false)
+		waitForJSBool(t, page, fmt.Sprintf(`()=>Math.round(document.querySelector('.vs-library').getBoundingClientRect().width)===%d`, size.library))
+		got := page.MustEval(`()=>{const q=s=>document.querySelector(s),fits=el=>el.scrollWidth<=el.clientWidth;q('[data-action="media-view"][data-view="list"]').click();
+			const result={header:q('.vs-ruler-label').offsetWidth,list:q('[data-assets]').dataset.view==='list'&&fits(q('[data-assets]')),bar:fits(q('[data-media-bar]')),library:fits(q('.vs-library'))};
+			q('[data-action="media-view"][data-view="grid"]').click();return JSON.stringify(result)}`).Str()
+		if want := fmt.Sprintf(`{"header":%d,"list":true,"bar":true,"library":true}`, size.header); got != want {
+			t.Fatalf("library rail at %dpx: got %s, want %s", size.width, got, want)
+		}
+		page.MustScreenshot(filepath.Join(screenshotDir, fmt.Sprintf("library-rail-%dx900.png", size.width)))
+	}
 	page.MustSetViewport(390, 844, 1, false)
 	page.MustEval(`()=>document.querySelector('.vs-inspector-toggle').click()`)
 	if page.MustEval(`()=>document.querySelector('.vs-app').scrollWidth>document.querySelector('.vs-app').clientWidth+1`).Bool() {

@@ -126,7 +126,8 @@
         }).join('');
         const viewButton = view => {
             const label = tr(s, view === 'list' ? 'viewList' : 'viewGrid', view === 'list' ? 'List' : 'Grid');
-            return `<button type="button" data-action="media-view" data-view="${view}" aria-pressed="${(s.mediaView === 'list') === (view === 'list')}">${esc(s, label)}</button>`;
+            // The narrow rail shows only the icon (CSS), so the label is also the button's name.
+            return `<button type="button" data-action="media-view" data-view="${view}" aria-pressed="${(s.mediaView === 'list') === (view === 'list')}" aria-label="${esc(s, label)}" title="${esc(s, label)}">${icon(view, 14)}<span>${esc(s, label)}</span></button>`;
         };
         const action = (name, iconName, key, fallback) => `<button type="button" class="vs-icon-button" data-action="${name}" title="${esc(s, tr(s, key, fallback))}" aria-label="${esc(s, tr(s, key, fallback))}" ${s.readonly ? 'disabled' : ''}>${icon(iconName, 15)}</button>`;
         redraw(host, `<nav class="vs-breadcrumb" aria-label="${esc(s, root)}"><button type="button" data-folder="" ${trail.length ? '' : 'aria-current="page"'}>${esc(s, root)}</button>${crumbs}</nav><div class="vs-media-bar-actions"><div class="vs-segmented" role="group" aria-label="${esc(s, tr(s, 'mediaView', 'View'))}">${viewButton('grid')}${viewButton('list')}</div>${action('new-folder', 'folder', 'newFolder', 'New folder')}${action('remove-unused', 'trash', 'removeUnused', 'Remove unused media')}</div>`);
@@ -177,7 +178,7 @@
             const active = s.mediaSort === key;
             const label = tr(s, COLUMN_KEYS[key], COLUMN_FALLBACKS[key]);
             const sort = active ? ` aria-sort="${s.mediaSortDir === 'desc' ? 'descending' : 'ascending'}"` : '';
-            return `<div class="vs-asset-col${active ? ' is-sorted' : ''}" role="columnheader"${sort}><button type="button" data-media-sort="${key}" class="${active ? 'is-sorted' : ''}">${esc(s, label)}${active ? icon('chevronDown', 12) : ''}</button></div>`;
+            return `<div class="vs-asset-col${active ? ' is-sorted' : ''}" role="columnheader" data-column="${key}"${sort}><button type="button" data-media-sort="${key}" class="${active ? 'is-sorted' : ''}">${esc(s, label)}${active ? icon('chevronDown', 12) : ''}</button></div>`;
         }).join('');
         return `<div class="vs-asset-head" role="row"><span aria-hidden="true"></span>${headers}<div class="vs-asset-col" role="columnheader"><span class="vs-sr-only">${esc(s, tr(s, 'addToTimeline', 'Add at the playhead'))}</span></div></div>`;
     }
@@ -206,6 +207,8 @@
         const uploads = Array.from(s.uploads.entries()).filter(([, item]) => item.projectId === s.projectId).map(([key, item]) => uploadCard(s, key, item)).join('');
         const list = s.mediaView === 'list';
         root.dataset.view = list ? 'list' : 'grid';
+        // The narrow rail's list keeps only the name, the duration and the column it is sorted by (CSS).
+        root.dataset.sort = s.mediaSort;
         const uploadRows = list ? Array.from(s.uploads.entries()).filter(([, item]) => item.projectId === s.projectId).map(([key, item]) => uploadCard(s, key, item, true)).join('') : '';
         let markup;
         if (!uploads && !visible.length && !tiles.length) {
