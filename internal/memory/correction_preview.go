@@ -23,6 +23,7 @@ type correctionSnapshot struct {
 	Node     *Node           `json:"node,omitempty"`
 	Profile  *ProfileEntry   `json:"profile,omitempty"`
 	Edge     *correctionEdge `json:"edge,omitempty"`
+	Learning *Learning       `json:"learning,omitempty"`
 }
 
 func (c *MemoryCorrectionService) snapshot(ctx context.Context, q correctionQueryer, ref MemoryReference) (correctionSnapshot, error) {
@@ -31,6 +32,17 @@ func (c *MemoryCorrectionService) snapshot(ctx context.Context, q correctionQuer
 		return s, err
 	}
 	switch ref.Store {
+	case "learning":
+		l, err := readLearning(ctx, q, ref.ID)
+		if err != nil {
+			return s, err
+		}
+		if !c.LearningScope.Allows(l.Scope) || l.Protected {
+			return s, fmt.Errorf("learning unavailable or protected")
+		}
+		s.Value, s.Revision, s.Learning = l.Statement, strconv.Itoa(l.Revision), &l
+		s.Absent = l.Status == "archived" || l.Status == "superseded"
+		return s, nil
 	case "core":
 		id, err := strconv.ParseInt(ref.ID, 10, 64)
 		if err != nil || id <= 0 {
@@ -92,6 +104,9 @@ func (c *MemoryCorrectionService) validateChange(ctx context.Context, change Mem
 	if snapshot.Absent && change.Operation != "replace" {
 		return fmt.Errorf("fact is already archived; only a fresh evidenced replacement is allowed")
 	}
+	if snapshot.Absent && change.Reference.Store == "learning" {
+		return fmt.Errorf("archived or superseded learning cannot be reactivated by a correction")
+	}
 	if snapshot.Edge != nil && snapshot.Edge.Status != string(KGClaimAccepted) && !(snapshot.Edge.Status == string(KGClaimRetracted) && change.Operation == "replace") {
 		return fmt.Errorf("only active graph claims can be corrected")
 	}
@@ -134,6 +149,10 @@ func (c *MemoryCorrectionService) validateChange(ctx context.Context, change Mem
 		return nil
 	}
 	switch change.Reference.Store {
+	case "learning":
+		if len(change.Value) > 2000 {
+			return fmt.Errorf("learning replacement too long")
+		}
 	case "core":
 		return ValidateCoreMemoryFact(change.Value)
 	case "ltm":

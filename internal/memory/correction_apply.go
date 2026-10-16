@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func correctionSnapshotsEqual(left, right []byte) bool {
@@ -238,6 +239,19 @@ func (c *MemoryCorrectionService) applyLocalCorrection(ctx context.Context, corr
 		}
 	}
 	switch ref.Store {
+	case "learning":
+		l := *current.Learning
+		if item.Operation == "archive" {
+			l.Status = "archived"
+		} else {
+			var replacement Learning
+			replacement, err = supersedeLearning(ctx, tx, l, item.Value, correction.Reason, "correction:"+correction.ID)
+			item.ReplacementID = replacement.ID
+			break
+		}
+		l.Revision++
+		l.UpdatedAt = time.Now().UTC()
+		err = saveLearning(ctx, tx, l, correction.Reason, "correction:"+correction.ID)
 	case "core":
 		if item.Operation == "archive" {
 			_, err = tx.ExecContext(ctx, `DELETE FROM core_memory WHERE id=?`, ref.ID)
@@ -334,6 +348,21 @@ func (c *MemoryCorrectionService) applyLocalCorrection(ctx context.Context, corr
 func (c *MemoryCorrectionService) verifyCorrectionItem(ctx context.Context, item *MemoryCorrectionItem) error {
 	ref := item.Reference
 	switch ref.Store {
+	case "learning":
+		old, err := c.Memory.Learning(ctx, ref.ID, c.LearningScope)
+		if err != nil {
+			return err
+		}
+		if item.Operation == "archive" && old.Status == "archived" {
+			return nil
+		}
+		if item.Operation == "replace" && old.Status == "superseded" && old.SupersededBy == item.ReplacementID {
+			next, err := c.Memory.Learning(ctx, item.ReplacementID, c.LearningScope)
+			if err == nil && next.Status == "active" && next.Statement == item.Value {
+				return nil
+			}
+		}
+		return fmt.Errorf("learning no longer matches committed correction")
 	case "ltm":
 		meta, err := c.Memory.GetMemoryMeta(ref.ID)
 		if err != nil {

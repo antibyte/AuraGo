@@ -1163,7 +1163,13 @@ type Config struct {
 		VectorDBDir    string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
 	WorkspaceSearch WorkspaceSearchConfig `yaml:"workspace_search" json:"workspace_search"`
-	SQLite          struct {
+	Learnings       struct {
+		Enabled bool `yaml:"enabled" json:"enabled"`
+	} `yaml:"learnings" json:"learnings"`
+	CodeGraph struct {
+		Enabled bool `yaml:"enabled" json:"enabled"`
+	} `yaml:"code_graph" json:"code_graph"`
+	SQLite struct {
 		ShortTermPath        string `yaml:"short_term_path"`
 		LongTermPath         string `yaml:"long_term_path"` // deprecated: LTM uses directories.vectordb_dir
 		InventoryPath        string `yaml:"inventory_path"`

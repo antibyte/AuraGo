@@ -65,10 +65,12 @@ type CorrectionAccess struct {
 }
 
 type MemoryCorrectionService struct {
-	Memory *SQLiteMemory
-	Vector VectorDB
-	Graph  *KnowledgeGraph
-	Access CorrectionAccess
+	LearningsEnabled bool
+	LearningScope    LearningScope
+	Memory           *SQLiteMemory
+	Vector           VectorDB
+	Graph            *KnowledgeGraph
+	Access           CorrectionAccess
 }
 
 const maxCorrectionItems = 32
@@ -196,7 +198,10 @@ func (c *MemoryCorrectionService) checkAccess(ref MemoryReference) error {
 		return fmt.Errorf("memory corrections require enabled writable memory")
 	}
 	switch ref.Store {
-	case "core", "ltm":
+	case "core", "ltm", "learning":
+		if ref.Store == "learning" && !c.LearningsEnabled {
+			return fmt.Errorf("learnings are disabled")
+		}
 		if ref != (MemoryReference{Store: ref.Store, ID: ref.ID}) || ref.ID == "" {
 			return fmt.Errorf("invalid memory reference fields")
 		}

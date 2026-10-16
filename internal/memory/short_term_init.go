@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +45,8 @@ type SQLiteMemory struct {
 // Use dbutil.Open() instead which handles corruption recovery.
 
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
+	previous, _ := os.Stat(dbPath)
+	backupLearnings := previous != nil && previous.Size() > 0
 	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger))
 	if err != nil {
 		return nil, err
@@ -335,6 +338,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 	if err := stm.initExtractionSources(); err != nil {
 		_ = db.Close()
 		return nil, err
+	}
+	if err := stm.initLearnings(backupLearnings); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize learnings: %w", err)
 	}
 	if err := stm.InitPendingMemoryWritesTable(); err != nil {
 		_ = db.Close()

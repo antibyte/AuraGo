@@ -80,3 +80,15 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ## Child DOX Index
 
 None.
+# Structured insights
+
+- `learnings.go` adds opt-in, scoped insights in the existing SQLite database.
+  Existing databases get a consistent backup before the additive transaction;
+  no legacy memory or historical conversations are imported.
+- Source identity and scope are runtime-owned. Repeated preferences need two
+  independent high-confidence human sessions. Protected/archived/superseded
+  entries cannot be automatically resurrected. Revisions retain provenance.
+- Corrections use the existing preview/apply/status flow with `store: learning`.
+  Bind lookup and status to the caller's scope, including resource restrictions.
+- Fingerprint changes trigger revalidation, not automatic invalidation. See
+  `documentation/learnings.md` for context budgets, review and write checks.
