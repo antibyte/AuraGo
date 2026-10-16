@@ -470,28 +470,52 @@ func (s *SQLiteMemory) RevalidateLearningResource(ctx context.Context, scope Lea
 	}
 	s.correctionMu.Lock()
 	defer s.correctionMu.Unlock()
-	list, err := s.ListLearnings(ctx, scope, "", "active", 200)
-	if err != nil {
-		return err
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	for _, l := range list {
-		if l.Scope != scope || l.Fingerprint == "" || l.Fingerprint == fingerprint {
-			continue
+	// Page by stable identity, independently of retrieval limits and changing revisions.
+	for cursor := ""; ; {
+		rows, err := tx.QueryContext(ctx, `SELECT id,payload FROM memory_learnings WHERE project=? AND resource=? AND status IN ('active','revalidation') AND id>? ORDER BY id LIMIT 200`, scope.Project, scope.Resource, cursor)
+		if err != nil {
+			return fmt.Errorf("read resource learnings: %w", err)
 		}
-		l.Status = "revalidation"
-		l.Fingerprint = fingerprint
-		l.Revision++
-		l.UpdatedAt = time.Now().UTC()
-		if err := saveLearning(ctx, tx, l, "resource fingerprint changed", "runtime"); err != nil {
-			return err
+		batch := make([]Learning, 0, 200)
+		for rows.Next() {
+			var payload string
+			var l Learning
+			if err = rows.Scan(&cursor, &payload); err == nil {
+				err = json.Unmarshal([]byte(payload), &l)
+			}
+			if err != nil {
+				rows.Close()
+				return fmt.Errorf("decode resource learning: %w", err)
+			}
+			batch = append(batch, l)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO memory_learning_metrics(name,value) VALUES('revalidations',1) ON CONFLICT(name) DO UPDATE SET value=value+1`); err != nil {
-			return err
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return fmt.Errorf("read resource learnings: %w", err)
+		}
+		if len(batch) == 0 {
+			break
+		}
+		for _, l := range batch {
+			if l.Fingerprint == "" || l.Fingerprint == fingerprint {
+				continue
+			}
+			l.Status = "revalidation"
+			l.Fingerprint = fingerprint
+			l.Revision++
+			l.UpdatedAt = time.Now().UTC()
+			if err := saveLearning(ctx, tx, l, "resource fingerprint changed", "runtime"); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO memory_learning_metrics(name,value) VALUES('revalidations',1) ON CONFLICT(name) DO UPDATE SET value=value+1`); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()

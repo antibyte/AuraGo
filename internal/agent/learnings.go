@@ -88,7 +88,7 @@ func learningHumanText(text string) string {
 
 // Paraphrases and model-invented constraints remain reviewable proposals.
 func evidencedLearningDraft(d memory.LearningDraft, source memory.LearningSource) memory.LearningDraft {
-	if d.Kind == "decision" && !strings.Contains(strings.ToLower(source.Quote), strings.ToLower(d.Statement)) {
+	if (d.Kind == "decision" || d.Kind == "technical") && !strings.Contains(strings.ToLower(source.Quote), strings.ToLower(d.Statement)) {
 		d.Confidence = min(d.Confidence, .94)
 	}
 	if d.Rationale != "" && !strings.Contains(strings.ToLower(source.Quote), strings.ToLower(d.Rationale)) {
@@ -219,8 +219,14 @@ func learningPromptContext(ctx context.Context, run RunConfig, query, model stri
 	if coAgent && run.LearningScope.Project == "" {
 		return ""
 	}
-	if run.LearningFingerprint != "" && !coAgent && learningPolicy(run.Config, true) {
-		_ = run.ShortTermMem.RevalidateLearningResource(ctx, run.LearningScope, run.LearningFingerprint)
+	fingerprint := ""
+	if run.LearningScope.Resource != "" && run.CodeProject.Root != "" {
+		fingerprint, _ = codegraph.Fingerprint(run.CodeProject, run.LearningScope.Resource)
+		if fingerprint != "" && !coAgent && learningPolicy(run.Config, true) && learningScopeAuthorized(run.LearningScope, run.CodeProject, run.LearningProjectValid) {
+			if err := run.ShortTermMem.RevalidateLearningResource(ctx, run.LearningScope, fingerprint); err != nil {
+				fingerprint = ""
+			}
+		}
 	}
 	list, err := run.ShortTermMem.ListLearnings(ctx, run.LearningScope, query, "active", 200)
 	if err != nil || !learningScopeAuthorized(run.LearningScope, run.CodeProject, run.LearningProjectValid) {
@@ -233,6 +239,10 @@ func learningPromptContext(ctx context.Context, run RunConfig, query, model stri
 			break
 		}
 		if (coAgent || run.AllowProjectLearnings) && l.Scope.Project == "" {
+			continue
+		}
+		// Read-only runs also omit stale or unreadable resources without persisting changes.
+		if l.Scope.Resource != "" && l.Fingerprint != "" && l.Fingerprint != fingerprint {
 			continue
 		}
 		why := "task relevance"
