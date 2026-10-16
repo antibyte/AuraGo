@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "Læsestatus opdateret.",
   "bookshelf.tags": "Mærker",
   "bookshelf.tags_help": "Adskil mærker med kommaer.",
+  "bookshelf.error_source_changed": "Kildefilen er ændret. Opdater kilden, eller føj den aktuelle fil til Bookshelf igen, og prøv derefter igen.",
   "bookshelf.title": "Titel",
   "bookshelf.try_again": "Prøv igen",
   "bookshelf.unavailable": "Utilgængelig",

@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "Kodowanie tekstu",
   "bookshelf.thumbnails": "Miniatury stron",
   "bookshelf.thumbnails_unavailable": "Miniatury stron są niedostępne dla tej książki.",
+  "bookshelf.error_source_changed": "Plik źródłowy uległ zmianie. Zaktualizuj źródło albo dodaj bieżący plik ponownie do Bookshelf i spróbuj jeszcze raz.",
   "bookshelf.title": "Tytuł",
   "bookshelf.try_again": "Spróbuj ponownie",
   "bookshelf.two_page_spread": "Widok dwóch stron",

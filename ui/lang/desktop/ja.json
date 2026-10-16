@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "読書状態を更新しました。",
   "bookshelf.tags": "タグ",
   "bookshelf.tags_help": "タグはカンマで区切ってください。",
+  "bookshelf.error_source_changed": "ソースファイルが変更されました。ソースを更新するか、現在のファイルをBookshelfに追加し直してから、もう一度お試しください。",
   "bookshelf.title": "タイトル",
   "bookshelf.try_again": "もう一度試す",
   "bookshelf.unavailable": "利用できません",

@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "पढ़ने की स्थिति अपडेट की गई।",
   "bookshelf.tags": "टैग",
   "bookshelf.tags_help": "टैग को अल्पविराम से अलग करें।",
+  "bookshelf.error_source_changed": "स्रोत फ़ाइल बदल गई है। स्रोत अपडेट करें या मौजूदा फ़ाइल को Bookshelf में फिर से जोड़ें, फिर दोबारा कोशिश करें।",
   "bookshelf.title": "शीर्षक",
   "bookshelf.try_again": "फिर कोशिश करें",
   "bookshelf.unavailable": "उपलब्ध नहीं",

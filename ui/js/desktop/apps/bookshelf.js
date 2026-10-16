@@ -352,7 +352,7 @@
         }
 
         function readableError(error, fallback) {
-            const code = error?.body?.code;
+            const code = error?.body?.code || error?.body?.error;
             if (code && typeof code === 'string') {
                 const key = 'error_' + code.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
                 const value = t(key);

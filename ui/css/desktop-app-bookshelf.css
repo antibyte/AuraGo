@@ -42,3 +42,4 @@
 .bs-cache-card button{min-height:38px;padding:6px 10px;border:1px solid #9b744e;background:#392819;color:#f2e5d2}
 .bs-annotation-list article.is-historical{opacity:.78}.bs-annotation-list .bs-annotation-jump:disabled{cursor:default;text-align:left}.bs-annotation-list .bs-annotation-jump small{display:block;margin-top:4px;color:#8b765d;font-size:10px}
 .bs-collection-group{display:inline-flex;align-items:center;gap:3px}.bs-collection-group .bs-collection-chip{min-height:34px}.bs-collection-order{display:inline-flex;gap:2px}.bs-collection-order button{display:grid;place-items:center;width:27px;height:29px;padding:0;border:1px solid #725b453a;border-radius:50%;background:#2c2018;color:#d9c2a3;font-size:13px}.bs-collection-order button:hover:not(:disabled){border-color:#bd8754;background:#493322;color:#fff0db}.bs-collection-order button:disabled{opacity:.35;cursor:default}
+.bs-cover-fallback b,.bs-paper-page>h2{overflow-wrap:anywhere}

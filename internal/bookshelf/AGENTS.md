@@ -24,6 +24,11 @@ The server owns HTTP authorization and injects authorized source adapters.
   Desktop file-size cap. HTTP 413 responses include `max_bytes`; the dialog
   explains the limit, restores its controls and retains successful batch items
   across a retry of the same selection.
+- Managed uploads retain SHA-256 content revisions across upload, listing,
+  preparation and content serving. The server caches bounded fingerprints only
+  while file identity, size and modification time agree; existing imports and
+  their reading history need no revision migration. Verify
+  `TestBookshelfImportedPDFPreparesAndServesRangesWithoutLosingProgress`.
 - The browser API serializes JSON mutations before the shared Desktop fetch;
   uploads retain native multipart boundaries. Fixtures must not normalize
   request bodies on behalf of production code. Verify `scripts/test-bookshelf-api.mjs`.

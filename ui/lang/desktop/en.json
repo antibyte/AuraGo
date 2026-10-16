@@ -6848,6 +6848,7 @@
   "bookshelf.text_encoding": "Text encoding",
   "bookshelf.thumbnails": "Page thumbnails",
   "bookshelf.thumbnails_unavailable": "Page thumbnails are not available for this book.",
+  "bookshelf.error_source_changed": "The source file changed. Update the source or add the current file to Bookshelf again, then try reading it.",
   "bookshelf.title": "Title",
   "bookshelf.try_again": "Try again",
   "bookshelf.two_page_spread": "Two-page spread",

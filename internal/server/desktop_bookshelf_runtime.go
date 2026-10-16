@@ -356,8 +356,10 @@ func (s *Server) bookshelfEnabled() bool {
 }
 
 type desktopBookshelfAdapter struct {
-	s          *Server
-	importsDir string
+	s            *Server
+	importsDir   string
+	importMu     sync.Mutex
+	importHashes map[string]bookshelfImportHash
 }
 
 func (a *desktopBookshelfAdapter) List(ctx context.Context, source bookshelf.Source, dir string) ([]bookshelf.Entry, error) {
@@ -371,7 +373,17 @@ func (a *desktopBookshelfAdapter) List(ctx context.Context, source bookshelf.Sou
 	switch source.Provider {
 	case bookshelf.ProviderLocal:
 		if source.MountID == bookshelfImportsMountID {
-			return listBookshelfImports(a.importsDir, rel)
+			entries, err := listBookshelfImports(a.importsDir, rel)
+			if err != nil {
+				return nil, err
+			}
+			for i := range entries {
+				entries[i], err = a.importEntry(ctx, entries[i])
+				if err != nil {
+					return nil, err
+				}
+			}
+			return entries, nil
 		}
 		if source.MountID != "workspace" {
 			return nil, tools.ErrStorageAccessDenied
@@ -454,7 +466,10 @@ func (a *desktopBookshelfAdapter) Stat(ctx context.Context, source bookshelf.Sou
 	case bookshelf.ProviderLocal:
 		if source.MountID == bookshelfImportsMountID {
 			entry, err := statBookshelfImport(a.importsDir, raw)
-			return a.checkBookshelfEntry(entry, err)
+			if err != nil {
+				return bookshelf.Entry{}, err
+			}
+			return a.importEntry(ctx, entry)
 		}
 		if source.MountID != "workspace" {
 			return bookshelf.Entry{}, tools.ErrStorageAccessDenied

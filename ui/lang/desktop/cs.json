@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "Stav čtení byl aktualizován.",
   "bookshelf.tags": "Štítky",
   "bookshelf.tags_help": "Štítky oddělte čárkami.",
+  "bookshelf.error_source_changed": "Zdrojový soubor se změnil. Aktualizuj zdroj nebo znovu přidej aktuální soubor do Bookshelf a pak to zkus znovu.",
   "bookshelf.title": "Název",
   "bookshelf.try_again": "Zkusit znovu",
   "bookshelf.unavailable": "Nedostupné",

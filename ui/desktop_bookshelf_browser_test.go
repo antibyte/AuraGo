@@ -176,6 +176,9 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"imported": true})
 		case "books/1984/prepare":
 			_ = json.NewEncoder(w).Encode(map[string]any{"content_url": "/api/desktop/bookshelf/books/1984/content", "format": "txt", "revision": "fixture-revision", "progress": map[string]any{"revision": 1}})
+		case "books/no-cover/prepare":
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "source_changed"})
 		case "books/1984/annotations":
 			_ = json.NewEncoder(w).Encode(map[string]any{"annotations": []any{}})
 		case "books/1984/progress":
@@ -333,6 +336,55 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	if !page.MustEval(`() => { const r=document.querySelector('.bs-library-view').getBoundingClientRect(); return r.width>0 && document.querySelector('.bs-paper-page').getBoundingClientRect().width>380 }`).Bool() {
 		t.Fatal("wide Reading Salon composition did not render both panes")
 	}
+	selectBook := func(id string) {
+		if !page.MustEval(`id=>{
+			const state=BookshelfApp.instances.get('bookshelf-fixture');
+			const buttons=Array.from(document.querySelectorAll('[data-shelf] [data-book]'));
+			const target=buttons.find(button=>button.dataset.book===id);
+			let current=buttons.find(button=>button.dataset.book===state?.selected?.id);
+			if(!target||!current)return false;
+			current.focus();
+			for(let step=0;step<buttons.length;step++){
+				const from=buttons.indexOf(current),to=buttons.indexOf(target);
+				if(from===to)return state.selected?.id===id;
+				current.dispatchEvent(new KeyboardEvent('keydown',{key:from<to?'ArrowRight':'ArrowLeft',bubbles:true,cancelable:true}));
+				current=document.activeElement?.closest('[data-book]');
+				if(!current)return false;
+			}
+			return state.selected?.id===id;
+		}`, id).Bool() {
+			t.Fatalf("could not select Bookshelf book %q with shelf keyboard navigation", id)
+		}
+	}
+	for _, theme := range []string{"standard", "fruity"} {
+		page.MustEval(`theme=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode='light';}`, theme)
+		page.MustSetViewport(1024, 768, 1, false)
+		selectBook("no-cover")
+		page.MustEval(`() => { const image=document.querySelector('.bs-preview-art img'); if(image) image.loading='eager'; }`)
+		missingCover := false
+		missingCoverDeadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(missingCoverDeadline) {
+			missingCover = page.MustEval(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); return state?.selected?.id==='no-cover' && !!document.querySelector('.bs-preview-art.is-missing'); }`).Bool()
+			if missingCover {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !missingCover {
+			previewState := page.MustEval(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); const preview=document.querySelector('.bs-preview-art'); const image=preview?.querySelector('img'); return JSON.stringify({selected:state?.selected?.id,preview:preview?.className,title:preview?.querySelector('.bs-cover-fallback b')?.textContent,image:image&&{src:image.getAttribute('src'),complete:image.complete,naturalWidth:image.naturalWidth,loading:image.loading}}); }`).Str()
+			t.Fatalf("Bookshelf preview did not enter missing-cover state: %s", previewState)
+		}
+		if !page.MustEval(`() => { const cover=document.querySelector('.bs-preview-art.is-missing .bs-cover-fallback b'); const hero=document.querySelector('.bs-paper-page>h2'); return cover?.textContent==='fpgas_for_dummies_ebook' && hero?.textContent==='fpgas_for_dummies_ebook' && getComputedStyle(cover).overflowWrap==='anywhere' && getComputedStyle(hero).overflowWrap==='anywhere' && cover.scrollWidth<=cover.clientWidth+1 && hero.scrollWidth<=hero.clientWidth+1; }`).Bool() {
+			t.Fatalf("long Bookshelf title overflowed its cover or featured preview in %s theme", theme)
+		}
+		page.MustElement(`[data-read="no-cover"]`).MustClick()
+		page.MustWait(`() => { const notice=document.querySelector('.bs-notice'); return notice && notice.textContent===window.ctx.t('bookshelf.error_source_changed'); }`)
+		if notice := page.MustElement(".bs-notice").MustText(); strings.Contains(notice, "source_changed") {
+			t.Fatalf("source_changed was shown raw in %s theme: %q", theme, notice)
+		}
+	}
+	page.MustSetViewport(1280, 860, 1, false)
+	selectBook("siddhartha")
 	for _, theme := range []string{"standard", "fruity"} {
 		assertBookshelfUploadFailureUX(t, page, uploadRequests, theme)
 	}
@@ -589,7 +641,7 @@ func waitForBookshelfUpload(t *testing.T, uploads <-chan string, want string) {
 }
 
 func sampleBookshelfFixtureBooks() []map[string]any {
-	titles := [][2]string{{"Siddhartha", "Hermann Hesse"}, {"1984", "George Orwell"}, {"The Dispossessed", "Ursula K. Le Guin"}, {"The Stranger", "Albert Camus"}, {"The Hobbit", "J. R. R. Tolkien"}, {"Pride and Prejudice", "Jane Austen"}, {"The Left Hand of Darkness", "Ursula K. Le Guin"}, {"Meditations", "Marcus Aurelius"}, {"The Surprisingly Long and Winding Story of a Small Bookshelf", "A. Very Long Author Name"}}
+	titles := [][2]string{{"Siddhartha", "Hermann Hesse"}, {"1984", "George Orwell"}, {"The Dispossessed", "Ursula K. Le Guin"}, {"The Stranger", "Albert Camus"}, {"The Hobbit", "J. R. R. Tolkien"}, {"Pride and Prejudice", "Jane Austen"}, {"The Left Hand of Darkness", "Ursula K. Le Guin"}, {"Meditations", "Marcus Aurelius"}, {"fpgas_for_dummies_ebook", "A. Very Long Author Name"}}
 	books := make([]map[string]any, 0, len(titles))
 	for index, item := range titles {
 		id := []string{"siddhartha", "1984", "dispossessed", "stranger", "hobbit", "pride", "left-hand", "meditations", "no-cover"}[index]

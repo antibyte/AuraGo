@@ -26,23 +26,26 @@ func newBookshelfImportFixture(t *testing.T, maxBytes int64) (*desktopBookshelfR
 	if err := os.MkdirAll(importsDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
+	server := &Server{Cfg: &config.Config{VirtualDesktop: config.VirtualDesktopConfig{Enabled: true, BookshelfEnabled: true}}}
+	adapter := &desktopBookshelfAdapter{s: server, importsDir: importsDir}
 	service, err := bookshelf.New(ctx, bookshelf.Options{
 		Root: filepath.Join(root, "catalog"), Adapters: map[string]bookshelf.SourceAdapter{
-			bookshelf.ProviderLocal: &desktopBookshelfAdapter{importsDir: importsDir},
+			bookshelf.ProviderLocal: adapter,
 		},
 		MaxFilesPerScan: 10, MaxBookBytes: maxBytes, MaxCacheBytes: 4 << 20, MinFreeBytes: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = service.Close() })
+	t.Cleanup(server.shutdownDesktopBookshelf)
 	if _, err := service.AddSource(ctx, bookshelf.Source{
 		ID: bookshelfImportsSourceID, Name: "Bookshelf uploads", Provider: bookshelf.ProviderLocal, MountID: bookshelfImportsMountID,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	runtime := &desktopBookshelfRuntime{service: service, importsDir: importsDir}
+	runtime := &desktopBookshelfRuntime{service: service, adapter: adapter, importsDir: importsDir, jobs: make(map[string]*bookshelfJob), tickets: make(map[string]*bookshelfTicket)}
 	runtime.maxBookBytes.Store(maxBytes)
+	server.bookshelf = runtime
 	return runtime, importsDir
 }
 

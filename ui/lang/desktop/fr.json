@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "État de lecture mis à jour.",
   "bookshelf.tags": "Étiquettes",
   "bookshelf.tags_help": "Séparez les étiquettes par des virgules.",
+  "bookshelf.error_source_changed": "Le fichier source a changé. Actualise la source ou ajoute à nouveau le fichier actuel à Bookshelf, puis réessaie.",
   "bookshelf.title": "Titre",
   "bookshelf.try_again": "Réessayer",
   "bookshelf.unavailable": "Indisponible",

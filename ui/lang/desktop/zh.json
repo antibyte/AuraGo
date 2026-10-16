@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "文本编码",
   "bookshelf.thumbnails": "页面缩略图",
   "bookshelf.thumbnails_unavailable": "此书没有可用的页面缩略图。",
+  "bookshelf.error_source_changed": "源文件已更改。请更新来源，或将当前文件重新添加到 Bookshelf，然后重试。",
   "bookshelf.title": "标题",
   "bookshelf.try_again": "重试",
   "bookshelf.two_page_spread": "双页显示",

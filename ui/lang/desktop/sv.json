@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "Textkodning",
   "bookshelf.thumbnails": "Sidminiatyrer",
   "bookshelf.thumbnails_unavailable": "Sidminiatyrer är inte tillgängliga för den här boken.",
+  "bookshelf.error_source_changed": "Källfilen har ändrats. Uppdatera källan eller lägg till den aktuella filen i Bookshelf igen och försök på nytt.",
   "bookshelf.title": "Titel",
   "bookshelf.try_again": "Försök igen",
   "bookshelf.two_page_spread": "Uppslag med två sidor",

@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "Tekstcodering",
   "bookshelf.thumbnails": "Paginasminiaturen",
   "bookshelf.thumbnails_unavailable": "Paginaminiaturen zijn niet beschikbaar voor dit boek.",
+  "bookshelf.error_source_changed": "Het bronbestand is gewijzigd. Werk de bron bij of voeg het huidige bestand opnieuw toe aan Bookshelf en probeer het daarna opnieuw.",
   "bookshelf.title": "Titel",
   "bookshelf.try_again": "Opnieuw proberen",
   "bookshelf.two_page_spread": "Twee pagina’s naast elkaar",

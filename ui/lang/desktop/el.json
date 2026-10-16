@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "Η κατάσταση ανάγνωσης ενημερώθηκε.",
   "bookshelf.tags": "Ετικέτες",
   "bookshelf.tags_help": "Χωρίστε τις ετικέτες με κόμμα.",
+  "bookshelf.error_source_changed": "Το αρχείο προέλευσης άλλαξε. Ενημέρωσε την πηγή ή πρόσθεσε ξανά το τρέχον αρχείο στο Bookshelf και δοκίμασε ξανά.",
   "bookshelf.title": "Τίτλος",
   "bookshelf.try_again": "Δοκιμάστε ξανά",
   "bookshelf.unavailable": "Μη διαθέσιμο",

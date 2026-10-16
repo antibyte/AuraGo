@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "Lesestatus aktualisiert.",
   "bookshelf.tags": "Tags",
   "bookshelf.tags_help": "Trenne Tags durch Kommas.",
+  "bookshelf.error_source_changed": "Die Quelldatei wurde geändert. Aktualisiere die Quelle oder füge die aktuelle Datei erneut zu Bookshelf hinzu und versuche es dann noch einmal.",
   "bookshelf.title": "Titel",
   "bookshelf.try_again": "Erneut versuchen",
   "bookshelf.unavailable": "Nicht verfügbar",

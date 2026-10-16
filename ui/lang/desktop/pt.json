@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "Codificação de texto",
   "bookshelf.thumbnails": "Miniaturas de páginas",
   "bookshelf.thumbnails_unavailable": "As miniaturas de páginas não estão disponíveis para este livro.",
+  "bookshelf.error_source_changed": "O ficheiro de origem foi alterado. Atualize a origem ou adicione novamente o ficheiro atual ao Bookshelf e tente outra vez.",
   "bookshelf.title": "Título",
   "bookshelf.try_again": "Tentar novamente",
   "bookshelf.two_page_spread": "Duas páginas lado a lado",

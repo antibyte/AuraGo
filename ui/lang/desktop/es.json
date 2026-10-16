@@ -6856,6 +6856,7 @@
   "bookshelf.status_updated": "Estado de lectura actualizado.",
   "bookshelf.tags": "Etiquetas",
   "bookshelf.tags_help": "Separa las etiquetas con comas.",
+  "bookshelf.error_source_changed": "El archivo de origen ha cambiado. Actualiza el origen o vuelve a añadir el archivo actual a Bookshelf y vuelve a intentarlo.",
   "bookshelf.title": "Título",
   "bookshelf.try_again": "Intentar de nuevo",
   "bookshelf.unavailable": "No disponible",

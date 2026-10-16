@@ -6850,6 +6850,7 @@
   "bookshelf.text_encoding": "Tekstkoding",
   "bookshelf.thumbnails": "Miniatyrbilder av sider",
   "bookshelf.thumbnails_unavailable": "Sidminiatyrer er ikke tilgjengelige for denne boken.",
+  "bookshelf.error_source_changed": "Kildefilen er endret. Oppdater kilden eller legg til den gjeldende filen i Bookshelf på nytt, og prøv igjen.",
   "bookshelf.title": "Tittel",
   "bookshelf.try_again": "Prøv igjen",
   "bookshelf.two_page_spread": "To sider ved siden av hverandre",
