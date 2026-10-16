@@ -18,8 +18,6 @@ import (
 	"net/smtp"
 	"net/textproto"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -50,159 +48,9 @@ func EncodeEmailResult(r EmailResult) string {
 	return string(b)
 }
 
-// ── IMAP Client (Lightweight) ───────────────────────────────────────────────
-
-// imapConn wraps a TLS connection to an IMAP server.
-type imapConn struct {
-	conn             net.Conn
-	reader           *bufio.Reader
-	tag              int
-	stopCancellation func() bool
-}
-
-func imapDial(host string, port int) (*imapConn, error) {
-	return imapDialContext(context.Background(), host, port)
-}
-
-func imapDialContext(ctx context.Context, host string, port int) (*imapConn, error) {
-	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 15 * time.Second}, Config: &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}}
-	tlsConn, err := dialer.DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return nil, fmt.Errorf("IMAP TLS dial failed: %w", err)
-	}
-
-	ic := &imapConn{conn: tlsConn, reader: bufio.NewReaderSize(tlsConn, 65536)}
-	ic.stopCancellation = context.AfterFunc(ctx, func() { _ = tlsConn.Close() })
-
-	// Read server greeting
-	if _, err := ic.readLine(); err != nil {
-		ic.stopCancellation()
-		tlsConn.Close()
-		return nil, fmt.Errorf("IMAP greeting failed: %w", err)
-	}
-	return ic, nil
-}
-
-func (ic *imapConn) Close() {
-	if ic.stopCancellation != nil {
-		defer ic.stopCancellation()
-	}
-	ic.command("LOGOUT")
-	ic.conn.Close()
-}
-
-func (ic *imapConn) readLine() (string, error) {
-	ic.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
-	line, err := ic.reader.ReadString('\n')
-	return strings.TrimRight(line, "\r\n"), err
-}
-
-// readUntilTag reads all lines until we get the tagged response (e.g., "A001 OK ...").
-func (ic *imapConn) readUntilTag(tag string) ([]string, string, error) {
-	var lines []string
-	for {
-		line, err := ic.readLine()
-		if err != nil {
-			return lines, "", err
-		}
-		if strings.HasPrefix(line, tag+" ") {
-			return lines, line, nil
-		}
-		lines = append(lines, line)
-	}
-}
-
-func (ic *imapConn) command(format string, args ...interface{}) ([]string, string, error) {
-	ic.tag++
-	tag := fmt.Sprintf("A%03d", ic.tag)
-	cmd := fmt.Sprintf("%s %s\r\n", tag, fmt.Sprintf(format, args...))
-	ic.conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
-	if _, err := io.WriteString(ic.conn, cmd); err != nil {
-		return nil, "", fmt.Errorf("IMAP write failed: %w", err)
-	}
-	return ic.readUntilTag(tag)
-}
-
-func (ic *imapConn) login(user, pass string) error {
-	_, status, err := ic.command("LOGIN %s %s", quoteIMAPString(user), quoteIMAPString(pass))
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(status, "OK") {
-		return fmt.Errorf("IMAP LOGIN failed: %s", status)
-	}
-	return nil
-}
-
-func (ic *imapConn) selectFolder(folder string) (int, error) {
-	lines, status, err := ic.command("SELECT %s", quoteIMAPString(folder))
-	if err != nil {
-		return 0, err
-	}
-	if !strings.Contains(status, "OK") {
-		return 0, fmt.Errorf("IMAP SELECT failed: %s", status)
-	}
-	exists := 0
-	for _, line := range lines {
-		if strings.Contains(line, "EXISTS") {
-			fmt.Sscanf(line, "* %d EXISTS", &exists)
-		}
-	}
-	return exists, nil
-}
-
 // FetchEmails connects to IMAP, fetches the N most recent emails from the given folder.
 func FetchEmails(host string, port int, username, password, folder string, count int, logger *slog.Logger) ([]EmailMessage, error) {
-	if count <= 0 {
-		count = 10
-	}
-	if count > 50 {
-		count = 50
-	}
-
-	ic, err := imapDial(host, port)
-	if err != nil {
-		return nil, err
-	}
-	defer ic.Close()
-
-	if err := ic.login(username, password); err != nil {
-		return nil, err
-	}
-
-	exists, err := ic.selectFolder(folder)
-	if err != nil {
-		return nil, err
-	}
-	if exists == 0 {
-		return nil, nil
-	}
-
-	// Calculate range: last N messages
-	from := exists - count + 1
-	if from < 1 {
-		from = 1
-	}
-	seqRange := fmt.Sprintf("%d:%d", from, exists)
-
-	// FETCH envelope and body
-	lines, status, err := ic.command("FETCH %s (UID BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY.PEEK[TEXT])", seqRange)
-	if err != nil {
-		return nil, fmt.Errorf("IMAP FETCH failed: %w", err)
-	}
-	if !strings.Contains(status, "OK") {
-		return nil, fmt.Errorf("IMAP FETCH failed: %s", status)
-	}
-
-	messages := parseIMAPFetch(lines, logger)
-
-	// Sort by UID descending (newest first)
-	sort.Slice(messages, func(i, j int) bool {
-		return messages[i].UID > messages[j].UID
-	})
-
-	return messages, nil
+	return FetchEmailsWithTransport(context.Background(), host, port, username, password, "tls", folder, count, logger)
 }
 
 // FetchEmailsByUID connects to IMAP and fetches specific emails by their UIDs.
@@ -213,53 +61,7 @@ func FetchEmailsByUID(host string, port int, username, password, folder string, 
 }
 
 func fetchEmailsByUIDContext(parent context.Context, host string, port int, username, password, folder string, uids []uint32, logger *slog.Logger) ([]EmailMessage, error) {
-	ctx, cancel := context.WithTimeout(parent, time.Minute)
-	defer cancel()
-	if len(uids) == 0 {
-		return nil, nil
-	}
-	if len(uids) > 50 {
-		uids = uids[:50]
-	}
-
-	ic, err := imapDialContext(ctx, host, port)
-	if err != nil {
-		return nil, err
-	}
-	defer ic.Close()
-
-	if err := ic.login(username, password); err != nil {
-		return nil, err
-	}
-
-	if _, err := ic.selectFolder(folder); err != nil {
-		return nil, err
-	}
-
-	// Build UID set string: "123 456 789"
-	parts := make([]string, len(uids))
-	for i, uid := range uids {
-		parts[i] = strconv.FormatUint(uint64(uid), 10)
-	}
-	uidSet := strings.Join(parts, ",")
-
-	// UID FETCH by specific UIDs
-	lines, status, err := ic.command("UID FETCH %s (UID BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY.PEEK[TEXT])", uidSet)
-	if err != nil {
-		return nil, fmt.Errorf("IMAP UID FETCH failed: %w", err)
-	}
-	if !strings.Contains(status, "OK") {
-		return nil, fmt.Errorf("IMAP UID FETCH failed: %s", status)
-	}
-
-	messages := parseIMAPFetch(lines, logger)
-
-	// Sort by UID descending (newest first)
-	sort.Slice(messages, func(i, j int) bool {
-		return messages[i].UID > messages[j].UID
-	})
-
-	return messages, nil
+	return fetchEmailsByUIDTransportContext(parent, host, port, username, password, "tls", folder, uids, logger)
 }
 
 // SearchUnseenUIDs returns UIDs of unseen messages in the given folder.
@@ -268,148 +70,10 @@ func SearchUnseenUIDs(host string, port int, username, password, folder string) 
 }
 
 func searchUnseenUIDsContext(parent context.Context, host string, port int, username, password, folder string) ([]uint32, error) {
-	ctx, cancel := context.WithTimeout(parent, time.Minute)
-	defer cancel()
-	ic, err := imapDialContext(ctx, host, port)
-	if err != nil {
-		return nil, err
-	}
-	defer ic.Close()
-
-	if err := ic.login(username, password); err != nil {
-		return nil, err
-	}
-	if _, err := ic.selectFolder(folder); err != nil {
-		return nil, err
-	}
-
-	lines, status, err := ic.command("UID SEARCH UNSEEN")
-	if err != nil {
-		return nil, err
-	}
-	if !strings.Contains(status, "OK") {
-		return nil, fmt.Errorf("IMAP SEARCH failed: %s", status)
-	}
-
-	var uids []uint32
-	for _, line := range lines {
-		if strings.HasPrefix(line, "* SEARCH") {
-			parts := strings.Fields(line)
-			for _, p := range parts[2:] {
-				if uid, err := strconv.ParseUint(p, 10, 32); err == nil {
-					uids = append(uids, uint32(uid))
-				}
-			}
-		}
-	}
-	return uids, nil
+	return searchUnseenUIDsTransportContext(parent, host, port, username, password, "tls", folder)
 }
 
-// ── IMAP Response Parser ────────────────────────────────────────────────────
-
-var reFetchStart = regexp.MustCompile(`^\* (\d+) FETCH`)
-var reUID = regexp.MustCompile(`UID (\d+)`)
 var reExcessiveNewlines = regexp.MustCompile(`\n{3,}`)
-
-func parseIMAPFetch(lines []string, logger *slog.Logger) []EmailMessage {
-	var messages []EmailMessage
-	var current *EmailMessage
-	var section string // "header" or "body"
-	var buf strings.Builder
-	var remaining int // literal bytes remaining
-
-	flushSection := func() {
-		if current == nil {
-			return
-		}
-		text := buf.String()
-		buf.Reset()
-		switch section {
-		case "header":
-			parseHeaders(current, text)
-		case "body":
-			current.Body = decodeBodyText(text)
-			// Cap body at 4KB for LLM context
-			if len(current.Body) > 4096 {
-				current.Body = truncateUTF8Safe(current.Body, 4096) + "\n[... truncated]"
-			}
-			current.Snippet = truncateSnippet(current.Body, 200)
-		}
-		section = ""
-	}
-
-	for _, line := range lines {
-		// Handle literal continuation
-		if remaining > 0 {
-			buf.WriteString(line)
-			buf.WriteString("\n")
-			remaining -= len(line) + 2 // approximate CRLF
-			if remaining <= 0 {
-				remaining = 0
-			}
-			continue
-		}
-
-		// New fetch block
-		if reFetchStart.MatchString(line) {
-			flushSection()
-			if current != nil {
-				messages = append(messages, *current)
-			}
-			current = &EmailMessage{}
-			if m := reUID.FindStringSubmatch(line); len(m) > 1 {
-				uid, _ := strconv.ParseUint(m[1], 10, 32)
-				current.UID = uint32(uid)
-			}
-		}
-
-		// Detect section start
-		if strings.Contains(line, "BODY[HEADER.FIELDS") || strings.Contains(line, "BODY.PEEK[HEADER.FIELDS") {
-			flushSection()
-			section = "header"
-			if n := parseLiteralSize(line); n > 0 {
-				remaining = n
-			}
-			continue
-		}
-		if strings.Contains(line, "BODY[TEXT]") || strings.Contains(line, "BODY.PEEK[TEXT]") {
-			flushSection()
-			section = "body"
-			if n := parseLiteralSize(line); n > 0 {
-				remaining = n
-			}
-			continue
-		}
-
-		if section != "" {
-			if line == ")" || line == "" && section == "header" {
-				flushSection()
-				continue
-			}
-			buf.WriteString(line)
-			buf.WriteString("\n")
-		}
-	}
-
-	flushSection()
-	if current != nil {
-		messages = append(messages, *current)
-	}
-	return messages
-}
-
-func parseLiteralSize(line string) int {
-	idx := strings.LastIndex(line, "{")
-	if idx < 0 {
-		return 0
-	}
-	end := strings.LastIndex(line, "}")
-	if end <= idx {
-		return 0
-	}
-	n, _ := strconv.Atoi(line[idx+1 : end])
-	return n
-}
 
 func parseHeaders(msg *EmailMessage, raw string) {
 	reader := textproto.NewReader(bufio.NewReader(strings.NewReader(raw)))
@@ -478,27 +142,9 @@ func truncateSnippet(s string, maxLen int) string {
 	return truncateUTF8Safe(s, maxLen) + "..."
 }
 
-func quoteIMAPString(s string) string {
-	// Double-quote the string, escaping internal quotes and backslashes
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
-}
-
 // TestIMAPConnection verifies IMAP login credentials without fetching mail.
 func TestIMAPConnection(host string, port int, username, password string) error {
-	if strings.TrimSpace(host) == "" {
-		return fmt.Errorf("IMAP host is required")
-	}
-	if port <= 0 {
-		port = 993
-	}
-	ic, err := imapDial(host, port)
-	if err != nil {
-		return err
-	}
-	defer ic.Close()
-	return ic.login(username, password)
+	return TestIMAPConnectionWithTLS(context.Background(), host, port, username, password, "tls")
 }
 
 // TestSMTPAuth verifies SMTP credentials without sending mail.

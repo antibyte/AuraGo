@@ -38,7 +38,7 @@ func (a *coreTestAdapter) Send(context.Context, Outgoing) (SendResult, error) {
 }
 func (a *coreTestAdapter) Test(context.Context) error { return nil }
 
-func newCoreTestService(t *testing.T, account Account, adapter *coreTestAdapter) (*Service, *Store) {
+func newCoreTestService(t *testing.T, account Account, adapter Adapter) (*Service, *Store) {
 	t.Helper()
 	store, err := OpenStore(":memory:")
 	if err != nil {
@@ -82,7 +82,8 @@ func TestPutMessagesThreadsByRFCHeadersWithinAccount(t *testing.T) {
 	if _, err := store.PutMessages(ctx, []Message{{
 		AccountID: "imap:a", FolderID: "INBOX", RemoteID: "20", ThreadID: "20",
 		MessageID: "<reply@example.test>", InReplyTo: "<root@example.test>", References: []string{"<root@example.test>"},
-		Subject: "Re: hello", Date: base.Add(time.Minute),
+		Subject: "Re: hello", From: "reply@example.test", Date: base.Add(time.Minute),
+		Attachments: []Attachment{{ID: "att-1", Filename: "report.pdf", Size: 23}},
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +124,9 @@ func TestPutMessagesThreadsByRFCHeadersWithinAccount(t *testing.T) {
 	}
 	if messages[0].ThreadID != accountA.ID || messages[1].ThreadID != accountA.ID {
 		t.Fatalf("thread resolver left split IDs: %#v", messages)
+	}
+	if len(accountA.Messages) != 3 || accountA.Messages[1].ID != messages[1].ID || accountA.Messages[1].From != "reply@example.test" || accountA.Messages[1].Date.IsZero() || len(accountA.Messages[1].Attachments) != 1 {
+		t.Fatalf("thread page omitted message metadata: %#v", accountA.Messages)
 	}
 }
 

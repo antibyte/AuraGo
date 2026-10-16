@@ -69,29 +69,9 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-
-		password := strings.TrimSpace(req.Password)
-		if password == maskedKey || password == "" {
-			if req.ID != "" {
-				s.CfgMu.RLock()
-				for _, a := range s.Cfg.EmailAccounts {
-					if a.ID == req.ID {
-						password = a.Password
-						break
-					}
-				}
-				s.CfgMu.RUnlock()
-			}
-			if password == "" || password == maskedKey {
-				if s.Vault != nil && req.ID != "" {
-					if secret, err := s.Vault.ReadSecret("email_" + req.ID + "_password"); err == nil {
-						password = secret
-					}
-				}
-			}
-		}
-
-		if strings.TrimSpace(req.Username) == "" || password == "" {
+		settings := resolveEmailConnectionTest(s, req)
+		if (settings.imapHost != "" && (settings.imapUsername == "" || settings.imapPassword == "")) ||
+			(settings.smtpHost != "" && (settings.smtpUsername == "" || settings.smtpPassword == "")) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -101,8 +81,8 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		imapHost := strings.TrimSpace(req.IMAPHost)
-		smtpHost := strings.TrimSpace(req.SMTPHost)
+		imapHost := settings.imapHost
+		smtpHost := settings.smtpHost
 		if imapHost == "" && smtpHost == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
@@ -119,11 +99,7 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		var errors []string
 
 		if imapHost != "" {
-			port := req.IMAPPort
-			if port <= 0 {
-				port = 993
-			}
-			if err := tools.TestIMAPConnection(imapHost, port, req.Username, password); err != nil {
+			if err := tools.TestIMAPConnectionWithTLS(r.Context(), imapHost, settings.imapPort, settings.imapUsername, settings.imapPassword, settings.receiveTLS); err != nil {
 				result["imap"] = "error"
 				errors = append(errors, "IMAP: "+err.Error())
 			} else {
@@ -134,11 +110,7 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		}
 
 		if smtpHost != "" {
-			port := req.SMTPPort
-			if port <= 0 {
-				port = 587
-			}
-			if err := tools.TestSMTPAuth(smtpHost, port, req.Username, password); err != nil {
+			if err := tools.TestSMTPAuthWithTransport(r.Context(), smtpHost, settings.smtpPort, settings.smtpUsername, settings.smtpPassword, settings.smtpTransport); err != nil {
 				result["smtp"] = "error"
 				errors = append(errors, "SMTP: "+err.Error())
 			} else {
@@ -170,6 +142,161 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	}
+}
+
+type emailConnectionTestSettings struct {
+	imapHost, imapUsername, imapPassword, receiveTLS    string
+	imapPort                                            int
+	smtpHost, smtpUsername, smtpPassword, smtpTransport string
+	smtpPort                                            int
+}
+
+// resolveEmailConnectionTest inherits saved settings for an account ID only
+// while credentials remain bound to the saved protocol endpoint and username.
+func resolveEmailConnectionTest(s *Server, req emailAccountJSON) emailConnectionTestSettings {
+	var saved config.EmailAccount
+	hasSaved := false
+	if id := strings.TrimSpace(req.ID); id != "" {
+		s.CfgMu.RLock()
+		for i := range s.Cfg.EmailAccounts {
+			if s.Cfg.EmailAccounts[i].ID == id {
+				saved = s.Cfg.EmailAccounts[i]
+				hasSaved = true
+				break
+			}
+		}
+		s.CfgMu.RUnlock()
+	}
+	value := func(provided string, fallback string) string {
+		if strings.TrimSpace(provided) != "" {
+			return strings.TrimSpace(provided)
+		}
+		return strings.TrimSpace(fallback)
+	}
+	settings := emailConnectionTestSettings{
+		imapHost:     value(req.IMAPHost, saved.IMAPHost),
+		imapUsername: value(req.Username, saved.Username),
+		receiveTLS:   emailMode(req.ReceiveTLS, saved.ReceiveTLS),
+		smtpHost:     value(req.SMTPHost, saved.SMTPHost),
+	}
+	settings.imapPort = requestOrSavedPort(req.IMAPPort, saved.IMAPPort)
+	if settings.receiveTLS == "" {
+		settings.receiveTLS = "tls"
+	}
+	if settings.imapPort <= 0 {
+		settings.imapPort = 993
+		if strings.EqualFold(settings.receiveTLS, "starttls") {
+			settings.imapPort = 143
+		}
+	}
+	settings.smtpPort = requestOrSavedPort(req.SMTPPort, saved.SMTPPort)
+	settings.smtpTransport = emailMode(req.SMTPTransport, saved.SMTPTransport)
+	if settings.smtpTransport == "" {
+		settings.smtpTransport = "starttls"
+		if settings.smtpPort == 465 {
+			settings.smtpTransport = "tls"
+		}
+	}
+	if settings.smtpPort <= 0 {
+		settings.smtpPort = 587
+		if strings.EqualFold(settings.smtpTransport, "tls") {
+			settings.smtpPort = 465
+		}
+	}
+	settings.smtpUsername = settings.imapUsername
+	if strings.TrimSpace(saved.SMTPUsername) != "" {
+		settings.smtpUsername = strings.TrimSpace(saved.SMTPUsername)
+	}
+	if req.SMTPUsername != nil {
+		settings.smtpUsername = strings.TrimSpace(*req.SMTPUsername)
+		if settings.smtpUsername == "" {
+			settings.smtpUsername = settings.imapUsername
+		}
+	} else if strings.TrimSpace(req.Username) != "" {
+		// A user explicitly editing the shared username also edits SMTP's
+		// inherited username when no separate SMTP username was supplied.
+		if !hasSaved || strings.TrimSpace(req.Username) != strings.TrimSpace(saved.Username) {
+			settings.smtpUsername = settings.imapUsername
+		}
+	}
+	requestPassword := strings.TrimSpace(req.Password)
+	if requestPassword == maskedKey {
+		requestPassword = ""
+	}
+	settings.imapPassword = requestPassword
+	if settings.imapPassword == "" && hasSaved && sameEmailTestTarget(settings.imapHost, settings.imapPort, settings.imapUsername,
+		saved.IMAPHost, emailEffectivePort(saved.IMAPPort, saved.ReceiveTLS, true), saved.Username) {
+		settings.imapPassword = saved.Password
+		if settings.imapPassword == "" {
+			settings.imapPassword = readEmailAccountSecret(s, saved.ID, "password")
+		}
+	}
+	if req.SMTPPassword != nil {
+		settings.smtpPassword = strings.TrimSpace(*req.SMTPPassword)
+		if settings.smtpPassword == maskedKey {
+			settings.smtpPassword = ""
+		}
+	}
+	if settings.smtpPassword == "" && requestPassword != "" {
+		settings.smtpPassword = requestPassword
+	}
+	if settings.smtpPassword == "" && hasSaved && sameEmailTestTarget(settings.smtpHost, settings.smtpPort, settings.smtpUsername,
+		saved.SMTPHost, emailEffectivePort(saved.SMTPPort, saved.SMTPTransport, false), savedEffectiveSMTPUsername(saved)) {
+		settings.smtpPassword = saved.SMTPPassword
+		if settings.smtpPassword == "" {
+			settings.smtpPassword = readEmailAccountSecret(s, saved.ID, "smtp_password")
+		}
+		if settings.smtpPassword == "" && strings.EqualFold(settings.smtpUsername, saved.Username) {
+			settings.smtpPassword = saved.Password
+			if settings.smtpPassword == "" {
+				settings.smtpPassword = readEmailAccountSecret(s, saved.ID, "password")
+			}
+		}
+	}
+	security.RegisterSensitive(settings.imapPassword)
+	security.RegisterSensitive(settings.smtpPassword)
+	return settings
+}
+
+func sameEmailTestTarget(host string, port int, username, savedHost string, savedPort int, savedUsername string) bool {
+	return strings.EqualFold(strings.TrimSpace(host), strings.TrimSpace(savedHost)) && port == savedPort && strings.TrimSpace(username) == strings.TrimSpace(savedUsername)
+}
+
+func emailEffectivePort(port int, mode string, imap bool) int {
+	if port > 0 {
+		return port
+	}
+	if imap {
+		if strings.EqualFold(strings.TrimSpace(mode), "starttls") {
+			return 143
+		}
+		return 993
+	}
+	if strings.EqualFold(strings.TrimSpace(mode), "tls") {
+		return 465
+	}
+	return 587
+}
+
+func requestOrSavedPort(requested, saved int) int {
+	if requested > 0 {
+		return requested
+	}
+	return saved
+}
+
+func savedEffectiveSMTPUsername(a config.EmailAccount) string {
+	if strings.TrimSpace(a.SMTPUsername) != "" {
+		return a.SMTPUsername
+	}
+	return a.Username
+}
+func readEmailAccountSecret(s *Server, accountID, suffix string) string {
+	if s.Vault == nil || strings.TrimSpace(accountID) == "" {
+		return ""
+	}
+	secret, _ := s.Vault.ReadSecret("email_" + accountID + "_" + suffix)
+	return secret
 }
 
 // handleGetEmailAccounts returns the email accounts list with passwords masked.
@@ -398,6 +525,13 @@ func applyEmailString(dst *string, value *string) {
 	if value != nil {
 		*dst = *value
 	}
+}
+
+func emailMode(value *string, fallback string) string {
+	if value == nil || strings.TrimSpace(*value) == "" {
+		return fallback
+	}
+	return strings.TrimSpace(*value)
 }
 
 func applyEmailInt(dst *int, value *int) {

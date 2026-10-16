@@ -226,6 +226,7 @@ func TestMigrationBackupCanRestoreOldSchemaAndMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() { _ = store.Close() }()
 	if got, err := store.GetDraft(context.Background(), draft.ID); err != nil || got.Subject != draft.Subject || got.Revision != 3 {
 		_ = store.Close()
 		t.Fatalf("migrated old draft = %#v, %v", got, err)
@@ -274,4 +275,112 @@ func TestMigrationBackupCanRestoreOldSchemaAndMigrate(t *testing.T) {
 	if err != nil || got.Subject != draft.Subject || got.Revision != 3 {
 		t.Fatalf("restored and migrated draft = %#v, %v", got, err)
 	}
+	var ruleRunTable int
+	if err := restoredStore.DB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='mailer_rule_runs'`).Scan(&ruleRunTable); err != nil || ruleRunTable != 1 {
+		t.Fatalf("restored migration omitted durable rule-run table: count=%d err=%v", ruleRunTable, err)
+	}
+}
+
+func TestSchemaV7MigrationBackupRestoresMailboxDraftAndOutbox(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "mailer-v7.db")
+	store, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Close() }()
+	account := Account{ID: "pop3:legacy", Source: "email", Protocol: "pop3", Address: "owner@example.test"}
+	if err := store.PutAccount(ctx, account); err != nil {
+		t.Fatal(err)
+	}
+	mail := Message{AccountID: account.ID, FolderID: "INBOX", RemoteID: "uid-42", ThreadID: "thread-42", MessageID: "<preserved@example.test>", Subject: "preserved POP3 mail", From: "sender@example.test", Date: time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC), Raw: []byte("RFC822 fixture"), Text: "cached body"}
+	stored, err := store.PutMessages(ctx, []Message{mail})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mail = stored[0]
+	draft, err := store.SaveDraft(ctx, Draft{ID: "draft-v7", AccountID: account.ID, To: []string{"recipient@example.test"}, Subject: "saved draft", Text: "draft body"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := store.QueueSend(ctx, SendRequest{DraftID: draft.ID, Revision: draft.Revision, Timezone: "Europe/Berlin"}, draft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A v7 database has all current legacy tables but predates the durable rule ledger.
+	db, err := dbutil.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("DROP TABLE mailer_rule_runs; PRAGMA user_version=7"); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	assertPreserved := func(s *Store, label string) {
+		t.Helper()
+		gotMail, err := s.GetMessage(ctx, mail.ID)
+		if err != nil || gotMail.Subject != mail.Subject || string(gotMail.Raw) != string(mail.Raw) || gotMail.Text != mail.Text {
+			t.Fatalf("%s POP3 message = %#v, %v", label, gotMail, err)
+		}
+		gotDraft, err := s.GetDraft(ctx, draft.ID)
+		if err != nil || gotDraft.Subject != draft.Subject || gotDraft.Text != draft.Text || gotDraft.Revision != draft.Revision {
+			t.Fatalf("%s draft = %#v, %v", label, gotDraft, err)
+		}
+		gotOutbox, err := s.GetOutbox(ctx, queued.ID)
+		if err != nil || gotOutbox.Status != "scheduled" || gotOutbox.DraftID != draft.ID {
+			t.Fatalf("%s outbox = %#v, %v", label, gotOutbox, err)
+		}
+	}
+	upgraded, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = upgraded.Close() }()
+	assertPreserved(upgraded, "upgraded database")
+	if err := upgraded.Close(); err != nil {
+		t.Fatal(err)
+	}
+	backups, err := filepath.Glob(fmt.Sprintf("%s.pre-v%d-*.bak", path, schemaVersion))
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("migration backups = %v, err=%v; want one", backups, err)
+	}
+
+	restoredPath := filepath.Join(t.TempDir(), "restored-v7.db")
+	backup, err := os.Open(backups[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoredFile, err := os.Create(restoredPath)
+	if err != nil {
+		_ = backup.Close()
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(restoredFile, backup); err != nil {
+		_ = backup.Close()
+		_ = restoredFile.Close()
+		t.Fatal(err)
+	}
+	if err := backup.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := restoredFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(restoredPath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := OpenStore(restoredPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	assertPreserved(restored, "restored and migrated backup")
 }

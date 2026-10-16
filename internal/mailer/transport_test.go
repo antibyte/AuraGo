@@ -31,6 +31,58 @@ func TestReadOnlyPOP3KeepsFolderListingCapability(t *testing.T) {
 	}
 }
 
+func TestSharedEmailTransportsRejectWrongTLSModesBeforeDial(t *testing.T) {
+	dials := 0
+	dial := func(context.Context, string, string) (net.Conn, error) {
+		dials++
+		client, server := net.Pipe()
+		server.Close()
+		return client, nil
+	}
+	if err := TestIMAPAuth(context.Background(), TransportConfig{IMAPHost: "imap.example.test", ReceiveTLS: "none", DialContext: dial}); err == nil {
+		t.Fatal("IMAP accepted an unencrypted transport mode")
+	}
+	if dials != 0 {
+		t.Fatalf("invalid IMAP mode opened %d connections", dials)
+	}
+
+	cfg := TransportConfig{SMTPHost: "smtp.example.test", SMTPTransport: "plain", DialContext: dial}
+	if err := TestSMTPAuth(context.Background(), cfg); err == nil {
+		t.Fatal("SMTP auth test accepted an unencrypted transport mode")
+	}
+	if _, err := SendSMTP(context.Background(), cfg, Outgoing{Draft: Draft{To: []string{"to@example.test"}}}); err == nil {
+		t.Fatal("SMTP delivery accepted an unencrypted transport mode")
+	}
+	if dials != 0 {
+		t.Fatalf("invalid SMTP mode opened %d connections", dials)
+	}
+}
+
+func TestSMTPTransportModeDefaultsAndValidation(t *testing.T) {
+	for _, tc := range []struct {
+		configured string
+		port       int
+		want       string
+		wantErr    bool
+	}{
+		{port: 465, want: "tls"},
+		{port: 587, want: "starttls"},
+		{configured: " STARTTLS ", port: 465, want: "starttls"},
+		{configured: "plain", port: 587, wantErr: true},
+	} {
+		got, err := smtpTransportMode(tc.configured, tc.port)
+		if tc.wantErr {
+			if err == nil {
+				t.Fatalf("smtpTransportMode(%q, %d) unexpectedly succeeded", tc.configured, tc.port)
+			}
+			continue
+		}
+		if err != nil || got != tc.want {
+			t.Fatalf("smtpTransportMode(%q, %d) = %q, %v; want %q", tc.configured, tc.port, got, err, tc.want)
+		}
+	}
+}
+
 func TestSMTPDeliveryBytesAndDefiniteVsAmbiguousOutcome(t *testing.T) {
 	for _, mode := range []string{"accepted", "rejected", "ambiguous"} {
 		t.Run(mode, func(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 7
+const schemaVersion = 8
 
 var (
 	ErrConflict    = errors.New("mailer revision conflict")
@@ -124,6 +124,9 @@ CREATE INDEX IF NOT EXISTS mailer_message_refs_by_reference ON mailer_message_re
 	if err := store.RecoverSending(context.Background()); err != nil {
 		return closeOnError(err)
 	}
+	if err := store.RecoverRuleRuns(context.Background()); err != nil {
+		return closeOnError(err)
+	}
 	return store, nil
 }
 
@@ -142,6 +145,8 @@ CREATE TABLE IF NOT EXISTS mailer_drafts (id TEXT PRIMARY KEY, account_id TEXT N
 CREATE INDEX IF NOT EXISTS mailer_drafts_account ON mailer_drafts(account_id,updated_at DESC);
 CREATE TABLE IF NOT EXISTS mailer_templates (id TEXT PRIMARY KEY, account_id TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, name TEXT NOT NULL, revision INTEGER NOT NULL, body BLOB NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS mailer_rules (id TEXT PRIMARY KEY, account_id TEXT NOT NULL DEFAULT '', revision INTEGER NOT NULL, enabled INTEGER NOT NULL, body BLOB NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS mailer_rule_runs (message_id TEXT NOT NULL, account_id TEXT NOT NULL, rule_id TEXT NOT NULL, rule_revision INTEGER NOT NULL, rule_body BLOB NOT NULL, action_index INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL, PRIMARY KEY(message_id,rule_id));
+CREATE INDEX IF NOT EXISTS mailer_rule_runs_pending ON mailer_rule_runs(account_id,status,updated_at);
 CREATE TABLE IF NOT EXISTS mailer_outbox (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, draft_id TEXT NOT NULL, revision INTEGER NOT NULL, timezone TEXT NOT NULL DEFAULT '', send_at INTEGER NOT NULL, undo_until INTEGER NOT NULL, status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', remote_id TEXT NOT NULL DEFAULT '', append_error TEXT NOT NULL DEFAULT '', body BLOB NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS mailer_outbox_due ON mailer_outbox(status,send_at,created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS mailer_outbox_revision ON mailer_outbox(draft_id,revision) WHERE status!='cancelled';
@@ -286,14 +291,23 @@ func (s *Store) LinkedAccounts(ctx context.Context) ([]Account, error) {
 }
 
 func (s *Store) UnlinkAccount(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, "UPDATE mailer_accounts SET linked=0 WHERE id=? AND linked=1", id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE mailer_rule_runs SET status='skipped',error='account was disconnected',updated_at=?
+WHERE account_id=? AND status='pending'`, timeNS(time.Now()), id); err != nil {
+		return fmt.Errorf("skip disconnected account rule actions: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, "UPDATE mailer_accounts SET linked=0 WHERE id=? AND linked=1", id)
 	if err != nil {
 		return fmt.Errorf("unlink mail account: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) IsLinked(ctx context.Context, id string) (bool, error) {

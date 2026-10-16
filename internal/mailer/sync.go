@@ -78,6 +78,11 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 		return err
 	}
 	defer cancel()
+	ctx, releaseAccount := s.trackAccountOperation(ctx, cancel, accountID)
+	defer releaseAccount()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	account, err := s.authorizedAccount(ctx, accountID)
 	if err != nil {
 		return err
@@ -97,6 +102,13 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 	}
 	if !hasCapability(resolved.Capabilities, "read") {
 		return ErrCapability
+	}
+	if resolved.ReadOnly {
+		if err := s.store.SkipPendingRuleRuns(ctx, accountID, "account is read-only"); err != nil {
+			return err
+		}
+	} else if err := s.processPendingRuleRuns(ctx, accountID); err != nil && ctx.Err() != nil {
+		return ctx.Err()
 	}
 	folders, err := adapter.Folders(ctx)
 	if err != nil {
@@ -177,7 +189,31 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 				result.Messages[i].AccountID = accountID
 				result.Messages[i].FolderID = folder.ID
 			}
-			created, err := s.store.PutMessagesWithLimit(ctx, result.Messages, s.opts.MaxMessageCacheBytes)
+			// Keep sync-index insertion atomic with local permission changes. The
+			// gate is intentionally limited to this transaction; rule actions take
+			// their own gate through Mutate/Snooze.
+			gate := s.accountGate(accountID)
+			gate.RLock()
+			if err := ctx.Err(); err != nil {
+				gate.RUnlock()
+				return err
+			}
+			current, currentErr := s.authorizedAccount(ctx, accountID)
+			if currentErr != nil {
+				gate.RUnlock()
+				return currentErr
+			}
+			readOnly := resolved.ReadOnly || current.ReadOnly
+			if readOnly {
+				if err := s.store.SkipPendingRuleRuns(ctx, accountID, "account is read-only"); err != nil {
+					gate.RUnlock()
+					return err
+				}
+				_, err = s.store.PutMessagesWithLimit(ctx, result.Messages, s.opts.MaxMessageCacheBytes)
+			} else {
+				_, err = s.store.PutSyncMessagesWithLimit(ctx, result.Messages, s.opts.MaxMessageCacheBytes)
+			}
+			gate.RUnlock()
 			if err != nil {
 				return s.failSync(ctx, accountID, err)
 			}
@@ -206,9 +242,9 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 				}
 				snapshotActive = false
 			}
-			if !resolved.ReadOnly && !s.runtimePolicy().ReadOnly {
-				for _, message := range created {
-					s.applyNewRules(ctx, message)
+			if !resolved.ReadOnly {
+				if err := s.processPendingRuleRuns(ctx, accountID); err != nil && ctx.Err() != nil {
+					return ctx.Err()
 				}
 			}
 			next := result.NextCursor
@@ -229,10 +265,18 @@ func (s *Service) syncAccount(parent context.Context, accountID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.store.SetAccountSyncStatus(ctx, accountID, "ok", "", time.Now().UTC()); err != nil {
+	hasRuleErrors, err := s.store.HasRuleRunErrors(ctx, accountID)
+	if err != nil {
 		return err
 	}
-	s.emit(Event{Type: "account_sync", AccountID: accountID, Status: "ok"})
+	status, code := "ok", ""
+	if hasRuleErrors {
+		status, code = "error", "rule_error"
+	}
+	if err := s.store.SetAccountSyncStatus(ctx, accountID, status, code, time.Now().UTC()); err != nil {
+		return err
+	}
+	s.emit(Event{Type: "account_sync", AccountID: accountID, Status: status})
 	return nil
 }
 

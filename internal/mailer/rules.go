@@ -88,6 +88,9 @@ func (s *Service) SaveRule(ctx context.Context, r Rule) (Rule, error) {
 		return Rule{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	if r.ID != "" {
+		gate := s.ruleGate(r.ID)
+		gate.Lock()
+		defer gate.Unlock()
 		old, err := s.store.GetRule(ctx, r.ID)
 		if err == nil && old.AccountID != r.AccountID {
 			return Rule{}, fmt.Errorf("%w: rule account cannot be changed", ErrInvalid)
@@ -115,6 +118,9 @@ func (s *Service) DeleteRule(ctx context.Context, id string, revision int64) err
 		return err
 	}
 	defer cancel()
+	gate := s.ruleGate(id)
+	gate.Lock()
+	defer gate.Unlock()
 	rule, err := s.store.GetRule(ctx, id)
 	if err != nil {
 		return err
@@ -223,27 +229,207 @@ func (s *Service) ApplyRule(ctx context.Context, id string, revision int64, mess
 	return nil
 }
 
-func (s *Service) applyNewRules(ctx context.Context, m Message) {
-	rules, err := s.store.ListRules(ctx)
+func (s *Service) ListRuleRuns(ctx context.Context, messageID string) ([]RuleRun, error) {
+	m, err := s.store.GetMessage(ctx, messageID)
+	if err != nil {
+		return nil, err
+	}
+	account, err := s.authorizedAccount(ctx, m.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if account.Disabled || !hasCapability(account.Capabilities, "read") {
+		return nil, ErrNotFound
+	}
+	return s.store.ListRuleRuns(ctx, messageID)
+}
+
+func (s *Service) RetryRuleRun(ctx context.Context, messageID, ruleID string) error {
+	ctx, cancel, err := s.begin(ctx, true)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	m, err := s.store.GetMessage(ctx, messageID)
+	if err != nil {
+		return err
+	}
+	if _, _, err := s.writableAccount(ctx, m.AccountID, "read"); err != nil {
+		return err
+	}
+	gate := s.ruleGate(ruleID)
+	gate.Lock()
+	defer gate.Unlock()
+	run, err := s.store.RuleRun(ctx, messageID, ruleID)
+	if err != nil {
+		return err
+	}
+	rule, err := s.store.GetRule(ctx, ruleID)
+	if err != nil || !rule.Enabled || rule.Revision != run.Run.RuleRevision || rule.AccountID != "" && rule.AccountID != run.AccountID {
+		_ = s.store.SkipRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "rule changed or disabled before retry")
+		s.refreshRuleRunSyncStatus(context.WithoutCancel(ctx), run.AccountID)
+		return ErrConflict
+	}
+	if err := s.store.RetryRuleRun(ctx, messageID, ruleID); err != nil {
+		return err
+	}
+	if err := s.processRuleRunLocked(ctx, messageID, ruleID); err != nil {
+		return err
+	}
+	s.refreshRuleRunSyncStatus(context.WithoutCancel(ctx), run.AccountID)
+	return nil
+}
+
+func (s *Service) processPendingRuleRuns(ctx context.Context, accountID string) error {
+	runs, err := s.store.PendingRuleRuns(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, run := range runs {
+		if err := s.processRuleRun(ctx, run.Run.MessageID, run.Run.RuleID); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if firstErr != nil {
+		s.refreshRuleRunSyncStatus(context.WithoutCancel(ctx), accountID)
+	}
+	return firstErr
+}
+
+func (s *Service) processRuleRun(ctx context.Context, messageID, ruleID string) error {
+	gate := s.ruleGate(ruleID)
+	gate.Lock()
+	defer gate.Unlock()
+	return s.processRuleRunLocked(ctx, messageID, ruleID)
+}
+
+func (s *Service) processRuleRunLocked(ctx context.Context, messageID, ruleID string) error {
+	run, err := s.store.RuleRun(ctx, messageID, ruleID)
+	if err != nil {
+		return err
+	}
+	if run.Run.Status != "pending" {
+		return nil
+	}
+	current, err := s.store.GetRule(ctx, ruleID)
+	if errors.Is(err, ErrNotFound) || err == nil && (!current.Enabled || current.Revision != run.Run.RuleRevision || (current.AccountID != "" && current.AccountID != run.AccountID)) {
+		if finishErr := s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "skipped", "rule changed or disabled before execution"); finishErr != nil {
+			return finishErr
+		}
+		s.emit(Event{Type: "rule_run", AccountID: run.AccountID, ID: messageID, Status: "skipped"})
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	m, err := s.store.GetMessage(ctx, messageID)
+	if err != nil {
+		_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "failed", "message could not be loaded; retry is safe")
+		s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "failed")
+		return err
+	}
+	if needsBody(run.Rule) {
+		m, err = s.GetMessage(ctx, messageID)
+		if err != nil {
+			_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "failed", "message body could not be loaded; retry is safe")
+			s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "failed")
+			return err
+		}
+	}
+	matched, err := matchesRule(run.Rule, m)
+	if err != nil {
+		_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "failed", "rule conditions could not be evaluated; retry is safe")
+		s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "failed")
+		return err
+	}
+	if !matched {
+		if err := s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "skipped", "conditions did not match"); err != nil {
+			return err
+		}
+		s.emit(Event{Type: "rule_run", AccountID: run.AccountID, ID: messageID, Status: "skipped"})
+		return nil
+	}
+
+	for run.Run.ActionIndex < len(run.Rule.Actions) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		current, err = s.store.GetRule(ctx, ruleID)
+		if errors.Is(err, ErrNotFound) || err == nil && (!current.Enabled || current.Revision != run.Run.RuleRevision || (current.AccountID != "" && current.AccountID != run.AccountID)) {
+			if finishErr := s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "skipped", "rule changed or disabled before execution"); finishErr != nil {
+				return finishErr
+			}
+			s.emit(Event{Type: "rule_run", AccountID: run.AccountID, ID: messageID, Status: "skipped"})
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		action := run.Rule.Actions[run.Run.ActionIndex]
+		capability := "read"
+		if action.Kind != "snooze" {
+			capability = mutationCapability(action.Kind)
+		}
+		if _, _, err := s.writableAccount(ctx, run.AccountID, capability); err != nil {
+			_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "failed", "account is not writable; retry is safe")
+			s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "failed")
+			return err
+		}
+		if err := s.store.SetRuleRunExecuting(ctx, messageID, ruleID, run.Run.ActionIndex); err != nil {
+			return err
+		}
+		err := s.applyRuleAction(ctx, m, action)
+		if err != nil {
+			_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "unknown", "action outcome may be unknown; verify the message before retrying")
+			s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "unknown")
+			return err
+		}
+		if err := s.store.AdvanceRuleRun(context.WithoutCancel(ctx), messageID, ruleID, run.Run.ActionIndex); err != nil {
+			_ = s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "unknown", "action succeeded but progress could not be saved; verify the message before retrying")
+			s.reportRuleRunFailure(context.WithoutCancel(ctx), run, "unknown")
+			return err
+		}
+		run.Run.ActionIndex++
+		run.Run.Status = "pending"
+	}
+	if err := s.store.FinishRuleRun(context.WithoutCancel(ctx), messageID, ruleID, "completed", ""); err != nil {
+		return err
+	}
+	s.emit(Event{Type: "rule_run", AccountID: run.AccountID, ID: messageID, Status: "completed"})
+	return nil
+}
+
+func (s *Service) applyRuleAction(ctx context.Context, m Message, action RuleAction) error {
+	if action.Kind == "snooze" {
+		return s.Snooze(ctx, m.ID, action.SnoozeUntil)
+	}
+	if !ruleMutations[action.Kind] {
+		return ErrCapability
+	}
+	return s.Mutate(ctx, m.ID, Mutation{Kind: action.Kind, DestinationFolderID: action.DestinationFolderID, Label: action.Label})
+}
+
+func (s *Service) reportRuleRunFailure(ctx context.Context, run ruleRunRecord, status string) {
+	_ = s.store.SetAccountSyncStatus(ctx, run.AccountID, "error", "rule_error", time.Now().UTC())
+	s.emit(Event{Type: "account_sync", AccountID: run.AccountID, Status: "error"})
+	s.emit(Event{Type: "rule_run", AccountID: run.AccountID, ID: run.Run.MessageID, Status: status})
+}
+
+func (s *Service) refreshRuleRunSyncStatus(ctx context.Context, accountID string) {
+	hasErrors, err := s.store.HasRuleRunErrors(ctx, accountID)
 	if err != nil {
 		return
 	}
-	for _, r := range rules {
-		if !r.Enabled || (r.AccountID != "" && r.AccountID != m.AccountID) {
-			continue
-		}
-		candidate := m
-		if needsBody(r) {
-			candidate, err = s.GetMessage(ctx, m.ID)
-			if err != nil {
-				continue
-			}
-		}
-		ok, err := matchesRule(r, candidate)
-		if err != nil || !ok {
-			continue
-		}
-		_ = s.applyRuleActions(ctx, candidate, r.Actions)
+	if hasErrors {
+		_ = s.store.SetAccountSyncStatus(ctx, accountID, "error", "rule_error", time.Now().UTC())
+		s.emit(Event{Type: "account_sync", AccountID: accountID, Status: "error"})
+		return
+	}
+	account, err := s.store.Account(ctx, accountID)
+	if err == nil && account.SyncError == "rule_error" {
+		_ = s.store.SetAccountSyncStatus(ctx, accountID, "ok", "", time.Now().UTC())
+		s.emit(Event{Type: "account_sync", AccountID: accountID, Status: "ok"})
 	}
 }
 

@@ -32,7 +32,19 @@ func (s *Store) PutMessagesWithLimit(ctx context.Context, messages []Message, ma
 	return s.putMessagesWithLimits(ctx, messages, maxRawBytes, maxRawSyncPageBytes)
 }
 
+func (s *Store) PutSyncMessagesWithLimit(ctx context.Context, messages []Message, maxRawBytes int64) ([]Message, error) {
+	return s.putSyncMessagesWithLimits(ctx, messages, maxRawBytes, maxRawSyncPageBytes)
+}
+
 func (s *Store) putMessagesWithLimits(ctx context.Context, messages []Message, maxRawBytes, maxPageBytes int64) ([]Message, error) {
+	return s.putMessages(ctx, messages, maxRawBytes, maxPageBytes, false)
+}
+
+func (s *Store) putSyncMessagesWithLimits(ctx context.Context, messages []Message, maxRawBytes, maxPageBytes int64) ([]Message, error) {
+	return s.putMessages(ctx, messages, maxRawBytes, maxPageBytes, true)
+}
+
+func (s *Store) putMessages(ctx context.Context, messages []Message, maxRawBytes, maxPageBytes int64, queueRules bool) ([]Message, error) {
 	if maxRawBytes <= 0 {
 		maxRawBytes = defaultMailCacheBytes
 	}
@@ -154,10 +166,60 @@ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(account_id,folder_id,remote_
 			}
 		}
 	}
+	if queueRules {
+		if err := queueAutomaticRuleRuns(ctx, tx, created); err != nil {
+			return nil, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit message sync: %w", err)
 	}
 	return created, nil
+}
+
+func queueAutomaticRuleRuns(ctx context.Context, tx *sql.Tx, messages []Message) error {
+	rulesByAccount := make(map[string][]Rule)
+	loaded := make(map[string]bool)
+	for _, message := range messages {
+		if !loaded[message.AccountID] {
+			rows, err := tx.QueryContext(ctx, "SELECT body FROM mailer_rules WHERE enabled=1 AND (account_id='' OR account_id=?) ORDER BY created_at,id", message.AccountID)
+			if err != nil {
+				return fmt.Errorf("load rules for new mail: %w", err)
+			}
+			for rows.Next() {
+				var body []byte
+				var rule Rule
+				if err := rows.Scan(&body); err != nil {
+					rows.Close()
+					return err
+				}
+				if err := unmarshal(body, &rule); err != nil {
+					rows.Close()
+					return err
+				}
+				rulesByAccount[message.AccountID] = append(rulesByAccount[message.AccountID], rule)
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return err
+			}
+			if err := rows.Close(); err != nil {
+				return err
+			}
+			loaded[message.AccountID] = true
+		}
+		for _, rule := range rulesByAccount[message.AccountID] {
+			body, err := marshal(rule)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO mailer_rule_runs(message_id,account_id,rule_id,rule_revision,rule_body,status,updated_at)
+VALUES(?,?,?,?,?,'pending',?)`, message.ID, message.AccountID, rule.ID, rule.Revision, body, timeNS(time.Now())); err != nil {
+				return fmt.Errorf("queue automatic mail rule: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func backfillMessageHeaders(ctx context.Context, tx *sql.Tx) error {
@@ -564,6 +626,7 @@ func (s *Store) QueryThreadPage(ctx context.Context, q MessageQuery) (ThreadPage
 			return ThreadPage{}, err
 		}
 		t := &page.Threads[i]
+		t.Messages = messages
 		if len(messages) > 0 {
 			latest := messages[len(messages)-1]
 			t.Subject = latest.Subject

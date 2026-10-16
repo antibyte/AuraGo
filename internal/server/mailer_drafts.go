@@ -13,12 +13,12 @@ func (s *Server) mailerDraftsHTTP(w http.ResponseWriter, r *http.Request, p []st
 	if p[0] == "outbox" {
 		switch {
 		case len(p) == 1 && r.Method == http.MethodGet:
-			items, err := s.Mailer.ListOutbox(ctx)
+			page, err := s.Mailer.ListOutboxPage(ctx, r.URL.Query().Get("cursor"), mailerQueryInt(r, "limit", 50))
 			if err != nil {
 				mailerHTTPError(w, err)
 				return
 			}
-			mailerJSON(w, 200, map[string]any{"items": items})
+			mailerJSON(w, 200, page)
 		case len(p) == 1 && r.Method == http.MethodPost:
 			var body mailer.SendRequest
 			if err := decodeMailerJSON(w, r, &body, 8192); err != nil {
