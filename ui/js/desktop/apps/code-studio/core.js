@@ -32,6 +32,7 @@
             currentPath: WORKSPACE_ROOT,
             recentFiles: [],
             containerStatus: 'unknown',
+            containerInfo: null,
             terminalVisible: true,
             terminalHeight: 220,
             sidebarVisible: true,
@@ -61,6 +62,7 @@
             splitRatio: 0.5,
             selectedDir: WORKSPACE_ROOT,
             searchPerformed: false,
+            searchTruncated: false,
             searchQuery: '',
             searchOptions: null,
             statusMessage: '',
@@ -467,22 +469,53 @@
         if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
     }
 
+    function rememberContainerStatus(payload) {
+        const info = payload || {};
+        state.containerInfo = info;
+        if (info.running) state.containerStatus = 'running';
+        else if (info.error || info.state === 'error') state.containerStatus = 'error';
+        else state.containerStatus = 'starting';
+    }
+
+    function containerWaitMessage(payload) {
+        const info = payload || {};
+        const detail = String(info.state || '').trim();
+        const problem = String(info.error || '').trim();
+        if (detail && problem) return detail + ': ' + problem;
+        if (problem) return problem;
+        if (detail && detail !== 'running') return detail;
+        return tr('codeStudio.starting', 'Starting container...');
+    }
+
+    function containerIdleLabel(info) {
+        if (!info || !info.running) return '';
+        const minutes = Number(info.auto_stop_minutes);
+        if (!Number.isFinite(minutes) || minutes <= 0) return '';
+        const started = Date.parse(info.last_activity);
+        if (!Number.isFinite(started)) return '';
+        const until = new Date(started + minutes * 60000);
+        return tr('codeStudio.idleUntil', 'Idle until {{time}}', { time: until.toLocaleString() });
+    }
+
     async function prepareContainer(instance) {
         const target = instance || state;
         const status = await apiClient.status();
         const payload = status.code_studio || {};
         if (!payload.enabled) throw new Error(tr('codeStudio.dockerUnavailable', 'Docker is not available. Code Studio requires Docker.'));
         if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => rememberContainerStatus(payload));
+        if (payload.running) return;
+        if (payload.error) throw new Error(payload.error);
+        runWithInstance(target, () => renderLoading(containerWaitMessage(payload)));
+        await apiClient.files(WORKSPACE_ROOT);
+        if (!isLiveInstance(target)) return;
+        const started = await apiClient.status();
+        if (!isLiveInstance(target)) return;
+        const next = started.code_studio || {};
+        if (!next.running && next.error) throw new Error(next.error);
         runWithInstance(target, () => {
-            state.containerStatus = payload.running ? 'running' : 'starting';
+            rememberContainerStatus(next.running ? next : Object.assign({}, next, { running: true, state: 'running' }));
         });
-        if (!payload.running) {
-            await apiClient.files(WORKSPACE_ROOT);
-            if (!isLiveInstance(target)) return;
-            runWithInstance(target, () => {
-                state.containerStatus = 'running';
-            });
-        }
     }
 
     async function loadEditorModule(instance) {
@@ -897,6 +930,11 @@
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
         leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        const info = state.containerInfo || {};
+        if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
+        if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
+        const idleLabel = containerIdleLabel(info);
+        if (idleLabel) leftItems.push(`<span class="cs-status-item">${esc(idleLabel)}</span>`);
         if (message) leftItems.push(`<span class="cs-status-item cs-status-message">${esc(message)}</span>`);
         else if (tab) leftItems.push(`<span class="cs-status-item" title="${esc(tab.path)}">${tab.modified ? '<span class="cs-status-modified">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
         if (modifiedCount > 0) leftItems.push(`<span class="cs-status-item cs-status-unsaved" title="${esc(tr('codeStudio.unsavedChanges', 'Unsaved changes'))}">\u25cf ${modifiedCount}</span>`);

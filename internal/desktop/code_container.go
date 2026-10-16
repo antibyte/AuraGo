@@ -127,12 +127,13 @@ type CodeContainerStatus struct {
 	Running                bool                   `json:"running"`
 	ContainerID            string                 `json:"container_id,omitempty"`
 	Image                  string                 `json:"image"`
-	WorkspaceHostPath      string                 `json:"workspace_host_path"`
+	WorkspaceHostPath      string                 `json:"-"`
 	WorkspaceContainerPath string                 `json:"workspace_container_path"`
 	AutoStopMinutes        int                    `json:"auto_stop_minutes"`
 	LastActivity           time.Time              `json:"last_activity,omitempty"`
 	Resources              CodeContainerResources `json:"resources"`
 	Network                string                 `json:"network"`
+	ReadOnly               bool                   `json:"read_only"`
 	Error                  string                 `json:"error,omitempty"`
 }
 
@@ -581,6 +582,7 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 		LastActivity:           s.lastActivity,
 		Resources:              codeStudioResources(s.cfg.CodeStudio),
 		Network:                codeStudioStatusNetwork(s.cfg.CodeStudio.AllowNetwork),
+		ReadOnly:               s.cfg.ReadOnly,
 	}
 	s.mu.RUnlock()
 
@@ -593,6 +595,12 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 	status.Running = running
 	if running {
 		status.State = StateRunning.String()
+		if containerID != "" {
+			inspect, inspectErr := s.docker.InspectContainer(ctx, containerID)
+			if inspectErr == nil {
+				status.Network = codeStudioReportedNetwork(inspect.NetworkMode)
+			}
+		}
 	}
 	return status
 }
@@ -612,12 +620,28 @@ func codeStudioContainerNetworkMode(allowNetwork bool) string {
 	return "none"
 }
 
-// codeStudioStatusNetwork reports that choice as none or bridge.
+// codeStudioStatusNetwork reports that choice as none or bridge while the
+// container is not running.
 func codeStudioStatusNetwork(allowNetwork bool) string {
 	if allowNetwork {
 		return "bridge"
 	}
 	return "none"
+}
+
+// codeStudioReportedNetwork maps an inspected Docker network mode onto the
+// status value. Empty, default and bridge are Docker's bridge. Any other mode
+// stays visible as itself.
+func codeStudioReportedNetwork(inspected string) string {
+	mode := strings.ToLower(strings.TrimSpace(inspected))
+	switch mode {
+	case "none":
+		return "none"
+	case "", "default", "bridge":
+		return "bridge"
+	default:
+		return mode
+	}
 }
 
 // codeStudioNetworkMatches reports whether an inspected mode is the one the

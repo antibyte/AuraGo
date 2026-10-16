@@ -55,7 +55,10 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   Docker uses its default bridge. The container still has no Docker socket and
   no extra capabilities. `EnsureStarted` removes and recreates a container whose
   mode does not match; workspace content stays on the host mount. Status
-  reports `network` as `none` or `bridge`. Verify
+  reports `network` from that setting until the container is running, then
+  from the inspected mode (`none`, `bridge`, or the raw mode such as `host`).
+  HTTP status JSON omits `workspace_host_path` and includes `read_only` from
+  the desktop grant. Verify
   `TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits`,
   `TestCodeContainerEnsureStartedReplacesIsolatedContainerWhenNetworkAllowed`
   and `TestCodeContainerEnsureStartedReplacesBridgedContainerWhenNetworkDisabled`.

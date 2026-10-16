@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -781,6 +782,16 @@ func TestCodeContainerStatusUsesDefaultsWithoutStartingContainer(t *testing.T) {
 	if status.Network != "none" {
 		t.Fatalf("network = %q, want none", status.Network)
 	}
+	if status.ReadOnly {
+		t.Fatal("read only should stay false")
+	}
+	raw, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "workspace_host_path") {
+		t.Fatalf("status JSON exposes the host path: %s", raw)
+	}
 }
 
 func TestCodeContainerStatusReflectsDockerRunningState(t *testing.T) {
@@ -820,6 +831,88 @@ func TestCodeContainerStatusReflectsDockerRunningState(t *testing.T) {
 	if status.Resources.MemoryMB != 1024 || status.Resources.CPUCores != 1 {
 		t.Fatalf("resources = %+v, want configured resource limits", status.Resources)
 	}
+	if status.Network != "bridge" {
+		t.Fatalf("network = %q, want bridge from an empty inspect mode", status.Network)
+	}
+}
+
+func TestCodeContainerStatusReportsInspectedNetworkAndReadOnly(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		mode        string
+		allow       bool
+		wantNetwork string
+	}{
+		{name: "none", mode: "none", allow: true, wantNetwork: "none"},
+		{name: "host", mode: "host", allow: false, wantNetwork: "host"},
+		{name: "bridge alias", mode: "Default", allow: false, wantNetwork: "bridge"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeCodeContainerDocker{
+				containers: []CodeDockerContainer{{ID: "running-1", Names: []string{"/" + codeContainerName}}},
+				inspectByName: map[string]CodeDockerInspect{
+					"running-1": {ID: "running-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, NetworkMode: tc.mode},
+				},
+			}
+			svc := NewCodeContainerService(Config{
+				ReadOnly:     true,
+				WorkspaceDir: t.TempDir(),
+				CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: tc.allow},
+			}, nil)
+			svc.docker = fake
+
+			status := svc.Status(context.Background())
+			if !status.Running || status.Network != tc.wantNetwork || !status.ReadOnly {
+				t.Fatalf("status running/network/read_only = %v/%q/%v, want true/%s/true", status.Running, status.Network, status.ReadOnly, tc.wantNetwork)
+			}
+			raw, err := json.Marshal(status)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(raw), `"read_only":true`) || strings.Contains(string(raw), "workspace_host_path") {
+				t.Fatalf("status JSON = %s", raw)
+			}
+		})
+	}
+}
+
+func TestCodeContainerStatusKeepsConfiguredNetworkWhenInspectFails(t *testing.T) {
+	t.Parallel()
+
+	fake := &failLaterCodeContainerInspect{
+		fakeCodeContainerDocker: fakeCodeContainerDocker{
+			containers: []CodeDockerContainer{{ID: "running-1", Names: []string{"/" + codeContainerName}}},
+			inspectByName: map[string]CodeDockerInspect{
+				"running-1": {ID: "running-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, NetworkMode: "none"},
+			},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: t.TempDir(),
+		CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: true},
+	}, nil)
+	svc.docker = fake
+
+	status := svc.Status(context.Background())
+	if status.Error != "" || !status.Running || status.Network != "bridge" {
+		t.Fatalf("status error/running/network = %q/%v/%q, want empty/true/bridge", status.Error, status.Running, status.Network)
+	}
+}
+
+type failLaterCodeContainerInspect struct {
+	fakeCodeContainerDocker
+	calls int
+}
+
+func (f *failLaterCodeContainerInspect) InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error) {
+	f.calls++
+	if f.calls > 1 {
+		return CodeDockerInspect{}, errors.New("inspect unavailable")
+	}
+	return f.fakeCodeContainerDocker.InspectContainer(ctx, container)
 }
 
 func TestCodeContainerDisabledDoesNotTouchDocker(t *testing.T) {

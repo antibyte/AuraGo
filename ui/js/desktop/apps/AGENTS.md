@@ -2434,6 +2434,12 @@ registration lives in `internal/desktop/types.go`.
   `codeStudio.commitNeedsSelection`. HTTP 409 `git_identity_required` shows
   name and email fields and posts `/api/code-studio/git/identity`. Branch
   create and switch use POST.
+- Startup shows the container `state` and `error` in the loading view, and the
+  error view when startup reports an error. The status bar shows
+  `codeStudio.readOnly` when the desktop is read-only, `codeStudio.networkOff`
+  when `network` is `none`, and `codeStudio.idleUntil` once a running container
+  has `last_activity` and `auto_stop_minutes` above zero. Search shows
+  `codeStudio.resultsTruncated` when the response sets `truncated`.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
   directory, executes only a successful build and cleans up afterward. Rust

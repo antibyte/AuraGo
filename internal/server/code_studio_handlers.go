@@ -26,9 +26,10 @@ import (
 )
 
 const (
-	codeStudioWorkspaceRoot = "/workspace"
-	codeStudioMaxExecTime   = 300 * time.Second
-	codeStudioMaxUploadSize = int64(50 * 1024 * 1024)
+	codeStudioWorkspaceRoot     = "/workspace"
+	codeStudioMaxExecTime       = 300 * time.Second
+	codeStudioMaxUploadSize     = int64(50 * 1024 * 1024)
+	codeStudioSearchResultLimit = 200
 )
 
 type codeStudioDockerAPI interface {
@@ -566,12 +567,16 @@ func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request)
 		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
 		return
 	}
-	results, err := parseCodeStudioGrepOutput(result.Output)
+	results, truncated, err := parseCodeStudioGrepOutput(result.Output)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"status": "ok", "results": results})
+	payload := map[string]interface{}{"status": "ok", "results": results}
+	if truncated {
+		payload["truncated"] = true
+	}
+	writeJSON(w, payload)
 }
 
 func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Request) {
@@ -1386,25 +1391,30 @@ func buildCodeStudioSearchCommand(options codeStudioSearchOptions) ([]string, er
 	return cmd, nil
 }
 
-func parseCodeStudioGrepOutput(output string) ([]codeStudioSearchResult, error) {
+func parseCodeStudioGrepOutput(output string) ([]codeStudioSearchResult, bool, error) {
 	output = strings.TrimRight(output, "\n")
 	if strings.TrimSpace(output) == "" {
-		return []codeStudioSearchResult{}, nil
+		return []codeStudioSearchResult{}, false, nil
 	}
 	lines := strings.Split(output, "\n")
-	results := make([]codeStudioSearchResult, 0, len(lines))
+	results := make([]codeStudioSearchResult, 0, min(len(lines), codeStudioSearchResultLimit))
+	truncated := false
 	for _, line := range lines {
+		if len(results) >= codeStudioSearchResultLimit {
+			truncated = true
+			break
+		}
 		parts := strings.SplitN(line, ":", 3)
 		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid search output line")
+			return nil, false, fmt.Errorf("invalid search output line")
 		}
 		path, err := sanitizeCodeStudioPath(parts[0])
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		lineNo, err := strconv.Atoi(parts[1])
 		if err != nil || lineNo <= 0 {
-			return nil, fmt.Errorf("invalid search line number")
+			return nil, false, fmt.Errorf("invalid search line number")
 		}
 		results = append(results, codeStudioSearchResult{
 			Path:    path,
@@ -1412,7 +1422,7 @@ func parseCodeStudioGrepOutput(output string) ([]codeStudioSearchResult, error) 
 			Preview: parts[2],
 		})
 	}
-	return results, nil
+	return results, truncated, nil
 }
 
 func sanitizeCodeStudioGlob(raw string) string {

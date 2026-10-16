@@ -16,6 +16,7 @@
             results = `<div class="cs-empty">${esc(tr('codeStudio.noResults', 'No results found'))}</div>`;
         } else {
             results = `<div class="cs-search-summary">${esc(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }))}</div>` +
+                (state.searchTruncated ? `<div class="cs-search-summary">${esc(tr('codeStudio.resultsTruncated', 'Showing the first 200 results.'))}</div>` : '') +
                 state.searchResults.map(result => `
                 <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}" title="${esc(result.path)}">
                     <span><strong>${esc(searchResultLabel(result.path))}</strong>:${esc(result.line)}</span>
@@ -98,6 +99,7 @@
             if (!isLiveInstance(target) || target.searchRequest !== request) return;
             runWithInstance(target, () => {
                 state.searchResults = result.results || [];
+                state.searchTruncated = !!result.truncated;
                 state.searchPerformed = true;
                 renderSearchPanel();
                 flashStatus(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }));
@@ -106,6 +108,7 @@
             if (isLiveInstance(target) && target.searchRequest === request) {
                 runWithInstance(target, () => {
                     state.searchResults = [];
+                    state.searchTruncated = false;
                     state.searchPerformed = true;
                     renderSearchPanel();
                     showOperationError(err);
