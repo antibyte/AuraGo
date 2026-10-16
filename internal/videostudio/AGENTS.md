@@ -96,7 +96,10 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   imported name) and keeps the folder.
 - Posters: `WritePoster` makes a JPEG whose longest side is `PosterLongestSide` (320 px) from one second in (or the first
   frame of a clip shorter than two seconds) or from a still image; audio has none. Posters are best effort and count
-  toward the project quota.
+  toward the project quota. Media imported before posters existed (`has_poster` false) gets one lazily: a media listing
+  or a poster request queues `requestPosterBackfill` (once per asset and server run) on the upkeep queue below; the
+  chore starts only while no job is queued or running (else it is dropped and asked for again), stages the media like a
+  job and stores and records the poster under the project lock only while the record still has none.
 - Frame rates: `FrameRateOptions()` is the only table; `Validate` accepts exactly its rates.
 - Legacy durations: `BackfillDurationUs` is the only place that derives `duration_us` from 30 fps frames.
 - Range renders use `RenderOptions.Start` and `End` in frames (`[Start, End)`); the server admits `0 ≤ Start < End ≤

@@ -1,9 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"image"
+	"image/jpeg"
 	"net/http"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +23,80 @@ func videoStudioProjectFileExists(t *testing.T, svc *desktop.Service, projectID,
 	t.Helper()
 	_, _, err := svc.ReadFileBytes(context.Background(), videoStudioProjectPath(projectID)+"/"+path)
 	return err == nil
+}
+
+// videoStudioWaitForUpkeep waits until the upkeep queue has run every queued chore.
+func videoStudioWaitForUpkeep(t *testing.T, manager *videoStudioManager) {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		manager.mu.Lock()
+		pending := len(manager.maintenanceQueued)
+		manager.mu.Unlock()
+		if pending == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("upkeep chores did not finish")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// Media imported before posters existed gets one in the background. A listing queues it, a pending job holds it back
+// (the job queue owns FFmpeg), the next poster request asks again, and the poster is then served and recorded.
+func TestVideoStudioPosterBackfill(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("FFmpeg required")
+	}
+	s, readToken, writeToken := videoStudioAPIFixture(t)
+	project, _ := videoStudioAPICreate(t, s, writeToken)
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var photo bytes.Buffer
+	if err := jpeg.Encode(&photo, image.NewRGBA(image.Rect(0, 0, 40, 20)), nil); err != nil {
+		t.Fatal(err)
+	}
+	const legacy = "123e4567-e89b-12d3-a456-426614177701"
+	record := videoStudioSeedMedia(t, s, project.ID, videostudio.Asset{ID: legacy, Name: "photo.jpg", Kind: videostudio.AssetImage, Width: 40, Height: 20}, photo.Bytes())
+	sum := sha256.Sum256(photo.Bytes())
+	record.SHA256 = hex.EncodeToString(sum[:])
+	if err := manager.recordMedia(record); err != nil {
+		t.Fatal(err)
+	}
+	posterURL := "/projects/" + project.ID + "/media/" + legacy + "/poster.jpg"
+
+	_, removeJob := videoStudioFakeJob(t, s, project.ID, "render", "queued")
+	if listed := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+project.ID+"/media", nil, nil); listed.Code != http.StatusOK {
+		t.Fatalf("listing: %d %s", listed.Code, listed.Body.String())
+	}
+	videoStudioWaitForUpkeep(t, manager)
+	removeJob()
+	if current, _ := manager.mediaRecord(project.ID, legacy); current.Asset.HasPoster {
+		t.Fatal("a poster was made while a job was pending")
+	}
+
+	if missing := videoStudioAPIRequest(s, readToken, http.MethodGet, posterURL, nil, nil); missing.Code != http.StatusNotFound {
+		t.Fatalf("poster before the backfill: %d", missing.Code)
+	}
+	videoStudioWaitForUpkeep(t, manager)
+	if current, _ := manager.mediaRecord(project.ID, legacy); !current.Asset.HasPoster {
+		t.Fatal("the poster request did not backfill the poster")
+	}
+	served := videoStudioAPIRequest(s, readToken, http.MethodGet, posterURL, nil, nil)
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(served.Body.Bytes()))
+	if served.Code != http.StatusOK || err != nil || cfg.Width != 320 || cfg.Height != 160 {
+		t.Fatalf("backfilled poster: %d %+v (%v), want a 320x160 JPEG", served.Code, cfg, err)
+	}
+	listed := videoStudioAPIRequest(s, readToken, http.MethodGet, "/projects/"+project.ID+"/media", nil, nil)
+	var media struct {
+		Media []videoStudioMediaItem `json:"media"`
+	}
+	if err := json.Unmarshal(listed.Body.Bytes(), &media); err != nil || len(media.Media) != 1 || !media.Media[0].Asset.HasPoster {
+		t.Fatalf("listing after the backfill: %s (%v)", listed.Body.String(), err)
+	}
 }
 
 // A removal that stopped after its first step (media file deleted, poster and record left) hides the asset at once and

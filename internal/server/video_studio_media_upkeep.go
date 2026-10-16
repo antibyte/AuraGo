@@ -89,12 +89,104 @@ func (m *videoStudioManager) runMaintenance(task videoStudioMaintenanceTask) {
 	switch task.kind {
 	case "sweep":
 		m.sweepProjectMedia(m.ctx, svc, task.projectID)
+	case "poster":
+		m.backfillPoster(m.ctx, svc, cfg, task.projectID, task.assetID)
 	}
 }
 
 // videoStudioUpkeepAllowed reports whether upkeep may write: Video Studio and the Desktop are enabled and writable.
 func videoStudioUpkeepAllowed(cfg *config.Config) bool {
 	return cfg != nil && cfg.VideoStudio.Enabled && cfg.VirtualDesktop.Enabled && !cfg.VideoStudio.ReadOnly && !cfg.VirtualDesktop.ReadOnly
+}
+
+// requestPosterBackfill queues a poster for a probed video or image asset that has none (one imported before posters
+// existed), at most once per asset and server run.
+func (m *videoStudioManager) requestPosterBackfill(record videoStudioMediaRecord) {
+	if record.Removing || record.Asset.HasPoster || (record.Asset.Kind != videostudio.AssetVideo && record.Asset.Kind != videostudio.AssetImage) {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := record.ProjectID + "/" + record.Asset.ID
+	if m.posterTried[key] {
+		return
+	}
+	if m.queueMaintenanceLocked(videoStudioMaintenanceTask{kind: "poster", projectID: record.ProjectID, assetID: record.Asset.ID}) {
+		m.posterTried[key] = true
+	}
+}
+
+// backfillPoster writes the missing poster of one asset. The job queue owns FFmpeg, so the chore starts only while no
+// job is queued or running; otherwise it is dropped and the next listing asks again. The media is staged like a job's
+// input, and the poster is stored and recorded under the project lock only while the record still exists without one.
+// A poster that cannot be made is not tried again until the next start.
+func (m *videoStudioManager) backfillPoster(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID, assetID string) {
+	if m.hasPendingJobs() {
+		m.mu.Lock()
+		delete(m.posterTried, projectID+"/"+assetID)
+		m.mu.Unlock()
+		return
+	}
+	record, ok := m.mediaRecord(projectID, assetID)
+	if !ok || record.Asset.HasPoster {
+		return
+	}
+	stageDir, cleanup, err := m.newStageDir("poster-" + assetID)
+	if err != nil {
+		return
+	}
+	defer cleanup()
+	staged, err := m.stageAsset(ctx, svc, cfg, record, stageDir, 0)
+	if err != nil {
+		videoStudioLog(m.server.Logger, "Video Studio could not stage media for its poster", "project_id", projectID, "asset_id", assetID, "error", err)
+		return
+	}
+	output, ok := renderVideoStudioPoster(ctx, cfg, stageDir, staged, record.Asset)
+	if !ok {
+		return
+	}
+	lock := m.projectLock(projectID)
+	lock.Lock()
+	defer lock.Unlock()
+	if current, ok := m.mediaRecord(projectID, assetID); !ok || current.Asset.HasPoster {
+		return
+	}
+	if !m.storePosterLocked(ctx, svc, cfg, projectID, assetID, output) {
+		return
+	}
+	if err := m.setMediaHasPoster(projectID, assetID); err != nil {
+		_ = svc.DeletePath(context.WithoutCancel(ctx), m.posterPath(projectID, assetID), desktop.SourceUser)
+	}
+}
+
+// hasPendingJobs reports whether any job is queued or running.
+func (m *videoStudioManager) hasPendingJobs() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, job := range m.jobs {
+		if job.Status == "queued" || job.Status == "running" {
+			return true
+		}
+	}
+	return false
+}
+
+// setMediaHasPoster records that an asset has a poster now.
+func (m *videoStudioManager) setMediaHasPoster(projectID, assetID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	record, ok := m.media[projectID][assetID]
+	if !ok || record.Removing {
+		return os.ErrNotExist
+	}
+	updated := record
+	updated.Asset.HasPoster = true
+	m.media[projectID][assetID] = updated
+	if err := m.persistLocked(); err != nil {
+		m.media[projectID][assetID] = record
+		return err
+	}
+	return nil
 }
 
 // mediaRecordForRemoval returns an asset's media record, also when its removal has started.

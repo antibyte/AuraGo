@@ -19,34 +19,48 @@ func (m *videoStudioManager) posterPath(projectID, assetID string) string {
 // attachPoster writes the poster of a visual asset when the project has room for it and marks the asset. A poster is
 // best effort: when it cannot be made or stored the asset simply has none and the import still succeeds.
 func (m *videoStudioManager) attachPoster(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID, stageDir, staged string, asset *videostudio.Asset) {
-	if asset.Kind != videostudio.AssetVideo && asset.Kind != videostudio.AssetImage {
+	output, ok := renderVideoStudioPoster(ctx, cfg, stageDir, staged, *asset)
+	if !ok {
 		return
 	}
-	// The staged source is "<asset id><ext>", so a JPEG source would collide with "<asset id>.jpg".
-	output := filepath.Join(stageDir, "poster-"+asset.ID+".jpg")
-	if err := videostudio.WritePoster(ctx, cfg.VideoStudio.FFmpegPath, staged, output, *asset); err != nil {
-		return
-	}
-	info, err := os.Stat(output)
-	if err != nil {
-		return
-	}
-	file, err := os.Open(output)
-	if err != nil {
-		return
-	}
-	defer file.Close()
 	lock := m.projectLock(projectID)
 	lock.Lock()
 	defer lock.Unlock()
+	asset.HasPoster = m.storePosterLocked(ctx, svc, cfg, projectID, asset.ID, output)
+}
+
+// renderVideoStudioPoster writes the poster JPEG of a staged video or image asset into stageDir; audio has none.
+func renderVideoStudioPoster(ctx context.Context, cfg *config.Config, stageDir, staged string, asset videostudio.Asset) (string, bool) {
+	if asset.Kind != videostudio.AssetVideo && asset.Kind != videostudio.AssetImage {
+		return "", false
+	}
+	// The staged source is "<asset id><ext>", so a JPEG source would collide with "<asset id>.jpg".
+	output := filepath.Join(stageDir, "poster-"+asset.ID+".jpg")
+	if err := videostudio.WritePoster(ctx, cfg.VideoStudio.FFmpegPath, staged, output, asset); err != nil {
+		return "", false
+	}
+	return output, true
+}
+
+// storePosterLocked stores a rendered poster as the asset's poster when the project has room for it. The caller holds
+// the project lock.
+func (m *videoStudioManager) storePosterLocked(ctx context.Context, svc *desktop.Service, cfg *config.Config, projectID, assetID, output string) bool {
+	info, err := os.Stat(output)
+	if err != nil {
+		return false
+	}
+	file, err := os.Open(output)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
 	used, err := m.projectStorageSize(ctx, svc, projectID)
 	if err != nil || used+info.Size() > int64(cfg.VideoStudio.MaxProjectSizeMB)<<20 {
-		return
+		return false
 	}
 	_ = svc.CreateDirectory(ctx, videoStudioProjectPath(projectID)+"/posters", desktop.SourceUser)
-	if _, err := svc.WriteFileStreamConditional(ctx, m.posterPath(projectID, asset.ID), file, info.Size(), desktop.SourceUser, nil); err == nil {
-		asset.HasPoster = true
-	}
+	_, err = svc.WriteFileStreamConditional(ctx, m.posterPath(projectID, assetID), file, info.Size(), desktop.SourceUser, nil)
+	return err == nil
 }
 
 // discardPoster removes the poster of an import that did not finish. It runs without the request's cancellation so
@@ -73,6 +87,10 @@ func handleVideoStudioPoster(s *Server, w http.ResponseWriter, r *http.Request, 
 	}
 	record, ok := manager.mediaRecord(projectID, assetID)
 	if !ok || !record.Asset.HasPoster {
+		if ok {
+			// Media imported before posters existed gets one in the background (video_studio_media_upkeep.go).
+			manager.requestPosterBackfill(record)
+		}
 		writeVideoStudioError(w, http.StatusNotFound, "media_not_found", "Media not found.")
 		return
 	}

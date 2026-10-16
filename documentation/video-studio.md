@@ -187,7 +187,7 @@ already gone from the bin; removing it again finishes the job, and so do the nex
 which also clears files that interrupted imports left behind. A window that has the same project open drops removed media it does not
 use the next time it saves; if its timeline still uses that media, it asks which version to keep, and **Replace the latest
 version** keeps its changes without the removed media and the clips that used it. The inspector shows the metadata of the
-selected media. Visual media gets a poster when it is imported; older media shows its thumbnails.
+selected media. Visual media gets a poster when it is imported; older media gets one in the background (while no export or other task runs) and shows it the next time the bin loads.
 
 Each project keeps automatic versions: when you save and the newest version is at least ten minutes old, the previous
 saved state is kept (up to 20). **Save version now** keeps a copy with an optional label (up to 10). Versions count toward
