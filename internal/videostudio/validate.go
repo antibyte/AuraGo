@@ -224,9 +224,10 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 		if speed != 1 {
 			return fmt.Errorf("image clip %q cannot change speed", clip.ID)
 		}
-	} else if float64(clip.Duration-1)*speed > float64(asset.DurationFrames-1-clip.Offset)+1e-9 {
-		// Source extent rule: offset + (duration - 1) * speed <= duration_frames - 1. The room left in the
-		// source is computed in integers so huge offsets cannot round into range.
+	} else if clipSourceExtent(clip) > float64(asset.DurationFrames-1-clip.Offset)+1e-9 {
+		// Source extent rule: offset + S(duration - 1) <= duration_frames - 1, where S follows the ramp, or is
+		// (duration - 1) * speed without one (index §4.18). The room left in the source is computed in integers so
+		// huge offsets cannot round into range. validateRamp has already checked the ramp's shape.
 		return fmt.Errorf("clip %q exceeds asset %q duration", clip.ID, asset.ID)
 	}
 	if clip.Link != "" && !validIdentifier(clip.Link) {

@@ -69,6 +69,13 @@ bad('a speed below 0.25', c => { c.v.ramp = [pt(0, 0.2), pt(30, 2)]; });
 bad('a speed above 16', c => { c.v.ramp = [pt(0, 1), pt(30, 16.5)]; });
 bad('an unknown ramp easing', c => { c.v.ramp = [pt(0, 1, ''), pt(30, 2)]; });
 bad('a ramp that is not a list', c => { c.v.ramp = {f: 0}; });
+// The source extent rule follows the ramp: offset + S(duration - 1) <= duration_frames - 1. With 1 -> 3 over 20 frames,
+// S(59) = 40 + 39 * 3 = 157.
+const up = [pt(0, 1), pt(20, 3)];
+ok('a ramp that ends on the last source frame', c => { c.v.offset = 142; c.v.ramp = up; });
+bad('a ramp one frame past the media', c => { c.v.offset = 143; c.v.ramp = up; });
+ok('a slow ramp holds a clip longer than the media at 1x', c => { c.v.offset = 0; c.v.duration = 400; c.v.ramp = [pt(0, 0.5), pt(10, 0.5)]; });
+bad('the same clip without the ramp', c => { c.v.offset = 0; c.v.duration = 400; });
 console.log('ok');
 `)
 }

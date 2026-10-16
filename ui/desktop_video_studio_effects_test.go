@@ -179,6 +179,12 @@ const videoStudioParityRunners = `{
     if (input.clip) return {v: E.valueAt(input.clip, input.path, input.frame, {fps: 25})};
     return {v: E.sample(input.keyframes, input.f)};
   }},
+  // Speed-ramp pieces, S, its inverse and the speed (topic "ramp"); numbers within 1e-6.
+  ramp: {exact: false, run(input) {
+    const pieces = E.rampPieces(input.points, input.from, input.to);
+    return {pieces: pieces.map(p => [p.t0, p.t1, p.s0, p.a, p.b]), source: input.t.map(t => E.rampSource(pieces, t)),
+      inverse: input.s.map(s => E.rampInverse(pieces, s)), speed: input.t.map(t => E.rampSpeed(pieces, t))};
+  }},
 }`
 
 // Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.
@@ -276,4 +282,66 @@ near(E.valueAt({start: 50, offset: 0, duration: 75, keyframes: {opacity: [{f: 0,
 near(E.valueAt({opacity: 0.25, keyframes: {opacity: []}}, 'opacity', 0, project), 0.25, 'an empty list counts as no keyframes');
 console.log('ok');
 `)
+}
+
+// Ramp time maps (plan index §4.18): sourceAt and timelineAt invert each other, speedAt follows the pieces, and the
+// extent, maxDurationFor and headroom helpers use S. Without a ramp they are the constant-speed formulas the edit code
+// used so far.
+func TestVideoStudioEffectsRampTimeMaps(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+const near = (got, want, label) => assert(Math.abs(got - want) < 1e-9, label + ': ' + got + ' != ' + want);
+const ramp = [{f: 0, speed: 1, e: 'linear'}, {f: 20, speed: 3, e: 'linear'}];
+const clip = {start: 100, offset: 10, duration: 30, ramp, keyframes: {x: [{f: 10, v: 0, e: 'linear'}, {f: 50, v: 1, e: 'linear'}]}};
+assert.equal(E.hasRamp(clip), true);
+assert.equal(E.hasRamp({ramp: []}), false);
+assert.equal(E.hasRamp({speed: 2}), false);
+near(E.clipSource(clip, 10), 15, 'S(10)');
+near(E.sourceAt(clip, 110), 25, 'sourceAt');
+near(E.timelineAt(clip, 25), 110, 'timelineAt inverts sourceAt');
+near(E.timelineAt(clip, 16.25), 105, 'inside the accelerating span');
+near(E.speedAt(clip, 5), 1.5, 'the speed rises linearly');
+near(E.speedAt(clip, 25), 3, 'constant after the last point');
+near(E.sourceExtent(clip), 67, 'S(duration - 1)');
+assert.equal(E.maxDurationFor(clip, 300, 10), 104, 'offset + S(103) = 299 fits a 300-frame asset');
+assert.equal(E.maxDurationFor(clip, Infinity, 10), Infinity, 'stills are unbounded');
+assert.equal(E.headroom(clip), 10, 'the head grows at the first point speed (1) until offset 0');
+assert.equal(E.headroom({offset: 9, duration: 30, ramp: [{f: 0, speed: 2, e: 'linear'}, {f: 10, speed: 1, e: 'linear'}]}), 4, 'at speed 2 nine source frames hold 4.5 head frames');
+near(E.clipState(clip, 110, {fps: 25}).x, 0.375, 'keyframes follow the ramp');
+const fast = {start: 100, offset: 30, duration: 30, speed: 2};
+near(E.sourceAt(fast, 105), 40, 'speed 2');
+near(E.timelineAt(fast, 40), 105, 'speed 2 inverse');
+near(E.speedAt(fast, 3), 2, 'constant speed');
+near(E.sourceExtent(fast), 58, 'constant-speed extent');
+assert.equal(E.maxDurationFor(fast, 300, 10), 145, 'floor(289 / 2) + 1');
+assert.equal(E.headroom({offset: 9, speed: 2}), 4);
+assert.equal(E.headroom({offset: 9}), 9);
+// A split or head trim that shifts the points keeps the curve: S'(t) = S(t + k) - S(k).
+const whole = E.rampPieces(ramp, 0, 30), cut = E.rampPieces([{f: -5, speed: 1, e: 'linear'}, {f: 15, speed: 3, e: 'linear'}], 0, 25);
+for (let t = 0; t <= 25; t += 0.5) near(E.rampSource(cut, t), E.rampSource(whole, t + 5) - E.rampSource(whole, 5), 'shifted curve at ' + t);
+// Sixteen eased points stay within the piece limit.
+const many = Array.from({length: 16}, (_, i) => ({f: 5 + 10 * i, speed: 0.25 + i % 4, e: 'ease_in_out'}));
+assert.equal(E.rampPieces(many, 0, 200).length, 62);
+assert(E.rampPieces(many, 0, 200).length <= E.LIMITS.rampPieces);
+console.log('ok');
+`)
+}
+
+// LIMITS mirrors Go's keyframe and ramp limits (plan index §4.4). rampEaseSteps is unexported in Go; the eased spans of
+// the ramp parity fixture pin it on both sides, and TestRampPiecesStayWithinLimit pins the Go value.
+func TestVideoStudioEffectsLimitsMatchGo(t *testing.T) {
+	output := runVideoStudioEffectsScript(t, `process.stdout.write(JSON.stringify(E.LIMITS));`)
+	var got map[string]int
+	if err := json.Unmarshal(output, &got); err != nil {
+		t.Fatalf("LIMITS is not JSON: %v\n%s", err, output)
+	}
+	want := map[string]int{
+		"keyframesPerParam": videostudio.MaxKeyframesPerParam,
+		"keyframesPerClip":  videostudio.MaxKeyframesPerClip,
+		"rampPoints":        videostudio.MaxRampPoints,
+		"rampPieces":        videostudio.MaxRampPieces,
+		"rampEaseSteps":     4,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("VideoStudioEffects.LIMITS = %v, want the Go constants %v", got, want)
+	}
 }

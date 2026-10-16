@@ -162,10 +162,10 @@ func sampleKeyframes(list []Keyframe, f float64) float64 {
 }
 
 // ValueAt returns a keyframable base path (x, y, width, height, rotation or opacity) of a clip at absolute timeline
-// frame frame. With keyframes on the path, the list is sampled at the source position the clip shows at that frame,
-// offset + (frame − start)·speed, so keyframes stay on the picture content (spec §5.1). Without keyframes it returns
-// the clip's static field. The frame may lie outside the clip. ok is false for any other path. JS:
-// VideoStudioEffects.valueAt.
+// frame frame. With keyframes on the path, the list is sampled at ClipSourceAt(clip, frame), the source position the
+// clip shows there: offset + (frame − start)·speed, or offset + S(frame − start) with a ramp. Keyframes thus stay on
+// the picture content (spec §5.1). Without keyframes it returns the clip's static field. The frame may lie outside
+// the clip. ok is false for any other path. JS: VideoStudioEffects.valueAt.
 func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 	var static float64
 	switch path {
@@ -185,7 +185,7 @@ func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 		return 0, false
 	}
 	if list := clip.Keyframes[path]; len(list) > 0 {
-		return sampleKeyframes(list, float64(clip.Offset)+float64(frame-clip.Start)*ClipSpeed(clip)), true
+		return sampleKeyframes(list, ClipSourceAt(clip, float64(frame))), true
 	}
 	return static, true
 }

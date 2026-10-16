@@ -136,3 +136,18 @@ func TestValidateRampShape(t *testing.T) {
 		{name: "an unknown ramp easing", id: "v", edit: ramp(point(0, 1, ""), point(30, 2, EaseLinear)), want: "unsupported ramp easing"},
 	})
 }
+
+// The source extent rule follows the ramp (index §4.18): offset + S(duration - 1) <= duration_frames - 1 (+1e-9).
+func TestValidateRampExtent(t *testing.T) {
+	up := []RampPoint{{F: 0, Speed: 1, E: EaseLinear}, {F: 20, Speed: 3, E: EaseLinear}}
+	slow := []RampPoint{{F: 0, Speed: 0.5, E: EaseLinear}, {F: 10, Speed: 0.5, E: EaseLinear}}
+	runAnimationCases(t, []animationCase{
+		{name: "a ramp that ends on the last source frame", id: "v", edit: func(clip *Clip) { clip.Offset, clip.Ramp = 142, up }},
+		{name: "a ramp one frame past the media", id: "v", edit: func(clip *Clip) { clip.Offset, clip.Ramp = 143, up }, want: "exceeds asset"},
+		{name: "a slow ramp holds a clip longer than the media at 1x", id: "v", edit: func(clip *Clip) { clip.Offset, clip.Duration, clip.Ramp = 0, 400, slow }},
+		{name: "the same clip without the ramp", id: "v", edit: func(clip *Clip) { clip.Offset, clip.Duration = 0, 400 }, want: "exceeds asset"},
+	})
+	if got := clipSourceExtent(Clip{Duration: 60, Ramp: up}); math.Abs(got-157) > 1e-9 {
+		t.Fatalf("clipSourceExtent = %v, want S(59) = 40 + 39*3 = 157", got)
+	}
+}

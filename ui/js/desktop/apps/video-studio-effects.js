@@ -165,11 +165,125 @@
     }
     // The keyframable base parameters of the registry (2b: x, y, width, height, rotation, opacity), in registry order.
     function keyframable() { return current.base.filter(spec => spec.keyframable && spec.type === 'number').map(spec => spec.id); }
-    // The source position (project frames, fractional) a clip shows at timeline frame frame: offset + (frame - start) *
-    // speed. Keyframes are sampled there, so they stay on the same picture content (spec §5.1).
-    function sourceAt(clip, frame) {
-        const speed = Number(clip && clip.speed) > 0 ? Number(clip.speed) : 1;
-        return (Number(clip && clip.offset) || 0) + (Number(frame) - (Number(clip && clip.start) || 0)) * speed;
+    // Speed ramps (spec §5.5, index §4.18), the same pieces as Go rampPieces.
+    //  - A linear span is one piece, and a hold span one constant piece.
+    //  - An eased span is LIMITS.rampEaseSteps uniform sub-pieces with node speeds from ease.
+    //  - The speed is constant before the first and after the last point.
+    //  - S (source frames consumed) is measured from clip time 0, so S(0) = 0, even when from > 0.
+    // Pieces are {t0, t1, s0, a, b}: speed(t) = a + b·(t − t0) and S(t) = s0 + d·(a + b·d/2) with d = t − t0.
+    // Outside [from, to] the edge speeds continue.
+    function rampPieces(points, from, to) {
+        const list = Array.isArray(points) ? points : [], start = Number(from), end = Number(to);
+        if (!list.length || !(end > start)) return [];
+        const lo = Math.min(start, 0), hi = Math.max(end, 0), steps = LIMITS.rampEaseSteps, raw = [];
+        // A segment whose speed runs linearly from v0 at u0 to v1 at u1, cut to [lo, hi].
+        const add = (u0, u1, v0, v1) => {
+            const c0 = Math.max(u0, lo), c1 = Math.min(u1, hi);
+            if (!(c1 > c0)) return;
+            const piece = { t0: c0, t1: c1, s0: 0, a: v0, b: 0 };
+            if (v1 !== v0) { piece.b = (v1 - v0) / (u1 - u0); piece.a = v0 + piece.b * (c0 - u0); }
+            raw.push(piece);
+        };
+        const first = list[0], last = list[list.length - 1];
+        add(-Infinity, first.f, first.speed, first.speed);
+        for (let i = 0; i + 1 < list.length; i++) {
+            const p = list[i], q = list[i + 1], u0 = p.f, u1 = q.f;
+            if (p.e === 'hold') add(u0, u1, p.speed, p.speed);
+            else if (p.e === 'ease_in' || p.e === 'ease_out' || p.e === 'ease_in_out') {
+                for (let k = 0; k < steps; k++) {
+                    add(u0 + (u1 - u0) * k / steps, u0 + (u1 - u0) * (k + 1) / steps,
+                        p.speed + (q.speed - p.speed) * ease(p.e, k / steps), p.speed + (q.speed - p.speed) * ease(p.e, (k + 1) / steps));
+                }
+            } else add(u0, u1, p.speed, q.speed);
+        }
+        add(last.f, Infinity, last.speed, last.speed);
+        // S from lo, shifted so that S(0) = 0 (0 lies in [lo, hi]); then cut to [from, to].
+        let s = 0, zero = 0, found = false;
+        raw.forEach(p => {
+            p.s0 = s;
+            if (!found && p.t0 <= 0 && 0 <= p.t1) { const lead = -p.t0; zero = s + lead * (p.a + p.b * lead / 2); found = true; }
+            const d = p.t1 - p.t0;
+            s += d * (p.a + p.b * d / 2);
+        });
+        const out = [];
+        raw.forEach(p => {
+            const c0 = Math.max(p.t0, start), c1 = Math.min(p.t1, end);
+            if (!(c1 > c0)) return;
+            const piece = { t0: p.t0, t1: c1, s0: p.s0 - zero, a: p.a, b: p.b };
+            const d = c0 - p.t0;
+            if (d > 0) { piece.s0 += d * (piece.a + piece.b * d / 2); piece.a += piece.b * d; piece.t0 = c0; }
+            out.push(piece);
+        });
+        return out;
+    }
+    // The index of the piece holding clip time t: the last piece that starts at or before t, or the first.
+    function rampPieceAt(pieces, t) {
+        let lo = 0, hi = pieces.length;
+        while (lo < hi) { const mid = (lo + hi) >> 1; if (pieces[mid].t0 > t) hi = mid; else lo = mid + 1; }
+        return Math.max(0, lo - 1);
+    }
+    // S(t), its inverse and the speed, like Go rampSource, rampInverse and rampSpeed. Without pieces the clip plays at
+    // speed 1. The inverse per piece is t0 + 2(s − s0)/(a + sqrt(a² + 2b(s − s0))), which also holds for b = 0.
+    function rampSource(pieces, t) {
+        const x = Number(t);
+        if (!Array.isArray(pieces) || !pieces.length) return x;
+        const p = pieces[rampPieceAt(pieces, x)];
+        if (x < p.t0) return p.s0 - p.a * (p.t0 - x);
+        if (x > p.t1) { const d = p.t1 - p.t0; return p.s0 + d * (p.a + p.b * d / 2) + (p.a + p.b * d) * (x - p.t1); }
+        const d = x - p.t0;
+        return p.s0 + d * (p.a + p.b * d / 2);
+    }
+    function rampInverse(pieces, s) {
+        const x = Number(s);
+        if (!Array.isArray(pieces) || !pieces.length) return x;
+        let lo = 0, hi = pieces.length;
+        while (lo < hi) { const mid = (lo + hi) >> 1; if (pieces[mid].s0 > x) hi = mid; else lo = mid + 1; }
+        if (lo === 0) { const p = pieces[0]; return p.t0 - (p.s0 - x) / p.a; }
+        const i = lo - 1, p = pieces[i], d = p.t1 - p.t0, end = p.s0 + d * (p.a + p.b * d / 2);
+        if (i === pieces.length - 1 && x > end) return p.t1 + (x - end) / (p.a + p.b * d);
+        const ds = x - p.s0;
+        return p.t0 + 2 * ds / (p.a + Math.sqrt(p.a * p.a + 2 * p.b * ds));
+    }
+    function rampSpeed(pieces, t) {
+        if (!Array.isArray(pieces) || !pieces.length) return 1;
+        const x = Number(t), p = pieces[rampPieceAt(pieces, x)];
+        return p.a + p.b * Math.max(0, Math.min(x, p.t1) - p.t0);
+    }
+    function speedOf(clip) { const speed = Number(clip && clip.speed); return speed > 0 ? speed : 1; }
+    function hasRamp(clip) { return !!clip && Array.isArray(clip.ramp) && clip.ramp.length > 0; }
+    // A clip's pieces over the clip and every point, ending one frame past the last point, so S is exact at any clip
+    // time (Go clipRampPieces).
+    function clipPieces(clip) {
+        const points = clip.ramp;
+        return rampPieces(points, Math.min(0, Number(points[0].f)), Math.max(Number(clip.duration) || 0, Number(points[points.length - 1].f) + 1));
+    }
+    // Source frames consumed after offset at clip time t (fractional, any sign): S(t) with a ramp, t·speed without.
+    function clipSource(clip, t) { return hasRamp(clip) ? rampSource(clipPieces(clip), Number(t)) : Number(t) * speedOf(clip); }
+    // The source position a clip shows at timeline frame frame, offset + clipSource(frame − start) (content anchor; Go
+    // ClipSourceAt). Keyframes are sampled there.
+    function sourceAt(clip, frame) { return (Number(clip && clip.offset) || 0) + clipSource(clip, Number(frame) - (Number(clip && clip.start) || 0)); }
+    // The timeline frame (fractional) where the clip shows source position f; diamonds sit there.
+    function timelineAt(clip, f) {
+        const delta = Number(f) - (Number(clip && clip.offset) || 0);
+        return (Number(clip && clip.start) || 0) + (hasRamp(clip) ? rampInverse(clipPieces(clip), delta) : delta / speedOf(clip));
+    }
+    // The playback speed at clip time t (the preview's playbackRate).
+    function speedAt(clip, t) { return hasRamp(clip) ? rampSpeed(clipPieces(clip), Number(t)) : speedOf(clip); }
+    // S(duration − 1): the source extent rule is offset + sourceExtent(clip) <= duration_frames − 1 (Go clipSourceExtent).
+    function sourceExtent(clip) { return clipSource(clip, (Number(clip && clip.duration) || 0) - 1); }
+    // The longest duration that fits the media from offset on: the largest d with offset + S(d − 1) <= frames − 1.
+    // assetFrames is the asset's duration_frames; pass Infinity for a still (the result is Infinity).
+    function maxDurationFor(clip, assetFrames, offset) {
+        const frames = Number(assetFrames);
+        if (!Number.isFinite(frames)) return Infinity;
+        const room = frames - 1 - (Number(offset) || 0);
+        return Math.floor((hasRamp(clip) ? rampInverse(clipPieces(clip), room) : room / speedOf(clip)) + 1e-9) + 1;
+    }
+    // Timeline frames the head can grow before the source runs out: the largest k with offset + S(−k) >= 0. Callers
+    // treat stills as unbounded.
+    function headroom(clip) {
+        const offset = Number(clip && clip.offset) || 0;
+        return Math.floor((hasRamp(clip) ? -rampInverse(clipPieces(clip), -offset) : offset / speedOf(clip)) + 1e-9);
     }
     // The value of a parameter path at an absolute timeline frame. Paths: x, y, width, height, rotation, opacity,
     // crop.l|t|r|b, mask.<param> and effects.<index>.<param> (the effect entry's params and keyframes). With keyframes,
@@ -274,5 +388,5 @@
         return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();
