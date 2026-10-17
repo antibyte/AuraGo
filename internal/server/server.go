@@ -340,6 +340,10 @@ type Server struct {
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
 
+	// latestSystemMetrics is the latest sample of the 10 s system-metrics
+	// collector; GET /api/dashboard/summary reads it (dashboard_metrics_snapshot.go).
+	latestSystemMetrics atomic.Pointer[systemMetricsSnapshot]
+
 	// pushRemoteAllowedPaths sends a changed remote_control.allowed_paths to
 	// connected agents (nil means (*remote.RemoteHub).PushDefaultAllowedPaths);
 	// a field so a test can reach the server goroutine's own recover.

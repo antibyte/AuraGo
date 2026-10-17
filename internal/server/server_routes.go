@@ -134,6 +134,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					Data   tools.SystemMetrics `json:"data"`
 				}
 				if err := json.Unmarshal([]byte(raw), &metricsResult); err == nil {
+					s.storeSystemMetricsSnapshot(metricsResult.Data, time.Now())
 					payload := map[string]interface{}{
 						"available":      metricsResult.Data.Available,
 						"cpu":            metricsResult.Data.CPU,
