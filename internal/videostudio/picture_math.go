@@ -251,3 +251,12 @@ func channelCurveExpr(c ChannelCurve) ffExpr {
 	gained := exprOp("clip", exprOp("*", lifted, exprNum(c.Gain)), exprNum(0), exprNum(1))
 	return exprOp("clip", exprOp("round", exprOp("*", exprNum(255), exprOp("pow", gained, exprNum(c.InvGamma)))), exprNum(0), exprNum(255))
 }
+
+// casPeakP0 and casPeakP1 map the sharpen strength s to CAS's peak −1/mix(casPeakP0, casPeakP1, s) (index §4.20).
+// TestSharpenMatchesReference fits them to FFmpeg's cas (plan 2c Task 9, pinned with AURAGO_PRINT_CAS_FIT=1); AMD's
+// published mapping is 8 and 5. JS VideoStudioPicture.CAS_P0 and CAS_P1 mirror them (TestVideoStudioPictureConstantsMatchGo,
+// ui). Keep the form "casPeakP<n> = <decimal with three digits>": the ui test reads it.
+const (
+	casPeakP0 = 15.104
+	casPeakP1 = 4.009
+)

@@ -2,6 +2,7 @@ package videostudio
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -41,7 +42,7 @@ type effectBuilder func(in effectInput) effectStage
 // The builders are attached here rather than in the row literals of effects.go. A builder reaches the registry again
 // (effectValueAt reads parameter defaults through EffectByID), and Go would report that as an initialization cycle.
 func init() {
-	builders := map[string]effectBuilder{"color": buildColorEffect, "lut": buildLUTEffect}
+	builders := map[string]effectBuilder{"color": buildColorEffect, "lut": buildLUTEffect, "blur": buildBlurEffect, "sharpen": buildSharpenEffect, "vignette": buildVignetteEffect}
 	for i := range registryEffects {
 		registryEffects[i].build = builders[registryEffects[i].ID]
 	}
@@ -226,4 +227,66 @@ func buildLUTEffect(in effectInput) effectStage {
 // curve at the window frame's source position (windowSourceExprVar in T, the time variable blend provides).
 func lutMixExpr(in effectInput) ffExpr {
 	return exprOp(";", in.source("T"), exprOp("+", exprVar("B"), exprOp("*", exprOp("-", exprVar("A"), exprVar("B")), in.curve("intensity"))))
+}
+
+// buildBlurEffect is the blur effect on gbrap: gblur with sigma = radius·H of the processed picture (blurSigma) and four
+// steps. The radius is not keyframable, because gblur's sigma does not follow commands reproducibly (spike 2026-10-17,
+// index risk 16). On a still the blur runs premultiplied (decision A2), so transparent pixels do not bleed their colour
+// into the edge. Radius 0 adds nothing.
+func buildBlurEffect(in effectInput) effectStage {
+	radius := in.value("radius", 0)
+	if radius <= 0 {
+		return effectStage{}
+	}
+	blur := "gblur=sigma=" + effectNum(blurSigma(radius, in.height)) + ":steps=4"
+	if in.image {
+		blur = "premultiply=inplace=1," + blur + ",unpremultiply=inplace=1"
+	}
+	return effectStage{input: "gbrap", output: "gbrap", parts: []chainStage{{filter: blur}}}
+}
+
+// buildSharpenEffect is the sharpen effect on gbrap: FFmpeg's contrast adaptive sharpening (cas) on the three colour
+// planes. It is never left out, because CAS at strength 0 still sharpens. A keyframed strength names the instance
+// (cas@vs_sharpen_L_C_I) and sets every window frame by command, which cas follows exactly (spike 2026-10-17).
+func buildSharpenEffect(in effectInput) effectStage {
+	part := chainStage{filter: "cas=strength=" + effectNum(in.value("strength", 0))}
+	if in.keyed("strength") {
+		target := in.target("cas", "sharpen")
+		values := in.values("strength")
+		part = chainStage{filter: target + "=strength=" + effectNum(values[0]), tracks: []SendCmdTrack{{Target: target, Option: "strength", Values: values}}}
+	}
+	return effectStage{input: "gbrap", output: "gbrap", parts: []chainStage{part}}
+}
+
+// buildVignetteEffect is the vignette effect (index §4.20): FFmpeg's vignette with dither off, at the angle that
+// vignetteAngle folds amount and size into.
+//   - Static values are constants evaluated once (eval=init). Keyframed ones are a t expression evaluated for every
+//     frame (eval=frame). That costs about 11–13x, so it is used only when keyframed.
+//   - vignette has no alpha formats. A video runs it on rgb24. A still splits its alpha off and merges it back
+//     (alphaextract/alphamerge); this two-input stage moves the commands of later parts to the next command group.
+//   - Amount 0 adds nothing.
+func buildVignetteEffect(in effectInput) effectStage {
+	keyed := in.keyed("amount") || in.keyed("size")
+	if !keyed && in.value("amount", 0) <= 0 {
+		return effectStage{}
+	}
+	vignette := fmt.Sprintf("vignette=angle=%s:eval=init:dither=0", effectNum(vignetteAngle(in.value("amount", 0), in.value("size", 0), in.width, in.height)))
+	if keyed {
+		vignette = fmt.Sprintf("vignette=angle='%s':eval=frame:dither=0", vignetteAngleExpr(in).String())
+	}
+	if !in.image {
+		return effectStage{input: "rgb24", output: "rgb24", parts: []chainStage{{filter: vignette}}}
+	}
+	colour, alpha, mask, shaded := in.label("rgb"), in.label("alpha"), in.label("mask"), in.label("shaded")
+	filter := fmt.Sprintf("split=2[%s][%s];[%s]alphaextract[%s];[%s]format=rgb24,%s,format=gbrap[%s];[%s][%s]alphamerge",
+		colour, alpha, alpha, mask, colour, vignette, shaded, shaded, mask)
+	return effectStage{input: "gbrap", output: "gbrap", parts: []chainStage{{filter: filter, twoInput: true}}}
+}
+
+// vignetteAngleExpr is vignetteAngle over the window as an expression in t (eval=frame):
+// min(π/2, amount·(π/2)·R/(size·H)), with R = hypot(W/2, H/2) of the processed picture.
+func vignetteAngleExpr(in effectInput) ffExpr {
+	radius := math.Hypot(float64(in.width)/2, float64(in.height)/2)
+	angle := exprOp("/", exprOp("*", in.curve("amount"), exprNum(math.Pi/2*radius)), exprOp("*", in.curve("size"), exprNum(float64(in.height))))
+	return exprOp(";", in.source("t"), exprOp("min", exprNum(math.Pi/2), angle))
 }

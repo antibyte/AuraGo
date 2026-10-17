@@ -183,3 +183,73 @@ func TestEffectChainSnapshots(t *testing.T) {
 		t.Fatalf("lut files = %+v", built.luts)
 	}
 }
+
+// TestDetailEffectChainSnapshots pins the blur, sharpen and vignette stages (index §4.10, §4.20):
+//   - blur on gbrap, premultiplied on a still;
+//   - sharpen never left out, and commanded when keyframed;
+//   - vignette with dither off: constants evaluated once, or a t expression per frame;
+//   - the alpha wrapper on a still, after which commands use group 1.
+func TestDetailEffectChainSnapshots(t *testing.T) {
+	entry := func(id string, params map[string]any, keys map[string][]Keyframe) EffectInstance {
+		return EffectInstance{ID: id, On: true, Params: params, Keyframes: keys}
+	}
+	sigma := effectNum(blurSigma(0.01, 360))
+	for name, c := range map[string]struct {
+		entry EffectInstance
+		image bool
+		want  string
+	}{
+		"blur video":   {entry("blur", map[string]any{"radius": 0.01}, nil), false, "format=gbrap,gblur=sigma=" + sigma + ":steps=4"},
+		"blur still":   {entry("blur", map[string]any{"radius": 0.01}, nil), true, "format=gbrap,premultiply=inplace=1,gblur=sigma=" + sigma + ":steps=4,unpremultiply=inplace=1"},
+		"blur zero":    {entry("blur", map[string]any{"radius": 0.0}, nil), false, ""},
+		"sharpen zero": {entry("sharpen", map[string]any{"strength": 0.0}, nil), false, "format=gbrap,cas=strength=0"},
+		"sharpen":      {entry("sharpen", map[string]any{"strength": 0.35}, nil), false, "format=gbrap,cas=strength=0.35"},
+		"vignette":     {entry("vignette", map[string]any{"amount": 0.5, "size": 1.0}, nil), false, "format=rgb24,vignette=angle=" + effectNum(vignetteAngle(0.5, 1, 640, 360)) + ":eval=init:dither=0"},
+		"vignette off": {entry("vignette", map[string]any{"amount": 0.0}, nil), false, ""},
+	} {
+		if got := partFilters(effectTestChain(effectTestClip(10, c.entry), c.image, nil).effects()); got != c.want {
+			t.Errorf("%s:\n got %s\nwant %s", name, got, c.want)
+		}
+	}
+
+	// Keyframed sharpen: a named cas whose strength follows the commands.
+	sharpen := effectTestClip(11, entry("sharpen", map[string]any{}, map[string][]Keyframe{"strength": linearKeys(0.2, 1, 10)}))
+	parts := effectTestChain(sharpen, false, nil).effects()
+	if partFilters(parts) != "format=gbrap,cas@vs_sharpen_0_1_0=strength=0.2" || len(parts) != 1 || len(parts[0].tracks) != 1 {
+		t.Fatalf("keyframed sharpen = %q", partFilters(parts))
+	}
+	if track := parts[0].tracks[0]; track.Target != "cas@vs_sharpen_0_1_0" || track.Option != "strength" || len(track.Values) != 11 || track.Values[10] != 1 || math.Abs(track.Values[5]-0.6) > 1e-12 {
+		t.Fatalf("sharpen track = %+v", track)
+	}
+
+	// Keyframed vignette: the angle expression evaluates vignetteAngle at every window frame.
+	vignette := effectTestClip(11, entry("vignette", map[string]any{"size": 0.8}, map[string][]Keyframe{"amount": linearKeys(0.2, 1, 10)}))
+	chain := effectTestChain(vignette, false, nil)
+	spec, _ := EffectByID("vignette")
+	angle := vignetteAngleExpr(chain.entryInput(0, spec))
+	if got := partFilters(chain.effects()); got != "format=rgb24,vignette=angle='"+angle.String()+"':eval=frame:dither=0" {
+		t.Fatalf("keyframed vignette = %s", got)
+	}
+	for k := range 11 {
+		want := vignetteAngle(effectValueAt(vignette, 0, "amount", k), 0.8, 640, 360)
+		if got := angle.eval(map[string]float64{"t": float64(k) / 25}); math.Abs(got-want) > 1e-9 {
+			t.Fatalf("frame %d: angle %v, want %v", k, got, want)
+		}
+	}
+
+	// A still's vignette is a two-input stage. The keyframed sharpen after it reads command group 1, right behind
+	// alphamerge; group 0 stays empty.
+	still := effectTestClip(11,
+		entry("vignette", map[string]any{"amount": 0.6, "size": 1.0}, nil),
+		entry("sharpen", map[string]any{}, map[string][]Keyframe{"strength": linearKeys(0.2, 1, 10)}))
+	built := effectTestChain(still, true, nil).build("vs_clip_0_1")
+	shade := "vignette=angle=" + effectNum(vignetteAngle(0.6, 1, 640, 360)) + ":eval=init:dither=0"
+	wrapper := "format=gbrap,split=2[vs_fx_0_1_0_rgb][vs_fx_0_1_0_alpha];[vs_fx_0_1_0_alpha]alphaextract[vs_fx_0_1_0_mask];[vs_fx_0_1_0_rgb]format=rgb24," + shade +
+		",format=gbrap[vs_fx_0_1_0_shaded];[vs_fx_0_1_0_shaded][vs_fx_0_1_0_mask]alphamerge,sendcmd=f=vs_cmd_0_1_1.txt,cas@vs_sharpen_0_1_1=strength=0.2"
+	if !strings.Contains(built.filter, wrapper) || strings.Contains(built.filter, "sendcmd=f=vs_cmd_0_1.txt") {
+		t.Fatalf("vignette wrapper and group 1:\n%s", built.filter)
+	}
+	if len(built.commands) != 1 || built.commands[0].name != "vs_cmd_0_1_1.txt" || len(built.commands[0].tracks) != 1 || built.commands[0].tracks[0].Target != "cas@vs_sharpen_0_1_1" {
+		t.Fatalf("command files = %+v", built.commands)
+	}
+}
