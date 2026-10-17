@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -412,5 +413,50 @@ func TestCropRectExprMatchesCropRect(t *testing.T) {
 	}
 	if got := staticCropFilter(Crop{L: 0.25, T: 0.1}); !strings.HasPrefix(got, "crop=w='min((iw-min((round(((0.25*iw)/2))*2),max(0,(iw-2)))),max(2,((iw-min((round(((0.25*iw)/2))*2),max(0,(iw-2))))-") || !strings.HasSuffix(got, ":exact=1") {
 		t.Fatalf("static crop filter = %s", got)
+	}
+}
+
+// TestClipChainFitOrientSplit checks the 2d split of the transform stage (index §4.10):
+//   - transform() is fit() + "," + orient();
+//   - stages() holds fit (with transformTracks), then the mask stage (empty without a mask), then orient;
+//   - fit leaves the picture in box space, with no RGBA conversion and no rotation;
+//   - orient starts with format=rgba;
+//   - the built chain holds fit + "," + orient.
+//
+// The snapshots above pin the chains themselves, which this split leaves byte-identical.
+func TestClipChainFitOrientSplit(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	var chains []clipChain
+	for _, s := range clipChainSnapshots() {
+		chains = append(chains, clipChain{track: s.track, index: s.index, item: s.item, canvasWidth: s.width, canvasHeight: s.height, rate: s.rate})
+	}
+	keyed := func(fit FitMode, rotation float64, keys map[string][]Keyframe) clipChain {
+		clip := Clip{ID: "k", AssetID: "a", Duration: 30, Width: 0.5, Height: 0.5, Rotation: rotation, Opacity: 1, Volume: 1, Fit: fit, Keyframes: keys}
+		return clipChain{item: layerClip{clip: clip, whole: clip, at: clip.Start, pictureWidth: 1920, pictureHeight: 1080, sourceAspect: 16.0 / 9}, canvasWidth: 1280, canvasHeight: 720, rate: pal}
+	}
+	chains = append(chains,
+		keyed(FitContain, 0, map[string][]Keyframe{"width": linearKeys(0.25, 0.5, 20)}),
+		keyed(FitCover, 0, map[string][]Keyframe{"width": linearKeys(0.25, 0.5, 20), "rotation": linearKeys(0, 90, 20)}),
+		keyed(FitContain, 15, map[string][]Keyframe{"crop.l": linearKeys(0, 0.3, 20)}),
+		keyed(FitCover, 0, map[string][]Keyframe{"crop.r": linearKeys(0, 0.3, 20)}),
+		keyed(FitCover, 0, map[string][]Keyframe{"width": linearKeys(0.25, 0.5, 20), "crop.r": linearKeys(0, 0.3, 20)}),
+		keyed(FitContain, 0, map[string][]Keyframe{"opacity": linearKeys(0, 1, 20)}),
+	)
+	for i, c := range chains {
+		fit, orient := c.fit(), c.orient()
+		if got := c.transform(); got != fit+","+orient {
+			t.Fatalf("chain %d: transform %q is not fit + orient", i, got)
+		}
+		if fit == "" || strings.Contains(fit, "format=rgba") || strings.Contains(fit, "rotate") || !strings.HasPrefix(orient, "format=rgba") {
+			t.Fatalf("chain %d: fit %q, orient %q", i, fit, orient)
+		}
+		stages := c.stages()
+		at := slices.IndexFunc(stages, func(s chainStage) bool { return s.filter == fit })
+		if at < 0 || at+2 >= len(stages) || stages[at+2].filter != orient || stages[at+2].tracks != nil || !reflect.DeepEqual(stages[at].tracks, c.transformTracks()) {
+			t.Fatalf("chain %d: stages %+v do not hold fit, mask and orient in that order", i, stages)
+		}
+		if !strings.Contains(c.filter("vs_clip_x"), fit+","+orient) {
+			t.Fatalf("chain %d: the built chain lacks %q", i, fit+","+orient)
+		}
 	}
 }

@@ -15,10 +15,11 @@ import (
 // Each string stage returns its filters without the separating comma, or "" when it adds nothing. build joins the
 // stages in the preview's pipeline order (stages, assembleStages) and collects the command and LUT files they read.
 // Later slices extend a stage, never the assembly in build:
-//   - 2b: retime (speed ramps) and runtime-command targets in transform and opacity.
+//   - 2b: retime (speed ramps) and runtime-command targets in the transform and opacity.
 //   - 2c: picture (crop, flip), effects (one chainStage per entry), command groups after two-input stages and
 //     the animated crop in front of the transform.
-//   - 2d: mask (a two-input stage) and the blend path of place.
+//   - 2d: the transform splits into fit and orient, with the mask between them (a two-input stage in box space).
+//     Blend modes composite per track layer (blend_layers.go, from buildVideoSegmentWith), not in place.
 type clipChain struct {
 	track, index              int
 	item                      layerClip
@@ -75,16 +76,22 @@ func (c clipChain) build(output string) clipBuild {
 // filter returns the clip's chain ending in the label output.
 func (c clipChain) filter(output string) string { return c.build(output).filter }
 
-// stages lists the stages after window in the preview's pipeline order: picture, the effect entries, mask, the
-// animated crop, transform and opacity. The animated crop (plan 2c) is its own stage right in front of the transform,
-// so its commands join the group of the last two-input stage before it.
+// stages lists the stages after window in the preview's pipeline order (index §4.10): picture, the effect entries, the
+// animated crop, fit, mask, orient and opacity.
+//   - The animated crop (plan 2c) is its own stage right in front of the fit, so its commands join the group of the last
+//     two-input stage before it.
+//   - fit leaves the picture in box space: the box, or the pad canvas of keyframed geometry. The mask applies there (2d).
+//   - orient converts the picture to RGBA and rotates it.
+//
+// Without a mask, the joined filters equal the 2c transform byte for byte.
 func (c clipChain) stages() []chainStage {
 	stages := []chainStage{{filter: c.picture()}}
 	stages = append(stages, c.effects()...)
 	return append(stages,
-		chainStage{filter: c.mask()},
 		chainStage{filter: c.animatedCrop(), tracks: c.pictureTracks()},
-		chainStage{filter: c.transform(), tracks: c.transformTracks()},
+		chainStage{filter: c.fit(), tracks: c.transformTracks()},
+		chainStage{filter: c.mask()},
+		chainStage{filter: c.orient()},
 		chainStage{filter: c.opacity(), tracks: c.opacityTracks()})
 }
 
@@ -341,46 +348,63 @@ func (c clipChain) processedSize() (width, height int) {
 	return width, height
 }
 
-// mask applies the clip's mask as alpha (plan 2d, a two-input stage). Nothing in 2c.
+// mask applies the clip's mask to its alpha in box space (plan 2d Task 6, a two-input stage). Nothing yet.
 func (c clipChain) mask() string { return "" }
 
-// transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it.
+// transform is fit followed by orient, the whole 2c transform stage. The chain assembles the two as separate stages
+// (the mask goes between them); static_cover_bound_test reads the joined text.
+func (c clipChain) transform() string { return c.fit() + "," + c.orient() }
+
+// fit scales the picture into the clip box: contain pads, cover crops. Its output is box space (index §4.22).
 //   - A static cover clip whose source is more than 16x off the box aspect first crops the source to within that factor
 //     (staticCoverClamp), so the cover-scaled picture stays a bounded multiple of the box.
 //   - With crop keyframes, the picture arrives from crop@vs_picture in a new size whenever the crop changes. Contain
-//     re-fits every frame (scale and pad with eval=frame). With eval=init, scale treats its previous output size as the
+//     re-fits every frame (scale and pad with eval=frame); with eval=init, scale treats its previous output size as the
 //     target when the input size changes. Cover scales the composed window exactly onto the box (index §4.10).
 //   - Both scales read t in w and h ('<BW>+0*t') with eval=frame. FFmpeg 5.1's scale reconfigures only when a frame
-//     differs from its input link, and the commanded crop has already updated that link: a constant-size scale there
-//     keeps its old scaler (5.1 hangs), and the t-term forces a reconfiguration on every frame (index risk 14). It
-//     costs about 2.3× on 5.1 at 1080p, so only clips with crop keyframes use it.
-func (c clipChain) transform() string {
+//     differs from its input link, and the commanded crop has already updated that link. A constant-size scale there
+//     keeps its old scaler (5.1 hangs); the t-term forces a reconfiguration on every frame (index risk 14). It costs
+//     about 2.3× on 5.1 at 1080p, so only clips with crop keyframes use it.
+//   - Keyframed geometry takes animatedFit.
+func (c clipChain) fit() string {
 	if geometry, _ := clipAnimation(c.item.whole); geometry {
-		return c.animatedTransform()
+		return c.animatedFit()
 	}
 	clip := c.item.clip
 	_, _, boxWidth, boxHeight := clipBox(clip, c.canvasWidth, c.canvasHeight)
 	cropped := cropAnimated(c.item.whole)
-	var scale string
 	switch {
 	case cropped && clip.Fit == FitCover:
-		scale = fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':eval=frame", boxWidth, boxHeight)
+		return fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':eval=frame", boxWidth, boxHeight)
 	case cropped:
-		scale = fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame", boxWidth, boxHeight, boxWidth, boxHeight)
+		return fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame", boxWidth, boxHeight, boxWidth, boxHeight)
 	case clip.Fit == FitCover:
-		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
+		scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
 		if clamp := staticCoverClamp(boxWidth, boxHeight, c.item.sourceAspect); clamp != "" {
 			scale = clamp + "," + scale
 		}
-	default:
-		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
+		return scale
 	}
-	rotation := ""
-	if clipRotated(clip) {
-		angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
-		rotation = fmt.Sprintf(",rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
+	return fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
+}
+
+// orient converts the fitted picture to RGBA and rotates it about the box centre:
+//   - a static rotation uses rotate with rotw/roth;
+//   - keyframed geometry that rotates uses rotate@vs_rotate_L_C on the square layer canvas (index §4.11).
+func (c clipChain) orient() string {
+	if geometry, _ := clipAnimation(c.item.whole); geometry {
+		g := c.geometry()
+		if !g.rotated {
+			return "format=rgba"
+		}
+		return fmt.Sprintf("format=rgba,rotate@vs_rotate_%d_%d=a='%s':ow=%d:oh=%d:c=black@0", c.track, c.index, g.box.angle.String(), g.layerWidth, g.layerHeight)
 	}
-	return scale + ",format=rgba" + rotation
+	clip := c.item.clip
+	if !clipRotated(clip) {
+		return "format=rgba"
+	}
+	angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
+	return fmt.Sprintf("format=rgba,rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
 }
 
 // opacity scales the picture's alpha; full opacity adds no filter. Keyframed opacity names the instance and starts at
@@ -589,18 +613,18 @@ func (c clipChain) wholeExtent() wholeExtent {
 	return extent
 }
 
-// animatedTransform fits a clip with keyframed geometry into its per-frame box.
+// animatedFit fits a clip with keyframed geometry into its per-frame box, ending in box space on the pad canvas:
 //   - scale evaluates the box in t (eval=frame).
-//   - pad (eval=frame, which re-reads each frame's size) centres every frame on one constant canvas. The later filters
-//     need that: format, crop and rotate keep the input size the graph was configured with, and rotate also repeats
-//     its input's edge one pixel outward (so a rotated window gets a transparent 2 px ring).
-//   - Cover first clamps the source aspect to the clip's box aspects, so the cover-scaled picture fits a bound
-//     computed in Go. It then pads to that constant bound and crops the box there. The crop takes its per-frame size
-//     from the sendcmd script and re-validates it against its input before the frame arrives, so that input must not
-//     change size.
-//   - rotate follows only when the clip rotates.
+//   - pad@vs_pad (eval=frame, which re-reads each frame's size) centres every frame on one constant canvas. The later
+//     filters need that: format, crop and rotate keep the input size the graph was configured with. rotate also repeats
+//     its input's edge one pixel outward, so a rotated window gets a transparent 2 px ring.
+//   - Cover first clamps the source aspect to the clip's box aspects, so the cover-scaled picture fits a bound computed
+//     in Go. It then pads to that constant bound and crops the box there. The crop takes its per-frame size from the
+//     sendcmd script and re-validates it against its input before the frame arrives, so that input must not change size.
 //   - With crop keyframes, cover scales crop@vs_picture's window exactly; contain keeps the 2b chain.
-func (c clipChain) animatedTransform() string {
+//
+// orient adds RGBA and the rotation.
+func (c clipChain) animatedFit() string {
 	g := c.geometry()
 	id := fmt.Sprintf("%d_%d", c.track, c.index)
 	pad := func(name string, width, height int) string {
@@ -620,10 +644,7 @@ func (c clipChain) animatedTransform() string {
 	} else {
 		parts = append(parts, fmt.Sprintf("scale@vs_scale_%s=w='%s':h='%s':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame", id, g.box.w.String(), g.box.h.String()))
 	}
-	parts = append(parts, pad("@vs_pad_"+id, g.padWidth, g.padHeight), "format=rgba")
-	if g.rotated {
-		parts = append(parts, fmt.Sprintf("rotate@vs_rotate_%s=a='%s':ow=%d:oh=%d:c=black@0", id, g.box.angle.String(), g.layerWidth, g.layerHeight))
-	}
+	parts = append(parts, pad("@vs_pad_"+id, g.padWidth, g.padHeight))
 	return strings.Join(parts, ",")
 }
 

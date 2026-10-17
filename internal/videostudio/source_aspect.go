@@ -28,7 +28,7 @@ const minClampSide = 2
 // centre (crop's default position) and leaves a picture inside the range as it is, because both min() terms then give
 // the picture's own size. FFmpeg evaluates the terms on the frames it receives, so the crop is right in whatever
 // orientation autorotation delivers. A minSide above zero keeps at least that many pixels across. Keyed cover clips
-// (animatedTransform) and static ones (staticCoverClamp) share it.
+// (animatedFit) and static ones (staticCoverClamp) share it.
 func aspectClampCrop(low, high float64, minSide int) string {
 	width, height := "ih*"+exprNum(high).String(), "iw/"+exprNum(low).String()
 	if minSide > 0 {
