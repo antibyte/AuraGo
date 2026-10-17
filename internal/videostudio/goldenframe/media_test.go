@@ -31,6 +31,7 @@ func fakeMedia() Media {
 		MediaLogo: still(MediaLogo), MediaRed: still(MediaRed), MediaBlue: still(MediaBlue),
 		MediaTicker: video(MediaTicker, 320, 180, 8),
 		MediaChart:  still(MediaChart), MediaDetail: still(MediaDetail),
+		MediaGreen: still(MediaGreen), MediaLayer: still(MediaLayer),
 		MediaCube: {ID: MediaCube, Name: "cube.cube", Kind: videostudio.AssetLUT, LUTSize: 17}}}
 }
 
@@ -105,6 +106,8 @@ func TestMakeMediaProbesTaggedAssets(t *testing.T) {
 		MediaChart:    {videostudio.AssetImage, 640, 360, ""},
 		MediaDetail:   {videostudio.AssetImage, 640, 360, ""},
 		MediaCube:     {videostudio.AssetLUT, 0, 0, ""},
+		MediaGreen:    {videostudio.AssetImage, 640, 360, ""},
+		MediaLayer:    {videostudio.AssetImage, 640, 360, ""},
 	} {
 		asset := m.Assets[name]
 		if asset.ID != name || asset.Kind != want.kind || asset.Width != want.width || asset.Height != want.height || asset.SourceFPS != want.fps {

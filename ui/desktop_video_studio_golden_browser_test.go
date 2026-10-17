@@ -395,17 +395,24 @@ func TestDesktopVideoStudioPreviewFallbackBrowser(t *testing.T) {
 const goldenSeekFile = "seekframes.mp4"
 
 // TestDesktopVideoStudioGoldenFrames compares every registered golden case (goldenframe.Cases) between the export and
-// the preview. RenderFrame writes the export's lossless RGB frame. vsGolden.render draws the same frame on the engine
-// page with the requested painter. SSIM must reach the case's threshold. The seek_frame_starts subtest is the
-// paused-seek evidence of plan 2a (open question 12). Needs AURAGO_RUN_BROWSER_SMOKE=1, ffmpeg and Chrome or Edge. Each
-// case gets its own SwiftShader browser, so no browser outlives the launcher's 180 s context.
+// the preview. RenderFrame writes the export's lossless RGB frame, and vsGolden.render draws the same frame on the
+// engine page with the requested painter. SSIM must reach the case's threshold.
+//
+// A case with a Delta (plan 2d, index §4.12) also renders its Baseline on both sides, and goldenframe.DeltaFidelity must
+// meet the Delta's bounds. A report-only Delta (the 2c opt-ins) logs its failure instead. An SSIM failure no longer
+// stops the subtest, so the delta is still measured.
+//
+// The seek_frame_starts subtest is the paused-seek evidence of plan 2a (open question 12). Needs AURAGO_RUN_BROWSER_SMOKE=1,
+// ffmpeg and Chrome or Edge. Each case gets its own SwiftShader browser, so no browser outlives the launcher's 180 s
+// context. The whole run gets 40 minutes (run it with -timeout 45m), and its last log line gives the measured time.
 func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
 		t.Skip("golden frames need ffmpeg on the PATH")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Minute)
+	started := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
 	defer cancel()
 	media, err := goldenframe.MakeMedia(ctx, ffmpeg, t.TempDir())
 	if err != nil {
@@ -416,9 +423,22 @@ func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 	engine := newVideoStudioEngineServer(t, media.Dir)
 	t.Run("seek_frame_starts", func(t *testing.T) { checkGoldenSeekFrames(t, ctx, ffmpeg, engine, media.Files, seekPath) })
 	frames := t.TempDir()
-	for _, c := range goldenframe.Cases(media) {
+	cases, deltas := goldenframe.Cases(media), 0
+	for _, c := range cases {
+		if c.Delta != nil {
+			deltas++
+		}
+	}
+	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			want := goldenRenderWant(t, ctx, ffmpeg, media, c, filepath.Join(frames, c.Name+".png"))
+			// The baseline of a Delta: the same case with its feature off, rendered the same way.
+			var base goldenframe.Case
+			var wantBase image.Image
+			if c.Delta != nil {
+				base = goldenframe.Case{Name: c.Name + "_baseline", Project: c.Delta.Baseline, Frame: c.Frame, Threshold: c.Threshold, Painters: c.Painters}
+				wantBase = goldenRenderWant(t, ctx, ffmpeg, media, base, filepath.Join(frames, base.Name+".png"))
+			}
 			page := goldenEnginePage(t, engine, media.Files)
 			for _, painter := range c.Painters {
 				t.Run(painter, func(t *testing.T) {
@@ -430,13 +450,18 @@ func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 					failed := score.Min < c.Threshold
 					kept := goldenKeepArtifacts(t, c.Name+"_"+painter, want, got, failed)
 					if failed {
-						t.Fatalf("SSIM R %.4f G %.4f B %.4f, min %.4f < %.2f (want/got/diff PNGs: %s)", score.R, score.G, score.B, score.Min, c.Threshold, kept)
+						t.Errorf("SSIM R %.4f G %.4f B %.4f, min %.4f < %.2f (want/got/diff PNGs: %s)", score.R, score.G, score.B, score.Min, c.Threshold, kept)
+					} else {
+						t.Logf("SSIM min %.4f (threshold %.2f)", score.Min, c.Threshold)
 					}
-					t.Logf("SSIM min %.4f (threshold %.2f)", score.Min, c.Threshold)
+					if c.Delta != nil {
+						goldenCheckDelta(t, page, c, base, painter, want, got, wantBase)
+					}
 				})
 			}
 		})
 	}
+	t.Logf("golden run finished after %s (%d registered cases, %d with a delta check)", time.Since(started).Round(time.Second), len(cases), deltas)
 }
 
 // goldenEnginePage opens the Task 10 engine page in a fresh SwiftShader browser (openVideoStudioEngine) and fills the
@@ -483,6 +508,31 @@ func goldenRenderGot(t *testing.T, page *rod.Page, c goldenframe.Case, painter s
 		t.Fatalf("%s/%s: the preview media did not settle within 15 s", c.Name, painter)
 	}
 	return got.Image
+}
+
+// goldenCheckDelta draws the case's baseline with the painter and checks goldenframe.DeltaFidelity against the case's
+// Delta.
+//   - It always logs "delta changed … slope … r …" for the report.
+//   - A failed check fails the subtest and keeps the baseline's want/got/diff PNGs.
+//   - A report-only Delta logs "delta report-only FAIL: …" instead.
+func goldenCheckDelta(t *testing.T, page *rod.Page, c, base goldenframe.Case, painter string, want, got, wantBase image.Image) {
+	t.Helper()
+	gotBase := goldenRenderGot(t, page, base, painter)
+	score, err := goldenframe.DeltaFidelity(want, got, wantBase, gotBase, c.Delta.MinLevels)
+	if err != nil {
+		t.Fatalf("delta: %v", err)
+	}
+	t.Logf("delta changed %.4f slope %.4f r %.4f (bounds: changed >= %.2f, slope %.2f..%.2f, r >= %.2f)",
+		score.Changed, score.Slope, score.R, c.Delta.MinChanged, c.Delta.MinSlope, c.Delta.MaxSlope, c.Delta.MinR)
+	failure := c.Delta.Check(score)
+	kept := goldenKeepArtifacts(t, c.Name+"_"+painter+"_baseline", wantBase, gotBase, failure != nil)
+	switch {
+	case failure == nil:
+	case c.Delta.ReportOnly:
+		t.Logf("delta report-only FAIL: %v (baseline want/got/diff PNGs: %s)", failure, kept)
+	default:
+		t.Errorf("delta FAIL: %v (baseline want/got/diff PNGs: %s)", failure, kept)
+	}
 }
 
 // goldenKeepArtifacts writes want/got/diff PNGs. With AURAGO_GOLDEN_OUT set it writes them there for every comparison,

@@ -32,6 +32,9 @@ type Case struct {
 	Frame     int
 	Threshold float64
 	Painters  []string // PainterGL and/or Painter2D
+	// Delta, when set, also checks the change the case's feature makes against Delta.Baseline (delta.go, plan 2d);
+	// nil checks SSIM only.
+	Delta *Delta
 }
 
 var caseSets []func(Media) []Case

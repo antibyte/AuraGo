@@ -37,6 +37,12 @@ import (
 // videostudio.ValueAt. Keyframes sit on clips that start at frame 0 with offset 0, so a source frame is the timeline
 // frame. Effect params are complete: the registry defaults plus the case's values.
 //
+// Delta opt-ins (plan 2d, Task 12; index §4.12, risk 21): color_temperature_tint, lut_keyframed_intensity,
+// sharpen_static and blur_logo_alpha also carry a report-only Delta. Its baseline is the same case without its
+// effect. Plan 2c measured that SSIM barely separates these cases from a missing effect. A failed check is logged and
+// reported in 2d, not fixed. Colour and LUT take DeltaBlend's bounds (smooth per-pixel changes). Sharpen and blur
+// take DeltaMask's, because their change sits at edges.
+//
 // cases_2c.go sorts between cases_2b.go and cases_foundation.go, so these cases register second. The order has no
 // meaning.
 func init() {
@@ -264,7 +270,8 @@ func pictureCases(m Media) []Case {
 		// exposure +0.4 EV (x1.32), contrast 1.25 about 0.5: the ramps' bright ends clip on both sides.
 		pcCase(m, "color_exposure_contrast", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"exposure": 0.4, "contrast": 1.25}))),
 		// 8500 K warms (camera convention), tint -0.2 adds green.
-		pcCase(m, "color_temperature_tint", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"temperature": 8500.0, "tint": -0.2}))),
+		withDelta(pcCase(m, "color_temperature_tint", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"temperature": 8500.0, "tint": -0.2}))),
+			reportOnly(DeltaBlend), m.Project("color_temperature_tint_baseline", chart())),
 		// saturation 1.5 about BT.709 luma: the colour ramps clip, the grey ramp and the skin patches show the luma weights.
 		pcCase(m, "color_saturation", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"saturation": 1.5}))),
 		// lift (0.5, -0.3) + 0.03, gamma (-0.4, 0.4) x 1.1, gain (0.3, 0.5) x 0.95, as x/y wheels with k = 0.2.
@@ -286,8 +293,8 @@ func pictureCases(m Media) []Case {
 		pcCase(m, "lut_upload_intensity", 5, ThresholdColour, gl, chart(pcEffect("lut", map[string]any{"lut": MediaCube, "intensity": 0.6}))),
 		// intensity keys 0.2 at source frame 0 to 1 at 30: frame 15 is 0.6, the static value of lut_upload_intensity
 		// (export: blend all_expr with T). The static intensity is 1.
-		pcCase(m, "lut_keyframed_intensity", 15, ThresholdColour, gl, chart(pcEffect("lut", map[string]any{"lut": MediaCube}),
-			pcEffectKeys(0, "intensity", pcKey(0, 0.2), pcKey(30, 1)))),
+		withDelta(pcCase(m, "lut_keyframed_intensity", 15, ThresholdColour, gl, chart(pcEffect("lut", map[string]any{"lut": MediaCube}),
+			pcEffectKeys(0, "intensity", pcKey(0, 0.2), pcKey(30, 1)))), reportOnly(DeltaBlend), m.Project("lut_keyframed_intensity_baseline", chart())),
 		// crop 0.1/0.05/0.2/0.15 of 640x360 is the 448x288 rect at (64, 18) (cropRect); contained it is 1120x720 at x 80.
 		pcCase(m, "crop_static_contain", 5, ThresholdGeometry, both, chart(pcCrop(0.1, 0.05, 0.2, 0.15))),
 		// The portrait video (720x1280) cropped t 0.2, b 0.3 to the 720x640 rect at (0, 256), covering the 1024x576 box at
@@ -306,9 +313,11 @@ func pictureCases(m Media) []Case {
 		// radius 0.01 of the 360 px picture: sigma 3.6 px on both sides (export gblur with premultiply on image clips).
 		pcCase(m, "blur_static", 5, ThresholdDetail, gl, detail(pcEffect("blur", map[string]any{"radius": 0.01}))),
 		// The logo's soft alpha edge blurred, radius 0.02 of its 360 px: sigma 7.2 px. The 768x432 box at (256, 144).
-		pcCase(m, "blur_logo_alpha", 10, ThresholdDetail, gl, logoOver(pcBox(0.2, 0.2, 0.6, 0.6), pcEffect("blur", map[string]any{"radius": 0.02}))...),
+		withDelta(pcCase(m, "blur_logo_alpha", 10, ThresholdDetail, gl, logoOver(pcBox(0.2, 0.2, 0.6, 0.6), pcEffect("blur", map[string]any{"radius": 0.02}))...),
+			reportOnly(DeltaMask), m.Project("blur_logo_alpha_baseline", logoOver(pcBox(0.2, 0.2, 0.6, 0.6))...)),
 		// CAS at strength 0.8 on the gratings and edges.
-		pcCase(m, "sharpen_static", 5, ThresholdDetail, gl, detail(pcEffect("sharpen", map[string]any{"strength": 0.8}))),
+		withDelta(pcCase(m, "sharpen_static", 5, ThresholdDetail, gl, detail(pcEffect("sharpen", map[string]any{"strength": 0.8}))),
+			reportOnly(DeltaMask), m.Project("sharpen_static_baseline", detail())),
 		// strength keys 0 at source frame 0 to 1 at 20: frame 15 is 0.75 (the static strength is 0.2; export: cas commands).
 		pcCase(m, "sharpen_keyframed", 15, ThresholdDetail, gl, detail(pcEffect("sharpen", map[string]any{"strength": 0.2}),
 			pcEffectKeys(0, "strength", pcKey(0, 0), pcKey(20, 1)))),
