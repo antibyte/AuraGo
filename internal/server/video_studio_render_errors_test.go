@@ -59,3 +59,15 @@ func TestVideoStudioFeatureUnavailableFailureCode(t *testing.T) {
 		t.Fatalf("bare ErrFeatureUnavailable = %s %q", code, message)
 	}
 }
+
+// A video beyond the aspect rule (long side more than 16 times the short side) fails an import, a preview, an export or a
+// range render with source_aspect_extreme. The check runs before the kind switch, like feature_unavailable.
+func TestVideoStudioSourceAspectFailureCode(t *testing.T) {
+	ctx := context.Background()
+	for _, kind := range []string{"probe", "preview", "render", "range_render", "reverse", "still", "generate"} {
+		status, code, message := videoStudioJobFailure(kind, fmt.Errorf("probe staged media: %w: 16384x16", videostudio.ErrSourceAspect), ctx)
+		if status != "failed" || code != "source_aspect_extreme" || !strings.Contains(message, "16") {
+			t.Fatalf("%s with an extreme aspect = %s %s %q", kind, status, code, message)
+		}
+	}
+}

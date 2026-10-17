@@ -47,6 +47,12 @@ bad('a fractional frame', c => { c.v.keyframes = {x: [k(1.5, 0)]}; });
 bad('a frame beyond the bound', c => { c.v.keyframes = {x: [k(1728001, 0)]}; });
 bad('a value outside the range', c => { c.v.keyframes = {x: [k(0, 1.5)]}; });
 bad('width 0', c => { c.v.keyframes = {width: [k(0, 0)]}; });
+// Boxes are at least 1 % wide and tall (Go MinBoxSize): a sliver would make a cover bound of many canvas widths.
+ok('width at the 1 % minimum', c => { c.v.keyframes = {width: [k(0, 0.01), k(10, 1)]}; });
+ok('height at the 1 % minimum', c => { c.v.keyframes = {height: [k(0, 1), k(10, 0.01)]}; });
+bad('width below 1 %', c => { c.v.keyframes = {width: [k(0, 0.009)]}; });
+bad('height below 1 %', c => { c.v.keyframes = {height: [k(0, 1), k(10, 0.0001)]}; });
+ok('a small opacity is no box', c => { c.v.keyframes = {opacity: [k(0, 0.001)]}; });
 bad('rotation beyond 360', c => { c.o.keyframes = {rotation: [k(0, 400)]}; });
 bad('a number given as text', c => { c.v.keyframes = {opacity: [k(0, '1')]}; });
 bad('an unknown easing', c => { c.v.keyframes = {x: [k(0, 0, 'bounce')]}; });

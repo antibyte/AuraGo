@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Exakt rendering av ett intervall fungerar för upp till 60 sekunder. Flytta in- och utpunkten närmare varandra.",
   "videoStudio.job_range_render": "Intervallkontroll",
   "videoStudio.featureUnavailable": "Serverns FFmpeg saknar ett filter som det här projektet behöver. Uppdatera FFmpeg eller ta bort den effekten eller övergången.",
+  "videoStudio.sourceAspectExtreme": "Den här videon är för bred eller för hög. Den längre sidan får vara högst 16 gånger så lång som den kortare.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

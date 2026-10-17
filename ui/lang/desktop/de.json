@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Bereich exakt rendern funktioniert mit bis zu 60 Sekunden. Rücke Einpunkt und Auspunkt näher zusammen.",
   "videoStudio.job_range_render": "Bereichsprüfung",
   "videoStudio.featureUnavailable": "Dem FFmpeg des Servers fehlt ein Filter, den dieses Projekt braucht. Aktualisiere FFmpeg oder entferne diesen Effekt oder Übergang.",
+  "videoStudio.sourceAspectExtreme": "Dieses Video ist zu breit oder zu hoch. Die längere Seite darf höchstens 16-mal so lang sein wie die kürzere.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

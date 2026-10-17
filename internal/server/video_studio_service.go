@@ -1152,6 +1152,9 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		}
 		return "failed", "feature_unavailable", message
 	}
+	if errors.Is(err, videostudio.ErrSourceAspect) {
+		return "failed", "source_aspect_extreme", fmt.Sprintf("A video is too wide or too tall: its longer side may be at most %d times its shorter side.", videostudio.MaxVideoAspect)
+	}
 	var segment *videostudio.SegmentError
 	if (kind == "render" || kind == "range_render") && errors.As(err, &segment) {
 		return "failed", "render_segment_failed", "Rendering failed in " + segment.Location() + "."

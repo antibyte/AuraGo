@@ -138,6 +138,11 @@ func renderOnce(ctx context.Context, opts RenderOptions) error {
 	if start < 0 || end <= start || end > duration {
 		return fmt.Errorf("render range %d–%d is outside the timeline", start, end)
 	}
+	// A video asset that is too wide or too tall (imported before the import rule) would make gigabyte cover-fit
+	// frames: refuse it from the project's own asset sizes, before any source is probed or FFmpeg renders.
+	if err := checkSourceAspects(project, start, end); err != nil {
+		return err
+	}
 	width, height := opts.Width, opts.Height
 	if width == 0 && height == 0 {
 		width, height = project.Width, project.Height

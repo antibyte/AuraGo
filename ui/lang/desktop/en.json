@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Render range exactly works on up to 60 seconds. Move the in and out points closer together.",
   "videoStudio.job_range_render": "Range check",
   "videoStudio.featureUnavailable": "The server's FFmpeg lacks a filter this project needs. Update FFmpeg or remove that effect or transition.",
+  "videoStudio.sourceAspectExtreme": "This video is too wide or too tall. Its longer side may be at most 16 times its shorter side.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

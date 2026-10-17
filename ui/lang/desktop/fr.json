@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Le rendu exact d’une plage fonctionne jusqu’à 60 secondes. Rapproche le point d’entrée et le point de sortie.",
   "videoStudio.job_range_render": "Vérification de plage",
   "videoStudio.featureUnavailable": "Il manque au FFmpeg du serveur un filtre dont ce projet a besoin. Mets à jour FFmpeg ou retire cet effet ou cette transition.",
+  "videoStudio.sourceAspectExtreme": "Cette vidéo est trop large ou trop haute. Son plus grand côté ne peut pas dépasser 16 fois le plus petit.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipédia",
   "desktop.app_retro_games": "Retro Games",

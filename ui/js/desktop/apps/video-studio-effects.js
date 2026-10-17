@@ -50,6 +50,8 @@
     const LIMITS = Object.freeze({ keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4 });
     // Go's MinClipSpeed and MaxClipSpeed.
     const MIN_SPEED = 0.25, MAX_SPEED = 16;
+    // Go's MinBoxSize: the smallest width or height a keyframe may hold (the editor's 1 % box minimum).
+    const MIN_BOX_SIZE = 0.01;
     let current = BUILTIN, missing = emptyUnavailable();
 
     // A registry from the server is used only when it has this build's version and every list is well formed.
@@ -111,7 +113,7 @@
                 for (let i = 0; i < list.length; i++) {
                     const key = list[i];
                     if (!key || !Number.isSafeInteger(key.f) || Math.abs(key.f) > bound || (i > 0 && key.f <= list[i - 1].f)) return false;
-                    if (!finite(key.v) || key.v < spec.min || key.v > spec.max || ((path === 'width' || path === 'height') && key.v <= 0) || !EASINGS.includes(key.e)) return false;
+                    if (!finite(key.v) || key.v < spec.min || key.v > spec.max || ((path === 'width' || path === 'height') && key.v < MIN_BOX_SIZE) || !EASINGS.includes(key.e)) return false;
                 }
             }
         }
@@ -471,5 +473,5 @@
         return remapKeyframes(source && source.keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from)));
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

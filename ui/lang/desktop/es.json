@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Renderizar el rango con exactitud funciona con un máximo de 60 segundos. Acerca más los puntos de entrada y de salida.",
   "videoStudio.job_range_render": "Comprobación de rango",
   "videoStudio.featureUnavailable": "Al FFmpeg del servidor le falta un filtro que necesita este proyecto. Actualiza FFmpeg o quita ese efecto o transición.",
+  "videoStudio.sourceAspectExtreme": "Este vídeo es demasiado ancho o demasiado alto. Su lado más largo puede medir como máximo 16 veces el más corto.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

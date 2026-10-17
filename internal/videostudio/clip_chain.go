@@ -295,6 +295,11 @@ func (c clipChain) commandFile() (sendCmdFile, bool) {
 // [low, high] of the window's box aspects that the static crop clamps the source aspect to.
 //   - The source aspect (asset width / height) counts in both orientations, because FFmpeg's autorotation may swap it.
 //   - Without a source aspect, the clamp range stands in.
+//   - The range is held to 1/maxCoverAspect..maxCoverAspect (1/16 to 16, the import limit for videos). A box 2 px tall
+//     next to a 1080 px one has the aspects 960 and 1.8, and a bound that covered a 1024:1 source at the taller box
+//     would be 1.1 million pixels wide. With the clamp, a side of the bound is at most 16 times a box side plus the
+//     margin, whatever the boxes and the source look like (TestCoverBoundStaysNearTheCanvas). A source or box within
+//     1/16 to 16 is not changed: the crop above trims only what no frame of the clip shows.
 //   - The margin (1/8 plus 4 px) absorbs force_divisible_by and the crop's chroma rounding for sources of at least
 //     16 px.
 func coverBound(widths, heights []int, sourceAspect float64) (boundWidth, boundHeight int, low, high float64) {
@@ -303,6 +308,7 @@ func coverBound(widths, heights []int, sourceAspect float64) (boundWidth, boundH
 		aspect := float64(widths[k]) / float64(heights[k])
 		low, high = min(low, aspect), max(high, aspect)
 	}
+	low, high = min(max(low, 1.0/maxCoverAspect), maxCoverAspect), min(max(high, 1.0/maxCoverAspect), maxCoverAspect)
 	pictureLow, pictureHigh := low, high
 	if sourceAspect > 0 {
 		upright, turned := min(max(sourceAspect, low), high), min(max(1/sourceAspect, low), high)

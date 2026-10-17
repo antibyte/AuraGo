@@ -31,6 +31,10 @@ const (
 const (
 	MaxKeyframesPerParam = 64
 	MaxKeyframesPerClip  = 512
+	// MinBoxSize is the smallest width or height value a keyframe may hold, as a share of the canvas: the editor's 1 %
+	// box minimum (JS VideoStudioEffects.MIN_BOX_SIZE). A thinner sliver would give a cover clip a box aspect of hundreds
+	// and the export a pad bound of that many canvas widths.
+	MinBoxSize = 0.01
 )
 
 // Keyframe is one key of a parameter: value V at source frame F, eased towards the next key with E.
@@ -62,7 +66,7 @@ func countKeyframes(clip Clip) int {
 //   - Only clips on visual tracks have keyframes, and only on keyframable number paths of the registry.
 //   - Each path has 1..MaxKeyframesPerParam keys, and the clip at most MaxKeyframesPerClip in all.
 //   - Frames are strictly increasing integers within ±MaxClipSpeed·maxFrames; source time may lie outside the media.
-//   - Each value lies in its registry range (width and height above 0), with a known easing.
+//   - Each value lies in its registry range (width and height at least MinBoxSize), with a known easing.
 //
 // Parameters are not checked against each other: x + width may exceed 1, because the export's clip box clamps it.
 // 2c adds crop.* and effect paths, 2d mask.*.
@@ -96,7 +100,7 @@ func validateKeyframes(track Track, clip Clip, maxFrames int) error {
 			if key.F < -bound || key.F > bound {
 				return fmt.Errorf("clip %q keyframe frame %d on %q is out of range", clip.ID, key.F, path)
 			}
-			if !finite(key.V) || key.V < spec.Min || key.V > spec.Max || (path == "width" || path == "height") && key.V <= 0 {
+			if !finite(key.V) || key.V < spec.Min || key.V > spec.Max || (path == "width" || path == "height") && key.V < MinBoxSize {
 				return fmt.Errorf("clip %q has an invalid keyframe value %v on %q", clip.ID, key.V, path)
 			}
 			if !validEasing(key.E) {

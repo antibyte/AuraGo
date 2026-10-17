@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Nøyaktig rendering av et område fungerer for opptil 60 sekunder. Flytt inn- og utpunktet nærmere hverandre.",
   "videoStudio.job_range_render": "Områdekontroll",
   "videoStudio.featureUnavailable": "FFmpeg på serveren mangler et filter som dette prosjektet trenger. Oppdater FFmpeg, eller fjern den effekten eller overgangen.",
+  "videoStudio.sourceAspectExtreme": "Denne videoen er for bred eller for høy. Den lengste siden kan være høyst 16 ganger så lang som den korteste.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

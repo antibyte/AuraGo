@@ -10,7 +10,7 @@
     const T = () => window.VideoStudioTimeline;
     const REASON = () => window.VideoStudioEdit.REASON;
     const AXES = [['x', 'width'], ['y', 'height']];
-    const MIN_SIZE = 0.01;
+    const MIN_SIZE = window.VideoStudioEffects.MIN_BOX_SIZE;
 
     const keyId = (path, f) => path + ':' + f;
     const keySet = keys => new Set((keys || []).map(key => keyId(key.path, Number(key.f))));

@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Dokładne renderowanie zakresu działa do 60 sekund. Zbliż do siebie punkty wejścia i wyjścia.",
   "videoStudio.job_range_render": "Kontrola zakresu",
   "videoStudio.featureUnavailable": "W FFmpeg na serwerze brakuje filtra potrzebnego temu projektowi. Zaktualizuj FFmpeg albo usuń ten efekt lub to przejście.",
+  "videoStudio.sourceAspectExtreme": "Ten film jest zbyt szeroki lub zbyt wysoki. Jego dłuższy bok może być co najwyżej 16 razy dłuższy od krótszego.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

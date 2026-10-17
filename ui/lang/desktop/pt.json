@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Renderizar o intervalo com exatidão funciona com até 60 segundos. Aproxime os pontos de entrada e saída.",
   "videoStudio.job_range_render": "Verificação de intervalo",
   "videoStudio.featureUnavailable": "O FFmpeg do servidor não tem um filtro de que este projeto precisa. Atualize o FFmpeg ou remova esse efeito ou transição.",
+  "videoStudio.sourceAspectExtreme": "Este vídeo é demasiado largo ou demasiado alto. O lado maior pode ter, no máximo, 16 vezes o tamanho do lado menor.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipédia",
   "desktop.app_retro_games": "Retro Games",

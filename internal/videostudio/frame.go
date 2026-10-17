@@ -40,6 +40,9 @@ func RenderFrame(ctx context.Context, opts FrameOptions) error {
 	if opts.Frame < 0 || opts.Frame >= duration {
 		return fmt.Errorf("frame %d is outside the timeline (0–%d)", opts.Frame, duration)
 	}
+	if err := checkSourceAspects(project, opts.Frame, opts.Frame+1); err != nil {
+		return err
+	}
 	width, height := opts.Width, opts.Height
 	if width == 0 && height == 0 {
 		width, height = project.Width, project.Height

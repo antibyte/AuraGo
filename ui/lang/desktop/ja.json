@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "範囲の正確なレンダリングは最大60秒までです。イン点とアウト点を近づけてください。",
   "videoStudio.job_range_render": "範囲チェック",
   "videoStudio.featureUnavailable": "サーバーのFFmpegに、このプロジェクトで必要なフィルターがありません。FFmpegを更新するか、そのエフェクトまたはトランジションを削除してください。",
+  "videoStudio.sourceAspectExtreme": "この動画は横長または縦長すぎます。長辺は短辺の16倍までです。",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "ウィキペディア",
   "desktop.app_retro_games": "Retro Games",

@@ -345,3 +345,25 @@ func TestVideoStudioEffectsLimitsMatchGo(t *testing.T) {
 		t.Fatalf("VideoStudioEffects.LIMITS = %v, want the Go constants %v", got, want)
 	}
 }
+
+// The smallest width and height a keyframe may hold is the editor's 1 % box minimum on both sides: Go MinBoxSize,
+// VideoStudioEffects.MIN_BOX_SIZE and the clamp of every key the editor writes (VideoStudioKeyframeEdit).
+func TestVideoStudioEffectsMinBoxSizeMatchesGo(t *testing.T) {
+	output := runVideoStudioEffectsScript(t, `
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-edit.js');
+require('./js/desktop/apps/video-studio-keyframe-edit.js');
+const T = window.VideoStudioTimeline, K = window.VideoStudioKeyframeEdit;
+const clip = Object.assign(T.makeClip({id: 'v', kind: 'video', duration_frames: 300}, 0, 'c', {fps: 30}), {duration: 60, keyframes: {width: [{f: 0, v: 0.5, e: 'linear'}]}});
+const project = {version: 3, fps: 30, width: 1280, height: 720, assets: [{id: 'v', kind: 'video', has_audio: false, duration_frames: 300}], tracks: [{id: 'v1', kind: 'video', name: 'v1', clips: [clip]}]};
+K.setValues(project, 'c', {width: 0.0001}, 10);
+process.stdout.write(JSON.stringify({min: E.MIN_BOX_SIZE, written: clip.keyframes.width.find(key => key.f === 10).v}));
+`)
+	var got struct{ Min, Written float64 }
+	if err := json.Unmarshal(output, &got); err != nil {
+		t.Fatalf("output is not JSON: %v\n%s", err, output)
+	}
+	if got.Min != videostudio.MinBoxSize || got.Written != videostudio.MinBoxSize {
+		t.Fatalf("MIN_BOX_SIZE = %v and the smallest key the editor writes = %v, want Go MinBoxSize %v", got.Min, got.Written, videostudio.MinBoxSize)
+	}
+}

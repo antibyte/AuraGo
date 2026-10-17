@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Η ακριβής απόδοση εύρους λειτουργεί για έως 60 δευτερόλεπτα. Φέρε πιο κοντά το σημείο εισόδου και το σημείο εξόδου.",
   "videoStudio.job_range_render": "Έλεγχος εύρους",
   "videoStudio.featureUnavailable": "Στο FFmpeg του διακομιστή λείπει ένα φίλτρο που χρειάζεται αυτό το έργο. Ενημέρωσε το FFmpeg ή αφαίρεσε αυτό το εφέ ή τη μετάβαση.",
+  "videoStudio.sourceAspectExtreme": "Αυτό το βίντεο είναι υπερβολικά πλατύ ή υπερβολικά ψηλό. Η μεγαλύτερη πλευρά του μπορεί να είναι το πολύ 16 φορές μεγαλύτερη από τη μικρότερη.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Βικιπαίδεια",
   "desktop.app_retro_games": "Retro Games",

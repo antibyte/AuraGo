@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "精确渲染范围最多支持 60 秒。请让入点和出点靠得更近。",
   "videoStudio.job_range_render": "范围检查",
   "videoStudio.featureUnavailable": "服务器的 FFmpeg 缺少此项目所需的滤镜。请更新 FFmpeg，或移除该效果或转场。",
+  "videoStudio.sourceAspectExtreme": "此视频过宽或过高。较长边最多只能是较短边的 16 倍。",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "维基百科",
   "desktop.app_retro_games": "Retro Games",

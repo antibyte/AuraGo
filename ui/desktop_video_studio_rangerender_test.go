@@ -60,6 +60,7 @@ assert.equal(range(session([clip(0, 90, {disabled: true})])).error, 'empty');
 assert.equal(P.jobFailure({status: 'failed', error: 'range_render_failed'})[0], 'rangeFailed');
 assert.equal(P.jobFailure({status: 'failed', error: 'range_too_long'})[0], 'rangeTooLong');
 assert.equal(P.jobFailure({status: 'failed', error: 'feature_unavailable'})[0], 'featureUnavailable');
+assert.equal(P.jobFailure({status: 'failed', error: 'source_aspect_extreme'})[0], 'sourceAspectExtreme');
 assert.equal(P.jobFailure({status: 'failed', error: 'render_segment_failed', result: {failed_from_seconds: 1, failed_to_seconds: 2}})[0], 'renderSegmentFailed');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
@@ -73,7 +74,7 @@ func TestVideoStudioRangeRenderLocales(t *testing.T) {
 	if err != nil || len(files) != 16 {
 		t.Fatalf("desktop locales: %d files, %v", len(files), err)
 	}
-	keys := []string{"rangeRender", "rangeRendering", "rangeLive", "rangeRendered", "rangeClose", "rangeRetry", "rangeFailed", "rangeTooLong", "job_range_render", "featureUnavailable"}
+	keys := []string{"rangeRender", "rangeRendering", "rangeLive", "rangeRendered", "rangeClose", "rangeRetry", "rangeFailed", "rangeTooLong", "job_range_render", "featureUnavailable", "sourceAspectExtreme"}
 	locales := make(map[string]map[string]string, len(files))
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -98,7 +99,7 @@ func TestVideoStudioRangeRenderLocales(t *testing.T) {
 		if lang == "en" {
 			continue
 		}
-		for _, key := range []string{"rangeRender", "rangeFailed", "rangeTooLong", "featureUnavailable"} {
+		for _, key := range []string{"rangeRender", "rangeFailed", "rangeTooLong", "featureUnavailable", "sourceAspectExtreme"} {
 			if values["videoStudio."+key] == locales["en"]["videoStudio."+key] {
 				t.Errorf("%s copies the English videoStudio.%s", lang, key)
 			}

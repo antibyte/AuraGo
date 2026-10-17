@@ -131,6 +131,9 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 	if asset.Kind != AssetAudio && !validSourceDimensions(asset.Width, asset.Height) {
 		return Asset{}, fmt.Errorf("staged media dimensions exceed the supported source limit")
 	}
+	if asset.Kind == AssetVideo && !validVideoAspect(asset.Width, asset.Height) {
+		return Asset{}, fmt.Errorf("%w: %dx%d, the longer side may be at most %d times the shorter one", ErrSourceAspect, asset.Width, asset.Height, MaxVideoAspect)
+	}
 	return asset, nil
 }
 

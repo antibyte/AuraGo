@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Bereik exact renderen werkt met maximaal 60 seconden. Zet het inpunt en het uitpunt dichter bij elkaar.",
   "videoStudio.job_range_render": "Bereikcontrole",
   "videoStudio.featureUnavailable": "De FFmpeg van de server mist een filter dat dit project nodig heeft. Werk FFmpeg bij of verwijder dat effect of die overgang.",
+  "videoStudio.sourceAspectExtreme": "Deze video is te breed of te hoog. De langste zijde mag hooguit 16 keer zo lang zijn als de kortste.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedia",
   "desktop.app_retro_games": "Retro Games",

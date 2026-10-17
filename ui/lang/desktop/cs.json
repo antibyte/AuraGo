@@ -6343,6 +6343,7 @@
   "videoStudio.rangeTooLong": "Přesné vykreslení rozsahu funguje nejvýše s 60 sekundami. Přesuň vstup a výstup blíže k sobě.",
   "videoStudio.job_range_render": "Kontrola rozsahu",
   "videoStudio.featureUnavailable": "FFmpeg na serveru nemá filtr, který tento projekt potřebuje. Aktualizuj FFmpeg nebo odeber tento efekt či přechod.",
+  "videoStudio.sourceAspectExtreme": "Toto video je příliš široké nebo příliš vysoké. Jeho delší strana smí být nejvýše 16krát delší než kratší.",
   "desktop.app_video_studio": "Video Studio",
   "desktop.app_local_wikipedia": "Wikipedie",
   "desktop.app_retro_games": "Retro Games",

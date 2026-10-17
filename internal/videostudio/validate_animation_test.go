@@ -58,7 +58,7 @@ func runAnimationCases(t *testing.T, cases []animationCase) {
 
 // Keyframe structure (plan index §4.18): visual tracks only, keyframable number paths, 1..64 per path and 512 per
 // clip, strictly increasing integer frames within ±MaxClipSpeed·maxFrames, values in the registry range (width and
-// height above 0), known easings. No cross-parameter check.
+// height at least MinBoxSize, 1 %), known easings. No cross-parameter check.
 func TestValidateKeyframes(t *testing.T) {
 	key := func(f int, v float64, e Easing) Keyframe { return Keyframe{F: f, V: v, E: e} }
 	run := func(n int, v float64) []Keyframe {
@@ -94,6 +94,13 @@ func TestValidateKeyframes(t *testing.T) {
 		{name: "a frame beyond the bound", id: "v", edit: set(map[string][]Keyframe{"x": {key(bound+1, 0, EaseLinear)}}), want: "out of range"},
 		{name: "a value outside the range", id: "v", edit: set(map[string][]Keyframe{"x": {key(0, 1.5, EaseLinear)}}), want: "invalid keyframe value"},
 		{name: "width 0", id: "v", edit: set(map[string][]Keyframe{"width": {key(0, 0, EaseLinear)}}), want: "invalid keyframe value"},
+		// Boxes the editor makes are at least 1 % wide and tall (MinBoxSize); a sliver would make a cover bound of many
+		// canvas widths.
+		{name: "width at the 1 % minimum", id: "v", edit: set(map[string][]Keyframe{"width": {key(0, MinBoxSize, EaseLinear), key(10, 1, EaseLinear)}})},
+		{name: "height at the 1 % minimum", id: "v", edit: set(map[string][]Keyframe{"height": {key(0, 1, EaseLinear), key(10, MinBoxSize, EaseLinear)}})},
+		{name: "width below 1 %", id: "v", edit: set(map[string][]Keyframe{"width": {key(0, 0.009, EaseLinear)}}), want: "invalid keyframe value"},
+		{name: "height below 1 %", id: "v", edit: set(map[string][]Keyframe{"height": {key(0, 1, EaseLinear), key(10, 0.0001, EaseLinear)}}), want: "invalid keyframe value"},
+		{name: "a small opacity is no box", id: "v", edit: set(map[string][]Keyframe{"opacity": {key(0, 0.001, EaseLinear)}})},
 		{name: "rotation beyond 360", id: "o", edit: set(map[string][]Keyframe{"rotation": {key(0, 400, EaseLinear)}}), want: "invalid keyframe value"},
 		{name: "not a number", id: "v", edit: set(map[string][]Keyframe{"opacity": {key(0, math.NaN(), EaseLinear)}}), want: "invalid keyframe value"},
 		{name: "an unknown easing", id: "v", edit: set(map[string][]Keyframe{"x": {key(0, 0, "bounce")}}), want: "unsupported easing"},
