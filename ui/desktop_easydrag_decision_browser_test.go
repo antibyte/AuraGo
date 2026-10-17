@@ -82,7 +82,7 @@ func TestDesktopEasyDragDecisionBrowser(t *testing.T) {
 	page.MustElement(`.ed-detail [data-ed-detail-close]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 	page.MustElement(`[data-ed-cmd="issues"]`).MustClick()
-	s.wait(`()=>{const issue=document.querySelector('.ed-issues-popover .ed-issue-text');return !!issue && issue.textContent.includes(edFixture.editor().t('easydrag.ui.issue_edge_port_invalid'))}`)
+	s.wait(`()=>[...document.querySelectorAll('.ed-issues-popover .ed-issue-text')].some(issue=>issue.textContent.includes(edFixture.editor().t('easydrag.ui.issue_edge_port_invalid')))`)
 	page.Keyboard.MustType(input.Escape)
 	page.MustEval(`()=>{const ed=edFixture.editor(),edge=ed.model.outgoing(window.__decisionIDs.decision)[0];document.querySelector('.ed-edge[data-edge-id="'+edge.id+'"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));}`)
 	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)

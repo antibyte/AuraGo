@@ -1,12 +1,14 @@
 package testutil
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/webassets"
 )
 
@@ -17,6 +19,8 @@ func RunWithGameMakerAssets(run func() int) int {
 	if err != nil {
 		panic(err)
 	}
+	// This exact temporary directory is owned by this test process.
+	defer os.RemoveAll(root)
 	stage := filepath.Join(root, "stage")
 	var manifest webassets.Manifest
 	manifest.Version = 1
@@ -63,19 +67,16 @@ func RunWithGameMakerAssets(run func() int) int {
 	if err = os.WriteFile(filepath.Join(stage, webassets.ManifestName), b, 0644); err != nil {
 		panic(err)
 	}
-	if err = os.Rename(stage, filepath.Join(root, id)); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err = fileutil.RenameContext(ctx, stage, filepath.Join(root, id)); err != nil {
 		panic(err)
 	}
 	store := webassets.Open(root, webassets.Pin{ID: id})
+	defer store.Close()
 	if !store.Ready() {
 		panic(store.Error)
 	}
 	webassets.Default = store
-	code := run()
-	store.Close()
-	// This exact temporary directory is owned by this test process.
-	if strings.HasPrefix(filepath.Base(root), "aurago-test-assets-") {
-		os.RemoveAll(root)
-	}
-	return code
+	return run()
 }
