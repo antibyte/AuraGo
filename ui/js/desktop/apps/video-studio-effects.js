@@ -23,9 +23,46 @@
             { id: 'height', type: 'number', min: 0, max: 1, default: 1, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'height' },
             { id: 'rotation', type: 'number', min: -360, max: 360, default: 0, step: 0.1, keyframable: true, unit: 'deg', label_key: 'rotation' },
             { id: 'opacity', type: 'number', min: 0, max: 1, default: 1, step: 0.01, keyframable: true, label_key: 'opacity' },
-            { id: 'fit', type: 'choice', min: 0, max: 0, default: 'contain', choices: ['contain', 'cover'], label_key: 'fit' }
+            { id: 'fit', type: 'choice', min: 0, max: 0, default: 'contain', choices: ['contain', 'cover'], label_key: 'fit' },
+            { id: 'crop.l', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_l' },
+            { id: 'crop.t', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_t' },
+            { id: 'crop.r', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_r' },
+            { id: 'crop.b', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_b' },
+            { id: 'flip_h', type: 'bool', min: 0, max: 0, default: false, label_key: 'flip_h' },
+            { id: 'flip_v', type: 'bool', min: 0, max: 0, default: false, label_key: 'flip_v' }
         ],
-        effects: [],
+        effects: [
+            { id: 'color', category: 'color', label_key: 'effect.color.name', filters: ['lutrgb', 'colorchannelmixer'], params: [
+                { id: 'exposure', type: 'number', min: -3, max: 3, default: 0, step: 0.01, keyframable: true, unit: 'ev', label_key: 'effect.color.exposure' },
+                { id: 'contrast', type: 'number', min: 0, max: 3, default: 1, step: 0.01, keyframable: true, label_key: 'effect.color.contrast' },
+                { id: 'saturation', type: 'number', min: 0, max: 3, default: 1, step: 0.01, keyframable: true, label_key: 'effect.color.saturation' },
+                { id: 'temperature', type: 'number', min: 2000, max: 12000, default: 6500, step: 10, keyframable: true, unit: 'K', label_key: 'effect.color.temperature' },
+                { id: 'tint', type: 'number', min: -1, max: 1, default: 0, step: 0.01, keyframable: true, label_key: 'effect.color.tint' },
+                { id: 'lift_x', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.lift_x' },
+                { id: 'lift_y', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.lift_y' },
+                { id: 'lift', type: 'number', min: -0.5, max: 0.5, default: 0, step: 0.001, keyframable: true, label_key: 'effect.color.lift' },
+                { id: 'gamma_x', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.gamma_x' },
+                { id: 'gamma_y', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.gamma_y' },
+                { id: 'gamma', type: 'number', min: 0.2, max: 5, default: 1, step: 0.01, keyframable: true, label_key: 'effect.color.gamma' },
+                { id: 'gain_x', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.gain_x' },
+                { id: 'gain_y', type: 'number', min: -1, max: 1, default: 0, step: 0.001, keyframable: true, unit: 'wheel', label_key: 'effect.color.gain_y' },
+                { id: 'gain', type: 'number', min: 0, max: 4, default: 1, step: 0.01, keyframable: true, label_key: 'effect.color.gain' }
+            ] },
+            { id: 'lut', category: 'color', label_key: 'effect.lut.name', filters: ['lut3d', 'blend'], params: [
+                { id: 'lut', type: 'lut', min: 0, max: 0, default: '', label_key: 'effect.lut.lut' },
+                { id: 'intensity', type: 'number', min: 0, max: 1, default: 1, step: 0.01, keyframable: true, label_key: 'effect.lut.intensity' }
+            ] },
+            { id: 'blur', category: 'detail', label_key: 'effect.blur.name', filters: ['gblur', 'premultiply', 'unpremultiply'], params: [
+                { id: 'radius', type: 'number', min: 0, max: 0.05, default: 0.01, step: 0.0005, unit: 'height', label_key: 'effect.blur.radius' }
+            ] },
+            { id: 'sharpen', category: 'detail', label_key: 'effect.sharpen.name', filters: ['cas'], params: [
+                { id: 'strength', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, keyframable: true, label_key: 'effect.sharpen.strength' }
+            ] },
+            { id: 'vignette', category: 'stylize', label_key: 'effect.vignette.name', filters: ['vignette', 'alphaextract', 'alphamerge'], params: [
+                { id: 'amount', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, keyframable: true, label_key: 'effect.vignette.amount' },
+                { id: 'size', type: 'number', min: 0.25, max: 2, default: 1, step: 0.01, keyframable: true, unit: 'height', label_key: 'effect.vignette.size' }
+            ] }
+        ],
         transitions: [
             { id: 'dissolve', xfade: 'fade', category: 'basic', label_key: 'dissolve' },
             { id: 'black', xfade: 'fadeblack', category: 'basic', label_key: 'black' },
@@ -34,7 +71,16 @@
         ],
         blend_modes: [],
         anim_presets: [],
-        looks: []
+        looks: [
+            { id: 'warm', label_key: 'look_warm' },
+            { id: 'cool', label_key: 'look_cool' },
+            { id: 'teal_orange', label_key: 'look_teal_orange' },
+            { id: 'mono', label_key: 'look_mono' },
+            { id: 'faded_film', label_key: 'look_faded_film' },
+            { id: 'high_contrast', label_key: 'look_high_contrast' },
+            { id: 'vintage', label_key: 'look_vintage' },
+            { id: 'bleach_bypass', label_key: 'look_bleach_bypass' }
+        ]
     });
 
     const LISTS = ['base', 'effects', 'transitions', 'blend_modes', 'anim_presets', 'looks'];

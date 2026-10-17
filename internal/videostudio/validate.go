@@ -60,6 +60,7 @@ func Validate(project Project) error {
 	maxFrames := MaxDurationFrames(project)
 
 	assets := make(map[string]Asset, len(project.Assets))
+	luts := 0
 	for _, asset := range project.Assets {
 		if err := validateAsset(asset); err != nil {
 			return err
@@ -68,6 +69,12 @@ func Validate(project Project) error {
 			return fmt.Errorf("duplicate asset id %q", asset.ID)
 		}
 		assets[asset.ID] = asset
+		if asset.Kind == AssetLUT {
+			luts++
+			if luts > MaxLUTAssetsPerProject {
+				return fieldError("assets", "project exceeds %d LUT assets", MaxLUTAssetsPerProject)
+			}
+		}
 	}
 	if err := validateProjectFolders(project.Folders); err != nil {
 		return err
@@ -178,6 +185,9 @@ func validateAsset(asset Asset) error {
 	if asset.Codec != safeCodecName(asset.Codec) {
 		return fmt.Errorf("asset %q has an invalid codec name", asset.ID)
 	}
+	if asset.Kind != AssetLUT && asset.LUTSize != 0 {
+		return fieldError("assets/"+asset.ID+"/lut_size", "asset %q is not a LUT and cannot have a LUT grid size", asset.ID)
+	}
 	switch asset.Kind {
 	case AssetVideo:
 		if asset.DurationFrames == 0 || asset.Width == 0 || asset.Height == 0 {
@@ -190,6 +200,14 @@ func validateAsset(asset Asset) error {
 	case AssetImage:
 		if asset.Width == 0 || asset.Height == 0 {
 			return fmt.Errorf("image asset %q is missing dimensions", asset.ID)
+		}
+	case AssetLUT:
+		// A .cube table (2c): only its grid size and file size are metadata.
+		if asset.DurationFrames != 0 || asset.DurationUs != 0 || asset.VideoDurationUs != 0 || asset.Width != 0 || asset.Height != 0 || asset.HasAudio {
+			return fieldError("assets/"+asset.ID, "LUT asset %q cannot have a duration, picture size or audio", asset.ID)
+		}
+		if asset.LUTSize < MinLUTGrid || asset.LUTSize > MaxLUTGrid {
+			return fieldError("assets/"+asset.ID+"/lut_size", "LUT asset %q needs a grid size between %d and %d", asset.ID, MinLUTGrid, MaxLUTGrid)
 		}
 	default:
 		return fmt.Errorf("asset %q has unsupported kind %q", asset.ID, asset.Kind)
@@ -303,7 +321,11 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 	if err := validateKeyframes(track, clip, maxFrames); err != nil {
 		return err
 	}
-	return nil
+	// Crop, flips and the effect stack (plan 2c). Both checks return a *FieldError.
+	if err := validateCrop(track, clip); err != nil {
+		return err
+	}
+	return validateEffects(track, clip, assets, maxFrames)
 }
 
 // safeCodecName returns a lowercase FFmpeg codec name, or "" for anything that is not one.

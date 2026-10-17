@@ -86,7 +86,7 @@ func TestValueAtAnchorsKeyframesToContent(t *testing.T) {
 	if got, ok := ValueAt(clip, "opacity", 120); !ok || got != 0.7 {
 		t.Errorf("a path without keyframes keeps its static value: %v, %v", got, ok)
 	}
-	for _, path := range []string{"fit", "volume", "crop.l", ""} {
+	for _, path := range []string{"fit", "volume", "flip_h", "effects.0.radius", ""} {
 		if _, ok := ValueAt(clip, path, 120); ok {
 			t.Errorf("ValueAt accepted path %q", path)
 		}

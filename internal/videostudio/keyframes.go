@@ -53,11 +53,17 @@ func validEasing(e Easing) bool {
 	return false
 }
 
-// countKeyframes counts every keyframe of a clip toward MaxKeyframesPerClip. 2c adds the keyframes of effect entries.
+// countKeyframes counts every keyframe of a clip toward MaxKeyframesPerClip: the base paths and the keyframes of every
+// effect entry (spec §5.8).
 func countKeyframes(clip Clip) int {
 	total := 0
 	for _, list := range clip.Keyframes {
 		total += len(list)
+	}
+	for _, entry := range clip.Effects {
+		for _, list := range entry.Keyframes {
+			total += len(list)
+		}
 	}
 	return total
 }
@@ -69,7 +75,8 @@ func countKeyframes(clip Clip) int {
 //   - Each value lies in its registry range (width and height at least MinBoxSize), with a known easing.
 //
 // Parameters are not checked against each other: x + width may exceed 1, because the export's clip box clamps it.
-// 2c adds crop.* and effect paths, 2d mask.*.
+// crop.l|t|r|b are registry base rows (2c), so they pass here; validateEffects checks the keyframes of effect entries.
+// 2d adds mask.*.
 func validateKeyframes(track Track, clip Clip, maxFrames int) error {
 	if len(clip.Keyframes) == 0 {
 		return nil
@@ -169,11 +176,16 @@ func sampleKeyframes(list []Keyframe, f float64) float64 {
 	return a.V + (b.V-a.V)*Ease(a.E, t)
 }
 
-// ValueAt returns a keyframable base path (x, y, width, height, rotation or opacity) of a clip at absolute timeline
-// frame frame. With keyframes on the path, the list is sampled at ClipSourceAt(clip, frame), the source position the
-// clip shows there: offset + (frame − start)·speed, or offset + S(frame − start) with a ramp. Keyframes thus stay on
-// the picture content (spec §5.1). Without keyframes it returns the clip's static field. The frame may lie outside
-// the clip. ok is false for any other path. JS: VideoStudioEffects.valueAt.
+// ValueAt returns a keyframable path of a clip at absolute timeline frame frame (plan index §4.4, §4.16). Paths:
+//   - the base paths x, y, width, height, rotation, opacity and crop.l|t|r|b (0 without a crop);
+//   - effects.<i>.<param>, a number parameter of effect entry i: its keyframes, else its params value, else the
+//     registry default.
+//
+// With keyframes on the path, the list is sampled at ClipSourceAt(clip, frame), the source position the clip shows
+// there: offset + (frame − start)·speed, or offset + S(frame − start) with a ramp. Keyframes thus stay on the picture
+// content (spec §5.1). Without keyframes it returns the static value, and the frame may lie outside the clip. ok is
+// false for any other path, for an unknown entry or effect, and for a parameter that is not a number. JS:
+// VideoStudioEffects.valueAt.
 func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 	var static float64
 	switch path {
@@ -189,13 +201,58 @@ func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 		static = clip.Rotation
 	case "opacity":
 		static = clip.Opacity
+	case "crop.l", "crop.t", "crop.r", "crop.b":
+		static = cropValue(clip.Crop, path)
 	default:
-		return 0, false
+		return effectEntryValue(clip, path, frame)
 	}
 	if list := clip.Keyframes[path]; len(list) > 0 {
 		return sampleKeyframes(list, ClipSourceAt(clip, float64(frame))), true
 	}
 	return static, true
+}
+
+// cropValue is one side of a clip's static crop (path crop.l, crop.t, crop.r or crop.b); it is 0 without a crop.
+func cropValue(crop *Crop, path string) float64 {
+	if crop == nil {
+		return 0
+	}
+	switch path {
+	case "crop.l":
+		return crop.L
+	case "crop.t":
+		return crop.T
+	case "crop.r":
+		return crop.R
+	}
+	return crop.B
+}
+
+// effectEntryValue resolves effects.<i>.<param> for ValueAt. <i> is a plain decimal index into clip.Effects (the entry
+// may be on or off), and <param> must be a number parameter of the entry's registry effect.
+func effectEntryValue(clip Clip, path string, frame int) (float64, bool) {
+	rest, ok := strings.CutPrefix(path, "effects.")
+	if !ok {
+		return 0, false
+	}
+	indexText, param, ok := strings.Cut(rest, ".")
+	index, err := strconv.Atoi(indexText)
+	if !ok || err != nil || index < 0 || index >= len(clip.Effects) || strconv.Itoa(index) != indexText {
+		return 0, false
+	}
+	entry := clip.Effects[index]
+	spec, ok := effectParamSpec(entry.ID, param)
+	if !ok || spec.Type != ParamNumber {
+		return 0, false
+	}
+	if list := entry.Keyframes[param]; len(list) > 0 {
+		return sampleKeyframes(list, ClipSourceAt(clip, float64(frame))), true
+	}
+	if value, ok := entry.Params[param].(float64); ok && finite(value) {
+		return value, true
+	}
+	value, _ := spec.Default.(float64)
+	return value, true
 }
 
 // clipFrame is the resolved picture state of a visual clip at one timeline frame. It is the Go side of the JS

@@ -6,6 +6,8 @@ const (
 	AssetVideo AssetKind = "video"
 	AssetAudio AssetKind = "audio"
 	AssetImage AssetKind = "image"
+	// AssetLUT is a .cube colour lookup table (2c). It never sits on a track; lut effects reference it by id.
+	AssetLUT AssetKind = "lut"
 )
 
 type TrackKind string
@@ -75,6 +77,7 @@ type Asset struct {
 	HasPoster       bool      `json:"has_poster,omitempty"`
 	SourceFPS       string    `json:"source_fps,omitempty"`
 	Codec           string    `json:"codec,omitempty"`
+	LUTSize         int       `json:"lut_size,omitempty"` // grid size N of a lut asset (2c), 0 for every other kind
 	SizeBytes       int64     `json:"size_bytes,omitempty"`
 }
 
@@ -115,8 +118,12 @@ type Clip struct {
 	AudioDetached bool                  `json:"audio_detached,omitempty"`
 	Disabled      bool                  `json:"disabled,omitempty"`
 	Label         string                `json:"label,omitempty"`
-	Keyframes     map[string][]Keyframe `json:"keyframes,omitempty"` // base paths (2b: x, y, width, height, rotation, opacity)
+	Keyframes     map[string][]Keyframe `json:"keyframes,omitempty"` // base paths (2b: x, y, width, height, rotation, opacity; 2c: crop.l|t|r|b)
 	Ramp          []RampPoint           `json:"ramp,omitempty"`
+	Crop          *Crop                 `json:"crop,omitempty"` // fractions of the uncropped, unflipped source (2c)
+	FlipH         bool                  `json:"flip_h,omitempty"`
+	FlipV         bool                  `json:"flip_v,omitempty"`
+	Effects       []EffectInstance      `json:"effects,omitempty"`
 }
 
 type TextStyle struct {
@@ -135,6 +142,28 @@ type TextStyle struct {
 type Transition struct {
 	Type     TransitionType `json:"type"`
 	Duration int            `json:"duration"`
+}
+
+// Crop trims a clip's source picture (2c, spec §5.3). Each side is a fraction of the uncropped, unflipped source, from 0
+// to 0.95, and l+r and t+b are at most 0.95. No crop is nil: Validate refuses an all-zero crop, so the canonical form
+// stays unique. The JSON always holds all four keys, in the order l, t, r, b.
+type Crop struct {
+	L float64 `json:"l"`
+	T float64 `json:"t"`
+	R float64 `json:"r"`
+	B float64 `json:"b"`
+}
+
+// EffectInstance is one entry of a clip's effect stack (2c, spec §5.4); the stack order is the processing order.
+//   - ID names a registry effect. An entry with On false is kept and validated, but not rendered.
+//   - Params maps parameter ids to float64 (number), string (lut ref, choice, colour) or bool values. It is never nil:
+//     Validate refuses a missing or null params. A missing parameter means the registry default.
+//   - Keyframes maps keyframable number parameters to their keys, in source time like Clip.Keyframes.
+type EffectInstance struct {
+	ID        string                `json:"id"`
+	On        bool                  `json:"on"`
+	Params    map[string]any        `json:"params"`
+	Keyframes map[string][]Keyframe `json:"keyframes,omitempty"`
 }
 
 const (
@@ -163,6 +192,8 @@ const (
 	MaxLinkClips = 16
 	// MaxAssetNameRunes bounds an asset's display name.
 	MaxAssetNameRunes = 255
+	// MaxEffectsPerClip bounds a clip's effect stack (spec §5.8).
+	MaxEffectsPerClip = 8
 )
 
 // Marker limits (spec §4.1).

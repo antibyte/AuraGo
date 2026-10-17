@@ -97,7 +97,7 @@ func canonicalGuardProject() videostudio.Project {
 		Assets: []videostudio.Asset{{
 			ID: "a", Name: "a.mp4", Folder: "Trips", Path: "media/a", Kind: videostudio.AssetVideo, DurationFrames: 300,
 			DurationUs: 10_010_000, VideoDurationUs: 10_010_000, Width: 64, Height: 36, HasAudio: true, HasPoster: true,
-			SourceFPS: "30000/1001", Codec: "h264", SizeBytes: 99,
+			SourceFPS: "30000/1001", Codec: "h264", LUTSize: 17, SizeBytes: 99,
 		}},
 		Tracks: []videostudio.Track{{
 			ID: "t", Kind: videostudio.TrackVideo, Name: "Video 1", Muted: true, Hidden: true, Locked: true,
@@ -113,6 +113,13 @@ func canonicalGuardProject() videostudio.Project {
 				Label:         "red",
 				Keyframes:     map[string][]videostudio.Keyframe{"opacity": {{F: 0, V: 0, E: videostudio.EaseLinear}, {F: 25, V: 1, E: videostudio.EaseHold}}, "x": {{F: 3, V: 0.1, E: videostudio.EaseInOut}}},
 				Ramp:          []videostudio.RampPoint{{F: 0, Speed: 1, E: videostudio.EaseInOut}, {F: 20, Speed: 2, E: videostudio.EaseLinear}},
+				Crop:          &videostudio.Crop{L: 0.1, T: 0.05, R: 0.2, B: 0.15},
+				FlipH:         true,
+				FlipV:         true,
+				Effects: []videostudio.EffectInstance{{ID: "color", On: true, Params: map[string]any{"contrast": 1.1, "exposure": 0.5}, Keyframes: map[string][]videostudio.Keyframe{
+					"contrast": {{F: 0, V: 1, E: videostudio.EaseLinear}, {F: 12, V: 1.2, E: videostudio.EaseOut}},
+					"exposure": {{F: 0, V: 0, E: videostudio.EaseLinear}, {F: 10, V: 1, E: videostudio.EaseHold}},
+				}}},
 			}},
 		}},
 		Markers:  []videostudio.Marker{{ID: "m", Frame: 5}},
@@ -246,6 +253,59 @@ process.stdout.write(JSON.stringify(P.canonicalProject(live)));
 	output, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("canonical keyframes: %v\n%s", err, stderr.String())
+	}
+	if string(output) != string(data) {
+		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)
+	}
+}
+
+// Crop, flips and effects reach the server in Go's JSON form (plan 2c, index §4.1). The guard project's canonical copy
+// stringifies exactly like json.Marshal, even when the live editor state differs:
+//   - crop keys in another order, plus an editor-only key;
+//   - params and keyframe paths in insertion order;
+//   - unsorted keys and an emptied keyframe list;
+//   - editor-only keys on the entry.
+//
+// A zero crop, false flips, an empty stack and a missing params object take Go's omitempty form.
+func TestVideoStudioCanonicalEffectsMatchGo(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio canonical form checks")
+	}
+	data, err := json.Marshal(canonicalGuardProject())
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const P = window.VideoStudioParts;
+const live = ` + string(data) + `;
+const clip = live.tracks[0].clips[0];
+clip.crop = {b: clip.crop.b, dragging: true, r: clip.crop.r, t: clip.crop.t, l: clip.crop.l};
+clip.effects = clip.effects.map(entry => {
+  const keyframes = {gamma: []};
+  Object.keys(entry.keyframes).reverse().forEach(path => { keyframes[path] = entry.keyframes[path].slice().reverse().map(k => ({e: k.e, selected: true, v: k.v, f: k.f})); });
+  return {open: true, keyframes, params: Object.fromEntries(Object.entries(entry.params).reverse()), on: entry.on, id: entry.id};
+});
+const bare = JSON.parse(JSON.stringify(live)), bareClip = bare.tracks[0].clips[0];
+Object.assign(bareClip, {crop: {l: 0, t: 0, r: 0, b: 0}, flip_h: false, flip_v: false, effects: []});
+const bareKeys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+for (const key of ['crop', 'flip_h', 'flip_v', 'effects']) assert(!bareKeys.includes(key), key + ' is omitted like Go omitempty');
+bareClip.effects = [{id: 'blur', on: false}];
+assert.equal(JSON.stringify(P.canonicalProject(bare).tracks[0].clips[0].effects), '[{"id":"blur","on":false,"params":{}}]', 'params is always an object; keyframes only when there are some');
+process.stdout.write(JSON.stringify(P.canonicalProject(live)));
+`
+	cmd := exec.Command(node, "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("canonical effects: %v\n%s", err, stderr.String())
 	}
 	if string(output) != string(data) {
 		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)

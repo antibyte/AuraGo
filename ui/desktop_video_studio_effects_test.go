@@ -89,8 +89,10 @@ assert.equal(E.isTransition('circleopen'), false);
 assert.equal(E.base('opacity').keyframable, true);
 assert.equal(E.base('fit').default, 'contain');
 assert.equal(E.base('nope'), null);
-assert.equal(E.effect('color'), null, 'the effect table stays empty until 2c');
-assert.deepEqual(E.defaults('color'), {});
+assert.equal(E.effect('color').category, 'color', '2c fills the effect table');
+assert.equal(E.effect('nope'), null);
+assert.deepEqual(E.defaults('lut'), {lut: '', intensity: 1});
+assert.deepEqual(E.defaults('nope'), {});
 // valueAt without keyframes: the clip's own number, else the registry default, else null.
 assert.equal(E.valueAt({opacity: 0.25}, 'opacity', 10, {fps: 30}), 0.25);
 assert.equal(E.valueAt({}, 'opacity', 10, {fps: 30}), 1);
@@ -246,7 +248,7 @@ console.log('ok');
 func TestVideoStudioEffectsKeyframeSampling(t *testing.T) {
 	runVideoStudioEffectsScript(t, `
 const near = (got, want, label) => assert(Math.abs(got - want) < 1e-12, label + ': ' + got + ' != ' + want);
-assert.deepEqual(E.keyframable(), ['x', 'y', 'width', 'height', 'rotation', 'opacity']);
+assert.deepEqual(E.keyframable(), ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'crop.l', 'crop.t', 'crop.r', 'crop.b']);
 near(E.ease('ease_in', 0.5), 0.125, 'ease_in');
 near(E.ease('ease_out', 0.5), 0.875, 'ease_out');
 near(E.ease('ease_in_out', 0.25), 0.0625, 'ease_in_out');

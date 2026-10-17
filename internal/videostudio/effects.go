@@ -40,8 +40,14 @@ type EffectSpec struct {
 	LabelKey string      `json:"label_key"`
 	Params   []ParamSpec `json:"params"`
 	Filters  []string    `json:"filters"` // FFmpeg filters the export needs (capability check)
-	// plan 2c adds the unexported FFmpeg builder field here; it is never serialized.
+	// build is the effect's FFmpeg builder (effects_build.go, plan 2c Tasks 8 and 9). It is unexported, so it is never
+	// serialized, and cloneEffect copies it with the struct.
+	build effectBuilder
 }
+
+// effectBuilder is a placeholder until plan 2c Task 8. That task deletes this declaration and declares the final
+// builder type in effects_build.go. Every registry row leaves build nil until Tasks 8 and 9 attach the builders.
+type effectBuilder func()
 
 // TransitionSpec is one transition type and the xfade transition the export uses for it. The name avoids a clash
 // with the clip's Transition type.
@@ -94,9 +100,9 @@ type UnavailableSet struct {
 	AnimPresets []string `json:"anim_presets"`
 }
 
-// registryBase holds the fixed picture properties of a clip. The label keys are the inspector's existing keys
-// (box_x and box_y label the fine-tune X and Y fields). Number defaults are float64, as JSON decodes them.
-// 2c adds crop.l|t|r|b, flip_h and flip_v; 2d adds blend and mask.*.
+// registryBase holds the fixed picture properties of a clip. The label keys of x and y are the inspector's existing
+// keys box_x and box_y (the fine-tune X and Y fields); crop and flip (2c) use crop_l|t|r|b and flip_h|v. Number
+// defaults are float64, as JSON decodes them. 2d appends blend and mask.*.
 var registryBase = []ParamSpec{
 	{ID: "x", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_x"},
 	{ID: "y", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_y"},
@@ -105,6 +111,12 @@ var registryBase = []ParamSpec{
 	{ID: "rotation", Type: ParamNumber, Min: -360, Max: 360, Default: 0.0, Step: 0.1, Keyframable: true, Unit: "deg", LabelKey: "rotation"},
 	{ID: "opacity", Type: ParamNumber, Min: 0, Max: 1, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "opacity"},
 	{ID: "fit", Type: ParamChoice, Default: string(FitContain), Choices: []string{string(FitContain), string(FitCover)}, LabelKey: "fit"},
+	{ID: "crop.l", Type: ParamNumber, Min: 0, Max: maxCropFraction, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "crop_l"},
+	{ID: "crop.t", Type: ParamNumber, Min: 0, Max: maxCropFraction, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "crop_t"},
+	{ID: "crop.r", Type: ParamNumber, Min: 0, Max: maxCropFraction, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "crop_r"},
+	{ID: "crop.b", Type: ParamNumber, Min: 0, Max: maxCropFraction, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "crop_b"},
+	{ID: "flip_h", Type: ParamBool, Default: false, LabelKey: "flip_h"},
+	{ID: "flip_v", Type: ParamBool, Default: false, LabelKey: "flip_v"},
 }
 
 // registryTransitions keeps the phase 1 ids, export mapping and label keys. A wipe id names the edge the incoming
@@ -118,11 +130,80 @@ var registryTransitions = []TransitionSpec{
 }
 
 var (
-	registryEffects     = []EffectSpec{}     // 2c
 	registryBlendModes  = []BlendModeSpec{}  // 2d
 	registryAnimPresets = []AnimPresetSpec{} // 2e
-	registryLooks       = []LookSpec{}       // 2c
 )
+
+// registryEffects is the effect stack menu (2c, plan index §4.2).
+//   - Label keys are effect.<id>.name and effect.<id>.<param>; the category label is the locale key
+//     effectCategory_<category>.
+//   - Colour parameters follow the index table order.
+//   - The blur radius is not keyframable: gblur takes no reproducible sigma commands (index §7, risk 16).
+//   - The blur filters include premultiply and unpremultiply, which wrap gblur on image clips (plan 2c decision A2).
+//
+// 2d appends chroma_key (category key).
+var registryEffects = []EffectSpec{
+	{ID: "color", Category: "color", LabelKey: "effect.color.name", Filters: []string{"lutrgb", "colorchannelmixer"}, Params: []ParamSpec{
+		{ID: "exposure", Type: ParamNumber, Min: -3, Max: 3, Default: 0.0, Step: 0.01, Keyframable: true, Unit: "ev", LabelKey: "effect.color.exposure"},
+		{ID: "contrast", Type: ParamNumber, Min: 0, Max: 3, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "effect.color.contrast"},
+		{ID: "saturation", Type: ParamNumber, Min: 0, Max: 3, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "effect.color.saturation"},
+		{ID: "temperature", Type: ParamNumber, Min: 2000, Max: 12000, Default: 6500.0, Step: 10, Keyframable: true, Unit: "K", LabelKey: "effect.color.temperature"},
+		{ID: "tint", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.01, Keyframable: true, LabelKey: "effect.color.tint"},
+		{ID: "lift_x", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.lift_x"},
+		{ID: "lift_y", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.lift_y"},
+		{ID: "lift", Type: ParamNumber, Min: -0.5, Max: 0.5, Default: 0.0, Step: 0.001, Keyframable: true, LabelKey: "effect.color.lift"},
+		{ID: "gamma_x", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.gamma_x"},
+		{ID: "gamma_y", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.gamma_y"},
+		{ID: "gamma", Type: ParamNumber, Min: 0.2, Max: 5, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "effect.color.gamma"},
+		{ID: "gain_x", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.gain_x"},
+		{ID: "gain_y", Type: ParamNumber, Min: -1, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "wheel", LabelKey: "effect.color.gain_y"},
+		{ID: "gain", Type: ParamNumber, Min: 0, Max: 4, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "effect.color.gain"},
+	}},
+	{ID: "lut", Category: "color", LabelKey: "effect.lut.name", Filters: []string{"lut3d", "blend"}, Params: []ParamSpec{
+		{ID: "lut", Type: ParamLUT, Default: "", LabelKey: "effect.lut.lut"},
+		{ID: "intensity", Type: ParamNumber, Min: 0, Max: 1, Default: 1.0, Step: 0.01, Keyframable: true, LabelKey: "effect.lut.intensity"},
+	}},
+	{ID: "blur", Category: "detail", LabelKey: "effect.blur.name", Filters: []string{"gblur", "premultiply", "unpremultiply"}, Params: []ParamSpec{
+		{ID: "radius", Type: ParamNumber, Min: 0, Max: 0.05, Default: 0.01, Step: 0.0005, Unit: "height", LabelKey: "effect.blur.radius"},
+	}},
+	{ID: "sharpen", Category: "detail", LabelKey: "effect.sharpen.name", Filters: []string{"cas"}, Params: []ParamSpec{
+		{ID: "strength", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, Keyframable: true, LabelKey: "effect.sharpen.strength"},
+	}},
+	{ID: "vignette", Category: "stylize", LabelKey: "effect.vignette.name", Filters: []string{"vignette", "alphaextract", "alphamerge"}, Params: []ParamSpec{
+		{ID: "amount", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, Keyframable: true, LabelKey: "effect.vignette.amount"},
+		{ID: "size", Type: ParamNumber, Min: 0.25, Max: 2, Default: 1.0, Step: 0.01, Keyframable: true, Unit: "height", LabelKey: "effect.vignette.size"},
+	}},
+}
+
+// registryLooks are the built-in looks (2c). lut.go generates their tables from the colour formula (plan index §4.20).
+// Label keys are look_<id>. A lut effect refers to a look as "builtin:<id>".
+var registryLooks = []LookSpec{
+	{ID: "warm", LabelKey: "look_warm"},
+	{ID: "cool", LabelKey: "look_cool"},
+	{ID: "teal_orange", LabelKey: "look_teal_orange"},
+	{ID: "mono", LabelKey: "look_mono"},
+	{ID: "faded_film", LabelKey: "look_faded_film"},
+	{ID: "high_contrast", LabelKey: "look_high_contrast"},
+	{ID: "vintage", LabelKey: "look_vintage"},
+	{ID: "bleach_bypass", LabelKey: "look_bleach_bypass"},
+}
+
+// Colour constants (plan index §4.20). JS VideoStudioPicture mirrors them: TestVideoStudioPictureConstantsMatchGo (ui)
+// checks the exported ones, and TestColorConstants pins the unexported ones.
+const (
+	// ColorWheelK scales a colour wheel's x/y offset into the per-channel lift and gain, and into the exponent of the
+	// gamma factor.
+	ColorWheelK = 0.2
+	// ColorNeutralKelvin is the temperature whose white-balance gains are all 1.
+	ColorNeutralKelvin = 6500
+	// colorTemperatureGain is the exponent of the red (+) and blue (−) gains per ln(T/6500). colorTintGain is the
+	// exponent of the green gain per tint unit (+tint is magenta).
+	colorTemperatureGain = 0.5
+	colorTintGain        = 0.3
+)
+
+// lumaBT709 weighs R, G and B into luma. The saturation step and the white-balance normalization use it.
+var lumaBT709 = [3]float64{0.2126, 0.7152, 0.0722}
 
 // EffectRegistry returns a deep copy of the registry in menu order. No list is nil.
 func EffectRegistry() Registry {
@@ -154,7 +235,7 @@ func TransitionByID(id TransitionType) (TransitionSpec, bool) {
 	return TransitionSpec{}, false
 }
 
-// EffectByID returns a copy of an effect's registry entry. The table is empty until 2c.
+// EffectByID returns a copy of an effect's registry entry.
 func EffectByID(id string) (EffectSpec, bool) {
 	for _, effect := range registryEffects {
 		if effect.ID == id {
@@ -170,6 +251,33 @@ func BaseParam(id string) (ParamSpec, bool) {
 		if param.ID == id {
 			return cloneParam(param), true
 		}
+	}
+	return ParamSpec{}, false
+}
+
+// LookByID returns the registry entry of a built-in look (2c).
+func LookByID(id string) (LookSpec, bool) {
+	for _, look := range registryLooks {
+		if look.ID == id {
+			return look, true
+		}
+	}
+	return LookSpec{}, false
+}
+
+// effectParamSpec returns one parameter of a registry effect without copying the table. It is for read-only callers:
+// validation and value lookup.
+func effectParamSpec(effectID, param string) (ParamSpec, bool) {
+	for _, effect := range registryEffects {
+		if effect.ID != effectID {
+			continue
+		}
+		for _, spec := range effect.Params {
+			if spec.ID == param {
+				return spec, true
+			}
+		}
+		return ParamSpec{}, false
 	}
 	return ParamSpec{}, false
 }

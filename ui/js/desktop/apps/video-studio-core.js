@@ -79,9 +79,10 @@
     }
     // Go struct order, so a canonical copy and a server-ordered copy stringify the same.
     // folder (project-owned) and has_poster (server-owned) appear only when set, like Go's omitempty JSON.
-    const ASSET_FIELDS = ['id', 'name', 'folder', 'path', 'kind', 'duration_frames', 'duration_us', 'video_duration_us', 'width', 'height', 'has_audio', 'has_poster', 'source_fps', 'codec', 'size_bytes'];
-    // Optional fields (version 2 metadata, folder, poster flag); like Go's omitempty JSON they appear only when set.
-    const OPTIONAL_ASSET_FIELDS = new Set(['folder', 'has_poster', 'duration_us', 'video_duration_us', 'source_fps', 'codec', 'size_bytes']);
+    const ASSET_FIELDS = ['id', 'name', 'folder', 'path', 'kind', 'duration_frames', 'duration_us', 'video_duration_us', 'width', 'height', 'has_audio', 'has_poster', 'source_fps', 'codec', 'lut_size', 'size_bytes'];
+    // Optional fields (version 2 metadata, folder, poster flag, the LUT grid size of 2c); like Go's omitempty JSON they
+    // appear only when set.
+    const OPTIONAL_ASSET_FIELDS = new Set(['folder', 'has_poster', 'duration_us', 'video_duration_us', 'source_fps', 'codec', 'lut_size', 'size_bytes']);
     function canonicalAsset(asset) {
         const out = {};
         ASSET_FIELDS.forEach(key => { if (!OPTIONAL_ASSET_FIELDS.has(key) || asset[key]) out[key] = asset[key]; });
@@ -98,9 +99,30 @@
         });
         return Object.keys(out).length ? out : null;
     }
-    // Version 2 and 3 clip fields after transition, in Go's order (plan index §4.1). Each appears only when set
-    // (omitempty): speed 1 is removed by the editor, and an enabled, unlinked, labelless clip without keyframes or ramp
-    // carries none of them. A ramp is [{f, speed, e}] sorted by f.
+    // A crop (2c) in Go's JSON form: {l, t, r, b} in that order. null when every side is 0: Go omits a nil crop and
+    // refuses an empty one.
+    function canonicalCrop(crop) {
+        if (!crop || typeof crop !== 'object') return null;
+        const out = { l: Number(crop.l) || 0, t: Number(crop.t) || 0, r: Number(crop.r) || 0, b: Number(crop.b) || 0 };
+        return out.l || out.t || out.r || out.b ? out : null;
+    }
+    // An effect entry (2c) in Go's JSON form, {id, on, params, keyframes?}:
+    //  - params is always an object, with its own keys sorted like Go's map keys. No defaults are filled in; the editor
+    //    creates complete params.
+    //  - keyframes follow the clip rules.
+    function canonicalEffect(entry) {
+        const source = entry && entry.params && typeof entry.params === 'object' ? entry.params : {}, params = {};
+        Object.keys(source).sort().forEach(key => { if (source[key] !== undefined) params[key] = source[key]; });
+        const out = { id: String((entry && entry.id) || ''), on: !!(entry && entry.on), params };
+        const keyframes = canonicalKeyframes(entry && entry.keyframes);
+        if (keyframes) out.keyframes = keyframes;
+        return out;
+    }
+    // Version 2 and 3 clip fields after transition, in Go's order (plan index §4.1):
+    //   speed, link, audio_detached, disabled, label, keyframes, ramp, crop, flip_h, flip_v, effects
+    // (2d inserts blend and mask before effects). Each appears only when set (omitempty): the editor removes speed 1,
+    // and an enabled, unlinked, labelless clip without keyframes, ramp or picture fields carries none of them. A ramp is
+    // [{f, speed, e}] sorted by f.
     function canonicalClipExtras(clip) {
         const out = {};
         if (clip.speed != null && Number(clip.speed) !== 1) out.speed = Number(clip.speed);
@@ -111,6 +133,11 @@
         const keyframes = canonicalKeyframes(clip.keyframes);
         if (keyframes) out.keyframes = keyframes;
         if (Array.isArray(clip.ramp) && clip.ramp.length) out.ramp = clip.ramp.map(point => ({ f: Math.round(Number(point.f)), speed: Number(point.speed), e: String(point.e || '') })).sort((a, b) => a.f - b.f);
+        const crop = canonicalCrop(clip.crop);
+        if (crop) out.crop = crop;
+        if (clip.flip_h) out.flip_h = true;
+        if (clip.flip_v) out.flip_v = true;
+        if (Array.isArray(clip.effects) && clip.effects.length) out.effects = clip.effects.map(canonicalEffect);
         return out;
     }
     // Markers and the in/out points follow Go's omitempty JSON: markers only when there are some, each field only when

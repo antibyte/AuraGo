@@ -381,7 +381,7 @@ c.speed = 1; c.duration = 100;
 // P.keyframeView: the selected visual clip at the playhead.
 const s = {project: p, selectedClipId: 'c', frame: 15, readonly: false};
 let view = P.keyframeView(s);
-assert.deepEqual(Object.keys(view.controls).sort(), ['height', 'opacity', 'rotation', 'width', 'x', 'y']);
+assert.deepEqual(Object.keys(view.controls).sort(), ['crop.b', 'crop.l', 'crop.r', 'crop.t', 'height', 'opacity', 'rotation', 'width', 'x', 'y'], 'every keyframable base path, crop included (2c)');
 assert.equal(view.inside, true);
 assert.equal(view.locked, false);
 assert.equal(view.boxAnimated, true);
