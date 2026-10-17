@@ -802,6 +802,17 @@ func isAuthBypassed(path string) bool {
 	return matchesExactOrSubtree(path, authBypassExactPaths, authBypassSubtrees) || isPublicUIAssetPath(path)
 }
 
+// isRuViewUIAssetPath is the pinned RuView UI. Safe reads skip the session
+// because an opaque frame cannot send the cookie. Other RuView routes stay
+// authenticated. The match is a directory prefix, so /api/ruview/ui-extra does
+// not qualify, and a dot-dot or encoded slash cannot climb out.
+func isRuViewUIAssetPath(p string) bool {
+	if strings.ContainsAny(p, "\\%\x00") || strings.Contains(p, "..") {
+		return false
+	}
+	return strings.HasPrefix(p, "/api/ruview/ui/") || strings.HasPrefix(p, "/api/desktop/integrations/ruview/ui/")
+}
+
 // registerTelnyxWebhookPath records the exact path the Telnyx handler was
 // mounted on at startup. The bypass follows the mounted handler, never the
 // live config, so a later config edit cannot open another route.
@@ -913,7 +924,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) || (isSafeMethod(r.Method) && security.ValidCastMediaTicket(r.URL, time.Now())) {
+		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) || (isSafeMethod(r.Method) && (security.ValidCastMediaTicket(r.URL, time.Now()) || isRuViewUIAssetPath(r.URL.Path))) {
 			next.ServeHTTP(w, r)
 			return
 		}

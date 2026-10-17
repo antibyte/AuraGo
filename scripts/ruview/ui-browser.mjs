@@ -74,6 +74,7 @@ export async function checkPolicy(frame,setReadonly) {
         await frame.waitForFunction(()=>document.getElementById('policy-start').disabled&&!document.getElementById('policy-stop').disabled);
         assert.equal(await frame.locator('#policy-load').isDisabled(),true);
         assert.equal(await frame.evaluate(async()=>{try{await fetch('/api/v1/recording/start',{method:'POST'});return false}catch{return true}}),true);
+        assert.equal(await frame.evaluate(async()=>{try{await fetch('/api/v1/recording/rec_fixture',{method:'DELETE'});return false}catch{return true}}),true);
         assert.equal(await frame.evaluate(async()=>(await fetch('/api/v1/recording/stop',{method:'POST'})).ok),true);
         assert.equal(await frame.evaluate(async()=>(await fetch('/api/v1/train/stop',{method:'POST'})).ok),true);
         setReadonly(false);await frame.waitForTimeout(3400);

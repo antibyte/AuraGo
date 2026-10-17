@@ -9,7 +9,7 @@ import {checkDevices,checkPolicy} from './ui-browser.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
-let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false;
+let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false,configRequests=0;
 let serviceState='';
 const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,scope:'fixture'};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
@@ -23,6 +23,7 @@ const sendSensing=data=>sendFrames(sensingSockets,data);
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
+  if(p.includes('/api/config'))configRequests++;
   if(p.startsWith('/api/')&&!p.includes('/ui/')){
    res.setHeader('Content-Type','application/json');if(req.method==='POST')writes++;
    if(p.endsWith('/ruview/nodes')){
@@ -65,7 +66,8 @@ const server=createServer(async(req,res)=>{
   const rel=p.includes('/ui/')?'js/vendor/ruview/'+p.split('/ui/')[1]:p.slice(1);
   if(!rel||rel.includes('..')){res.writeHead(404).end();return;}
   let data=await readFile(path.join('ui',rel));
-  if(p.includes('/ui/')){const nonce=randomBytes(18).toString('base64url');if(rel.endsWith('.html'))data=Buffer.from(data.toString().replaceAll('<script',`<script nonce="${nonce}"`));res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'`);res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');}
+  if(p.includes('/ui/')){const nonce=randomBytes(18).toString('base64url');if(rel.endsWith('.html'))data=Buffer.from(data.toString().replaceAll('<script',`<script nonce="${nonce}"`));const host=req.headers.host,origins=host&&!/[ ;'"]/.test(host)?` http://${host} https://${host}`:'';res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'self'${origins} 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'self'${origins} 'unsafe-inline'; img-src 'self'${origins} data: blob:; font-src 'self'${origins}; connect-src 'none'; worker-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'`);res.setHeader('Permissions-Policy','serial=(), camera=(), microphone=()');res.setHeader('Access-Control-Allow-Origin','*');}
+  if(p.startsWith('/fonts/'))res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.svg':'image/svg+xml','.wasm':'application/wasm'})[path.extname(rel)]||'application/octet-stream');res.end(data);
  }catch{res.writeHead(404).end();}
 });
@@ -138,9 +140,13 @@ try{
  await page.locator('[data-action="runtime/stop"]').click();mode='external';
  offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
  for(const view of ['index.html','observatory.html','pose-fusion.html']){
-  await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
+  await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
   const frame=page.frames().find(f=>f.url().endsWith('/'+view));
   if(view==='index.html'){
+   assert.match(await page.evaluate(async()=>(await fetch(document.querySelector('iframe').src)).headers.get('content-security-policy')||''),/connect-src 'none'/);
+   const configBefore=configRequests;
+   assert.equal(await frame.evaluate(async()=>{try{await fetch('/api/config');return false}catch{return true}}),true);
+   assert.equal(configRequests,configBefore,'iframe fetch of /api/config must not arrive');
    await frame.waitForFunction(()=>document.querySelector('.conn-status-label')?.textContent==='Waiting for data');
    assert.ok((await frame.locator('#ruview-data-source-banner').innerText()).includes('WAITING FOR SENSOR DATA'));
    assert.ok(!(await frame.locator('body').innerText()).includes('Backend unavailable'));

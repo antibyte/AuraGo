@@ -844,7 +844,7 @@
 
 - `ruview.js` owns one Desktop window. Overview and Devices poll status and known boards together while the window is visible, pause when it is hidden, and do not overlap requests. An idle tab waits for that snapshot before showing board ages. A tab switch during a refresh paints the last snapshot and does not start another request. The first summary value stays the service state. A failed status or node read keeps the previous board list. A successful status is still applied when the board read fails.
 - Devices name CSI and RSSI and show a relative age. An offline RSSI is labelled as the last value for the same receiver. A measurement time the reply omitted stays blank. Each board can open the wizard with that node ID. Disabled actions share one visible reason. Rendering never starts a runtime or enables UDP.
-- The upstream iframe sandbox stays `allow-scripts allow-same-origin` until a separate isolation change. Backend status and recording acknowledgement: `internal/ruview/AGENTS.md`. Verify `node scripts/ruview/browser.test.mjs`.
+- The upstream iframe sandbox is `allow-scripts` only. `relay.mjs` posts reviewed API calls and sensing sockets to this window and replies with target origin `*`; the frame accepts a reply only from this window and cannot open its own connections. Serial, camera, and microphone stay off the frame. Backend status and recording acknowledgement: `internal/ruview/AGENTS.md`. Verify `node scripts/ruview/browser.test.mjs`.
 
 ## Purpose
 

@@ -7,7 +7,7 @@
         const controller = new AbortController(), esc = ctx.esc;
         const t = key => { const value = ctx.t('ruview.' + key); return value === 'ruview.' + key ? ctx.t('ruview.unavailable') : value; };
         const errorText = message => { if (!message) return ''; const key = 'ruview.' + message, value = ctx.t(key); return value === key ? message : value; };
-        let dead = false, tab = 'overview', status = {}, wizardClose = null, actionError = '';
+        let dead = false, tab = 'overview', status = {}, wizardClose = null, relayDetach = null, actionError = '';
         let viewEpoch = 0, statusEpoch = 0, polling = false;
         let nodes = [], nodesAt = 0, nodesError = '', nodesLoaded = false, nodesScope = '';
         const pending = new Set();
@@ -167,9 +167,11 @@
             if (tab==='devices') devices();
             else if (tab==='overview') summary();
         }
+        function dropRelay(){relayDetach?.();relayDetach=null;}
         async function show() {
             const epoch=++viewEpoch,generation=++statusEpoch;
             host.querySelectorAll('[data-tab]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tab===tab)));
+            dropRelay();
             if (tab==='overview'||tab==='devices') {
                 if (polling) { paint(); return; }
                 polling=true;try{await refreshSnapshot(epoch);}finally{polling=false;}return;
@@ -181,7 +183,11 @@
                 if(!status.enabled){content.textContent=t('disabled');return;}
                 content.replaceChildren();
                 if(tab==='pose-fusion.html'){const note=document.createElement('p');note.className='ruview-note';note.setAttribute('role','note');note.textContent=t('fusion_notice');content.append(note);}
-                const frame=document.createElement('iframe');frame.title='RuView · '+tab;frame.sandbox='allow-scripts allow-same-origin';frame.allow="serial 'none'; camera 'none'; microphone 'none'";frame.src=base+'ui/'+tab;content.append(frame);
+                const {attachRuViewRelay,tourFrameName}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/relay.mjs'));
+                if(dead||epoch!==viewEpoch)return;
+                const frame=document.createElement('iframe');frame.title='RuView · '+tab;frame.sandbox='allow-scripts';frame.allow="serial 'none'; camera 'none'; microphone 'none'";
+                try{frame.name=localStorage.getItem('aurago.ruview.onboarding.done')==='true'?tourFrameName:'';}catch{frame.name='';}
+                content.append(frame);relayDetach=attachRuViewRelay(frame,base);frame.src=base+'ui/'+tab;
             }catch(error){if(!dead&&epoch===viewEpoch)content.textContent=errorText(error.message);}
         }
         host.addEventListener('click',async event=>{
@@ -214,7 +220,7 @@
             finally{polling=false;}
         },3000);
         const ageTimer=setInterval(()=>{if(!dead&&!document.hidden&&host.checkVisibility())deviceAges();},1000);
-        const closed=()=>{dead=true;++viewEpoch;++statusEpoch;clearInterval(timer);clearInterval(ageTimer);controller.abort();wizardClose?.();host.querySelectorAll('iframe').forEach(frame=>frame.remove());};
+        const closed=()=>{dead=true;++viewEpoch;++statusEpoch;clearInterval(timer);clearInterval(ageTimer);controller.abort();dropRelay();wizardClose?.();host.querySelectorAll('iframe').forEach(frame=>frame.remove());};
         instances.set(id,closed);show();
     }
     window.RuViewApp={render,dispose};

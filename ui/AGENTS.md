@@ -727,8 +727,17 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   remain operator-managed. Background health reads update the cached status;
   app opening stays passive. Show unchecked/starting separately from unavailable.
   Manual stop, process exit and uncertain stop must not trigger an automatic restart.
+  The Desktop frame is sandboxed with `allow-scripts` only. Its UI responses use
+  `connect-src 'none'`. API calls and WebSockets reach the parent through
+  `postMessage`; the parent relays reviewed proxy paths plus the status,
+  capabilities, and UI `.wasm` reads the opaque frame cannot make, and replies
+  with target origin `*`. The frame accepts a reply only from its parent. An iframe
+  fetch of any other path, including `/api/config`, must not arrive. The pinned
+  UI files and public fonts are readable without the session cookie so the
+  opaque frame can load its modules.
   Remember skipped/completed Dashboard tours across iframe, app and page reopening
-  using only the boolean `aurago.ruview.onboarding.done` browser preference. Keep
+  using only the boolean `aurago.ruview.onboarding.done` browser preference. The
+  opaque frame learns that flag from its name and asks the parent to store it. Keep
   explicit replay available; all other upstream storage stays memory-only and
   clearing it must never clear unrelated AuraGo preferences. Blocked storage falls
   back to memory without breaking the Dashboard.

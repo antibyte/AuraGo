@@ -56,6 +56,35 @@ func TestAuthLockdownAllowsOnlyExactSetupDependencies(t *testing.T) {
 	}
 }
 
+func TestRuViewUIAssetsSkipTheSession(t *testing.T) {
+	t.Parallel()
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+	handler := authMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for path, want := range map[string]int{
+		"/api/ruview/ui/index.html":                            http.StatusNoContent,
+		"/api/desktop/integrations/ruview/ui/app.js":           http.StatusNoContent,
+		"/api/ruview/status":                                   http.StatusUnauthorized,
+		"/api/ruview/ui/../status":                             http.StatusUnauthorized,
+		"/api/desktop/integrations/ruview/proxy/api/v1/status": http.StatusUnauthorized,
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != want {
+			t.Fatalf("%s status = %d, want %d", path, rec.Code, want)
+		}
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/ruview/ui/index.html", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("POST ui status = %d, want 401", rec.Code)
+	}
+}
+
 func TestAuthMiddlewareRequiresSessionForDiscordHealth(t *testing.T) {
 	t.Parallel()
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}

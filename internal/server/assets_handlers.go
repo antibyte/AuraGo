@@ -137,6 +137,10 @@ func versionedUIHandler(files fs.FS, version string) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		// The opaque RuView frame loads these public fonts cross-origin.
+		if strings.HasPrefix(r.URL.Path, "/fonts/") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		// Unversioned CSS/vendor subresources must be revalidated after upgrades.
 		w.Header().Set("Cache-Control", "no-store")
 		if requested != "" {

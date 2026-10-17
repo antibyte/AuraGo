@@ -29,7 +29,7 @@ This package owns the runtime client, proxy policy, node inventory and passive s
 - `storage_limit` opens when a managed budget observation changes from false to true and closes when a later observation is false. External mode does not open it. A stop or disable that replaces status does not count as the budget returning to false.
 - `stop_unconfirmed` opens when a non-external stop returns without releasing runtime ownership. It closes on a later stop that returns successfully or on a start that finishes. External mode does not open it.
 - Pose, vital signs, model load, LoRa, camera, and timed recording stay blocked.
-- The upstream iframe keeps `allow-scripts allow-same-origin` until a separate isolation change.
+- The upstream iframe sandbox is `allow-scripts` only. UI responses use `connect-src 'none'`. The frame sends API calls and WebSockets by `postMessage`. The Desktop parent relays a call only when `Endpoint` allows that method and path, and only through the authenticated proxy. It also relays its own `status` and `capabilities` reads, and GET of a `.wasm` file under the RuView UI prefix, because the opaque frame cannot fetch those itself. Paths with a query or fragment are refused before any network call. Replies without a matching id are ignored. The parent accepts a message only when `event.origin` is `null` and the source is that frame. It replies to that frame with target origin `*`, because the browser rejects target origin `null`; the frame accepts a reply only from its parent window. Serial, camera, and microphone stay off the frame. Tour completion still uses only `aurago.ruview.onboarding.done`, seeded from the frame name.
 
 ## Work Guidance
 
