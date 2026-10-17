@@ -31,10 +31,16 @@ and resource fingerprint; a differing draft needs explicit review or correction.
 Corrections retain superseded alternatives only in the old entry's history.
 
 The runtime resolves `user:current` and supported structured technical evidence.
+Where ingress captures the original human text, both direct tools and background
+analysis use that text for evidence; an empty human input cannot fall back to
+attachment or handoff content. Resource-bound runs cannot broaden their scope
+through a condition's target.
 Quoted/fenced/imported source text and assistant responses cannot authorize a
 personal preference. Technical checks never grant permanent permissions.
-Model-invented conditions and paraphrased decisions remain proposals. No source
-identifier or project path supplied by the model establishes access.
+Model-invented conditions and paraphrased decisions or technical assertions remain
+proposals. A technical source must support the asserted statement, not merely
+exist in the runtime evidence ledger. No source identifier or project path supplied
+by the model establishes access.
 
 The central Memory panel and Code Studio/Game Maker project views share the same
 records and review actions. Inspect sources and history, then confirm, protect,
@@ -64,7 +70,12 @@ Prepared observations refresh between model calls, including after revocation.
 Content fingerprints mark relevant resource insights for revalidation. A changed
 file is not proof that its decision is wrong. Active graph indexes poll every
 five seconds; learning-only runs recheck the selected resource at access/write
-boundaries. Files that cannot be read are not treated as confirmed deletions.
+boundaries using fresh fingerprints. Read-only runs omit stale or unreadable
+resource insights without changing stored revisions. Files that cannot be read
+are not treated as confirmed deletions. Revalidation covers every matching active
+or pending resource insight; further changes invalidate an older review revision.
+Readable content changes still trigger revalidation when the new source has
+syntax errors; failed parser facts remain excluded from the index.
 
 Supported structured operations include filesystem writes/moves/copies/deletes
 (including batches), file editors, JSON/YAML/TOML property edits, Desktop file

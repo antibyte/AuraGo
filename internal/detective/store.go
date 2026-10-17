@@ -26,6 +26,7 @@ type Options struct {
 	Profiles map[string]Profile
 	Now      func() time.Time
 	PDF      func(context.Context, Report) ([]byte, error)
+	Allowed  func() bool
 }
 
 type Service struct {
@@ -42,6 +43,7 @@ type Service struct {
 	active   *Session
 	closed   bool
 	pdf      func(context.Context, Report) ([]byte, error)
+	allowed  func() bool
 }
 
 func New(opts Options) (*Service, error) {
@@ -54,47 +56,21 @@ func New(opts Options) (*Service, error) {
 	}
 	db.SetMaxOpenConns(1)
 	var schemaVersion int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > 2 {
+	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > 3 {
 		db.Close()
 		return nil, fmt.Errorf("unsupported Detective database version %d: %v", schemaVersion, err)
 	}
-	_, err = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
-CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, body BLOB NOT NULL, status TEXT NOT NULL, updated TEXT NOT NULL, active_ms INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS detective_continuations(case_id TEXT PRIMARY KEY REFERENCES detective_cases(id), body BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS detective_keys(case_id TEXT NOT NULL, key TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(case_id,key));
-CREATE TABLE IF NOT EXISTS detective_events(id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS detective_event_case ON detective_events(case_id,id);
-CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));`)
-	if err != nil {
+	if err = backupBeforeArchive(db, opts.Path, schemaVersion); err != nil {
 		db.Close()
 		return nil, err
 	}
-	if schemaVersion < 2 {
-		if schemaVersion < 1 {
-			if _, err = db.Exec(`PRAGMA user_version=1`); err != nil {
-				db.Close()
-				return nil, err
-			}
-		}
-		var cols int
-		if err = db.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&cols); err != nil {
-			db.Close()
-			return nil, err
-		}
-		if cols == 0 {
-			if _, err = db.Exec(`ALTER TABLE detective_cases ADD COLUMN active_ms INTEGER NOT NULL DEFAULT 0`); err != nil {
-				db.Close()
-				return nil, err
-			}
-		}
-		if _, err = db.Exec(`UPDATE detective_cases SET active_ms = COALESCE(CAST(json_extract(body,'$.run.usage.active_ms') AS INTEGER), 0)`); err != nil {
-			db.Close()
-			return nil, err
-		}
-		if _, err = db.Exec(`PRAGMA user_version=2`); err != nil {
-			db.Close()
-			return nil, err
-		}
+	if _, err = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;`); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err = migrateDatabase(db, schemaVersion); err != nil {
+		db.Close()
+		return nil, err
 	}
 	p := Profiles()
 	for k, v := range opts.Profiles {
@@ -113,7 +89,7 @@ CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision I
 		now = time.Now
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF}
+	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF, allowed: opts.Allowed}
 	cases, err := s.List()
 	if err != nil {
 		db.Close()
@@ -140,6 +116,41 @@ CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision I
 	s.wg.Add(1)
 	go s.worker()
 	return s, nil
+}
+
+func migrateDatabase(db *sql.DB, schemaVersion int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, body BLOB NOT NULL, status TEXT NOT NULL, updated TEXT NOT NULL, active_ms INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS detective_continuations(case_id TEXT PRIMARY KEY REFERENCES detective_cases(id), body BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS detective_keys(case_id TEXT NOT NULL, key TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(case_id,key));
+CREATE TABLE IF NOT EXISTS detective_events(id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS detective_event_case ON detective_events(case_id,id);
+CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));`)
+	if err != nil {
+		return err
+	}
+	if schemaVersion < 2 {
+		var cols int
+		if err = tx.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&cols); err != nil {
+			return err
+		}
+		if cols == 0 {
+			if _, err = tx.Exec(`ALTER TABLE detective_cases ADD COLUMN active_ms INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return err
+			}
+		}
+		if _, err = tx.Exec(`UPDATE detective_cases SET active_ms = COALESCE(CAST(json_extract(body,'$.run.usage.active_ms') AS INTEGER), 0)`); err != nil {
+			return err
+		}
+	}
+	if err = migrateArchive(tx, schemaVersion); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func id(prefix string) string {
@@ -204,14 +215,19 @@ func (s *Service) getLocked(key string) (Case, error) {
 func (s *Service) saveLocked(c *Case) error {
 	c.UpdatedAt = s.now().UTC()
 	c.Run.UpdatedAt = c.UpdatedAt
-	b, err := json.Marshal(c)
+	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`INSERT INTO detective_cases(id,body,status,updated,active_ms) VALUES(?,?,?,?,?)
-ON CONFLICT(id) DO UPDATE SET body=excluded.body,status=excluded.status,updated=excluded.updated,active_ms=excluded.active_ms`,
-		c.ID, b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS)
-	return err
+	defer tx.Rollback()
+	if err = saveCaseTx(tx, c); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	c.pendingSources, c.pendingFindings, c.pendingReports = nil, nil, nil
+	return nil
 }
 func (s *Service) Get(key string) (Case, error) {
 	s.mu.Lock()
@@ -226,20 +242,21 @@ func (s *Service) List() ([]Case, error) {
 func (s *Service) ListSummaries() ([]Case, error) { return s.list(true) }
 
 type LiveView struct {
-	ID             string    `json:"id"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	Status         string    `json:"status"`
-	Phase          string    `json:"phase"`
-	Reason         string    `json:"reason"`
-	Effort         string    `json:"effort"`
-	Topic          string    `json:"topic"`
-	Usage          Usage     `json:"usage"`
-	Profile        Profile   `json:"profile"`
-	Sources        int       `json:"sources"`
-	Findings       int       `json:"findings"`
-	Reports        int       `json:"reports"`
-	LatestRevision int       `json:"latest_revision"`
-	LatestSourceID string    `json:"latest_source_id"`
+	ID             string     `json:"id"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	Status         string     `json:"status"`
+	Phase          string     `json:"phase"`
+	Reason         string     `json:"reason"`
+	Effort         string     `json:"effort"`
+	Topic          string     `json:"topic"`
+	Usage          Usage      `json:"usage"`
+	Profile        Profile    `json:"profile"`
+	Sources        int        `json:"sources"`
+	Findings       int        `json:"findings"`
+	Reports        int        `json:"reports"`
+	LatestRevision int        `json:"latest_revision"`
+	LatestSourceID string     `json:"latest_source_id"`
+	AutoUpdate     AutoUpdate `json:"auto_update"`
 }
 
 func (s *Service) Exists(key string) (bool, error) {
@@ -254,10 +271,12 @@ func (s *Service) Exists(key string) (bool, error) {
 }
 
 func (s *Service) Live(key string) (LiveView, error) {
+	allowed := s.allowed == nil || s.allowed()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var v LiveView
 	var updated string
+	var auto []byte
 	err := s.db.QueryRow(`SELECT id, updated, active_ms,
 		COALESCE(json_extract(body,'$.run.status'),''),
 		COALESCE(json_extract(body,'$.run.phase'),''),
@@ -276,17 +295,18 @@ func (s *Service) Live(key string) (LiveView, error) {
 		COALESCE(json_extract(body,'$.run.profile.tools'),0),
 		COALESCE(json_extract(body,'$.run.profile.iterations'),0),
 		COALESCE(json_extract(body,'$.run.profile.tokens'),0),
-		COALESCE(json_array_length(body,'$.sources'),0),
-		COALESCE(json_array_length(body,'$.findings'),0),
-		COALESCE(json_array_length(body,'$.reports'),0),
-		COALESCE(json_extract(body,'$.reports[#-1].revision'),0),
-		COALESCE(json_extract(body,'$.sources[#-1].id'),'')
+		MAX(COALESCE(json_extract(body,'$.source_count'),0),COALESCE(json_array_length(body,'$.sources'),0)),
+		MAX(COALESCE(json_extract(body,'$.finding_count'),0),COALESCE(json_array_length(body,'$.findings'),0)),
+		COALESCE(json_extract(body,'$.latest_revision'),0),
+		COALESCE(json_extract(body,'$.latest_revision'),0),
+		COALESCE(NULLIF(json_extract(body,'$.latest_source_id'),''),json_extract(body,'$.sources[#-1].id'),''),
+		COALESCE(json_extract(body,'$.auto_update'),'{}')
 		FROM detective_cases WHERE id=?`, key).Scan(
 		&v.ID, &updated, &v.Usage.ActiveMS,
 		&v.Status, &v.Phase, &v.Reason, &v.Effort, &v.Topic,
 		&v.Usage.Tools, &v.Usage.Iterations, &v.Usage.Requests, &v.Usage.PromptTokens, &v.Usage.CompletionTokens, &v.Usage.CachedTokens, &v.Usage.Bytes, &v.Usage.Pages,
 		&v.Profile.Seconds, &v.Profile.Tools, &v.Profile.Iterations, &v.Profile.Tokens,
-		&v.Sources, &v.Findings, &v.Reports, &v.LatestRevision, &v.LatestSourceID)
+		&v.Sources, &v.Findings, &v.Reports, &v.LatestRevision, &v.LatestSourceID, &auto)
 	if errors.Is(err, sql.ErrNoRows) {
 		return LiveView{}, ErrNotFound
 	}
@@ -294,6 +314,12 @@ func (s *Service) Live(key string) (LiveView, error) {
 		return LiveView{}, err
 	}
 	v.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err == nil {
+		err = json.Unmarshal(auto, &v.AutoUpdate)
+	}
+	if v.AutoUpdate.Enabled && !allowed {
+		v.AutoUpdate.Outcome = "permission_blocked"
+	}
 	return v, err
 }
 
@@ -329,6 +355,10 @@ func (s *Service) list(summary bool) ([]Case, error) {
 }
 
 func (s *Service) Create(req Request) (Case, error) {
+	req.AutoUpdate = defaultAutoUpdate(req.AutoUpdate)
+	if err := s.validateAutoUpdate(req.AutoUpdate); err != nil {
+		return Case{}, err
+	}
 	if strings.TrimSpace(req.Topic) == "" || len(req.Topic) > 8000 || len(req.Scope) > 8000 || len(req.SourceURLs) > 20 || len(req.PrivateSources) > 20 {
 		return Case{}, errors.New("invalid research request")
 	}
@@ -354,6 +384,7 @@ func (s *Service) Create(req Request) (Case, error) {
 		return Case{}, errors.New("research case limit reached")
 	}
 	c := Case{ID: id("case_"), Request: req, Run: Run{Status: "draft"}, CreatedAt: s.now().UTC(), Sources: []Source{}, Findings: []Finding{}, Reports: []Report{}}
+	c.AutoUpdate.AutoUpdateSettings = req.AutoUpdate
 	err := s.saveLocked(&c)
 	return c, err
 }
@@ -373,7 +404,7 @@ func (s *Service) Delete(key string) error {
 		return err
 	}
 	defer tx.Rollback()
-	for _, q := range []string{"DELETE FROM detective_artifacts WHERE case_id=?", "DELETE FROM detective_events WHERE case_id=?", "DELETE FROM detective_continuations WHERE case_id=?", "DELETE FROM detective_keys WHERE case_id=?", "DELETE FROM detective_cases WHERE id=?"} {
+	for _, q := range []string{"DELETE FROM detective_artifacts WHERE case_id=?", "DELETE FROM detective_sources WHERE case_id=?", "DELETE FROM detective_findings WHERE case_id=?", "DELETE FROM detective_reports WHERE case_id=?", "DELETE FROM detective_events WHERE case_id=?", "DELETE FROM detective_continuations WHERE case_id=?", "DELETE FROM detective_keys WHERE case_id=?", "DELETE FROM detective_cases WHERE id=?"} {
 		if _, err = tx.Exec(q, key); err != nil {
 			return err
 		}

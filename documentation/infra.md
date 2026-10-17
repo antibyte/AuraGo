@@ -5,15 +5,16 @@ containers, applications and network segments. Atlas, topology and inventory
 show the same entries. Positions belong to the AuraGo instance; view, selection
 and navigation belong to the current window.
 
-## Enable it
+## Configuration
 
-Open Configuration → Virtual Desktop → Infra. Infra starts disabled. Local
-editing, source editing and device control are separate capabilities:
+Open Configuration → Virtual Desktop → Infra. Infra is enabled by default when
+the Desktop is enabled; an explicitly saved disabled setting remains respected.
+Local editing, source editing and device control are separate capabilities:
 
 ```yaml
 virtual_desktop:
     infra:
-        enabled: false
+        enabled: true
         read_only: false
         allow_source_edit: false
         allow_control: false
@@ -46,8 +47,11 @@ relationships remain distinct; a shared subnet does not imply a cable.
 The detail editor separates **Save in Infra** from **Save in source**. Local
 profiles hold hardware details, network interfaces, CIDR/VLAN, location,
 management links, notes and custom fields. Blank information remains unknown.
+Saving local details never changes an existing registry device or its Quick
+Connect destination; use the source editor for those changes.
 Failed saves and version conflicts retain the draft rather than silently
-overwriting another editor's changes.
+overwriting another editor's changes. Closing a window with unsaved local,
+source or layout changes asks whether to discard them or keep editing.
 
 App links select an existing target: Quick Connect selects a registry device
 without connecting or replacing the current session; Network Cameras selects a
@@ -75,6 +79,9 @@ task acknowledgement and a sent Wake-on-LAN packet mean accepted, not confirmed
 device startup. An uncertain operation is never automatically retried. Request
 IDs and outcomes survive server restarts, so replay does not repeat an uncertain
 mutation. Inspect the source before issuing a new operation after uncertainty.
+Revoking Infra or integration permissions cancels affected requests. Operations
+that have not been sent are blocked; cancellation after dispatch does not prove
+that the device action was stopped and can leave its outcome unknown.
 
 ## Persistence and privacy
 

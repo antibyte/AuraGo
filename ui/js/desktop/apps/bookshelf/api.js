@@ -7,7 +7,7 @@
     function create(context, signal) {
         const api = context.api;
         const call = (path, options = {}) => api(base + path, Object.assign({}, options, { signal }));
-        const json = (method, body, headers) => ({ method, body, headers });
+        const json = (method, body, headers) => ({ method, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json', ...headers } });
         return {
             capabilities: () => call('/capabilities'),
             cache: () => call('/cache'),
@@ -21,7 +21,7 @@
             addSource: (source, credential) => call('/sources', json('POST', { source, ...(credential ? { credential } : {}) })),
             updateSource: (id, patch, generation) => call('/sources/' + idPath(id), json('PATCH', patch, generation ? { 'If-Match': String(generation) } : undefined)),
             removeSource: id => call('/sources/' + idPath(id), { method: 'DELETE' }),
-            scanSource: id => call('/sources/' + idPath(id) + '/scan', { method: 'POST', body: {} }),
+            scanSource: id => call('/sources/' + idPath(id) + '/scan', json('POST', {})),
             job: id => call('/jobs/' + idPath(id)),
             books: params => {
                 const query = new URLSearchParams();
@@ -39,8 +39,8 @@
                     return call('/books/resolve', json('POST', { path: location?.path || '' }));
                 }
             },
-            prepare: (id, format) => call('/books/' + idPath(id) + '/prepare' + (format ? '?' + new URLSearchParams({ format }).toString() : ''), { method: 'POST', body: {} }),
-            convert: id => call('/books/' + idPath(id) + '/convert', { method: 'POST', body: {} }),
+            prepare: (id, format) => call('/books/' + idPath(id) + '/prepare' + (format ? '?' + new URLSearchParams({ format }).toString() : ''), json('POST', {})),
+            convert: id => call('/books/' + idPath(id) + '/convert', json('POST', {})),
             updateReadingState: (id, state, revision) => call('/books/' + idPath(id) + '/state', json('PATCH', { state }, revision ? { 'If-Match': String(revision) } : undefined)),
             setPinned: (id, pinned, revision) => call('/books/' + idPath(id) + '/cache', json('PATCH', { pinned }, revision ? { 'If-Match': String(revision) } : undefined)),
             saveProgress: (id, progress, revision) => call('/books/' + idPath(id) + '/progress', json('PATCH', progress, revision ? { 'If-Match': String(revision) } : undefined)),
@@ -48,7 +48,7 @@
             createCollection: collection => call('/collections', json('POST', collection)),
             updateCollection: (id, patch, revision) => call('/collections/' + idPath(id), json('PATCH', patch, revision ? { 'If-Match': String(revision) } : undefined)),
             reorderCollectionBooks: (id, bookIds, revision) => call('/collections/' + idPath(id) + '/books', json('PATCH', { book_ids: bookIds }, revision ? { 'If-Match': String(revision) } : undefined)),
-            addToCollection: (collectionId, bookId) => call('/collections/' + idPath(collectionId) + '/books/' + idPath(bookId), { method: 'PUT', body: {} }),
+            addToCollection: (collectionId, bookId) => call('/collections/' + idPath(collectionId) + '/books/' + idPath(bookId), json('PUT', {})),
             removeFromCollection: (collectionId, bookId) => call('/collections/' + idPath(collectionId) + '/books/' + idPath(bookId), { method: 'DELETE' }),
             annotations: id => call('/books/' + idPath(id) + '/annotations'),
             createAnnotation: (id, annotation) => call('/books/' + idPath(id) + '/annotations', json('POST', annotation)),

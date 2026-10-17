@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/httporigin"
 )
 
 const gmailAPI = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -88,9 +90,20 @@ func (a *gmailAdapter) requestLimit(ctx context.Context, grant, method, path str
 	}
 	client := a.cfg.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 25 * time.Second}
+		client = httporigin.NewClient(25 * time.Second)
 	}
-	resp, err := client.Do(req)
+	// Keep injected transports and stricter policies without mutating a shared client.
+	boundClient := *client
+	boundClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := httporigin.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if client.CheckRedirect != nil {
+			return client.CheckRedirect(req, via)
+		}
+		return nil
+	}
+	resp, err := boundClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -482,13 +495,13 @@ func (a *gmailAdapter) readMessage(ctx context.Context, id, thread, folder strin
 	if e != nil {
 		return Message{}, e
 	}
-	subj, from, to, cc, body, html, atts, e := ParseMIME(raw, maxGmailResponseBytes)
+	subj, from, to, cc, body, html, atts, htmlSkipped, e := ParseMIME(raw, maxGmailResponseBytes)
 	if e != nil {
 		return Message{}, e
 	}
 	metadata.Subject, metadata.From, metadata.To, metadata.CC = subj, from, to, cc
 	metadata.ReplyTo = ParseReplyTo(raw)
-	metadata.Text, metadata.HTML, metadata.Attachments = body, html, atts
+	metadata.Text, metadata.HTML, metadata.HTMLSkipped, metadata.Attachments = body, html, htmlSkipped, atts
 	metadata.Raw = append([]byte(nil), raw...)
 	if mid, irt, refs, e := ParseThreadHeaders(raw); e == nil {
 		metadata.MessageID, metadata.InReplyTo, metadata.References = mid, irt, refs
@@ -603,7 +616,7 @@ func (a *gmailAdapter) Attachment(ctx context.Context, folder, id, part string) 
 	if e != nil {
 		return nil, e
 	}
-	_, _, _, _, _, _, atts, e := ParseMIME(raw, maxGmailResponseBytes)
+	_, _, _, _, _, _, atts, _, e := ParseMIME(raw, maxGmailResponseBytes)
 	if e != nil {
 		return nil, e
 	}

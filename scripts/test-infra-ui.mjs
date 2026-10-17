@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const source = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/infra.js'), 'utf8');
+const source = ['infra-views.js', 'infra.js'].map(file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8')).join('\n');
 const window = { BUILD_VERSION: 'test-build', btoa: value => Buffer.from(value, 'binary').toString('base64') };
 vm.runInNewContext(source, { window, console, setTimeout, clearTimeout, DOMException, TextEncoder, Map, Set, JSON, Math, Date, URL });
 const model = window.InfraAppModel;

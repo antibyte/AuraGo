@@ -166,8 +166,11 @@ type Server struct {
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	infraMu         sync.Mutex
 	infraRuntime    *desktopInfraRuntime
-	bookshelfMu     sync.Mutex
-	bookshelf       *desktopBookshelfRuntime
+
+	infraConfigAdmission atomic.Pointer[config.Config]
+
+	bookshelfMu sync.Mutex
+	bookshelf   *desktopBookshelfRuntime
 
 	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
 	serverLifetimeCancel context.CancelFunc
@@ -437,6 +440,7 @@ func (s *Server) initConfigSnapshot() {
 	s.bindConfigAuthorization(s.Cfg)
 	s.syncPersonalityConfig(s.Cfg)
 	s.cfgSnapshot.Store(s.Cfg)
+	s.infraConfigAdmission.Store(s.Cfg)
 }
 
 // ConfigSnapshot returns the current immutable runtime config pointer.
@@ -481,9 +485,22 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	// Publish the Infra admission fence before cancellation and config side
+	// effects. A writer that captured the old snapshot but initializes the
+	// runtime after cancellation will fail its admission check.
+	s.infraConfigAdmission.Store(cfg)
 	previous := s.ConfigSnapshot()
 	if previous != nil && (previous.LLMRouter.Enabled != cfg.LLMRouter.Enabled || previous.LLMRouter.DecisionsFallback != cfg.LLMRouter.DecisionsFallback) {
 		s.routingDecisionEpoch.Add(1)
+	}
+	if previous != nil {
+		if desktopInfraConfigChanged(s, previous, cfg) {
+			s.cancelDesktopInfraOperations(cfg)
+		} else {
+			// Keep admission tied to the newly published immutable snapshot while
+			// allowing active Infra operations to survive unrelated config saves.
+			s.updateDesktopInfraConfigSnapshot(cfg)
+		}
 	}
 	if previous != nil {
 		genericStoragePolicyChanged := previous.WebDAV != cfg.WebDAV || previous.Koofr != cfg.Koofr ||

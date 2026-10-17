@@ -915,50 +915,57 @@
     <div class="dash-card dash-full-width" id="card-prompt">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke-linecap="round"/></svg> <span data-i18n="dashboard.prompt_title"></span> <button type="button" class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
-        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_data"></div>
+        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_measurements"></div>
         <div id="prompt-content">
+          <h4 class="dash-subheading" data-i18n="dashboard.prompt_modules_title"></h4>
+          <p data-i18n="dashboard.prompt_modules_help"></p>
+          <div class="prompt-kpi-grid" id="prompt-module-kpis"></div>
+          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_base_title"></h4>
+          <p data-i18n="dashboard.prompt_base_help"></p>
           <div class="prompt-kpi-grid" id="prompt-kpis"></div>
           <div class="prompt-details-grid">
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_history"></h4>
+              <h4 class="dash-subheading" id="prompt-base-chart-title" data-i18n="dashboard.prompt_history"></h4>
               <div class="prompt-chart-wrap">
-                <canvas id="prompt-size-chart"></canvas>
+                <canvas id="prompt-size-chart" role="img" aria-labelledby="prompt-base-chart-title" aria-describedby="prompt-kpis"></canvas>
               </div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_tier_distribution"></h4>
+              <h4 class="dash-subheading" id="prompt-tier-chart-title" data-i18n="dashboard.prompt_tier_distribution"></h4>
               <div class="prompt-chart-wrap">
-                <canvas id="prompt-tier-chart"></canvas>
+                <canvas id="prompt-tier-chart" role="img" aria-labelledby="prompt-tier-chart-title"></canvas>
               </div>
             </div>
           </div>
+          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_fit_title"></h4>
+          <p data-i18n="dashboard.prompt_fit_help"></p>
+          <div class="prompt-kpi-grid" id="prompt-fit-kpis"></div>
           <div class="prompt-details-grid mt-sm">
             <div>
               <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections"></h4>
               <div class="shed-list" id="shed-list"></div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings"></h4>
+              <h4 class="dash-subheading" id="prompt-fit-chart-title" data-i18n="dashboard.prompt_fit_history"></h4>
               <div class="prompt-chart-wrap">
-                <canvas id="prompt-savings-chart"></canvas>
+                <canvas id="prompt-savings-chart" role="img" aria-labelledby="prompt-fit-chart-title" aria-describedby="prompt-fit-kpis"></canvas>
               </div>
             </div>
           </div>
-          <!-- Savings breakdown KPIs -->
           <div class="mt-sm">
-            <h4 class="dash-subheading" data-i18n="dashboard.prompt_savings_breakdown_title"></h4>
-            <div class="prompt-kpi-grid" id="prompt-savings-kpis"></div>
+            <p data-i18n="dashboard.prompt_session_help"></p>
+            <div class="prompt-kpi-grid" id="prompt-cache-kpis"></div>
           </div>
           <!-- Prompt section distribution -->
           <div class="prompt-details-grid mt-sm">
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist"></h4>
+              <h4 class="dash-subheading" id="prompt-section-chart-title" data-i18n="dashboard.prompt_section_dist"></h4>
               <div class="prompt-chart-wrap prompt-chart-wrap-lg">
-                <canvas id="prompt-section-dist-chart"></canvas>
+                <canvas id="prompt-section-dist-chart" role="img" aria-labelledby="prompt-section-chart-title" aria-describedby="prompt-section-legend"></canvas>
               </div>
             </div>
             <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_dist_hint"></h4>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_bytes_hint"></h4>
               <div class="prompt-section-legend" id="prompt-section-legend"></div>
             </div>
           </div>

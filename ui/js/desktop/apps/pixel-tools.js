@@ -6,7 +6,9 @@
             showPanel: Pixel.bindRuntime(runtime, function showPanel(name) {
                 if (name !== 'adjust' && this.compareMode) this.exitCompareMode({ preservePreview: true });
                 if (name !== 'filters') this.resetFilterPreview();
+                if (name === 'adjust' && this.activePanel !== name) { this.captureAdjustmentSource(); this.resetAdjustmentControls(); }
                 this.activePanel = name;
+                if (name === 'stickers') this.showStickers();
                 this.host.querySelectorAll('.pixel-tab').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
                 this.host.querySelectorAll('[data-section]').forEach(s => { s.hidden = s.dataset.section !== name; });
                 if (name !== 'transform' && this.cropState) this.cancelCrop();
@@ -15,6 +17,7 @@
                 if (name === 'filters') this.refreshFilterThumbnails();
             }),
             refreshLayerPanel: Pixel.bindRuntime(runtime, function refreshLayerPanel() {
+                if (this.refreshStickerControls) this.refreshStickerControls();
                 const section = this.host.querySelector('[data-section="layers"]');
                 if (!section) return;
                 const list = section.querySelector('[data-layer-list]');
@@ -75,6 +78,7 @@
                 if (this.overlayCanvas) this.overlayCanvas.style.cursor = cursor;
             }),
             renderOptionsBar: Pixel.bindRuntime(runtime, function renderOptionsBar() {
+                if (this.refreshStickerControls) this.refreshStickerControls();
                 if (!this.optionsBar) return;
                 if (!this.activeTool) {
                     this.optionsBar.hidden = true;
@@ -195,6 +199,7 @@
                 this.notify({ type: 'success', message: this.t('pixel.copied') });
             }),
             cutSelection: Pixel.bindRuntime(runtime, function cutSelection() {
+                if (!this.requireRasterLayer()) return;
                 if (!this.selection || !this.canvas.width) return;
                 this.copySelection();
                 if (this.selection.type === 'mask' && this.selection.mask) {
@@ -209,7 +214,7 @@
                 if (sw < 1 || sh < 1) return;
                 const actx = this.getActiveCtx();
                 actx.clearRect(sx, sy, sw, sh);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.pushHistory('cut');
             }),
             pasteClipboard: Pixel.bindRuntime(runtime, async function pasteClipboard() {
@@ -225,7 +230,7 @@
                                 this.newBlankCanvas(Math.max(this.canvas.width || 0, img.naturalWidth), Math.max(this.canvas.height || 0, img.naturalHeight));
                                 const actx = this.getActiveCtx();
                                 actx.drawImage(img, 0, 0);
-                                if (this.layers.length > 1) this.compositeLayers();
+                                this.compositeLayers();
                                 this.pushHistory('paste');
                                 return;
                             }
@@ -234,6 +239,7 @@
                 } catch (_) {}
             }),
             deleteSelection: Pixel.bindRuntime(runtime, function deleteSelection() {
+                if (!this.requireRasterLayer()) return;
                 if (!this.selection || !this.canvas.width) return;
                 if (this.selection.type === 'mask' && this.selection.mask) {
                     this.eraseMaskPixels();
@@ -247,7 +253,7 @@
                 if (sw < 1 || sh < 1) return;
                 const actx = this.getActiveCtx();
                 actx.clearRect(sx, sy, sw, sh);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.pushHistory('delete');
             }),
             eraseMaskPixels: Pixel.bindRuntime(runtime, function eraseMaskPixels() {
@@ -260,7 +266,7 @@
                     if (mask[i]) d[i * 4 + 3] = 0;
                 }
                 actx.putImageData(imgData, 0, 0);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             ensureSelectionPixels: Pixel.bindRuntime(runtime, function ensureSelectionPixels() {
                 if (this.selImageData || !this.selection || !this.canvas.width) return !!this.selImageData;
@@ -284,6 +290,7 @@
                 return true;
             }),
             beginMoveSelection: Pixel.bindRuntime(runtime, function beginMoveSelection() {
+                if (!this.requireRasterLayer()) return false;
                 if (!this.selection || !this.canvas.width || this.moveSelFloating) return false;
                 if (!this.ensureSelectionPixels()) return false;
                 const sx = Math.max(0, Math.round(Math.min(this.selection.x, this.selection.x + this.selection.w)));
@@ -299,7 +306,7 @@
                 } else {
                     actx.clearRect(sx, sy, sw, sh);
                 }
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.moveSelFloating = true;
                 this.startMarchingAnts();
                 return true;
@@ -315,12 +322,13 @@
                 actx.putImageData(this.selImageData, destX, destY);
                 this.selection.x = destX;
                 this.selection.y = destY;
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 const moved = destX !== this.moveSelOrigX || destY !== this.moveSelOrigY;
                 this.moveSelFloating = false;
                 if (moved) this.pushHistory('move-selection');
             }),
             toggleLayerMask: Pixel.bindRuntime(runtime, function toggleLayerMask(idx) {
+                if (!this.requireRasterLayer(this.layers[idx])) return;
                 const layer = this.layers[idx];
                 if (!layer) return;
                 if (!layer.maskCanvas) {
@@ -423,6 +431,11 @@
             }),
             commitMoveLayer: Pixel.bindRuntime(runtime, function commitMoveLayer(dx, dy) {
                 if (!dx && !dy) return;
+                const layer = this.layers[this.activeLayerIdx];
+                if (layer && layer.sticker) {
+                    layer.sticker.matrix[4] += dx; layer.sticker.matrix[5] += dy;
+                    this.repaintSticker(layer); this.compositeLayers(); this.pushHistory(this.t('stickers.transform')); return;
+                }
                 const actx = this.getActiveCtx();
                 const w = this.canvas.width, h = this.canvas.height;
                 const snap = this.acquireTempCanvas(w, h);
@@ -430,7 +443,7 @@
                 actx.clearRect(0, 0, w, h);
                 actx.drawImage(snap, dx, dy);
                 this.releaseTempCanvas(snap);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.pushHistory('move');
             }),
             magicWandSelect: Pixel.bindRuntime(runtime, function magicWandSelect(x, y) {
@@ -503,7 +516,7 @@
                 actx.globalAlpha = this.brushOpacity / 100;
                 actx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 actx.restore();
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.addRecentColor(this.primaryColor);
                 this.pushHistory('gradient');
             }),
@@ -519,7 +532,7 @@
                     actx.fillRect(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad, 1.5, 1.5);
                 }
                 actx.restore();
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             dodgeBurnAt: Pixel.bindRuntime(runtime, function dodgeBurnAt(x, y) {
                 const actx = this.getActiveCtx();
@@ -543,7 +556,7 @@
                     }
                 }
                 actx.putImageData(imgData, sx, sy);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             blurAt: Pixel.bindRuntime(runtime, function blurAt(x, y) {
                 const actx = this.getActiveCtx();
@@ -555,7 +568,7 @@
                 actx.filter = 'blur(' + Math.max(1, Math.round(this.brushOpacity / 25)) + 'px)';
                 actx.drawImage(actx.canvas, 0, 0);
                 actx.restore();
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             addRecentColor: Pixel.bindRuntime(runtime, function addRecentColor(c) {
                 if (!c || c.length < 4) return;
@@ -690,7 +703,7 @@
                     else actx.stroke();
                 }
                 actx.restore();
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             floodFill: Pixel.bindRuntime(runtime, function floodFill(sx, sy, fillColor) {
                 const actx = this.getActiveCtx();
@@ -724,7 +737,7 @@
                     stack.push(cx, cy - 1);
                 }
                 actx.putImageData(imgData, 0, 0);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             commitTextToCanvas: Pixel.bindRuntime(runtime, function commitTextToCanvas(text, x, y) {
                 if (!text) return;
@@ -739,7 +752,7 @@
                     actx.fillText(lines[i], x, y + i * this.fontSize * 1.2);
                 }
                 actx.restore();
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.pushHistory('text');
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
@@ -758,7 +771,7 @@
                 if (this.layers.length <= 1) return;
                 this.layers.splice(this.activeLayerIdx, 1);
                 this.activeLayerIdx = Math.min(this.activeLayerIdx, this.layers.length - 1);
-                if (this.layers.length === 1 && this.layers[0].canvas) {
+                if (this.layers.length === 1 && this.layers[0].canvas && !this.layers[0].sticker) {
                     this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                     this.cctx.drawImage(this.layers[0].canvas, 0, 0);
                     this.layers[0].canvas = null;
@@ -773,23 +786,24 @@
                 const c = document.createElement('canvas');
                 c.width = this.imgWidth;
                 c.height = this.imgHeight;
-                if (src.canvas) c.getContext('2d').drawImage(src.canvas, 0, 0);
-                else c.getContext('2d').drawImage(this.canvas, 0, 0);
-                this.layers.splice(this.activeLayerIdx + 1, 0, { canvas: c, name: src.name + ' copy', visible: true, opacity: src.opacity });
+                if (!src.sticker) c.getContext('2d').drawImage(src.canvas || this.canvas, 0, 0);
+                this.layers.splice(this.activeLayerIdx + 1, 0, { canvas: c, name: src.name + ' copy', visible: true, opacity: src.opacity,
+                    sticker: src.sticker ? { id: src.sticker.id, matrix: src.sticker.matrix.slice() } : undefined, stickerImage: src.stickerImage });
                 this.activeLayerIdx = this.activeLayerIdx + 1;
+                this.repaintSticker(this.layers[this.activeLayerIdx]);
                 this.compositeLayers();
                 this.refreshLayerPanel();
                 this.pushHistory('duplicate layer');
             }),
             mergeDown: Pixel.bindRuntime(runtime, function mergeDown() {
                 if (this.activeLayerIdx <= 0 || this.layers.length < 2) return;
+                this.ensureBackgroundMigrated();
                 const upper = this.layers[this.activeLayerIdx];
                 const lower = this.layers[this.activeLayerIdx - 1];
-                const targetCanvas = lower.canvas || (() => { lower.canvas = document.createElement('canvas'); lower.canvas.width = this.imgWidth; lower.canvas.height = this.imgHeight; lower.canvas.getContext('2d').drawImage(this.canvas, 0, 0); return lower.canvas; })();
-                const tx = targetCanvas.getContext('2d');
-                tx.globalAlpha = upper.opacity;
-                if (upper.canvas) tx.drawImage(upper.canvas, 0, 0);
-                tx.globalAlpha = 1;
+                const merged = this.acquireTempCanvas(this.imgWidth, this.imgHeight);
+                this.renderComposition(merged.getContext('2d'), [lower, upper]);
+                Object.assign(lower, { canvas: merged, opacity: 1, visible: true });
+                delete lower.sticker; delete lower.stickerImage; delete lower.maskCanvas;
                 this.layers.splice(this.activeLayerIdx, 1);
                 this.activeLayerIdx--;
                 this.compositeLayers();
@@ -797,7 +811,7 @@
                 this.pushHistory('merge down');
             }),
             flattenLayers: Pixel.bindRuntime(runtime, function flattenLayers() {
-                if (this.layers.length <= 1) return;
+                if (this.layers.length <= 1 && !this.isStickerLayer()) return;
                 this.compositeLayers();
                 this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
                 this.activeLayerIdx = 0;

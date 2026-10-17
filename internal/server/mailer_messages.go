@@ -10,6 +10,14 @@ import (
 	"aurago/internal/mailer"
 )
 
+func mailerAttachmentCount(message mailer.Message) int {
+	count := len(message.Attachments)
+	if message.AttachmentCount > count {
+		return message.AttachmentCount
+	}
+	return count
+}
+
 func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []string) {
 	ctx := r.Context()
 	if p[0] == "threads" && len(p) == 1 && r.Method == http.MethodGet {
@@ -53,7 +61,7 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 			var latest mailer.Message
 			attachments := 0
 			for _, message := range thread.Messages {
-				attachments += len(message.Attachments)
+				attachments += mailerAttachmentCount(message)
 				if latest.ID == "" || message.Date.After(latest.Date) {
 					latest = message
 				}
@@ -61,14 +69,11 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 			items = append(items, map[string]any{"id": thread.ID, "message_id": latest.ID, "account_id": thread.AccountID, "folder_id": latest.FolderID, "subject": thread.Subject, "from": latest.From, "to": latest.To, "participants": thread.Participants, "preview": thread.Preview, "date": thread.LastMessageAt, "received_at": thread.LastMessageAt, "unread": thread.Unread, "starred": thread.Starred, "attachment_count": attachments, "message_count": thread.Count, "snoozed_until": latest.SnoozedUntil})
 		}
 		next := page.NextCursor
-		if remote {
-			next = ""
-		}
 		scope := "local"
 		if remote {
 			scope = "provider"
 		}
-		mailerJSON(w, 200, map[string]any{"items": items, "total": page.Total, "next_cursor": next, "offset": page.Offset, "limit": page.Limit, "search_scope": scope, "partial": remote && page.Total >= 100})
+		mailerJSON(w, 200, map[string]any{"items": items, "total": page.Total, "next_cursor": next, "offset": page.Offset, "limit": page.Limit, "search_scope": scope, "partial": remote && next != ""})
 		return
 	}
 	if p[0] == "threads" && len(p) >= 2 {

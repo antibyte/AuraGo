@@ -82,6 +82,14 @@ The navigation combines all inboxes and provides unread, starred, snoozed, draft
 and outbox views. Accounts retain their own folders or Gmail labels. Conversations
 stay within the receiving account. Search results identify the search scope so
 that locally indexed results are not presented as a complete provider archive.
+Provider search is a toggle for one folder of one account and can load further
+pages of the same search. The notice that more results may exist appears only
+when another page can be loaded. A later page asks the provider for matches
+that were not already returned. In a single account's inbox it uses that account's
+inbox folder. The combined inbox of every account stays on the local index.
+Changing account, view, or folder, or clearing the query, turns provider search off.
+The list can show a short preview and an attachment count before the full
+message is stored. Opening the message still loads the body.
 
 At wide window sizes, navigation, message list, and reader are visible together.
 Narrow windows progressively collapse navigation and use a back action between
@@ -89,9 +97,25 @@ the list and reader. Selection and scroll position remain stable during refresh.
 Keyboard focus and status announcements remain available throughout the workflow.
 
 Opening a message intentionally can mark it read when the account permits it.
-Background IMAP fetches use `BODY.PEEK` and do not consume unread mail. Remote
-images are blocked initially; sanitized HTML is displayed in an isolated reader.
-Attachments and EML exports require the same authenticated access as the mailbox.
+Background IMAP fetches use `BODY.PEEK` and do not consume unread mail. A quiet
+mailbox waits about five minutes before the next connection. New mail, an
+unfinished page, a deletion, or an error brings the next check forward to about
+a minute. Manual sync and the first check after AuraGo starts run immediately.
+Each IMAP account uses one session for that pass and then looks only for newer
+messages. If a command on that session fails, Mailer closes it and connects
+again for the next folder. A mailbox identity change rebuilds the snapshot.
+Messages removed on the server after that first snapshot are not removed
+locally by later IMAP checks.
+
+One message that cannot be read stays in the conversation with a notice, and
+the other messages stay visible. If only the formatted part fails, the rest of
+that message stays. A formatted part that can be shown is still shown. A POP3
+message that cannot be parsed keeps its downloaded
+copy; sender and subject come from its headers.
+
+Remote images are blocked initially; sanitized HTML is displayed in an isolated
+reader. Attachments and EML exports require the same authenticated access as
+the mailbox.
 
 POP3 downloads are permanent local mail. UIDL identifies messages when available;
 without UIDL, complete content is compared before adding a new copy. POP3 folders,
@@ -165,8 +189,10 @@ accounted for through AuraGo's existing budget system and can be cancelled.
 
 Mailer stores its database and private attachment data below
 `<data directory>/mailer/`. The database contains linked source references,
-message metadata, durable POP3 content, drafts, rules, templates, snoozes, cursors,
-and queued jobs. Credentials remain in the existing encrypted Vault entries.
+message metadata, list previews, read notices, durable POP3 content, drafts,
+rules, templates, snoozes, cursors, and queued jobs. A preview or a read notice
+does not replace the message body. Credentials remain in the existing encrypted
+Vault entries.
 Keep the Mailer directory and Vault in a coherent backup; never treat POP3 mail or
 unsent drafts as disposable cache. Existing databases are backed up before schema
 migration, and newer unsupported schemas fail closed.

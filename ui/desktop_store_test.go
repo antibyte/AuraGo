@@ -125,7 +125,7 @@ func TestSoftwareStoreResumesAndRefreshesActiveOperations(t *testing.T) {
 		"event.payload.operation === 'desktop_store_changed'",
 		"window.AuraSSE.on('virtual_desktop_event', instance.onDesktopEvent)",
 		"window.AuraSSE.off('virtual_desktop_event', instance.onDesktopEvent)",
-		"window.SoftwareStoreApp = { render, dispose };",
+		"window.SoftwareStoreApp = { render, dispose, open };",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing operation resume/refresh marker %q", want)

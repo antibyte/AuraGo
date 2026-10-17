@@ -41,8 +41,12 @@ type memoryCorrectionRun struct {
 func (s *agentLoopState) correctionRun() *memoryCorrectionRun {
 	if s.memoryCorrections == nil {
 		r := &memoryCorrectionRun{id: rand.Text(), evidence: make(map[string]correctionEvidenceRecord)}
-		if !s.runCfg.IsCoAgent && !isCoAgentSession(s.runCfg.SessionID) && !s.runCfg.IsMission && !s.runCfg.IsMaintenance && !s.runCfg.SuppressTurnSideEffects && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && strings.TrimSpace(s.initialUserMsg) != "" {
-			r.evidence["user:current"] = correctionEvidenceRecord{"user", s.initialUserMsg}
+		human := s.initialUserMsg
+		if s.runCfg.TaskRoutingText != nil {
+			human = *s.runCfg.TaskRoutingText
+		}
+		if !s.runCfg.IsCoAgent && !isCoAgentSession(s.runCfg.SessionID) && !s.runCfg.IsMission && !s.runCfg.IsMaintenance && !s.runCfg.SuppressTurnSideEffects && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && strings.TrimSpace(human) != "" {
+			r.evidence["user:current"] = correctionEvidenceRecord{"user", human}
 		}
 		s.memoryCorrections = r
 	}

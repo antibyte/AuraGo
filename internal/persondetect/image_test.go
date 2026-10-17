@@ -511,6 +511,46 @@ func TestDecodePersonsDropsDegenerateBoxes(t *testing.T) {
 	}
 }
 
+func TestKeepPersonShapedDropsWideBoxes(t *testing.T) {
+	// The live false positive: a parked car cut off by the bottom edge of an
+	// infrared night frame, about 240×72 px in 1280×720.
+	car := Box{X1: 0.45, Y1: 0.90, X2: 0.638, Y2: 1.0, Score: 0.6}
+	// An upper body behind a parked car, 256×160 px in 1280×720 (1.6:1).
+	upperBody := Box{X1: 0.3, Y1: 0.4, X2: 0.5, Y2: 0.4 + 160.0/720, Score: 0.7}
+	// Exactly 2:1 in 800×400: 400×200 px.
+	twoToOne := Box{X1: 0.25, Y1: 0.25, X2: 0.75, Y2: 0.75, Score: 0.8}
+	standing := Box{X1: 0.1, Y1: 0.2, X2: 0.15, Y2: 0.6, Score: 0.9}
+
+	tests := []struct {
+		name          string
+		boxes         []Box
+		width, height int
+		want          []Box
+	}{
+		{"night car at the frame edge", []Box{car}, 1280, 720, []Box{}},
+		{"upper body behind a car", []Box{upperBody}, 1280, 720, []Box{upperBody}},
+		{"exactly 2:1", []Box{twoToOne}, 800, 400, []Box{twoToOne}},
+		{"pixel aspect decides, not normalized aspect", []Box{car}, 720, 1280, []Box{car}},
+		{"order kept around a dropped box", []Box{standing, car, upperBody}, 1280, 720, []Box{standing, upperBody}},
+		{"zero width", []Box{car}, 0, 720, []Box{car}},
+		{"zero height", []Box{car}, 1280, 0, []Box{car}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := append([]Box(nil), tt.boxes...)
+			got := keepPersonShaped(input, tt.width, tt.height)
+			if len(got) != len(tt.want) {
+				t.Fatalf("keepPersonShaped = %+v, want %+v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("keepPersonShaped = %+v, want %+v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestIoU(t *testing.T) {
 	a := Box{X1: 0, Y1: 0, X2: 0.5, Y2: 0.5}
 	if v := IoU(a, a); math.Abs(v-1) > 1e-12 {

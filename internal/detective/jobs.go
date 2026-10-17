@@ -19,11 +19,18 @@ type Session struct {
 }
 
 func (s *Service) Start(key, action, effort, requestKey string, answers ...string) (Case, error) {
-	if requestKey == "" || len(requestKey) > 128 {
-		return Case{}, errors.New("idempotency key is required")
+	if action == "update" {
+		return Case{}, errors.New("automatic updates are scheduled by the service")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.startLocked(key, action, effort, requestKey, answers...)
+}
+
+func (s *Service) startLocked(key, action, effort, requestKey string, answers ...string) (Case, error) {
+	if requestKey == "" || len(requestKey) > 128 {
+		return Case{}, errors.New("idempotency key is required")
+	}
 	if s.closed {
 		return Case{}, ErrClosed
 	}
@@ -57,12 +64,16 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 		if c.Run.Usage.ActiveMS >= int64(c.Run.Profile.Seconds)*1000 || c.Run.Usage.Iterations >= c.Run.Profile.Iterations {
 			return c, ErrBudget
 		}
+		if c.Run.Automatic && c.Run.Status == "waiting_for_user" && (len(answers) == 0 || strings.TrimSpace(answers[0]) == "") {
+			return c, errors.New("answer the pending question before continuing")
+		}
 	case "deepen":
 		if c.Run.Status == "draft" || activeStatus(c.Run.Status) {
 			return c, ErrConflict
 		}
-		if len(c.Reports) >= 30 {
-			return c, errors.New("report revision limit reached")
+	case "update":
+		if !c.AutoUpdate.Enabled || c.LatestRevision == 0 {
+			return c, ErrConflict
 		}
 	default:
 		return c, errors.New("unknown research action")
@@ -75,8 +86,14 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 		if !ok {
 			return c, errors.New("unknown effort")
 		}
-		c.Request.Effort = effort
+		if action != "update" {
+			c.Request.Effort = effort
+		}
 		c.Run = Run{ID: id("run_"), Profile: p, Phase: "research"}
+		if action == "update" {
+			c.Run.Automatic, c.Run.BaseRevision, c.Run.ReportStyle = true, c.LatestRevision, c.AutoUpdate.ReportStyle
+			c.Sources, c.Findings, c.Plan = []Source{}, []Finding{}, nil
+		}
 	}
 	if len(answers) > 0 && strings.TrimSpace(answers[0]) != "" {
 		if action != "continue" || c.Run.Status != "waiting_for_user" || len(answers[0]) > 8000 || len(c.Answers) >= 20 {
@@ -86,6 +103,10 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 	}
 	c.Run.Status = "queued"
 	c.Run.Reason = ""
+	if c.Run.Automatic {
+		c.AutoUpdate.Outcome, c.AutoUpdate.Error = "queued", ""
+		c.AutoUpdate.NextRunAt = time.Time{}
+	}
 	c.UpdatedAt = s.now().UTC()
 	c.Run.UpdatedAt = c.UpdatedAt
 	b, err := json.Marshal(c)
@@ -97,6 +118,11 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 		return c, err
 	}
 	defer tx.Rollback()
+	if action == "update" {
+		if _, err = tx.Exec("DELETE FROM detective_continuations WHERE case_id=?", key); err != nil {
+			return c, err
+		}
+	}
 	if _, err = tx.Exec("UPDATE detective_cases SET body=?,status=?,updated=?,active_ms=? WHERE id=?", b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS, key); err != nil {
 		return c, err
 	}
@@ -125,6 +151,8 @@ func (s *Service) Stop(key string, finish bool) error {
 		c.Run.Phase = "writing"
 		s.eventLocked(&c, "phase", "writing")
 	} else {
+		c.AutoUpdate.Enabled, c.Request.AutoUpdate.Enabled = false, false
+		c.AutoUpdate.NextRunAt, c.AutoUpdate.Outcome = time.Time{}, "paused"
 		c.Run.Status = "cancelled"
 		c.Run.Reason = "user_stopped"
 		if s.active != nil && s.active.CaseID == key {
@@ -138,19 +166,31 @@ func (s *Service) Stop(key string, finish bool) error {
 
 func (s *Service) worker() {
 	defer s.wg.Done()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-s.kick:
+		case <-ticker.C:
 		}
 		for {
+			allowed := s.allowed == nil || s.allowed()
 			s.mu.Lock()
 			if s.closed || s.runner == nil {
 				s.mu.Unlock()
 				break
 			}
 			var key string
+			var scheduleErr error
+			if allowed {
+				scheduleErr = s.queueDueLocked()
+			}
+			if scheduleErr != nil {
+				s.mu.Unlock()
+				break
+			}
 			err := s.db.QueryRow("SELECT id FROM detective_cases WHERE status='queued' ORDER BY updated LIMIT 1").Scan(&key)
 			if err != nil {
 				s.mu.Unlock()
@@ -203,6 +243,9 @@ func (x *Session) Activate(parent context.Context) (context.Context, context.Can
 			return ErrBudget
 		}
 		c.Run.Status = "running"
+		if c.Run.Automatic {
+			c.AutoUpdate.Outcome = "running"
+		}
 		if c.Run.StartedAt.IsZero() {
 			c.Run.StartedAt = x.service.now().UTC()
 		}
@@ -378,8 +421,15 @@ func (x *Session) Done() bool                          { s := x.service; s.mu.Lo
 
 func (x *Session) Wait(question string) error {
 	return x.update(func(c *Case) error {
+		if !activeStatus(c.Run.Status) || x.published {
+			return context.Canceled
+		}
 		c.Run.Status = "waiting_for_user"
 		c.Run.Reason = bounded(question, 600)
+		if c.Run.Automatic {
+			c.AutoUpdate.Outcome = "waiting_for_user"
+			c.AutoUpdate.NextRunAt = time.Time{}
+		}
 		x.service.eventLocked(c, "question", question)
 		x.cancel()
 		return nil
@@ -389,10 +439,6 @@ func (x *Session) Wait(question string) error {
 func (x *Session) complete(runErr error) {
 	_ = x.update(func(c *Case) error {
 		if x.published {
-			c.Run.Status = "completed"
-			if c.Reports[len(c.Reports)-1].Partial {
-				c.Run.Status = "partial"
-			}
 			return nil
 		}
 		if c.Run.Status == "waiting_for_user" {
@@ -418,13 +464,22 @@ func (x *Session) complete(runErr error) {
 			}
 		}
 		c.Run.Reason = reason
-		if len(c.Findings) > 0 && len(c.Reports) < 30 {
+		if c.Run.Automatic {
+			if c.Run.Status != "interrupted" {
+				c.AutoUpdate.Outcome, c.AutoUpdate.Error = "error", reason
+				if !c.AutoUpdate.Enabled {
+					c.AutoUpdate.Outcome = "paused"
+				}
+				nextUpdate(c, x.service.now())
+			}
+		} else if len(c.Findings) > 0 {
 			report := Report{Title: c.Request.Topic, Summary: "Partial research findings", Partial: true, Limitations: reason}
 			for _, f := range c.Findings {
 				report.Blocks = append(report.Blocks, Block{Type: "paragraph", Text: f.Text, Evidence: []string{f.ID}})
 			}
 			sealReport(c, &report, x.service.now())
-			c.Reports = append(c.Reports, report)
+			c.Reports = []Report{report}
+			c.pendingReports = append(c.pendingReports, report)
 		}
 		x.service.eventLocked(c, "status", reason)
 		return nil

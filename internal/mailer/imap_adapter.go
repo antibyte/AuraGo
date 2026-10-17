@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/mail"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/emersion/go-imap"
@@ -19,13 +21,104 @@ import (
 
 const maxIMAPMessageBytes = 16 << 20
 
-type imapAdapter struct{ cfg TransportConfig }
+type imapAdapter struct {
+	cfg     TransportConfig
+	mu      sync.Mutex
+	session *imapSyncSession
+}
+
+type imapSyncSession struct {
+	client *imapclient.Client
+	conn   net.Conn
+	stop   func()
+}
+
 type imapCursor struct {
 	Validity uint32 `json:"validity"`
 	LastUID  uint32 `json:"last_uid"`
 }
 
+func encodeIMAPCursor(validity, lastUID uint32) string {
+	data, err := json.Marshal(imapCursor{Validity: validity, LastUID: lastUID})
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(data)
+}
+
+func (a *imapAdapter) currentSyncSession() *imapSyncSession {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.session
+}
+
+// StartSyncSession dials and logs in once. Later withClient calls in this
+// adapter reuse that connection until stop logs out and closes it.
+func (a *imapAdapter) StartSyncSession(ctx context.Context) (func(), error) {
+	c, conn, stop, err := dialIMAP(ctx, a.cfg)
+	if err != nil {
+		return nil, fmt.Errorf("IMAP connection failed: %w", err)
+	}
+	c.Timeout = 30 * time.Second
+	a.mu.Lock()
+	if a.session != nil {
+		a.mu.Unlock()
+		_ = c.Logout()
+		stop()
+		_ = conn.Close()
+		return nil, fmt.Errorf("IMAP sync session already open")
+	}
+	a.session = &imapSyncSession{client: c, conn: conn, stop: stop}
+	a.mu.Unlock()
+	return func() { closeIMAPSession(a.takeSyncSession(), true) }, nil
+}
+
+func (a *imapAdapter) takeSyncSession() *imapSyncSession {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	sess := a.session
+	a.session = nil
+	return sess
+}
+
+func (a *imapAdapter) dropSyncSession() {
+	closeIMAPSession(a.takeSyncSession(), false)
+}
+
+func closeIMAPSession(sess *imapSyncSession, logout bool) {
+	if sess == nil {
+		return
+	}
+	if logout && sess.client != nil {
+		_ = sess.client.Logout()
+	}
+	if sess.stop != nil {
+		sess.stop()
+	}
+	if sess.conn != nil {
+		_ = sess.conn.Close()
+	}
+}
+
 func (a *imapAdapter) withClient(ctx context.Context, fn func(*imapclient.Client) error) error {
+	if sess := a.currentSyncSession(); sess != nil {
+		if err := sess.conn.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+			a.dropSyncSession()
+			return err
+		}
+		sess.client.Timeout = 30 * time.Second
+		err := fn(sess.client)
+		if err != nil || ctx.Err() != nil {
+			// A failed command can leave the shared connection unusable.
+			// Drop it so the next folder dials a new one.
+			a.dropSyncSession()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return err
+		}
+		return nil
+	}
 	c, conn, stop, err := dialIMAP(ctx, a.cfg)
 	if err != nil {
 		return fmt.Errorf("IMAP connection failed: %w", err)
@@ -73,14 +166,9 @@ func (a *imapAdapter) Sync(ctx context.Context, folderID, cursor string) (SyncRe
 			return e
 		}
 		result.UIDValidity = status.UidValidity
-		uids, e := c.UidSearch(imap.NewSearchCriteria())
-		if e != nil {
-			return e
-		}
-		sort.Slice(uids, func(i, j int) bool { return uids[i] < uids[j] })
 		var cur imapCursor
 		if cursor != "" {
-			if b, e := base64.RawURLEncoding.DecodeString(cursor); e == nil {
+			if b, decodeErr := base64.RawURLEncoding.DecodeString(cursor); decodeErr == nil {
 				_ = json.Unmarshal(b, &cur)
 			}
 		}
@@ -88,6 +176,24 @@ func (a *imapAdapter) Sync(ctx context.Context, folderID, cursor string) (SyncRe
 			cur = imapCursor{}
 			result.ResetSnapshot = true
 		}
+		// The highest UID has no successor. Skip the search and keep the cursor.
+		if cur.LastUID == ^uint32(0) && !result.ResetSnapshot {
+			result.NextCursor = encodeIMAPCursor(status.UidValidity, cur.LastUID)
+			result.RemoteSnapshotComplete = true
+			return nil
+		}
+		criteria := imap.NewSearchCriteria()
+		// The first snapshot and a UIDVALIDITY reset still search every UID.
+		// Later pages and steady state ask only for UIDs above the cursor.
+		if cur.LastUID > 0 && !result.ResetSnapshot {
+			criteria.Uid = new(imap.SeqSet)
+			criteria.Uid.AddRange(cur.LastUID+1, 0)
+		}
+		uids, e := c.UidSearch(criteria)
+		if e != nil {
+			return e
+		}
+		sort.Slice(uids, func(i, j int) bool { return uids[i] < uids[j] })
 		newUIDs := make([]uint32, 0, len(uids))
 		for _, uid := range uids {
 			if uid > cur.LastUID {
@@ -103,13 +209,14 @@ func (a *imapAdapter) Sync(ctx context.Context, folderID, cursor string) (SyncRe
 			return e
 		}
 		result.Messages = messages
+		last := cur.LastUID
+		if len(batch) > 0 {
+			last = batch[len(batch)-1]
+		}
+		result.NextCursor = encodeIMAPCursor(status.UidValidity, last)
 		if len(newUIDs) > len(batch) {
-			last := batch[len(batch)-1]
-			data, _ := json.Marshal(imapCursor{Validity: status.UidValidity, LastUID: last})
-			result.NextCursor = base64.RawURLEncoding.EncodeToString(data)
 			result.HasMore = true
 		} else {
-			result.NextCursor = ""
 			result.RemoteSnapshotComplete = true
 		}
 		return nil
@@ -130,7 +237,15 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		limit = 100
 	}
 	var page MessagePage
-	err := a.withClient(ctx, func(c *imapclient.Client) error {
+	pageLimit, cursorUID, exhausted, err := imapSearchPageLimit(query.Cursor)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	if exhausted {
+		page.Limit = limit
+		return page, nil
+	}
+	err = a.withClient(ctx, func(c *imapclient.Client) error {
 		folder := a.providerFolder(folderID)
 		status, err := c.Select(folder, true)
 		if err != nil {
@@ -138,6 +253,7 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		}
 		criteria := imap.NewSearchCriteria()
 		criteria.Text = []string{text}
+		criteria.Uid = pageLimit
 		if query.Unread {
 			criteria.WithoutFlags = append(criteria.WithoutFlags, imap.SeenFlag)
 		}
@@ -150,10 +266,17 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 		}
 		sort.Slice(uids, func(i, j int) bool { return uids[i] > uids[j] })
 		page.Total = len(uids)
-		if len(uids) > limit {
-			uids = uids[:limit]
+		filtered := make([]uint32, 0, len(uids))
+		for _, uid := range uids {
+			if cursorUID == 0 || uint64(uid) < uint64(cursorUID) {
+				filtered = append(filtered, uid)
+			}
 		}
-		messages, err := a.fetchMetadataUIDs(c, folder, uids, status.UidValidity)
+		if len(filtered) > limit {
+			filtered = filtered[:limit]
+			page.NextCursor = strconv.FormatUint(uint64(filtered[len(filtered)-1]), 10)
+		}
+		messages, err := a.fetchMetadataUIDs(c, folder, filtered, status.UidValidity)
 		if err != nil {
 			return err
 		}
@@ -163,6 +286,27 @@ func (a *imapAdapter) Search(ctx context.Context, folderID string, query Message
 	})
 	return page, err
 }
+
+// imapSearchPageLimit restricts a later page to UIDs below the cursor. The
+// cursor is the smallest UID already returned. An empty cursor searches the
+// whole folder. Cursor 1 has no smaller UID.
+func imapSearchPageLimit(cursor string) (*imap.SeqSet, uint32, bool, error) {
+	if cursor == "" {
+		return nil, 0, false, nil
+	}
+	parsed, err := strconv.ParseUint(cursor, 10, 32)
+	if err != nil || parsed == 0 {
+		return nil, 0, false, fmt.Errorf("invalid IMAP search cursor")
+	}
+	cursorUID := uint32(parsed)
+	if cursorUID == 1 {
+		return nil, cursorUID, true, nil
+	}
+	set := new(imap.SeqSet)
+	set.AddRange(1, cursorUID-1)
+	return set, cursorUID, false, nil
+}
+
 func (a *imapAdapter) fetchUIDs(c *imapclient.Client, folder string, uids []uint32) ([]Message, error) {
 	if len(uids) == 0 {
 		return []Message{}, nil
@@ -200,8 +344,9 @@ func (a *imapAdapter) fetchMetadataUIDs(c *imapclient.Client, folder string, uid
 		set.AddNum(uid)
 	}
 	headers := &imap.BodySectionName{Peek: true, BodyPartName: imap.BodyPartName{Specifier: imap.HeaderSpecifier, Fields: []string{"Reply-To", "Message-ID", "In-Reply-To", "References"}}}
+	snippet := &imap.BodySectionName{Peek: true, BodyPartName: imap.BodyPartName{Specifier: imap.TextSpecifier}, Partial: []int{0, 2048}}
 	ch := make(chan *imap.Message, len(uids))
-	err := c.UidFetch(set, []imap.FetchItem{imap.FetchUid, imap.FetchEnvelope, imap.FetchFlags, imap.FetchInternalDate, headers.FetchItem()}, ch)
+	err := c.UidFetch(set, []imap.FetchItem{imap.FetchUid, imap.FetchEnvelope, imap.FetchFlags, imap.FetchInternalDate, imap.FetchBodyStructure, headers.FetchItem(), snippet.FetchItem()}, ch)
 	if err != nil {
 		return nil, err
 	}
@@ -243,10 +388,119 @@ func (a *imapAdapter) fetchMetadataUIDs(c *imapclient.Client, folder string, uid
 				m.References = refs
 			}
 		}
+		if preview, e := readIMAPBody(im.GetBody(snippet), 2048); e == nil {
+			m.Snippet = imapListSnippet(preview)
+		}
+		m.AttachmentCount = imapAttachmentCount(im.BodyStructure)
 		out = append(out, m)
 	}
 	return out, nil
 }
+func imapAttachmentCount(part *imap.BodyStructure) int {
+	if part == nil {
+		return 0
+	}
+	if len(part.Parts) > 0 {
+		total := 0
+		for _, child := range part.Parts {
+			total += imapAttachmentCount(child)
+		}
+		return total
+	}
+	if part.BodyStructure != nil {
+		return imapAttachmentCount(part.BodyStructure)
+	}
+	if strings.EqualFold(part.MIMEType, "text") {
+		return 0
+	}
+	if strings.EqualFold(part.MIMEType, "image") && strings.EqualFold(part.Disposition, "inline") {
+		return 0
+	}
+	return 1
+}
+
+func imapListSnippet(raw []byte) string {
+	text := string(raw)
+	if index := strings.Index(text, "\r\n\r\n"); index >= 0 && imapSnippetHeader(text[:index]) {
+		text = text[index+4:]
+	} else if index := strings.Index(text, "\n\n"); index >= 0 && imapSnippetHeader(text[:index]) {
+		text = text[index+2:]
+	}
+	text = stripIMAPSnippetTags(text)
+	text = strings.Join(strings.Fields(text), " ")
+	runes := []rune(text)
+	if len(runes) > 180 {
+		return string(runes[:180])
+	}
+	return text
+}
+
+func stripIMAPSnippetTags(text string) string {
+	runes := []rune(text)
+	var b strings.Builder
+	b.Grow(len(text))
+	for i := 0; i < len(runes); {
+		if runes[i] == '<' {
+			if end := imapSnippetTagEnd(runes, i); end > i {
+				b.WriteByte(' ')
+				i = end + 1
+				continue
+			}
+		}
+		if runes[i] < 32 {
+			b.WriteByte(' ')
+		} else {
+			b.WriteRune(runes[i])
+		}
+		i++
+	}
+	return b.String()
+}
+
+func imapSnippetTagEnd(runes []rune, start int) int {
+	if start+4 <= len(runes) && string(runes[start:start+4]) == "<!--" {
+		for j := start + 4; j+2 < len(runes); j++ {
+			if runes[j] == '-' && runes[j+1] == '-' && runes[j+2] == '>' {
+				return j + 2
+			}
+		}
+		return -1
+	}
+	i := start + 1
+	if i < len(runes) && (runes[i] == '/' || runes[i] == '!') {
+		i++
+	}
+	if i >= len(runes) || !asciiLetter(runes[i]) {
+		return -1
+	}
+	i++
+	for i < len(runes) && (asciiLetter(runes[i]) || asciiDigit(runes[i])) {
+		i++
+	}
+	if i >= len(runes) {
+		return -1
+	}
+	switch runes[i] {
+	case '>', ' ', '\t', '\r', '\n', '/':
+	default:
+		return -1
+	}
+	for j := i; j < len(runes); j++ {
+		if runes[j] == '>' {
+			return j
+		}
+	}
+	return -1
+}
+
+func asciiLetter(r rune) bool { return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') }
+func asciiDigit(r rune) bool  { return r >= '0' && r <= '9' }
+
+func imapSnippetHeader(value string) bool {
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "content-type:") || strings.Contains(lower, "content-transfer-encoding:") || strings.Contains(lower, "mime-version:")
+}
+
 func imapAddressList(values []*imap.Address) string {
 	if len(values) == 0 {
 		return ""
@@ -273,12 +527,12 @@ func imapAddressStrings(values []*imap.Address) []string {
 	return out
 }
 func (a *imapAdapter) messageFromRaw(raw []byte, uid uint32, folder string, flags []string, received time.Time) (Message, error) {
-	subject, from, to, cc, body, html, attachments, err := ParseMIME(raw, maxIMAPMessageBytes)
+	subject, from, to, cc, body, html, attachments, htmlSkipped, err := ParseMIME(raw, maxIMAPMessageBytes)
 	if err != nil {
 		return Message{}, err
 	}
 	id := fmt.Sprint(uid)
-	m := Message{AccountID: a.accountID(), FolderID: imapFolderID(a.cfg, folder), RemoteID: id, ThreadID: id, Subject: subject, From: from, To: to, CC: cc, Text: body, HTML: html, Date: received, Attachments: attachments, Raw: append([]byte(nil), raw...)}
+	m := Message{AccountID: a.accountID(), FolderID: imapFolderID(a.cfg, folder), RemoteID: id, ThreadID: id, Subject: subject, From: from, To: to, CC: cc, Text: body, HTML: html, HTMLSkipped: htmlSkipped, Date: received, Attachments: attachments, Raw: append([]byte(nil), raw...)}
 	for _, f := range flags {
 		switch strings.ToLower(f) {
 		case "\\seen":
@@ -403,7 +657,7 @@ func (a *imapAdapter) Attachment(ctx context.Context, folder, id, part string) (
 	if e != nil {
 		return nil, e
 	}
-	_, _, _, _, _, _, as, e := ParseMIME(raw, maxIMAPMessageBytes)
+	_, _, _, _, _, _, as, _, e := ParseMIME(raw, maxIMAPMessageBytes)
 	if e != nil {
 		return nil, e
 	}

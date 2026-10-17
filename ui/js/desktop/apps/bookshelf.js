@@ -352,7 +352,7 @@
         }
 
         function readableError(error, fallback) {
-            const code = error?.body?.code;
+            const code = error?.body?.code || error?.body?.error;
             if (code && typeof code === 'string') {
                 const key = 'error_' + code.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
                 const value = t(key);
@@ -739,25 +739,63 @@
         }
 
         function uploadDialog() {
-            showDialog(t('upload_books'), t('browser_upload'), `<p>${esc(t('upload_copy_notice'))}</p><label class="bs-upload-drop">${esc(t('choose_files'))}<input type="file" name="files" accept=".epub,.pdf,.mobi,.azw,.azw3,.fb2,.fb2.zip,.cbz,.txt,.txt.gz,.html,.htm,.cbr,.rtf,.docx,.odt,.djvu,.lit,.pdb,.lrf" multiple required><small data-upload-label>${esc(t('no_files_chosen'))}</small></label><p class="bs-form-error" data-form-error role="alert" hidden></p><footer class="bs-dialog-actions"><button type="button" data-dialog-close>${esc(t('cancel'))}</button><button type="submit" class="bs-primary">${esc(t('upload'))}</button></footer>`, async (form, formEl) => {
-                const files = formEl.querySelector('[name=files]').files;
-                if (!files?.length) throw new Error(t('choose_files'));
+            let imported = 0;
+            let maxBytes = Number(state.capabilities.limits?.max_book_bytes) || 0;
+            showDialog(t('upload_books'), t('browser_upload'), `<p>${esc(t('upload_copy_notice'))}</p><p data-upload-limit ${maxBytes > 0 ? '' : 'hidden'}>${esc(t('upload_limit').replace('{limit}', formatBytes(maxBytes)))}</p><label class="bs-upload-drop">${esc(t('choose_files'))}<input type="file" name="files" accept=".epub,.pdf,.mobi,.azw,.azw3,.fb2,.fb2.zip,.cbz,.txt,.txt.gz,.html,.htm,.cbr,.rtf,.docx,.odt,.djvu,.lit,.pdb,.lrf" multiple required><small data-upload-label>${esc(t('no_files_chosen'))}</small></label><p class="bs-form-error" data-form-error role="alert" hidden></p><footer class="bs-dialog-actions"><button type="button" data-dialog-close>${esc(t('cancel'))}</button><button type="submit" class="bs-primary">${esc(t('upload'))}</button></footer>`, async (form, formEl) => {
                 const button = formEl.querySelector('[type=submit]');
+                if (button.disabled) return;
+                const input = formEl.querySelector('[name=files]');
+                const files = Array.from(input.files || []);
+                const errorHost = formEl.querySelector('[data-form-error]');
+                errorHost.hidden = true;
+                if (!files.length) throw new Error(t('choose_files'));
+                const oversized = files.slice(imported).find(file => maxBytes > 0 && file.size > maxBytes);
+                if (oversized) throw new Error(t('upload_too_large').replace('{name}', oversized.name).replace('{limit}', formatBytes(maxBytes)));
                 button.disabled = true;
-                let imported = 0;
-                for (const file of Array.from(files)) {
-                    button.textContent = t('uploading_count').replace('{done}', String(imported)).replace('{total}', String(files.length));
-                    const payload = new FormData();
-                    payload.append('file', file, file.name);
-                    await request(api.upload, payload);
-                    imported++;
+                input.disabled = true;
+                try {
+                    while (imported < files.length) {
+                        const file = files[imported];
+                        button.textContent = t('uploading_count').replace('{done}', String(imported)).replace('{total}', String(files.length));
+                        const payload = new FormData();
+                        payload.append('file', file, file.name);
+                        try {
+                            await request(api.upload, payload);
+                        } catch (error) {
+                            if (state.disposed || !input.isConnected || !by('[data-dialog]').open) return;
+                            const code = error?.body?.code || error?.body?.error;
+                            const tooLarge = error?.status === 413 || code === 'limit_exceeded';
+                            const responseLimit = Number(error?.body?.max_bytes);
+                            if (tooLarge && Number.isSafeInteger(responseLimit) && responseLimit > 0) {
+                                maxBytes = responseLimit;
+                                const hint = formEl.querySelector('[data-upload-limit]');
+                                hint.hidden = false;
+                                hint.textContent = t('upload_limit').replace('{limit}', formatBytes(maxBytes));
+                            }
+                            const key = tooLarge ? (maxBytes > 0 ? 'upload_too_large' : 'upload_limit_exceeded') : 'upload_failed';
+                            errorHost.textContent = t(key).replace('{name}', file.name).replace('{limit}', formatBytes(maxBytes));
+                            if (imported) errorHost.textContent += ' ' + t('upload_partial').replace('{done}', String(imported)).replace('{total}', String(files.length));
+                            errorHost.hidden = false;
+                            return;
+                        }
+                        imported++;
+                        if (state.disposed || !input.isConnected || !by('[data-dialog]').open) return;
+                    }
+                    closeDialog();
+                    inform(t('upload_complete').replace('{count}', String(imported)));
+                } finally {
+                    button.disabled = false;
+                    button.textContent = t('upload');
+                    input.disabled = false;
+                    if (imported && !state.disposed) await loadBooks();
                 }
-                closeDialog();
-                inform(t('upload_complete').replace('{count}', String(imported)));
-                await loadBooks();
             });
             const input = by('[data-dialog] [name=files]');
-            input.addEventListener('change', () => { by('[data-upload-label]').textContent = Array.from(input.files || []).map(file => file.name).join(', ') || t('no_files_chosen'); });
+            input.addEventListener('change', () => {
+                imported = 0;
+                by('[data-form-error]').hidden = true;
+                by('[data-upload-label]').textContent = Array.from(input.files || []).map(file => file.name).join(', ') || t('no_files_chosen');
+            });
         }
 
         function addBooksDialog() {

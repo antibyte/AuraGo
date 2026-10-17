@@ -20,8 +20,9 @@ Removing a book removes its library membership; removing a source preserves
 reading history until the user explicitly removes that Bookshelf data.
 
 Required sources are local files, WebDAV, SMB and Koofr. A source can be linked
-without importing its entire contents. Bookshelf has a default-off activation toggle and
-uses Desktop administrator authorization. No new agent tools, model calls,
+without importing its entire contents. Bookshelf is enabled by default, retains
+an activation toggle and uses Desktop administrator authorization. Explicitly
+saved disabled settings remain disabled. No new agent tools, model calls,
 cloud account, book store or external metadata service are required.
 
 ## Shelf and interaction design

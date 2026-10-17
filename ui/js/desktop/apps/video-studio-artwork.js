@@ -268,9 +268,9 @@
         if (duration < Math.round(rateOf(s))) return showNotice(s, 'projectLimit', 'The project reached its 60-minute limit.', true);
         if (!I().findOverlaySlot(s.project, startFrame, duration)) return showNotice(s, 'overlayFull', 'Every overlay track is busy at the playhead. Move the playhead or free a track.', true);
         try {
-            const file = await stickerPNG(name);
+            const file = await window.AuraStickerLibrary.file(name, s.abort.signal);
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            const asset = await createArtworkAsset(s, file, tr(s, 'sticker_' + name, name), projectId, epoch);
+            const asset = await createArtworkAsset(s, file, s.ctx.t('stickers.name.' + name), projectId, epoch);
             if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             const side = 0.24 * Math.min(s.project.width, s.project.height);
             const box = { width: side / s.project.width, height: side / s.project.height };

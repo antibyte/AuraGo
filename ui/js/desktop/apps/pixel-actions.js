@@ -111,13 +111,7 @@
                                 try {
                                     const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
                                     const tmpX = tmpC.getContext('2d');
-                                    for (let i = 0; i < this.layers.length; i++) {
-                                        if (!this.layers[i].visible) continue;
-                                        tmpX.globalAlpha = this.layers[i].opacity;
-                                        if (this.layers[i].canvas) tmpX.drawImage(this.layers[i].canvas, 0, 0);
-                                        else { tmpX.globalAlpha = 1; tmpX.drawImage(this.canvas, 0, 0); }
-                                    }
-                                    tmpX.globalAlpha = 1;
+                                    this.renderComposition(tmpX);
                                     const ext = (path.split('.').pop() || 'png').toLowerCase();
                                     const isJPEG = ext === 'jpg' || ext === 'jpeg';
                                     const dataURL = isJPEG ? tmpC.toDataURL('image/jpeg', 0.92) : tmpC.toDataURL('image/png');
@@ -194,26 +188,7 @@
             exportWithFormat: Pixel.bindRuntime(runtime, function exportWithFormat(format, quality) {
                                 const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
                                 const tmpX = tmpC.getContext('2d');
-                                for (let i = 0; i < this.layers.length; i++) {
-                                    if (!this.layers[i].visible) continue;
-                                    tmpX.globalAlpha = this.layers[i].opacity;
-                                    if (this.layers[i].canvas) {
-                                        if (this.layers[i].maskCanvas) {
-                                            const masked = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                            const mctx = masked.getContext('2d');
-                                            mctx.drawImage(this.layers[i].canvas, 0, 0);
-                                            mctx.globalCompositeOperation = 'destination-in';
-                                            mctx.drawImage(this.layers[i].maskCanvas, 0, 0);
-                                            tmpX.drawImage(masked, 0, 0);
-                                            this.releaseTempCanvas(masked);
-                                        } else {
-                                            tmpX.drawImage(this.layers[i].canvas, 0, 0);
-                                        }
-                                    } else if (i === 0 && this.layers.length === 1) {
-                                        tmpX.drawImage(this.canvas, 0, 0);
-                                    }
-                                }
-                                tmpX.globalAlpha = 1;
+                                    this.renderComposition(tmpX);
                                 const mime = format === 'jpeg' ? 'image/jpeg' : (format === 'webp' ? 'image/webp' : 'image/png');
                                 const ext = format === 'jpeg' ? 'jpg' : format;
                                 const link = document.createElement('a');

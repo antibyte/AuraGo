@@ -738,6 +738,9 @@ func dockerInspectContainer(cfg DockerConfig, containerID string, fullBindSource
 		}
 	}
 	if hostConfig, ok := full["HostConfig"].(map[string]interface{}); ok {
+		if mode, ok := hostConfig["NetworkMode"].(string); ok {
+			result["network_mode"] = mode
+		}
 		if readonly, ok := hostConfig["ReadonlyRootfs"].(bool); ok && readonly {
 			result["readonly_rootfs"] = true
 		}

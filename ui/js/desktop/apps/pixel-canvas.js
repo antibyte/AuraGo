@@ -26,7 +26,7 @@
                                 if (this.editMaskMode && this.layers[this.activeLayerIdx] && this.layers[this.activeLayerIdx].maskCanvas) {
                                     return this.layers[this.activeLayerIdx].maskCanvas.getContext('2d');
                                 }
-                                if (this.layers.length === 1 || !this.layers[this.activeLayerIdx].canvas) return this.cctx;
+                                if (!this.layers[this.activeLayerIdx].canvas) return this.cctx;
                                 return this.layers[this.activeLayerIdx].canvas.getContext('2d');
             }),
             ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated() {
@@ -37,11 +37,16 @@
                                 this.layers[0].canvas = bgCanvas;
             }),
             compositeLayers: Pixel.bindRuntime(runtime, function compositeLayers() {
-                                this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                for (let i = 0; i < this.layers.length; i++) {
-                                    const layer = this.layers[i];
+                                this.renderComposition(this.cctx);
+                                if (this.refreshStickerControls) this.refreshStickerControls();
+            }),
+            renderComposition: Pixel.bindRuntime(runtime, function renderComposition(ctx, layers = this.layers) {
+                                if (layers === this.layers) this.ensureBackgroundMigrated();
+                                ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                                for (let i = 0; i < layers.length; i++) {
+                                    const layer = layers[i];
                                     if (!layer.visible) continue;
-                                    this.cctx.globalAlpha = layer.opacity;
+                                    ctx.globalAlpha = layer.opacity;
                                     if (layer.canvas) {
                                         if (layer.maskCanvas) {
                                             const masked = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
@@ -49,19 +54,19 @@
                                             mctx.drawImage(layer.canvas, 0, 0);
                                             mctx.globalCompositeOperation = 'destination-in';
                                             mctx.drawImage(layer.maskCanvas, 0, 0);
-                                            this.cctx.drawImage(masked, 0, 0);
+                                            ctx.drawImage(masked, 0, 0);
                                             this.releaseTempCanvas(masked);
                                         } else {
-                                            this.cctx.drawImage(layer.canvas, 0, 0);
+                                            ctx.drawImage(layer.canvas, 0, 0);
                                         }
-                                    } else if (i === 0 && this.layers.length === 1) {
                                     }
                                 }
-                                this.cctx.globalAlpha = 1;
+                                ctx.globalAlpha = 1;
             }),
             pushHistory: Pixel.bindRuntime(runtime, function pushHistory(label) {
                                 if (!this.canvas.width || !this.canvas.height) return;
                                 const layerStates = this.layers.map(l => {
+                                    if (l.sticker) return null;
                                     const src = l.canvas || (this.layers.length > 1 ? null : this.canvas);
                                     if (!src) return null;
                                     const tmp = this.acquireTempCanvas(src.width || this.canvas.width, src.height || this.canvas.height);
@@ -75,7 +80,8 @@
                                     return tmp;
                                 });
                                 if (this.historyIdx < this.history.length - 1) this.history = this.history.slice(0, this.historyIdx + 1);
-                                this.history.push({ layerStates, maskStates, width: this.canvas.width, height: this.canvas.height, label: label || '', layerMeta: this.layers.map(l => ({ name: l.name, visible: l.visible, opacity: l.opacity, hasMask: !!l.maskCanvas })) });
+                                this.history.push({ layerStates, maskStates, width: this.canvas.width, height: this.canvas.height, activeLayerIdx: this.activeLayerIdx, label: label || '', layerMeta: this.layers.map(l => ({ name: l.name, visible: l.visible, opacity: l.opacity, hasMask: !!l.maskCanvas,
+                                    ...(l.sticker ? { sticker: { id: l.sticker.id, matrix: l.sticker.matrix.slice() }, stickerImage: l.stickerImage } : {}) })) });
                                 if (this.history.length > this.MAX_HISTORY) {
                                     const removed = this.history.shift();
                                     removed.layerStates.forEach(s => { if (s) this.releaseTempCanvas(s); });
@@ -87,6 +93,9 @@
                                 if (this.refreshHistoryPanel) this.refreshHistoryPanel();
             }),
             restoreHistory: Pixel.bindRuntime(runtime, function restoreHistory(entry) {
+                                this.cancelStickerGesture();
+                                this.resetFilterPreview();
+                                this.resetAdjustmentControls();
                                 this.canvas.width = entry.width;
                                 this.canvas.height = entry.height;
                                 this.imgWidth = entry.width;
@@ -94,14 +103,18 @@
                                 this.overlayCanvas.width = entry.width;
                                 this.overlayCanvas.height = entry.height;
                                 this.layers = entry.layerMeta.map((meta, i) => ({
-                                    canvas: entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
+                                    canvas: meta.sticker ? document.createElement('canvas') : entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
                                     maskCanvas: (entry.maskStates && entry.maskStates[i]) ? (() => { const mc = this.acquireTempCanvas(entry.width, entry.height); mc.getContext('2d').drawImage(entry.maskStates[i], 0, 0); return mc; })() : (meta.hasMask ? (() => { const mc = document.createElement('canvas'); mc.width = entry.width; mc.height = entry.height; const mx = mc.getContext('2d'); mx.fillStyle = '#fff'; mx.fillRect(0, 0, entry.width, entry.height); return mc; })() : null),
                                     name: meta.name,
                                     visible: meta.visible,
-                                    opacity: meta.opacity
+                                    opacity: meta.opacity,
+                                    ...(meta.sticker ? { sticker: { id: meta.sticker.id, matrix: meta.sticker.matrix.slice() }, stickerImage: meta.stickerImage } : {})
                                 }));
-                                this.activeLayerIdx = Math.min(this.activeLayerIdx, this.layers.length - 1);
+                                this.layers.forEach(layer => this.repaintSticker(layer));
+                                this.activeLayerIdx = Math.min(entry.activeLayerIdx || 0, this.layers.length - 1);
+                                this.captureAdjustmentSource();
                                 this.compositeLayers();
+                                this.refreshLayerPanel();
                                 this.applyZoom();
             }),
             undo: Pixel.bindRuntime(runtime, function undo() {
@@ -128,6 +141,7 @@
                                 this.canvasWrap.style.width = w + 'px';
                                 this.canvasWrap.style.height = h + 'px';
                                 this.updateZoomLabel();
+                                if (this.refreshStickerControls) this.refreshStickerControls();
             }),
             zoomTo: Pixel.bindRuntime(runtime, function zoomTo(z) {
                                 this.zoom = Math.max(0.05, Math.min(20, z));
@@ -150,8 +164,10 @@
                                 });
             }),
             loadImageToCanvas: Pixel.bindRuntime(runtime, async function loadImageToCanvas(src, current) {
+                                this.resetStickerDocument();
+                                const revision = this.state.documentRevision;
                                 const img = await this.loadImage(src);
-                                if (this.state.disposed || (current && !current())) return false;
+                                if (this.state.disposed || revision !== this.state.documentRevision || (current && !current())) return false;
                                 this.originalImage = img;
                                 this.canvas.width = img.naturalWidth;
                                 this.canvas.height = img.naturalHeight;
@@ -175,6 +191,7 @@
                                 return true;
             }),
             newBlankCanvas: Pixel.bindRuntime(runtime, function newBlankCanvas(w, h) {
+                                this.resetStickerDocument();
                                 this.originalImage = null;
                                 this.canvas.width = w;
                                 this.canvas.height = h;
@@ -209,9 +226,16 @@
                                 if (this.adjustments.sharpness > 0) parts.push(`contrast(${1 + this.adjustments.sharpness / 200})`);
                                 return parts.join(' ') || 'none';
             }),
+            captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource() {
+                if (!this.imgWidth || this.isStickerLayer()) { this.originalImage = null; return; }
+                const source = document.createElement('canvas'); source.width = this.imgWidth; source.height = this.imgHeight;
+                source.getContext('2d', { willReadFrequently: true }).drawImage(this.getActiveCtx().canvas, 0, 0);
+                this.originalImage = source;
+            }),
             applyAdjustmentsPreview: Pixel.bindRuntime(runtime, function applyAdjustmentsPreview() {
+                                if (!this.requireRasterLayer()) return;
                                 if (!this.originalImage || !this.canvas.width) return;
-                                const isMultiLayer = this.layers.length > 1;
+                                const isMultiLayer = !!this.layers[this.activeLayerIdx].canvas;
                                 if (isMultiLayer) this.ensureBackgroundMigrated();
                                 const tmpCanvas = this.acquireTempCanvas(this.imgWidth, this.imgHeight);
                                 const tmpCtx = tmpCanvas.getContext('2d');
@@ -246,13 +270,11 @@
                                 ctx.putImageData(imgData, 0, 0);
             }),
             applyAdjustments: Pixel.bindRuntime(runtime, function applyAdjustments() {
+                                if (!this.requireRasterLayer()) return;
                                 if (!this.originalImage) return;
                                 if (this.compareMode) this.exitCompareMode({ preservePreview: true });
                                 else this.applyAdjustmentsPreview();
-                                const dataURL = this.canvas.toDataURL();
-                                const img = new Image();
-                                img.onload = () => { this.originalImage = img; };
-                                img.src = dataURL;
+                                this.captureAdjustmentSource();
                                 this.pushHistory('adjust');
                                 this.resetAdjustmentControls();
             }),
@@ -262,22 +284,18 @@
                                 this.host.querySelectorAll('[data-val-brightness],[data-val-contrast],[data-val-saturation],[data-val-exposure],[data-val-sharpness],[data-val-temperature],[data-val-shadows],[data-val-highlights]').forEach(el => { el.textContent = '0'; });
             }),
             resetAdjustments: Pixel.bindRuntime(runtime, function resetAdjustments() {
+                                if (!this.requireRasterLayer()) return;
                                 if (this.compareMode) this.exitCompareMode({ preservePreview: false });
                                 this.resetAdjustmentControls();
                                 if (this.originalImage && this.canvas.width) {
-                                    if (this.layers.length > 1) {
-                                        this.ensureBackgroundMigrated();
-                                        const actx = this.layers[0].canvas.getContext('2d');
-                                        actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                        actx.drawImage(this.originalImage, 0, 0);
-                                        this.compositeLayers();
-                                    } else {
-                                        this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                        this.cctx.drawImage(this.originalImage, 0, 0);
-                                    }
+                                    const actx = this.getActiveCtx();
+                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                                    actx.drawImage(this.originalImage, 0, 0);
+                                    this.compositeLayers();
                                 }
             }),
             toggleCompare: Pixel.bindRuntime(runtime, function toggleCompare() {
+                                if (!this.requireRasterLayer()) return;
                                 if (!this.originalImage || !this.canvas.width) return;
                                 if (this.compareMode) {
                                     this.exitCompareMode({ preservePreview: true });
@@ -303,16 +321,10 @@
                                     return;
                                 }
                                 if (this.originalImage && this.canvas.width) {
-                                    if (this.layers.length > 1) {
-                                        this.ensureBackgroundMigrated();
-                                        const actx = this.layers[0].canvas.getContext('2d');
-                                        actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                        actx.drawImage(this.originalImage, 0, 0);
-                                        this.compositeLayers();
-                                    } else {
-                                        this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                        this.cctx.drawImage(this.originalImage, 0, 0);
-                                    }
+                                    const actx = this.getActiveCtx();
+                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                                    actx.drawImage(this.originalImage, 0, 0);
+                                    this.compositeLayers();
                                 }
             }),
             renderCompare: Pixel.bindRuntime(runtime, function renderCompare() {
@@ -340,79 +352,40 @@
                                 this.olCtx.lineTo(splitX + 1, this.canvas.height);
                                 this.olCtx.stroke();
             }),
+            transformDocument: Pixel.bindRuntime(runtime, function transformDocument(matrix, width, height) {
+                this.cancelStickerGesture();
+                this.ensureBackgroundMigrated();
+                const transform = canvas => {
+                    if (!canvas) return;
+                    const next = this.acquireTempCanvas(width, height), ctx = next.getContext('2d');
+                    ctx.imageSmoothingQuality = 'high'; ctx.setTransform(...matrix); ctx.drawImage(canvas, 0, 0);
+                    canvas.width = width; canvas.height = height;
+                    canvas.getContext('2d').drawImage(next, 0, 0); this.releaseTempCanvas(next);
+                };
+                this.layers.forEach(layer => { if (!layer.sticker) transform(layer.canvas); transform(layer.maskCanvas); });
+                this.canvas.width = this.overlayCanvas.width = this.imgWidth = width;
+                this.canvas.height = this.overlayCanvas.height = this.imgHeight = height;
+                this.transformStickerLayers(matrix);
+                this.deselect(); this.compositeLayers();
+                this.captureAdjustmentSource();
+            }),
             rotateCanvas: Pixel.bindRuntime(runtime, function rotateCanvas(deg) {
-                                if (!this.canvas.width) return;
-                                const nextW = deg === 90 || deg === -90 ? this.canvas.height : this.canvas.width;
-                                const nextH = deg === 90 || deg === -90 ? this.canvas.width : this.canvas.height;
-                                const tmpCanvas = this.acquireTempCanvas(nextW, nextH);
-                                const tmpCtx = tmpCanvas.getContext('2d');
-                                tmpCtx.save();
-                                if (deg === 90) { tmpCtx.translate(tmpCanvas.width, 0); tmpCtx.rotate(Math.PI / 2); }
-                                else if (deg === -90) { tmpCtx.translate(0, tmpCanvas.height); tmpCtx.rotate(-Math.PI / 2); }
-                                else if (deg === 180) { tmpCtx.translate(tmpCanvas.width, tmpCanvas.height); tmpCtx.rotate(Math.PI); }
-                                this.layers.forEach(l => {
-                                    if (l.canvas) {
-                                        const lt = this.acquireTempCanvas(nextW, nextH);
-                                        const lx = lt.getContext('2d');
-                                        lx.save();
-                                        if (deg === 90) { lx.translate(nextW, 0); lx.rotate(Math.PI / 2); }
-                                        else if (deg === -90) { lx.translate(0, nextH); lx.rotate(-Math.PI / 2); }
-                                        else if (deg === 180) { lx.translate(nextW, nextH); lx.rotate(Math.PI); }
-                                        lx.drawImage(l.canvas, 0, 0);
-                                        lx.restore();
-                                        l.canvas.width = nextW;
-                                        l.canvas.height = nextH;
-                                        l.canvas.getContext('2d').drawImage(lt, 0, 0);
-                                        this.releaseTempCanvas(lt);
-                                    }
-                                });
-                                tmpCtx.drawImage(this.canvas, 0, 0);
-                                tmpCtx.restore();
-                                this.canvas.width = nextW;
-                                this.canvas.height = nextH;
-                                this.overlayCanvas.width = nextW;
-                                this.overlayCanvas.height = nextH;
-                                this.cctx.drawImage(tmpCanvas, 0, 0);
-                                this.releaseTempCanvas(tmpCanvas);
-                                this.imgWidth = nextW;
-                                this.imgHeight = nextH;
-                                if (this.layers.length > 1) this.compositeLayers();
-                                this.originalImage = new Image();
-                                this.originalImage.src = this.canvas.toDataURL();
-                                this.pushHistory('rotate ' + deg);
-                                this.applyZoom();
+                if (!this.imgWidth || ![90, -90, 180].includes(deg)) return;
+                const w = this.imgWidth, h = this.imgHeight;
+                const matrix = deg === 90 ? [0, 1, -1, 0, h, 0] : deg === -90 ? [0, -1, 1, 0, 0, w] : [-1, 0, 0, -1, w, h];
+                this.transformDocument(matrix, deg === 180 ? w : h, deg === 180 ? h : w);
+                this.pushHistory('rotate ' + deg); this.applyZoom();
             }),
             flipCanvas: Pixel.bindRuntime(runtime, function flipCanvas(horizontal) {
-                                if (!this.canvas.width) return;
-                                this.layers.forEach(l => {
-                                    if (!l.canvas) return;
-                                    const tmp = this.acquireTempCanvas(l.canvas.width, l.canvas.height);
-                                    const tx = tmp.getContext('2d');
-                                    tx.save();
-                                    if (horizontal) { tx.translate(l.canvas.width, 0); tx.scale(-1, 1); }
-                                    else { tx.translate(0, l.canvas.height); tx.scale(1, -1); }
-                                    tx.drawImage(l.canvas, 0, 0);
-                                    tx.restore();
-                                    l.canvas.getContext('2d').clearRect(0, 0, l.canvas.width, l.canvas.height);
-                                    l.canvas.getContext('2d').drawImage(tmp, 0, 0);
-                                    this.releaseTempCanvas(tmp);
-                                });
-                                const tmpCanvas = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                const tmpCtx = tmpCanvas.getContext('2d');
-                                tmpCtx.save();
-                                if (horizontal) { tmpCtx.translate(this.canvas.width, 0); tmpCtx.scale(-1, 1); }
-                                else { tmpCtx.translate(0, this.canvas.height); tmpCtx.scale(1, -1); }
-                                tmpCtx.drawImage(this.canvas, 0, 0);
-                                tmpCtx.restore();
-                                this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                this.cctx.drawImage(tmpCanvas, 0, 0);
-                                this.releaseTempCanvas(tmpCanvas);
-                                if (this.layers.length > 1) this.compositeLayers();
-                                this.pushHistory(horizontal ? 'flip-h' : 'flip-v');
+                if (!this.imgWidth) return;
+                const w = this.imgWidth, h = this.imgHeight;
+                this.transformDocument(horizontal ? [-1, 0, 0, 1, w, 0] : [1, 0, 0, -1, 0, h], w, h);
+                this.pushHistory(horizontal ? 'flip-h' : 'flip-v');
             }),
             startCrop: Pixel.bindRuntime(runtime, function startCrop() {
                                 if (!this.canvas.width) return;
                                 this.cropState = { active: true, startX: 0, startY: 0, endX: 0, endY: 0 };
+                                this.refreshStickerControls();
                                 this.cropOverlay.hidden = false;
                                 this.cropOverlay.innerHTML = '<div class="pixel-crop-selection" data-crop-sel></div>';
                                 this.host.querySelector('[data-crop-actions]').hidden = false;
@@ -420,6 +393,7 @@
             }),
             cancelCrop: Pixel.bindRuntime(runtime, function cancelCrop() {
                                 this.cropState = null;
+                                this.refreshStickerControls();
                                 this.cropOverlay.hidden = true;
                                 this.cropOverlay.innerHTML = '';
                                 const ca = this.host.querySelector('[data-crop-actions]');
@@ -439,24 +413,7 @@
                                 const sw = Math.round(Math.abs(this.cropState.endX - this.cropState.startX) * scaleX);
                                 const sh = Math.round(Math.abs(this.cropState.endY - this.cropState.startY) * scaleY);
                                 if (sw < 2 || sh < 2) { this.cancelCrop(); return; }
-                                this.layers.forEach(l => {
-                                    if (l.canvas) {
-                                        const imgData = l.canvas.getContext('2d').getImageData(sx, sy, sw, sh);
-                                        l.canvas.width = sw;
-                                        l.canvas.height = sh;
-                                        l.canvas.getContext('2d').putImageData(imgData, 0, 0);
-                                    }
-                                });
-                                const imgData = this.cctx.getImageData(sx, sy, sw, sh);
-                                this.canvas.width = sw;
-                                this.canvas.height = sh;
-                                this.overlayCanvas.width = sw;
-                                this.overlayCanvas.height = sh;
-                                this.cctx.putImageData(imgData, 0, 0);
-                                this.imgWidth = sw;
-                                this.imgHeight = sh;
-                                this.originalImage = null;
-                                if (this.layers.length > 1) this.compositeLayers();
+                                this.transformDocument([1, 0, 0, 1, -sx, -sy], sw, sh);
                                 this.pushHistory('crop');
                                 this.cancelCrop();
                                 this.zoomFit();
@@ -466,30 +423,7 @@
                                 nw = Math.max(this.canvas.width, nw);
                                 nh = Math.max(this.canvas.height, nh);
                                 if (nw === this.canvas.width && nh === this.canvas.height) return;
-                                const growLayerCanvas = (canvas) => {
-                                    if (!canvas) return;
-                                    const tmp = this.acquireTempCanvas(nw, nh);
-                                    tmp.getContext('2d').drawImage(canvas, 0, 0);
-                                    canvas.width = nw;
-                                    canvas.height = nh;
-                                    canvas.getContext('2d').drawImage(tmp, 0, 0);
-                                    this.releaseTempCanvas(tmp);
-                                };
-                                this.layers.forEach(layer => {
-                                    growLayerCanvas(layer.canvas);
-                                    growLayerCanvas(layer.maskCanvas);
-                                });
-                                const tmpCanvas = this.acquireTempCanvas(nw, nh);
-                                tmpCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
-                                this.canvas.width = nw;
-                                this.canvas.height = nh;
-                                this.overlayCanvas.width = nw;
-                                this.overlayCanvas.height = nh;
-                                this.cctx.drawImage(tmpCanvas, 0, 0);
-                                this.releaseTempCanvas(tmpCanvas);
-                                this.imgWidth = nw;
-                                this.imgHeight = nh;
-                                if (this.layers.length > 1) this.compositeLayers();
+                                this.transformDocument([1, 0, 0, 1, 0, 0], nw, nh);
                                 this.applyZoom();
             }),
             resizeImage: Pixel.bindRuntime(runtime, function resizeImage() {
@@ -522,27 +456,7 @@
                                     const nw = parseInt(wInput.value) || this.imgWidth;
                                     const nh = parseInt(hInput.value) || this.imgHeight;
                                     if (nw < 1 || nh < 1) return;
-                                    this.layers.forEach(l => {
-                                        if (l.canvas) {
-                                            const tmp = this.acquireTempCanvas(nw, nh);
-                                            tmp.getContext('2d').drawImage(l.canvas, 0, 0, nw, nh);
-                                            l.canvas.width = nw;
-                                            l.canvas.height = nh;
-                                            l.canvas.getContext('2d').drawImage(tmp, 0, 0);
-                                            this.releaseTempCanvas(tmp);
-                                        }
-                                    });
-                                    const tmpCanvas = this.acquireTempCanvas(nw, nh);
-                                    tmpCanvas.getContext('2d').drawImage(this.canvas, 0, 0, nw, nh);
-                                    this.canvas.width = nw;
-                                    this.canvas.height = nh;
-                                    this.overlayCanvas.width = nw;
-                                    this.overlayCanvas.height = nh;
-                                    this.cctx.drawImage(tmpCanvas, 0, 0);
-                                    this.releaseTempCanvas(tmpCanvas);
-                                    this.imgWidth = nw;
-                                    this.imgHeight = nh;
-                                    if (this.layers.length > 1) this.compositeLayers();
+                                    this.transformDocument([nw / this.imgWidth, 0, 0, nh / this.imgHeight, 0, 0], nw, nh);
                                     this.pushHistory('resize');
                                     this.zoomFit();
                                     dlg.remove();

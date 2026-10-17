@@ -54,3 +54,35 @@ func TestLearningRunRejectsReplacedWorkspaceRegistration(t *testing.T) {
 		t.Fatal("captured project survived registration replacement")
 	}
 }
+
+func TestLearningHTTPResourceFilterPrecedesResultLimit(t *testing.T) {
+	s, h, token := learningHTTPFixture(t)
+	_, scope, _, err := s.resolveKnowledgeProject(t.Context(), "workspace", "main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 202; i++ {
+		if i > 0 {
+			scope.Resource = "other.go"
+		}
+		quote := fmt.Sprintf("Resource decision %d", i)
+		hash := sha256.Sum256([]byte(quote))
+		_, err := s.ShortTermMem.ObserveLearning(t.Context(), memory.LearningDraft{Statement: quote, Kind: "decision", Confidence: .99}, scope, memory.LearningSource{Reference: "user:current", Session: "human", Kind: "user", Quote: quote, Hash: hex.EncodeToString(hash[:])}, "missing")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, route := range []string{"/api/learnings", "/api/desktop/learnings"} {
+		w := learningHTTP(t, h, token, "GET", route+"?project=workspace&resource=main.go", "")
+		var response struct {
+			Learnings []memory.Learning `json:"learnings"`
+			Limited   bool              `json:"limited"`
+		}
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &response) != nil {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		if len(response.Learnings) != 1 || response.Learnings[0].Scope.Resource != "main.go" || response.Limited {
+			t.Errorf("resource filter ignored: got %d entries, limited=%v", len(response.Learnings), response.Limited)
+		}
+	}
+}

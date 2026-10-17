@@ -26,7 +26,9 @@ provider/spending limits still apply.
 - **Finish now** ends new retrieval and asks for a report from existing findings.
   It stays unavailable while Detective or Virtual Desktop is read-only.
 - **Stop** cancels the current run and retains its sources, findings and private
-  continuation. Available findings produce a clearly marked partial revision.
+  continuation, and disables automatic updates. During initial research,
+  available findings produce a clearly marked partial revision. An automatic
+  update keeps the last published report and archives its intermediate findings.
   Stop stays available when Detective or Virtual Desktop is read-only, as long
   as Detective is enabled and ready. Start, Continue, Deepen, Delete and New
   do not.
@@ -44,6 +46,38 @@ One case runs at a time; additional cases queue. The app shows actual tool,
 source and time counters, concise plans, retrieved sources and recorded findings.
 Private model continuation never appears in the activity feed or exports.
 
+## Automatic Update
+
+Enable **Automatic Update** when creating a case, or open that section in an
+existing case and save its settings. Existing cases start with this mode off.
+Choose a whole number of hours or days, from one hour to 365 days (default:
+24 hours). Update effort is independent of the initial research and defaults to
+Quick. The configured effort limits and global spending limits apply to every
+run. Recurring research incurs model costs.
+
+- **Dated additions** (default) preserves the published report and adds new,
+  evidenced sections with a server-generated date.
+- **Rewrite the full report** creates a new complete edition. Older editions
+  stay available unchanged under **History**.
+
+Scheduling begins after the first completed report. The next interval starts
+when a check finishes, including a failed check; failures do not retry early.
+After downtime, at most one overdue check is caught up. Interrupted automatic
+runs resume their saved conversation and remaining budget after restart. Each
+new check starts with a fresh conversation. Closing the Desktop window has no
+effect on scheduling.
+
+The app shows activation, next check, last successful check, last report change,
+and errors or questions. A question pauses checks until answered. **Pause** or
+**Stop** cancels an active automatic update and disables future checks, retaining
+recorded evidence. Permission restrictions prevent scheduling and revoke active
+work. Pause remains available in readonly mode.
+
+No new findings means no report version is created. Extra URLs for the same
+finding do not count as news. Failed or stopped updates keep the last published
+report; a later run can revisit and publish pending findings after checking their
+sources again. Corrections need newly retrieved evidence as well.
+
 ## Research and evidence
 
 The bundled `aurago-detective` skill is embedded, hash-verified and supplied at
@@ -52,9 +86,11 @@ primary sources, contradictions, stopping criteria, evidence and report format.
 Search snippets are marked as search hits. Findings require a quote of at least
 eight characters that is an exact contiguous substring of a source the server
 recorded as retrieved. Reports reference these findings; model-invented source
-IDs are rejected. The continuation prompt receives every stored finding, with
+IDs are rejected. The continuation prompt receives the bounded working findings, with
 each finding text limited to 500 characters and each quote to 240. The case
-keeps the full quotes.
+keeps the full quotes in the archive. Automatic checks receive the question,
+latest report preview, last successful check and recent findings; bounded,
+case-scoped archive reads provide older sources and report segments.
 
 These checks establish retrieval and reference integrity. They do not prove that
 an interpretation is correct, that two publishers are independent, or that every
@@ -97,6 +133,11 @@ Select a report revision and download **Markdown**, **PDF**, or **Word**. Export
 use that immutable revision and are cached by format and checksum. Re-exporting
 does not call the model. Source links and editable tables are preserved.
 **Open in Autor** creates a separate DOCX copy without replacing an edited file.
+**History** and **Sources** load older records in pages. For an appended revision,
+load previous sections to read its base; all export formats include the complete
+selected edition and its additions. Export assembly is limited to 4096 segments
+and 16 MiB of report data, output to 32 MiB, and requests to 60 seconds. Oversized
+editions return an explicit error; choose an earlier edition or a new full rewrite.
 
 The built-in PDF renderer embeds Go fonts and requires no Docker service. It
 supports their Latin, Greek and Cyrillic coverage. Unsupported glyphs and complex
@@ -108,10 +149,25 @@ container. Report HTML has no scripts, remote images or external stylesheets.
 Cases live in `detective.db` beside the configured Game Maker SQLite database
 (default `data/detective.db`). The store includes private continuation, so protect
 it like other application data. Deleting a case removes its evidence,
-continuation, revisions, events and cached artifacts. Fixed initial bounds are
-100 cases, 400 source records, 200 findings and 30 revisions per case, with bounded
-source and continuation sizes. Automatic retention and configurable research
-concurrency are not part of this initial release.
+continuation, revisions, events and cached artifacts. Up to 100 cases are allowed.
+The working set remains bounded to 400 sources and 200 findings; those limits and
+the former 30-revision cap no longer bound a case's lifetime archive. Source,
+finding and report tables grow with use; nothing is automatically removed.
+
+Opening an older database first creates a consistent, synced
+`detective.db.pre-v3-<timestamp>.bak` snapshot. The version-3 migration then moves
+existing evidence and reports into archive tables transactionally, retaining IDs,
+revision numbers and cached exports. A backup or migration error aborts opening.
+Protect backups like the database; they contain the same private data.
+
+The case API includes `auto_update`, archive counts and the latest revision.
+`PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,
+`interval_hours`, `report_style` (`append`/`rewrite`) and `effort`
+(`quick`/`normal`/`maximum`). GET `reports`, `sources` and `findings` below that case
+accept `before`, `limit` (20 by default, at most 50) and optional `query`, returning
+`next` as the next cursor. GET `report?revision=N` returns one immutable segment;
+`source?id=...` retrieves one source. Existing revision-bound export URLs keep
+their meaning. All routes retain the Desktop administrator boundary.
 
 ## Verification
 

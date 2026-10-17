@@ -394,6 +394,7 @@
                 }
             }),
             selectFilter: Pixel.bindRuntime(runtime, function selectFilter(id) {
+                if (!this.requireRasterLayer()) return;
                 if (!this.canvas.width || !this.filterDef(id)) return;
                 this.activeFilterId = id;
                 this.host.querySelectorAll('[data-filter-id]').forEach(c => c.classList.toggle('active', c.dataset.filterId === id));
@@ -439,7 +440,7 @@
                         target.globalAlpha = 1;
                     }
                 }
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
             }),
             applyFilter: Pixel.bindRuntime(runtime, function applyFilter() {
                 if (!this.filterPreview) return;
@@ -456,7 +457,7 @@
                 const target = this.getActiveCtx();
                 target.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 target.drawImage(this.filterPreview.snap, 0, 0);
-                if (this.layers.length > 1) this.compositeLayers();
+                this.compositeLayers();
                 this.releaseTempCanvas(this.filterPreview.snap);
                 if (this.filterPreview.filtered) this.releaseTempCanvas(this.filterPreview.filtered);
                 this.filterPreview = null;

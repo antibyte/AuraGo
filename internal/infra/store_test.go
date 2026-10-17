@@ -107,8 +107,8 @@ func TestManualNodeCreatesCanonicalNonExecutableRegistryDevice(t *testing.T) {
 	if err := db.QueryRow(`SELECT name, protocol FROM devices WHERE id=?`, created.RegistryID).Scan(&name, &protocol); err != nil {
 		t.Fatal(err)
 	}
-	if name != updated.Name || protocol != inventory.ProtocolSSH {
-		t.Fatalf("updated canonical row = name %q protocol %q", name, protocol)
+	if name != "Office NAS" || protocol != inventory.ProtocolSSH {
+		t.Fatalf("local Infra edit changed canonical row: name %q protocol %q", name, protocol)
 	}
 	if err := store.DeleteNode(ctx, updated.ID, updated.Version); err != nil {
 		t.Fatal(err)

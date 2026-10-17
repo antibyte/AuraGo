@@ -44,29 +44,33 @@ type Attachment struct {
 }
 
 type Message struct {
-	ID           string       `json:"id"`
-	AccountID    string       `json:"account_id"`
-	FolderID     string       `json:"folder_id"`
-	RemoteID     string       `json:"remote_id"`
-	ThreadID     string       `json:"thread_id"`
-	MessageID    string       `json:"message_id,omitempty"`
-	InReplyTo    string       `json:"in_reply_to,omitempty"`
-	References   []string     `json:"references,omitempty"`
-	Subject      string       `json:"subject"`
-	From         string       `json:"from"`
-	ReplyTo      []string     `json:"reply_to,omitempty"`
-	To           []string     `json:"to"`
-	CC           []string     `json:"cc"`
-	BCC          []string     `json:"bcc"`
-	Date         time.Time    `json:"date"`
-	Text         string       `json:"text,omitempty"`
-	HTML         string       `json:"html,omitempty"`
-	Unread       bool         `json:"unread"`
-	Starred      bool         `json:"starred"`
-	Labels       []string     `json:"labels,omitempty"`
-	SnoozedUntil time.Time    `json:"snoozed_until,omitempty"`
-	Attachments  []Attachment `json:"attachments,omitempty"`
-	Raw          []byte       `json:"-"`
+	ID              string       `json:"id"`
+	AccountID       string       `json:"account_id"`
+	FolderID        string       `json:"folder_id"`
+	RemoteID        string       `json:"remote_id"`
+	ThreadID        string       `json:"thread_id"`
+	MessageID       string       `json:"message_id,omitempty"`
+	InReplyTo       string       `json:"in_reply_to,omitempty"`
+	References      []string     `json:"references,omitempty"`
+	Subject         string       `json:"subject"`
+	From            string       `json:"from"`
+	ReplyTo         []string     `json:"reply_to,omitempty"`
+	To              []string     `json:"to"`
+	CC              []string     `json:"cc"`
+	BCC             []string     `json:"bcc"`
+	Date            time.Time    `json:"date"`
+	Text            string       `json:"text,omitempty"`
+	HTML            string       `json:"html,omitempty"`
+	Snippet         string       `json:"snippet,omitempty"`
+	AttachmentCount int          `json:"attachment_count,omitempty"`
+	HTMLSkipped     bool         `json:"html_skipped,omitempty"`
+	ReadError       string       `json:"read_error,omitempty"`
+	Unread          bool         `json:"unread"`
+	Starred         bool         `json:"starred"`
+	Labels          []string     `json:"labels,omitempty"`
+	SnoozedUntil    time.Time    `json:"snoozed_until,omitempty"`
+	Attachments     []Attachment `json:"attachments,omitempty"`
+	Raw             []byte       `json:"-"`
 }
 
 type MessageQuery struct {
@@ -282,6 +286,13 @@ type Adapter interface {
 	Mutate(context.Context, string, string, Mutation) error
 	Send(context.Context, Outgoing) (SendResult, error)
 	Test(context.Context) error
+}
+
+// SyncSession keeps one authenticated provider session for a single account
+// sync pass. Adapters that do not implement it open a connection per call.
+// stop logs out and closes that session. It is safe to call more than once.
+type SyncSession interface {
+	StartSyncSession(context.Context) (stop func(), err error)
 }
 
 type FolderManager interface {

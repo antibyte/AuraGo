@@ -2264,6 +2264,7 @@ virtual_desktop:
     auto_stop_minutes: 30
     max_memory_mb: 4096
     max_cpu_cores: 2
+    allow_network: false
 ```
 
 ### Virtual Computers

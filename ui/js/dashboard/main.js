@@ -610,7 +610,7 @@
                 if (Charts.promptTier) Charts.promptTier.destroy();
                 Charts.promptTier = createPromptTierChart('prompt-tier-chart', promptStats.tier_distribution);
                 if (Charts.promptSavings) Charts.promptSavings.destroy();
-                Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent);
+                Charts.promptSavings = createPromptSavingsChart('prompt-savings-chart', promptStats.recent_fits);
                 if (Charts.promptSectionDist) Charts.promptSectionDist.destroy();
                 Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
             }

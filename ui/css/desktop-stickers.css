@@ -1,0 +1,12 @@
+.sticker-picker { min-width: 0; color: inherit; }
+.sticker-picker-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.sticker-picker-controls input, .sticker-picker-controls select { min-width: 0; max-width: 100%; padding: 7px; border: 1px solid var(--vs-border, var(--vd-theme-border, #657080)); border-radius: 6px; color: inherit; background: var(--vs-control, var(--vd-theme-control-bg, #242832)); font: inherit; }
+.sticker-picker-controls input { grid-column: 1 / -1; }
+.sticker-picker-status { min-height: 1.4em; margin: 7px 0; font-size: 12px; }
+.sticker-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 7px; }
+.sticker-picker-grid button { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 5px; border: 1px solid var(--vs-border, var(--vd-theme-border, #657080)); border-radius: 8px; background: var(--vs-control, var(--vd-theme-control-bg, #242832)); color: inherit; cursor: pointer; font: inherit; }
+.sticker-picker-grid img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: repeating-conic-gradient(#e4e4e4 0% 25%, #bbb 0% 50%) 50% / 12px 12px; border-radius: 4px; }
+.sticker-picker-grid span { font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; margin-top: 4px; }
+.sticker-picker-grid button:disabled { opacity: .5; cursor: default; }
+.sticker-picker :focus-visible { outline: 2px solid var(--vs-accent, #4b94ff); outline-offset: 2px; }
+.sticker-picker-grid .is-unavailable::before { content: '⚠'; display: grid; place-items: center; min-height: 65px; }

@@ -110,9 +110,12 @@ func TestDemuxDockerAttachStream(t *testing.T) {
 func TestParseCodeStudioGrepOutput(t *testing.T) {
 	output := "/workspace/main.go:12:func main() {\n/workspace/pkg/app.go:8:func Run() error {\n"
 
-	results, err := parseCodeStudioGrepOutput(output)
+	results, truncated, err := parseCodeStudioGrepOutput(output)
 	if err != nil {
 		t.Fatalf("parseCodeStudioGrepOutput: %v", err)
+	}
+	if truncated {
+		t.Fatal("two results should not be truncated")
 	}
 	if len(results) != 2 {
 		t.Fatalf("len(results) = %d, want 2", len(results))
@@ -122,6 +125,69 @@ func TestParseCodeStudioGrepOutput(t *testing.T) {
 	}
 	if results[1].Path != "/workspace/pkg/app.go" || results[1].Line != 8 || results[1].Preview != "func Run() error {" {
 		t.Fatalf("second result = %#v", results[1])
+	}
+}
+
+func TestParseCodeStudioGrepOutputCapsResults(t *testing.T) {
+	line := "/workspace/main.go:1:hit\n"
+	results, truncated, err := parseCodeStudioGrepOutput(strings.Repeat(line, codeStudioSearchResultLimit))
+	if err != nil || truncated || len(results) != codeStudioSearchResultLimit {
+		t.Fatalf("exact cap: n=%d truncated=%v err=%v", len(results), truncated, err)
+	}
+	results, truncated, err = parseCodeStudioGrepOutput(strings.Repeat(line, codeStudioSearchResultLimit) + "not valid\n")
+	if err != nil || !truncated || len(results) != codeStudioSearchResultLimit {
+		t.Fatalf("over cap: n=%d truncated=%v err=%v", len(results), truncated, err)
+	}
+	if _, _, err = parseCodeStudioGrepOutput("not valid\n" + strings.Repeat(line, codeStudioSearchResultLimit)); err == nil {
+		t.Fatal("an invalid line before the cap should fail the search")
+	}
+	results, truncated, err = parseCodeStudioGrepOutput("")
+	if err != nil || truncated || len(results) != 0 {
+		t.Fatalf("empty: n=%d truncated=%v err=%v", len(results), truncated, err)
+	}
+}
+
+func TestCodeStudioStatusOmitsHostPathAndReportsInspectedNetwork(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	h := codeStudioHandlers{server: s}
+	rec := httptest.NewRecorder()
+	h.handleStatus(rec, httptest.NewRequest(http.MethodGet, "/api/code-studio/status", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		CodeStudio map[string]any `json:"code_studio"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body.CodeStudio["workspace_host_path"]; ok {
+		t.Fatalf("status JSON exposes the host path: %s", rec.Body.String())
+	}
+	if body.CodeStudio["network"] != "none" || body.CodeStudio["running"] != true {
+		t.Fatalf("code studio status = %#v", body.CodeStudio)
+	}
+}
+
+func TestCodeStudioSearchCapsResults(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	output := strings.Repeat("/workspace/main.go:1:hit\n", codeStudioSearchResultLimit+1)
+	docker := &recordingCodeStudioDockerAPI{results: []codeStudioExecResult{{ExitCode: 0, Output: output}}}
+	h := codeStudioHandlers{server: s, docker: docker}
+	rec := httptest.NewRecorder()
+	h.handleSearch(rec, httptest.NewRequest(http.MethodGet, "/api/code-studio/search?q=hit", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Results   []codeStudioSearchResult `json:"results"`
+		Truncated bool                     `json:"truncated"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if !body.Truncated || len(body.Results) != codeStudioSearchResultLimit {
+		t.Fatalf("truncated=%v results=%d", body.Truncated, len(body.Results))
 	}
 }
 
@@ -540,7 +606,7 @@ func testCodeStudioServerWithFakeCodeContainer(t *testing.T, maxFileSizeMB int) 
 	svc.CodeContainer().SetDockerClient(&fakeServerCodeContainerDocker{
 		containers: []desktop.CodeDockerContainer{{ID: "code-1", Names: []string{"/aurago-code-studio"}}},
 		inspectByName: map[string]desktop.CodeDockerInspect{
-			"code-1": {ID: "code-1", Name: "/aurago-code-studio", State: desktop.CodeDockerState{Running: true}},
+			"code-1": {ID: "code-1", Name: "/aurago-code-studio", State: desktop.CodeDockerState{Running: true}, NetworkMode: "none"},
 		},
 	})
 	s.DesktopService = svc

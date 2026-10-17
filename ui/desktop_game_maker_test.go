@@ -35,7 +35,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		"/js/desktop/apps/game-maker-studio-api.js",
 		"/js/desktop/apps/game-maker-studio-activity.js",
 		"/js/desktop/apps/game-maker-studio.js",
-		"['game_maker']",
+		"'game-maker-studio': ['game_maker', 'learnings']",
 	} {
 		if !strings.Contains(loader, marker) {
 			t.Errorf("desktop lazy loader missing %q", marker)

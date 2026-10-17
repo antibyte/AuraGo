@@ -226,6 +226,7 @@
         Pixel.installActions(runtime);
         Pixel.installFilters(runtime);
         Pixel.installEvents(runtime);
+        Pixel.installStickers(runtime);
         const {
             toolSvg,
             toolLabel,
@@ -443,6 +444,7 @@
         wireClick('[data-action="zoom-in"]', () => zoomTo(zoom * 1.25));
         wireClick('[data-action="zoom-out"]', () => zoomTo(zoom / 1.25));
         wireClick('[data-action="zoom-fit"]', zoomFit);
+        runtime.mountStickers();
         host.querySelectorAll('.pixel-tab').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
         wireClick('[data-action="apply-adjust"]', applyAdjustments);
         wireClick('[data-action="reset-adjust"]', resetAdjustments);
@@ -591,11 +593,16 @@
             const nameEl = e.target.closest('[data-layer-name]');
             if (nameEl) {
                 const idx = parseInt(nameEl.dataset.layerName);
+                resetFilterPreview();
+                if (compareMode) exitCompareMode({ preservePreview: true });
                 activeLayerIdx = idx;
+                runtime.cancelStickerGesture();
+                if (layers[idx]?.sticker && activeTool !== 'move') setActiveTool('move');
                 if (editMaskMode) {
                     editMaskMode = false;
                     notify({ type: 'info', message: t('pixel.mask_edit_off') });
                 }
+                runtime.captureAdjustmentSource();
                 refreshLayerPanel();
             }
         });
@@ -788,6 +795,8 @@
         checkAIConfig();
 
         state.dispose = function () {
+            runtime.disposeStickers();
+            if (runtime._filterPreviewRAF) cancelAnimationFrame(runtime._filterPreviewRAF);
             state.disposed = true;
             state.imageRead?.abort();
             if (abortCtrl) abortCtrl.abort();

@@ -42,10 +42,10 @@ func prepareMinimalLoopRequestWithProfileAndAnchor(ctx context.Context, cfg *con
 	if req != nil {
 		anchorIndex = protectedTaskMessageIndex(req.Messages, currentUserText)
 	}
-	return prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, currentUserText, anchorIndex, addenda...)
+	return prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, currentUserText, anchorIndex, false, addenda...)
 }
 
-func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, currentUserIndex int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, currentUserIndex int, cacheHit bool, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -125,8 +125,10 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 				return minimalPromptPreparation{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
 			}
 			promptResult = prompts.PromptBuildResult{Text: profile.system, Tokens: tokenCache.Count(profile.system, req.Model), Revision: profile.revision}
+			promptResult.InputChars = len(profile.system)
+			promptResult.InputTokens = promptResult.Tokens
 			if promptResult.Tokens > systemBudget {
-				return minimalPromptPreparation{}, promptBudgetExceededForRoutes(budget, promptResult.Tokens)
+				promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: systemBudget, RequiredTokens: promptResult.Tokens}
 			}
 		} else {
 			promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{
@@ -136,10 +138,14 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 		}
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
 			Timestamp:       time.Now(),
+			CacheHit:        cacheHit,
 			InputChars:      promptResult.InputChars,
 			OutputChars:     len(promptResult.Text),
 			InputTokens:     promptResult.InputTokens,
 			OutputTokens:    promptResult.Tokens,
+			InputGuides:     promptResult.InputGuides,
+			OutputGuides:    promptResult.OutputGuides,
+			FitFailed:       err != nil,
 			TokenBudget:     systemBudget,
 			RemovedSections: promptResult.RemovedSections,
 			BudgetExceeded:  promptResult.BudgetExceeded != nil,

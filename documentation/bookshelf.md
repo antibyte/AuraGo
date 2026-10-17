@@ -1,7 +1,8 @@
 # Bookshelf
 
-Bookshelf is an optional Virtual Desktop library and ebook reader. Enable it in
-the Virtual Desktop settings, then open **Bookshelf** from the app launcher.
+Bookshelf is a Virtual Desktop library and ebook reader, enabled by default.
+Open **Bookshelf** from the app launcher; you can disable it in the Virtual
+Desktop settings. An explicitly saved disabled setting stays disabled.
 The reading salon combines a warm paper reading area with a dark wooden shelf.
 Standard and Fruity retain their own Desktop window controls.
 
@@ -75,8 +76,11 @@ recognized. Malformed, encrypted or over-budget files produce an explicit error.
 Bookshelf stores its SQLite catalog, covers, managed imports and derived
 renditions below `data/bookshelf/`. Back up the catalog and managed content;
 disposable read cache can be recreated. Database upgrades create a backup before
-migration. Books are limited to 256 MiB and the normal read cache to 1 GiB.
-Stricter existing source/desktop limits still apply.
+migration. Each book is limited to the smaller of 256 MiB and the Virtual
+Desktop file-size limit (50 MiB by default); the normal read cache is 1 GiB.
+The upload dialog displays the effective limit and checks selected file sizes
+before transfer. After a partial upload, retrying the same selection sends only
+the remaining books. Stricter source limits still apply.
 
 **Keep on this AuraGo server** means an explicitly retained server copy. It does
 not mean offline browser storage: the browser still needs AuraGo. Private book
@@ -110,6 +114,7 @@ Bookshelf browser suites with `AURAGO_RUN_BROWSER_SMOKE=1`. Rebuild and verify:
 node scripts/build-bookshelf-reader.mjs
 node scripts/build-bookshelf-reader.mjs --check
 node scripts/test-bookshelf-reader-security.mjs
+node scripts/test-bookshelf-api.mjs
 node scripts/test-bookshelf-progress.mjs
 node scripts/test-bookshelf-routing.mjs
 node scripts/build-ui-bundles.js

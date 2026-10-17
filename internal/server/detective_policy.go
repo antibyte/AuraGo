@@ -158,7 +158,10 @@ func detectiveCapture(job *detective.Session, tc agent.ToolCall, output string) 
 			save(result, inputURL, "body", true)
 		}
 	case "ddg_search", "brave_search":
-		rows, _ := result["results"].([]any)
+		rows, validResults := result["results"].([]any)
+		if validResults && len(rows) == 0 {
+			_ = job.Checked()
+		}
 		for _, row := range rows {
 			m, ok := row.(map[string]any)
 			if !ok {

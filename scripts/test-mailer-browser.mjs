@@ -84,9 +84,11 @@ try {
         await page.goto(origin);
         await page.addStyleTag({url:origin+'/css/desktop-shell.bundle.css'});
         await page.addStyleTag({url:origin+'/css/desktop-app-mailer.css'});
+        await page.addStyleTag({url:origin+'/css/desktop-stickers.css'});
         await page.addScriptTag({url:origin+'/js/vendor/marked.min.js'});
         await page.addScriptTag({url:origin+'/js/vendor/purify.min.js'});
-        for(const file of ['mailer-api','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
+        for(const file of ['sticker-catalog','sticker-library']) await page.addScriptTag({url:origin+'/js/desktop/shared/'+file+'.js'});
+        for(const file of ['mailer-api','mailer-stickers','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
         await page.evaluate(({words,theme,mode,state})=>{
             document.body.className='desktop-body'; document.body.dataset.theme=theme; document.documentElement.dataset.theme=mode;
             document.documentElement.style.setProperty('--surface-color',mode==='light'?'#f5f6fa':'#111823');
@@ -150,7 +152,10 @@ try {
             await page.locator('[data-view="outbox"]').click();
             await page.locator('[data-retry="job-0"]').waitFor();
             assert.equal(await page.locator('.vd-mailer-outbox-item').count(),50,'outbox first page must show the server page only');
+            const retriedOutbox = page.waitForResponse(response => response.url().endsWith('/outbox?limit=50'));
             await page.locator('[data-retry="job-0"]').click();
+            await retriedOutbox;
+            await page.locator('[data-mailer-workspace][aria-busy="false"]').waitFor();
             assert(writes.some(item=>item.p==='outbox/job-0/retry'&&item.method==='POST'),'outbox retry must address an item by id');
             await page.locator('[data-load-more]').click();
             await page.waitForFunction(()=>document.querySelectorAll('.vd-mailer-outbox-item').length===54);

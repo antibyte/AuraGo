@@ -26,22 +26,26 @@ func TestCodeStudioReadonlyBlocksMutatingHandlers(t *testing.T) {
 		name    string
 		handler http.HandlerFunc
 		req     *http.Request
+		want    int
 	}{
-		{"write", h.handleFile, httptest.NewRequest(http.MethodPut, "/api/code-studio/file", strings.NewReader(`{"path":"/workspace/a.txt","content":"x"}`))},
-		{"move", h.handleFile, httptest.NewRequest(http.MethodPatch, "/api/code-studio/file", strings.NewReader(`{"old_path":"/workspace/a.txt","new_path":"/workspace/b.txt"}`))},
-		{"delete", h.handleFile, httptest.NewRequest(http.MethodDelete, "/api/code-studio/file?path=/workspace/a.txt", nil)},
-		{"directory", h.handleDirectory, httptest.NewRequest(http.MethodPost, "/api/code-studio/directory", strings.NewReader(`{"path":"/workspace/new"}`))},
-		{"exec", h.handleExec, httptest.NewRequest(http.MethodPost, "/api/code-studio/exec", strings.NewReader(`{"command":"go","args":["test"]}`))},
-		{"git branch create", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=feature&action=create", nil)},
-		{"git branch switch", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=main&action=switch", nil)},
+		{"write", h.handleFile, httptest.NewRequest(http.MethodPut, "/api/code-studio/file", strings.NewReader(`{"path":"/workspace/a.txt","content":"x"}`)), http.StatusForbidden},
+		{"move", h.handleFile, httptest.NewRequest(http.MethodPatch, "/api/code-studio/file", strings.NewReader(`{"old_path":"/workspace/a.txt","new_path":"/workspace/b.txt"}`)), http.StatusForbidden},
+		{"delete", h.handleFile, httptest.NewRequest(http.MethodDelete, "/api/code-studio/file?path=/workspace/a.txt", nil), http.StatusForbidden},
+		{"directory", h.handleDirectory, httptest.NewRequest(http.MethodPost, "/api/code-studio/directory", strings.NewReader(`{"path":"/workspace/new"}`)), http.StatusForbidden},
+		{"exec", h.handleExec, httptest.NewRequest(http.MethodPost, "/api/code-studio/exec", strings.NewReader(`{"command":"go","args":["test"]}`)), http.StatusForbidden},
+		{"git branch create", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=feature&action=create", nil), http.StatusMethodNotAllowed},
+		{"git branch switch", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=main&action=switch", nil), http.StatusMethodNotAllowed},
+		{"git branch post", h.handleGitBranch, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/branch", strings.NewReader(`{"action":"create","name":"feature"}`)), http.StatusForbidden},
+		{"git identity", h.handleGitIdentity, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/identity", strings.NewReader(`{"name":"Ada","email":"ada@example.com"}`)), http.StatusForbidden},
+		{"git commit", h.handleGitCommit, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/commit", strings.NewReader(`{"message":"save","paths":["main.go"]}`)), http.StatusForbidden},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			tt.handler.ServeHTTP(rec, tt.req)
-			if rec.Code != http.StatusForbidden {
-				t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+			if rec.Code != tt.want {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tt.want, rec.Body.String())
 			}
 		})
 	}

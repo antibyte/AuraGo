@@ -1081,21 +1081,27 @@ func (s *Server) bookshelfCollectionRoute(w http.ResponseWriter, r *http.Request
 func (s *Server) bookshelfImport(w http.ResponseWriter, r *http.Request, runtime *desktopBookshelfRuntime) {
 	maxBytes := runtime.maxBookBytes.Load()
 	r.Body = http.MaxBytesReader(w, r.Body, maxBytes+(1<<20))
-	if err := r.ParseMultipartForm(1 << 20); err != nil {
-		writeBookshelfError(w, bookshelf.ErrLimitExceeded)
-		return
-	}
+	parseErr := r.ParseMultipartForm(1 << 20)
 	if r.MultipartForm != nil {
 		defer r.MultipartForm.RemoveAll()
 	}
+	if parseErr != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(parseErr, &maxBytesErr) {
+			writeBookshelfUploadLimitError(w, maxBytes)
+			return
+		}
+		writeBookshelfErrorStatus(w, "invalid_multipart", http.StatusBadRequest)
+		return
+	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		writeBookshelfError(w, err)
+		writeBookshelfErrorStatus(w, "invalid_multipart", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 	if header.Size < 0 || header.Size > maxBytes {
-		writeBookshelfError(w, bookshelf.ErrLimitExceeded)
+		writeBookshelfUploadLimitError(w, maxBytes)
 		return
 	}
 	free, err := fileutil.FreeDiskBytes(runtime.importsDir)
@@ -1109,6 +1115,10 @@ func (s *Server) bookshelfImport(w http.ResponseWriter, r *http.Request, runtime
 	}
 	name, size, revision, err := stageBookshelfUpload(r.Context(), runtime.importsDir, header.Filename, file, maxBytes)
 	if err != nil {
+		if errors.Is(err, bookshelf.ErrLimitExceeded) {
+			writeBookshelfUploadLimitError(w, maxBytes)
+			return
+		}
 		writeBookshelfError(w, err)
 		return
 	}
@@ -1130,6 +1140,12 @@ func (s *Server) bookshelfImport(w http.ResponseWriter, r *http.Request, runtime
 		return
 	}
 	writeJSON(w, map[string]any{"book": book})
+}
+
+func writeBookshelfUploadLimitError(w http.ResponseWriter, maxBytes int64) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusRequestEntityTooLarge)
+	_ = json.NewEncoder(w).Encode(map[string]any{"error": "limit_exceeded", "max_bytes": maxBytes})
 }
 
 func (s *Server) serveBookshelfReader(w http.ResponseWriter, r *http.Request) {

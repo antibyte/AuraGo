@@ -857,8 +857,15 @@
         // PROMPT BUILDER ANALYTICS
         // ══════════════════════════════════════════════════════════════════════════════
 
+        function formatPromptNumber(value, percent = false) {
+            if (!Number.isFinite(value)) return '—';
+            const locale = document.documentElement.lang || 'en';
+            if (percent && value > 0 && value < 0.1) return '< ' + (0.1).toLocaleString(locale) + ' %';
+            return value.toLocaleString(locale, { maximumFractionDigits: 1 }) + (percent ? ' %' : '');
+        }
+
         function renderPromptStats(data) {
-            if (!data || data.total_builds === 0) {
+            if (!data || !(data.total_builds > 0 || data.fit_count > 0)) {
                 dashSetHidden(document.getElementById('prompt-no-data'), false);
                 dashSetHidden(document.getElementById('prompt-content'), true);
                 return;
@@ -866,60 +873,51 @@
             dashSetHidden(document.getElementById('prompt-no-data'), true);
             dashSetHidden(document.getElementById('prompt-content'), false);
 
-            // Main KPI grid
-            const kpis = document.getElementById('prompt-kpis');
-            const optPct = data.avg_optimization_pct ? data.avg_optimization_pct.toFixed(1) : '0';
-            const kpiItems = [
-                { val: data.total_builds, lbl: t('dashboard.prompt_kpi_total_builds') },
-                { val: data.avg_tokens.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_tokens') },
-                { val: data.avg_raw_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_raw_chars') },
-                { val: data.avg_optimized_len.toLocaleString(), lbl: t('dashboard.prompt_kpi_avg_opt_chars') },
-                { val: optPct + '%', lbl: t('dashboard.prompt_kpi_avg_saving_pct'), highlight: parseFloat(optPct) >= 20 },
-                { val: data.total_saved_chars.toLocaleString(), lbl: t('dashboard.prompt_kpi_total_savings') },
-                { val: data.budget_shed_count, lbl: t('dashboard.prompt_kpi_budget_sheds') },
-                { val: (data.shed_rate_pct || 0).toFixed(1) + '%', lbl: t('dashboard.prompt_kpi_shed_rate') },
-                { val: data.avg_modules_loaded, lbl: t('dashboard.prompt_kpi_avg_modules_loaded') },
-                { val: data.avg_modules_used, lbl: t('dashboard.prompt_kpi_avg_modules_used') },
-                { val: (data.avg_module_filter_rate_pct || 0).toFixed(1) + '%', lbl: t('dashboard.prompt_kpi_filter_rate') },
-                { val: data.avg_guides_count, lbl: t('dashboard.prompt_kpi_avg_guides') },
-            ];
-            kpis.innerHTML = kpiItems.map(k =>
-                `<div class="prompt-kpi${k.highlight ? ' prompt-kpi-highlight' : ''}"><div class="prompt-kpi-val">${k.val}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
-            ).join('');
-
-            // Savings breakdown KPI grid
-            const savingsKpis = document.getElementById('prompt-savings-kpis');
-            if (savingsKpis) {
-                const avgFormat  = (data.avg_format_savings  || 0).toLocaleString();
-                const avgShed    = (data.avg_shed_savings    || 0).toLocaleString();
-                const avgFilter  = (data.avg_filter_savings  || 0).toLocaleString();
-                const totFormat  = (data.total_format_savings  || 0).toLocaleString();
-                const totShed    = (data.total_shed_savings    || 0).toLocaleString();
-                const totFilter  = (data.total_filter_savings  || 0).toLocaleString();
-                const totalSaved = (data.total_saved_chars     || 0).toLocaleString();
-                const rawAvg     = data.avg_raw_len || 1;
-                const fmtPct    = data.avg_raw_len > 0 ? ((data.avg_format_savings  || 0) / rawAvg * 100).toFixed(1) : '0';
-                const shedPct   = data.avg_raw_len > 0 ? ((data.avg_shed_savings    || 0) / rawAvg * 100).toFixed(1) : '0';
-                const filterPct = data.avg_raw_len > 0 ? ((data.avg_filter_savings  || 0) / rawAvg * 100).toFixed(1) : '0';
-                const breakdownItems = [
-                    { val: avgFormat,  sub: fmtPct + '%',    lbl: t('dashboard.prompt_kpi_format_savings'),  colorClass: 'prompt-kpi-dot-success' },
-                    { val: avgShed,    sub: shedPct + '%',   lbl: t('dashboard.prompt_kpi_shed_savings'),    colorClass: 'prompt-kpi-dot-warn' },
-                    { val: avgFilter,  sub: filterPct + '%', lbl: t('dashboard.prompt_kpi_filter_savings'),  colorClass: 'prompt-kpi-dot-violet' },
-                    { val: totFormat,  sub: null,            lbl: t('dashboard.prompt_kpi_format_savings') + ' total', colorClass: null },
-                    { val: totShed,    sub: null,            lbl: t('dashboard.prompt_kpi_shed_savings')   + ' total', colorClass: null },
-                    { val: totFilter,  sub: null,            lbl: t('dashboard.prompt_kpi_filter_savings') + ' total', colorClass: null },
-                ];
-                savingsKpis.innerHTML = breakdownItems.map(k =>
-                    `<div class="prompt-kpi">${k.colorClass ? `<div class="prompt-kpi-dot ${k.colorClass}"></div>` : ''}<div class="prompt-kpi-val">${k.val}${k.sub ? `<span class="prompt-kpi-sub"> (${k.sub})</span>` : ''}</div><div class="prompt-kpi-lbl">${k.lbl}</div></div>`
-                ).join('');
-            }
+            const render = (id, available, items) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.innerHTML = available ? items.map(([value, key, percent]) =>
+                    `<div class="prompt-kpi"><div class="prompt-kpi-val">${esc(formatPromptNumber(value, percent))}</div><div class="prompt-kpi-lbl">${esc(t('dashboard.' + key))}</div></div>`
+                ).join('') : `<p class="empty-state dash-empty-tight">${esc(t('dashboard.prompt_no_measurements'))}</p>`;
+            };
+            render('prompt-module-kpis', data.total_builds > 0, [
+                [data.avg_modules_loaded, 'prompt_kpi_avg_modules_loaded'],
+                [data.avg_modules_used, 'prompt_kpi_avg_modules_used'],
+                [data.avg_modules_filtered, 'prompt_kpi_filtered'],
+                [data.avg_module_filter_rate_pct, 'prompt_kpi_filter_rate', true],
+                [data.avg_filter_savings, 'prompt_kpi_filtered_bytes'],
+            ]);
+            render('prompt-kpis', data.total_builds > 0, [
+                [data.total_builds, 'prompt_kpi_total_builds'],
+                [data.avg_raw_len, 'prompt_kpi_raw_bytes'],
+                [data.avg_optimized_len, 'prompt_kpi_opt_bytes'],
+                [data.avg_optimization_pct, 'prompt_kpi_avg_saving_pct', true],
+                [data.total_format_savings, 'prompt_kpi_format_bytes'],
+            ]);
+            const measured = data.measured_fit_count > 0;
+            render('prompt-fit-kpis', data.fit_count > 0, [
+                [data.fit_count, 'prompt_kpi_fit_count'],
+                [measured ? data.avg_fit_input_tokens : undefined, 'prompt_kpi_input_tokens'],
+                [measured ? data.avg_fit_output_tokens : undefined, 'prompt_kpi_output_tokens'],
+                [measured ? data.avg_fit_saved_tokens : undefined, 'prompt_kpi_saved_tokens'],
+                [measured ? data.avg_fit_input_guides : undefined, 'prompt_kpi_input_guides'],
+                [measured ? data.avg_fit_output_guides : undefined, 'prompt_kpi_output_guides'],
+                [data.budget_shed_count, 'prompt_kpi_budget_cuts'],
+                [data.budget_exceeded_count, 'prompt_kpi_exceeded'],
+                [data.shed_rate_pct, 'prompt_kpi_cut_rate', true],
+            ]);
+            render('prompt-cache-kpis', data.request_count > 0, [
+                [data.request_count, 'prompt_kpi_requests'],
+                [data.cache_hit_count, 'prompt_kpi_cache_hits'],
+                [data.cache_hit_rate_pct, 'prompt_kpi_cache_rate', true],
+            ]);
 
             // Shed section list
             const shedEl = document.getElementById('shed-list');
             const shedCounts = data.shed_section_counts || {};
             const shedKeys = Object.keys(shedCounts).sort((a, b) => shedCounts[b] - shedCounts[a]);
             if (shedKeys.length === 0) {
-                shedEl.innerHTML = '<div class="empty-state dash-empty-tight">' + t('dashboard.prompt_no_sections_shed') + '</div>';
+                shedEl.innerHTML = '<div class="empty-state dash-empty-tight">' + esc(t(data.fit_count > 0 ? 'dashboard.prompt_no_sections_shed' : 'dashboard.prompt_no_measurements')) + '</div>';
             } else {
                 shedEl.innerHTML = shedKeys.map(k =>
                     `<div class="shed-item"><span>${esc(k)}</span><span class="shed-count">${shedCounts[k]}×</span></div>`
@@ -937,17 +935,18 @@
                 context:     t('dashboard.prompt_section_context'),
             };
             const legendEl = document.getElementById('prompt-section-legend');
+            if (legendEl) legendEl.textContent = '';
             if (legendEl && Object.keys(avgSections).length > 0) {
                 const total = sectionOrder.reduce((s, k) => s + (avgSections[k] || 0), 0);
                 legendEl.innerHTML = sectionOrder
                     .filter(k => (avgSections[k] || 0) > 0)
                     .map((k, i) => {
-                        const pct = total > 0 ? ((avgSections[k] / total) * 100).toFixed(1) : 0;
+                        const pct = formatPromptNumber(total > 0 ? avgSections[k] / total * 100 : 0, true);
                         const colorIdx = sectionOrder.indexOf(k);
                         return `<div class="prompt-section-legend-item">
                             <span class="prompt-section-legend-dot prompt-section-legend-dot-${colorIdx}"></span>
                             <span class="prompt-section-legend-label">${esc(sectionNameMap[k] || k)}</span>
-                            <span class="prompt-section-legend-val">${(avgSections[k] || 0).toLocaleString()} <span class="prompt-section-legend-pct">(${pct}%)</span></span>
+                            <span class="prompt-section-legend-val">${esc(formatPromptNumber(avgSections[k]))} <span class="prompt-section-legend-pct">(${esc(pct)})</span></span>
                         </div>`;
                     }).join('');
             }

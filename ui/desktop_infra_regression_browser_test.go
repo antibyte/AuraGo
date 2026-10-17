@@ -132,6 +132,180 @@ func openInfraBrowserApp(page *rod.Page) {
 	page.MustEval(`()=>auditTest.openApp('infra')`)
 }
 
+func beginInfraBrowserCloseAttempt(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`()=>{
+		const win=document.querySelector('.vd-window[data-app-id="infra"]');
+		if(!win) throw new Error('Infra window was not open');
+		window.infraCloseAttempt=auditTest.closeWindow(win.dataset.windowId);
+	}`)
+	page.MustWait(`()=>!!document.querySelector('.vd-modal [data-choice="discard"]')`)
+	if !page.MustEval(`()=>{
+		const modal=document.querySelector('.vd-modal');
+		return !!modal?.querySelector('[data-cancel]')?.textContent.trim() &&
+			!!modal?.querySelector('[data-choice="discard"]')?.textContent.trim() &&
+			!!modal?.querySelector('.vd-modal-copy')?.textContent.trim();
+	}`).Bool() {
+		t.Fatal("closing Infra with an unsaved draft did not show a cancel/discard warning")
+	}
+}
+
+func answerInfraBrowserCloseAttempt(page *rod.Page, discard bool) {
+	selector := `[data-cancel]`
+	if discard {
+		selector = `[data-choice="discard"]`
+	}
+	page.MustEval(`async()=>{
+		const button=document.querySelector('.vd-modal ` + selector + `');
+		if(!button) throw new Error('Infra close answer button was missing');
+		button.click();
+		await window.infraCloseAttempt;
+	}`)
+}
+
+func TestDesktopInfraUnsavedDraftCloseBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	type scenario struct {
+		name        string
+		handler     http.Handler
+		edit        func(*testing.T, *rod.Page)
+		assertDraft func(*testing.T, *rod.Page)
+		assertSaved func(*testing.T, *rod.Page)
+	}
+
+	nodeFixture := newInfraAppBrowserFixture()
+	nodeFixture.nodes = []map[string]any{infraBrowserNodeWithSources()}
+	sourceFixture := newInfraAppBrowserFixture()
+	sourceFixture.nodes = []map[string]any{infraBrowserNodeWithSources()}
+	layoutFixture := newInfraAppBrowserFixture()
+	layoutNode := infraBrowserNodeWithSources()
+	layoutNode["placements"] = map[string]any{"atlas": map[string]any{"x": 250, "y": 180, "pinned": false}}
+	layoutFixture.nodes = []map[string]any{layoutNode}
+	layoutHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/layout") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"forced_layout_failure"}`))
+			return
+		}
+		layoutFixture.ServeHTTP(w, r)
+	})
+
+	cases := []scenario{
+		{
+			name:    "asset draft",
+			handler: nodeFixture,
+			edit: func(t *testing.T, page *rod.Page) {
+				page.MustEval(`()=>document.querySelector('[data-node="manual-pending"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-node-field="name"]')`)
+				page.MustEval(`()=>{
+					const field=document.querySelector('[data-node-field="name"]');
+					window.infraSavedNodeName=field.value;
+					field.value='Unsaved asset draft';field.dispatchEvent(new Event('input',{bubbles:true}));
+				}`)
+				page.MustWait(`()=>!!document.querySelector('.infra-draft-banner')`)
+			},
+			assertDraft: func(t *testing.T, page *rod.Page) {
+				if got := page.MustEval(`()=>document.querySelector('[data-node-field="name"]')?.value`).Str(); got != "Unsaved asset draft" {
+					t.Fatalf("cancel did not preserve the asset draft: %q", got)
+				}
+			},
+			assertSaved: func(t *testing.T, page *rod.Page) {
+				page.MustEval(`()=>document.querySelector('[data-node="manual-pending"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-node-field="name"]')`)
+				if got := page.MustEval(`()=>document.querySelector('[data-node-field="name"]')?.value`).Str(); got != page.MustEval(`()=>window.infraSavedNodeName`).Str() {
+					t.Fatalf("reopening did not restore the saved asset name: %q", got)
+				}
+			},
+		},
+		{
+			name:    "source draft",
+			handler: sourceFixture,
+			edit: func(t *testing.T, page *rod.Page) {
+				page.MustEval(`()=>document.querySelector('[data-node="manual-pending"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-edit-source="registry"]')`)
+				page.MustEval(`()=>document.querySelector('[data-edit-source="registry"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-source-field="name"]')`)
+				page.MustEval(`()=>{
+					const field=document.querySelector('[data-source-field="name"]');
+					window.infraSavedSourceName=field.value;
+					field.value='Unsaved source draft';field.dispatchEvent(new Event('input',{bubbles:true}));
+				}`)
+				page.MustWait(`()=>!!document.querySelector('.infra-source-edit .infra-draft-banner')`)
+			},
+			assertDraft: func(t *testing.T, page *rod.Page) {
+				if got := page.MustEval(`()=>document.querySelector('[data-source-field="name"]')?.value`).Str(); got != "Unsaved source draft" {
+					t.Fatalf("cancel did not preserve the source draft: %q", got)
+				}
+			},
+			assertSaved: func(t *testing.T, page *rod.Page) {
+				page.MustEval(`()=>document.querySelector('[data-node="manual-pending"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-edit-source="registry"]')`)
+				page.MustEval(`()=>document.querySelector('[data-edit-source="registry"]').click()`)
+				page.MustWait(`()=>!!document.querySelector('[data-source-field="name"]')`)
+				if got := page.MustEval(`()=>document.querySelector('[data-source-field="name"]')?.value`).Str(); got != page.MustEval(`()=>window.infraSavedSourceName`).Str() {
+					t.Fatalf("reopening did not restore the saved source name: %q", got)
+				}
+			},
+		},
+		{
+			name:    "layout draft",
+			handler: layoutHandler,
+			edit: func(t *testing.T, page *rod.Page) {
+				page.MustEval(`()=>{
+					const node=document.querySelector('[data-node="manual-pending"]');
+					window.infraSavedLayout={left:node.style.left,top:node.style.top};
+					document.querySelector('[data-action="arrange"]').click();
+				}`)
+				page.MustWait(`()=>!document.querySelector('[data-action="retry-layout"]').disabled`)
+			},
+			assertDraft: func(t *testing.T, page *rod.Page) {
+				if !page.MustEval(`()=>{
+					const node=document.querySelector('[data-node="manual-pending"]');
+					return !document.querySelector('[data-action="retry-layout"]').disabled &&
+						(node.style.left!==window.infraSavedLayout.left || node.style.top!==window.infraSavedLayout.top);
+				}`).Bool() {
+					t.Fatal("cancel did not preserve the pending layout draft")
+				}
+			},
+			assertSaved: func(t *testing.T, page *rod.Page) {
+				if !page.MustEval(`()=>{
+					const node=document.querySelector('[data-node="manual-pending"]');
+					return document.querySelector('[data-action="retry-layout"]').disabled &&
+						node.style.left===window.infraSavedLayout.left && node.style.top===window.infraSavedLayout.top;
+				}`).Bool() {
+					t.Fatal("reopening did not restore the saved layout and clear the draft")
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			page := infraBrowserPageWithFixture(t, tc.handler)
+			defer page.Close()
+			openInfraBrowserApp(page)
+			page.MustWait(`()=>!!document.querySelector('[data-node="manual-pending"]')`)
+			tc.edit(t, page)
+
+			beginInfraBrowserCloseAttempt(t, page)
+			answerInfraBrowserCloseAttempt(page, false)
+			if !page.MustEval(`()=>!!document.querySelector('.vd-window[data-app-id="infra"]')`).Bool() {
+				t.Fatal("cancel closed the Infra window")
+			}
+			tc.assertDraft(t, page)
+
+			beginInfraBrowserCloseAttempt(t, page)
+			answerInfraBrowserCloseAttempt(page, true)
+			page.MustWait(`()=>!document.querySelector('.vd-window[data-app-id="infra"]')`)
+			openInfraBrowserApp(page)
+			page.MustWait(`()=>!!document.querySelector('[data-node="manual-pending"]')`)
+			tc.assertSaved(t, page)
+			requireInfraBrowserClean(t, page)
+		})
+	}
+}
+
 func TestDesktopInfraPendingRequestsAbortOnCloseBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	t.Run("initial snapshot", func(t *testing.T) {
@@ -173,7 +347,9 @@ func TestDesktopInfraPendingRequestsAbortOnCloseBrowser(t *testing.T) {
 		}`)
 		waitInfraBrowserSignal(t, pending.started, "source save request")
 
-		closeInfraBrowserWindow(t, page)
+		beginInfraBrowserCloseAttempt(t, page)
+		answerInfraBrowserCloseAttempt(page, true)
+		page.MustWait(`()=>!document.querySelector('.vd-window[data-app-id="infra"]')`)
 		if !page.MustEval(`()=>window.infraFetchSignals.some(request=>request.path.includes('/source-edit')&&request.aborted)`).Bool() {
 			t.Error("closing Infra did not abort the source-save fetch")
 		}
@@ -274,7 +450,9 @@ func TestDesktopInfraSourceConflictReviewBrowser(t *testing.T) {
 	if gotPuts != 1 {
 		t.Fatalf("reapplying a draft unexpectedly made %d writes; want 1", gotPuts)
 	}
-	closeInfraBrowserWindow(t, page)
+	beginInfraBrowserCloseAttempt(t, page)
+	answerInfraBrowserCloseAttempt(page, true)
+	page.MustWait(`()=>!document.querySelector('.vd-window[data-app-id="infra"]')`)
 	requireInfraBrowserClean(t, page)
 }
 

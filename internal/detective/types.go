@@ -32,14 +32,15 @@ func (p Profile) Validate() error {
 }
 
 type Request struct {
-	Topic          string   `json:"topic"`
-	Effort         string   `json:"effort"`
-	Language       string   `json:"language"`
-	Scope          string   `json:"scope"`
-	ProviderID     string   `json:"provider_id"`
-	Model          string   `json:"model"`
-	SourceURLs     []string `json:"source_urls"`
-	PrivateSources []string `json:"private_sources"`
+	Topic          string             `json:"topic"`
+	Effort         string             `json:"effort"`
+	Language       string             `json:"language"`
+	Scope          string             `json:"scope"`
+	ProviderID     string             `json:"provider_id"`
+	Model          string             `json:"model"`
+	SourceURLs     []string           `json:"source_urls"`
+	PrivateSources []string           `json:"private_sources"`
+	AutoUpdate     AutoUpdateSettings `json:"auto_update"`
 }
 
 type Usage struct {
@@ -55,15 +56,21 @@ type Usage struct {
 }
 
 type Run struct {
-	ID        string    `json:"id"`
-	Key       string    `json:"-"`
-	Status    string    `json:"status"`
-	Phase     string    `json:"phase"`
-	Reason    string    `json:"reason,omitempty"`
-	Profile   Profile   `json:"profile"`
-	Usage     Usage     `json:"usage"`
-	StartedAt time.Time `json:"started_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	Key              string    `json:"-"`
+	Status           string    `json:"status"`
+	Phase            string    `json:"phase"`
+	Reason           string    `json:"reason,omitempty"`
+	Profile          Profile   `json:"profile"`
+	Usage            Usage     `json:"usage"`
+	StartedAt        time.Time `json:"started_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	Automatic        bool      `json:"automatic,omitempty"`
+	BaseRevision     int       `json:"base_revision,omitempty"`
+	ReportStyle      string    `json:"report_style,omitempty"`
+	NewFindings      []string  `json:"new_findings,omitempty"`
+	CheckedSources   []string  `json:"checked_sources,omitempty"`
+	SuccessfulChecks int       `json:"successful_checks,omitempty"`
 }
 
 type Source struct {
@@ -95,28 +102,53 @@ type Block struct {
 }
 
 type Report struct {
-	Revision    int       `json:"revision"`
-	Title       string    `json:"title"`
-	Summary     string    `json:"summary"`
-	Blocks      []Block   `json:"blocks"`
-	Limitations string    `json:"limitations"`
-	Partial     bool      `json:"partial"`
-	CreatedAt   time.Time `json:"created_at"`
-	Sources     []Source  `json:"sources"`
-	Findings    []Finding `json:"findings"`
+	Revision     int       `json:"revision"`
+	BaseRevision int       `json:"base_revision,omitempty"`
+	Title        string    `json:"title"`
+	Summary      string    `json:"summary"`
+	Blocks       []Block   `json:"blocks"`
+	Limitations  string    `json:"limitations"`
+	Partial      bool      `json:"partial"`
+	CreatedAt    time.Time `json:"created_at"`
+	Sources      []Source  `json:"sources"`
+	Findings     []Finding `json:"findings"`
 }
 
 type Case struct {
-	ID        string    `json:"id"`
-	Request   Request   `json:"request"`
-	Run       Run       `json:"run"`
-	Plan      []string  `json:"plan"`
-	Answers   []string  `json:"answers"`
-	Sources   []Source  `json:"sources"`
-	Findings  []Finding `json:"findings"`
-	Reports   []Report  `json:"reports"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	Request         Request    `json:"request"`
+	Run             Run        `json:"run"`
+	Plan            []string   `json:"plan"`
+	Answers         []string   `json:"answers"`
+	Sources         []Source   `json:"sources"`
+	Findings        []Finding  `json:"findings"`
+	Reports         []Report   `json:"reports"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	AutoUpdate      AutoUpdate `json:"auto_update"`
+	LatestRevision  int        `json:"latest_revision"`
+	SourceCount     int        `json:"source_count"`
+	FindingCount    int        `json:"finding_count"`
+	LatestSourceID  string     `json:"latest_source_id"`
+	pendingSources  []Source
+	pendingFindings []Finding
+	pendingReports  []Report
+}
+
+type AutoUpdateSettings struct {
+	Enabled       bool   `json:"enabled"`
+	IntervalHours int    `json:"interval_hours"`
+	ReportStyle   string `json:"report_style"`
+	Effort        string `json:"effort"`
+}
+
+type AutoUpdate struct {
+	AutoUpdateSettings
+	NextRunAt     time.Time `json:"next_run_at"`
+	LastCheckedAt time.Time `json:"last_checked_at"`
+	LastChangedAt time.Time `json:"last_changed_at"`
+	Outcome       string    `json:"outcome"`
+	Error         string    `json:"error,omitempty"`
 }
 
 type Event struct {

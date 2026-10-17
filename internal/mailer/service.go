@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 var ErrDisabled = errors.New("mailer is disabled")
@@ -38,6 +39,9 @@ type ServiceOptions struct {
 	MaxAttachmentBytes      int64
 	MaxAttachmentTotalBytes int64
 	MaxMessageCacheBytes    int64
+	// Now overrides the clock used for background sync scheduling. Tests set it.
+	// Production leaves it nil and uses time.Now.
+	Now func() time.Time
 }
 
 type Service struct {
@@ -49,6 +53,8 @@ type Service struct {
 	lifeCancel   context.CancelFunc
 	lifeWG       sync.WaitGroup
 	syncMu       sync.Mutex
+	scheduleMu   sync.Mutex
+	syncDueAt    map[string]time.Time
 	outboxMu     sync.Mutex
 	activeMu     sync.Mutex
 	activeNext   uint64

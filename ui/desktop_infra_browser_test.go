@@ -420,6 +420,38 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		const win=document.querySelector('.vd-window[data-app-id="infra"]');win.classList.remove('maximized','vd-mobile-forced-maximized');win.style.right='auto';win.style.width='1500px';win.style.height='970px';win.style.left='210px';win.style.top='70px';
 		const settings=auditTest.state.bootstrap.settings;settings['appearance.theme']='standard';settings['appearance.fruity_mode']='dark';auditTest.applyDesktopSettings();
 	}`)
+	assertReadableLayout := func(label string) {
+		if !page.MustEval(`()=>{
+			const sizes=[['overline','.infra-eyebrow',14],['kicker','.infra-kicker',14],['sidebar count','.infra-count',14],['scope count','.infra-scope-nav button > span:last-child',14],['source status','.infra-sidebar-bottom',14],['map legend','.infra-stage-footer',14],['map help','.infra-stage-footer [data-map-help]',14],['tray heading','.infra-tray-title',14],['tray name','.infra-tray-item strong',15],['tray kind','.infra-tray-item small',14]];
+			if(sizes.some(([,selector,min])=>{const el=document.querySelector(selector);return !el||parseFloat(getComputedStyle(el).fontSize)<min;})) return false;
+			return ['.infra-toolbar','.infra-filterbar','.infra-stage-head','.infra-stage-footer','.infra-tray-title','.infra-inspector'].every(selector=>{const el=document.querySelector(selector);return !el||getComputedStyle(el).display==='none'||el.scrollWidth<=el.clientWidth+1;});
+		}`).Bool() {
+			t.Fatalf("%s Infra text is too small or a key region overflows: %s", label, page.MustEval(`()=>JSON.stringify({sizes:['.infra-eyebrow','.infra-kicker','.infra-count','.infra-scope-nav button > span:last-child','.infra-sidebar-bottom','.infra-stage-footer','.infra-stage-footer [data-map-help]','.infra-tray-title','.infra-tray-item strong','.infra-tray-item small'].map(selector=>[selector,document.querySelector(selector)&&getComputedStyle(document.querySelector(selector)).fontSize]),overflow:['.infra-toolbar','.infra-filterbar','.infra-stage-head','.infra-stage-footer','.infra-tray-title','.infra-inspector'].filter(selector=>{const el=document.querySelector(selector);return el&&getComputedStyle(el).display!=='none'&&el.scrollWidth>el.clientWidth+1;})})`).Str())
+		}
+	}
+	page.MustWait(`()=>!!document.querySelector('.infra-tray-item')&&!!document.querySelector('[data-detail-form]')`)
+	assertReadableLayout("wide")
+	for _, theme := range []string{"standard", "fruity"} {
+		for _, mode := range []string{"light", "dark"} {
+			page.MustEval(`(theme,mode)=>{const settings=auditTest.state.bootstrap.settings;settings['appearance.theme']=theme;settings['appearance.fruity_mode']=mode;document.documentElement.dataset.theme=mode;auditTest.applyDesktopSettings();}`, theme, mode)
+			page.MustWait(`(theme,mode)=>document.body.dataset.theme===theme&&document.body.dataset.fruityMode===mode`, theme, mode)
+			path := infraReviewArtifactPath(t, theme+"-"+mode+"-populated-wide.png")
+			if err := os.WriteFile(path, page.MustScreenshot(), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.style.width='430px';win.style.height='700px';}`)
+	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth<500&&!!document.querySelector('[data-action="close-inspector"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]').click()`)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-inspector]')).display==='none'&&!document.querySelector('[data-tray]').hidden`)
+	assertReadableLayout("430px")
+	path := infraReviewArtifactPath(t, "430-narrow-populated-tray.png")
+	if err := os.WriteFile(path, page.MustScreenshot(), 0644); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.style.width='1500px';win.style.height='970px';}`)
+	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
 	for _, size := range []int{25, 250, 1000} {
 		fixture.mu.Lock()
 		fixture.world(size)
@@ -449,6 +481,9 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			constBefore := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0001"]');return n.style.left+'|'+n.style.top;}`).Str()
 			page.MustEval(`()=>document.querySelector('[data-toggle-host-services]').click()`)
 			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===24`)
+			if !page.MustEval(`()=>['.infra-node-copy strong','.infra-node-copy small'].every(selector=>parseFloat(getComputedStyle(document.querySelector(selector)).fontSize)>=16)`).Bool() {
+				t.Fatal("atlas node labels must remain at least 16px")
+			}
 			page.MustEval(`()=>document.querySelector('[data-toggle-host-services]').click()`)
 			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===25`)
 			if after := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0001"]');return n.style.left+'|'+n.style.top;}`).Str(); after != constBefore {
@@ -469,6 +504,13 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			page.MustWait(`()=>document.querySelector('[data-view="topology"]').getAttribute('aria-pressed')==='true'`)
 			page.MustEval(`()=>document.querySelector('[data-view="atlas"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-view="atlas"]').getAttribute('aria-pressed')==='true'`)
+			if !page.MustEval(`()=>{
+				const left=document.querySelector('[data-node="fixture-node-0003"] .infra-node-copy').getBoundingClientRect();
+				const right=document.querySelector('[data-node="fixture-node-0001"] .infra-node-copy').getBoundingClientRect();
+				return left.right<=right.left;
+			}`).Bool() {
+				t.Fatal("larger labels overlap neighboring assets at their saved positions")
+			}
 			for _, theme := range []string{"standard", "fruity"} {
 				for _, mode := range []string{"light", "dark"} {
 					page.MustEval(`(theme,mode)=>{const settings=auditTest.state.bootstrap.settings;settings['appearance.theme']=theme;settings['appearance.fruity_mode']=mode;document.documentElement.dataset.theme=mode;auditTest.applyDesktopSettings();}`, theme, mode)
@@ -552,7 +594,15 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('[data-action="add"]').disabled`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{enabled:true}}))`)
 	page.MustWait(`()=>!document.querySelector('[data-action="add"]').disabled`)
-	page.MustEval(`async()=>{const id=document.querySelector('.vd-window[data-app-id="infra"]').dataset.windowId;await auditTest.closeWindow(id);}`)
+	page.MustEval(`()=>{
+		const win=document.querySelector('.vd-window[data-app-id="infra"]');
+		window.infraCloseAttempt=auditTest.closeWindow(win.dataset.windowId);
+	}`)
+	page.MustWait(`()=>!!document.querySelector('.vd-modal [data-choice="discard"]')`)
+	page.MustEval(`async()=>{
+		document.querySelector('.vd-modal [data-choice="discard"]').click();
+		await window.infraCloseAttempt;
+	}`)
 	page.MustWait(`()=>!document.querySelector('.vd-window[data-app-id="infra"]')`)
 	if count := page.MustEval(`()=>fixtureErrors.length`).Int(); count != 0 {
 		t.Fatalf("browser reported uncaught errors: %s", page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())

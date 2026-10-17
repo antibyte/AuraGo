@@ -620,12 +620,14 @@ func Load(path string) (*Config, error) {
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.Infra.Enabled = true
 	cfg.VirtualDesktop.Layerling.AgentAccess = "off"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
 	cfg.VirtualDesktop.AllowGeneratedApps = true
+	cfg.VirtualDesktop.BookshelfEnabled = true
 	// Terminal Retro-Net is on by default; an explicit retronet_enabled: false
 	// keeps it off, and the grant still needs an enabled, writable Desktop.
 	cfg.VirtualDesktop.RetroNetEnabled = true
@@ -3176,6 +3178,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"omniroute", "health_path"}, c.OmniRoute.HealthPath},
 		{[]string{"omniroute", "memory_mb"}, c.OmniRoute.MemoryMB},
 		{[]string{"virtual_desktop", "enabled"}, c.VirtualDesktop.Enabled},
+		{[]string{"virtual_desktop", "infra", "enabled"}, c.VirtualDesktop.Infra.Enabled},
 		{[]string{"virtual_desktop", "readonly"}, c.VirtualDesktop.ReadOnly},
 		{[]string{"virtual_desktop", "allow_agent_control"}, c.VirtualDesktop.AllowAgentControl},
 		{[]string{"virtual_desktop", "allow_generated_apps"}, c.VirtualDesktop.AllowGeneratedApps},
@@ -3186,12 +3189,14 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "remote_max_session_minutes"}, c.VirtualDesktop.RemoteMaxSessionMinutes},
 		{[]string{"virtual_desktop", "remote_idle_timeout_minutes"}, c.VirtualDesktop.RemoteIdleTimeoutMinutes},
 		{[]string{"virtual_desktop", "retronet_enabled"}, c.VirtualDesktop.RetroNetEnabled},
+		{[]string{"virtual_desktop", "bookshelf_enabled"}, c.VirtualDesktop.BookshelfEnabled},
 		{[]string{"virtual_desktop", "code_studio", "enabled"}, c.VirtualDesktop.CodeStudio.Enabled},
 		{[]string{"virtual_desktop", "code_studio", "image"}, c.VirtualDesktop.CodeStudio.Image},
 		{[]string{"virtual_desktop", "code_studio", "auto_start"}, c.VirtualDesktop.CodeStudio.AutoStart},
 		{[]string{"virtual_desktop", "code_studio", "auto_stop_minutes"}, c.VirtualDesktop.CodeStudio.AutoStopMinutes},
 		{[]string{"virtual_desktop", "code_studio", "max_memory_mb"}, c.VirtualDesktop.CodeStudio.MaxMemoryMB},
 		{[]string{"virtual_desktop", "code_studio", "max_cpu_cores"}, c.VirtualDesktop.CodeStudio.MaxCPUCores},
+		{[]string{"virtual_desktop", "code_studio", "allow_network"}, c.VirtualDesktop.CodeStudio.AllowNetwork},
 		{[]string{"virtual_desktop", "openscad", "enabled"}, c.VirtualDesktop.OpenSCAD.Enabled},
 		{[]string{"virtual_desktop", "openscad", "image"}, c.VirtualDesktop.OpenSCAD.Image},
 		{[]string{"virtual_desktop", "openscad", "auto_start"}, c.VirtualDesktop.OpenSCAD.AutoStart},

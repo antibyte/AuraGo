@@ -2234,7 +2234,7 @@ function testNetworkCamerasDetectionAppContracts() {
   assert.equal(modeContext.launchContextForTest(undefined), null);
   assert.match(app, /mode: coerceMode\(value\.mode\)/, 'the stored preference must accept the detection mode');
   assert.match(app, /state\.mode = coerceMode\(button\.dataset\.mode\)/, 'the segmented control must accept the detection mode');
-  assert.match(app, /mode: launchContext\(ctx\) \? 'detections' : preferences\.mode/, 'a launch context opens the detection mode');
+  assert.match(app, /mode: launchContext\(ctx\) \? \(launchContext\(ctx\).event_id \? 'detections' : 'snapshots'\) : preferences\.mode/, 'event launches open detection; camera launches open snapshots');
   assert.match(app, /data-mode="detections"/);
   assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| !runtime\.api_usable/, 'the detection mode does not need a running go2rtc (4B review 2)');
   assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /views\.fieldErrorKey\(field\)[\s\S]*modal\.error = key \? text\(state\.ctx, 'detection\.' \+ key\) : error\.message;\s*if \(field\.startsWith\('detection\.'\) && detectionTabAvailable\(state\)\) modal\.tab = 'detection';/, 'a PATCH 400 on the detection block is localized and opens its tab (4B review 3f)');
@@ -2242,9 +2242,9 @@ function testNetworkCamerasDetectionAppContracts() {
   assert.match(sourceBetween(app, 'function syncDetection(state)', 'function bindMainEvents'), /const launch = state\.pendingLaunch;\s*state\.pendingLaunch = null;/, 'the launch context is consumed by exactly one mount');
   assert.match(sourceBetween(app, 'function stopActivity(state)', 'function installVisibilityLifecycle'), /detection\.unmount\(state\.windowId, \{ keepState: true \}\)/);
   assert.match(sourceBetween(app, 'function dispose(windowId)', 'function render(host'), /detection\.unmount\(windowId\)/);
-  assert.match(sourceBetween(app, 'function open(windowId, context)', 'function render(host'), /state\.pendingLaunch = launch;[\s\S]*state\.mode = 'detections';[\s\S]*draw\(state\)/, 'an open window takes a new launch context');
+  assert.match(sourceBetween(app, 'function open(windowId, context)', 'function render(host'), /state\.pendingLaunch = launch;[\s\S]*state\.mode = launch.event_id \? 'detections' : 'snapshots';[\s\S]*draw\(state\)/, 'an open window takes a new event or camera launch context');
   assert.match(app, /window\.NetworkCamerasApp = \{ render, dispose, open \}/);
-  const hook = "if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);";
+  const hook = "window.NetworkCamerasApp?.open?.(existing.id, context);";
   assert.ok(read('ui/js/desktop/core/window-shell-runtime.js').includes(hook), 'openApp must hand a launch context to an open Network Cameras window');
   assert.ok(read('ui/js/desktop/bundles/main.bundle.js').includes(hook), 'rebuild the main bundle (npm run build:ui)');
   assert.match(app, /modal\.detectionDirty && modal\.detection \? \{ detection: modal\.detection \} : \{\}/, 'camera detection settings are saved through PATCH streams/<id>');

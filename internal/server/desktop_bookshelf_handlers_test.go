@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +17,154 @@ import (
 	"aurago/internal/bookshelf"
 	"aurago/internal/config"
 )
+
+func newBookshelfImportFixture(t *testing.T, maxBytes int64) (*desktopBookshelfRuntime, string) {
+	t.Helper()
+	ctx := context.Background()
+	root := t.TempDir()
+	importsDir := filepath.Join(root, "imports")
+	if err := os.MkdirAll(importsDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{Cfg: &config.Config{VirtualDesktop: config.VirtualDesktopConfig{Enabled: true, BookshelfEnabled: true}}}
+	adapter := &desktopBookshelfAdapter{s: server, importsDir: importsDir}
+	service, err := bookshelf.New(ctx, bookshelf.Options{
+		Root: filepath.Join(root, "catalog"), Adapters: map[string]bookshelf.SourceAdapter{
+			bookshelf.ProviderLocal: adapter,
+		},
+		MaxFilesPerScan: 10, MaxBookBytes: maxBytes, MaxCacheBytes: 4 << 20, MinFreeBytes: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(server.shutdownDesktopBookshelf)
+	if _, err := service.AddSource(ctx, bookshelf.Source{
+		ID: bookshelfImportsSourceID, Name: "Bookshelf uploads", Provider: bookshelf.ProviderLocal, MountID: bookshelfImportsMountID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runtime := &desktopBookshelfRuntime{service: service, adapter: adapter, importsDir: importsDir, jobs: make(map[string]*bookshelfJob), tickets: make(map[string]*bookshelfTicket)}
+	runtime.maxBookBytes.Store(maxBytes)
+	server.bookshelf = runtime
+	return runtime, importsDir
+}
+
+func bookshelfImportRequest(t *testing.T, file []byte) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "boundary.pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(file); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/desktop/bookshelf/imports", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	return request
+}
+
+func TestBookshelfImportAcceptsExactLimitAndReportsOversizedFile(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		file       []byte
+		wantStatus int
+	}{
+		{name: "exact limit", file: []byte("four"), wantStatus: http.StatusOK},
+		{name: "one byte over", file: []byte("fives"), wantStatus: http.StatusRequestEntityTooLarge},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runtime, importsDir := newBookshelfImportFixture(t, 4)
+			response := httptest.NewRecorder()
+			(&Server{}).bookshelfImport(response, bookshelfImportRequest(t, test.file), runtime)
+			if response.Code != test.wantStatus {
+				t.Fatalf("upload status = %d, want %d: %s", response.Code, test.wantStatus, response.Body.String())
+			}
+			entries, err := os.ReadDir(importsDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.wantStatus == http.StatusOK {
+				if len(entries) != 1 || strings.HasSuffix(entries[0].Name(), ".tmp") {
+					t.Fatalf("exact-limit upload left unexpected imports: %v", entries)
+				}
+				return
+			}
+			if len(entries) != 0 {
+				t.Fatalf("over-limit upload left partial imports: %v", entries)
+			}
+			var body struct {
+				Error    string `json:"error"`
+				MaxBytes int64  `json:"max_bytes"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.Error != "limit_exceeded" || body.MaxBytes != 4 {
+				t.Fatalf("upload error = %+v, want limit_exceeded at 4 bytes", body)
+			}
+		})
+	}
+}
+
+func TestBookshelfImportMultipartOverflowReportsLimitAndMalformedInputIsBadRequest(t *testing.T) {
+	runtime, importsDir := newBookshelfImportFixture(t, 4)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "boundary.pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("title", strings.Repeat("x", (1<<20)+1024)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/desktop/bookshelf/imports", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response := httptest.NewRecorder()
+	(&Server{}).bookshelfImport(response, request, runtime)
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("multipart overflow status = %d, want 413: %s", response.Code, response.Body.String())
+	}
+	var limited struct {
+		Error    string `json:"error"`
+		MaxBytes int64  `json:"max_bytes"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &limited); err != nil {
+		t.Fatal(err)
+	}
+	if limited.Error != "limit_exceeded" || limited.MaxBytes != 4 {
+		t.Fatalf("multipart overflow error = %+v, want limit_exceeded at 4 bytes", limited)
+	}
+	if entries, err := os.ReadDir(importsDir); err != nil || len(entries) != 0 {
+		t.Fatalf("multipart overflow left imports %v (err %v)", entries, err)
+	}
+
+	malformed := httptest.NewRequest(http.MethodPost, "/api/desktop/bookshelf/imports", strings.NewReader("not multipart"))
+	malformed.Header.Set("Content-Type", "application/json")
+	malformedResponse := httptest.NewRecorder()
+	(&Server{}).bookshelfImport(malformedResponse, malformed, runtime)
+	if malformedResponse.Code != http.StatusBadRequest {
+		t.Fatalf("malformed input status = %d, want 400: %s", malformedResponse.Code, malformedResponse.Body.String())
+	}
+	var malformedBody map[string]any
+	if err := json.Unmarshal(malformedResponse.Body.Bytes(), &malformedBody); err != nil {
+		t.Fatal(err)
+	}
+	if malformedBody["error"] != "invalid_multipart" {
+		t.Fatalf("malformed input error = %v, want invalid_multipart", malformedBody)
+	}
+}
 
 func TestBookshelfReaderUsesIsolatedVersionedShell(t *testing.T) {
 	previous := uiFiles

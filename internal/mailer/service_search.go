@@ -109,11 +109,12 @@ func (s *Service) SearchRemote(ctx context.Context, query MessageQuery) (ThreadP
 		if t.LastMessageAt.IsZero() || stored.Date.After(t.LastMessageAt) {
 			t.LastMessageAt = stored.Date
 			t.Subject = stored.Subject
-			t.Preview = stored.Text
+			t.Preview = messagePreview(stored)
 		}
 	}
 	if result.Total < len(result.Threads) {
 		result.Total = len(result.Threads)
 	}
+	result.NextCursor = page.NextCursor
 	return result, nil
 }

@@ -133,7 +133,7 @@ func TestDesktopQuickConnectWarnsAndCleansUpSSHResources(t *testing.T) {
 	t.Parallel()
 
 	source := readDesktopAssetText(t, "js/desktop/main.js")
-	body := jsFunctionBodyInWindowMenuTest(t, source, "function renderQuickConnect(id)")
+	body := jsFunctionBodyInWindowMenuTest(t, source, "function renderQuickConnect(id, context)")
 	for _, want := range []string{
 		"registerWindowCleanup(id, () =>",
 		"activeWS.close()",

@@ -288,8 +288,12 @@ func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
 	if !strings.Contains(applyBody, "resetAdjustmentControls();") {
 		t.Fatalf("Pixel applyAdjustments should reset slider controls without repainting the canvas: %s", applyBody)
 	}
-	if !strings.Contains(applyBody, "originalImage = img;") {
+	if !strings.Contains(applyBody, "captureAdjustmentSource();") {
 		t.Fatalf("Pixel applyAdjustments should commit the adjusted canvas as the new original image: %s", applyBody)
+	}
+	captureBody := jsFunctionBodyInWindowMenuTest(t, js, "captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource()")
+	if !strings.Contains(captureBody, "originalImage =") {
+		t.Fatal("Pixel captureAdjustmentSource must retain the adjusted image")
 	}
 }
 
@@ -534,6 +538,8 @@ func normalizePixelAsset(text string) string {
 }
 
 var pixelAppScriptPaths = []string{
+	"js/desktop/shared/sticker-catalog.js",
+	"js/desktop/shared/sticker-library.js",
 	"js/desktop/apps/pixel-state.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
@@ -541,6 +547,7 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/apps/pixel-actions.js",
 	"js/desktop/apps/pixel-filters.js",
 	"js/desktop/apps/pixel-events.js",
+	"js/desktop/apps/pixel-stickers.js",
 	"js/desktop/apps/pixel.js",
 }
 

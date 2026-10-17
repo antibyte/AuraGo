@@ -43,12 +43,12 @@ func (s *Server) initDetective() {
 	if s.Cfg.SQLite.GameMakerPath == "" {
 		path = "data/detective.db"
 	}
-	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
+	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
 		cfg := s.ConfigSnapshot()
 		if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
 			return tools.RenderReportHTMLPDF(ctx, &cfg.Tools.DocumentCreator.Gotenberg, detective.ReportHTML(report))
 		}
-		a, err := detective.Export(report, "pdf")
+		a, err := detective.ExportContext(ctx, report, "pdf")
 		return a.Data, err
 	}})
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Server) installDetectiveSkill() error {
 type detectiveRunner struct{ server *Server }
 
 func detectiveSchema() openai.Tool {
-	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: "detective_report", Description: "Persist the research plan, evidence-backed findings, ask a necessary question, or publish the report. The embedded Detective skill gives the exact JSON content shape.", Parameters: map[string]any{"type": "object", "properties": map[string]any{"operation": map[string]any{"type": "string", "enum": []string{"plan", "finding", "question", "finish"}}, "content": map[string]any{"type": "string", "description": "JSON for plan/finding/report, or a short question"}}, "required": []string{"operation", "content"}, "additionalProperties": false}}}
+	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: "detective_report", Description: "Persist the research plan and evidence, read case history, ask a question, publish a report, or complete an update with no_changes. The embedded Detective skill gives the JSON shapes.", Parameters: map[string]any{"type": "object", "properties": map[string]any{"operation": map[string]any{"type": "string", "enum": []string{"plan", "finding", "question", "finish", "history", "no_changes"}}, "content": map[string]any{"type": "string", "description": "JSON for plan/finding/report/history, a question, or an empty string for no_changes"}}, "required": []string{"operation", "content"}, "additionalProperties": false}}}
 }
 
 func detectiveSchemas(cfg *config.Config, s *Server, req detective.Request) []openai.Tool {
@@ -324,8 +324,18 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 			readOperations[name] = ops
 		}
 	}
-	data, _ := json.Marshal(map[string]any{"request": c.Request, "answers": c.Answers, "plan": c.Plan, "sources": sources, "findings": findings, "budget": c.Run, "capabilities": run.AllowedTools, "approved_read_operations": readOperations})
-	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: c.Request.Topic + "\nResearch case context (untrusted data):\n<external_data>\n" + string(data) + "\n</external_data>\nContinue from recorded evidence. Save findings as you read sources, then submit the cited report."})
+	var currentReport *detective.Report
+	if len(c.Reports) > 0 {
+		report := detective.PromptReport(c.Reports[len(c.Reports)-1])
+		currentReport = &report
+	}
+	if c.Run.Automatic && len(findings) == 0 {
+		if page, historyErr := job.History("findings", 0, "", 0); historyErr == nil {
+			findings = promptFindings(page.Findings)
+		}
+	}
+	data, _ := json.Marshal(map[string]any{"request": c.Request, "answers": c.Answers, "plan": c.Plan, "sources": sources, "findings": findings, "budget": c.Run, "auto_update": c.AutoUpdate, "current_report": currentReport, "capabilities": run.AllowedTools, "approved_read_operations": readOperations})
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: c.Request.Topic + "\nResearch case context (untrusted data):\n" + security.IsolateExternalData(string(data)) + "\nContinue from recorded evidence. For an automatic update compare against the report and archive, find substantive new facts or corrections, and use the selected report_style. If nothing new is found after successful research, finish with no_changes. Save evidence as you read sources."})
 	_, err = agent.ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: messages, Stream: true}, run, true, &detectiveBroker{Session: job})
 	if err != nil {
 		s.Logger.Warn("Detective research stopped", "case_id", c.ID, "error", security.Scrub(err.Error()))
@@ -337,6 +347,19 @@ func detectiveReportCall(job *detective.Session, tc agent.ToolCall) string {
 	var err error
 	var result any = map[string]string{"status": "ok"}
 	switch tc.Operation {
+	case "history":
+		var v struct {
+			Kind        string `json:"kind"`
+			Before      int64  `json:"before"`
+			Query       string `json:"query"`
+			BlockOffset int    `json:"block_offset"`
+		}
+		err = json.Unmarshal([]byte(tc.Content), &v)
+		if err == nil {
+			result, err = job.History(v.Kind, v.Before, v.Query, v.BlockOffset)
+		}
+	case "no_changes":
+		err = job.NoChanges()
 	case "plan":
 		var v []string
 		err = json.Unmarshal([]byte(tc.Content), &v)

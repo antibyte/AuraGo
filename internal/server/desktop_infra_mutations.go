@@ -21,7 +21,6 @@ import (
 	"aurago/internal/acestep"
 	"aurago/internal/config"
 	"aurago/internal/credentials"
-	"aurago/internal/dockerutil"
 	"aurago/internal/fritzbox"
 	"aurago/internal/infra"
 	"aurago/internal/inventory"
@@ -158,7 +157,7 @@ func desktopInfraSourceEdit(w http.ResponseWriter, r *http.Request, s *Server, c
 		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Source, version, and fields are required")
 		return
 	}
-	result, status, err := desktopInfraWriteSourceEdit(r.Context(), s, cfg, store, runtime, source, request)
+	result, status, err := desktopInfraWriteSourceEdit(r.Context(), s, cfg, store, runtime, nodeID, source, request)
 	if err != nil {
 		if status == http.StatusConflict {
 			desktopInfraError(w, status, "conflict", "The source changed; refresh before editing")
@@ -244,13 +243,17 @@ func desktopInfraReadSourceEdit(ctx context.Context, s *Server, cfg *config.Conf
 	return response, nil
 }
 
-func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime, source infra.Source, request desktopInfraSourceEditRequest) (desktopInfraSourceEditResponse, int, error) {
+func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime, nodeID string, source infra.Source, request desktopInfraSourceEditRequest) (desktopInfraSourceEditResponse, int, error) {
 	response := desktopInfraSourceEditResponse{Source: source.Kind, Editable: true, Status: infra.ActionCompleted}
+	providerKey := desktopInfraProviderConfigKey(s, cfg, source.Kind)
 	switch source.Kind {
 	case "registry":
 		var fields desktopInfraRegistryFields
 		if err := desktopInfraUnmarshalFields(request.Fields, &fields); err != nil {
 			return response, http.StatusBadRequest, err
+		}
+		if _, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, true, ""); !ok {
+			return response, http.StatusForbidden, errors.New("Infra source-edit permission changed")
 		}
 		updated, err := desktopInfraUpdateRegistry(ctx, s, source, request.Version, fields)
 		if err != nil {
@@ -287,13 +290,22 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 			return response, http.StatusConflict, errors.New("Docker container changed")
 		}
 		newName := strings.TrimSpace(fields.Name)
-		if !tools.DockerNameValid(newName) || desktopInfraDockerReservedName(newName) {
+		if !tools.DockerNameValid(newName) {
 			return response, http.StatusBadRequest, errors.New("invalid or reserved Docker name")
 		}
 		oldName := strings.TrimPrefix(inspect.Name, "/")
+		readConfig := cfg
 		if newName != oldName {
+			currentCfg, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, true, "")
+			if !ok {
+				return response, http.StatusForbidden, errors.New("Infra source-edit permission changed")
+			}
+			if desktopInfraDockerReservedName(currentCfg, newName) {
+				return response, http.StatusBadRequest, errors.New("invalid or reserved Docker name")
+			}
+			readConfig = currentCfg
 			callCtx, cancel := desktopInfraContext(ctx)
-			_, code, err := desktopInfraDockerRequest(runtime, callCtx, tools.DockerConfig{Host: cfg.Docker.Host}, http.MethodPost,
+			_, code, err := desktopInfraDockerRequest(runtime, callCtx, tools.DockerConfig{Host: currentCfg.Docker.Host}, http.MethodPost,
 				"/containers/"+url.PathEscape(source.Key)+"/rename?name="+url.QueryEscape(newName), "")
 			cancel()
 			desktopInfraInvalidate(runtime, source.Kind, source.Instance)
@@ -307,7 +319,7 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 			}
 		}
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
-		readback, err := desktopInfraInspectDocker(ctx, cfg, source.Key, runtime)
+		readback, err := desktopInfraInspectDocker(ctx, readConfig, source.Key, runtime)
 		if err != nil || strings.TrimPrefix(readback.Name, "/") != newName {
 			response.Status = infra.ActionUnknown
 			response.Version = request.Version
@@ -350,7 +362,11 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 		if fieldErr != nil {
 			return response, http.StatusBadRequest, fieldErr
 		}
-		status, err := tools.ProxmoxInfraEditConfig(ctx, desktopInfraProxmoxConfig(cfg), resource.Node, resource.Type, resource.VMID, before, name, description, tags)
+		currentCfg, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, true, "")
+		if !ok {
+			return response, http.StatusForbidden, errors.New("Infra source-edit permission changed")
+		}
+		status, err := tools.ProxmoxInfraEditConfig(ctx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, before, name, description, tags)
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 		if status == "conflict" {
 			return response, http.StatusConflict, err
@@ -401,6 +417,9 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 		}
 		if desktopInfraFritzVersion(source.Key, before) != request.Version {
 			return response, http.StatusConflict, errors.New("Fritz!Box host changed")
+		}
+		if _, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, true, ""); !ok {
+			return response, http.StatusForbidden, errors.New("Infra source-edit permission changed")
 		}
 		status, err := client.InfraSetHostFriendlyName(source.Key, fields.FriendlyName)
 		if status == infra.ActionUnknown {
@@ -731,6 +750,103 @@ func desktopInfraSourceConfigured(cfg *config.Config, source infra.Source) bool 
 	}
 }
 
+func desktopInfraProviderConfigKey(s *Server, cfg *config.Config, kind string) string {
+	if cfg == nil {
+		return ""
+	}
+	switch kind {
+	case "docker":
+		return desktopInfraConfigKey("docker", cfg.Docker.Host, fmt.Sprint(cfg.Docker.Enabled), fmt.Sprint(cfg.Docker.ReadOnly))
+	case "proxmox":
+		values := desktopInfraProxmoxConfig(cfg)
+		return desktopInfraConfigKey("proxmox", values.URL, values.TokenID, values.Secret, values.Node,
+			fmt.Sprint(values.Insecure), fmt.Sprint(values.ReadOnly), fmt.Sprint(values.AllowDestructive), fmt.Sprint(cfg.Proxmox.Enabled))
+	case "fritzbox":
+		fritz, network := cfg.FritzBox, cfg.FritzBox.Network
+		return desktopInfraConfigKey("fritzbox", fritz.Host, fmt.Sprint(fritz.Port), fmt.Sprint(fritz.HTTPS),
+			fmt.Sprint(fritz.WebPort), fmt.Sprint(fritz.InsecureSkipVerify), fmt.Sprint(fritz.Timeout), fritz.Username,
+			desktopInfraFritzPassword(s, cfg), fmt.Sprint(fritz.Enabled), fmt.Sprint(network.Enabled), fmt.Sprint(network.ReadOnly),
+			fmt.Sprint(network.SubFeatures.Hosts), fmt.Sprint(network.SubFeatures.WakeOnLAN))
+	default:
+		return desktopInfraConfigKey(kind)
+	}
+}
+
+func desktopInfraRuntimeConfigKey(s *Server, cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	fritz, network := cfg.FritzBox, cfg.FritzBox.Network
+	fritzAdmissionKey := desktopInfraConfigKey("fritzbox-admission", fritz.Host, fmt.Sprint(fritz.Port), fmt.Sprint(fritz.HTTPS),
+		fmt.Sprint(fritz.WebPort), fmt.Sprint(fritz.InsecureSkipVerify), fmt.Sprint(fritz.Timeout), fritz.Username,
+		fritz.Password, fmt.Sprint(fritz.Enabled), fmt.Sprint(network.Enabled), fmt.Sprint(network.ReadOnly),
+		fmt.Sprint(network.SubFeatures.Hosts), fmt.Sprint(network.SubFeatures.WakeOnLAN))
+	return desktopInfraConfigKey("infra-runtime", fmt.Sprint(cfg.VirtualDesktop.Enabled), fmt.Sprint(cfg.VirtualDesktop.ReadOnly),
+		fmt.Sprint(cfg.VirtualDesktop.Infra.Enabled), fmt.Sprint(cfg.VirtualDesktop.Infra.ReadOnly),
+		fmt.Sprint(cfg.VirtualDesktop.Infra.AllowSourceEdit), fmt.Sprint(cfg.VirtualDesktop.Infra.AllowControl),
+		desktopInfraProviderConfigKey(s, cfg, "docker"), desktopInfraProviderConfigKey(s, cfg, "proxmox"),
+		fritzAdmissionKey)
+}
+
+func desktopInfraConfigChanged(s *Server, previous, next *config.Config) bool {
+	return previous != nil && next != nil && desktopInfraRuntimeConfigKey(s, previous) != desktopInfraRuntimeConfigKey(s, next)
+}
+
+func desktopInfraCurrentWriteConfig(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, nodeID string, source infra.Source, providerKey string, sourceEdit bool, action string) (*config.Config, bool) {
+	if ctx.Err() != nil {
+		return nil, false
+	}
+	current := cfg
+	if s != nil {
+		if snapshot := s.ConfigSnapshot(); snapshot != nil {
+			current = snapshot
+		}
+	}
+	if s != nil && !s.desktopInfraConfigAdmitted(current) {
+		return nil, false
+	}
+	if current == nil || !desktopInfraCapabilities(current).Write || !desktopInfraSourceConfigured(current, source) ||
+		desktopInfraProviderConfigKey(s, current, source.Kind) != providerKey {
+		return nil, false
+	}
+	if nodeID != "" {
+		if store == nil {
+			return nil, false
+		}
+		node, err := store.GetNode(ctx, nodeID)
+		if err != nil {
+			return nil, false
+		}
+		linked, ok := desktopInfraFindConfiguredNodeSource(node, current, source.Kind)
+		if !ok || linked.SourceIdentity != source.SourceIdentity {
+			return nil, false
+		}
+	}
+	capabilities := desktopInfraCapabilities(current)
+	if sourceEdit {
+		if !capabilities.SourceEdit {
+			return nil, false
+		}
+		switch source.Kind {
+		case "docker":
+			if current.Docker.ReadOnly {
+				return nil, false
+			}
+		case "proxmox":
+			if current.Proxmox.ReadOnly {
+				return nil, false
+			}
+		case "fritzbox":
+			if current.FritzBox.Network.ReadOnly || !desktopInfraFritzAllowed(current) || !current.FritzBox.Network.SubFeatures.Hosts {
+				return nil, false
+			}
+		}
+	} else if !capabilities.Control || !desktopInfraActionAllowed(current, source.Kind, action) || !desktopInfraActionTargetAllowed(source, action) {
+		return nil, false
+	}
+	return current, true
+}
+
 func desktopInfraInspectDocker(ctx context.Context, cfg *config.Config, id string, runtime *desktopInfraRuntime) (desktopInfraDockerInspect, error) {
 	if !cfg.Docker.Enabled || !tools.DockerNameValid(id) {
 		return desktopInfraDockerInspect{}, errors.New("Docker source is unavailable")
@@ -756,20 +872,21 @@ func desktopInfraInspectDocker(ctx context.Context, cfg *config.Config, id strin
 
 func desktopInfraDockerProtected(info desktopInfraDockerInspect) bool {
 	name := strings.TrimPrefix(strings.TrimSpace(info.Name), "/")
-	owners := tools.DockerContainerOwnersFromMetadata([]string{name}, info.Config.Labels,
-		acestep.Owner, dockerutil.AppOwner, dockerutil.HomepageOwner, dockerutil.LocalLLMOwner,
-		dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner,
-		dockerutil.SecurityProxyOwner,
-	)
+	owners := tools.DockerContainerOwnersFromMetadata([]string{name}, info.Config.Labels, containerProtectedOwners...)
 	return len(owners) > 0
 }
 
-func desktopInfraDockerReservedName(name string) bool {
+func desktopInfraDockerReservedName(cfg *config.Config, name string) bool {
 	name = strings.TrimPrefix(strings.TrimSpace(name), "/")
-	return acestep.IsResourceName(name) || dockerutil.IsAuraGoAppContainerName(name) || dockerutil.IsHomepageContainerName(name) ||
-		dockerutil.IsLocalLLMContainerName(name) || dockerutil.IsBoringGarageContainerName(name) ||
-		dockerutil.IsCYDCreatorBuilderContainerName(name) || dockerutil.IsDecisionsContainerName(name) ||
-		dockerutil.IsSecurityProxyContainerName(name)
+	if len(tools.DockerContainerOwnersFromMetadata([]string{name}, nil, containerProtectedOwners...)) > 0 {
+		return true
+	}
+	for _, managedName := range tools.ManagedSidecarContainerNames(cfg) {
+		if strings.EqualFold(name, managedName) {
+			return true
+		}
+	}
+	return acestep.IsResourceName(name)
 }
 
 func desktopInfraProxmoxResource(ctx context.Context, cfg *config.Config, source infra.Source) (tools.InfraProxmoxResource, error) {
@@ -865,7 +982,7 @@ func desktopInfraAction(w http.ResponseWriter, r *http.Request, s *Server, cfg *
 		desktopInfraJSON(w, http.StatusOK, response)
 		return
 	}
-	response = desktopInfraRunAction(r.Context(), s, cfg, runtime, source, request)
+	response = desktopInfraRunAction(r.Context(), s, cfg, store, runtime, nodeID, source, request)
 	finishCtx, finishCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	finished, finishErr := store.FinishAction(finishCtx, request.RequestID, fingerprint, response.Status, response.UPID)
 	finishCancel()
@@ -887,8 +1004,9 @@ func desktopInfraAction(w http.ResponseWriter, r *http.Request, s *Server, cfg *
 	desktopInfraJSON(w, http.StatusOK, response)
 }
 
-func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, runtime *desktopInfraRuntime, source infra.Source, request desktopInfraActionRequest) desktopInfraActionResponse {
+func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime, nodeID string, source infra.Source, request desktopInfraActionRequest) desktopInfraActionResponse {
 	response := desktopInfraActionResponse{Status: "failed", Action: request.Action, RequestID: request.RequestID}
+	providerKey := desktopInfraProviderConfigKey(s, cfg, source.Kind)
 	switch source.Kind {
 	case "docker":
 		if cfg.Docker.ReadOnly {
@@ -898,10 +1016,14 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, r
 		if err != nil || desktopInfraDockerProtected(inspect) {
 			return response
 		}
+		currentCfg, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, false, request.Action)
+		if !ok {
+			return response
+		}
 		before := inspect
 		endpoint := "/containers/" + url.PathEscape(source.Key) + "/" + request.Action
 		callCtx, cancel := desktopInfraContext(ctx)
-		_, code, err := desktopInfraDockerRequest(runtime, callCtx, tools.DockerConfig{Host: cfg.Docker.Host}, http.MethodPost, endpoint, "")
+		_, code, err := desktopInfraDockerRequest(runtime, callCtx, tools.DockerConfig{Host: currentCfg.Docker.Host}, http.MethodPost, endpoint, "")
 		cancel()
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 		if err != nil {
@@ -921,7 +1043,11 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, r
 		if err != nil {
 			return response
 		}
-		status, upid, err := tools.ProxmoxInfraAction(ctx, desktopInfraProxmoxConfig(cfg), resource.Node, resource.Type, resource.VMID, request.Action)
+		currentCfg, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, false, request.Action)
+		if !ok {
+			return response
+		}
+		status, upid, err := tools.ProxmoxInfraAction(ctx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, request.Action)
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 		if err != nil {
 			if status == "unknown" {
@@ -937,6 +1063,9 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, r
 			return response
 		}
 		defer func() { client.Close(); cancel() }()
+		if _, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, false, request.Action); !ok {
+			return response
+		}
 		status, err := client.InfraWakeHost(source.Key)
 		if status == infra.ActionUnknown || err != nil && status != infra.ActionFailed {
 			desktopInfraInvalidate(runtime, source.Kind, source.Instance)

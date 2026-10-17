@@ -211,6 +211,7 @@ func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
 		{Path: "internal/decisions/", Classification: "pinned-model-downloads-and-authenticated-private-scoring-runtime", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
+		{Path: "internal/mailer/gmail_adapter.go", Classification: "fixed-google-gmail-api-same-origin-redirects", Credentialed: true},
 		{Path: "internal/tools/treg.go", Classification: "fixed-treg-api-public-only-no-redirects-no-replay", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/tools/treg_media.go", Classification: "public-media-download-without-credentials", RequiresSSRF: true},
 		{Path: "internal/tools/treg_tasks.go", Classification: "server-bound-treg-continuation-public-host-validation", RequiresSSRF: true},

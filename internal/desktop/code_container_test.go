@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -167,6 +168,7 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 		Env:            append([]string(nil), req.Env...),
 		ReadonlyRootfs: req.ReadonlyRootfs,
 		Tmpfs:          tmpfs,
+		NetworkMode:    req.NetworkMode,
 	}
 	return id, nil
 }
@@ -340,6 +342,177 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	}
 }
 
+func TestCodeContainerEnsureStartedCreatesBridgeContainerWhenNetworkAllowed(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if len(fake.creates) != 1 {
+		t.Fatalf("create count = %d, want 1", len(fake.creates))
+	}
+	req := fake.creates[0]
+	if req.NetworkMode != "" {
+		t.Fatalf("network mode = %q, want empty so Docker uses the default bridge", req.NetworkMode)
+	}
+	for _, volume := range req.Volumes {
+		if strings.Contains(strings.ToLower(volume), "docker.sock") {
+			t.Fatalf("volumes = %#v, want no docker socket", req.Volumes)
+		}
+	}
+	if req.User != "developer" {
+		t.Fatalf("user = %q, want developer", req.User)
+	}
+	if len(req.SecurityOpt) != 1 || req.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("security opts = %#v, want no-new-privileges", req.SecurityOpt)
+	}
+	if len(req.CapDrop) != 1 || req.CapDrop[0] != "ALL" {
+		t.Fatalf("cap drop = %#v, want ALL", req.CapDrop)
+	}
+	if len(req.CapAdd) != 2 || req.CapAdd[0] != "CHOWN" || req.CapAdd[1] != "FOWNER" {
+		t.Fatalf("cap add = %#v, want CHOWN and FOWNER", req.CapAdd)
+	}
+	status := svc.Status(context.Background())
+	if status.Network != "bridge" {
+		t.Fatalf("status network = %q, want bridge", status.Network)
+	}
+}
+
+func TestCodeContainerEnsureStartedReplacesIsolatedContainerWhenNetworkAllowed(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{
+		containers: []CodeDockerContainer{{ID: "none-1", Names: []string{"/" + codeContainerName}}},
+		inspectByName: map[string]CodeDockerInspect{
+			"none-1": {
+				ID:          "none-1",
+				Name:        "/" + codeContainerName,
+				State:       CodeDockerState{Running: true},
+				NetworkMode: "none",
+				Mounts: []CodeDockerMount{{
+					Source:      workspace,
+					Destination: codeWorkspaceInContainer,
+				}},
+			},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if !containsString(fake.actions, "none-1 remove") {
+		t.Fatalf("actions = %#v, want isolated container removal", fake.actions)
+	}
+	if len(fake.creates) != 1 {
+		t.Fatalf("create count = %d, want replacement container", len(fake.creates))
+	}
+	if fake.creates[0].NetworkMode != "" {
+		t.Fatalf("network mode = %q, want empty", fake.creates[0].NetworkMode)
+	}
+	for _, volume := range fake.creates[0].Volumes {
+		if strings.Contains(strings.ToLower(volume), "docker.sock") {
+			t.Fatalf("volumes = %#v, want no docker socket", fake.creates[0].Volumes)
+		}
+	}
+}
+
+func TestCodeContainerEnsureStartedReplacesBridgedContainerWhenNetworkDisabled(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []struct {
+		name string
+		mode string
+	}{{"empty", ""}, {"default", "default"}, {"bridge", "bridge"}} {
+		t.Run(mode.name, func(t *testing.T) {
+			workspace := t.TempDir()
+			fake := &fakeCodeContainerDocker{
+				containers: []CodeDockerContainer{{ID: "bridge-1", Names: []string{"/" + codeContainerName}}},
+				inspectByName: map[string]CodeDockerInspect{
+					"bridge-1": {
+						ID:          "bridge-1",
+						Name:        "/" + codeContainerName,
+						State:       CodeDockerState{Running: true},
+						NetworkMode: mode.mode,
+						Mounts: []CodeDockerMount{{
+							Source:      workspace,
+							Destination: codeWorkspaceInContainer,
+						}},
+					},
+				},
+			}
+			svc := NewCodeContainerService(Config{
+				WorkspaceDir: workspace,
+				CodeStudio:   CodeStudioConfig{Enabled: true},
+			}, nil)
+			svc.docker = fake
+
+			if err := svc.EnsureStarted(context.Background()); err != nil {
+				t.Fatalf("EnsureStarted returned error: %v", err)
+			}
+			if !containsString(fake.actions, "bridge-1 remove") {
+				t.Fatalf("actions = %#v, want bridged container removal", fake.actions)
+			}
+			if len(fake.creates) != 1 || fake.creates[0].NetworkMode != "none" {
+				t.Fatalf("creates = %#v, want one container with network none", fake.creates)
+			}
+		})
+	}
+}
+
+func TestCodeContainerEnsureStartedKeepsBridgeWhenNetworkAllowed(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []struct {
+		name string
+		mode string
+	}{{"empty", ""}, {"default", "default"}, {"bridge", "bridge"}} {
+		t.Run(mode.name, func(t *testing.T) {
+			workspace := t.TempDir()
+			fake := &fakeCodeContainerDocker{
+				containers: []CodeDockerContainer{{ID: "bridge-1", Names: []string{"/" + codeContainerName}}},
+				inspectByName: map[string]CodeDockerInspect{
+					"bridge-1": {
+						ID:          "bridge-1",
+						Name:        "/" + codeContainerName,
+						State:       CodeDockerState{Running: true},
+						NetworkMode: mode.mode,
+						Mounts: []CodeDockerMount{{
+							Source:      workspace,
+							Destination: codeWorkspaceInContainer,
+						}},
+					},
+				},
+			}
+			svc := NewCodeContainerService(Config{
+				WorkspaceDir: workspace,
+				CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: true},
+			}, nil)
+			svc.docker = fake
+
+			if err := svc.EnsureStarted(context.Background()); err != nil {
+				t.Fatalf("EnsureStarted returned error: %v", err)
+			}
+			if containsString(fake.actions, "bridge-1 remove") || len(fake.creates) != 0 {
+				t.Fatalf("actions = %#v creates = %d, want the bridged container kept", fake.actions, len(fake.creates))
+			}
+		})
+	}
+}
+
 func TestCodeContainerEnsureStartedReplacesLegacyWorkspaceMount(t *testing.T) {
 	t.Parallel()
 
@@ -388,9 +561,10 @@ func TestCodeContainerEnsureStartedReplacesDefaultContainerWhenRuntimeMissing(t 
 		containers: []CodeDockerContainer{{ID: "old-1", Names: []string{"/" + codeContainerName}}},
 		inspectByName: map[string]CodeDockerInspect{
 			"old-1": {
-				ID:    "old-1",
-				Name:  "/" + codeContainerName,
-				State: CodeDockerState{Running: true},
+				ID:          "old-1",
+				Name:        "/" + codeContainerName,
+				State:       CodeDockerState{Running: true},
+				NetworkMode: "none",
 				Mounts: []CodeDockerMount{{
 					Source:      workspace,
 					Destination: codeWorkspaceInContainer,
@@ -437,9 +611,10 @@ func TestCodeContainerEnsureStartedReplacesExistingContainerWhenWorkspaceRepairF
 		containers: []CodeDockerContainer{{ID: "old-1", Names: []string{"/" + codeContainerName}}},
 		inspectByName: map[string]CodeDockerInspect{
 			"old-1": {
-				ID:    "old-1",
-				Name:  "/" + codeContainerName,
-				State: CodeDockerState{Running: true},
+				ID:          "old-1",
+				Name:        "/" + codeContainerName,
+				State:       CodeDockerState{Running: true},
+				NetworkMode: "none",
 				Mounts: []CodeDockerMount{{
 					Source:      workspace,
 					Destination: codeWorkspaceInContainer,
@@ -519,7 +694,7 @@ func TestCodeContainerEnsureStartedStartsExistingStoppedContainer(t *testing.T) 
 	fake := &fakeCodeContainerDocker{
 		containers: []CodeDockerContainer{{ID: "abc123", Names: []string{"/" + codeContainerName}}},
 		inspectByName: map[string]CodeDockerInspect{
-			"abc123": {ID: "abc123", Name: "/" + codeContainerName, State: CodeDockerState{Running: false}},
+			"abc123": {ID: "abc123", Name: "/" + codeContainerName, State: CodeDockerState{Running: false}, NetworkMode: "none"},
 		},
 	}
 	svc := NewCodeContainerService(Config{
@@ -604,6 +779,19 @@ func TestCodeContainerStatusUsesDefaultsWithoutStartingContainer(t *testing.T) {
 		status.Resources.PidsLimit != defaultCodeContainerPidsLimit {
 		t.Fatalf("resources = %+v, want safe defaults", status.Resources)
 	}
+	if status.Network != "none" {
+		t.Fatalf("network = %q, want none", status.Network)
+	}
+	if status.ReadOnly {
+		t.Fatal("read only should stay false")
+	}
+	raw, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "workspace_host_path") {
+		t.Fatalf("status JSON exposes the host path: %s", raw)
+	}
 }
 
 func TestCodeContainerStatusReflectsDockerRunningState(t *testing.T) {
@@ -643,6 +831,88 @@ func TestCodeContainerStatusReflectsDockerRunningState(t *testing.T) {
 	if status.Resources.MemoryMB != 1024 || status.Resources.CPUCores != 1 {
 		t.Fatalf("resources = %+v, want configured resource limits", status.Resources)
 	}
+	if status.Network != "bridge" {
+		t.Fatalf("network = %q, want bridge from an empty inspect mode", status.Network)
+	}
+}
+
+func TestCodeContainerStatusReportsInspectedNetworkAndReadOnly(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		mode        string
+		allow       bool
+		wantNetwork string
+	}{
+		{name: "none", mode: "none", allow: true, wantNetwork: "none"},
+		{name: "host", mode: "host", allow: false, wantNetwork: "host"},
+		{name: "bridge alias", mode: "Default", allow: false, wantNetwork: "bridge"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeCodeContainerDocker{
+				containers: []CodeDockerContainer{{ID: "running-1", Names: []string{"/" + codeContainerName}}},
+				inspectByName: map[string]CodeDockerInspect{
+					"running-1": {ID: "running-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, NetworkMode: tc.mode},
+				},
+			}
+			svc := NewCodeContainerService(Config{
+				ReadOnly:     true,
+				WorkspaceDir: t.TempDir(),
+				CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: tc.allow},
+			}, nil)
+			svc.docker = fake
+
+			status := svc.Status(context.Background())
+			if !status.Running || status.Network != tc.wantNetwork || !status.ReadOnly {
+				t.Fatalf("status running/network/read_only = %v/%q/%v, want true/%s/true", status.Running, status.Network, status.ReadOnly, tc.wantNetwork)
+			}
+			raw, err := json.Marshal(status)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(raw), `"read_only":true`) || strings.Contains(string(raw), "workspace_host_path") {
+				t.Fatalf("status JSON = %s", raw)
+			}
+		})
+	}
+}
+
+func TestCodeContainerStatusKeepsConfiguredNetworkWhenInspectFails(t *testing.T) {
+	t.Parallel()
+
+	fake := &failLaterCodeContainerInspect{
+		fakeCodeContainerDocker: fakeCodeContainerDocker{
+			containers: []CodeDockerContainer{{ID: "running-1", Names: []string{"/" + codeContainerName}}},
+			inspectByName: map[string]CodeDockerInspect{
+				"running-1": {ID: "running-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, NetworkMode: "none"},
+			},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: t.TempDir(),
+		CodeStudio:   CodeStudioConfig{Enabled: true, AllowNetwork: true},
+	}, nil)
+	svc.docker = fake
+
+	status := svc.Status(context.Background())
+	if status.Error != "" || !status.Running || status.Network != "bridge" {
+		t.Fatalf("status error/running/network = %q/%v/%q, want empty/true/bridge", status.Error, status.Running, status.Network)
+	}
+}
+
+type failLaterCodeContainerInspect struct {
+	fakeCodeContainerDocker
+	calls int
+}
+
+func (f *failLaterCodeContainerInspect) InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error) {
+	f.calls++
+	if f.calls > 1 {
+		return CodeDockerInspect{}, errors.New("inspect unavailable")
+	}
+	return f.fakeCodeContainerDocker.InspectContainer(ctx, container)
 }
 
 func TestCodeContainerDisabledDoesNotTouchDocker(t *testing.T) {

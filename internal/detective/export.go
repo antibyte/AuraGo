@@ -3,8 +3,10 @@ package detective
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"unicode"
@@ -23,6 +25,13 @@ type Artifact struct {
 }
 
 func Export(r Report, format string) (Artifact, error) {
+	return ExportContext(context.Background(), r, format)
+}
+
+func ExportContext(ctx context.Context, r Report, format string) (Artifact, error) {
+	if err := ctx.Err(); err != nil {
+		return Artifact{}, err
+	}
 	a := Artifact{Filename: fmt.Sprintf("detective-report-r%d.%s", r.Revision, format)}
 	var err error
 	switch format {
@@ -31,14 +40,35 @@ func Export(r Report, format string) (Artifact, error) {
 		a.Data = []byte(Markdown(r))
 	case "pdf":
 		a.MIME = "application/pdf"
-		a.Data, err = reportPDF(r)
+		a.Data, err = reportPDF(ctx, r)
 	case "docx":
 		a.MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-		a.Data, err = reportDOCX(r)
+		a.Data, err = reportDOCX(ctx, r)
 	default:
 		err = fmt.Errorf("unsupported export format %q", format)
 	}
+	if err == nil {
+		err = ctx.Err()
+	}
 	return a, err
+}
+
+type exportWriter struct {
+	ctx   context.Context
+	w     io.Writer
+	bytes int
+}
+
+func (w *exportWriter) Write(b []byte) (int, error) {
+	if err := w.ctx.Err(); err != nil {
+		return 0, err
+	}
+	if w.bytes+len(b) > 32<<20 {
+		return 0, fmt.Errorf("export exceeds 32 MiB")
+	}
+	n, err := w.w.Write(b)
+	w.bytes += n
+	return n, err
 }
 
 func reportSources(r Report) ([]Source, map[string]int) {
@@ -134,12 +164,17 @@ func Markdown(r Report) string {
 	return b.String()
 }
 
-func reportPDF(r Report) ([]byte, error) {
+func reportPDF(ctx context.Context, r Report) ([]byte, error) {
 	font, err := sfnt.Parse(goregular.TTF)
 	if err != nil {
 		return nil, err
 	}
-	for _, char := range Markdown(r) {
+	for i, char := range Markdown(r) {
+		if i%4096 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
 		if unicode.IsSpace(char) {
 			continue
 		}
@@ -162,6 +197,10 @@ func reportPDF(r Report) ([]byte, error) {
 	})
 	p.AddPage()
 	write := func(text string, size float64, bold bool) {
+		if err := ctx.Err(); err != nil {
+			p.SetError(err)
+			return
+		}
 		style := ""
 		if bold {
 			style = "B"
@@ -178,6 +217,9 @@ func reportPDF(r Report) ([]byte, error) {
 	write(r.Summary, 11, false)
 	sources, refs := reportSources(r)
 	for _, b := range r.Blocks {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		switch b.Type {
 		case "heading":
 			if p.GetY() > 250 {
@@ -213,6 +255,10 @@ func reportPDF(r Report) ([]byte, error) {
 					total = max(total, len(lines[i]))
 				}
 				for offset := 0; offset < total; {
+					if err := ctx.Err(); err != nil {
+						p.SetError(err)
+						return
+					}
 					room := int((275 - p.GetY() - 4) / 4.5)
 					if room < 1 {
 						p.AddPage()
@@ -238,6 +284,9 @@ func reportPDF(r Report) ([]byte, error) {
 				}
 			}
 			for i, row := range b.Rows {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				p.SetFont("Go", "", 9)
 				height := 8.0
 				for _, cell := range row {
@@ -265,6 +314,9 @@ func reportPDF(r Report) ([]byte, error) {
 	}
 	write("Sources", 14, true)
 	for i, s := range sources {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		write(fmt.Sprintf("[%d] %s — %s", i+1, s.Title, s.RetrievedAt.Format("2006-01-02")), 10, true)
 		if s.URL == "" {
 			write(s.Locator, 9, false)
@@ -277,7 +329,7 @@ func reportPDF(r Report) ([]byte, error) {
 		p.SetTextColor(0, 0, 0)
 	}
 	var out bytes.Buffer
-	err = p.Output(&out)
+	err = p.Output(&exportWriter{ctx: ctx, w: &out})
 	return out.Bytes(), err
 }
 
@@ -295,7 +347,7 @@ func paragraph(text, style string) string {
 	return `<w:p>` + props + `<w:r><w:t xml:space="preserve">` + content + `</w:t></w:r></w:p>`
 }
 
-func reportDOCX(r Report) ([]byte, error) {
+func reportDOCX(ctx context.Context, r Report) ([]byte, error) {
 	sources, refs := reportSources(r)
 	var body strings.Builder
 	body.WriteString(paragraph(r.Title, "Title"))
@@ -305,6 +357,9 @@ func reportDOCX(r Report) ([]byte, error) {
 	}
 	body.WriteString(paragraph(r.Summary, ""))
 	for _, b := range r.Blocks {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		switch b.Type {
 		case "heading":
 			body.WriteString(paragraph(b.Text, "Heading1"))
@@ -339,6 +394,9 @@ func reportDOCX(r Report) ([]byte, error) {
 	body.WriteString(paragraph("Sources", "Heading1"))
 	rels := `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="styles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="footer" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>`
 	for i, s := range sources {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if s.URL == "" {
 			body.WriteString(paragraph(fmt.Sprintf("[%d] %s — %s", i+1, s.Title, s.Locator), ""))
 			continue
@@ -358,7 +416,7 @@ func reportDOCX(r Report) ([]byte, error) {
 		"word/footer1.xml":             `<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:fldSimple w:instr="PAGE"><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p></w:ftr>`,
 	}
 	var out bytes.Buffer
-	z := zip.NewWriter(&out)
+	z := zip.NewWriter(&exportWriter{ctx: ctx, w: &out})
 	names := []string{}
 	for k := range files {
 		names = append(names, k)

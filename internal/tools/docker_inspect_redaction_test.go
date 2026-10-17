@@ -123,6 +123,17 @@ func TestDockerInspectWithMountSourcesKeepsBindPathsForHostChecks(t *testing.T) 
 	}
 }
 
+func TestDockerInspectCopiesNetworkMode(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Id":"app","Name":"/app","HostConfig":{"NetworkMode":"none"},"Config":{"Env":["PATH=/usr/bin"]}}`))
+	})
+	out := DockerInspectContainer(DockerConfig{Host: host}, "app")
+	if !strings.Contains(out, `"network_mode":"none"`) {
+		t.Fatalf("inspect output missing network mode: %s", out)
+	}
+}
+
 func TestDockerInspectRequiresDockerPermission(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{})
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })

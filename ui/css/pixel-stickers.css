@@ -1,0 +1,9 @@
+.pixel-sticker-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--vd-border, #657080); border-radius: 8px; }
+.pixel-sticker-controls[hidden], .pixel-sticker-frame[hidden] { display: none; }
+.pixel-sticker-controls label { display: grid; gap: 3px; min-width: 0; font-size: 12px; }
+.pixel-sticker-controls input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--pixel-line); border-radius: 4px; padding: 6px; background: var(--pixel-surface); color: inherit; }
+.pixel-sticker-controls button { grid-column: 1 / -1; }
+.pixel-sticker-frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 8; touch-action: none; }
+.pixel-sticker-frame polygon { fill: transparent; stroke: #49a0ff; stroke-width: 1.5; pointer-events: all; cursor: move; }
+.pixel-sticker-frame circle { fill: white; stroke: #1671cf; stroke-width: 2; pointer-events: all; cursor: nwse-resize; }
+.pixel-sticker-frame [data-sticker-handle="rotate"] { fill: #9bd1ff; cursor: grab; }

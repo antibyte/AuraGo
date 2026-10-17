@@ -15,8 +15,10 @@ function vdCfgEnsureData() {
     if (!data.remote_max_session_minutes) data.remote_max_session_minutes = 60;
     if (!data.remote_idle_timeout_minutes) data.remote_idle_timeout_minutes = 5;
     if (typeof data.allow_generated_apps !== 'boolean') data.allow_generated_apps = true;
-    if (typeof data.bookshelf_enabled !== 'boolean') data.bookshelf_enabled = false;
+    if (typeof data.bookshelf_enabled !== 'boolean') data.bookshelf_enabled = true;
     if (typeof data.bookshelf_converter_path !== 'string') data.bookshelf_converter_path = '';
+    if (!data.code_studio || typeof data.code_studio !== 'object') data.code_studio = {};
+    if (typeof data.code_studio.allow_network !== 'boolean') data.code_studio.allow_network = false;
     if (typeof data.allow_agent_control === 'boolean') {
         configData.tools.virtual_desktop.enabled = data.allow_agent_control === true;
     }
@@ -80,6 +82,9 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgField('config.virtual_desktop.remote_idle_timeout_label', 'help.virtual_desktop.remote_idle_timeout_minutes',
         '<input class="field-input" type="number" min="1" max="120" value="' + (data.remote_idle_timeout_minutes || 5) + '" data-path="virtual_desktop.remote_idle_timeout_minutes">');
     html += '</div>';
+
+    html += '<h3>' + t('config.virtual_desktop.code_studio_heading') + '</h3>';
+    html += vdCfgToggleRow('config.virtual_desktop.code_studio_allow_network_label', 'help.virtual_desktop.code_studio_allow_network', data.code_studio.allow_network === true, 'virtual_desktop.code_studio.allow_network');
 
     html += vdCfgVideoStudio();
     html += vdCfgRetroGames();

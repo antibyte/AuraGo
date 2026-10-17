@@ -11,7 +11,12 @@
         const controller = new AbortController();
         const state = {host, id: windowId, ctx, controller, timer: null, cases: [], current: null, events: [], tab: 'report', revision: 0, busy: false, disposed: false, fresh: false, caps: null, latestSourceID: '', notice: '', forcePaint: false};
         instances.set(windowId, state);
-        const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready); };
+        let selectedReport = null, reportParts = [], history = [], historyNext = 0, historyLoaded = false;
+        let archiveSources = [], sourceNext = 0, sourcesLoaded = false, viewGeneration = 0;
+        const autoDrafts = new Map();
+        const draftKey = () => state.current?.id || 'new';
+        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; viewGeneration++; }
+        const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready || state.current?.auto_update?.outcome === 'permission_blocked'); };
         const request = async (path, options = {}) => {
             const opts = {...options, signal: controller.signal};
             if (opts.body) { opts.headers = {'Content-Type': 'application/json'}; opts.body = JSON.stringify(opts.body); }
@@ -26,8 +31,51 @@
         };
         const chosenReport = () => {
             const revisions = state.current?.reports || [];
-            return state.revision ? revisions.find(x => x.revision === state.revision) : revisions.at(-1);
+            return state.revision ? selectedReport || revisions.find(x => x.revision === state.revision) : revisions.at(-1);
         };
+        function autoDraft() {
+            const box = host.querySelector('.dt-auto-settings');
+            if (!box) return null;
+            return Object.fromEntries([...box.querySelectorAll('[name]')].map(node => [node.name, node.type === 'checkbox' ? node.checked : node.value]));
+        }
+        function autoSettings() {
+            const draft = autoDraft();
+            if (!draft) return {enabled: false, interval_hours: 24, report_style: 'append', effort: 'quick'};
+            const hours = Number(draft.auto_interval) * (draft.auto_unit === 'days' ? 24 : 1);
+            if (!Number.isInteger(Number(draft.auto_interval)) || hours < 1 || hours > 8760) throw new Error(tr('auto_invalid'));
+            return {enabled: draft.auto_enabled, interval_hours: hours, report_style: draft.auto_style, effort: draft.auto_effort};
+        }
+        function syncAuto() {
+            const box = host.querySelector('.dt-auto-settings');
+            if (!box) return;
+            box.disabled = readOnly();
+            const draft = autoDrafts.get(draftKey());
+            if (draft) {
+                box.querySelectorAll('[name]').forEach(node => { if (node.type === 'checkbox') node.checked = draft[node.name]; else node.value = draft[node.name]; });
+            } else if (state.current) {
+                const a = state.current.auto_update || {}, hours = a.interval_hours || 24, days = hours % 24 === 0;
+                box.querySelector('[name=auto_enabled]').checked = !!a.enabled;
+                box.querySelector('[name=auto_interval]').value = days ? hours / 24 : hours;
+                box.querySelector('[name=auto_unit]').value = days ? 'days' : 'hours';
+                box.querySelector('[name=auto_style]').value = a.report_style || 'append';
+                box.querySelector('[name=auto_effort]').value = a.effort || 'quick';
+            }
+            box.querySelector('[name=auto_interval]').max = box.querySelector('[name=auto_unit]').value === 'days' ? 365 : 8760;
+            const output = host.querySelector('.dt-auto-state');
+            const html = v.autoStatus(state.current?.auto_update, tr);
+            if (output && output.innerHTML !== html) output.innerHTML = html;
+            const save = host.querySelector('[data-do=auto-save]');
+            if (save) save.disabled = readOnly() || state.busy;
+            const pause = host.querySelector('[data-do=auto-pause]');
+            if (pause) pause.disabled = !state.current?.auto_update?.enabled || state.busy || !state.caps?.ready;
+        }
+        function autoPanel(c, ro) {
+            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
+        }
+        function knownReports() {
+            const map = new Map([...history, ...(state.current?.reports || []), ...(selectedReport ? [selectedReport] : [])].map(r => [r.revision, r]));
+            return [...map.values()].sort((a, b) => a.revision - b.revision);
+        }
         function listHTML() {
             const c = state.current;
             return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
@@ -44,6 +92,7 @@
         }
         function reasonText(reason) {
             if (!reason) return '';
+            if (reason === 'no_changes') return tr('auto_no_changes');
             const translated = tr(reason);
             return translated === 'desktop.detective_' + reason ? reason : translated;
         }
@@ -56,7 +105,7 @@
             return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions">${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function exportHTML(c, ro) {
-            const revisions = c.reports || [], chosen = chosenReport();
+            const revisions = knownReports(), chosen = chosenReport();
             if (!revisions.length) return '';
             return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${['md', 'pdf', 'docx'].map(format => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${format}">${format === 'md' ? 'Markdown' : format === 'docx' ? 'Word' : 'PDF'}</a>`).join('')}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
         }
@@ -78,18 +127,24 @@
             const bar = host.querySelector('.dt-export');
             if (!bar || !state.current) return;
             const chosen = chosenReport()?.revision || 0;
-            if (linkedExportRevision() === chosen && exportRevisionSet() === reportRevisionSet(state.current.reports)) return;
+            if (linkedExportRevision() === chosen && exportRevisionSet() === reportRevisionSet(knownReports())) return;
             bar.innerHTML = exportHTML(state.current, readOnly());
         }
         function contentHTML() {
-            if (state.tab === 'sources') return v.sources(state.current.sources, tr);
+            if (state.tab === 'sources') {
+                const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()];
+                return v.sources(items, tr) + (!sourcesLoaded || sourceNext ? `<button data-do="sources-more">${e(tr('archive_more'))}</button>` : '');
+            }
             if (state.tab === 'activity') return v.activity(state.events, tr);
-            return v.report(chosenReport(), tr);
+            if (state.tab === 'history') return `<div class="dt-history">${history.map(r => `<button data-revision="${r.revision}"><b>${e(tr('revision'))} ${r.revision}</b><span>${e(new Date(r.created_at).toLocaleString())}</span><span>${e(r.title)}</span></button>`).join('')}${!historyLoaded || historyNext ? `<button data-do="history-more">${e(tr('archive_more'))}</button>` : ''}</div>`;
+            const parts = reportParts.length ? reportParts : [chosenReport()];
+            const baseRevision = parts[0]?.base_revision || 0;
+            return `${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
         }
         function caseMainHTML(c, ro) {
-            const tabs = ['report', 'sources', 'activity'].map(tab => `<button data-tab="${tab}" aria-pressed="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${(c.sources || []).length})` : ''}</button>`).join('');
+            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" aria-pressed="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
             const activity = state.tab === 'activity' ? '' : `<ol class="dt-activity" hidden>${v.activityItems(state.events, tr)}</ol>`;
-            return `<section class="dt-status" aria-live="polite">${statusInner(c, ro)}</section><nav class="dt-tabs" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content">${contentHTML()}</div>${activity}`;
+            return `<section class="dt-status" aria-live="polite">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content">${contentHTML()}</div>${activity}`;
         }
         function appHTML(main) {
             const ro = readOnly();
@@ -100,6 +155,7 @@
             const c = state.current, caps = state.caps || {}, ro = readOnly();
             host.innerHTML = appHTML(c ? caseMainHTML(c, ro) : '');
             if (!c) drawForm(host.querySelector('.dt-main'), caps, ro);
+            syncAuto();
         }
         function drawForm(main, caps, ro) {
             const eligibleProviders = (caps.providers || []).filter(provider => provider && provider.id && provider.usage !== 'decisions');
@@ -108,6 +164,7 @@
                 ? `<option value="${e(selectedProvider)}" selected disabled>${e(selectedProvider)} — ${e(tr('provider_unavailable'))}</option>` : '';
             const providerOptions = missingProvider + eligibleProviders.map(p => `<option value="${e(p.id)}" ${p.id === caps.provider_id ? 'selected' : ''}>${e(p.name || p.id)} · ${e(p.model)}</option>`).join('');
             main.innerHTML = `<form class="dt-form"><h1>${e(tr('new'))}</h1><p>${e(tr('intro'))}</p><label>${e(tr('topic'))}<textarea name="topic" required maxlength="8000" rows="3"></textarea></label><fieldset><legend>${e(tr('effort'))}</legend><div class="dt-profiles">${['quick', 'normal', 'maximum'].map(level => { const p = caps.profiles?.[level] || {}; return `<label><input type="radio" name="effort" value="${level}" ${level === 'normal' ? 'checked' : ''}><b>${e(tr(level))}</b><small>${Math.ceil((p.seconds || 0) / 60)} min · ${p.tools || 0} ${e(tr('tools'))}</small></label>`; }).join('')}</div></fieldset><details><summary>${e(tr('advanced'))}</summary><label>${e(tr('scope'))}<textarea name="scope" maxlength="8000"></textarea></label><label>${e(tr('language'))}<input name="language" value="${e(document.documentElement.lang || 'de')}" maxlength="30"></label><label>${e(tr('source_urls'))}<textarea name="source_urls" rows="2"></textarea></label><label>${e(tr('provider'))}<select name="provider_id">${providerOptions}</select></label><label>${e(tr('model'))}<input name="model" placeholder="${e(caps.model || '')}" maxlength="200"></label>${(caps.private_sources || []).length ? `<fieldset><legend>${e(tr('private_sources'))}</legend>${caps.private_sources.map(name => `<label><input type="checkbox" name="private_sources" value="${e(name)}">${e(name)}</label>`).join('')}</fieldset>` : ''}</details><p class="dt-capabilities">${e(tr('available'))}: ${e((caps.tools || []).filter(x => !['detective_report', 'invoke_tool', 'discover_tools', 'execute_skill', 'list_skills'].includes(x)).join(', '))}</p>${ro ? `<p role="status">${e(tr('unavailable'))}</p>` : ''}<button type="submit" ${ro || state.busy ? 'disabled' : ''}>${e(tr('start'))}</button></form>`;
+            main.querySelector('.dt-profiles')?.closest('fieldset')?.insertAdjacentHTML('afterend', v.autoSettings(null, tr, ro));
         }
         function rewriteList() {
             const aside = host.querySelector('.dt-layout aside');
@@ -153,19 +210,21 @@
             const openIDs = [...host.querySelectorAll('.dt-source[open]')].map(node => node.dataset.id);
             rewriteList();
             rewriteStatus(answerValue, answerFocused);
+            syncAuto();
             const sourcesTabChanged = state.tab === 'sources' && sourcesChanged;
-            const reportTabChanged = state.tab === 'report' && reportChanged;
+            const reportTabChanged = state.tab === 'report' && reportChanged && !state.revision;
             if (sourcesTabChanged && content) {
-                content.innerHTML = v.sources(state.current.sources, tr);
+                content.innerHTML = contentHTML();
                 content.querySelectorAll('.dt-source').forEach(node => { if (openIDs.includes(node.dataset.id)) node.open = true; });
             } else if (reportTabChanged && content) {
-                content.innerHTML = v.report(chosenReport(), tr);
+                reportParts = [];
+                content.innerHTML = contentHTML();
             }
             if (content) content.scrollTop = scroll;
             syncExport();
             const sourceBtn = host.querySelector('[data-tab=sources]');
             if (sourceBtn) {
-                const label = `${tr('sources')} (${(state.current.sources || []).length})`;
+                const label = `${tr('sources')} (${state.current.source_count || (state.current.sources || []).length})`;
                 if (sourceBtn.textContent !== label) sourceBtn.textContent = label;
             }
             if (freshEvents && freshEvents.length) {
@@ -257,6 +316,8 @@
             c.request.topic = live.topic;
             c.request.effort = live.effort;
             if (live.updated_at) { c.run.updated_at = live.updated_at; c.updated_at = live.updated_at; }
+            if (live.auto_update) c.auto_update = live.auto_update;
+            c.source_count = live.sources;
         }
         let refreshChain = Promise.resolve();
         function refresh(redraw = true) {
@@ -277,7 +338,7 @@
             const fresh = (data.events || []).filter(ev => ev.id > after);
             state.events = [...state.events, ...fresh].slice(-500);
             const liveSourceID = live.latest_source_id || '';
-            const sourcesChanged = (state.current.sources || []).length !== live.sources || state.latestSourceID !== liveSourceID;
+            const sourcesChanged = state.latestSourceID !== liveSourceID;
             const reportChanged = ((state.current.reports || []).at(-1)?.revision || 0) !== (live.latest_revision || 0);
             applyLive(live);
             if ((state.tab === 'sources' && sourcesChanged) || (state.tab === 'report' && reportChanged) || (state.current.sources == null && state.tab !== 'activity')) {
@@ -287,7 +348,7 @@
                 if (!Array.isArray(state.current.sources)) state.current.sources = [];
                 const loaded = state.current.sources;
                 const loadedSourceID = loaded.length ? (loaded[loaded.length - 1].id || '') : '';
-                if (loadedSourceID === liveSourceID) state.latestSourceID = loadedSourceID;
+                if (full.latest_source_id === liveSourceID || loadedSourceID === liveSourceID) state.latestSourceID = liveSourceID;
             }
             if (state.disposed || state.current?.id !== id) return;
             if (redraw) paint(sourcesChanged, reportChanged, fresh);
@@ -311,7 +372,11 @@
                 const body = Object.fromEntries(data);
                 body.source_urls = String(body.source_urls || '').split(/\s+/).filter(Boolean);
                 body.private_sources = data.getAll('private_sources');
+                body.auto_update = autoSettings();
+                for (const name of ['auto_enabled', 'auto_interval', 'auto_unit', 'auto_style', 'auto_effort']) delete body[name];
                 const c = await request('/cases', {method: 'POST', body});
+                autoDrafts.delete('new');
+                resetArchive();
                 state.current = c;
                 state.events = [];
                 state.fresh = false;
@@ -327,7 +392,29 @@
                 if (submit) submit.disabled = false;
             } finally { state.busy = false; }
         }, {signal: controller.signal});
-        host.addEventListener('change', ev => { if (ev.target.matches('.dt-revision')) { state.revision = Number(ev.target.value); draw(); } }, {signal: controller.signal});
+        const rememberAuto = ev => {
+            if (!ev.target.closest('.dt-auto-settings')) return;
+            autoDrafts.set(draftKey(), autoDraft());
+            const number = host.querySelector('[name=auto_interval]');
+            number.max = host.querySelector('[name=auto_unit]').value === 'days' ? 365 : 8760;
+        };
+        host.addEventListener('input', rememberAuto, {signal: controller.signal});
+        host.addEventListener('change', rememberAuto, {signal: controller.signal});
+        async function selectRevision(revision) {
+            const id = state.current.id, generation = viewGeneration;
+            const report = (state.current.reports || []).find(r => r.revision === revision) || await request('/cases/' + id + '/report?revision=' + revision);
+            if (state.disposed || state.current?.id !== id || generation !== viewGeneration) return;
+            selectedReport = report;
+            state.revision = revision;
+            state.tab = 'report';
+            reportParts = [];
+            draw();
+        }
+        host.addEventListener('change', async ev => {
+            if (!ev.target.matches('.dt-revision') || state.busy) return;
+            state.busy = true;
+            try { await selectRevision(Number(ev.target.value)); } catch (err) { error(err); } finally { state.busy = false; syncAuto(); }
+        }, {signal: controller.signal});
         host.addEventListener('click', async ev => {
             const el = ev.target.closest('button,a[data-ref],a.dt-download');
             if (!el || el.disabled || state.busy) return;
@@ -351,17 +438,40 @@
             if (el.dataset.tab) { state.notice = ''; state.tab = el.dataset.tab; draw(); return; }
             if (el.dataset.ref) {
                 ev.preventDefault();
-                state.tab = 'sources';
-                draw();
-                const index = (state.current.sources || []).findIndex(s => s.id === el.dataset.ref);
-                const target = host.querySelectorAll('.dt-source')[index];
-                if (target) { target.open = true; target.scrollIntoView({block: 'nearest'}); }
+                state.busy = true;
+                try {
+                    const id = state.current.id;
+                    if (![...(state.current.sources || []), ...archiveSources].some(s => s.id === el.dataset.ref)) {
+                        const source = await request('/cases/' + id + '/source?id=' + encodeURIComponent(el.dataset.ref));
+                        if (state.disposed || state.current?.id !== id) return;
+                        archiveSources.push(source);
+                    }
+                    state.tab = 'sources';
+                    draw();
+                    const target = [...host.querySelectorAll('.dt-source')].find(node => node.dataset.id === el.dataset.ref);
+                    if (target) { target.open = true; target.scrollIntoView({block: 'nearest'}); }
+                } catch (err) { error(err); } finally { state.busy = false; syncAuto(); }
                 return;
             }
             try {
+                if (el.dataset.revision) { state.busy = true; await selectRevision(Number(el.dataset.revision)); return; }
+                if (el.dataset.baseRevision) {
+                    state.busy = true;
+                    const id = state.current.id, generation = viewGeneration;
+                    const report = await request('/cases/' + id + '/report?revision=' + Number(el.dataset.baseRevision));
+                    if (state.disposed || state.current?.id !== id || generation !== viewGeneration) return;
+                    if (!reportParts.length) reportParts = [chosenReport()];
+                    reportParts.unshift(report);
+                    const content = host.querySelector('.dt-content'), top = content.scrollTop, height = content.scrollHeight;
+                    content.innerHTML = contentHTML();
+                    content.scrollTop = top + content.scrollHeight - height;
+                    return;
+                }
                 if (el.dataset.case) {
+                    state.busy = true;
                     state.notice = '';
                     state.current = await request('/cases/' + el.dataset.case);
+                    resetArchive();
                     state.events = [];
                     state.revision = 0;
                     state.latestSourceID = '';
@@ -370,9 +480,35 @@
                     return;
                 }
                 const action = el.dataset.do;
-                if (action === 'new') { state.notice = ''; state.current = null; state.fresh = true; draw(); host.querySelector('[name=topic]')?.focus(); return; }
+                if (action === 'new') { state.notice = ''; state.current = null; resetArchive(); state.fresh = true; draw(); host.querySelector('[name=topic]')?.focus(); return; }
                 if (!action || !state.current) return;
                 state.busy = true;
+                if (action === 'history-more' || action === 'sources-more') {
+                    const id = state.current.id, generation = viewGeneration, reports = action === 'history-more';
+                    const page = await request('/cases/' + id + (reports ? '/reports?before=' + historyNext : '/sources?before=' + sourceNext));
+                    if (state.disposed || state.current?.id !== id || generation !== viewGeneration) return;
+                    if (reports) { history = [...new Map([...history, ...(page.reports || [])].map(r => [r.revision, r])).values()]; historyNext = page.next || 0; historyLoaded = true; }
+                    else { archiveSources = [...new Map([...archiveSources, ...(page.sources || [])].map(s => [s.id, s])).values()]; sourceNext = page.next || 0; sourcesLoaded = true; }
+                    const content = host.querySelector('.dt-content'), top = content.scrollTop;
+                    const open = [...content.querySelectorAll('.dt-source[open]')].map(n => n.dataset.id);
+                    content.innerHTML = contentHTML();
+                    content.querySelectorAll('.dt-source').forEach(n => { if (open.includes(n.dataset.id)) n.open = true; });
+                    content.scrollTop = top;
+                    syncExport();
+                    return;
+                }
+                if (action === 'auto-save' || action === 'auto-pause') {
+                    const id = state.current.id, draft = JSON.stringify(autoDrafts.get(id));
+                    const settings = action === 'auto-pause' ? {...state.current.auto_update, enabled: false} : autoSettings();
+                    const body = {enabled: settings.enabled, interval_hours: settings.interval_hours, report_style: settings.report_style, effort: settings.effort};
+                    const updated = await request('/cases/' + id + '/auto-update', {method: 'PUT', body});
+                    if (state.disposed || state.current?.id !== id) return;
+                    state.current.auto_update = updated.auto_update;
+                    if (JSON.stringify(autoDrafts.get(id)) === draft) autoDrafts.delete(id);
+                    syncAuto();
+                    await refresh();
+                    return;
+                }
                 if (action === 'delete') {
                     const accepted = ctx.confirmDialog ? await ctx.confirmDialog(tr('delete'), tr('delete_confirm')) : window.confirm(tr('delete_confirm'));
                     if (!accepted) return;
@@ -390,7 +526,7 @@
                 }
                 await refresh();
             } catch (err) { error(err); }
-            finally { state.busy = false; }
+            finally { state.busy = false; syncAuto(); }
         }, {signal: controller.signal});
         (async () => { try { state.caps = await request('/capabilities'); await refresh(false); if (!state.fresh && state.cases.length) { state.current = state.cases[0]; await refresh(false); } draw(); poll(); } catch (err) { draw(); error(err); } })();
     }

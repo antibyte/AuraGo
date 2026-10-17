@@ -89,6 +89,7 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 		State          desktop.CodeDockerState `json:"state"`
 		ReadonlyRootfs bool                    `json:"readonly_rootfs"`
 		Tmpfs          map[string]string       `json:"tmpfs"`
+		NetworkMode    string                  `json:"network_mode"`
 		Mounts         []struct {
 			Type        string `json:"type"`
 			Source      string `json:"source"`
@@ -120,6 +121,7 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 		Env:            resp.Config.Env,
 		ReadonlyRootfs: resp.ReadonlyRootfs,
 		Tmpfs:          resp.Tmpfs,
+		NetworkMode:    resp.NetworkMode,
 	}, nil
 }
 

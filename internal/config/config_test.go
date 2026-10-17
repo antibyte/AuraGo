@@ -1824,6 +1824,32 @@ func TestLoadCodeStudioDefaultsToPublishedImage(t *testing.T) {
 	if cfg.VirtualDesktop.CodeStudio.Image != "ghcr.io/antibyte/aurago-code-studio:latest" {
 		t.Fatalf("code studio image = %q, want published image", cfg.VirtualDesktop.CodeStudio.Image)
 	}
+	if cfg.VirtualDesktop.CodeStudio.AllowNetwork {
+		t.Fatal("code studio allow_network defaults to false")
+	}
+}
+
+func TestLoadCodeStudioAllowNetworkStaysEnabled(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+virtual_desktop:
+  code_studio:
+    allow_network: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.VirtualDesktop.CodeStudio.AllowNetwork {
+		t.Fatal("code studio allow_network = false, want true")
+	}
 }
 
 func TestLoadMigratesLegacyCodeStudioDefaultImage(t *testing.T) {

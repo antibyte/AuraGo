@@ -371,6 +371,7 @@
     }
     function setTab(s, name) {
         s.libraryTab = name;
+        if (s.stickerPicker) { s.stickerPicker.setDisabled(s.readonly || !s.project); s.stickerPicker.setActive(name === 'stickers'); }
         s.app.querySelectorAll('[data-tab]').forEach(tab => { const on = tab.dataset.tab === name; tab.setAttribute('aria-selected', String(on)); tab.tabIndex = on ? 0 : -1; });
         s.app.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== name; });
     }

@@ -51,6 +51,7 @@ type CodeStudioConfig struct {
 	AutoStopMinutes int
 	MaxMemoryMB     int
 	MaxCPUCores     int
+	AllowNetwork    bool
 }
 
 // OpenSCADConfig controls the lazy OpenSCAD compiler container.

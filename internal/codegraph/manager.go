@@ -205,6 +205,7 @@ func (m *Manager) Rescan(ctx context.Context, p Project) error {
 		retainedBytes += old.status.Bytes
 	}
 	newBytes := int64(0)
+	changes := map[string]string{}
 	module := ""
 	if b, e := readFile(root, "go.mod", 65536); e == nil {
 		for _, line := range strings.Split(string(b), "\n") {
@@ -256,6 +257,15 @@ func (m *Manager) Rescan(ctx context.Context, p Project) error {
 		hash := hex.EncodeToString(h[:])
 		var parsed *fileIndex
 		reused := old != nil && old.files[name] != nil && old.files[name].hash == hash
+		if m.onChange != nil && !reused {
+			changeBytes := int64(len(name) + len(hash) + 128)
+			if retainedBytes+newBytes+changeBytes > MaxIndexBytes {
+				next.status.skip(name, "index_budget")
+				return nil
+			}
+			newBytes += changeBytes
+			changes[name] = hash
+		}
 		if reused {
 			parsed = old.files[name]
 		} else {
@@ -319,10 +329,9 @@ func (m *Manager) Rescan(ctx context.Context, p Project) error {
 	m.projects[p.ID] = next
 	m.mu.Unlock()
 	if m.onChange != nil {
-		for name, f := range next.files {
-			if old == nil || old.files[name] == nil || old.files[name].hash != f.hash {
-				m.onChange(ctx, p, name, f.hash)
-			}
+		// Content changes invalidate insight freshness even when parsing fails.
+		for name, hash := range changes {
+			m.onChange(ctx, p, name, hash)
 		}
 		if old != nil {
 			for name := range old.files {

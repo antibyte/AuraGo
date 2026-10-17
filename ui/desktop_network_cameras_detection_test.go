@@ -159,7 +159,7 @@ func TestDesktopNetworkCamerasDetectionRegistration(t *testing.T) {
 		"detection.validateCameraSettings(modal.detection)",
 		"modal.detectionDirty && modal.detection ? { detection: modal.detection } : {}",
 		"function launchContext(context)",
-		"mode: launchContext(ctx) ? 'detections' : preferences.mode",
+		"mode: launchContext(ctx) ? (launchContext(ctx).event_id ? 'detections' : 'snapshots') : preferences.mode",
 		"window.NetworkCamerasApp = { render, dispose, open }",
 		"function notify(state, message, type)",
 	} {
@@ -167,7 +167,7 @@ func TestDesktopNetworkCamerasDetectionRegistration(t *testing.T) {
 			t.Errorf("network-cameras.js lacks %q", marker)
 		}
 	}
-	hook := "if (appId === 'network-cameras' && context && context.event_id && window.NetworkCamerasApp && typeof window.NetworkCamerasApp.open === 'function') window.NetworkCamerasApp.open(existing.id, context);"
+	hook := "window.NetworkCamerasApp?.open?.(existing.id, context);"
 	if !strings.Contains(rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js"), hook) {
 		t.Error("window-shell-runtime.js openApp does not forward launch contexts to an open Network Cameras window")
 	}

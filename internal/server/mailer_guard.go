@@ -118,6 +118,28 @@ func (a *mailerGuardedAdapter) Sync(ctx context.Context, folder, cursor string) 
 	defer cancel()
 	return a.inner.Sync(ctx, folder, cursor)
 }
+
+func (a *mailerGuardedAdapter) StartSyncSession(ctx context.Context) (func(), error) {
+	session, ok := a.inner.(mailer.SyncSession)
+	if !ok {
+		return func() {}, nil
+	}
+	ctx, cancel, err := a.begin(ctx, "read", false)
+	if err != nil {
+		return nil, err
+	}
+	stop, err := session.StartSyncSession(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	return func() {
+		if stop != nil {
+			stop()
+		}
+		cancel()
+	}, nil
+}
 func (a *mailerGuardedAdapter) Read(ctx context.Context, folder, id string) (mailer.Message, error) {
 	ctx, cancel, err := a.begin(ctx, "read", false)
 	if err != nil {

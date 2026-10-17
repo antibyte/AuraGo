@@ -1658,6 +1658,39 @@ to { opacity: 1; }
 
 /* ── Prompt Stats Panel ──────────────────────────────── */
 
+.pw-page[data-workspace-page="dashboard"] #card-prompt {
+    color: var(--pw-text);
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt p {
+    color: var(--pw-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    margin: 0.4rem 0 1rem;
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-stage-title {
+    margin-top: 1.25rem;
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .shed-item {
+    color: var(--pw-text);
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-details-grid > div {
+    min-width: 0;
+}
+.pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-chart-wrap {
+    height: 240px;
+}
+@media (max-width: 700px) {
+    .pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-details-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .pw-page[data-workspace-page="dashboard"] .prompt-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

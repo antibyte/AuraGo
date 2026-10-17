@@ -180,7 +180,7 @@ func TestPreparedPromptAnchorRemainsOriginalTaskAfterCorrection(t *testing.T) {
 		{Role: "assistant", Content: "The prior response missed the format."},
 		{Role: "user", Name: "synthetic-correction", Content: correction},
 	}}
-	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(context.Background(), cfg, client, &req, profile.SystemPrompt(), nil, budgetTestLogger(), newTokenCountCache(128), 0, false, profile, original, 0)
+	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(context.Background(), cfg, client, &req, profile.SystemPrompt(), nil, budgetTestLogger(), newTokenCountCache(128), 0, false, profile, original, 0, false)
 	if err != nil {
 		t.Fatalf("prepare with original request anchor: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestPreparedPromptAnchorRejectsMissingOriginalTask(t *testing.T) {
 	cfg.Agent.ContextWindow = 6000
 	profile, _ := NewPreparedPromptProfile("anchor/v1", "Fixed workflow and safety rules.", nil)
 	req := openai.ChatCompletionRequest{Model: "primary-model", Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "synthetic correction"}}}
-	_, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(context.Background(), cfg, client, &req, profile.SystemPrompt(), nil, budgetTestLogger(), newTokenCountCache(128), 0, false, profile, "original human request", 0)
+	_, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(context.Background(), cfg, client, &req, profile.SystemPrompt(), nil, budgetTestLogger(), newTokenCountCache(128), 0, false, profile, "original human request", 0, false)
 	if err == nil || !strings.Contains(err.Error(), "original user request") {
 		t.Fatalf("error = %v, want missing original task guard", err)
 	}

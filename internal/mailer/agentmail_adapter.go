@@ -229,7 +229,18 @@ func (a *agentMailAdapter) Send(ctx context.Context, out Outgoing) (SendResult, 
 		if total > maxAgentMailAttachmentBytes {
 			return SendResult{Rejected: true}, fmt.Errorf("attachments exceed size limit")
 		}
-		attachments = append(attachments, agentmail.OutgoingAttachment{Filename: safeFilename(att.Filename), ContentType: att.ContentType, ContentBase64: base64.StdEncoding.EncodeToString(att.Data)})
+		attachment := agentmail.OutgoingAttachment{Filename: safeFilename(att.Filename), ContentType: att.ContentType, ContentBase64: base64.StdEncoding.EncodeToString(att.Data)}
+		if att.ContentID != "" {
+			id, err := safeMessageID(att.ContentID)
+			if err != nil {
+				return SendResult{Rejected: true}, fmt.Errorf("invalid attachment content id: %w", err)
+			}
+			attachment.ContentID = strings.Trim(id, "<>")
+		}
+		if att.Inline {
+			attachment.ContentDisposition = "inline"
+		}
+		attachments = append(attachments, attachment)
 	}
 	htmlBody := out.Draft.HTML
 	if htmlBody != "" {
@@ -406,7 +417,7 @@ func agentMailMessage(cfg TransportConfig, raw agentmail.Message) Message {
 	}
 	att := make([]Attachment, 0, len(raw.Attachments))
 	for _, x := range raw.Attachments {
-		att = append(att, Attachment{ID: x.ID, Filename: safeFilename(x.Filename), ContentType: x.ContentType, Size: x.Size})
+		att = append(att, Attachment{ID: x.ID, Filename: safeFilename(x.Filename), ContentType: x.ContentType, Size: x.Size, ContentID: strings.Trim(x.ContentID, "<>"), Inline: x.ContentDisposition == "inline"})
 	}
 	hasUnread := false
 	hasRead := false

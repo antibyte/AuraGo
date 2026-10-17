@@ -79,6 +79,7 @@ type CodeDockerInspect struct {
 	Env            []string          `json:"env,omitempty"`
 	ReadonlyRootfs bool              `json:"readonly_rootfs,omitempty"`
 	Tmpfs          map[string]string `json:"tmpfs,omitempty"`
+	NetworkMode    string            `json:"network_mode,omitempty"`
 }
 
 type CodeDockerMount struct {
@@ -126,11 +127,13 @@ type CodeContainerStatus struct {
 	Running                bool                   `json:"running"`
 	ContainerID            string                 `json:"container_id,omitempty"`
 	Image                  string                 `json:"image"`
-	WorkspaceHostPath      string                 `json:"workspace_host_path"`
+	WorkspaceHostPath      string                 `json:"-"`
 	WorkspaceContainerPath string                 `json:"workspace_container_path"`
 	AutoStopMinutes        int                    `json:"auto_stop_minutes"`
 	LastActivity           time.Time              `json:"last_activity,omitempty"`
 	Resources              CodeContainerResources `json:"resources"`
+	Network                string                 `json:"network"`
+	ReadOnly               bool                   `json:"read_only"`
 	Error                  string                 `json:"error,omitempty"`
 }
 
@@ -210,6 +213,21 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
 				s.state = StateError
 				return fmt.Errorf("replace legacy code studio container: %w", err)
+			}
+			containerID = ""
+			running = false
+		}
+	}
+	if containerID != "" {
+		networkOK, err := s.usesDesiredNetworkLocked(ctx, containerID)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		if !networkOK {
+			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
+				s.state = StateError
+				return fmt.Errorf("replace code studio container for network mode: %w", err)
 			}
 			containerID = ""
 			running = false
@@ -314,7 +332,7 @@ func (s *CodeContainerService) createCodeStudioContainerLocked(ctx context.Conte
 		Volumes:     []string{codeWorkspaceDir + ":" + codeWorkspaceInContainer},
 		Cmd:         []string{"sleep", "infinity"},
 		Restart:     "no",
-		NetworkMode: "none",
+		NetworkMode: codeStudioContainerNetworkMode(s.cfg.CodeStudio.AllowNetwork),
 		User:        "developer",
 		SecurityOpt: []string{"no-new-privileges:true"},
 		CapDrop:     []string{"ALL"},
@@ -563,6 +581,8 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 		AutoStopMinutes:        s.cfg.CodeStudio.AutoStopMinutes,
 		LastActivity:           s.lastActivity,
 		Resources:              codeStudioResources(s.cfg.CodeStudio),
+		Network:                codeStudioStatusNetwork(s.cfg.CodeStudio.AllowNetwork),
+		ReadOnly:               s.cfg.ReadOnly,
 	}
 	s.mu.RUnlock()
 
@@ -575,6 +595,12 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 	status.Running = running
 	if running {
 		status.State = StateRunning.String()
+		if containerID != "" {
+			inspect, inspectErr := s.docker.InspectContainer(ctx, containerID)
+			if inspectErr == nil {
+				status.Network = codeStudioReportedNetwork(inspect.NetworkMode)
+			}
+		}
 	}
 	return status
 }
@@ -583,6 +609,63 @@ func (s *CodeContainerService) findContainer(ctx context.Context) (string, bool,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.findContainerLocked(ctx)
+}
+
+// codeStudioContainerNetworkMode is the Docker HostConfig.NetworkMode for a
+// new Code Studio container. An empty mode lets Docker select its default bridge.
+func codeStudioContainerNetworkMode(allowNetwork bool) string {
+	if allowNetwork {
+		return ""
+	}
+	return "none"
+}
+
+// codeStudioStatusNetwork reports that choice as none or bridge while the
+// container is not running.
+func codeStudioStatusNetwork(allowNetwork bool) string {
+	if allowNetwork {
+		return "bridge"
+	}
+	return "none"
+}
+
+// codeStudioReportedNetwork maps an inspected Docker network mode onto the
+// status value. Empty, default and bridge are Docker's bridge. Any other mode
+// stays visible as itself.
+func codeStudioReportedNetwork(inspected string) string {
+	mode := strings.ToLower(strings.TrimSpace(inspected))
+	switch mode {
+	case "none":
+		return "none"
+	case "", "default", "bridge":
+		return "bridge"
+	default:
+		return mode
+	}
+}
+
+// codeStudioNetworkMatches reports whether an inspected mode is the one the
+// grant asks for. Docker reports the default bridge as empty, "default" or
+// "bridge". Only "none" matches a container that must stay off the network.
+func codeStudioNetworkMatches(inspected string, allowNetwork bool) bool {
+	mode := strings.ToLower(strings.TrimSpace(inspected))
+	if allowNetwork {
+		switch mode {
+		case "", "default", "bridge":
+			return true
+		default:
+			return false
+		}
+	}
+	return mode == "none"
+}
+
+func (s *CodeContainerService) usesDesiredNetworkLocked(ctx context.Context, containerID string) (bool, error) {
+	inspect, err := s.docker.InspectContainer(ctx, containerID)
+	if err != nil {
+		return false, fmt.Errorf("inspect code studio container network: %w", err)
+	}
+	return codeStudioNetworkMatches(inspect.NetworkMode, s.cfg.CodeStudio.AllowNetwork), nil
 }
 
 func (s *CodeContainerService) usesCurrentWorkspaceMountLocked(ctx context.Context, containerID, expectedWorkspaceDir string) (bool, error) {

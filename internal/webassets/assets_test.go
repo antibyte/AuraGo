@@ -6,12 +6,50 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 )
+
+type archiveProbeReader struct{ read bool }
+
+func (r *archiveProbeReader) Read([]byte) (int, error) {
+	r.read = true
+	return 0, io.EOF
+}
+
+func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
+	_, pin := testArchive(t, nil)
+	for _, tc := range []struct {
+		name string
+		size int64
+		read bool
+	}{
+		{"empty", 0, false},
+		{"sticker-sized pack", (512 << 20) + 1, true},
+		{"limit", MaxArchiveBytes, true},
+		{"over limit", MaxArchiveBytes + 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pin.Bytes = tc.size
+			s := Open(t.TempDir(), pin)
+			defer s.Close()
+			r := &archiveProbeReader{}
+			if err := s.Install(context.Background(), r); err == nil {
+				t.Fatal("accepted missing archive content")
+			}
+			if r.read != tc.read {
+				t.Fatalf("archive read = %v, want %v", r.read, tc.read)
+			}
+			if _, err := os.Stat(filepath.Join(s.Dir, pin.ID)); !os.IsNotExist(err) {
+				t.Fatal("published an incomplete resource set")
+			}
+		})
+	}
+}
 
 func testArchive(t *testing.T, mutate func(*tar.Header, *[]byte)) ([]byte, Pin) {
 	t.Helper()
