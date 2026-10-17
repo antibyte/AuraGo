@@ -3,13 +3,11 @@ package decisions
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
-	"mime"
 	"net/http"
 	"net/url"
 	"sort"
@@ -29,10 +27,6 @@ const (
 	openRouterModelCacheTTL              = 5 * time.Minute
 	openRouterMaxCatalogBytes            = 8 << 20
 	openRouterMaxResponseBytes           = 1 << 20
-	openRouterMaxRequestBytes            = 3 << 20
-	openRouterMaxImages                  = 4
-	openRouterMaxImageBytes              = 300 << 10
-	openRouterMaxTotalImageBytes         = openRouterMaxImages * openRouterMaxImageBytes
 	openRouterMaxContextTokens     int64 = 1 << 20
 	openRouterProbabilityTolerance       = 0.01
 	openRouterScoreTolerance             = 0.1
@@ -268,36 +262,9 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
 	}
-	state, imageTokenEstimate, err := makeOpenRouterState(request.State, request.Images)
+	body, adjustments, err := prepareOpenRouterRequest(ctx, selected, request, wireQuestions)
 	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, err)
-	}
-	wire := openRouterDecisionRequest{Model: selected.ResolvedID(), State: state, Questions: wireQuestions}
-	body, err := json.Marshal(wire)
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("encode OpenRouter Decisions request"))
-	}
-	if len(body) > openRouterMaxRequestBytes {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("OpenRouter Decisions request exceeds the byte limit"))
-	}
-	contextLimit := int64(selected.ContextLength)
-	if contextLimit > openRouterMaxContextTokens {
-		contextLimit = openRouterMaxContextTokens
-	}
-	textState, err := openRouterTextState(request.State)
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("estimate OpenRouter Decisions request context"))
-	}
-	textRequest, err := json.Marshal(openRouterDecisionRequest{Model: model, State: textState, Questions: wireQuestions})
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("estimate OpenRouter Decisions request context"))
-	}
-	contextEstimate := int64(len(textRequest)) + imageTokenEstimate + 512
-	if isOpenRouterClefModel(model) && int64(len(textRequest))+512 > 2000 {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("OpenRouter Clef Decisions requests are limited to 2000 conservative text tokens"))
-	}
-	if contextEstimate > contextLimit {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("OpenRouter Decisions request exceeds the conservative context limit"))
+		return Response{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return Response{}, NewError(CodeCancelled, err)
@@ -328,6 +295,7 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return partial, NewError(CodeExternalOutcomeUnknown, errors.New("OpenRouter Decisions response is malformed"))
 	}
 	result, err := mapOpenRouterResponse(model, request, candidates, decoded)
+	result.ImageAdjustments = adjustments
 	if err != nil {
 		return result, NewError(CodeExternalOutcomeUnknown, err)
 	}
@@ -528,47 +496,6 @@ type openRouterImageURL struct {
 type openRouterImagePart struct {
 	Type     string             `json:"type"`
 	ImageURL openRouterImageURL `json:"image_url"`
-}
-
-func makeOpenRouterState(state any, images []Image) (any, int64, error) {
-	if len(images) > openRouterMaxImages {
-		return nil, 0, fmt.Errorf("OpenRouter accepts at most %d images per request", openRouterMaxImages)
-	}
-	stateText, err := openRouterTextState(state)
-	if err != nil {
-		return nil, 0, errors.New("encode request state")
-	}
-	if len(images) == 0 {
-		return stateText, 0, nil
-	}
-	parts := make([]any, 0, len(images)+1)
-	parts = append(parts, stateText)
-	var totalBytes int
-	var imageTokens int64
-	for index, image := range images {
-		mediaType, _, err := mime.ParseMediaType(image.MIME)
-		if err != nil {
-			return nil, 0, fmt.Errorf("image %d has an invalid MIME type", index)
-		}
-		mediaType = strings.ToLower(mediaType)
-		if mediaType != "image/jpeg" && mediaType != "image/png" {
-			return nil, 0, fmt.Errorf("OpenRouter Decisions supports JPEG and PNG image inputs only")
-		}
-		if len(image.Data) == 0 || len(image.Data) > openRouterMaxImageBytes {
-			return nil, 0, fmt.Errorf("image %d exceeds the OpenRouter size limit", index)
-		}
-		totalBytes += len(image.Data)
-		if totalBytes > openRouterMaxTotalImageBytes {
-			return nil, 0, errors.New("OpenRouter images exceed the total size limit")
-		}
-		encoded := base64.StdEncoding.EncodeToString(image.Data)
-		imageTokens += int64((len(encoded) + 3) / 4)
-		parts = append(parts, openRouterImagePart{
-			Type:     "image_url",
-			ImageURL: openRouterImageURL{URL: "data:" + mediaType + ";base64," + encoded},
-		})
-	}
-	return parts, imageTokens, nil
 }
 
 // openRouterTextState keeps caller-provided structured state as plain text.

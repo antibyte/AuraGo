@@ -34,13 +34,14 @@ type Image struct {
 // Response contains normalized choices. Calibration is "uncalibrated" unless
 // the selected model has a separately verified calibration contract.
 type Response struct {
-	Model         string             `json:"model"`
-	ModelRevision string             `json:"model_revision"`
-	Answers       map[string]Answer  `json:"answers"`
-	Calibration   string             `json:"calibration"`
-	Runtime       RuntimeInfo        `json:"runtime"`
-	Usage         Usage              `json:"usage"`
-	Execution     *ExternalExecution `json:"execution,omitempty"`
+	Model            string             `json:"model"`
+	ModelRevision    string             `json:"model_revision"`
+	Answers          map[string]Answer  `json:"answers"`
+	Calibration      string             `json:"calibration"`
+	Runtime          RuntimeInfo        `json:"runtime"`
+	Usage            Usage              `json:"usage"`
+	Execution        *ExternalExecution `json:"execution,omitempty"`
+	ImageAdjustments []ImageAdjustment  `json:"image_adjustments,omitempty"`
 }
 
 // ExternalExecution identifies the provider that executed a remotely routed

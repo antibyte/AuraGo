@@ -104,6 +104,7 @@ func IsNonRetryable(err error) bool {
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
 		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed, CodeModelNotAvailable, CodeModelContextUnverified,
+		"image_limit_exceeded", "image_invalid", "image_minimum_unmet",
 		CodeExternalOutcomeUnknown, CodeProviderAuthFailed, CodeProviderCreditExhausted, CodeProviderRateLimited:
 		return true
 	default:

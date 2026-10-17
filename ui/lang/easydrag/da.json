@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "Zoom ud",
   "easydrag.ui.zoom_reset": "Zoom til 100 %",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Modellen er ikke længere tilgængelig. Indlæs kataloget, og vælg en anden model.",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontekstgrænsen er ikke bekræftet. Modellen kan ikke bruges."
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontekstgrænsen er ikke bekræftet. Modellen kan ikke bruges.",
+  "easydrag.decision.image_preparation": "Eksterne modeller kan få nedskalerede billeder, hvor fine detaljer kan gå tabt. Originalerne forbliver uændrede."
 }

@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "Zoom out",
   "easydrag.ui.zoom_reset": "Zoom to 100 %",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "This model is no longer available. Load the catalog and select another model.",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Context limit not verified. This model cannot be used."
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Context limit not verified. This model cannot be used.",
+  "easydrag.decision.image_preparation": "Images for external models may be reduced and lose fine details. Originals stay unchanged."
 }

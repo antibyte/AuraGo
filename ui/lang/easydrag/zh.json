@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "缩小",
   "easydrag.ui.zoom_reset": "缩放到 100%",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "此模型已不可用。请加载目录并选择其他模型。",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "上下文限制未经验证，无法使用此模型。"
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "上下文限制未经验证，无法使用此模型。",
+  "easydrag.decision.image_preparation": "发送给外部模型的图片可能会被缩小，从而丢失细节。原始图片保持不变。"
 }

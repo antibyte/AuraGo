@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "Alejar",
   "easydrag.ui.zoom_reset": "Zoom al 100 %",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Este modelo ya no está disponible. Carga el catálogo y elige otro modelo.",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Límite de contexto sin verificar. Este modelo no se puede usar."
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Límite de contexto sin verificar. Este modelo no se puede usar.",
+  "easydrag.decision.image_preparation": "Las imágenes para modelos externos pueden reducirse y perder detalles finos. Los originales no se modifican."
 }

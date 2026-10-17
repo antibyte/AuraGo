@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "Oddálit",
   "easydrag.ui.zoom_reset": "Zvětšení 100 %",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Tento model již není dostupný. Načti katalog a vyber jiný model.",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Limit kontextu není ověřen. Tento model nelze použít."
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Limit kontextu není ověřen. Tento model nelze použít.",
+  "easydrag.decision.image_preparation": "Externí modely mohou obrázky zmenšit, což může vést ke ztrátě jemných detailů. Originály zůstanou beze změny."
 }

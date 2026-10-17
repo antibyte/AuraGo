@@ -66,6 +66,7 @@ func aiDecisionDef(availability func() Availability) *NodeDef {
 			{Name: "model", Type: "text"}, {Name: "model_revision", Type: "text"},
 			{Name: "calibration", Type: "text"}, {Name: "runtime", Type: "object"}, {Name: "usage", Type: "object"},
 			{Name: "execution", Type: "object"},
+			{Name: "image_adjustments", Type: "array"},
 		}
 		if decisionMode(node.Params) == decisionModeRoute {
 			fields = append(fields, FieldSpec{Name: "decision", Type: "text"}, FieldSpec{Name: "confidence", Type: "number"})
@@ -411,6 +412,9 @@ func executeDecisionNode(ctx context.Context, in ExecInput) (ExecResult, error) 
 	}
 	if response.Execution != nil {
 		output["execution"] = response.Execution
+	}
+	if len(response.ImageAdjustments) > 0 {
+		output["image_adjustments"] = response.ImageAdjustments
 	}
 	ports := []string{PortOut}
 	if mode == decisionModeRoute {

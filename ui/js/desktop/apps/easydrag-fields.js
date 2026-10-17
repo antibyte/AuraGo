@@ -590,7 +590,7 @@
         const c = core();
         const { t, esc } = env;
         const list = Array.isArray(value) ? value.map(item => typeof item === 'string' ? item : '') : [];
-        const el = c.el('<div class="ed-decision-images"><div class="ed-decision-images-list"></div>' +
+        const el = c.el('<div class="ed-decision-images"><p class="ed-hint">' + esc(t('easydrag.decision.image_preparation')) + '</p><div class="ed-decision-images-list"></div>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-decision-add-image>' + c.icon('plus') + '<span>' + esc(t('easydrag.decision.add_image')) + '</span></button>') + '</div>');
         const host = el.querySelector('.ed-decision-images-list');
         const emit = () => onChange(list.slice());

@@ -249,7 +249,7 @@ func TestOpenRouterEvaluateImagesRequireAdvertisedModalityAndUseSafeStateParts(t
 	request := Request{
 		State:     "inspect this",
 		Questions: []Question{{ID: "pick", Type: "choice", Options: []Option{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}}},
-		Images:    []Image{{Data: []byte{1, 2, 3}, MIME: "image/png"}},
+		Images:    []Image{decisionTestImage(t, 16, 16, false)},
 	}
 	response := `{"answers":{"pick":{"choice":"a","probabilities":{"a":0.8,"b":0.2},"type":"choice"}},"model":"vision/decision-v1","usage":{"input_tokens":10,"output_tokens":1}}`
 	client := openRouterTestClient(t, "key", func(httpRequest *http.Request) (*http.Response, error) {

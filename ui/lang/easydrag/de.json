@@ -871,5 +871,6 @@
   "easydrag.ui.zoom_out": "Verkleinern",
   "easydrag.ui.zoom_reset": "Auf 100 % zoomen",
   "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Dieses Modell ist nicht mehr verfügbar. Lade den Katalog und wähle ein anderes Modell.",
-  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontextgrenze nicht verifiziert. Dieses Modell kann nicht verwendet werden."
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontextgrenze nicht verifiziert. Dieses Modell kann nicht verwendet werden.",
+  "easydrag.decision.image_preparation": "Für externe Modelle können Bilder verkleinert werden. Dabei können feine Details verloren gehen. Deine Originale bleiben unverändert."
 }
