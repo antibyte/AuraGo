@@ -10,7 +10,7 @@ func TestDashboardKnowledgeGraphMergeContract(t *testing.T) {
 
 	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
-	dashboardHTML := readDesktopAssetText(t, "dashboard.html")
+	dashboardHTML := readDashboardMarkup(t)
 	for _, marker := range []string{
 		"function mergeKnowledgeGraphNodes",
 		"/api/knowledge-graph/merge",

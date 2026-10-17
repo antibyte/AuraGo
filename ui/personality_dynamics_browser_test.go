@@ -90,7 +90,7 @@ func TestPersonalityDynamicsBrowser(t *testing.T) {
 	}
 
 	// Exercise the Dashboard consumer against its actual card markup and source.
-	html := string(mustReadUIFile(t, "dashboard.html"))
+	html := readDashboardMarkup(t)
 	start := strings.Index(html, `<!-- 3. Personality Traits`)
 	end := strings.Index(html[start+5:], "<!--")
 	if start < 0 || end < 0 {

@@ -9,7 +9,7 @@ import (
 func TestDashboardTabButtonsHaveMatchingPanels(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	tabRe := regexp.MustCompile(`data-tab="([^"]+)"`)
 	matches := tabRe.FindAllStringSubmatch(html, -1)
 	seen := map[string]bool{}
@@ -39,7 +39,7 @@ func TestDashboardTabButtonsHaveMatchingPanels(t *testing.T) {
 func TestDashboardIconSpriteLoadsAfterBodyExists(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	dashIconsRe := regexp.MustCompile(`<script[^>]*dash-icons\.js[^>]*></script>`)
 	tag := dashIconsRe.FindString(html)
 	if tag == "" {

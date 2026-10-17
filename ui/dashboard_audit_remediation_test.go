@@ -8,7 +8,7 @@ import (
 func TestDashboardAuditRemediationContracts(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-agent"`,
 		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-user"`,

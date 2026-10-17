@@ -9,7 +9,7 @@ import (
 func TestDashboardPersonalityDisabledStateIsNotVisibleByDefault(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	marker := `id="personality-disabled" class="empty-state is-hidden"`
 	if !strings.Contains(html, marker) {
 		t.Fatalf("personality disabled placeholder should be hidden until API confirms disabled state; missing %q", marker)
@@ -18,7 +18,7 @@ func TestDashboardPersonalityDisabledStateIsNotVisibleByDefault(t *testing.T) {
 
 func TestDashboardPersonalityIncludesCharacterNotes(t *testing.T) {
 	t.Parallel()
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	if !strings.Contains(html, `id="character-notes"`) {
 		t.Fatal("dashboard personality card must include character notes")
 	}
@@ -29,7 +29,7 @@ func TestDashboardPersonalityIncludesCharacterNotes(t *testing.T) {
 
 func TestDashboardPersonalityIncludesAffectPanel(t *testing.T) {
 	t.Parallel()
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`id="affect-panel"`,
 		`id="affect-event-list"`,
@@ -138,7 +138,7 @@ func TestDashboardAgentCardsUseMasonryColumnLayout(t *testing.T) {
 func TestDashboardCSSIsCacheBustedForAgentGridLayout(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	if !strings.Contains(html, `/css/dashboard.css?v={{.BuildVersion}}`) {
 		t.Fatal("dashboard.css link must be cache-busted after agent dashboard grid layout fixes")
 	}

@@ -265,7 +265,7 @@ func TestConfigPrecisionWorkspaceSharedIntegration(t *testing.T) {
 func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	t.Parallel()
 
-	html := normalizeAssetText(mustReadUIFile(t, "dashboard.html"))
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">`,
 		`href="#main-content"`,

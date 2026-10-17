@@ -274,6 +274,7 @@ func TestFrontend_HTML_HardcodedGermanUIText(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
 
 	var failures []string
 	checkedFiles := 0
@@ -337,7 +338,8 @@ func TestFrontend_HTML_NoTextFallbacksInsideDataI18n(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
-	dataI18nElementPattern := regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
+	dataI18nElementPattern :=regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
 	htmlTagPattern := regexp.MustCompile(`<[^>]+>`)
 	alphaPattern := regexp.MustCompile(`[\p{L}\p{N}]`)
 	symbolPattern := regexp.MustCompile(`[^\p{L}\p{N}\p{Zs}\t\r\n.,:;!?'"()/_|+\-=]`)
@@ -391,6 +393,7 @@ func TestFrontend_HTML_NoAttributeFallbacksInsideDataI18n(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
 	directAttrPairs := []struct {
 		marker string
 		attr   string
@@ -499,7 +502,7 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		}
 	}
 
-	for _, htmlFile := range []string{
+	staticHTMLFiles := []string{
 		"404.html",
 		"index.html",
 		"config.html",
@@ -517,7 +520,9 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		"skills.html",
 		"plans.html",
 		"truenas.html",
-	} {
+	}
+	staticHTMLFiles = append(staticHTMLFiles, dashboardSectionPartialFiles(t)...)
+	for _, htmlFile := range staticHTMLFiles {
 		content, err := os.ReadFile(htmlFile)
 		if err != nil {
 			continue
