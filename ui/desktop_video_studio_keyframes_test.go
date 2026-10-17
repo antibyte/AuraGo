@@ -694,3 +694,94 @@ assert.deepEqual([d(p).x, d(p).rotation], [0.5, 15]);
 valid(p);
 `)
 }
+
+// A re-rendered title or caption (index §4.18): the new PNG is sized and centred from the box the clip shows at the
+// playhead (keyframes evaluated), because the keys drive the picture and ignore the fields of animated values. The new
+// box is written like an inspector edit: a key at the playhead for every animated value, the fields only for static ones.
+func TestVideoStudioArtworkCommitUsesTheAnimatedBox(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioKeyframePartsPrelude+`
+require('./js/desktop/apps/video-studio-artwork.js');
+// Boxes are rounded to 6 decimals (clampBox).
+const close = (a, b, message) => assert(Math.abs(a - b) < 1e-5, message + ': ' + a + ' vs ' + b);
+const realTimeline = P.T();
+P.T = () => new Proxy(realTimeline, {get: (target, key) => key === 'render' ? () => {} : target[key]});
+let saved = 0;
+Object.assign(P, {scheduleSave: () => { saved++; }, renderInspector() {}, updateTransform() {}});
+const OLD = {id: 'art1', kind: 'image', width: 400, height: 100, duration_frames: 18000};
+const NEW = {id: 'art2', kind: 'image', width: 600, height: 100, duration_frames: 18000};
+const fixture = (extra, keyframes) => {
+  const p = project([track('o1', 'overlay', [clip('t', OLD, 0, 90, Object.assign({text: 'Hi', text_style: {}, x: 0.3, y: 0.4, width: 0.3125, height: 100 / 720}, extra, keyframes ? {keyframes} : {}))])]);
+  p.assets.push(OLD, NEW);
+  return p;
+};
+const session = (p, frame) => {
+  const s = {disposed: false, project: p, frame, artworkRevision: 0, clipArtRevisions: new Map([['t', 1]]), staleArtwork: new Set(['t']),
+    q: () => null, timelineOptions: {}, preview: {seek() {}}};
+  return {s, result: {clipId: 't', clipRevision: 1, global: 0, originalAssetId: 'art1', text: 'Hi', styleKey: P.textStyleKey({}), asset: NEW, width: 600, height: 100}};
+};
+const commit = (p, frame) => { const {s, result} = session(p, frame); P.commitArtwork(s, result); return s; };
+const shown = (p, frame) => FX.clipState(at(p, 't'), frame, p);
+
+// A static title: the fields take the new box, centred on the old one, at the same scale; nothing is keyed.
+let p = fixture();
+valid(p);
+let s = commit(p, 30);
+assert.equal(at(p, 't').asset_id, 'art2');
+close(at(p, 't').width, 600 / 1280, 'the natural width of the new PNG at scale 1');
+close(at(p, 't').x + at(p, 't').width / 2, 0.3 + 0.3125 / 2, 'the centre stays');
+close(at(p, 't').y + at(p, 't').height / 2, 0.4 + 100 / 720 / 2, 'the vertical centre stays');
+assert.equal('keyframes' in at(p, 't'), false, 'a static title is not keyed');
+assert(s.staleArtwork.size === 0 && saved === 1, 'the stale mark clears and the project saves');
+valid(p);
+
+// An animated width (0.3125 -> 0.625 over 60 frames) shows 0.46875 at frame 30: that is 1.5 times the natural width of
+// the old PNG, so the new PNG is 1.5 times its natural size, centred where the picture was.
+p = fixture({}, {width: [kf(0, 0.3125), kf(60, 0.625)]});
+valid(p);
+const before = shown(p, 30);
+close(before.width, 0.46875, 'the box shown at frame 30');
+commit(p, 30);
+let t = at(p, 't');
+assert.equal(t.asset_id, 'art2');
+assert.equal(t.width, 0.3125, 'the static field of the animated width is untouched');
+assert.deepEqual(t.keyframes.width.map(key => key.f), [0, 30, 60], 'a key at the playhead carries the new width');
+close(t.keyframes.width[1].v, 600 / 1280 * 1.5, 'new natural width times the scale shown at the playhead');
+close(t.keyframes.width[0].v, 0.3125, 'the other keys are untouched');
+const after = shown(p, 30);
+close(after.width, 600 / 1280 * 1.5, 'the box shown at the playhead');
+close(after.height, 100 / 720 * 1.5, 'the static height follows the same scale');
+close(after.x + after.width / 2, before.x + before.width / 2, 'the horizontal centre shown at the playhead stays');
+close(after.y + after.height / 2, before.y + before.height / 2, 'the vertical centre shown at the playhead stays');
+assert.equal(t.height, after.height, 'the static height takes its field');
+valid(p);
+
+// Position and size animated together: every animated value gets its key, centre and scale taken from the animated state.
+p = fixture({}, {x: [kf(0, 0.1), kf(60, 0.3)], width: [kf(0, 0.3125), kf(60, 0.3125)], y: [kf(0, 0.2), kf(60, 0.4)], height: [kf(0, 100 / 720), kf(60, 100 / 720)]});
+valid(p);
+const was = shown(p, 45);
+commit(p, 45);
+t = at(p, 't');
+close(t.x, 0.3, 'static fields stay for every animated value');
+for (const path of ['x', 'y', 'width', 'height']) assert.deepEqual(t.keyframes[path].map(key => key.f), [0, 45, 60], path + ' is keyed at the playhead');
+const now = shown(p, 45);
+close(now.width, 600 / 1280, 'scale 1 at the playhead');
+close(now.x + now.width / 2, was.x + was.width / 2, 'centre x');
+close(now.y + now.height / 2, was.y + was.height / 2, 'centre y');
+valid(p);
+
+// A playhead outside the clip evaluates and keys at the nearest clip frame (here the last one, 89).
+p = fixture({}, {width: [kf(0, 0.3125), kf(60, 0.625)]});
+commit(p, 500);
+t = at(p, 't');
+assert.deepEqual(t.keyframes.width.map(key => key.f), [0, 60, 89]);
+close(t.keyframes.width[2].v, 600 / 1280 * 2, 'scale 2 = 0.625 / 0.3125 held after the last key');
+valid(p);
+
+// A value at its 64-key limit cannot take another key: nothing changes and the title stays stale.
+p = fixture({}, {width: Array.from({length: 64}, (_, i) => kf(2 * i + 100, 0.3125))});
+const untouched = JSON.stringify(p);
+s = commit(p, 31);
+assert.equal(JSON.stringify(p), untouched, 'the clip keeps its asset and keys');
+assert(s.staleArtwork.has('t'), 'and stays marked stale');
+`)
+}

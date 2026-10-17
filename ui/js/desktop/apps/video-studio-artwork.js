@@ -182,17 +182,23 @@
         return job;
     }
     // Commits only if the project, clip, text, normalized style, source PNG and both Apply revisions still match.
+    // The new PNG keeps the scale and the centre of the box the clip shows at the playhead (keyframes evaluated; outside the
+    // clip, at its nearest frame), because keys drive an animated value and ignore its field. The new box is written like an
+    // inspector edit (VideoStudioKeyframeEdit.setValues): a key at that frame for every animated value, the field for the
+    // static ones. A refused write (key limit) leaves the clip as it was.
     function commitArtwork(s, result) {
         if (s.disposed || !s.project || result.global !== s.artworkRevision || s.clipArtRevisions.get(result.clipId) !== result.clipRevision) return;
         const current = T().clipFor(s.project, result.clipId);
         if (!current || current.clip.text !== result.text || textStyleKey(current.clip.text_style || {}) !== result.styleKey || current.clip.asset_id !== result.originalAssetId) return;
         const clip = current.clip, project = s.project, previous = project.assets.find(item => item.id === clip.asset_id);
-        const before = { asset_id: clip.asset_id, x: clip.x, y: clip.y, width: clip.width, height: clip.height };
-        const scale = previous && previous.width ? clamp(clip.width / (previous.width / project.width), 0.1, 10) : 1;
+        const before = clone(clip), frame = clamp(Math.round(Number(s.frame) || 0), clip.start, clip.start + clip.duration - 1);
+        const shown = window.VideoStudioEffects.clipState(clip, frame, project);
+        const scale = previous && previous.width ? clamp(shown.width / (previous.width / project.width), 0.1, 10) : 1;
         const width = result.width / project.width * scale, height = result.height / project.height * scale;
+        const restore = () => { Object.keys(clip).forEach(key => { delete clip[key]; }); Object.assign(clip, before); };
         clip.asset_id = result.asset.id;
-        Object.assign(clip, I().clampBox({ x: clip.x + clip.width / 2 - width / 2, y: clip.y + clip.height / 2 - height / 2, width, height }));
-        if (!T().validTimeline(project)) { Object.assign(clip, before); return; }
+        const box = I().clampBox({ x: shown.x + shown.width / 2 - width / 2, y: shown.y + shown.height / 2 - height / 2, width, height });
+        if (window.VideoStudioKeyframeEdit.setValues(project, clip.id, box, frame) !== true || !T().validTimeline(project)) { restore(); return; }
         s.staleArtwork.delete(result.clipId);
         scheduleSave(s);
         T().render(s.q('[data-timeline]'), s.timelineOptions);
