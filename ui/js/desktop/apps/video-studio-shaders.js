@@ -2,7 +2,7 @@
     'use strict';
 
     // GLSL ES 3.00 sources for the Video Studio GL compositor (index §4.7). Fragment shaders output premultiplied colour,
-    // except the clip-local 2c passes (PICTURE and the effects), which read and write straight alpha.
+    // except the clip-local passes (PICTURE, the 2c effects and 2d's KEY), which read and write straight alpha.
     // Targets hold images top-down (row 0 is the top row, like uploaded textures); QUAD_VERTEX flips v only when it
     // presents to the canvas (u_flipY = 1). u_progress is p = i / D for transition-local frame i, the same as xfade.
     const QUAD_VERTEX = `#version 300 es
@@ -213,8 +213,32 @@ void main() {
 }
 `;
 
-    // Pass sources per registry effect id, in pass order (blur: horizontal, then vertical). 2d adds chroma_key.
-    const EFFECTS = { color: [COLOR], lut: [LUT], blur: [BLUR, BLUR], sharpen: [SHARPEN], vignette: [VIGNETTE] };
+    // ---- 2d chroma key (index §4.22), the real forms of colorkey and despill on straight colour in 0..1. ----
+    // - d = sqrt((dr² + dg² + db²) / 3) is the distance to u_key: colorkey's d, with the channels in 0..1.
+    // - k = clamp((d − similarity) / smoothness, 0, 1); at smoothness 0 it is the step d > similarity.
+    // - despill works on the screen channel (u_spillBlue 0: green, 1: blue). Green: S = max(g − (r + b) / 2, 0) and
+    //   g' = max(g − spill·S, 0); blue likewise with r and g. Spill 0 leaves the colour as it is.
+    // - alpha' = alpha·k: the key multiplies the picture's alpha (the export's alpha wrapper keeps that for stills).
+    // The key alpha comes from the input colours, before despill.
+    const KEY = PASS_HEAD + `uniform vec3 u_key;
+uniform float u_similarity;
+uniform float u_smoothness;
+uniform float u_spill;
+uniform float u_spillBlue;
+void main() {
+    vec4 colour = texture(u_source, v_uv);
+    vec3 c = colour.rgb;
+    vec3 diff = c - u_key;
+    float d = sqrt(dot(diff, diff) / 3.0);
+    float k = u_smoothness > 0.0 ? clamp((d - u_similarity) / u_smoothness, 0.0, 1.0) : (d > u_similarity ? 1.0 : 0.0);
+    if (u_spillBlue > 0.5) c.b = max(c.b - u_spill * max(c.b - 0.5 * (c.r + c.g), 0.0), 0.0);
+    else c.g = max(c.g - u_spill * max(c.g - 0.5 * (c.r + c.b), 0.0), 0.0);
+    outColor = vec4(c, colour.a * k);
+}
+`;
+
+    // Pass sources per registry effect id, in pass order (blur: horizontal, then vertical; chroma_key: one KEY pass).
+    const EFFECTS = { color: [COLOR], lut: [LUT], blur: [BLUR, BLUR], sharpen: [SHARPEN], vignette: [VIGNETTE], chroma_key: [KEY] };
 
     window.VideoStudioShaders = {
         QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE,

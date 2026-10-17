@@ -302,7 +302,8 @@
     //   vignette amount 0;
     // - for a lut without a loaded table (the compositor passes the table as values.table = {size, domainMin, domainMax});
     // - for unknown ids.
-    // Sharpen always draws, because CAS at strength 0 still sharpens.
+    // Sharpen and chroma_key always draw: CAS at strength 0 still sharpens, and the key is never skipped as the identity
+    // (index §4.22).
     function passUniforms(id, values, size) {
         const v = values || {};
         const width = Math.max(1, Number(size && size.width) || 1), height = Math.max(1, Number(size && size.height) || 1);
@@ -326,6 +327,13 @@
         if (id === 'vignette') {
             const angle = vignetteAngle(Number(v.amount) || 0, Number(v.size) || 1, width, height);
             return angle > 0 ? [{ u_angle: angle }] : [];
+        }
+        if (id === 'chroma_key') {
+            // One KEY pass, never skipped as the identity. u_key is keyColor's 0..1 triple (Task 3; black for anything
+            // but #rrggbb, which validation refuses). Despill works on blue when the key is bluer than green (kb > kg),
+            // else on green.
+            const key = keyColor(v.color);
+            return [{ u_key: key, u_similarity: Math.max(0.01, Math.min(1, Number(v.similarity) || 0)), u_smoothness: passUnit(v.smoothness), u_spill: passUnit(v.spill), u_spillBlue: key[2] > key[1] ? 1 : 0 }];
         }
         return [];
     }

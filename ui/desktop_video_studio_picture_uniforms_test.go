@@ -44,7 +44,7 @@ const vignette = P.passUniforms('vignette', {amount: 0.5, size: 1}, size);
 near(vignette[0].u_angle, P.vignetteAngle(0.5, 1, 640, 360), 'angle');
 assert(Math.abs(vignette[0].u_angle - 0.801) < 1e-3, '0.5 x pi/2 x hypot(320, 180) / 360');
 assert.deepEqual(P.passUniforms('vignette', {amount: 0, size: 1}, size), [], 'amount 0 is the identity');
-assert.deepEqual(P.passUniforms('chroma_key', {}, size), [], 'ids without a 2c pass draw nothing');
+assert.deepEqual(P.passUniforms('unknown', {}, size), [], 'ids without a pass draw nothing');
 // Every pass gets its uniform set, and each shader declares the uniforms it is given.
 const samples = {color: values, lut: {lut: 'builtin:warm', intensity: 0.5, table}, blur: {radius: 0.01}, sharpen: {strength: 0.5}, vignette: {amount: 0.5, size: 1}};
 Object.keys(samples).forEach(id => {

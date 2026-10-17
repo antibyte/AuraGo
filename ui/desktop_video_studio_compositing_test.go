@@ -60,3 +60,42 @@ E.adopt(undefined, undefined);
 console.log('ok');
 `)
 }
+
+// compositingShadersPrelude loads the GL shader sources after runVideoStudioEffectsScript's prelude (time, effects and
+// picture modules), for the uniform checks of plan 2d Tasks 9-11.
+const compositingShadersPrelude = `
+require('./js/desktop/apps/video-studio-shaders.js');
+const P = window.VideoStudioPicture, S = window.VideoStudioShaders;
+const near = (got, want, message) => assert(Math.abs(got - want) < 1e-9, message + ': got ' + got + ', want ' + want);
+// Every uniform a program is given is declared in its source.
+const declares = (source, uniforms, message) => Object.keys(uniforms).forEach(name => assert(new RegExp('uniform [a-zA-Z0-9]+ ' + name + ';').test(source), message + ' declares ' + name));
+`
+
+// TestVideoStudioCompositingUniforms checks the GL side of plan 2d without a browser (index §4.4a, §4.7), one subtest
+// per program family:
+//   - key (Task 9): passUniforms('chroma_key') and the KEY pass.
+func TestVideoStudioCompositingUniforms(t *testing.T) {
+	t.Run("key", func(t *testing.T) {
+		runVideoStudioEffectsScript(t, compositingShadersPrelude+`
+const size = {width: 640, height: 360};
+const values = Object.assign(E.defaults('chroma_key'), {color: '#00b140', similarity: 0.3, smoothness: 0.2, spill: 0.7});
+const passes = P.passUniforms('chroma_key', values, size);
+assert.equal(passes.length, 1, 'one KEY pass');
+const u = passes[0];
+// #00b140 = (0, 177, 64), as keyColor's 0..1 triple; g >= b despills green.
+[0, 177 / 255, 64 / 255].forEach((want, i) => near(u.u_key[i], want, 'u_key[' + i + ']'));
+assert.deepEqual(Array.from(u.u_key), Array.from(P.keyColor('#00b140')), 'u_key is keyColor');
+assert.deepEqual([u.u_similarity, u.u_smoothness, u.u_spill, u.u_spillBlue], [0.3, 0.2, 0.7, 0]);
+// A blue screen (#0047bb = (0, 71, 187)) despills blue.
+assert.equal(P.passUniforms('chroma_key', Object.assign({}, values, {color: '#0047bb'}), size)[0].u_spillBlue, 1, 'b > g despills blue');
+// Never the identity: the hard step (smoothness 0) with spill 0 still draws, and so do the registry defaults.
+assert.equal(P.passUniforms('chroma_key', Object.assign({}, values, {smoothness: 0, spill: 0}), size).length, 1, 'no identity skip');
+assert.equal(P.passUniforms('chroma_key', E.defaults('chroma_key'), size).length, 1, 'the registry defaults draw');
+// One pass that follows the 2c pass contract and declares every uniform it gets.
+const sources = S.effect('chroma_key').passes;
+assert.equal(sources.length, 1, 'chroma_key is one pass');
+assert(sources[0].startsWith('#version 300 es') && sources[0].includes('uniform sampler2D u_source;') && sources[0].includes('uniform vec2 u_size;'), 'KEY follows the pass contract');
+declares(sources[0], u, 'KEY');
+`)
+	})
+}
