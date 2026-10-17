@@ -88,11 +88,13 @@
         let keyIndex = new Map();
         let keyIndexModel = null;
         let keyIndexVersion = -1;
-        // The minimap node layer is redrawn only when the model, minimapKey (document version,
-        // selection, or a scale so small that cards need their minimum size) changes.
+        // The minimap geometry is redrawn only when the model, the document version, or a scale
+        // so small that cards need their minimum size changes. minimapMarks is the selection tick
+        // last copied onto those rects; selection and run status do not rebuild the layer.
         let minimapKey = '';
         let minimapModel = null;
         let selectionTick = 0;
+        let minimapMarks = -1;
 
         // forgetCaches drops what was cached for the current document (on a reset).
         function forgetCaches() {
@@ -100,6 +102,7 @@
             keyIndexVersion = -1;
             minimapModel = null;
             minimapKey = '';
+            minimapMarks = -1;
         }
 
         function later(fn, ms) {
@@ -358,6 +361,8 @@
             }).join('');
             const ro = ed.readonly || ed.runView;
             const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar">' +
+                toolButton('add', 'plus', t('easydrag.ui.port_add')) +
+                toolButton('connect', 'link', t('easydrag.ui.keys_connect')) +
                 toolButton('test', 'flask', t('easydrag.ui.node_test')) +
                 toolButton('disable', 'eye-off', n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable')) +
                 toolButton('duplicate', 'copy', t('easydrag.ui.node_duplicate')) +
@@ -371,8 +376,8 @@
                 '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }
 
-        // Tool buttons start outside the tab order: four per card would bury the canvas between
-        // dozens of invisible stops. syncTools makes the selected cards' tools tab stops.
+        // Tool buttons start outside the tab order: one stop per action on every card would bury
+        // the canvas. syncTools makes the selected card's tools tab stops.
         function toolButton(id, iconName, label) {
             return '<button type="button" class="ed-node-tool" tabindex="-1" data-ed-node-tool="' + id + '" title="' + esc(label) + '" aria-label="' + esc(label) + '">' + core.icon(iconName) + '</button>';
         }
@@ -507,7 +512,8 @@
             ed.model.doc.nodes.forEach(n => {
                 const card = nodeEls.get(n.id);
                 if (!card) return;
-                card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+                const nextClass = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+                if (card.className !== nextClass) card.className = nextClass;
                 syncTools(card, n.id);
             });
             selectionTick++;
@@ -531,8 +537,9 @@
             minimap.dataset.oy = oy;
             // Cards stay at least 2 px; that size only matters when the scale is tiny.
             const minSize = 2 / scale;
-            const key = ed.model.version + ':' + selectionTick + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
-            if (minimapModel !== ed.model || key !== minimapKey) {
+            const key = ed.model.version + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
+            const rebuilt = minimapModel !== ed.model || key !== minimapKey;
+            if (rebuilt) {
                 minimapModel = ed.model;
                 minimapKey = key;
                 const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
@@ -556,6 +563,24 @@
                 }).join('');
                 minimapWires.innerHTML = wires;
                 minimapNodes.innerHTML = rectsMarkup;
+            }
+            // Selection and run status patch the rects already in the layer. A pan keeps the
+            // same tick, so it only moves the matrix and the view rectangle below.
+            if (rebuilt || minimapMarks !== selectionTick) {
+                const rects = minimapNodes.querySelectorAll('rect');
+                const nodes = ed.model.doc.nodes;
+                const count = rects.length < nodes.length ? rects.length : nodes.length;
+                for (let i = 0; i < count; i++) {
+                    const st = statusOf(nodes[i].id);
+                    const rect = rects[i];
+                    if ((rect.getAttribute('data-status') || '') !== st) {
+                        if (st) rect.setAttribute('data-status', st);
+                        else rect.removeAttribute('data-status');
+                    }
+                    const selected = ed.selection.has(nodes[i].id);
+                    if (rect.classList.contains('is-selected') !== selected) rect.classList.toggle('is-selected', selected);
+                }
+                minimapMarks = selectionTick;
             }
             const matrix = 'matrix(' + scale + ' 0 0 ' + scale + ' ' + ox.toFixed(1) + ' ' + oy.toFixed(1) + ')';
             minimapWires.setAttribute('transform', matrix);

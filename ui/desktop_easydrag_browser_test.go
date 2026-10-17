@@ -39,6 +39,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
 	s.wait(`()=>document.querySelector('[data-ed-state]').textContent.length>0 && getComputedStyle(document.querySelector('.ed-empty')).display==='none'`)
+	s.wait(`()=>{const head=document.querySelector('.ed-head');const save=head.querySelector('[data-ed-save]');const test=head.querySelector('[data-ed-cmd="test"]');const publish=head.querySelector('[data-ed-cmd="publish"]');const rev=head.querySelector('[data-ed-revision]');return !!save && save.getClientRects().length>0 && !document.querySelector('.ed-foot [data-ed-save]') && !!test && !test.hidden && test.textContent.trim().length>0 && !!publish && !publish.hidden && publish.textContent.trim().length>0 && !!rev && rev.textContent.trim().length>0}`)
 	s.shot("editor-standard")
 	s.failOnPageErrors("open editor")
 	s.noRawKeys("editor")
@@ -59,10 +60,12 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.settle()
 	s.shot("editor-focus")
 
-	// Keyboard: select the PDF step, Tab, search, Enter appends a connected Telegram step whose
-	// file parameter is prefilled with the PDF.
+	// Tab moves focus; Ctrl+K adds after the selected PDF step with its file prefilled.
 	page.MustEval(`()=>{const ed=edFixture.editor();ed.bus.emit('focus-node',ed.model.doc.nodes.find(n=>n.key==='pdf').id);document.querySelector('.ed-canvas').focus();}`)
 	page.Keyboard.MustType(input.Tab)
+	s.wait(`()=>!document.querySelector('.ed-quick') && document.activeElement!==document.querySelector('.ed-canvas')`)
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.KeyActions().Press(input.ControlLeft).Type('k').MustDo()
 	s.wait(`()=>document.activeElement && document.activeElement.classList.contains('ed-quick-search')`)
 	page.MustElement(".ed-quick-search").MustInput("Telegram")
 	s.wait(`()=>document.querySelectorAll('.ed-quick .ed-palette-item').length===1`)
@@ -100,13 +103,20 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// One focus ring: the field's own; the text area inside draws none.
 	s.wait(`()=>{const ta=document.querySelector('.ed-detail .ed-field[data-param="message"] textarea');const cs=getComputedStyle(ta);return document.activeElement===ta && !!ta.closest('.ed-tpl.is-editing') && cs.boxShadow==='none' && cs.outlineStyle==='none'}`)
 	s.shot("detail-editing")
+	page.MustElement(`.ed-detail [data-ed-narrow="input"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-detail .ed-field[data-param="message"] .ed-tpl.is-editing')`)
 	page.MustElement(`.ed-detail .ed-tree-row[data-ref="ki.text"]`).MustClick()
+	page.MustElement(`.ed-detail [data-ed-narrow="params"]`).MustClick()
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.type==='notify.telegram').params.message==='Neu: {{ki.text}}'`)
 	s.wait(`()=>document.querySelectorAll('.ed-detail .ed-field[data-param="message"] .ed-ref').length===1`)
 	// The live hints follow the edit: the filled message is no longer reported as empty.
 	s.wait(`()=>!document.querySelector('.ed-detail .ed-field[data-param="message"] .ed-field-issue')`)
 	s.shot("detail-standard")
 	s.noRawKeys("detail")
+	page.MustElement(`.ed-detail [data-ed-narrow="input"]`).MustClick()
+	page.MustEval(`()=>{const data=new DataTransfer();data.setData('application/x-easydrag-ref','ki.text');document.querySelector('.ed-detail [data-ed-narrow="params"]').dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:data}));}`)
+	s.wait(`()=>document.querySelector('.ed-detail [data-col="params"]').classList.contains('is-active')`)
+	page.MustElement(`.ed-detail [data-ed-narrow="params"]`).MustClick()
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 
@@ -217,7 +227,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 }
 
 // tabStops counts the canvas's tab stops with 5 steps: without a selection the canvas and the four
-// zoom buttons (no card tools, no screen-reader list button), with one selected step its four tools
+// zoom buttons (no card tools, no screen-reader list button), with one selected step its six tools
 // as well. A tool of an unselected card that gets the focus shows its toolbar.
 func (s *easyDragSmoke) tabStops() {
 	s.t.Helper()
@@ -227,7 +237,7 @@ func (s *easyDragSmoke) tabStops() {
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>edFixture.editor().model.doc.nodes.length===5 && !document.querySelector('.ed-node.is-selected') && ` + stops + `===5`)
 	page.Keyboard.MustType(input.ArrowRight)
-	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1 && ` + stops + `===9`)
+	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1 && ` + stops + `===11`)
 	page.MustEval(`()=>{window.__tool=document.querySelector('.ed-node:not(.is-selected) .ed-node-tool');window.__tool.focus();}`)
 	s.wait(`()=>document.activeElement===window.__tool && getComputedStyle(window.__tool.closest('.ed-node-tools')).opacity==='1'`)
 	s.shot("editor-tool-focus")
@@ -484,14 +494,14 @@ func (s *easyDragSmoke) secretField() {
 	s.wait(`()=>{const sel=document.querySelector('` + field + ` select');const node=edFixture.editor().model.node(window.__httpStep);return !document.querySelector('.ed-modal-backdrop') && !!sel && document.activeElement===sel && !sel.value && !('auth_secret' in node.params) && !edFixture.state.secrets.includes('wetter_api')}`)
 	s.shot("detail-secret-deleted")
 	s.noRawKeys("secret deleted")
-	page.Keyboard.MustType(input.Escape)
+	page.MustElement(`.ed-detail [data-ed-detail-close]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 	// A secret that is gone: the list names it as missing.
 	page.MustEval(`()=>{const ed=edFixture.editor();ed.model.setParam(window.__httpStep,'auth_secret','wetter_alt');ed.bus.emit('open-detail',{nodeId:window.__httpStep});}`)
 	s.wait(`()=>{const sel=document.querySelector('` + field + ` select');return !!sel && sel.value==='wetter_alt' && sel.options[sel.selectedIndex].textContent===edFixture.editor().t('easydrag.ui.secret_missing',{name:'wetter_alt'}) && sel.dataset.error===edFixture.editor().t('easydrag.ui.error_flow_secret_unavailable')}`)
 	s.shot("detail-secret-missing")
 	s.noRawKeys("secret missing")
-	page.Keyboard.MustType(input.Escape)
+	page.MustElement(`.ed-detail [data-ed-detail-close]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 	page.MustEval(`()=>{edFixture.state.secrets.push('wetter_api');edFixture.editor().model.removeNodes([window.__httpStep]);}`)
 	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.length===5 && !last.nodes.some(n=>n.type==='http.request')}`)
@@ -676,9 +686,10 @@ func (s *easyDragSmoke) phone() {
 	// The palette floats over the canvas here, so it starts closed and leaves the flow in view. The
 	// flow opens at a readable zoom from its trigger, 48 px from the edge.
 	s.wait(`()=>document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
+	s.wait(`()=>{const win=document.querySelector('.vd-window');return !!win && !win.classList.contains('vd-mobile-wide-window') && !document.querySelector('.ed-detail-portal') && win.getBoundingClientRect().width<=innerWidth+1}`)
 	s.wait(`()=>{const ed=edFixture.editor();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();return Math.abs(ed.view.zoom-0.8)<0.001 && Math.abs(trigger.left-canvas.left-48)<=1 && trigger.top>=canvas.top && trigger.bottom<=canvas.bottom}`)
 	// The footer keeps a short run status; the other items show icons, named for screen readers.
-	s.wait(`()=>{const run=document.querySelector('[data-ed-last-run]');const btn=run.parentElement;const texts=[...document.querySelectorAll('.ed-foot .ed-foot-text')];return getComputedStyle(run).display!=='none' && run.getBoundingClientRect().width>40 && btn.getAttribute('aria-label')===run.textContent && texts.length>=2 && texts.every(x=>x.getBoundingClientRect().width<=1) && !!document.querySelector('[data-ed-cmd="issues"]').getAttribute('aria-label')}`)
+	s.wait(`()=>{const run=document.querySelector('[data-ed-last-run]');const btn=run.parentElement;const texts=[...document.querySelectorAll('.ed-foot .ed-foot-text')];return getComputedStyle(run).display!=='none' && run.getBoundingClientRect().width>40 && btn.getAttribute('aria-label')===run.textContent && texts.length===1 && texts.every(x=>x.getBoundingClientRect().width<=1) && document.querySelector('.ed-head [data-ed-save]').getBoundingClientRect().width>40 && !!document.querySelector('[data-ed-cmd="issues"]').getAttribute('aria-label')}`)
 	s.wait(`()=>{
 		const head=document.querySelector('.ed-head');
 		const box=head.getBoundingClientRect();

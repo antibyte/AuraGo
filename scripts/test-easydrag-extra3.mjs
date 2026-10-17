@@ -555,7 +555,7 @@ export async function run(env) {
         item('search').action();
         const search = editor.el.querySelector('.ed-palette-search');
         eq('c1d07 the Ctrl+K item focuses the palette search', h.dom.document.activeElement === search, true);
-        // Edits wait while the detail view covers the canvas, and work again once it closes.
+        // The inspector is not a dialog: Edit stays available. Undo stays off with an empty history.
         item('select-all').action();
         editor.ed.bus.emit('open-detail', { nodeId: A });
         const under = [!!editor.ed.detail, ['undo', 'cut', 'copy', 'paste', 'duplicate', 'delete-sel', 'select-all'].map(id => item(id).disabled)];
@@ -563,8 +563,8 @@ export async function run(env) {
         item('cut').action();
         const nodes = editor.ed.model.doc.nodes.length;
         h.ED.detail.close(editor.ed);
-        eq('c1d07 the detail view disables the Edit items and their actions change nothing',
-            [under, nodes, item('delete-sel').disabled], [[true, [true, true, true, true, true, true, true]], 3, false]);
+        eq('c1d07 the detail view is not modal: Edit stays available and delete changes the graph',
+            [under, nodes, item('delete-sel').disabled], [[true, [true, false, false, false, false, false, false]], 0, false]);
         eq('c1d07 the menu checks log no errors', h.logged, []);
     });
 
@@ -840,8 +840,7 @@ export async function run(env) {
     // ── 1d-10: connect picker port names ──
 
     await guardAsync('c1d10 the connect picker names switch cases like the canvas', async () => {
-        // Switch S (cases "Big" and an unnamed one) already sends case_1 to alpha, so alpha is
-        // offered on case_2 and beta on case_1; start is upstream of S and not offered.
+        // Each compatible switch branch is offered explicitly; upstream nodes are excluded.
         const S = 'n_ssssssss';
         const doc = flowDoc();
         doc.nodes.push({ id: S, key: 'route', type: 'logic.switch', label: 'Route', position: { x: 300, y: 200 }, params: { cases: [{ label: 'Big' }, {}] }, settings: {} });
@@ -857,7 +856,19 @@ export async function run(env) {
         const node = editor.ed.model.node(S);
         eq('c1d10 the picker shows a case by its label or number, the same text as the canvas port',
             [chips, ['case_1', 'case_2', 'default'].map(p => h.ED.canvas.portLabel(t, node, p)), h.logged],
-            [[A + '=port_case:2', B + '=Big'], ['Big', 'port_case:2', 'port_default'], []]);
+            [[A + '=port_case:2', A + '=port_default', B + '=Big', B + '=port_case:2', B + '=port_default'], ['Big', 'port_case:2', 'port_default'], []]);
+        for (const endpoint of [{ nodeId: S, port: 'case_2', side: 'out' }, { nodeId: B, port: 'in', side: 'in' }]) {
+            const other = sandbox(() => undefined);
+            const view = openEditor(other, { flow: { draft: doc } });
+            await settle();
+            view.ed.bus.emit('connect-picker', endpoint);
+            const row = view.el.querySelector('[data-ed-pick="' + (endpoint.side === 'in' ? S : B) + '"][data-ed-pick-output="case_2"]');
+            eq('c1d10 tapped endpoint offers its exact compatible branch ' + endpoint.side, !!row, true);
+            if (row) row.fire('click');
+            eq('c1d10 tapped endpoint keeps source, target and case ' + endpoint.side,
+                view.ed.model.outgoing(S).some(e => e.source.port === 'case_2' && e.target.node === B && e.target.port === 'in'), true);
+            view.dispose();
+        }
     });
 
     // ── 1d-10 review: real menu shortcuts on macOS and Windows ──
@@ -1183,6 +1194,258 @@ export async function run(env) {
         eq('c1d07 the issues command opens nothing in the run view and works again after leaving it',
             [blocked, still, cleared, pop(), opened.length, h.logged], [['true', false, 0], [false, 0], null, true, 0, []]);
         editor.dispose();
+    });
+
+    // Home: zero flows, no match, first-load failure, and a stale refresh. Mutations stay off
+    // while the list is stale. Open stays allowed. A lost session clears the cards.
+    await guardAsync('c1d07 home four states and stale mutation guards', async () => {
+        const flows = [
+            { id: 'f1', name: 'Alpha', description: 'nightly backup', triggers: ['trigger.manual'], preview: [], published: true, enabled: true, last_run: { status: 'cancelled', started_at: '2026-10-01T00:00:00Z' } },
+            { id: 'f2', name: 'Beta', description: 'other', triggers: ['trigger.webhook'], preview: [], published: true, enabled: false, last_run: { status: 'error', started_at: '2026-10-02T00:00:00Z' } },
+            { id: 'f3', name: 'Gamma', description: 'draft one', triggers: [], preview: [], published: false, enabled: false, last_run: null }
+        ];
+        let listAnswer = () => { throw apiError('FLOW_INTERNAL'); };
+        let templates = [{ id: 't1', name: 'Tpl', description: 'd', categories: [] }];
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return listAnswer();
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates };
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'GET') return { flow: { id: 'f1', draft: flowDoc('Alpha') } };
+            return undefined;
+        });
+        let menu = null;
+        let prompts = 0;
+        h.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        h.ctx.promptDialog = async () => { prompts++; return null; };
+        h.ctx.openApp = id => { h.opened.push('app:' + id); };
+        const catalog = { types: new Map([['trigger.manual', { label: 'Manual start' }], ['trigger.webhook', { label: 'Webhook' }]]), list: [], categories: [] };
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog, readonly: false, openFlow: id => h.opened.push(id) });
+        h.body.appendChild(home.el);
+        await settle();
+        const grid = home.el.querySelector('.ed-flow-grid');
+        const search = home.el.querySelector('[data-ed-home-search]');
+        const posts = () => h.requests.filter(r => r.method === 'POST' || r.method === 'DELETE').length;
+        const ids = () => Array.from(home.el.querySelectorAll('[data-ed-flow]')).map(c => c.dataset.edFlow);
+        eq('c1d07 the first failed load is an error with Retry and no invented cards',
+            [ids(), grid.html.includes('ed-error'), !!grid.querySelector('[data-ed-home-retry]'), grid.html.includes('ed-home-stale'), grid.html.includes('disabled_title'), !!search.disabled, home.createOff()],
+            [[], true, true, false, false, true, false]);
+        listAnswer = () => ({ flows });
+        grid.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        eq('c1d07 Retry after the first failure shows the authoritative cards', [ids(), !!search.disabled, grid.html.includes('ed-home-stale'), home.createOff()], [['f1', 'f2', 'f3'], false, false, false]);
+        search.value = 'manual start';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        const byLabel = ids();
+        search.value = 'nightly';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        const byDesc = ids();
+        search.value = '';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        home.el.querySelector('[data-ed-filter="errors"]').fire('click');
+        const erred = ids();
+        home.el.querySelector('[data-ed-filter="inactive"]').fire('click');
+        const paused = ids();
+        home.el.querySelector('[data-ed-filter="drafts"]').fire('click');
+        const drafts = ids();
+        home.el.querySelector('[data-ed-filter="active"]').fire('click');
+        const active = ids();
+        eq('c1d07 search uses name, description and loaded trigger labels; cancelled is not an error',
+            [byLabel, byDesc, erred, paused, drafts, active], [['f1'], ['f1'], ['f2'], ['f2'], ['f3'], ['f1']]);
+        home.el.querySelector('[data-ed-filter="errors"]').fire('click');
+        search.value = 'alpha';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        const none = [ids(), grid.html.includes('home_no_match'), !!grid.querySelector('[data-ed-home-clear-search]'), !!grid.querySelector('[data-ed-home-clear-filter]'),
+            home.el.querySelector('[data-ed-filter="errors"]').getAttribute('aria-checked'), !!search.disabled];
+        grid.querySelector('[data-ed-home-clear-search]').fire('click');
+        const clearedSearch = [ids(), search.value, home.el.querySelector('[data-ed-filter="errors"]').getAttribute('aria-checked'), !!grid.querySelector('[data-ed-home-clear-filter]')];
+        home.el.querySelector('[data-ed-filter="all"]').fire('click');
+        search.value = 'zzzz';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        const searchOnly = [ids(), !!grid.querySelector('[data-ed-home-clear-search]'), !!grid.querySelector('[data-ed-home-clear-filter]')];
+        grid.querySelector('[data-ed-home-clear-search]').fire('click');
+        eq('c1d07 no match keeps the filter and search and offers the clear action that fits',
+            [none, clearedSearch, searchOnly, ids()],
+            [[[], true, true, true, 'true', false], [['f2'], '', 'true', false], [[], true, false], ['f1', 'f2', 'f3']]);
+        const beforeStale = posts();
+        listAnswer = () => { throw apiError('FLOW_INTERNAL'); };
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'enabled' } });
+        await settle();
+        search.value = 'Alpha';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        home.el.querySelector('[data-ed-filter="active"]').fire('click');
+        const staleView = [ids(), grid.html.includes('ed-home-stale'), grid.html.includes('home_stale_title'), grid.html.includes('ed-error'), !!search.disabled,
+            !!home.el.querySelector('[data-ed-filter="active"]').disabled, home.el.querySelector('[data-ed-filter="active"]').getAttribute('aria-checked'),
+            search.value, !!home.el.querySelector('[data-ed-toggle]'), home.createOff(), !!home.el.querySelector('[data-ed-new]').disabled];
+        home.el.querySelector('[data-ed-new]').fire('click');
+        home.el.querySelector('[data-ed-import-file]').fire('change', { target: { files: [{ size: 20, text: async () => '{"schema":1,"name":"X","nodes":[],"edges":[]}' }], value: 'x.json' } });
+        home.el.querySelector('[data-ed-template="t1"]').fire('click');
+        home.el.querySelector('[data-ed-template="t1"]').fire('keydown', { key: 'Enter', target: home.el.querySelector('[data-ed-template="t1"]') });
+        home.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        const item = label => menu.find(i => i.label === label);
+        await item('home_delete').action();
+        await item('home_duplicate').action();
+        await item('run_now').action();
+        item('home_open').action();
+        item('home_mission_control').action();
+        home.el.querySelector('[data-ed-flow="f1"]').fire('click');
+        await settle();
+        eq('c1d07 a failed refresh keeps the cards stale and blocks every home mutation, not open',
+            [staleView, prompts, posts() - beforeStale, h.confirms.length, h.opened, item('home_delete').disabled, item('run_now').disabled, !!item('run_now').disabledHint, !!item('home_open').disabled],
+            [[['f1'], true, true, false, false, false, 'true', 'Alpha', false, true, true], 0, 0, 0, ['f1', 'app:mission-control', 'f1'], true, true, true, false]);
+        search.value = '';
+        search.fire('input', { target: search });
+        h.runTimers(120);
+        home.el.querySelector('[data-ed-filter="all"]').fire('click');
+        const slow = deferred();
+        listAnswer = () => slow.p;
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'created' } });
+        await settle();
+        listAnswer = () => ({ flows: [{ id: 'f9', name: 'Nine', description: '', triggers: [], preview: [], published: false, enabled: false }] });
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f9', reason: 'created' } });
+        await settle();
+        slow.reject(apiError('FLOW_INTERNAL'));
+        await settle();
+        eq('c1d07 a late failed list does not replace the newer list or mark it stale', [ids(), grid.html.includes('ed-home-stale')], [['f9'], false]);
+        listAnswer = () => { const err = new Error('unauthorized'); err.status = 401; err.body = { error: 'unauthorized' }; throw err; };
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f9', reason: 'enabled' } });
+        await settle();
+        const stored = Array.from(h.store.keys());
+        eq('c1d07 a lost session clears cards and templates and stores no flow cache',
+            [ids(), !!home.el.querySelector('[data-ed-template]'), grid.html.includes('ed-error'), grid.html.includes('ed-home-stale'), !!search.disabled, home.createOff(), stored.filter(k => k !== 'aurago.easydrag.home.filter')],
+            [[], false, true, false, true, true, []]);
+        const pending = deferred();
+        listAnswer = () => pending.p;
+        const inflight = home.reload();
+        home.dispose();
+        pending.resolve({ flows: [{ id: 'ghost', name: 'Ghost', triggers: [], preview: [] }] });
+        await inflight;
+        await settle();
+        eq('c1d07 dispose ignores a list answer that arrives later', [!!home.el.querySelector('[data-ed-flow="ghost"]'), h.logged], [false, []]);
+        const z = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: [] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [{ id: 't1', name: 'Tpl', description: 'd', categories: [] }] };
+            return undefined;
+        });
+        let zp = 0;
+        z.ctx.promptDialog = async () => { zp++; return null; };
+        const zh = z.ED.home.create({ ctx: z.ctx, t, esc: z.ED.core.esc, api: z.api, catalog: z.catalog, readonly: false, openFlow: id => z.opened.push(id) });
+        z.body.appendChild(zh.el);
+        await settle();
+        const zg = zh.el.querySelector('.ed-flow-grid');
+        const actions = zg.querySelector('.ed-empty-actions');
+        actions.querySelector('[data-ed-home-templates]').fire('click');
+        await settle();
+        const afterTemplate = [z.requests.filter(r => r.method === 'POST').length, zp, z.opened.length];
+        actions.querySelector('[data-ed-new]').fire('click');
+        await settle();
+        eq('c1d07 zero flows offers template, empty create and import; template only moves to the templates',
+            [!!actions.querySelector('[data-ed-home-templates]'), zg.html.includes('home_empty_template'), zg.html.includes('home_empty_create'), zg.html.includes('home_import'),
+                zh.el.querySelector('.ed-template-grid').html.includes('data-ed-template="t1"'), afterTemplate, zp, z.requests.filter(r => r.method === 'POST').length, z.logged, h.logged],
+            [true, true, true, true, true, [0, 0, 0], 1, 0, [], []]);
+        zh.dispose();
+    });
+
+    await guardAsync('c1d07 home 403, late authority and one run now', async () => {
+        const flow = { id: 'f1', name: 'Alpha', description: '', triggers: ['trigger.manual'], preview: [], published: true, enabled: true, last_run: null };
+        const httpError = (status, code) => { const err = new Error(code); err.status = status; err.body = { code }; throw err; };
+        let listAnswer = () => ({ flows: [flow] });
+        let runAnswer = () => ({ run: { id: 'r1' } });
+        let getAnswer = () => ({ flow: { id: 'f1', draft: flowDoc('Alpha') } });
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return listAnswer();
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [{ id: 't1', name: 'Tpl', description: 'd', categories: [] }] };
+            if (req.url === '/api/desktop/flows/f1/run' && req.method === 'POST') return runAnswer();
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'GET') return getAnswer();
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'DELETE') return {};
+            return undefined;
+        });
+        let menu = null;
+        h.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: id => h.opened.push(id) });
+        h.body.appendChild(home.el);
+        await settle();
+        const grid = () => home.el.querySelector('.ed-flow-grid');
+        const ids = () => Array.from(home.el.querySelectorAll('[data-ed-flow]')).map(c => c.dataset.edFlow);
+        const runs = () => h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/run').length;
+        const deletes = () => h.requests.filter(r => r.method === 'DELETE').length;
+        const creates = () => h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows').length;
+        const item = label => menu.find(i => i.label === label);
+        const hold = deferred();
+        runAnswer = () => hold.p;
+        home.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        const first = item('run_now').action();
+        const second = item('run_now').action();
+        await settle();
+        const during = runs();
+        hold.reject(Object.assign(new Error('uncertain'), { status: 0, body: {} }));
+        await first;
+        await second;
+        await settle();
+        eq('c1d07 two run now actions send one request and a failed one is not sent again', [during, runs(), h.logged], [1, 1, []]);
+        listAnswer = () => httpError(403, 'desktop_readonly');
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'enabled' } });
+        await settle();
+        eq('c1d07 desktop_readonly keeps the cards stale and blocks changes', [ids(), grid().html.includes('ed-home-stale'), home.createOff()], [['f1'], true, true]);
+        listAnswer = () => ({ flows: [flow] });
+        grid().querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        listAnswer = () => httpError(403, 'FLOW_PERMISSION_DENIED');
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'enabled' } });
+        await settle();
+        eq('c1d07 an unknown 403 clears flows and templates', [ids(), !!home.el.querySelector('[data-ed-template]'), grid().html.includes('ed-home-stale'), grid().html.includes('ed-error')], [[], false, false, true]);
+        home.dispose();
+
+        listAnswer = () => ({ flows: [flow] });
+        const late = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return listAnswer();
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'GET') return getAnswer();
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'DELETE') return {};
+            return undefined;
+        });
+        let lateMenu = null;
+        late.ctx.showContextMenu = (x, y, items) => { lateMenu = items; };
+        const page = late.ED.home.create({ ctx: late.ctx, t, esc: late.ED.core.esc, api: late.api, catalog: late.catalog, readonly: false, openFlow() {} });
+        late.body.appendChild(page.el);
+        await settle();
+        const confirm = deferred();
+        const read = deferred();
+        const got = deferred();
+        late.ctx.confirmDialog = async () => confirm.p;
+        getAnswer = () => got.p;
+        page.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        const removing = lateMenu.find(i => i.label === 'home_delete').action();
+        const copying = lateMenu.find(i => i.label === 'home_duplicate').action();
+        page.el.querySelector('[data-ed-import-file]').fire('change', { target: { files: [{ size: 40, text: () => read.p }], value: 'a.json' } });
+        await settle();
+        listAnswer = () => httpError(500, 'FLOW_INTERNAL');
+        late.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'enabled' } });
+        await settle();
+        confirm.resolve(true);
+        read.resolve('{"schema":1,"name":"X","nodes":[],"edges":[]}');
+        got.resolve({ flow: { id: 'f1', draft: flowDoc('Alpha') } });
+        await removing;
+        await copying;
+        await settle();
+        const blocked = [late.requests.filter(r => r.method === 'DELETE').length, late.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows').length];
+        const confirmGone = deferred();
+        listAnswer = () => ({ flows: [flow] });
+        page.el.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        late.ctx.confirmDialog = async () => confirmGone.p;
+        page.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        const removingGone = lateMenu.find(i => i.label === 'home_delete').action();
+        page.dispose();
+        confirmGone.resolve(true);
+        await removingGone;
+        await settle();
+        eq('c1d07 a delete, import or duplicate that loses authority or the page does not mutate',
+            [blocked, late.requests.filter(r => r.method === 'DELETE').length, late.logged, h.logged], [[0, 0], 0, [], []]);
     });
 
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.

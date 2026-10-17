@@ -516,9 +516,9 @@ export async function run(env) {
         editor.ed.model.setLabel(T1, 'Begin');
         const redrawn = tools(T1);
         h.fireDoc('keydown', h.key('Escape', canvasEl));
-        eq('ff2 M7 with 5 steps the canvas has 5 tab stops (itself and the zoom bar), 9 with one step selected; the list buttons are not tab stops',
+        eq('ff2 M7 with 5 steps the canvas has 5 tab stops (itself and the zoom bar), 11 with one step selected (six tools); the list buttons are not tab stops',
             [none, one, redrawn, stops()],
-            [[5, ['-1', '-1', '-1', '-1'], ['-1', '-1', '-1', '-1', '-1']], [9, ['0', '0', '0', '0'], ['-1', '-1', '-1', '-1']], ['0', '0', '0', '0'], 5]);
+            [[5, ['-1', '-1', '-1', '-1', '-1', '-1'], ['-1', '-1', '-1', '-1', '-1']], [11, ['0', '0', '0', '0', '0', '0'], ['-1', '-1', '-1', '-1', '-1', '-1']], ['0', '0', '0', '0', '0', '0'], 5]);
         const css = fs.readFileSync(path.join(apps, '..', '..', '..', 'css', 'desktop-app-easydrag.css'), 'utf8');
         eq('ff2 M7 a focused tool button shows its toolbar', /\.ed-node:focus-within \.ed-node-tools[^{]*\{ opacity: 1;/.test(css), true);
         editor.dispose();
@@ -775,5 +775,126 @@ export async function run(env) {
             }
         }
         eq('a1008 1.2 every locale has the four sentences, none of them the switched-off one', missing, []);
+    });
+
+    await guardAsync('ux editor bar keeps save classes, shows draft test and live run, and does not treat the inspector as a dialog', async () => {
+        const shell = fs.readFileSync(path.join(apps, '..', 'core', 'window-shell-runtime.js'), 'utf8').replace(/\r\n?/g, '\n');
+        const wide = shell.slice(shell.indexOf('function shouldUseMobileWideWindow'), shell.indexOf('function appWindowMinSize'));
+        const mins = shell.slice(shell.indexOf('function appWindowMinSize'), shell.indexOf('function shouldOpenMaximized'));
+        const detailSrc = fs.readFileSync(path.join(apps, 'easydrag-detail.js'), 'utf8');
+        eq('ux easydrag leaves the wide-window map and its minimum is 360 by 480',
+            [wide.includes('easydrag'), /easydrag:\s*\{\s*width:\s*360,\s*height:\s*480\s*\}/.test(mins), detailSrc.includes('ed-detail-portal')],
+            [false, true, false]);
+
+        const plain = sandbox(() => undefined);
+        const draft = openEditor(plain);
+        await settle();
+        const save = draft.el.querySelector('[data-ed-save]');
+        const cmdBtn = (root, cmd) => root.querySelector('[data-ed-cmd="' + cmd + '"]');
+        eq('ux an unpublished editor puts save in the title, names the draft test, and hides Run now',
+            [draft.el.querySelector('.ed-title').contains(save), save.className, !!draft.el.querySelector('.ed-foot [data-ed-save]'),
+                cmdBtn(draft.el, 'test').getAttribute('title').includes('test_draft'), cmdBtn(draft.el, 'run-now').hidden,
+                draft.el.querySelector('[data-ed-revision]').textContent],
+            [true, 'ed-foot-item ed-save ed-save--saved', false, true, true, 'state_draft']);
+
+        const on = publishedEditor({ exists: true, enabled: true });
+        await settle();
+        const liveBtn = cmdBtn(on.editor.el, 'run-now');
+        liveBtn.fire('click');
+        await settle();
+        eq('ux a published flow shows Run now and starts it',
+            [liveBtn.hidden, liveBtn.disabled, liveBtn.getAttribute('title'), on.editor.el.querySelector('[data-ed-revision]').textContent,
+                on.h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/run').length],
+            [false, false, null, 'revision_live:1', 1]);
+
+        const paused = publishedEditor({ exists: true, enabled: false });
+        await settle();
+        const pausedBtn = cmdBtn(paused.editor.el, 'run-now');
+        pausedBtn.fire('click');
+        await settle();
+        eq('ux a paused live flow keeps Run now visible and disabled with the reason',
+            [pausedBtn.hidden, pausedBtn.disabled, pausedBtn.getAttribute('title') || pausedBtn.title,
+                paused.h.requests.filter(r => r.url === '/api/desktop/flows/f1/run').length],
+            [false, true, 'error_flow_disabled', 0]);
+
+        const ro = sandbox(() => undefined);
+        const roEditor = openEditor(ro, { readonly: true, flow: { live: flowDoc(), live_revision: 3, published_draft_revision: 3 }, enabled: true });
+        await settle();
+        const roBtn = cmdBtn(roEditor.el, 'run-now');
+        eq('ux read-only still shows Run now, disabled, with its reason',
+            [roBtn.hidden, roBtn.disabled, roBtn.getAttribute('title') || roBtn.title],
+            [false, true, 'run_readonly']);
+
+        const ahead = openEditor(sandbox(() => undefined), { flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 2, draft_revision: 5 }, enabled: true });
+        await settle();
+        ahead.ed.publishIncomplete = 'FLOW_PUBLISH_INCOMPLETE';
+        ahead.ed.bus.emit('enabled');
+        eq('ux revision names a newer draft, and a partial publish keeps its chip',
+            [ahead.el.querySelector('[data-ed-revision]').textContent, chips(ahead)],
+            ['revision_ahead:2', ['state_publish_incomplete']]);
+        ahead.ed.runView = { run: { id: 'r9', status: 'success', revision: 2 } };
+        ahead.ed.bus.emit('enabled');
+        const viewBtn = cmdBtn(ahead.el, 'run-now');
+        eq('ux the run view keeps Run now visible and disabled',
+            [viewBtn.hidden, viewBtn.disabled, viewBtn.getAttribute('title') || viewBtn.title],
+            [false, true, 'state_run_view']);
+
+        draft.dispose();
+        on.editor.dispose();
+        paused.editor.dispose();
+        roEditor.dispose();
+        ahead.dispose();
+    });
+
+    await guardAsync('ux pending edits flush before commands and Ctrl+K adds from the selected step', async () => {
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+        const editor = openEditor(h);
+        await settle();
+        editor.ed.model.setFlow({ description: 'dirty' });
+        const before = h.puts().length;
+        editor.ed.detail = { flushPendingEdits() { return false; } };
+        h.fireDoc('keydown', h.key('s', editor.el.querySelector('.ed-canvas'), { ctrlKey: true }));
+        await settle();
+        const blockedSave = h.puts().length === before;
+        editor.el.querySelector('[data-ed-cmd="publish"]').fire('click');
+        const blockedPublish = !editor.el.querySelector('.ed-modal-backdrop');
+        let notes = 0;
+        editor.ed.detail = { flushNote() { notes += 1; } };
+        const noted = editor.ed.flushPendingEdits() === true && notes === 1;
+        editor.ed.detail = { flushPendingEdits() { throw new Error('bad field'); } };
+        const failed = editor.ed.flushPendingEdits() === false;
+        const thrown = h.notes.some(n => n.type === 'error');
+        const opened = [];
+        h.ED.detail.open = (ed, id) => { opened.push(id); return null; };
+        editor.ed.detail = { nodeId: () => A, flushPendingEdits() { return false; } };
+        editor.ed.bus.emit('open-detail', { nodeId: B });
+        editor.ed.detail.flushPendingEdits = () => true;
+        editor.ed.bus.emit('open-detail', { nodeId: B });
+        const reqs = [];
+        h.ED.palette.openQuickAdd = (ed, canvas, req) => { reqs.push(req); return null; };
+        editor.ed.selection = new Set([A]);
+        h.fireDoc('keydown', h.key('k', editor.el.querySelector('.ed-canvas'), { ctrlKey: true }));
+        const port = editor.ed.model.outputs(editor.ed.model.node(A))[0];
+        const added = reqs.length === 1 && reqs[0].from && reqs[0].from.node === A && reqs[0].from.port === port && Number.isFinite(reqs[0].x) && Number.isFinite(reqs[0].y);
+        editor.ed.selection = new Set();
+        const search = editor.el.querySelector('.ed-palette-search');
+        let focused = 0;
+        const focus = search.focus.bind(search);
+        search.focus = () => { focused++; return focus(); };
+        h.fireDoc('keydown', h.key('k', editor.el.querySelector('.ed-canvas'), { ctrlKey: true }));
+        const palette = reqs.length === 1 && focused === 1;
+        const modal = h.ED.core.el('<div class="ed-modal-backdrop"></div>');
+        editor.el.appendChild(modal);
+        editor.ed.selection = new Set([A]);
+        const blockedKey = h.fireDoc('keydown', h.key('k', editor.el.querySelector('.ed-canvas'), { ctrlKey: true }));
+        const modalBlocks = reqs.length === 1 && blockedKey.defaultPrevented;
+        modal.remove();
+        const undo = h.fireDoc('keydown', h.key('z', editor.el.querySelector('[data-ed-name]'), { ctrlKey: true }));
+        editor.ed.detail = { flushPendingEdits() { return false; } };
+        const left = await editor.leave();
+        eq('ux a failed flush blocks save, publish, switch and leave; a note flushes; Ctrl+K uses the selected port unless a real dialog is open; text undo stays local',
+            [blockedSave, blockedPublish, noted, failed, thrown, opened, added, palette, modalBlocks, undo.defaultPrevented, left],
+            [true, true, true, true, true, [B], true, true, true, false, false]);
+        editor.dispose();
     });
 }

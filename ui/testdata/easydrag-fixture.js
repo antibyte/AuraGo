@@ -139,10 +139,11 @@
     //                   does when it drops a slow client
     //   failType        steps of this node type fail, and their run with them
     //   failPreview     the publish preview answers 500 FLOW_INTERNAL
+    //   failLists       answers {status, code, error} the next GET /api/desktop/flows lists get, in order
     //   delay           milliseconds each step of a run takes
     const state = {
         flows: new Map(), runs: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
-        delay: 140, disabled: false, failSaves: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
+        delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
 
@@ -495,7 +496,11 @@
     // ── routes (handleFlows) ──
 
     function collection(method, body) {
-        if (method === 'GET') return reply({ flows: Array.from(state.flows.values()).map(summary) });
+        if (method === 'GET') {
+            const injected = state.failLists.shift();
+            if (injected) return fail(injected.status, injected.code, injected.error);
+            return reply({ flows: Array.from(state.flows.values()).map(summary) });
+        }
         if (method !== 'POST') return null;
         let doc;
         if (body.import) {

@@ -27,18 +27,18 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 1. Öffne **EasyDrag** auf dem Desktop. Wähle **Neuer Flow** und gib ihm einen Namen, oder starte mit einer **Vorlage**.
 2. Klicke **Auslöser wählen** und such dir einen Auslöser aus.
-3. Wähle den Auslöser aus und drücke **Tab**: Die Schnellsuche fügt den nächsten Schritt direkt dahinter ein und verbindet ihn. Alternativ ziehst du Bausteine aus der Leiste links auf die Fläche oder auf eine Verbindung.
-4. Doppelklicke einen Schritt (oder drücke **Enter**), um ihn zu bearbeiten. Links siehst du die Daten früherer Schritte: aus dem letzten Test oder Lauf, oder als Beispiel. Ziehe einen Wert in ein Feld, oder klicke ihn an, um ihn an der letzten Cursorposition einzufügen. Bezüge erscheinen als farbige Chips mit Schritt und Feld, etwa „Websuche › results“. Im Text stehen sie als `{{websuche.results}}`.
+3. Wähle den Auslöser aus und drücke **Strg+K**: Die Schnellsuche fügt den nächsten Schritt direkt dahinter ein und verbindet ihn. **Tab** verschiebt nur den Fokus. Du kannst auch **Hinzufügen** an der gewählten Karte nutzen oder Bausteine aus der Leiste links auf die Fläche oder auf eine Verbindung ziehen.
+4. Doppelklicke einen Schritt (oder drücke **Enter**), um ihn zu bearbeiten. Der Inspektor öffnet sich im Editor, nicht als Dialog. Er hat die Reiter Eingabe, Parameter und Ausgabe. Im Reiter Eingabe siehst Du die Daten früherer Schritte: aus dem letzten Test oder Lauf, oder als Beispiel. Ziehe einen Wert über den Reiter Parameter und dann in ein Feld, oder klicke ihn an, um ihn an der letzten Cursorposition einzufügen. Bezüge erscheinen als farbige Chips mit Schritt und Feld, etwa „Websuche › results“. Im Text stehen sie als `{{websuche.results}}`.
 5. **Testen** (Strg+Enter) speichert den Entwurf und führt ihn aus. Die Schritte leuchten nacheinander auf, an den Verbindungen steht die Anzahl der Einträge. Ein Test hat echte Auswirkungen; siehe [Testen](#testen).
 6. **Veröffentlichen** prüft den Flow, zeigt, was er außerhalb von AuraGo tut, und schaltet ihn auf Wunsch gleich aktiv. Nur veröffentlichte Flows laufen selbstständig. Dein Entwurf bleibt bearbeitbar; die veröffentlichte Version läuft.
 
 ## Der Editor
 
 - Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
-- Die Startseite zeigt deine Flows mit denselben Ständen und filtert sie nach *Alle*, *Aktiv*, *Pausiert* (veröffentlicht und ausgeschaltet) und *Mit Fehlern*.
+- Die Startseite zeigt deine Flows mit denselben Ständen und filtert sie nach *Alle*, *Aktiv*, *Pausiert* (veröffentlicht und ausgeschaltet) und *Mit Fehlern*. Schlägt ein späteres Neuladen fehl, bleibt die letzte Liste sichtbar und nur lesbar, bis **Erneut versuchen** klappt. Eine verlorene Anmeldung leert diese Liste. Der erste Ladevorgang und abgeschaltete Flows ersetzen die Liste durch eine Karte mit erneutem Versuch oder Schloss, nicht durch eine leere Bibliothek. Eine leere Bibliothek bietet Vorlagen, **Neuer Flow** und **Importieren**.
 - Der Editor folgt Änderungen von anderswo (einem anderen Fenster, Mission Control, der Missionsseite oder dem Agenten): Wird der Flow dort pausiert oder eingeschaltet, folgen Stand, Schalter **Aktiv** und *Jetzt ausführen*; wird er dort gelöscht, sagt EasyDrag das und zeigt die Startseite.
 - Ein Flow öffnet sich in lesbarer Größe: Ein kleiner Flow erscheint ganz, ein größerer beginnt bei seinem Auslöser mit 80 %. In Fenstern, die breiter als 560 px sind, merkt sich EasyDrag auf diesem Gerät, wo du jeden Flow verlassen hast. Verschieben und Zoomen der Fläche ändern den Flow nicht: Sie werden weder in ihm gespeichert noch als *Unveröffentlichte Änderungen* gezählt. **Alles zeigen** (Umschalt+1) zeigt den ganzen Flow; zoomt das weit heraus, zeigen die Karten nur noch ihre Namen, dafür größer.
-- In schmalen Fenstern und auf dem Handy ist die Bausteine-Leiste anfangs zu. Geöffnet liegt sie über der Fläche und schließt sich, sobald du einen Schritt hinzufügst oder auf die Fläche tippst. Die Detailansicht eines Schritts nutzt dann Tabs.
+- Der Inspektor sitzt im Editor, nicht in einem Dialog, und EasyDrag öffnet dafür kein fest breites Fenster. Eingabe, Parameter und Ausgabe sind immer Tabs. Unter etwa 760 px wechseln sich Fläche und Inspektor ab. Das EasyDrag-Fenster kann bis 360 px schmal sein; ein Viewport von 320 px passt trotzdem. In schmalen Fenstern und auf dem Handy ist die Bausteine-Leiste anfangs zu. Geöffnet liegt sie über der Fläche und schließt sich, sobald du einen Schritt hinzufügst oder auf die Fläche tippst.
 - Die *Flow-Einstellungen* enthalten Name, Beschreibung, was passiert, wenn ein Auslöser während eines Laufs feuert (*Warteschlange*, *Parallel ausführen* oder *Überspringen*), die maximale Laufzeit und wohin fehlgeschlagene Läufe gemeldet werden. Die maximale Laufzeit nimmt Minuten und Sekunden, von 1 Sekunde bis 24 Stunden; bleiben beide Felder leer, darf ein Lauf 30 Minuten dauern, der Standard. **Übernehmen** lässt sie, wie sie ist, solange du sie nicht änderst.
 - Ist der Desktop schreibgeschützt, öffnet EasyDrag Flows nur zum Lesen; nur **Stoppen** funktioniert dann noch für Läufe, die nicht beendet sind (außer Missionen sind ebenfalls schreibgeschützt, `tools.missions.read_only`). Wird der Desktop auf schreibgeschützt gestellt, laufen bereits laufende Flows weiter: Du stoppst sie unter **Läufe**.
 
@@ -51,7 +51,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
   - *Nicht gespeichert – Fehler beheben*: Der Entwurf hat Fehler, die das Speichern verhindern. Die nächste Änderung wird wieder gesendet.
   - *Konflikt*: Der Flow wurde woanders geändert. EasyDrag fragt, ob du deine Version behältst oder die andere lädst.
 - Bis AuraGo deine Änderungen hat, bleibt bis zu 30 Tage eine Kopie in diesem Browser. Öffnest du den Flow wieder, bietet EasyDrag sie an, außer der Flow wurde inzwischen woanders geändert. Wird ein Flow gelöscht, hier oder anderswo, entfernt EasyDrag diese Kopie und alles andere, was sich dieser Browser für den Flow gemerkt hat (wo du ihn verlassen hast, bestätigte Testauswirkungen, den zuletzt gewählten Testauslöser).
-- **Strg+S** speichert sofort. Im Editor öffnet es nie „Seite speichern“ des Browsers; in der Ansicht eines Laufs und solange ein Dialog oder die Detailansicht eines Schritts offen ist, speichert es nicht, und das automatische Speichern läuft weiter. Eine Notiz, die du in der Detailansicht gerade tippst, speichert EasyDrag, bevor es den Flow verlässt.
+- **Strg+S** speichert sofort. Im Editor öffnet es nie „Seite speichern“ des Browsers. In der Ansicht eines Laufs und solange ein echter Dialog offen ist, speichert es nicht. Der Schritt-Inspektor blockiert es nicht, und das automatische Speichern läuft weiter. Eine Notiz oder ein Feld, das du gerade tippst, schreibt EasyDrag vor dem Speichern, Testen, Veröffentlichen oder Verlassen. Ungültiges JSON, eine Zahl außerhalb ihres Bereichs oder ein Datenname, den der Editor ablehnt, bleibt im Feld und blockiert diese Aktion. Text, den du noch mit einer Eingabemethode zusammensetzt, wird nicht abgeschnitten.
 
 ## Testen
 
@@ -60,7 +60,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - Gespeicherte Testdaten zeigen geheime Werte als `[redacted]`. Lässt du sie unverändert, nutzt der Test die echten gespeicherten Daten. Geänderte Daten, die noch `[redacted]` enthalten, laufen, werden aber nicht gemerkt.
 - Ein Test hat echte Auswirkungen. Der Dialog nennt jede Art (*Sendet Nachrichten*, *Schreibt Dateien*, *Steuert Geräte*, …) mit den Schritten, die sie auslösen können. Jeder Schritt zählt mit dem, was sein Baustein standardmäßig tut, und mit dem, was seine tatsächlichen Einstellungen tun; eine HTTP-Anfrage mit POST zählt deshalb als Senden, obwohl der Baustein allein das nicht tut. Kann AuraGo die Einstellungen nicht prüfen oder kann ein Baustein seine Auswirkungen nicht nennen, sagt der Dialog, dass sich die Auswirkungen nicht vollständig prüfen ließen. **Test starten** bestätigt die genannten Arten, sobald der Test gestartet ist, solange der Flow offen bleibt; *Für diesen Flow nicht mehr fragen* merkt sie auf diesem Gerät. Ein Test, der nicht startet (AuraGo lehnt ihn ab oder ist nicht erreichbar), bestätigt nichts. Eine Art, die du noch nicht bestätigt hast, fragt EasyDrag wieder ab.
 - **Schritt testen** in der Detailansicht (auch *Diesen Schritt testen* an der gewählten Karte und in ihrem Kontextmenü) führt diesen Schritt zusammen mit den Schritten davor aus. Sein Dialog fragt deshalb nach den Auswirkungen jedes Schritts, der läuft: des Schritts selbst und der Schritte davor, die der gewählte Auslöser erreicht. Ein ausgeschalteter Schritt läuft nicht, ebenso wenig die Schritte, zu denen nur er führt.
-- **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast, ohne Rückfrage (auch einen Lauf, den du mit *Jetzt ausführen* gestartet hast). Andere Läufe, die noch nicht beendet sind, stoppst du unter **Läufe** (siehe [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)).
+- **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast, ohne Rückfrage (auch einen Lauf, den du mit *Jetzt ausführen* gestartet hast). Andere Läufe, die noch nicht beendet sind, stoppst du unter **Läufe** (siehe [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)). Solange dieser Test oder Live-Lauf noch startet oder läuft, startet EasyDrag keinen weiteren und schickt einen ungewissen Start nicht erneut. Stoppen macht bereits gelaufene Schritte nicht rückgängig. Das automatische Speichern bleibt unverändert. Die Lauf-Liste öffnet sich im Editor, unter dem Kopf und einem Lauf-Banner.
 
 ## Veröffentlichen
 
@@ -124,13 +124,13 @@ EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabl
 
 ## Tastenkürzel
 
-Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog (auch die Detailansicht eines Schritts) oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**, und **Tab** auf der Fläche fügt einen Schritt hinzu: Die Zoom-Knöpfe und die Werkzeugknöpfe des ausgewählten Schritts erreichst du mit **Umschalt+Tab** aus der Fußzeile. Jeder Werkzeugknopf hat auch eine Taste: D schaltet den Schritt aus oder ein, Strg+D dupliziert, Entf löscht, und *Schritt testen* steht in der Detailansicht (Enter). Screenreader finden zusätzlich eine Liste der Schritte.
+Strg+S, Strg+Enter und Strg+K wirken im Editor, auch solange der Schritt-Inspektor offen ist. Sie warten, solange ein echter Dialog oder ein Kontextmenü offen ist. Die übrigen Tasten wirken auf der Arbeitsfläche, nicht während du in einem Feld tippst. Auf dem Mac steht ⌘ für Strg. **Tab** verschiebt den Fokus und fügt keinen Schritt hinzu. Die Arbeitsfläche ist ein Halt; die Zoom-Knöpfe folgen. Die Werkzeugknöpfe des ausgewählten Schritts kommen dazu. Dieselben Aktionen gibt es als Knopf oder Taste: **Hinzufügen** setzt den nächsten Schritt an die Karte, **Verbinden** (C) öffnet eine Liste passender Schritte und Anschlüsse, D schaltet den Schritt aus oder ein, Strg+D dupliziert, Entf löscht. Tippt du einen Anschluss an und lässt ihn ohne Ziel los, öffnet dieselbe Liste mit dieser Seite und diesem Anschluss. *Schritt testen* steht an der Karte und im Inspektor (Enter öffnet den Inspektor). Screenreader finden zusätzlich eine Liste der Schritte. Die Liste ist für den Lesemodus da; mit echten Screenreader-Nutzern wurde sie nicht geprüft.
 
 | Taste | Wirkung |
 |---|---|
-| Tab | Schritt hinzufügen (hinter dem ausgewählten Schritt) |
-| Enter | Schritt öffnen |
-| C | Ausgewählten Schritt verbinden |
+| Tab | Fokus verschieben. Fügt keinen Schritt hinzu |
+| Enter | Schritt-Inspektor öffnen |
+| C | Ausgewählten Schritt verbinden (Schritt und Anschluss wählen) |
 | D | Schritte aus- oder einschalten |
 | Entf | Auswahl löschen |
 | Pfeiltasten | Zwischen Schritten wechseln |
@@ -144,7 +144,7 @@ Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein
 | Strg+A | Alles auswählen |
 | Strg+S | Jetzt speichern |
 | Strg+Enter | Testen |
-| Strg+K | Bausteine suchen |
+| Strg+K | Vom einen ausgewählten Schritt aus dessen Ausgang anfügen; sonst Bausteine suchen |
 | ? | Diese Kürzel zeigen |
 | Esc | Schließen oder Auswahl aufheben; in der Ansicht eines Laufs zurück zum Entwurf |
 

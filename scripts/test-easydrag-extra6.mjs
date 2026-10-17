@@ -145,7 +145,7 @@ export async function run(env) {
     // testRequests counts what a test or publish dialog asks for (publish preview, test data, test).
     const testRequests = h => h.requests.filter(r => /\/(publish-preview|test)$|\/test-data\//.test(r.url)).length;
 
-    await guardAsync('a1008 1.3 under the step dialog and any other dialog Ctrl+S, Ctrl+Enter and Ctrl+K do nothing and never reach the browser', async () => {
+    await guardAsync('a1008 1.3 inspector permits commands while real dialogs block them and shortcuts never reach the browser', async () => {
         const outcomes = [];
         for (const [platform, modifier] of [['MacIntel', 'metaKey'], ['Win32', 'ctrlKey']]) {
             // Focus on a button of the step dialog (the desktop dispatches all three menu keys), in
@@ -186,25 +186,27 @@ export async function run(env) {
                 editor.dispose();
             }
         }
-        eq('a1008 1.3 with a dialog open nothing saves, no test dialog opens, the palette search keeps no focus; Mod+S, Mod+K and Mod+Enter are prevented (macOS, Windows)',
-            outcomes, ['MacIntel', 'Win32'].flatMap(p => ['button', 'note', 'settings'].map(w => [p, w, 0, 0, 0, 0, [true, true, true], w !== 'settings', true, []])));
+        eq('a1008 1.3 inspector allows Save, Search and Test; real settings dialog blocks them on macOS and Windows',
+            outcomes, ['MacIntel', 'Win32'].flatMap(p => ['button', 'note', 'settings'].map(w => w === 'settings'
+                ? [p, w, 0, 0, 0, 0, [true, true, true], false, true, []]
+                : [p, w, 1, 1, 1, 2, [true, true, true], true, false, []])));
     });
 
-    await guardAsync('a1008 1.3 the window menu items that wait for a dialog wait for the step dialog too', async () => {
-        const { h, editor } = await stepDialog('Win32');
-        const count = counters(editor);
-        const dialogs = h.dialogs.length;
-        const items = h.menus.flatMap(m => m.items);
-        const ids = ['save', 'test', 'search', 'publish', 'settings', 'delete', 'keys'];
-        ids.forEach(id => items.find(i => i.id === id).action());
-        await settle();
-        eq('a1008 1.3 Save, Test, Search, Publish, Flow settings, Delete and Shortcuts do nothing while the step dialog is open',
-            [count.saves, count.searches, h.dialogs.length - dialogs, h.confirms.length, testRequests(h), !!editor.ed.detail, h.logged], [0, 0, 0, 0, 0, true, []]);
-        // Closed, the step dialog no longer holds them back.
-        editor.el.querySelector('[data-ed-detail-close]').fire('click');
-        items.find(i => i.id === 'keys').action();
-        eq('a1008 1.3 once the step dialog closed, the menu works again', [!!editor.ed.detail, h.dialogs.length - dialogs], [false, 1]);
-        editor.dispose();
+    await guardAsync('a1008 1.3 window commands work independently with the inspector open', async () => {
+        for (const id of ['save', 'test', 'search', 'publish', 'settings', 'delete', 'keys']) {
+            const { h, editor } = await stepDialog('Win32');
+            const count = counters(editor);
+            const dialogs = h.dialogs.length;
+            const requests = testRequests(h);
+            const item = h.menus.flatMap(m => m.items).find(i => i.id === id);
+            item.action();
+            await settle();
+            const acted = id === 'save' ? count.saves === 1 : id === 'search' ? count.searches === 1
+                : id === 'delete' ? h.confirms.length > 0 : h.dialogs.length > dialogs || testRequests(h) > requests;
+            eq('a1008 1.3 inspector permits menu ' + id, acted, true);
+            eq('a1008 1.3 menu ' + id + ' leaves inspector intact without errors', [!!editor.ed.detail, h.logged], [true, []]);
+            editor.dispose();
+        }
     });
 
     await guardAsync('a1008 1.3 a note typed into the step dialog is saved before the editor leaves', async () => {
@@ -540,5 +542,238 @@ export async function run(env) {
             'Not computable: Filter “default”: each argument must be a text in quotes, a number, true, false or null.',
             'Not computable: Something went wrong.'
         ]);
+    });
+
+    // ── runs: one start, revisions, real effects, stop ──
+
+    const deferred = () => { let resolve, reject; const p = new Promise((res, rej) => { resolve = res; reject = rej; }); return { p, resolve, reject }; };
+    const postsTo = (h, url) => h.requests.filter(r => r.method === 'POST' && r.url === url).length;
+    const revs = editor => {
+        const node = editor.el.querySelector('[data-ed-revisions]');
+        return node ? [node.dataset.kind, node.dataset.draft, node.dataset.live, node.dataset.paused] : null;
+    };
+
+    await guardAsync('a1008 runs one test or live start, and an uncertain POST is not sent again', async () => {
+        const livePost = deferred();
+        const testPost = deferred();
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [{ effect: 'sends_message', node_ids: [A] }], diff: {} };
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test') return testPost.p;
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run') return livePost.p;
+            if (req.method === 'PUT') return { draft_revision: 3, issues: [] };
+            return undefined;
+        });
+        const editor = openEditor(h, { enabled: true, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
+        await settle();
+        const testPosts = () => postsTo(h, '/api/desktop/flows/f1/test');
+        const livePosts = () => postsTo(h, '/api/desktop/flows/f1/run');
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const dialog = h.dialogs[h.dialogs.length - 1];
+        const runBtn = dialog.el.querySelector('[data-ed-action="run"]');
+        runBtn.fire('click');
+        runBtn.fire('click');
+        await settle();
+        const duringTest = [testPosts(), livePosts(), runBtn.disabled];
+        const runNow = () => editor.el.querySelector('[data-ed-cmd="run-now"]');
+        runNow().fire('click');
+        runNow().fire('click');
+        await settle();
+        const duringBoth = [testPosts(), livePosts()];
+        testPost.reject(Object.assign(new Error('uncertain'), { status: 0, body: {} }));
+        await settle();
+        h.runTimers(60000);
+        await settle();
+        dialog.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        const afterUncertain = [testPosts(), livePosts()];
+        runNow().fire('click');
+        runNow().fire('click');
+        await settle();
+        const duringLive = livePosts();
+        livePost.reject(Object.assign(new Error('uncertain'), { status: 0, body: {} }));
+        await settle();
+        h.runTimers(60000);
+        await settle();
+        eq('a1008 runs a rapid second start sends nothing more, and neither uncertain POST is replayed',
+            [duringTest, duringBoth, afterUncertain, duringLive, testPosts(), livePosts(), h.logged],
+            [[1, 0, true], [1, 0], [1, 0], 1, 1, 1, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 runs draft and live revisions stay separate', async () => {
+        const open = flow => {
+            const h = sandbox(req => {
+                if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
+                if (req.method === 'PUT') return { draft_revision: flow.draft_revision || 3, issues: [] };
+                return undefined;
+            });
+            const editor = openEditor(h, { enabled: flow.enabled, flow });
+            return { h, editor };
+        };
+        const unpublished = open({ live: null, live_revision: 0, draft_revision: 4, published_draft_revision: 0, enabled: false });
+        const newer = open({ live: flowDoc(), live_revision: 2, draft_revision: 5, published_draft_revision: 3, enabled: true });
+        const paused = open({ live: flowDoc(), live_revision: 2, draft_revision: 5, published_draft_revision: 5, enabled: false });
+        eq('a1008 runs unpublished, newer draft and paused live each show their own revisions',
+            [revs(unpublished.editor), revs(newer.editor), revs(paused.editor)],
+            [['draft', '4', '0', 'false'], ['newer', '5', '2', 'false'], ['live', '5', '2', 'true']]);
+        unpublished.editor.dispose();
+        newer.editor.dispose();
+        paused.editor.dispose();
+    });
+
+    await guardAsync('a1008 runs the effect warning names real tools and no undo, and keeps the preview list', async () => {
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [{ effect: 'sends_message', node_ids: [A] }], diff: {} };
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            return undefined;
+        });
+        const editor = openEditor(h);
+        await settle();
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const html = h.dialogs[h.dialogs.length - 1].el.parentNode.html;
+        eq('a1008 runs the warning lists the preview effect, says the test is real, and never says simulation',
+            [html.includes('data-ed-effect="sends_message"'), html.includes('effects_real_stop'), /simulation/i.test(html)],
+            [true, true, false]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 runs a paused flow can test and a live start stays FLOW_DISABLED', async () => {
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test') return {};
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run') throw apiError('FLOW_DISABLED');
+            if (req.method === 'PUT') return { draft_revision: 3, issues: [] };
+            return undefined;
+        });
+        const editor = openEditor(h, { enabled: false, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
+        await settle();
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const dialog = h.dialogs[h.dialogs.length - 1];
+        dialog.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        const runItem = h.menus.find(m => m.id === 'flow').items.find(i => i.id === 'run');
+        await runItem.action();
+        await settle();
+        eq('a1008 runs pause does not block the test POST and the live start names FLOW_DISABLED once',
+            [postsTo(h, '/api/desktop/flows/f1/test'), postsTo(h, '/api/desktop/flows/f1/run'), h.notes.map(n => n.message)],
+            [1, 1, ['error_flow_disabled']]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 runs save-dependent actions wait for flushPendingEdits', async () => {
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test') return { run_id: 'r-test' };
+            if (req.method === 'PUT') return { draft_revision: 3, issues: [] };
+            return undefined;
+        });
+        const editor = openEditor(h, { enabled: true, flow: { live: flowDoc(), live_revision: 1, published_draft_revision: 3 } });
+        await settle();
+        const before = h.requests.length;
+        editor.ed.flushPendingEdits = () => false;
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        editor.el.querySelector('[data-ed-cmd="publish"]').fire('click');
+        await settle();
+        const blocked = h.requests.length - before;
+        editor.ed.flushPendingEdits = () => true;
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const opened = h.dialogs.length > 0 && !!h.dialogs[h.dialogs.length - 1].body.querySelector('[data-ed-test-data]');
+        eq('a1008 runs flushPendingEdits false blocks test and publish; true opens the test',
+            [blocked, opened, h.logged], [0, true, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 runs stop covers queued waiting and running, test now, live after confirm', async () => {
+        const hold = deferred();
+        let cancelMode = 'hold';
+        const runs = [
+            { id: 'rq', status: 'queued', mode: 'test', started_at: '2026-10-06T10:00:00Z', trigger_node: T1 },
+            { id: 'rw', status: 'waiting', mode: 'live', started_at: '2026-10-06T10:01:00Z', trigger_node: T1 },
+            { id: 'rr', status: 'running', mode: 'test', started_at: '2026-10-06T10:02:00Z', trigger_node: T1 },
+            { id: 'rs', status: 'success', mode: 'live', started_at: '2026-10-06T10:03:00Z', trigger_node: T1 }
+        ];
+        const h = sandbox(req => {
+            if (req.method === 'GET' && req.url.startsWith('/api/desktop/flows/f1/runs')) return { runs };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/runs/rq/cancel') return hold.p;
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/runs/rw/cancel') {
+                if (cancelMode === 'finished') throw apiError('FLOW_RUN_FINISHED');
+                return {};
+            }
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/runs/rr/cancel') return {};
+            if (req.method === 'GET' && req.url.startsWith('/api/desktop/flows/runs/')) {
+                const id = req.url.split('/runs/')[1].split('?')[0];
+                const run = runs.find(r => r.id === id);
+                return { run, steps: [], doc: req.url.includes('include=doc') ? flowDoc() : undefined };
+            }
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
+            if (req.method === 'PUT') return { draft_revision: 3, issues: [] };
+            return undefined;
+        });
+        const editor = openEditor(h);
+        await settle();
+        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click');
+        await settle();
+        const stop = id => editor.el.querySelector('[data-ed-run-stop="' + id + '"]');
+        const shown = ['rq', 'rw', 'rr', 'rs'].map(id => !!stop(id));
+        stop('rq').fire('click');
+        await settle();
+        const testPending = [stop('rq').disabled, stop('rq').getAttribute('aria-busy'), stop('rq').querySelector('span').textContent.includes(editor.ed.t('easydrag.ui.run_stopping')),
+            h.confirms.length, postsTo(h, '/api/desktop/flows/runs/rq/cancel')];
+        stop('rw').fire('click');
+        await settle();
+        const liveDialog = h.dialogs[h.dialogs.length - 1];
+        const beforeConfirm = postsTo(h, '/api/desktop/flows/runs/rw/cancel');
+        liveDialog.el.querySelector('[data-ed-action="keep"]').fire('click');
+        await settle();
+        const declined = [postsTo(h, '/api/desktop/flows/runs/rw/cancel'), stop('rw').disabled];
+        stop('rw').fire('click');
+        await settle();
+        h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        const liveSent = postsTo(h, '/api/desktop/flows/runs/rw/cancel');
+        editor.el.querySelector('[data-ed-run="rr"]').fire('click');
+        await settle();
+        const viewed = editor.el.querySelector('[data-ed-cmd="stop-viewed"]');
+        const viewShown = !!(viewed && !viewed.hidden);
+        if (viewed) viewed.fire('click');
+        await settle();
+        cancelMode = 'finished';
+        const notesBefore = h.notes.length;
+        stop('rw').fire('click');
+        await settle();
+        h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        hold.resolve({});
+        await settle();
+        eq('a1008 runs every active run has stop; a test stops immediately and pending; a live stop asks, then a finished run stays quiet',
+            [shown, testPending, beforeConfirm, declined, liveSent, viewShown, postsTo(h, '/api/desktop/flows/runs/rr/cancel'), h.notes.length - notesBefore],
+            [[true, true, true, false], [true, 'true', true, 0, 1], 0, [0, false], 1, true, 1, 0]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 runs shortcuts drop Tab add and keep Ctrl+K plus connect', async () => {
+        const h = sandbox(() => undefined);
+        const flat = h.ED.dialogs.SHORTCUTS.flatMap(([, rows]) => rows);
+        const keys = flat.map(r => r[0]);
+        const editor = openEditor(h);
+        await settle();
+        const searchHtml = h.ED.dialogs.shortcuts(editor.ed).el.parentNode.html;
+        editor.ed.selection.add('n_tttttttt');
+        const addHtml = h.ED.dialogs.shortcuts(editor.ed).el.parentNode.html;
+        editor.ed.quickAdd = { open: true };
+        const openAddHtml = h.ED.dialogs.shortcuts(editor.ed).el.parentNode.html;
+        eq('a1008 runs Tab is not Add; Ctrl+K adds for one step and searches otherwise; connect stays',
+            [keys.includes('Tab'), keys.includes('Ctrl+K'), keys.includes('C'), flat.some(r => r[0] === 'Ctrl+K' && r[1] === 'easydrag.ui.keys_search'),
+                searchHtml.includes('<kbd>Tab</kbd>'), searchHtml.includes('keys_search'), searchHtml.includes('keys_tab_note'), searchHtml.includes('keys_connect'),
+                addHtml.includes('keys_add'), openAddHtml.includes('keys_search')],
+            [false, true, true, true, false, true, true, true, true, true]);
+        editor.dispose();
     });
 }

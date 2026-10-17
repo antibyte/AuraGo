@@ -261,25 +261,35 @@
             // the disconnect, as long as nothing else changed the document since (undoTop).
             let undoTop = false;
             let stopWatch = null;
-            if (reverse) {
-                const existing = ed.model.incoming(nodeId).filter(e => e.target.port === port).pop();
-                if (existing) {
-                    ed.model.disconnect([existing.id]);
-                    from = { node: existing.source.node, port: existing.source.port };
-                    reverse = false;
-                    undoTop = true;
-                    stopWatch = ed.model.on(() => { undoTop = false; });
-                }
-            }
-            const anchorNode = ed.model.node(from.node);
-            const outs = ed.model.outputs(anchorNode);
-            const anchor = reverse
-                ? G.portPoint(anchorNode.position, 'in', 0, outs.length)
-                : G.portPoint(anchorNode.position, 'out', Math.max(0, outs.indexOf(from.port)), outs.length);
+            const existing = reverse ? ed.model.incoming(nodeId).filter(e => e.target.port === port).pop() : null;
+            let anchor;
+            let started = false;
             ed.dragging = true;
             el.classList.add('is-connecting');
             let target = null;
+            let travel = 0;
+            const originX = event.clientX;
+            const originY = event.clientY;
             const update = ev => {
+                travel = Math.max(travel, Math.hypot(ev.clientX - originX, ev.clientY - originY));
+                if (!started) {
+                    if (travel < DRAG_THRESHOLD) return;
+                    started = true;
+                    if (existing) {
+                        ed.model.disconnect([existing.id]);
+                        from = { node: existing.source.node, port: existing.source.port };
+                        reverse = false;
+                        undoTop = true;
+                        stopWatch = ed.model.on(() => { undoTop = false; });
+                    }
+                    const anchorNode = ed.model.node(from.node);
+                    if (!anchorNode) return;
+                    const outs = ed.model.outputs(anchorNode);
+                    anchor = reverse
+                        ? G.portPoint(anchorNode.position, 'in', 0, outs.length)
+                        : G.portPoint(anchorNode.position, 'out', Math.max(0, outs.indexOf(from.port)), outs.length);
+                }
+                if (!anchor) return;
                 const p = canvas.clientToWorld(ev.clientX, ev.clientY);
                 target = portAt(ev.clientX, ev.clientY, reverse ? 'out' : 'in', from.node);
                 let state = '';
@@ -293,9 +303,15 @@
             };
             update(event);
             capture(event, update, (ev, cancelled) => {
+                travel = Math.max(travel, Math.hypot(ev.clientX - originX, ev.clientY - originY));
                 el.classList.remove('is-connecting');
                 wires.preview(null, null);
                 if (stopWatch) stopWatch();
+                // A tap never changes the document or its undo/redo history.
+                if (!started) {
+                    if (!cancelled) ed.bus.emit('connect-picker', { nodeId, port, side });
+                    return;
+                }
                 if (cancelled) { if (undoTop) ed.model.undo(); return; }
                 if (target && !target.invalid) {
                     if (reverse) ed.model.connect(target.node, target.port, from.node, from.port);
@@ -371,7 +387,15 @@
 
         function runNodeTool(action, id) {
             if (readonly()) return;
-            if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
+            if (action === 'add') {
+                const n = ed.model.node(id);
+                const outs = n ? ed.model.outputs(n) : [];
+                const card = canvas.nodeEl(id);
+                if (!n || !outs.length || !card) return;
+                const rect = card.getBoundingClientRect();
+                ed.bus.emit('quick-add', { x: rect.right + 8, y: rect.top, from: { node: id, port: outs[0] } });
+            } else if (action === 'connect') ed.bus.emit('connect-picker', { nodeId: id });
+            else if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
             else if (action === 'disable') ed.model.toggleDisabled([id]);
             else if (action === 'duplicate') select(ed.model.duplicate([id]));
             else if (action === 'delete') { ed.model.removeNodes([id], { bridge: true }); select([]); }
@@ -508,9 +532,12 @@
         function handleKey(event) {
             const key = event.key;
             const target = event.target;
+            // Typing, Tab and undo inside a field stay with that field, including IME.
+            if (target && target !== el && core.isEditable(target)) return false;
             // Tab, Space and Enter on a button inside the canvas (zoom, node list, card tools) keep their
             // default: the button is pressed or focus moves on, so the canvas is no keyboard trap.
-            if ((key === 'Tab' || key === ' ' || key === 'Enter') && target && target !== el && target.closest && target.closest('button, a, input')) return false;
+            if ((key === 'Tab' || key === ' ' || key === 'Enter') && target && target !== el && target.closest && target.closest('button, a, input, textarea, select')) return false;
+            if (key === 'Tab') return false;
             const mod = core.isMod(event);
             const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
             if (key === ' ' && !event.repeat) { spaceDown = true; el.classList.add('is-space'); return true; }
@@ -525,22 +552,6 @@
             if (mod) return false;
             if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
             if (key === 'Escape') { select([]); wires.highlight(null); return true; }
-            if (key === 'Tab') {
-                // Shift+Tab, and Tab on a read-only canvas, move focus on as usual.
-                if (event.shiftKey || readonly()) return false;
-                const src = one && ed.model.node(one);
-                const outs = src ? ed.model.outputs(src) : [];
-                if (src && outs.length) {
-                    // Tab on a selected step appends the next step after it.
-                    const r = canvas.nodeEl(one).getBoundingClientRect();
-                    ed.bus.emit('quick-add', { x: r.right + 24, y: r.top, from: { node: one, port: outs[0] } });
-                    return true;
-                }
-                const p = lastPointer && el.matches(':hover') ? lastPointer : null;
-                const s = canvas.size();
-                ed.bus.emit('quick-add', p ? { x: p.x, y: p.y } : { x: s.left + s.w / 2, y: s.top + s.h / 2 });
-                return true;
-            }
             if (key === '!' || (key === '1' && event.shiftKey)) { canvas.fit({ animate: true }); return true; }
             if (key === '+' || key === '=') { canvas.zoomBy(1.2); return true; }
             if (key === '-') { canvas.zoomBy(1 / 1.2); return true; }

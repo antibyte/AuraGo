@@ -471,24 +471,45 @@
   for instructions/media references, and the server caps; the JSON state field can switch to a
   template. Its detail error-policy picker follows `error_modes` from the catalog.
   Converting `score` to `choice` removes option values while retaining IDs, labels and wires.
-- Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
-  the selection between steps (announced through the live region, `core.announcer`), Enter opens
-  the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
-  are tab stops only while it is selected (`syncTools`; `tabindex="-1"` otherwise), and
-  `.ed-node:focus-within` shows a focused tool's toolbar. Run events and hints change a card's
-  badges, run status and error box in place (`paintState`); its markup, tools included, is
-  rebuilt only when the step itself changes, so a focused tool keeps the focus during a run.
-  A rebuild (Disable from the keyboard) hands a tool's focus to the new button with the same
-  `data-ed-node-tool` while the card is selected, else to the canvas. Tab on the canvas opens
-  quick-add, so
-  the zoom bar and a selected card's tools are reached with Shift+Tab from the footer. Every tool
-  has a key as well: D (off/on), Ctrl+D (duplicate), Del (delete); Test step sits in the detail
-  view (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so its
-  buttons are `tabindex="-1"`: it serves a screen reader's browse mode, not Tab. With 5 steps
-  and no selection the canvas has 5 tab stops (the browser smoke test counts them). Screen
-  changes move the focus: leaving the run view to the canvas, the start page to New flow and then
-  to the card of the flow just left (not for Mission Control's New flow or the templates link),
-  the shell's error card to Retry.
+- The step inspector (`ED.detail`, `.ed-detail`, `role="region"`) is a non-modal pane appended to
+  `.ed-body`. It is not portaled, not `aria-modal`, and has no focus trap or outside-click close.
+  Input, Parameters and Output are tabs at every width. Below 760 px (`PANE_BREAK`, class
+  `is-inspector`) the graph and the inspector take turns. EasyDrag is not a mobile wide window.
+  `appWindowMinSize` is 360×480. The responsive check also uses a 320 px viewport. Supported
+  appearances there are Standard, Fruity light and Fruity dark. There is no Standard-light theme.
+- Keyboard model of the canvas: Tab, Space and Enter keep ordinary control behavior, so the canvas
+  is not a focus trap and Tab does not add a step. The canvas is one tab stop and the zoom bar
+  follows. With five steps and no selection the browser smoke test counts five stops (canvas plus
+  four zoom buttons). A selected card's six tools join that order (`syncTools`; `tabindex="-1"`
+  otherwise), eleven stops, and `.ed-node:focus-within` shows a focused tool's toolbar even on an
+  unselected card. Arrow keys move the selection (announced through `core.announcer`). Enter opens
+  the inspector. Delete/Backspace, D and Ctrl+D act on the selection. C opens the connect picker.
+  Card tools are Add, Connect, Test step, Disable, Duplicate and Delete. Add, a port's Add button
+  and a wire dropped in empty space open quick-add; Add uses the first outgoing port. Tapping a
+  port without dragging opens the picker with that side and port fixed, without changing the
+  document or undo/redo history. The picker lists every compatible endpoint and does not guess a side. Ctrl+K, with exactly
+  one selected step that has an outgoing port and while the draft can change, opens quick-add
+  already wired from that first outgoing port. Otherwise Ctrl+K focuses palette search. It does
+  nothing in the run view, and it does not run when a pending field flush fails. Run events and
+  hints change badges, run status and the error box in place (`paintState`); markup, tools
+  included, is rebuilt only when the step itself changes, so a focused tool keeps focus during a
+  run. A rebuild hands that focus to the new button with the same `data-ed-node-tool` while the
+  card is selected, else to the canvas. D, Ctrl+D and Del remain keys; Test step is also in the
+  inspector (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so
+  its buttons are `tabindex="-1"`. Accessibility acceptance requires screen-reader and user
+  task checks, not screenshots alone. The minimap patches selection and run status on existing
+  rects (`minimapMarks` / `selectionTick`) without rebuilding geometry. Performance acceptance
+  requires measured p95 interaction latency at most 100 ms with the hardware, browser and
+  document size recorded. Screen changes move the focus: leaving
+  the run view to the canvas, the start page to New flow and then to the card of the flow just
+  left (not for Mission Control's New flow or the templates link), the shell's error card to Retry.
+- Home has four list states. A successful list shows the cards. A later refresh failure keeps that
+  list in memory only, shows the stale banner, and turns creates off until retry (`staleError`).
+  An empty successful list offers templates, New and Import. The first load, `FLOWS_DISABLED`, or
+  auth loss (`authLoss`: every 401 and 403, plus `unauthorized`, `forbidden`, `permission_denied` and `desktop_scope_required`; not `desktop_readonly`) replaces
+  the grid and does not keep protected cards; auth loss also clears templates. Nothing for those
+  failures is written to storage. Create, import, duplicate, delete, toggle and run follow
+  `createOff`. Opening a flow stays available when the list is only read-only.
 - Strings: `easydrag.ui.*`, `easydrag.decision.*`, `easydrag.availability.*` in
   `ui/lang/easydrag/<16>.json` (shared with the server's catalog keys); built keys (`core.tr`)
   belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
@@ -506,13 +527,20 @@
   again before Run. Run confirms the effects shown (`ed.effectsConfirmed`; with "Don't ask again"
   also `aurago.easydrag.effects-ok.<id>`) only once the test POST succeeded: a refused or failed
   test confirms nothing and the next attempt asks again (`a1008` checks in
-  `scripts/test-easydrag-extra6.mjs`). A step test counts what the engine runs (`engine_state.go`
-  `run`, `fireTrigger`, `collectReady`); keep the two in step.
+  `scripts/test-easydrag-extra6.mjs`). The dialog warns that those effects are real
+  (`easydrag.ui.effects_real_stop`). Stopping does not roll back steps that already ran. A step
+  test counts what the engine runs (`engine_state.go` `run`, `fireTrigger`, `collectReady`); keep
+  the two in step.
+- `startTest` and `runLive` return without posting while the start dialog is open (`starting`),
+  a start POST is in flight (`startPost`), or `isRunning()` (a live run in this editor, not a
+  run view and not a stream that was given up). `trackStart` returns that in-flight promise
+  instead of posting again. An uncertain result is not sent again. Autosave timing is unchanged.
 - Runs that have not ended (`ED.runs.isActive`) get Stop in the drawer and the run-view banner
   (`runs.stopRun`: any run but a test asks first, 409 `FLOW_RUN_FINISHED` refreshes quietly, a
   run no stream here shows is asked for after 1 to 16 s); `run_finished` refreshes both
-  (`runs.runFinished`: 250 ms, at most 1 s). The secret field deletes the chosen secret and warns
-  with `used_by`.
+  (`runs.runFinished`: 250 ms, at most 1 s). The drawer (`aside.ed-drawer`) is appended to
+  `.ed-body`, below the header and the run-view banner. The secret field deletes the chosen
+  secret and warns with `used_by`.
 - Saver: 1 s after the last change; network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
   (retry 5 s, doubling to 60 s), `PERMANENT_CODES` and a 4xx without a code go `failed` (a retry
   button), `FLOW_INVALID` waits for the next change. The emergency copy is written at most once
@@ -536,31 +564,44 @@
   leaving the view renders the button again so it works.
 - Dialog holds (`holdAction`, a 429's Retry-After) are kept per button and end when the dialog
   closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
+- `flushPendingEdits` runs before save, test, publish, switching steps, the run view and leave.
+  It writes the debounced note, calls `form.flush()`, and commits the settings data name. Template
+  `flush` writes the open edit and leaves the caret, suggestion list and `is-editing` in place;
+  it returns false while an IME composition owns the text. `form.flush` also calls native
+  `edCommit` on plain, number and JSON controls, including fields nested in the form. Nested
+  decision inputs that have no `edCommit` commit on change, and only the focused one is flushed
+  this way. Invalid JSON, a number outside its range, an IME composition, or a data name the
+  model refuses stays in the control and blocks the action. The typed text is not replaced.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
-  editor and saves only when no EasyDrag dialog is open. The step dialog (`ed.detail`,
-  aria-modal) counts as a dialog: Ctrl+S, Ctrl+Enter, Ctrl+K and the menu items behind
-  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`. A `.vd-context-menu` blocks
-  `unlessModal` the same way: Save, Test, Search and the other items behind it do nothing while
-  that menu is open. Under a dialog, Ctrl+Enter and Ctrl+K are prevented too (the browser would
-  take Ctrl+K to its address bar). The start page's window menu disables New and Import when the
-  desktop is read-only or the list came back `FLOWS_DISABLED`; Reload stays enabled, and a later
-  list that succeeds enables New and Import again unless the desktop is read-only.
-- `editor.leave()` aborts a drag, writes a note still pending in the step dialog
-  (`ed.detail.flushNote`; `pagehide` and a hidden page do so before the emergency copy),
-  flushes the saver and shares one in-flight promise. Sessions
+  editor. It saves only when no real EasyDrag dialog (`.ed-modal-backdrop`) and no
+  `.vd-context-menu` is open. The inspector is not that dialog: Ctrl+S, Ctrl+Enter and Ctrl+K
+  still run. `unlessModal` waits for a real dialog or a context menu. `unlessOverlay` also waits
+  for quick-add and the restore offer. Under a real dialog, Ctrl+Enter, Ctrl+K and Ctrl+F are
+  prevented (the browser would take Ctrl+K to the address bar). Text fields keep native undo and
+  IME. The start page disables New and Import while `createOff` is true (read-only desktop,
+  `FLOWS_DISABLED`, a stale list, or a lost session). Reload stays enabled. A later list that
+  succeeds enables New and Import again unless the desktop is read-only.
+- `editor.leave()` aborts a drag, runs `flushPendingEdits` (false keeps the editor open),
+  flushes the saver and shares one in-flight promise. `pagehide` and a hidden page flush a
+  pending note before the emergency copy. Sessions
   and notification contexts keep `flowId` only when it matches `^flow_[a-z0-9]{10}$`.
 - Opening: a stored view `{cx, cy, zoom}` per flow (editors wider than 560 px), else the readable
   fit (zoom ≥ 0.8, trigger first); below zoom 0.7 cards show labels only. Under 900 px the
-  palette floats over the canvas; the run view keeps it hidden and inert.
+  palette floats over the canvas; the run view keeps it hidden and inert. Do not add a portal
+  or a pinned wide window for this layout.
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
 - Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra6.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
-  `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
-  `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
+  browser tests `TestDesktopEasyDragBrowser`, `TestDesktopEasyDragDecisionBrowser` and
+  `TestDesktopEasyDragUXBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`;
+  `ui/desktop_easydrag_browser_test.go`, `ui/desktop_easydrag_decision_browser_test.go`,
+  `ui/desktop_easydrag_ux_browser_test.go`; screenshots in `reports/easydrag/`). Strings stay in
+  all 16 `ui/lang/easydrag/<locale>.json` files. Backend: `internal/flows`,
+  `internal/server/flows_*.go`. EasyDrag source stays owned by the parent UI contract.
 
 ## CYD Creator
 - Builtin app `cyd-creator` (category dev, `Requires: cyd_creator`, opens maximized). It must stay a builtin

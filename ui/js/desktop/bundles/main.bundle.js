@@ -6473,7 +6473,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'infra' || appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'infra' || appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'infra') return { width: 360, height: 480 };
@@ -6482,7 +6482,7 @@
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
         if (appId === 'bookshelf') return { width: 620, height: 460 };
-        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, 'retro-games': { width: 640, height: 480 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 360, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 

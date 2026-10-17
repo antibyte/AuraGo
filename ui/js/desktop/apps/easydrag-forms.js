@@ -83,15 +83,23 @@
         // lastTpl is the template field focused last: an insert from the input tree goes there
         // when it belongs to the param (the condition row being edited, not the first one).
         let lastTpl = null;
+        let committingField = false;
 
         function fieldEnv(name) {
+            const nodeId = node.id;
             return {
                 t, esc, readonly, root: env.ed.root, api: env.ed.api, secretCache, notify: n => env.ed.ctx.notify(n),
+                nodeId,
                 // Read on use: refresh() brings new run data while a field keeps its env.
                 get upstream() { return env.upstream; },
                 get roots() { return roots; },
                 openFileDialog: env.openFileDialog,
-                change: value => { env.onChange(name, value); }
+                change: value => {
+                    const field = lastTpl && lastTpl.closest('[data-param]');
+                    committingField = !!(field && field.dataset.param === name && el.contains(lastTpl));
+                    try { env.onChange(name, value, nodeId); }
+                    finally { committingField = false; }
+                }
             };
         }
 
@@ -205,14 +213,36 @@
 
         function plainInput(param, value, id, set) {
             const input = core.el('<input class="ed-input' + (param.kind === 'cron' ? ' ed-code' : '') + '" id="' + esc(id) + '" value="' + esc(value == null ? '' : value) + '"' + (readonly ? ' disabled' : '') + ' spellcheck="false">');
-            input.addEventListener('change', () => set(input.value));
+            let committed = input.value;
+            const commit = () => {
+                if (input.disabled || input.edComposing) return !input.edComposing;
+                if (input.value !== committed) { committed = input.value; set(input.value); }
+                return true;
+            };
+            input.addEventListener('change', () => { commit(); });
+            input.edCommit = commit;
             return input;
         }
 
         function numberInput(param, value, id, set) {
             const bounds = (name, attr) => typeof param[name] === 'number' && isFinite(param[name]) ? ' ' + attr + '="' + esc(param[name]) + '"' : '';
             const input = core.el('<input type="number" inputmode="decimal" class="ed-input" id="' + esc(id) + '" value="' + esc(value == null ? '' : value) + '"' + bounds('min', 'min') + bounds('max', 'max') + bounds('step', 'step') + (readonly ? ' disabled' : '') + '>');
-            input.addEventListener('change', () => set(input.value === '' ? undefined : Number(input.value)));
+            let committed = input.value;
+            const commit = () => {
+                if (input.disabled) return true;
+                if (input.edComposing) return false;
+                const raw = input.value;
+                // "1e" reports value "" and badInput. That is not a cleared field.
+                if (input.validity && input.validity.badInput) return false;
+                const n = raw === '' ? undefined : Number(raw);
+                const low = input.min === '' ? null : Number(input.min);
+                const high = input.max === '' ? null : Number(input.max);
+                if (raw !== '' && (!Number.isFinite(n) || (input.validity && input.validity.valid === false) || (low !== null && n < low) || (high !== null && n > high))) return false;
+                if (raw !== committed) { committed = raw; set(n); }
+                return true;
+            };
+            input.addEventListener('change', () => { commit(); });
+            input.edCommit = commit;
             return input;
         }
 
@@ -317,6 +347,8 @@
             });
         }
 
+        el.addEventListener('compositionstart', (event) => { if (event.target) event.target.edComposing = true; });
+        el.addEventListener('compositionend', (event) => { if (event.target) event.target.edComposing = false; });
         el.addEventListener('click', (event) => {
             const mode = event.target.closest('[data-ed-mode]');
             if (!mode) return;
@@ -401,11 +433,35 @@
             }
         }
 
+        // flush commits open template edits and pending plain, number and JSON controls.
+        // Invalid JSON or a number outside its range stays in the control and returns false.
+        function flush() {
+            let ok = true;
+            el.querySelectorAll('.ed-tpl').forEach(tpl => {
+                if (tpl.edTemplate && tpl.edTemplate.flush && tpl.edTemplate.flush() === false) ok = false;
+            });
+            el.querySelectorAll('input, textarea, select').forEach(input => {
+                if (input.closest('.ed-tpl') || input.disabled) return;
+                if (typeof input.edCommit === 'function') {
+                    if (input.edCommit() === false) ok = false;
+                    return;
+                }
+                // Nested editors (decision option id, label, score) commit on change only.
+                if (input !== document.activeElement) return;
+                if (input.edComposing) { ok = false; return; }
+                const validity = input.validity;
+                if (validity && (validity.badInput || validity.valid === false)) { ok = false; return; }
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            return ok;
+        }
+
         build();
 
         return {
             el,
             insert,
+            flush,
             // refresh re-renders after the node changed outside the form (undo, other window).
             refresh(nextNode, nextRoots, issues) {
                 const visibleBefore = Array.from(controls.keys()).join(',');
@@ -415,7 +471,8 @@
                 if (nextRoots) roots = nextRoots;
                 if (issues) env.issues = issues;
                 const visibleAfter = ((env.info && env.info.params) || []).filter(p => visible(p, node.params)).map(p => p.name).join(',');
-                const focused = el.contains(document.activeElement);
+                // A field's own blur commit must retain its buffer and reference-insertion caret.
+                const focused = committingField || el.contains(document.activeElement);
                 if (visibleBefore !== visibleAfter || decisionModeChanged || !focused) build();
                 else {
                     controls.forEach((_, name) => previewFor(name));

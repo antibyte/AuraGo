@@ -40,10 +40,12 @@ func TestDesktopEasyDragDecisionBrowser(t *testing.T) {
 	s.clearToasts()
 	page.MustEval(`()=>{const ed=edFixture.editor();ed.bus.emit('open-detail',{nodeId:window.__decisionIDs.decision});}`)
 	s.wait(`()=>!!document.querySelector('.ed-detail') && !!document.querySelector('.ed-detail [data-ed-view="json"]')`)
+	page.MustElement(`.ed-detail [data-ed-narrow="output"]`).MustClick()
 	page.MustElement(`.ed-detail [data-ed-view="json"]`).MustClick()
 	s.wait(`()=>{const out=document.querySelector('.ed-detail .ed-output-json');return !!out && out.textContent.includes('probabilities') && out.textContent.includes('accept') && out.textContent.includes('0.84') && out.textContent.includes('fixture-decisions')}`)
 	s.shot("decision-route-standard-wide")
 	s.noRawKeys("decision result")
+	page.MustElement(`.ed-detail [data-ed-narrow="params"]`).MustClick()
 
 	// Every theme/viewport combination renders both the route and evaluate forms without horizontal
 	// overflow. A phone-sized viewport uses the same real editor and detail components.
@@ -61,7 +63,7 @@ func TestDesktopEasyDragDecisionBrowser(t *testing.T) {
 			page.MustSetViewport(width, 844, 1, width < 600)
 			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 			s.wait(`()=>document.querySelector('.ed-detail') && document.querySelector('.ed-app').getBoundingClientRect().width>0`)
-			s.wait(`()=>{const win=document.querySelector('.vd-window'),box=win.getBoundingClientRect(),detail=document.querySelector('.ed-detail').getBoundingClientRect(),title=document.querySelector('.ed-detail-title').getBoundingClientRect(),status=document.querySelector('.ed-detail-status'),statusBox=status.getBoundingClientRect(),test=document.querySelector('.ed-detail [data-ed-detail-test]').getBoundingClientRect(),close=document.querySelector('.ed-detail [data-ed-detail-close]').getBoundingClientRect(),form=document.querySelector('.ed-detail .ed-field[data-param="questions"]').getBoundingClientRect(),mobile=innerWidth<600,portal=document.querySelector('.ed-detail-backdrop.ed-detail-portal');return (mobile?win.classList.contains('vd-mobile-wide-window')&&box.width>innerWidth+300&&!!portal:!portal) && detail.left>=-1 && detail.right<=innerWidth+1 && detail.width<=innerWidth+1 && close.left>=-1 && close.right<=innerWidth+1 && test.left>=-1 && test.right<=innerWidth+1 && form.left>=-1 && form.right<=innerWidth+1 && (!mobile || !status.textContent.trim() || statusBox.top>=title.bottom-1)}`)
+			s.wait(`()=>{const win=document.querySelector('.vd-window'),box=win.getBoundingClientRect(),detail=document.querySelector('.ed-detail').getBoundingClientRect(),title=document.querySelector('.ed-detail-title').getBoundingClientRect(),status=document.querySelector('.ed-detail-status'),statusBox=status.getBoundingClientRect(),test=document.querySelector('.ed-detail [data-ed-detail-test]').getBoundingClientRect(),close=document.querySelector('.ed-detail [data-ed-detail-close]').getBoundingClientRect(),form=document.querySelector('.ed-detail .ed-field[data-param="questions"]').getBoundingClientRect(),mobile=innerWidth<600,portal=document.querySelector('.ed-detail-backdrop.ed-detail-portal');return !win.classList.contains('vd-mobile-wide-window')&&!portal&&box.left>=-1&&box.right<=innerWidth+1 && detail.left>=-1 && detail.right<=innerWidth+1 && detail.width<=innerWidth+1 && close.left>=-1 && close.right<=innerWidth+1 && test.left>=-1 && test.right<=innerWidth+1 && form.left>=-1 && form.right<=innerWidth+1 && (!mobile || !status.textContent.trim() || statusBox.top>=title.bottom-1)}`)
 			s.shot(fmt.Sprintf("decision-route-%s-%d", theme, width))
 		}
 	}
@@ -133,10 +135,12 @@ func TestDesktopEasyDragDecisionBrowser(t *testing.T) {
 	s.clearToasts()
 	page.MustEval(`()=>edFixture.editor().bus.emit('open-detail',{nodeId:window.__decisionIDs.decision})`)
 	s.wait(`()=>!!document.querySelector('.ed-detail [data-ed-view="json"]')`)
+	page.MustElement(`.ed-detail [data-ed-narrow="output"]`).MustClick()
 	page.MustElement(`.ed-detail [data-ed-view="json"]`).MustClick()
 	s.wait(`()=>{const out=document.querySelector('.ed-detail .ed-output-json');return !!out && out.textContent.includes('priority') && out.textContent.includes('score') && out.textContent.includes('8.9') && out.textContent.includes('fixture-decisions-multi')}`)
 	s.shot("decision-evaluate-result-standard-wide")
 	s.noRawKeys("decision evaluate form")
+	page.MustElement(`.ed-detail [data-ed-narrow="params"]`).MustClick()
 	for _, theme := range []string{"standard", "fruity-light"} {
 		for _, width := range []int{1440, 390} {
 			if width < 600 {
@@ -150,7 +154,7 @@ func TestDesktopEasyDragDecisionBrowser(t *testing.T) {
 			}
 			page.MustSetViewport(width, 844, 1, width < 600)
 			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
-			s.wait(`()=>{const win=document.querySelector('.vd-window'),box=win.getBoundingClientRect(),detail=document.querySelector('.ed-detail').getBoundingClientRect(),title=document.querySelector('.ed-detail-title').getBoundingClientRect(),status=document.querySelector('.ed-detail-status'),statusBox=status.getBoundingClientRect(),test=document.querySelector('.ed-detail [data-ed-detail-test]').getBoundingClientRect(),close=document.querySelector('.ed-detail [data-ed-detail-close]').getBoundingClientRect(),form=document.querySelector('.ed-detail .ed-field[data-param="questions"]').getBoundingClientRect(),mobile=innerWidth<600,portal=document.querySelector('.ed-detail-backdrop.ed-detail-portal');return (mobile?win.classList.contains('vd-mobile-wide-window')&&box.width>innerWidth+300&&!!portal:!portal) && detail.left>=-1 && detail.right<=innerWidth+1 && detail.width<=innerWidth+1 && close.left>=-1 && close.right<=innerWidth+1 && test.left>=-1 && test.right<=innerWidth+1 && form.left>=-1 && form.right<=innerWidth+1 && (!mobile || !status.textContent.trim() || statusBox.top>=title.bottom-1)}`)
+			s.wait(`()=>{const win=document.querySelector('.vd-window'),box=win.getBoundingClientRect(),detail=document.querySelector('.ed-detail').getBoundingClientRect(),title=document.querySelector('.ed-detail-title').getBoundingClientRect(),status=document.querySelector('.ed-detail-status'),statusBox=status.getBoundingClientRect(),test=document.querySelector('.ed-detail [data-ed-detail-test]').getBoundingClientRect(),close=document.querySelector('.ed-detail [data-ed-detail-close]').getBoundingClientRect(),form=document.querySelector('.ed-detail .ed-field[data-param="questions"]').getBoundingClientRect(),mobile=innerWidth<600,portal=document.querySelector('.ed-detail-backdrop.ed-detail-portal');return !win.classList.contains('vd-mobile-wide-window')&&!portal&&box.left>=-1&&box.right<=innerWidth+1 && detail.left>=-1 && detail.right<=innerWidth+1 && detail.width<=innerWidth+1 && close.left>=-1 && close.right<=innerWidth+1 && test.left>=-1 && test.right<=innerWidth+1 && form.left>=-1 && form.right<=innerWidth+1 && (!mobile || !status.textContent.trim() || statusBox.top>=title.bottom-1)}`)
 			s.shot(fmt.Sprintf("decision-evaluate-%s-%d", theme, width))
 		}
 	}

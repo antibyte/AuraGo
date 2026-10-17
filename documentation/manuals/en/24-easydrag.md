@@ -27,18 +27,18 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 1. Open **EasyDrag** on the desktop. Choose **New flow** and give it a name, or start from a **template**.
 2. Click **Choose a trigger** and pick one.
-3. Select the trigger and press **Tab**: quick search adds the next step right behind it and connects it. You can also drag building blocks from the left panel onto the canvas or onto a connection.
-4. Double-click a step (or press **Enter**) to edit it. The left column shows the data of earlier steps: from the last test or run, or as an example. Drag a value into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
+3. Select the trigger and press **Ctrl+K**: quick search adds the next step right behind it and connects it. **Tab** only moves focus. You can also use **Add** on the selected card, or drag building blocks from the left panel onto the canvas or onto a connection.
+4. Double-click a step (or press **Enter**) to edit it. The inspector opens in the editor, not as a dialog. It has Input, Parameters and Output tabs. The Input tab shows data from earlier steps: from the last test or run, or as an example. Drag a value over the Parameters tab and then into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
 5. **Test** (Ctrl+Enter) saves the draft and runs it. Steps light up one after another, and connections show how many items passed. A test has real effects; see [Testing](#testing).
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
 
 ## The Editor
 
 - The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
-- The start page lists your flows with the same states and filters them by *All*, *Active*, *Paused* (published and switched off) and *With errors*.
+- The start page lists your flows with the same states and filters them by *All*, *Active*, *Paused* (published and switched off) and *With errors*. If a later refresh fails, the last list stays on screen and read-only until **Try again** succeeds. A lost sign-in clears that list. The first load, and flows switched off, replace the list with a retry or lock card instead of an empty library. An empty library offers templates, **New flow** and **Import**.
 - The editor follows changes made elsewhere (another window, Mission Control, the missions page or the agent): when the flow is paused or switched on there, the state, the **Active** switch and *Run now* follow; when it is deleted there, EasyDrag says so and shows the start page.
 - A flow opens at a readable size: a small flow is shown whole, a larger one starts at its trigger at 80 %. In windows wider than 560 px, EasyDrag remembers on this device where you left each flow. Moving around the canvas and zooming are no changes to the flow: they are neither saved to it nor counted as *Unpublished changes*. **Show everything** (Shift+1) fits the whole flow; when that zooms out far, the cards show only their names, in larger type.
-- In narrow windows and on phones the building blocks panel starts closed. Opened, it floats over the canvas and closes once you add a step or tap the canvas. The detail view of a step then uses tabs.
+- The inspector sits in the editor body. It is not a dialog, and EasyDrag does not open a pinned wide window for it. Input, Parameters and Output are tabs at every width. Below about 760 px the canvas and the inspector take turns. The EasyDrag window can be as narrow as 360 px; a 320 px viewport still fits. In narrow windows and on phones the building blocks panel starts closed. Opened, it floats over the canvas and closes once you add a step or tap the canvas.
 - *Flow settings* hold the name, the description, what happens when a trigger fires during a run (*Queue*, *Run in parallel* or *Skip*), the maximum run time and where failed runs are reported. The maximum run time takes minutes and seconds, from 1 second to 24 hours; with both fields empty a run may take 30 minutes, the default. **Apply** leaves it as it is unless you changed it.
 - When the desktop is read-only, EasyDrag opens flows read-only; only **Stop** still works for runs that have not ended (unless missions are read-only too, `tools.missions.read_only`). Switching the desktop to read-only does not stop flows that are already running: stop them under **Runs**.
 
@@ -51,7 +51,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
   - *Not saved – fix the errors*: the draft has errors that block saving. The next change is sent again.
   - *Conflict*: the flow was changed somewhere else. EasyDrag asks whether to keep your version or load the other one.
 - Until AuraGo has your changes, a copy stays in this browser for up to 30 days. When you open the flow again, EasyDrag offers to restore it, unless the flow was changed elsewhere in the meantime. Deleting a flow, here or elsewhere, removes this copy and everything else this browser remembers for the flow (where you left it, confirmed test effects, the last test trigger).
-- **Ctrl+S** saves at once. Inside the editor it never opens the browser's "Save page"; in a run view and while a dialog or a step's detail view is open it does not save, and automatic saving goes on. A note you are typing in the detail view is saved before EasyDrag leaves the flow.
+- **Ctrl+S** saves at once. Inside the editor it never opens the browser's "Save page". It does not save in a run view or while a real dialog is open. The step inspector does not block it, and automatic saving goes on. A note or field you are still typing is written before save, test, publish or leaving. Invalid JSON, a number outside its range, or a data name the editor refuses stays in the field and blocks that action. Text you are composing with an input method is not cut off.
 
 ## Testing
 
@@ -60,7 +60,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - Stored test data shows secret values as `[redacted]`. Left unchanged, the test uses the real stored data. Edited data that still contains `[redacted]` runs, but is not remembered.
 - A test has real effects. The dialog lists each kind (*Sends messages*, *Writes files*, *Controls devices*, …) with the steps that may cause it. Each step counts with what its building block does by default and with what its actual settings do, so an HTTP request with POST counts as sending, although the building block alone does not. If AuraGo cannot check the settings, or a building block cannot name its effects, the dialog says that the effects could not be fully checked. **Run test** confirms the listed kinds once the test has started, while the flow stays open; *Don't ask again for this flow* remembers them on this device. A test that does not start (AuraGo refuses it or cannot be reached) confirms nothing. A kind you have not confirmed yet is asked again.
 - **Test step** in a step's detail view (also *Test this step* on the selected card and in its context menu) runs that step together with the steps before it. Its dialog therefore asks about the effects of every step that runs: the step itself and the steps before it that the chosen trigger reaches. A turned-off step does not run, nor do the steps that only it leads to.
-- **Stop** in the header cancels the test or run you started in this window, without asking (also a run started with *Run now*). Other runs that have not ended are stopped under **Runs** (see [Runs and notifications](#runs-and-notifications)).
+- **Stop** in the header cancels the test or run you started in this window, without asking (also a run started with *Run now*). Other runs that have not ended are stopped under **Runs** (see [Runs and notifications](#runs-and-notifications)). While that test or live run is still starting or still going, EasyDrag does not start another and does not send an uncertain start again. Stopping does not undo steps that already ran. Automatic saving is unchanged. The runs list opens in the editor body, under the header and any run banner.
 
 ## Publishing
 
@@ -124,13 +124,13 @@ EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, s
 
 ## Keyboard Shortcuts
 
-Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog (a step's detail view included) or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside, and **Tab** on the canvas adds a step: the zoom buttons and the tool buttons of the selected step are reached with **Shift+Tab** from the footer. Every tool button also has a key: D turns the step off or on, Ctrl+D duplicates, Del deletes, and *Test step* is in the detail view (Enter). Screen readers also find a list of the steps.
+Ctrl+S, Ctrl+Enter and Ctrl+K work in the editor, including while the step inspector is open. They wait while a real dialog or a context menu is open. The other keys act on the canvas, and not while you are typing in a field. On macOS, Ctrl is ⌘. **Tab** moves focus. It does not add a step. The canvas is one tab stop; the zoom buttons follow. A selected step's tool buttons join that order. Those tools are also keys or buttons: **Add** inserts the next step from the card, **Connect** (C) opens a list of compatible steps and ports, D turns the step off or on, Ctrl+D duplicates, and Del deletes. Tapping a port and releasing it without a target opens the same list with that side and port already chosen. *Test step* is on the card and in the inspector (Enter opens the inspector). Screen readers also find a list of the steps. That list is there for browse mode; it has not been tested with screen-reader users.
 
 | Key | Action |
 |---|---|
-| Tab | Add a step (after the selected step) |
-| Enter | Open the step |
-| C | Connect the selected step |
+| Tab | Move focus. Does not add a step |
+| Enter | Open the step inspector |
+| C | Connect the selected step (choose the step and port) |
 | D | Turn steps off or on |
 | Del | Delete the selection |
 | Arrow keys | Move between steps |
@@ -144,7 +144,7 @@ Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialo
 | Ctrl+A | Select all |
 | Ctrl+S | Save now |
 | Ctrl+Enter | Test |
-| Ctrl+K | Search building blocks |
+| Ctrl+K | Add from the one selected step's outgoing port; otherwise search building blocks |
 | ? | Show these shortcuts |
 | Esc | Close or clear the selection; in a run view, back to the draft |
 
