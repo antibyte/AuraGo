@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Zadej rychlost mezi 0,25 a 16.",
   "videoStudio.attrSpeed": "Rychlost (mění délku klipu)",
   "videoStudio.attrKeyframes": "Klíčové snímky (stejné načasování od začátku klipu)",
-  "videoStudio.attrBasePicture": "Oříznutí a překlopení",
+  "videoStudio.attrBasePicture": "Oříznutí, překlopení, režim prolnutí a maska",
   "videoStudio.attrEffects": "Efekty (klíčové snímky zachovají načasování od začátku klipu)",
   "videoStudio.link": "Propojit",
   "videoStudio.unlink": "Zrušit propojení",

@@ -9,7 +9,7 @@
     const FX = () => window.VideoStudioEffects;
     const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room', ramp: 'ramp' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
-    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'], basePicture: ['crop', 'flip_h', 'flip_v'], effects: ['effects'] };
+    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'], basePicture: ['crop', 'flip_h', 'flip_v', 'blend', 'mask'], effects: ['effects'] };
     const clone = value => JSON.parse(JSON.stringify(value));
     const endOf = clip => clip.start + clip.duration;
     const sorted = track => track.clips.slice().sort((a, b) => a.start - b.start);
@@ -655,9 +655,9 @@
     // - keyframes replaces the clip's keys and effects its effect stack (entry keys included). Both are re-anchored after
     //   the speed group, so each key keeps its timing from the clip start (index §4.18).
     // - A value the target animates ignores its field, so the picture group writes it as a key at `frame` (the playhead; the
-    //   auto-key of VideoStudioKeyframeEdit.setValues) and changes the field only for static values. basePicture
-    //   does the same for the crop sides (pasteBasePicture). While `frame` is outside the clip (or not given) an animated
-    //   value is left as it is.
+    //   auto-key of VideoStudioKeyframeEdit.setValues) and changes the field only for static values. basePicture does
+    //   the same for the crop sides and the mask numbers (pasteBasePicture). While `frame` is outside the clip (or not
+    //   given) an animated value is left as it is.
     // - With the keyframes group in the same paste the target's keys are replaced anyway, so every field takes the
     //   source's value and nothing is keyed.
     // - Every clip stays within the key limits (limit otherwise).
@@ -700,7 +700,8 @@
         if (replaceKeys || wanted.includes('effects')) {
             const visual = items.filter(({ track }) => track.kind !== 'audio');
             visual.forEach(({ clip }) => {
-                if (replaceKeys) { const keys = FX().reanchorKeyframes(source, clip); if (keys) clip.keyframes = keys; else delete clip.keyframes; }
+                // Mask keys need a mask (index §4.1): onto a clip without one they are not pasted.
+                if (replaceKeys) { const keys = FX().reanchorKeyframes(source, clip); if (keys && !clip.mask) FX().MASK_PATHS.forEach(path => delete keys[path]); if (keys && Object.keys(keys).length) clip.keyframes = keys; else delete clip.keyframes; }
                 if (wanted.includes('effects')) { const effects = FX().reanchorEffects(source, clip); if (effects) clip.effects = knownLUTs(project, effects); else delete clip.effects; }
                 changed = true;
             });
@@ -708,15 +709,19 @@
         }
         return changed ? finish(project) : REASON.nothing;
     }
-    // The basePicture group (2c): the flips and the crop sides.
-    // - A side the target animates takes the source's value as a key at `frame` (inside the clip only), like the
-    //   picture group.
+    // The basePicture group (2c, 2d): the flips, the blend mode, the mask and the crop sides.
+    // - A crop side or mask number the target animates takes the source's value as a key at `frame` (inside the clip
+    //   only), like the picture group. A source without a mask removes the target's mask and its keys
+    //   (VideoStudioKeyframeEdit.pasteMask).
     // - The other sides take the source's field (a source without a crop gives zeros), and the fields stay a valid
     //   crop (VideoStudioKeyframeEdit.setCrop).
-    // - With replaceKeys the keyframes group replaces the keys afterwards, so the source's crop is copied as it is.
+    // - With replaceKeys the keyframes group replaces the keys afterwards, so the source's crop and mask are copied as
+    //   they are.
     function pasteBasePicture(project, source, clip, replaceKeys, frame) {
         const KE = window.VideoStudioKeyframeEdit;
-        ['flip_h', 'flip_v'].forEach(key => { if (source[key]) clip[key] = true; else delete clip[key]; });
+        ['flip_h', 'flip_v', 'blend'].forEach(key => { if (source[key]) clip[key] = clone(source[key]); else delete clip[key]; });
+        const masked = KE ? KE.pasteMask(project, source, clip, replaceKeys, frame) : true;
+        if (masked !== true) return masked;
         if (replaceKeys || !KE) { if (source.crop) clip.crop = clone(source.crop); else delete clip.crop; return true; }
         const crop = Object.assign({ l: 0, t: 0, r: 0, b: 0 }, source.crop), fields = {}, keyed = {};
         Object.keys(crop).forEach(side => { (KE.keysOf(clip, 'crop.' + side).length ? keyed : fields)[side] = crop[side]; });
@@ -797,8 +802,8 @@
         const audio = Object.assign(clone(clip), {
             id: ids.clip, link, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', text: '', text_style: null, transition: null
         });
-        // The audio copy has no picture: no keys, ramp, crop, flips or effects (Validate refuses them on audio tracks).
-        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp; delete audio.crop; delete audio.flip_h; delete audio.flip_v; delete audio.effects;
+        // The audio copy has no picture: no keys, ramp, crop, flips, effects, blend or mask (Validate refuses them on audio tracks).
+        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp; delete audio.crop; delete audio.flip_h; delete audio.flip_v; delete audio.effects; delete audio.blend; delete audio.mask;
         clip.link = link;
         clip.audio_detached = true;
         track.clips.push(audio);
@@ -942,7 +947,8 @@
     // frame is inserted on the clip's own track, and it takes what the clip shows there, keyframes evaluated and no keys:
     // - geometry and opacity;
     // - the crop (made a valid field) and the flips;
-    // - the effects drawn at that frame, with their values there (entries that are off are left out).
+    // - the effects drawn at that frame, with their values there (entries that are off are left out);
+    // - the blend mode, and the mask with its numbers at that frame (2d; a static mask).
     // Insert rules move the later clips.
     // captured = { asset_id, clip_id, duration, source_asset_id, source_frame } (duration in frames). When given, the
     // source fields name the frame the still shows; a clip that shows another frame at the cut (slipped, moved, re-timed
@@ -971,6 +977,8 @@
         if (state.flipH) still.flip_h = true;
         if (state.flipV) still.flip_v = true;
         if (effects.length) still.effects = effects;
+        if (clip.blend) still.blend = clip.blend;
+        if (state.mask) still.mask = Object.assign({}, state.mask);
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
     }
 

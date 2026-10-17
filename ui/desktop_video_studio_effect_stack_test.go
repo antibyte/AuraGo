@@ -284,7 +284,7 @@ func TestVideoStudioEffectEditSemantics(t *testing.T) {
 		}
 	}
 	runVideoStudioKeyframesScript(t, `
-assert.deepEqual([E.ATTRIBUTE_GROUPS.basePicture, E.ATTRIBUTE_GROUPS.effects], [['crop', 'flip_h', 'flip_v'], ['effects']]);
+assert.deepEqual([E.ATTRIBUTE_GROUPS.basePicture, E.ATTRIBUTE_GROUPS.effects], [['crop', 'flip_h', 'flip_v', 'blend', 'mask'], ['effects']], 'basePicture holds blend and mask since 2d');
 const stack = () => [
   {id: 'color', on: true, params: Object.assign(FX.defaults('color'), {contrast: 1.2}), keyframes: {exposure: [kf(110, 0, 'ease_in'), kf(150, 1)]}},
   {id: 'vignette', on: false, params: FX.defaults('vignette')}

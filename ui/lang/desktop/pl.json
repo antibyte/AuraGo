@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Wpisz prędkość od 0,25 do 16.",
   "videoStudio.attrSpeed": "Prędkość (zmienia długość klipu)",
   "videoStudio.attrKeyframes": "Klatki kluczowe (ten sam czas od początku klipu)",
-  "videoStudio.attrBasePicture": "Kadrowanie i odbicie",
+  "videoStudio.attrBasePicture": "Kadrowanie, odbicie, tryb mieszania i maska",
   "videoStudio.attrEffects": "Efekty (klatki kluczowe zachowują czas od początku klipu)",
   "videoStudio.link": "Połącz",
   "videoStudio.unlink": "Rozłącz",

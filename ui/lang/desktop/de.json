@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Gib eine Geschwindigkeit zwischen 0,25 und 16 ein.",
   "videoStudio.attrSpeed": "Geschwindigkeit (ändert die Clip-Länge)",
   "videoStudio.attrKeyframes": "Keyframes (gleiches Timing ab Clipbeginn)",
-  "videoStudio.attrBasePicture": "Zuschnitt und Spiegeln",
+  "videoStudio.attrBasePicture": "Zuschnitt, Spiegeln, Mischmodus und Maske",
   "videoStudio.attrEffects": "Effekte (Keyframes behalten ihr Timing ab Clipbeginn)",
   "videoStudio.link": "Verknüpfen",
   "videoStudio.unlink": "Verknüpfung lösen",

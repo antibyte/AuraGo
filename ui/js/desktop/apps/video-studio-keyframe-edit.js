@@ -6,9 +6,9 @@
     // discards the project (the app runs them inside P.applyEdit, which restores its snapshot). Keys live on visual-track
     // clips at source frames: a key set at timeline frame T is stored at f = round(sourceAt(clip, T)), so it stays on its
     // picture content through every timing edit. A key is named {path, f}. Paths are the clip's animatable values
-    // (VideoStudioEffects.animatablePaths, 2c): base values, crop.l|t|r|b and effects.<index>.<param>; the path store
-    // below knows where their keys and fields live. The speed ramp operations follow the key operations, and the effect
-    // stack operations (2c) follow the ramps.
+    // (VideoStudioEffects.animatablePaths): base values, crop.l|t|r|b, mask.x|y|w|h|rotation|feather (2d, while the clip
+    // has a mask) and effects.<index>.<param>; the path store below knows where their keys and fields live. The speed
+    // ramp operations follow the key operations, then the effect stack operations (2c) and the compositing ones (2d).
     const Fx = () => window.VideoStudioEffects;
     const T = () => window.VideoStudioTimeline;
     const REASON = () => window.VideoStudioEdit.REASON;
@@ -24,9 +24,10 @@
     // of the clip's effect entries.
     const animatable = (clip, path) => !!clip && Fx().animatablePaths(clip).includes(path);
 
-    // ---- Path store (2c). Keys of base values and crop sides live in clip.keyframes[path], keys of an effect param in its
-    // entry (clip.effects[i].keyframes[param]). Static values live in clip[path], clip.crop[side] (the crop object exists
-    // only while a side is non-zero, as Validate requires) and clip.effects[i].params[param].
+    // ---- Path store (2c, 2d). Keys of base values, crop sides and mask numbers live in clip.keyframes[path], keys of an
+    // effect param in its entry (clip.effects[i].keyframes[param]). Static values live in clip[path], clip.crop[side] (the
+    // crop object exists only while a side is non-zero, as Validate requires), clip.mask[field] (only while the clip has
+    // a mask) and clip.effects[i].params[param].
     function effectPath(path) { const match = EFFECT_PATH.exec(String(path)); return match ? { index: Number(match[1]), param: match[2] } : null; }
     // {holder, key}: the object whose keyframes map holds the path's list, and the list's name in it; null for an effect
     // path without that entry.
@@ -76,6 +77,7 @@
         const fx = effectPath(path);
         if (fx) { const entry = clip.effects[fx.index]; entry.params = Object.assign(entry.params || {}, { [fx.param]: value }); return; }
         if (path.startsWith('crop.')) { clip.crop = Object.assign({ l: 0, t: 0, r: 0, b: 0 }, clip.crop || {}, { [path.slice(5)]: value }); return; }
+        if (path.startsWith('mask.')) { if (clip.mask) clip.mask[path.slice(5)] = value; return; }
         clip[path] = value;
     }
     // The clip an operation edits: a visual-track clip on an unlocked track.
@@ -117,9 +119,10 @@
         });
         if (clip.crop && CROP_SIDES.every(side => !clip.crop[side])) delete clip.crop;
     }
-    // The stored field of a box or crop path, whether or not keys override it.
+    // The stored field of a box, crop or mask path, whether or not keys override it.
     function staticField(clip, path) {
-        return Number(path.startsWith('crop.') ? (clip.crop || {})[path.slice(5)] : clip[path]) || 0;
+        const group = /^(crop|mask)\./.exec(path);
+        return Number(group ? (clip[group[1]] || {})[path.slice(5)] : clip[path]) || 0;
     }
     // A pair [a, b] of paths that sum to at most `limit`, with a side animated. One side written this call yields: it is
     // clamped to the room its partner leaves, the partner counting at its value at the frame (and, for a written field, at
@@ -452,7 +455,8 @@
         return (project.assets || []).some(asset => asset.id === ref && asset.kind === 'lut');
     }
     // Writes {param: value} into an entry's params as static values: numbers clamped to the registry range, LUT refs the
-    // project knows (media otherwise); an unknown param or a value of the wrong kind refuses (nothing).
+    // project knows (media otherwise), colours as lowercase #rrggbb (2d); an unknown param or a value of the wrong kind
+    // refuses (nothing).
     function writeParams(project, entry, spec, values) {
         for (const [id, raw] of Object.entries(values || {})) {
             const param = (spec.params || []).find(item => item.id === id);
@@ -460,6 +464,11 @@
             if (param.type === 'lut') {
                 if (!lutRefKnown(project, raw)) return REASON().media;
                 entry.params[id] = raw;
+                continue;
+            }
+            if (param.type === 'color') {
+                if (typeof raw !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(raw)) return REASON().nothing;
+                entry.params[id] = raw.toLowerCase();
                 continue;
             }
             const number = Number(raw);
@@ -558,6 +567,82 @@
         return true;
     }
 
+    // ---- Compositing (2d; spec §5.3, §8.1; index §4.16, §4.22). blend holds a registry blend mode other than normal;
+    // normal deletes the field (the canonical form: Validate refuses "normal"). The mask {shape, x, y, w, h, rotation,
+    // feather, invert} exists only while the clip has one. Its numbers are fractions of the clip box (feather of the box
+    // height), and their keys are the base paths mask.x|y|w|h|rotation|feather in clip.keyframes, so split, copy,
+    // reverse and rate changes treat them like every base key; shape and invert are never keyed. Each operation returns
+    // true or a REASON: nothing (an unknown mode, field or value, or no change), kind (audio clip), locked, limit.
+    const MASK_FIELDS = Object.freeze(['shape', 'x', 'y', 'w', 'h', 'rotation', 'feather', 'invert']);
+    // A new mask: every field at its registry default (the base rows mask.*), in the canonical order.
+    function maskDefaults() {
+        const mask = {};
+        MASK_FIELDS.forEach(field => { mask[field] = Fx().base('mask.' + field).default; });
+        return mask;
+    }
+    // Removes the mask with every mask key; a keyframes map left empty goes too.
+    function dropMask(clip) {
+        delete clip.mask;
+        Fx().MASK_PATHS.forEach(path => setList(clip, path, []));
+    }
+    // The inspector's blend mode (spec §8.1): any registry mode. An unavailable one is kept, like an unavailable
+    // transition; the export refuses it (VideoStudioEffects.blendAvailable).
+    function setBlend(project, clipId, mode) {
+        const found = editTarget(project, clipId);
+        if (typeof found === 'string') return found;
+        const clip = found.clip;
+        if (!Fx().blendModes().some(item => item.id === mode) || (clip.blend || 'normal') === mode) return REASON().nothing;
+        if (mode === 'normal') delete clip.blend; else clip.blend = mode;
+        return true;
+    }
+    // A mask value setMask accepts: shape a registry choice, invert a boolean, the numbers finite (clamped later).
+    function maskValueOk(field, raw) {
+        if (field === 'shape') return (Fx().base('mask.shape').choices || []).includes(raw);
+        if (field === 'invert') return typeof raw === 'boolean';
+        return MASK_FIELDS.includes(field) && raw !== null && raw !== '' && typeof raw !== 'boolean' && Number.isFinite(Number(raw));
+    }
+    // Mask fields and on-canvas handles (spec §5.3, §8.1): values = any subset of {shape, x, y, w, h, rotation,
+    // feather, invert}, all checked before anything changes. A clip without a mask first gets the registry defaults.
+    // shape and invert change their fields. The numbers go through the auto-key of setValues: clamped to the registry
+    // ranges, an animated number takes a key at the playhead (inside the clip) and its field is never written (2c rule),
+    // and a static number changes its field.
+    function setMask(project, clipId, values, frame) {
+        const found = editTarget(project, clipId);
+        if (typeof found === 'string') return found;
+        const pairs = Object.entries(values || {});
+        if (!pairs.length || pairs.some(([field, raw]) => !maskValueOk(field, raw))) return REASON().nothing;
+        const clip = found.clip, numbers = {};
+        if (!clip.mask) clip.mask = maskDefaults();
+        pairs.forEach(([field, raw]) => { if (field === 'shape' || field === 'invert') clip.mask[field] = raw; else numbers['mask.' + field] = raw; });
+        return Object.keys(numbers).length ? applyValues(clip, numbers, frame) : true;
+    }
+    // Mask None (spec §8.1): the mask and its keys go in one step.
+    function removeMask(project, clipId) {
+        const found = editTarget(project, clipId);
+        if (typeof found === 'string') return found;
+        if (!found.clip.mask) return REASON().nothing;
+        dropMask(found.clip);
+        return true;
+    }
+    // Paste attributes, basePicture group (VideoStudioEdit.pasteBasePicture): the mask of `source` onto `clip`, a clip on
+    // an unlocked visual track (project is unused; the signature follows the edit operations).
+    //   - A source without a mask removes the clip's mask and its keys.
+    //   - With replaceKeys (the keyframes group replaces every key afterwards), or onto a clip without a mask, the
+    //     source's mask is copied as it is.
+    //   - Otherwise shape and invert are copied. A number the clip animates takes the source's field as a key at `frame`
+    //     (inside the clip only, else it is left as it is); the other numbers take the source's fields.
+    function pasteMask(project, source, clip, replaceKeys, frame) {
+        if (!source || !source.mask) { dropMask(clip); return true; }
+        if (replaceKeys || !clip.mask) { clip.mask = JSON.parse(JSON.stringify(source.mask)); return true; }
+        clip.mask.shape = source.mask.shape;
+        clip.mask.invert = !!source.mask.invert;
+        const fields = {}, keyed = {};
+        Fx().MASK_PATHS.forEach(path => { (isAnimated(clip, path) ? keyed : fields)[path] = source.mask[path.slice(5)]; });
+        let result = Object.keys(fields).length ? applyValues(clip, fields, frame) : true;
+        if (result === true && Object.keys(keyed).length && inside(clip, frame)) result = applyValues(clip, keyed, frame);
+        return result;
+    }
+
     // keysOf(clip, path) returns the stored list (read only); keyedPaths(clip) every path holding keys (path store, 2c).
-    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys, keysOf: listOf, keyedPaths, rampPreset, setRamp, applyRampPreset, addRampPoint, moveRampPoint, removeRampPoint, addEffect, removeEffect, moveEffect, setEffectOn, resetEffect, setEffectParams, setCrop, setFlip };
+    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys, keysOf: listOf, keyedPaths, rampPreset, setRamp, applyRampPreset, addRampPoint, moveRampPoint, removeRampPoint, addEffect, removeEffect, moveEffect, setEffectOn, resetEffect, setEffectParams, setCrop, setFlip, setBlend, setMask, removeMask, pasteMask };
 })();

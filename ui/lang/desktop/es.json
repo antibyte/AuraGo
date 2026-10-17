@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Introduce una velocidad entre 0,25 y 16.",
   "videoStudio.attrSpeed": "Velocidad (cambia la duración del clip)",
   "videoStudio.attrKeyframes": "Fotogramas clave (mismo tiempo desde el inicio del clip)",
-  "videoStudio.attrBasePicture": "Recorte y volteo",
+  "videoStudio.attrBasePicture": "Recorte, volteo, modo de fusión y máscara",
   "videoStudio.attrEffects": "Efectos (los fotogramas clave mantienen su tiempo desde el inicio del clip)",
   "videoStudio.link": "Vincular",
   "videoStudio.unlink": "Desvincular",

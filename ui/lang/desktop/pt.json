@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Informe uma velocidade entre 0,25 e 16.",
   "videoStudio.attrSpeed": "Velocidade (altera a duração do clipe)",
   "videoStudio.attrKeyframes": "Quadros-chave (mesmo tempo desde o início do clipe)",
-  "videoStudio.attrBasePicture": "Corte e espelhamento",
+  "videoStudio.attrBasePicture": "Corte, espelhamento, modo de mesclagem e máscara",
   "videoStudio.attrEffects": "Efeitos (os quadros-chave mantêm o tempo desde o início do clipe)",
   "videoStudio.link": "Vincular",
   "videoStudio.unlink": "Desvincular",

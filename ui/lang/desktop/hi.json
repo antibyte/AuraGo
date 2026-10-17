@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "0.25 से 16 के बीच की गति दर्ज करें।",
   "videoStudio.attrSpeed": "गति (क्लिप की लंबाई बदलती है)",
   "videoStudio.attrKeyframes": "कीफ़्रेम (क्लिप की शुरुआत से वही समय)",
-  "videoStudio.attrBasePicture": "क्रॉप और फ़्लिप",
+  "videoStudio.attrBasePicture": "क्रॉप, फ़्लिप, ब्लेंड मोड और मास्क",
   "videoStudio.attrEffects": "इफ़ेक्ट (कीफ़्रेम क्लिप की शुरुआत से अपना समय बनाए रखते हैं)",
   "videoStudio.link": "लिंक करें",
   "videoStudio.unlink": "अनलिंक करें",

@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Enter a speed between 0.25 and 16.",
   "videoStudio.attrSpeed": "Speed (changes the clip length)",
   "videoStudio.attrKeyframes": "Keyframes (same timing from the clip start)",
-  "videoStudio.attrBasePicture": "Crop and flip",
+  "videoStudio.attrBasePicture": "Crop, flip, blend mode and mask",
   "videoStudio.attrEffects": "Effects (keyframes keep their timing from the clip start)",
   "videoStudio.link": "Link",
   "videoStudio.unlink": "Unlink",

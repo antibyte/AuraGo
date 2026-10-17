@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "Ange en hastighet mellan 0,25 och 16.",
   "videoStudio.attrSpeed": "Hastighet (ändrar klippets längd)",
   "videoStudio.attrKeyframes": "Nyckelbildrutor (samma tidpunkter från klippets början)",
-  "videoStudio.attrBasePicture": "Beskärning och spegling",
+  "videoStudio.attrBasePicture": "Beskärning, spegling, blandningsläge och mask",
   "videoStudio.attrEffects": "Effekter (nyckelbildrutor behåller sina tidpunkter från klippets början)",
   "videoStudio.link": "Länka",
   "videoStudio.unlink": "Ta bort länk",

@@ -6440,7 +6440,7 @@
   "videoStudio.speedInvalid": "0.25〜16の速度を入力してください。",
   "videoStudio.attrSpeed": "速度（クリップの長さが変わります）",
   "videoStudio.attrKeyframes": "キーフレーム（クリップの先頭から同じタイミング）",
-  "videoStudio.attrBasePicture": "クロップと反転",
+  "videoStudio.attrBasePicture": "クロップ、反転、描画モード、マスク",
   "videoStudio.attrEffects": "エフェクト（キーフレームはクリップの先頭からのタイミングを保持）",
   "videoStudio.link": "リンク",
   "videoStudio.unlink": "リンク解除",
