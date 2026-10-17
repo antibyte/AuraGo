@@ -29,7 +29,9 @@ func fakeMedia() Media {
 	return Media{Assets: map[string]videostudio.Asset{
 		MediaGradient: video(MediaGradient, 1280, 720, 3), MediaPortrait: video(MediaPortrait, 720, 1280, 2),
 		MediaLogo: still(MediaLogo), MediaRed: still(MediaRed), MediaBlue: still(MediaBlue),
-		MediaTicker: video(MediaTicker, 320, 180, 8)}}
+		MediaTicker: video(MediaTicker, 320, 180, 8),
+		MediaChart:  still(MediaChart), MediaDetail: still(MediaDetail),
+		MediaCube: {ID: MediaCube, Name: "cube.cube", Kind: videostudio.AssetLUT, LUTSize: 17}}}
 }
 
 func TestProjectBuilderAndRegisteredCasesValidate(t *testing.T) {
@@ -41,7 +43,14 @@ func TestProjectBuilderAndRegisteredCasesValidate(t *testing.T) {
 	if project.Width != ProjectWidth || project.Height != ProjectHeight || project.FPS != ProjectFPS || len(project.Assets) != len(m.Assets) || project.Assets[0].ID != MediaBlue {
 		t.Fatalf("builder project = %+v", project)
 	}
-	if gradient := project.Assets[1]; gradient.ID != MediaGradient || gradient.DurationFrames != 75 {
+	// Assets are sorted by id (blue, chart, cube, detail, gradient, …), so the gradient is looked up.
+	var gradient videostudio.Asset
+	for _, asset := range project.Assets {
+		if asset.ID == MediaGradient {
+			gradient = asset
+		}
+	}
+	if gradient.ID != MediaGradient || gradient.DurationFrames != 75 {
 		t.Fatalf("assets are not expressed at %d fps: %+v", ProjectFPS, gradient)
 	}
 	seen := map[string]bool{}
@@ -93,6 +102,9 @@ func TestMakeMediaProbesTaggedAssets(t *testing.T) {
 		MediaRed:      {videostudio.AssetImage, 640, 360, ""},
 		MediaBlue:     {videostudio.AssetImage, 640, 360, ""},
 		MediaTicker:   {videostudio.AssetVideo, 320, 180, "25/1"},
+		MediaChart:    {videostudio.AssetImage, 640, 360, ""},
+		MediaDetail:   {videostudio.AssetImage, 640, 360, ""},
+		MediaCube:     {videostudio.AssetLUT, 0, 0, ""},
 	} {
 		asset := m.Assets[name]
 		if asset.ID != name || asset.Kind != want.kind || asset.Width != want.width || asset.Height != want.height || asset.SourceFPS != want.fps {
@@ -101,6 +113,10 @@ func TestMakeMediaProbesTaggedAssets(t *testing.T) {
 		if info, err := os.Stat(m.Paths[name]); err != nil || !info.Mode().IsRegular() || filepath.Base(m.Paths[name]) != m.Files[name] {
 			t.Errorf("%s: path %q, file %q: %v", name, m.Paths[name], m.Files[name], err)
 		}
+	}
+	// cube.cube is inspected like the server's probe job does (InspectLUTFile), not probed by FFmpeg.
+	if cube := m.Assets[MediaCube]; cube.LUTSize != 17 || cube.SizeBytes <= 0 || cube.DurationFrames != 0 {
+		t.Errorf("cube.cube inspected as %+v, want kind lut, lut_size 17 and its size", cube)
 	}
 	ffprobe, err := exec.LookPath("ffprobe")
 	if err != nil {

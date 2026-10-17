@@ -27,7 +27,7 @@ const (
 // Media is the generated fixture set of one golden run.
 type Media struct {
 	Dir    string
-	Assets map[string]videostudio.Asset // by fixture name (= asset id), probed with videostudio.Probe
+	Assets map[string]videostudio.Asset // by fixture name (= asset id): probed with videostudio.Probe, .cube files inspected with videostudio.InspectLUTFile
 	Paths  map[string]string            // asset id -> file path
 	Files  map[string]string            // asset id -> file name (served under /media/ by the browser harness)
 }
@@ -63,7 +63,8 @@ func registerMedia(name string, generate mediaGenerator) {
 	mediaSet = append(mediaSet, namedMedia{name: name, generate: generate})
 }
 
-// MakeMedia writes every registered fixture into dir (created when missing) and probes it with videostudio.Probe.
+// MakeMedia writes every registered fixture into dir (created when missing) and probes it with videostudio.Probe. A .cube
+// LUT is inspected with videostudio.InspectLUTFile instead, the way the server's probe job records LUT assets.
 // Nothing binary is committed; each golden run generates its media.
 func MakeMedia(ctx context.Context, ffmpegPath, dir string) (Media, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -79,7 +80,12 @@ func MakeMedia(ctx context.Context, ffmpegPath, dir string) (Media, error) {
 			return Media{}, fmt.Errorf("golden media %s returned an invalid file name %q", item.name, file)
 		}
 		path := filepath.Join(dir, file)
-		asset, err := videostudio.Probe(ctx, ffmpegPath, path)
+		var asset videostudio.Asset
+		if videostudio.IsLUTFileName(file) {
+			asset, err = videostudio.InspectLUTFile(path)
+		} else {
+			asset, err = videostudio.Probe(ctx, ffmpegPath, path)
+		}
 		if err != nil {
 			return Media{}, fmt.Errorf("probe golden media %s: %w", item.name, err)
 		}
