@@ -172,8 +172,7 @@ func buildDashboardSummary(s *Server, now time.Time) dashboardSummaryResponse {
 	in.BudgetPercentage = budgetStatus.Percentage
 	resp.KPIs.Budget = dashboardSummaryBudgetKPI(budgetStatus)
 
-	// Read the field once: restartFileIndexer nils it while the indexer is replaced.
-	if fi := s.FileIndexer; fi != nil {
+	if fi := s.fileIndexer(); fi != nil {
 		in.IndexerPresent = true
 		in.IndexerErrorCount = len(fi.Status().Errors)
 	}

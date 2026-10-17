@@ -673,6 +673,9 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - EvoMap registration is writable-only in the agent and API. The server callback owns network registration and serialized config/Vault publication under CfgSaveMu; never mutate captured config snapshots or save them from the agent. Persist only the node ID into current YAML, keep secrets in Vault, restore prior local state on save failure, and never retry uncertain registration automatically.
 - Verify Uptime Kuma lifecycle, EvoMap registration/revocation and configuration preservation regressions.
 
+### File indexer replacement
+- `restartFileIndexer` replaces the indexer under `CfgSaveMu` while handlers run. Read it only through `s.fileIndexer()` into a local, once per use, and write it only through `setFileIndexer`; never re-read between the nil check and the call. Verify `TestRestartFileIndexerConcurrentWithReads` with `-race` (Linux CGO).
+
 ### Webhook publication
 - Mission webhook registrations use stable mission keys, replacing the old callback and removing it on disable, delete, manager replacement or shutdown. A-B-A trigger changes must not accumulate callbacks.
 - Incoming webhook handlers obtain current immutable config and Guardian services together under the server config lock. Disabled integrations reject new deliveries; scan policy changes take effect without restart.

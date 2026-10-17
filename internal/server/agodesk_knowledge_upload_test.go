@@ -32,7 +32,7 @@ func TestAgoDeskKnowledgeArchiveUploadEndToEnd(t *testing.T) {
 	s.Cfg.Indexing.Extensions = []string{".txt", ".md", ".json", ".pdf", ".docx", ".odt", ".rtf"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	conn, cleanup, accepted := pairAgodeskTestClient(
 		t,
@@ -161,7 +161,7 @@ func TestAgoDeskKnowledgeArchiveCapabilityAvailability(t *testing.T) {
 	s.Cfg.Indexing.Extensions = []string{".txt"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	if !agodeskTestContainsString(agodeskServerCapabilities(s), agodesk.CapabilityKnowledgeArchive) {
 		t.Fatal("writable server did not advertise knowledge archive uploads")
@@ -189,7 +189,7 @@ func TestAgoDeskKnowledgeArchiveSecurityValidation(t *testing.T) {
 	s.Cfg.Indexing.Extensions = []string{".txt", ".pdf"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	directory := s.Cfg.Indexing.Directories[0]
 	if _, _, code, _ := normalizeAgodeskKnowledgeBatch(s, directory, []agodesk.KnowledgeArchivePrepareFile{{
@@ -249,7 +249,7 @@ func TestAgoDeskKnowledgeArchiveLimitReturnsTooLarge(t *testing.T) {
 	s.Cfg.Indexing.Extensions = []string{".docx"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	var archive bytes.Buffer
 	writer := zip.NewWriter(&archive)
@@ -318,7 +318,7 @@ func TestAgoDeskKnowledgeActiveUploadSurvivesPrepareExpiryAndPartCleanup(t *test
 	s.Cfg.Indexing.Extensions = []string{".txt"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	now := time.Now().UTC()
 	record := memory.AgoDeskKnowledgeDocument{
@@ -405,7 +405,7 @@ func TestAgoDeskKnowledgeCoordinatorFailsOrphanedUploadOnStart(t *testing.T) {
 	s.Cfg.Indexing.Extensions = []string{".txt"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	now := time.Now().UTC()
 	record := memory.AgoDeskKnowledgeDocument{
@@ -558,7 +558,7 @@ func TestAgoDeskKnowledgeProcessingRejectsWhitespaceWithoutVectors(t *testing.T)
 	s.Cfg.Indexing.Extensions = []string{".txt"}
 	s.ShortTermMem = newAgodeskTestMemory(t)
 	s.LongTermMem = &knowledgeUploadVectorDB{}
-	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger))
 
 	now := time.Now().UTC()
 	path := filepath.Join(knowledgeDir, "whitespace.txt")
