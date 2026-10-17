@@ -641,5 +641,26 @@
         return remapKeyframes(source && source.keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from)));
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    // ---- Plan 2c Task 13: effect-entry keys under reverse, rate changes and paste attributes (index §4.4). Each returns a
+    // new stack (entries copied with their params; keys mapped like the clip's own) or undefined without entries.
+    function mapEffects(effects, map) {
+        if (!Array.isArray(effects) || !effects.length) return undefined;
+        return effects.map(entry => {
+            const out = { id: entry.id, on: !!entry.on, params: JSON.parse(JSON.stringify(entry.params || {})) };
+            const keyframes = map(entry.keyframes);
+            if (keyframes) out.keyframes = keyframes;
+            return out;
+        });
+    }
+    // Reverse: entry keys mirror around pivot like mirrorKeyframes (ease_in <-> ease_out, hold spans shifted).
+    function mirrorEffects(effects, pivot) { return mapEffects(effects, keyframes => mirrorKeyframes(keyframes, pivot)); }
+    // Frame-rate change: entry key frames scale like the offset (rounded; a key landing on the one before it is dropped).
+    function rescaleEffects(effects, ratio) { return mapEffects(effects, keyframes => remapKeyframes(keyframes, f => Math.round(f * ratio))); }
+    // Paste attributes: source's entries, their keys at the same timing relative to each clip's start on target.
+    function reanchorEffects(source, target) {
+        const from = Number(source && source.start) || 0, to = Number(target && target.start) || 0;
+        return mapEffects(source && source.effects, keyframes => remapKeyframes(keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from))));
+    }
+
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, mirrorEffects, rescaleEffects, reanchorEffects, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

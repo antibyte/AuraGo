@@ -6314,6 +6314,8 @@
   "videoStudio.speedInvalid": "Voer een snelheid tussen 0,25 en 16 in.",
   "videoStudio.attrSpeed": "Snelheid (wijzigt de cliplengte)",
   "videoStudio.attrKeyframes": "Sleutelframes (zelfde timing vanaf het begin van de clip)",
+  "videoStudio.attrBasePicture": "Bijsnijden en spiegelen",
+  "videoStudio.attrEffects": "Effecten (sleutelframes behouden hun timing vanaf het begin van de clip)",
   "videoStudio.link": "Koppelen",
   "videoStudio.unlink": "Ontkoppelen",
   "videoStudio.detachAudio": "Audio losmaken",

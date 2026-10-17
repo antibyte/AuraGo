@@ -9,7 +9,7 @@
     const FX = () => window.VideoStudioEffects;
     const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room', ramp: 'ramp' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
-    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'] };
+    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'], basePicture: ['crop', 'flip_h', 'flip_v'], effects: ['effects'] };
     const clone = value => JSON.parse(JSON.stringify(value));
     const endOf = clip => clip.start + clip.duration;
     const sorted = track => track.clips.slice().sort((a, b) => a.start - b.start);
@@ -23,9 +23,10 @@
         clip.fade_in = Math.min(Number(clip.fade_in) || 0, clip.duration);
         clip.fade_out = Math.min(Number(clip.fade_out) || 0, clip.duration);
     }
-    // Keyframe limits (index §4.18): 64 per value, 512 per clip.
-    function overLimit(keyframes) {
+    // Keyframe limits (index §4.18, spec §5.8): 64 per value and 512 per clip, the effect entries' keys included.
+    function overLimit(keyframes, effects) {
         const limits = FX().LIMITS, lists = Object.values(keyframes || {});
+        (effects || []).forEach(entry => lists.push(...Object.values((entry && entry.keyframes) || {})));
         return lists.some(list => list.length > limits.keyframesPerParam) || lists.reduce((n, list) => n + list.length, 0) > limits.keyframesPerClip;
     }
     // A box evaluated from keys, made valid as fields: sizes within 0.01..1, positions pulled in so x + width <= 1 and
@@ -34,6 +35,26 @@
         const axis = (position, size) => { let p = Math.max(0, Math.min(Number(position) || 0, 1 - size)); while (p > 0 && p + size > 1) p = Math.max(0, p - 1e-9); return p; };
         const width = Math.max(0.01, Math.min(1, Number(state.width) || 1)), height = Math.max(0.01, Math.min(1, Number(state.height) || 1));
         return { x: axis(state.x, width), y: axis(state.y, height), width, height };
+    }
+    // A crop evaluated from keys, made valid as a field (spec §5.3): each side 0..0.95, r and b pulled in so l + r and
+    // t + b stay at most 0.95 (cropRect's rule, index §4.20); null when nothing is cropped.
+    function fieldCrop(crop) {
+        const side = value => Math.max(0, Math.min(0.95, Number(value) || 0));
+        const out = { l: side(crop && crop.l), t: side(crop && crop.t), r: side(crop && crop.r), b: side(crop && crop.b) };
+        [['l', 'r'], ['t', 'b']].forEach(([a, b]) => {
+            out[b] = Math.min(out[b], Math.max(0, 0.95 - out[a]));
+            while (out[b] > 0 && out[a] + out[b] > 0.95) out[b] = Math.max(0, out[b] - 1e-9);
+        });
+        return out.l || out.t || out.r || out.b ? out : null;
+    }
+    // Pasted effect entries whose LUT the project no longer holds (its asset was removed after the copy) get '' (pass-
+    // through), so the paste stays valid. The clipboard never crosses projects (P.clipboardReady).
+    function knownLUTs(project, effects) {
+        return effects.map(entry => {
+            const ref = entry && entry.params ? entry.params.lut : undefined;
+            if (typeof ref !== 'string' || !ref || ref.startsWith('builtin:') || (project.assets || []).some(asset => asset.id === ref && asset.kind === 'lut')) return entry;
+            return Object.assign({}, entry, { params: Object.assign({}, entry.params, { lut: '' }) });
+        });
     }
     // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1. Without a ramp that is phase 1's
     // (duration - 1) * speed; with one it is S (VideoStudioEffects.maxDurationFor). Stills are unbounded.
@@ -609,6 +630,7 @@
             const track = pasteTrack(project, board, entry, opts.targets);
             if (!track) return REASON.kind;
             const clip = Object.assign(clone(entry.clip), { id: T().newId('clip'), start: at + entry.clip.start });
+            if (Array.isArray(clip.effects)) clip.effects = knownLUTs(project, clip.effects);
             if (entry.clip.link) {
                 if (counts.get(entry.clip.link) > 1) {
                     if (!remap.has(entry.clip.link)) remap.set(entry.clip.link, T().newId('link'));
@@ -626,14 +648,19 @@
         return result;
     }
 
-    // Copies attribute groups from `source` (a clip object) to the listed clips. picture and keyframes skip audio clips.
-    // The speed group skips stills and goes through setSpeed for the clips and their link partners, so it follows the
-    // timing rules (ripple by default); a ramped source gives its ramp instead (pasteRamp). keyframes replaces the
-    // clip's keys, re-anchored after the speed group so each key keeps its timing from the clip start (index §4.18).
-    // A value the target animates ignores its field, so the picture group writes it as a key at `frame` (the playhead; the
-    // auto-key of VideoStudioKeyframeEdit.setValues) and changes the field only for static values. While `frame` is
-    // outside the clip (or not given) an animated value is left as it is. With the keyframes group in the same paste the
-    // target's keys are replaced anyway, so every field takes the source's value and nothing is keyed.
+    // Copies attribute groups from `source` (a clip object) to the listed clips.
+    // - picture, basePicture, keyframes and effects skip audio clips.
+    // - The speed group skips stills and goes through setSpeed for the clips and their link partners, so it follows the
+    //   timing rules (ripple by default); a ramped source gives its ramp instead (pasteRamp).
+    // - keyframes replaces the clip's keys and effects its effect stack (entry keys included). Both are re-anchored after
+    //   the speed group, so each key keeps its timing from the clip start (index §4.18).
+    // - A value the target animates ignores its field, so the picture group writes it as a key at `frame` (the playhead; the
+    //   auto-key of VideoStudioKeyframeEdit.setValues) and changes the field only for static values. basePicture
+    //   does the same for the crop sides (pasteBasePicture). While `frame` is outside the clip (or not given) an animated
+    //   value is left as it is.
+    // - With the keyframes group in the same paste the target's keys are replaced anyway, so every field takes the
+    //   source's value and nothing is keyed.
+    // - Every clip stays within the key limits (limit otherwise).
     function pasteAttributes(project, source, ids, groups, frame) {
         const items = editable(project, ids), wanted = groups || [], replaceKeys = wanted.includes('keyframes');
         if (!items.length) return refusal(project, ids);
@@ -641,10 +668,16 @@
         let changed = false;
         for (const { track, clip } of items) {
             for (const group of wanted) {
-                if (group === 'picture' && track.kind === 'audio') continue;
+                if ((group === 'picture' || group === 'basePicture') && track.kind === 'audio') continue;
+                if (group === 'basePicture') {
+                    const result = pasteBasePicture(project, source, clip, replaceKeys, frame);
+                    if (result !== true) return result;
+                    changed = true;
+                    continue;
+                }
                 const keyed = {};
                 (ATTRIBUTE_GROUPS[group] || []).forEach(key => {
-                    if (key === 'speed' || key === 'keyframes' || source[key] === undefined) return;
+                    if (key === 'speed' || key === 'keyframes' || key === 'effects' || source[key] === undefined) return;
                     if (!replaceKeys && Array.isArray(clip.keyframes && clip.keyframes[key]) && clip.keyframes[key].length) keyed[key] = source[key];
                     else { clip[key] = clone(source[key]); changed = true; }
                 });
@@ -664,15 +697,32 @@
                 changed = true;
             }
         }
-        if (wanted.includes('keyframes')) {
-            items.forEach(({ track, clip }) => {
-                if (track.kind === 'audio') return;
-                const keys = FX().reanchorKeyframes(source, clip);
-                if (keys) clip.keyframes = keys; else delete clip.keyframes;
+        if (replaceKeys || wanted.includes('effects')) {
+            const visual = items.filter(({ track }) => track.kind !== 'audio');
+            visual.forEach(({ clip }) => {
+                if (replaceKeys) { const keys = FX().reanchorKeyframes(source, clip); if (keys) clip.keyframes = keys; else delete clip.keyframes; }
+                if (wanted.includes('effects')) { const effects = FX().reanchorEffects(source, clip); if (effects) clip.effects = knownLUTs(project, effects); else delete clip.effects; }
                 changed = true;
             });
+            if (visual.some(({ clip }) => overLimit(clip.keyframes, clip.effects))) return REASON.limit;
         }
         return changed ? finish(project) : REASON.nothing;
+    }
+    // The basePicture group (2c): the flips and the crop sides.
+    // - A side the target animates takes the source's value as a key at `frame` (inside the clip only), like the
+    //   picture group.
+    // - The other sides take the source's field (a source without a crop gives zeros), and the fields stay a valid
+    //   crop (VideoStudioKeyframeEdit.setCrop).
+    // - With replaceKeys the keyframes group replaces the keys afterwards, so the source's crop is copied as it is.
+    function pasteBasePicture(project, source, clip, replaceKeys, frame) {
+        const KE = window.VideoStudioKeyframeEdit;
+        ['flip_h', 'flip_v'].forEach(key => { if (source[key]) clip[key] = true; else delete clip[key]; });
+        if (replaceKeys || !KE) { if (source.crop) clip.crop = clone(source.crop); else delete clip.crop; return true; }
+        const crop = Object.assign({ l: 0, t: 0, r: 0, b: 0 }, source.crop), fields = {}, keyed = {};
+        Object.keys(crop).forEach(side => { (KE.keysOf(clip, 'crop.' + side).length ? keyed : fields)[side] = crop[side]; });
+        let result = Object.keys(fields).length ? KE.setCrop(project, clip.id, fields, frame) : true;
+        if (result === true && Object.keys(keyed).length && frame >= clip.start && frame < clip.start + clip.duration) result = KE.setCrop(project, clip.id, keyed, frame);
+        return result;
     }
     // The speed group with a ramped source (index §4.18): unlocked video-track clips of video media take the ramp and
     // keep their duration; the other clips keep their timing. media when the media ends before a ramped clip does.
@@ -747,7 +797,8 @@
         const audio = Object.assign(clone(clip), {
             id: ids.clip, link, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', text: '', text_style: null, transition: null
         });
-        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp;
+        // The audio copy has no picture: no keys, ramp, crop, flips or effects (Validate refuses them on audio tracks).
+        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp; delete audio.crop; delete audio.flip_h; delete audio.flip_v; delete audio.effects;
         clip.link = link;
         clip.audio_detached = true;
         track.clips.push(audio);
@@ -847,7 +898,7 @@
     // the mapped frame each member shows the source frame it showed before, so picture and sound stay in sync. Members of
     // other assets stay. A member outside the range, a clip that no longer reads the reversed source, or a moved member
     // that would overlap another clip, touch a transition or leave the project refuses (reason room) without changes.
-    // Keyframes mirror around the reversed asset's last frame (index §4.18); extra hold keys past the limits refuse
+    // Keyframes and effect entry keys mirror around the reversed asset's last frame (index §4.18); extra hold keys past the limits refuse
     // (limit). A ramped member refuses (reason ramp): a mirrored ramp with hold spans is not representable, so reverse
     // first and ramp afterwards (index §4.18).
     function reverseClips(project, clipId, reversed) {
@@ -868,8 +919,9 @@
             const offset = Math.max(0, Math.floor(reversed.frames - 1 - (clip.offset - reversed.rangeStart) - (clip.duration - 1) * speed + 1e-9));
             if (clip.duration > Math.floor((Number(target.duration_frames) - 1 - offset) / speed + 1e-9) + 1) return REASON.media;
             const keyframes = clip.keyframes ? FX().mirrorKeyframes(clip.keyframes, reversed.rangeStart + reversed.frames - 1) : undefined;
-            if (keyframes && overLimit(keyframes)) return REASON.limit;
-            plans.push({ track, clip, offset, keyframes, start: clip === anchor ? clip.start : pivot - endOf(clip) });
+            const effects = FX().mirrorEffects(clip.effects, reversed.rangeStart + reversed.frames - 1);
+            if (overLimit(keyframes, effects)) return REASON.limit;
+            plans.push({ track, clip, offset, keyframes, effects, start: clip === anchor ? clip.start : pivot - endOf(clip) });
         }
         const moving = plans.filter(plan => plan.start !== plan.clip.start), members = new Set(plans.map(({ clip }) => clip));
         for (const { track, clip, start } of moving) {
@@ -879,12 +931,19 @@
             const placed = other => (members.has(other) ? plans.find(plan => plan.clip === other).start : other.start);
             if (track.clips.some(other => other !== clip && placed(other) < end && start < placed(other) + other.duration)) return REASON.room;
         }
-        plans.forEach(({ clip, offset, start, keyframes }) => { clip.asset_id = reversed.assetId; clip.offset = offset; clip.start = start; if (keyframes) clip.keyframes = keyframes; else delete clip.keyframes; });
+        plans.forEach(({ clip, offset, start, keyframes, effects }) => {
+            clip.asset_id = reversed.assetId; clip.offset = offset; clip.start = start;
+            if (keyframes) clip.keyframes = keyframes; else delete clip.keyframes;
+            if (effects) clip.effects = effects; else delete clip.effects;
+        });
         return finish(project);
     }
-    // Freeze frame (spec 4.4): the clip and its link partners are cut at the playhead, then a still of the captured
-    // frame (the geometry and opacity the clip shows there, keyframes evaluated, no keys) is inserted on the clip's own
-    // track. Insert rules move the later clips.
+    // Freeze frame (spec 4.4, 5.1): the clip and its link partners are cut at the playhead. Then a still of the captured
+    // frame is inserted on the clip's own track, and it takes what the clip shows there, keyframes evaluated and no keys:
+    // - geometry and opacity;
+    // - the crop (made a valid field) and the flips;
+    // - the effects drawn at that frame, with their values there (entries that are off are left out).
+    // Insert rules move the later clips.
     // captured = { asset_id, clip_id, duration, source_asset_id, source_frame } (duration in frames). When given, the
     // source fields name the frame the still shows; a clip that shows another frame at the cut (slipped, moved, re-timed
     // or reversed while the capture waited) refuses, so the still never jumps against the clip.
@@ -899,14 +958,19 @@
         if (captured.source_asset_id != null && clip.asset_id !== captured.source_asset_id) return REASON.media;
         if (captured.source_frame != null && sourceFrameAt(project, clip, frame) !== captured.source_frame) return REASON.media;
         // Evaluated before the cut: the still shows what the clip shows at the frozen frame (index §4.18).
-        const state = FX().clipState(clip, frame, project), box = fieldBox(state);
-        const cut = blade(project, frame, { clipIds: [clipId], linked: true }, {});
+        const state = FX().clipState(clip, frame, project), box = fieldBox(state), crop = fieldCrop(state.crop);
+        const effects = (state.effects || []).map(item => ({ id: item.id, on: true, params: clone(item.values) }));
+        const cut =blade(project, frame, { clipIds: [clipId], linked: true }, {});
         if (cut !== true) return cut;
         const still = {
             id: captured.clip_id, asset_id: captured.asset_id, start: frame, offset: 0, duration: Math.max(1, Math.round(captured.duration)),
             x: box.x, y: box.y, width: box.width, height: box.height, rotation: state.rotation, opacity: state.opacity,
             volume: 1, fade_in: 0, fade_out: 0, fit: clip.fit, text: '', text_style: null, transition: null
         };
+        if (crop) still.crop = crop;
+        if (state.flipH) still.flip_h = true;
+        if (state.flipV) still.flip_v = true;
+        if (effects.length) still.effects = effects;
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
     }
 

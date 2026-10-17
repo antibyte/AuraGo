@@ -6314,6 +6314,8 @@
   "videoStudio.speedInvalid": "Inserisci una velocità tra 0,25 e 16.",
   "videoStudio.attrSpeed": "Velocità (cambia la lunghezza della clip)",
   "videoStudio.attrKeyframes": "Fotogrammi chiave (stessa tempistica dall’inizio della clip)",
+  "videoStudio.attrBasePicture": "Ritaglio e capovolgimento",
+  "videoStudio.attrEffects": "Effetti (i fotogrammi chiave mantengono la tempistica dall’inizio della clip)",
   "videoStudio.link": "Collega",
   "videoStudio.unlink": "Scollega",
   "videoStudio.detachAudio": "Separa audio",

@@ -6314,6 +6314,8 @@
   "videoStudio.speedInvalid": "Skriv inn en hastighet mellom 0,25 og 16.",
   "videoStudio.attrSpeed": "Hastighet (endrer klippets lengde)",
   "videoStudio.attrKeyframes": "Nøkkelbilder (samme timing fra klippets start)",
+  "videoStudio.attrBasePicture": "Beskjæring og speiling",
+  "videoStudio.attrEffects": "Effekter (nøkkelbilder beholder timingen fra klippets start)",
   "videoStudio.link": "Koble sammen",
   "videoStudio.unlink": "Fjern kobling",
   "videoStudio.detachAudio": "Skill ut lyd",

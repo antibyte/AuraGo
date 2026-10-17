@@ -6314,6 +6314,8 @@
   "videoStudio.speedInvalid": "Saisissez une vitesse comprise entre 0,25 et 16.",
   "videoStudio.attrSpeed": "Vitesse (modifie la durée du clip)",
   "videoStudio.attrKeyframes": "Images clés (même minutage depuis le début du clip)",
+  "videoStudio.attrBasePicture": "Recadrage et miroir",
+  "videoStudio.attrEffects": "Effets (les images clés gardent leur minutage depuis le début du clip)",
   "videoStudio.link": "Lier",
   "videoStudio.unlink": "Dissocier",
   "videoStudio.detachAudio": "Détacher l’audio",
