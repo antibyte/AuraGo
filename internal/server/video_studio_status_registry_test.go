@@ -68,6 +68,10 @@ func TestVideoStudioStatusServesRegistry(t *testing.T) {
 		if registry.Effects == nil || registry.BlendModes == nil || registry.AnimPresets == nil || registry.Looks == nil {
 			t.Fatalf("registry lists must be arrays, not null: %s", response.Body.String())
 		}
+		// 2c serves the eight built-in looks (plan index §4.2).
+		if len(registry.Looks) != 8 {
+			t.Fatalf("registry looks = %d, want 8", len(registry.Looks))
+		}
 		lists := make(map[string][]string, 4)
 		for _, key := range []string{"effects", "transitions", "blend_modes", "anim_presets"} {
 			raw := bytes.TrimSpace(body.Unavailable[key])

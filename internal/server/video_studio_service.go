@@ -1244,11 +1244,18 @@ func safeVideoStudioFilename(raw string) string {
 		} else {
 			out.WriteByte('_')
 		}
-		if out.Len() >= 120 {
-			break
-		}
 	}
-	value := strings.Trim(out.String(), "._-")
+	value := out.String()
+	// A long name is cut in its stem, so an extension of up to 12 bytes survives: the import decides by the .cube
+	// extension whether a file is a LUT (plan 2c, index §4.20).
+	if len(value) > 120 {
+		ext := filepath.Ext(value)
+		if len(ext) > 12 {
+			ext = ""
+		}
+		value = value[:120-len(ext)] + ext
+	}
+	value = strings.Trim(value, "._-")
 	if value == "" {
 		value = "media"
 	}

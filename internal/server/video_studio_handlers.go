@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -63,6 +64,10 @@ func handleVideoStudio(s *Server) http.HandlerFunc {
 		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, videoStudioAPIBase), "/"), "/")
 		if len(parts) == 1 && parts[0] == "status" {
 			handleVideoStudioStatus(s, w, r)
+			return
+		}
+		if len(parts) == 3 && parts[0] == "luts" && parts[1] == "builtin" {
+			handleVideoStudioBuiltinLUT(s, w, r, parts[2])
 			return
 		}
 		if len(parts) == 1 && parts[0] == "projects" {
@@ -724,6 +729,17 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	if sourceCloser != nil {
 		defer sourceCloser.Close()
 	}
+	// A .cube file becomes a LUT asset (index §4.20). It is read into memory (at most MaxLUTBytes+1 bytes) and parsed
+	// before anything is written, and the probe job parses the stored copy again. A Desktop source_path has passed
+	// OpenPreviewFile's path and access checks, and its stat size is checked before reading.
+	isLUT := videostudio.IsLUTFileName(safeVideoStudioFilename(name))
+	if isLUT {
+		data, ok := readVideoStudioLUTUpload(w, source, expectedSize)
+		if !ok {
+			return
+		}
+		source, expectedSize = bytes.NewReader(data), int64(len(data))
+	}
 	if expectedSize > maxAsset {
 		writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "asset_size_limit", "Media file exceeds the configured asset limit.")
 		return
@@ -741,6 +757,10 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	}
 	if len(manager.mediaForProject(projectID)) >= videostudio.MaxAssetsPerProject {
 		writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "asset_count_limit", "Project already contains the maximum number of media assets.")
+		return
+	}
+	if isLUT && videoStudioLUTCount(manager.mediaForProject(projectID)) >= videostudio.MaxLUTAssetsPerProject {
+		writeVideoStudioError(w, http.StatusConflict, "lut_count_limit", "Project already contains the maximum number of LUTs.")
 		return
 	}
 	remaining := int64(cfg.VideoStudio.MaxProjectSizeMB)<<20 - used

@@ -161,7 +161,8 @@ func writeVideoStudioMediaDeleteError(w http.ResponseWriter, r *http.Request, er
 	writeVideoStudioError(w, http.StatusInternalServerError, "media_delete_failed", message)
 }
 
-// videoStudioProjectUsesAsset reports whether the project document lists the asset or places a clip of it.
+// videoStudioProjectUsesAsset reports whether the project document lists the asset, places a clip of it, or has a
+// lut effect that references it (on or off).
 func videoStudioProjectUsesAsset(project videostudio.Project, assetID string) bool {
 	for _, asset := range project.Assets {
 		if asset.ID == assetID {
@@ -175,7 +176,9 @@ func videoStudioProjectUsesAsset(project videostudio.Project, assetID string) bo
 			}
 		}
 	}
-	return false
+	all, _ := videoStudioEffectLUTRefs(project)
+	_, referenced := all[assetID]
+	return referenced
 }
 
 // projectHasActiveJobs reports whether a queued or running job of one of the kinds belongs to the project.

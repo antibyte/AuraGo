@@ -78,7 +78,15 @@ func (m *videoStudioManager) processProbe(ctx context.Context, svc *desktop.Serv
 	if err != nil {
 		return nil, nil, err
 	}
-	asset, err := videostudio.Probe(ctx, cfg.VideoStudio.FFmpegPath, staged)
+	// A .cube import was parsed before it was stored. The staged copy is parsed again here, without FFmpeg, and becomes
+	// a lut asset {kind, lut_size, size_bytes} (index §4.20). attachPoster leaves it alone: only video and image have
+	// posters.
+	var asset videostudio.Asset
+	if videostudio.IsLUTFileName(record.Asset.Name) {
+		asset, err = videostudio.InspectLUTFile(staged)
+	} else {
+		asset, err = videostudio.Probe(ctx, cfg.VideoStudio.FFmpegPath, staged)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -476,6 +484,11 @@ func videoStudioRenderLimitError(err error, exportLimit, remainingProject int64)
 	return errVideoStudioExportSizeLimit
 }
 
+// videoStudioRenderAssetIDs lists the media a render reads:
+//   - the assets of enabled clips on visible tracks (audio tracks only when they are not muted and the clip is
+//     audible);
+//   - the LUT assets of on lut effects on enabled clips of visible visual tracks (videoStudioEffectLUTRefs), which
+//     videostudio.collectRenderSources loads.
 func videoStudioRenderAssetIDs(project videostudio.Project) map[string]struct{} {
 	active := make(map[string]struct{})
 	for _, track := range project.Tracks {
@@ -488,6 +501,10 @@ func videoStudioRenderAssetIDs(project videostudio.Project) map[string]struct{} 
 			}
 			active[clip.AssetID] = struct{}{}
 		}
+	}
+	_, rendered := videoStudioEffectLUTRefs(project)
+	for id := range rendered {
+		active[id] = struct{}{}
 	}
 	return active
 }
