@@ -7,7 +7,10 @@ import (
 	"image/color"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -398,12 +401,50 @@ func renderClipRGBA(t *testing.T, ctx context.Context, ffmpeg string, chain clip
 	return data
 }
 
-// The vignette of a still keeps its alpha byte for byte (alphaextract/alphamerge, index §4.10) and still darkens the
-// opaque corners.
+// ffmpegMajor is the major version of the FFmpeg binary, read from the first line of `ffmpeg -version`
+// ("ffmpeg version 8.1.1-full_build…", "ffmpeg version 5.1.9-0+deb12u1…"). It is 0 for a build without a release number
+// (a git build reports "N-<count>-g<hash>").
+func ffmpegMajor(t *testing.T, ffmpeg string) int {
+	t.Helper()
+	out, err := exec.Command(ffmpeg, "-hide_banner", "-version").Output()
+	if err != nil {
+		t.Fatalf("ffmpeg -version: %v", err)
+	}
+	first, _, _ := strings.Cut(string(out), "\n")
+	rest, ok := strings.CutPrefix(first, "ffmpeg version ")
+	if !ok {
+		return 0
+	}
+	digits := rest
+	if i := strings.IndexFunc(rest, func(r rune) bool { return r < '0' || r > '9' }); i >= 0 {
+		digits = rest[:i]
+		if rest[i] != '.' {
+			return 0
+		}
+	}
+	major, err := strconv.Atoi(digits)
+	if err != nil {
+		return 0
+	}
+	return major
+}
+
+// The vignette of a still keeps its alpha (alphaextract/alphamerge, index §4.10) and still darkens the opaque corners.
+//   - FFmpeg 6 and later keep every alpha byte exactly.
+//   - FFmpeg 5.1 (measured on 5.1.9) is allowed to differ by 1: its swscale adds 1 to the alpha values 128..254 in the
+//     rgba to gbrap conversion that clipChain.effects inserts as format=gbrap in front of the stage (255 and 0 stay
+//     exact; 8.1.1 is exact). That affects every gbrap effect on a still (blur, sharpen, lut as well as the vignette) and
+//     cannot be avoided, because cas and gblur take no rgba input. The alpha of videos is not involved.
 func TestRenderVignetteKeepsAlpha(t *testing.T) {
 	ffmpeg := requireFFmpeg(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
+	alphaTolerance := 0
+	major := ffmpegMajor(t, ffmpeg)
+	if major > 0 && major < 6 {
+		alphaTolerance = 1
+	}
+	t.Logf("FFmpeg major version %d, alpha tolerance %d", major, alphaTolerance)
 	path := filepath.Join(t.TempDir(), "logo.png")
 	logo := image.NewNRGBA(image.Rect(0, 0, 160, 96))
 	for y := range 96 {
@@ -427,8 +468,8 @@ func TestRenderVignetteKeepsAlpha(t *testing.T) {
 	plain := renderClipRGBA(t, ctx, ffmpeg, chain(), path)
 	for y := range 96 {
 		for x := range 160 {
-			if got, want := shaded[(y*160+x)*4+3], logo.NRGBAAt(x, y).A; got != want {
-				t.Fatalf("alpha at (%d, %d) = %d after the vignette, want %d", x, y, got, want)
+			if got, want := shaded[(y*160+x)*4+3], logo.NRGBAAt(x, y).A; math.Abs(float64(got)-float64(want)) > float64(alphaTolerance) {
+				t.Fatalf("alpha at (%d, %d) = %d after the vignette, want %d (tolerance %d)", x, y, got, want, alphaTolerance)
 			}
 		}
 	}
