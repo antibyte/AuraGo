@@ -1,0 +1,9 @@
+{
+  "id": "storm-gas-a",
+  "kind": "planet",
+  "file": "exp-planet-storm-gas-a.png",
+  "source": "exec-977a91d8-1868-4fbb-baa6-bc266054d251.png",
+  "tool": "image_gen",
+  "prompt": "Correct the supplied four-frame gas giant animation sheet: REMOVE ALL RINGS completely. This is a ringless dark blue storm gas giant with detailed white and teal cloud bands and a large pale hurricane. Preserve its detailed surface colors and fixed upper-left lighting. Exactly four sequential subtle cloud-animation frames in a 2x2 grid, same planet in all four cells. Make the circular globe only 78 percent of the cell width and height so it has a wide clean transparent margin all around, centered identically in each cell. At least 1024x1024 total, every cell at least 512x512. No extra glow outside the padding. True transparent background, no labels or grids.",
+  "revision": "Corrected silhouette and padding"
+}

@@ -121,7 +121,8 @@ func TestGalaxaEnemyFxWiringMarkers(t *testing.T) {
 	if !strings.Contains(combat, "ctx.fxKillChain") {
 		t.Fatal("registerKill must link rapid kills with fxKillChain")
 	}
-	if !strings.Contains(combat, "ctx.maybeSmolder(e, b)") {
+	rewards := readEmbeddedText(t, "js/desktop/apps/galaxa-entities-rewards.js")
+	if !strings.Contains(combat, "ctx.finishEnemyKill(e, b)") || !strings.Contains(rewards, "ctx.maybeSmolder(e, b)") {
 		t.Fatal("bullet kill path must try the smolder crash dive")
 	}
 	if !strings.Contains(combat, "ctx.fxArmorRicochet") {

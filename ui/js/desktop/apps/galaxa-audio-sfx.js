@@ -311,6 +311,14 @@
             mirrorPing(panX) { if (ctx.G.muted) return; ctx.fm(1650, 2300, 0.055, 0.16 * vv(), panX, 2.5, { reverb: 0.25 }); beep('triangle', 1200, 800, 0.06, 0.12 * vv(), panX); },
             modeSelect() { if (ctx.G.muted) return; beep('square', 660, 990, 0.05, 0.2 * vv(), undefined, { reverb: 0.15 }); ctx.scheduleSfx(() => beep('triangle', 990, 1320, 0.055, 0.18 * vv(), undefined, { reverb: 0.2 }), 58); },
             gauntletWave() { if (ctx.G.muted) return; [523, 659, 784].forEach((f, i) => ctx.scheduleSfx(() => beep('sawtooth', f, f, 0.085, 0.24 * vv(), undefined, { reverb: 0.2 }), i * 68)); },
+            expansionWeapon(type, panX) {
+                if (ctx.G.muted) return;
+                const volume = vv();
+                if (type === 'emp_mine_layer') { beep('sine', 1100, 180, 0.25, 0.17 * volume, panX); noise(0.16, 0.1 * volume, 2400, panX); }
+                else if (type === 'cluster_mine_layer') { noise(0.12, 0.2 * volume, 3200, panX); beep('triangle', 240, 70, 0.12, 0.14 * volume, panX); }
+                else if (type === 'swarm_launcher') beep('square', 480, 1000, 0.09, 0.12 * volume, panX);
+                else if (type === 'seeker_torpedo') beep('sawtooth', 95, 42, 0.25, 0.2 * volume, panX);
+            },
             rocketLaunch(panX) { if (ctx.G.muted) return; beep('sawtooth', 190, 560, 0.11, 0.23 * vv(), panX, { q: 2.0 }); noise(0.08, 0.13 * vv(), 460, panX, { filterType: 'bandpass', q: 1.8 }); },
             rocketHit(panX) { if (ctx.G.muted) return; ctx.fm(135, 48, 0.14, 0.28 * vv(), panX, 2.0); noise(0.16, 0.22 * vv(), 560, panX); },
             mineDrop(panX) { if (ctx.G.muted) return; beep('square', 250, 110, 0.06, 0.16 * vv(), panX); },

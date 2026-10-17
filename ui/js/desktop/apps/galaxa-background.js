@@ -29,9 +29,10 @@
             if (!nebulaCv) { nebulaCv = document.createElement('canvas'); nebulaCv.width = ctx.W; nebulaCv.height = ctx.H; }
             return nebulaCv;
         }
-        function initBG() { ctx.G.bgTheme = GC.getBiomeForStage(ctx.G.stage).id; }
+        function initBG() { ctx.G.bgTheme = ctx.expansionSector(); }
         function mkNebula() { ensureNebulaCanvas(); initBG(); }
         function updateBackground(dt) {
+            ctx.updatePlanets(dt);
             if (ctx.settings.reducedMotion) return;
             const G = ctx.G;
             const warpBoost = (G && (G.fxWarpT > 0 || G.fxHyperTunnelT > 0)) ? 3.2 : 1;

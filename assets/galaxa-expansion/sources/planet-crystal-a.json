@@ -1,0 +1,8 @@
+{
+  "id": "crystal-a",
+  "kind": "planet",
+  "file": "exp-planet-crystal-a.png",
+  "source": "exec-fe706deb-205f-48da-960c-03a76ffae61a.png",
+  "tool": "image_gen",
+  "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: violet turquoise crystal planet with angular crystalline continents, fine luminous mineral faults, deep blue basins and a thin opalescent atmosphere. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+}

@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Απόκρυψη φιλοξενούμενων υπηρεσιών",
   "desktop.infra_action_review_required": "Έλεγξε την κατάσταση της συσκευής πριν από νέα προσπάθεια.",
   "desktop.infra_action_rearm": "Έλεγξα την κατάσταση της συσκευής · επίτρεψε νέα προσπάθεια",
-  "desktop.infra_action_rearmed": "Επιτρέπεται νέα προσπάθεια. Επίλεξε την ενέργεια όταν είσαι έτοιμος."
+  "desktop.infra_action_rearmed": "Επιτρέπεται νέα προσπάθεια. Επίλεξε την ενέργεια όταν είσαι έτοιμος.",
+  "galaxa.emp_mine_layer": "Νάρκη EMP",
+  "galaxa.cluster_mine_layer": "Νάρκη θραυσμάτων",
+  "galaxa.swarm_launcher": "Σμήνος πυραύλων",
+  "galaxa.seeker_torpedo": "Βαριά κατευθυνόμενη τορπίλη",
+  "galaxa.weapon_fire_hint": "Η βολή εκτοξεύει κατευθυνόμενους πυραύλους, σμήνη και τορπίλες.",
+  "galaxa.weapon_mine_hint": "Οι νάρκες τοποθετούνται αυτόματα και οπλίζονται σε 0,45 δευτ.",
+  "galaxa.planet_load_failed": "Η εικόνα του πλανήτη δεν φορτώθηκε. Μπορείς να συνεχίσεις."
 }

@@ -1,0 +1,9 @@
+{
+  "id": "ringed-a",
+  "kind": "planet",
+  "file": "exp-planet-ringed-a.png",
+  "source": "exec-acf17869-9602-4d56-af66-07af19df594d.png",
+  "tool": "image_gen",
+  "prompt": "Correct the supplied four-frame golden ringed planet animation sheet. Preserve the beautiful golden cloud bands and inclined icy rings, but REDUCE the complete ringed planet to only 76 percent of EACH CELL WIDTH, including the ENTIRE rings. All ring tips must be visible with generous transparent margins on every side. Exactly four consecutive subtle cloud-animation frames in a 2x2 grid, same centered planet, scale and lighting in every frame. At least 1024x1024 total, every cell at least 512x512. True transparent background. No new objects, no text, no labels, no grid.",
+  "revision": "Corrected silhouette and padding"
+}

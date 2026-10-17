@@ -1,0 +1,9 @@
+{
+  "id": "desert-b",
+  "kind": "planet",
+  "file": "exp-planet-desert-b.png",
+  "source": "exec-69587ebf-23da-4274-8ad2-1ec2a0928811.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-desert-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is burnt orange desert planet with vast detailed dune seas, rust colored canyons, subtle pale sandstorms and a thin golden atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

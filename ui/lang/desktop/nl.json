@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Gehoste services verbergen",
   "desktop.infra_action_review_required": "Controleer de apparaatstatus voordat je het opnieuw probeert.",
   "desktop.infra_action_rearm": "Ik heb de status gecontroleerd · één nieuwe poging toestaan",
-  "desktop.infra_action_rearmed": "Een nieuwe poging is toegestaan. Kies de actie wanneer je klaar bent."
+  "desktop.infra_action_rearmed": "Een nieuwe poging is toegestaan. Kies de actie wanneer je klaar bent.",
+  "galaxa.emp_mine_layer": "EMP-mijn",
+  "galaxa.cluster_mine_layer": "Splintermijn",
+  "galaxa.swarm_launcher": "Zwermraketten",
+  "galaxa.seeker_torpedo": "Zware doelzoekende torpedo",
+  "galaxa.weapon_fire_hint": "Vuren lanceert doelzoekende raketten, zwermen en torpedo’s.",
+  "galaxa.weapon_mine_hint": "Mijnen worden automatisch gelegd en na 0,45 s geactiveerd.",
+  "galaxa.planet_load_failed": "De planeetafbeelding kon niet laden. Je kunt verder spelen."
 }

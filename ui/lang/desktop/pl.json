@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Ukryj usługi hostowane",
   "desktop.infra_action_review_required": "Przed ponowną próbą sprawdź stan urządzenia.",
   "desktop.infra_action_rearm": "Sprawdziłem stan urządzenia · zezwól na jedną nową próbę",
-  "desktop.infra_action_rearmed": "Nowa próba jest dozwolona. Wybierz działanie, gdy będziesz gotowy."
+  "desktop.infra_action_rearmed": "Nowa próba jest dozwolona. Wybierz działanie, gdy będziesz gotowy.",
+  "galaxa.emp_mine_layer": "Mina EMP",
+  "galaxa.cluster_mine_layer": "Mina odłamkowa",
+  "galaxa.swarm_launcher": "Rój rakiet",
+  "galaxa.seeker_torpedo": "Ciężka torpeda naprowadzana",
+  "galaxa.weapon_fire_hint": "Strzał odpala rakiety naprowadzane, roje i torpedy.",
+  "galaxa.weapon_mine_hint": "Miny są stawiane automatycznie i uzbrajają się po 0,45 s.",
+  "galaxa.planet_load_failed": "Nie udało się wczytać grafiki planety. Możesz grać dalej."
 }

@@ -1,0 +1,8 @@
+{
+  "id": "ice-boulder",
+  "kind": "asteroid",
+  "file": "exp-asteroid-ice-boulder.png",
+  "source": "exec-7847a850-f156-4acd-bf0a-225d75156294.png",
+  "tool": "image_gen",
+  "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: translucent irregular blue ice boulder, frosted jagged ridges and deeply trapped bubbles. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+}

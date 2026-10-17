@@ -1,0 +1,9 @@
+{
+  "id": "ocean-c",
+  "kind": "planet",
+  "file": "exp-planet-ocean-c.png",
+  "source": "exec-cd5ddc3f-726a-4bb7-be79-c9a8d39605b9.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-ocean-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is blue ocean world with volcanic islands, turquoise shallows and delicate white cyclonic cloud systems. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

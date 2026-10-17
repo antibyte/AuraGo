@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "隐藏托管服务",
   "desktop.infra_action_review_required": "再次尝试前请检查设备状态。",
   "desktop.infra_action_rearm": "我已检查设备状态 · 允许再尝试一次",
-  "desktop.infra_action_rearmed": "已允许再次尝试。准备好后选择操作。"
+  "desktop.infra_action_rearmed": "已允许再次尝试。准备好后选择操作。",
+  "galaxa.emp_mine_layer": "电磁脉冲地雷",
+  "galaxa.cluster_mine_layer": "破片地雷",
+  "galaxa.swarm_launcher": "蜂群导弹",
+  "galaxa.seeker_torpedo": "重型制导鱼雷",
+  "galaxa.weapon_fire_hint": "射击可发射制导火箭、蜂群导弹和鱼雷。",
+  "galaxa.weapon_mine_hint": "地雷自动布设，0.45秒后进入待发状态。",
+  "galaxa.planet_load_failed": "无法加载行星图像。你可以继续游戏。"
 }

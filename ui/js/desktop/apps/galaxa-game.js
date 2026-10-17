@@ -20,7 +20,7 @@
             const m = ctx.settings.mode;
             if (ctx.isCampaign()) return GC.getStagePlan(s, m).kind === 'bonus';
             if (m === 'boss_rush') return false;
-            if (m === 'endless' || m === 'hyperdrive') return false;
+            if (m === 'endless' || m === 'hyperdrive' || m === 'gauntlet') return false;
             return s >= 3 && (s - 3) % 4 === 0;
         }
 
@@ -37,7 +37,9 @@
         function resetRun(seed, demo) {
             const G = ctx.G;
             ctx.clearGameSchedule();
+            accumulator = 0; ctx.tick = 0;
             Object.assign(G, { score: 0, displayScore: 0, stage: 1, lives: ctx.diffMod('lives'), killCount: 0,
+                fTmr: 0, fX: 0, stageClearLock: 0, mineDropT: 0,
                 simTime: 0, runGeneration: (G.runGeneration || 0) + 1, demoMode: !!demo,
                 activePU: null, puTimer: 0, puUpgrade: null, shieldHits: 0, startShieldHits: 3,
                 weaponLv: 1, weaponXP: 0, weaponEvo: null, evoChoiceOpen: false,
@@ -50,6 +52,8 @@
                 orbitalShields: null, orbitalShieldTimer: 0, playerMines: [], blackhole: null, gravityBomb: null
             });
             Object.assign(G.p, { dual: false, cap: null, alive: true, reviveTimer: 0 });
+            ctx.resetPlanets();
+            G.asteroids = []; G.asteroidEncounter = false;
             ctx.seedRun(seed); if (ctx.modesOnRunStart) ctx.modesOnRunStart();
         }
 
@@ -166,7 +170,7 @@
             ctx.G.introTmr = 1200;
             ctx.G.stageStartTime = ctx.G.simTime || 0;
             // NEW: Biome progression + reveal cinematic
-            const _biome = ctx.getBiomeForStage ? ctx.getBiomeForStage(ctx.G.stage) : null;
+            const _biome = GC.BIOMES.find(b => b.id === ctx.expansionSector());
             if (_biome) {
                 const prevBiomeId = ctx.G.biome;
                 ctx.G.biome = _biome.id; ctx.G.biomeName = _biome.name;
@@ -175,7 +179,7 @@
                 if (prevBiomeId !== _biome.id && ctx.applyBiomeAmbient) ctx.applyBiomeAmbient(ctx.G.biome);
             }
             // NEW: Bonus sub-stage scheduling (every BONUS_STAGE_EVERY stages, no death penalty)
-            ctx.G.bonusStage = (ctx.G.stage > 1) && (ctx.G.stage % ctx.BONUS_STAGE_EVERY === 0) && !ctx.G.chal && !ctx.isMiniBossStage();
+            ctx.G.bonusStage = ctx.settings.mode !== 'gauntlet' && (ctx.G.stage > 1) && (ctx.G.stage % ctx.BONUS_STAGE_EVERY === 0) && !ctx.G.chal && !ctx.isMiniBossStage();
             if (ctx.G.bonusStage) { ctx.G.bonusStageT = ctx.BONUS_STAGE_DURATION; if (ctx.SFX.bonusStart) ctx.SFX.bonusStart(); }
             ctx.G.bul = []; ctx.G.ebul = []; ctx.G.exp = []; ctx.G.part = []; ctx.G.pendingBooms = []; ctx.G.levelSkipTimer = 0;
             ctx.G.playerMines = []; ctx.G.mineDropT = 0;
@@ -234,21 +238,10 @@
                 ctx.G.archetype = archetypeId;
                 ctx.G.archetypeT = 0;
                 ctx.G.archetypeDur = arch.duration;
-                ctx.G.asteroids = [];
-                // Spawn initial asteroids
-                for (let i = 0; i < 5; i++) {
-                    ctx.G.asteroids.push({
-                        x: ctx.random() * GC.W,
-                        y: ctx.random() * GC.H,
-                        vx: (ctx.random() - 0.5) * 100,
-                        vy: ctx.random() * 80 + 40,
-                        r: 12 + ctx.random() * 8,
-                        col: arch.hue
-                    });
-                }
             } else {
                 ctx.G.archetype = null;
             }
+            ctx.startAsteroids();
         }
 
         function updateExp(dt) {
@@ -429,7 +422,7 @@
             if (ctx.G.st === 'HIGH_SCORE') { ctx.handleName(); return; }
             if (ctx.G.st === 'PLAYING') {
                 ctx.tickGameSchedule(dtMs * ctx.G.timeScale);
-                ctx.updateP(dt, now); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
+                ctx.updateP(dt, now); ctx.updateAsteroids(dt); ctx.updateBul(dt); ctx.updateE(dt); ctx.updateExp(dt);
                 if (ctx.isCampaign() || ctx.settings.mode === 'boss_rush') ctx.updateCampaign(dt * ctx.G.timeScale);
                 if (ctx.updateHazards) ctx.updateHazards(dt);
                 // Super activation check (C / left shoulder / Y button)

@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Gehostete Dienste ausblenden",
   "desktop.infra_action_review_required": "Prüfe den Gerätestatus vor einem erneuten Versuch.",
   "desktop.infra_action_rearm": "Gerätestatus geprüft · einen neuen Versuch erlauben",
-  "desktop.infra_action_rearmed": "Ein neuer Versuch ist freigegeben. Wähle die Aktion, wenn du bereit bist."
+  "desktop.infra_action_rearmed": "Ein neuer Versuch ist freigegeben. Wähle die Aktion, wenn du bereit bist.",
+  "galaxa.emp_mine_layer": "EMP-Mine",
+  "galaxa.cluster_mine_layer": "Splittermine",
+  "galaxa.swarm_launcher": "Schwarmraketen",
+  "galaxa.seeker_torpedo": "Schwerer Suchtorpedo",
+  "galaxa.weapon_fire_hint": "Feuer startet Suchraketen, Schwärme und Torpedos.",
+  "galaxa.weapon_mine_hint": "Minen werden automatisch gelegt und nach 0,45 s scharf.",
+  "galaxa.planet_load_failed": "Die Planetengrafik konnte nicht laden. Du kannst weiterspielen."
 }

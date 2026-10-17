@@ -1,0 +1,9 @@
+{
+  "id": "storm-wasp",
+  "kind": "alien",
+  "file": "exp-alien-storm-wasp.png",
+  "source": "exec-a266ee67-ccd5-4fae-8553-c2ca77ff97ab.png",
+  "tool": "image_gen",
+  "prompt": "Repair ONLY the sprite spacing and clipping in this 16-frame alien animation sheet. Preserve the exact alien design, colors, lighting, row-major frame order and states (8 idle, 6 attack, 2 damage). Arrange the 16 frames in a precise 4x4 equal-cell grid. Reduce every alien to 76 percent of its cell's width AND height so every wing, horn, antenna, glow and spark is fully contained with generous true-transparent padding on ALL sides. No silhouette may touch another cell or the image edge. Fixed centered body anchor and uniform scale in all 16 frames. Preserve the visible animation differences. Transparent RGBA PNG, same overall square output resolution. No labels, no text, no grid, no new background.",
+  "revision": "Uncropped wing tips and transparent cell padding"
+}

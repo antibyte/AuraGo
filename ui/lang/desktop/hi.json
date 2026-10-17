@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "होस्ट की गई सेवाएँ छिपाएँ",
   "desktop.infra_action_review_required": "दोबारा प्रयास करने से पहले डिवाइस की स्थिति जाँचें।",
   "desktop.infra_action_rearm": "मैंने स्थिति जाँच ली · एक नया प्रयास करने दें",
-  "desktop.infra_action_rearmed": "नया प्रयास चालू है। तैयार होने पर कार्रवाई चुनें।"
+  "desktop.infra_action_rearmed": "नया प्रयास चालू है। तैयार होने पर कार्रवाई चुनें।",
+  "galaxa.emp_mine_layer": "ईएमपी बारूदी सुरंग",
+  "galaxa.cluster_mine_layer": "विखंडन बारूदी सुरंग",
+  "galaxa.swarm_launcher": "मिसाइलों का झुंड",
+  "galaxa.seeker_torpedo": "भारी लक्ष्यभेदी टॉरपीडो",
+  "galaxa.weapon_fire_hint": "फायर से लक्ष्यभेदी रॉकेट, मिसाइलों के झुंड और टॉरपीडो चलते हैं।",
+  "galaxa.weapon_mine_hint": "बारूदी सुरंगें अपने आप लगती हैं और 0.45 सेकंड में सक्रिय होती हैं।",
+  "galaxa.planet_load_failed": "ग्रह का चित्र लोड नहीं हुआ। खेल जारी रख सकते हो।"
 }

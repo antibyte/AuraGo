@@ -3,7 +3,7 @@
   "createdFor": "AuraGo Galaxa Deluxe arcade overhaul",
   "tool": "image_gen",
   "artDirection": "Original top-down arcade pixel art; distinct silhouettes, metallic shading, upper-left light, transparent sprite backgrounds. Six coordinated sector scenes.",
-  "production": "Original generated PNG outputs, unchanged pixels. Frame rectangles and source-space anchors curated from alpha bounds in atlas.json; fixed logical pivots and uniform per-animation scale keep silhouettes aligned. Runtime Canvas 2D crops with nearest-neighbor sampling.",
+  "production": "Original image_gen PNG outputs, unchanged pixels. Alpha-derived frame rectangles and source anchors live in atlas.json. Gameplay uses nearest-neighbor sprite crops; optional planet sheets draw directly with smoothed scaling and frame blending.",
   "files": [
     {
       "file": "player-classic.png",
@@ -106,6 +106,516 @@
       "source": "exec-b188381f-1a31-42a7-9dad-5580762a4c42.png",
       "sha256": "8f967cffb841628fe893c48d874c8499edc6d10da064791052f04c8c3b6463be",
       "bytes": 2419383
+    },
+    {
+      "file": "exp-asteroid-crater-boulder.png",
+      "source": "exec-562cfbf0-f284-4cdb-b740-3f03bf3f3283.png",
+      "sha256": "60f57c0c9c2bc8db1d1e42f2f1ad1f9d9f07c4bd2ccd2a998e3629661be47bff",
+      "bytes": 1796442,
+      "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. Asset: CRATER BOULDER asteroid. Exactly 16 animation frames, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, each cell same size, every object centered at the exact cell center. 2048 x 2048 target sheet, genuinely transparent alpha background, no text, labels, grid lines or backdrop. A single distinctive irregular charcoal-brown stone asteroid with deep round craters, chipped ochre edges, granular metallic arcade pixel-art shading, light fixed upper left. Frames show a coherent complete 360-degree tumble with equal rotation increments, matching shape, scale, craters and light across the loop, final frame smoothly precedes first. Each silhouette fits within 70 percent of its cell with generous fully transparent padding on all four sides; no frame touches another. Highly polished readable top-down space shooter artwork, crisp pixel-art clusters rather than blurry painted edges. All sixteen cells contain a complete visible asteroid; no duplicate frames, no added objects."
+    },
+    {
+      "file": "exp-asteroid-basalt-monolith.png",
+      "source": "exec-cde8ba8d-f326-48ed-9f12-c3c7a683239e.png",
+      "sha256": "c54bec8ab29af31b7abd76f9a1e0aaf6655f6e0018d97ba952bb9a45cbb50973",
+      "bytes": 1566164,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: elongated angular dark basalt monolith, layered hexagonal seams and sharp obsidian ridges. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-iron-meteor.png",
+      "source": "exec-7bb856a8-bd08-4a36-b5e8-0119d2054e08.png",
+      "sha256": "ceb7b6fbef83e29513f222b662c62d8d20dbda92fe7c8d16ec0bdbc508a8e034",
+      "bytes": 2194033,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: dense asymmetrical iron meteor, pitted gunmetal plates with rust-orange pockets and silver metallic glints. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-ore-geode.png",
+      "source": "exec-33f0ecf4-2f83-4f86-95ed-9f9462419dab.png",
+      "sha256": "6b3a17fe7d7d400d500b72a4d2c73d557028f85da9b097488dfa37fc9bf15a02",
+      "bytes": 2579233,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: broken rocky geode with an open cavity full of golden copper ore crystals and blue mineral veins. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-ice-boulder.png",
+      "source": "exec-7847a850-f156-4acd-bf0a-225d75156294.png",
+      "sha256": "31e97c1c212391b5e3bd8537d4941568d46eaf331d68cc57ac5153a66ff29161",
+      "bytes": 2970143,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: translucent irregular blue ice boulder, frosted jagged ridges and deeply trapped bubbles. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-frost-comet.png",
+      "source": "exec-48d0e4c6-d9b3-416d-81ea-bd958d10c2a4.png",
+      "sha256": "9cc369df10f108d5c11882daab473f85105dfd650a0242061c1367aa7f74cd98",
+      "bytes": 1759959,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: long tapered frozen comet nucleus with white frost terraces, dark blue fissures and a short icy tuft. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-crystal-cluster.png",
+      "source": "exec-7a0074c2-1b36-407a-8ad1-d391d00a386c.png",
+      "sha256": "bf51895f225b2306406f89ea9b89d5a5e6e98b042723d3b9dc45b9b1c3767bae",
+      "bytes": 1930641,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: asymmetrical cluster of large violet quartz prisms growing from a small rocky core. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-prism-shard.png",
+      "source": "exec-c63f80d9-d9bb-4104-80a7-5c0af8cb3ef6.png",
+      "sha256": "1be1ef41017b38b76949a343bfc9ebdca4bf4aaace1eca1861cfce150d06f895",
+      "bytes": 1754733,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: single broad emerald crystal shard with rainbow facets, triangular hollow and fractured point. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-lava-boulder.png",
+      "source": "exec-8b441307-d9e6-4f91-b8f9-f6dd3076cb78.png",
+      "sha256": "ca3970d4e58bc06185e20f56929e03ef6e185584306b928566604b85875407ea",
+      "bytes": 2319277,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: charcoal volcanic asteroid with bright orange magma fissures and several small molten cavities. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-slag-core.png",
+      "source": "exec-5dfbc62d-09b0-4905-848c-a0ee2461debd.png",
+      "sha256": "f7d3c2dc6a83959cef1c30dccc3093f65affcb00320325301c813b56b79d9293",
+      "bytes": 2688853,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: round porous metallic slag core, glowing red interior through irregular holes, black glass crust. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-wreck-fragment.png",
+      "source": "exec-11987766-27b1-4a96-8c5c-525593a44e9c.png",
+      "sha256": "7e366c84495bfaf6f010a8c26c7a2ca387d9375d3ed07ca0d15f97a16df6cc23",
+      "bytes": 2144707,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: tumbling compact ancient spaceship wreck chunk, torn bronze armor plates, exposed twisted steel ribs and severed cables. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-asteroid-hollow-asteroid.png",
+      "source": "exec-beee6b4d-abfd-4bde-9892-6722b6ea2e93.png",
+      "sha256": "5e8d3cb9060ec7e31ba3e3b92ec1c12efea1d336b31d0adde3731fecddb91a71",
+      "bytes": 2483150,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: unusual porous pale asteroid with one large off-center natural tunnel, purple mineral stains and rugged stone arches. 16 frames in an exact 4 column by 4 row grid, one full 360 degree rotation in equal steps, loop frame 16 smoothly back to frame 1. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-nebula-ray.png",
+      "source": "exec-817136e2-09d2-41c6-ada4-c4b5b7e19997.png",
+      "sha256": "aa2bb165175ef742c966a5971344ba2d9d3303563002e194d0261c5f8895a429",
+      "bytes": 1474273,
+      "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. ALIEN NEBULA RAY: blue-violet manta shaped alien spacecraft, swept organic wings, small amber eyes, metallic chitin and luminous cyan veins. 16 frames in a precise 4x4 grid. First 8 frames are a smooth idle wing-flex loop, next 6 frames charge and release a small forward energy pulse, final 2 frames show localized hit reaction without changing the silhouette. Top-down, nose downward. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+    },
+    {
+      "file": "exp-alien-spore-hunter.png",
+      "source": "exec-be255ad6-4a79-4ac5-a064-1c50f829257e.png",
+      "sha256": "0e353f96c04de6f31f644dc1062c9a750c7bbf6751201518dd3a686266fd2c47",
+      "bytes": 2640201,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: green fungal hunter alien ship, bulbous spore sacs on three hooked legs and a small forward amber eye. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-ore-cracker.png",
+      "source": "exec-0233886b-65b8-40ef-9d09-8504e0554be5.png",
+      "sha256": "efafb1a982c4b64b65df3f76ae6d3769b19a90a7a1b329674b9fad32e5ee9408",
+      "bytes": 2776345,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: orange mining beetle alien bomber with heavy twin crushing mandibles and dark segmented metal shell. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-armor-crab.png",
+      "source": "exec-97c717c2-d2df-4d5c-9514-a2e805dc2696.png",
+      "sha256": "786af4eadafc8e19b4c0ec3a0a259c4509c6d2d304b928f36fbe93381fb7b7b1",
+      "bytes": 2767917,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: stocky dark red armored alien crab ship with broad silver shield claws and cyan inset power cells. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-prism-falcon.png",
+      "source": "exec-8c16f0e1-b3e1-4852-a69a-b581d63c838c.png",
+      "sha256": "3f3c35a7962c60325ce7dc5f2c89e2a8ea6445cb4999fbfeb372107b55ee10bd",
+      "bytes": 2507734,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: elegant turquoise crystalline falcon alien ship with sharply swept prism wings and a long luminous central cannon. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-splinter-polyp.png",
+      "source": "exec-c965ae80-ba2c-4fef-a827-510207f2211b.png",
+      "sha256": "870e40889f28f66a7a250c72235792c2bb29a0e7a83bf58e08054429493f03d5",
+      "bytes": 2870877,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: violet crystal polyp alien with six short radial arms, a faceted central eye and clustered small crystal offspring. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-lightning-jelly.png",
+      "source": "exec-ea9c0814-6603-441c-9823-0f558786ffb2.png",
+      "sha256": "c69926daad82a665cb32a0dd92bd67ae19341dc32da96fa84176389618374fef",
+      "bytes": 2669384,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: electric blue alien jellyfish ship with transparent domed metallic bell and four curved golden conducting tendrils. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-storm-wasp.png",
+      "source": "exec-a266ee67-ccd5-4fae-8553-c2ca77ff97ab.png",
+      "sha256": "0088a2970c23991bb5ff97f2aae3eeda496f694e74cd8362b81503aef0692e60",
+      "bytes": 2212922,
+      "prompt": "Repair ONLY the sprite spacing and clipping in this 16-frame alien animation sheet. Preserve the exact alien design, colors, lighting, row-major frame order and states (8 idle, 6 attack, 2 damage). Arrange the 16 frames in a precise 4x4 equal-cell grid. Reduce every alien to 76 percent of its cell's width AND height so every wing, horn, antenna, glow and spark is fully contained with generous true-transparent padding on ALL sides. No silhouette may touch another cell or the image edge. Fixed centered body anchor and uniform scale in all 16 frames. Preserve the visible animation differences. Transparent RGBA PNG, same overall square output resolution. No labels, no text, no grid, no new background."
+    },
+    {
+      "file": "exp-alien-gravity-spider.png",
+      "source": "exec-c355b18d-19bc-4cab-90e0-6b5ac70e6393.png",
+      "sha256": "d16461f2d549f07305d5c33b449a31d9fb438e1446e123b5e0119163f17f5ec6",
+      "bytes": 2619999,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: dark purple gravitational spider alien ship, eight compact curled legs surrounding a luminous magenta lens core. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-phase-isopod.png",
+      "source": "exec-598aa675-1d2d-4a09-80da-fcf3d35861c7.png",
+      "sha256": "47e444f226a4af4f8fc5c99666b3c3c1623a24d7fe3313113862bcfab9831141",
+      "bytes": 2963113,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: silver-blue segmented isopod alien craft with overlapping crescent plates and bright violet phase nodes. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-alien-void-runner.png",
+      "source": "exec-238f6ed4-c462-41f7-8a65-8db60e7e492b.png",
+      "sha256": "aa83a847fec151409c126b21d7689a06b0c9b149d6c7efa1bb6ae226e12e557b",
+      "bytes": 2431959,
+      "prompt": "Repair ONLY the sprite spacing and clipping in this 16-frame alien animation sheet. Preserve the exact alien design, colors, lighting, row-major frame order and states (8 idle, 6 attack, 2 damage). Arrange the 16 frames in a precise 4x4 equal-cell grid. Reduce every alien to 76 percent of its cell's width AND height so every wing, horn, antenna, glow and spark is fully contained with generous true-transparent padding on ALL sides. No silhouette may touch another cell or the image edge. Fixed centered body anchor and uniform scale in all 16 frames. Preserve the visible animation differences. Transparent RGBA PNG, same overall square output resolution. No labels, no text, no grid, no new background."
+    },
+    {
+      "file": "exp-alien-swarm-carrier.png",
+      "source": "exec-92dcf5a3-a623-4fca-a5f4-22bffb9f3371.png",
+      "sha256": "e0e0fdafaa0c583825395e3eaf85c0f3b8345e52899be4073a8b3f0bdcf6a921",
+      "bytes": 2673354,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: broad dark emerald insectoid carrier ship with three prominent amber brood bays and thick chitin engine pods. 16 frames in an exact 4 column by 4 row grid. Row 1 and row 2: 8 subtle looping idle wing/tentacle/body animation frames. Row 3 and first 2 cells of row 4: 6 attack frames charging then releasing energy, NO projectiles. Last 2 cells: 2 hit flashes without changing silhouette. Enemy faces DOWN toward player in every cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-weapon-proximity-mine.png",
+      "source": "exec-758d2ecd-c89b-4bef-938a-ab9f3a842b10.png",
+      "sha256": "8129d97d6993d788333e80e33a8a8d489c7a433c7d5a75687b92303fb42c65d6",
+      "bytes": 1304665,
+      "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. PROXIMITY MINE: squat bronze six-pronged mechanical space mine, dark metal center, amber sensor eye, small side clasps. 12 frames in a precise 4x3 grid. First 8 frames loop a softly pulsing armed sensor; last 4 frames unfold the clasps and ignite the sensor, showing unarmed to armed. No explosion, no projectiles. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+    },
+    {
+      "file": "exp-weapon-emp-mine.png",
+      "source": "exec-fcdd4e6b-74b0-49f5-87c6-f4649aaa6230.png",
+      "sha256": "f85f354ab4428db5ff76e6ebc67c738c1f93e1e704555045e382667c423f8794",
+      "bytes": 2035557,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: silver blue circular electromagnetic mine with three concentric coil rings and violet central capacitor. 12 frames in an exact 4 column by 3 row grid. First 8 cells are a seamless animated armed-state light/antenna cycle. Last 4 cells show unfolding, opening and lighting the mine from dormant to armed. Fixed body orientation. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-weapon-cluster-mine.png",
+      "source": "exec-fbe4218e-3c61-4a78-a7e2-88ee2c713a16.png",
+      "sha256": "e12f28dc05a1721405bcf9ada7e5ae4cddab78a970f7554f7ee084085f07ca6b",
+      "bytes": 1727572,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: red-orange hexagonal cluster mine with six distinct radial steel shard compartments and a yellow central sensor. 12 frames in an exact 4 column by 3 row grid. First 8 cells are a seamless animated armed-state light/antenna cycle. Last 4 cells show unfolding, opening and lighting the mine from dormant to armed. Fixed body orientation. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-weapon-seeker-rocket.png",
+      "source": "exec-7230f24b-65b5-41c9-8108-8b008ab32543.png",
+      "sha256": "c1900ec093ebd6861ddb3938ae15c7de669b3df7bfd139e85c75087f2668c7ec",
+      "bytes": 965556,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: slim silver homing rocket with amber seeker lens, four short blue fins and orange exhaust, nose points UP. 8 frames in an exact 4 column by 2 row grid, a seamless animated engine and running-light flight cycle. Nose pointing strictly UP in every cell, fixed centered body, small exhaust contained within cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-weapon-swarm-rocket.png",
+      "source": "exec-fdae8b7e-85ff-4729-a9af-e2f56767fcd2.png",
+      "sha256": "3ad4ed8b6ac720ee0e2e6e823018db63b13fcec89a3782e237ff97959e33646e",
+      "bytes": 1208575,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: compact lime green micro seeker rocket with split tail fins, twin orange exhaust nozzles and tiny cyan sensor, nose points UP. 8 frames in an exact 4 column by 2 row grid, a seamless animated engine and running-light flight cycle. Nose pointing strictly UP in every cell, fixed centered body, small exhaust contained within cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-weapon-seeker-torpedo.png",
+      "source": "exec-e6be67f9-946d-407d-b4dc-ec8e62942b23.png",
+      "sha256": "f47ef34e4b114e502a1295d371c3f7d20863028e09ced24af80306703fc8ac53",
+      "bytes": 1210528,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: heavy broad dark blue seeker torpedo with armored gold nose, three rugged fins and brilliant teal engine, nose points UP. 8 frames in an exact 4 column by 2 row grid, a seamless animated engine and running-light flight cycle. Nose pointing strictly UP in every cell, fixed centered body, small exhaust contained within cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-planet-ocean-a.png",
+      "source": "exec-aa9d062c-7ada-43b9-9355-034c7b8ac887.png",
+      "sha256": "33b671d04a643fa5366bee9662174d6eca8245a5547b27a535d8679f1dc47787",
+      "bytes": 2384629,
+      "prompt": "Recreate the OCEAN PLANET from this reference as the FIRST FOUR keyframes of a 12-frame slow cloud animation. Production transparent PNG sprite sheet, exactly 2 columns by 2 rows, FOUR planets total, no tiny additional frames. All four cells equal, planets at exact cell centers and identical scale, generous fully transparent 12% gutters. Keep the identical volcanic islands, turquoise shallows, blue oceans, fixed upper-left light and right terminator. Very fine realistic cloud and coast detail, delicate thin cyan atmospheric rim. Only clouds and glints advance subtly across frames 1,2,3,4 of a seamless twelve-frame loop. Make every frame at least 512x512 pixels, use the largest square output. No text, grid, stars, background, extra moons or rings. The reference identifies the planet; output must show ONLY FOUR large frames."
+    },
+    {
+      "file": "exp-planet-ocean-b.png",
+      "source": "exec-bb9af90d-3024-4ae8-84c2-6f86bc2a5f88.png",
+      "sha256": "5231bbea26c58f950244abc45fdecd7542fe0a78fad8430de4fd586982c21ec4",
+      "bytes": 2398118,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is blue ocean world with volcanic islands, turquoise shallows and delicate white cyclonic cloud systems. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-ocean-a.png"
+    },
+    {
+      "file": "exp-planet-ocean-c.png",
+      "source": "exec-cd5ddc3f-726a-4bb7-be79-c9a8d39605b9.png",
+      "sha256": "325a652e2ab08d0e85716a87905545f748bd3f7bd883783a52386b202d91d5b1",
+      "bytes": 2296647,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is blue ocean world with volcanic islands, turquoise shallows and delicate white cyclonic cloud systems. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-ocean-a.png"
+    },
+    {
+      "file": "exp-planet-terran-a.png",
+      "source": "exec-f036ba3d-7e9a-413c-856f-5f751860a7a3.png",
+      "sha256": "67c822da03449512652ce88bb20c06a282de7e048a648deed5ea0d6843a9034a",
+      "bytes": 2570361,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: lush terran world with emerald continents, detailed mountain ranges, deep blue seas, white clouds and tiny warm city lights on its night edge. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-terran-b.png",
+      "source": "exec-05fe3788-6c92-4634-b22f-646ba7202052.png",
+      "sha256": "933eb569d26cebaf9a486077eef6a350d2ca74ba04b8886dc1c90dd3b4024e0a",
+      "bytes": 2307337,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is lush terran world with emerald continents, detailed mountain ranges, deep blue seas, white clouds and tiny warm city lights on its night edge. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-terran-a.png"
+    },
+    {
+      "file": "exp-planet-terran-c.png",
+      "source": "exec-5c31027c-0da7-40c3-a869-5605645859ec.png",
+      "sha256": "51179eb3fbfee5889b77d077d722e175f486b8d65e70a1eddc7dbf2f8c9d6d1d",
+      "bytes": 2351667,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is lush terran world with emerald continents, detailed mountain ranges, deep blue seas, white clouds and tiny warm city lights on its night edge. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-terran-a.png"
+    },
+    {
+      "file": "exp-planet-desert-a.png",
+      "source": "exec-22c79b4a-09a8-4833-a1ff-8304110bca39.png",
+      "sha256": "f88b15c336948d9049c820611c13b7c1df5967a5771b98745705679f440b8b29",
+      "bytes": 2309261,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: burnt orange desert planet with vast detailed dune seas, rust colored canyons, subtle pale sandstorms and a thin golden atmosphere. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-desert-b.png",
+      "source": "exec-69587ebf-23da-4274-8ad2-1ec2a0928811.png",
+      "sha256": "71b43130c125ae9fc563ba4f565258906109823253236c798a3e30b03a0712e4",
+      "bytes": 2097136,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is burnt orange desert planet with vast detailed dune seas, rust colored canyons, subtle pale sandstorms and a thin golden atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-desert-a.png"
+    },
+    {
+      "file": "exp-planet-desert-c.png",
+      "source": "exec-796aef2a-58c5-4a35-bc04-4203b5303c62.png",
+      "sha256": "29b8b2119cb720c26890bb9d5e821288171aa26027c1135a78a98fae5e69dad6",
+      "bytes": 2121984,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is burnt orange desert planet with vast detailed dune seas, rust colored canyons, subtle pale sandstorms and a thin golden atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-desert-a.png"
+    },
+    {
+      "file": "exp-planet-crater-a.png",
+      "source": "exec-94758a00-6d32-43d8-9d53-2d6c0f8a9357.png",
+      "sha256": "86ff9057d6c734e2bd9850261cc1d5766915ee7c7ac559c2b15ab25d07f5affd",
+      "bytes": 2689732,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: ancient grey-brown cratered moonlike planet with overlapping impact basins, bright ejecta rays and faint silver dust haze. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-crater-b.png",
+      "source": "exec-7cc45e93-c525-425e-a9cb-7543c776162a.png",
+      "sha256": "0cee01feacc312d0bda358bf4ff3b0910a59419717e1011da39a39a1385cb2c9",
+      "bytes": 2421013,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is ancient grey-brown cratered moonlike planet with overlapping impact basins, bright ejecta rays and faint silver dust haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-crater-a.png"
+    },
+    {
+      "file": "exp-planet-crater-c.png",
+      "source": "exec-c3f60c69-43b4-41e7-8f99-8d8dda9b44f7.png",
+      "sha256": "4ed62ef7e25933769fd19087fb37697df8fdfc93c637b273a79b62d506b8c7e9",
+      "bytes": 2446219,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is ancient grey-brown cratered moonlike planet with overlapping impact basins, bright ejecta rays and faint silver dust haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-crater-a.png"
+    },
+    {
+      "file": "exp-planet-ice-a.png",
+      "source": "exec-2ffb4124-9c7a-4365-b181-b3d2d8792e1c.png",
+      "sha256": "852a2eb3b41c7d98e5858a02a28dbacddba045c1e14f614ea26d5b29f5dc726d",
+      "bytes": 2781532,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: pale cyan ice planet with intricate glacier fractures, white polar caps, dark cobalt crevasses and delicate auroral glow. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-ice-b.png",
+      "source": "exec-7a4ac35d-af57-4ad6-9bfe-83915360ef65.png",
+      "sha256": "448be2cd5c159beffd74f7c10c49f98ffe5c53ef6a4f740cbf87c34d6b8b6c4f",
+      "bytes": 2591413,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is pale cyan ice planet with intricate glacier fractures, white polar caps, dark cobalt crevasses and delicate auroral glow. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-ice-a.png"
+    },
+    {
+      "file": "exp-planet-ice-c.png",
+      "source": "exec-24962177-5847-4170-bc5d-7df660c3256d.png",
+      "sha256": "0d667c787037025b9531fab551e0a5ab9887733d84b2ffb1b1d27eefad3353e4",
+      "bytes": 2678297,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is pale cyan ice planet with intricate glacier fractures, white polar caps, dark cobalt crevasses and delicate auroral glow. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-ice-a.png"
+    },
+    {
+      "file": "exp-planet-crystal-a.png",
+      "source": "exec-fe706deb-205f-48da-960c-03a76ffae61a.png",
+      "sha256": "1075a12fa3354c698e5be4f6fce10bc2f9d43881d760b3aefff85d4bc3bd8c79",
+      "bytes": 2736661,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: violet turquoise crystal planet with angular crystalline continents, fine luminous mineral faults, deep blue basins and a thin opalescent atmosphere. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-crystal-b.png",
+      "source": "exec-5b8da7ef-e832-41a9-ad41-8ffa2d9c42bd.png",
+      "sha256": "1ca85de89f626e23e8d164dd927e3078c93cf17e55d94e3dd8ad63e6b8b314f8",
+      "bytes": 2596653,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is violet turquoise crystal planet with angular crystalline continents, fine luminous mineral faults, deep blue basins and a thin opalescent atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-crystal-a.png"
+    },
+    {
+      "file": "exp-planet-crystal-c.png",
+      "source": "exec-3c84c3e6-055c-4f93-8234-cb5259ee3a76.png",
+      "sha256": "98dca1ce8fb2552ec397febb5ad666f0c75f734605df9d03aa5ca85741666834",
+      "bytes": 2736116,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is violet turquoise crystal planet with angular crystalline continents, fine luminous mineral faults, deep blue basins and a thin opalescent atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-crystal-a.png"
+    },
+    {
+      "file": "exp-planet-storm-gas-a.png",
+      "source": "exec-977a91d8-1868-4fbb-baa6-bc266054d251.png",
+      "sha256": "ec82a9ee323346a3aee16991ad24a49b5d4abb81348619b280eebda6357488bb",
+      "bytes": 1730846,
+      "prompt": "Correct the supplied four-frame gas giant animation sheet: REMOVE ALL RINGS completely. This is a ringless dark blue storm gas giant with detailed white and teal cloud bands and a large pale hurricane. Preserve its detailed surface colors and fixed upper-left lighting. Exactly four sequential subtle cloud-animation frames in a 2x2 grid, same planet in all four cells. Make the circular globe only 78 percent of the cell width and height so it has a wide clean transparent margin all around, centered identically in each cell. At least 1024x1024 total, every cell at least 512x512. No extra glow outside the padding. True transparent background, no labels or grids."
+    },
+    {
+      "file": "exp-planet-storm-gas-b.png",
+      "source": "exec-595a5b7b-cfa6-449e-8752-7955e3bd70bf.png",
+      "sha256": "f621c95edf51ceb4f84e724e9cadeafc981486f9dd153b49575108c435120917",
+      "bytes": 1624557,
+      "prompt": "Continue the supplied ringless blue storm gas giant animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet without any rings inside its own cell, with a fully transparent margin. Create frames 5-8 of the twelve-frame subtle cloud cycle, gently advancing only the fine clouds and storm wisps. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects.",
+      "reference": "exp-planet-storm-gas-a.png"
+    },
+    {
+      "file": "exp-planet-storm-gas-c.png",
+      "source": "exec-ef62dff6-9de7-4b4a-a357-ef7366301aa1.png",
+      "sha256": "3c4eaba39827c7020ed2a858a285e74cea49a3036a165f21215c7baa9c9a2b82",
+      "bytes": 1772601,
+      "prompt": "Continue the supplied ringless blue storm gas giant animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet without any rings inside its own cell, with a fully transparent margin. Create frames 9-12 of the twelve-frame subtle cloud cycle, gently returning the fine clouds and storm wisps to their starting positions; last frame almost matches the first reference frame. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects.",
+      "reference": "exp-planet-storm-gas-a.png"
+    },
+    {
+      "file": "exp-planet-ringed-a.png",
+      "source": "exec-acf17869-9602-4d56-af66-07af19df594d.png",
+      "sha256": "d0142b27cc57f344d6fe3079e906487742573aefef5dfcaf271c5a02e7517e71",
+      "bytes": 1410538,
+      "prompt": "Correct the supplied four-frame golden ringed planet animation sheet. Preserve the beautiful golden cloud bands and inclined icy rings, but REDUCE the complete ringed planet to only 76 percent of EACH CELL WIDTH, including the ENTIRE rings. All ring tips must be visible with generous transparent margins on every side. Exactly four consecutive subtle cloud-animation frames in a 2x2 grid, same centered planet, scale and lighting in every frame. At least 1024x1024 total, every cell at least 512x512. True transparent background. No new objects, no text, no labels, no grid."
+    },
+    {
+      "file": "exp-planet-ringed-b.png",
+      "source": "exec-d8816340-e9ed-4adb-9035-33d4e62844c0.png",
+      "sha256": "a2d05bd48efd2575268a9782a9898bff8e34bcd4c26102529d0fb70e1bf8dc77",
+      "bytes": 1372063,
+      "prompt": "Continue the supplied golden planet with full icy rings animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet and all ring tips inside its own cell, with a fully transparent margin. Create frames 5-8 of the twelve-frame subtle cloud cycle, gently advancing only the fine clouds and storm wisps. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects.",
+      "reference": "exp-planet-ringed-a.png"
+    },
+    {
+      "file": "exp-planet-ringed-c.png",
+      "source": "exec-c0faa4c3-faf8-4552-81ad-3b3d4775673b.png",
+      "sha256": "458a369a70e78f707ee65b4c8bc19a41366f5280e634f59090e6f11f444165fd",
+      "bytes": 1332962,
+      "prompt": "Continue the supplied golden planet with full icy rings animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet and all ring tips inside its own cell, with a fully transparent margin. Create frames 9-12 of the twelve-frame subtle cloud cycle, gently returning the fine clouds and storm wisps to their starting positions; last frame almost matches the first reference frame. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects.",
+      "reference": "exp-planet-ringed-a.png"
+    },
+    {
+      "file": "exp-planet-lava-a.png",
+      "source": "exec-da88a1e5-3435-48b8-b40e-7ddfbd4b22ed.png",
+      "sha256": "a37c9b7132ac3ba5738f7169d1e180e4b3f29b607d77f6bfc318240748a626fc",
+      "bytes": 2421780,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: dark volcanic planet with intricate incandescent orange lava rivers, fractured black plates, small red lava lakes and very subtle sulphur haze. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-lava-b.png",
+      "source": "exec-e39aadc4-1238-462a-b132-2b49bb3a3e5f.png",
+      "sha256": "63183107627bef6c05facddfc1e19b01257e67e8e51aff060980387bf1939e84",
+      "bytes": 2223157,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is dark volcanic planet with intricate incandescent orange lava rivers, fractured black plates, small red lava lakes and very subtle sulphur haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-lava-a.png"
+    },
+    {
+      "file": "exp-planet-lava-c.png",
+      "source": "exec-2a3bac63-79cf-40eb-9450-5ce8fbcb00c4.png",
+      "sha256": "6aa955294817031bdd71f4bf9b4e6e7fe9514ed3fa3135f2e68b134ae13143d7",
+      "bytes": 2219869,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is dark volcanic planet with intricate incandescent orange lava rivers, fractured black plates, small red lava lakes and very subtle sulphur haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-lava-a.png"
+    },
+    {
+      "file": "exp-planet-night-a.png",
+      "source": "exec-492cfe68-a693-4947-b983-844ae42f309b.png",
+      "sha256": "3482f523a1a03acd777e39f8da02114f4b9915996c1344baf05da10824b0284c",
+      "bytes": 2714016,
+      "prompt": "Create ONE transparent RGBA PNG animation sheet for a very detailed distant planet in Galaxa Deluxe: mysterious dark indigo alien night planet with intricate turquoise bioluminescent river networks, violet fungal continents, dim blue clouds and a thin lilac atmosphere. EXACTLY FOUR images in a precise 2 by 2 square grid. Each equal square cell must have a native resolution of AT LEAST 512x512 pixels, so produce at least 1024x1024 pixels total. Full planet at exactly the same size and fixed center in all four cells, filling about 82 percent of each cell, entire atmosphere and ALL rings contained with clear transparent padding. Same continents, craters, lighting and silhouette in every frame. These are frames 1 through 4 of a 12-frame very subtle atmosphere animation; tiny coherent movement of cloud wisps, storm swirls or glow only. Upper-left soft cool light, shadow at lower right. Rich highly detailed planetary textures with visible fine geography, cloud bands and atmospheric depth; beautiful realistic space illustration, NOT chunky pixel art. Transparent space, no stars, nebula, backdrop, labels, numbers, grids or additional moons. Four near-identical consecutive animation frames, not four design variations."
+    },
+    {
+      "file": "exp-planet-night-b.png",
+      "source": "exec-3b771fda-7d2f-45db-b960-be630db528d6.png",
+      "sha256": "ea920134dbbddc1516d373d09beff6dbce22f92a0988651d938be083781703f6",
+      "bytes": 2517760,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is mysterious dark indigo alien night planet with intricate turquoise bioluminescent river networks, violet fungal continents, dim blue clouds and a thin lilac atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-night-a.png"
+    },
+    {
+      "file": "exp-planet-night-c.png",
+      "source": "exec-0d804dea-9c59-4c7f-8bf4-85d5c45ae2d1.png",
+      "sha256": "e5e232cbbb7f3982c3af33c01f7db5f72079fc67d5fb2bb0ef6422c99d030240",
+      "bytes": 2633953,
+      "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is mysterious dark indigo alien night planet with intricate turquoise bioluminescent river networks, violet fungal continents, dim blue clouds and a thin lilac atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface.",
+      "reference": "exp-planet-night-a.png"
+    },
+    {
+      "file": "exp-effect-rock-shatter.png",
+      "source": "exec-3303ca2b-8835-44e1-9b07-9610030c1b3b.png",
+      "sha256": "784174f8f20b1bae02a00939b1e10e580aa6845329ae198aae39946c5c82ca53",
+      "bytes": 1660650,
+      "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. ROCK SHATTER EFFECT: a single brown-grey stone asteroid bursting into jagged rock fragments and fine dust. Exactly 12 frames in a precise 4x3 grid, progressing from a tight fractured center to expanding debris to near-transparent fading dust. Consistent center and scale; every fragment remains within its cell. Warm upper-left highlights, crisp detailed arcade pixel art, no fixed backdrop or planet. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+    },
+    {
+      "file": "exp-effect-metal-sparks.png",
+      "source": "exec-e9329f52-70b9-45b3-8e70-87f62d42c8d2.png",
+      "sha256": "cebc2646e1603fd9185421ff09bbee1a28f618c2bd76a252d65d9f7e7cb0c981",
+      "bytes": 2030410,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: burst of sharp golden metal sparks with several twisting silver metal shards. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-ice-shatter.png",
+      "source": "exec-8229b574-92af-4beb-ab33-1094dac2b16d.png",
+      "sha256": "cdca0680f4764b177e7bd9590b0bab4af95b86f21e73f0ea0ae9ce9d2e0110b6",
+      "bytes": 1936440,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: burst of translucent cyan ice shards, bright frozen chips and pale blue frost mist. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-crystal-shatter.png",
+      "source": "exec-0742348f-b5b3-44e8-9fdf-266851df247b.png",
+      "sha256": "77c12daeb6a46d6d63fdaec77a85a53945b7ad025c9b4817340a32acae2f9fbb",
+      "bytes": 1898597,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: burst of violet and turquoise prism fragments with delicate rainbow sparkles. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-lava-ejecta.png",
+      "source": "exec-a8500230-37f9-4c79-bd7b-51a2286b4a8c.png",
+      "sha256": "5ba88de53a261baf85ae8669af270becd74b1a539eb636b69c964e4b72d0d6b1",
+      "bytes": 1633559,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: small explosive burst of glowing orange lava droplets, dark stone shards and fading red embers. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-alien-plasma.png",
+      "source": "exec-519d839f-cbca-4d5f-8a21-f22b69da6d21.png",
+      "sha256": "48389719c433d3927a4f08bc812d089e6054d8655c652832a6ba74b0990c08ae",
+      "bytes": 2282312,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: organic alien explosion, bright cyan plasma core expanding into curling violet energy petals and tiny golden embers. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-target-lock.png",
+      "source": "exec-76bab94f-2c6d-429e-b9a9-f2b466cf52fb.png",
+      "sha256": "64c13ab356238bf63d781071b3f44acb191f20459c26dad02ad442a6d6436b42",
+      "bytes": 1449377,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: clean cyan targeting reticle made of four separate curved brackets and four small ticks, tightening then gently pulsing, no lettering or numbers. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-rocket-exhaust.png",
+      "source": "exec-706d3552-b5b8-4e2f-ba3e-572a0493bff0.png",
+      "sha256": "6fa6a7b33e6d46fb4341fb4417280e8d45ffc5101a4bf697e171021f81081af2",
+      "bytes": 1099426,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: short orange and yellow rocket engine exhaust plume pointing DOWN, fading into soft amber sparks, fixed nozzle origin at cell center. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-emp-wave.png",
+      "source": "exec-d7b11b2f-a36f-4af2-8462-3ebc4f87240b.png",
+      "sha256": "773bb706f757c13479ac201db3dd469ea35e35a0c8c745d7616db8faae57cd2d",
+      "bytes": 1656850,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: thin luminous blue electromagnetic ring expanding from a compact violet core, with small branching cyan electrical arcs, fading outward. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+    },
+    {
+      "file": "exp-effect-torpedo-shock.png",
+      "source": "exec-bb92fd16-e49e-417e-9591-9d1305e41f93.png",
+      "sha256": "c717996f69e21e2aeb6d8194a6a141482a1314d6b844111b4376cb8e7b473ff8",
+      "bytes": 2584639,
+      "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: powerful golden torpedo detonation expanding into a broad thin amber shock ring with teal center and tiny metal sparks. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
     }
   ]
 }

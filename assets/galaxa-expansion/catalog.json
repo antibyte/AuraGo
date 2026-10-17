@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "motifs": [
+    {
+      "id": "crater-boulder",
+      "kind": "asteroid",
+      "name": "Kraterbrocken",
+      "subject": "irregular charcoal-brown stone asteroid with deep round craters, chipped ochre edges",
+      "pilot": "crater",
+      "effect": "rock-shatter"
+    },
+    {
+      "id": "basalt-monolith",
+      "kind": "asteroid",
+      "name": "Basaltmonolith",
+      "subject": "elongated angular dark basalt monolith, layered hexagonal seams and sharp obsidian ridges",
+      "effect": "rock-shatter"
+    },
+    {
+      "id": "iron-meteor",
+      "kind": "asteroid",
+      "name": "Eisenmeteorit",
+      "subject": "dense asymmetrical iron meteor, pitted gunmetal plates with rust-orange pockets and silver metallic glints",
+      "effect": "metal-sparks"
+    },
+    {
+      "id": "ore-geode",
+      "kind": "asteroid",
+      "name": "Erzdruse",
+      "subject": "broken rocky geode with an open cavity full of golden copper ore crystals and blue mineral veins",
+      "effect": "metal-sparks"
+    },
+    {
+      "id": "ice-boulder",
+      "kind": "asteroid",
+      "name": "Eisbrocken",
+      "subject": "translucent irregular blue ice boulder, frosted jagged ridges and deeply trapped bubbles",
+      "effect": "ice-shatter"
+    },
+    {
+      "id": "frost-comet",
+      "kind": "asteroid",
+      "name": "Frostkomet",
+      "subject": "long tapered frozen comet nucleus with white frost terraces, dark blue fissures and a short icy tuft",
+      "effect": "ice-shatter"
+    },
+    {
+      "id": "crystal-cluster",
+      "kind": "asteroid",
+      "name": "Kristallcluster",
+      "subject": "asymmetrical cluster of large violet quartz prisms growing from a small rocky core",
+      "effect": "crystal-shatter"
+    },
+    {
+      "id": "prism-shard",
+      "kind": "asteroid",
+      "name": "Prismasplitter",
+      "subject": "single broad emerald crystal shard with rainbow facets, triangular hollow and fractured point",
+      "effect": "crystal-shatter"
+    },
+    {
+      "id": "lava-boulder",
+      "kind": "asteroid",
+      "name": "Lavabrocken",
+      "subject": "charcoal volcanic asteroid with bright orange magma fissures and several small molten cavities",
+      "effect": "lava-ejecta"
+    },
+    {
+      "id": "slag-core",
+      "kind": "asteroid",
+      "name": "Schlackenkern",
+      "subject": "round porous metallic slag core, glowing red interior through irregular holes, black glass crust",
+      "effect": "lava-ejecta"
+    },
+    {
+      "id": "wreck-fragment",
+      "kind": "asteroid",
+      "name": "Wrackfragment",
+      "subject": "tumbling compact ancient spaceship wreck chunk, torn bronze armor plates, exposed twisted steel ribs and severed cables",
+      "effect": "metal-sparks"
+    },
+    {
+      "id": "hollow-asteroid",
+      "kind": "asteroid",
+      "name": "Hohlasteroid",
+      "subject": "unusual porous pale asteroid with one large off-center natural tunnel, purple mineral stains and rugged stone arches",
+      "effect": "rock-shatter"
+    },
+    {
+      "id": "nebula-ray",
+      "kind": "alien",
+      "name": "Nebelrochen",
+      "subject": "blue-violet manta shaped alien spacecraft, swept organic wings, amber eyes and luminous cyan veins",
+      "pilot": "nebula-ray",
+      "biome": "nebula",
+      "role": "butterfly"
+    },
+    {
+      "id": "spore-hunter",
+      "kind": "alien",
+      "name": "Sporenjäger",
+      "subject": "green fungal hunter alien ship, bulbous spore sacs on three hooked legs and a small forward amber eye",
+      "biome": "nebula",
+      "role": "stalker"
+    },
+    {
+      "id": "ore-cracker",
+      "kind": "alien",
+      "name": "Erzknacker",
+      "subject": "orange mining beetle alien bomber with heavy twin crushing mandibles and dark segmented metal shell",
+      "biome": "asteroid",
+      "role": "bomber"
+    },
+    {
+      "id": "armor-crab",
+      "kind": "alien",
+      "name": "Panzerkrabbe",
+      "subject": "stocky dark red armored alien crab ship with broad silver shield claws and cyan inset power cells",
+      "biome": "asteroid",
+      "role": "shield_bee"
+    },
+    {
+      "id": "prism-falcon",
+      "kind": "alien",
+      "name": "Prismafalke",
+      "subject": "elegant turquoise crystalline falcon alien ship with sharply swept prism wings and a long luminous central cannon",
+      "biome": "crystal",
+      "role": "sniper"
+    },
+    {
+      "id": "splinter-polyp",
+      "kind": "alien",
+      "name": "Splitterpolyp",
+      "subject": "violet crystal polyp alien with six short radial arms, a faceted central eye and clustered small crystal offspring",
+      "biome": "crystal",
+      "role": "splitter"
+    },
+    {
+      "id": "lightning-jelly",
+      "kind": "alien",
+      "name": "Blitzqualle",
+      "subject": "electric blue alien jellyfish ship with transparent domed metallic bell and four curved golden conducting tendrils",
+      "biome": "storm",
+      "role": "spinner"
+    },
+    {
+      "id": "storm-wasp",
+      "kind": "alien",
+      "name": "Sturmwespe",
+      "subject": "aggressive narrow yellow-black alien wasp ship with four swept blade wings, tapered abdomen and violet engine nodes",
+      "biome": "storm",
+      "role": "hunter"
+    },
+    {
+      "id": "gravity-spider",
+      "kind": "alien",
+      "name": "Gravitationsspinne",
+      "subject": "dark purple gravitational spider alien ship, eight compact curled legs surrounding a luminous magenta lens core",
+      "biome": "blackhole",
+      "role": "weaver"
+    },
+    {
+      "id": "phase-isopod",
+      "kind": "alien",
+      "name": "Phasenassel",
+      "subject": "silver-blue segmented isopod alien craft with overlapping crescent plates and bright violet phase nodes",
+      "biome": "blackhole",
+      "role": "teleporter"
+    },
+    {
+      "id": "void-runner",
+      "kind": "alien",
+      "name": "Leerenläufer",
+      "subject": "sharp black and scarlet alien spear craft, two forward hooked arms, an open glowing red core and small jagged fins",
+      "biome": "void",
+      "role": "kamikaze"
+    },
+    {
+      "id": "swarm-carrier",
+      "kind": "alien",
+      "name": "Schwarmträger",
+      "subject": "broad dark emerald insectoid carrier ship with three prominent amber brood bays and thick chitin engine pods",
+      "biome": "void",
+      "role": "carrier"
+    },
+    {
+      "id": "proximity-mine",
+      "kind": "weapon",
+      "name": "Nähemine",
+      "subject": "squat bronze six-pronged mechanical space mine with amber sensor eye",
+      "pilot": "proximity-mine",
+      "powerup": "mine_layer"
+    },
+    {
+      "id": "emp-mine",
+      "kind": "weapon",
+      "name": "EMP-Mine",
+      "subject": "silver blue circular electromagnetic mine with three concentric coil rings and violet central capacitor",
+      "powerup": "emp_mine_layer"
+    },
+    {
+      "id": "cluster-mine",
+      "kind": "weapon",
+      "name": "Splittermine",
+      "subject": "red-orange hexagonal cluster mine with six distinct radial steel shard compartments and a yellow central sensor",
+      "powerup": "cluster_mine_layer"
+    },
+    {
+      "id": "seeker-rocket",
+      "kind": "weapon",
+      "name": "Suchrakete",
+      "subject": "slim silver homing rocket with amber seeker lens, four short blue fins and orange exhaust, nose points UP",
+      "powerup": "rocket_launcher"
+    },
+    {
+      "id": "swarm-rocket",
+      "kind": "weapon",
+      "name": "Schwarmrakete",
+      "subject": "compact lime green micro seeker rocket with split tail fins, twin orange exhaust nozzles and tiny cyan sensor, nose points UP",
+      "powerup": "swarm_launcher"
+    },
+    {
+      "id": "seeker-torpedo",
+      "kind": "weapon",
+      "name": "Schwerer Suchtorpedo",
+      "subject": "heavy broad dark blue seeker torpedo with armored gold nose, three rugged fins and brilliant teal engine, nose points UP",
+      "powerup": "seeker_torpedo"
+    },
+    {
+      "id": "ocean",
+      "kind": "planet",
+      "name": "Ozeanwelt",
+      "subject": "blue ocean world with volcanic islands, turquoise shallows and delicate white cyclonic cloud systems",
+      "biome": "nebula"
+    },
+    {
+      "id": "terran",
+      "kind": "planet",
+      "name": "Terranische Welt",
+      "subject": "lush terran world with emerald continents, detailed mountain ranges, deep blue seas, white clouds and tiny warm city lights on its night edge",
+      "biome": "nebula"
+    },
+    {
+      "id": "desert",
+      "kind": "planet",
+      "name": "Wüstenplanet",
+      "subject": "burnt orange desert planet with vast detailed dune seas, rust colored canyons, subtle pale sandstorms and a thin golden atmosphere",
+      "biome": "asteroid"
+    },
+    {
+      "id": "crater",
+      "kind": "planet",
+      "name": "Kraterwelt",
+      "subject": "ancient grey-brown cratered moonlike planet with overlapping impact basins, bright ejecta rays and faint silver dust haze",
+      "biome": "asteroid"
+    },
+    {
+      "id": "ice",
+      "kind": "planet",
+      "name": "Eiswelt",
+      "subject": "pale cyan ice planet with intricate glacier fractures, white polar caps, dark cobalt crevasses and delicate auroral glow",
+      "biome": "crystal"
+    },
+    {
+      "id": "crystal",
+      "kind": "planet",
+      "name": "Kristallplanet",
+      "subject": "violet turquoise crystal planet with angular crystalline continents, fine luminous mineral faults, deep blue basins and a thin opalescent atmosphere",
+      "biome": "crystal"
+    },
+    {
+      "id": "storm-gas",
+      "kind": "planet",
+      "name": "Sturm-Gasriese",
+      "subject": "majestic dark blue gas giant with detailed cream and teal cloud bands, many small eddies and one large softly lit pale hurricane",
+      "biome": "storm"
+    },
+    {
+      "id": "ringed",
+      "kind": "planet",
+      "name": "Ringplanet",
+      "subject": "golden gas planet surrounded by finely layered inclined pale icy rings, visible ring shadows, detailed ochre cloud bands; complete rings contained inside each frame",
+      "biome": "storm"
+    },
+    {
+      "id": "lava",
+      "kind": "planet",
+      "name": "Lavawelt",
+      "subject": "dark volcanic planet with intricate incandescent orange lava rivers, fractured black plates, small red lava lakes and very subtle sulphur haze",
+      "biome": "blackhole"
+    },
+    {
+      "id": "night",
+      "kind": "planet",
+      "name": "Biolumineszente Nachtwelt",
+      "subject": "mysterious dark indigo alien night planet with intricate turquoise bioluminescent river networks, violet fungal continents, dim blue clouds and a thin lilac atmosphere",
+      "biome": "void"
+    },
+    {
+      "id": "rock-shatter",
+      "kind": "effect",
+      "name": "Felsbruch",
+      "subject": "brown-grey stone asteroid bursting into jagged rock fragments and fine dust",
+      "pilot": "rock-shatter"
+    },
+    {
+      "id": "metal-sparks",
+      "kind": "effect",
+      "name": "Metallfunken",
+      "subject": "burst of sharp golden metal sparks with several twisting silver metal shards"
+    },
+    {
+      "id": "ice-shatter",
+      "kind": "effect",
+      "name": "Eisbruch",
+      "subject": "burst of translucent cyan ice shards, bright frozen chips and pale blue frost mist"
+    },
+    {
+      "id": "crystal-shatter",
+      "kind": "effect",
+      "name": "Kristallbruch",
+      "subject": "burst of violet and turquoise prism fragments with delicate rainbow sparkles"
+    },
+    {
+      "id": "lava-ejecta",
+      "kind": "effect",
+      "name": "Lavaauswurf",
+      "subject": "small explosive burst of glowing orange lava droplets, dark stone shards and fading red embers"
+    },
+    {
+      "id": "alien-plasma",
+      "kind": "effect",
+      "name": "Alien-Plasmaexplosion",
+      "subject": "organic alien explosion, bright cyan plasma core expanding into curling violet energy petals and tiny golden embers"
+    },
+    {
+      "id": "target-lock",
+      "kind": "effect",
+      "name": "Zielerfassungsring",
+      "subject": "clean cyan targeting reticle made of four separate curved brackets and four small ticks, tightening then gently pulsing, no lettering or numbers"
+    },
+    {
+      "id": "rocket-exhaust",
+      "kind": "effect",
+      "name": "Raketenabgas",
+      "subject": "short orange and yellow rocket engine exhaust plume pointing DOWN, fading into soft amber sparks, fixed nozzle origin at cell center"
+    },
+    {
+      "id": "emp-wave",
+      "kind": "effect",
+      "name": "EMP-Welle",
+      "subject": "thin luminous blue electromagnetic ring expanding from a compact violet core, with small branching cyan electrical arcs, fading outward"
+    },
+    {
+      "id": "torpedo-shock",
+      "kind": "effect",
+      "name": "Torpedo-Schockwelle",
+      "subject": "powerful golden torpedo detonation expanding into a broad thin amber shock ring with teal center and tiny metal sparks"
+    }
+  ]
+}

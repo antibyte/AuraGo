@@ -1,0 +1,8 @@
+{
+  "id": "crater-boulder",
+  "kind": "asteroid",
+  "file": "exp-asteroid-crater-boulder.png",
+  "source": "exec-562cfbf0-f284-4cdb-b740-3f03bf3f3283.png",
+  "tool": "image_gen",
+  "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. Asset: CRATER BOULDER asteroid. Exactly 16 animation frames, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, each cell same size, every object centered at the exact cell center. 2048 x 2048 target sheet, genuinely transparent alpha background, no text, labels, grid lines or backdrop. A single distinctive irregular charcoal-brown stone asteroid with deep round craters, chipped ochre edges, granular metallic arcade pixel-art shading, light fixed upper left. Frames show a coherent complete 360-degree tumble with equal rotation increments, matching shape, scale, craters and light across the loop, final frame smoothly precedes first. Each silhouette fits within 70 percent of its cell with generous fully transparent padding on all four sides; no frame touches another. Highly polished readable top-down space shooter artwork, crisp pixel-art clusters rather than blurry painted edges. All sixteen cells contain a complete visible asteroid; no duplicate frames, no added objects."
+}

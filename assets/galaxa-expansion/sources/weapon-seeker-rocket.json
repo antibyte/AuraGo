@@ -1,0 +1,8 @@
+{
+  "id": "seeker-rocket",
+  "kind": "weapon",
+  "file": "exp-weapon-seeker-rocket.png",
+  "source": "exec-7230f24b-65b5-41c9-8108-8b008ab32543.png",
+  "tool": "image_gen",
+  "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: slim silver homing rocket with amber seeker lens, four short blue fins and orange exhaust, nose points UP. 8 frames in an exact 4 column by 2 row grid, a seamless animated engine and running-light flight cycle. Nose pointing strictly UP in every cell, fixed centered body, small exhaust contained within cell. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+}

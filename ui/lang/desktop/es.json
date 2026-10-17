@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Ocultar servicios alojados",
   "desktop.infra_action_review_required": "Comprueba el estado del dispositivo antes de volver a intentarlo.",
   "desktop.infra_action_rearm": "He comprobado el estado · permitir un nuevo intento",
-  "desktop.infra_action_rearmed": "Se permite un nuevo intento. Elige la acción cuando quieras."
+  "desktop.infra_action_rearmed": "Se permite un nuevo intento. Elige la acción cuando quieras.",
+  "galaxa.emp_mine_layer": "Mina EMP",
+  "galaxa.cluster_mine_layer": "Mina de fragmentación",
+  "galaxa.swarm_launcher": "Enjambre de misiles",
+  "galaxa.seeker_torpedo": "Torpedo guiado pesado",
+  "galaxa.weapon_fire_hint": "Disparar lanza cohetes guiados, enjambres y torpedos.",
+  "galaxa.weapon_mine_hint": "Las minas se colocan solas y se arman tras 0,45 s.",
+  "galaxa.planet_load_failed": "No se pudo cargar el planeta. Puedes seguir jugando."
 }

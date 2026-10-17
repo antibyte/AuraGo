@@ -7509,5 +7509,12 @@
   "desktop.infra_collapse_hosted_services": "Nascondi servizi ospitati",
   "desktop.infra_action_review_required": "Controlla lo stato del dispositivo prima di un nuovo tentativo.",
   "desktop.infra_action_rearm": "Ho controllato lo stato · consenti un nuovo tentativo",
-  "desktop.infra_action_rearmed": "È consentito un nuovo tentativo. Scegli l’azione quando vuoi."
+  "desktop.infra_action_rearmed": "È consentito un nuovo tentativo. Scegli l’azione quando vuoi.",
+  "galaxa.emp_mine_layer": "Mina EMP",
+  "galaxa.cluster_mine_layer": "Mina a frammentazione",
+  "galaxa.swarm_launcher": "Sciame di missili",
+  "galaxa.seeker_torpedo": "Siluro pesante guidato",
+  "galaxa.weapon_fire_hint": "Il fuoco lancia razzi guidati, sciami e siluri.",
+  "galaxa.weapon_mine_hint": "Le mine vengono posate da sole e si armano dopo 0,45 s.",
+  "galaxa.planet_load_failed": "La grafica del pianeta non si carica. Puoi continuare a giocare."
 }

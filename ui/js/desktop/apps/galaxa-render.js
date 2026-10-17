@@ -12,7 +12,7 @@
             if (ctx.touchActions) ctx.touchActions.hidden = !['PLAYING', 'STAGE_INTRO'].includes(G.st);
             c.save(); c.setTransform(ctx.scale, 0, 0, ctx.scale, 0, 0); c.imageSmoothingEnabled = false;
             c.fillStyle = '#050a17'; c.fillRect(0, 0, W, H);
-            ctx.drawNebula(c); ctx.drawStars(c);
+            ctx.drawNebula(c); ctx.drawPlanets(c); ctx.drawStars(c);
             const world = !['TITLE', 'SETTINGS', 'SHOP', 'LOOP_CLEAR', 'RUN_CLEAR', 'LOADING'].includes(G.st);
             if (world) {
                 c.save();

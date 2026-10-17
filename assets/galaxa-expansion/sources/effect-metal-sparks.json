@@ -1,0 +1,8 @@
+{
+  "id": "metal-sparks",
+  "kind": "effect",
+  "file": "exp-effect-metal-sparks.png",
+  "source": "exec-e9329f52-70b9-45b3-8e70-87f62d42c8d2.png",
+  "tool": "image_gen",
+  "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: burst of sharp golden metal sparks with several twisting silver metal shards. 12 frames in an exact 4 column by 3 row grid. Animate a coherent progression from small beginning to expanded impact then fading fragments. For target reticle and rocket exhaust make a seamless repeating animation instead. Keep the same fixed center throughout. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+}

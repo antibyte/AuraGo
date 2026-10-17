@@ -1,0 +1,9 @@
+{
+  "id": "storm-gas-b",
+  "kind": "planet",
+  "file": "exp-planet-storm-gas-b.png",
+  "source": "exec-595a5b7b-cfa6-449e-8752-7955e3bd70bf.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-storm-gas-a.png",
+  "prompt": "Continue the supplied ringless blue storm gas giant animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet without any rings inside its own cell, with a fully transparent margin. Create frames 5-8 of the twelve-frame subtle cloud cycle, gently advancing only the fine clouds and storm wisps. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects."
+}
