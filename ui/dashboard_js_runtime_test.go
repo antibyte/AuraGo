@@ -22,3 +22,8 @@ func TestDashboardRouterResolvesSections(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-router.cjs")
 }
+
+func TestDashboardAPICachesAndSharesRequests(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-api.cjs")
+}
