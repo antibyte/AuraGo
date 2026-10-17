@@ -16,15 +16,27 @@
             c.fillStyle = col;
 
             if (p.smoke) {
-                const sr = r * (0.8 + lifeRatio * 0.9);
+                const sr = r * (0.72 + lifeRatio * 1.3);
                 c.beginPath();
                 c.arc(p.x, p.y, sr, 0, Math.PI * 2);
                 c.fill();
+                if (lifeRatio < 0.28) {
+                    c.fillStyle = '#ff9944';
+                    c.globalAlpha = alpha * (1 - lifeRatio / 0.28) * 0.45;
+                    c.beginPath();
+                    c.arc(p.x, p.y, sr * 0.45, 0, Math.PI * 2);
+                    c.fill();
+                }
             } else if (p.debris) {
                 c.save();
                 c.translate(p.x, p.y);
                 c.rotate(p.rot || (p.t * 0.01));
                 c.fillRect(-r, -r * 0.6, r * 2, r * 1.2);
+                if (lifeRatio < 0.5) {
+                    c.fillStyle = '#fff0b8';
+                    c.globalAlpha = alpha * (1 - lifeRatio * 2) * 0.7;
+                    c.fillRect(-r, -r * 0.6, r * 1.4, Math.max(0.8, r * 0.45));
+                }
                 c.restore();
             } else if (p.shape === 'diamond') {
                 const dr = r + (p.spark ? 0.6 : 0);

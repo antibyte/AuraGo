@@ -47,6 +47,46 @@
             }
         }
 
+        // --- Armor / shield metallic ricochet glint --------------------------
+        function fxArmorRicochet(x, y, dirX, dirY) {
+            if (x == null || y == null) return;
+            addMark({ kind: 'ricochet', x, y, t: 0, dur: 220, col: '#88eeff', r: 13 });
+            if (ctx.SFX && ctx.SFX.armorRicochet) ctx.SFX.armorRicochet(x);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const baseA = Math.atan2(-(dirY || -1), -(dirX || 0));
+            const n = ctx.settings.particles === 'medium' ? 3 : 5;
+            for (let i = 0; i < n; i++) {
+                const a = baseA + (i % 2 === 0 ? 1 : -1) * (0.45 + Math.random() * 0.65);
+                const sp = 95 + Math.random() * 110;
+                ctx.G.part.push(ctx.getParticle({
+                    x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 100 + Math.random() * 90, t: 0,
+                    col: i % 2 === 0 ? '#ffffff' : '#77e8ff',
+                    size: 1.4, spark: true
+                }));
+            }
+        }
+
+        // --- Dive launch thruster ignition flare -----------------------------
+        function fxEnemyDiveStart(x, y, col) {
+            if (x == null || y == null) return;
+            addMark({ kind: 'diveFlare', x, y: y - 4, t: 0, dur: 240, col: col || '#ff9944', r: 15 });
+            if (ctx.SFX && ctx.SFX.diveIgnite) ctx.SFX.diveIgnite(x);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const n = ctx.settings.particles === 'medium' ? 2 : 4;
+            for (let i = 0; i < n; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * 0.9;
+                const sp = 40 + Math.random() * 55;
+                ctx.G.part.push(ctx.getParticle({
+                    x: x + (i % 2 ? 4 : -4), y: y - 4,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 130 + Math.random() * 90, t: 0,
+                    col: i % 2 ? '#ffffff' : (col || '#ffaa44'),
+                    size: 1, spark: true, shape: 'diamond'
+                }));
+            }
+        }
+
         // --- Blink / feint / shuffle ring ------------------------------------
         function fxEnemyBlink(x, y, col) {
             if (x == null || y == null) return;
@@ -136,38 +176,136 @@
         // smolderDetonate: it reuses the ordinary kill bookkeeping (score,
         // splitter/carrier, pickups, credits, combo, kills) so no reward or
         // side effect is lost or doubled.
-        // Smolder selection on a fatal bullet hit: seeded roll may turn the
-        // enemy into a tumbling diver. True tells the caller to skip the
-        // immediate death handling (score, explosion, pickups, splits).
         function maybeSmolder(e, b) {
             const c = GC.SMOLDER || {};
-            if (!e || e.st === 'DEAD' || e.st === 'ENTER') return false;
+            if (!e || e.st === 'DEAD' || e.st === 'SMOLDER' || e.st === 'ENTER') return false;
             if (ctx.G.chal || ctx.G.st !== 'PLAYING' || ctx.G.freezeT > 0) return false;
             if (e.sectorBoss || e.type === 'boss' || e.type === 'miniboss') return false;
-            if (ctx.G.stage < c.stageMin || ctx.settings.diff === 'easy') return false;
+            if (ctx.G.stage < (c.stageMin || 1)) return false;
             let active = 0;
-            for (const o of ctx.G.enemies) { if (o.st === 'SMOLDER' && ++active >= c.maxSimultaneous) return false; }
-            if (ctx.random() >= (ctx.settings.diff === 'hard' ? c.chance + c.hardBonus : c.chance)) return false;
+            for (const o of ctx.G.enemies) { if (o.st === 'SMOLDER' && ++active >= (c.maxSimultaneous || 4)) return false; }
+            const chance = ctx.settings.diff === 'easy'
+                ? (c.easyChance != null ? c.easyChance : 0.18)
+                : (ctx.settings.diff === 'hard' ? c.chance + c.hardBonus : c.chance);
+            if (ctx.random() >= chance) return false;
             const vs = c.variants && c.variants.length ? c.variants : [{ id: 'ember', smoke: 1, sparks: 1 }];
             const v = vs[Math.floor(ctx.random() * vs.length) % vs.length];
-            const a = Math.atan2(ctx.G.p.y - e.y, ctx.G.p.x - e.x), s = 130 + ctx.random() * 90;
-            return igniteSmolder(e, { vx: Math.cos(a) * s + (ctx.random() - 0.5) * 40, vy: Math.sin(a) * s * 0.5 - 60 - ctx.random() * 60, spin: (ctx.random() < 0.5 ? -1 : 1) * (2.4 + ctx.random() * (c.maxSpin - 2.4)), blowMs: c.minMs + ctx.random() * (c.maxMs - c.minMs), variant: v.id, smoke: v.smoke, sparks: v.sparks, killVx: (b && b.vx) || 0, killVy: (b && b.vy) || -ctx.PB_SPEED, ignitedAir: e.st === 'DIVING' || e.st === 'FEINT' });
+            const minSpin = c.minSpin != null ? c.minSpin : 0.65;
+            const maxSpin = c.maxSpin != null ? c.maxSpin : 2.35;
+            const spinDir = ctx.random() < 0.5 ? -1 : 1;
+            const baseSpin = (minSpin + ctx.random() * Math.max(0.2, maxSpin - minSpin)) * (v.spinMult || 1);
+            const minMs = v.minMs != null ? v.minMs : (c.minMs || 650);
+            const maxMs = v.maxMs != null ? v.maxMs : (c.maxMs || 1450);
+            const blowMs = minMs + ctx.random() * Math.max(100, maxMs - minMs);
+            const a = Math.atan2(ctx.G.p.y - e.y, ctx.G.p.x - e.x);
+            const s = 95 + ctx.random() * 75;
+            let vx = Math.cos(a) * s + (ctx.random() - 0.5) * 45;
+            let vy = Math.sin(a) * s * 0.45 - 25 + ctx.random() * 50;
+            if (v.id === 'glide') {
+                vx = spinDir * (85 + ctx.random() * 55) + ((b && b.vx) || 0) * 0.15;
+                vy = 30 + ctx.random() * 45;
+            } else if (v.id === 'spiral') {
+                vx = (ctx.random() - 0.5) * 65;
+                vy = 55 + ctx.random() * 45;
+            } else if (v.id === 'sputter') {
+                vx = (ctx.random() - 0.5) * 80;
+                vy = -15 + ctx.random() * 40;
+            }
+            return igniteSmolder(e, {
+                vx, vy,
+                spin: spinDir * baseSpin,
+                blowMs,
+                variant: v.id,
+                smoke: v.smoke,
+                sparks: v.sparks,
+                swayAmp: v.swayAmp || 24,
+                swayFreq: v.swayFreq || 3.2,
+                fallMult: v.fallMult || 1,
+                steerMult: v.steerMult != null ? v.steerMult : 0.5,
+                sputterMs: v.sputterMs || 0,
+                tint: v.tint,
+                ringCol: v.ringCol,
+                killVx: (b && b.vx) || 0,
+                killVy: (b && b.vy) || -ctx.PB_SPEED,
+                ignitedAir: e.st === 'DIVING' || e.st === 'FEINT'
+            });
         }
+
+        function smolderIgniteBurst(e) {
+            if (reducedMotion() || ctx.settings.particles === 'low') return;
+            const G = ctx.G;
+            for (let i = 0; i < 2; i++) {
+                G.part.push(ctx.getParticle({
+                    x: e.x + (Math.random() - 0.5) * 8, y: e.y + (Math.random() - 0.5) * 8,
+                    vx: (Math.random() - 0.5) * 35, vy: -15 - Math.random() * 25,
+                    life: 360 + Math.random() * 200, t: 0,
+                    col: '#3b4454', r: 5 + Math.random() * 3, smoke: true
+                }));
+            }
+            for (let i = 0; i < 3; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 35 + Math.random() * 65;
+                G.part.push(ctx.getParticle({
+                    x: e.x, y: e.y,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 260 + Math.random() * 180, t: 0,
+                    col: i === 0 ? '#d2e5ed' : (e.smolderRingCol || '#ff9a44'),
+                    size: 2, debris: true, rot: Math.random() * 6.28
+                }));
+            }
+        }
+
+        function smolderSputterBurst(e) {
+            addMark({ kind: 'pop', x: e.x, y: e.y, t: 0, dur: 170, col: e.smolderVariant === 'sputter' ? '#88eeff' : '#ffaa44', r: 12 });
+            if (ctx.SFX && ctx.SFX.smolderSputter) ctx.SFX.smolderSputter(e.x);
+            if (reducedMotion() || ctx.settings.particles === 'low') return;
+            const G = ctx.G;
+            const elec = e.smolderVariant === 'sputter';
+            for (let i = 0; i < 3; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 55 + Math.random() * 80;
+                G.part.push(ctx.getParticle({
+                    x: e.x, y: e.y,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 120 + Math.random() * 110, t: 0,
+                    col: elec ? (i % 2 ? '#77f0ff' : '#ffee77') : (i % 2 ? '#ff9944' : '#ffffff'),
+                    size: 1.2, spark: true, shape: 'diamond'
+                }));
+            }
+            G.part.push(ctx.getParticle({
+                x: e.x, y: e.y,
+                vx: (Math.random() - 0.5) * 65, vy: -20 + (Math.random() - 0.5) * 50,
+                life: 300 + Math.random() * 160, t: 0,
+                col: '#9aa4b2', size: 2, debris: true, rot: Math.random() * 6.28
+            }));
+        }
+
         function igniteSmolder(e, prep) {
             if (!e || e.st === 'DEAD') return false;
             const conf = GC.SMOLDER;
             if (!conf) return false;
             e.st = 'SMOLDER';
             e.smolderT = prep && prep.blowMs != null ? prep.blowMs : conf.minMs;
+            e.smolderDur = e.smolderT;
+            e.smolderAge = 0;
             const _pv = prep && prep.vx, _pw = prep && prep.vy;
             e.smolderVx = _pv || 0;
             e.smolderVy = _pw || 0;
-            e.smolderSpin = (prep && prep.spin) || 3;
+            e.smolderSpin = (prep && prep.spin) || 1.2;
             e.smolderRot = 0;                       // seeded by spin only
             e.smolderSeed = ctx.random();           // wobble/flash variants
             e.smolderVariant = (prep && prep.variant) || 'ember';
             e.smolderSmoke = (prep && prep.smoke) || 1;
             e.smolderSparks = (prep && prep.sparks) || 1;
+            e.smolderSwayAmp = (prep && prep.swayAmp) || 24;
+            e.smolderSwayFreq = (prep && prep.swayFreq) || 3.2;
+            e.smolderFallMult = (prep && prep.fallMult) || 1;
+            e.smolderSteerMult = prep && prep.steerMult != null ? prep.steerMult : 0.5;
+            e.smolderSputterMs = (prep && prep.sputterMs) || 0;
+            e.smolderPops = 0;
+            e.smolderNextPop = e.smolderSputterMs > 0 ? e.smolderSputterMs : e.smolderDur * 0.52;
+            e.smolderTint = (prep && prep.tint) || (e.smolderVariant === 'glide' || e.smolderVariant === 'smoke' ? '#9aa4b2' : e.smolderVariant === 'sputter' ? '#99e6ff' : '#ff9a55');
+            e.smolderRingCol = (prep && prep.ringCol) || (e.smolderVariant === 'sputter' ? '#66d4ff' : '#ff7a33');
             e.smolderKillVx = (prep && prep.killVx) || 0;
             e.smolderKillVy = (prep && prep.killVy) || 0;
             e.smolderIgnitedAir = !!(prep && prep.ignitedAir);
@@ -176,8 +314,9 @@
             e.rageMode = 0; e.rageSpeedMult = 1;
             e.invulnerable = false;
             e.hitF = 90;
-            fxEnemyBlink(e.x, e.y, '#ff7a33');
-            if (ctx.SFX && ctx.SFX.smolderIgnite) ctx.SFX.smolderIgnite(e.x);
+            fxEnemyBlink(e.x, e.y, e.smolderRingCol);
+            smolderIgniteBurst(e);
+            if (ctx.SFX && ctx.SFX.smolderIgnite) ctx.SFX.smolderIgnite(e.x, e.smolderVariant);
             return true;
         }
 
@@ -196,22 +335,36 @@
             for (const e of G.enemies) {
                 if (e.st !== 'SMOLDER') continue;
                 e.smolderT -= dtMs;
-                // Steering: fall toward the player with a per-diver lag, plus a
-                // gentle downward drift so it reads as a crash, not a chase.
+                e.smolderAge = (e.smolderAge || 0) + dtMs;
+                const ageSec = e.smolderAge * 0.001;
+                // Steering & gravity varied by crash-dive archetype.
                 const dx = G.p.x - e.x, dy = G.p.y - e.y;
                 const dist = Math.hypot(dx, dy) || 1;
-                const lag = 0.75 + e.smolderSeed * 0.5;
-                e.smolderVx += (dx / dist) * conf.fallBias * 620 * lag * dt;
-                e.smolderVy += (dy / dist) * conf.fallBias * 620 * lag * dt + conf.baseFall * dt;
-                // Cap the tumble speed so divers stay dodgeable.
+                const lag = (0.75 + e.smolderSeed * 0.5) * (e.smolderSteerMult != null ? e.smolderSteerMult : 0.6);
+                e.smolderVx += (dx / dist) * conf.fallBias * 580 * lag * dt;
+                e.smolderVy += (dy / dist) * conf.fallBias * 460 * lag * dt + conf.baseFall * (e.smolderFallMult || 1) * dt;
+                // Sinusoidal lateral sway (strong corkscrew for 'spiral', gentle drift for others).
+                const swayVx = Math.cos(ageSec * (e.smolderSwayFreq || 3.2) + e.smolderSeed * 6.28) * (e.smolderSwayAmp || 20);
+                // Internal sputter sub-explosions jolt velocity and rotation mid-fall.
+                if (e.smolderNextPop > 0 && e.smolderAge >= e.smolderNextPop && e.smolderT > 140) {
+                    e.smolderPops = (e.smolderPops || 0) + 1;
+                    e.smolderNextPop = e.smolderSputterMs > 0 ? e.smolderAge + e.smolderSputterMs : 0;
+                    const joltDir = ((e.smolderPops + Math.floor(e.smolderSeed * 7)) % 2 === 0) ? 1 : -1;
+                    e.smolderVx += joltDir * 42;
+                    e.smolderVy -= 18;
+                    e.smolderRot += joltDir * 0.22;
+                    smolderSputterBurst(e);
+                }
+                // Cap the tumble speed so divers stay readable and dodgeable.
                 const spd = Math.hypot(e.smolderVx, e.smolderVy);
-                const maxSpd = 360;
+                const maxSpd = 320;
                 if (spd > maxSpd) { e.smolderVx *= maxSpd / spd; e.smolderVy *= maxSpd / spd; }
-                e.x += e.smolderVx * dt; e.y += e.smolderVy * dt;
+                e.x += (e.smolderVx + swayVx) * dt;
+                e.y += e.smolderVy * dt;
                 e.smolderRot += e.smolderSpin * dt;
-                e.hitF = 90;
+                e.hitF = e.smolderT < 180 ? 120 : 90;
                 e.attackAnim = 1000;
-                // Smoke/ember trail (visual, capped like every other effect).
+                // Smoke/ember/spark trail (visual, capped like every other effect).
                 smolderEmit(e, dtMs);
                 // Contact with the player ends the diver early (with damage).
                 if (G.p.alive && G.p.inv <= 0 && Math.hypot(e.x - G.p.x, e.y - G.p.y) < (conf.contactRadius + 8)) {
@@ -229,25 +382,47 @@
             const G = ctx.G;
             const cap = caps().smolder || 4;
             e._smolderAcc = (e._smolderAcc || 0) + dtMs;
-            if (e._smolderAcc < 70) return;
+            if (e._smolderAcc < 58) return;
             e._smolderAcc = 0;
-            const smokeN = Math.max(1, Math.round(cap * (e.smolderSmoke || 1) * 0.5));
+            const variant = e.smolderVariant || 'ember';
+            const smokeCols = ['#363f4d', '#4a5568', '#64748b'];
+            const smokeN = Math.max(1, Math.round(cap * (e.smolderSmoke || 1) * 0.55));
             for (let i = 0; i < smokeN; i++) {
                 G.part.push(ctx.getParticle({
-                    x: e.x + (Math.random() - 0.5) * 8, y: e.y + (Math.random() - 0.5) * 8,
-                    vx: -e.smolderVx * 0.15 + (Math.random() - 0.5) * 20,
-                    vy: -e.smolderVy * 0.15 - 10 - Math.random() * 20,
-                    life: 420 + Math.random() * 280, t: 0,
-                    col: '#4a5568', r: 5 + Math.random() * 4, smoke: true
+                    x: e.x + (Math.random() - 0.5) * 10,
+                    y: e.y + (Math.random() - 0.5) * 8,
+                    vx: -e.smolderVx * 0.16 + (Math.random() - 0.5) * 24,
+                    vy: -e.smolderVy * 0.14 - 14 - Math.random() * 22,
+                    life: 440 + Math.random() * 320, t: 0,
+                    col: smokeCols[i % smokeCols.length],
+                    r: (variant === 'glide' ? 6 : 4.5) + Math.random() * 4.5,
+                    smoke: true
                 }));
             }
-            const sparkN = Math.max(1, Math.round(cap * (e.smolderSparks || 1) * 0.5));
+            // Glowing core flame puff right behind the hull
+            if (ctx.settings.particles !== 'low') {
+                G.part.push(ctx.getParticle({
+                    x: e.x + (Math.random() - 0.5) * 5,
+                    y: e.y + (Math.random() - 0.5) * 5,
+                    vx: -e.smolderVx * 0.08 + (Math.random() - 0.5) * 14,
+                    vy: -e.smolderVy * 0.08 - 8,
+                    life: 160 + Math.random() * 110, t: 0,
+                    col: variant === 'sputter' ? '#77eeff' : '#ffaa33',
+                    r: 3 + Math.random() * 2,
+                    spark: true, fireTrail: true, shape: 'circle'
+                }));
+            }
+            const sparkN = Math.max(1, Math.round(cap * (e.smolderSparks || 1) * 0.55));
             for (let i = 0; i < sparkN; i++) {
+                const sparkCol = variant === 'sputter'
+                    ? (i % 2 ? '#66eeff' : '#ffee77')
+                    : (variant === 'glide' ? (i % 2 ? '#ff9944' : '#ffcc66') : (i % 2 ? '#ff7a33' : '#ffd27a'));
                 G.part.push(ctx.getParticle({
                     x: e.x, y: e.y,
-                    vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 120 - 20,
-                    life: 130 + Math.random() * 130, t: 0,
-                    col: i % 2 ? '#ff7a33' : '#ffd27a', size: 1, spark: true, shape: 'diamond'
+                    vx: (Math.random() - 0.5) * 125 - e.smolderVx * 0.1,
+                    vy: (Math.random() - 0.5) * 125 - 18,
+                    life: 140 + Math.random() * 150, t: 0,
+                    col: sparkCol, size: 1 + (i % 2) * 0.5, spark: true, shape: i % 2 ? 'diamond' : 'rect'
                 }));
             }
         }
@@ -262,7 +437,8 @@
             ctx.registerKill(e.x, e.y);
             const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.smolderIgnitedAir === true ? 1 : 0] : 200;
             ctx.addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
-            ctx.boom(e.x, e.y, false, e.type, e.smolderKillVx, e.smolderKillVy);
+            ctx.boom(e.x, e.y, false, e.type, e.smolderVx || e.smolderKillVx, e.smolderVy || e.smolderKillVy);
+            addMark({ kind: 'crashShock', x: e.x, y: e.y, t: 0, dur: 360, col: e.smolderRingCol || '#ff7a33', r: 38 });
             ctx.dropPU(e);
             const creditGain = 1 + (ctx.G.comboMult >= 4 ? 5 : 0);
             const creditMult = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses().creditMult : 1;
@@ -279,7 +455,7 @@
             if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
             ctx.G.weaponXP += 1; ctx.grantWeaponLevel(); ctx.checkWeaponEvo();
             if (playerHit) ctx.damagePlayer(1, e.x, e.y, e.type);
-            if (ctx.SFX && ctx.SFX.smolderBlast) ctx.SFX.smolderBlast(e.x);
+            if (ctx.SFX && ctx.SFX.smolderBlast) ctx.SFX.smolderBlast(e.x, e.smolderVariant);
         }
 
         // Splitter mini-release on a crash blast (mirrors the bullet-kill split).
@@ -301,23 +477,37 @@
                 G.enemies.push({ type: 'bee', r: 0, col: 0, x: e.x, y: e.y, fx: e.x + Math.cos(ca) * 40, fy: e.y + Math.sin(ca) * 40, hp: 1, maxHp: 1, st: 'ENTER', eTmr: 300 + i * 100, fr: 0, frT: 0, dTmr: 1500, dPath: null, sTmr: 800, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0, 0, 0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 8, spawnAnim: 0, spawnDur: 300 });
             }
         }
+
         function drawSmolderTelegraph(c, e, time, col) {
             const remain = Math.max(0, e.smolderT || 0);
+            const dur = Math.max(200, e.smolderDur || 1200);
+            const frac = Math.min(1, remain / dur);
             // Blink frequency ramps up as the fuse runs out (visual-only).
-            const blink = Math.abs(Math.sin(time * (0.006 + (1 - Math.min(1, remain / 2000)) * 0.02) + e.smolderSeed * 9));
+            const blink = Math.abs(Math.sin(time * (0.006 + (1 - frac) * 0.024) + e.smolderSeed * 9));
             c.save();
             c.globalCompositeOperation = 'lighter';
-            c.globalAlpha = 0.45 + 0.45 * blink;
+            // Critical core flare in the final 180ms right before detonation.
+            if (remain < 180 && !reducedMotion()) {
+                const critP = 1 - remain / 180;
+                c.globalAlpha = 0.55 + critP * 0.4;
+                c.strokeStyle = '#ffffff';
+                c.lineWidth = 2.4;
+                c.beginPath(); c.arc(e.x, e.y, Math.max(4, (1 - critP) * 26), 0, Math.PI * 2); c.stroke();
+                c.fillStyle = '#fff5cc';
+                c.globalAlpha = 0.45 * critP;
+                c.beginPath(); c.arc(e.x, e.y, 7 + critP * 6, 0, Math.PI * 2); c.fill();
+            }
+            c.globalAlpha = 0.42 + 0.46 * blink;
             c.strokeStyle = col;
-            c.lineWidth = 2;
-            const r = 20 + 3 * Math.sin(time * 0.01 + e.smolderSeed * 6);
+            c.lineWidth = 1.8;
+            const r = 19 + 3 * Math.sin(time * 0.01 + e.smolderSeed * 6);
             c.beginPath(); c.arc(e.x, e.y, r, 0, Math.PI * 2); c.stroke();
             // Remaining-fuse arc above the diver (white-hot core dot included).
-            c.globalAlpha = 0.9;
+            c.globalAlpha = 0.88;
             c.strokeStyle = '#ffffff';
             c.lineWidth = 1.6;
             c.beginPath();
-            c.arc(e.x, e.y - 20, 7, -Math.PI / 2, -Math.PI / 2 + Math.min(1, remain / 2000) * Math.PI * 2);
+            c.arc(e.x, e.y - 20, 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
             c.stroke();
             c.fillStyle = '#ffdd88';
             c.beginPath(); c.arc(e.x, e.y - 20, 1.8, 0, Math.PI * 2); c.fill();
@@ -345,37 +535,73 @@
                 }
                 c.restore();
             }
-            // 2. Smoldering crash divers: spinning sprite + fuse telegraph
+            // 2. Smoldering crash divers: gently rotating/banking sprite + fire glow + fuse telegraph
             for (let i = 0; i < G.enemies.length; i++) {
                 const e = G.enemies[i];
                 if (e.st !== 'SMOLDER') continue;
                 const sp = ctx.enemySpriteFor ? ctx.enemySpriteFor(e).sp : null;
+                const tintCol = e.smolderTint || (e.smolderVariant === 'smoke' || e.smolderVariant === 'glide' ? '#9aa4b2' : '#ff9a55');
+                const ringCol = e.smolderRingCol || (e.smolderVariant === 'smoke' ? '#9aa4b2' : '#ff7a33');
                 c.save();
                 c.translate(e.x, e.y);
-                // Tumble rotation; low rotation magnitude under reduced motion.
-                const tumble = reducedMotion() ? 0.25 * Math.sign(e.smolderSpin || 1) : (e.smolderRot || 0);
+                // Gentle rotation + pendulum bank wobble; low magnitude under reduced motion.
+                const wobble = Math.sin(time * 0.009 + (e.smolderSeed || 0) * 10) * 0.18;
+                const tumble = reducedMotion() ? 0.25 * Math.sign(e.smolderSpin || 1) : ((e.smolderRot || 0) + wobble);
                 c.rotate(tumble);
-                const flicker = 0.9 + 0.1 * Math.sin(time * 0.03 + e.smolderSeed * 12);
+                if (!reducedMotion()) {
+                    c.save();
+                    c.globalCompositeOperation = 'lighter';
+                    c.globalAlpha = 0.32 + 0.18 * Math.sin(time * 0.04 + (e.smolderSeed || 0) * 8);
+                    c.fillStyle = ringCol;
+                    c.beginPath(); c.arc(0, 0, 11, 0, Math.PI * 2); c.fill();
+                    c.restore();
+                }
+                const flicker = 0.88 + 0.12 * Math.sin(time * 0.03 + (e.smolderSeed || 0) * 12);
                 c.globalAlpha = flicker;
-                if (sp) ctx.drawAnimation(c, sp.key, 0, 0, sp.time, undefined, e.smolderVariant === 'smoke' ? '#9aa4b2' : '#ff9a55');
+                const flashTint = (e.smolderT || 999) < 180 && Math.floor(time / 40) % 2 === 0 ? '#ffffff' : tintCol;
+                if (sp) ctx.drawAnimation(c, sp.key, 0, 0, sp.time, undefined, flashTint);
                 else { c.fillStyle = '#ff7a33'; c.fillRect(-6, -6, 12, 12); }
                 c.restore();
-                drawSmolderTelegraph(c, e, time, e.smolderVariant === 'smoke' ? '#9aa4b2' : '#ff7a33');
+                drawSmolderTelegraph(c, e, time, ringCol);
             }
-            // 3. Impact pops + feint/shuffle blink rings
+            // 3. Impact pops, ricochets, dive flares, crash shocks + feint/shuffle blink rings
             if (marks.length) {
                 c.save();
                 c.globalCompositeOperation = 'lighter';
                 for (let i = 0; i < marks.length; i++) {
                     const m = marks[i];
                     const p = Math.min(1, m.t / m.dur);
-                    const a = (1 - p) * 0.8;
+                    const a = (1 - p) * 0.82;
                     if (a <= 0.02) continue;
                     if (m.kind === 'pop') {
                         c.globalAlpha = a;
                         c.strokeStyle = m.col;
                         c.lineWidth = 1.5;
                         c.beginPath(); c.arc(m.x, m.y, m.r + p * 10, 0, Math.PI * 2); c.stroke();
+                    } else if (m.kind === 'ricochet') {
+                        c.globalAlpha = a;
+                        c.strokeStyle = '#ffffff';
+                        c.lineWidth = 2;
+                        c.beginPath(); c.arc(m.x, m.y, 4 + p * m.r, -Math.PI * 0.85, -Math.PI * 0.15); c.stroke();
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 1.4;
+                        c.beginPath(); c.arc(m.x, m.y, 2 + p * (m.r + 5), 0, Math.PI * 2); c.stroke();
+                    } else if (m.kind === 'diveFlare') {
+                        c.globalAlpha = a * 0.85;
+                        c.fillStyle = m.col;
+                        const rx = (1 - p * 0.5) * m.r, ry = (1 - p * 0.7) * 4;
+                        c.fillRect(m.x - rx, m.y - 1, rx * 2, 2);
+                        c.fillStyle = '#ffffff';
+                        c.fillRect(m.x - rx * 0.5, m.y - ry, rx, ry * 2);
+                    } else if (m.kind === 'crashShock') {
+                        c.globalAlpha = a * 0.9;
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 2.6 * (1 - p * 0.5);
+                        c.beginPath(); c.arc(m.x, m.y, 6 + p * m.r, 0, Math.PI * 2); c.stroke();
+                        c.globalAlpha = a * 0.55;
+                        c.strokeStyle = '#ffffff';
+                        c.lineWidth = 1.2;
+                        c.beginPath(); c.arc(m.x, m.y, 4 + p * m.r * 0.78, 0, Math.PI * 2); c.stroke();
                     } else {
                         // Feint / shuffle: iris ring plus a diamond core marker.
                         c.globalAlpha = a * 0.6;
@@ -394,7 +620,7 @@
                 c.restore();
                 c.globalAlpha = 1;
             }
-            // 3. Kill-chain lightning arcs
+            // 4. Kill-chain lightning arcs
             if (chains.length) {
                 c.save();
                 c.globalCompositeOperation = 'lighter';
@@ -423,6 +649,8 @@
         }
 
         ctx.fxEnemyHit = fxEnemyHit;
+        ctx.fxArmorRicochet = fxArmorRicochet;
+        ctx.fxEnemyDiveStart = fxEnemyDiveStart;
         ctx.fxEnemyBlink = fxEnemyBlink;
         ctx.fxEnemyFeint = fxEnemyFeint;
         ctx.fxKillChain = fxKillChain;

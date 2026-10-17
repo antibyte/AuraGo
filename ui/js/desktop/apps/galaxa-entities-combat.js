@@ -111,56 +111,40 @@
             const size = isBoss ? 'large' : ['hunter', 'carrier', 'bomber'].includes(enemyType) ? 'medium' : 'small';
             ctx.G.exp.push({ x, y, t: 0, dur: size === 'large' ? 800 : 560, animation: 'fx.explosion.' + size, size: size === 'large' ? 128 : size === 'medium' ? 72 : 48 });
             const profTbl = GC.EXPLOSION_PROFILE || {};
-            const prof = profTbl[enemyType] || profTbl.default || { cols: ['#ffffff', '#fdad53', '#ff5522'], ringCol: '#ffd88a', sparkMult: 1, debrisN: 3 };
+            const prof = profTbl[enemyType] || profTbl.default || { cols: ['#ffffff', '#fdad53', '#ff5522'], ringCol: '#ffd88a', sparks: 10, debris: 4, smoke: 3, shockR: 32, flashR: 12 };
             const cols = prof.cols || ['#ffffff', '#fdad53'];
             if (!ctx.settings.reducedMotion) {
                 const pScale = ctx.settings.particles === 'low' ? 0.35 : (ctx.settings.particles === 'medium' ? 0.7 : 1);
-                const sparkCount = Math.max(2, Math.round((isBoss ? 22 : 9) * (prof.sparkMult || 1) * pScale));
+                const baseSparks = isBoss ? 24 : (prof.sparks || Math.round(9 * (prof.sparkMult || 1)));
+                const sparkCount = Math.max(2, Math.round(baseSparks * pScale));
                 const baseAngle = Math.atan2(killVy || -1, killVx || 0);
                 for (let i = 0; i < sparkCount; i++) {
                     const angle = baseAngle + (Math.random() - 0.5) * 3.8;
-                    const speed = 45 + Math.random() * (isBoss ? 140 : 95);
-                    ctx.G.part.push(ctx.getParticle({
-                        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                        life: 240 + Math.random() * 260, t: 0,
-                        col: cols[i % cols.length],
-                        size: 1 + (i % 2), spark: true, shape: i % 3 === 0 ? 'diamond' : 'rect'
-                    }));
+                    const speed = 45 + Math.random() * (isBoss ? 140 : 105);
+                    ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 240 + Math.random() * 260, t: 0, col: cols[i % cols.length], size: 1 + (i % 2), spark: true, shape: i % 3 === 0 ? 'diamond' : 'rect' }));
                 }
-                const debrisCount = Math.max(1, Math.round((isBoss ? 10 : (prof.debrisN || 3)) * pScale));
+                const debrisCount = Math.max(1, Math.round((isBoss ? 12 : (prof.debris || prof.debrisN || 4)) * pScale));
                 for (let i = 0; i < debrisCount; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 28 + Math.random() * 75;
-                    ctx.G.part.push(ctx.getParticle({
-                        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                        life: 380 + Math.random() * 320, t: 0,
-                        col: i % 2 ? '#d2e5ed' : cols[0],
-                        size: 2 + (i % 2), debris: true, rot: Math.random() * 6.28, rotSpd: (Math.random() - 0.5) * 9
-                    }));
+                    const angle = Math.random() * Math.PI * 2, speed = 28 + Math.random() * 78;
+                    ctx.G.part.push(ctx.getParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 380 + Math.random() * 320, t: 0, col: i % 2 ? '#d2e5ed' : cols[0], size: 2 + (i % 2), debris: true, rot: Math.random() * 6.28, rotSpd: (Math.random() - 0.5) * 9 }));
                 }
                 if (ctx.settings.particles !== 'low') {
-                    const smokeCount = isBoss ? 5 : 2;
+                    const smokeCount = Math.max(1, Math.round((isBoss ? 6 : (prof.smoke || 3)) * pScale));
                     for (let i = 0; i < smokeCount; i++) {
                         const a = Math.random() * Math.PI * 2, sp = 10 + Math.random() * 24;
-                        ctx.G.part.push(ctx.getParticle({
-                            x: x + (Math.random() - 0.5) * 10, y: y + (Math.random() - 0.5) * 10,
-                            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 8,
-                            life: 420 + Math.random() * 240, t: 0,
-                            col: '#4a5568', r: (isBoss ? 9 : 5) + Math.random() * 4, smoke: true
-                        }));
+                        ctx.G.part.push(ctx.getParticle({ x: x + (Math.random() - 0.5) * 10, y: y + (Math.random() - 0.5) * 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 8, life: 420 + Math.random() * 240, t: 0, col: '#4a5568', r: (isBoss ? 9 : 5) + Math.random() * 4, smoke: true }));
                     }
                 }
-                ctx.G.plasmaRings.push({
-                    x, y, r: 0, maxR: isBoss ? 110 : (size === 'medium' ? 44 : 26),
-                    t: 0, dur: isBoss ? 450 : 260, col: prof.ringCol || '#ffd88a'
-                });
+                const maxR = isBoss ? 110 : (prof.shockR || (size === 'medium' ? 44 : 28));
+                ctx.G.plasmaRings.push({ x, y, r: 0, maxR, t: 0, dur: isBoss ? 450 : 260, col: prof.ringCol || cols[0] || '#ffd88a' });
+                if (prof.flashR) ctx.G.plasmaRings.push({ x, y, r: 0, maxR: prof.flashR * 1.4, t: 0, dur: 140, col: '#ffffff' });
             }
             if (ctx.SFX.eExplodeTyped) ctx.SFX.eExplodeTyped(enemyType || 'bee', isBoss ? 'big' : 'normal', x);
             if (isBoss) { ctx.G.shkT = 280; ctx.G.shkM = 5; }
         }
-        function bulletImpact(x, y, col) {
+        function bulletImpact(x, y, col, dirX, dirY) {
             if (ctx.G.exp.length < 48) ctx.G.exp.push({ x, y, t: 0, dur: 200, animation: 'fx.plasma', size: 20 });
-            if (ctx.fxSparkCone && !ctx.settings.reducedMotion) ctx.fxSparkCone(x, y, col || '#ffee88', 0, -1);
+            if (ctx.fxSparkCone && !ctx.settings.reducedMotion) ctx.fxSparkCone(x, y, col || '#ffee88', dirX || 0, dirY || -1);
         }
         function addScore(pts, x, y, col) {
             const prev = ctx.G.score;
@@ -891,11 +875,17 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             // NEW: Floating combat text — damage on hit, crit on headshot/weakpoint
                             if (e.weakPoint && Math.hypot(b.x - (e.x + e.weakPoint.x), b.y - (e.y + e.weakPoint.y)) < 6) {
                                 ctx.G.combatText.push({ x: e.x, y: e.y - 12, text: 'CRIT!', t: 0, dur: 600, col: '#ff4444', big: true });
+                                if (ctx.SFX && ctx.SFX.critHit) ctx.SFX.critHit(e.x);
                             }
                             ctx.checkWeaponEvo();
                             if (!e.sectorBoss && (e.type === 'boss' || e.type === 'miniboss')) { ctx.G.bossKillTotal++; if (ctx.G.bossKillTotal >= 10) ctx.unlockAchievement('boss_slayer'); try { localStorage.setItem('galaxa_boss_kills', String(ctx.G.bossKillTotal)); } catch(e2) {} }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
-                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); } }
+                        } else {
+                            e.hitF = 100;
+                            ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED);
+                            if ((e.type === 'shield_bee' || e.type === 'boss' || e.type === 'miniboss') && ctx.fxArmorRicochet) ctx.fxArmorRicochet(b.x, b.y, b.vx || 0, b.vy || -ctx.PB_SPEED);
+                            if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); }
+                        }
                         if (!b.laser && !b.pierce) { removed = true; break; }
                         if (b.laser) {
                             for (let li = 0; li < 4; li++) { const la = ctx.random() * Math.PI * 2; ctx.G.part.push(ctx.getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + ctx.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }

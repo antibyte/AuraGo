@@ -228,7 +228,8 @@
             }
             if (quirk === 'feint' && e.st === 'FEINT' && ctx.SFX.feintWhistle) ctx.SFX.feintWhistle(e.x);
             else if (e.type === 'hunter') ctx.SFX.hunterDive(e.x);
-            else ctx.SFX.dive();
+            else ctx.SFX.dive(e.x);
+            if (e.st === 'DIVING' && ctx.fxEnemyDiveStart) ctx.fxEnemyDiveStart(e.x, e.y);
             if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && ctx.random() < 0.3) {
                 // Beam "feint": with a chance the tractor beam collapses before
                 // it can pull the player, then recharges.

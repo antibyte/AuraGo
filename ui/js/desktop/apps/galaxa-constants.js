@@ -300,17 +300,20 @@
     // embers, and detonates after a seeded random delay. Seeded per delay/count
     // so fixed-step runs stay deterministic; wobble phases are visual-only.
     GC.SMOLDER = {
-        stageMin: 3, chance: 0.22, hardBonus: 0.12,
-        minMs: 700, maxMs: 2600,          // detonation delay after ignition
-        maxSimultaneous: 3,               // cap of active smolder divers
-        fallBias: 0.62,                  // steering weight toward the player
-        baseFall: 120,                   // downward drift px/s
-        maxSpin: 7.5,                    // spin rad/s extremes
+        stageMin: 1, chance: 0.28, easyChance: 0.18, hardBonus: 0.12,
+        minMs: 650, maxMs: 1450,          // detonation delay after ignition
+        maxSimultaneous: 4,               // cap of active smolder divers
+        fallBias: 0.52,                  // steering weight toward the player
+        baseFall: 135,                   // downward drift px/s
+        minSpin: 0.65,                   // gentle bank/roll minimum rad/s
+        maxSpin: 2.35,                   // gentle tumble maximum rad/s
         contactRadius: 20,               // kills the player on touch
-        // Ignition comes as smoke/ember variants with slight particle profile.
+        // Distinct crash-dive archetypes (motion, rotation, smoke/spark profile, fuse).
         variants: [
-            { id: 'ember', smoke: 0.7, sparks: 1.2 },
-            { id: 'smoke', smoke: 1.4, sparks: 0.6 }
+            { id: 'glide', smoke: 1.5, sparks: 0.75, spinMult: 0.58, swayAmp: 22, swayFreq: 2.3, fallMult: 0.88, steerMult: 0.32, minMs: 650, maxMs: 1250, tint: '#9aa4b2', ringCol: '#ff9a44' },
+            { id: 'spiral', smoke: 0.95, sparks: 1.35, spinMult: 1.0, swayAmp: 68, swayFreq: 6.2, fallMult: 1.0, steerMult: 0.45, minMs: 720, maxMs: 1380, tint: '#ff9a55', ringCol: '#ff7a33' },
+            { id: 'sputter', smoke: 1.15, sparks: 1.5, spinMult: 0.72, swayAmp: 26, swayFreq: 3.6, fallMult: 0.94, steerMult: 0.4, sputterMs: 240, minMs: 780, maxMs: 1450, tint: '#99e6ff', ringCol: '#66d4ff' },
+            { id: 'ember', smoke: 0.9, sparks: 1.3, spinMult: 0.85, swayAmp: 32, swayFreq: 4.0, fallMult: 1.12, steerMult: 0.78, minMs: 680, maxMs: 1320, tint: '#ff7733', ringCol: '#ff5522' }
         ]
     };
 

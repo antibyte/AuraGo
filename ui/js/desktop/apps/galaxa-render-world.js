@@ -93,13 +93,36 @@
                 if (G.mirrorActive) { c.globalAlpha = 0.4; ctx.drawAnimation(c, ref.key, ctx.W - G.p.x, G.p.y, ref.time, 48); }
                 c.globalAlpha = 1;
                 if (G.muzzleT > 0 && !ctx.settings.reducedMotion) {
+                    const mRatio = Math.min(1, G.muzzleT / 160);
+                    const puType = (G.activePU && G.activePU.type) || '';
+                    const isLaserMuz = puType === 'laser' || puType === 'mega_laser' || (G.weaponEvo && ctx.WEAPON_EVOS && ctx.WEAPON_EVOS[G.weaponEvo] && ctx.WEAPON_EVOS[G.weaponEvo].isBeam);
+                    const isSpreadMuz = puType === 'spread' || puType === 'mega_spread';
+                    const isRocketMuz = puType === 'rocket_launcher' || puType === 'mega_rocket';
+                    const mCol = isLaserMuz ? '#ff66cc' : isSpreadMuz ? '#66eeff' : isRocketMuz ? '#ff8833' : '#ffee88';
                     c.save();
                     c.globalCompositeOperation = 'lighter';
-                    c.globalAlpha = Math.min(1, G.muzzleT / 160) * 0.75;
-                    c.fillStyle = '#ffee88';
-                    c.beginPath(); c.arc(G.p.x, G.p.y - 15, 5, 0, Math.PI * 2); c.fill();
-                    c.fillStyle = '#ffffff';
-                    c.beginPath(); c.arc(G.p.x, G.p.y - 15, 2.5, 0, Math.PI * 2); c.fill();
+                    for (const mx of (G.p.dual ? [G.p.x, G.p.x + 36] : [G.p.x])) {
+                        const my = G.p.y - 15;
+                        c.globalAlpha = mRatio * 0.8;
+                        c.fillStyle = mCol;
+                        if (isLaserMuz) {
+                            c.fillRect(mx - 8 * mRatio, my - 1.5, 16 * mRatio, 3);
+                            c.fillRect(mx - 2, my - 9 * mRatio, 4, 14 * mRatio);
+                        } else if (isSpreadMuz) {
+                            for (const ox of [-5, 0, 5]) {
+                                c.beginPath(); c.arc(mx + ox * mRatio, my - Math.abs(ox) * 0.3, 3.2 * mRatio, 0, Math.PI * 2); c.fill();
+                            }
+                        } else if (isRocketMuz) {
+                            c.strokeStyle = mCol; c.lineWidth = 2;
+                            c.beginPath(); c.arc(mx, my, 4 + (1 - mRatio) * 7, 0, Math.PI * 2); c.stroke();
+                            c.beginPath(); c.arc(mx, my, 4 * mRatio, 0, Math.PI * 2); c.fill();
+                        } else {
+                            c.beginPath(); c.arc(mx, my, 5 * mRatio, 0, Math.PI * 2); c.fill();
+                            c.fillRect(mx - 7 * mRatio, my - 0.8, 14 * mRatio, 1.6);
+                        }
+                        c.fillStyle = '#ffffff';
+                        c.beginPath(); c.arc(mx, my, 2.5 * mRatio, 0, Math.PI * 2); c.fill();
+                    }
                     c.restore();
                 }
                 if (G.fxSuperReadyT > 0 || G.superPhase === 'charge') {

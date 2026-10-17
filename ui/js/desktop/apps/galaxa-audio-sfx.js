@@ -365,18 +365,68 @@
                 noise(0.16, 0.16 * _v, 520, panX, { filterType: 'bandpass', q: 2.0 });
                 beep('triangle', 300, 210, 0.14, 0.12 * _v, panX);
             },
-            // NEW: Smolder ignition — a sputtering flame-up as the diver catches fire
+            // NEW: Smolder ignition — variant-specific flame-up / turbine whine / sputter as the diver catches fire
             smolderIgnite(panX) { if (ctx.G.muted) return;
+                const variant = arguments[1] || 'ember';
                 const _p = pv(), _v = vv();
+                if (variant === 'sputter') {
+                    noise(0.14, 0.18 * _v, 2200, panX, { filterType: 'bandpass', q: 2.2 });
+                    [0, 1, 2].forEach(i => ctx.scheduleSfx(() => {
+                        if (ctx.G.muted) return;
+                        ctx.fm((760 - i * 170) * _p, (320 - i * 60) * _p, 0.055, 0.16 * _v, panX, 2.5, { reverb: 0.16 });
+                    }, i * 52));
+                    return;
+                }
+                if (variant === 'spiral') {
+                    ctx.fm(860 * _p, 230 * _p, 0.26, 0.2 * _v, panX, 3.2, { q: 2.2, reverb: 0.2 });
+                    noise(0.2, 0.16 * _v, 1650, panX, { filterType: 'bandpass', q: 1.8 });
+                    return;
+                }
+                if (variant === 'glide') {
+                    noise(0.24, 0.22 * _v, 820, panX, { filterType: 'bandpass', q: 1.5 });
+                    beep('sawtooth', 510 * _p, 145 * _p, 0.24, 0.17 * _v, panX, { q: 2.3, reverb: 0.2 });
+                    return;
+                }
                 noise(0.22, 0.2 * _v, 1400, panX, { filterType: 'bandpass', q: 1.6 });
-                beep('sawtooth', 620 * _p, 190 * _p, 0.2, 0.18 * _v, panX, { q: 2.0, reverb: 0.18 });
+                beep('sawtooth', 680 * _p, 185 * _p, 0.22, 0.18 * _v, panX, { q: 2.0, reverb: 0.18 });
+                beep('triangle', 340 * _p, 110 * _p, 0.18, 0.12 * _v, panX);
             },
-            // NEW: Smolder detonation — a deep delayed blast for the crash diver
-            smolderBlast(panX) { if (ctx.G.muted) return;
+            // NEW: Smolder mid-fall sputter — internal misfire pop and electric spark snap
+            smolderSputter(panX) { if (ctx.G.muted) return;
                 const _p = pv(), _v = vv();
-                ctx.fm(120 * _p, 36 * _p, 0.42, 0.42 * _v, panX, 2.4, { reverb: 0.26 });
-                noise(0.3, 0.3 * _v, 700, panX);
-                beep('sine', 190 * _p, 60 * _p, 0.3, 0.22 * _v, panX, { reverb: 0.24 });
+                noise(0.055, 0.14 * _v, 2800, panX, { filterType: 'bandpass', q: 2.2 });
+                ctx.fm(960 * _p, 290 * _p, 0.06, 0.14 * _v, panX, 2.6, { reverb: 0.14 });
+            },
+            // NEW: Smolder detonation — implosion suck + deep delayed blast + shrapnel crackle tail
+            smolderBlast(panX) { if (ctx.G.muted) return;
+                const variant = arguments[1] || 'ember';
+                const _p = pv(), _v = vv();
+                beep('sine', 160 * _p, 580 * _p, 0.04, 0.14 * _v, panX, { q: 2.4 });
+                ctx.fm(126 * _p, 34 * _p, 0.44, 0.44 * _v, panX, 2.4, { reverb: 0.28 });
+                noise(0.32, 0.32 * _v, variant === 'sputter' ? 1150 : 700, panX, { reverb: 0.22 });
+                beep('sine', 190 * _p, 52 * _p, 0.32, 0.24 * _v, panX, { reverb: 0.24 });
+                ctx.scheduleSfx(() => {
+                    if (ctx.G.muted) return;
+                    noise(0.11, 0.14 * _v, 4400, panX, { reverb: 0.22 });
+                }, 80);
+            },
+            // NEW: Armor/shield metallic ricochet ping
+            armorRicochet(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(2350 * _p, 3950 * _p, 0.055, 0.2 * _v, panX, 2.8, { reverb: 0.24 });
+                beep('triangle', 1680 * _p, 920 * _p, 0.045, 0.12 * _v, panX);
+            },
+            // NEW: Weakpoint / critical hit crunch + harmonic chime
+            critHit(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(340 * _p, 95 * _p, 0.09, 0.26 * _v, panX, 2.1);
+                beep('sine', 1568 * _p, 2093 * _p, 0.08, 0.18 * _v, panX, { reverb: 0.22 });
+            },
+            // NEW: Enemy dive launch thruster ignition burst
+            diveIgnite(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                noise(0.085, 0.13 * _v, 1950, panX, { filterType: 'bandpass', q: 2.0 });
+                beep('sawtooth', 250 * _p, 520 * _p, 0.075, 0.13 * _v, panX, { q: 2.0, reverb: 0.14 });
             }
         };
         SFX.attackWarning = pan => ctx.fm(680, 920, 0.10, 0.18, pan, 1.5, { reverb: 0.18 });

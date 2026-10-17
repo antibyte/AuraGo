@@ -49,6 +49,11 @@ func TestGalaxaEnemyFxConstantsPresent(t *testing.T) {
 			t.Fatalf("FX_CAPS must include %q", cap)
 		}
 	}
+	for _, variant := range []string{"id: 'glide'", "id: 'spiral'", "id: 'sputter'", "id: 'ember'"} {
+		if !strings.Contains(consts, variant) {
+			t.Fatalf("GC.SMOLDER variants must include %q", variant)
+		}
+	}
 }
 
 func TestGalaxaEnemyFxHonorsParticlesAndReducedMotion(t *testing.T) {
@@ -66,9 +71,13 @@ func TestGalaxaEnemyFxHonorsParticlesAndReducedMotion(t *testing.T) {
 		"function igniteSmolder(e, prep)",
 		"function updateSmolder(dt, dtMs)",
 		"function smolderDetonate(e, defused, playerHit)",
+		"function fxArmorRicochet(x, y, dirX, dirY)",
+		"function fxEnemyDiveStart(x, y, col)",
 		"e.st = 'SMOLDER'",
 		"ctx.igniteSmolder = igniteSmolder",
 		"ctx.smolderDetonate = smolderDetonate",
+		"ctx.fxArmorRicochet = fxArmorRicochet",
+		"ctx.fxEnemyDiveStart = fxEnemyDiveStart",
 	} {
 		if !strings.Contains(fx, marker) {
 			t.Fatalf("galaxa-enemy-fx missing %q", marker)
@@ -89,6 +98,7 @@ func TestGalaxaEnemyFxWiringMarkers(t *testing.T) {
 		"else if (e.st === 'FEINT')",
 		"GC.SQUAD_DIVE.staggerMs",
 		"ctx.fxSquadDiveCue",
+		"ctx.fxEnemyDiveStart",
 	} {
 		if !strings.Contains(behaviors, marker) {
 			t.Fatalf("galaxa-entities-behaviors missing %q", marker)
@@ -113,6 +123,9 @@ func TestGalaxaEnemyFxWiringMarkers(t *testing.T) {
 	}
 	if !strings.Contains(combat, "ctx.maybeSmolder(e, b)") {
 		t.Fatal("bullet kill path must try the smolder crash dive")
+	}
+	if !strings.Contains(combat, "ctx.fxArmorRicochet") {
+		t.Fatal("surviving armored hit path must call ctx.fxArmorRicochet")
 	}
 	fx := readEmbeddedText(t, "js/desktop/apps/galaxa-enemy-fx.js")
 	for _, marker := range []string{
@@ -155,7 +168,11 @@ func TestGalaxaEnemyFxSFXRespectMute(t *testing.T) {
 		"rageGrowl(panX) { if (ctx.G.muted) return;",
 		"shuffleRumble(panX) { if (ctx.G.muted) return;",
 		"smolderIgnite(panX) { if (ctx.G.muted) return;",
+		"smolderSputter(panX) { if (ctx.G.muted) return;",
 		"smolderBlast(panX) { if (ctx.G.muted) return;",
+		"armorRicochet(panX) { if (ctx.G.muted) return;",
+		"critHit(panX) { if (ctx.G.muted) return;",
+		"diveIgnite(panX) { if (ctx.G.muted) return;",
 	} {
 		if !strings.Contains(sfx, marker) {
 			t.Fatalf("galaxa audio sfx missing mute guard %q", marker)
