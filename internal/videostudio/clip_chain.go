@@ -16,7 +16,8 @@ import (
 // stages in the preview's pipeline order (stages, assembleStages) and collects the command and LUT files they read.
 // Later slices extend a stage, never the assembly in build:
 //   - 2b: retime (speed ramps) and runtime-command targets in transform and opacity.
-//   - 2c: picture (crop, flip), effects (one chainStage per entry) and command groups after two-input stages.
+//   - 2c: picture (crop, flip), effects (one chainStage per entry), command groups after two-input stages and
+//     the animated crop in front of the transform.
 //   - 2d: mask (a two-input stage) and the blend path of place.
 type clipChain struct {
 	track, index              int
@@ -70,13 +71,15 @@ func (c clipChain) build(output string) clipBuild {
 // filter returns the clip's chain ending in the label output.
 func (c clipChain) filter(output string) string { return c.build(output).filter }
 
-// stages lists the stages after window in the preview's pipeline order: picture, the effect entries, mask,
-// transform and opacity.
+// stages lists the stages after window in the preview's pipeline order: picture, the effect entries, mask, the
+// animated crop, transform and opacity. The animated crop (plan 2c) is its own stage right in front of the transform,
+// so its commands join the group of the last two-input stage before it.
 func (c clipChain) stages() []chainStage {
 	stages := []chainStage{{filter: c.picture()}}
 	stages = append(stages, c.effects()...)
 	return append(stages,
 		chainStage{filter: c.mask()},
+		chainStage{filter: c.animatedCrop(), tracks: c.pictureTracks()},
 		chainStage{filter: c.transform(), tracks: c.transformTracks()},
 		chainStage{filter: c.opacity(), tracks: c.opacityTracks()})
 }
@@ -148,8 +151,138 @@ func (c clipChain) window() string {
 	return fmt.Sprintf("setpts='max(PTS-%d,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS", c.item.first, clip.Duration, clip.Duration*2, clip.Duration)
 }
 
-// picture crops and flips the source (plan 2c Task 7). Nothing until then.
-func (c clipChain) picture() string { return "" }
+// picture crops and flips the source (index §4.10, §4.20). Crop fractions refer to the unflipped source:
+//   - A static crop cuts cropRect's rectangle with expressions in iw/ih, so it is right in whatever orientation
+//     autorotation delivers. The flips follow it.
+//   - With crop keyframes only the flips run here. The effects then see the whole flipped picture, and the crop follows
+//     them in front of the transform (animatedCrop). The reason: filters after a size-changing crop keep the size they
+//     were configured with, so variable-size frames cannot pass through the effect filters (plan 2c decision 4).
+func (c clipChain) picture() string {
+	whole := c.item.whole
+	var parts []string
+	if whole.Crop != nil && !cropAnimated(whole) {
+		parts = append(parts, staticCropFilter(*whole.Crop))
+	}
+	if whole.FlipH {
+		parts = append(parts, "hflip")
+	}
+	if whole.FlipV {
+		parts = append(parts, "vflip")
+	}
+	return strings.Join(parts, ",")
+}
+
+// cropRectExprs is cropRect (index §4.20) as crop-filter expressions in the input size iw × ih:
+//   - x = min(2·round(l·iw/2), max(0, iw − 2)) and w = min(iw − x, max(2, iw − x − 2·round(r'·iw/2))), with
+//     r' = min(r, 0.95 − l);
+//   - y and h likewise.
+//
+// Go computes r' and b' and writes them as numbers. ffExpr's round is FFmpeg's (half away from zero), like math.Round,
+// and its min and max are FFmpeg's. TestCropRectExprMatchesCropRect evaluates the expressions against cropRect.
+func cropRectExprs(crop Crop) (x, y, w, h ffExpr) {
+	even := func(fraction float64, side string) ffExpr { // 2·round(fraction·side/2)
+		return exprOp("*", exprOp("round", exprOp("/", exprOp("*", exprNum(fraction), exprVar(side)), exprNum(2))), exprNum(2))
+	}
+	position := func(fraction float64, side string) ffExpr { // min(2·round(fraction·side/2), max(0, side − 2))
+		return exprOp("min", even(fraction, side), exprOp("max", exprNum(0), exprOp("-", exprVar(side), exprNum(2))))
+	}
+	size := func(start ffExpr, fraction float64, side string) ffExpr { // min(side − start, max(2, side − start − even))
+		rest := exprOp("-", exprVar(side), start)
+		return exprOp("min", rest, exprOp("max", exprNum(2), exprOp("-", rest, even(fraction, side))))
+	}
+	right, bottom := math.Min(crop.R, maxCropFraction-crop.L), math.Min(crop.B, maxCropFraction-crop.T)
+	x, y = position(crop.L, "iw"), position(crop.T, "ih")
+	return x, y, size(x, right, "iw"), size(y, bottom, "ih")
+}
+
+// staticCropFilter cuts a static crop. exact=1 keeps the odd sizes of a subsampled source (a 4:2:0 JPEG of odd width) at
+// cropRect's numbers instead of rounding them down; the positions are even anyway.
+func staticCropFilter(crop Crop) string {
+	x, y, w, h := cropRectExprs(crop)
+	return fmt.Sprintf("crop=w='%s':h='%s':x='%s':y='%s':exact=1", w.String(), h.String(), x.String(), y.String())
+}
+
+// pictureRect is one frame's crop of a clip with crop keyframes, in decoded source pixels.
+type pictureRect struct{ x, y, w, h int }
+
+// pictureRects is the crop of every window frame of a clip with crop keyframes (index §4.10):
+//   - the crop values at absolute frame at + k (ValueAt over crop.l|t|r|b);
+//   - mirrored for the flips that picture() already applied (mirroredCrop);
+//   - as cropRect's rectangle of the decoded, autorotated picture (layerClip.pictureWidth × pictureHeight);
+//   - for cover, the window of that frame's box aspect inside it (coverWindow).
+func (c clipChain) pictureRects() []pictureRect {
+	whole := c.item.whole
+	frames := c.item.clip.Duration
+	var boxWidths, boxHeights []int
+	if whole.Fit == FitCover {
+		if geometry, _ := clipAnimation(whole); geometry {
+			g := c.geometry()
+			boxWidths, boxHeights = g.widths, g.heights
+		} else {
+			_, _, w, h := clipBox(c.item.clip, c.canvasWidth, c.canvasHeight)
+			boxWidths, boxHeights = make([]int, frames), make([]int, frames)
+			for k := range frames {
+				boxWidths[k], boxHeights[k] = w, h
+			}
+		}
+	}
+	value := func(path string, frame int) float64 {
+		v, _ := ValueAt(whole, path, frame)
+		return v
+	}
+	rects := make([]pictureRect, frames)
+	for k := range rects {
+		frame := c.item.at + k
+		crop := mirroredCrop(Crop{L: value("crop.l", frame), T: value("crop.t", frame), R: value("crop.r", frame), B: value("crop.b", frame)}, whole.FlipH, whole.FlipV)
+		x, y, w, h := cropRect(crop, c.item.pictureWidth, c.item.pictureHeight)
+		if boxWidths != nil {
+			x, y, w, h = coverWindow(x, y, w, h, boxWidths[k], boxHeights[k])
+		}
+		rects[k] = pictureRect{x: x, y: y, w: w, h: h}
+	}
+	return rects
+}
+
+// animatedCrop cuts the per-frame crop of a clip with crop keyframes right in front of the transform.
+// crop@vs_picture_L_C starts at the window's first rectangle and takes w, h, x and y of every later frame from sendcmd
+// (pictureTracks). It returns "" without crop keyframes.
+func (c clipChain) animatedCrop() string {
+	if !cropAnimated(c.item.whole) {
+		return ""
+	}
+	first := c.pictureRects()[0]
+	return fmt.Sprintf("crop@vs_picture_%d_%d=w=%d:h=%d:x=%d:y=%d:exact=1", c.track, c.index, first.w, first.h, first.x, first.y)
+}
+
+// pictureTracks are the commands of crop@vs_picture_L_C: w, h, x and y for every window frame, in that order, so a
+// frame's size is set before its position. nil without crop keyframes.
+func (c clipChain) pictureTracks() []SendCmdTrack {
+	if !cropAnimated(c.item.whole) {
+		return nil
+	}
+	rects := c.pictureRects()
+	w, h, x, y := make([]float64, len(rects)), make([]float64, len(rects)), make([]float64, len(rects)), make([]float64, len(rects))
+	for k, rect := range rects {
+		w[k], h[k], x[k], y[k] = float64(rect.w), float64(rect.h), float64(rect.x), float64(rect.y)
+	}
+	target := fmt.Sprintf("crop@vs_picture_%d_%d", c.track, c.index)
+	return []SendCmdTrack{
+		{Target: target, Option: "w", Values: w}, {Target: target, Option: "h", Values: h},
+		{Target: target, Option: "x", Values: x}, {Target: target, Option: "y", Values: y},
+	}
+}
+
+// coverWindow is the part of a crop rectangle that a cover fit of the box shows: the largest centred rectangle with the
+// box's aspect, in whole pixels and at least 2 px across. The exact scale that follows fills the box with it, so an
+// animated crop needs no second crop on a constant canvas.
+func coverWindow(x, y, w, h, boxWidth, boxHeight int) (int, int, int, int) {
+	if int64(w)*int64(boxHeight) > int64(h)*int64(boxWidth) { // wider than the box: trim the sides
+		width := min(w, max(2, int(math.Round(float64(h)*float64(boxWidth)/float64(boxHeight)))))
+		return x + (w-width)/2, y, width, h
+	}
+	height := min(h, max(2, int(math.Round(float64(w)*float64(boxHeight)/float64(boxWidth)))))
+	return x, y + (h-height)/2, w, height
+}
 
 // effects runs the clip's effect stack, one chainStage per on entry in stack order (plan 2c Task 8, 2d). A two-input
 // entry (a LUT blend, the vignette alpha wrapper) is its own stage with twoInput set. Nothing until then.
@@ -158,21 +291,36 @@ func (c clipChain) effects() []chainStage { return nil }
 // mask applies the clip's mask as alpha (plan 2d, a two-input stage). Nothing in 2c.
 func (c clipChain) mask() string { return "" }
 
-// transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it. A static
-// cover clip whose source is more than 16x off the box aspect first crops the source to within that factor
-// (staticCoverClamp), so the cover-scaled picture stays a bounded multiple of the box.
+// transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it.
+//   - A static cover clip whose source is more than 16x off the box aspect first crops the source to within that factor
+//     (staticCoverClamp), so the cover-scaled picture stays a bounded multiple of the box.
+//   - With crop keyframes, the picture arrives from crop@vs_picture in a new size whenever the crop changes. Contain
+//     re-fits every frame (scale and pad with eval=frame). With eval=init, scale treats its previous output size as the
+//     target when the input size changes. Cover scales the composed window exactly onto the box (index §4.10).
+//   - Both scales read t in w and h ('<BW>+0*t') with eval=frame. FFmpeg 5.1's scale reconfigures only when a frame
+//     differs from its input link, and the commanded crop has already updated that link: a constant-size scale there
+//     keeps its old scaler (5.1 hangs), and the t-term forces a reconfiguration on every frame (index risk 14). It
+//     costs about 2.3× on 5.1 at 1080p, so only clips with crop keyframes use it.
 func (c clipChain) transform() string {
 	if geometry, _ := clipAnimation(c.item.whole); geometry {
 		return c.animatedTransform()
 	}
 	clip := c.item.clip
 	_, _, boxWidth, boxHeight := clipBox(clip, c.canvasWidth, c.canvasHeight)
-	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
-	if clip.Fit == FitCover {
+	cropped := cropAnimated(c.item.whole)
+	var scale string
+	switch {
+	case cropped && clip.Fit == FitCover:
+		scale = fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':eval=frame", boxWidth, boxHeight)
+	case cropped:
+		scale = fmt.Sprintf("scale=w='%d+0*t':h='%d+0*t':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame", boxWidth, boxHeight, boxWidth, boxHeight)
+	case clip.Fit == FitCover:
 		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
 		if clamp := staticCoverClamp(boxWidth, boxHeight, c.item.sourceAspect); clamp != "" {
 			scale = clamp + "," + scale
 		}
+	default:
+		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
 	}
 	rotation := ""
 	if clipRotated(clip) {
@@ -398,6 +546,7 @@ func (c clipChain) wholeExtent() wholeExtent {
 //     from the sendcmd script and re-validates it against its input before the frame arrives, so that input must not
 //     change size.
 //   - rotate follows only when the clip rotates.
+//   - With crop keyframes, cover scales crop@vs_picture's window exactly; contain keeps the 2b chain.
 func (c clipChain) animatedTransform() string {
 	g := c.geometry()
 	id := fmt.Sprintf("%d_%d", c.track, c.index)
@@ -405,7 +554,11 @@ func (c clipChain) animatedTransform() string {
 		return fmt.Sprintf("pad%s=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame", name, width, height)
 	}
 	var parts []string
-	if c.item.whole.Fit == FitCover {
+	if c.item.whole.Fit == FitCover && cropAnimated(c.item.whole) {
+		// crop@vs_picture already cut the window of this frame's box aspect: scale fills the box exactly and pad keeps the
+		// constant canvas, without the aspect clamp, cover bound or crop@vs_crop of the 2b chain.
+		parts = append(parts, fmt.Sprintf("scale@vs_scale_%s=w='%s':h='%s':eval=frame", id, g.box.w.String(), g.box.h.String()))
+	} else if c.item.whole.Fit == FitCover {
 		parts = append(parts,
 			aspectClampCrop(g.low, g.high, 0),
 			fmt.Sprintf("scale@vs_scale_%s=w='%s':h='%s':force_original_aspect_ratio=increase:force_divisible_by=2:eval=frame", id, g.box.w.String(), g.box.h.String()),
@@ -427,11 +580,11 @@ func (c clipChain) commandFiles() []sendCmdFile {
 	return commands
 }
 
-// transformTracks drive the transform stage. When the geometry is keyframed, they hold the cover crop's size for
-// every window frame: exactly the box sizes FFmpeg's scale computes, from absolute frames. 2c Task 7 adds the
-// animated picture crop, which opens transform.
+// transformTracks drive the transform stage: the cover crop of keyframed geometry, its size for every window frame
+// (crop@vs_crop_L_C, index §4.11), exactly the box sizes FFmpeg's scale computes, from absolute frames. A clip with
+// crop keyframes cuts its cover window in crop@vs_picture instead (pictureTracks), so it commands no crop@vs_crop.
 func (c clipChain) transformTracks() []SendCmdTrack {
-	if geometry, _ := clipAnimation(c.item.whole); !geometry || c.item.whole.Fit != FitCover {
+	if geometry, _ := clipAnimation(c.item.whole); !geometry || c.item.whole.Fit != FitCover || cropAnimated(c.item.whole) {
 		return nil
 	}
 	id := fmt.Sprintf("%d_%d", c.track, c.index)

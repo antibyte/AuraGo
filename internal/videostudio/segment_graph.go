@@ -202,6 +202,14 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 				}
 				item.luts[index] = table
 			}
+			if clip.Crop != nil && !cropAnimated(clip) && item.pictureWidth > 0 && item.pictureHeight > 0 {
+				// The transform fits the cropped picture, so the cover clamp and the cover bound use its aspect (index §4.10).
+				_, _, width, height := cropRect(*clip.Crop, item.pictureWidth, item.pictureHeight)
+				item.sourceAspect = float64(width) / float64(height)
+			}
+			if pictureSizeNeeded(clip) && (item.pictureWidth <= 0 || item.pictureHeight <= 0) {
+				return nil, nil, fmt.Errorf("decoded picture size of asset %q is unknown; clip %q needs it for its crop or effects", clip.AssetID, clip.ID)
+			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
 				// The source position of the first window frame: a clip at speed s advances s source frames per frame; a
@@ -486,4 +494,18 @@ func transparentGapFilter(label string, frames, width, height int, rate Rate) st
 
 func gapLabel(trackIndex, sequence int) string {
 	return fmt.Sprintf("vs_gap_%d_%d", trackIndex, sequence)
+}
+
+// pictureSizeNeeded reports a clip whose export works in decoded pixels: crop keyframes (crop@vs_picture commands) or an
+// effect that is on (the resolution rule, index §4.20).
+func pictureSizeNeeded(clip Clip) bool {
+	if cropAnimated(clip) {
+		return true
+	}
+	for _, entry := range clip.Effects {
+		if entry.On {
+			return true
+		}
+	}
+	return false
 }

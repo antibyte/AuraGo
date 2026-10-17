@@ -3,7 +3,10 @@ package videostudio
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -227,5 +230,187 @@ func TestClipChainRampSnapshot(t *testing.T) {
 	plain.pieces = nil
 	if got := (clipChain{item: plain, rate: pal}).retime(); got != videoResample(20, 20, 1, pal) {
 		t.Fatalf("unramped retime = %s", got)
+	}
+}
+
+// TestClipChainPictureSnapshots pins the picture stage and the animated crop (index §4.10, plan 2c Task 7). The decoded
+// picture is 1920x1080; crop rectangles follow cropRect and mirroredCrop, cover windows coverWindow.
+func TestClipChainPictureSnapshots(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	chain := func(index int, clip Clip) clipChain {
+		return clipChain{track: 0, index: index, item: layerClip{clip: clip, whole: clip, at: clip.Start, input: index, pictureWidth: 1920, pictureHeight: 1080, sourceAspect: 16.0 / 9}, canvasWidth: 1280, canvasHeight: 720, rate: pal}
+	}
+	head := func(input, duration int) string {
+		return fmt.Sprintf("[%d:V:0]setpts='if(eq(N,0),min(PTS,floor(0.000000000/TB)),PTS)',fps=25,setpts='max(PTS-0,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,", input, duration, duration*2, duration)
+	}
+	tail := func(index, duration int, overlay string) string {
+		return fmt.Sprintf("[vs_layer_0_%[1]d];color=c=black@0:s=1280x720:r=25:d=%[2]s,trim=end_frame=%[3]d,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_%[1]d];[vs_clip_bg_0_%[1]d][vs_layer_0_%[1]d]%[4]s[vs_clip_0_%[1]d]", index, pal.SecondsArg(duration), duration, overlay)
+	}
+	staticOverlay := "overlay=x=0:y=0:format=auto:shortest=1"
+	pictureFile := func(c clipChain, name string, frames ...[5]int) {
+		t.Helper()
+		files := c.commandFiles()
+		if len(files) != 1 || files[0].name != name || len(files[0].tracks) != 4 {
+			t.Fatalf("%s: command files %+v", name, files)
+		}
+		target := fmt.Sprintf("crop@vs_picture_0_%d", c.index)
+		for i, option := range []string{"w", "h", "x", "y"} {
+			if track := files[0].tracks[i]; track.Target != target || track.Option != option {
+				t.Fatalf("%s: track %d is %s %s, want %s %s", name, i, track.Target, track.Option, target, option)
+			}
+		}
+		for _, f := range frames { // {frame, w, h, x, y}
+			for i := range 4 {
+				if got := files[0].tracks[i].Values[f[0]]; got != float64(f[i+1]) {
+					t.Fatalf("%s: frame %d option %s = %v, want %d", name, f[0], files[0].tracks[i].Option, got, f[i+1])
+				}
+			}
+		}
+	}
+
+	// timedScale checks the rule of index risk 14 on a chain with crop keyframes: the filter right after crop@vs_picture
+	// is a scale with eval=frame whose w and h both read t. FFmpeg 5.1 reconfigures its scaler only then; a
+	// constant-size scale there hangs.
+	timedScale := func(name, filter string) {
+		t.Helper()
+		_, rest, found := strings.Cut(filter, "crop@vs_picture_")
+		if found {
+			_, rest, found = strings.Cut(rest, ":exact=1,")
+		}
+		if !found {
+			t.Fatalf("%s: no crop@vs_picture in %s", name, filter)
+		}
+		next, quoted := rest, false
+		for i, r := range rest {
+			if r == '\'' {
+				quoted = !quoted
+			} else if r == ',' && !quoted {
+				next = rest[:i]
+				break
+			}
+		}
+		option := func(prefix string) string {
+			_, value, _ := strings.Cut(next, prefix+"='")
+			value, _, _ = strings.Cut(value, "'")
+			return value
+		}
+		readsT := regexp.MustCompile(`\bt\b`)
+		if !strings.HasPrefix(next, "scale") || !strings.Contains(next, ":eval=frame") || !readsT.MatchString(option("w")) || !readsT.MatchString(option(":h")) {
+			t.Fatalf("%s: the filter after crop@vs_picture is %q; want a scale with eval=frame and t in both w and h", name, next)
+		}
+	}
+
+	// Static crop with both flips: cropRect as iw/ih expressions, the flips after it, then the unchanged 2a transform.
+	static := Clip{ID: "s", AssetID: "a", Duration: 50, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, FlipH: true, FlipV: true,
+		Crop: &Crop{L: 0.1, T: 0, R: 0.2, B: 0.05}}
+	sc := chain(0, static)
+	want := head(0, 50) + staticCropFilter(*static.Crop) + ",hflip,vflip," +
+		"scale=w=1280:h=720:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=1280:h=720:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,format=rgba" +
+		tail(0, 50, staticOverlay)
+	if got := sc.filter("vs_clip_0_0"); got != want {
+		t.Fatalf("static crop:\n got %s\nwant %s", got, want)
+	}
+	if files := sc.commandFiles(); len(files) != 0 {
+		t.Fatalf("a static crop needs no commands: %+v", files)
+	}
+
+	// Crop keyframes on a contain clip with flip_h: the flip runs first, the mirrored crop follows the (empty) effects
+	// in front of an eval=frame scale and pad.
+	contain := Clip{ID: "c", AssetID: "a", Duration: 11, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, FlipH: true,
+		Crop: &Crop{L: 0.1, T: 0.05, R: 0.1},
+		Keyframes: map[string][]Keyframe{
+			"crop.l": {{F: 0, V: 0.1, E: EaseLinear}, {F: 10, V: 0.3, E: EaseLinear}},
+			"crop.b": {{F: 0, V: 0, E: EaseLinear}, {F: 10, V: 0.2, E: EaseLinear}},
+		}}
+	cc := chain(1, contain)
+	want = head(1, 11) + "sendcmd=f=vs_cmd_0_1.txt,hflip," +
+		"crop@vs_picture_0_1=w=1536:h=1026:x=192:y=54:exact=1," +
+		"scale=w='1280+0*t':h='720+0*t':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad=w=1280:h=720:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame,format=rgba" +
+		tail(1, 11, staticOverlay)
+	if got := cc.filter("vs_clip_0_1"); got != want {
+		t.Fatalf("animated contain crop:\n got %s\nwant %s", got, want)
+	}
+	// flip_h mirrors l and r: at frame 10 the user's l = 0.3 trims the right edge of the flipped picture.
+	pictureFile(cc, "vs_cmd_0_1.txt", [5]int{0, 1536, 1026, 192, 54}, [5]int{5, 1344, 918, 192, 54}, [5]int{10, 1152, 810, 192, 54})
+	timedScale("animated contain crop", cc.filter("vs_clip_0_1"))
+
+	// Crop keyframes on a cover clip with flip_h: the crop is the cover window of the 16:9 box, scaled exactly.
+	cover := Clip{ID: "v", AssetID: "a", Duration: 21, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitCover, FlipH: true,
+		Crop:      &Crop{L: 0.2, B: 0.1},
+		Keyframes: map[string][]Keyframe{"crop.l": {{F: 0, V: 0.2, E: EaseLinear}, {F: 20, V: 0.4, E: EaseLinear}}}}
+	vc := chain(2, cover)
+	want = head(2, 21) + "sendcmd=f=vs_cmd_0_2.txt,hflip,crop@vs_picture_0_2=w=1536:h=864:x=0:y=54:exact=1,scale=w='1280+0*t':h='720+0*t':eval=frame,format=rgba" + tail(2, 21, staticOverlay)
+	if got := vc.filter("vs_clip_0_2"); got != want {
+		t.Fatalf("animated cover crop:\n got %s\nwant %s", got, want)
+	}
+	pictureFile(vc, "vs_cmd_0_2.txt", [5]int{0, 1536, 864, 0, 54}, [5]int{20, 1152, 648, 0, 162})
+	timedScale("animated cover crop", vc.filter("vs_clip_0_2"))
+
+	// Keyframed geometry and crop on a cover clip: the window follows each frame's box aspect; scale@vs_scale fills the
+	// box exactly; there is no aspect clamp, no cover bound and no crop@vs_crop.
+	keyed := Clip{ID: "k", AssetID: "a", Duration: 30, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitCover,
+		Crop: &Crop{T: 0.1},
+		Keyframes: map[string][]Keyframe{
+			"width":  {{F: 0, V: 0.25, E: EaseLinear}, {F: 20, V: 0.5, E: EaseLinear}},
+			"crop.r": {{F: 0, V: 0, E: EaseLinear}, {F: 20, V: 0.3, E: EaseLinear}},
+		}}
+	kc := chain(3, keyed)
+	g := kc.geometry()
+	if g.padWidth != 640 || g.padHeight != 360 || g.rotated {
+		t.Fatalf("keyed geometry = %+v", g)
+	}
+	want = head(3, 30) + "sendcmd=f=vs_cmd_0_3.txt," +
+		fmt.Sprintf("crop@vs_picture_0_3=w=864:h=972:x=528:y=108:exact=1,scale@vs_scale_0_3=w='%s':h='%s':eval=frame,pad@vs_pad_0_3=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame,format=rgba", g.box.w.String(), g.box.h.String()) +
+		tail(3, 30, fmt.Sprintf("overlay@vs_place_0_3=x='%s':y='%s':eval=frame:format=auto:shortest=1", exprOp("-", g.box.cx, exprNum(320)).String(), exprOp("-", g.box.cy, exprNum(180)).String()))
+	if got := kc.filter("vs_clip_0_3"); got != want {
+		t.Fatalf("animated crop with keyframed cover geometry:\n got %s\nwant %s", got, want)
+	}
+	pictureFile(kc, "vs_cmd_0_3.txt", [5]int{0, 864, 972, 528, 108}, [5]int{29, 1344, 756, 0, 216})
+	timedScale("animated crop with keyframed cover geometry", kc.filter("vs_clip_0_3"))
+	for _, track := range kc.commandFiles()[0].tracks {
+		if strings.HasPrefix(track.Target, "crop@vs_crop") {
+			t.Fatalf("the composed window replaces the cover crop, but %s is commanded", track.Target)
+		}
+	}
+
+	// Keyframed position and crop on a contain clip: the unchanged 2b contain scale follows crop@vs_picture, and its box
+	// expressions read t.
+	moving := Clip{ID: "m", AssetID: "a", Duration: 20, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitContain,
+		Keyframes: map[string][]Keyframe{
+			"x":      {{F: 0, V: 0, E: EaseLinear}, {F: 19, V: 0.5, E: EaseLinear}},
+			"crop.t": {{F: 0, V: 0, E: EaseLinear}, {F: 19, V: 0.4, E: EaseLinear}},
+		}}
+	timedScale("animated crop with keyframed contain position", chain(4, moving).filter("vs_clip_0_4"))
+}
+
+// TestCropRectExprMatchesCropRect evaluates the static crop's iw/ih expressions with FFmpeg's arithmetic (ffExpr.eval)
+// and compares them with cropRect (index §4.20). It covers odd sizes and crops with clamped r and b. The half-pixel
+// crop is exact in binary at 1024x512, so it checks the round-half-away-from-zero rule.
+func TestCropRectExprMatchesCropRect(t *testing.T) {
+	sizes := [][2]int{{1, 1}, {3, 3}, {1, 7}, {5, 2}, {64, 64}, {65, 97}, {640, 360}, {641, 361}, {1024, 512}, {1080, 1920}, {1919, 1081}, {3840, 2160}, {4097, 2161}}
+	crops := []Crop{
+		{L: 0.1, T: 0, R: 0.2, B: 0.05},
+		{L: 0.95}, {R: 0.95}, {T: 0.95}, {B: 0.95},
+		{L: 0.5, T: 0.6, R: 0.5, B: 0.6},
+		{L: 3.0 / 1024, T: 5.0 / 512, R: 7.0 / 1024, B: 9.0 / 512},
+		{L: 0.25, T: 0.25, R: 0.125, B: 0.125},
+	}
+	random := rand.New(rand.NewPCG(7, 11))
+	for range 300 {
+		crops = append(crops, Crop{L: random.Float64() * 0.95, T: random.Float64() * 0.95, R: random.Float64() * 0.95, B: random.Float64() * 0.95})
+	}
+	for _, size := range sizes {
+		vars := map[string]float64{"iw": float64(size[0]), "ih": float64(size[1])}
+		for _, crop := range crops {
+			ex, ey, ew, eh := cropRectExprs(crop)
+			got := [4]int{int(ex.eval(vars)), int(ey.eval(vars)), int(ew.eval(vars)), int(eh.eval(vars))}
+			x, y, w, h := cropRect(crop, size[0], size[1])
+			if want := [4]int{x, y, w, h}; got != want {
+				t.Fatalf("%dx%d crop %+v: expressions give %v, cropRect %v", size[0], size[1], crop, got, want)
+			}
+		}
+	}
+	if got := staticCropFilter(Crop{L: 0.25, T: 0.1}); !strings.HasPrefix(got, "crop=w='min((iw-min((round(((0.25*iw)/2))*2),max(0,(iw-2)))),max(2,((iw-min((round(((0.25*iw)/2))*2),max(0,(iw-2))))-") || !strings.HasSuffix(got, ":exact=1") {
+		t.Fatalf("static crop filter = %s", got)
 	}
 }
