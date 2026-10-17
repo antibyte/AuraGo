@@ -29,7 +29,7 @@
         let gl = null;
         try { gl = canvas.getContext('webgl2', ATTRIBUTES); } catch (_) { gl = null; }
         if (!gl) return null;
-        const programs = new Map(), failures = new Set(), textures = new Set(), pool = new Map(), losses = [];
+        const programs = new Map(), failures = new Set(), textures = new Set(), luts = new Set(), pool = new Map(), losses = [];
         let lost = false, disposed = false, generation = 0, quad = null;
 
         function isLost() { return lost || gl.isContextLost(); }
@@ -65,7 +65,7 @@
         }
 
         // Program: use() and set(name, value); the uniform's declared type picks the call (float, vec2-4, mat3, int,
-        // bool and sampler units). Unknown or optimised-out names are ignored.
+        // bool and 2D/3D sampler units). Unknown or optimised-out names are ignored.
         function wrap(handle) {
             const uniforms = new Map();
             const count = gl.getProgramParameter(handle, gl.ACTIVE_UNIFORMS);
@@ -85,7 +85,7 @@
                     else if (type === gl.FLOAT_VEC3) gl.uniform3fv(location, value);
                     else if (type === gl.FLOAT_VEC4) gl.uniform4fv(location, value);
                     else if (type === gl.FLOAT_MAT3) gl.uniformMatrix3fv(location, false, value);
-                    else if (type === gl.INT || type === gl.BOOL || type === gl.SAMPLER_2D) gl.uniform1i(location, Number(value) | 0);
+                    else if (type === gl.INT || type === gl.BOOL || type === gl.SAMPLER_2D || type === gl.SAMPLER_3D) gl.uniform1i(location, Number(value) | 0);
                 }
             };
         }
@@ -147,6 +147,45 @@
             };
             textures.add(tex);
             return tex;
+        }
+
+        // LUT (index §4.6): a TEXTURE_3D RGBA16F of size³ texels (LINEAR, CLAMP_TO_EDGE) from data, a Float32Array RGBA with
+        // red fastest. The object keeps data and builds the texture on its first bind, and again after a context restore,
+        // so the caller's parsed table is all it needs. null when disposed or when size and data do not fit.
+        function lut(size, data) {
+            const n = Math.round(Number(size) || 0);
+            if (disposed || n < 2 || !data || data.length !== n * n * n * 4) return null;
+            const table = {
+                size: n, data, handle: null, generation: -1,
+                bind(unit) {
+                    gl.activeTexture(gl.TEXTURE0 + unit);
+                    if (disposed || isLost()) { gl.bindTexture(gl.TEXTURE_3D, null); return; }
+                    if (!table.handle || table.generation !== generation) buildLUT(table);
+                    gl.bindTexture(gl.TEXTURE_3D, table.handle);
+                },
+                dispose() {
+                    if (table.handle && table.generation === generation && !isLost()) gl.deleteTexture(table.handle);
+                    table.handle = null;
+                    luts.delete(table);
+                }
+            };
+            luts.add(table);
+            return table;
+        }
+        function buildLUT(table) {
+            const handle = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_3D, handle);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+            // Typed-array 3D uploads refuse the DOM-source unpack flags (INVALID_OPERATION when they are set).
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+            gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, table.size, table.size, table.size, 0, gl.RGBA, gl.FLOAT, table.data);
+            table.handle = handle;
+            table.generation = generation;
         }
 
         // Target: an RGBA8 framebuffer from a size-keyed pool; null when the framebuffer is incomplete or the context
@@ -217,7 +256,7 @@
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             gl.bindVertexArray(null);
             gl.disable(gl.BLEND);
-            for (let i = 0; i < unit; i++) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, null); }
+            for (let i = 0; i < unit; i++) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, null); gl.bindTexture(gl.TEXTURE_3D, null); }
             return true;
         }
 
@@ -254,6 +293,7 @@
             quad = null;
             programs.clear(); failures.clear(); pool.clear();
             textures.forEach(tex => { tex.handle = null; tex.width = 0; tex.height = 0; });
+            luts.forEach(table => { table.handle = null; });
             if (typeof hooks.onLost === 'function') hooks.onLost();
         }
         function onRestored() {
@@ -271,11 +311,12 @@
             if (!isLost()) {
                 programs.forEach(item => gl.deleteProgram(item.handle));
                 textures.forEach(tex => { if (tex.handle && tex.generation === generation) gl.deleteTexture(tex.handle); });
+                luts.forEach(table => { if (table.handle && table.generation === generation) gl.deleteTexture(table.handle); });
                 pool.forEach(list => list.forEach(item => { gl.deleteFramebuffer(item.fbo); gl.deleteTexture(item.texture); }));
                 if (quad) { gl.deleteVertexArray(quad.vao); gl.deleteBuffer(quad.buffer); }
             }
             disposed = true;
-            programs.clear(); textures.clear(); pool.clear(); quad = null;
+            programs.clear(); textures.clear(); luts.clear(); pool.clear(); quad = null;
             // The element is discarded with this helper: give the GPU context back at once (browsers cap live contexts).
             const lose = isLost() ? null : gl.getExtension('WEBGL_lose_context');
             if (lose) lose.loseContext();
@@ -284,7 +325,7 @@
         canvas.addEventListener('webglcontextlost', onLost);
         canvas.addEventListener('webglcontextrestored', onRestored);
         setupQuad();
-        return { gl, program, failed: key => failures.has(key), texture, target, release, clear, draw, read, lost: isLost, lossesWithin, dispose };
+        return { gl, program, failed: key => failures.has(key), texture, lut, target, release, clear, draw, read, lost: isLost, lossesWithin, dispose };
     }
 
     window.VideoStudioGL = { create };

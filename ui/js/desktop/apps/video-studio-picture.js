@@ -8,8 +8,8 @@
     //    TestVideoStudioPictureConstantsMatchGo keep the two equal.
     //  - Painters, the inspector and the colour wheels call in at call time; this file loads directly after
     //    video-studio-effects.js.
-    // parseCube, sampleLUT and unitDomain mirror the Go LUT parser and sampler (plan 2c Task 4); Task 10 adds capSize and
-    // passUniforms.
+    // parseCube, sampleLUT and unitDomain mirror the Go LUT parser and sampler (plan 2c Task 4); capSize, decodedSize,
+    // passUniforms and the CAS peak constants serve the GL effect passes (Task 10).
 
     // Go ColorWheelK, ColorNeutralKelvin, colorTemperatureGain, colorTintGain and lumaBT709.
     const WHEEL_K = 0.2, NEUTRAL_K = 6500, TEMPERATURE_GAIN = 0.5, TINT_GAIN = 0.3;
@@ -261,5 +261,73 @@
         return { size: n, domainMin: [0, 0, 0], domainMax: [1, 1, 1], data };
     }
 
-    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain };
+    // ---- Plan 2c Task 10: GL pass uniforms and picture sizes (index §4.7, §4.8, §4.20). ----
+    // CAS peak: peak = -1 / mix(CAS_P0, CAS_P1, strength). AMD's published CAS uses mix(8, 5, sharpness), but FFmpeg's cas
+    // filter does not: Task 9's TestSharpenMatchesReference fits the pair below against it (identical on FFmpeg 5.1.9 and
+    // 8.1.1) and records it as Go casPeakP0 and casPeakP1 (picture_math.go). TestVideoStudioPictureConstantsMatchGo keeps
+    // these two numbers equal to them. The preview takes the pair from here only: passUniforms hands it to the sharpen
+    // pass as u_peak.
+    const CAS_P0 = 15.104, CAS_P1 = 4.009;
+    // The longest blur kernel half-width, in texels.
+    const BLUR_MAX_RADIUS = 128;
+    const passUnit = value => Math.max(0, Math.min(1, Number(value) || 0));
+    const passIs = (list, value) => { const items = Array.from(list || []); return items.length === 3 && items.every(item => Math.abs(Number(item) - value) < 1e-9); };
+
+    // The decoded (autorotated) size that crop fractions refer to (index §4.8). It is the asset's probed width and height,
+    // swapped when the element's orientation (width x height in its own pixels) differs, as for a rotated phone video.
+    // When the asset has no size, it is the element's size. A proxy or any smaller texture keeps the original's numbers,
+    // so crop pixels round like the export's.
+    function decodedSize(asset, width, height) {
+        const w = Math.round(Number(width) || 0), h = Math.round(Number(height) || 0);
+        let aw = Math.round(Number(asset && asset.width) || 0), ah = Math.round(Number(asset && asset.height) || 0);
+        if (!(aw > 0 && ah > 0)) return { width: Math.max(1, w), height: Math.max(1, h) };
+        if (w > 0 && h > 0 && w !== h && aw !== ah && (aw > ah) !== (w > h)) [aw, ah] = [ah, aw];
+        return { width: aw, height: ah };
+    }
+
+    // The clip-local target for a cropped texture of width x height px (index §4.8). It keeps the aspect and scales
+    // down only as far as a full-canvas cover still needs: k = min(1, max(canvas.width / width, canvas.height / height)).
+    // It is never upscaled and at least 1 px.
+    function capSize(width, height, canvas) {
+        const w = Math.max(1, Number(width) || 1), h = Math.max(1, Number(height) || 1);
+        const cw = Math.max(1, Number(canvas && canvas.width) || w), ch = Math.max(1, Number(canvas && canvas.height) || h);
+        const k = Math.min(1, Math.max(cw / w, ch / h));
+        return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
+    }
+
+    // The GL uniforms of an effect's passes (index §4.7), one object per pass. values are the entry's values at the frame
+    // (clipState); size is the target {width, height}. The result is []:
+    // - when the entry is the identity, as in the export: colour at the identity curve, intensity 0, blur radius 0,
+    //   vignette amount 0;
+    // - for a lut without a loaded table (the compositor passes the table as values.table = {size, domainMin, domainMax});
+    // - for unknown ids.
+    // Sharpen always draws, because CAS at strength 0 still sharpens.
+    function passUniforms(id, values, size) {
+        const v = values || {};
+        const width = Math.max(1, Number(size && size.width) || 1), height = Math.max(1, Number(size && size.height) || 1);
+        if (id === 'color') {
+            const c = colorCoefficients(v);
+            if (passIs(c.mul, 1) && Math.abs(c.contrast - 1) < 1e-9 && passIs(c.lift, 0) && passIs(c.gain, 1) && passIs(c.invGamma, 1) && Math.abs(c.saturation - 1) < 1e-9) return [];
+            return [{ u_mul: Array.from(c.mul), u_contrast: c.contrast, u_lift: Array.from(c.lift), u_gain: Array.from(c.gain), u_invGamma: Array.from(c.invGamma), u_saturation: c.saturation }];
+        }
+        if (id === 'lut') {
+            const table = v.table, intensity = passUnit(v.intensity);
+            if (!table || !(Number(table.size) >= 2) || !(intensity > 0)) return [];
+            return [{ u_lutSize: Number(table.size), u_domainMin: Array.from(table.domainMin || [0, 0, 0]), u_domainMax: Array.from(table.domainMax || [1, 1, 1]), u_intensity: intensity }];
+        }
+        if (id === 'blur') {
+            const sigma = blurSigma(Number(v.radius) || 0, height);
+            if (!(sigma > 0)) return [];
+            const radius = Math.min(BLUR_MAX_RADIUS, Math.ceil(3 * sigma));
+            return [{ u_direction: [1 / width, 0], u_sigma: sigma, u_radius: radius }, { u_direction: [0, 1 / height], u_sigma: sigma, u_radius: radius }];
+        }
+        if (id === 'sharpen') return [{ u_strength: passUnit(v.strength), u_peak: [CAS_P0, CAS_P1] }];
+        if (id === 'vignette') {
+            const angle = vignetteAngle(Number(v.amount) || 0, Number(v.size) || 1, width, height);
+            return angle > 0 ? [{ u_angle: angle }] : [];
+        }
+        return [];
+    }
+
+    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms };
 })();

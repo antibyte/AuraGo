@@ -466,16 +466,37 @@ process.stdout.write(JSON.stringify({min: E.MIN_BOX_SIZE, written: clip.keyframe
 func TestVideoStudioPictureConstantsMatchGo(t *testing.T) {
 	output := runVideoStudioEffectsScript(t, `
 const V = window.VideoStudioPicture;
-process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, temperatureGain: V.TEMPERATURE_GAIN, tintGain: V.TINT_GAIN, luma: V.LUMA}));
+process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, temperatureGain: V.TEMPERATURE_GAIN, tintGain: V.TINT_GAIN, luma: V.LUMA, casP0: V.CAS_P0, casP1: V.CAS_P1}));
 `)
 	var got struct {
-		WheelK, NeutralK, TemperatureGain, TintGain float64
-		Luma                                        []float64
+		WheelK, NeutralK, TemperatureGain, TintGain, CasP0, CasP1 float64
+		Luma                                                      []float64
 	}
 	if err := json.Unmarshal(output, &got); err != nil {
 		t.Fatalf("constants are not JSON: %v\n%s", err, output)
 	}
 	if got.WheelK != videostudio.ColorWheelK || got.NeutralK != videostudio.ColorNeutralKelvin || got.TemperatureGain != 0.5 || got.TintGain != 0.3 || !reflect.DeepEqual(got.Luma, []float64{0.2126, 0.7152, 0.0722}) {
 		t.Fatalf("VideoStudioPicture constants = %+v, want k %v, %v K, gains 0.5 and 0.3, luma BT.709", got, videostudio.ColorWheelK, videostudio.ColorNeutralKelvin)
+	}
+	// The CAS peak pair (plan 2c R6): Task 9 fits Go casPeakP0 and casPeakP1 (unexported, picture_math.go), so their
+	// declarations are read from the source. Each is declared on its own line as `name = <decimal>`.
+	source, err := os.ReadFile(filepath.Join("..", "internal", "videostudio", "picture_math.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	goConst := func(name string) float64 {
+		t.Helper()
+		for _, line := range strings.Split(string(source), "\n") {
+			fields := strings.Fields(strings.ReplaceAll(strings.TrimPrefix(strings.TrimSpace(line), "const "), "=", " = "))
+			var value float64
+			if len(fields) >= 3 && fields[0] == name && fields[1] == "=" && json.Unmarshal([]byte(fields[2]), &value) == nil {
+				return value
+			}
+		}
+		t.Fatalf("picture_math.go declares no numeric constant %s", name)
+		return 0
+	}
+	if p0, p1 := goConst("casPeakP0"), goConst("casPeakP1"); got.CasP0 != p0 || got.CasP1 != p1 {
+		t.Fatalf("VideoStudioPicture CAS_P0, CAS_P1 = %v, %v; want Go casPeakP0, casPeakP1 = %v, %v", got.CasP0, got.CasP1, p0, p1)
 	}
 }
