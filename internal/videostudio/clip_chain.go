@@ -76,7 +76,9 @@ func (c clipChain) effects() string { return "" }
 // mask applies the clip's mask as alpha (plan 2d). Nothing in 2a.
 func (c clipChain) mask() string { return "" }
 
-// transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it.
+// transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it. A static
+// cover clip whose source is more than 16x off the box aspect first crops the source to within that factor
+// (staticCoverClamp), so the cover-scaled picture stays a bounded multiple of the box.
 func (c clipChain) transform() string {
 	if geometry, _ := clipAnimation(c.item.whole); geometry {
 		return c.animatedTransform()
@@ -86,6 +88,9 @@ func (c clipChain) transform() string {
 	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0", boxWidth, boxHeight, boxWidth, boxHeight)
 	if clip.Fit == FitCover {
 		scale = fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=w=%d:h=%d", boxWidth, boxHeight, boxWidth, boxHeight)
+		if clamp := staticCoverClamp(boxWidth, boxHeight, c.item.sourceAspect); clamp != "" {
+			scale = clamp + "," + scale
+		}
 	}
 	rotation := ""
 	if clipRotated(clip) {
@@ -320,7 +325,7 @@ func (c clipChain) animatedTransform() string {
 	var parts []string
 	if c.item.whole.Fit == FitCover {
 		parts = append(parts,
-			fmt.Sprintf("crop=w='min(iw,ih*%s)':h='min(ih,iw/%s)'", exprNum(g.high).String(), exprNum(g.low).String()),
+			aspectClampCrop(g.low, g.high, 0),
 			fmt.Sprintf("scale@vs_scale_%s=w='%s':h='%s':force_original_aspect_ratio=increase:force_divisible_by=2:eval=frame", id, g.box.w.String(), g.box.h.String()),
 			pad("", g.boundWidth, g.boundHeight),
 			fmt.Sprintf("crop@vs_crop_%s=w=%d:h=%d", id, g.widths[0], g.heights[0]))
