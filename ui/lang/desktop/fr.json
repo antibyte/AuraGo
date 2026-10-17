@@ -3449,6 +3449,7 @@
   "desktop.terminal_style": "Apparence",
   "desktop.terminal_style_amber": "Ambre",
   "desktop.terminal_style_apple2": "Apple II",
+  "desktop.terminal_style_color_monitor": "Moniteur couleur",
   "desktop.terminal_style_commodore64": "Commodore 64",
   "desktop.terminal_style_green": "Phosphore vert",
   "desktop.terminal_style_ibm3278": "IBM 3278",

@@ -131,7 +131,7 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
         }finally{document.fonts.load=load;document.fonts.check=loaded;}
     }`)
 	page.MustEval(`()=>{const w=document.querySelector('.vd-window');w.style.width='960px';w.style.height='690px';w.style.left='150px';w.style.top='70px';}`)
-	for _, style := range []string{"amber", "green", "vintage", "apple2", "commodore64", "ibm3278", "mono-green", "transparent-green"} {
+	for _, style := range []string{"amber", "green", "vintage", "apple2", "commodore64", "ibm3278", "mono-green", "transparent-green", "color-monitor"} {
 		t.Run(style, func(t *testing.T) {
 			page.MustEval(`async id=>{fixtureStyle(id);await document.fonts.ready;await new Promise(r=>setTimeout(r,120));await fixtureWrite();await new Promise(r=>setTimeout(r,100));}`, style)
 			check(t, "live CRT", `()=>!fixtureCrt.at(-1).usesFallback() && document.querySelector('[data-terminal-renderer="webgl"]')!==null`)

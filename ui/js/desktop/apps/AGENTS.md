@@ -3881,8 +3881,8 @@ registration lives in `internal/desktop/types.go`.
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
   `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
   IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
-  `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
-  `aurago.desktop.terminal.style` and audio mute
+  `ibm3278`, `vintage`, `mono-green`, `transparent-green`, `color-monitor`.
+  Persist `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
   xterm 6 with its WebGL addon, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;

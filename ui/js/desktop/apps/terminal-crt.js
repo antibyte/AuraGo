@@ -34,6 +34,7 @@
         'uniform float u_jitter;',
         'uniform float u_interference;',
         'uniform float u_chromatic;',
+        'uniform float u_triad;',
         'uniform vec2 u_size;',
         'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
         'vec3 phosphor(vec3 c) {',
@@ -65,12 +66,13 @@
         '    float flicker = 1.0 - u_flicker * u_motion * (0.5 + 0.5 * sin(u_time * 47.0));',
         '    float grain = (hash(floor(v_uv * u_res) + floor(u_time * 24.0)) - 0.5) * u_noise;',
         '    float mask = 1.0 - u_mask * 0.12 * (0.5 + 0.5 * cos(curved.x * u_size.x * 3.14159));',
+        '    vec3 triad = 1.0 - u_mask * u_triad * 0.22 * (0.5 + 0.5 * cos(curved.x * u_size.x * 2.0944 - vec3(0.0, 2.0944, 4.18879)));',
         '    float interference = 1.0 + band * interferenceStrength * 0.18;',
         '    vec3 light = max(src, prev * u_burn * u_motion);',
         '    vec3 color = phosphor(light) * 1.18 + phosphor(bloom) * u_bloom * 1.35;',
         '    color += pow(max(light.r, max(light.g, light.b)), 3.0) * u_phosphor * 0.12;',
         '    color += vec3(src.r - centerSrc.r, 0.0, src.b - centerSrc.b) * u_mono * 0.65;',
-        '    color *= scan * flicker * mask * interference;',
+        '    color *= triad * scan * flicker * mask * interference;',
         '    float vignette = 1.0 - clamp(u_vignette, 0.0, 1.0) * smoothstep(0.15, 0.72, length(cc));',
         '    float edge = min(min(curved.x, 1.0 - curved.x), min(curved.y, 1.0 - curved.y));',
         '    color += u_phosphor * (0.018 + grain * 0.35);',
@@ -83,7 +85,7 @@
     ].join('\n');
 
     const SOURCE_WAIT_MS = 2000;
-    const DEFAULT_PROFILE = { phosphor: [1, 1, 1], curve: 0, bloom: 0, burn: 0, noise: 0, flicker: 0, mask: 0, alpha: 1, scan: 0, intensity: 1, brightness: 1, vignette: 0.48, jitter: 0, interference: 0, chromatic: 0 };
+    const DEFAULT_PROFILE = { phosphor: [1, 1, 1], curve: 0, bloom: 0, burn: 0, noise: 0, flicker: 0, mask: 0, alpha: 1, scan: 0, intensity: 1, brightness: 1, vignette: 0.48, jitter: 0, interference: 0, chromatic: 0, triad: 0 };
 
     function reducedMotion() {
         return (document.body && document.body.dataset.animations === 'false')
@@ -339,6 +341,7 @@
                 gl.uniform1f(loc('u_jitter'), profile.jitter);
                 gl.uniform1f(loc('u_interference'), profile.interference);
                 gl.uniform1f(loc('u_chromatic'), profile.chromatic);
+                gl.uniform1f(loc('u_triad'), profile.triad || 0);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 if (host) host.setAttribute('data-terminal-renderer', 'webgl');
                 startLoop();
@@ -375,7 +378,8 @@
                 if (next && next.crt) {
                     profile = Object.assign({}, DEFAULT_PROFILE, next.crt);
                     background = next.theme.background;
-                    monochrome = next.id !== 'commodore64';
+                    // Colour profiles (C64, the colour monitor) keep their colours; the others light one phosphor.
+                    monochrome = !next.color;
                     if (burnCtx) burnCtx.clearRect(0, 0, burnW, burnH);
                     lastFrame = 0;
                 }

@@ -15,12 +15,21 @@
     ];
     const IDS = [
         'modern', 'amber', 'green', 'apple2', 'commodore64',
-        'ibm3278', 'vintage', 'mono-green', 'transparent-green'
+        'ibm3278', 'vintage', 'mono-green', 'transparent-green', 'color-monitor'
     ];
 
     const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     const PIXEL = '"Press Start 2P", "Geist Mono", ui-monospace, monospace';
     const GEIST = '"Aura Terminal", "Geist Mono", ui-monospace, monospace';
+    const VGA = '"Aura VGA", "Aura Terminal", ui-monospace, monospace';
+
+    // The 16 CGA colours, as a classic PC colour monitor shows them.
+    const CGA = {
+        black: '#000000', red: '#aa0000', green: '#00aa00', yellow: '#aa5500',
+        blue: '#0000aa', magenta: '#aa00aa', cyan: '#00aaaa', white: '#aaaaaa',
+        brightBlack: '#555555', brightRed: '#ff5555', brightGreen: '#55ff55', brightYellow: '#ffff55',
+        brightBlue: '#5555ff', brightMagenta: '#ff55ff', brightCyan: '#55ffff', brightWhite: '#ffffff'
+    };
 
     const PROFILES = {
         modern: {
@@ -62,6 +71,7 @@
         commodore64: {
             id: 'commodore64',
             retro: true,
+            color: true,
             fontFamily: PIXEL,
             fontSize: 13,
             lineHeight: 1.3,
@@ -103,6 +113,16 @@
             lineHeight: 1.15,
             theme: { background: '#001108', foreground: '#7CFF6A', cursor: '#b6ffaa', selectionBackground: '#145820' },
             crt: { phosphor: [0.49, 1.0, 0.42], curve: 0.09, bloom: 0.52, burn: 0.2, noise: 0.035, flicker: 0.01, mask: 0.2, alpha: 0.82, scan: 0.65 }
+        },
+        'color-monitor': {
+            id: 'color-monitor',
+            retro: true,
+            color: true,
+            fontFamily: VGA,
+            fontSize: 16,
+            lineHeight: 1,
+            theme: Object.assign({ background: '#000000', foreground: '#aaaaaa', cursor: '#ffffff', cursorAccent: '#000000', selectionBackground: '#0000aa', selectionForeground: '#ffffff' }, CGA),
+            crt: { phosphor: [0.92, 0.95, 1.0], curve: 0.1, bloom: 0.42, burn: 0.1, noise: 0.03, flicker: 0.006, mask: 0.45, alpha: 1, scan: 0.5, triad: 1 }
         }
     };
 
