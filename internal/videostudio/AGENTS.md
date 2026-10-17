@@ -6,6 +6,7 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 - Inputs passed to FFmpeg are server-staged local regular files. Never accept URLs,
   shell fragments, arbitrary filter expressions, or demuxer names from project data.
   Keyframe and ramp expressions and `sendcmd` scripts are generated in Go from validated numbers only.
+  FFmpeg reads LUTs only as Go-written `vs_lut_*.cube` copies of parsed tables; uploaded `.cube` text never reaches a filter graph.
 - Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
   24/30/60 with a 1001 denominator). Convert with `Rate` methods only. `Upgrade` steps version 1 (fixed 30 fps) → 2 → 3
   without modifying its input; `Validate` accepts version 3 only. Projects are limited to sixty minutes and the sizes in
@@ -270,3 +271,68 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   - `go test ./internal/videostudio -run 'Keyframe|Easing|SendCmd|Ramp|Segmented|Parity|ClipChain|Validate|Capabilit|StageVideoGraph' -count=1`
   - `go test ./internal/server -run 'VideoStudioProjectKeyframes' -count=1`
   - The FFmpeg 5.1 container check (plan index §6) runs the gated parity tests on bookworm's FFmpeg.
+
+## Colour and picture (2c)
+
+- Model (`model.go`):
+  - Clip fields `crop` (`*Crop{L, T, R, B}`, fractions of the unflipped source; nil when there is no crop), `flip_h`,
+    `flip_v` and `effects` (`[]EffectInstance{ID, On, Params, Keyframes}`, at most `MaxEffectsPerClip` = 8) follow
+    `ramp`. 2d inserts `blend` and `mask` between `flip_v` and `effects`.
+  - Asset kind `lut` with `lut_size` (2..65) before `size_bytes`; at most `MaxLUTAssetsPerProject` (32) per project.
+- Validation (`validate_picture.go`): `validateCrop` and `validateEffects` return an error that is a
+  `*FieldError{Path, Err}`, and the project PUT's 400 `invalid_project` carries `field`.
+  - Crop: each side 0..0.95, l+r and t+b at most 0.95, never all zero (no crop is nil, so the canonical form stays
+    unique). Crop, flips and effects only on visual tracks.
+  - Effects: known ids and params with registry types and ranges; `params` is required (`{}` at least); a LUT ref is
+    `""`, `builtin:<look>` (a registry look) or a project asset of kind `lut`; entry keyframes only on keyframable number
+    params (the blur radius is not keyframable).
+  - `countKeyframes` counts entry keys toward the 512 per clip; `ValueAt` resolves `crop.*` and `effects.<i>.<param>`.
+- Registry (`effects.go`): base rows `crop.l|t|r|b`, `flip_h`, `flip_v`; effects `color`, `lut`, `blur`, `sharpen` and
+  `vignette` with the rows of plan index §4.2; looks `warm` … `bleach_bypass`; `ColorWheelK` 0.2, `ColorNeutralKelvin`
+  6500. Each `EffectSpec` carries the unexported `build` (`effects_build.go`).
+- Shared math (`picture_math.go`, mirrored by `video-studio-picture.js`; parity topics `color`, `wheels`, `picture`,
+  `lut`): the colour formula of index §4.20 (white balance, wheels, `ChannelCurve`, saturation matrix), `cropRect`
+  (offsets and sizes rounded to even pixels), `mirroredCrop`, `vignetteAngle`, `blurSigma` and the CAS peak constants
+  `casPeakP0` (15.104) and `casPeakP1` (4.009).
+- LUTs (`lut.go`):
+  - `ParseCube` enforces every rule while it reads: lines of at most 1024 bytes, `MaxLUTBytes` (16 MiB) through a limit
+    reader, exactly N³ data lines, finite values with |v| ≤ 16, DOMAIN lines before the data, 1D tables refused. Errors
+    are `LUTError{Line, Reason}`; `FuzzParseCube` seeds run in the normal suite.
+  - `LoadLUTFile` checks for a regular file (no symlinks) and its size before reading; `InspectLUTFile` records the asset.
+  - `WriteCube` writes `%.6f` data without the title. `BuiltinLook`/`BuiltinLookCube` build the eight looks on a 33³
+    grid from the colour formula (memoized; sha256 pinned by `TestBuiltinLooksDeterministic`).
+- Export (`clip_chain.go`, `effects_build.go`):
+  - Static crop: `crop` with `iw`/`ih` expressions of `cropRect` (correct under autorotation), then `hflip`/`vflip`, then
+    the effects on the cropped picture.
+  - Crop keyframes: `picture()` keeps only the flips; the effects run on the whole picture, and
+    `crop@vs_picture_L_C` (w/h/x/y per window frame in decoded pixels, mirrored for flips, through `sendcmd`) opens the
+    animated-crop stage before `transform()`. `TestRenderAnimatedCropMatchesStatic` checks it against the static crop on
+    FFmpeg 5.1.9 and 8.1.1.
+  - Every `scale` after `crop@vs_picture` has `eval=frame` and reads `t` in both w and h, with no other size-stateful
+    filter between them. On FFmpeg 5.1 a constant-size scale after a commanded crop hangs. `TestClipChainPictureSnapshots`
+    checks every animated-crop chain. The t-term costs about 2.3× on 5.1 and is emitted only with crop keyframes.
+  - `effects()` builds the `on` entries in stack order. Each builder declares its input pixel format (`format=` only on
+    a change) and skips identity entries; sharpen is never skipped.
+  - Colour: `lutrgb` curves from `channelCurveExpr` plus a `colorchannelmixer` saturation matrix. LUT: `lut3d=interp=trilinear`
+    in four forms (no table or 0: nothing; 1: `lut3d` alone; a static k in between: `blend=all_opacity` ≤ 0.999 with the
+    LUT output first; keyframed: `blend=all_expr` with T), index §4.11. Blur: static `gblur` with `sigma = radius·H`
+    (image clips premultiplied). Sharpen: `cas`. Vignette: `dither=0`, `eval=frame` only when keyframed, alpha wrapper on
+    image clips.
+- Commands (`keyframes.go`): targets match `^[a-z][a-z0-9]*@vs_[a-z]+_[0-9]+_[0-9]+(_[0-9]+)?$`, options come from
+  `sendCmdOptions`, and curve tracks exist only for `lutrgb@vs_color` (`sendCmdExprOptions`), written through the fixed
+  template and checked against `^[0-9a-z.()*/+,-]+$`. Group 0 follows `window()`; group g follows the g-th two-input
+  stage (`vs_cmd_<L>_<C>_<g>.txt`), so no command crosses a two-input filter.
+- Staging (`render.go`): `stageVideoGraph(dir, graph, rate, files)` writes `graph.txt`, the command files and
+  `vs_lut_<L>_<C>_<I>.cube` (0o600, `WriteCube` of the table resampled onto the unit domain, `writeStagedLUT`).
+  `collectRenderSources` parses the referenced LUT assets with `LoadLUTFile` and takes the decoded (autorotated) size
+  from `probeVideo`. The model's `Asset` gains only `LUTSize`; the render side wraps each asset in `renderSource`.
+- Capabilities: an `on` effect of an enabled visual clip needs its `Filters` (`effect:<id>`, job error
+  `feature_unavailable`); crop and effect keyframes need `sendcmd` (`clipHasKeyframes`).
+- Goldens (`goldenframe/cases_2c.go`): media `MediaChart` and `MediaDetail` (PNG) and `MediaCube`; colour, LUT, crop,
+  flip, blur, sharpen and vignette cases per plan index §4.12 (effects on `gl`, crop and flip on `gl` and `2d`).
+  `color_stack_order` uses `ThresholdDetail` because its stack ends in a vignette. Lowest SSIM per group: plan index §4.21.
+- Tests:
+  - `go test ./internal/videostudio -run 'Effect|Colou?r|LUT|Cube|Look|Crop|Flip|Blur|Sharpen|Vignette|Picture|Parity|SendCmd|StageVideoGraph|ClipChain|Validate|Capabilit|Segmented' -count=1`
+  - `go test ./internal/server -run 'VideoStudio(LUT|BuiltinLUT|Media|Status|ProjectEffects|RenderAssetIDs)' -count=1`
+  - The FFmpeg 5.1 container check (plan index §6) runs the gated 2c tests, including
+    `TestRenderAnimatedCropMatchesStatic` and `TestRenderLUTMaxGrid`.

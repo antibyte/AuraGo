@@ -291,6 +291,72 @@ every frame, whatever segments it renders in. Exports of keyframed clips need FF
 FFmpeg 5.1 builds of supported systems include. When it is missing, **Check Video Studio** reports it and such an export
 stops with a message.
 
+## Colour and picture
+
+**Crop and flip.** The Picture section of a video, image or sticker crops it by percent of its source on each side
+(left, top, right and bottom; at most 95 % per side and per pair of opposite sides) and flips it horizontally or
+vertically. Crop values always refer to the unflipped source, so a flip keeps the crop on the same content. Titles
+take no crop or flip.
+
+**Crop in the preview** shows the crop on the picture. A dashed outline marks the whole source, and the crop has
+handles on its corners and edges. Use the **Crop in the preview** button in the inspector while the playhead is inside
+the clip. Cropping ends when you select another clip, move the playhead out of the clip, or press `Enter` or `Esc`.
+- Drag a handle to crop, or drag inside the crop to move it.
+- With the crop focused, the arrow keys move it by 1 % (`Shift`: 10 %); on a focused handle they move that edge.
+- Each drag and each key press is one undo step.
+
+Crop values have keyframes like the position: with a crop stopwatch on, a drag or key at the playhead sets a keyframe
+there.
+
+**Effects.** The Effects section below Picture holds up to 8 effects per visual clip, titles and stickers included,
+applied from top to bottom. **Add effect** lists the effects by category. Each effect can be collapsed, switched off,
+reset and removed. Drag its grip, or press `Alt+↑` or `Alt+↓` on its header, to change the order. Every number except
+the blur radius can have keyframes, with the same stopwatch and diamonds as the position.
+- **Color:** exposure (in stops), contrast, saturation, temperature (in kelvin; higher values warm the picture), tint
+  (positive values add magenta), and three colour wheels for lift (shadows), gamma (midtones) and gain (highlights).
+  Drag on a wheel to set its point: the angle is the hue and the distance from the centre is the strength. The arrow
+  keys move the point (`Shift`: larger steps), and a double-click or `Del` resets it. Each wheel's level has its own
+  slider.
+- **LUT:** a look table with an intensity. Its **Look** list offers none (no change), the eight built-in looks (Warm,
+  Cool, Teal and orange, Black and white, Faded film, High contrast, Vintage, Bleach bypass) and the project's LUTs.
+  **Upload .cube** imports a file and selects it for that effect.
+- **Blur:** a soft blur. Its radius is a share of the picture height (up to 5 %), so it looks the same at every size.
+- **Sharpen:** contrast-adaptive sharpening with a strength.
+- **Vignette:** darkens towards the corners, with an amount and a size (a share of the picture height).
+
+**Crop before or after the effects.** With a fixed crop, the effects see only the cropped picture. When the crop has
+keyframes, the effects run on the whole picture first and the crop follows. The Effects section says so: a vignette
+then centres on the uncropped picture, and a blur uses the full picture height.
+
+**LUT files.** Import `.cube` files like other media: upload them, drop them into the window, pick them from the
+Desktop files, or use **Upload .cube** in a LUT effect. Video Studio accepts 3D LUTs:
+- 2 to 65 points per axis (`LUT_3D_SIZE`), optionally with `DOMAIN_MIN`/`DOMAIN_MAX` or `LUT_3D_INPUT_RANGE`;
+- at most 16 MB per file and 32 LUTs per project.
+
+1D LUTs and unknown keywords are refused, and a file that cannot be parsed names the bad line. In the library a LUT
+shows as a **LUT** card, with its own **LUTs** filter while the project has LUTs. Drag it onto a clip to add a LUT
+effect with it, or press its **+** to add it to the selected clip. A LUT that an effect uses counts as used. Removing
+it asks first, removes those effects in the same undo step, and then deletes the file.
+
+**Effects library.** The library's **Effects** tab lists the effects and the built-in looks by category: **Color**,
+**Detail** and **Stylize** (the looks are listed under Color). Drag one onto a clip in the timeline, or double-click it,
+or press `Enter` or `Space`, to add it to the selected clip. Effects that the server's FFmpeg lacks are greyed out.
+
+**Paste attributes** has two more groups: **Crop and flip** (the crop and the flips) and **Effects** (the whole stack
+with its keyframes, timed relative to the clip start).
+
+**Preview and export.** The WebGL2 preview draws every effect with the same formulas as the export, and golden tests
+compare it with FFmpeg's frames. The 2D drawing shows crop and flip but no effects, and its notice says so. If the
+graphics driver cannot draw an effect, the preview leaves that effect out and a notice says so; the export is not
+affected. Effects the server's FFmpeg lacks are still drawn in the preview and marked **No export** in the inspector.
+An export that needs them stops with a message, and **Check Video Studio** lists the missing filters.
+- The export applies effects at the source's resolution. Sizes such as the blur radius and the vignette scale with
+  the picture, so preview and export match.
+- Sharpening has no radius and works on pixels, so at preview size a large source can look sharper in the preview
+  than in the export.
+- A keyframed LUT intensity and a keyframed vignette make that step of the export about 20 and 12 times slower; a
+  fixed intensity below 100 % about 4 times. Use them where they matter.
+
 ## Preview engine, proxies and range check
 
 **Preview engine.** The timeline preview draws with WebGL2 when the browser offers it. It shows what the export
@@ -419,7 +485,7 @@ landscape, portrait, or square export format remains independently selectable.
 ## Scope and verification
 
 Version 1 focuses on short videos. It does not include 4K, animated stickers,
-automatic subtitles, professional color grading, or an AI editing assistant.
+automatic subtitles, or an AI editing assistant.
 Provider credentials and runtime state are never stored in project JSON. No agent
 tool is added by enabling the editor.
 

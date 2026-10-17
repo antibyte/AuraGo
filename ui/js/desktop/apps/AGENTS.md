@@ -1642,9 +1642,51 @@ buttons and menu popovers remain excluded from those gestures.
     ramped video-track clips is muted (`rules.audioAllowed`).
   - Node checks: `go test ./ui -run 'TestVideoStudio(Keyframe|Ramp|Effects|Canonical|ValidTimeline|Preview|Navigation)' -count=1`.
     Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopVideoStudioKeyframesBrowser -count=1 -timeout 20m`.
+- Colour and picture (phase 2c), DOM-free part: `VideoStudioPicture` (`video-studio-picture.js`, directly after
+  `-effects.js`) holds the math of Go `picture_math.go` and `lut.go`: `whiteBalance`, `wheel`, `colorCoefficients`,
+  `applyColor`, `saturationMatrix`, `cropRect`, `mirroredCrop`, `vignetteAngle`, `blurSigma`, `parseCube`, `sampleLUT`,
+  `unitDomain`, `decodedSize`, `CAS_P0`/`CAS_P1` (= Go `casPeakP0`/`casPeakP1`), `capSize` and `passUniforms` (parity
+  topics `color`, `wheels`, `picture`, `lut`).
+  - `VideoStudioEffects` mirrors the 2c registry rows and Go's `validateCrop`/`validateEffects` (`validPicture`, called by
+    `validTimeline`). `clipState` evaluates crop, flips and the `on` entries (`effects: [{index, id, values}]`).
+  - `VideoStudioKeyframeEdit` adds the stack operations `addEffect`, `removeEffect`, `moveEffect`, `setEffectOn`,
+    `resetEffect`, `setEffectParams`, `setCrop` and `setFlip`; every keyframe operation accepts `crop.*` and
+    `effects.<i>.<param>`. Paste attributes has the groups `basePicture` (crop, flips) and `effects`.
+- Colour and picture (phase 2c), UI part:
+  - Effects section (`video-studio-inspector-effects.js`, directly after `-keyframes.js`; `VideoStudioInspectorEffects`,
+    `P.wireEffectStack`, `P.handleEffectStackKeys`, `P.effectCommand`, `P.addEffect`, `P.uploadLUT`): "Add effect" by
+    category through `openMenu`, entries with collapse, on/off (`role="switch"`), reset, remove and drag reorder.
+    Alt+↑/↓ on a focused entry header moves the entry and stops the event (`P.handleEffectStackKeys` runs before
+    `P.handleKeyframeKeys`; elsewhere Alt+↑/↓ still jumps keyframes). Unavailable effects are badged `No export`, and
+    the inspector shows `effectsCropAnimatedHint` while the crop has keyframes. The section shows for every visual
+    clip, titles included; the crop block, the flips and crop mode skip titles (`clip.text`).
+  - Colour wheels (`video-studio-colorwheel.js`, directly after `-inspector.js`; `VideoStudioColorWheel`): SVG,
+    `role="slider"` with value text, arrows 0.01 (Shift 0.1), double-click and Delete (or Backspace) reset.
+  - Crop handles (`video-studio-stage.js`): `P.setCropMode`, `P.updateCropBox` (called by `updateTransform`),
+    `P.wireCropBox` and `P.handleCropKeys` (in `handleKeys` after `P.handleRangeKeys`). The overlay `[data-crop-box]`
+    holds `[data-crop-source]`, `[data-crop-rect]` and eight `[data-crop-handle]` buttons; the inspector toggle is
+    `[data-action="crop-mode"]`. A drag commits once through `setCrop` with the changed values only, and each arrow key
+    is one edit. The math (`P.cropGeometry`, `P.cropDrag`, `P.cropDragDelta`) is Node-tested. The source size comes from
+    `VideoStudioPicture.decodedSize` with the size the preview's `mediaSize(clipId)` reports, so the overlay of a
+    rotated phone video shows its upright aspect.
+  - Effects library (`video-studio-effects-library.js`, directly after `-library.js`; `VideoStudioEffectsLibrary`,
+    `P.renderEffectsLibrary`, `P.wireEffectsLibrary`): tab `effects` with `[data-effects-library]`, items
+    `[data-effect-item]` (`<effect id>` or `look:<id>`), drag MIME `application/x-aurago-vs-effect` with a delegated drop
+    on `[data-timeline]` (wired after `T().attach`), and a double-click or keyboard click (Enter or Space) that adds to
+    the selected clip. Unavailable items are `aria-disabled` and greyed out.
+  - LUT media: `.cube` imports by extension, the LUT filter chip shows only while LUTs exist, a LUT card dropped on a clip
+    adds a lut effect (`P.dropLUTAsset`), effects that use a LUT count in `usageCounts`, and removing a LUT removes those
+    effects in the same undo step (`removeLUTRefs` in `removeMediaFrom`; confirm copy `removeLUTUsedCopy`). `stripAssets`
+    and `clipsUse` treat lut effect refs like clips. `dropRemovedMedia` (media removed in another window) treats a LUT
+    that an effect still uses as a conflict instead of removing those effects.
+  - Preview: the GL compositor runs `clipPasses` (crop/flip pass, effect passes, LUT textures through `loadLUT`);
+    `pending()` counts LUT loads and keeps `settle` (through `painterIdle`) waiting; a failed effect program raises
+    `previewEffectFallback`. The 2D painter crops and flips only.
+  - Node checks: `go test ./ui -run 'TestVideoStudio(EffectStack|ColorWheel|EffectsLibrary|Effects|Picture|Canonical|KeyframeStrip|CropHandle|Painter2D|RemoveLUT)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopVideoStudioEffects(GL)?Browser' -count=1 -timeout 30m`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
-  `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
+  `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/effects/AI;
   all panels stay in the DOM), preview with transport, contextual inspector,
   resizable timeline (`--vs-timeline-h`, per-viewer `localStorage`). Icons come
   from `VideoStudioIcons`, never from the shell's `iconMarkup`. Notices are a
