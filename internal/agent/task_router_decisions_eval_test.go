@@ -160,8 +160,9 @@ func runDecisionEvaluation(ctx context.Context, client *http.Client, origin, coo
 	}
 	if len(latencies) > 0 {
 		sort.Float64s(latencies)
-		report.P50MS = latencies[(len(latencies)-1)*50/100]
-		report.P95MS = latencies[(len(latencies)-1)*95/100]
+		// Nearest-rank percentiles retain the slowest sample in small explicit runs.
+		report.P50MS = latencies[(len(latencies)*50+99)/100-1]
+		report.P95MS = latencies[(len(latencies)*95+99)/100-1]
 	}
 	return report
 }
@@ -256,5 +257,8 @@ func TestDecisionEvaluationRecordsMisroutesAbstentionsAndKnownCosts(t *testing.T
 	report := runDecisionEvaluation(context.Background(), fixture.Client(), fixture.URL, "", cases)
 	if calls != 2 || report.Failures != 0 || report.Misroutes != 1 || report.Abstentions != 1 || report.KnownCostUSD != .02 || report.UnknownCosts != 0 || report.Confusion["writing"]["coding"] != 1 || report.Confusion["coding"]["abstain"] != 1 || report.Results[0].Version != "fixture/version-1" || report.P95MS < report.P50MS {
 		t.Fatalf("incorrect evaluation report: %+v", report)
+	}
+	if report.P95MS != max(report.Results[0].LatencyMS, report.Results[1].LatencyMS) {
+		t.Fatalf("P95 must include the slower request for a two-case run: %+v", report)
 	}
 }

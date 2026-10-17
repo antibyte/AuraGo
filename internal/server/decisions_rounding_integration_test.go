@@ -57,7 +57,10 @@ func TestDecisionRoundedHTTPFlowAndRouterAccounting(t *testing.T) {
 					probabilities["0"] = .62
 				}
 				if invalid {
-					probabilities["0"] = 0
+					for key := range probabilities {
+						probabilities[key] = 0
+					}
+					probabilities["0"], probabilities["1"] = .52, .50
 				}
 				answers[id] = map[string]any{"type": "choice", "choice": "0", "probabilities": probabilities}
 			}

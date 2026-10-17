@@ -30,7 +30,8 @@ thresholds with a version change, as recommended by
 Provider distributions require complete keys, finite values in range and
 positive mass before normalization. Hundredth-grid values use
 `max(0.01, candidates × 0.005)` plus floating-point epsilon. Higher-precision
-maps retain 0.01. Score consistency follows the same rounding intervals.
+maps retain 0.01. Rounded intervals, clipped to zero and one, must also admit a
+total mass of one. Score consistency follows the same rounding intervals.
 Incompatible scores and selected non-maximum options are rejected. This is a
 tested AuraGo compatibility rule, not a confirmed general provider guarantee of
 two-decimal output. Invalid paid responses retain reported cost and are never
@@ -106,5 +107,6 @@ Calls run sequentially, with a 45-second limit each and no retries. The first
 HTTP, transport or interpretation failure stops the run; inspect its unknown
 outcome before another run. Ignored `reports/decisions-evaluation/` reports
 contain corpus hashes, per-case model/version, misroutes, abstentions, confusion
-matrix, latency and reported/unknown cost. Prompts, server addresses and
-credentials are omitted. Live runs may incur charges; ordinary CI skips them.
+matrix, latency (nearest-rank P50/P95) and reported/unknown cost. Prompts, server
+addresses and credentials are omitted. Live runs may incur charges; ordinary CI
+skips them.

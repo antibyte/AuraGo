@@ -171,7 +171,7 @@ function renderDecisionsSection(section) {
 
     const lifetime = new AbortController();
     let status, busy = false, activeAction = '', actionRevision = 0, timer, statusRequest, modelsRequest, activeRequest, activeOperation;
-    let loadedModels = [];
+    let loadedModels = [], modelsCheckedAt = 0;
     let pendingAction = null;
     let installationCheck = null;
     const attached = () => !lifetime.signal.aborted && root.isConnected;
@@ -228,14 +228,19 @@ function renderDecisionsSection(section) {
         providerHelp.textContent = tr('provider_help');
     };
     const modelFor = id => {
-        const current = status?.provider === providerSelect.value ? status.model_availability?.model : null;
+        const availability = status?.provider === providerSelect.value ? status.model_availability : null;
+        const current = availability?.state !== 'unknown' ? availability?.model : null;
+        const fresh = model => Date.now() - (Date.parse(model.checked_at) || modelsCheckedAt) < 300000;
+        if (current?.id === id) return current;
+        const exact = loadedModels.find(model => model.id === id && fresh(model));
+        if (exact) return exact;
         if (current && [current.id, current.canonical_slug, current.alias_target].includes(id)) return current;
-        return loadedModels.find(model => [model.id, model.canonical_slug, model.alias_target].includes(id));
+        return loadedModels.find(model => [model.canonical_slug, model.alias_target].includes(id) && fresh(model));
     };
-    const modelBlocked = () => {
-        if (status?.model === modelSelect.value && status?.provider === providerSelect.value && status.model_availability) return status.model_availability.state === 'blocked';
-        const model = modelFor(modelSelect.value);
-        return !!model && (model.usable === false || Number(model.context_length) <= 0);
+    const modelBlocked = (id = modelSelect.value) => {
+        if (status?.model === id && status?.provider === providerSelect.value && status.model_availability) return status.model_availability.state === 'blocked';
+        const model = modelFor(id);
+        return model ? model.usable === false || Number(model.context_length) <= 0 : modelsCheckedAt > 0 && Date.now() - modelsCheckedAt < 300000;
     };
     const modelPrice = value => {
         if (value == null || String(value).trim() === '') return tr('price_unavailable');
@@ -282,6 +287,14 @@ function renderDecisionsSection(section) {
     });
     const updateButtons = () => {
         if (!attached()) return;
+        for (const option of modelSelect.options) {
+            if (!option.value) continue;
+            const model = modelFor(option.value);
+            option.disabled = modelBlocked(option.value);
+            const label = (model?.name && model.name !== option.value ? model.name + ' · ' : '') + option.value;
+            const code = status?.provider === providerSelect.value && status?.model === option.value ? status.model_availability?.code : model?.unavailable_code;
+            option.textContent = option.disabled ? label + ' · ' + errorText(code || 'model_not_available') : model ? label : tr('model_saved_unverified', {value: option.value});
+        }
         const local = !providerMode();
         const changing = !!pendingAction || status?.setup_active || ['setting_up', 'installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
         // A failed autostart can leave Installed false even after verifying cached models.
@@ -438,6 +451,7 @@ function renderDecisionsSection(section) {
             if (!attached() || request.signal.aborted || modelsRequest !== request) return;
             if (!response.ok) throw new Error(body?.code || 'external_provider_failed');
             loadedModels = Array.isArray(body.models) ? body.models : [];
+            modelsCheckedAt = Date.parse(loadedModels[0]?.checked_at) || Date.now();
             const saved = modelSelect.value || data.model || '';
             modelSelect.replaceChildren(new Option(tr('model_select'), ''));
             for (const model of loadedModels) {
@@ -593,6 +607,7 @@ function renderDecisionsSection(section) {
         cancelModels();
         invalidateAction();
         loadedModels = [];
+        modelsCheckedAt = 0;
         modelDetails.hidden = true;
         modelSelect.replaceChildren(new Option(tr('model_select'), ''));
         catalogResult.textContent = '';
@@ -614,11 +629,17 @@ function renderDecisionsSection(section) {
         if (item) item.click();
     });
     window.addEventListener('aurago:providers-saved', event => {
+        cancelModels();
+        loadedModels = [];
+        modelsCheckedAt = 0;
+        if (status) status.model_availability = {state: 'unknown', code: 'model_unverified'};
         renderProviders(event.detail?.preferredProviderId || '');
         if (event.detail?.preferredProviderId) {
             providerSelect.dispatchEvent(new Event('change', {bubbles: true}));
         }
+        showModelDetails();
         updateButtons();
+        refresh();
     }, {signal: lifetime.signal});
 
     renderProviders(data.provider || '');

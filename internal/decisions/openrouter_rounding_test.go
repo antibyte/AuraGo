@@ -84,4 +84,18 @@ func TestOpenRouterProbabilityValidationRemainsStrict(t *testing.T) {
 			}
 		})
 	}
+	for _, n := range []int{6, 10, 62} {
+		t.Run("impossible rounding "+strconv.Itoa(n), func(t *testing.T) {
+			keys := make([]string, n)
+			values := make(map[string]float64, n)
+			for i := range keys {
+				keys[i] = strconv.Itoa(i)
+				values[keys[i]] = 0
+			}
+			values["0"], values["1"] = 0.52, 0.50
+			if _, err := normalizedProbabilityMap(values, keys); err == nil {
+				t.Fatal("accepted rounded intervals whose minimum mass exceeds one")
+			}
+		})
+	}
 }

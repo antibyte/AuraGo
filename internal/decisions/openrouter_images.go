@@ -11,6 +11,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"math"
+	"mime"
 
 	"golang.org/x/image/draw"
 )
@@ -158,9 +159,11 @@ func prepareDecisionImage(ctx context.Context, source Image, limits DecisionMedi
 		return Image{}, adjustment, NewError("image_limit_exceeded", nil)
 	}
 	configuration, format, err := image.DecodeConfig(bytes.NewReader(source.Data))
-	if err != nil || (format != "png" && format != "jpeg") || source.MIME != "image/"+format || configuration.Width <= 0 || configuration.Height <= 0 || int64(configuration.Width)*int64(configuration.Height) > 32<<20 {
+	mediaType, _, mimeErr := mime.ParseMediaType(source.MIME)
+	if err != nil || mimeErr != nil || (format != "png" && format != "jpeg") || mediaType != "image/"+format || configuration.Width <= 0 || configuration.Height <= 0 || int64(configuration.Width)*int64(configuration.Height) > 32<<20 {
 		return Image{}, adjustment, NewError("image_invalid", nil)
 	}
+	source.MIME = mediaType
 	if format == "png" && animatedDecisionPNG(source.Data) {
 		return Image{}, adjustment, NewError("image_invalid", nil)
 	}

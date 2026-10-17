@@ -104,6 +104,23 @@ func TestDecisionImageOrientationAndInvalidInputs(t *testing.T) {
 	}
 }
 
+func TestDecisionImageShippingAcceptsValidMIMESyntax(t *testing.T) {
+	for _, mediaType := range []string{"IMAGE/PNG", "image/png; profile=fixture"} {
+		t.Run(mediaType, func(t *testing.T) {
+			source := decisionTestImage(t, 20, 20, false)
+			source.MIME = mediaType
+			request := Request{State: "fixture", Questions: []Question{{ID: "check", Type: "noul", Instructions: "Match?"}}, Images: []Image{source}}
+			if err := ValidateRequest(request); err != nil {
+				t.Fatalf("invalid fixture MIME: %v", err)
+			}
+			got, _, err := prepareDecisionImage(context.Background(), source, decisionMediaLimits("unknown"), len(source.Data), 0)
+			if err != nil || got.MIME != "image/png" || !bytes.Equal(got.Data, source.Data) || source.MIME != mediaType {
+				t.Fatalf("valid image changed or rejected: MIME=%q error=%v", got.MIME, err)
+			}
+		})
+	}
+}
+
 func TestDecisionMediaProfilesAndRequestBudgets(t *testing.T) {
 	for _, tc := range []struct {
 		id           string

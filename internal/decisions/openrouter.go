@@ -782,6 +782,15 @@ func validateProbabilityKeys(probabilities map[string]float64, expected []string
 	tolerance := openRouterProbabilityTolerance
 	if hundredthProbabilities(probabilities, expected) {
 		tolerance = math.Max(tolerance, float64(len(expected))*0.005)
+		// Zero probabilities cannot supply negative mass to compensate rounded-up values.
+		var minimum, maximum float64
+		for _, key := range expected {
+			minimum += math.Max(0, probabilities[key]-0.005)
+			maximum += math.Min(1, probabilities[key]+0.005)
+		}
+		if minimum > 1+1e-9 || maximum < 1-1e-9 {
+			return errors.New("probability rounding intervals cannot sum to one")
+		}
 	}
 	if total <= 0 || math.Abs(total-1) > tolerance+1e-9 {
 		return errors.New("probabilities are not normalized")
