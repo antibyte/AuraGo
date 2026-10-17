@@ -303,12 +303,17 @@
 /* Card anatomy: the h3 title keeps the header's type scale */
 .pw-page[data-workspace-page="dashboard"] .dash-card-title {
     flex: 0 1 auto;
-    min-width: 0;
     margin: 0;
     color: inherit;
     font: inherit;
     letter-spacing: inherit;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+}
+
+/* The filesync header carries a status and two actions: when a long title word leaves no room for them they drop to a second row instead of overflowing the card */
+.pw-page[data-workspace-page="dashboard"] #card-filesync .dash-card-header {
+    flex-wrap: wrap;
+    row-gap: var(--pw-space-2);
 }
 
 /* Compact density */
