@@ -10,7 +10,8 @@ import (
 // videoStudioKeyframesPrelude adds keyframe helpers to videoStudioEditPrelude (30 fps; V and A are 600-frame video and
 // audio sources, I a still; clip, track, project, at and valid build and check projects).
 const videoStudioKeyframesPrelude = `
-const FX = window.VideoStudioEffects;
+require('./js/desktop/apps/video-studio-keyframe-edit.js');
+const FX = window.VideoStudioEffects, K = window.VideoStudioKeyframeEdit;
 const kf = (f, v, e) => ({f, v, e: e || 'linear'});
 const near = (a, b, message) => assert(Math.abs(a - b) < 1e-9, (message || 'values differ') + ': ' + a + ' vs ' + b);
 `
@@ -140,5 +141,158 @@ window.VideoStudioTime.rescaleProject(p, 24, false);
 assert.equal(at(p,'c').offset, 4);
 assert.deepEqual(at(p,'c').keyframes, {opacity: [kf(-1, 0.5)], x: [kf(4, 0.1), kf(5, 0.3), kf(16, 0.4)]});
 valid(p);
+`)
+}
+
+// Keyframe operations (index §4.18): the stopwatch on and off (the field keeps the value at the playhead, clamped to a
+// valid box), the diamond (removing the last key ends the animation), auto-key on animated and static values, ◀▶
+// navigation inside the clip, moves that collide, easing, copy and paste across speeds, and the per-value limit.
+func TestVideoStudioKeyframeOps(t *testing.T) {
+	runVideoStudioKeyframesScript(t, `
+const fresh = () => project([
+  track('v1','video',[clip('c',V,0,100,{offset:100, x:0.2, width:0.5})]),
+  track('v2','video',[clip('d',V,200,100,{speed:2})]),
+  track('a1','audio',[clip('m',A,0,100)]),
+  track('o1','overlay',[clip('t',I,0,60)])
+]);
+let p = fresh();
+valid(p);
+const c = () => at(p, 'c');
+
+// Keys sit at round(sourceAt(clip, frame)).
+assert.equal(K.keyFrame(c(), 10), 110);
+assert.equal(K.keyFrame(at(p,'d'), 210), 20, 'speed 2 from offset 0');
+
+// Stopwatch on: one key at the playhead holding the value shown there.
+assert.equal(K.setAnimated(p, 'c', 'opacity', true, 10), true);
+assert.deepEqual(c().keyframes, {opacity: [kf(110, 1)]});
+assert.deepEqual(K.atPlayhead(c(), 'opacity', 10), kf(110, 1));
+assert.equal(K.atPlayhead(c(), 'opacity', 11), null);
+assert.equal(K.setAnimated(p, 'c', 'opacity', true, 20), 'nothing', 'already animated');
+assert.equal(K.setAnimated(p, 'c', 'x', true, 150), 'nothing', 'the playhead is outside the clip');
+assert.equal(K.setAnimated(p, 'c', 'fit', true, 10), 'nothing', 'fit is not keyframable');
+assert.equal(K.setAnimated(p, 'm', 'opacity', true, 10), 'kind', 'audio clips have no picture');
+p.tracks[1].locked = true;
+assert.equal(K.setAnimated(p, 'd', 'x', true, 210), 'locked');
+p.tracks[1].locked = false;
+valid(p);
+
+// Auto-key: an animated value gets a key at the playhead; a new key takes the easing of the key before it, and an
+// existing key takes the value and keeps its easing.
+assert.equal(K.setValues(p, 'c', {opacity: 0.4}, 40), true);
+assert.deepEqual(c().keyframes.opacity, [kf(110, 1), kf(140, 0.4)]);
+assert.equal(K.setEasing(p, 'c', [{path: 'opacity', f: 110}], 'ease_in'), true);
+assert.equal(K.setValues(p, 'c', {opacity: 0.9}, 20), true);
+assert.deepEqual(c().keyframes.opacity, [kf(110, 1, 'ease_in'), kf(120, 0.9, 'ease_in'), kf(140, 0.4)]);
+assert.equal(K.setValues(p, 'c', {opacity: 0.8}, 20), true);
+assert.deepEqual(c().keyframes.opacity[1], kf(120, 0.8, 'ease_in'));
+valid(p);
+
+// Easing: registry names only; no change is no edit.
+assert.equal(K.setEasing(p, 'c', [{path: 'opacity', f: 120}], 'bounce'), 'nothing');
+assert.equal(K.setEasing(p, 'c', [{path: 'opacity', f: 120}], 'ease_in'), 'nothing');
+assert.equal(K.setEasing(p, 'c', [{path: 'opacity', f: 120}, {path: 'opacity', f: 140}], 'hold'), true);
+assert.deepEqual(c().keyframes.opacity.map(key => key.e), ['ease_in', 'hold', 'hold']);
+
+// Stopwatch off: the keys go and the field takes the value at the playhead.
+assert.equal(K.setAnimated(p, 'c', 'opacity', false, 30), true);
+assert.equal('keyframes' in c(), false, 'the last animated value leaves no empty map');
+near(c().opacity, 0.8, 'the held value at source 130');
+
+// The fields stay a valid box: an animated x leaves its field alone, and a static width next to it makes x's unused
+// field give way. Turning x off writes its value at the playhead, clamped against the static width.
+assert.equal(K.setAnimated(p, 'c', 'x', true, 0), true);
+assert.deepEqual(c().keyframes, {x: [kf(100, 0.2)]});
+assert.equal(K.setValues(p, 'c', {x: 0.9}, 0), true);
+assert.equal(c().x, 0.2, 'an animated value leaves its field alone');
+assert.equal(K.setValues(p, 'c', {width: 0.9}, 0), true);
+near(c().width, 0.9, 'a static value changes its field');
+near(c().x, 0.1, 'the field of the animated x gives way');
+valid(p);
+assert.equal(K.setAnimated(p, 'c', 'x', false, 0), true);
+near(c().x, 0.1, 'x off at 0.9 next to width 0.9 is clamped to 0.1');
+valid(p);
+
+// One auto-key call with an animated and a static value.
+assert.equal(K.setAnimated(p, 'c', 'rotation', true, 0), true);
+assert.equal(K.setValues(p, 'c', {rotation: 30, y: 0.05}, 50), true);
+assert.deepEqual(c().keyframes.rotation, [kf(100, 0), kf(150, 30)]);
+assert.equal(c().y, 0, 'a static y of 0.05 next to the static height 1 is clamped to a valid box');
+assert.equal('y' in c().keyframes, false);
+assert.equal(K.setValues(p, 'c', {rotation: 30, opacity: 0.6}, 50), true, 'an animated and a static value in one call');
+near(c().opacity, 0.6, 'the static value changes its field');
+assert.deepEqual(c().keyframes.rotation, [kf(100, 0), kf(150, 30)]);
+assert.equal('opacity' in c().keyframes, false);
+assert.equal(K.setValues(p, 'c', {rotation: 10}, 150), 'nothing', 'no key outside the clip');
+assert.equal(K.setValues(p, 'c', {fit: 'cover'}, 10), 'nothing', 'only keyframable values');
+valid(p);
+
+// The diamond adds a key holding the value shown and removes the key at the playhead. Removing the last key ends the
+// animation and leaves that value in the field; on a static value the diamond starts the animation.
+assert.equal(K.toggleKeyframe(p, 'c', 'rotation', 25), true);
+near(K.atPlayhead(c(), 'rotation', 25).v, 15, 'the value shown at frame 25');
+assert.equal(K.toggleKeyframe(p, 'c', 'rotation', 25), true);
+assert.equal(K.atPlayhead(c(), 'rotation', 25), null);
+assert.equal(K.toggleKeyframe(p, 'c', 'rotation', 50), true);
+assert.equal(K.toggleKeyframe(p, 'c', 'rotation', 0), true, 'removes the last key');
+assert.equal('rotation' in (c().keyframes || {}), false);
+assert.equal(c().rotation, 0);
+assert.equal(K.toggleKeyframe(p, 'c', 'height', 10), true);
+assert.deepEqual(c().keyframes.height, [kf(110, 1)]);
+valid(p);
+
+// ◀▶: whole timeline frames of keys inside the clip; keys outside it are skipped.
+p = fresh();
+at(p,'c').keyframes = {x: [kf(90, 0), kf(120, 0.2), kf(170, 0.4), kf(250, 0.6)], opacity: [kf(130, 0.5)]};
+at(p,'d').keyframes = {x: [kf(20, 0), kf(41, 1)]};
+valid(p);
+assert.equal(K.neighbor(c(), ['x'], 50, -1), 20);
+assert.equal(K.neighbor(c(), ['x'], 50, 1), 70);
+assert.equal(K.neighbor(c(), ['x'], 70, 1), null, 'the key at timeline 150 is past the clip end');
+assert.equal(K.neighbor(c(), ['x'], 20, -1), null, 'the key at timeline -10 is before the clip start');
+assert.equal(K.neighbor(c(), ['x', 'opacity'], 20, 1), 30, 'the nearest key of any listed value');
+assert.equal(K.neighbor(at(p,'d'), ['x'], 200, 1), 210, 'speed 2: source 20 is 10 timeline frames in');
+assert.equal(K.neighbor(at(p,'d'), ['x'], 210, 1), 221, 'source 41 sits at 220.5 and rounds to 221');
+
+// Moves go by whole timeline frames through the time map; landing on another key of the value refuses.
+assert.equal(K.moveKeys(p, 'c', [{path: 'x', f: 120}], 50), 'bounds', 'onto the key at 170');
+assert.equal(K.moveKeys(p, 'c', [{path: 'x', f: 120}], 5), true);
+assert.deepEqual(c().keyframes.x.map(key => key.f), [90, 125, 170, 250]);
+assert.equal(K.moveKeys(p, 'c', [{path: 'x', f: 125}, {path: 'x', f: 170}], 100), true, 'a key may pass another one');
+assert.deepEqual(c().keyframes.x.map(key => key.f), [90, 225, 250, 270]);
+assert.equal(K.moveKeys(p, 'd', [{path: 'x', f: 20}], 3), true);
+assert.deepEqual(at(p,'d').keyframes.x.map(key => key.f), [26, 41], 'speed 2: three timeline frames are six source frames');
+assert.equal(K.moveKeys(p, 'c', [{path: 'x', f: 90}], 0), 'nothing');
+valid(p);
+
+// Removing keys; a value left without keys ends its animation with the value at the clip's first frame in its field.
+assert.equal(K.removeKeys(p, 'c', [{path: 'opacity', f: 130}]), true);
+assert.equal('opacity' in c().keyframes, false);
+near(c().opacity, 0.5, 'the removed key held 0.5 everywhere');
+assert.equal(K.removeKeys(p, 'c', [{path: 'opacity', f: 130}]), 'nothing');
+valid(p);
+
+// Copy and paste between clips of different speeds keeps the timeline timing relative to the given frames.
+p = fresh();
+at(p,'c').keyframes = {x: [kf(110, 0.1), kf(130, 0.5, 'ease_out')], opacity: [kf(120, 0.3)]};
+valid(p);
+const board = K.copyKeys(c(), [{path: 'x', f: 110}, {path: 'x', f: 130}, {path: 'opacity', f: 120}], 10);
+assert.deepEqual(board, {keys: [{path: 'x', dt: 0, v: 0.1, e: 'linear'}, {path: 'opacity', dt: 10, v: 0.3, e: 'linear'}, {path: 'x', dt: 20, v: 0.5, e: 'ease_out'}]});
+assert.equal(K.copyKeys(c(), [{path: 'y', f: 0}], 10), null);
+assert.equal(K.pasteKeys(p, 'd', board, 220), true);
+assert.deepEqual(at(p,'d').keyframes, {x: [kf(40, 0.1), kf(80, 0.5, 'ease_out')], opacity: [kf(60, 0.3)]});
+for (let k = 0; k <= 20; k++) near(FX.valueAt(at(p,'d'), 'x', 220 + k, p), FX.valueAt(c(), 'x', 10 + k, p), 'pasted timing @' + k);
+assert.equal(K.pasteKeys(p, 'm', board, 0), 'kind');
+assert.equal(K.pasteKeys(p, 'd', {keys: []}, 220), 'nothing');
+valid(p);
+
+// 64 keys per value. The 512 per clip cannot be reached with the six base values of 2b.
+p = fresh();
+at(p,'c').keyframes = {x: Array.from({length: 64}, (_, i) => kf(100 + i, 0.5))};
+valid(p);
+assert.equal(K.toggleKeyframe(p, 'c', 'x', 80), 'limit');
+assert.equal(K.setValues(p, 'c', {x: 0.2}, 90), 'limit');
+assert.equal(K.setValues(p, 'c', {x: 0.2}, 10), true, 'an existing key still takes a value');
+assert.equal(K.pasteKeys(p, 'c', {keys: [{path: 'x', dt: 0, v: 0.3, e: 'linear'}]}, 70), 'limit');
 `)
 }

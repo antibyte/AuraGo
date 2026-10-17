@@ -1424,6 +1424,7 @@ buttons and menu popovers remain excluded from those gestures.
   `video-studio-timeline.js`,
   `video-studio-ruler.js` (in/out shade, marker flags, overview strip),
   `video-studio-edit.js` (DOM-free edit operations),
+  `video-studio-keyframe-edit.js` (DOM-free keyframe and ramp operations),
   `video-studio-navigation.js` (DOM-free shuttle, edit points and track order),
   `video-studio-source-edit.js` (DOM-free source rules),
   `video-studio-folders.js` (DOM-free media folder model),
@@ -1441,7 +1442,7 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (32 scripts, same
+  `-menus.js` (context menus), and `video-studio.js` last (33 scripts, same
   order in `module-loader.js`, both browser fixtures and `TestVideoStudioNavigationLoadOrder`; lists only get
   insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with

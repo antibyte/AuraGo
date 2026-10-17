@@ -72,6 +72,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-timeline.js"></script>
 <script src="/js/desktop/apps/video-studio-ruler.js"></script>
 <script src="/js/desktop/apps/video-studio-edit.js"></script>
+<script src="/js/desktop/apps/video-studio-keyframe-edit.js"></script>
 <script src="/js/desktop/apps/video-studio-navigation.js"></script>
 <script src="/js/desktop/apps/video-studio-source-edit.js"></script>
 <script src="/js/desktop/apps/video-studio-folders.js"></script>
