@@ -500,6 +500,12 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 			return
 		}
 		if err := videostudio.Validate(project); err != nil {
+			// Plan 2c: a validation error with a field path (crop, effects, LUT assets) names the field.
+			var field *videostudio.FieldError
+			if errors.As(err, &field) {
+				writeVideoStudioErrorFields(w, http.StatusBadRequest, "invalid_project", "Project timeline exceeds supported editing limits.", map[string]any{"field": field.Path})
+				return
+			}
 			writeVideoStudioError(w, http.StatusBadRequest, "invalid_project", "Project timeline exceeds supported editing limits.")
 			return
 		}
@@ -1482,4 +1488,17 @@ func writeVideoStudioError(w http.ResponseWriter, status int, code, message stri
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code, "code": code, "message": message})
+}
+
+// writeVideoStudioErrorFields writes an error body like writeVideoStudioError, with extra keys (plan 2c: "field" of a
+// project validation error, "line" of an invalid LUT). Extra keys never replace error, code or message.
+func writeVideoStudioErrorFields(w http.ResponseWriter, status int, code, message string, extra map[string]any) {
+	body := make(map[string]any, len(extra)+3)
+	for key, value := range extra {
+		body[key] = value
+	}
+	body["error"], body["code"], body["message"] = code, code, message
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
 }

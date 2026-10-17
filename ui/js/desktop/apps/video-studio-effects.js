@@ -89,15 +89,23 @@
     const finite = value => typeof value === 'number' && Number.isFinite(value);
     const clamp01 = value => Math.max(0, Math.min(1, value));
     const emptyUnavailable = () => ({ effects: new Set(), transitions: new Set(), blend_modes: new Set(), anim_presets: new Set() });
-    // Keyframe and speed-ramp names and limits (index §4.4, §4.18), the same as Go: the Easing constants
-    // (keyframes.go), MaxKeyframesPerParam, MaxKeyframesPerClip, MaxRampPoints, MaxRampPieces and the unexported
-    // rampEaseSteps (ramp.go).
+    // Keyframe, speed-ramp and effect names and limits (index §4.4, §4.18), the same as Go: the Easing constants
+    // (keyframes.go), MaxKeyframesPerParam, MaxKeyframesPerClip, MaxRampPoints, MaxRampPieces, the unexported
+    // rampEaseSteps (ramp.go) and MaxEffectsPerClip (model.go, 2c).
     const EASINGS = Object.freeze(['linear', 'ease_in', 'ease_out', 'ease_in_out', 'hold']);
-    const LIMITS = Object.freeze({ keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4 });
+    const LIMITS = Object.freeze({ keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4, effectsPerClip: 8 });
     // Go's MinClipSpeed and MaxClipSpeed.
     const MIN_SPEED = 0.25, MAX_SPEED = 16;
     // Go's MinBoxSize: the smallest width or height a keyframe may hold (the editor's 1 % box minimum).
     const MIN_BOX_SIZE = 0.01;
+    // Go's maxCropFraction: the largest share of one crop side, and of l + r and t + b (with 1e-9 of float slack).
+    const CROP_MAX = 0.95;
+    const CROP_PATHS = Object.freeze(['crop.l', 'crop.t', 'crop.r', 'crop.b']);
+    const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
+    // Keys in a keyframe map (clip.keyframes or an effect entry's keyframes); anything but a list counts 0.
+    const keyCount = map => (isObject(map) ? Object.values(map).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0) : 0);
+    // The keys of a clip's effect entries. They count toward the 512 keys of the clip (spec §5.8, Go countKeyframes).
+    const effectKeyCount = clip => (clip && Array.isArray(clip.effects) ? clip.effects.reduce((n, entry) => n + keyCount(entry && entry.keyframes), 0) : 0);
     let current = BUILTIN, missing = emptyUnavailable();
 
     // A registry from the server is used only when it has this build's version and every list is well formed.
@@ -133,6 +141,12 @@
         ((effect(effectId) || {}).params || []).forEach(param => { out[param.id] = param.default; });
         return out;
     }
+    // Effects in menu order. available is false when the server's FFmpeg lacks one of their filters: the effect still
+    // previews, and the export refuses it. effectAvailable(id) is false for unknown ids too.
+    function effects() { return current.effects.map(spec => Object.assign({}, spec, { available: !missing.effects.has(spec.id) })); }
+    function effectAvailable(id) { return !!effect(id) && !missing.effects.has(id); }
+    // The built-in looks in menu order, [{id, label_key}].
+    function looks() { return current.looks.map(look => ({ id: look.id, label_key: look.label_key })); }
 
     // Mirror of Go validateKeyframes and validateRamp (index §4.18).
     // Keyframes:
@@ -151,7 +165,8 @@
             if (typeof keyframes !== 'object' || Array.isArray(keyframes)) return false;
             const paths = Object.keys(keyframes);
             if (paths.length && (!track || track.kind === 'audio')) return false;
-            if (paths.reduce((n, path) => n + (Array.isArray(keyframes[path]) ? keyframes[path].length : 0), 0) > LIMITS.keyframesPerClip) return false;
+            // Base and effect keys share the 512 keys of a clip (spec §5.8, Go countKeyframes).
+            if (keyCount(keyframes) + effectKeyCount(clip) > LIMITS.keyframesPerClip) return false;
             const bound = MAX_SPEED * maxFrames;
             for (const path of paths) {
                 const spec = base(path), list = keyframes[path];
@@ -174,6 +189,68 @@
             }
         }
         return true;
+    }
+
+    // ---- Plan 2c: crop, flips and the effect stack (index §4.1, §4.2, §4.4). ----
+    // One params value against its registry spec (Go validEffectParam): a finite number in range, a known LUT ref,
+    // a boolean, a listed choice or a #rrggbb colour.
+    function validParam(spec, value, project) {
+        switch (spec.type) {
+            case 'number': return finite(value) && value >= spec.min && value <= spec.max;
+            case 'lut': return typeof value === 'string' && validLUTRef(value, project);
+            case 'bool': return typeof value === 'boolean';
+            case 'choice': return typeof value === 'string' && (spec.choices || []).includes(value);
+            case 'color': return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+            default: return false;
+        }
+    }
+    // A valid LUT ref is '' (pass-through), 'builtin:<look id>' of the registry, or the id of a lut asset of the
+    // project (Go validLUTRef).
+    function validLUTRef(ref, project) {
+        if (ref === '') return true;
+        if (ref.startsWith('builtin:')) return current.looks.some(look => look.id === ref.slice('builtin:'.length));
+        return ((project && project.assets) || []).some(asset => !!asset && asset.id === ref && asset.kind === 'lut');
+    }
+    // The keys of one effect parameter with the base rules (Go validEffectKeys): 1..64 keys, strictly increasing integer
+    // frames within ±bound, values in the parameter's range and known easings.
+    function validKeyList(list, spec, bound) {
+        if (!Array.isArray(list) || !list.length || list.length > LIMITS.keyframesPerParam) return false;
+        return list.every((key, i) => !!key && Number.isSafeInteger(key.f) && Math.abs(key.f) <= bound && (i === 0 || key.f > list[i - 1].f) &&
+            finite(key.v) && key.v >= spec.min && key.v <= spec.max && EASINGS.includes(key.e));
+    }
+    // Mirror of Go validateCrop and validateEffects. Crop, flips and effects belong to visual clips only.
+    //  - crop: four numbers 0..0.95, l + r and t + b at most 0.95, not all zero (the editor deletes an empty crop).
+    //  - effects: at most 8 entries. Each has a known registry id (on or off) and a params object of known parameters
+    //    whose values have the registry type and range. LUT refs name a built-in look or a lut asset of the project.
+    //  - entry keyframes sit on keyframable number parameters only (not the blur radius).
+    //  - base and entry keys together stay within 512 per clip.
+    function validPicture(clip, track, project) {
+        if (!clip) return false;
+        const crop = clip.crop, stack = clip.effects, audio = !track || track.kind === 'audio';
+        if ((clip.flip_h != null && typeof clip.flip_h !== 'boolean') || (clip.flip_v != null && typeof clip.flip_v !== 'boolean')) return false;
+        if (audio && (crop != null || clip.flip_h || clip.flip_v)) return false;
+        if (crop != null) {
+            if (!isObject(crop)) return false;
+            const sides = [crop.l, crop.t, crop.r, crop.b];
+            if (!sides.every(side => finite(side) && side >= 0 && side <= CROP_MAX)) return false;
+            if (crop.l + crop.r > CROP_MAX + 1e-9 || crop.t + crop.b > CROP_MAX + 1e-9 || sides.every(side => side === 0)) return false;
+        }
+        if (stack == null) return true;
+        if (!Array.isArray(stack)) return false;
+        if (!stack.length) return true;
+        if (audio || stack.length > LIMITS.effectsPerClip || keyCount(clip.keyframes) + effectKeyCount(clip) > LIMITS.keyframesPerClip) return false;
+        const bound = MAX_SPEED * window.VideoStudioTime.maxFrames(project);
+        return stack.every(entry => {
+            const spec = isObject(entry) ? effect(entry.id) : null;
+            if (!spec || (entry.on != null && typeof entry.on !== 'boolean') || !isObject(entry.params)) return false;
+            const param = id => spec.params.find(item => item.id === id) || null;
+            if (!Object.keys(entry.params).every(id => !!param(id) && validParam(param(id), entry.params[id], project))) return false;
+            if (entry.keyframes == null) return true;
+            return isObject(entry.keyframes) && Object.keys(entry.keyframes).every(id => {
+                const p = param(id);
+                return !!p && !!p.keyframable && p.type === 'number' && validKeyList(entry.keyframes[id], p, bound);
+            });
+        });
     }
 
     // Easing curves (spec §5.2, index §4.18), the same numbers as Go Ease:
@@ -213,6 +290,30 @@
     }
     // The keyframable base parameters of the registry (2b: x, y, width, height, rotation, opacity), in registry order.
     function keyframable() { return current.base.filter(spec => spec.keyframable && spec.type === 'number').map(spec => spec.id); }
+    // True when a crop side has keyframes. The export then crops after the effects (index §4.20).
+    function cropAnimated(clip) {
+        const keyframes = clip && isObject(clip.keyframes) ? clip.keyframes : {};
+        return CROP_PATHS.some(path => Array.isArray(keyframes[path]) && keyframes[path].length > 0);
+    }
+    // Every path of a clip that can carry keyframes, in stack and registry order: the keyframable base paths, then
+    // effects.<i>.<param> for the keyframable number parameters of each known entry (on or off).
+    function animatablePaths(clip) {
+        const paths = keyframable();
+        (clip && Array.isArray(clip.effects) ? clip.effects : []).forEach((entry, index) => {
+            const spec = entry ? effect(entry.id) : null;
+            if (spec) spec.params.forEach(param => { if (param.keyframable && param.type === 'number') paths.push('effects.' + index + '.' + param.id); });
+        });
+        return paths;
+    }
+    // The ParamSpec of any path of a clip (a base path, or effects.<i>.<param> of a known entry), or null.
+    function paramSpec(clip, path) {
+        const parts = String(path || '').split('.');
+        if (parts[0] !== 'effects') return base(path);
+        if (parts.length !== 3 || !/^(0|[1-9][0-9]*)$/.test(parts[1])) return null;
+        const entry = clip && Array.isArray(clip.effects) ? clip.effects[Number(parts[1])] : null;
+        const spec = entry ? effect(entry.id) : null;
+        return spec ? spec.params.find(param => param.id === parts[2]) || null : null;
+    }
     // Speed ramps (spec §5.5, index §4.18), the same pieces as Go rampPieces.
     //  - A linear span is one piece, and a hold span one constant piece.
     //  - An eased span is LIMITS.rampEaseSteps uniform sub-pieces with node speeds from ease.
@@ -355,14 +456,35 @@
         const spec = base(path);
         return spec && finite(spec.default) ? spec.default : null;
     }
+    // The effect entries as both painters see them (index §4.4, 2c): every entry that is on and has a known id
+    // (available or not), with its stack index and every parameter at the frame. Numbers go through valueAt
+    // (keyframes, params, registry default); other types come from params when they have the default's type, else the
+    // default.
+    function effectStates(clip, frame, project) {
+        const out = [];
+        (clip && Array.isArray(clip.effects) ? clip.effects : []).forEach((entry, index) => {
+            const spec = entry && entry.on === true ? effect(entry.id) : null;
+            if (!spec) return;
+            const params = isObject(entry.params) ? entry.params : {}, values = {};
+            spec.params.forEach(param => {
+                values[param.id] = param.type === 'number' ? valueAt(clip, 'effects.' + index + '.' + param.id, frame, project)
+                    : typeof params[param.id] === typeof param.default ? params[param.id] : param.default;
+            });
+            out.push({ index, id: entry.id, values });
+        });
+        return out;
+    }
     // The resolved state of a clip at a frame, which both painters draw from (index §4.4). The shape stays fixed; later
-    // slices change how values are evaluated (2b keyframes, 2c crop/flip/effects, 2d blend/mask, 2e animation).
+    // slices change how values are evaluated (2b keyframes, 2c crop/flip/effects, 2d blend/mask, 2e animation). In 2c
+    // the crop is evaluated like any base path (keyframes, else the field, else 0).
     function clipState(clip, frame, project) {
         const at = path => valueAt(clip, path, frame, project);
         return {
             x: at('x'), y: at('y'), width: at('width'), height: at('height'), rotation: at('rotation'),
             opacity: clamp01(at('opacity')), fit: clip && clip.fit === 'cover' ? 'cover' : 'contain',
-            crop: { l: 0, t: 0, r: 0, b: 0 }, flipH: false, flipV: false, blend: 'normal', mask: null, effects: []
+            crop: { l: at('crop.l'), t: at('crop.t'), r: at('crop.r'), b: at('crop.b') },
+            flipH: !!(clip && clip.flip_h === true), flipV: !!(clip && clip.flip_v === true), blend: 'normal', mask: null,
+            effects: effectStates(clip, frame, project)
         };
     }
 
@@ -519,5 +641,5 @@
         return remapKeyframes(source && source.keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from)));
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

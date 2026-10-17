@@ -342,6 +342,7 @@ func TestVideoStudioEffectsLimitsMatchGo(t *testing.T) {
 		"rampPoints":        videostudio.MaxRampPoints,
 		"rampPieces":        videostudio.MaxRampPieces,
 		"rampEaseSteps":     4,
+		"effectsPerClip":    videostudio.MaxEffectsPerClip,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("VideoStudioEffects.LIMITS = %v, want the Go constants %v", got, want)

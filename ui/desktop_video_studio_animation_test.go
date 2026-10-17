@@ -10,7 +10,7 @@ func TestVideoStudioValidTimelineAnimation(t *testing.T) {
 require('./js/desktop/apps/video-studio-timeline.js');
 const T = window.VideoStudioTimeline;
 assert.deepEqual(E.EASINGS, ['linear', 'ease_in', 'ease_out', 'ease_in_out', 'hold']);
-assert.deepEqual(E.LIMITS, {keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4});
+assert.deepEqual(E.LIMITS, {keyframesPerParam: 64, keyframesPerClip: 512, rampPoints: 16, rampPieces: 64, rampEaseSteps: 4, effectsPerClip: 8});
 const box = {x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, volume: 1, fade_in: 0, fade_out: 0, fit: 'contain', text: '', text_style: null, transition: null};
 const k = (f, v, e = 'linear') => ({f, v, e});
 const pt = (f, speed, e = 'linear') => ({f, speed, e});
