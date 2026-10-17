@@ -248,7 +248,7 @@
             </div>
           </div>
         </div>
-        <div id="budget-disabled" class="empty-state" data-i18n="dashboard.budget_disabled"></div>
+        <div id="budget-disabled" class="empty-state is-hidden" data-i18n="dashboard.budget_disabled"></div>
       </div>
     </div>
 
@@ -422,7 +422,7 @@
       <div class="dash-card-header">
         <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4"/><path d="M5.6 5.6l2.8 2.8"/><path d="M3 12h4"/><path d="M5.6 18.4l2.8-2.8"/><path d="M12 21v-4"/><path d="M18.4 18.4l-2.8-2.8"/><path d="M21 12h-4"/><path d="M18.4 5.6l-2.8 2.8"/><circle cx="12" cy="12" r="3"/></svg>
         <span data-i18n="dashboard.memory_latest_reflection"></span>
-        <button type="button" id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" onclick="runWeeklyReflectionNow()" data-i18n-title="dashboard.memory_reflection_run" title="">
+        <button type="button" id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run" data-i18n-title="dashboard.memory_reflection_run" title="">
           <svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
           <span data-i18n="dashboard.memory_reflection_run"></span>
         </button>
@@ -626,27 +626,27 @@
         <div class="fs-dash-toolbar-actions">
           <span class="kc-sync-status-dot fs-dash-toolbar-dot" id="fs-indexer-dot"></span>
           <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
-          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="knowledge.filesync_refresh"></span></button>
-          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> <span data-i18n="knowledge.filesync_rescan"></span></button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="filesync-refresh" id="btn-fs-refresh-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="knowledge.filesync_refresh"></span></button>
+          <button type="button" class="btn btn-primary btn-sm" data-action="filesync-rescan" id="btn-fs-rescan-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> <span data-i18n="knowledge.filesync_rescan"></span></button>
         </div>
       </div>
       <div class="dash-card-body">
         <div class="fs-dash-grid">
           <div class="fs-dash-col" id="fs-dash-indexer">
             <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_indexer_title"></span></div>
-            <div class="fs-dash-body" id="fs-indexer-body"><div class="kc-sync-loading">Loading…</div></div>
+            <div class="fs-dash-body" id="fs-indexer-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-kg">
             <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="knowledge.filesync_kg_title"></span></div>
-            <div class="fs-dash-body" id="fs-kg-body"><div class="kc-sync-loading">Loading…</div></div>
+            <div class="fs-dash-body" id="fs-kg-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-colls">
             <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_collections_title"></span></div>
-            <div class="fs-dash-body" id="fs-collections-body"><div class="kc-sync-loading">Loading…</div></div>
+            <div class="fs-dash-body" id="fs-collections-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
           </div>
           <div class="fs-dash-col" id="fs-dash-lastsync">
             <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> <span data-i18n="knowledge.filesync_last_sync_title"></span></div>
-            <div class="fs-dash-body" id="fs-lastsync-body"><div class="kc-sync-loading">Loading…</div></div>
+            <div class="fs-dash-body" id="fs-lastsync-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
           </div>
         </div>
       </div>
@@ -1122,8 +1122,8 @@
             <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="8"></textarea>
           </div>
           <div class="cron-form-actions">
-            <button class="cf-add-btn cron-btn-cancel" onclick="closeCronEditModal()" data-i18n="dashboard.cron_edit_cancel"></button>
-            <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save"></button>
+            <button type="button" class="cf-add-btn cron-btn-cancel" data-action="cron-edit-cancel" data-i18n="dashboard.cron_edit_cancel"></button>
+            <button type="button" class="cf-add-btn" id="cronEditSaveBtn" data-action="cron-edit-save" data-i18n="dashboard.cron_edit_save"></button>
           </div>
         </div>
       </div>

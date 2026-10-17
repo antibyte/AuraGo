@@ -338,6 +338,25 @@
             });
         });
 
+        // -- Declarative actions ---------------------------------------------------------
+        // Markup buttons carry data-action instead of inline onclick handlers. Unknown actions
+        // (for example personality-dynamics' own reset button) are left to their own listeners.
+        const DASH_ACTIONS = {
+            'filesync-refresh': () => loadFileSyncStatus(),
+            'filesync-rescan': () => triggerFileSyncRescan(),
+            'memory-reflection-run': () => runWeeklyReflectionNow(),
+            'cron-edit-cancel': () => closeCronEditModal(),
+            'cron-edit-save': () => saveCronEdit(),
+        };
+        document.addEventListener('click', (e) => {
+            const trigger = e.target instanceof Element ? e.target.closest('[data-action]') : null;
+            if (!trigger) return;
+            const action = trigger.getAttribute('data-action');
+            if (!Object.prototype.hasOwnProperty.call(DASH_ACTIONS, action)) return;
+            e.preventDefault();
+            DASH_ACTIONS[action]();
+        });
+
         // ── Core-Facts Modal ─────────────────────────────────────────────────────────
         function closeCoreFactsModal() {
             document.getElementById('cfOverlay').classList.remove('open');

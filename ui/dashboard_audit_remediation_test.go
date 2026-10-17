@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -34,6 +35,25 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	}
 	if strings.Contains(html, `id="log-scroll-btn" data-i18n="`) {
 		t.Fatal("log scroll button must not carry data-i18n on the button itself")
+	}
+	if regexp.MustCompile(`(?i)\son[a-z]+\s*=\s*["']`).MatchString(html) {
+		t.Fatal("dashboard markup must not use inline event handlers; use data-action and the delegated listener")
+	}
+	for _, marker := range []string{
+		`<button type="button" class="btn btn-secondary btn-sm" data-action="filesync-refresh" id="btn-fs-refresh-dash">`,
+		`<button type="button" class="btn btn-primary btn-sm" data-action="filesync-rescan" id="btn-fs-rescan-dash">`,
+		`id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run"`,
+		`<button type="button" class="cf-add-btn cron-btn-cancel" data-action="cron-edit-cancel"`,
+		`<button type="button" class="cf-add-btn" id="cronEditSaveBtn" data-action="cron-edit-save"`,
+		`<div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div>`,
+		`<div id="budget-disabled" class="empty-state is-hidden" data-i18n="dashboard.budget_disabled"></div>`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("dashboard HTML missing declarative-action marker %q", marker)
+		}
+	}
+	if strings.Contains(html, `kc-sync-loading">Loading`) {
+		t.Fatal("File sync placeholders must be translated")
 	}
 
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
@@ -103,6 +123,18 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	}
 	if strings.Contains(events, `showAlert('Error'`) {
 		t.Fatal("error alerts must use i18n title")
+	}
+	for _, marker := range []string{
+		"'filesync-refresh': () => loadFileSyncStatus()",
+		"'filesync-rescan': () => triggerFileSyncRescan()",
+		"'memory-reflection-run': () => runWeeklyReflectionNow()",
+		"'cron-edit-cancel': () => closeCronEditModal()",
+		"'cron-edit-save': () => saveCronEdit()",
+		"e.target.closest('[data-action]')",
+	} {
+		if !strings.Contains(events, marker) {
+			t.Fatalf("dashboard events missing delegated action %q", marker)
+		}
 	}
 
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
