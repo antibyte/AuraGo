@@ -82,3 +82,31 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 		}
 	}
 }
+
+// TestDashboardEventsFollowTheRouter: SSE handlers and the theme reload use DashRouter.current() and
+// drop the DashAPI cache entries their event makes stale.
+func TestDashboardEventsFollowTheRouter(t *testing.T) {
+	t.Parallel()
+
+	events := readDesktopAssetText(t, "js/dashboard/dashboard-events.js")
+	for _, marker := range []string{
+		"DashRouter.current() === 'personality'",
+		"DashRouter.current() === 'automations'",
+		"Object.keys(SectionState.loaded)",
+		"const active = DashRouter.current();",
+		"DashAPI.invalidate('/api/dashboard/memory');",
+		"DashAPI.invalidate('/api/personality/');",
+		"DashAPI.invalidate('/api/daemons');",
+		"DashAPI.invalidate('/api/dashboard/audit');",
+		"DashAPI.invalidate('/api/budget');",
+	} {
+		if !strings.Contains(events, marker) {
+			t.Errorf("dashboard-events.js misses %q", marker)
+		}
+	}
+	for _, gone := range []string{"TabState", "loadTabContent"} {
+		if strings.Contains(events, gone) {
+			t.Errorf("dashboard-events.js still contains %q", gone)
+		}
+	}
+}
