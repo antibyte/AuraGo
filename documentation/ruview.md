@@ -20,7 +20,7 @@ Recording uses explicit **Start Recording** and **Stop Recording** actions in bo
 
 Training, Pretrain and LoRA expose only their supported parameters. LoRA uses a listed base model, a validated profile name and rank 8; ordinary training includes early stopping patience. Server-disabled training remains disabled. Failed or unsupported model, recording and training reads are distinguished from successfully empty lists, retain old values as stale, and offer refresh. Controls dependent on unavailable data remain disabled.
 
-Read-only blocks starts, changes and deletions. Administrators may still stop a managed service, stop recording or cancel training; these remain authenticated, origin-checked writes. AuraGo never shuts down an external service, but administrators may stop its recording and training. Agent access remains limited to the five existing read operations. Native process exit clears readiness and revision confirmation and permits a manual restart. No automatic restart is attempted. A failed or timed-out stop retains ownership and reports that stopping was not confirmed.
+Read-only blocks starts, changes and deletions. Administrators may still stop a managed service, stop recording or cancel training; these remain authenticated, origin-checked writes. AuraGo never shuts down an external service, but administrators may stop its recording and training. Agent access remains limited to read operations. Native process exit clears readiness and revision confirmation and permits a manual restart. No automatic restart is attempted. A failed or timed-out stop retains ownership and reports that stopping was not confirmed.
 
 ## Setup
 
@@ -44,7 +44,7 @@ If starting Docker fails, the overview retains the concrete Engine error across 
 
 Containerized AuraGo must use an external native instance for host Wi-Fi. Linux has no native RSSI scanner in this integration: the pinned server does not connect its Linux adapter to that runtime path. Select `esp32` for real CSI or `simulated` explicitly for a demo; there is no automatic demo fallback.
 
-Disable read-only to install/start a runtime, provision a board, calibrate, record or train. The agent is independently enabled with `agent_access` and always has only `status`, `nodes`, `sensing`, `model_info` and `recordings`. Its responses include source, time and data freshness. Tokens use Vault keys `ruview_api_token` and `ruview_managed_token`; both are denied to Python/agent secret export and are scrubbed before network operations.
+Disable read-only to install/start a runtime, provision a board, calibrate, record or train. The agent is independently enabled with `agent_access` and always has only `status`, `nodes`, `sensing`, `model_info`, `recordings`, and `presence`. `nodes` stays the live list. `presence` also includes saved offline IDs for this receiver. `fresh: false` does not prove presence, and a simulation is not a sensor. RSSI is included only for a board that is live in that reply; an offline board has no RSSI. Responses include source, time and data freshness. A successful data read is kept when the following status probe fails, with `fresh: false` and a short `status_error`. A failed data read is an error and has no invented payload. Tokens use Vault keys `ruview_api_token` and `ruview_managed_token`; both are denied to Python/agent secret export and are scrubbed before network operations.
 
 ## Network and storage
 

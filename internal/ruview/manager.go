@@ -256,24 +256,30 @@ func (m *Manager) Read(ctx context.Context, operation string) (any, error) {
 	if !c.RuView.Enabled || !c.RuView.AgentAccess {
 		return nil, fmt.Errorf("RuView agent read access is disabled")
 	}
+	bound, done := m.bound(ctx)
+	defer done()
 	if operation == "status" {
-		return m.Test(ctx)
+		return m.Test(bound)
+	}
+	if operation == "presence" {
+		result, err := m.readPresence(bound)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
 	p, ok := readOperations[operation]
 	if !ok {
 		return nil, fmt.Errorf("unsupported RuView read operation")
 	}
-	bound, done := m.bound(ctx)
-	defer done()
 	data, err := m.request(bound, c, "GET", p, nil)
 	if err != nil {
 		return nil, err
 	}
-	status, err := m.Test(bound)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"source": status.Source, "observed_at": time.Now().UTC(), "revision": Revision, "fresh": status.Fresh, "simulated": status.Simulated, "data_state": status.DataState, "data": data}, nil
+	envelope := payloadRead{Data: data, Revision: Revision}
+	m.attachStatus(bound, &envelope.Source, &envelope.Fresh, &envelope.Simulated, &envelope.DataState, &envelope.StatusError)
+	envelope.ObservedAt = time.Now().UTC()
+	return envelope, nil
 }
 
 func (m *Manager) StartBackground(parent context.Context) {

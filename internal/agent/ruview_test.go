@@ -27,10 +27,13 @@ func TestRuViewSchemaHasOnlyFixedReadOperations(t *testing.T) {
 				t.Fatal(err)
 			}
 			text := string(data)
-			for _, read := range []string{"status", "nodes", "sensing", "model_info", "recordings"} {
+			for _, read := range []string{"status", "nodes", "sensing", "model_info", "recordings", "presence"} {
 				if !strings.Contains(text, `"`+read+`"`) {
 					t.Fatal("missing read operation", read)
 				}
+			}
+			if !strings.Contains(tool.Function.Description, "fresh: false") || !strings.Contains(tool.Function.Description, "not a sensor") {
+				t.Fatal("description missing presence caveat", tool.Function.Description)
 			}
 			for _, write := range []string{"flash", "start", "delete", "calibrate", "url", "token"} {
 				if strings.Contains(text, `"`+write+`"`) {

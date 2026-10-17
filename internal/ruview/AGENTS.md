@@ -22,7 +22,9 @@ This package owns the runtime client, proxy policy, node inventory and passive s
 - The recording marker lives on the manager. `Configure()` clears cached probe status and must not clear a confirmed session.
 - `noteRecording` runs only after `/api/v1/recording/start` or `/api/v1/recording/stop` is forwarded. A 2xx start sets `started` and clears the acknowledgement. A 2xx stop sets `stopped` and clears it. Any other forwarded result, including a transport failure or an invalid body, sets `unconfirmed` and keeps the last confirmed session. A local rejection that never leaves AuraGo does not call it.
 - The wizard never enables UDP and never stores Wi-Fi credentials. An uncertain flash is never retried. An explicit node ID from 1 to 255 is marked edited before discovery, so a suggestion cannot replace it.
-- Agent `nodes` and the proxy stay live-only. Pose, vital signs, model load, LoRa, camera, and timed recording stay blocked.
+- Agent `nodes` and the proxy stay live-only. `presence` is the only agent read that also returns saved offline IDs for this receiver. Its node `state` is `live`, `stale`, or `offline`. A node is `fresh` only when the source is `esp32`, the result is not simulated, `csi_status` is `active`, a sequence is present, and the age is at most 10 seconds. RSSI is included only for a node that is `live` in that reply. Offline nodes have no RSSI and `rssi_retained: false`. The summary has no Wi-Fi data, file path, or scope path. `fresh: false` does not prove presence. Simulation is not a sensor.
+- `Read` returns a successful data payload when the following status probe fails: `fresh: false`, `simulated` from the last known status, `data_state: disconnected`, and a short `status_error` without a URL or token. The call itself is not an error. A failed data read stays an error and has no invented payload. `status` still only calls `Test`.
+- Pose, vital signs, model load, LoRa, camera, and timed recording stay blocked.
 - The upstream iframe keeps `allow-scripts allow-same-origin` until a separate isolation change.
 
 ## Work Guidance
@@ -31,6 +33,7 @@ German UI copy uses Du and real umlauts. All 16 `ui/lang/ruview/` locales get re
 
 ## Verification
 
+- `go test ./internal/ruview/ ./internal/agent/ -count=1 -run 'TestRuView|TestKnownNodes'`
 - `go test ./internal/ruview/ -count=1 -run 'TestStatusUDPFieldsStayPassive|TestRecordingAcknowledgementFollowsForwardedResults|TestStatusIsPassive|TestReadOnlyStops|TestDashboardHealth'`
 - `node scripts/ruview/browser.test.mjs`
 - `node scripts/ruview/wizard-browser.test.mjs`

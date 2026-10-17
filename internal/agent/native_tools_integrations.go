@@ -1070,7 +1070,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		tools = append(tools, retroGamesSchema())
 	}
 	if ff.RuViewEnabled {
-		tools = append(tools, tool("ruview", "Read RuView status, nodes, current sensing, model information and recording metadata. Source and time distinguish real and simulated measurements.", schema(map[string]interface{}{"operation": map[string]interface{}{"type": "string", "enum": []string{"status", "nodes", "sensing", "model_info", "recordings"}}}, "operation")))
+		tools = append(tools, tool("ruview", "Read RuView status, nodes, sensing, model information, recordings, and presence. fresh: false does not prove presence. Simulation is not a sensor. Source and time distinguish real and simulated measurements.", schema(map[string]interface{}{"operation": map[string]interface{}{"type": "string", "enum": []string{"status", "nodes", "sensing", "model_info", "recordings", "presence"}}}, "operation")))
 	}
 	if ff.Go2RTCEnabled {
 		tools = append(tools, tool("go2rtc",
