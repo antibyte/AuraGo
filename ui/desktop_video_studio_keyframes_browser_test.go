@@ -306,6 +306,10 @@ func TestDesktopVideoStudioKeyframesBrowser(t *testing.T) {
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors after the keyframe strip: %s", errs)
 	}
+	rampBrowserPart(t, page)
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors after the speed ramps: %s", errs)
+	}
 }
 
 // keyframeStripPagePrelude finds the editor of the keyframe browser test, whatever id part 1 gave it.
@@ -394,6 +398,58 @@ func keyframeStripBrowserPart(t *testing.T, page *rod.Page) {
 	page.MustEval(`async()=>{` + keyframeStripPagePrelude + `
 		document.querySelector('[data-kf-strip="kfB"] [data-kf-action="expand"]').click();
 		await until(()=>{const strip=document.querySelector('[data-kf-strip="kfB"]');return strip&&!strip.querySelector('[data-kf-row="x"]')&&strip.querySelector('[data-kf-action="expand"]').getAttribute('aria-expanded')==='false';},'the chevron did not collapse the strip');
+		s.snap=true;
+	}`)
+}
+
+// Part 3 of TestDesktopVideoStudioKeyframesBrowser (Task 14): speed ramps. The checks:
+// - Ramp up keeps the source range and ripples kfB;
+// - the badge carries the muted speaker and the inspector shows the muted-sound notice;
+// - the speed field is empty with its placeholder;
+// - Edit in the timeline opens the speed lane with focus;
+// - a real pointer drag raises the end point's speed;
+// - a typed speed replaces the ramp.
+// It starts from the part 2 fixture again and reads no pixels.
+func rampBrowserPart(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{` + keyframeStripPagePrelude + keyframeStripPageFixture + `
+		P.setSelection(s,['kfA'],'kfA');P.renderTimeline(s);
+		const preset=await until(()=>document.querySelector('[data-inspector] [data-ramp-preset="ramp_up"]'),'no Animation section for the video clip');
+		preset.click();
+		await until(()=>clipOf('kfA').ramp&&clipOf('kfA').duration===60&&clipOf('kfB').start===90,'Ramp up did not keep the source range and ripple the track');
+		const badge=await until(()=>document.querySelector('[data-clip-id="kfA"] .vs-clip-ramp'),'no ramp badge on the clip');
+		if(badge.querySelectorAll('svg').length!==2)throw new Error('the badge lacks the muted speaker: '+badge.outerHTML);
+		const notice=await until(()=>document.querySelector('[data-inspector] [data-ramp-notice]'),'no muted-sound notice');
+		if(!notice.textContent.trim())throw new Error('the muted-sound notice is empty');
+		const speed=document.querySelector('[data-inspector] [data-field="speed"]');
+		if(speed.value!==''||!speed.placeholder)throw new Error('the speed field must be empty with a placeholder while ramped: '+speed.outerHTML);
+		document.querySelector('[data-inspector] [data-action="ramp-edit"]').click();
+		const point=await until(()=>document.querySelector('[data-kf-strip="kfA"] [data-kf-row="speed"] [data-ramp-point="1"]'),'Edit in the timeline did not open the speed lane');
+		if(!document.activeElement||!document.activeElement.matches('[data-ramp-point]'))throw new Error('the speed lane did not take focus');
+		point.scrollIntoView({block:'center',inline:'center'});
+		const rect=point.getBoundingClientRect();
+		window.kfRampProbe={x:rect.x+rect.width/2,y:rect.y+rect.height/2,speed:clipOf('kfA').ramp[1].speed,history:s.history.length};
+	}`)
+	probe := page.MustEval(`()=>window.kfRampProbe`)
+	x, y := probe.Get("x").Num(), probe.Get("y").Num()
+	// Up is faster on the log-scale lane; a purely vertical drag keeps the point's frame.
+	page.Mouse.MustMoveTo(x, y).MustDown(proto.InputMouseButtonLeft).MustMoveTo(x, y-4).MustMoveTo(x, y-8).MustUp(proto.InputMouseButtonLeft)
+	waitForJSBool(t, page, `()=>{const s=[...window.VideoStudioApp.instances.values()][0],c=window.VideoStudioTimeline.clipFor(s.project,'kfA').clip;return !!c.ramp&&c.ramp[1].speed>window.kfRampProbe.speed&&c.ramp[1].f===59&&s.history.length===window.kfRampProbe.history+1&&!s.timelineDragging;}`)
+	if dir := os.Getenv("AURAGO_VIDEO_STUDIO_SCREENSHOTS"); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		page.MustScreenshot(filepath.Join(dir, "speed-lane.png"))
+		// The Animation section and the clip with its badge, for a visual review.
+		page.MustEval(`()=>{document.querySelector('[data-inspector] .vs-ramp-section').scrollIntoView({block:'center'});document.querySelector('[data-clip-id="kfA"]').scrollIntoView({block:'center',inline:'nearest'});}`)
+		page.MustScreenshot(filepath.Join(dir, "ramp-animation-section.png"))
+		page.MustElement(`[data-clip-id="kfA"]`).MustScreenshot(filepath.Join(dir, "ramp-clip-badge.png"))
+	}
+	page.MustEval(`async()=>{` + keyframeStripPagePrelude + `
+		const speed=document.querySelector('[data-inspector] [data-field="speed"]');
+		speed.value='1.5';speed.dispatchEvent(new Event('input',{bubbles:true}));speed.dispatchEvent(new Event('change',{bubbles:true}));
+		await until(()=>!clipOf('kfA').ramp&&clipOf('kfA').speed===1.5,'a typed speed did not replace the ramp');
+		await until(()=>!document.querySelector('[data-clip-id="kfA"] .vs-clip-ramp')&&!document.querySelector('[data-inspector] [data-ramp-notice]'),'the badge or the notice outlived the ramp');
 		s.snap=true;
 	}`)
 }

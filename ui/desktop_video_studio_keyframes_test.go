@@ -504,3 +504,123 @@ func TestVideoStudioKeyframeStripLocales(t *testing.T) {
 		}
 	}
 }
+
+// Ramp presets and lane operations (index §4.18).
+// - Presets start from the clip's speed. By default they keep the source range and move later clips on the track;
+//   Keep duration keeps the length, and the media must hold the new range.
+// - 'none' is setSpeed(1).
+// - Lane edits keep the duration; an invalid fit is refused.
+// - The strip model gains the speed row.
+func TestVideoStudioRampOps(t *testing.T) {
+	runVideoStudioEditScript(t, `
+window.VideoStudioParts = window.VideoStudioParts || {};
+require('./js/desktop/apps/video-studio-keyframe-edit.js');
+require('./js/desktop/apps/video-studio-keyframes.js');
+const KE = window.VideoStudioKeyframeEdit, Fx = window.VideoStudioEffects, K = window.VideoStudioKeyframes;
+const near = (a, b, message) => assert(Math.abs(a - b) < 1e-9, message + ': ' + a + ' vs ' + b);
+// Preset shapes.
+assert.deepEqual(KE.rampPreset('ramp_up', 100, 1), [{f:0,speed:1,e:'ease_in_out'},{f:99,speed:2,e:'linear'}]);
+assert.deepEqual(KE.rampPreset('ramp_down', 100, 1.5), [{f:0,speed:3,e:'ease_in_out'},{f:99,speed:1.5,e:'linear'}]);
+assert.deepEqual(KE.rampPreset('slow_middle', 181, 1), [{f:0,speed:1,e:'ease_in_out'},{f:72,speed:0.25,e:'linear'},{f:108,speed:0.25,e:'ease_in_out'},{f:180,speed:1,e:'linear'}]);
+assert.deepEqual(KE.rampPreset('custom', 2, 0.5), [{f:0,speed:0.5,e:'linear'},{f:1,speed:0.5,e:'linear'}]);
+assert.deepEqual(KE.rampPreset('slow_middle', 1, 1).map(p => p.f), [0, 1, 2, 3], 'tiny clips keep strictly increasing points');
+assert.equal(KE.rampPreset('ramp_up', 100, 12)[1].speed, 16, 'speeds are clamped to 16');
+assert.equal(KE.rampPreset('none', 100, 1), null);
+// Default: keep the source range. 100 frames at 1x consume 99 source frames; 1x to 2x eased in and out averages 1.5x.
+let p = base();
+assert.equal(KE.applyRampPreset(p, ['x'], 'ramp_up', false), true);
+assert.equal(at(p,'x').duration, 67);
+near(Fx.sourceExtent(at(p,'x')), 99, 'the source range is kept');
+assert.equal(at(p,'x').speed, undefined);
+assert.deepEqual(at(p,'x').ramp, [{f:0,speed:1,e:'ease_in_out'},{f:66,speed:2,e:'linear'}]);
+assert.deepEqual(spans(p,'v1'), [[0,67,0],[67,100,200],[167,100,400]], 'later clips on the track move up');
+assert.deepEqual(spans(p,'v2'), [[50,60,0]], 'other tracks stay');
+valid(p);
+// Slow middle: the same 99 source frames take 181 frames (0.625 x 72 + 0.25 x 36 + 0.625 x 72).
+p = base();
+assert.equal(KE.applyRampPreset(p, ['x'], 'slow_middle', false), true);
+assert.equal(at(p,'x').duration, 181);
+near(Fx.sourceExtent(at(p,'x')), 99, 'slow middle keeps the source range');
+assert.deepEqual(spans(p,'v1').map(s => s[0]), [0, 181, 281]);
+valid(p);
+// Keep duration: the length stays and the ramp consumes more source.
+p = base();
+assert.equal(KE.applyRampPreset(p, ['x'], 'ramp_up', true), true);
+assert.equal(at(p,'x').duration, 100);
+assert.deepEqual(at(p,'x').ramp, [{f:0,speed:1,e:'ease_in_out'},{f:99,speed:2,e:'linear'}]);
+near(Fx.sourceExtent(at(p,'x')), 148.5, 'keep duration uses more source');
+assert.deepEqual(spans(p,'v1').map(s => s[0]), [0, 100, 200], 'keep duration moves nothing');
+// The media must hold the new range: 500 + 147 > 599 with Keep duration; without it the clip gets shorter.
+p = project([track('v1','video',[clip('late',V,0,99,{offset:500})])]);
+assert.equal(KE.applyRampPreset(p, ['late'], 'ramp_up', true), E.REASON.media);
+assert.equal(KE.applyRampPreset(p, ['late'], 'ramp_up', false), true);
+assert.equal(at(p,'late').duration, 66);
+// 'none' goes back to 1x with the same source range.
+p = base();
+assert.equal(KE.applyRampPreset(p, ['x'], 'ramp_up', false), true);
+assert.equal(KE.applyRampPreset(p, ['x'], 'none', false), true);
+assert.equal(at(p,'x').ramp, undefined);
+assert.equal(at(p,'x').duration, 100);
+assert.deepEqual(spans(p,'v1').map(s => s[0]), [0, 100, 200]);
+valid(p);
+// Refusals.
+p = base();
+assert.equal(KE.applyRampPreset(p, ['m'], 'ramp_up', false), E.REASON.media, 'audio clips take no ramp');
+assert.equal(KE.applyRampPreset(p, ['t'], 'ramp_up', false), E.REASON.media, 'an overlay still takes no ramp');
+p.tracks[0].locked = true;
+assert.equal(KE.applyRampPreset(p, ['x'], 'ramp_up', false), E.REASON.locked);
+// Lane edits keep the duration; refusals leave the project as it was.
+p = base();
+assert.equal(KE.addRampPoint(p, 'x', 50, 2), true, 'the first point turns the constant speed into a ramp');
+assert.deepEqual(at(p,'x').ramp, [{f:0,speed:1,e:'linear'},{f:50,speed:2,e:'linear'},{f:99,speed:1,e:'linear'}]);
+assert.equal(at(p,'x').duration, 100);
+assert.equal(KE.moveRampPoint(p, 'x', 1, 99, 2), E.REASON.bounds, 'a point cannot pass its neighbour');
+assert.equal(KE.moveRampPoint(p, 'x', 1, 40, 3), true);
+assert.deepEqual(at(p,'x').ramp[1], {f:40,speed:3,e:'linear'});
+let q = JSON.parse(JSON.stringify(p));
+assert.equal(KE.moveRampPoint(q, 'x', 1, 40, 16), E.REASON.media, 'the media must hold the source range');
+assert.equal(KE.setRamp(p, 'x', Array.from({length: 17}, (_, i) => ({f: i, speed: 1, e: 'linear'}))), E.REASON.limit);
+assert.equal(KE.removeRampPoint(p, 'x', 1), true);
+assert.deepEqual(at(p,'x').ramp, [{f:0,speed:1,e:'linear'},{f:99,speed:1,e:'linear'}]);
+assert.equal(KE.removeRampPoint(p, 'x', 0), true, 'one point left: the clip plays at that speed');
+assert.equal(at(p,'x').ramp, undefined);
+assert.equal(at(p,'x').speed, undefined, 'a remaining 1x point leaves no speed field');
+valid(p);
+assert.equal(KE.setRamp(p, 'x', [{f:0,speed:2,e:'bogus'},{f:10,speed:0.1,e:'linear'}]), true, 'speeds are clamped and unknown easings become linear');
+assert.deepEqual(at(p,'x').ramp, [{f:0,speed:2,e:'linear'},{f:10,speed:0.25,e:'linear'}]);
+valid(p);
+// The strip model's speed row (expanded only): points in clip time and the curve's piece nodes.
+p = base();
+KE.applyRampPreset(p, ['x'], 'ramp_up', false);
+const lane = K.stripModel(p, at(p,'x'), 52, {expanded: true}).rows.find(row => row.id === 'speed');
+assert.deepEqual(lane.points.map(point => [point.index, point.f, point.speed, point.outside]), [[0,0,1,false],[1,66,2,false]]);
+near(lane.points[1].x, 66 / 30 * 52, 'points sit at start + f');
+assert.deepEqual([lane.curve[0].t, lane.curve[0].speed], [0, 1]);
+assert.equal(K.stripModel(p, at(p,'x'), 52, {expanded: false}).rows.some(row => row.id === 'speed'), false, 'collapsed strips show the summary only');
+`)
+}
+
+// Every desktop locale carries the speed ramp strings with their placeholders, and the sentences are translated.
+func TestVideoStudioRampLocales(t *testing.T) {
+	keys := []string{"animation", "speedRamp", "ramp_none", "ramp_up", "ramp_down", "ramp_slow_middle", "ramp_custom", "rampEdit", "rampMuted", "rampBadge", "speedLane", "speedRampActive", "rampPointSpeed"}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		if text := values["videoStudio.rampPointSpeed"]; !strings.Contains(text, "{{speed}}") || !strings.Contains(text, "{{time}}") {
+			t.Errorf("%s videoStudio.rampPointSpeed lost a placeholder: %q", lang, text)
+		}
+		if lang == "en" {
+			continue
+		}
+		for _, key := range []string{"speedRamp", "ramp_up", "ramp_down", "ramp_slow_middle", "rampEdit", "rampMuted", "speedLane", "rampPointSpeed"} {
+			if values["videoStudio."+key] == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
+}

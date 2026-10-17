@@ -5,7 +5,7 @@
     // takes a project changes it in place and returns true or a VideoStudioEdit.REASON; after a refusal the caller
     // discards the project (the app runs them inside P.applyEdit, which restores its snapshot). Keys live on visual-track
     // clips at source frames: a key set at timeline frame T is stored at f = round(sourceAt(clip, T)), so it stays on its
-    // picture content through every timing edit. A key is named {path, f}. Task 14 adds the ramp operations.
+    // picture content through every timing edit. A key is named {path, f}. The speed ramp operations follow the key operations.
     const Fx = () => window.VideoStudioEffects;
     const T = () => window.VideoStudioTimeline;
     const REASON = () => window.VideoStudioEdit.REASON;
@@ -207,5 +207,136 @@
         return done.size ? true : REASON().nothing;
     }
 
-    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys };
+    // ---- Speed ramps (2b, index §4.18). Ramp points are clip time: timeline frames from the clip start. Like the
+    // keyframe operations above, every operation returns true or a VideoStudioEdit.REASON. After a refusal the caller
+    // discards the project (applyEdit restores its snapshot).
+    const RAMP_PRESETS = Object.freeze(['ramp_up', 'ramp_down', 'slow_middle', 'custom']);
+    function rampClamp(speed) { return Math.min(16, Math.max(0.25, Math.round(Number(speed) * 1000) / 1000)); }
+    // The points of a preset for a clip of `duration` frames at the constant speed `speed`; null for 'none' or an
+    // unknown name.
+    // - Ramp up eases from the speed to twice the speed; ramp down is the reverse.
+    // - Slow middle drops to a quarter of the speed between 40 % and 60 % of the clip.
+    // - Custom is flat, for the speed lane.
+    // Points stay strictly increasing even for one-frame clips.
+    function rampPreset(name, duration, speed) {
+        const s0 = rampClamp(Number(speed) > 0 ? speed : 1), last = Math.max(1, Math.round(Number(duration) || 1) - 1);
+        const point = (f, value, e) => ({ f, speed: rampClamp(value), e });
+        if (name === 'ramp_up') return [point(0, s0, 'ease_in_out'), point(last, 2 * s0, 'linear')];
+        if (name === 'ramp_down') return [point(0, 2 * s0, 'ease_in_out'), point(last, s0, 'linear')];
+        if (name === 'custom') return [point(0, s0, 'linear'), point(last, s0, 'linear')];
+        if (name !== 'slow_middle') return null;
+        const a = Math.max(1, Math.round(last * 0.4)), b = Math.max(a + 1, Math.round(last * 0.6)), end = Math.max(b + 1, last);
+        return [point(0, s0, 'ease_in_out'), point(a, s0 / 4, 'linear'), point(b, s0 / 4, 'ease_in_out'), point(end, s0, 'linear')];
+    }
+    // A clip that may hold a ramp: on an unlocked video track, with a video asset. Returns {track, clip, asset} or a
+    // REASON.
+    function rampTarget(project, clipId) {
+        const E = window.VideoStudioEdit, found = T().clipFor(project, clipId);
+        if (!found) return E.REASON.nothing;
+        if (found.track.locked) return E.REASON.locked;
+        const asset = (project.assets || []).find(item => item.id === found.clip.asset_id);
+        if (found.track.kind !== 'video' || !asset || asset.kind !== 'video' || found.clip.text) return E.REASON.media;
+        return { track: found.track, clip: found.clip, asset };
+    }
+    // The ramp-aware source extent rule: offset + S(duration - 1) <= duration_frames - 1.
+    function rampFits(clip, asset) { return clip.offset + Fx().sourceExtent(clip) <= Number(asset.duration_frames) - 1 + 1e-9; }
+    // Replaces the clip's ramp and keeps its duration. The points are sorted, f is rounded, speeds are clamped and
+    // unknown easings become linear. Fewer than two points remove the ramp. The media must hold the new source range.
+    function setRamp(project, clipId, points) {
+        const E = window.VideoStudioEdit, target = rampTarget(project, clipId);
+        if (typeof target === 'string') return target;
+        const list = (points || []).map(point => ({ f: Math.round(Number(point.f)), speed: rampClamp(point.speed), e: Fx().EASINGS.includes(point.e) ? point.e : 'linear' })).sort((a, b) => a.f - b.f);
+        if (list.length > Fx().LIMITS.rampPoints) return E.REASON.limit;
+        if (list.some((point, index) => !Number.isSafeInteger(point.f) || !Number.isFinite(point.speed) || (index > 0 && point.f <= list[index - 1].f))) return E.REASON.bounds;
+        const { track, clip, asset } = target;
+        if (list.length < 2) delete clip.ramp;
+        else { clip.ramp = list; delete clip.speed; }
+        if (!rampFits(clip, asset)) return E.REASON.media;
+        return Fx().validAnimation(clip, track, asset, window.VideoStudioTime.maxFrames(project)) ? true : E.REASON.bounds;
+    }
+    // Adds a point at clip frame f, at the speed there when `speed` is omitted.
+    // - The first point turns a constant speed into a flat ramp first.
+    // - A point already at f takes the new speed.
+    // - A new point takes the easing of the point before it.
+    function addRampPoint(project, clipId, f, speed) {
+        const target = rampTarget(project, clipId);
+        if (typeof target === 'string') return target;
+        const clip = target.clip, at = Math.round(Number(f)), s0 = window.VideoStudioEdit.speedOf(clip);
+        const points = Fx().hasRamp(clip) ? clip.ramp.map(point => Object.assign({}, point)) : [{ f: 0, speed: s0, e: 'linear' }, { f: Math.max(1, clip.duration - 1), speed: s0, e: 'linear' }];
+        const value = speed == null ? Fx().speedAt(clip, at) : speed;
+        const same = points.find(point => point.f === at);
+        if (same) same.speed = value;
+        else { const before = points.filter(point => point.f < at).pop(); points.push({ f: at, speed: value, e: before ? before.e : 'linear' }); }
+        return setRamp(project, clipId, points);
+    }
+    // Moves point `index` to clip frame f with `speed` (kept when omitted). A point never passes its neighbours.
+    function moveRampPoint(project, clipId, index, f, speed) {
+        const E = window.VideoStudioEdit, target = rampTarget(project, clipId);
+        if (typeof target === 'string') return target;
+        const ramp = Fx().hasRamp(target.clip) ? target.clip.ramp : null;
+        if (!ramp || !ramp[index]) return E.REASON.nothing;
+        const at = Math.round(Number(f));
+        if ((index > 0 && at <= ramp[index - 1].f) || (index < ramp.length - 1 && at >= ramp[index + 1].f)) return E.REASON.bounds;
+        return setRamp(project, clipId, ramp.map((point, i) => (i === index ? { f: at, speed: speed == null ? point.speed : speed, e: point.e } : Object.assign({}, point))));
+    }
+    // Removes one point. When only one point would be left, the clip plays at that point's constant speed instead.
+    function removeRampPoint(project, clipId, index) {
+        const E = window.VideoStudioEdit, target = rampTarget(project, clipId);
+        if (typeof target === 'string') return target;
+        const { clip, asset } = target, ramp = Fx().hasRamp(clip) ? clip.ramp : null;
+        if (!ramp || !ramp[index]) return E.REASON.nothing;
+        const rest = ramp.filter((_, i) => i !== index);
+        if (rest.length >= 2) return setRamp(project, clipId, rest);
+        delete clip.ramp;
+        if (rest[0].speed === 1) delete clip.speed; else clip.speed = rest[0].speed;
+        return rampFits(clip, asset) ? true : E.REASON.media;
+    }
+    // Animation section presets for the listed clips that take a ramp; the others are skipped.
+    // - Default: keep each clip's source range, like setSpeed. The new duration is the one whose ramped extent is
+    //   closest to the old extent; extent grows with duration, so a bisection finds it, and the media must hold it.
+    //   Later clips on the clip's track move by the difference.
+    // - keepDuration keeps the length; the media must hold the new range.
+    // - Presets start from the clip's speed, which is 1 once it has a ramp, so applying a preset twice gives the same
+    //   ramp.
+    // - 'none' is setSpeed(1).
+    function applyRampPreset(project, ids, preset, keepDuration) {
+        const E = window.VideoStudioEdit, Time = window.VideoStudioTime;
+        if (preset === 'none') return E.setSpeed(project, ids, 1, !!keepDuration);
+        if (!RAMP_PRESETS.includes(preset)) return E.REASON.nothing;
+        const items = E.editable(project, ids);
+        if (!items.length) return (project.tracks || []).some(track => track.locked && track.clips.some(clip => (ids || []).includes(clip.id))) ? E.REASON.locked : E.REASON.nothing;
+        const limit = Time.maxFrames(project), plans = [];
+        for (const { track, clip } of items) {
+            const target = rampTarget(project, clip.id);
+            if (typeof target === 'string') continue;
+            const speed = E.speedOf(clip), asset = target.asset;
+            const shaped = frames => Object.assign({}, clip, { duration: frames, ramp: rampPreset(preset, frames, speed) });
+            let duration = clip.duration;
+            if (!keepDuration) {
+                const goal = Fx().sourceExtent(clip), extent = frames => Fx().sourceExtent(shaped(frames));
+                let lo = 1, hi = Math.max(1, limit - clip.start);
+                while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (extent(mid) <= goal + 1e-9) lo = mid; else hi = mid - 1; }
+                duration = lo;
+                if (lo + 1 <= limit - clip.start && Math.abs(extent(lo + 1) - goal) < Math.abs(extent(lo) - goal) && rampFits(shaped(lo + 1), asset)) duration = lo + 1;
+            }
+            const result = shaped(duration);
+            if (!rampFits(result, asset)) return E.REASON.media;
+            plans.push({ track, clip, duration, ramp: result.ramp });
+        }
+        if (!plans.length) return E.REASON.media;
+        plans.forEach(({ track, clip, duration, ramp }) => {
+            const delta = duration - clip.duration;
+            if (delta) track.clips.filter(item => item !== clip && item.start > clip.start).forEach(item => { item.start += delta; });
+            clip.duration = duration;
+            clip.ramp = ramp;
+            delete clip.speed;
+            clip.fade_in = Math.min(Number(clip.fade_in) || 0, duration);
+            clip.fade_out = Math.min(Number(clip.fade_out) || 0, duration);
+        });
+        if (T().projectEnd(project) > limit) return E.REASON.limit;
+        T().repairTransitions(project);
+        return T().validTimeline(project) ? true : E.REASON.bounds;
+    }
+
+    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys, rampPreset, setRamp, applyRampPreset, addRampPoint, moveRampPoint, removeRampPoint };
 })();

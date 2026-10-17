@@ -63,8 +63,12 @@
         const button = s.q(`[data-inspector] [data-kf-path="${CSS.escape(path)}"][data-kf-action="${CSS.escape(action)}"]`);
         if (button && !button.disabled) button.focus({ preventScroll: true });
     }
-    // Inspector keyframe buttons ([data-kf-path][data-kf-action]); true when the click was one of them.
+    // Inspector keyframe buttons ([data-kf-path][data-kf-action]) and the Animation section's ramp presets and
+    // "Edit in the timeline"; true when the click was one of them.
     function handleKeyframeClick(s, event) {
+        const preset = event.target.closest('[data-inspector] [data-ramp-preset]');
+        if (preset) { if (!preset.disabled) applyRampPreset(s, preset.dataset.rampPreset); return true; }
+        if (event.target.closest('[data-inspector] [data-action="ramp-edit"]')) { openSpeedLane(s); return true; }
         const button = event.target.closest('[data-kf-path][data-kf-action]');
         if (!button || !s.project) return false;
         const found = visualSelection(s), path = button.dataset.kfPath, action = button.dataset.kfAction;
@@ -210,7 +214,7 @@
             e: group.easings.every(e => e === group.easings[0]) ? group.easings[0] : 'mixed'
         }));
         const expanded = !!(view && view.expanded);
-        return { clipId: clip.id, left: clip.start / fps * pps, width: Math.max(2, clip.duration / fps * pps), expanded, rows: [{ id: 'summary', keys: summary }].concat(expanded ? rows : []) };
+        return { clipId: clip.id, left: clip.start / fps * pps, width: Math.max(2, clip.duration / fps * pps), expanded, rows: [{ id: 'summary', keys: summary }].concat(expanded ? rows : [], expanded && Fx.hasRamp(clip) ? [rampModelRow(clip, fps, pps)] : []) };
     }
     // One clip at a time: switching clips clears the selection and keeps the expanded state.
     function stripView(s, clipId) {
@@ -255,6 +259,63 @@
         const target = (id && root.querySelector(`[data-kf-strip] [data-kf-key="${CSS.escape(id)}"]`)) || root.querySelector('[data-kf-strip] [data-kf-action="expand"]') || (s.selectedClipId && root.querySelector(`[data-clip-id="${CSS.escape(s.selectedClipId)}"]`));
         if (target) target.focus({ preventScroll: true });
     }
+
+    // ---- Speed lane (2b). Speed is drawn on a log scale, 0.25x at the bottom and 16x at the top. The height matches the
+    // CSS of .vs-speed-lane.
+    const RAMP_LANE = Object.freeze({ height: 48, pad: 6, low: -2, high: 4 });
+    function rampY(speed) {
+        const v = (Math.log2(Math.min(16, Math.max(0.25, speed))) - RAMP_LANE.low) / (RAMP_LANE.high - RAMP_LANE.low);
+        return RAMP_LANE.pad + (1 - v) * (RAMP_LANE.height - 2 * RAMP_LANE.pad);
+    }
+    // Lane y to speed, clamped to 0.25..16, snapped to 1x within 5 % (in log2) and rounded to 3 decimals.
+    function rampSpeedAtY(y) {
+        const v = 1 - (y - RAMP_LANE.pad) / (RAMP_LANE.height - 2 * RAMP_LANE.pad);
+        const speed = Math.min(16, Math.max(0.25, 2 ** (RAMP_LANE.low + v * (RAMP_LANE.high - RAMP_LANE.low))));
+        return Math.abs(Math.log2(speed)) < 0.05 ? 1 : Math.round(speed * 1000) / 1000;
+    }
+    // The speed row of stripModel: ramp points in clip time, and the curve's nodes (one per ramp piece inside the
+    // clip, since speed is linear inside a piece). Points outside the clip are flagged, like keys.
+    function rampModelRow(clip, fps, pps) {
+        const Fx = window.VideoStudioEffects, last = clip.duration - 1;
+        const points = clip.ramp.map((point, index) => ({ index, f: point.f, speed: point.speed, e: point.e, frame: clip.start + point.f, x: (clip.start + point.f) / fps * pps, outside: point.f < 0 || point.f > last }));
+        const pieces = Fx.rampPieces(clip.ramp, 0, clip.duration), node = (t, speed) => ({ t, speed, x: (clip.start + t) / fps * pps });
+        const curve = pieces.map(piece => node(piece.t0, piece.a));
+        if (pieces.length) { const end = pieces[pieces.length - 1].t1; curve.push(node(end, Fx.rampSpeed(pieces, end))); }
+        return { id: 'speed', points, curve };
+    }
+    function rampRow(s, model, row, width) {
+        const esc = value => P.esc(s, value), tr = (key, fallback) => P.tr(s, key, fallback), w = model.width;
+        const path = row.curve.map((node, index) => (index ? 'L' : 'M') + (node.x - model.left).toFixed(2) + ' ' + rampY(node.speed).toFixed(2)).join(' ');
+        const one = rampY(1).toFixed(2);
+        const points = row.points.filter(point => !point.outside).map(point => {
+            const text = tr('rampPointSpeed', 'Speed {{speed}}× at {{time}}').split('{{speed}}').join(String(Math.round(point.speed * 100) / 100)).split('{{time}}').join(P.I().formatTime(Math.round(point.frame), s.project)) + ' · ' + tr('easing_' + point.e, point.e);
+            return `<button type="button" class="vs-ramp-point vs-kf-e-${esc(point.e)}" data-ramp-point="${point.index}" style="left:${point.x.toFixed(2)}px;top:${rampY(point.speed).toFixed(2)}px" aria-label="${esc(text)}" title="${esc(text)}"></button>`;
+        }).join('');
+        return `<div class="vs-kf-row vs-speed-lane" data-kf-row="speed"><div class="vs-kf-rowhead">${P.icon('ramp', 14)}<span class="vs-kf-rowname">${esc(tr('speedLane', 'Speed over time'))}</span></div><div class="vs-kf-track" style="width:${width}px"><span class="vs-kf-extent" style="left:${model.left.toFixed(2)}px;width:${w.toFixed(2)}px"></span><svg class="vs-speed-curve" style="left:${model.left.toFixed(2)}px;width:${w.toFixed(2)}px" viewBox="0 0 ${w.toFixed(2)} ${RAMP_LANE.height}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line class="vs-speed-one" x1="0" x2="${w.toFixed(2)}" y1="${one}" y2="${one}"/><path d="${path}"/></svg>${points}</div></div>`;
+    }
+    // Edit in the timeline, and the Custom preset: expand the strip of the selected ramped clip and focus its first
+    // point. The narrow inspector drawer is modal, so it closes first.
+    function openSpeedLane(s) {
+        const found = s.project && s.selectedClipId ? P.T().clipFor(s.project, s.selectedClipId) : null;
+        if (!found || !window.VideoStudioEffects.hasRamp(found.clip)) return false;
+        if (s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920) P.setInspectorOpen(s, false, false);
+        stripView(s, found.clip.id).expanded = true;
+        P.renderTimeline(s);
+        P.T().revealFrame(s.q('[data-timeline]'), s, found.clip.start);
+        const point = s.q('[data-timeline] [data-kf-strip] [data-ramp-point]');
+        if (point) { point.scrollIntoView({ block: 'nearest' }); point.focus({ preventScroll: true }); }
+        return true;
+    }
+    // Animation section presets (index §4.18): the selected clips that take a ramp get the preset in one undo step.
+    // "Keep duration" keeps their length, and Custom opens the speed lane.
+    function applyRampPreset(s, preset) {
+        if (s.readonly || !s.project) return false;
+        const keep = !!s.q('[data-inspector] [data-ramp-keep]')?.checked;
+        const ok = P.applyEdit(s, 'speed ramp', project => window.VideoStudioKeyframeEdit.applyRampPreset(project, P.selectedIds(s), preset, keep));
+        if (ok && preset === 'custom') openSpeedLane(s);
+        else s.q(`[data-inspector] [data-ramp-preset="${CSS.escape(preset)}"]`)?.focus({ preventScroll: true });
+        return ok;
+    }
     // timelineOptions.stripAfter: the strip markup after `track`'s row, or ''.
     function keyframeStrip(s, track, pps, width) {
         const Fx = window.VideoStudioEffects;
@@ -281,6 +342,7 @@
         const toggle = model.expanded ? tr('keyframeCollapse', 'Show only the summary') : tr('keyframeExpand', 'Show keyframes per property');
         const extent = `<span class="vs-kf-extent" style="left:${model.left.toFixed(2)}px;width:${model.width.toFixed(2)}px"></span>`;
         const rowMarkup = row => {
+            if (row.id === 'speed') return rampRow(s, model, row, width);
             const summary = row.id === 'summary';
             const head = summary
                 ? `<button type="button" class="vs-kf-chevron" data-kf-action="expand" aria-expanded="${model.expanded}" title="${esc(toggle)}" aria-label="${esc(toggle)}">${P.icon(model.expanded ? 'chevronDown' : 'chevronRight', 14)}</button><span class="vs-kf-rowname">${esc(tr('keyframeSummary', 'All keyframes'))}</span>`
@@ -380,6 +442,8 @@
         }
         function down(event) {
             suppressClick = false;
+            const rampPoint = event.button === 0 && event.target.closest ? event.target.closest('[data-kf-strip] [data-ramp-point]') : null;
+            if (rampPoint) { rampDown(event, rampPoint); return; }
             const button = event.button === 0 && event.target.closest ? event.target.closest('[data-kf-strip] [data-kf-key]') : null;
             const found = button ? current() : null;
             if (!found) return;
@@ -399,6 +463,7 @@
             try { root.setPointerCapture(event.pointerId); } catch (_) { /* synthetic or finished pointer */ }
         }
         function move(event) {
+            if (rampDrag) { rampMove(event); return; }
             if (!drag) return;
             if (drag.epoch !== s.projectEpoch) { drag = null; s.timelineDragging = false; return; }
             const clip = P.T().clipFor(drag.before, drag.clipId).clip;
@@ -418,6 +483,7 @@
             if (s.preview) s.preview.seek(s.frame);
         }
         function up(event) {
+            if (rampDrag) { rampUp(event); return; }
             if (!drag) return;
             const done = drag;
             drag = null;
@@ -435,7 +501,7 @@
             // A click on the editor background after the release must not keep the focus.
             if (done.moved) window.setTimeout(() => { if (!s.disposed) stripFocus(s, done.current); }, 0);
         }
-        const cancel = () => { if (drag) up({ type: 'pointercancel' }); };
+        const cancel = () => { if (drag || rampDrag) up({ type: 'pointercancel' }); };
         function click(event) {
             if (suppressClick) { suppressClick = false; return; }
             const strip = event.target.closest && event.target.closest('[data-kf-strip]');
@@ -451,6 +517,7 @@
             if (!event.target.closest('[data-kf-key],[data-ramp-point]') && s.kfStrip.selected.length) { s.kfStrip.selected = []; syncPressed(found); }
         }
         function dblclick(event) {
+            if (rampAdd(event)) return;
             const button = event.target.closest && event.target.closest('[data-kf-strip] [data-kf-key]');
             const found = button ? current() : null;
             if (!found || !s.preview) return;
@@ -459,6 +526,7 @@
         }
         function keydown(event) {
             suppressClick = false;
+            if (rampKeys(event)) return;
             const button = event.target.closest && event.target.closest('[data-kf-strip] [data-kf-key]');
             // Alt+K and Alt+↑/↓ belong to P.handleKeyframeKeys; Ctrl/Cmd keys stay with the editor.
             if (!button || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -491,9 +559,116 @@
             const anchor = event.target.closest('[data-kf-key],[data-ramp-point],[data-kf-action],.vs-kf-rowhead,.vs-kf-track') || strip, rect = anchor.getBoundingClientRect();
             const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
             const x = inside ? event.clientX : rect.left + Math.min(24, rect.width / 2), y = inside ? event.clientY : rect.bottom;
+            const rampPoint = event.target.closest('[data-ramp-point]');
+            if (rampPoint) { openRampMenu(found, Number(rampPoint.dataset.rampPoint), x, y); return; }
             const button = event.target.closest('[data-kf-key]');
             if (button && !pressed(found, button)) { select(found, button, false); syncPressed(found); }
             openStripMenu(found, x, y, button ? button.dataset.kfKey : '');
+        }
+        // Ramp points in the speed lane.
+        // - Drag sideways moves the point (whole frames, snapping to the playhead, kept on the clip); drag up or down
+        //   changes its speed. An invalid fit keeps the last valid state.
+        // - ←/→ move by one frame (Shift: ten); ↑/↓ change the speed by 2^(1/8) (Shift: by 2).
+        // - Del/Backspace removes the point. Double-click on the lane adds one.
+        // - Right-click or Shift+F10 opens the menu: easing, add at the playhead, delete.
+        let rampDrag = null;
+        function rampFocus(index) {
+            const point = s.q(`[data-timeline] [data-kf-strip] [data-ramp-point="${index}"]`);
+            if (point) point.focus({ preventScroll: true }); else stripFocus(s, '');
+        }
+        const rampClip = clip => (f => Math.max(0, Math.min(clip.duration - 1, f)));
+        function rampDown(event, button) {
+            const found = current(), index = Number(button.dataset.rampPoint);
+            suppressClick = true;
+            event.preventDefault();
+            button.focus({ preventScroll: true });
+            if (!found || !Fx().hasRamp(found.clip) || !found.clip.ramp[index] || !editable(found) || s.timelineDragging) return;
+            const point = found.clip.ramp[index];
+            rampDrag = { clipId: found.clip.id, index, before: P.clone(s.project), x: event.clientX, y: event.clientY, f: point.f, speed: point.speed, key: '', moved: false, epoch: s.projectEpoch };
+            s.timelineDragging = true;
+            try { root.setPointerCapture(event.pointerId); } catch (_) { /* synthetic or finished pointer */ }
+        }
+        function rampMove(event) {
+            const d = rampDrag;
+            if (d.epoch !== s.projectEpoch) { rampDrag = null; s.timelineDragging = false; return; }
+            const clip = P.T().clipFor(d.before, d.clipId).clip;
+            let f = d.f + Math.round((event.clientX - d.x) / pps() * fps());
+            if (s.snap !== false && Math.abs(clip.start + f - s.frame) <= snapRange()) f = s.frame - clip.start;
+            f = rampClip(clip)(f);
+            const speed = event.clientY === d.y ? d.speed : rampSpeedAtY(rampY(d.speed) + event.clientY - d.y);
+            const key = f + '|' + speed;
+            if (key === d.key) return;
+            const project = P.clone(d.before);
+            if (window.VideoStudioKeyframeEdit.moveRampPoint(project, d.clipId, d.index, f, speed) !== true) return; // an invalid fit keeps the last valid state
+            d.key = key;
+            d.moved = true;
+            s.project = project;
+            P.renderTimeline(s);
+            rampFocus(d.index);
+            if (s.preview) s.preview.seek(s.frame);
+        }
+        function rampUp(event) {
+            const d = rampDrag;
+            rampDrag = null;
+            s.timelineDragging = false;
+            if (d.epoch !== s.projectEpoch) return;
+            if (event.type === 'pointercancel') { s.project = d.before; P.renderTimeline(s); rampFocus(d.index); return; }
+            if (d.moved && JSON.stringify(d.before) !== JSON.stringify(s.project)) P.recordChange(s, 'speed ramp', d.before);
+            if (s.timelineOptions && s.timelineOptions.onDragEnd) s.timelineOptions.onDragEnd();
+            rampFocus(d.index);
+            if (d.moved) window.setTimeout(() => { if (!s.disposed) rampFocus(d.index); }, 0);
+        }
+        function rampAdd(event) {
+            const lane = event.target.closest && !event.target.closest('[data-ramp-point]') ? event.target.closest('[data-kf-strip] [data-kf-row="speed"] .vs-kf-track') : null;
+            const found = lane ? current() : null;
+            if (!found) return false;
+            if (!editable(found)) return true;
+            const rect = lane.getBoundingClientRect(), f = Math.round((event.clientX - rect.left) / pps() * fps()) - found.clip.start;
+            if (f < 0 || f > found.clip.duration - 1) return true;
+            const speed = rampSpeedAtY(event.clientY - rect.top);
+            if (P.applyEdit(s, 'speed ramp', project => window.VideoStudioKeyframeEdit.addRampPoint(project, found.clip.id, f, speed))) {
+                P.renderTimeline(s);
+                rampFocus((P.T().clipFor(s.project, found.clip.id).clip.ramp || []).findIndex(point => point.f === f));
+            }
+            return true;
+        }
+        function rampKeys(event) {
+            const button = event.target.closest && event.target.closest('[data-kf-strip] [data-ramp-point]');
+            if (!button || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return false;
+            const found = current(), index = Number(button.dataset.rampPoint);
+            const point = found && Fx().hasRamp(found.clip) ? found.clip.ramp[index] : null;
+            if (!point) return false;
+            const key = event.key, KEr = window.VideoStudioKeyframeEdit, step = event.shiftKey ? 10 : 1, factor = event.shiftKey ? 2 : 2 ** (1 / 8);
+            let op = null;
+            if (key === 'ArrowLeft' || key === 'ArrowRight') op = project => KEr.moveRampPoint(project, found.clip.id, index, rampClip(found.clip)(point.f + (key === 'ArrowLeft' ? -step : step)), point.speed);
+            else if (key === 'ArrowUp' || key === 'ArrowDown') op = project => KEr.moveRampPoint(project, found.clip.id, index, point.f, Math.round(Math.min(16, Math.max(0.25, key === 'ArrowUp' ? point.speed * factor : point.speed / factor)) * 1000) / 1000);
+            else if (key === 'Delete' || key === 'Backspace') op = project => KEr.removeRampPoint(project, found.clip.id, index);
+            else return false;
+            event.preventDefault();
+            event.stopPropagation();
+            if (!editable(found)) return true;
+            const removing = key === 'Delete' || key === 'Backspace';
+            if (P.applyEdit(s, 'speed ramp', op)) P.renderTimeline(s);
+            rampFocus(removing ? Math.max(0, index - 1) : index);
+            return true;
+        }
+        function openRampMenu(found, index, x, y) {
+            const point = found.clip.ramp && found.clip.ramp[index];
+            if (!point) return;
+            const ro = !editable(found), KEr = window.VideoStudioKeyframeEdit, clipId = found.clip.id;
+            const inside = s.frame >= found.clip.start && s.frame < found.clip.start + found.clip.duration;
+            const apply = op => { if (P.applyEdit(s, 'speed ramp', op)) P.renderTimeline(s); rampFocus(index); };
+            const items = Fx().EASINGS.map(easing => ({ easing, label: P.tr(s, 'easing_' + easing, easing), icon: easing === point.e ? 'check' : '', disabled: ro, run: () => apply(project => KEr.setRamp(project, clipId, P.T().clipFor(project, clipId).clip.ramp.map((item, i) => (i === index ? Object.assign({}, item, { e: easing }) : item)))) }))
+                .concat([
+                    { separator: true },
+                    { label: P.tr(s, 'keyframeAdd', 'Add a keyframe for {{name}} at the playhead').split('{{name}}').join(P.tr(s, 'speed', 'Speed')), icon: 'plus', disabled: ro || !inside, run: () => apply(project => KEr.addRampPoint(project, clipId, s.frame - found.clip.start)) },
+                    { label: P.tr(s, 'keyframeDelete', 'Delete the selected keyframes'), shortcut: P.tr(s, 'keyDel', 'Del'), icon: 'trash', disabled: ro, run: () => apply(project => KEr.removeRampPoint(project, clipId, index)) }
+                ]);
+            const el = P.openMenu(s, x, y, items, P.tr(s, 'speedLane', 'Speed over time'), () => s.q(`[data-timeline] [data-kf-strip] [data-ramp-point="${index}"]`));
+            items.forEach((item, i) => {
+                const button = item.easing && el ? el.querySelector(`[data-menu-index="${i}"]`) : null;
+                if (button) { button.setAttribute('role', 'menuitemradio'); button.setAttribute('aria-checked', String(item.easing === point.e)); }
+            });
         }
         root.addEventListener('pointerdown', down, { signal });
         window.addEventListener('pointermove', move, { signal });
@@ -508,5 +683,5 @@
     }
 
     window.VideoStudioKeyframes = { controlState, stripModel };
-    Object.assign(P, { keyframeView, handleKeyframeClick, syncKeyframeControls, applyAnimated, keyframeCommand, isKeyframeShortcut, handleKeyframeKeys, keyframeStrip, wireKeyframeStrip });
+    Object.assign(P, { keyframeView, handleKeyframeClick, syncKeyframeControls, applyAnimated, keyframeCommand, isKeyframeShortcut, handleKeyframeKeys, keyframeStrip, wireKeyframeStrip, applyRampPreset });
 })();

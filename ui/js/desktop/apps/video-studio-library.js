@@ -288,7 +288,8 @@
         const count = Math.min(48, Math.ceil(width / tile));
         let tiles = '';
         for (let i = 0; i < count; i++) {
-            const thumb = window.VideoStudioMedia.pickThumb(thumbs, (clip.offset + (i * tile + tile / 2) / pxPerFrame * speed) / fps);
+            // Source frames through the clip's time map (speed or ramp), so a ramped clip's tiles show what plays there.
+            const thumb = window.VideoStudioMedia.pickThumb(thumbs, (clip.offset + window.VideoStudioEffects.clipSource(clip, (i * tile + tile / 2) / pxPerFrame)) / fps);
             if (thumb) tiles += `<i style="left:${i * tile}px;width:${tile}px;background-image:url('${esc(s, thumb.url)}')"></i>`;
         }
         return `<span class="vs-filmstrip">${tiles}</span>`;

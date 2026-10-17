@@ -976,3 +976,23 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-kf-diamond[aria-pressed="true"]::before { border-color: #fff; background: var(--vs-accent); }
 .vs-app .vs-kf-diamond:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 0; border-radius: 4px; }
 .vs-kf-strip.is-readonly .vs-kf-diamond { cursor: default; }
+
+/* Speed ramps (2b): the speed lane (log scale, 0.25x at the bottom, 16x at the top; RAMP_LANE in
+   video-studio-keyframes.js matches the 48 px height), the clip badge and the inspector's Animation section. */
+.vs-kf-strip .vs-kf-row.vs-speed-lane { height: 48px; }
+.vs-speed-curve { position: absolute; top: 0; height: 100%; overflow: visible; pointer-events: none; }
+.vs-speed-curve path { fill: none; stroke: var(--vs-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.vs-speed-curve .vs-speed-one { stroke: var(--vs-border-strong); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.vs-app .vs-ramp-point { position: absolute; z-index: 2; width: 12px; height: 12px; margin: -6px 0 0 -6px; padding: 0; border: 2px solid var(--vs-text); border-radius: 50%; background: var(--vs-panel); cursor: move; touch-action: none; }
+.vs-app .vs-ramp-point.vs-kf-e-hold { border-radius: 2px; }
+.vs-app .vs-ramp-point:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 2px; }
+.vs-kf-strip.is-readonly .vs-ramp-point { cursor: default; }
+.vs-clip-ramp { display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; border-radius: 4px; background: rgba(0, 0, 0, .4); }
+.vs-ramp-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.vs-app .vs-ramp-presets button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 2px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-muted); font-size: 10.5px; }
+.vs-app .vs-ramp-presets button:hover:not(:disabled) { background: var(--vs-control-hover); color: var(--vs-text); }
+.vs-ramp-presets button span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-width: 100%; overflow: hidden; overflow-wrap: anywhere; text-align: center; line-height: 1.2; }
+.vs-ramp-glyph { width: 30px; height: 18px; }
+.vs-ramp-glyph path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.vs-ramp-actions { margin-top: 10px; align-items: center; }
+.vs-ramp-notice { display: flex; align-items: flex-start; gap: 6px; color: var(--vs-warn); }

@@ -224,8 +224,9 @@
         const speed = Number(clip.speed) > 0 ? Number(clip.speed) : 1;
         const flags = (clip.disabled ? ' is-disabled' : '') + (clip.link ? ' is-linked' : '') + (clip.audio_detached ? ' is-detached' : '');
         const color = clip.label ? ` data-label="${esc(clip.label)}"` : '';
-        const badges = (speed !== 1 ? `<span class="vs-clip-speed">${esc(String(Math.round(speed * 100) / 100))}×</span>` : '') + (clip.link ? icon(options, 'link', 11) : '');
-        const state = clip.disabled ? `, ${label(options, 'disabledClip', 'Disabled')}` : '';
+        const ramp = window.VideoStudioEffects.hasRamp(clip) ? `<span class="vs-clip-ramp">${icon(options, 'ramp', 11)}${track.kind === 'video' && asset && asset.has_audio && !clip.audio_detached ? icon(options, 'speakerOff', 11) : ''}</span>` : '';
+        const badges = (speed !== 1 ? `<span class="vs-clip-speed">${esc(String(Math.round(speed * 100) / 100))}×</span>` : '') + ramp + (clip.link ? icon(options, 'link', 11) : '');
+        const state = (clip.disabled ? `, ${label(options, 'disabledClip', 'Disabled')}` : '') + (ramp ? `, ${label(options, 'rampBadge', 'Speed ramp')}` : '');
         return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}${flags}"${color} data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}${esc(state)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}${esc(state)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span>${badges}<span class="vs-clip-dur">${esc(shortClock(clip.duration, project))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
     }
 
