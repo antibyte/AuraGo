@@ -8,6 +8,9 @@ tasks when both features are enabled; its **Use Decisions** switch defaults on.
 Routing never starts or installs a stopped local service. External classification
 sends bounded task text and may incur cost, booked once under `routing`.
 
+See [model versions, image preparation and evaluation](decisions-validation.md)
+for the shared availability contract, shipping limits and opt-in evaluation.
+
 ## Setup and permissions
 
 For local processing, open **Configuration → Decisions**, select **On the
@@ -129,8 +132,7 @@ decisions:
 
 The adapter uses OpenRouter's **`POST /api/alpha/decisions`**, not chat completions.
 It discovers models through **`GET /api/v1/models?output_modalities=decisions`**
-and verifies advertised capabilities before evaluation. Microsoft Decision 1 and
-Typesafe Jev 1.13 are text-only; models advertising image input can accept
+and verifies advertised capabilities before evaluation. Models advertising image input can accept
 authorized images within the adapter's limits. An unavailable model or unsupported
 image input fails explicitly. There is no automatic fallback between local and
 external backends, models, or ordinary chat APIs.

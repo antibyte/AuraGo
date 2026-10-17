@@ -164,3 +164,7 @@ actions and text-safe badges at narrow/wide sizes in both themes. The versioned
 regression gate, not evidence of model quality or measured production savings.
 Real-provider billing, network latency and deployed behavior require an enabled
 installation and its own observations.
+
+The [explicit Decisions evaluation](decisions-validation.md#routing-evaluation)
+reuses those 240 cases plus 24 separate edge cases, through the existing API and
+production request/interpretation functions. It is disabled in ordinary CI.
