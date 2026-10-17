@@ -1,12 +1,8 @@
-/* ── Tab Navigation ─────────────────────────────────── */
-
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-banner-always {
-    padding-top: var(--pw-space-2);
-}
+/* Density and light-theme adapters */
 .pw-page[data-workspace-page="dashboard"][data-theme="light"] .dash-card,
 .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-card,
-.pw-page[data-workspace-page="dashboard"][data-theme="light"] .dash-banner-always #card-agent-banner,
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-banner-always #card-agent-banner {
+.pw-page[data-workspace-page="dashboard"][data-theme="light"] #card-agent-banner,
+.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) #card-agent-banner {
     border-color: var(--pw-line-strong);
     background: var(--pw-surface);
     box-shadow: none;
@@ -15,21 +11,21 @@
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-card-body {
     padding: var(--pw-space-3);
 }
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-banner-always #card-agent-banner .dash-card-header,
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-banner-always #card-agent-banner .dash-card-body {
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] #card-agent-banner .dash-card-header,
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] #card-agent-banner .dash-card-body {
     padding: var(--pw-space-2) var(--pw-space-3);
 }
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always #card-agent-banner .dash-card-body {
+.pw-page[data-workspace-page="dashboard"] #card-agent-banner .dash-card-body {
     padding: var(--pw-space-3) var(--pw-space-4);
 }
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always #card-agent-banner .dash-card-header {
+.pw-page[data-workspace-page="dashboard"] #card-agent-banner .dash-card-header {
     padding: var(--pw-space-2) var(--pw-space-4);
     background: var(--pw-surface-elevated);
     background-image: none;
     color: var(--pw-muted);
     font-size: var(--pw-meta-size);
 }
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always #card-agent-banner {
+.pw-page[data-workspace-page="dashboard"] #card-agent-banner {
     min-height: 0;
     border: 1px solid var(--pw-line);
     border-radius: 14px;
@@ -37,57 +33,11 @@
     background-image: none;
     box-shadow: none;
 }
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tabs {
-    margin-top: var(--pw-space-2);
-    padding: 3px;
-}
-.pw-page[data-workspace-page="dashboard"][data-theme="light"] .dash-tabs,
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-tabs {
-    background: color-mix(in srgb, var(--pw-canvas) 96%, transparent);
-}
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid {
-    padding-block: var(--pw-space-3);
-}
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .agent-banner,
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tabs,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .stats-grid,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .ops-grid,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .prompt-kpi-grid {
     gap: var(--pw-space-2);
-}
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid {
-    column-gap: var(--pw-space-2);
-}
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid > .dash-card {
-    margin-bottom: var(--pw-space-2);
-}
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always,
-.pw-page[data-workspace-page="dashboard"] .dash-tabs,
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-    width: 100%;
-}
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always {
-    padding: 0;
-    margin-bottom: var(--pw-space-5);
-}
-.pw-page[data-workspace-page="dashboard"] .dash-tabs {
-    margin: 0 auto;
-    min-width: 0;
-    position: sticky;
-    z-index: 110;
-    top: var(--pw-header-height);
-    margin-top: var(--pw-space-3);
-    scroll-padding-inline: var(--pw-space-2);
-}
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tab {
-    min-height: 34px;
-    padding: 0.35rem 0.65rem;
-}
-.pw-page[data-workspace-page="dashboard"] .dash-tab:focus-visible {
-    outline: 2px solid var(--pw-accent);
-    outline-offset: 2px;
-    border-color: var(--pw-accent);
-    box-shadow: none;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-card:hover canvas,
 .pw-page[data-workspace-page="dashboard"] .conf-3,
@@ -108,10 +58,6 @@
     display: none;
     background: none;
     content: none;
-}
-.pw-page[data-workspace-page="dashboard"] .tab-icon {
-    font-size: 1rem;
-    line-height: 1;
 }
 .pw-page[data-workspace-page="dashboard"] .stats-grid-single {
     grid-template-columns: 1fr;
@@ -158,10 +104,6 @@
 .pw-page[data-workspace-page="dashboard"] .logo-subtitle {
     color: var(--pw-muted);
 }
-.pw-page[data-workspace-page="dashboard"] .dash-tab-panel {
-    min-width: 0;
-    animation: none;
-}
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn,
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn:hover {
     border-color: color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line)) !important;
@@ -186,21 +128,6 @@ to { transform: rotate(360deg); }
 /* D-14/D-15: Unified breakpoint — 600px → 640px */
 
 /* ── Dashboard Layout ────────────────────────────────── */
-
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-    columns: 3;
-    column-gap: var(--pw-space-5);
-    margin: 0 auto;
-    padding: var(--pw-space-5) 0;
-}
-/* LAY-04: Unified card grid */
-
-.pw-page[data-workspace-page="dashboard"] .dashboard-grid,
-.pw-page[data-workspace-page="dashboard"] .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
-    gap: var(--space-5);
-}
 .pw-page[data-workspace-page="dashboard"] .dash-card {
     overflow: hidden;
     transition:
@@ -218,19 +145,12 @@ to { transform: rotate(360deg); }
     transform: none;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {
-    break-inside: avoid;
-    -webkit-column-break-inside: avoid;
-    page-break-inside: avoid;
-    margin-bottom: var(--pw-space-5);
     min-height: 180px;
     display: flex;
     flex-direction: column;
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
-}
-.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card.dash-full-width {
-    column-span: all;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-card::before {
     position: absolute;
@@ -286,23 +206,6 @@ to { transform: rotate(360deg); }
     margin: 0 0 0.85rem 0;
     line-height: 1.55;
 }
-.pw-page[data-workspace-page="dashboard"] .dash-full-width {
-    column-span: all;
-}
-.pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-    columns: 2;
-    column-gap: clamp(1.25rem, 2vw, 1.6rem);
-}
-.pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid > .dash-card {
-    display: flex;
-    margin-bottom: clamp(1.25rem, 2vw, 1.6rem);
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-}
-.pw-page[data-workspace-page="dashboard"] #tab-agent .dash-card-body {
-    min-width: 0;
-}
 /* ── Gauge Grid ──────────────────────────────────────── */
 
 .pw-page[data-workspace-page="dashboard"] .gauge-grid {
@@ -349,19 +252,6 @@ to { transform: rotate(360deg); }
     padding: 0.7rem 0.85rem;
     text-align: center;
     transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
-}
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-tabs {
-    border-bottom-color: color-mix(in srgb, var(--pw-line) 80%, transparent);
-}
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-tab {
-    color: #516172;
-}
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-tab:hover {
-    background: rgba(233, 241, 236, 0.88);
-    border-color: rgba(71, 85, 105, 0.12);
-}
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-tab.active {
-    background: rgba(15, 118, 110, 0.14);
 }
 .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .stat-item {
     background: rgba(237, 245, 240, 0.82);
@@ -2299,17 +2189,6 @@ to { opacity: 1; }
     align-items: center;
     gap: var(--pw-space-2);
     flex-shrink: 0;
-}
-.pw-page[data-workspace-page="dashboard"] .dash-tab-group-sep {
-    width: 1px;
-    align-self: stretch;
-    margin-block: 0.35rem;
-    margin-inline: 0.15rem;
-    background: var(--pw-line);
-    flex-shrink: 0;
-}
-.pw-page[data-workspace-page="dashboard"] .dash-tab-primary.active {
-    font-weight: 650;
 }
 .pw-page[data-workspace-page="dashboard"] .ca-spec-icon {
     margin-right: 0.3rem;
@@ -5220,12 +5099,6 @@ gray = hollow circle */
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-/* Tab icons — sized to match previous emoji */
-
-.pw-page[data-workspace-page="dashboard"] .tab-icon .dash-ic {
-    width: 1.15rem;
-    height: 1.15rem;
-}
 /* Card icons — slightly larger for card headers */
 
 .pw-page[data-workspace-page="dashboard"] .card-icon.dash-ic {
@@ -5334,21 +5207,6 @@ so no override needed */
 
 
 @media (max-width: 1024px) {
-.pw-page[data-workspace-page="dashboard"] .dash-tabs {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        scroll-snap-type: x proximity;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tabs::-webkit-scrollbar {
-        display: none;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tab {
-        flex: 0 0 auto;
-        scroll-snap-align: start;
-    }
 .pw-page[data-workspace-page="dashboard"] .memory-health-summary,
 .pw-page[data-workspace-page="dashboard"] .memory-curator-grid {
         grid-template-columns: 1fr;
@@ -5369,60 +5227,13 @@ so no override needed */
 .pw-page[data-workspace-page="dashboard"] .knowledge-detail-grid {
         grid-template-columns: 1fr;
     }
-.pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-        columns: 1;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-        columns: 2;
-    }
 
 }
 
 
 @media (max-width: 640px) {
-.pw-page[data-workspace-page="dashboard"] .dash-tabs .tab-label {
-        display: none;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tab-group-sep {
-        margin-inline: 0.05rem;
-    }
 .pw-page[data-workspace-page="dashboard"] .pw-density-toggle span {
         display: none;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-grid,
-.pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-        columns: 1;
-        column-gap: var(--pw-space-3);
-        padding-block: var(--pw-space-3);
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always,
-.pw-page[data-workspace-page="dashboard"] .dash-tabs,
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-        width: calc(100% - 1rem);
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tabs {
-        padding: var(--space-2) var(--space-3);
-        gap: 0.25rem;
-        top: 56px;
-        margin-top: var(--pw-space-2);
-    }
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tab {
-        min-height: 44px;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tab {
-        padding: 0.4rem 0.7rem;
-        font-size: var(--text-xs);
-        min-height: 44px;
-        padding-inline: var(--pw-space-3);
-    }
-.pw-page[data-workspace-page="dashboard"] .tab-label {
-        display: none;
-    }
-.pw-page[data-workspace-page="dashboard"] .tab-icon {
-        font-size: 1.2rem;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always {
-        padding: 0.65rem 0.875rem 0;
     }
 .pw-page[data-workspace-page="dashboard"] .agent-banner-item {
         white-space: normal;
@@ -5579,19 +5390,7 @@ so no override needed */
 }
 
 
-@media (max-width: 360px) {
-.pw-page[data-workspace-page="dashboard"] .dashboard-grid,
-.pw-page[data-workspace-page="dashboard"] .card-grid {
-        grid-template-columns: 1fr;
-    }
-
-}
-
-
 @media (max-width: 1200px) {
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-        columns: 2;
-    }
 .pw-page[data-workspace-page="dashboard"] .fs-dash-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -5600,17 +5399,6 @@ so no override needed */
 
 
 @media (max-width: 768px) {
-.pw-page[data-workspace-page="dashboard"] .dash-banner-always {
-        padding: 0.65rem 0.875rem 0;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-        padding: var(--space-4) 0.875rem 1.25rem;
-        columns: 1;
-        column-gap: var(--space-4);
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {
-        margin-bottom: var(--space-4);
-    }
 .pw-page[data-workspace-page="dashboard"] .dash-card-header,
 .pw-page[data-workspace-page="dashboard"] .dash-card-body {
         padding: var(--space-4);
@@ -5636,7 +5424,6 @@ so no override needed */
         opacity: 0.5;
     }
 .pw-page[data-workspace-page="dashboard"] .dash-card:hover,
-.pw-page[data-workspace-page="dashboard"] .dash-tab:hover,
 .pw-page[data-workspace-page="dashboard"] .stat-item:hover,
 .pw-page[data-workspace-page="dashboard"] .ops-stat:hover,
 .pw-page[data-workspace-page="dashboard"] .prompt-kpi:hover,
@@ -5646,8 +5433,6 @@ so no override needed */
         transform: none !important;
     }
 .pw-page[data-workspace-page="dashboard"] .dash-card,
-.pw-page[data-workspace-page="dashboard"] .dash-tab-panel,
-.pw-page[data-workspace-page="dashboard"] .dash-tab::before,
 .pw-page[data-workspace-page="dashboard"] .dash-card::before,
 .pw-page[data-workspace-page="dashboard"] .dash-card::after,
 .pw-page[data-workspace-page="dashboard"] .stat-item,
@@ -5711,17 +5496,6 @@ so no override needed */
 
 
 @media (max-width: 1024px) and (min-width: 769px) {
-.pw-page[data-workspace-page="dashboard"] .dash-grid {
-        columns: 2;
-        padding: 1rem;
-        column-gap: 1rem;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {
-        margin-bottom: 1rem;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-full-width {
-        column-span: all;
-    }
 .pw-page[data-workspace-page="dashboard"] .budget-layout {
         grid-template-columns: 1fr;
         justify-items: center;
@@ -5769,14 +5543,6 @@ so no override needed */
     }
 .pw-page[data-workspace-page="dashboard"] .ops-grid {
         grid-template-columns: 1fr 1fr;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tabs {
-        gap: 0.15rem;
-    }
-.pw-page[data-workspace-page="dashboard"] .dash-tab {
-        justify-content: center;
-        min-width: 48px;
-        padding: 0.4rem 0.5rem;
     }
 .pw-page[data-workspace-page="dashboard"] .kg-table th,
 .pw-page[data-workspace-page="dashboard"] .kg-table td {

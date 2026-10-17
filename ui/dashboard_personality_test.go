@@ -78,60 +78,87 @@ func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
 	}
 }
 
-func TestDashboardAgentCardsUseMasonryColumnLayout(t *testing.T) {
+// TestDashboardSectionsUseTwelveColumnGrid: sections lay their cards out on a fixed 12-column grid (reading
+// order equals DOM order), container queries collapse spans on narrow sections, the drawer applies at 900px,
+// and the masonry columns are gone from dashboard.css.
+func TestDashboardSectionsUseTwelveColumnGrid(t *testing.T) {
 	t.Parallel()
 
-	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
-	agentGrid := dashboardCSSRuleBody(t, css, "#tab-agent .dash-grid")
-	for _, marker := range []string{
-		"columns: 2;",
-		"column-gap: clamp(1.25rem, 2vw, 1.6rem);",
-	} {
-		if !strings.Contains(agentGrid, marker) {
-			t.Fatalf("agent dashboard masonry grid missing marker %q in block:\n%s", marker, agentGrid)
+	const prefix = `.pw-page[data-workspace-page="dashboard"]`
+	// dashboardCSSRuleBody takes everything since the previous brace as the selector header, so a comment
+	// directly above a rule would hide it; look the rules up in the comment-free source.
+	shell := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(normalizeAssetText(mustReadUIFile(t, "css/dashboard-shell.css")), "")
+
+	grid := dashboardCSSRuleBody(t, shell, ".dash-grid")
+	for _, marker := range []string{"display: grid;", "grid-template-columns: repeat(12, minmax(0, 1fr));", "gap: var(--pw-space-5);"} {
+		if !strings.Contains(grid, marker) {
+			t.Errorf("dashboard grid missing %q in block:\n%s", marker, grid)
 		}
 	}
-	if strings.Contains(agentGrid, "grid-template-columns:") {
-		t.Fatalf("agent dashboard grid must not use CSS grid columns; block:\n%s", agentGrid)
-	}
-
-	cardRule := dashboardCSSRuleBody(t, css, "#tab-agent .dash-grid > .dash-card")
-	for _, marker := range []string{
-		"min-width: 0;",
-		"max-width: 100%;",
-		"box-sizing: border-box;",
-	} {
-		if !strings.Contains(cardRule, marker) {
-			t.Fatalf("agent dashboard cards missing masonry marker %q in block:\n%s", marker, cardRule)
+	for _, span := range []string{"12", "8", "6", "4", "3"} {
+		if body := dashboardCSSRuleBody(t, shell, ".dash-grid > .span-"+span); !strings.Contains(body, "grid-column: span "+span+";") {
+			t.Errorf("span-%s must cover %s columns; block:\n%s", span, span, body)
 		}
 	}
-
-	baseGrid := regexp.MustCompile(`(?s)\.pw-page\[data-workspace-page="dashboard"\] \.dash-grid\s*\{[^}]*columns:\s*3;`)
-	if !baseGrid.MatchString(css) {
-		t.Fatal("dashboard base masonry grid must define columns: 3")
+	if body := dashboardCSSRuleBody(t, shell, ".dash-section"); !strings.Contains(body, "container-type: inline-size;") {
+		t.Errorf("sections must be inline-size query containers; block:\n%s", body)
 	}
-	if !strings.Contains(css, "column-gap: var(--pw-space-5);") {
-		t.Fatal("dashboard base masonry grid must keep the desktop column gap")
-	}
-
-	baseCardRule := dashboardCSSRuleBody(t, css, ".dash-grid > .dash-card")
-	for _, marker := range []string{
-		"break-inside: avoid;",
-		"margin-bottom: var(--pw-space-5);",
+	for selector, want := range map[string]string{
+		".dash-section[hidden]":             "display: none;",
+		".dash-grid > .dash-card.is-hidden": "display: none;",
+		".dash-menu-btn":                    "display: none;",
 	} {
-		if !strings.Contains(baseCardRule, marker) {
-			t.Fatalf("dashboard cards missing masonry marker %q in block:\n%s", marker, baseCardRule)
+		if body := dashboardCSSRuleBody(t, shell, selector); !strings.Contains(body, want) {
+			t.Errorf("%s must declare %q; block:\n%s", selector, want, body)
 		}
 	}
 
-	fullWidthRule := dashboardCSSRuleBody(t, css, ".dash-grid > .dash-card.dash-full-width")
-	if !strings.Contains(fullWidthRule, "column-span: all;") {
-		t.Fatalf("full-width dashboard cards must span all masonry columns; block:\n%s", fullWidthRule)
+	medium := dashboardCSSAtBlock(t, shell, "@container (max-width: 1099px)")
+	for _, marker := range []string{
+		prefix + " .dash-grid > .span-3,",
+		prefix + " .dash-grid > .span-4 {",
+		"grid-column: span 6;",
+		prefix + " .dash-grid > .span-8 {",
+		"grid-column: span 12;",
+	} {
+		if !strings.Contains(medium, marker) {
+			t.Errorf("container query below 1100px missing %q", marker)
+		}
+	}
+	narrow := dashboardCSSAtBlock(t, shell, "@container (max-width: 699px)")
+	for _, span := range []string{"3", "4", "6", "8"} {
+		if !strings.Contains(narrow, prefix+" .dash-grid > .span-"+span) {
+			t.Errorf("container query below 700px must widen span-%s", span)
+		}
+	}
+	if !strings.Contains(narrow, "grid-column: span 12;") {
+		t.Error("container query below 700px must make every span full width")
 	}
 
-	bodyRule := dashboardCSSRuleBody(t, css, "#tab-agent .dash-card-body")
-	if !strings.Contains(bodyRule, "min-width: 0;") {
-		t.Fatalf("agent dashboard card bodies must allow content to shrink; block:\n%s", bodyRule)
+	drawer := dashboardCSSAtBlock(t, shell, "@media (max-width: 900px)")
+	for _, marker := range []string{
+		prefix + " .dash-sidebar {",
+		"position: fixed;",
+		"transform: translateX(-102%);",
+		prefix + " .dash-sidebar.open {",
+		"transform: translateX(0);",
+		prefix + " .dash-sidebar-backdrop:not([hidden]) {",
+		prefix + " .dash-menu-btn {",
+	} {
+		if !strings.Contains(drawer, marker) {
+			t.Errorf("drawer media query missing %q", marker)
+		}
+	}
+	assertOperationalStylesheetFullyScoped(t, shell, prefix)
+
+	legacy := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
+	if m := regexp.MustCompile(`(?m)(^|[\s;{])(columns|column-span|break-inside)\s*:`).FindString(legacy); m != "" {
+		t.Errorf("dashboard.css still declares masonry layout %q", strings.TrimSpace(m))
+	}
+	for _, gone := range []string{"#tab-agent", ".dash-tab", ".dash-full-width", ".dash-banner-always", ".dashboard-grid", ".card-grid"} {
+		if strings.Contains(legacy, gone) {
+			t.Errorf("dashboard.css still styles the removed %s", gone)
+		}
 	}
 }
 
@@ -176,4 +203,28 @@ func dashboardCSSRuleBody(t *testing.T, source, selector string) string {
 		}
 	}
 	return matches[0]
+}
+
+// dashboardCSSAtBlock returns the body of the first top-level block whose header is exactly header.
+func dashboardCSSAtBlock(t *testing.T, css, header string) string {
+	t.Helper()
+	at := strings.Index(css, header+" {")
+	if at < 0 {
+		t.Fatalf("CSS missing block %q", header)
+	}
+	open := at + len(header) + 1
+	depth := 0
+	for i := open; i < len(css); i++ {
+		switch css[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return css[open+1 : i]
+			}
+		}
+	}
+	t.Fatalf("CSS block %q is not closed", header)
+	return ""
 }
