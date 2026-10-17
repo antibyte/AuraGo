@@ -58,6 +58,11 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   a dissolve does not darken picture-in-picture clips; that round trip changes
   pixels even at full opacity, so frames outside a transition never pass through
   it and render identically in every segmentation.
+- Layer pieces (clips, gaps, transition heads, mixes and tails) join through `concatPieces`. FFmpeg's concat (5.1
+  to 8.1) counts a one-frame video input as zero frames long and moves everything after it one frame early, so a
+  concat with a one-frame input before its last renumbers its output (`settb`, then `setpts=N`); every other concat
+  keeps its filter byte for byte. `TestSegmentedRenderOneFramePieces` checks the single pass against the source
+  frames and cut windows and segmentations against it.
 - The server owns persistence, upload staging, job scheduling, and cancellation
   lifecycle. This package stays independent of server state.
 
@@ -252,9 +257,6 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   - The seek window starts at `offset + S(entered)`.
   - A clip without keyframes or ramp renders the 2a chain byte for byte (`TestClipChainSnapshots`).
   - Every segmentation renders identical frames (`TestSegmentedRenderKeyframes`, `TestSegmentedRenderRamp`).
-  - Known FFmpeg defect, pre-existing and not fixed in 2b: when a one-frame piece feeds `concat` (a one-frame transition
-    head, a one-frame gap or a one-frame window piece), FFmpeg places everything after it one frame early. The tests
-    avoid such layouts; a separate fix is pending.
 - Audio and stills: `audibleClip` leaves the linked (not detached) audio of a ramped video-track clip out of the mix.
   Detached audio plays at 1×. For still jobs of ramped clips the editor sends `speed = meanSpeed(clip, n)`, so
   `ExtractStill` picks `floor(offset + S(n))` without a server change.

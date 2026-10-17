@@ -3,6 +3,7 @@ package videostudio
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -228,7 +229,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 		gap := gapLabel(trackIndex, 0)
 		filters = append(filters, transparentGapFilter(gap, layer[0].clip.Start, canvasWidth, canvasHeight, rate))
 		combined = join()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,%s[%s]", gap, labels[0], timebase, combined))
+		filters = append(filters, concatPieces([]string{gap, labels[0]}, []int{layer[0].clip.Start, layer[0].clip.Duration}, timebase, combined))
 	}
 	for i := 1; i < len(layer); i++ {
 		clip, previous := layer[i].clip, layer[i-1].clip
@@ -241,15 +242,28 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 			gap := gapLabel(trackIndex, i)
 			filters = append(filters, transparentGapFilter(gap, clip.Start-combinedEnd, canvasWidth, canvasHeight, rate))
 			withGap := join()
-			filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,%s[%s]", combined, gap, timebase, withGap))
+			filters = append(filters, concatPieces([]string{combined, gap}, []int{combinedEnd, clip.Start - combinedEnd}, timebase, withGap))
 			combined = withGap
 		}
 		out := join()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,%s[%s]", combined, labels[i], timebase, out))
+		filters = append(filters, concatPieces([]string{combined, labels[i]}, []int{clip.Start, clip.Duration}, timebase, out))
 		combined = out
 		combinedEnd = clip.Start + clip.Duration
 	}
 	return combined, filters, commands
+}
+
+// concatPieces joins pieces of a layer end to end; each is frames[i] whole frames with timestamps from zero. FFmpeg's
+// concat (5.1 to 8.1) measures a video input by its mean frame spacing, which a single frame lacks: a one-frame input
+// counts as zero frames long, and everything after it lands one frame early (pts 0, 0, 1, 2, …). A concat with a
+// one-frame input before its last therefore numbers its output frames afresh (setpts=N on the frame timebase); every
+// other concat keeps its filter byte for byte.
+func concatPieces(labels []string, frames []int, timebase, output string) string {
+	filter := fmt.Sprintf("[%s]concat=n=%d:v=1:a=0,%s", strings.Join(labels, "]["), len(labels), timebase)
+	if slices.Contains(frames[:len(frames)-1], 1) {
+		filter += ",setpts=N"
+	}
+	return filter + "[" + output + "]"
 }
 
 // appendTransition joins incoming (a clip starting at clip.Start) to combined, whose last transition.Duration
@@ -260,13 +274,14 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 func appendTransition(filters []string, join func() string, combined, incoming string, clip Clip, transition Transition, timebase string, rate Rate) (string, []string) {
 	overlap := transition.Duration
 	var parts []string
+	var lengths []int
 	outgoingSource := combined
 	if clip.Start > 0 {
 		head, tail, before := join(), join(), join()
 		filters = append(filters,
 			fmt.Sprintf("[%s]split=2[%s][%s]", combined, head, tail),
 			fmt.Sprintf("[%s]trim=end_frame=%d[%s]", head, clip.Start, before))
-		parts = append(parts, before)
+		parts, lengths = append(parts, before), append(lengths, clip.Start)
 		outgoingSource = tail
 	}
 	incomingSource, after := incoming, ""
@@ -289,15 +304,15 @@ func appendTransition(filters []string, join func() string, combined, incoming s
 		fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", outgoingSource, clip.Start, clip.Start+overlap, timebase, outgoingPart),
 		fmt.Sprintf("[%s]trim=end_frame=%d,setpts=PTS-STARTPTS,premultiply=inplace=1,%s[%s]", incomingSource, overlap, timebase, incomingPart),
 		fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoingPart, incomingPart, xfade, rate.SecondsArg(overlap), rate.SecondsArg(0), mixed))
-	parts = append(parts, mixed)
+	parts, lengths = append(parts, mixed), append(lengths, overlap)
 	if after != "" {
-		parts = append(parts, after)
+		parts, lengths = append(parts, after), append(lengths, clip.Duration-overlap)
 	}
 	if len(parts) == 1 {
 		return mixed, filters
 	}
 	out := join()
-	filters = append(filters, fmt.Sprintf("[%s]concat=n=%d:v=1:a=0,%s[%s]", strings.Join(parts, "]["), len(parts), timebase, out))
+	filters = append(filters, concatPieces(parts, lengths, timebase, out))
 	return out, filters
 }
 

@@ -157,10 +157,8 @@ func TestRenderKeyframedBoxFollowsValueAt(t *testing.T) {
 //   - b: cover, with opacity;
 //   - the overlay: its own opacity keyframes.
 //
-// 7- and 13-frame segments therefore cut windows inside clips and next to the transition. The dissolve starts at frame
-// 41, not 40: a 13-frame cut at frame 39 would leave a one-frame piece in front of the transition, and FFmpeg's concat
-// shifts what follows a one-frame input by a frame (a defect of the segment graph that static clips share and that
-// has nothing to do with keyframes).
+// 7- and 13-frame segments therefore cut windows inside clips and next to the transition. One-frame pieces in front of
+// a concat input are TestSegmentedRenderOneFramePieces' subject.
 func keyframeSegmentProject(t *testing.T, ctx context.Context, ffmpeg, root string, ntsc bool) (Project, map[string]string) {
 	t.Helper()
 	paths := map[string]string{"motion": filepath.Join(root, "motion.mp4"), "logo": filepath.Join(root, "logo.png")}
