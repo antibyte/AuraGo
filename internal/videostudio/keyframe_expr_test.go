@@ -120,3 +120,42 @@ func TestKeyframeExprMatchesValueAt(t *testing.T) {
 		}
 	}
 }
+
+// The 2d mask expressions use hypot, abs, cos and sin, and geq's variables X, Y and T (index §4.11). eval computes them as
+// libavutil does. exprSeq chains parts with ";". renameExprVar moves an expression to another time variable and leaves
+// the original tree as it was.
+func TestFFExprTrigAndHypot(t *testing.T) {
+	vars := map[string]float64{"X": 3, "Y": 4, "T": 0.5}
+	for _, c := range []struct {
+		name string
+		expr ffExpr
+		text string
+		want float64
+	}{
+		{"hypot of the geq coordinates", exprOp("hypot", exprVar("X"), exprVar("Y")), "hypot(X,Y)", 5},
+		{"abs", exprOp("abs", exprOp("-", exprVar("X"), exprNum(10))), "abs((X-10))", 7},
+		{"cos", exprOp("cos", exprNum(0)), "cos(0)", 1},
+		{"sin of T", exprOp("sin", exprOp("*", exprVar("T"), exprNum(math.Pi))), "sin((T*" + exprNum(math.Pi).String() + "))", math.Sin(0.5 * math.Pi)},
+		{"a sequence returns its last part", exprSeq(exprSt(2, exprVar("X")), exprSt(3, exprVar("Y")), exprOp("+", exprLd(2), exprLd(3))), "(st(2,X);(st(3,Y);(ld(2)+ld(3))))", 7},
+	} {
+		if got := c.expr.String(); got != c.text {
+			t.Errorf("%s: String() = %q, want %q", c.name, got, c.text)
+		}
+		if got := c.expr.eval(vars); got != c.want {
+			t.Errorf("%s: eval = %v, want %v", c.name, got, c.want)
+		}
+	}
+	if got := exprOp("hypot", exprVar("Z"), exprNum(1)).eval(vars); !math.IsNaN(got) {
+		t.Fatalf("hypot of a missing variable = %v, want NaN", got)
+	}
+	clip := Clip{Start: 10, Offset: 7, Duration: 40}
+	rate := Rate{Num: 25, Den: 1}
+	original := windowSourceExpr(clip, 15, nil, rate)
+	before := original.String()
+	if got, want := renameExprVar(original, "t", "T").String(), windowSourceExprVar(clip, 15, nil, rate, "T").String(); got != want {
+		t.Fatalf("renamed window source %s, want %s", got, want)
+	}
+	if original.String() != before || !strings.Contains(before, "max(t,0)") {
+		t.Fatalf("renameExprVar changed the original: %s", original.String())
+	}
+}

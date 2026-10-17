@@ -30,7 +30,11 @@ func (e *CapabilityError) Unwrap() error { return ErrFeatureUnavailable }
 // phase2Filters are the FFmpeg filters phase 2 uses for colour, LUTs, keys, blur, sharpen, vignette, masks, blend
 // modes and runtime commands (spec §7.9). They are optional: a missing one makes the features that need it
 // unavailable. The readiness filters of hasRequiredRenderFilters stay a hard requirement.
-var phase2Filters = []string{"lutrgb", "colorchannelmixer", "lut3d", "colorkey", "despill", "gblur", "cas", "vignette", "geq", "alphamerge", "maskedmerge", "blend", "sendcmd"}
+var phase2Filters = []string{"lutrgb", "colorchannelmixer", "lut3d", "colorkey", "despill", "gblur", "cas", "vignette", "geq", "alphamerge", "maskedmerge", "blend", "sendcmd", "loop"}
+
+// maskFilters are the filters a mask needs (index §4.3): geq generates it, loop repeats the static form, blend merges
+// it into the clip's alpha.
+var maskFilters = []string{"geq", "blend", "loop"}
 
 const (
 	capabilityProbeTimeout = 10 * time.Second
@@ -201,8 +205,8 @@ func xfadeTransitionNames(output string) map[string]bool {
 // CheckProjectCapabilities returns a *CapabilityError for the first feature of project that needs an entry of
 // missing (as reported by ProbeCapabilities), or nil. Only what renders counts: transitions on hidden tracks, of
 // disabled clips or before a disabled clip are skipped, as in segmentLayers. 2b adds the keyframes check (sendcmd),
-// which 2c extends to crop and effect keyframes (clipHasKeyframes). 2c also adds the effect checks; 2d adds blend and
-// mask checks.
+// which 2c extends to crop and effect keyframes (clipHasKeyframes). 2c also adds the effect checks; 2d adds the mask
+// check (maskFilters) and the blend check.
 func CheckProjectCapabilities(project Project, missing []string) error {
 	if len(missing) == 0 {
 		return nil
@@ -241,6 +245,17 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 					if need := "filter:" + filter; lacking[need] {
 						return &CapabilityError{Feature: "effect:" + entry.ID, Missing: need}
 					}
+				}
+			}
+		}
+		// A mask needs maskFilters. There is no unavailable entry for masks, so the export refuses here (index §4.3).
+		for _, clip := range track.Clips {
+			if clip.Disabled || clip.Mask == nil {
+				continue
+			}
+			for _, filter := range maskFilters {
+				if need := "filter:" + filter; lacking[need] {
+					return &CapabilityError{Feature: "mask", Missing: need}
 				}
 			}
 		}

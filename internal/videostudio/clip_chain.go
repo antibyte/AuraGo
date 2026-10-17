@@ -90,7 +90,7 @@ func (c clipChain) stages() []chainStage {
 	return append(stages,
 		chainStage{filter: c.animatedCrop(), tracks: c.pictureTracks()},
 		chainStage{filter: c.fit(), tracks: c.transformTracks()},
-		chainStage{filter: c.mask()},
+		c.mask(),
 		chainStage{filter: c.orient()},
 		chainStage{filter: c.opacity(), tracks: c.opacityTracks()})
 }
@@ -348,8 +348,9 @@ func (c clipChain) processedSize() (width, height int) {
 	return width, height
 }
 
-// mask applies the clip's mask to its alpha in box space (plan 2d Task 6, a two-input stage). Nothing yet.
-func (c clipChain) mask() string { return "" }
+// mask applies the clip's mask to its alpha in box space (index §4.22). maskStage builds it, and it is {} without a
+// mask. It is a two-input stage, so the opacity commands read the next command group.
+func (c clipChain) mask() chainStage { return maskStage(c) }
 
 // transform is fit followed by orient, the whole 2c transform stage. The chain assembles the two as separate stages
 // (the mask goes between them); static_cover_bound_test reads the joined text.

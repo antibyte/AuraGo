@@ -3,6 +3,7 @@ package videostudio
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"reflect"
 	"regexp"
@@ -458,5 +459,145 @@ func TestClipChainFitOrientSplit(t *testing.T) {
 		if !strings.Contains(c.filter("vs_clip_x"), fit+","+orient) {
 			t.Fatalf("chain %d: the built chain lacks %q", i, fit+","+orient)
 		}
+	}
+}
+
+// TestClipChainMaskSnapshots pins the mask stage between fit and orient (index §4.10, §4.22):
+//   - no mask, no stage;
+//   - static rect: the whole chain, including the geq expression of Go numbers;
+//   - static ellipse, rotated and inverted;
+//   - a keyed mask on a static box: the framed generator at a quarter of the box, upscaled to it;
+//   - a keyed, rotating box: the pad canvas, the box sizes in T, orient's rotate after the merge;
+//   - cover with crop keys: the t-term scale stays in front of the mask;
+//   - opacity keyframes read command group 1 behind the merge.
+//
+// The mask branch never holds sendcmd or gblur.
+func TestClipChainMaskSnapshots(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	chain := func(index int, clip Clip) clipChain {
+		return clipChain{track: 0, index: index, item: layerClip{clip: clip, whole: clip, at: clip.Start, input: index, pictureWidth: 1920, pictureHeight: 1080, sourceAspect: 16.0 / 9}, canvasWidth: 1280, canvasHeight: 720, rate: pal}
+	}
+	head := func(input, duration int) string {
+		return fmt.Sprintf("[%d:V:0]setpts='if(eq(N,0),min(PTS,floor(0.000000000/TB)),PTS)',fps=25,setpts='max(PTS-0,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,", input, duration, duration*2, duration)
+	}
+	tail := func(index, duration int, overlay string) string {
+		return fmt.Sprintf("[vs_layer_0_%[1]d];color=c=black@0:s=1280x720:r=25:d=%[2]s,trim=end_frame=%[3]d,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_%[1]d];[vs_clip_bg_0_%[1]d][vs_layer_0_%[1]d]%[4]s[vs_clip_0_%[1]d]", index, pal.SecondsArg(duration), duration, overlay)
+	}
+	merge := func(index int, generator string) string {
+		return fmt.Sprintf("format=gbrap[vs_mk_0_%[1]d_in];%[2]s[vs_mk_0_%[1]d_m];[vs_mk_0_%[1]d_in][vs_mk_0_%[1]d_m]blend=c0_mode=normal:c1_mode=normal:c2_mode=normal:c3_mode=multiply", index, generator)
+	}
+	static := func(c clipChain) string {
+		plan := maskPlanOf(c)
+		return fmt.Sprintf("nullsrc=s=%dx%d:r=25:d=0.040000,format=gbrap,geq=r='0':g='0':b='0':a='%s',loop=loop=-1:size=1:start=0,trim=end_frame=%d,setpts=PTS-STARTPTS",
+			plan.canvasWidth, plan.canvasHeight, maskExpr(c, plan).String(), c.item.clip.Duration)
+	}
+	framed := func(c clipChain) string {
+		plan := maskPlanOf(c)
+		return fmt.Sprintf("nullsrc=s=%dx%d:r=25:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=gbrap,geq=r='0':g='0':b='0':a='%s',scale=w=%d:h=%d:flags=bilinear",
+			plan.gridWidth, plan.gridHeight, pal.SecondsArg(c.item.clip.Duration), c.item.clip.Duration, maskExpr(c, plan).String(), plan.canvasWidth, plan.canvasHeight)
+	}
+	containFit := "scale=w=640:h=360:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0"
+	staticOverlay := "overlay=x=320:y=180:format=auto:shortest=1"
+	clip := func(edit func(*Clip)) Clip {
+		c := Clip{ID: "m", AssetID: "a", Duration: 10, X: 0.25, Y: 0.25, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitContain,
+			Mask: &Mask{Shape: MaskRect, X: 0.25, Y: 0.25, W: 0.5, H: 0.5}}
+		edit(&c)
+		return c
+	}
+
+	if got := chain(0, clip(func(c *Clip) { c.Mask = nil })).mask(); !reflect.DeepEqual(got, chainStage{}) {
+		t.Fatalf("a clip without a mask has the mask stage %+v", got)
+	}
+
+	// Static rect in the 640x360 box: centre (320, 180), radii 160 and 90, rotation 0, F = 1 px (feather 0).
+	rect := chain(0, clip(func(*Clip) {}))
+	parts := []string{
+		"st(3,((X+0.5)-320))", "st(4,((Y+0.5)-180))",
+		"st(6,((ld(3)*1)+(ld(4)*0)))", "st(4,((ld(4)*1)-(ld(3)*0)))",
+		"st(2,(abs(ld(6))-160))", "st(5,(abs(ld(4))-90))",
+		"st(6,(hypot(max(ld(2),0),max(ld(5),0))+min(max(ld(2),ld(5)),0)))",
+		"(255*clip((0.5-(ld(6)/1)),0,1))",
+	}
+	rectExpr := parts[len(parts)-1]
+	for i := len(parts) - 2; i >= 0; i-- {
+		rectExpr = "(" + parts[i] + ";" + rectExpr + ")"
+	}
+	if got := maskExpr(rect, maskPlanOf(rect)).String(); got != rectExpr {
+		t.Fatalf("static rect expression:\n got %s\nwant %s", got, rectExpr)
+	}
+	want := head(0, 10) + containFit + "," + merge(0, static(rect)) + ",format=rgba" + tail(0, 10, staticOverlay)
+	if got := rect.filter("vs_clip_0_0"); got != want {
+		t.Fatalf("static rect:\n got %s\nwant %s", got, want)
+	}
+	if stage := rect.mask(); !stage.twoInput || stage.tracks != nil || strings.Contains(stage.filter, "sendcmd") || strings.Contains(stage.filter, "gblur") {
+		t.Fatalf("mask stage %+v", stage)
+	}
+	if files := rect.commandFiles(); len(files) != 0 {
+		t.Fatalf("a static mask needs no commands: %+v", files)
+	}
+
+	// Static ellipse, rotated by 30° and inverted, F = 0.05·360 = 18 px.
+	ellipse := chain(1, clip(func(c *Clip) {
+		c.Mask.Shape, c.Mask.Rotation, c.Mask.Feather, c.Mask.Invert = MaskEllipse, 30, 0.05, true
+	}))
+	text := maskExpr(ellipse, maskPlanOf(ellipse)).String()
+	degrees := 30.0 // a variable: float64 arithmetic at run time, as maskFrameOf and the export compute it (a constant would round once)
+	if !strings.Contains(text, "st(3,max(hypot(ld(2),ld(5)),0.000001))") || !strings.Contains(text, "(ld(3)*"+exprNum(math.Cos(degrees*math.Pi/180)).String()+")") ||
+		!strings.Contains(text, "(255*(1-clip((0.5-(ld(6)/18)),0,1)))") || strings.Contains(text, "T") {
+		t.Fatalf("static ellipse expression %s", text)
+	}
+	if got, want := ellipse.filter("vs_clip_0_1"), head(1, 10)+containFit+","+merge(1, static(ellipse))+",format=rgba"+tail(1, 10, staticOverlay); got != want {
+		t.Fatalf("static ellipse:\n got %s\nwant %s", got, want)
+	}
+
+	// A keyed mask on the static box: geq per frame at 160x90, upscaled to 640x360.
+	keyed := chain(2, clip(func(c *Clip) {
+		c.Keyframes = map[string][]Keyframe{"mask.x": linearKeys(0.1, 0.4, 9), "mask.rotation": linearKeys(0, 90, 9)}
+	}))
+	if plan := maskPlanOf(keyed); !plan.perFrame || plan.canvasWidth != 640 || plan.canvasHeight != 360 || plan.gridWidth != 160 || plan.gridHeight != 90 {
+		t.Fatalf("keyed mask plan %+v", plan)
+	}
+	if got, want := keyed.filter("vs_clip_0_2"), head(2, 10)+containFit+","+merge(2, framed(keyed))+",format=rgba"+tail(2, 10, staticOverlay); got != want {
+		t.Fatalf("keyed mask:\n got %s\nwant %s", got, want)
+	}
+
+	// A keyed, rotating box: the mask fills the pad canvas with the box centred, then orient rotates both.
+	box := chain(3, clip(func(c *Clip) {
+		c.Keyframes = map[string][]Keyframe{"width": linearKeys(0.3, 0.5, 9), "rotation": linearKeys(0, 20, 9)}
+	}))
+	g := box.geometry()
+	plan := maskPlanOf(box)
+	if !plan.perFrame || plan.canvasWidth != g.padWidth || plan.canvasHeight != g.padHeight || plan.gridWidth != (g.padWidth+3)/4 || plan.gridHeight != (g.padHeight+3)/4 {
+		t.Fatalf("keyed box plan %+v, pad %dx%d", plan, g.padWidth, g.padHeight)
+	}
+	if text := maskExpr(box, plan).String(); !strings.Contains(text, "max(T,0)") || strings.Contains(text, "max(t,") {
+		t.Fatalf("the box sizes in the mask must read geq's T: %s", text)
+	}
+	want = head(3, 10) +
+		fmt.Sprintf("scale@vs_scale_0_3=w='%s':h='%s':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad@vs_pad_0_3=w=%d:h=%d:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame,", g.box.w.String(), g.box.h.String(), g.padWidth, g.padHeight) +
+		merge(3, framed(box)) +
+		fmt.Sprintf(",format=rgba,rotate@vs_rotate_0_3=a='%s':ow=%d:oh=%d:c=black@0", g.box.angle.String(), g.layerWidth, g.layerHeight) +
+		tail(3, 10, fmt.Sprintf("overlay@vs_place_0_3=x='%s':y='%s':eval=frame:format=auto:shortest=1", exprOp("-", g.box.cx, exprNum(float64(g.layerWidth/2))).String(), exprOp("-", g.box.cy, exprNum(float64(g.layerHeight/2))).String()))
+	if got := box.filter("vs_clip_0_3"); got != want {
+		t.Fatalf("keyed box:\n got %s\nwant %s", got, want)
+	}
+
+	// Cover with crop keys: the scale after crop@vs_picture keeps its t-term, and the static mask follows it.
+	cover := chain(4, clip(func(c *Clip) {
+		c.Fit = FitCover
+		c.Keyframes = map[string][]Keyframe{"crop.l": linearKeys(0, 0.2, 9)}
+	}))
+	if maskPlanOf(cover).perFrame || !strings.Contains(cover.filter("vs_clip_0_4"), ",scale=w='640+0*t':h='360+0*t':eval=frame,"+merge(4, static(cover))+",format=rgba[vs_layer_0_4]") {
+		t.Fatalf("cover with crop keys:\n%s", cover.filter("vs_clip_0_4"))
+	}
+
+	// Opacity keyframes after the mask read command group 1, right behind the merge; group 0 stays empty.
+	fade := chain(5, clip(func(c *Clip) { c.Keyframes = map[string][]Keyframe{"opacity": linearKeys(0, 1, 9)} }))
+	built := fade.build("vs_clip_0_5")
+	if !strings.Contains(built.filter, "c3_mode=multiply,sendcmd=f=vs_cmd_0_5_1.txt,format=rgba,colorchannelmixer@vs_opacity_0_5=aa=0[vs_layer_0_5]") || strings.Contains(built.filter, "sendcmd=f=vs_cmd_0_5.txt") {
+		t.Fatalf("opacity group after the mask:\n%s", built.filter)
+	}
+	if len(built.commands) != 1 || built.commands[0].name != "vs_cmd_0_5_1.txt" || len(built.commands[0].tracks) != 1 || built.commands[0].tracks[0].Target != "colorchannelmixer@vs_opacity_0_5" {
+		t.Fatalf("command files = %+v", built.commands)
 	}
 }

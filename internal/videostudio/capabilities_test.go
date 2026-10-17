@@ -367,3 +367,39 @@ func TestCheckProjectCapabilitiesEffects(t *testing.T) {
 		}
 	}
 }
+
+// A mask needs geq, blend and loop (index §4.3); masks get no unavailable entry, so the export refuses. Disabled clips
+// and hidden tracks do not count. loop is probed with the phase 2 filters.
+func TestCheckProjectCapabilitiesMask(t *testing.T) {
+	masked := func(edit func(*Project)) Project {
+		project := validProject()
+		project.Tracks[0].Clips[0].Mask = &Mask{Shape: MaskEllipse, X: 0.25, Y: 0.25, W: 0.5, H: 0.5}
+		if edit != nil {
+			edit(&project)
+		}
+		return project
+	}
+	var capability *CapabilityError
+	for _, need := range []string{"filter:geq", "filter:blend", "filter:loop"} {
+		err := CheckProjectCapabilities(masked(nil), []string{need})
+		if !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) || capability.Feature != "mask" || capability.Missing != need {
+			t.Errorf("mask without %s = %v", need, err)
+		}
+	}
+	for name, c := range map[string]struct {
+		project Project
+		missing []string
+	}{
+		"filters present": {masked(nil), []string{"filter:lut3d", "filter:maskedmerge"}},
+		"no mask":         {validProject(), []string{"filter:geq", "filter:loop"}},
+		"disabled clip":   {masked(func(p *Project) { p.Tracks[0].Clips[0].Disabled = true }), []string{"filter:geq"}},
+		"hidden track":    {masked(func(p *Project) { p.Tracks[0].Hidden = true }), []string{"filter:loop"}},
+	} {
+		if err := CheckProjectCapabilities(c.project, c.missing); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if !slices.Contains(capabilityFilters(), "loop") {
+		t.Fatal("capabilityFilters() lacks loop")
+	}
+}

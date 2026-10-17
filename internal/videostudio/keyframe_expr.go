@@ -7,16 +7,17 @@ import (
 )
 
 // ffExpr is one node of an FFmpeg expression (libavutil/eval.c) that the export writes into a filter option: scale,
-// pad, overlay and rotate get per-frame expressions in t, setpts one in PTS (index §4.11, §4.18). String writes the
+// pad, overlay and rotate get per-frame expressions in t, setpts one in PTS, and 2d's mask geq one in X, Y and T
+// (index §4.11, §4.18, §4.22). String writes the
 // text; eval computes the same tree in Go with the same IEEE double operations in the same order, so tests check every
 // frame without FFmpeg and the export derives command values (the cover crop) from exactly the numbers FFmpeg computes.
 //
 // op is one of:
 //   - "num": the literal num;
-//   - "var": the variable name (t, T, PTS, TB, val);
+//   - "var": the variable name (t, T, PTS, TB, val, and geq's pixel position X, Y);
 //   - an infix: "+", "-", "*", "/", or ";" (evaluate the left operand, return the right one);
 //   - a function: "if", "lt", "gte", "max", "min", "round", "floor", "ceil", "sqrt", "clip" (clip(x, min, max)),
-//     "pow", "st" (store in register 0..9) and "ld".
+//     "pow", "hypot", "abs", "cos", "sin" (2d masks), "st" (store in register 0..9) and "ld".
 //
 // Every infix node is written in parentheses and every literal without an exponent, so neither operator precedence nor
 // av_strtod's suffixes ever matter.
@@ -47,6 +48,33 @@ func exprLd(register int) ffExpr { return exprOp("ld", exprNum(float64(register)
 
 func exprSt(register int, value ffExpr) ffExpr {
 	return exprOp("st", exprNum(float64(register)), value)
+}
+
+// exprSeq evaluates its parts left to right and returns the last one: (p0;(p1;(…;pn))). It needs at least one part.
+func exprSeq(parts ...ffExpr) ffExpr {
+	out := parts[len(parts)-1]
+	for i := len(parts) - 2; i >= 0; i-- {
+		out = exprOp(";", parts[i], out)
+	}
+	return out
+}
+
+// renameExprVar returns e with every variable named from renamed to to; the original tree is unchanged. The mask
+// reads the box expressions that scale and pad evaluate in t through geq's T (index §4.22).
+func renameExprVar(e ffExpr, from, to string) ffExpr {
+	if e.op == "var" && e.name == from {
+		e.name = to
+		return e
+	}
+	if len(e.args) == 0 {
+		return e
+	}
+	args := make([]ffExpr, len(e.args))
+	for i, arg := range e.args {
+		args[i] = renameExprVar(arg, from, to)
+	}
+	e.args = args
+	return e
 }
 
 // String returns the expression text; callers put it in single quotes inside the filter graph.
@@ -162,6 +190,14 @@ func (e ffExpr) evalWith(vars map[string]float64, registers *[10]float64) float6
 		return x
 	case "pow":
 		return math.Pow(arg(0), arg(1))
+	case "hypot":
+		return math.Hypot(arg(0), arg(1))
+	case "abs":
+		return math.Abs(arg(0))
+	case "cos":
+		return math.Cos(arg(0))
+	case "sin":
+		return math.Sin(arg(0))
 	case "ld":
 		return registers[register()]
 	case "st":
