@@ -303,6 +303,25 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-handle[data-handle="ne"] { right: -7px; top: -7px; cursor: nesw-resize; }
 .vs-handle[data-handle="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
 .vs-handle[data-handle="se"] { right: -7px; bottom: -7px; cursor: nwse-resize; }
+/* On-canvas crop handles (2c): the overlay sits on the clip box and turns with it. The dashed outline is the whole
+   source as the clip shows it; the accent rectangle is the crop, with handles on its corners and edges. */
+.vs-crop-box { position: absolute; z-index: 4; pointer-events: none; }
+.vs-crop-box[hidden], .vs-no-project .vs-crop-box, .vs-preview-mat:fullscreen .vs-crop-box { display: none !important; }
+.vs-crop-source { position: absolute; border: 1px dashed rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .45); pointer-events: none; }
+.vs-crop-rect { position: absolute; border: 1.5px solid var(--vs-accent); box-shadow: 0 0 0 1px rgba(0, 0, 0, .6); cursor: move; pointer-events: auto; touch-action: none; }
+.vs-crop-rect:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.vs-crop-box.is-dragging .vs-crop-rect { border-color: #fff; }
+.vs-app .vs-crop-handle { position: absolute; width: 12px; height: 12px; min-height: 0; margin: -6px 0 0 -6px; padding: 0; border: 2px solid var(--vs-accent); border-radius: 3px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); touch-action: none; }
+.vs-app .vs-crop-handle:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.vs-crop-handle[data-crop-handle="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+.vs-crop-handle[data-crop-handle="n"] { left: 50%; top: 0; cursor: ns-resize; }
+.vs-crop-handle[data-crop-handle="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+.vs-crop-handle[data-crop-handle="e"] { left: 100%; top: 50%; cursor: ew-resize; }
+.vs-crop-handle[data-crop-handle="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+.vs-crop-handle[data-crop-handle="s"] { left: 50%; top: 100%; cursor: ns-resize; }
+.vs-crop-handle[data-crop-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+.vs-crop-handle[data-crop-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
+.vs-app .vs-crop-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-transport { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; min-height: 54px; padding: 8px 14px; background: var(--vs-panel); border-top: 1px solid var(--vs-border); }
 .vs-transport-buttons { display: flex; align-items: center; gap: 4px; justify-self: center; grid-column: 2; }
 .vs-app .vs-transport button { width: 36px; height: 36px; min-height: 0; padding: 0; border-color: transparent; background: transparent; }
@@ -400,7 +419,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-slider-compact { grid-template-columns: 1fr 44px; margin: 0; }
 .vs-slider-compact span { grid-column: 1 / -1; }
 .vs-color { display: grid; gap: 4px; font-size: 12px; color: var(--vs-muted); }
-.vs-position { display: flex; align-items: center; gap: 12px; }
+.vs-position { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .vs-position-grid { display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 18px); gap: 3px; padding: 5px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); }
 .vs-position-grid button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; }
 .vs-position-grid button i { width: 8px; height: 6px; border-radius: 2px; background: var(--vs-muted); opacity: .55; }

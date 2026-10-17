@@ -275,6 +275,7 @@
         }, { signal });
         wireResize(s);
         wireTransform(s);
+        P.wireCropBox(s);
         if (P.wireEffectStack) P.wireEffectStack(s);
         P.wireSource(s);
         if (typeof MutationObserver === 'function') {
@@ -544,7 +545,7 @@
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: s.fineOpen == null ? !!(keyframes && keyframes.boxAnimated) : !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes, effects: P.effectView ? P.effectView(s) : null
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes, effects: P.effectView ? P.effectView(s) : null, cropMode: !!s.cropMode
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -751,6 +752,7 @@
         else if (action === 'apply-text') { if (s.selectedClipId) applyTextArtwork(s, s.selectedClipId); }
         else if (action === 'open-ai') openAI(s);
         else if (action === 'toggle-fine') { s.fineOpen = button.getAttribute('aria-expanded') !== 'true'; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
+        else if (action === 'crop-mode') P.setCropMode(s, !s.cropMode);
         else if (action === 'fill-frame') { if (s.selectedClipId) P.applyEdit(s, 'fill', project => window.VideoStudioKeyframeEdit.setValues(project, s.selectedClipId, { x: 0, y: 0, width: 1, height: 1 }, s.frame)); }
         else if (action === 'clip-split' || action === 'clip-duplicate' || action === 'clip-delete') { if (s.selectedClipId) timelineAction(s, action.slice(5), s.selectedClipId); }
         else if (action.startsWith('clip-')) P.clipCommand(s, action.slice(5), button.dataset.value);
@@ -772,6 +774,8 @@
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         // The range comparison: Escape closes it; plain keys on its own controls stay with them (video-studio-rangerender.js).
         if (P.handleRangeKeys && P.handleRangeKeys(s, event)) return;
+        // Keys inside the crop overlay: nudges, Enter/Escape to leave (video-studio-stage.js).
+        if (P.handleCropKeys && P.handleCropKeys(s, event)) return;
         // Tab cycles inside an open dialog, then inside an open marker popover (it sits outside the drawer), then inside
         // the narrow inspector drawer.
         const trap = s.q('[data-conflict-host] .vs-modal') || s.q('[data-modal-host] .vs-modal') || (s.markerPop && s.markerPop.el.isConnected ? s.markerPop.el : null) || (s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920 ? s.q('.vs-inspector') : null);

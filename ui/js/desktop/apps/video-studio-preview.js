@@ -126,6 +126,13 @@
             return true;
         }
         function failedPrograms() { return programFailures.map(item => ({ kind: item.kind, id: item.id })); }
+        // The size a clip's media element reports (autorotated), or null before it knows one (index §4.5). The stage's crop
+        // overlay passes it to VideoStudioPicture.decodedSize, like both painters (plan 2c R7).
+        function mediaSize(clipId) {
+            const el = media.get(clipId);
+            const width = el ? Number(el.videoWidth || el.naturalWidth || 0) : 0, height = el ? Number(el.videoHeight || el.naturalHeight || 0) : 0;
+            return width && height ? { width, height } : null;
+        }
         let painter = choosePainter();
         if (initialFallback) notifyPainter(initialFallback);
         const sourceNodes = new Map(), gainNodes = new Map();
@@ -452,7 +459,7 @@
             return painter.read(rect);
         }
         paint(Number(getFrame() || 0));
-        return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, fallback, failedPrograms, dispose,
+        return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, fallback, failedPrograms, mediaSize, dispose,
             painterKind: () => painter.kind, capture, settle };
     }
 

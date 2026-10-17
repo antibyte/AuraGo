@@ -113,7 +113,7 @@ func effectsAdd(t *testing.T, page *rod.Page, id string) {
 }
 
 // TestDesktopVideoStudioEffectsBrowser drives the 2c effect stack in the real app under the SwiftShader launcher, so the
-// GL painter draws the effects. Part 1 (Task 14) is effectsStackBrowserPart; Tasks 15 to 17 append parts 2 to 4.
+// GL painter draws the effects. Part 1 (Task 14) is effectsStackBrowserPart, part 2 (Task 15) colorWheelBrowserPart, part 3 (Task 16) videoStudioCropBrowserPart; Task 17 appends part 4.
 func TestDesktopVideoStudioEffectsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	server := newVideoStudioKeyframesServerWith(t, videoStudioKeyframesProject(), map[string]http.HandlerFunc{"/api/desktop/video-studio/luts/builtin/": videoStudioBuiltinLUTRoute})
@@ -127,6 +127,7 @@ func TestDesktopVideoStudioEffectsBrowser(t *testing.T) {
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors after the colour wheels: %s", errs)
 	}
+	videoStudioCropBrowserPart(t)
 }
 
 // Part 1 of TestDesktopVideoStudioEffectsBrowser (Task 14), with real clicks and keys:
@@ -361,4 +362,123 @@ func colorWheelBrowserPart(t *testing.T, page *rod.Page, shots string) {
 	page.MustScreenshot(filepath.Join(shots, "effects-color-wheels-1280x900.png"))
 	page.MustEval(`sel => document.querySelector(sel).scrollIntoView({ block: 'center' })`, `[data-inspector] [data-fx-entry="0"] [data-fx-param="tint"]`)
 	page.MustScreenshot(filepath.Join(shots, "effects-color-sliders-1280x900.png"))
+}
+
+// videoStudioCropBrowserPart is part 3 of TestDesktopVideoStudioEffectsBrowser (Task 16): the on-canvas crop handles in the
+// real app, on the 2b keyframe fixture (c1 is a 512x288 picture at half size in the top left corner of overlay o1).
+//   - Crop in the preview swaps the transform box for the crop overlay and focuses the crop.
+//   - A drag of the left handle by a quarter of the source's width crops l = 0.25 in one undo step.
+//   - Arrow keys move a focused edge by 0.01 (Shift 0.1), or the whole crop; Escape leaves and focuses the button.
+//   - With crop.l animated, a nudge at another frame keys crop.l there and nothing else; Enter leaves.
+func videoStudioCropBrowserPart(t *testing.T) {
+	t.Helper()
+	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioKeyframesProject()))
+	shots := videoStudioKeyframesShotDir(t)
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	const button = `[data-inspector] [data-action="crop-mode"]`
+	const cropping = `() => { const box = document.querySelector('[data-crop-box]'); return !!box && !box.hidden && document.querySelector('[data-transform]').hidden; }`
+	crop := func() map[string]float64 {
+		t.Helper()
+		raw := page.MustEval(`() => JSON.stringify(window.VideoStudioTimeline.clipFor(` + app + `.project, 'c1').clip.crop || {})`).Str()
+		out := map[string]float64{}
+		if err := json.Unmarshal([]byte(raw), &out); err != nil {
+			t.Fatalf("crop of c1: %v (%s)", err, raw)
+		}
+		return out
+	}
+	requireCrop := func(step string, got map[string]float64, l, top, r, b, tolerance float64) {
+		t.Helper()
+		if math.Abs(got["l"]-l) > tolerance || math.Abs(got["t"]-top) > tolerance || math.Abs(got["r"]-r) > tolerance || math.Abs(got["b"]-b) > tolerance {
+			t.Fatalf("%s: crop %v, want l %.3f t %.3f r %.3f b %.3f", step, got, l, top, r, b)
+		}
+	}
+	history := func() int { t.Helper(); return page.MustEval(`() => ` + app + `.history.length`).Int() }
+	seek := func(f int) {
+		t.Helper()
+		page.MustEval(`f => { const s = `+app+`; s.preview.pause(); s.preview.seek(f); }`, f)
+	}
+	focused := func(selector string) bool {
+		t.Helper()
+		return page.MustEval(`sel => document.activeElement === document.querySelector(sel)`, selector).Bool()
+	}
+	press := func(key input.Key, shift bool) {
+		t.Helper()
+		if shift {
+			page.KeyActions().Press(input.ShiftLeft).Type(key).MustDo()
+			return
+		}
+		page.KeyActions().Type(key).MustDo()
+	}
+
+	page.MustEval(`() => { const s = ` + app + `; s.timelineOptions.onSelect('c1'); s.preview.pause(); s.preview.seek(30); }`)
+	waitForJSBool(t, page, `() => !!document.querySelector('`+button+`')`)
+	page.MustElement(button).MustClick()
+	waitForJSBool(t, page, cropping)
+	if !focused(`[data-crop-rect]`) {
+		t.Error("the crop did not take keyboard focus")
+	}
+	if got := page.MustEval(`sel => document.querySelector(sel).getAttribute('aria-pressed')`, button).Str(); got != "true" {
+		t.Errorf("crop-mode aria-pressed = %q", got)
+	}
+
+	// Drag the left handle a quarter of the whole source to the right: crop.l 0.25 in one undo step, c1 stays selected.
+	at := page.MustEval(`() => { const h = document.querySelector('[data-crop-handle="w"]').getBoundingClientRect(), f = document.querySelector('[data-crop-source]').getBoundingClientRect(); return {x: h.left + h.width / 2, y: h.top + h.height / 2, w: f.width}; }`)
+	x0, y0, width := at.Get("x").Num(), at.Get("y").Num(), at.Get("w").Num()
+	if width < 100 {
+		t.Fatalf("the source outline is %.1f px wide", width)
+	}
+	steps := history()
+	page.Mouse.MustMoveTo(x0, y0).MustDown(proto.InputMouseButtonLeft).MustMoveTo(x0+width/8, y0).MustMoveTo(x0+width/4, y0).MustUp(proto.InputMouseButtonLeft)
+	dragged := crop()
+	requireCrop("left handle drag", dragged, 0.25, 0, 0, 0, 0.006)
+	if got := history(); got != steps+1 {
+		t.Fatalf("the drag left %d undo steps, want 1", got-steps)
+	}
+	if selected := page.MustEval(`() => ` + app + `.selectedClipId`).Str(); selected != "c1" {
+		t.Fatalf("the drag changed the selection to %q", selected)
+	}
+	waitForJSBool(t, page, cropping)
+
+	// Keyboard: the focused right edge moves by 0.01 and, with Shift, by 0.1; on the crop the arrows move the crop.
+	l0 := dragged["l"]
+	page.MustElement(`[data-crop-handle="e"]`).MustFocus()
+	press(input.ArrowLeft, false)
+	requireCrop("ArrowLeft on the right edge", crop(), l0, 0, 0.01, 0, 1e-9)
+	press(input.ArrowLeft, true)
+	requireCrop("Shift+ArrowLeft on the right edge", crop(), l0, 0, 0.11, 0, 1e-9)
+	if !focused(`[data-crop-handle="e"]`) {
+		t.Error("the handle lost focus after a nudge")
+	}
+	page.MustElement(`[data-crop-rect]`).MustFocus()
+	press(input.ArrowRight, false)
+	requireCrop("ArrowRight on the crop", crop(), l0+0.01, 0, 0.10, 0, 1e-9)
+	page.MustScreenshot(filepath.Join(shots, "crop-handles-1280x900.png"))
+
+	// Escape leaves the mode: the transform box is back and focus returns to the inspector button.
+	press(input.Escape, false)
+	waitForJSBool(t, page, `() => document.querySelector('[data-crop-box]').hidden && !document.querySelector('[data-transform]').hidden`)
+	if !focused(button) {
+		t.Error("Escape did not return focus to Crop in the preview")
+	}
+
+	// Animated crop: with crop.l keyed at frame 30, a nudge at frame 90 keys crop.l there (auto-key) and nothing else.
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'animate crop', project => window.VideoStudioKeyframeEdit.setAnimated(project, 'c1', 'crop.l', true, 30))`).Bool() {
+		t.Fatal("setAnimated(crop.l) was refused")
+	}
+	l1 := crop()["l"]
+	requireVideoStudioKeys(t, "crop.l stopwatch", videoStudioClipKeys(t, page, "c1", "crop.l"), videoStudioKeyframe{30, l1, "linear"})
+	seek(90)
+	page.MustElement(button).MustClick()
+	waitForJSBool(t, page, cropping)
+	page.MustElement(`[data-crop-handle="w"]`).MustFocus()
+	press(input.ArrowRight, false)
+	requireVideoStudioKeys(t, "auto-key at frame 90", videoStudioClipKeys(t, page, "c1", "crop.l"), videoStudioKeyframe{30, l1, "linear"}, videoStudioKeyframe{90, l1 + 0.01, "linear"})
+	if keys := videoStudioClipKeys(t, page, "c1", "crop.r"); keys != nil {
+		t.Errorf("the nudge keyed crop.r: %+v", keys)
+	}
+	press(input.Enter, false)
+	waitForJSBool(t, page, `() => document.querySelector('[data-crop-box]').hidden`)
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors in the crop part: %s", errs)
+	}
 }

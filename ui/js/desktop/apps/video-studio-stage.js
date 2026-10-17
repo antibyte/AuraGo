@@ -300,7 +300,9 @@
     function updateTransform(s) {
         const box = s.q('[data-transform]');
         if (!box) return;
-        const found = s.project && !s.q('.vs-no-project') ? transformTarget(s) : null;
+        // Crop mode shows the crop overlay instead of the transform box (2c).
+        updateCropBox(s);
+        const found = s.project && !s.q('.vs-no-project') && !s.cropMode ? transformTarget(s) : null;
         box.hidden = !found;
         if (!found) return;
         // The box at the playhead, keyframes included.
@@ -396,5 +398,200 @@
         }, { signal });
     }
 
-    Object.assign(P, { syncInert, focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform, syncPreviewNotice });
+    // ---- On-canvas crop handles (2c, spec §8.1) ---------------------------------------------------------------------
+    // P.setCropMode(s, on) swaps the transform box for the crop overlay [data-crop-box]. P.wireCropBox builds it once in
+    // .vs-preview-mat; P.updateCropBox (called by updateTransform) keeps it on the clip box, rotation included.
+    // [data-crop-source] outlines the whole source as the clip shows it; [data-crop-rect] is the crop with eight
+    // [data-crop-handle] buttons. A drag moves only the overlay; pointerup commits once through
+    // VideoStudioKeyframeEdit.setCrop with the values the gesture changed (animated crop paths get a key at the
+    // playhead). Arrow keys move the focused handle's edges, or the whole crop on the rectangle, by 0.01 (Shift 0.1);
+    // Enter and Escape leave. Crop fractions refer to the unflipped source (index §4.20), so flips mirror the handles.
+    const CROP_HANDLES = [['nw', 'cropHandle_nw', 'Top left corner'], ['n', 'cropHandle_n', 'Top edge'], ['ne', 'cropHandle_ne', 'Top right corner'], ['e', 'cropHandle_e', 'Right edge'], ['se', 'cropHandle_se', 'Bottom right corner'], ['s', 'cropHandle_s', 'Bottom edge'], ['sw', 'cropHandle_sw', 'Bottom left corner'], ['w', 'cropHandle_w', 'Left edge']];
+    const CROP_MAX = 0.95;
+    const CROP_ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const PIC = () => window.VideoStudioPicture;
+    // The crop.* registry step (0.001); adding 0 turns -0 into 0.
+    const cropStep = value => Math.round(value * 1000) / 1000 + 0;
+    function cropOf(state) {
+        const crop = state && state.crop || {};
+        return { l: Number(crop.l) || 0, t: Number(crop.t) || 0, r: Number(crop.r) || 0, b: Number(crop.b) || 0 };
+    }
+    // Crop mode works on the clip the transform box would show (timeline mode, the selected visual clip on an unlocked,
+    // visible track, the playhead inside it), except titles.
+    function cropTarget(s) {
+        const found = transformTarget(s);
+        return found && !found.clip.text ? found : null;
+    }
+    function cropAsset(s, clip) { return (s.project.assets || []).find(asset => asset.id === clip.asset_id) || null; }
+    // The size the clip's media element reports (autorotated; the preview's mediaSize), or null before it is known.
+    function cropElement(s, clip) { return s.preview && typeof s.preview.mediaSize === 'function' ? s.preview.mediaSize(clip.id) : null; }
+    // The overlay geometry in project pixels for a clip state (clipState at the playhead), its asset and the size its
+    // media element reports (element, or null). The source size is VideoStudioPicture.decodedSize, as in both painters,
+    // so a rotated phone video shows upright (plan 2c R7). box is the clip box; draw is where the cropped picture lands
+    // (VideoStudioEffects.placement with the cropRect size as the source); full is the whole source at the same scale,
+    // flips applied; edges is the crop as the screen shows it.
+    function cropGeometry(state, asset, project, element) {
+        const size = { width: Number(project && project.width) || 1280, height: Number(project && project.height) || 720 };
+        const flipH = !!state.flipH, flipV = !!state.flipV, crop = cropOf(state), edges = PIC().mirroredCrop(crop, flipH, flipV);
+        const ew = Number(element && element.width) || 0, eh = Number(element && element.height) || 0;
+        const known = (Number(asset && asset.width) > 0 && Number(asset && asset.height) > 0) || (ew > 0 && eh > 0);
+        const decoded = known ? PIC().decodedSize(asset, ew, eh) : null, sw = decoded ? decoded.width : 0, sh = decoded ? decoded.height : 0;
+        const rect = sw > 0 && sh > 0 ? PIC().cropRect(crop, sw, sh) : null;
+        const place = window.VideoStudioEffects.placement(state, size, size, rect ? { width: rect.w, height: rect.h } : null), draw = place.draw;
+        let full;
+        if (rect) {
+            const kx = draw.w / rect.w, ky = draw.h / rect.h;
+            const left = flipH ? sw - rect.x - rect.w : rect.x, top = flipV ? sh - rect.y - rect.h : rect.y;
+            full = { x: draw.x - left * kx, y: draw.y - top * ky, w: sw * kx, h: sh * ky };
+        } else {
+            // Without a source size the picture fills the box and the fractions place the source.
+            const w = draw.w / Math.max(0.05, 1 - edges.l - edges.r), h = draw.h / Math.max(0.05, 1 - edges.t - edges.b);
+            full = { x: draw.x - edges.l * w, y: draw.y - edges.t * h, w, h };
+        }
+        return { box: place.box, draw, full, edges, angle: place.angle, flipH, flipV };
+    }
+    // A drag or nudge of one handle ('nw' … 'w') or of the whole crop ('move'). dx and dy are fractions of the whole
+    // source in screen directions (x right, y down). Edges stay within 0..0.95 with at most 0.95 per axis, round to the
+    // 0.001 step and map back to unflipped fractions.
+    function cropDrag(crop, flipH, flipV, handle, dx, dy) {
+        const e = PIC().mirroredCrop(cropOf({ crop }), !!flipH, !!flipV), x = Number(dx) || 0, y = Number(dy) || 0;
+        if (handle === 'move') {
+            const sx = clamp(x, -e.l, e.r), sy = clamp(y, -e.t, e.b);
+            e.l += sx; e.r -= sx; e.t += sy; e.b -= sy;
+        } else {
+            if (handle.includes('w')) e.l = clamp(e.l + x, 0, CROP_MAX - e.r);
+            if (handle.includes('e')) e.r = clamp(e.r - x, 0, CROP_MAX - e.l);
+            if (handle.includes('n')) e.t = clamp(e.t + y, 0, CROP_MAX - e.b);
+            if (handle.includes('s')) e.b = clamp(e.b - y, 0, CROP_MAX - e.t);
+        }
+        const out = { l: cropStep(e.l), t: cropStep(e.t), r: cropStep(e.r), b: cropStep(e.b) };
+        // Rounding both edges of an axis up can pass 0.95 by one step; the dragged edge gives way.
+        if (out.l + out.r > CROP_MAX + 1e-9) { const key = handle.includes('w') ? 'l' : 'r'; out[key] = cropStep(CROP_MAX - out[key === 'l' ? 'r' : 'l']); }
+        if (out.t + out.b > CROP_MAX + 1e-9) { const key = handle.includes('n') ? 't' : 'b'; out[key] = cropStep(CROP_MAX - out[key === 't' ? 'b' : 't']); }
+        return PIC().mirroredCrop(out, !!flipH, !!flipV);
+    }
+    // Screen pixels of a drag to fractions of the whole source: the delta turns back by the clip's rotation (clockwise
+    // on screen) and divides by the source's size on screen.
+    function cropDragDelta(dxPx, dyPx, angle, fullWidthPx, fullHeightPx) {
+        const cos = Math.cos(Number(angle) || 0), sin = Math.sin(Number(angle) || 0);
+        const lx = dxPx * cos + dyPx * sin, ly = -dxPx * sin + dyPx * cos;
+        return { dx: fullWidthPx > 0 ? lx / fullWidthPx : 0, dy: fullHeightPx > 0 ? ly / fullHeightPx : 0 };
+    }
+    // Places the overlay: the box in percent of the mat, the source and the crop in percent of the box. live draws the
+    // crop of a gesture from the gesture's start geometry; otherwise the crop is where the picture lands.
+    function drawCropBox(s, el, g, crop, live) {
+        const pw = Number(s.project.width) || 1280, ph = Number(s.project.height) || 720, pct = value => value * 100 + '%';
+        const put = (node, r) => { node.style.left = pct((r.x - g.box.x) / g.box.w); node.style.top = pct((r.y - g.box.y) / g.box.h); node.style.width = pct(r.w / g.box.w); node.style.height = pct(r.h / g.box.h); };
+        el.style.left = pct(g.box.x / pw); el.style.top = pct(g.box.y / ph); el.style.width = pct(g.box.w / pw); el.style.height = pct(g.box.h / ph);
+        el.style.transform = g.angle ? `rotate(${g.angle}rad)` : '';
+        put(el.querySelector('[data-crop-source]'), g.full);
+        const e = PIC().mirroredCrop(crop, g.flipH, g.flipV), rect = el.querySelector('[data-crop-rect]');
+        put(rect, live ? { x: g.full.x + e.l * g.full.w, y: g.full.y + e.t * g.full.h, w: g.full.w * (1 - e.l - e.r), h: g.full.h * (1 - e.t - e.b) } : g.draw);
+        const percent = value => (Math.round(value * 1000) / 10).toLocaleString(P.uiLocale());
+        rect.setAttribute('aria-label', ['l', 't', 'r', 'b'].reduce((text, key) => text.split('{{' + key + '}}').join(percent(crop[key])), tr(s, 'cropBoxLabel', 'Crop: left {{l}} %, top {{t}} %, right {{r}} %, bottom {{b}} %')));
+    }
+    function syncCropButton(s) {
+        const button = s.q('[data-inspector] [data-action="crop-mode"]');
+        if (button) button.setAttribute('aria-pressed', String(!!s.cropMode));
+    }
+    function updateCropBox(s) {
+        const el = s.q('[data-crop-box]');
+        if (!el) return;
+        const found = s.cropMode && s.project && !s.q('.vs-no-project') ? cropTarget(s) : null;
+        if (s.cropMode && (!found || found.clip.id !== s.cropMode.clipId)) {
+            // The clip left the stage (another selection, the playhead outside it, a lock, the source monitor): the mode
+            // ends and keyboard focus stays in the editor.
+            const focused = el.contains(document.activeElement);
+            s.cropMode = null; s.cropDrag = null;
+            el.classList.remove('is-dragging');
+            syncCropButton(s);
+            if (focused && s.app) s.app.focus({ preventScroll: true });
+        }
+        el.hidden = !s.cropMode;
+        if (!s.cropMode || s.cropDrag) return;
+        const state = window.VideoStudioEffects.clipState(found.clip, s.frame, s.project);
+        drawCropBox(s, el, cropGeometry(state, cropAsset(s, found.clip), s.project, cropElement(s, found.clip)), cropOf(state), false);
+    }
+    function setCropMode(s, on, options) {
+        const found = on ? cropTarget(s) : null;
+        if (on && !found) { showNotice(s, 'cropModeOutside', 'Move the playhead into the selected clip to crop in the preview.', false); return false; }
+        // The narrow inspector drawer makes the preview inert; it closes so the crop can take focus.
+        if (found && s.app.classList.contains('vs-show-inspector')) setInspectorOpen(s, false, false);
+        s.cropMode = found ? { clipId: found.clip.id } : null;
+        s.cropDrag = null;
+        s.q('[data-crop-box]')?.classList.remove('is-dragging');
+        updateTransform(s);
+        syncCropButton(s);
+        if (s.cropMode) s.q('[data-crop-rect]')?.focus({ preventScroll: true });
+        else if (options && options.restoreFocus) (s.q('[data-inspector] [data-action="crop-mode"]:not(:disabled)') || s.app).focus({ preventScroll: true });
+        return true;
+    }
+    // One undo step with the values that changed; setCrop keys animated crop paths at the playhead.
+    function commitCrop(s, clipId, before, after) {
+        const values = {};
+        ['l', 't', 'r', 'b'].forEach(key => { if (Math.abs(after[key] - before[key]) > 1e-9) values[key] = after[key]; });
+        if (!Object.keys(values).length) return false;
+        return P.applyEdit(s, 'crop', project => window.VideoStudioKeyframeEdit.setCrop(project, clipId, values, s.frame));
+    }
+    // Keys inside the crop overlay (handleKeys calls this after the range keys): Enter and Escape leave, the arrows nudge
+    // (Shift: ten times as far), and Delete/Backspace stay here, so they never delete the clip being cropped.
+    function handleCropKeys(s, event) {
+        if (!s.cropMode || typeof event.target.closest !== 'function' || !event.target.closest('[data-crop-box]')) return false;
+        if (event.key === 'Escape' || event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); setCropMode(s, false, { restoreFocus: true }); return true; }
+        if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); return true; }
+        const arrow = CROP_ARROWS[event.key];
+        if (!arrow || event.altKey || event.ctrlKey || event.metaKey) return false;
+        event.preventDefault(); event.stopPropagation();
+        const found = cropTarget(s);
+        if (!found || s.cropDrag) return true;
+        const state = window.VideoStudioEffects.clipState(found.clip, s.frame, s.project), step = event.shiftKey ? 0.1 : 0.01;
+        const handle = event.target.closest('[data-crop-handle]'), before = cropOf(state);
+        commitCrop(s, found.clip.id, before, cropDrag(before, state.flipH, state.flipV, handle ? handle.dataset.cropHandle : 'move', arrow[0] * step, arrow[1] * step));
+        return true;
+    }
+    function wireCropBox(s) {
+        const mat = s.q('.vs-preview-mat'), anchor = s.q('[data-transform]');
+        if (!mat || !anchor || s.q('[data-crop-box]')) return;
+        const label = (key, fallback) => esc(s, tr(s, key, fallback)), signal = s.abort.signal;
+        const handles = CROP_HANDLES.map(([id, key, fallback]) => `<button type="button" class="vs-crop-handle" data-crop-handle="${id}" aria-label="${label(key, fallback)}" title="${label(key, fallback)}"></button>`).join('');
+        anchor.insertAdjacentHTML('afterend', `<div class="vs-crop-box" data-crop-box role="group" aria-label="${label('cropMode', 'Crop in the preview')}" hidden><div class="vs-crop-source" data-crop-source aria-hidden="true"></div><div class="vs-crop-rect" data-crop-rect tabindex="0" title="${label('cropBoxHint', 'Drag an edge or a corner to crop, or drag inside to move the crop. The arrow keys move the crop, or the focused edge (Shift: ten times as far). Enter or Esc finishes.')}">${handles}</div></div>`);
+        const el = s.q('[data-crop-box]'), rect = el.querySelector('[data-crop-rect]');
+        rect.addEventListener('pointerdown', event => {
+            const found = s.cropMode ? cropTarget(s) : null;
+            if (!found || event.button !== 0 || s.timelineDragging) return;
+            const state = window.VideoStudioEffects.clipState(found.clip, s.frame, s.project), geometry = cropGeometry(state, cropAsset(s, found.clip), s.project, cropElement(s, found.clip));
+            const area = mat.getBoundingClientRect(), handle = event.target.closest('[data-crop-handle]'), start = cropOf(state);
+            s.cropDrag = {
+                clipId: found.clip.id, handle: handle ? handle.dataset.cropHandle : 'move', x: event.clientX, y: event.clientY, geometry, start, crop: start,
+                width: geometry.full.w * area.width / (Number(s.project.width) || 1280), height: geometry.full.h * area.height / (Number(s.project.height) || 720), epoch: s.projectEpoch
+            };
+            (handle || rect).focus({ preventScroll: true });
+            try { rect.setPointerCapture(event.pointerId); } catch (_) { /* synthetic pointer */ }
+            el.classList.add('is-dragging');
+            event.preventDefault(); event.stopPropagation();
+        }, { signal });
+        rect.addEventListener('pointermove', event => {
+            const drag = s.cropDrag;
+            if (!drag) return;
+            const delta = cropDragDelta(event.clientX - drag.x, event.clientY - drag.y, drag.geometry.angle, drag.width, drag.height);
+            drag.crop = cropDrag(drag.start, drag.geometry.flipH, drag.geometry.flipV, drag.handle, delta.dx, delta.dy);
+            drawCropBox(s, el, drag.geometry, drag.crop, true);
+        }, { signal });
+        const finish = event => {
+            const drag = s.cropDrag;
+            if (!drag) return;
+            s.cropDrag = null;
+            el.classList.remove('is-dragging');
+            if (event.type !== 'pointercancel' && drag.epoch === s.projectEpoch) commitCrop(s, drag.clipId, drag.start, drag.crop);
+            updateCropBox(s);
+        };
+        rect.addEventListener('pointerup', finish, { signal });
+        rect.addEventListener('pointercancel', finish, { signal });
+        rect.addEventListener('lostpointercapture', () => { if (s.cropDrag) finish({ type: 'pointercancel' }); }, { signal });
+        window.addEventListener('blur', () => { if (s.cropDrag) finish({ type: 'pointercancel' }); }, { signal });
+        // Clicks inside the overlay stay there: no clip picking under the picture (mat click) and no focus jump to the app.
+        el.addEventListener('click', event => event.stopPropagation(), { signal });
+    }
+
+    Object.assign(P, { syncInert, focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform, syncPreviewNotice, setCropMode, updateCropBox, wireCropBox, handleCropKeys, cropGeometry, cropDrag, cropDragDelta });
 })();
