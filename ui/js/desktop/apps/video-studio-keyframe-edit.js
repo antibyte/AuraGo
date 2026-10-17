@@ -85,35 +85,61 @@
         if (found.track.locked) return REASON().locked;
         return found.track.kind === 'audio' ? REASON().kind : found;
     }
-    // The fields must stay a valid box (x + width <= 1, y + height <= 1) even while keys drive the picture, because the
-    // server validates them; keyframe values are checked per parameter only (index §4.18). On an axis that breaks the
-    // rule, the field the clip does not show gives way: an animated size's, else an animated position's; with both
-    // fields static, the value just written is clamped against the other (written: paths written this call). The crop
-    // follows the same rule (settleCrop).
-    function settleStatic(clip, written) {
+    // The fields must stay a valid box (x + width <= 1, y + height <= 1) and a valid crop (l + r <= 0.95, t + b <= 0.95)
+    // even while keys drive the picture, because the server validates them; keyframe values are checked per parameter
+    // only (index §4.18). `written` holds the paths this call wrote, fields and keys alike; frame is the playhead.
+    //   - A pair without animation settles its fields: the side written alone is clamped against the other (the size
+    //     against the position, r against l, b against t); with both written, the box's position and the crop's second
+    //     side give way.
+    //   - A pair with an animated side never has the field of an animated path written. Keys override fields, so such a
+    //     write would only surface when the animation ends. The side written here, a field or the key at the frame, is
+    //     clamped to the room its partner leaves instead (fitAnimatedPair).
+    function settleStatic(clip, written, frame) {
         AXES.forEach(([pos, size]) => {
+            if (isAnimated(clip, pos) || isAnimated(clip, size)) { fitAnimatedPair(clip, written, frame, pos, size, 1, 0); return; }
             if (!(Number(clip[pos]) + Number(clip[size]) > 1)) return;
-            const shrinkSize = isAnimated(clip, size) || (!isAnimated(clip, pos) && written.has(size) && !written.has(pos));
+            const shrinkSize = written.has(size) && !written.has(pos);
             if (shrinkSize) clip[size] = Math.max(MIN_SIZE, 1 - clip[pos]);
             if (clip[pos] + clip[size] > 1) clip[pos] = Math.max(0, 1 - clip[size]);
             while (clip[pos] > 0 && clip[pos] + clip[size] > 1) clip[pos] = Math.max(0, clip[pos] - 1e-9);
         });
-        settleCrop(clip, written);
+        settleCrop(clip, written, frame);
     }
-    // The crop fields must stay a valid crop (l + r <= 0.95, t + b <= 0.95; keyframe values are checked per side only).
-    // On a pair that breaks the rule, an animated side's field gives way; with both sides static, the side written alone
-    // this call is clamped against the other, else the second side (r, b). A crop left with four zeros is removed.
-    function settleCrop(clip, written) {
-        const crop = clip.crop;
-        if (!crop) return;
+    function settleCrop(clip, written, frame) {
         CROP_AXES.forEach(([a, b]) => {
-            if (!(crop[a] + crop[b] > CROP_MAX)) return;
-            const giveA = !isAnimated(clip, 'crop.' + b) && (isAnimated(clip, 'crop.' + a) || (written.has('crop.' + a) && !written.has('crop.' + b)));
+            const pathA = 'crop.' + a, pathB = 'crop.' + b, crop = clip.crop;
+            if (isAnimated(clip, pathA) || isAnimated(clip, pathB)) { fitAnimatedPair(clip, written, frame, pathA, pathB, CROP_MAX, 1); return; }
+            if (!crop || !(crop[a] + crop[b] > CROP_MAX)) return;
+            const giveA = written.has(pathA) && !written.has(pathB);
             const give = giveA ? a : b, keep = giveA ? b : a;
             crop[give] = Math.max(0, Math.round((CROP_MAX - crop[keep]) * 1e6) / 1e6);
             while (crop[give] > 0 && crop[keep] + crop[give] > CROP_MAX) crop[give] = Math.max(0, crop[give] - 1e-9);
         });
-        if (CROP_SIDES.every(side => !crop[side])) delete clip.crop;
+        if (clip.crop && CROP_SIDES.every(side => !clip.crop[side])) delete clip.crop;
+    }
+    // The stored field of a box or crop path, whether or not keys override it.
+    function staticField(clip, path) {
+        return Number(path.startsWith('crop.') ? (clip.crop || {})[path.slice(5)] : clip[path]) || 0;
+    }
+    // A pair [a, b] of paths that sum to at most `limit`, with a side animated. One side written this call yields: it is
+    // clamped to the room its partner leaves, the partner counting at its value at the frame (and, for a written field, at
+    // its own field when that is larger, because the server validates the fields). The partner's field and keys stay as
+    // they are. With both sides written, the one with a field yields, else the tie side (0: a, 1: b). A written key is
+    // replaced by the clamped one (its easing stays), but only next to an animated partner: next to a field it stays as
+    // typed, because keys are checked per parameter only (index §4.18). A pair nothing was written on is left alone.
+    function fitAnimatedPair(clip, written, frame, a, b, limit, tie) {
+        const typed = [a, b].filter(path => written.has(path)), fields = typed.filter(path => !isAnimated(clip, path));
+        if (!typed.length) return;
+        const path = typed.length === 1 ? typed[0] : fields.length === 1 ? fields[0] : [a, b][tie], other = path === a ? b : a;
+        const keyed = isAnimated(clip, path), key = keyed ? atPlayhead(clip, path, frame) : null;
+        if (keyed && (!key || !isAnimated(clip, other))) return;
+        let partner = Number(Fx().valueAt(clip, other, frame)) || 0;
+        if (!keyed && isAnimated(clip, other)) partner = Math.max(partner, staticField(clip, other));
+        const floor = path === 'width' || path === 'height' ? MIN_SIZE : 0;
+        if (!((keyed ? Number(key.v) : staticField(clip, path)) + partner > limit)) return;
+        let fitted = Math.max(floor, Math.round((limit - partner) * 1e6) / 1e6);
+        while (fitted > floor && fitted + partner > limit) fitted = Math.max(floor, fitted - 1e-9);
+        if (keyed) putKey(clip, path, key.f, fitted); else writeStatic(clip, path, fitted);
     }
     // Puts a key at source frame f. An existing key takes the value (and the easing e when given); a new key takes e, else
     // the easing of the key before it, else linear (index §4.18). False when the limits would be passed.
@@ -126,12 +152,13 @@
         setList(clip, path, list.concat({ f, v, e: e || (before ? before.e : 'linear') }).sort((a, b) => a.f - b.f));
         return true;
     }
-    // Ends the animation of path: the keys go and the field takes value, clamped to a valid box and crop.
-    function endAnimation(clip, path, value) {
+    // Ends the animation of path: the keys go and the field takes value, clamped to a valid box and crop (an animated
+    // partner counts at its value at frame).
+    function endAnimation(clip, path, value, frame) {
         setList(clip, path, []);
         const number = clampValue(clip, path, value);
         if (number !== null) writeStatic(clip, path, number);
-        settleStatic(clip, new Set([path]));
+        settleStatic(clip, new Set([path]), frame);
     }
     // Auto-key of {path: value} on a clip (setValues, setEffectParams, setCrop); every path must be animatable there.
     // Animated values get a key at the playhead (inside the clip; a new key takes the easing of the key before it), the
@@ -145,8 +172,9 @@
             if (!isAnimated(clip, path)) { writeStatic(clip, path, value); written.add(path); continue; }
             if (!inside(clip, frame)) return REASON().nothing;
             if (!putKey(clip, path, keyFrame(clip, frame), value)) return REASON().limit;
+            written.add(path);
         }
-        settleStatic(clip, written);
+        settleStatic(clip, written, frame);
         return true;
     }
 
@@ -161,7 +189,7 @@
         if (typeof found === 'string') return found;
         const clip = found.clip;
         if (!animatable(clip, path) || isAnimated(clip, path) === !!on) return REASON().nothing;
-        if (!on) { endAnimation(clip, path, Fx().valueAt(clip, path, frame, project)); return true; }
+        if (!on) { endAnimation(clip, path, Fx().valueAt(clip, path, frame, project), frame); return true; }
         if (!inside(clip, frame)) return REASON().nothing;
         return putKey(clip, path, keyFrame(clip, frame), clampValue(clip, path, Fx().valueAt(clip, path, frame, project))) ? true : REASON().limit;
     }
@@ -175,7 +203,7 @@
         if (!isAnimated(clip, path)) return setAnimated(project, clipId, path, true, frame);
         const f = keyFrame(clip, frame), list = listOf(clip, path);
         if (list.some(key => key.f === f)) {
-            if (list.length === 1) endAnimation(clip, path, list[0].v);
+            if (list.length === 1) endAnimation(clip, path, list[0].v, frame);
             else setList(clip, path, list.filter(key => key.f !== f));
             return true;
         }
@@ -232,7 +260,7 @@
             removed += list.length - rest.length;
             if (rest.length === list.length) return;
             if (rest.length) setList(clip, path, rest);
-            else endAnimation(clip, path, Fx().sample(list, Fx().sourceAt(clip, clip.start)));
+            else endAnimation(clip, path, Fx().sample(list, Fx().sourceAt(clip, clip.start)), clip.start);
         });
         return removed ? true : REASON().nothing;
     }

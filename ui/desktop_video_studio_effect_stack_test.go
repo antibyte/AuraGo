@@ -124,7 +124,36 @@ assert.equal(K.setCrop(p, 'c', {l: 0.6}, 20), true);
 assert.deepEqual(c().keyframes['crop.l'], [kf(110, 0.25), kf(120, 0.6)], 'an animated side takes a key');
 assert.equal(c().crop.l, 0.25, 'and leaves its field alone');
 assert.equal(K.setCrop(p, 'c', {r: 0.8}, 20), true);
-cropNear({l: 0.15, t: 0.5, r: 0.8, b: 0.45}, 'the field of the animated left side gives way');
+cropNear({l: 0.25, t: 0.5, r: 0.35, b: 0.45}, 'the typed right side is clamped to the room the animated left side leaves at the frame (0.6)');
+assert.deepEqual(c().keyframes['crop.l'], [kf(110, 0.25), kf(120, 0.6)], 'and the keys of the animated side stay');
+valid(p);
+// Settling never writes the field of an animated side: crop.l keyed at 0.30, the user types r = 0.80.
+p = fresh();
+assert.equal(K.setCrop(p, 'c', {l: 0.3}, 10), true);
+assert.equal(K.setAnimated(p, 'c', 'crop.l', true, 10), true);
+assert.deepEqual(c().keyframes, {'crop.l': [kf(110, 0.3)]});
+assert.equal(K.setCrop(p, 'c', {r: 0.8}, 10), true);
+cropNear({l: 0.3, t: 0, r: 0.65, b: 0}, 'r follows the keyed 0.30, and the field of l is not written');
+const shown = FX.clipState(c(), 10, p).crop;
+assert(shown.l + shown.r <= 0.95 + 1e-9 && Math.abs(shown.r - 0.65) < 1e-6, 'the picture shows what the fields say: ' + JSON.stringify(shown));
+// The key moves; the field of l keeps its old 0.30 and still counts, because the server validates the fields.
+assert.equal(K.setCrop(p, 'c', {l: 0.1}, 10), true);
+assert.deepEqual(c().keyframes['crop.l'], [kf(110, 0.1)]);
+assert.equal(K.setCrop(p, 'c', {r: 0.9}, 10), true);
+cropNear({l: 0.3, t: 0, r: 0.65, b: 0}, 'the stale field of l still bounds r');
+valid(p);
+// Both sides animated: the typed key is clamped to l's value at the frame, and no field is written.
+assert.equal(K.setAnimated(p, 'c', 'crop.r', true, 10), true);
+assert.equal(K.setCrop(p, 'c', {r: 0.9}, 10), true);
+assert.deepEqual(c().keyframes['crop.r'], [kf(110, 0.85)], 'the typed key is clamped to 0.95 - 0.10');
+cropNear({l: 0.3, t: 0, r: 0.65, b: 0}, 'both fields stay as they were');
+// Ending an animation clamps the side that becomes a field against the animated partner at the frame (keys that disagree
+// at the frame, as a project from before this rule may hold).
+c().keyframes = {'crop.l': [kf(110, 0.6)], 'crop.r': [kf(110, 0.5)]};
+Object.assign(c().crop, {l: 0.1, r: 0.1});
+assert.equal(K.setAnimated(p, 'c', 'crop.l', false, 10), true);
+cropNear({l: 0.45, t: 0, r: 0.1, b: 0}, 'l off: the shown 0.60 is clamped to the room the animated r (0.50) leaves; r is not written');
+assert.deepEqual(c().keyframes, {'crop.r': [kf(110, 0.5)]});
 valid(p);
 p = fresh();
 assert.equal(K.setCrop(p, 'c', {l: 0.1}, 10), true);

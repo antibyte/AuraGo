@@ -200,19 +200,37 @@ assert.equal(K.setAnimated(p, 'c', 'opacity', false, 30), true);
 assert.equal('keyframes' in c(), false, 'the last animated value leaves no empty map');
 near(c().opacity, 0.8, 'the held value at source 130');
 
-// The fields stay a valid box: an animated x leaves its field alone, and a static width next to it makes x's unused
-// field give way. Turning x off writes its value at the playhead, clamped against the static width.
+// The fields stay a valid box: an animated x leaves its field alone, and a static width typed next to it is clamped to
+// the room x leaves at the playhead (the field of x never gives way). Turning x off writes its value at the playhead,
+// clamped against the static width.
 assert.equal(K.setAnimated(p, 'c', 'x', true, 0), true);
 assert.deepEqual(c().keyframes, {x: [kf(100, 0.2)]});
 assert.equal(K.setValues(p, 'c', {x: 0.9}, 0), true);
 assert.equal(c().x, 0.2, 'an animated value leaves its field alone');
 assert.equal(K.setValues(p, 'c', {width: 0.9}, 0), true);
-near(c().width, 0.9, 'a static value changes its field');
-near(c().x, 0.1, 'the field of the animated x gives way');
+near(c().width, 0.1, 'a static width is clamped to the room the animated x leaves at the playhead (0.9)');
+near(c().x, 0.2, 'and the field of the animated x is not written');
 valid(p);
+Object.assign(c(), {x: 0.1, width: 0.9});
 assert.equal(K.setAnimated(p, 'c', 'x', false, 0), true);
 near(c().x, 0.1, 'x off at 0.9 next to width 0.9 is clamped to 0.1');
 valid(p);
+
+// The vertical axis likewise: a typed height follows the animated y, and a typed key follows another animated side.
+const tall = project([track('v1','video',[clip('c',V,0,100,{offset:100, y:0.1, height:0.5})])]);
+const cy = () => at(tall, 'c');
+assert.equal(K.setAnimated(tall, 'c', 'y', true, 0), true);
+assert.equal(K.setValues(tall, 'c', {y: 0.6}, 0), true);
+assert.equal(K.setValues(tall, 'c', {height: 0.8}, 0), true);
+near(cy().height, 0.4, 'height is clamped to the room the animated y leaves (0.6)');
+near(cy().y, 0.1, 'and the field of y is not written');
+assert.equal(K.setAnimated(tall, 'c', 'height', true, 0), true);
+assert.equal(K.setValues(tall, 'c', {height: 0.9}, 0), true);
+assert.deepEqual(cy().keyframes.height, [kf(100, 0.4)], 'a typed height key is clamped to the room the animated y leaves');
+near(cy().height, 0.4, 'the field of the animated height is not written either');
+assert.equal(K.setValues(tall, 'c', {height: 0.3}, 50), true);
+assert.deepEqual(cy().keyframes.height, [kf(100, 0.4), kf(150, 0.3)], 'a typed key that fits stays as typed');
+valid(tall);
 
 // One auto-key call with an animated and a static value.
 assert.equal(K.setAnimated(p, 'c', 'rotation', true, 0), true);
