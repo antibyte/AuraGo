@@ -19,7 +19,7 @@
             wasmUrl: '/js/vendor/pdf/wasm/', iccUrl: '/js/vendor/pdf/iccs/' });
         const viewport = document.createElement('div'); viewport.className = 'bookshelf-pdf-viewport';
         viewport.tabIndex = 0;
-        viewport.style.cssText = 'height:100%;overflow:auto;position:relative;';
+        viewport.style.cssText = 'height:100%;width:100%;min-width:0;overflow:auto;position:relative;';
         const spread = document.createElement('div'); spread.className = 'bookshelf-pdf-spread';
         spread.style.cssText = 'display:flex;gap:12px;align-items:flex-start;width:max-content;margin:auto;';
         viewport.append(spread); container.replaceChildren(viewport);

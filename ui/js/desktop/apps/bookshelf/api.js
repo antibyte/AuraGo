@@ -43,7 +43,7 @@
             convert: id => call('/books/' + idPath(id) + '/convert', json('POST', {})),
             updateReadingState: (id, state, revision) => call('/books/' + idPath(id) + '/state', json('PATCH', { state }, revision ? { 'If-Match': String(revision) } : undefined)),
             setPinned: (id, pinned, revision) => call('/books/' + idPath(id) + '/cache', json('PATCH', { pinned }, revision ? { 'If-Match': String(revision) } : undefined)),
-            saveProgress: (id, progress, revision) => call('/books/' + idPath(id) + '/progress', json('PATCH', progress, revision ? { 'If-Match': String(revision) } : undefined)),
+            saveProgress: (id, progress, revision) => call('/books/' + idPath(id) + '/progress', json('PATCH', progress, revision !== undefined && revision !== null ? { 'If-Match': String(revision) } : undefined)),
             collections: () => call('/collections'),
             createCollection: collection => call('/collections', json('POST', collection)),
             updateCollection: (id, patch, revision) => call('/collections/' + idPath(id), json('PATCH', patch, revision ? { 'If-Match': String(revision) } : undefined)),

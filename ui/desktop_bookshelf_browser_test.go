@@ -18,6 +18,12 @@ import (
 
 var bookshelfLocales = []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 
+type bookshelfProgressFixtureWrite struct {
+	ifMatch  string
+	progress map[string]any
+	status   int
+}
+
 func TestDesktopBookshelfTranslations(t *testing.T) {
 	english, err := os.ReadFile(filepath.Join("lang", "desktop", "en.json"))
 	if err != nil {
@@ -75,6 +81,15 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	browser := newSmokeBrowser(t)
 	books := sampleBookshelfFixtureBooks()
 	byID := make(map[string]map[string]any, len(books))
+	pdfFixture := bookshelfFormatFixtures(t)["pdf"]
+	progressMu := sync.Mutex{}
+	progressRevision := int64(0)
+	progressLocator := map[string]any{"page": 1, "y": 0.0}
+	progressFraction := 0.0
+	progressWrites := make(chan bookshelfProgressFixtureWrite, 16)
+	progressSnapshot := func() map[string]any {
+		return map[string]any{"revision": progressRevision, "rendition_revision": "fixture-revision", "locator": progressLocator, "fraction": progressFraction}
+	}
 	createdSources := make(chan map[string]any, 1)
 	bookLoadRequests := make(chan string, 8)
 	uploadRequests := make(chan string, 16)
@@ -102,6 +117,8 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	for _, book := range books {
 		byID[book["id"].(string)] = book
 	}
+	byID["1984"]["format"] = "pdf"
+	delete(byID["1984"], "progress")
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/bookshelf/", func(w http.ResponseWriter, r *http.Request) {
@@ -113,9 +130,18 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			_, _ = w.Write(readerShell)
 			return
 		}
+		if path == "__fixture/progress-conflict" {
+			progressMu.Lock()
+			progressRevision++
+			progressLocator = map[string]any{"page": 2, "y": 0.0}
+			progressFraction = 1
+			progressMu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if path == "books/1984/content" {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			_, _ = fmt.Fprint(w, "A real reader integration fixture.\n\nThe lighthouse stands beyond the harbor.\n\nThe book can be opened from the shelf and closed again.")
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(pdfFixture)
 			return
 		}
 		if strings.HasPrefix(path, "books/no-cover/") && strings.HasSuffix(path, "/cover") {
@@ -175,7 +201,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			uploadRetryMu.Unlock()
 			_ = json.NewEncoder(w).Encode(map[string]any{"imported": true})
 		case "books/1984/prepare":
-			_ = json.NewEncoder(w).Encode(map[string]any{"content_url": "/api/desktop/bookshelf/books/1984/content", "format": "txt", "revision": "fixture-revision", "progress": map[string]any{"revision": 1}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"content_url": "/api/desktop/bookshelf/books/1984/content", "format": "pdf", "revision": "fixture-revision"})
 		case "books/no-cover/prepare":
 			w.WriteHeader(http.StatusConflict)
 			_ = json.NewEncoder(w).Encode(map[string]any{"error": "source_changed"})
@@ -191,7 +217,26 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 				http.Error(w, "invalid progress", 400)
 				return
 			}
-			progress["revision"] = 2
+			progressMu.Lock()
+			status := http.StatusOK
+			if r.Header.Get("If-Match") != fmt.Sprint(progressRevision) {
+				status = http.StatusConflict
+			} else {
+				progressRevision++
+				progressLocator, _ = progress["locator"].(map[string]any)
+				progressFraction, _ = progress["fraction"].(float64)
+			}
+			if status == http.StatusOK {
+				progress["revision"] = progressRevision
+				progress["rendition_revision"] = "fixture-revision"
+			}
+			progressMu.Unlock()
+			progressWrites <- bookshelfProgressFixtureWrite{ifMatch: r.Header.Get("If-Match"), progress: progress, status: status}
+			if status == http.StatusConflict {
+				w.WriteHeader(status)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "revision_conflict"})
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"progress": progress})
 		case "sources":
 			if r.Method == http.MethodPost {
@@ -290,6 +335,15 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			if strings.HasPrefix(path, "books/") {
 				id := strings.TrimSuffix(strings.TrimPrefix(path, "books/"), "/cover")
 				if book, ok := byID[id]; ok {
+					if id == "1984" {
+						progressMu.Lock()
+						book = make(map[string]any, len(byID[id])+1)
+						for key, value := range byID[id] {
+							book[key] = value
+						}
+						book["progress"] = progressSnapshot()
+						progressMu.Unlock()
+					}
 					_ = json.NewEncoder(w).Encode(map[string]any{"book": book, "collections": []any{}, "renditions": []any{}})
 					return
 				}
@@ -452,8 +506,21 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	page.MustScreenshot(filepath.Join(dir, "collection-ordered.png"))
 	page.MustElement(`[data-action="library"]`).MustClick()
 	page.MustWait(`() => document.querySelectorAll('.bs-book').length===9`)
+	page.MustEval(`() => localStorage.setItem('aurago.bookshelf.reader.1984', JSON.stringify({zoom:150}))`)
 	page.MustElement(`.bs-book-select[data-book="1984"]`).MustClick()
-	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && !!document.querySelector('[data-toc]') && typeof BookshelfApp.instances.get('bookshelf-fixture').reader?.goTo==='function'`)
+	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && BookshelfApp.instances.get('bookshelf-fixture').readerReady && typeof BookshelfApp.instances.get('bookshelf-fixture').reader?.goTo==='function'`)
+	page.MustWait(`() => !!document.querySelector('.bookshelf-pdf-page canvas')`)
+	if width := page.MustEval(`() => Math.round(parseFloat(document.querySelector('.bookshelf-pdf-page canvas').style.width))`).Int(); width != 450 {
+		t.Fatalf("saved 150%% zoom rendered PDF at %d px, want the 450 px page at 1.5x", width)
+	}
+	firstProgressWrite := waitForBookshelfProgressWrite(t, progressWrites, "0", http.StatusOK)
+	if firstProgressWrite.progress["rendition_revision"] != "fixture-revision" {
+		t.Fatalf("first PDF progress write omitted its rendition revision: %#v", firstProgressWrite.progress)
+	}
+	page.MustWait(`() => !document.querySelector('dialog').open && document.querySelector('[data-save-state]').textContent===window.ctx.t('bookshelf.progress_saved')`)
+	page.MustElement(`[data-reader-action="next"]`).MustClick()
+	waitForBookshelfProgressWrite(t, progressWrites, "1", http.StatusOK)
+	page.MustWait(`() => BookshelfApp.instances.get('bookshelf-fixture').selected.progress.revision===2 && !document.querySelector('dialog').open`)
 	page.MustEval(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); state.readerData={isFixedLayout:true}; state.selected.format='pdf'; state.toc=[{label:'Part I',href:'part.xhtml',subitems:[{label:'Nested chapter',locator:{cfi:'epubcfi(/6/4[chapter2]!)'}}]}]; state.__originalGoTo=state.reader.goTo; state.reader.goTo=locator=>{window.__bookshelfTOCLocator=locator;}; }`)
 	page.MustElement(`[data-reader-action="settings"]`).MustClick()
 	if !page.MustEval(`() => !!document.querySelector('[data-pref="fit"]') && !!document.querySelector('[data-pref="zoom"]') && !document.querySelector('[data-pref="width"]') && !document.querySelector('[data-pref="theme"]')`).Bool() {
@@ -485,6 +552,21 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	page.MustScreenshot(filepath.Join(dir, "reader-from-shelf.png"))
 	page.MustElement(`[data-action="back"]`).MustClick()
 	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='library' && !document.querySelector('[data-reader-host] iframe')`)
+	page.MustElement(`.bs-book-select[data-book="1984"]`).MustClick()
+	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && BookshelfApp.instances.get('bookshelf-fixture').readerReady`)
+	waitForBookshelfProgressWrite(t, progressWrites, "2", http.StatusOK)
+	page.MustWait(`() => BookshelfApp.instances.get('bookshelf-fixture').selected.progress.revision===3 && !document.querySelector('dialog').open`)
+	if !page.MustEval(`async() => (await fetch('/api/desktop/bookshelf/__fixture/progress-conflict')).status===204`).Bool() {
+		t.Fatal("could not inject the fixture's competing-window progress update")
+	}
+	page.MustElement(`[data-reader-action="prev"]`).MustClick()
+	waitForBookshelfProgressWrite(t, progressWrites, "3", http.StatusConflict)
+	page.MustWait(`() => { const dialog=document.querySelector('dialog'); return dialog.open && !!dialog.querySelector('[data-position="saved"]') && !!dialog.querySelector('[data-position="current"]'); }`)
+	page.MustElement(`[data-position="current"]`).MustClick()
+	waitForBookshelfProgressWrite(t, progressWrites, "4", http.StatusOK)
+	page.MustWait(`() => !document.querySelector('dialog').open && BookshelfApp.instances.get('bookshelf-fixture').selected.progress.revision===5`)
+	page.MustElement(`[data-action="back"]`).MustClick()
+	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='library'`)
 	search.MustSelectAllText().MustInput("__bookshelf_slow_search__")
 	select {
 	case <-slowSearchStarted:
@@ -637,6 +719,20 @@ func waitForBookshelfUpload(t *testing.T, uploads <-chan string, want string) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("upload request for %q did not reach the fixture", want)
+	}
+}
+
+func waitForBookshelfProgressWrite(t *testing.T, writes <-chan bookshelfProgressFixtureWrite, wantRevision string, wantStatus int) bookshelfProgressFixtureWrite {
+	t.Helper()
+	select {
+	case got := <-writes:
+		if got.ifMatch != wantRevision || got.status != wantStatus {
+			t.Fatalf("progress write used If-Match %q and status %d, want %q and %d", got.ifMatch, got.status, wantRevision, wantStatus)
+		}
+		return got
+	case <-time.After(5 * time.Second):
+		t.Fatalf("progress write with If-Match %q did not reach the fixture", wantRevision)
+		return bookshelfProgressFixtureWrite{}
 	}
 }
 

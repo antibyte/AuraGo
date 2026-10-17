@@ -14,7 +14,8 @@ const source = { name: 'Books', provider: 'local', path: 'Books' };
 await api.addSource(source);
 await api.updateBook('book', { title: 'Updated' }, 7);
 await api.saveProgress('book', { fraction: 0.5 }, 3);
-for (const [body, revision] of [[{ source }, null], [{ title: 'Updated' }, '7'], [{ fraction: 0.5 }, '3']]) {
+await api.saveProgress('book', { fraction: 0 }, 0);
+for (const [body, revision] of [[{ source }, null], [{ title: 'Updated' }, '7'], [{ fraction: 0.5 }, '3'], [{ fraction: 0 }, '0']]) {
     const request = requests.shift();
     assert.equal(request.headers.get('Content-Type'), 'application/json');
     assert.equal(request.headers.get('If-Match'), revision);

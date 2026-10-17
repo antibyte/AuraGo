@@ -49,7 +49,7 @@
             const shared = alias && ctx.t ? ctx.t(alias) : '';
             return shared && shared !== alias ? shared : key.replaceAll('_', ' ');
         };
-        const readerSettings = settings => Object.assign({}, settings, { width: readerWidth[settings?.width] || 640 });
+        const readerSettings = settings => Object.assign({}, settings, { width: readerWidth[settings?.width] || 640, zoom: settings?.zoom == null ? null : Number(settings.zoom) / 100 });
         const appDisabled = () => !state.capabilities.enabled;
         const readOnly = () => !state.capabilities.can_write || state.capabilities.readonly || ctx.readonly;
         const request = (fn, ...args) => fn(...args);

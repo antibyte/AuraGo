@@ -31,10 +31,16 @@ The server owns HTTP authorization and injects authorized source adapters.
   `TestBookshelfImportedPDFPreparesAndServesRangesWithoutLosingProgress`.
 - The browser API serializes JSON mutations before the shared Desktop fetch;
   uploads retain native multipart boundaries. Fixtures must not normalize
-  request bodies on behalf of production code. Verify `scripts/test-bookshelf-api.mjs`.
+  request bodies on behalf of production code. Initial progress writes send
+  `If-Match: 0`; zero is a revision, not a missing value. Verify
+  `scripts/test-bookshelf-api.mjs`.
 - Catalog edits use expected revisions. Progress uses its own compare-and-swap
   revision and carries the rendition revision. Never choose or merge competing
   reader positions automatically.
+- The PDF viewport fills the Desktop flex host independently of page dimensions;
+  auto-fit must remain stable on resize. Reader UI zoom percentages become scale
+  factors at the reader boundary. Verify `TestDesktopBookshelfReaderBrowser`
+  and `TestDesktopBookshelfBrowser`.
 - Prepared files are private disposable cache data. Recheck source metadata
   before and after transfer, require the full advertised length, publish from a
   synced temporary file through `internal/fileutil`, deduplicate concurrent

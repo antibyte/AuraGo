@@ -115,7 +115,7 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/bookshelf-reader-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><title>Bookshelf reader fixture</title><style>html,body{margin:0;height:100%}#host{height:600px;width:800px}</style><div id="host"></div><script src="/js/desktop/apps/bookshelf/reader.js"></script><script>
+		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><title>Bookshelf reader fixture</title><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{margin:0;height:100%}#host{height:600px;width:800px}</style><div id="host" class="bs-reader-host"></div><script src="/js/desktop/apps/bookshelf/reader.js"></script><script>
         window.progress=[];window.messages=[];window.bookshelfEscaped=false;window.issuedTickets=0;
         window.createReader=options=>{const url=new URL(options.contentURL,location.href);url.searchParams.set('ticket','fixture-'+(++issuedTickets));return BookshelfReader.create(document.querySelector('#host'),{...options,contentURL:url.href});};
         window.openBook=async function(saved){window.controller?.dispose();window.readerError=null;try{window.controller=await createReader({book:{title:'Reader fixture',format:'epub'},contentURL:'/api/desktop/bookshelf/books/fixture/content',progress:saved,onProgress:p=>progress.push(p),onReady:r=>window.readerReady=r,onError:e=>window.readerError=e.message,settings:{fontSize:19}});return true}catch(e){window.readerError=e.message;return false}};
@@ -181,6 +181,15 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 			if !page.MustEval(`()=>!!window.readerReady`).Bool() {
 				t.Fatal("reader never ready")
 			}
+			if strings.HasPrefix(format, "pdf") {
+				if !page.MustEval(`()=>document.querySelector('.bookshelf-pdf-page').clientWidth>document.querySelector('#host').clientWidth*.7`).Bool() {
+					t.Fatal("PDF auto-fit shrank inside the Desktop flex host", page.MustEval(`()=>({host:document.querySelector('#host').clientWidth,viewport:document.querySelector('.bookshelf-pdf-viewport').clientWidth,page:document.querySelector('.bookshelf-pdf-page').clientWidth})`))
+				}
+				page.MustEval(`()=>{document.querySelector('#host').style.width='400px'}`)
+				page.MustWait(`()=>{const canvas=document.querySelector('.bookshelf-pdf-page canvas');return canvas.clientWidth>300&&canvas.clientWidth<400}`)
+				page.MustEval(`()=>{document.querySelector('#host').style.width='800px'}`)
+				page.MustWait(`()=>document.querySelector('.bookshelf-pdf-page canvas').clientWidth>700`)
+			}
 			if format == "epub-fixed" {
 				if !page.MustEval(`()=>readerReady.isFixedLayout`).Bool() {
 					t.Fatal("fixed-layout EPUB used reflow renderer")
@@ -199,6 +208,10 @@ func TestDesktopBookshelfReaderBrowser(t *testing.T) {
 				}
 			}
 			if strings.HasPrefix(format, "pdf") {
+				page.MustEval(`async()=>{await controller.setPreferences({spread:false,zoom:1.5});await controller.goTo({page:1})}`)
+				if width := page.MustEval(`()=>document.querySelector('.bookshelf-pdf-page canvas').clientWidth`).Int(); width != 450 {
+					t.Fatalf("150%% PDF zoom rendered at %d pixels, want 450", width)
+				}
 				page.MustEval(`async()=>{await controller.setPreferences({fit:'page',spread:false,zoom:0});await controller.goTo({page:1})}`)
 				if !page.MustEval(`()=>progress.at(-1).fraction===1/readerReady.pageCount&&progress.at(-1).locator.y===0`).Bool() {
 					t.Fatal("fit-page progress does not include the visible page", page.MustEval(`()=>progress.at(-1)`))
