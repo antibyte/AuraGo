@@ -430,5 +430,22 @@
         return out;
     }
 
-    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill };
+    // ---- Plan 2d Task 10: PLACE_MASKED uniforms (index §4.7, §4.8 stage 3). ----
+    // boxRect is the quad placeClip draws, as [x, y, width, height] fractions of the clip box (u_boxRect): the fitted
+    // picture for contain, the box itself for cover. place is VideoStudioEffects.placement's result; without one (or for
+    // an empty box) it is the box.
+    function boxRect(place) {
+        const box = place && place.box, draw = place && place.draw;
+        if (!box || !draw || place.clip || !(box.w > 0 && box.h > 0)) return [0, 0, 1, 1];
+        return [(draw.x - box.x) / box.w, (draw.y - box.y) / box.h, draw.w / box.w, draw.h / box.h];
+    }
+    // The law-L uniforms of a mask (clipState's state.mask) on a box of {width, height} target px. They hold
+    // maskFrame's centre, radii, rotation (cos, sin) and ramp F, the shape as 0 (rect) or 1 (ellipse), and invert as
+    // 0 or 1.
+    function maskUniforms(mask, box) {
+        const f = maskFrame(mask, box);
+        return { u_maskCentre: [f.cx, f.cy], u_maskRadii: [f.rx, f.ry], u_maskRot: [f.cos, f.sin], u_maskRamp: f.ramp, u_maskShape: f.shape === 'ellipse' ? 1 : 0, u_maskInvert: f.invert ? 1 : 0 };
+    }
+
+    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill, boxRect, maskUniforms };
 })();

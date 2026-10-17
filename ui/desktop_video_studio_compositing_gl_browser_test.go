@@ -82,13 +82,15 @@ func evalCompositingGL(t *testing.T, page *rod.Page, body string) map[string]gso
 // scenes for plan 2d (index §4.7, §4.8, §4.22). Each subtest checks three things: its programs compile; the captured
 // pixels match the real forms of VideoStudioPicture within 3/255; and a test-injected broken shader passes its input
 // through and is reported once:
-//   - key (Task 9): the KEY pass against keyAlpha and despill.
+//   - key (Task 9): the KEY pass against keyAlpha and despill;
+//   - mask (Task 10): PLACE_MASKED against maskAt in box space.
 func TestDesktopVideoStudioCompositingGLBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dir := t.TempDir()
 	page := openVideoStudioEngine(t, newWebGLSmokeBrowser(t), newVideoStudioEngineServer(t, dir))
 	requireWebGL2(t, page)
 	t.Run("key", func(t *testing.T) { testCompositingGLKey(t, page, dir) })
+	t.Run("mask", func(t *testing.T) { testCompositingGLMask(t, page, dir) })
 }
 
 // compositingGLKeyScript keys flat 64x36 patches with chroma_key and reads the centre over black and over white.
@@ -196,5 +198,146 @@ func testCompositingGLKey(t *testing.T, page *rod.Page, dir string) {
 	}
 	if got := compositingJSON(checks["brokenFailures"]); got != `[["effect","chroma_key"]]` {
 		t.Errorf("onProgramFailed calls = %s, want one ('effect', 'chroma_key')", got)
+	}
+}
+
+// compositingGLMaskScript draws masked white clips on a 128x72 canvas and compares every pixel with maskAt.
+const compositingGLMaskScript = `
+const project = sized(128, 72), W = 128, H = 72, out = {}, failures = [];
+const [white, square, red, blue] = await Promise.all(['mask_white', 'mask_square', 'mask_red', 'mask_blue'].map(load));
+const painter = painterFor(project, { onProgramFailed: (kind, id) => failures.push([kind, id]) });
+if (!painter) return { created: false, error: C.lastError };
+out.created = true;
+// The largest channel difference between the capture and want(x, y), with rgb in 0..1 at the pixel centre (x, y),
+// over the whole canvas, plus the pixel and channel where it occurs.
+const compare = want => {
+  const data = painter.read().data;
+  let max = 0, at = null;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const rgb = want(x + 0.5, y + 0.5);
+    for (let c = 0; c < 3; c++) {
+      const d = Math.abs(data[(y * W + x) * 4 + c] - Math.round(Math.max(0, Math.min(1, rgb[c])) * 255));
+      if (d > max) { max = d; at = [x, y, c]; }
+    }
+  }
+  return { max, at };
+};
+const grey = m => [m, m, m];
+// A static rotated ellipse on a full-canvas box, so box px are canvas px. band counts the pixels on the edge ramp.
+const ellipse = { shape: 'ellipse', x: 0.2, y: 0.15, w: 0.5, h: 0.6, rotation: 20, feather: 0.1, invert: false };
+const staticItem = itemOf(project, clipOf({ mask: ellipse }), white);
+painter.frame(sceneOf(project, [{ items: [staticItem] }]));
+const staticMask = P.maskFrame(staticItem.state.mask, { width: W, height: H });
+let band = 0;
+out.static = compare((x, y) => { const m = P.maskAt(staticMask, x, y); if (m > 0.02 && m < 0.98) band++; return grey(m); });
+out.staticBand = band;
+out.staticCentre = pixel(painter, Math.floor(staticMask.cx), Math.floor(staticMask.cy));
+out.staticCorner = pixel(painter, 1, 1);
+// Keyed mask.x and mask.feather at frame 20: the state holds the keys' values (x 0.3, feather 0.11), and PLACE_MASKED
+// draws them like a static mask.
+const keyedItem = itemOf(project, clipOf({ mask: Object.assign({}, ellipse, { x: 0.25, w: 0.4 }), keyframes: { 'mask.x': [{ f: 0, v: 0.1, e: 'linear' }, { f: 40, v: 0.5, e: 'linear' }], 'mask.feather': [{ f: 0, v: 0.02, e: 'linear' }, { f: 40, v: 0.2, e: 'linear' }] } }), white, 20);
+out.keyedX = keyedItem.state.mask.x;
+out.keyedAtFrame = Math.abs(keyedItem.state.mask.x - 0.3) < 1e-9 && Math.abs(keyedItem.state.mask.feather - 0.11) < 1e-9;
+painter.frame(sceneOf(project, [{ items: [keyedItem] }], 20));
+const keyedMask = P.maskFrame(keyedItem.state.mask, { width: W, height: H });
+out.keyed = compare((x, y) => grey(P.maskAt(keyedMask, x, y)));
+// A clip rotated by 30° with a rectangle rotated by 15°: the mask turns with the box. want maps each canvas pixel back
+// into box px (the inverse of the quad's clockwise rotation about the box centre); outside the box nothing is drawn.
+// The feather is wide (F = 3.6 px): SwiftShader interpolates v_box on a rotated quad with a position error of up to
+// 0.03 px (0.014 px on average, inwards; none on an axis-aligned quad), which a 1.8 px ramp (feather 0.05) turns into
+// 4/255. Rotation and placement errors would still show as dozens of levels.
+const rect = { shape: 'rect', x: 0.2, y: 0.2, w: 0.6, h: 0.6, rotation: 15, feather: 0.1, invert: false };
+const rotatedItem = itemOf(project, clipOf({ x: 0.25, y: 0.25, width: 0.5, height: 0.5, rotation: 30, mask: rect }), white);
+painter.frame(sceneOf(project, [{ items: [rotatedItem] }]));
+const turned = E.placement(rotatedItem.state, { width: W, height: H }, project, { width: W, height: H });
+const tb = turned.box, cos = Math.cos(turned.angle), sin = Math.sin(turned.angle);
+const rotatedMask = P.maskFrame(rotatedItem.state.mask, { width: tb.w, height: tb.h });
+out.rotated = compare((x, y) => {
+  const dx = x - (tb.x + tb.w / 2), dy = y - (tb.y + tb.h / 2);
+  const bx = dx * cos + dy * sin + tb.w / 2, by = -dx * sin + dy * cos + tb.h / 2;
+  return grey(bx >= 0 && bx <= tb.w && by >= 0 && by <= tb.h ? P.maskAt(rotatedMask, bx, by) : 0);
+});
+// Contain letterbox: a square picture in the full-canvas box over red, with an inverted ellipse. The mask lives in box
+// px, not in the picture's, and the letterbox stays red because only the fitted picture is drawn.
+const invert = { shape: 'ellipse', x: 0.3, y: 0.2, w: 0.4, h: 0.6, rotation: 0, feather: 0.05, invert: true };
+const squareItem = itemOf(project, clipOf({ mask: invert }), square);
+painter.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), red)] }, { items: [squareItem] }]));
+const fitted = E.placement(squareItem.state, { width: W, height: H }, project, { width: 72, height: 72 });
+const fd = fitted.draw, invertMask = P.maskFrame(squareItem.state.mask, { width: fitted.box.w, height: fitted.box.h });
+out.drawRect = [fd.x, fd.y, fd.w, fd.h];
+out.letterbox = compare((x, y) => {
+  const m = x >= fd.x && x < fd.x + fd.w && y >= fd.y && y < fd.y + fd.h ? P.maskAt(invertMask, x - fitted.box.x, y - fitted.box.y) : 0;
+  return [1, m, m];
+});
+out.letterboxPixel = pixel(painter, 4, 36);
+// A masked clip dissolving into an unmasked blue one at p = 0.5. The pair mixes premultiplied, so the capture over
+// black is (0.5 m, 0.5 m, 0.5 m + 0.5).
+const outItem = itemOf(project, clipOf({ duration: 20, mask: ellipse }), white, 15), incItem = itemOf(project, clipOf({ start: 10, duration: 20 }), blue, 15);
+painter.frame(sceneOf(project, [{ transition: { type: 'dissolve', progress: 0.5, out: outItem, inc: incItem } }], 15));
+const pairMask = P.maskFrame(outItem.state.mask, { width: W, height: H });
+out.transition = compare((x, y) => { const m = P.maskAt(pairMask, x, y); return [0.5 * m, 0.5 * m, 0.5 * m + 0.5]; });
+out.failures = failures.slice();
+painter.dispose();
+// A PLACE_MASKED program that does not compile draws the clip unmasked and is reported once.
+const original = S.PLACE_MASKED;
+S.PLACE_MASKED = '#version 300 es\nnot glsl';
+try {
+  const broken = [];
+  const fallback = painterFor(project, { onProgramFailed: (kind, id) => broken.push([kind, id]) });
+  fallback.frame(sceneOf(project, [{ items: [staticItem] }]));
+  fallback.frame(sceneOf(project, [{ items: [staticItem] }]));
+  out.brokenCorner = pixel(fallback, 1, 1);
+  out.brokenFailures = broken;
+  fallback.dispose();
+} finally {
+  S.PLACE_MASKED = original;
+}
+stage.replaceChildren();
+return out;
+`
+
+// testCompositingGLMask is the /mask subtest (plan 2d Task 10): PLACE_MASKED against VideoStudioPicture.maskAt, in
+// box space, for a static, a keyed, a rotated, a letterboxed and a transition case.
+func testCompositingGLMask(t *testing.T, page *rod.Page, dir string) {
+	media := map[string]struct {
+		width, height int
+		fill          color.NRGBA
+	}{
+		"mask_white":  {128, 72, color.NRGBA{R: 255, G: 255, B: 255, A: 255}},
+		"mask_square": {72, 72, color.NRGBA{R: 255, G: 255, B: 255, A: 255}},
+		"mask_red":    {128, 72, color.NRGBA{R: 255, A: 255}},
+		"mask_blue":   {128, 72, color.NRGBA{B: 255, A: 255}},
+	}
+	for name, m := range media {
+		writeFlatNRGBAPNG(t, filepath.Join(dir, name+".png"), m.width, m.height, m.fill)
+	}
+	checks := evalCompositingGL(t, page, compositingGLMaskScript)
+	if got := compositingJSON(checks["failures"]); got != "[]" {
+		t.Errorf("program failures = %s, want none (PLACE_MASKED must compile)", got)
+	}
+	for _, name := range []string{"static", "keyed", "rotated", "letterbox", "transition"} {
+		diff := checks[name].Get("max").Int()
+		t.Logf("%s: largest difference from maskAt %d/255", name, diff)
+		if diff > 3 {
+			t.Errorf("%s: the capture differs from maskAt by %d/255 at %s (x, y, channel), want at most 3", name, diff, compositingJSON(checks[name].Get("at")))
+		}
+	}
+	if band := checks["staticBand"].Int(); band < 200 {
+		t.Errorf("only %d pixels lie on the static edge ramp, want at least 200 (the case must test the feather)", band)
+	}
+	if !checks["keyedAtFrame"].Bool() {
+		t.Errorf("keyed mask.x at frame 20 = %v, want 0.3 and feather 0.11 (the keys, not the static field)", checks["keyedX"].Num())
+	}
+	white, black, red := color.RGBA{R: 255, G: 255, B: 255, A: 255}, color.RGBA{A: 255}, color.RGBA{R: 255, A: 255}
+	for name, want := range map[string]color.RGBA{"staticCentre": white, "staticCorner": black, "letterboxPixel": red, "brokenCorner": white} {
+		if got := jsonRGBA(checks[name]); !rgbaNear(got, want, 3) {
+			t.Errorf("%s = %v, want %v", name, got, want)
+		}
+	}
+	if got := compositingJSON(checks["drawRect"]); got != "[28,0,72,72]" {
+		t.Errorf("contain draw rect = %s, want [28,0,72,72] (the letterbox case needs side bars)", got)
+	}
+	if got := compositingJSON(checks["brokenFailures"]); got != `[["effect","mask"]]` {
+		t.Errorf("onProgramFailed calls = %s, want one ('effect', 'mask')", got)
 	}
 }

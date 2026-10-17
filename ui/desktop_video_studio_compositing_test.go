@@ -73,7 +73,8 @@ const declares = (source, uniforms, message) => Object.keys(uniforms).forEach(na
 
 // TestVideoStudioCompositingUniforms checks the GL side of plan 2d without a browser (index §4.4a, §4.7), one subtest
 // per program family:
-//   - key (Task 9): passUniforms('chroma_key') and the KEY pass.
+//   - key (Task 9): passUniforms('chroma_key') and the KEY pass;
+//   - mask (Task 10): maskUniforms, boxRect, PLACE_VERTEX's v_box and PLACE_MASKED.
 func TestVideoStudioCompositingUniforms(t *testing.T) {
 	t.Run("key", func(t *testing.T) {
 		runVideoStudioEffectsScript(t, compositingShadersPrelude+`
@@ -96,6 +97,32 @@ const sources = S.effect('chroma_key').passes;
 assert.equal(sources.length, 1, 'chroma_key is one pass');
 assert(sources[0].startsWith('#version 300 es') && sources[0].includes('uniform sampler2D u_source;') && sources[0].includes('uniform vec2 u_size;'), 'KEY follows the pass contract');
 declares(sources[0], u, 'KEY');
+`)
+	})
+	t.Run("mask", func(t *testing.T) {
+		runVideoStudioEffectsScript(t, compositingShadersPrelude+`
+const box = {width: 640, height: 360};
+const mask = {shape: 'ellipse', x: 0.25, y: 0.2, w: 0.5, h: 0.6, rotation: 90, feather: 0.04, invert: true};
+const f = P.maskFrame(mask, box), u = P.maskUniforms(mask, box);
+assert.deepEqual(u, {u_maskCentre: [f.cx, f.cy], u_maskRadii: [f.rx, f.ry], u_maskRot: [f.cos, f.sin], u_maskRamp: f.ramp, u_maskShape: 1, u_maskInvert: 1}, 'maskFrame as uniforms');
+// Law L's numbers: c = ((x + w/2) W, (y + h/2) H), r = (w W / 2, h H / 2), θ = 90° clockwise, F = feather x H.
+[[u.u_maskCentre[0], 320], [u.u_maskCentre[1], 180], [u.u_maskRadii[0], 160], [u.u_maskRadii[1], 108], [u.u_maskRot[0], 0], [u.u_maskRot[1], 1], [u.u_maskRamp, 14.4]].forEach(([got, want], i) => near(got, want, 'mask number ' + i));
+near(P.maskUniforms(Object.assign({}, mask, {feather: 0}), box).u_maskRamp, 1, 'F is at least 1 box px');
+const rect = P.maskUniforms(Object.assign({}, mask, {shape: 'rect', invert: false}), box);
+assert.deepEqual([rect.u_maskShape, rect.u_maskInvert], [0, 0], 'rect, not inverted');
+// u_boxRect: the drawn quad in box fractions. A square picture in a 640x360 box: contain draws 360x360 at x 140; cover
+// draws the box.
+const clip = {id: 'c', asset_id: 'a', start: 0, offset: 0, duration: 10, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain'};
+const state = E.clipState(clip, 0, box);
+assert.deepEqual(P.boxRect(E.placement(state, box, box, {width: 360, height: 360})), [140 / 640, 0, 360 / 640, 1], 'contain: the fitted picture, centred');
+assert.deepEqual(P.boxRect(E.placement(Object.assign({}, state, {fit: 'cover'}), box, box, {width: 360, height: 360})), [0, 0, 1, 1], 'cover: the box');
+assert.deepEqual(P.boxRect(null), [0, 0, 1, 1], 'no placement: the box');
+// The sources: PLACE_VERTEX gives v_box, PLACE ignores it, PLACE_MASKED inlines MASK and declares every uniform.
+assert(S.PLACE_VERTEX.includes('uniform vec4 u_boxRect;') && S.PLACE_VERTEX.includes('out vec2 v_box;'), 'PLACE_VERTEX gives v_box');
+assert(!S.PLACE.includes('v_box'), 'PLACE ignores the box');
+assert(S.MASK.includes('float vsMask(vec2 p)'), 'MASK defines vsMask');
+assert(S.PLACE_MASKED.startsWith('#version 300 es') && S.PLACE_MASKED.includes(S.MASK) && S.PLACE_MASKED.includes('in vec2 v_box;'), 'PLACE_MASKED inlines MASK');
+declares(S.PLACE_MASKED, Object.assign({u_boxSize: [640, 360], u_opacity: 1}, u), 'PLACE_MASKED');
 `)
 	})
 }

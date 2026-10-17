@@ -17,13 +17,18 @@ void main() {
 
     // A placed quad: u_matrix maps the unit quad (0,0 = top left of the drawn rectangle) into clip space of a top-down
     // target; u_uvRect is the part of the source the quad shows (x, y, width, height in texture coordinates).
+    // u_boxRect (2d) is the drawn rectangle in fractions of the clip box (VideoStudioPicture.boxRect: the fitted picture
+    // for contain, [0, 0, 1, 1] for cover), so v_box is the fragment's box-local position. Only PLACE_MASKED reads it.
     const PLACE_VERTEX = `#version 300 es
 layout(location = 0) in vec2 a_pos;
 uniform mat3 u_matrix;
 uniform vec4 u_uvRect;
+uniform vec4 u_boxRect;
 out vec2 v_uv;
+out vec2 v_box;
 void main() {
     v_uv = u_uvRect.xy + a_pos * u_uvRect.zw;
+    v_box = u_boxRect.xy + a_pos * u_boxRect.zw;
     vec3 position = u_matrix * vec3(a_pos, 1.0);
     gl_Position = vec4(position.xy, 0.0, 1.0);
 }
@@ -41,6 +46,53 @@ uniform float u_opacity;
 void main() {
     vec4 colour = texture(u_source, v_uv);
     float alpha = colour.a * u_opacity;
+    outColor = vec4(colour.rgb * alpha, alpha);
+}
+`;
+
+    // ---- 2d mask (index §4.22, law L). ----
+    // vsMask(p) is the mask at p, a point in box px (x right, y down). The uniforms come from
+    // VideoStudioPicture.maskUniforms:
+    // - u_maskCentre and u_maskRadii are c and (rx, ry);
+    // - u_maskRot is (cos θ, sin θ), with θ positive = clockwise on screen;
+    // - u_maskRamp is F = max(feather·H, 1 px);
+    // - u_maskShape is 0 (rect) or 1 (ellipse), and u_maskInvert is 1 for an inverted mask.
+    // s is the signed distance in box px (> 0 outside), exact for the rectangle and first order for the ellipse.
+    // m = clamp(0.5 − s/F, 0, 1) is a linear edge of width F centred on the outline. At the single point p = c the
+    // ellipse's gradient length is 0, so it gets a floor of 1e-12: s → −∞ there, which means fully inside.
+    const MASK = `uniform vec2 u_maskCentre;
+uniform vec2 u_maskRadii;
+uniform vec2 u_maskRot;
+uniform float u_maskRamp;
+uniform float u_maskShape;
+uniform float u_maskInvert;
+float vsMask(vec2 p) {
+    vec2 d = p - u_maskCentre;
+    vec2 l = vec2(d.x * u_maskRot.x + d.y * u_maskRot.y, d.y * u_maskRot.x - d.x * u_maskRot.y);
+    float s;
+    if (u_maskShape > 0.5) {
+        vec2 n = l / u_maskRadii;
+        float r = max(length(n), 0.000001);
+        s = (r - 1.0) * r / max(length(n / u_maskRadii), 1e-12);
+    } else {
+        vec2 q = abs(l) - u_maskRadii;
+        s = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0);
+    }
+    float m = clamp(0.5 - s / u_maskRamp, 0.0, 1.0);
+    return u_maskInvert > 0.5 ? 1.0 - m : m;
+}
+`;
+
+    // PLACE with a mask (2d, index §4.7): alpha x vsMask at the fragment's box px (v_box x u_boxSize), applied before
+    // the premultiplication. The mask therefore follows the box, its rotation and the fit; crop, flips and effects
+    // never move it.
+    const PLACE_MASKED = FRAGMENT_HEAD + `in vec2 v_box;
+uniform sampler2D u_source;
+uniform float u_opacity;
+uniform vec2 u_boxSize;
+` + MASK + `void main() {
+    vec4 colour = texture(u_source, v_uv);
+    float alpha = colour.a * u_opacity * vsMask(v_box * u_boxSize);
     outColor = vec4(colour.rgb * alpha, alpha);
 }
 `;
@@ -241,7 +293,7 @@ void main() {
     const EFFECTS = { color: [COLOR], lut: [LUT], blur: [BLUR, BLUR], sharpen: [SHARPEN], vignette: [VIGNETTE], chroma_key: [KEY] };
 
     window.VideoStudioShaders = {
-        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE,
+        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED,
         // Fragment source for a registry transition id, or null (2e adds the other ids).
         transition(id) { return Object.prototype.hasOwnProperty.call(TRANSITIONS, id) ? TRANSITIONS[id] : null; },
         // {passes: [fragmentSource, ...]} for a registry effect id, or null (index §4.7).

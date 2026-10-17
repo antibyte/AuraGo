@@ -77,6 +77,13 @@
         function placeProgram() { return ctx.program('place', S().PLACE_VERTEX, S().PLACE); }
         function copyProgram() { return ctx.program('copy', S().QUAD_VERTEX, S().COPY); }
         function pictureProgram() { return ctx.program('picture', S().QUAD_VERTEX, S().PICTURE); }
+        // PLACE_MASKED (2d) compiles on the first masked clip. A failure is reported once as ('effect', 'mask'), and
+        // placeClip then draws with PLACE, unmasked. A lost context compiles nothing and reports nothing.
+        function maskedProgram() {
+            const program = ctx.program('place-masked', S().PLACE_VERTEX, S().PLACE_MASKED);
+            if (!program && ctx.failed('place-masked')) reportFailure('effect', 'mask');
+            return program;
+        }
         function baseReady() {
             const probe = ctx.target(2, 2);
             if (!probe) return false;
@@ -214,12 +221,15 @@
             return input;
         }
 
-        // Stage 3: transform and opacity from item.state.
+        // Stage 3: transform, opacity and mask from item.state.
         // - The box uses the export's even rounding (VideoStudioEffects.placement) and fits item.picture, the crop rect in
         //   decoded pixels set by clipPasses.
         // - Contain draws the fitted picture centred in the box. Cover draws the box and samples the matching part. Both
         //   sample inside item.picture.uv of the texture.
         // - The quad rotates about the box centre.
+        // - With item.state.mask (2d, index §4.8) it draws PLACE_MASKED: law L per fragment in box px (placement.box in
+        //   target px, F = max(feather·box height, 1 px)). The mask follows the box, its rotation and the fit, but not
+        //   the crop, flips or effects.
         function placeClip(item, texture, target) {
             const state = item.state || {};
             const opacity = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1);
@@ -235,7 +245,10 @@
             const uv = [base[0] + local[0] * base[2], base[1] + local[1] * base[3], local[2] * base[2], local[3] * base[3]];
             const angle = (Number(state.rotation) || 0) * Math.PI / 180;
             const matrix = placeMatrix(box.x + box.w / 2, box.y + box.h / 2, w, h, angle, target.width, target.height);
-            ctx.draw(placeProgram(), target, { u_matrix: matrix, u_uvRect: uv, u_opacity: opacity }, { u_source: texture }, { blend: 'normal' });
+            const uniforms = { u_matrix: matrix, u_uvRect: uv, u_opacity: opacity };
+            const masked = state.mask ? maskedProgram() : null;
+            if (masked) Object.assign(uniforms, { u_boxRect: Pic().boxRect(place), u_boxSize: [box.w, box.h] }, Pic().maskUniforms(state.mask, { width: box.w, height: box.h }));
+            ctx.draw(masked || placeProgram(), target, uniforms, { u_source: texture }, { blend: 'normal' });
         }
 
         // Stage 4: compositing into the destination. 2a: premultiplied normal blending (ONE, ONE_MINUS_SRC_ALPHA, the
@@ -341,7 +354,8 @@
         }
         // The preview switches to the 2D painter in onFallback and disposes this painter.
         function giveUp(reason) { if (!disposed && typeof hooks.onFallback === 'function') hooks.onFallback(reason); }
-        // A program that failed to compile is reported once per kind and id ('transition' since 2a, 'effect' since 2c).
+        // A program that failed to compile is reported once per kind and id ('transition' since 2a, 'effect' since 2c;
+        // 2d adds the effect id 'mask').
         function reportFailure(kind, id) {
             const key = kind + ':' + id;
             if (reported.has(key)) return;
