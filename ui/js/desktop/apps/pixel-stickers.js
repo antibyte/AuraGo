@@ -155,12 +155,34 @@
                 frame = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 frame.classList.add('pixel-sticker-frame'); frame.setAttribute('aria-hidden', 'true'); frame.setAttribute('hidden', '');
                 r.canvasWrap.append(frame);
-                frame.addEventListener('pointerdown', event => {
-                    const handle = event.target.closest('[data-sticker-handle]'), layer = active();
-                    if (!handle || !layer?.sticker || event.button !== 0) return;
-                    event.preventDefault(); event.stopPropagation(); cancel();
+                r.canvasWrap.addEventListener('pointerdown', event => {
+                    const handle = event.target.closest('[data-sticker-handle]');
+                    if (event.button !== 0 || gesture || r.spaceHeld || r.cropState || r.compareMode ||
+                        (r.activeTool && r.activeTool !== 'move') || (r.selection && !handle)) return;
                     const start = r.canvasCoords(event);
-                    gesture = { layer, matrix: layer.sticker.matrix.slice(), start, handle: handle.dataset.stickerHandle, pointer: event.pointerId };
+                    let index = r.activeLayerIdx;
+                    const mode = handle?.dataset.stickerHandle || 'move';
+                    if (mode === 'move') {
+                        index = -1;
+                        if (start.x < 0 || start.y < 0 || start.x >= r.imgWidth || start.y >= r.imgHeight) return;
+                        // Pick rendered pixels so rotation, transparency, masks and stacking match the canvas.
+                        for (let i = r.layers.length - 1; i >= 0; i--) {
+                            const candidate = r.layers[i];
+                            if (!candidate.visible || candidate.opacity <= 0 || !candidate.canvas) continue;
+                            if (!candidate.canvas.getContext('2d').getImageData(start.x, start.y, 1, 1).data[3]) continue;
+                            if (candidate.maskCanvas && !candidate.maskCanvas.getContext('2d').getImageData(start.x, start.y, 1, 1).data[3]) continue;
+                            index = i; break;
+                        }
+                    }
+                    const layer = r.layers[index];
+                    if (!layer?.sticker) return;
+                    event.preventDefault(); event.stopPropagation(); cancel();
+                    if (index !== r.activeLayerIdx) {
+                        r.resetFilterPreview(); r.activeLayerIdx = index;
+                        if (r.editMaskMode) { r.editMaskMode = false; r.notify({ type: 'info', message: r.t('pixel.mask_edit_off') }); }
+                        r.captureAdjustmentSource(); r.refreshLayerPanel(); refresh();
+                    }
+                    gesture = { layer, matrix: layer.sticker.matrix.slice(), start, handle: mode, pointer: event.pointerId };
                     frame.setPointerCapture(event.pointerId);
                 }, { signal: abort.signal });
                 frame.addEventListener('pointermove', event => {

@@ -2661,6 +2661,9 @@ registration lives in `internal/desktop/types.go`.
   Recheck project identity/epoch after asynchronous work and keep busy/locked overlay
   handling. Catalog filenames and the six legacy names remain recognizable artwork.
 - Pixel sticker layers keep an immutable source image and `{id, matrix}` affine metadata.
+  Canvas picking follows visible layer pixels from front to back, including opacity and
+  masks, and activates the clicked sticker before its transform gesture. Transparent
+  regions let lower stickers be selected; scale and rotation handles retain priority.
   Every transformation redraws the original. History and duplicates preserve metadata;
   whole-image transforms left-multiply it and also transform raster masks. Pixel edits,
   filters, adjustments, masks and selection mutations require explicit rasterization.

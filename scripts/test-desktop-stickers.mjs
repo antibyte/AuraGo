@@ -148,6 +148,7 @@ try {
             await page.mouse.move(polygon.x + polygon.width / 2, polygon.y + polygon.height / 2); await page.mouse.down(); await page.mouse.move(polygon.x + polygon.width / 2 + 15, polygon.y + polygon.height / 2); await page.keyboard.press('Escape'); await page.mouse.up();
             assert.deepEqual(await page.evaluate(() => r.layers[1].sticker.matrix), matrixBefore, 'Escape cancels gesture');
         }
+        await verifyStickerPicking(page);
         await page.evaluate(() => {
             PixelApp.render(document.querySelector('#second'), 'two', testContext); testRuntimes[1].newBlankCanvas(300, 300);
             if (testRuntimes[1].layers.length !== 1 || r.layers.length !== 2) throw Error('windows share layers');
@@ -179,3 +180,74 @@ try {
         console.log('Pixel stickers passed: ' + theme + ', ' + width + 'px');
     }
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
+
+async function verifyStickerPicking(page) {
+    await page.evaluate(async () => {
+        r.newBlankCanvas(1280, 720);
+        for (const id of ['emotion-joy', 'animals-cat', 'nature-sun']) await r.addSticker(id);
+        r.layers.slice(1).forEach((layer, i) => {
+            const angle = (i - 1) * Math.PI / 6, a = Math.cos(angle) * 200 / 1024, b = Math.sin(angle) * 200 / 1024;
+            layer.sticker.matrix = [a, b, -b, a, 200 + i * 440 - 512 * (a - b), 350 - 512 * (a + b)];
+            r.repaintSticker(layer);
+        });
+        r.compositeLayers(); r.pushHistory('selection fixture');
+    });
+    const matrices = () => page.evaluate(() => r.layers.slice(1).map(layer => layer.sticker.matrix.slice()));
+    const point = index => page.evaluate(index => {
+        const m = r.layers[index].sticker.matrix, box = r.canvas.getBoundingClientRect();
+        const x = Math.round(m[4] + 512 * (m[0] + m[2])), y = Math.round(m[5] + 512 * (m[1] + m[3]));
+        if (!r.layers[index].canvas.getContext('2d').getImageData(x, y, 1, 1).data[3]) throw Error('fixture needs an opaque centre');
+        return { x: box.left + x * box.width / r.imgWidth, y: box.top + y * box.height / r.imgHeight };
+    }, index);
+    for (const index of [1, 2, 3, 1]) {
+        const before = await matrices(), start = await point(index);
+        await page.mouse.move(start.x, start.y); await page.mouse.down();
+        assert.equal(await page.evaluate(() => r.activeLayerIdx), index, 'canvas must select the clicked sticker, including older ones');
+        assert.equal(await page.locator('.pixel-layer-item.active').getAttribute('data-layer-idx'), String(index));
+        await page.mouse.move(start.x + 12, start.y + 8); await page.mouse.up();
+        const after = await matrices();
+        assert.notDeepEqual(after[index - 1], before[index - 1], 'clicked sticker must move');
+        after.forEach((matrix, i) => { if (i !== index - 1) assert.deepEqual(matrix, before[i], 'other stickers must stay put'); });
+        await page.evaluate(() => r.undo()); assert.deepEqual(await matrices(), before, 'undo selected sticker move');
+        await page.evaluate(() => r.redo()); assert.deepEqual(await matrices(), after, 'redo selected sticker move');
+    }
+    await page.evaluate(() => {
+        r.layers[3].sticker.matrix = r.layers[2].sticker.matrix.slice(); r.repaintSticker(r.layers[3]);
+        r.activeLayerIdx = 0; r.compositeLayers(); r.refreshLayerPanel();
+    });
+    const overlap = await point(3);
+    await page.mouse.click(overlap.x, overlap.y);
+    assert.equal(await page.evaluate(() => r.activeLayerIdx), 3, 'top sticker selected from a raster layer');
+    for (const property of ['visible', 'opacity', 'mask']) {
+        await page.evaluate(property => {
+            r.layers[3].visible = true; r.layers[3].opacity = 1;
+            delete r.layers[3].maskCanvas;
+            if (property === 'mask') {
+                const mask = document.createElement('canvas'); mask.width = r.imgWidth; mask.height = r.imgHeight;
+                r.layers[3].maskCanvas = mask;
+            } else r.layers[3][property] = property === 'visible' ? false : 0;
+            r.activeLayerIdx = 1; r.compositeLayers(); r.refreshLayerPanel();
+        }, property);
+        await page.mouse.click(overlap.x, overlap.y);
+        assert.equal(await page.evaluate(() => r.activeLayerIdx), 2, property + ' must exclude invisible stickers from picking');
+    }
+    const transparent = await page.evaluate(() => {
+        r.layers[3].opacity = 1; delete r.layers[3].maskCanvas;
+        r.activeLayerIdx = 3; r.compositeLayers(); r.refreshLayerPanel();
+        const lower = r.layers[2].canvas.getContext('2d').getImageData(0, 0, r.imgWidth, r.imgHeight).data;
+        const upper = r.layers[3].canvas.getContext('2d').getImageData(0, 0, r.imgWidth, r.imgHeight).data;
+        const m = r.layers[3].sticker.matrix, box = r.canvas.getBoundingClientRect();
+        for (let y = Math.ceil(m[5] + 20); y < m[5] + 180; y++) for (let x = Math.ceil(m[4] + 20); x < m[4] + 180; x++) {
+            const alpha = (y * r.imgWidth + x) * 4 + 3;
+            if (lower[alpha] > 200 && upper[alpha] === 0) {
+                const p = { x: box.left + x * box.width / r.imgWidth, y: box.top + y * box.height / r.imgHeight };
+                const handle = document.elementFromPoint(p.x, p.y)?.dataset.stickerHandle;
+                if (!handle || handle === 'move') return p;
+            }
+        }
+        throw Error('fixture needs a transparent area over the lower sticker');
+    });
+    await page.mouse.click(transparent.x, transparent.y);
+    assert.equal(await page.evaluate(() => r.activeLayerIdx), 2, 'active frame must allow picking through transparent sticker pixels');
+    await page.evaluate(async () => { r.newBlankCanvas(1280, 720); await r.addSticker('emotion-joy'); });
+}
