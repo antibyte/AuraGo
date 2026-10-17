@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {"name":"lift x=0 y=0 master=0.1","input":{"wheel":"lift","x":0,"y":0,"master":0.1},"want":{"rgb":[0.1,0.1,0.1]}},
+    {"name":"lift x=1 y=0 master=0.1","input":{"wheel":"lift","x":1,"y":0,"master":0.1},"want":{"rgb":[0.30000000000000004,0,0]}},
+    {"name":"lift x=0 y=1 master=0.1","input":{"wheel":"lift","x":0,"y":1,"master":0.1},"want":{"rgb":[0.1,0.27320508075688776,-0.07320508075688772]}},
+    {"name":"lift x=-0.6 y=0.8 master=0.1","input":{"wheel":"lift","x":-0.6,"y":0.8,"master":0.1},"want":{"rgb":[-0.01999999999999999,0.2985640646055102,0.02143593539448982]}},
+    {"name":"lift x=0.5 y=-0.5 master=0.1","input":{"wheel":"lift","x":0.5,"y":-0.5,"master":0.1},"want":{"rgb":[0.2,-0.03660254037844385,0.13660254037844388]}},
+    {"name":"lift x=-1 y=0 master=0.1","input":{"wheel":"lift","x":-1,"y":0,"master":0.1},"want":{"rgb":[-0.1,0.2,0.2]}},
+    {"name":"gamma x=0 y=0 master=1.5","input":{"wheel":"gamma","x":0,"y":0,"master":1.5},"want":{"rgb":[1.5,1.5,1.5]}},
+    {"name":"gamma x=1 y=0 master=1.5","input":{"wheel":"gamma","x":1,"y":0,"master":1.5},"want":{"rgb":[1.832104137240255,1.3572561270539394,1.3572561270539394]}},
+    {"name":"gamma x=0 y=1 master=1.5","input":{"wheel":"gamma","x":0,"y":1,"master":1.5},"want":{"rgb":[1.5,1.7836649154707174,1.2614476970895705]}},
+    {"name":"gamma x=-0.6 y=0.8 master=1.5","input":{"wheel":"gamma","x":-0.6,"y":0.8,"master":1.5},"want":{"rgb":[1.3303806550757362,1.8294752419767908,1.386664250953432]}},
+    {"name":"gamma x=0.5 y=-0.5 master=1.5","input":{"wheel":"gamma","x":0.5,"y":-0.5,"master":1.5},"want":{"rgb":[1.6577563771134716,1.30847530195755,1.555920992574423]}},
+    {"name":"gamma x=-1 y=0 master=1.5","input":{"wheel":"gamma","x":-1,"y":0,"master":1.5},"want":{"rgb":[1.2280961296169728,1.6577563771134716,1.6577563771134716]}},
+    {"name":"gain x=0 y=0 master=0.8","input":{"wheel":"gain","x":0,"y":0,"master":0.8},"want":{"rgb":[0.8,0.8,0.8]}},
+    {"name":"gain x=1 y=0 master=0.8","input":{"wheel":"gain","x":1,"y":0,"master":0.8},"want":{"rgb":[1,0.7000000000000001,0.7000000000000001]}},
+    {"name":"gain x=0 y=1 master=0.8","input":{"wheel":"gain","x":0,"y":1,"master":0.8},"want":{"rgb":[0.8,0.9732050807568877,0.6267949192431124]}},
+    {"name":"gain x=-0.6 y=0.8 master=0.8","input":{"wheel":"gain","x":-0.6,"y":0.8,"master":0.8},"want":{"rgb":[0.68,0.9985640646055103,0.7214359353944899]}},
+    {"name":"gain x=0.5 y=-0.5 master=0.8","input":{"wheel":"gain","x":0.5,"y":-0.5,"master":0.8},"want":{"rgb":[0.9,0.6633974596215562,0.836602540378444]}},
+    {"name":"gain x=-1 y=0 master=0.8","input":{"wheel":"gain","x":-1,"y":0,"master":0.8},"want":{"rgb":[0.6000000000000001,0.9,0.9]}}
+  ]
+}

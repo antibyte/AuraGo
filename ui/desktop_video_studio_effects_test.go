@@ -13,12 +13,14 @@ import (
 	"aurago/internal/videostudio"
 )
 
-// videoStudioEffectsPrelude loads the DOM-free effect module the way the app does: directly after the time module.
+// videoStudioEffectsPrelude loads the DOM-free modules the way the app does: the effect module directly after the time
+// module, and the picture math directly after it (plan 2c).
 const videoStudioEffectsPrelude = `
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-picture.js');
 const E = window.VideoStudioEffects;
 `
 
@@ -186,6 +188,28 @@ const videoStudioParityRunners = `{
     const pieces = E.rampPieces(input.points, input.from, input.to);
     return {pieces: pieces.map(p => [p.t0, p.t1, p.s0, p.a, p.b]), source: input.t.map(t => E.rampSource(pieces, t)),
       inverse: input.s.map(s => E.rampInverse(pieces, s)), speed: input.t.map(t => E.rampSpeed(pieces, t))};
+  }},
+  // Colour grade coefficients and the float formula (topic "color", plan index §4.20); numbers within 1e-6.
+  color: {exact: false, run(input) {
+    const V = window.VideoStudioPicture, p = input.params, c = V.colorCoefficients(p);
+    return {wb: V.whiteBalance(p.temperature, p.tint), mul: c.mul, lift: c.lift, gain: c.gain, invGamma: c.invGamma,
+      saturation: V.saturationMatrix(c.saturation), rgb: input.rgb.map(rgb => V.applyColor(p, rgb))};
+  }},
+  // One colour wheel and its master as per-channel lift, gamma or gain (topic "wheels").
+  wheels: {exact: false, run(input) {
+    const values = {};
+    values[input.wheel + '_x'] = input.x; values[input.wheel + '_y'] = input.y; values[input.wheel] = input.master;
+    const c = window.VideoStudioPicture.colorCoefficients(values);
+    return {rgb: input.wheel === 'lift' ? c.lift : input.wheel === 'gain' ? c.gain : c.invGamma.map(v => 1 / v)};
+  }},
+  // Crop rectangles, mirrored crops, vignette angles and blur sigmas (topic "picture").
+  picture: {exact: false, run(input) {
+    const V = window.VideoStudioPicture;
+    if (input.kind === 'crop') return V.cropRect(input.crop, input.width, input.height);
+    if (input.kind === 'mirror') return V.mirroredCrop(input.crop, input.flip_h, input.flip_v);
+    if (input.kind === 'vignette') return {angle: V.vignetteAngle(input.amount, input.size, input.width, input.height)};
+    if (input.kind === 'blur') return {sigma: V.blurSigma(input.radius, input.height)};
+    throw new Error('unknown picture input kind ' + input.kind);
   }},
 }`
 
@@ -368,5 +392,25 @@ process.stdout.write(JSON.stringify({min: E.MIN_BOX_SIZE, written: clip.keyframe
 	}
 	if got.Min != videostudio.MinBoxSize || got.Written != videostudio.MinBoxSize {
 		t.Fatalf("MIN_BOX_SIZE = %v and the smallest key the editor writes = %v, want Go MinBoxSize %v", got.Min, got.Written, videostudio.MinBoxSize)
+	}
+}
+
+// VideoStudioPicture's colour constants are Go's (plan index §4.4a, §4.20). ColorWheelK and ColorNeutralKelvin are
+// exported. The white-balance gains and the BT.709 luma are unexported in Go, so TestColorConstants
+// (internal/videostudio/picture_math_test.go) pins the same literals on the Go side.
+func TestVideoStudioPictureConstantsMatchGo(t *testing.T) {
+	output := runVideoStudioEffectsScript(t, `
+const V = window.VideoStudioPicture;
+process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, temperatureGain: V.TEMPERATURE_GAIN, tintGain: V.TINT_GAIN, luma: V.LUMA}));
+`)
+	var got struct {
+		WheelK, NeutralK, TemperatureGain, TintGain float64
+		Luma                                        []float64
+	}
+	if err := json.Unmarshal(output, &got); err != nil {
+		t.Fatalf("constants are not JSON: %v\n%s", err, output)
+	}
+	if got.WheelK != videostudio.ColorWheelK || got.NeutralK != videostudio.ColorNeutralKelvin || got.TemperatureGain != 0.5 || got.TintGain != 0.3 || !reflect.DeepEqual(got.Luma, []float64{0.2126, 0.7152, 0.0722}) {
+		t.Fatalf("VideoStudioPicture constants = %+v, want k %v, %v K, gains 0.5 and 0.3, luma BT.709", got, videostudio.ColorWheelK, videostudio.ColorNeutralKelvin)
 	}
 }

@@ -1,0 +1,27 @@
+{
+  "cases": [
+    {"name":"crop symmetric 640x360","input":{"kind":"crop","crop":{"l":0.1,"t":0.05,"r":0.1,"b":0.05},"width":640,"height":360},"want":{"h":324,"w":512,"x":64,"y":18}},
+    {"name":"crop none 1920x1080","input":{"kind":"crop","crop":{"l":0,"t":0,"r":0,"b":0},"width":1920,"height":1080},"want":{"h":1080,"w":1920,"x":0,"y":0}},
+    {"name":"crop r limited to 0.95 - l","input":{"kind":"crop","crop":{"l":0.3,"t":0,"r":0.7,"b":0},"width":1920,"height":1080},"want":{"h":1080,"w":96,"x":576,"y":0}},
+    {"name":"crop half pixel rounds away from zero","input":{"kind":"crop","crop":{"l":0.01,"t":0.01,"r":0,"b":0},"width":100,"height":100},"want":{"h":98,"w":98,"x":2,"y":2}},
+    {"name":"crop odd size","input":{"kind":"crop","crop":{"l":0.123,"t":0.077,"r":0.211,"b":0.3},"width":641,"height":361},"want":{"h":225,"w":427,"x":78,"y":28}},
+    {"name":"crop near the limit","input":{"kind":"crop","crop":{"l":0.95,"t":0,"r":0,"b":0},"width":64,"height":36},"want":{"h":36,"w":4,"x":60,"y":0}},
+    {"name":"crop t + b at 0.95","input":{"kind":"crop","crop":{"l":0,"t":0.5,"r":0,"b":0.45},"width":1280,"height":720},"want":{"h":36,"w":1280,"x":0,"y":360}},
+    {"name":"crop portrait","input":{"kind":"crop","crop":{"l":0.25,"t":0.25,"r":0.25,"b":0.25},"width":1080,"height":1920},"want":{"h":960,"w":540,"x":270,"y":480}},
+    {"name":"crop 1x1 picture","input":{"kind":"crop","crop":{"l":0.3,"t":0.3,"r":0.3,"b":0.3},"width":1,"height":1},"want":{"h":1,"w":1,"x":0,"y":0}},
+    {"name":"crop 3x3 picture","input":{"kind":"crop","crop":{"l":0.5,"t":0.1,"r":0.3,"b":0.6},"width":3,"height":3},"want":{"h":2,"w":2,"x":1,"y":0}},
+    {"name":"mirror flip_h=false flip_v=false","input":{"kind":"mirror","crop":{"l":0.1,"t":0.2,"r":0.3,"b":0.05}},"want":{"l":0.1,"t":0.2,"r":0.3,"b":0.05}},
+    {"name":"mirror flip_h=true flip_v=false","input":{"kind":"mirror","crop":{"l":0.1,"t":0.2,"r":0.3,"b":0.05},"flip_h":true},"want":{"l":0.3,"t":0.2,"r":0.1,"b":0.05}},
+    {"name":"mirror flip_h=false flip_v=true","input":{"kind":"mirror","crop":{"l":0.1,"t":0.2,"r":0.3,"b":0.05},"flip_v":true},"want":{"l":0.1,"t":0.05,"r":0.3,"b":0.2}},
+    {"name":"mirror flip_h=true flip_v=true","input":{"kind":"mirror","crop":{"l":0.1,"t":0.2,"r":0.3,"b":0.05},"flip_h":true,"flip_v":true},"want":{"l":0.3,"t":0.05,"r":0.1,"b":0.2}},
+    {"name":"vignette amount=0.5 size=1 1280x720","input":{"kind":"vignette","amount":0.5,"size":1,"width":1280,"height":720},"want":{"angle":0.8009996507026422}},
+    {"name":"vignette amount=1 size=0.25 1280x720","input":{"kind":"vignette","amount":1,"size":0.25,"width":1280,"height":720},"want":{"angle":1.5707963267948966}},
+    {"name":"vignette amount=0.3 size=2 720x1280","input":{"kind":"vignette","amount":0.3,"size":2,"width":720,"height":1280},"want":{"angle":0.1351686910560709}},
+    {"name":"vignette amount=0 size=1 640x360","input":{"kind":"vignette","size":1,"width":640,"height":360},"want":{"angle":0}},
+    {"name":"vignette amount=0.75 size=0.6 1920x1080","input":{"kind":"vignette","amount":0.75,"size":0.6,"width":1920,"height":1080},"want":{"angle":1.5707963267948966}},
+    {"name":"blur radius=0.01 height=720","input":{"kind":"blur","radius":0.01,"height":720},"want":{"sigma":7.2}},
+    {"name":"blur radius=0.05 height=1080","input":{"kind":"blur","radius":0.05,"height":1080},"want":{"sigma":54}},
+    {"name":"blur radius=0 height=360","input":{"kind":"blur","height":360},"want":{"sigma":0}},
+    {"name":"blur radius=0.0005 height=2160","input":{"kind":"blur","radius":0.0005,"height":2160},"want":{"sigma":1.08}}
+  ]
+}
