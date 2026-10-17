@@ -327,7 +327,8 @@ var sendCmdTargetPattern = regexp.MustCompile(`^([a-z][a-z0-9]*@vs_[a-z]+)_[0-9]
 
 // sendCmdOptions lists, per "<filter>@vs_<role>", the options a script may set. Only single-input filters belong here:
 // sendcmd to a two-input filter (overlay, blend) lands 1–3 frames early on FFmpeg 8.1 (index §4.11, risk 10). Commands
-// behind a two-input stage go into a later command group (assembleStages). 2d extends the list.
+// behind a two-input stage go into a later command group (assembleStages). 2d adds colorkey@vs_key (similarity, blend:
+// exact per frame, spike 2026-10-17). despill@vs_spill (green, blue) passed the gate on 5.1.9 and 8.1.1.
 var sendCmdOptions = map[string][]string{
 	"colorchannelmixer@vs_opacity": {"aa"},
 	"crop@vs_crop":                 {"w", "h"},
@@ -335,6 +336,8 @@ var sendCmdOptions = map[string][]string{
 	"lutrgb@vs_color":              {"r", "g", "b"},
 	"colorchannelmixer@vs_sat":     {"rr", "rg", "rb", "gr", "gg", "gb", "br", "bg", "bb"},
 	"cas@vs_sharpen":               {"strength"},
+	"colorkey@vs_key":              {"similarity", "blend"},
+	"despill@vs_spill":             {"green", "blue"},
 }
 
 // sendCmdExprOptions are the options that take colour-curve expressions instead of numbers (spike 2026-10-17: lutrgb

@@ -177,7 +177,7 @@ func TestRegistryUnavailableMapsMissingFeatures(t *testing.T) {
 	}
 	wantEffects := []string{}
 	for _, effect := range registry.Effects {
-		if slices.Contains(effect.Filters, "lut3d") {
+		if slices.Contains(effect.Filters, "lut3d") || slices.Contains(effect.Filters, "blend") {
 			wantEffects = append(wantEffects, effect.ID)
 		}
 	}

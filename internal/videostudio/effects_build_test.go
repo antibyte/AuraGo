@@ -260,3 +260,118 @@ func TestDetailEffectChainSnapshots(t *testing.T) {
 		t.Fatalf("command files = %+v", built.commands)
 	}
 }
+
+// TestBuildChromaKeyEffect pins the chroma_key stage (index §4.22):
+//   - colorkey at the Go-written key colour, and despill with the type and the screen channel's scale taken from it;
+//   - despill left out at spill 0; a key colour that is neither green nor blue is despilled as blue when its blue is larger;
+//   - keyed similarity or smoothness: the named colorkey@vs_key_L_C_I with similarity and blend tracks;
+//   - where the input alpha can be below 255 (a still, a second key), the alpha wrapper when colorkeyReplacesAlpha; it
+//     leaves rgba, its keyed colorkey reads the group in front of it, and later commands read the next group.
+func TestBuildChromaKeyEffect(t *testing.T) {
+	key := func(params map[string]any, keys map[string][]Keyframe) EffectInstance {
+		return EffectInstance{ID: "chroma_key", On: true, Params: params, Keyframes: keys}
+	}
+	params := func(changes map[string]any) map[string]any {
+		out := map[string]any{"color": "#00b140", "similarity": 0.25, "smoothness": 0.1, "spill": 0.5}
+		for name, value := range changes {
+			out[name] = value
+		}
+		return out
+	}
+	green := "colorkey=color=0x00B140:similarity=0.25:blend=0.1"
+	spill := "despill=type=green:mix=0.5:expand=0:red=0:green=-0.5:blue=0:brightness=0:alpha=0"
+	for name, c := range map[string]struct {
+		entry EffectInstance
+		want  string
+	}{
+		"green key":  {key(params(nil), nil), "format=rgba," + green + "," + spill},
+		"spill zero": {key(params(map[string]any{"spill": 0.0}), nil), "format=rgba," + green},
+		"blue key": {key(params(map[string]any{"color": "#0047bb", "similarity": 0.3, "smoothness": 0.0, "spill": 0.8}), nil),
+			"format=rgba,colorkey=color=0x0047BB:similarity=0.3:blend=0,despill=type=blue:mix=0.5:expand=0:red=0:green=0:blue=-0.8:brightness=0:alpha=0"},
+		"neither green nor blue": {key(params(map[string]any{"color": "#c03070", "spill": 1.0}), nil),
+			"format=rgba,colorkey=color=0xC03070:similarity=0.25:blend=0.1,despill=type=blue:mix=0.5:expand=0:red=0:green=0:blue=-1:brightness=0:alpha=0"},
+	} {
+		parts := effectTestChain(effectTestClip(10, c.entry), false, nil).effects()
+		if got := partFilters(parts); got != c.want || len(parts) != 1 || parts[0].twoInput || len(parts[0].tracks) != 0 {
+			t.Errorf("%s:\n got %s (%d parts)\nwant %s", name, got, len(parts), c.want)
+		}
+	}
+
+	// An entry without params builds exactly what writing the registry defaults out builds.
+	spec, _ := EffectByID("chroma_key")
+	explicit := map[string]any{}
+	for _, p := range spec.Params {
+		explicit[p.ID] = p.Default
+	}
+	defaults := partFilters(effectTestChain(effectTestClip(10, key(map[string]any{}, nil)), false, nil).effects())
+	if want := partFilters(effectTestChain(effectTestClip(10, key(explicit, nil)), false, nil).effects()); defaults != want || defaults == "" {
+		t.Fatalf("defaults:\n got %s\nwant %s", defaults, want)
+	}
+
+	// Keyed similarity: the named colorkey starts at frame 0's values, and both options get a track for every window frame.
+	keyed := effectTestClip(11, key(params(map[string]any{"smoothness": 0.2}), map[string][]Keyframe{"similarity": linearKeys(0.1, 0.5, 10)}))
+	parts := effectTestChain(keyed, false, nil).effects()
+	if want := "format=rgba,colorkey@vs_key_0_1_0=color=0x00B140:similarity=0.1:blend=0.2," + spill; partFilters(parts) != want || len(parts) != 1 || len(parts[0].tracks) != 2 {
+		t.Fatalf("keyed similarity = %q, parts %+v", partFilters(parts), parts)
+	}
+	similarity, blend := parts[0].tracks[0], parts[0].tracks[1]
+	if similarity.Target != "colorkey@vs_key_0_1_0" || similarity.Option != "similarity" || len(similarity.Values) != 11 || math.Abs(similarity.Values[5]-0.3) > 1e-12 || similarity.Values[10] != 0.5 {
+		t.Fatalf("similarity track = %+v", similarity)
+	}
+	if blend.Target != similarity.Target || blend.Option != "blend" || len(blend.Values) != 11 || blend.Values[0] != 0.2 || blend.Values[10] != 0.2 {
+		t.Fatalf("blend track = %+v", blend)
+	}
+
+	// A still, and a second key on a video, can carry alpha below 255.
+	wrapper := func(id, keyer string) string {
+		return fmt.Sprintf("split=2[vs_fx_%[1]s_in][vs_fx_%[1]s_orig];[vs_fx_%[1]s_orig]alphaextract[vs_fx_%[1]s_a];[vs_fx_%[1]s_in]%[2]s[vs_fx_%[1]s_keyed];[vs_fx_%[1]s_keyed]split=2[vs_fx_%[1]s_k0][vs_fx_%[1]s_k1];[vs_fx_%[1]s_k1]alphaextract[vs_fx_%[1]s_ka];[vs_fx_%[1]s_ka][vs_fx_%[1]s_a]blend=all_mode=multiply[vs_fx_%[1]s_m];[vs_fx_%[1]s_k0][vs_fx_%[1]s_m]alphamerge", id, keyer)
+	}
+	still := effectTestChain(effectTestClip(10, key(params(nil), nil)), true, nil).effects()
+	second := effectTestChain(effectTestClip(10, key(params(map[string]any{"spill": 0.0}), nil), key(params(map[string]any{"color": "#0047bb"}), nil)), false, nil).effects()
+	blueKeyer := "colorkey=color=0x0047BB:similarity=0.25:blend=0.1,despill=type=blue:mix=0.5:expand=0:red=0:green=0:blue=-0.5:brightness=0:alpha=0"
+	if colorkeyReplacesAlpha {
+		if got, want := partFilters(still), "format=rgba,"+wrapper("0_1_0", green+","+spill); got != want || len(still) != 1 || !still[0].twoInput {
+			t.Fatalf("still:\n got %s\nwant %s", got, want)
+		}
+		if got, want := partFilters(second), "format=rgba,"+green+","+wrapper("0_1_1", blueKeyer); got != want || len(second) != 2 || second[0].twoInput || !second[1].twoInput {
+			t.Fatalf("second key:\n got %s\nwant %s", got, want)
+		}
+	} else {
+		if got, want := partFilters(still), "format=rgba,"+green+","+spill; got != want || still[0].twoInput {
+			t.Fatalf("still without the wrapper:\n got %s\nwant %s", got, want)
+		}
+		if got, want := partFilters(second), "format=rgba,"+green+","+blueKeyer; got != want || second[1].twoInput {
+			t.Fatalf("second key without the wrapper:\n got %s\nwant %s", got, want)
+		}
+	}
+
+	// Command groups around the wrapper: the keyed colorkey in the split branch reads group 0 in front of the stage.
+	// The colour entry after it takes the wrapper's rgba without a format, and the opacity commands read group 1 behind the merge.
+	stack := effectTestClip(11,
+		key(params(nil), map[string][]Keyframe{"similarity": linearKeys(0.1, 0.5, 10)}),
+		EffectInstance{ID: "color", On: true, Params: map[string]any{"saturation": 0.5}})
+	stack.Keyframes = map[string][]Keyframe{"opacity": linearKeys(1, 0.5, 10)}
+	built := effectTestChain(stack, true, nil).build("vs_clip_0_1")
+	if colorkeyReplacesAlpha {
+		if !strings.Contains(built.filter, "setpts=PTS-STARTPTS,sendcmd=f=vs_cmd_0_1.txt,format=rgba,split=2[vs_fx_0_1_0_in][vs_fx_0_1_0_orig];[vs_fx_0_1_0_orig]alphaextract[vs_fx_0_1_0_a];[vs_fx_0_1_0_in]colorkey@vs_key_0_1_0=") ||
+			!strings.Contains(built.filter, "[vs_fx_0_1_0_k0][vs_fx_0_1_0_m]alphamerge,sendcmd=f=vs_cmd_0_1_1.txt,colorchannelmixer=") {
+			t.Fatalf("command groups around the wrapper:\n%s", built.filter)
+		}
+		if len(built.commands) != 2 || built.commands[0].name != "vs_cmd_0_1.txt" || len(built.commands[0].tracks) != 2 ||
+			built.commands[1].name != "vs_cmd_0_1_1.txt" || len(built.commands[1].tracks) != 1 || built.commands[1].tracks[0].Target != "colorchannelmixer@vs_opacity_0_1" {
+			t.Fatalf("command files = %+v", built.commands)
+		}
+	} else if len(built.commands) != 1 || len(built.commands[0].tracks) != 3 {
+		t.Fatalf("command files without the wrapper = %+v", built.commands)
+	}
+
+	// Keyed spill (the despill command gate passed): despill@vs_spill_L_C_I with the screen channel's scale per frame.
+	spilled := effectTestClip(11, key(params(nil), map[string][]Keyframe{"spill": linearKeys(1, 0, 10)}))
+	parts = effectTestChain(spilled, false, nil).effects()
+	if want := "format=rgba," + green + ",despill@vs_spill_0_1_0=type=green:mix=0.5:expand=0:red=0:green=-1:blue=0:brightness=0:alpha=0"; partFilters(parts) != want || len(parts[0].tracks) != 1 {
+		t.Fatalf("keyed spill = %q, parts %+v", partFilters(parts), parts)
+	}
+	if track := parts[0].tracks[0]; track.Target != "despill@vs_spill_0_1_0" || track.Option != "green" || len(track.Values) != 11 || track.Values[0] != -1 || track.Values[10] != 0 || math.Signbit(track.Values[10]) {
+		t.Fatalf("spill track = %+v", track)
+	}
+}

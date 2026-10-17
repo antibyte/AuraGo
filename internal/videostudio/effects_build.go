@@ -43,7 +43,7 @@ type effectBuilder func(in effectInput) effectStage
 // The builders are attached here rather than in the row literals of effects.go. A builder reaches the registry again
 // (effectValueAt reads parameter defaults through EffectByID), and Go would report that as an initialization cycle.
 func init() {
-	builders := map[string]effectBuilder{"color": buildColorEffect, "lut": buildLUTEffect, "blur": buildBlurEffect, "sharpen": buildSharpenEffect, "vignette": buildVignetteEffect}
+	builders := map[string]effectBuilder{"color": buildColorEffect, "lut": buildLUTEffect, "blur": buildBlurEffect, "sharpen": buildSharpenEffect, "vignette": buildVignetteEffect, "chroma_key": buildChromaKeyEffect}
 	for i := range registryEffects {
 		registryEffects[i].build = builders[registryEffects[i].ID]
 	}
@@ -104,6 +104,34 @@ func (in effectInput) curve(param string) ffExpr {
 		return curveExpr(keys, exprLd(1))
 	}
 	return exprNum(in.value(param, 0))
+}
+
+// text is a string param of the entry (the chroma_key colour): its params value, else the registry default.
+func (in effectInput) text(param string) string {
+	if value, ok := in.whole.Effects[in.index].Params[param].(string); ok {
+		return value
+	}
+	for _, spec := range in.spec.Params {
+		if spec.ID == param {
+			def, _ := spec.Default.(string)
+			return def
+		}
+	}
+	return ""
+}
+
+// alphaBelowFull reports an input whose alpha can be below 255 at the entry: a still (images, titles), or a clip with
+// an earlier chroma_key entry that is on.
+func (in effectInput) alphaBelowFull() bool {
+	if in.image {
+		return true
+	}
+	for _, entry := range in.whole.Effects[:in.index] {
+		if entry.On && entry.ID == "chroma_key" {
+			return true
+		}
+	}
+	return false
 }
 
 // effectNum writes an option number the way the sendcmd writer writes its values: the shortest decimal that reads back
@@ -291,4 +319,98 @@ func vignetteAngleExpr(in effectInput) ffExpr {
 	radius := math.Hypot(float64(in.width)/2, float64(in.height)/2)
 	angle := exprOp("/", exprOp("*", in.curve("amount"), exprNum(math.Pi/2*radius)), exprOp("*", in.curve("size"), exprNum(float64(in.height))))
 	return exprOp(";", in.source("t"), exprOp("min", exprNum(math.Pi/2), angle))
+}
+
+// colorkeyReplacesAlpha records what FFmpeg's colorkey does with an input alpha below 255:
+//   - true: it writes the key over it;
+//   - false: it multiplies the key into it.
+//
+// TestRenderColorkeyAlphaSemantics measures it on every FFmpeg the tests run on, and fails when this constant disagrees
+// (plan 2d Task 4, index risk 20).
+const colorkeyReplacesAlpha = true
+
+// buildChromaKeyEffect is the chroma_key effect on rgba (index §4.22). It is never left out: colorkey keys at every
+// similarity.
+//   - colorkey at the key colour, with similarity and blend = smoothness. Go writes the colour as 0xRRGGBB from the
+//     parsed hex (keyColor). Keyed similarity or smoothness name the instance colorkey@vs_key_L_C_I: it starts at the
+//     window's first values, and sendcmd sets both options on every window frame (exact, spike 2026-10-17).
+//   - despill for spill > 0 (chromaKeyDespill); spill 0 leaves it out.
+//   - colorkey writes the key over the alpha (colorkeyReplacesAlpha). Where the input alpha can be below 255
+//     (alphaBelowFull), the key therefore runs in a wrapper that multiplies the input alpha back (index §4.22):
+//   - split; alphaextract keeps the input alpha a, and colorkey and despill key the other branch;
+//   - the keyed picture splits again: alphaextract takes its key k, blend all_mode=multiply gives a·k//255 on
+//     gray, and alphamerge sets that as the keyed picture's alpha. Everything stays rgba or gray, so no
+//     rgba→gbrap step touches the alpha (exact on 5.1.9 and 8.1.1).
+//
+// The wrapper is a two-input stage, so the commands of later stages read the next command group. Its keyed
+// colorkey sits in the split branch in front of the merge and reads the group in front of the stage.
+func buildChromaKeyEffect(in effectInput) effectStage {
+	rgb := keyColor(in.text("color"))
+	keyer := "colorkey"
+	var tracks []SendCmdTrack
+	if in.keyed("similarity") || in.keyed("smoothness") {
+		keyer = in.target("colorkey", "key")
+		tracks = []SendCmdTrack{
+			{Target: keyer, Option: "similarity", Values: in.values("similarity")},
+			{Target: keyer, Option: "blend", Values: in.values("smoothness")},
+		}
+	}
+	filter := fmt.Sprintf("%s=color=0x%02X%02X%02X:similarity=%s:blend=%s", keyer, rgb[0], rgb[1], rgb[2],
+		effectNum(in.value("similarity", 0)), effectNum(in.value("smoothness", 0)))
+	if despill, spillTracks := chromaKeyDespill(in, rgb); despill != "" {
+		filter += "," + despill
+		tracks = append(tracks, spillTracks...)
+	}
+	if !colorkeyReplacesAlpha || !in.alphaBelowFull() {
+		return effectStage{input: "rgba", output: "rgba", parts: []chainStage{{filter: filter, tracks: tracks}}}
+	}
+	toKey, orig, inputAlpha, keyed := in.label("in"), in.label("orig"), in.label("a"), in.label("keyed")
+	keyedRGBA, keyedCopy, keyPlane, product := in.label("k0"), in.label("k1"), in.label("ka"), in.label("m")
+	wrapped := fmt.Sprintf("split=2[%s][%s];[%s]alphaextract[%s];[%s]%s[%s];[%s]split=2[%s][%s];[%s]alphaextract[%s];[%s][%s]blend=all_mode=multiply[%s];[%s][%s]alphamerge",
+		toKey, orig, orig, inputAlpha, toKey, filter, keyed, keyed, keyedRGBA, keyedCopy, keyedCopy, keyPlane, keyPlane, inputAlpha, product, keyedRGBA, product)
+	return effectStage{input: "rgba", output: "rgba", parts: []chainStage{{filter: wrapped, tracks: tracks, twoInput: true}}}
+}
+
+// despillScale is the despill option that suppresses a key colour's spill: green when its green is at least its blue,
+// else blue (Task 3's spillBlue). despill knows only these two (resolved question 12).
+func despillScale(rgb [3]uint8) string {
+	if spillBlue(rgb) {
+		return "blue"
+	}
+	return "green"
+}
+
+// despillFilter writes despill (instance name) for a key colour and a spill strength (index §4.22):
+//   - the type, and the screen channel's scale −spill, from despillScale;
+//   - mix 0.5 and expand 0, so f = 0.5;
+//   - every other scale, brightness and alpha 0.
+func despillFilter(name string, rgb [3]uint8, spill float64) string {
+	kind := despillScale(rgb)
+	green, blue := 0-spill, 0.0
+	if kind == "blue" {
+		green, blue = 0, 0-spill
+	}
+	return fmt.Sprintf("%s=type=%s:mix=0.5:expand=0:red=0:green=%s:blue=%s:brightness=0:alpha=0", name, kind, effectNum(green), effectNum(blue))
+}
+
+// chromaKeyDespill is the despill part of a chroma_key entry and its command tracks (index §4.11):
+//   - static spill: despill at that spill, or "" at spill 0;
+//   - keyed spill: despill@vs_spill_L_C_I at the window's first spill, with the screen channel's scale (−spill) set on
+//     every window frame by sendcmd (exact on 5.1.9 and 8.1.1, TestRenderDespillCommands). A keyed spill that
+//     reaches 0 keeps the filter, at scale 0.
+func chromaKeyDespill(in effectInput, rgb [3]uint8) (string, []SendCmdTrack) {
+	if !in.keyed("spill") {
+		spill := in.value("spill", 0)
+		if spill <= 0 {
+			return "", nil
+		}
+		return despillFilter("despill", rgb, spill), nil
+	}
+	target := in.target("despill", "spill")
+	values := in.values("spill")
+	scales := make([]float64, len(values))
+	for k, spill := range values {
+		scales[k] = 0 - spill
+	}
+	return despillFilter(target, rgb, values[0]), []SendCmdTrack{{Target: target, Option: despillScale(rgb), Values: scales}}
 }

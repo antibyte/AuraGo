@@ -285,11 +285,11 @@ func TestEffectRegistryRows(t *testing.T) {
 		"effect vignette stylize vignette,alphaextract,alphamerge effect.vignette.name",
 		"amount number 0..1 =0.5 step 0.01 kf effect.vignette.amount",
 		"size number 0.25..2 =1 step 0.01 kf height effect.vignette.size",
-		"effect chroma_key key colorkey,despill effect.chroma_key.name",
+		"effect chroma_key key colorkey,despill,alphaextract,alphamerge,blend effect.chroma_key.name",
 		`color color 0..0 ="#00b140" effect.chroma_key.color`,
 		"similarity number 0.01..1 =0.25 step 0.005 kf effect.chroma_key.similarity",
 		"smoothness number 0..1 =0.1 step 0.005 kf effect.chroma_key.smoothness",
-		"spill number 0..1 =0.5 step 0.01 effect.chroma_key.spill",
+		"spill number 0..1 =0.5 step 0.01 kf effect.chroma_key.spill",
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("registry rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -346,9 +346,9 @@ func TestRegistryUnavailableEffects(t *testing.T) {
 	for _, c := range []struct{ missing, want []string }{
 		{nil, []string{}},
 		{[]string{"filter:lut3d"}, []string{"lut"}},
-		{[]string{"filter:blend"}, []string{"lut"}},
+		{[]string{"filter:blend"}, []string{"lut", "chroma_key"}},
 		{[]string{"filter:premultiply"}, []string{"blur"}},
-		{[]string{"filter:alphaextract"}, []string{"vignette"}},
+		{[]string{"filter:alphaextract"}, []string{"vignette", "chroma_key"}},
 		{[]string{"filter:cas", "filter:lutrgb"}, []string{"color", "sharpen"}},
 		{[]string{"filter:colorkey"}, []string{"chroma_key"}},
 	} {

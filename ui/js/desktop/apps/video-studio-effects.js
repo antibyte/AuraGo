@@ -71,11 +71,11 @@
                 { id: 'amount', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, keyframable: true, label_key: 'effect.vignette.amount' },
                 { id: 'size', type: 'number', min: 0.25, max: 2, default: 1, step: 0.01, keyframable: true, unit: 'height', label_key: 'effect.vignette.size' }
             ] },
-            { id: 'chroma_key', category: 'key', label_key: 'effect.chroma_key.name', filters: ['colorkey', 'despill'], params: [
+            { id: 'chroma_key', category: 'key', label_key: 'effect.chroma_key.name', filters: ['colorkey', 'despill', 'alphaextract', 'alphamerge', 'blend'], params: [
                 { id: 'color', type: 'color', min: 0, max: 0, default: '#00b140', label_key: 'effect.chroma_key.color' },
                 { id: 'similarity', type: 'number', min: 0.01, max: 1, default: 0.25, step: 0.005, keyframable: true, label_key: 'effect.chroma_key.similarity' },
                 { id: 'smoothness', type: 'number', min: 0, max: 1, default: 0.1, step: 0.005, keyframable: true, label_key: 'effect.chroma_key.smoothness' },
-                { id: 'spill', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, label_key: 'effect.chroma_key.spill' }
+                { id: 'spill', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, keyframable: true, label_key: 'effect.chroma_key.spill' }
             ] }
         ],
         transitions: [

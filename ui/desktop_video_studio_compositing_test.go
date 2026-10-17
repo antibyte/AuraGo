@@ -32,7 +32,7 @@ assert.equal(E.clipState({mask: 'square'}, 0, project).mask, null, 'a mask that 
 // animatablePaths: mask.* only while the clip has a mask, between crop.* and effects.*.
 const masked = E.animatablePaths(clip);
 assert.deepEqual(masked.slice(6, 16), ['crop.l', 'crop.t', 'crop.r', 'crop.b', 'mask.x', 'mask.y', 'mask.w', 'mask.h', 'mask.rotation', 'mask.feather']);
-assert(masked.slice(16).every(path => path.startsWith('effects.0.')) && masked.includes('effects.0.similarity') && masked.includes('effects.0.smoothness'));
+assert(masked.slice(16).every(path => path.startsWith('effects.0.')) && masked.includes('effects.0.similarity') && masked.includes('effects.0.smoothness') && masked.includes('effects.0.spill'), 'spill is keyframable (Task 4 despill gate)');
 assert.equal(masked.includes('effects.0.color'), false, 'the key colour carries no keys');
 assert(!E.animatablePaths(Object.assign({}, clip, {mask: undefined})).some(path => path.startsWith('mask.')), 'no mask, no mask paths');
 assert.deepEqual(E.MASK_PATHS, ['mask.x', 'mask.y', 'mask.w', 'mask.h', 'mask.rotation', 'mask.feather']);

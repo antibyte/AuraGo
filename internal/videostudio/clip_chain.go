@@ -45,11 +45,12 @@ type clipBuild struct {
 //   - filter: its filters without the separating comma ("" adds nothing);
 //   - tracks: the runtime commands for the single-input filters in it;
 //   - luts: the LUT tables it reads by bare name (vs_lut_<n>.cube, one per distinct table of the process);
-//   - twoInput: the stage ends in a two-input filter (blend, alphamerge, 2d's mask merge).
+//   - twoInput: the stage ends in a two-input filter (blend, alphamerge; 2d's mask merge and chroma-key alpha wrapper).
 //
 // The tracks of every later stage go to the next command group, because commands must not cross a framesync. A
-// two-input stage holds no command target in 2c. Targets inside one, before its merge, would be read by the group in
-// front of it.
+// stage's own tracks belong to the group in front of it. A target inside a two-input stage therefore sits in a
+// single-input branch before the merge; 2d's chroma-key wrapper keys there with colorkey@vs_key, and the group's
+// sendcmd reaches it in the same frame push. 2c's two-input stages hold no target.
 type chainStage struct {
 	filter   string
 	tracks   []SendCmdTrack
@@ -290,8 +291,8 @@ func coverWindow(x, y, w, h, boxWidth, boxHeight int) (int, int, int, int) {
 // effects runs the clip's effect stack (index §4.10). Every entry that is on, in stack order, is built by its registry
 // builder (EffectSpec.build). Each builder declares the pixel format of its input, and format= is inserted only where
 // it differs from the format the previous stage left. Identity entries and effects without a builder leave no part. A
-// two-input part (a LUT blend, the vignette alpha wrapper) carries twoInput, so assembleStages opens a command group
-// after it.
+// two-input part (a LUT blend, the vignette or chroma-key alpha wrapper) carries twoInput, so assembleStages opens a
+// command group after it.
 func (c clipChain) effects() []chainStage {
 	if c.lutNames == nil {
 		c.lutNames = &lutNames{} // c is a copy: the entries of this stack still share their numbering

@@ -173,6 +173,7 @@ var blendSwapped = map[string]bool{"dodge": true, "burn": true}
 //   - The blur filters include premultiply and unpremultiply, which wrap gblur on image clips (plan 2c decision A2).
 //   - chroma_key (2d, category key): the key colour is not keyframable, because a keyframe holds one number. Spill stays
 //     static unless despill takes exact spill commands (plan 2d Task 4). The defaults are provisional (index §4.23).
+//     The filters include alphaextract, alphamerge and blend for the alpha wrapper of stills and second keys (Task 4).
 var registryEffects = []EffectSpec{
 	{ID: "color", Category: "color", LabelKey: "effect.color.name", Filters: []string{"lutrgb", "colorchannelmixer"}, Params: []ParamSpec{
 		{ID: "exposure", Type: ParamNumber, Min: -3, Max: 3, Default: 0.0, Step: 0.01, Keyframable: true, Unit: "ev", LabelKey: "effect.color.exposure"},
@@ -204,11 +205,11 @@ var registryEffects = []EffectSpec{
 		{ID: "amount", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, Keyframable: true, LabelKey: "effect.vignette.amount"},
 		{ID: "size", Type: ParamNumber, Min: 0.25, Max: 2, Default: 1.0, Step: 0.01, Keyframable: true, Unit: "height", LabelKey: "effect.vignette.size"},
 	}},
-	{ID: "chroma_key", Category: "key", LabelKey: "effect.chroma_key.name", Filters: []string{"colorkey", "despill"}, Params: []ParamSpec{
+	{ID: "chroma_key", Category: "key", LabelKey: "effect.chroma_key.name", Filters: []string{"colorkey", "despill", "alphaextract", "alphamerge", "blend"}, Params: []ParamSpec{
 		{ID: "color", Type: ParamColor, Default: "#00b140", LabelKey: "effect.chroma_key.color"},
 		{ID: "similarity", Type: ParamNumber, Min: 0.01, Max: 1, Default: 0.25, Step: 0.005, Keyframable: true, LabelKey: "effect.chroma_key.similarity"},
 		{ID: "smoothness", Type: ParamNumber, Min: 0, Max: 1, Default: 0.1, Step: 0.005, Keyframable: true, LabelKey: "effect.chroma_key.smoothness"},
-		{ID: "spill", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, LabelKey: "effect.chroma_key.spill"},
+		{ID: "spill", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, Keyframable: true, LabelKey: "effect.chroma_key.spill"},
 	}},
 }
 

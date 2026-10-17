@@ -188,3 +188,39 @@ func TestCommandGroupAssembly(t *testing.T) {
 		t.Fatalf("no tracks: filters %q, files %+v, luts %+v", filters, commands, luts)
 	}
 }
+
+// colorkey@vs_key takes similarity and blend (plan 2d Task 4), never the key colour. despill@vs_spill takes green and
+// blue exactly when the despill command gate has made spill keyframable; its other options never.
+func TestSendCmdKeyTargets(t *testing.T) {
+	rate := Rate{Num: 25, Den: 1}
+	got, err := sendCmdScript(rate, []SendCmdTrack{
+		{Target: "colorkey@vs_key_1_2_0", Option: "similarity", Values: []float64{0.2, 0.2, 0.3}},
+		{Target: "colorkey@vs_key_1_2_0", Option: "blend", Values: []float64{0.1, 0.15, 0.15}},
+	})
+	want := "0.000000 colorkey@vs_key_1_2_0 similarity 0.2, colorkey@vs_key_1_2_0 blend 0.1;\n" +
+		"0.020000 colorkey@vs_key_1_2_0 blend 0.15;\n" +
+		"0.060000 colorkey@vs_key_1_2_0 similarity 0.3;\n"
+	if err != nil || got != want {
+		t.Fatalf("key script = %q, %v; want %q", got, err, want)
+	}
+	values := []float64{1, 2, 3}
+	for name, track := range map[string]SendCmdTrack{
+		"the key colour": {Target: "colorkey@vs_key_1_2_0", Option: "color", Values: values},
+		"despill mix":    {Target: "despill@vs_spill_1_2_0", Option: "mix", Values: values},
+		"another role":   {Target: "colorkey@vs_spill_1_2_0", Option: "similarity", Values: values},
+	} {
+		if _, err := sendCmdScript(rate, []SendCmdTrack{track}); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	spill, ok := effectParamSpec("chroma_key", "spill")
+	if !ok {
+		t.Fatal("the chroma_key row has no spill parameter")
+	}
+	for _, option := range []string{"green", "blue"} {
+		_, err := sendCmdScript(rate, []SendCmdTrack{{Target: "despill@vs_spill_1_2_0", Option: option, Values: []float64{-0.5, -0.4, -0.4}}})
+		if accepted := err == nil; accepted != spill.Keyframable {
+			t.Errorf("despill %s commands accepted %v, but spill keyframable %v: sendCmdOptions and the registry disagree (Task 4 gate)", option, accepted, spill.Keyframable)
+		}
+	}
+}
