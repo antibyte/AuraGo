@@ -20,7 +20,8 @@ import (
 // It returns the first `frames` layer frames as RGBA before any composition (canvasWidth × canvasHeight × 4 bytes each).
 // The chain's window must hold at least that many frames. Over the transparent canvas, place copies the clip's straight
 // RGBA wherever the alpha is above 0, so the layer's alpha is the clip's alpha.
-func renderClipFramesRGBA(t *testing.T, ctx context.Context, ffmpeg string, chain clipChain, path string, frames int) [][]byte {
+// extra options go in front of the graph (FFmpeg thread limits, for instance).
+func renderClipFramesRGBA(t *testing.T, ctx context.Context, ffmpeg string, chain clipChain, path string, frames int, extra ...string) [][]byte {
 	t.Helper()
 	built := chain.build("vs_clip_out")
 	graph := built.filter + ";\n[vs_clip_out]format=rgba[vs_video_out]"
@@ -34,6 +35,7 @@ func renderClipFramesRGBA(t *testing.T, ctx context.Context, ffmpeg string, chai
 	output := filepath.Join(root, "layers.rgba")
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error"}
 	args = append(args, segmentInputArgs(inputs, chain.rate)...)
+	args = append(args, extra...)
 	args = append(args, "-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-frames:v", strconv.Itoa(frames),
 		"-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgba", output)
 	if err := runFFmpegIn(ctx, workDir, ffmpeg, args, chain.rate.Seconds(frames), nil, inputPaths(inputs), output); err != nil {

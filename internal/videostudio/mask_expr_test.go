@@ -29,9 +29,64 @@ func checkMaskRegisters(t *testing.T, name string, e ffExpr) {
 	}
 }
 
-// TestMaskExprMatchesMaskAt evaluates the geq mask expression with FFmpeg's arithmetic (ffExpr.eval) on a grid of
+// checkMaskRowCache pins the shape of a keyed mask expression: (if(lt(X,0.5), stage A, 0); stage B). Stage A fills the
+// registers 0, 1, 2, 5, 7, 8 and 9 once per row. Stage B stores only 3, 4 and 6, and every register it reads is one of
+// the kept ones or one it stored before.
+func checkMaskRowCache(t *testing.T, name string, e ffExpr) {
+	t.Helper()
+	if e.op != ";" || len(e.args) != 2 || e.args[0].op != "if" || len(e.args[0].args) != 3 {
+		t.Fatalf("%s: a keyed mask must be (if(lt(X,0.5), frame values, 0); pixel): %s", name, e.String())
+	}
+	cond := e.args[0].args[0]
+	if cond.op != "lt" || len(cond.args) != 2 || cond.args[0].op != "var" || cond.args[0].name != "X" || cond.args[1].op != "num" || cond.args[1].num != 0.5 {
+		t.Fatalf("%s: the frame values must wait for the first pixel of a row: %s", name, cond.String())
+	}
+	kept := map[int]bool{0: true, 1: true, 2: true, 5: true, 7: true, 8: true, 9: true}
+	scratch := map[int]bool{3: true, 4: true, 6: true}
+	storedA := map[int]bool{}
+	var walkA func(ffExpr)
+	walkA = func(x ffExpr) {
+		for _, arg := range x.args {
+			walkA(arg)
+		}
+		if x.op == "st" {
+			storedA[int(x.args[0].num)] = true
+		}
+	}
+	walkA(e.args[0].args[1])
+	for register := range kept {
+		if !storedA[register] {
+			t.Fatalf("%s: stage A never stores register %d", name, register)
+		}
+	}
+	storedB := map[int]bool{}
+	var walkB func(ffExpr)
+	walkB = func(x ffExpr) {
+		for _, arg := range x.args {
+			walkB(arg)
+		}
+		switch x.op {
+		case "st":
+			register := int(x.args[0].num)
+			if !scratch[register] {
+				t.Fatalf("%s: stage B stores register %d, which belongs to the row's frame values", name, register)
+			}
+			storedB[register] = true
+		case "ld":
+			register := int(x.args[0].num)
+			if !kept[register] && !storedB[register] {
+				t.Fatalf("%s: stage B reads register %d before it stores it", name, register)
+			}
+		}
+	}
+	walkB(e.args[1])
+}
+
+// TestMaskExprMatchesMaskAt evaluates the geq mask expression with FFmpeg's arithmetic (ffExpr.evalWith) on a grid of
 // sample pixels, at the window's first, sixth and last frame, against Task 3's maskAt. It requires agreement within
 // 1e-9, with T = k·Den/Num as geq computes it and the pixel at its box position.
+//   - The registers persist from pixel to pixel, as in geq, and start as NaN: a keyed mask whose first pixel of a row
+//     did not fill them, or whose other pixels overwrote them, fails here. Every sampled row starts at X = 0.
 //   - Cases: static rect, ellipse (rotated and inverted), a mask reaching past the box, all six mask paths keyed, keyed
 //     box geometry (pad canvas, box centred), a ramped clip, cover with crop keys.
 //   - Every expression stays inside registers 0–9 and the vocabulary above.
@@ -94,6 +149,10 @@ func TestMaskExprMatchesMaskAt(t *testing.T) {
 			}
 		}
 		checkMaskRegisters(t, tc.name, expr)
+		if plan.perFrame {
+			checkMaskRowCache(t, tc.name, expr)
+		}
+		registers := [10]float64{math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN()}
 		geometry, _ := clipAnimation(tc.clip)
 		if plan.perFrame != (geometry || maskAnimated(tc.clip)) {
 			t.Fatalf("%s: perFrame %v", tc.name, plan.perFrame)
@@ -122,7 +181,7 @@ func TestMaskExprMatchesMaskAt(t *testing.T) {
 			for Y := 0; Y < plan.gridHeight; Y += stepY {
 				for X := 0; X < plan.gridWidth; X += stepX {
 					vars["X"], vars["Y"] = float64(X), float64(Y)
-					got := expr.eval(vars) / 255
+					got := expr.evalWith(vars, &registers) / 255
 					px, py := (float64(X)+0.5)*scaleX, (float64(Y)+0.5)*scaleY
 					if want := maskAt(mf, px-ox, py-oy); math.Abs(got-want) > 1e-9 {
 						t.Fatalf("%s frame %d at (%d, %d): expression %v, maskAt %v", tc.name, frame, X, Y, got, want)

@@ -3,6 +3,8 @@ package videostudio
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"maps"
@@ -211,6 +213,81 @@ func TestRenderMaskFollowsKeyframedBox(t *testing.T) {
 			for i, layer := range late {
 				if !bytes.Equal(layer, layers[5+i]) {
 					t.Fatalf("frame %d differs when its window starts at frame 5", 5+i)
+				}
+			}
+		})
+	}
+}
+
+// A keyed mask computes its frame values once per geq row (index §4.22), so a render must not depend on how geq splits
+// the picture into slices, nor on the run. Each case renders its clip with FFmpeg's default filter threads twice and with
+// 1, 7 and 16 threads once. All five outputs must be the same bytes. The cases keep four keys with mixed easings on every
+// mask path, and a keyed box in the first one.
+func TestRenderMaskKeyedIsDeterministic(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	still := filepath.Join(t.TempDir(), "still.png")
+	writePicturePNG(t, still, compositingStillPicture(320, 180))
+	rate := Rate{Num: 25, Den: 1}
+	const frames = 30
+	key := func(f int, v float64, e Easing) Keyframe { return Keyframe{F: f, V: v, E: e} }
+	maskKeys := func() map[string][]Keyframe {
+		return map[string][]Keyframe{
+			"mask.x":        {key(0, 0.10, EaseInOut), key(10, 0.30, EaseOut), key(20, 0.20, EaseIn), key(29, 0.40, EaseLinear)},
+			"mask.y":        {key(0, 0.15, EaseIn), key(10, 0.25, EaseInOut), key(20, 0.35, EaseLinear), key(29, 0.20, EaseOut)},
+			"mask.w":        {key(0, 0.50, EaseLinear), key(10, 0.70, EaseInOut), key(20, 0.45, EaseOut), key(29, 0.60, EaseIn)},
+			"mask.h":        {key(0, 0.60, EaseOut), key(10, 0.40, EaseLinear), key(20, 0.65, EaseInOut), key(29, 0.50, EaseLinear)},
+			"mask.rotation": {key(0, -10, EaseInOut), key(10, 25, EaseLinear), key(20, 5, EaseInOut), key(29, 40, EaseLinear)},
+			"mask.feather":  {key(0, 0.01, EaseLinear), key(10, 0.08, EaseInOut), key(20, 0.03, EaseOut), key(29, 0.12, EaseLinear)},
+		}
+	}
+	boxed := maskKeys()
+	boxed["x"] = []Keyframe{key(0, 0.05, EaseInOut), key(15, 0.20, EaseInOut), key(29, 0.10, EaseLinear)}
+	boxed["width"] = []Keyframe{key(0, 0.6, EaseIn), key(15, 0.75, EaseOut), key(29, 0.55, EaseLinear)}
+	boxed["rotation"] = []Keyframe{key(0, 0, EaseLinear), key(29, 20, EaseLinear)}
+	for _, c := range []struct {
+		name string
+		clip Clip
+	}{
+		{"ellipse on a keyed, rotating box", Clip{ID: "d", AssetID: "still", Duration: frames, X: 0.05, Y: 0.1, Width: 0.6, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitContain,
+			Mask: &Mask{Shape: MaskEllipse, X: 0.1, Y: 0.15, W: 0.5, H: 0.6, Rotation: -10, Feather: 0.01}, Keyframes: boxed}},
+		{"inverted rectangle on a static box", Clip{ID: "d", AssetID: "still", Duration: frames, X: 0.1, Y: 0.1, Width: 0.8, Height: 0.8, Opacity: 1, Volume: 1, Fit: FitContain,
+			Mask: &Mask{Shape: MaskRect, X: 0.1, Y: 0.15, W: 0.5, H: 0.6, Rotation: -10, Feather: 0.01, Invert: true}, Keyframes: maskKeys()}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			chain := clipChain{item: layerClip{clip: c.clip, whole: c.clip, image: true, pictureWidth: 320, pictureHeight: 180, sourceAspect: 16.0 / 9},
+				canvasWidth: 640, canvasHeight: 360, rate: rate}
+			if !maskPlanOf(chain).perFrame {
+				t.Fatal("the case must use the per-frame form")
+			}
+			digest := func(layers [][]byte) string {
+				sum := sha256.New()
+				for _, layer := range layers {
+					sum.Write(layer)
+				}
+				return hex.EncodeToString(sum.Sum(nil))
+			}
+			first := renderClipFramesRGBA(t, ctx, ffmpeg, chain, still, frames)
+			covered := 0
+			for _, layer := range first {
+				for i := 3; i < len(layer); i += 4 {
+					if layer[i] > 0 && layer[i] < 255 {
+						covered++
+					}
+				}
+			}
+			if covered == 0 {
+				t.Fatal("the mask has no soft edge, so the case does not test it")
+			}
+			t.Logf("sha256 of the %d layers: %s", frames, digest(first))
+			for _, threads := range [][]string{nil, {"-filter_threads", "1", "-filter_complex_threads", "1"}, {"-filter_threads", "7", "-filter_complex_threads", "7"},
+				{"-filter_threads", "16", "-filter_complex_threads", "16"}} {
+				got := renderClipFramesRGBA(t, ctx, ffmpeg, chain, still, frames, threads...)
+				for k := range first {
+					if !bytes.Equal(got[k], first[k]) {
+						t.Fatalf("frame %d differs from the first render with options %v", k, threads)
+					}
 				}
 			}
 		})

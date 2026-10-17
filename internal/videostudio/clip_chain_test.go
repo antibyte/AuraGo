@@ -466,7 +466,8 @@ func TestClipChainFitOrientSplit(t *testing.T) {
 //   - no mask, no stage;
 //   - static rect: the whole chain, including the geq expression of Go numbers;
 //   - static ellipse, rotated and inverted;
-//   - a keyed mask on a static box: the framed generator at a quarter of the box, upscaled to it;
+//   - a keyed mask on a static box: the framed generator at a quarter of the box, upscaled to it; its frame values are
+//     computed at the first pixel of every row and its pixel step works in registers 3, 4 and 6 only;
 //   - a keyed, rotating box: the pad canvas, the box sizes in T, orient's rotate after the merge;
 //   - cover with crop keys: the t-term scale stays in front of the mask;
 //   - opacity keyframes read command group 1 behind the merge.
@@ -559,6 +560,28 @@ func TestClipChainMaskSnapshots(t *testing.T) {
 	}
 	if got, want := keyed.filter("vs_clip_0_2"), head(2, 10)+containFit+","+merge(2, framed(keyed))+",format=rgba"+tail(2, 10, staticOverlay); got != want {
 		t.Fatalf("keyed mask:\n got %s\nwant %s", got, want)
+	}
+	// The rectangle's pixel step, in the registers the row's frame values leave free: dx 3, dy 4, lx 6, ly 4, qx 3, qy 4, s 6.
+	pixel := []string{
+		"st(3,(((X+0.5)*4)-ld(2)))", "st(4,(((Y+0.5)*4)-ld(5)))",
+		"st(6,((ld(3)*ld(1))+(ld(4)*ld(7))))", "st(4,((ld(4)*ld(1))-(ld(3)*ld(7))))",
+		"st(3,(abs(ld(6))-ld(9)))", "st(4,(abs(ld(4))-ld(0)))",
+		"st(6,(hypot(max(ld(3),0),max(ld(4),0))+min(max(ld(3),ld(4)),0)))",
+		"(255*clip((0.5-(ld(6)/ld(8))),0,1))",
+	}
+	pixelExpr := pixel[len(pixel)-1]
+	for i := len(pixel) - 2; i >= 0; i-- {
+		pixelExpr = "(" + pixel[i] + ";" + pixelExpr + ")"
+	}
+	if text := maskExpr(keyed, maskPlanOf(keyed)).String(); !strings.HasPrefix(text, "(if(lt(X,0.5),(st(5,640);(st(6,360);") || !strings.HasSuffix(text, ",0);"+pixelExpr+")") {
+		t.Fatalf("keyed rectangle expression:\n%s\nwant frame values once per row, then %s", text, pixelExpr)
+	}
+	keyedEllipse := chain(2, clip(func(c *Clip) {
+		c.Mask.Shape = MaskEllipse
+		c.Keyframes = map[string][]Keyframe{"mask.x": linearKeys(0.1, 0.4, 9)}
+	}))
+	if text := maskExpr(keyedEllipse, maskPlanOf(keyedEllipse)).String(); !strings.Contains(text, "(st(6,(ld(6)/ld(9)));(st(4,(ld(4)/ld(0)));(st(3,max(hypot(ld(6),ld(4)),0.000001));(st(6,(((ld(3)-1)*ld(3))/max(sqrt((((ld(6)*ld(6))/(ld(9)*ld(9)))+((ld(4)*ld(4))/(ld(0)*ld(0))))),0.000000000001)));") {
+		t.Fatalf("keyed ellipse expression:\n%s", text)
 	}
 
 	// A keyed, rotating box: the mask fills the pad canvas with the box centred, then orient rotates both.
