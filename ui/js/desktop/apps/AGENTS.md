@@ -38,6 +38,31 @@
   `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
   Desktop themes usable, including compact library/sound-panel controls.
 
+## AuraGolf
+
+- `minigolf` is a native Games app. `minigolf.js` owns window instances and lazy
+  imports the isolated bundle from `js/vendor/minigolf/`. Build it with
+  `node scripts/build-minigolf.mjs`; never reuse another app's renderer.
+- Scene, fixed-step Rapier physics, round model, views and audio have separate
+  modules. Visible obstacles use physics poses. Keep one active ball, transparent
+  non-colliding opponents, true cup openings and collision geometry from the
+  exported Blender scene. Authoring sources live in `assets/minigolf/`.
+- Saves contain settled shots only. Pause, minimization and hidden tabs stop
+  simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
+  Respect reduced motion while retaining gameplay obstacle movement.
+- Only load Synth Studio GM data, voices and audio. Each game owns its transports;
+  `setVolume` is additive and defaults to 1 for existing Synth Studio callers.
+  AuraGolf opts into a 750 ms scheduling reserve; preserve Synth Studio's 120 ms
+  default and verify delayed scheduler callbacks and cancellation of queued notes.
+  Resolve optional Synth Studio presets when playing, because the editor and
+  preset catalog may load after AuraGolf has initialized the shared voice engine.
+  Keep the CC0 MIDI originals and provenance, deterministic conversion, local
+  playback and persisted zero volumes. Audio unlock requires a user gesture.
+- Validate `npm run test:minigolf`, both asset build `--check` commands,
+  `TestDesktopMinigolf*`, Synth Studio audio regressions and desktop bundle checks.
+  Browser/GPU measurements and human listening remain separate acceptance steps.
+  Keep `minigolf.*` in all sixteen Desktop locales. See `documentation/minigolf.md`.
+
 ## Newspaper
 
 - `newspaper.js` owns one window reader for today's immutable edition, articles, archive and preferences. When only an earlier issue exists, keep it readable and offer creation of today's issue; do not offer today's correction flow on older issues. Closing the window cancels only UI work; the server owns ongoing research and delivery.

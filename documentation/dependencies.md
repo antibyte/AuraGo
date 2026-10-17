@@ -18,6 +18,14 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+AuraGolf pins `@dimforge/rapier3d-compat` 0.21.0 (Apache-2.0) alongside the
+existing Three.js 0.186.1 (MIT). Its isolated bundle includes the physics WASM;
+the Desktop CSP's existing `wasm-unsafe-eval` is sufficient. Build with
+`npm run build:minigolf`, verify with `node scripts/build-minigolf.mjs --check`
+and `node scripts/build-minigolf-music.mjs --check`, then run `npm run test:minigolf`.
+The MIDI renderer reuses the existing locally synthesized GM bank; no SoundFont
+or runtime CDN is introduced. See [AuraGolf](minigolf.md).
+
 | Dependency | Supported version | Reason to retain the bound |
 | --- | --- | --- |
 | go-imap / go-message | go-imap 1.2.1; go-message 0.18.1 | Mailer uses the v1 IMAP client API with UIDVALIDITY and `BODY.PEEK`, plus the MIME parser and charset readers. A v2 migration must retain the protocol fixtures, unread-state behavior, cancellation, and MIME size bounds. |

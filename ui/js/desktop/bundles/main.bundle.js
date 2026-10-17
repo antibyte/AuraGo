@@ -846,6 +846,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            'minigolf': 'MinigolfApp',
             layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
@@ -17934,6 +17935,13 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, isActive: () => state.activeWindowId === id }));
+        }
+        if (appId === 'minigolf') {
+            if (!window.MinigolfApp) {
+                window.AuraDesktopModules.loadAppScript('minigolf').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.MinigolfApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, isActive: () => state.activeWindowId === id }));
         }
         if (appId === 'chess') {
             if (!window.ChessApp) {

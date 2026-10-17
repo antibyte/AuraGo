@@ -65,6 +65,9 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 		NoSandbox(true).
 		Set("disable-gpu").
 		Set("disable-dev-shm-usage")
+	if os.Getenv("AURAGO_BROWSER_MUTE_AUDIO") == "1" {
+		l.Set("mute-audio")
+	}
 	if tweak != nil {
 		tweak(l)
 	}

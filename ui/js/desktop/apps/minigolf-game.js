@@ -1,0 +1,273 @@
+import { createScene } from './minigolf-scene.js';
+import { createPhysics } from './minigolf-physics.js';
+import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, scoreTotal } from './minigolf-model.js';
+import { createAudio } from './minigolf-audio.js';
+import { createView } from './minigolf-views.js';
+
+const SAVE_KEY = 'aurago.desktop.minigolf.round.v1';
+const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
+const BEST_KEY = 'aurago.desktop.minigolf.best.v1';
+const finiteUnit = (v, fallback) => Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
+
+export function mountGame(host, context = {}) {
+    const tr = key => context.t?.('minigolf.' + key) || key;
+    const assetURL = context.assetURL || (path => path);
+    host.dataset.golfIcon = assetURL('/img/desktop-icons/minigolf.svg');
+    const view = createView(host, tr), root = view.root;
+    const media = matchMedia('(prefers-reduced-motion: reduce)');
+    let storageFailed = false, settings = { music: .2, effects: .65, quality: 'auto', reducedMotion: false, tutorialDone: false };
+    let best = {}, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
+    let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
+    let panelKind = 'loading', previousPanel = 'menu', track = null, tracks = [];
+    let angle = 0, power = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
+    let lastSurface = 'grass', soundTime = 0, noticeUntil = 0, reduced = false;
+    const fetchController = new AbortController(), events = [], cleanup = [];
+    const windowElement = root.closest('.vd-window');
+    function read(key) { try { const data = localStorage.getItem(key); return data && data.length < 65536 ? JSON.parse(data) : null; } catch (_) { return null; } }
+    function write(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+        catch (_) { storageFailed = true; view.notice('storage_error'); return false; }
+    }
+    const stored = read(SETTINGS_KEY);
+    if (stored && typeof stored === 'object') settings = {
+        music: finiteUnit(stored.music, .2), effects: finiteUnit(stored.effects, .65),
+        quality: ['auto', 'low', 'medium', 'high'].includes(stored.quality) ? stored.quality : 'auto',
+        reducedMotion: stored.reducedMotion === true, tutorialDone: stored.tutorialDone === true
+    };
+    const storedBest = read(BEST_KEY);
+    if (storedBest && typeof storedBest === 'object') for (const key of ['full', 'garden', 'coast', 'night']) {
+        if (Number.isInteger(storedBest[key]) && storedBest[key] > 0 && storedBest[key] <= 234) best[key] = storedBest[key];
+    }
+    const audio = createAudio({ assetURL, onTrack(value) { track = value; view.track(value); }, onError() { if (!disposed) view.notice('audio_error'); } });
+    audio.setMusicVolume(settings.music); audio.setEffectsVolume(settings.effects);
+
+    function persist() { if (round) { checkpoint = cloneSave(round); write(SAVE_KEY, checkpoint); } }
+    function effectiveReduced() { return settings.reducedMotion || media.matches || document.body.dataset.animations === 'false'; }
+    function updateMotion() { reduced = effectiveReduced(); scene?.setReducedMotion(reduced); }
+    function direction() { return [Math.sin(angle), -Math.cos(angle)]; }
+    function allowAim() { return !!round && !round.completed && !busy && !loading && panelKind === '' && !round.players.every(p => p.done); }
+    function updateAim() {
+        const enabled = allowAim();
+        scene?.setAim(direction(), power, enabled); view.power(power);
+        root.querySelector('[data-action="shoot"]').disabled = !enabled;
+        root.querySelector('[data-power]').disabled = !enabled;
+    }
+    function setTurn() {
+        if (!round || round.completed || !course) return;
+        const player = round.players[round.turnIndex];
+        physics?.setBall(player.position);
+        scene?.setBall(player.position, [0, 0, 0, 1], round.turnIndex);
+        scene?.setGhosts(round.players, round.turnIndex);
+        angle = Math.atan2(course.cup[0] - player.position[0], -(course.cup[2] - player.position[2]));
+        power = .35; cameraMode = false; scene?.setCameraMode(false);
+        root.querySelector('[data-action="camera"]').setAttribute('aria-pressed', 'false');
+        root.querySelector('[data-action="camera"]').textContent = tr('camera');
+        view.hud(round, course, busy); updateAim();
+    }
+    function setPanel(kind) {
+        panelKind = kind; updateAim(); syncAudio();
+        root.dataset.panel = kind;
+    }
+    function syncAudio() {
+        if (!visible || panelKind === 'pause' || panelKind === 'error') audio.pause();
+        else audio.resume();
+        if (panelKind || busy === false) audio.rolling(0, lastSurface);
+    }
+    function syncVisibility() {
+        visible = !document.hidden && inView && root.isConnected && (!windowElement || (!windowElement.classList.contains('vd-space-hidden') && windowElement.style.display !== 'none' && !windowElement.hidden));
+        if (!visible) { cancelAnimationFrame(raf); raf = 0; last = 0; }
+        else if (!raf && !disposed) raf = requestAnimationFrame(frame);
+        syncAudio();
+    }
+    function message(key, seconds = 3) { view.notice(key); noticeUntil = performance.now() + seconds * 1000; }
+    async function loadCourse(next, preview = false) {
+        const version = ++generation; loading = true; busy = false; events.length = 0;
+        physics?.dispose(); physics = null; course = next;
+        updateAim(); view.notice('loading');
+        try {
+            if (!scene) scene = createScene(view.canvasHost, { assetURL, quality: settings.quality, reducedMotion: effectiveReduced(), label: tr('title'),
+                onShot: shoot, onAim(dir, amount) { angle = Math.atan2(dir[0], -dir[1]); power = amount; view.power(power); },
+                onError() { setPanel('error'); view.error('webgl_error'); }, onQuality() { message('quality_changed'); }
+            });
+            if (!await scene.load(next) || disposed || version !== generation) return;
+            const nextPhysics = await createPhysics(next, { onEvent: event => events.push(event) });
+            if (disposed || version !== generation) { nextPhysics.dispose(); return; }
+            physics = nextPhysics; loading = false;
+            if (!preview && round) setTurn();
+            else scene.setBall(next.tee);
+            view.notice(storageFailed ? 'storage_error' : '');
+            if (!preview && !settings.tutorialDone) { setPanel('tutorial'); view.help(true); }
+            updateAim(); syncVisibility();
+        } catch (error) {
+            if (disposed || version !== generation) return;
+            loading = false; setPanel('error'); view.error(scene ? 'load_error' : 'webgl_error');
+        }
+    }
+    function showMenu() {
+        if (busy && checkpoint && manifest) { round = cloneSave(checkpoint); busy = false; setTurn(); }
+        setPanel('menu'); view.menu(manifest.courses, checkpoint && !checkpoint.completed, { mode: round?.mode || 'full', count: round?.players.length || 1 });
+    }
+    async function start() {
+        if (!manifest || loading) return;
+        const mode = root.querySelector('[data-mode]').value;
+        const count = Number(root.querySelector('[data-players]').value);
+        const names = Array.from(root.querySelectorAll('[data-player-name]')).slice(0, count).map((input, index) => input.value.trim().replace(/[\u0000-\u001f\u007f-\u009f]/g, '').slice(0, 34) || tr('player').replace('{n}', index + 1));
+        const unique = new Set();
+        names.forEach((name, index) => { if (unique.has(name.toLocaleLowerCase())) names[index] = name + ' ' + (index + 1); unique.add(names[index].toLocaleLowerCase()); });
+        const courses = ['garden', 'coast', 'night'].includes(mode) ? manifest.courses.filter(c => c.world === mode) : manifest.courses;
+        round = createRound(courses, { players: names, mode, holeId: mode === 'practice' ? root.querySelector('[data-hole-id]').value : undefined });
+        persist(); view.close(); setPanel('');
+        await loadCourse(manifest.courses.find(c => c.id === round.courseIds[0]));
+    }
+    async function resume() {
+        if (!checkpoint || !validateSave(checkpoint, manifest.courses) || checkpoint.completed) return;
+        round = cloneSave(checkpoint); view.close(); setPanel('');
+        await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex]));
+        if (!disposed && round.players.every(p => p.done)) showScore();
+    }
+    function shoot(dir = direction(), amount = power) {
+        if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
+        if (!physics.shoot(dir, amount)) return;
+        if (!beginShot(round)) { physics.setBall(round.players[round.turnIndex].position); return; }
+        angle = Math.atan2(dir[0], -dir[1]); power = amount; busy = true;
+        audio.effect('strike', { speed: amount * 12 }); scene.burst('strike', physics.getBall(), amount * 2);
+        view.notice('rolling'); view.hud(round, course, busy); updateAim();
+    }
+    function handleEvents() {
+        for (const event of events.splice(0)) {
+            if (event.type === 'impact') {
+                lastSurface = event.surface || 'grass';
+                if (busy && event.speed > .25 && performance.now() - soundTime > 65) {
+                    soundTime = performance.now(); audio.effect('impact', { speed: event.speed, surface: lastSurface }); scene.burst('impact', event.position, event.speed * .25);
+                }
+                continue;
+            }
+            const finishingPlayer = round?.players[round.turnIndex];
+            if (!busy || !round || !resolveShot(round, event, course)) continue;
+            busy = false; audio.rolling(0, lastSurface);
+            if (event.type === 'water' || event.type === 'out') { audio.effect('splash', { speed: 1 }); scene.burst('water', event.position); message(event.type); }
+            else if (event.type === 'cup') { audio.effect('cup', { speed: 1 }); scene.burst('cup', course.cup); message('sunk'); }
+            else message('aim_hint');
+            if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit', 6);
+            persist();
+            if (round.players.every(p => p.done)) { view.hud(round, course, false); showScore(); }
+            else { setTurn(); if (!reduced) scene.focusBall(); }
+        }
+    }
+    function showScore() {
+        if (!round) return;
+        setPanel('scorecard'); view.scorecard(round, manifest.courses, round.completed, best[round.mode]);
+    }
+    async function nextHole() {
+        if (!advanceHole(round, manifest.courses)) return;
+        persist();
+        if (round.completed) {
+            if (round.mode !== 'practice') {
+                const lowest = Math.min(...round.players.map(scoreTotal));
+                if (!best[round.mode] || lowest < best[round.mode]) { best[round.mode] = lowest; write(BEST_KEY, best); message('new_best', 8); }
+            }
+            audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore();
+        } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); }
+    }
+    function closePanel() {
+        if (panelKind === 'tutorial') { settings.tutorialDone = true; write(SETTINGS_KEY, settings); }
+        if (!round || round.completed || previousPanel === 'menu' && ['settings', 'credits', 'help'].includes(panelKind)) { showMenu(); return; }
+        if (round.players.every(p => p.done)) { showScore(); return; }
+        view.close(); setPanel(''); view.canvasHost.querySelector('canvas')?.focus({ preventScroll: true });
+    }
+    const actions = {
+        start, resume, shoot: () => shoot(), 'next-hole': nextHole,
+        menu: showMenu, scorecard: showScore, focus: () => scene?.focusBall(),
+        pause() { if (panelKind === 'pause') closePanel(); else { setPanel('pause'); view.pause(); } },
+        settings() { previousPanel = panelKind; setPanel('settings'); view.settings(settings, track); },
+        help() { previousPanel = panelKind; setPanel('help'); view.help(); },
+        close: closePanel,
+        camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); const button = root.querySelector('[data-action="camera"]'); button.setAttribute('aria-pressed', String(cameraMode)); button.textContent = tr(cameraMode ? 'aiming' : 'camera'); },
+        'next-track': () => audio.nextTrack(),
+        mute() { if (settings.music > 0) { previousMusic = settings.music; settings.music = 0; } else settings.music = previousMusic || .2; audio.setMusicVolume(settings.music); write(SETTINGS_KEY, settings); view.settings(settings, track); },
+        credits() { setPanel('credits'); view.credits(tracks); },
+        async retry() { if (!manifest) await initialize(); else { scene?.dispose(); scene = null; view.close(); setPanel(round ? '' : 'menu'); await loadCourse(course || manifest.courses[0], !round); if (!round && panelKind !== 'error') showMenu(); } }
+    };
+    function click(event) {
+        const button = event.target.closest('[data-action]');
+        if (button && !button.disabled && actions[button.dataset.action]) Promise.resolve(actions[button.dataset.action]()).catch(() => { if (!disposed) { setPanel('error'); view.error('load_error'); } });
+    }
+    function input(event) {
+        const element = event.target;
+        if (element.matches('[data-power]')) { power = Number(element.value) / 100; updateAim(); }
+        else if (element.matches('[data-music]')) { settings.music = Number(element.value) / 100; audio.setMusicVolume(settings.music); write(SETTINGS_KEY, settings); }
+        else if (element.matches('[data-effects]')) { settings.effects = Number(element.value) / 100; audio.setEffectsVolume(settings.effects); write(SETTINGS_KEY, settings); }
+    }
+    function change(event) {
+        const element = event.target;
+        if (element.matches('[data-players]')) view.playerNames(Number(element.value));
+        if (element.matches('[data-mode]')) root.querySelector('[data-hole-select]').hidden = element.value !== 'practice';
+        if (element.matches('[data-quality]')) { settings.quality = element.value; scene?.setQuality(settings.quality); write(SETTINGS_KEY, settings); }
+        if (element.matches('[data-motion]')) { settings.reducedMotion = element.checked; updateMotion(); write(SETTINGS_KEY, settings); }
+    }
+    function key(event) {
+        if (context.isActive?.() === false || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key === 'Escape') { event.preventDefault(); if (!['menu', 'loading', 'error'].includes(panelKind)) panelKind ? closePanel() : actions.pause(); return; }
+        if (event.target.closest('input,select,textarea,button') || !allowAim()) return;
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(event.key)) return;
+        event.preventDefault();
+        if (event.key === ' ') { if (!event.repeat) shoot(); return; }
+        if (event.key === 'ArrowLeft') angle -= event.shiftKey ? .008 : .035;
+        if (event.key === 'ArrowRight') angle += event.shiftKey ? .008 : .035;
+        if (event.key === 'ArrowUp') power = Math.min(1, power + .02);
+        if (event.key === 'ArrowDown') power = Math.max(.02, power - .02);
+        updateAim();
+    }
+    function gesture() { void audio.unlock().then(syncAudio).catch(() => { if (!disposed) view.notice('audio_error'); }); }
+    root.addEventListener('click', click); root.addEventListener('input', input); root.addEventListener('change', change);
+    root.addEventListener('keydown', key); root.addEventListener('pointerdown', gesture); root.addEventListener('keydown', gesture);
+    document.addEventListener('visibilitychange', syncVisibility); media.addEventListener('change', updateMotion);
+    cleanup.push(() => { root.removeEventListener('click', click); root.removeEventListener('input', input); root.removeEventListener('change', change); root.removeEventListener('keydown', key); root.removeEventListener('pointerdown', gesture); root.removeEventListener('keydown', gesture); document.removeEventListener('visibilitychange', syncVisibility); media.removeEventListener('change', updateMotion); });
+    const visibilityObserver = new MutationObserver(syncVisibility);
+    if (windowElement) visibilityObserver.observe(windowElement, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+    const motionObserver = new MutationObserver(updateMotion); motionObserver.observe(document.body, { attributes: true, attributeFilter: ['data-animations'] });
+    const intersection = new IntersectionObserver(entries => { inView = !!entries[0]?.isIntersecting; syncVisibility(); }); intersection.observe(root);
+    cleanup.push(() => { visibilityObserver.disconnect(); motionObserver.disconnect(); intersection.disconnect(); });
+    function frame(time) {
+        raf = 0; if (disposed || !visible) return;
+        const dt = last ? Math.min(.12, (time - last) / 1000) : 0; last = time;
+        let snapshot = physics?.getSnapshot();
+        if (physics && !loading && panelKind === '' && !round?.completed) { snapshot = physics.step(dt); handleEvents(); }
+        if (scene) {
+            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.turnIndex || 0 };
+            scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
+        }
+        if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface);
+        if (noticeUntil && time > noticeUntil) { noticeUntil = 0; view.notice(storageFailed ? 'storage_error' : busy ? 'rolling' : round && !panelKind ? 'aim_hint' : ''); }
+        raf = requestAnimationFrame(frame);
+    }
+    async function initialize() {
+        loading = true; view.notice('loading');
+        try {
+            const response = await fetch(assetURL('/3d/minigolf/manifest.json'), { signal: fetchController.signal });
+            if (!response.ok) throw Error('manifest');
+            const data = await response.json();
+            if (disposed) return;
+            if (data.version !== 1 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model))) throw Error('manifest');
+            manifest = data; const saved = read(SAVE_KEY);
+            checkpoint = saved && validateSave(saved, manifest.courses) ? saved : null;
+            tracks = [
+                { title: 'A Simple Trifle', author: 'jestar' },
+                { title: 'Piano Emotional Solo 139', author: 'Tozan' },
+                { title: 'Crystal Tune Bright 1', author: 'Tozan' }
+            ];
+            await loadCourse(manifest.courses[0], true);
+            if (!disposed && panelKind !== 'error') showMenu();
+        } catch (_) { if (!disposed) { loading = false; setPanel('error'); view.error('load_error'); } }
+    }
+    updateMotion(); syncVisibility(); void initialize();
+    return {
+        inspect() { return { round: round && cloneSave(round), course: course?.id, busy, loading, visible, panel: panelKind, physics: physics?.getSnapshot(), graphics: scene?.stats(), audio: audio.getState() }; },
+        dispose() {
+            if (disposed) return; disposed = true; generation++; fetchController.abort(); cancelAnimationFrame(raf);
+            for (const dispose of cleanup) dispose();
+            physics?.dispose(); physics = null; scene?.dispose(); scene = null;
+            audio.dispose(); visible = false; raf = 0; root.remove();
+        }
+    };
+}
