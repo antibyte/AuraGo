@@ -9,7 +9,7 @@
     const FX = () => window.VideoStudioEffects;
     const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room', ramp: 'ramp' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
-    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'] };
+    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'] };
     const clone = value => JSON.parse(JSON.stringify(value));
     const endOf = clip => clip.start + clip.duration;
     const sorted = track => track.clips.slice().sort((a, b) => a.start - b.start);
@@ -22,6 +22,18 @@
     function clampFades(clip) {
         clip.fade_in = Math.min(Number(clip.fade_in) || 0, clip.duration);
         clip.fade_out = Math.min(Number(clip.fade_out) || 0, clip.duration);
+    }
+    // Keyframe limits (index §4.18): 64 per value, 512 per clip.
+    function overLimit(keyframes) {
+        const limits = FX().LIMITS, lists = Object.values(keyframes || {});
+        return lists.some(list => list.length > limits.keyframesPerParam) || lists.reduce((n, list) => n + list.length, 0) > limits.keyframesPerClip;
+    }
+    // A box evaluated from keys, made valid as fields: sizes within 0.01..1, positions pulled in so x + width <= 1 and
+    // y + height <= 1 (keyframe values are checked per parameter only).
+    function fieldBox(state) {
+        const axis = (position, size) => { let p = Math.max(0, Math.min(Number(position) || 0, 1 - size)); while (p > 0 && p + size > 1) p = Math.max(0, p - 1e-9); return p; };
+        const width = Math.max(0.01, Math.min(1, Number(state.width) || 1)), height = Math.max(0.01, Math.min(1, Number(state.height) || 1));
+        return { x: axis(state.x, width), y: axis(state.y, height), width, height };
     }
     // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1. Without a ramp that is phase 1's
     // (duration - 1) * speed; with one it is S (VideoStudioEffects.maxDurationFor). Stills are unbounded.
@@ -614,9 +626,10 @@
         return result;
     }
 
-    // Copies attribute groups from `source` (a clip object) to the listed clips. picture skips audio clips. The speed
-    // group skips stills and goes through setSpeed for the clips and their link partners, so it follows the timing
-    // rules (ripple by default).
+    // Copies attribute groups from `source` (a clip object) to the listed clips. picture and keyframes skip audio clips.
+    // The speed group skips stills and goes through setSpeed for the clips and their link partners, so it follows the
+    // timing rules (ripple by default); a ramped source gives its ramp instead (pasteRamp). keyframes replaces the
+    // clip's keys, re-anchored after the speed group so each key keeps its timing from the clip start (index §4.18).
     function pasteAttributes(project, source, ids, groups) {
         const items = editable(project, ids), wanted = groups || [];
         if (!items.length) return refusal(project, ids);
@@ -624,19 +637,39 @@
         items.forEach(({ track, clip }) => {
             wanted.forEach(group => {
                 if (group === 'picture' && track.kind === 'audio') return;
-                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (key !== 'speed' && source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
+                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (key !== 'speed' && key !== 'keyframes' && source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
             });
             clampFades(clip);
         });
         if (wanted.includes('speed')) {
             const timed = withLinks(project, items.map(({ clip }) => clip.id)).filter(id => !isStill(project, T().clipFor(project, id).clip));
             if (timed.length) {
-                const result = setSpeed(project, timed, speedOf(source), false);
+                const result = FX().hasRamp(source) ? pasteRamp(project, source, timed) : setSpeed(project, timed, speedOf(source), false);
                 if (result !== true) return result;
                 changed = true;
             }
         }
+        if (wanted.includes('keyframes')) {
+            items.forEach(({ track, clip }) => {
+                if (track.kind === 'audio') return;
+                const keys = FX().reanchorKeyframes(source, clip);
+                if (keys) clip.keyframes = keys; else delete clip.keyframes;
+                changed = true;
+            });
+        }
         return changed ? finish(project) : REASON.nothing;
+    }
+    // The speed group with a ramped source (index §4.18): unlocked video-track clips of video media take the ramp and
+    // keep their duration; the other clips keep their timing. media when the media ends before a ramped clip does.
+    function pasteRamp(project, source, ids) {
+        for (const id of ids) {
+            const { track, clip } = T().clipFor(project, id), asset = assetOf(project, clip);
+            if (track.locked || track.kind !== 'video' || !asset || asset.kind !== 'video') continue;
+            clip.ramp = clone(source.ramp);
+            delete clip.speed;
+            if (clip.duration > FX().maxDurationFor(clip, Number(asset.duration_frames) || 0, clip.offset)) return REASON.media;
+        }
+        return true;
     }
 
     // ---- Speed (spec 4.4). The default keeps the source range: round(duration × old / new) frames at a constant
@@ -793,8 +826,9 @@
     // the mapped frame each member shows the source frame it showed before, so picture and sound stay in sync. Members of
     // other assets stay. A member outside the range, a clip that no longer reads the reversed source, or a moved member
     // that would overlap another clip, touch a transition or leave the project refuses (reason room) without changes.
-    // A ramped member refuses (reason ramp): a mirrored ramp with hold spans is not representable, so reverse first and
-    // ramp afterwards (index §4.18).
+    // Keyframes mirror around the reversed asset's last frame (index §4.18); extra hold keys past the limits refuse
+    // (limit). A ramped member refuses (reason ramp): a mirrored ramp with hold spans is not representable, so reverse
+    // first and ramp afterwards (index §4.18).
     function reverseClips(project, clipId, reversed) {
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
@@ -812,7 +846,9 @@
             if (clip.offset < reversed.rangeStart || last > reversed.rangeStart + reversed.frames - 1 + 1e-9) return REASON.media;
             const offset = Math.max(0, Math.floor(reversed.frames - 1 - (clip.offset - reversed.rangeStart) - (clip.duration - 1) * speed + 1e-9));
             if (clip.duration > Math.floor((Number(target.duration_frames) - 1 - offset) / speed + 1e-9) + 1) return REASON.media;
-            plans.push({ track, clip, offset, start: clip === anchor ? clip.start : pivot - endOf(clip) });
+            const keyframes = clip.keyframes ? FX().mirrorKeyframes(clip.keyframes, reversed.rangeStart + reversed.frames - 1) : undefined;
+            if (keyframes && overLimit(keyframes)) return REASON.limit;
+            plans.push({ track, clip, offset, keyframes, start: clip === anchor ? clip.start : pivot - endOf(clip) });
         }
         const moving = plans.filter(plan => plan.start !== plan.clip.start), members = new Set(plans.map(({ clip }) => clip));
         for (const { track, clip, start } of moving) {
@@ -822,11 +858,12 @@
             const placed = other => (members.has(other) ? plans.find(plan => plan.clip === other).start : other.start);
             if (track.clips.some(other => other !== clip && placed(other) < end && start < placed(other) + other.duration)) return REASON.room;
         }
-        plans.forEach(({ clip, offset, start }) => { clip.asset_id = reversed.assetId; clip.offset = offset; clip.start = start; });
+        plans.forEach(({ clip, offset, start, keyframes }) => { clip.asset_id = reversed.assetId; clip.offset = offset; clip.start = start; if (keyframes) clip.keyframes = keyframes; else delete clip.keyframes; });
         return finish(project);
     }
     // Freeze frame (spec 4.4): the clip and its link partners are cut at the playhead, then a still of the captured
-    // frame (the clip's geometry) is inserted on the clip's own track. Insert rules move the later clips.
+    // frame (the geometry and opacity the clip shows there, keyframes evaluated, no keys) is inserted on the clip's own
+    // track. Insert rules move the later clips.
     // captured = { asset_id, clip_id, duration, source_asset_id, source_frame } (duration in frames). When given, the
     // source fields name the frame the still shows; a clip that shows another frame at the cut (slipped, moved, re-timed
     // or reversed while the capture waited) refuses, so the still never jumps against the clip.
@@ -840,11 +877,13 @@
         if (!(project.assets || []).some(asset => asset.id === captured.asset_id && asset.kind === 'image')) return REASON.media;
         if (captured.source_asset_id != null && clip.asset_id !== captured.source_asset_id) return REASON.media;
         if (captured.source_frame != null && sourceFrameAt(project, clip, frame) !== captured.source_frame) return REASON.media;
+        // Evaluated before the cut: the still shows what the clip shows at the frozen frame (index §4.18).
+        const state = FX().clipState(clip, frame, project), box = fieldBox(state);
         const cut = blade(project, frame, { clipIds: [clipId], linked: true }, {});
         if (cut !== true) return cut;
         const still = {
             id: captured.clip_id, asset_id: captured.asset_id, start: frame, offset: 0, duration: Math.max(1, Math.round(captured.duration)),
-            x: clip.x, y: clip.y, width: clip.width, height: clip.height, rotation: clip.rotation, opacity: clip.opacity,
+            x: box.x, y: box.y, width: box.width, height: box.height, rotation: state.rotation, opacity: state.opacity,
             volume: 1, fade_in: 0, fade_out: 0, fit: clip.fit, text: '', text_style: null, transition: null
         };
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);

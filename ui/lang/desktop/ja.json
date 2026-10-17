@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "4倍を超えると、プレビューと書き出しで音声は無音になります。",
   "videoStudio.speedInvalid": "0.25〜16の速度を入力してください。",
   "videoStudio.attrSpeed": "速度（クリップの長さが変わります）",
+  "videoStudio.attrKeyframes": "キーフレーム（クリップの先頭から同じタイミング）",
   "videoStudio.link": "リンク",
   "videoStudio.unlink": "リンク解除",
   "videoStudio.detachAudio": "オーディオを分離",

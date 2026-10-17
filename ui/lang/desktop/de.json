@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Ton ist über 4× in Vorschau und Export stumm.",
   "videoStudio.speedInvalid": "Gib eine Geschwindigkeit zwischen 0,25 und 16 ein.",
   "videoStudio.attrSpeed": "Geschwindigkeit (ändert die Clip-Länge)",
+  "videoStudio.attrKeyframes": "Keyframes (gleiches Timing ab Clipbeginn)",
   "videoStudio.link": "Verknüpfen",
   "videoStudio.unlink": "Verknüpfung lösen",
   "videoStudio.detachAudio": "Audio lösen",

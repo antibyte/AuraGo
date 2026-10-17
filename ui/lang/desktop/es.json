@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "El audio se silencia por encima de 4× en la vista previa y en la exportación.",
   "videoStudio.speedInvalid": "Introduce una velocidad entre 0,25 y 16.",
   "videoStudio.attrSpeed": "Velocidad (cambia la duración del clip)",
+  "videoStudio.attrKeyframes": "Fotogramas clave (mismo tiempo desde el inicio del clip)",
   "videoStudio.link": "Vincular",
   "videoStudio.unlink": "Desvincular",
   "videoStudio.detachAudio": "Separar audio",

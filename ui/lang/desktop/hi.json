@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "4× से ऊपर प्रीव्यू और निर्यात में ऑडियो मौन रहता है।",
   "videoStudio.speedInvalid": "0.25 से 16 के बीच की गति दर्ज करें।",
   "videoStudio.attrSpeed": "गति (क्लिप की लंबाई बदलती है)",
+  "videoStudio.attrKeyframes": "कीफ़्रेम (क्लिप की शुरुआत से वही समय)",
   "videoStudio.link": "लिंक करें",
   "videoStudio.unlink": "अनलिंक करें",
   "videoStudio.detachAudio": "ऑडियो अलग करें",

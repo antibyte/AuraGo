@@ -419,12 +419,57 @@
     // - A point that rounds onto the one before is dropped. One point left means a constant speed; rescaleProject
     //   applies it.
     // - Speeds are frames per frame and stay. ramp is null without a ramp.
-    // Plan 2b Task 10 adds the keyframe part (f scales like the offset); until then keyframes pass unchanged.
+    // - Key frames scale like the offset (rounded; a key that lands on the one before it is dropped, the first stays).
+    //   keyframes is undefined without keys, so rescaleProject deletes the field.
     function rescaleAnimation(clip, ratio) {
         const ramp = hasRamp(clip) ? clip.ramp.map(point => ({ f: Math.round(point.f * ratio), speed: point.speed, e: point.e }))
             .filter((point, index, list) => index === 0 || point.f !== list[index - 1].f) : null;
-        return { keyframes: clip && clip.keyframes, ramp };
+        return { keyframes: remapKeyframes(clip && clip.keyframes, f => Math.round(f * ratio)), ramp };
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    // ---- Plan 2b Task 10: keyframes under reverse, paste attributes and rate changes (index §4.18). ----
+    // Keyframe maps under a change of source time. map takes a key's source frame and returns its new one (non-decreasing
+    // in f); a key that lands on the frame of the key before it is dropped (the first one stays). Paths keep alphabetical
+    // order (Go marshals map keys sorted). undefined when no key remains, so callers delete the field.
+    function remapKeyframes(keyframes, map) {
+        const out = {};
+        Object.keys(keyframes || {}).sort().forEach(path => {
+            const list = [];
+            (Array.isArray(keyframes[path]) ? keyframes[path] : []).forEach(key => {
+                const f = map(Number(key.f));
+                if (!list.length || f > list[list.length - 1].f) list.push({ f, v: key.v, e: key.e });
+            });
+            if (list.length) out[path] = list;
+        });
+        return Object.keys(out).length ? out : undefined;
+    }
+    const MIRRORED_EASING = { ease_in: 'ease_out', ease_out: 'ease_in' };
+    // Reverse: f' = pivot - f in reversed order. The span right of a mirrored key is the original span left of it, so
+    // the key takes the mirrored easing of the key before it (ease_in <-> ease_out); the last mirrored key takes that of
+    // the original last key, so mirroring twice gives the keys back. A hold jumps at the end of its span and, mirrored,
+    // would have to jump at the start: a hold longer than one frame gets an extra key one source frame after the
+    // mirrored key, carrying the held value (whole source frames show the original values; a fractional position may
+    // lead by up to one frame). undefined when there are no keys.
+    function mirrorKeyframes(keyframes, pivot) {
+        const out = {};
+        Object.keys(keyframes || {}).sort().forEach(path => {
+            const list = (Array.isArray(keyframes[path]) ? keyframes[path] : []).slice().sort((a, b) => a.f - b.f), n = list.length, mirrored = [];
+            for (let j = 0; j < n; j++) {
+                const key = list[n - 1 - j], before = list[n - 2 - j], easing = (before || list[n - 1]).e;
+                mirrored.push({ f: pivot - key.f, v: key.v, e: MIRRORED_EASING[easing] || easing });
+                if (before && before.e === 'hold' && key.f - before.f >= 2) mirrored.push({ f: pivot - key.f + 1, v: before.v, e: 'linear' });
+            }
+            if (mirrored.length) out[path] = mirrored;
+        });
+        return Object.keys(out).length ? out : undefined;
+    }
+    // Paste attributes: source's keys at the same timing relative to each clip's start on target. A key
+    // dt = timelineAt(source, f) - source.start frames after the source's start lands at
+    // round(sourceAt(target, target.start + dt)). undefined when source has no keys.
+    function reanchorKeyframes(source, target) {
+        const from = Number(source && source.start) || 0, to = Number(target && target.start) || 0;
+        return remapKeyframes(source && source.keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from)));
+    }
+
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, adopt, registry, transitions, transition, isTransition, base, effect, defaults, validAnimation, ease, sample, keyframable, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

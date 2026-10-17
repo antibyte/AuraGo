@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "速度超过 4× 时，预览和导出中的音频为静音。",
   "videoStudio.speedInvalid": "请输入 0.25 到 16 之间的速度。",
   "videoStudio.attrSpeed": "速度（会改变片段长度）",
+  "videoStudio.attrKeyframes": "关键帧（从片段开头起的相同时间）",
   "videoStudio.link": "链接",
   "videoStudio.unlink": "取消链接",
   "videoStudio.detachAudio": "分离音频",

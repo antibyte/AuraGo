@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Nad 4× je zvuk v náhledu i exportu ztlumený.",
   "videoStudio.speedInvalid": "Zadej rychlost mezi 0,25 a 16.",
   "videoStudio.attrSpeed": "Rychlost (mění délku klipu)",
+  "videoStudio.attrKeyframes": "Klíčové snímky (stejné načasování od začátku klipu)",
   "videoStudio.link": "Propojit",
   "videoStudio.unlink": "Zrušit propojení",
   "videoStudio.detachAudio": "Oddělit zvuk",

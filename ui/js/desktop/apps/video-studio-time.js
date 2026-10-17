@@ -73,7 +73,8 @@
     }
     // Converts every frame value to a new rate in place and returns the project. Clip edges are scaled (not
     // durations) so neighbouring clips stay gapless; asset lengths come from their microseconds like on the server;
-    // transitions follow the rounded overlap (repairTransitions). Markers and in/out follow the same scale.
+    // transitions follow the rounded overlap (repairTransitions). Markers and in/out follow the same scale. Keyframe
+    // frames scale like the offset and ramp points like durations (VideoStudioEffects.rescaleAnimation, index §4.18).
     function rescaleProject(project, fps, ntsc) {
         const target = { fps: Number(fps), ntsc: !!ntsc && NTSC_RATES.includes(Number(fps)) };
         const ratio = rate(target) / rate(project);
@@ -97,6 +98,7 @@
                 const anim = FX.rescaleAnimation(clip, ratio);
                 if (anim.ramp && anim.ramp.length > 1) clip.ramp = anim.ramp;
                 else if (anim.ramp) { delete clip.ramp; if (anim.ramp[0].speed !== 1) clip.speed = anim.ramp[0].speed; }
+                if (anim.keyframes) clip.keyframes = anim.keyframes; else delete clip.keyframes;
             }
             if (asset && asset.kind !== 'image') {
                 // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1 (a ramp: maxDurationFor).

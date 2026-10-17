@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Ljudet är tyst över 4× i förhandsvisning och export.",
   "videoStudio.speedInvalid": "Ange en hastighet mellan 0,25 och 16.",
   "videoStudio.attrSpeed": "Hastighet (ändrar klippets längd)",
+  "videoStudio.attrKeyframes": "Nyckelbildrutor (samma tidpunkter från klippets början)",
   "videoStudio.link": "Länka",
   "videoStudio.unlink": "Ta bort länk",
   "videoStudio.detachAudio": "Koppla loss ljud",

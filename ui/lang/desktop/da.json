@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Lyden er slået fra over 4× i forhåndsvisning og eksport.",
   "videoStudio.speedInvalid": "Angiv en hastighed mellem 0,25 og 16.",
   "videoStudio.attrSpeed": "Hastighed (ændrer klippets længde)",
+  "videoStudio.attrKeyframes": "Nøglebilleder (samme timing fra klippets start)",
   "videoStudio.link": "Sammenkæd",
   "videoStudio.unlink": "Fjern sammenkædning",
   "videoStudio.detachAudio": "Frakobl lyd",

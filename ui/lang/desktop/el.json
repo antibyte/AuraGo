@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Ο ήχος σιγάζει πάνω από 4× στην προεπισκόπηση και την εξαγωγή.",
   "videoStudio.speedInvalid": "Εισήγαγε ταχύτητα μεταξύ 0,25 και 16.",
   "videoStudio.attrSpeed": "Ταχύτητα (αλλάζει τη διάρκεια του κλιπ)",
+  "videoStudio.attrKeyframes": "Καρέ-κλειδιά (ίδιος συγχρονισμός από την αρχή του κλιπ)",
   "videoStudio.link": "Σύνδεση",
   "videoStudio.unlink": "Αποσύνδεση",
   "videoStudio.detachAudio": "Διαχωρισμός ήχου",

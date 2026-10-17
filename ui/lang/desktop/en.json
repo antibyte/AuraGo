@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Audio is silent above 4× in preview and export.",
   "videoStudio.speedInvalid": "Enter a speed between 0.25 and 16.",
   "videoStudio.attrSpeed": "Speed (changes the clip length)",
+  "videoStudio.attrKeyframes": "Keyframes (same timing from the clip start)",
   "videoStudio.link": "Link",
   "videoStudio.unlink": "Unlink",
   "videoStudio.detachAudio": "Detach audio",

@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Boven 4× is het geluid stil in voorbeeld en export.",
   "videoStudio.speedInvalid": "Voer een snelheid tussen 0,25 en 16 in.",
   "videoStudio.attrSpeed": "Snelheid (wijzigt de cliplengte)",
+  "videoStudio.attrKeyframes": "Sleutelframes (zelfde timing vanaf het begin van de clip)",
   "videoStudio.link": "Koppelen",
   "videoStudio.unlink": "Ontkoppelen",
   "videoStudio.detachAudio": "Audio losmaken",

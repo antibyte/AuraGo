@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "Oltre 4× l’audio è muto nell’anteprima e nell’esportazione.",
   "videoStudio.speedInvalid": "Inserisci una velocità tra 0,25 e 16.",
   "videoStudio.attrSpeed": "Velocità (cambia la lunghezza della clip)",
+  "videoStudio.attrKeyframes": "Fotogrammi chiave (stessa tempistica dall’inizio della clip)",
   "videoStudio.link": "Collega",
   "videoStudio.unlink": "Scollega",
   "videoStudio.detachAudio": "Separa audio",

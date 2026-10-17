@@ -6073,6 +6073,7 @@
   "videoStudio.speedSilent": "O áudio fica mudo acima de 4× na pré-visualização e na exportação.",
   "videoStudio.speedInvalid": "Informe uma velocidade entre 0,25 e 16.",
   "videoStudio.attrSpeed": "Velocidade (altera a duração do clipe)",
+  "videoStudio.attrKeyframes": "Quadros-chave (mesmo tempo desde o início do clipe)",
   "videoStudio.link": "Vincular",
   "videoStudio.unlink": "Desvincular",
   "videoStudio.detachAudio": "Separar áudio",
