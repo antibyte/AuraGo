@@ -1,9 +1,11 @@
 package videostudio
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 )
 
 // clipChain builds one visual clip's export filter chain (spec §7.1, plan index §4.10): the clip's input is retimed
@@ -189,33 +191,21 @@ type geometryPlan struct {
 
 // geometry lays out the clip's keyframed box. Window frame k has t = k·Den/Num, the value FFmpeg computes as
 // pts·av_q2d(tb) after window; the clip's own frames j (absolute frame whole.Start + j) are evaluated the same way
-// with the window starting at the clip's start.
+// with the window starting at the clip's start. The window's own part (box expressions and sizes) is cheap; the
+// whole-clip part (wholeExtent) is remembered, because every stage of every window asks for it.
 func (c clipChain) geometry() geometryPlan {
 	whole := c.item.whole
 	g := geometryPlan{box: boxExprs(whole, c.item.at, c.item.pieces, c.canvasWidth, c.canvasHeight, c.rate)}
-	step := float64(c.rate.Den) / float64(c.rate.Num)
-	sizes := func(box boxExpr, frames int) (widths, heights []int, rotated bool) {
-		widths, heights = make([]int, frames), make([]int, frames)
-		for k := range frames {
-			vars := map[string]float64{"t": float64(k) * step}
-			widths[k], heights[k] = int(box.w.eval(vars)), int(box.h.eval(vars))
-			if math.Abs(box.angle.eval(vars)) > 0.000001*math.Pi/180 {
-				rotated = true
-			}
-		}
-		return widths, heights, rotated
+	var windowRotated bool
+	g.widths, g.heights, windowRotated = c.frameSizes(g.box, c.item.clip.Duration)
+	var extent wholeExtent
+	if c.item.at == whole.Start && c.item.clip.Duration == whole.Duration {
+		extent = c.extentOf(g.widths, g.heights, windowRotated)
+	} else {
+		extent = c.wholeExtent()
 	}
-	g.widths, g.heights, g.rotated = sizes(g.box, c.item.clip.Duration)
-	clipWidths, clipHeights := g.widths, g.heights
-	if c.item.at != whole.Start || c.item.clip.Duration != whole.Duration {
-		clipWidths, clipHeights, g.rotated = sizes(boxExprs(whole, whole.Start, c.item.pieces, c.canvasWidth, c.canvasHeight, c.rate), whole.Duration)
-	}
-	for k := range clipWidths {
-		g.padWidth, g.padHeight = max(g.padWidth, clipWidths[k]), max(g.padHeight, clipHeights[k])
-	}
-	if whole.Fit == FitCover {
-		g.boundWidth, g.boundHeight, g.low, g.high = coverBound(clipWidths, clipHeights, c.item.sourceAspect)
-	}
+	g.padWidth, g.padHeight, g.rotated = extent.padWidth, extent.padHeight, extent.rotated
+	g.boundWidth, g.boundHeight, g.low, g.high = extent.boundWidth, extent.boundHeight, extent.low, extent.high
 	g.layerWidth, g.layerHeight = g.padWidth, g.padHeight
 	if g.rotated {
 		g.padWidth, g.padHeight = g.padWidth+2, g.padHeight+2
@@ -223,6 +213,92 @@ func (c clipChain) geometry() geometryPlan {
 		g.layerWidth, g.layerHeight = side, side
 	}
 	return g
+}
+
+// frameSizes evaluates a box frame by frame, the way FFmpeg evaluates the scale expressions: window frame k has
+// t = k·Den/Num. rotated reports a frame whose angle exceeds a millionth of a degree.
+func (c clipChain) frameSizes(box boxExpr, frames int) (widths, heights []int, rotated bool) {
+	step := float64(c.rate.Den) / float64(c.rate.Num)
+	widths, heights = make([]int, frames), make([]int, frames)
+	for k := range frames {
+		vars := map[string]float64{"t": float64(k) * step}
+		widths[k], heights[k] = int(box.w.eval(vars)), int(box.h.eval(vars))
+		if math.Abs(box.angle.eval(vars)) > 0.000001*math.Pi/180 {
+			rotated = true
+		}
+	}
+	return widths, heights, rotated
+}
+
+// wholeExtent is what a clip with keyframed geometry needs from all of its frames: the largest box (the pad canvas),
+// whether any frame rotates and, for cover, the bound and the clamp range of coverBound.
+type wholeExtent struct {
+	padWidth, padHeight     int
+	rotated                 bool
+	boundWidth, boundHeight int
+	low, high               float64
+}
+
+// extentOf reduces the box sizes of the clip's frames to the extent.
+func (c clipChain) extentOf(widths, heights []int, rotated bool) wholeExtent {
+	extent := wholeExtent{rotated: rotated}
+	for k := range widths {
+		extent.padWidth, extent.padHeight = max(extent.padWidth, widths[k]), max(extent.padHeight, heights[k])
+	}
+	if c.item.whole.Fit == FitCover {
+		extent.boundWidth, extent.boundHeight, extent.low, extent.high = coverBound(widths, heights, c.item.sourceAspect)
+	}
+	return extent
+}
+
+// extentMemoLimit bounds the memo; it is cleared when one more clip layout appears.
+const extentMemoLimit = 256
+
+// wholeExtents remembers the extent of every clip layout this process has sized, under a digest of everything that
+// feeds it: the three box expressions of the whole clip, its length, the frame rate, the canvas, the cover fit and the
+// source aspect. A render builds the graph of every segment window and each of its stages asks for the extent; a
+// one-hour clip is 108000 frames of expression evaluation, about half a second, so asking again for every window and
+// stage took minutes. The extent is a pure function of the key, so a remembered value is the value that would be
+// computed.
+var wholeExtents = struct {
+	sync.Mutex
+	byKey map[[sha256.Size]byte]wholeExtent
+}{byKey: map[[sha256.Size]byte]wholeExtent{}}
+
+// wholeExtentHook, when set, is called for every extent that is computed instead of remembered (tests count them).
+var wholeExtentHook func()
+
+// wholeExtent sizes the clip over all of its frames, not just the segment window, so every segmentation of one clip
+// renders it on one canvas (a window-only value broke segmentation parity).
+func (c clipChain) wholeExtent() wholeExtent {
+	whole := c.item.whole
+	box := boxExprs(whole, whole.Start, c.item.pieces, c.canvasWidth, c.canvasHeight, c.rate)
+	digest := sha256.New()
+	for _, expr := range []ffExpr{box.w, box.h, box.angle} {
+		text := expr.String()
+		fmt.Fprintf(digest, "%d:%s|", len(text), text)
+	}
+	fmt.Fprintf(digest, "%d|%d/%d|%dx%d|%t|%x", whole.Duration, c.rate.Num, c.rate.Den, c.canvasWidth, c.canvasHeight, whole.Fit == FitCover, math.Float64bits(c.item.sourceAspect))
+	var key [sha256.Size]byte
+	copy(key[:], digest.Sum(nil))
+	wholeExtents.Lock()
+	extent, ok := wholeExtents.byKey[key]
+	wholeExtents.Unlock()
+	if ok {
+		return extent
+	}
+	if wholeExtentHook != nil {
+		wholeExtentHook()
+	}
+	widths, heights, rotated := c.frameSizes(box, whole.Duration)
+	extent = c.extentOf(widths, heights, rotated)
+	wholeExtents.Lock()
+	if len(wholeExtents.byKey) >= extentMemoLimit {
+		clear(wholeExtents.byKey)
+	}
+	wholeExtents.byKey[key] = extent
+	wholeExtents.Unlock()
+	return extent
 }
 
 // animatedTransform fits a clip with keyframed geometry into its per-frame box.
