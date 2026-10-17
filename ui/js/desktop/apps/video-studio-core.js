@@ -415,7 +415,8 @@
             return Array.isArray(media) ? new Set(media.map(item => item && item.asset && item.asset.id).filter(Boolean)) : null;
         } catch (_) { return null; }
     }
-    const clipsUse = (project, ids) => (project.tracks || []).some(track => (track.clips || []).some(clip => ids.has(clip.asset_id)));
+    // A clip uses an asset as its media or, for a LUT, through a lut effect (2c).
+    const clipsUse = (project, ids) => (project.tracks || []).some(track => (track.clips || []).some(clip => ids.has(clip.asset_id) || (Array.isArray(clip.effects) && clip.effects.some(entry => entry && entry.id === 'lut' && entry.params && ids.has(entry.params.lut)))));
     // Assets of a project (or history snapshot) that the server no longer has: media removed in another window.
     const removedIds = (project, serverIds) => new Set((project.assets || []).filter(asset => !serverIds.has(asset.id)).map(asset => asset.id));
     // Media removed elsewhere leaves the project when no clip uses it, and the undo and redo snapshots that do not use it
@@ -432,10 +433,15 @@
         }
         return true;
     }
-    // Removes assets and the clips that use them from a project snapshot.
+    // Removes assets, the clips that use them and the lut effects that use a removed LUT from a project snapshot.
     function stripAssets(project, ids) {
         project.assets = (project.assets || []).filter(asset => !ids.has(asset.id));
         (project.tracks || []).forEach(track => { track.clips = (track.clips || []).filter(clip => !ids.has(clip.asset_id)); });
+        (project.tracks || []).forEach(track => track.clips.forEach(clip => {
+            if (!Array.isArray(clip.effects)) return;
+            clip.effects = clip.effects.filter(entry => !(entry && entry.id === 'lut' && entry.params && ids.has(entry.params.lut)));
+            if (!clip.effects.length) delete clip.effects;
+        }));
         T().repairTransitions(project);
         return project;
     }

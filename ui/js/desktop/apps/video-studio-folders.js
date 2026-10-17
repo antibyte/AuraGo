@@ -49,10 +49,15 @@
             return recursive ? !base || at === base || at.startsWith(base + '/') : at === base;
         });
     }
-    // How many clips of the project use each asset.
+    // How many clips of the project use each asset; a LUT asset counts once per effect entry that uses it (2c).
     function usageCounts(project) {
-        const counts = new Map();
-        (project.tracks || []).forEach(track => (track.clips || []).forEach(clip => counts.set(clip.asset_id, (counts.get(clip.asset_id) || 0) + 1)));
+        const counts = new Map(), add = id => counts.set(id, (counts.get(id) || 0) + 1);
+        (project.tracks || []).forEach(track => (track.clips || []).forEach(clip => {
+            add(clip.asset_id);
+            (Array.isArray(clip.effects) ? clip.effects : []).forEach(entry => {
+                if (entry && entry.id === 'lut' && entry.params && typeof entry.params.lut === 'string' && entry.params.lut && !entry.params.lut.startsWith('builtin:')) add(entry.params.lut);
+            });
+        }));
         return counts;
     }
     function frameRateOf(asset) {

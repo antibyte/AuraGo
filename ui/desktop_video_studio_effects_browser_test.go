@@ -1,13 +1,22 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/go-rod/rod"
@@ -113,7 +122,7 @@ func effectsAdd(t *testing.T, page *rod.Page, id string) {
 }
 
 // TestDesktopVideoStudioEffectsBrowser drives the 2c effect stack in the real app under the SwiftShader launcher, so the
-// GL painter draws the effects. Part 1 (Task 14) is effectsStackBrowserPart, part 2 (Task 15) colorWheelBrowserPart, part 3 (Task 16) videoStudioCropBrowserPart; Task 17 appends part 4.
+// GL painter draws the effects. Part 1 (Task 14) is effectsStackBrowserPart, part 2 (Task 15) colorWheelBrowserPart, part 3 (Task 16) videoStudioCropBrowserPart, part 4 (Task 17) videoStudioEffectsLibraryBrowserPart.
 func TestDesktopVideoStudioEffectsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	server := newVideoStudioKeyframesServerWith(t, videoStudioKeyframesProject(), map[string]http.HandlerFunc{"/api/desktop/video-studio/luts/builtin/": videoStudioBuiltinLUTRoute})
@@ -128,6 +137,7 @@ func TestDesktopVideoStudioEffectsBrowser(t *testing.T) {
 		t.Fatalf("script errors after the colour wheels: %s", errs)
 	}
 	videoStudioCropBrowserPart(t)
+	videoStudioEffectsLibraryBrowserPart(t)
 }
 
 // Part 1 of TestDesktopVideoStudioEffectsBrowser (Task 14), with real clicks and keys:
@@ -480,5 +490,208 @@ func videoStudioCropBrowserPart(t *testing.T) {
 	waitForJSBool(t, page, `() => document.querySelector('[data-crop-box]').hidden`)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the crop part: %s", errs)
+	}
+}
+
+// videoStudioEffectsLibraryBrowserPart is part 4 of TestDesktopVideoStudioEffectsBrowser (Task 17): the effects library
+// tab and LUT media in the real app, on the 2b keyframe fixture behind a small media endpoint.
+//   - A colour item dragged onto c1 adds a colour effect with complete params and selects c1.
+//   - A double-clicked look and an Enter on another look add built-in LUTs to the selected clip.
+//   - A .cube picked in the library's file input becomes a LUT card with the LUT filter chip.
+//   - The uploaded LUT can be chosen in the LUT picker and dropped onto c1, which then counts as usage.
+//   - An invalid .cube shows a notice with its line, and the LUT filter shows only LUTs.
+func videoStudioEffectsLibraryBrowserPart(t *testing.T) {
+	t.Helper()
+	base := newVideoStudioKeyframesServerWith(t, videoStudioKeyframesProject(), map[string]http.HandlerFunc{"/api/desktop/video-studio/luts/builtin/": videoStudioBuiltinLUTRoute})
+	target, err := url.Parse(base.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var uploaded []map[string]any
+	mux := http.NewServeMux()
+	// POST media: a .cube is parsed as the server does (videostudio.ParseCube); a valid one becomes a LUT asset.
+	mux.HandleFunc("/api/desktop/video-studio/projects/p1/media", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": "invalid_upload", "error": "invalid_upload"})
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, int64(videostudio.MaxLUTBytes)+1))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		lut, err := videostudio.ParseCube(bytes.NewReader(data))
+		if err != nil {
+			line := 0
+			var lutErr *videostudio.LUTError
+			if errors.As(err, &lutErr) {
+				line = lutErr.Line
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": "invalid_lut", "error": "invalid_lut", "message": err.Error(), "line": line})
+			return
+		}
+		mu.Lock()
+		asset := map[string]any{"id": fmt.Sprintf("lut%d", len(uploaded)+1), "name": header.Filename, "path": "media/" + header.Filename, "kind": "lut", "duration_frames": 0, "has_audio": false, "lut_size": lut.Size, "size_bytes": len(data)}
+		uploaded = append(uploaded, asset)
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{"asset": asset})
+	})
+	mux.HandleFunc("/test/lut-assets", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(append([]map[string]any{}, uploaded...))
+	})
+	mux.Handle("/", httputil.NewSingleHostReverseProxy(target))
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), server)
+	shots := videoStudioKeyframesShotDir(t)
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	// Project reads return the latest save plus the media uploaded so far, like the server's GET after an import.
+	page.MustEval(`() => {
+const inner = window.fetch;
+window.fetch = async (url, options = {}) => {
+  const path = String(url), method = String(options.method || 'GET').toUpperCase();
+  if (path !== '/api/desktop/video-studio/projects/p1' || method !== 'GET') return inner(url, options);
+  const extra = await (await inner('/test/lut-assets')).json();
+  const project = JSON.parse(JSON.stringify(window.kfSaves.length ? window.kfSaves[window.kfSaves.length - 1] : window.kfProject));
+  extra.forEach(asset => { if (!project.assets.some(item => item.id === asset.id)) project.assets.push(asset); });
+  return new Response(JSON.stringify({id: 'p1', project, desktop_path: 'Documents/Video Studio/p1/project.json'}), {status: 200, headers: {'Content-Type': 'application/json', ETag: '"lut' + extra.length + '"'}});
+};
+}`)
+	effects := func() []map[string]any {
+		t.Helper()
+		raw := page.MustEval(`() => JSON.stringify(window.VideoStudioTimeline.clipFor(` + app + `.project, 'c1').clip.effects || [])`).Str()
+		var list []map[string]any
+		if err := json.Unmarshal([]byte(raw), &list); err != nil {
+			t.Fatalf("effects of c1: %v (%s)", err, raw)
+		}
+		return list
+	}
+	param := func(entry map[string]any, name string) any {
+		params, _ := entry["params"].(map[string]any)
+		return params[name]
+	}
+	type dropResult struct {
+		Types    []string `json:"types"`
+		Accepted bool     `json:"accepted"`
+		Marked   bool     `json:"marked"`
+	}
+	// Drops onto c1 with synthetic drag events: an effect item (its own dragstart fills the data) or a library asset.
+	drop := func(key, asset string) dropResult {
+		t.Helper()
+		raw := page.MustEval(`(key, asset) => {
+const clip = document.querySelector('.vs-clip[data-clip-id="c1"]'), r = clip.getBoundingClientRect(), dt = new DataTransfer();
+if (asset) dt.setData('application/x-video-studio-asset', asset);
+else document.querySelector('[data-effects-library] [data-effect-item="' + key + '"]').dispatchEvent(new DragEvent('dragstart', {dataTransfer: dt, bubbles: true, cancelable: true}));
+const at = {dataTransfer: dt, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true};
+const over = new DragEvent('dragover', at);
+clip.dispatchEvent(over);
+const marked = clip.classList.contains('is-effect-drop');
+clip.dispatchEvent(new DragEvent('drop', at));
+return JSON.stringify({types: Array.from(dt.types), accepted: over.defaultPrevented, marked});
+}`, key, asset).Str()
+		var out dropResult
+		if err := json.Unmarshal([]byte(raw), &out); err != nil {
+			t.Fatalf("drop result: %v (%s)", err, raw)
+		}
+		return out
+	}
+
+	// The tab: nothing selected, no LUT chip yet.
+	page.MustEval(`() => { const s = ` + app + `; s.timelineOptions.onSelect(''); s.preview.pause(); s.preview.seek(30); }`)
+	page.MustElement(`[data-tab="effects"]`).MustClick()
+	waitForJSBool(t, page, `() => { const panel = document.querySelector('[data-panel="effects"]'); return !!panel && !panel.hidden && !!panel.querySelector('[data-effect-item="look:teal_orange"][aria-disabled="false"]'); }`)
+	if page.MustHas(`[data-filters] [data-filter="lut"]`) {
+		t.Fatal("the LUT filter chip shows before the project has a LUT")
+	}
+
+	// Drag the colour effect onto c1: copied onto the clip under the pointer, with complete params; c1 gets selected.
+	result := drop("color", "")
+	if !slices.Contains(result.Types, "application/x-aurago-vs-effect") || !result.Accepted || !result.Marked {
+		t.Fatalf("effect drag over c1: %+v", result)
+	}
+	list := effects()
+	if len(list) != 1 || list[0]["id"] != "color" || list[0]["on"] != true || param(list[0], "exposure") != 0.0 || param(list[0], "saturation") != 1.0 {
+		t.Fatalf("after the colour drop: %+v", list)
+	}
+	if selected := page.MustEval(`() => ` + app + `.selectedClipId`).Str(); selected != "c1" {
+		t.Fatalf("the drop selected %q, want c1", selected)
+	}
+
+	// A double-click on a look adds it to the selected clip; so does Enter on a focused look.
+	rect := page.MustEval(`() => { const r = document.querySelector('[data-effect-item="look:teal_orange"]').getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; }`)
+	page.Mouse.MustMoveTo(rect.Get("x").Num(), rect.Get("y").Num())
+	if err := page.Mouse.Click(proto.InputMouseButtonLeft, 2); err != nil {
+		t.Fatal(err)
+	}
+	page.MustElement(`[data-effect-item="look:mono"]`).MustFocus()
+	page.KeyActions().Type(input.Enter).MustDo()
+	list = effects()
+	if len(list) != 3 || list[1]["id"] != "lut" || param(list[1], "lut") != "builtin:teal_orange" || param(list[1], "intensity") != 1.0 || param(list[2], "lut") != "builtin:mono" {
+		t.Fatalf("after the double-click and Enter: %+v", list)
+	}
+
+	// Upload a .cube through the library's file input: a LUT card with its kind label and the LUT filter chip.
+	dir := t.TempDir()
+	good, bad := filepath.Join(dir, "Teal test.cube"), filepath.Join(dir, "Broken.cube")
+	if err := os.WriteFile(good, []byte("TITLE \"Library test\"\nLUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bad, []byte("LUT_3D_SIZE 2\n0 0 0\n1 0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	page.MustElement(`[data-file-input]`).MustSetFiles(good)
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-assets] [data-asset-id="lut1"]') && !!document.querySelector('[data-filters] [data-filter="lut"]')`)
+	if kind := page.MustEval(`() => document.querySelector('[data-assets] [data-asset-id="lut1"] .vs-asset-meta').textContent.trim()`).Str(); kind != "LUT" {
+		t.Fatalf("LUT card kind label %q", kind)
+	}
+
+	// Choose the uploaded LUT in the picker of the teal_orange entry (Task 14: a <select> whose options are the refs).
+	if !page.MustEval(`() => { const select = Array.from(document.querySelectorAll('[data-inspector] select')).find(el => Array.from(el.options).some(option => option.value === 'lut1')); if (!select) return false; select.value = 'lut1'; select.dispatchEvent(new Event('change', {bubbles: true})); return true; }`).Bool() {
+		t.Fatal("no LUT picker in the inspector offers the uploaded LUT")
+	}
+	waitForJSBool(t, page, `() => (window.VideoStudioTimeline.clipFor(`+app+`.project, 'c1').clip.effects[1].params || {}).lut === 'lut1'`)
+
+	// Drop the LUT card onto c1: a fourth entry uses it, and the card shows as used.
+	if result = drop("", "lut1"); !slices.Contains(result.Types, "application/x-video-studio-asset") {
+		t.Fatalf("asset drag: %+v", result)
+	}
+	list = effects()
+	if len(list) != 4 || list[3]["id"] != "lut" || param(list[3], "lut") != "lut1" {
+		t.Fatalf("after the LUT card drop: %+v", list)
+	}
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-assets] [data-asset-id="lut1"] .vs-asset-used')`)
+
+	// An invalid .cube: a notice with the line, no new asset.
+	page.MustElement(`[data-file-input]`).MustSetFiles(bad)
+	waitForJSBool(t, page, `() => (document.querySelector('[data-notice-text]') || {}).textContent === 'This .cube file cannot be used: line 3 is not valid.'`)
+	mu.Lock()
+	count := len(uploaded)
+	mu.Unlock()
+	if count != 1 {
+		t.Fatalf("%d LUTs were recorded, want 1", count)
+	}
+
+	// The LUT filter shows only LUTs.
+	page.MustElement(`[data-filters] [data-filter="lut"]`).MustClick()
+	waitForJSBool(t, page, `() => { const cards = Array.from(document.querySelectorAll('[data-assets] [data-asset-id]')); return cards.length === 1 && cards[0].dataset.assetId === 'lut1'; }`)
+	page.MustElement(`[data-filters] [data-filter="all"]`).MustClick()
+	page.MustElement(`[data-tab="effects"]`).MustClick()
+	page.MustScreenshot(filepath.Join(shots, "effects-library-1280x900.png"))
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors in the effects library part: %s", errs)
 	}
 }

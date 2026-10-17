@@ -193,7 +193,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-inspector { border-left: 1px solid var(--vs-border); }
 
 /* Library */
-.vs-tabs { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--vs-border); }
+.vs-tabs { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--vs-border); }
 .vs-tabs button {
     display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 7px 2px 8px;
     border: 0; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; background: transparent; color: var(--vs-muted); font-size: 11.5px; font-weight: 600;
@@ -273,6 +273,17 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-ai-provider { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--vs-muted); }
 .vs-ai-reason { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--vs-warn) 12%, transparent); color: var(--vs-text); }
 .vs-ai-card .vs-primary { margin-top: 6px; }
+/* Effects library tab (2c): effects and looks by category. Items drag onto timeline clips (the clip under the pointer
+   shows .is-effect-drop); a double-click or Enter adds them to the selected clip. */
+.vs-fxlib-group + .vs-fxlib-group { margin-top: 14px; }
+.vs-fxlib-group h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
+.vs-fxlib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vs-app .vs-fxlib-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; cursor: grab; }
+.vs-app .vs-fxlib-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-app .vs-fxlib-item .vs-icon { flex: none; color: var(--vs-accent); }
+.vs-app .vs-fxlib-item:hover:not([aria-disabled="true"]) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-fxlib-item[aria-disabled="true"] { opacity: .5; cursor: default; }
+.vs-asset-lut .vs-asset-thumb { background: linear-gradient(135deg, #1f6f8b 0%, #3a3f8f 45%, #d9822b 100%); color: #fff; }
 
 /* Preview */
 .vs-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: color-mix(in srgb, var(--vs-stage) 70%, var(--vs-bg)); }
@@ -388,6 +399,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-insp-thumb { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 34px; border-radius: 7px; background: var(--vs-accent-soft) center / cover no-repeat; color: var(--vs-accent); }
 .vs-insp-thumb.vs-kind-audio { background-color: color-mix(in srgb, var(--vs-clip-audio) 22%, transparent); color: var(--vs-clip-audio); }
 .vs-insp-thumb.vs-kind-text { background-color: color-mix(in srgb, var(--vs-clip-text) 22%, transparent); color: var(--vs-clip-text); }
+.vs-insp-thumb.vs-kind-lut { background: linear-gradient(135deg, #1f6f8b, #d9822b); color: #fff; }
 .vs-insp-title { min-width: 0; display: grid; gap: 1px; }
 .vs-insp-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .vs-insp-title small { font-size: 11.5px; color: var(--vs-muted); }
@@ -556,6 +568,10 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
    one-line media bar with icon view buttons, two grid columns, and a list that fits without sideways scrolling: the
    name above, the duration and the column it is sorted by below. */
 @container vs-library (max-width: 260px) {
+    /* Five library tabs (2c adds Effects) share the narrow rail: tighter insets and a smaller label keep "Media" and
+       "Effects" readable instead of cut to "Med…" and "Effek…". */
+    .vs-tabs { padding: 6px 4px 0; gap: 0; }
+    .vs-tabs button { padding: 6px 0 7px; font-size: 10.5px; }
     /* One import button per row: side by side, long labels (Greek, Japanese, Spanish) were cut or broken mid-word. */
     .vs-import { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 8px 8px; }
     .vs-import button { min-width: 0; min-height: 30px; padding: 4px 8px; }
@@ -683,6 +699,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-clip.is-linked .vs-clip-label > .vs-icon { opacity: .9; }
 .vs-clip.is-detached { box-shadow: inset 0 -3px 0 rgba(255, 255, 255, .35), 0 1px 2px rgba(0, 0, 0, .3); }
 .vs-clip.is-selected { border-color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 4px color-mix(in srgb, var(--vs-accent) 70%, transparent), 0 4px 12px rgba(0, 0, 0, .4); z-index: 2; }
+.vs-clip.is-effect-drop { outline: 2px solid var(--vs-accent); outline-offset: -2px; }
 .vs-clip:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .vs-clip-media { position: absolute; inset: 0; pointer-events: none; }
 .vs-filmstrip { position: absolute; inset: 0; }

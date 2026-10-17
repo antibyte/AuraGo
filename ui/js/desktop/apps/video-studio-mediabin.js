@@ -8,6 +8,7 @@
     const { API, TERMINAL } = P;
     const E = () => window.VideoStudioEdit;
     const F = () => window.VideoStudioFolders;
+    const L = () => window.VideoStudioEffectsLibrary;
     const esc = (...args) => P.esc(...args);
     const icon = (...args) => P.icon(...args);
     const mutate = (...args) => P.mutate(...args);
@@ -43,6 +44,8 @@
 
     const assetOf = (s, id) => (s.project ? s.project.assets.find(item => item.id === id) : null) || null;
     const clipsOf = (project, ids) => project.tracks.flatMap(track => track.clips.filter(clip => ids.includes(clip.asset_id)));
+    // Clips whose effects use one of the LUT assets (2c): they stay on the timeline; only those effects go.
+    const lutClipsOf = (project, ids) => Array.from(new Set(L().lutRefs(project, ids).map(ref => ref.clip)));
 
     // A folder or name edit: one undo step, and a refusal explains itself.
     function folderEdit(s, label, op) {
@@ -148,7 +151,7 @@
     // Shows the clips that use the media: they are selected together and scrolled into view; the playhead stays.
     function showInTimeline(s, assetId) {
         if (!s.project) return;
-        const clips = clipsOf(s.project, [assetId]);
+        const clips = clipsOf(s.project, [assetId]).concat(lutClipsOf(s.project, [assetId]));
         if (!clips.length) { showNotice(s, 'noClipsUsingMedia', 'This media is not used in the timeline.', false); return; }
         const ids = clips.map(clip => clip.id);
         setSelection(s, ids, ids[0]);
@@ -173,12 +176,17 @@
         const assets = ids.map(id => assetOf(s, id)).filter(Boolean);
         const clipIds = clipsOf(s.project, ids).map(clip => clip.id);
         const ok = P.applyEdit(s, 'remove media', project => {
-            // A clip on a locked track cannot leave, and its media cannot go without it.
+            // A clip on a locked track cannot leave, and its media cannot go without it; the same holds for a lut effect
+            // that uses a LUT asset.
             if (project.tracks.some(track => track.locked && track.clips.some(clip => ids.includes(clip.asset_id)))) return E().REASON.locked;
+            if (L().lutRefs(project, ids).some(ref => ref.track.locked)) return E().REASON.locked;
             if (clipIds.length) {
                 const result = E().removeClips(project, clipIds);
                 if (result !== true) return result;
             }
+            // Effects that use a removed LUT leave in the same undo step (2c). Selected strip keys of effects.<i>.* may then
+            // name another entry, so they are dropped (R8).
+            if (L().removeLUTRefs(project, ids) && s.kfStrip && Array.isArray(s.kfStrip.selected)) s.kfStrip.selected = s.kfStrip.selected.filter(id => !String(id).startsWith('effects.'));
             project.assets = project.assets.filter(asset => !ids.includes(asset.id));
             return true;
         }, () => []);
@@ -230,7 +238,7 @@
         if (s.readonly || !s.project || !ids.length) return false;
         if (mediaBusy(s)) { showNotice(s, 'mediaBusy', REMOVE_TEXT.mediaBusy, true); return false; }
         const projectId = s.projectId, epoch = s.projectEpoch;
-        const clips = clipsOf(s.project, ids).length;
+        const clips = clipsOf(s.project, ids).length, lutEffects = L().lutRefs(s.project, ids).length;
         let title, copy;
         if (bulk) {
             title = tr(s, 'removeUnusedTitle', 'Remove unused media?');
@@ -238,6 +246,9 @@
         } else if (clips) {
             title = tr(s, 'removeMediaUsedTitle', 'Remove media used in the timeline?');
             copy = trCount(s, 'removeMediaUsedCopy', clips, '1 clip using it leaves the timeline in one undo step. Then the file is deleted. This cannot be undone.', '{{count}} clips using it leave the timeline in one undo step. Then the file is deleted. This cannot be undone.');
+        } else if (lutEffects) {
+            title = tr(s, 'removeMediaUsedTitle', 'Remove media used in the timeline?');
+            copy = trCount(s, 'removeLUTUsedCopy', lutEffects, '1 effect that uses this LUT is removed in one undo step. Then the file is deleted. This cannot be undone.', '{{count}} effects that use this LUT are removed in one undo step. Then the file is deleted. This cannot be undone.');
         } else {
             title = tr(s, 'removeMediaUnusedTitle', 'Remove this media?');
             copy = tr(s, 'removeMediaUnusedCopy', 'The file is deleted from the project. This cannot be undone.');
@@ -260,9 +271,9 @@
         const asset = assetOf(s, assetId);
         if (!asset) return null;
         selectLibraryAsset(s, assetId);
-        const ro = !!s.readonly, clips = clipsOf(s.project, [assetId]).length;
+        const ro = !!s.readonly, clips = clipsOf(s.project, [assetId]).length + L().lutRefs(s.project, [assetId]).length;
         const items = [
-            { label: tr(s, 'openInSource', 'Open in source monitor'), icon: 'film', disabled: !asset.kind, run: () => P.openSource(s, assetId) },
+            { label: tr(s, 'openInSource', 'Open in source monitor'), icon: 'film', disabled: !asset.kind || asset.kind === 'lut', run: () => P.openSource(s, assetId) },
             { label: tr(s, 'assetRename', 'Rename media'), icon: 'edit', disabled: ro, run: () => openRenameAsset(s, assetId) },
             { label: tr(s, 'moveToFolder', 'Move to folder…'), icon: 'folder', disabled: ro, run: () => openMoveDialog(s, [assetId]) },
             { label: tr(s, 'showInTimeline', 'Show in timeline'), disabled: !clips, run: () => showInTimeline(s, assetId) },
@@ -391,7 +402,7 @@
             [tr(s, 'mediaUsed', 'Used in timeline'), usage ? String(usage) : tr(s, 'mediaNotUsed', 'Not used')]
         ];
         return {
-            name: asset.name, kind: asset.kind || 'pending', icon: asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : 'video',
+            name: asset.name, kind: asset.kind || 'pending', icon: asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : asset.kind === 'lut' ? 'lut' : 'video',
             thumb: asset.kind ? P.thumbFor(s, asset) : '', folderPath: asset.folder || '', rows
         };
     }

@@ -131,6 +131,7 @@
             [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), key('Wheel')], 'shortcutHScroll', 'Scroll the timeline sideways'],
             [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
             [[key('Alt'), 'K'], 'shortcutKeyframe', 'Add or remove keyframes of the animated values at the playhead'], [[key('Alt'), '↑', '↓'], 'shortcutKeyframeNav', 'Previous / next keyframe'], [[key('Del')], 'keyframeDelete', 'Delete the selected keyframes'],
+            [[key('Alt'), '↑', '↓'], 'shortcutEffectMove', 'Move the focused effect up / down (Effects section)'],
             [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips'],
             [[',', '.'], 'shortcutSourceEdit', 'Source monitor: insert (,) / overwrite (.)']
         ];
@@ -143,9 +144,9 @@
 <div class="vs-disabled" data-disabled hidden></div>
 <div class="vs-workspace">
  <aside class="vs-library" aria-label="${label('library', 'Library')}">
-  <div class="vs-tabs" role="tablist" aria-label="${label('library', 'Library')}">${tab('media', 'film', 'media', 'Media')}${tab('text', 'text', 'textTab', 'Text')}${tab('stickers', 'sticker', 'stickersTab', 'Stickers')}${tab('ai', 'sparkle', 'aiTab', 'AI')}</div>
+  <div class="vs-tabs" role="tablist" aria-label="${label('library', 'Library')}">${tab('media', 'film', 'media', 'Media')}${tab('text', 'text', 'textTab', 'Text')}${tab('stickers', 'sticker', 'stickersTab', 'Stickers')}${tab('effects', 'effects', 'effectsTab', 'Effects')}${tab('ai', 'sparkle', 'aiTab', 'AI')}</div>
   <div class="vs-tab-panel vs-media-panel" data-panel="media" role="tabpanel" id="vs-panel-${s.id}-media" aria-labelledby="vs-tab-${s.id}-media">
-   <div class="vs-import"><button type="button" class="vs-import-main" data-action="upload">${icon('upload', 16)}<span>${label('upload', 'Upload')}</span></button><button type="button" data-action="browse">${icon('folder', 16)}<span>${label('browseShort', 'From files')}</span></button><input type="file" data-file-input accept="video/*,audio/*,image/png,image/webp" multiple hidden></div>
+   <div class="vs-import"><button type="button" class="vs-import-main" data-action="upload">${icon('upload', 16)}<span>${label('upload', 'Upload')}</span></button><button type="button" data-action="browse">${icon('folder', 16)}<span>${label('browseShort', 'From files')}</span></button><input type="file" data-file-input accept="video/*,audio/*,image/png,image/webp,.cube" multiple hidden></div>
    <div class="vs-media-tools"><label class="vs-search">${icon('search', 15)}<input type="search" data-search placeholder="${label('searchMedia', 'Search media')}" aria-label="${label('searchMedia', 'Search media')}"></label><div class="vs-filter" role="group" aria-label="${label('filterMedia', 'Filter media')}" data-filters></div></div>
    <div class="vs-media-bar" data-media-bar></div>
    <div class="vs-asset-grid" data-assets></div>
@@ -153,6 +154,7 @@
   </div>
   <div class="vs-tab-panel" data-panel="text" role="tabpanel" id="vs-panel-${s.id}-text" aria-labelledby="vs-tab-${s.id}-text" hidden><p class="vs-panel-intro">${label('textIntro', 'Text lands at the playhead on a free overlay track. Select it to change words and style.')}</p><div class="vs-preset-list">${presets}</div></div>
   <div class="vs-tab-panel" data-panel="stickers" role="tabpanel" id="vs-panel-${s.id}-stickers" aria-labelledby="vs-tab-${s.id}-stickers" hidden><p class="vs-panel-intro">${label('stickerHint', 'Add a small original graphic at the playhead.')}</p><div data-sticker-library></div></div>
+  <div class="vs-tab-panel vs-effects-panel" data-panel="effects" role="tabpanel" id="vs-panel-${s.id}-effects" aria-labelledby="vs-tab-${s.id}-effects" hidden><div data-effects-library></div></div>
   <div class="vs-tab-panel vs-ai-panel" data-panel="ai" role="tabpanel" id="vs-panel-${s.id}-ai" aria-labelledby="vs-tab-${s.id}-ai" hidden data-ai-panel></div>
  </aside>
  <main class="vs-center">
@@ -218,6 +220,8 @@
         s.timelineOptions = timelineOptions(s);
         s.detachTimeline = T().attach(s.q('[data-timeline]'), s.timelineOptions);
         if (P.wireKeyframeStrip) P.wireKeyframeStrip(s, s.q('[data-timeline]'));
+        // The library's effect drops listen on the timeline root after the timeline's own listeners (video-studio-effects-library.js).
+        P.wireEffectsLibrary(s);
         // The stage asks for the GL compositor ('auto'); the hidden previewEngine setting forces '2d'. The source monitor stays 2D.
         s.preview = window.VideoStudioPreview.mount(s.q('[data-preview]'), () => s.project, () => s.frame, frame => {
             s.frame = frame;
@@ -450,6 +454,7 @@
         s.app.classList.add('vs-without-project');
         s.app.querySelectorAll('[data-action="upload"],[data-action="browse"],[data-action="add-title"],[data-sticker]').forEach(control => { control.disabled = true; });
         renderAssets(s);
+        P.renderEffectsLibrary(s);
     }
     function populateCanvas(s) {
         const select = s.q('[data-canvas]');
@@ -510,6 +515,7 @@
         s.q('[data-canvas]').disabled = s.readonly;
         renderToolbar(s);
         renderAssets(s);
+        P.renderEffectsLibrary(s);
         renderInspector(s);
         syncInspectorLock(s);
         T().render(s.q('[data-timeline]'), s.timelineOptions);
@@ -606,6 +612,7 @@
         const asset = s.project.assets.find(item => item.id === assetId);
         if (!asset) return false;
         if (!asset.kind) { showNotice(s, 'mediaPreparing', 'This media is still being prepared. Try again in a moment.', true); return false; }
+        if (asset.kind === 'lut') return P.dropLUTAsset(s, asset, trackId, at);
         if (totalClipCount(s.project) >= MAX_CLIPS) { showNotice(s, 'clipLimit', 'This project reached its clip limit.', true); return false; }
         if (part === 'picture' || part === 'sound') return P.dropSourcePart(s, asset, trackId, at, mode, part);
         const kind = asset.kind === 'image' ? 'overlay' : asset.kind === 'audio' ? 'audio' : 'video';

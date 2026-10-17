@@ -131,6 +131,8 @@
     function openSource(s, assetId) {
         const asset = assetOf(s, assetId);
         if (!asset) return false;
+        // A LUT has no picture or sound to show (2c).
+        if (asset.kind === 'lut') return false;
         if (!asset.kind) { showNotice(s, 'mediaPreparing', 'This media is still being prepared. Try again in a moment.', true); return false; }
         if (s.sourceAssetId !== asset.id || s.sourceProjectId !== s.projectId || !s.sourcePreview) {
             const marks = sourceMarks(s, asset.id);

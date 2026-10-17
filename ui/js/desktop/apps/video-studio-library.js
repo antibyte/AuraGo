@@ -61,6 +61,7 @@
     }
     function assetKindLabel(s, asset) {
         if (!asset.kind) return tr(s, 'preparing', 'Preparing…');
+        if (asset.kind === 'lut') return tr(s, 'assetLUT', 'LUT');
         return tr(s, asset.kind === 'video' ? 'assetVideo' : asset.kind === 'audio' ? 'assetAudio' : 'assetImage', asset.kind === 'video' ? 'Video' : asset.kind === 'audio' ? 'Audio' : 'Image');
     }
     function renderFilters(s) {
@@ -68,7 +69,10 @@
         if (!host) return;
         const assets = s.project ? s.project.assets.filter(asset => !window.VideoStudioMedia.isArtwork(asset)) : [];
         const count = kind => kind === 'all' ? assets.length : assets.filter(asset => asset.kind === kind).length;
-        host.innerHTML = [['all', 'filterAll', 'All'], ['video', 'assetVideo', 'Video'], ['audio', 'assetAudio', 'Audio'], ['image', 'filterImages', 'Images']].map(([kind, key, fallback]) => `<button type="button" data-filter="${kind}" aria-pressed="${s.filter === kind}">${esc(s, tr(s, key, fallback))}<span>${count(kind)}</span></button>`).join('');
+        // The LUT chip shows only while the project has LUTs (2c); a LUT filter without LUTs falls back to all.
+        const kinds = [['all', 'filterAll', 'All'], ['video', 'assetVideo', 'Video'], ['audio', 'assetAudio', 'Audio'], ['image', 'filterImages', 'Images']];
+        if (count('lut')) kinds.push(['lut', 'filterLUTs', 'LUTs']); else if (s.filter === 'lut') s.filter = 'all';
+        host.innerHTML = kinds.map(([kind, key, fallback]) => `<button type="button" data-filter="${kind}" aria-pressed="${s.filter === kind}">${esc(s, tr(s, key, fallback))}<span>${count(kind)}</span></button>`).join('');
     }
     // Server poster of a visual asset; the client thumbnail, once ready, takes precedence (see thumbFor).
     function posterURL(s, asset) {
@@ -87,7 +91,11 @@
         const [num, den] = String(asset.source_fps || '').split('/').map(Number);
         return num > 0 && den > 0 ? (Math.round(num / den * 100) / 100).toLocaleString(P.uiLocale(), { maximumFractionDigits: 2 }) : '';
     }
-    function resolutionLabel(asset) { return asset.width && asset.height ? asset.width + '×' + asset.height : ''; }
+    // A LUT shows its grid (17³); pictures their size.
+    function resolutionLabel(asset) {
+        if (asset.kind === 'lut') return asset.lut_size ? asset.lut_size + '³' : '';
+        return asset.width && asset.height ? asset.width + '×' + asset.height : '';
+    }
     function readMediaPrefs() {
         const [key, dir] = String(P.readPref(PREF_MEDIA_SORT) || '').split(':');
         return { mediaView: P.readPref(PREF_MEDIA_VIEW) === 'list' ? 'list' : 'grid', mediaSort: SORT_KEYS.includes(key) ? key : 'name', mediaSortDir: dir === 'desc' ? 'desc' : 'asc' };
@@ -147,10 +155,11 @@
         return `<div class="vs-folder-line" role="row"><span class="vs-folder-cell" role="cell"><button type="button" class="vs-folder-row" data-folder="${esc(s, path)}" title="${esc(s, path)}"><span class="vs-folder-icon">${icon('folder', 16)}</span><span class="vs-folder-name">${esc(s, F().nameOf(path))}</span><span class="vs-asset-meta">${esc(s, countLabel(s, count))}</span></button></span></div>`;
     }
     function addButton(s, asset, ready) {
-        const label = tr(s, 'addToTimeline', 'Add at the playhead');
+        // A LUT goes onto the selected clip as a lut effect (2c); other media lands at the playhead.
+        const label = asset.kind === 'lut' ? tr(s, 'lutApplyToClip', 'Apply to the selected clip') : tr(s, 'addToTimeline', 'Add at the playhead');
         return `<button type="button" class="vs-asset-add" data-place-asset="${esc(s, asset.id)}" title="${esc(s, label)}" aria-label="${esc(s, label)}: ${esc(s, asset.name)}" ${s.readonly || !ready ? 'disabled' : ''}>${icon('plus', 16)}</button>`;
     }
-    function kindIconOf(asset) { return asset.kind === 'video' ? 'video' : asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : 'spinner'; }
+    function kindIconOf(asset) { return asset.kind === 'video' ? 'video' : asset.kind === 'audio' ? 'audio' : asset.kind === 'image' ? 'image' : asset.kind === 'lut' ? 'lut' : 'spinner'; }
     function durationLabel(s, asset) { return asset.kind === 'video' || asset.kind === 'audio' ? T().shortClock(asset.duration_frames || 0, s.project) : ''; }
     // The preview proxy of a video (2a): queued, preparing, ready or failed; nothing until one was requested.
     const PROXY_BADGES = { queued: ['proxyQueued', 'Preview proxy queued', 'clock'], running: ['proxyPreparing', 'Preparing preview proxy…', 'spinner'], ready: ['proxyReady', 'Preview proxy ready', 'check'], failed: ['proxyFailed', 'Preview proxy failed; the original plays', 'alert'] };
@@ -320,8 +329,12 @@
         const projectId = expectedProjectId || s.projectId, epoch = expectedEpoch == null ? s.projectEpoch : expectedEpoch;
         const folder = expectedFolder == null ? s.mediaFolder || '' : expectedFolder;
         if (!file || s.readonly || !projectId || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+        // .cube LUTs (2c) are accepted by the extension list since Task 14 (browsers report no MIME type for them). The server
+        // parses them before anything is stored; a file above MaxLUTBytes is refused here first.
+        const lut = window.VideoStudioEffectsLibrary.isLUTFile(file.name);
         const allowed = /^(video\/|audio\/|image\/(png|webp)$)/i.test(file.type) || /\.(mp4|mov|webm|m4v|mkv|mp3|wav|ogg|m4a|aac|flac|png|webp|cube)$/i.test(file.name);
         if (!allowed) return showNotice(s, 'unsupportedFile', 'Choose a video, audio, PNG or WebP file.', true);
+        if (lut && file.size > window.VideoStudioEffectsLibrary.MAX_LUT_BYTES) return showNotice(s, 'lutTooLarge', 'A .cube file may be at most 16 MB.', true);
         const max = Number(s.status.limits && s.status.limits.max_asset_size_bytes || 256 * 1024 * 1024);
         if (file.size > max) return showNotice(s, 'fileTooLarge', 'This file is larger than the server limit.', true);
         const key = idempotencyKey(), entry = { name: file.name, progress: 0, failed: false, projectId };
@@ -340,11 +353,11 @@
             const job = response.body.job;
             if (job) { s.jobs.unshift(job); renderJobs(s); await pollJob(s, job.id, projectId, epoch); }
             else await refreshProject(s);
-            if (current()) showNotice(s, 'importReady', 'Media added. Drag it to the timeline or press +.', false);
+            if (current()) showNotice(s, lut ? 'lutUploadReady' : 'importReady', lut ? 'LUT added. Drag it onto a clip or choose it in a LUT effect.' : 'Media added. Drag it to the timeline or press +.', false);
         } catch (error) {
             if (current()) {
                 const code = error.body && error.body.code;
-                showNotice(s, code === 'asset_size_limit' ? 'fileTooLarge' : code === 'project_size_limit' ? 'projectStorageFull' : 'importFailed', 'Could not import this media.', true);
+                if (!P.lutUploadNotice(s, error.body)) showNotice(s, code === 'asset_size_limit' ? 'fileTooLarge' : code === 'project_size_limit' ? 'projectStorageFull' : 'importFailed', 'Could not import this media.', true);
             }
         } finally {
             s.uploads.delete(key);
@@ -356,7 +369,7 @@
         const projectId = s.projectId, epoch = s.projectEpoch, folder = s.mediaFolder || '';
         const result = await s.ctx.openFileDialog({
             title: tr(s, 'browse', 'Browse Desktop files'), initialPath: 'Documents',
-            filters: [{ label: tr(s, 'videoAudioImages', 'Video, audio and images'), extensions: ['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.png', '.webp'] }]
+            filters: [{ label: tr(s, 'videoAudioImages', 'Video, audio and images'), extensions: ['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.png', '.webp', '.cube'] }]
         });
         if (!result || result.canceled || !result.path || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
         const key = idempotencyKey(), entry = { name: String(result.path).split('/').pop(), progress: 1, failed: false, projectId };
@@ -366,7 +379,7 @@
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (response.body.job) { s.jobs.unshift(response.body.job); await pollJob(s, response.body.job.id, projectId, epoch); }
             else await refreshProject(s);
-        } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'importFailed', 'Could not import this Desktop file.', true); }
+        } catch (error) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId && !P.lutUploadNotice(s, error.body)) showNotice(s, 'importFailed', 'Could not import this Desktop file.', true); }
         finally { s.uploads.delete(key); if (!s.disposed) renderAssets(s); }
     }
     function setTab(s, name) {

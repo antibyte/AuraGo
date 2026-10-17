@@ -84,6 +84,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-colorwheel.js"></script>
 <script src="/js/desktop/apps/video-studio-core.js"></script>
 <script src="/js/desktop/apps/video-studio-library.js"></script>
+<script src="/js/desktop/apps/video-studio-effects-library.js"></script>
 <script src="/js/desktop/apps/video-studio-artwork.js"></script>
 <script src="/js/desktop/apps/video-studio-jobs.js"></script>
 <script src="/js/desktop/apps/video-studio-stage.js"></script>
