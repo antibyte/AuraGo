@@ -141,7 +141,7 @@ func desktopInfraRefreshDocker(ctx context.Context, cfg *config.Config, store *i
 			}
 			observed := infra.SourceObserved{
 				Kind: infra.NodeContainer, Name: name, Icon: "container",
-				Role: desktopInfraText(row.State, 256), Model: desktopInfraText(row.Image, 256),
+				Model: desktopInfraText(row.Image, 256), Power: desktopInfraPower("docker", row.State),
 				IPAddress: ip, Tags: []string{}, Interfaces: []infra.NetworkInterface{}, Protected: protected,
 			}
 			observations = append(observations, infra.SourceObservation{
@@ -217,7 +217,7 @@ func desktopInfraProxmoxObservation(instance string, resource tools.InfraProxmox
 		if kind == "lxc" {
 			observed.Kind, observed.Icon, model = infra.NodeContainer, "container", "lxc"
 		}
-		observed.Role = desktopInfraText(resource.Status, 256)
+		observed.Power = desktopInfraPower("proxmox", resource.Status)
 		observed.Vendor = "Proxmox VE"
 		observed.Model = model
 		observed.CPU = cpu
@@ -265,17 +265,13 @@ func desktopInfraRefreshFritz(ctx context.Context, s *Server, cfg *config.Config
 			if name == "" {
 				name = "Fritz!Box host"
 			}
-			role := "inactive"
-			if host.Active {
-				role = "active"
-			}
 			interfaces := []infra.NetworkInterface{}
 			if ip := desktopInfraValidIP(host.IPAddress); ip != "" {
 				interfaces = append(interfaces, infra.NetworkInterface{Name: desktopInfraText(host.Interface, 64), IPAddress: ip})
 			}
 			observed := infra.SourceObserved{
 				Kind: infra.NodeDevice, Name: name, Icon: "generic-device", Vendor: "AVM FRITZ!Box",
-				Role: role, IPAddress: desktopInfraValidIP(host.IPAddress),
+				Power: desktopInfraFritzPower(host.Active), IPAddress: desktopInfraValidIP(host.IPAddress),
 				Tags: []string{}, Interfaces: interfaces,
 			}
 			observations = append(observations, infra.SourceObservation{
@@ -502,6 +498,46 @@ func desktopInfraText(value string, maxRunes int) string {
 		value = string(runes[:maxRunes])
 	}
 	return value
+}
+
+func desktopInfraPower(kind, raw string) string {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" {
+		return ""
+	}
+	switch kind {
+	case "docker":
+		switch raw {
+		case "running", "restarting":
+			return infra.PowerRunning
+		case "created", "exited", "dead", "removing":
+			return infra.PowerStopped
+		case "paused":
+			return infra.PowerPaused
+		default:
+			return infra.PowerUnknown
+		}
+	case "proxmox":
+		switch raw {
+		case "running":
+			return infra.PowerRunning
+		case "stopped":
+			return infra.PowerStopped
+		case "paused", "suspended":
+			return infra.PowerPaused
+		default:
+			return infra.PowerUnknown
+		}
+	default:
+		return ""
+	}
+}
+
+func desktopInfraFritzPower(active bool) string {
+	if active {
+		return infra.PowerRunning
+	}
+	return infra.PowerStopped
 }
 
 func desktopInfraValidIP(value string) string {

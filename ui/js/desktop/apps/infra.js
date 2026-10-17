@@ -1,84 +1,20 @@
 (function () {
     'use strict';
 
+    const model = window.InfraAppModel;
     const API = '/api/desktop/infra';
-    const ICON_LIST = 'rack-server tower-server mini-pc sbc nas disk-shelf workstation laptop tablet smartphone router firewall modem-ont managed-switch switch access-point mesh-node ups pdu patch-panel camera nvr printer 3d-printer smart-hub sensor smart-plug tv console radio-gateway usb-gateway generic-device vm container hypervisor kubernetes database web-service reverse-proxy dns-dhcp vpn storage-share backup monitoring home-automation media-server ai-runtime mqtt logs git-ci mail-server photo-library password-manager cloud-service automation generic-app rack site room lan vlan wlan internet group'.split(' ');
-    const ICONS = new Set(ICON_LIST);
-    const ICON_ASSETS = new Map();
+    const ICON_LIST = model.iconIds();
+    const {
+        esc: escDefault, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity,
+        virtualSlice, sourceState, visibleByCollapsed, isPlaced, sceneDimensions, validCIDR, validHTTPLink,
+        versionedAsset, acceptsIcon, rememberIcon, isContainer, gridPositions, topologyPositions, snapshotStamp,
+    } = model;
     const KINDS = ['device', 'vm', 'container', 'service', 'network', 'site', 'room', 'rack', 'group'];
     const DEFAULT_ICONS = { device: 'generic-device', vm: 'vm', container: 'container', service: 'generic-app', network: 'lan', site: 'site', room: 'room', rack: 'rack', group: 'group' };
     const EDGE_KINDS = ['ethernet', 'fiber', 'wifi', 'member_of', 'runs_on', 'depends_on', 'powered_by'];
     const SOURCE_KINDS = ['registry', 'docker', 'proxmox', 'fritzbox'];
     const SOURCE_EDIT_FIELDS = { registry: ['name', 'type', 'protocol', 'ip_address', 'port', 'username', 'credential_id', 'description', 'tags', 'mac_address'], docker: ['name'], proxmox: ['name', 'hostname', 'description', 'tags'], fritzbox: ['friendly_name'] };
     const INSTANCES = new Map();
-    const escDefault = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-    const clone = value => JSON.parse(JSON.stringify(value));
-    const iconId = value => ICONS.has(value) ? value : 'generic-device';
-    const versionedAsset = path => `${path}?v=${encodeURIComponent(window.BUILD_VERSION || 'dev')}`;
-    const iconURL = value => versionedAsset(ICON_ASSETS.get(iconId(value))?.path || `/img/infra/${iconId(value)}.webp`);
-    const assetURL = value => {
-        const id = value === 'icon' || value === 'empty-atlas' ? value : 'empty-atlas';
-        return versionedAsset(ICON_ASSETS.get(id)?.path || `/img/infra/${id}.webp`);
-    };
-    const iconLabelKey = value => ICON_ASSETS.get(iconId(value))?.label_key || `desktop.infra_icon_${iconId(value).replaceAll('-', '_')}`;
-    const sourceActions = kind => ({ docker: ['start', 'stop', 'restart'], proxmox: ['start', 'shutdown', 'reboot'], fritzbox: ['wake'] }[kind] || []);
-    const sourceIdentity = source => {
-        const bytes = new TextEncoder().encode(`${source?.kind || ''}\0${source?.instance || ''}\0${source?.key || ''}`);
-        let binary = '';
-        for (const byte of bytes) binary += String.fromCharCode(byte);
-        return `infra_${window.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}`;
-    };
-    const virtualSlice = (items, scrollTop, viewportHeight, rowHeight = 54, overscan = 5) => {
-        const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-        const end = Math.min(items.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan);
-        return { start, end, rows: items.slice(start, end), before: start * rowHeight, after: Math.max(0, (items.length - end) * rowHeight) };
-    };
-    const sourceState = node => {
-        const states = (node.sources || []).map(source => source.state);
-        return states.includes('current') ? 'current' : states.includes('stale') ? 'stale' : states.includes('unknown') ? 'unknown' : states.includes('removed') ? 'removed' : 'manual';
-    };
-    const visibleByCollapsed = (nodes, collapsed) => {
-        const byParent = new Map();
-        for (const node of nodes) if (node.parent_id) { const children = byParent.get(node.parent_id) || []; children.push(node); byParent.set(node.parent_id, children); }
-        const hidden = new Set(), queue = [...collapsed].flatMap(id => byParent.get(id) || []);
-        while (queue.length) { const node = queue.pop(); if (hidden.has(node.id)) continue; hidden.add(node.id); queue.push(...(byParent.get(node.id) || [])); }
-        return nodes.filter(node => !hidden.has(node.id));
-    };
-    const isPlaced = (node, view) => !!node.placements?.[view];
-    const atlasDimensions = count => {
-        const columns = Math.max(3, Math.ceil(Math.sqrt(Math.max(1, count) * 1.45)));
-        const rows = Math.max(2, Math.ceil(Math.max(1, count) / columns));
-        return { columns, rows, width: Math.max(940, columns * 220 + 320), height: Math.max(600, rows * 155 + 220) };
-    };
-    const sceneDimensions = (nodes, view, pending = new Map()) => {
-        let minX = 0, minY = 0, maxX = 620, maxY = 360;
-        for (const node of nodes) {
-            const position = pending.get(node.id) || node.placements?.[view];
-            if (!position || !Number.isFinite(Number(position.x)) || !Number.isFinite(Number(position.y))) continue;
-            minX = Math.min(minX, Number(position.x)); minY = Math.min(minY, Number(position.y));
-            maxX = Math.max(maxX, Number(position.x)); maxY = Math.max(maxY, Number(position.y));
-        }
-        const originX = minX - 160, originY = minY - 120;
-        return { originX, originY, width: Math.max(940, maxX - originX + 160), height: Math.max(600, maxY - originY + 120) };
-    };
-    const validCIDR = value => {
-        if (!value) return true;
-        const parts = String(value).trim().split('/');
-        if (parts.length !== 2 || !/^\d{1,3}$/.test(parts[1])) return false;
-        const prefix = Number(parts[1]), address = parts[0];
-        if (address.includes(':')) {
-            if (prefix > 128) return false;
-            try { return new URL(`http://[${address}]/`).hostname.length > 0; } catch (_) { return false; }
-        }
-        const octets = address.split('.');
-        return octets.length === 4 && prefix <= 32 && octets.every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255);
-    };
-    const validHTTPLink = value => {
-        try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; }
-        catch (_) { return false; }
-    };
-
-    window.InfraAppModel = { iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState, iconId, visibleByCollapsed, atlasDimensions, sceneDimensions, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST] };
 
     function render(host, windowId, context = {}) {
         dispose(windowId);
@@ -92,7 +28,7 @@
             query: '', collapsed: new Set(), expandedHosts: new Set(), drafts: new Map(), dirty: new Set(), draftRevision: new Map(), sourceDrafts: new Map(), sourceDirty: new Set(), sourceRevision: new Map(), actionBlocks: new Map(),
             importSelection: new Set(), importBindings: new Map(), importDialogOwner: '', dialogGeneration: 0, layoutUndo: null, layoutRedo: null, pendingLayout: new Map(), pendingLayoutView: '', sourceBlocked: new Set(), sourcePending: new Set(),
             busy: new Set(), notice: '', noticeType: 'info', timer: 0, requests: new Set(), controller: new AbortController(),
-            visible: false, inView: true, filterSource: '', refreshAt: 0, manifestLoaded: false, manifestLoading: false, manifestController: null, collapsedInitialized: false, importOpen: false, zoom: 0.9, pollPaused: false,
+            visible: false, inView: true, filterSource: '', powerFilter: '', refreshAt: 0, manifestLoaded: false, manifestLoading: false, manifestController: null, collapsedInitialized: false, importOpen: false, zoom: 0.9, pollPaused: false, stamp: '', deferredPaint: '', inspectorStale: false,
         };
         INSTANCES.set(windowId, state);
         const safeWindowId = String(windowId).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -117,6 +53,7 @@
             <label class="infra-search"><span aria-hidden="true">⌕</span><input type="search" data-search aria-label="${esc(t('desktop.infra_search'))}" placeholder="${esc(t('desktop.infra_search_hint'))}" autocomplete="off"></label>
             <label class="infra-select-label"><span>${esc(t('desktop.infra_type'))}</span><select data-kind-filter aria-label="${esc(t('desktop.infra_type_filter'))}"><option value="">${esc(t('desktop.infra_all_types'))}</option>${KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_kind_${kind}`))}</option>`).join('')}</select></label>
             <label class="infra-select-label"><span>${esc(t('desktop.infra_source'))}</span><select data-source-filter aria-label="${esc(t('desktop.infra_source_filter'))}"><option value="">${esc(t('desktop.infra_all_sources'))}</option>${SOURCE_KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_source_${kind}`))}</option>`).join('')}</select></label>
+            <label class="infra-select-label"><span>${esc(t('desktop.infra_power_filter'))}</span><select data-power-filter aria-label="${esc(t('desktop.infra_power_filter'))}"><option value="">${esc(t('desktop.infra_power_all'))}</option><option value="running">${esc(t('desktop.infra_power_running'))}</option><option value="stopped">${esc(t('desktop.infra_power_stopped'))}</option><option value="paused">${esc(t('desktop.infra_power_paused'))}</option><option value="unknown">${esc(t('desktop.infra_power_unknown'))}</option><option value="none">${esc(t('desktop.infra_power_none'))}</option></select></label>
             <div class="infra-live-status" data-live role="status" aria-live="polite"><i></i><span>${esc(t('desktop.infra_loading'))}</span></div>
           </div>
           <div class="infra-workspace">
@@ -127,7 +64,7 @@
                 <button type="button" data-scope="unplaced" aria-pressed="false"><span class="infra-nav-glyph">⌖</span>${esc(t('desktop.infra_unplaced'))}<span data-scope-count="unplaced"></span></button>
                 <button type="button" data-scope="attention" aria-pressed="false"><span class="infra-nav-glyph">◌</span>${esc(t('desktop.infra_attention'))}<span data-scope-count="attention"></span></button>
               </nav>
-              <div class="infra-side-heading infra-groups-heading"><span>${esc(t('desktop.infra_groups'))}</span><button type="button" data-action="add-group" aria-label="${esc(t('desktop.infra_add_group'))}" title="${esc(t('desktop.infra_add_group'))}" disabled>＋</button></div>
+              <div class="infra-side-heading infra-groups-heading"><span>${esc(t('desktop.infra_containers'))}</span><button type="button" data-action="add-group" aria-label="${esc(t('desktop.infra_add_group'))}" title="${esc(t('desktop.infra_add_group'))}" disabled>＋</button></div>
               <div class="infra-group-tree" data-groups></div>
               <div class="infra-sidebar-bottom"><span class="infra-source-ledger"><i></i><span data-source-summary>${esc(t('desktop.infra_sources_waiting'))}</span></span><span class="infra-updated" data-updated></span></div>
             </aside>
@@ -140,7 +77,7 @@
                 </div></div>
                 <div class="infra-stage-footer"><span><i class="infra-legend-dot current"></i>${esc(t('desktop.infra_state_current'))}<i class="infra-legend-dot stale"></i>${esc(t('desktop.infra_state_stale'))}<i class="infra-legend-dot unknown"></i>${esc(t('desktop.infra_state_unknown'))}</span><span data-map-help>${esc(t('desktop.infra_map_hint'))}</span></div>
               </section>
-              <section class="infra-table-view" data-table-view hidden aria-label="${esc(t('desktop.infra_inventory'))}"><div class="infra-table-head"><div><p class="infra-kicker">${esc(t('desktop.infra_inventory_kicker'))}</p><h2>${esc(t('desktop.infra_inventory'))}</h2></div><span data-table-total></span></div><div class="infra-table-scroll" data-table-scroll tabindex="0"><table><thead><tr><th>${esc(t('desktop.infra_name'))}</th><th>${esc(t('desktop.infra_type'))}</th><th>${esc(t('desktop.infra_hardware'))}</th><th>${esc(t('desktop.infra_address'))}</th><th>${esc(t('desktop.infra_source'))}</th><th>${esc(t('desktop.infra_status'))}</th></tr></thead><tbody data-table-body></tbody></table></div></section>
+              <section class="infra-table-view" data-table-view hidden aria-label="${esc(t('desktop.infra_inventory'))}"><div class="infra-table-head"><div><p class="infra-kicker">${esc(t('desktop.infra_inventory_kicker'))}</p><h2>${esc(t('desktop.infra_inventory'))}</h2></div><span data-table-total></span></div><div class="infra-table-scroll" data-table-scroll tabindex="0"><table><thead><tr><th>${esc(t('desktop.infra_name'))}</th><th>${esc(t('desktop.infra_type'))}</th><th>${esc(t('desktop.infra_hardware'))}</th><th>${esc(t('desktop.infra_address'))}</th><th>${esc(t('desktop.infra_source'))}</th><th>${esc(t('desktop.infra_status'))}</th><th>${esc(t('desktop.infra_column_power'))}</th></tr></thead><tbody data-table-body></tbody></table></div></section>
               <section class="infra-tray" data-tray aria-label="${esc(t('desktop.infra_unplaced'))}"><div class="infra-tray-title"><span>${esc(t('desktop.infra_unplaced'))}</span><span data-tray-count></span><span class="infra-tray-rule"></span><span>${esc(t('desktop.infra_unplaced_hint'))}</span></div><div class="infra-tray-items" data-tray-items></div></section>
             </main>
             <aside class="infra-inspector" data-inspector aria-label="${esc(t('desktop.infra_details'))}"><div class="infra-inspector-empty"><span aria-hidden="true">◈</span><strong>${esc(t('desktop.infra_select_asset'))}</strong><p>${esc(t('desktop.infra_select_asset_hint'))}</p></div></aside>
@@ -222,8 +159,8 @@
                 if (state.disposed || !state.visible || generation !== state.epoch || !Array.isArray(manifest?.icons)) return;
                 for (const entry of manifest.icons) {
                     const id = String(entry?.id || ''), path = String(entry?.path || '');
-                    if (!(ICONS.has(id) || id === 'icon' || id === 'empty-atlas') || path !== `/img/infra/${id}.webp`) continue;
-                    ICON_ASSETS.set(id, { path, label_key: typeof entry.label_key === 'string' ? entry.label_key : '' });
+                    if (!acceptsIcon(id) || path !== `/img/infra/${id}.webp`) continue;
+                    rememberIcon(id, path, typeof entry.label_key === 'string' ? entry.label_key : '');
                 }
                 state.manifestLoaded = true;
                 paintAll();
@@ -240,7 +177,7 @@
         const hostedServices = hostID => [...new Set(state.edges.filter(edge => edge.kind === 'runs_on' && edge.to === hostID).map(edge => edge.from))].map(nodeById).filter(node => node?.kind === 'service');
         const hostingHosts = serviceID => state.edges.filter(edge => edge.kind === 'runs_on' && edge.from === serviceID).map(edge => edge.to);
         const searchableText = node => {
-            const parts = [node.name, node.kind, node.profile?.vendor, node.profile?.model, node.profile?.serial, node.profile?.os, node.profile?.firmware,
+            const parts = [node.name, node.kind, node.power, node.profile?.vendor, node.profile?.model, node.profile?.serial, node.profile?.os, node.profile?.firmware,
                 node.profile?.ip_address, node.profile?.mac_address, node.profile?.cidr, node.profile?.vlan, node.profile?.notes,
                 ...(node.profile?.tags || []), ...(node.profile?.interfaces || []).flatMap(item => Object.values(item || {})),
                 ...(node.profile?.links || []).flatMap(item => [item.label, item.url]),
@@ -248,7 +185,7 @@
             for (const source of node.sources || []) {
                 parts.push(source.kind, source.instance, source.key, source.name);
                 const observed = source.observed || {};
-                for (const key of ['name', 'type', 'model', 'ip_address', 'hostname', 'state', 'status', 'node', 'vmid', 'role', 'os', 'description']) parts.push(observed[key]);
+                for (const key of ['name', 'type', 'model', 'ip_address', 'hostname', 'state', 'status', 'node', 'vmid', 'role', 'os', 'description', 'power']) parts.push(observed[key]);
                 for (const item of (Array.isArray(observed.interfaces) ? observed.interfaces : [])) if (item && typeof item === 'object') parts.push(item.name, item.ip_address, item.mac_address, item.network);
             }
             for (const binding of node.profile?.app_bindings || []) {
@@ -265,6 +202,8 @@
                 if (state.query && !searchableText(node).includes(state.query.toLocaleLowerCase())) return false;
                 if (state.scope === 'unplaced' && isPlaced(node, view)) return false;
                 if (state.scope === 'attention' && !['stale', 'unknown', 'removed'].includes(sourceState(node))) return false;
+                if (state.powerFilter === 'none' && node.power) return false;
+                if (state.powerFilter && state.powerFilter !== 'none' && node.power !== state.powerFilter) return false;
                 return true;
             });
             if (view !== 'table') {
@@ -319,7 +258,7 @@
                 state.nodes = (data.nodes || []).map(node => ({ ...node, icon: iconId(node.icon), profile: { tags: [], interfaces: [], links: [], app_bindings: [], custom: {}, ...(node.profile || {}) }, placements: node.placements || {}, sources: node.sources || [], app_links: node.app_links || [], available_actions: node.available_actions || [] }));
                 for (const node of state.nodes) if (state.nodeReviews.has(node.id) && state.dirty.has(node.id)) state.nodeReviews.set(node.id, { latest: clone(node) });
                 if (!state.collapsedInitialized) {
-                    state.nodes.filter(node => node.kind === 'group' && groupChildren(node.id).length).forEach(node => state.collapsed.add(node.id));
+                    state.nodes.filter(node => isContainer(node.kind) && groupChildren(node.id).length).forEach(node => state.collapsed.add(node.id));
                     state.collapsedInitialized = true;
                 }
                 state.edges = data.edges || []; state.sources = data.sources || [];
@@ -331,10 +270,13 @@
                     state.selected = '';
                     if (state.dirty.has(removed)) setNotice(t('desktop.infra_remote_removed_draft'), 'error');
                 }
+                const nextStamp = snapshotStamp(state.nodes, state.edges, state.sources, state.caps);
+                const structural = nextStamp !== state.stamp;
+                state.stamp = nextStamp;
                 state.refreshAt = Date.now();
                 if (state.noticeType !== 'error') { state.notice = ''; state.noticeType = 'info'; }
                 syncMenus();
-                paintAll();
+                applySnapshotPaint(explicit, structural);
                 schedulePoll();
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -475,18 +417,7 @@
             if (!canWrite() || state.busy.has('layout') || nodes.length < 1) return;
             const moving = new Set(nodes.map(node => node.id));
             const obstacles = state.nodes.filter(node => !moving.has(node.id) && isPlaced(node, state.view)).map(node => node.placements[state.view]);
-            const changes = new Map();
-            const columns = Math.max(3, Math.ceil(Math.sqrt(state.nodes.length * 1.45)));
-            let index = 0;
-            for (const node of nodes) {
-                let position;
-                for (let attempts = 0; attempts < 20000; attempts++, index++) {
-                    const x = 110 + (index % columns) * 220, y = 100 + Math.floor(index / columns) * 155;
-                    const occupied = [...obstacles, ...[...changes.values()]];
-                    if (occupied.every(pos => Math.abs(Number(pos.x) - x) >= 160 || Math.abs(Number(pos.y) - y) >= 110)) { position = { x, y, pinned: false }; break; }
-                }
-                if (position) changes.set(node.id, position);
-            }
+            const changes = state.view === 'topology' ? topologyPositions(nodes, obstacles) : gridPositions(nodes, obstacles, state.nodes.length);
             if (!changes.size) return;
             await persistLayout(changes);
         }
@@ -521,13 +452,13 @@
             drag.button.style.top = `${y}px`;
         }
         function endDrag() {
-            if (state.pan) { state.pan = null; q('.infra-stage-scroll').classList.remove('is-panning'); return; }
-            const drag = state.drag; if (!drag) return;
+            if (state.pan) { state.pan = null; q('.infra-stage-scroll').classList.remove('is-panning'); flushDeferredPaint(); return; }
+            const drag = state.drag; if (!drag) { flushDeferredPaint(); return; }
             state.drag = null;
-            if (!drag.moved) return;
+            if (!drag.moved) { flushDeferredPaint(); return; }
             const x = Math.round(parseFloat(drag.button.style.left) + state.sceneGeometry.originX), y = Math.round(parseFloat(drag.button.style.top) + state.sceneGeometry.originY);
             window.setTimeout(() => { state.dragMoved = false; }, 0);
-            void persistLayout(new Map([[drag.id, { x, y, pinned: true }]]));
+            void persistLayout(new Map([[drag.id, { x, y, pinned: true }]])).finally(() => { state.deferredPaint = ''; });
         }
         stage.addEventListener('pointerdown', startDrag);
         stage.addEventListener('pointermove', moveDrag);
@@ -553,7 +484,14 @@
             if (button) { button.style.left = `${state.keyboardPosition.x - geometry.originX}px`; button.style.top = `${state.keyboardPosition.y - geometry.originY}px`; }
         });
         stage.addEventListener('keyup', event => { if (event.code === 'Space') state.spaceDown = false; });
-        stage.addEventListener('focusout', () => { if (state.keyboardMove && state.selected && state.keyboardPosition) { const pos = state.keyboardPosition; state.keyboardPosition = null; state.keyboardMove = false; void persistLayout(new Map([[state.selected, pos]])); } });
+        stage.addEventListener('focusout', () => {
+            if (state.keyboardMove && state.selected && state.keyboardPosition) {
+                const pos = state.keyboardPosition; state.keyboardPosition = null; state.keyboardMove = false;
+                void persistLayout(new Map([[state.selected, pos]])).finally(() => { state.deferredPaint = ''; });
+                return;
+            }
+            flushDeferredPaint();
+        });
 
         function openDialog(title, content, onRender) {
             if (state.disposed || !root.isConnected) return null;
@@ -942,6 +880,7 @@
             q('[data-search]').addEventListener('input', event => { state.query = event.target.value; paintStage(); paintTable(); paintTray(); });
             q('[data-kind-filter]').addEventListener('change', event => { state.kindFilter = event.target.value; paintAll(); });
             q('[data-source-filter]').addEventListener('change', event => { state.filterSource = event.target.value; paintAll(); });
+            q('[data-power-filter]').addEventListener('change', event => { state.powerFilter = event.target.value; paintAll(); });
             q('[data-table-scroll]').addEventListener('scroll', paintTable, { passive: true });
         }
         function changeZoom(next, reset = false) {
@@ -976,7 +915,7 @@
             if (state.disposed || !state.visible || state.pollPaused) return;
             state.timer = setTimeout(async () => { await loadSnapshot(false); schedulePoll(); }, 30000);
         }
-        const { paintToolbar, paintGroups, paintStage, paintTable, paintTray, matchesFilters, paintAll, ensureMapView, paintInspector, readProfileLists } = window.InfraAppViews.create({
+        const { paintToolbar, paintGroups, paintStage, paintTable, paintTray, paintStatus, matchesFilters, paintAll, ensureMapView, paintInspector, readProfileLists } = window.InfraAppViews.create({
             ICON_LIST, KINDS, SOURCE_EDIT_FIELDS, clone, iconId, iconLabelKey,
             sourceActions, sourceIdentity, virtualSlice, sourceState, isPlaced, sceneDimensions,
             validCIDR, validHTTPLink, ctx, esc, t, state,
@@ -987,6 +926,38 @@
             placeByChoice, saveKeyboardMove, persistLayout, updateUndoButton, replaceNode, openEdgeDialog,
             deleteNode, loadSourceEdit, reapplySourceDraft, reapplyNodeDraft, reviewSourceEdit, saveSourceEdit,
             openActionMenu, chooseEdgeEndpoint
+        });
+        const inspectorBusy = () => {
+            if (!state.selected) return false;
+            if (state.dirty.has(state.selected) || state.sourceDirty.has(state.selected)) return true;
+            const panel = q('[data-inspector]');
+            return !!panel && panel.contains(document.activeElement);
+        };
+        function applySnapshotPaint(explicit, structural) {
+            const interacting = state.drag || state.pan || state.keyboardMove;
+            if (interacting) {
+                state.deferredPaint = (!structural && !explicit) ? 'status' : 'structural';
+                return;
+            }
+            if (!structural && !explicit) { paintStatus(); return; }
+            const stageFocused = !!document.activeElement?.closest?.('[data-node]');
+            paintStage(stageFocused); paintTable(); paintGroups(); paintTray(); paintStatus(); paintToolbar();
+            if (inspectorBusy()) state.inspectorStale = true;
+            else { state.inspectorStale = false; paintInspector(); }
+        }
+        function flushDeferredPaint() {
+            const mode = state.deferredPaint;
+            if (!mode || state.drag || state.pan || state.keyboardMove) return;
+            state.deferredPaint = '';
+            if (mode === 'status') paintStatus();
+            else applySnapshotPaint(false, true);
+        }
+        root.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (state.disposed || !state.inspectorStale || inspectorBusy()) return;
+                state.inspectorStale = false;
+                paintInspector();
+            }, 0);
         });
         const visibilityChanged = () => visibility();
         document.addEventListener('visibilitychange', visibilityChanged);

@@ -309,6 +309,19 @@ func TestDesktopInfraProxmoxObservationsKeepHostIdentityNarrowAndGuestIdentitySt
 	if lxc.Observed.Kind != infra.NodeContainer || lxc.Observed.Icon != "container" {
 		t.Fatalf("LXC source projection = %#v", lxc.Observed)
 	}
+	stopped, err := desktopInfraProxmoxObservation("pve-cluster", tools.InfraProxmoxResource{Type: "qemu", VMID: "103", Node: "pve-a", Name: "db", Status: "stopped"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stopped.Observed.Power != infra.PowerStopped || stopped.Observed.Role != "" || stopped.Observed.Model != "qemu" {
+		t.Fatalf("guest power projection = %#v", stopped.Observed)
+	}
+	if desktopInfraPower("docker", "exited") != infra.PowerStopped || desktopInfraPower("docker", "restarting") != infra.PowerRunning || desktopInfraPower("docker", "paused") != infra.PowerPaused || desktopInfraPower("docker", "weird") != infra.PowerUnknown || desktopInfraPower("docker", "") != "" {
+		t.Fatal("Docker power vocabulary drifted")
+	}
+	if desktopInfraPower("proxmox", "suspended") != infra.PowerPaused || desktopInfraFritzPower(true) != infra.PowerRunning || desktopInfraFritzPower(false) != infra.PowerStopped {
+		t.Fatal("Proxmox or Fritz!Box power vocabulary drifted")
+	}
 }
 
 func TestDesktopInfraProxmoxHostHasNoMetadataEditorOrPowerActions(t *testing.T) {
@@ -785,5 +798,31 @@ func TestDesktopInfraProxmoxPlacementUsesImportedHostAndTracksMigration(t *testi
 	}
 	if len(snapshot.Edges) != 1 || snapshot.Edges[0].From != guest.ID || snapshot.Edges[0].To != hostB.ID {
 		t.Fatalf("migration did not replace the provider placement: %#v", snapshot.Edges)
+	}
+}
+
+func TestDesktopInfraProjectPowerUsesOnlyCurrentAgreement(t *testing.T) {
+	cfg := &config.Config{}
+	conflict := infra.Node{Sources: []infra.Source{
+		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerRunning}},
+		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "b"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerStopped}},
+	}}
+	projected := desktopInfraProjectNode(conflict, cfg, nil, nil)
+	if projected.Power != infra.PowerUnknown {
+		t.Fatalf("conflicting current power = %q", projected.Power)
+	}
+	stale := infra.Node{Sources: []infra.Source{
+		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceStale, Observed: infra.SourceObserved{Power: infra.PowerRunning}},
+	}}
+	projected = desktopInfraProjectNode(stale, cfg, nil, nil)
+	if projected.Power != "" {
+		t.Fatalf("stale power = %q", projected.Power)
+	}
+	stopped := infra.Node{Sources: []infra.Source{
+		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerStopped}},
+	}}
+	projected = desktopInfraProjectNode(stopped, cfg, nil, nil)
+	if projected.Power != infra.PowerStopped {
+		t.Fatalf("current stopped power = %q", projected.Power)
 	}
 }

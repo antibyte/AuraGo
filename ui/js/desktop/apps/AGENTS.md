@@ -2,9 +2,13 @@
 
 ## Infra
 
-- Load `infra-views.js` before `infra.js`. The view factory owns rendering and
-  node forms for one window; the app retains requests, lifecycle and source actions.
-  Both use the translated Desktop keys without literal English fallbacks.
+- Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
+  pure map math. The view factory owns rendering and node forms for one window.
+  The app retains requests, lifecycle and source actions. A snapshot poll
+  repaints the inspector only when the selected draft is clean and focus is
+  outside it. Dragging, panning and keyboard moves defer that paint until the
+  gesture ends. All three use the translated Desktop keys without literal
+  English fallbacks.
 - Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
   `TestDesktopInfra*Browser` suites after changes to this boundary.
 

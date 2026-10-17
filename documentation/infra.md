@@ -36,9 +36,16 @@ VMs, containers, services, groups and network segments do not create registry
 devices. A VM or container can be explicitly linked to an existing registry
 device to select its Quick Connect target.
 
-Create sites, rooms and racks to organize the map. Place unplaced entries, pin
-positions, and connect entries with a selected relationship type. Arrange runs
-only on request and can be undone. Refreshing source data preserves positions.
+Create sites, rooms and racks to organize the map. The side list treats sites,
+rooms, racks and groups as containers. On the atlas and topology, a container
+with at least one placed child draws a frame around those saved positions.
+Place unplaced entries, pin positions, and connect entries with a selected
+relationship type. Arrange on the atlas keeps the grid. Arrange on the topology
+lays unpinned entries in layers: network and places, then devices, then guests,
+then services. Both can be undone. Lines stop short of the node art and show
+port and speed text when those fields are set. Refreshing source data preserves
+positions. A visible window keeps the inspector in place while its draft is
+dirty or focused.
 Open a host to expand its explicitly linked services in the atlas. Topology
 and inventory keep the complete view of those entries.
 Ethernet, fiber, Wi-Fi, network membership, hosting, dependencies and power
@@ -74,9 +81,13 @@ have an explicit warning. Proxmox config digests protect against concurrent
 source edits. Pending Proxmox metadata is explicitly marked as pending;
 Infra retains the draft until the source confirms the effective change.
 
-Actions show running, accepted, completed, failed or unknown outcomes. A Proxmox
-task acknowledgement and a sent Wake-on-LAN packet mean accepted, not confirmed
-device startup. An uncertain operation is never automatically retried. Request
+Docker, Proxmox guests and FRITZ!Box hosts show a separate power reading:
+running, stopped, paused or unknown. It comes from the latest current
+observation. A stale source does not keep a power claim. The reading is not
+stored in the local role field, and an older imported role is left as written.
+FRITZ!Box power means the host was active on the LAN, not that Wake-on-LAN
+finished. A Proxmox task acknowledgement and a sent Wake-on-LAN packet mean
+accepted, not confirmed device startup. An uncertain operation is never automatically retried. Request
 IDs and outcomes survive server restarts, so replay does not repeat an uncertain
 mutation. Inspect the source before issuing a new operation after uncertainty.
 Revoking Infra or integration permissions cancels affected requests. Operations

@@ -384,6 +384,11 @@ func validateObserved(sourceKind string, observed SourceObserved) error {
 	if err := validateText("source host", observed.Host, 256, false); err != nil {
 		return err
 	}
+	switch observed.Power {
+	case "", PowerRunning, PowerStopped, PowerPaused, PowerUnknown:
+	default:
+		return fmt.Errorf("%w: invalid observed power", ErrValidation)
+	}
 	if observed.MACAddress != "" {
 		if _, err := net.ParseMAC(observed.MACAddress); err != nil {
 			return fmt.Errorf("%w: invalid observed MAC address", ErrValidation)

@@ -51,6 +51,7 @@ func validateNode(node *Node) error {
 func normalizeNodeRuntime(node *Node) {
 	node.AvailableActions = []string{}
 	node.AppLinks = []AppLink{}
+	node.Power = ""
 	node.ActionReasons = nil
 	node.SourceActions = nil
 	node.SourceActionReasons = nil
