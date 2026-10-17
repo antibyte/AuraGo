@@ -6,11 +6,13 @@ import (
 	"math"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 
 	"aurago/internal/videostudio"
 )
@@ -120,6 +122,10 @@ func TestDesktopVideoStudioEffectsBrowser(t *testing.T) {
 	effectsStackBrowserPart(t, page, shots)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors after the effect stack: %s", errs)
+	}
+	colorWheelBrowserPart(t, page, shots)
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors after the colour wheels: %s", errs)
 	}
 }
 
@@ -264,4 +270,95 @@ func effectsStackBrowserPart(t *testing.T, page *rod.Page, shots string) {
 	}
 	page.MustEval(`() => document.querySelector('[data-inspector] [data-fx-section]').scrollIntoView({ block: 'start' })`)
 	page.MustScreenshot(filepath.Join(shots, "effects-inspector-1280x900.png"))
+}
+
+// Part 2 of TestDesktopVideoStudioEffectsBrowser (Task 15): the colour wheels of a fresh Color entry on c1.
+//   - A real pointer drag moves the gain wheel's point toward orange (30°, 80 % of the disc). gain_x and gain_y follow,
+//     the screen-reader text says so, and the GL capture warms (red up against blue).
+//   - On the focused lift wheel, ArrowRight three times and Shift+ArrowUp give (0.03, 0.1), one undo step each.
+//   - Delete resets the wheel and leaves the clip in place; a double-click resets the gain wheel.
+func colorWheelBrowserPart(t *testing.T, page *rod.Page, shots string) {
+	t.Helper()
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	wheel := func(name string) string { return `[data-inspector] [data-fx-entry="0"] [data-wheel="` + name + `"]` }
+	page.MustEval(`() => {` + effectsPagePrelude + `
+		if (!P.mutate(s, 'wheel fixture', project => { const clip = T.clipFor(project, 'c1').clip; clip.effects = [{id: 'color', on: true, params: window.VideoStudioEffects.defaults('color')}]; delete clip.crop; delete clip.flip_h; })) throw new Error('the wheel fixture was refused');
+		P.setSelection(s, ['c1'], 'c1'); s.preview.pause(); s.preview.seek(0); }`)
+	waitForJSBool(t, page, `() => !!document.querySelector('`+wheel("gain")+`')`)
+	params := func() map[string]any {
+		t.Helper()
+		stack := effectsStack(t, page)
+		if len(stack) != 1 || stack[0].ID != "color" {
+			t.Fatalf("the wheel fixture's stack changed: %q", effectsIDs(stack))
+		}
+		return stack[0].Params
+	}
+	near := func(step string, got any, want, tolerance float64) {
+		t.Helper()
+		value, ok := got.(float64)
+		if !ok || math.Abs(value-want) > tolerance {
+			t.Fatalf("%s: %v, want %v ± %v", step, got, want, tolerance)
+		}
+	}
+	valueText := func(name string) string {
+		t.Helper()
+		return page.MustEval(`sel => document.querySelector(sel).getAttribute('aria-valuetext')`, wheel(name)).Str()
+	}
+	history := func() int { t.Helper(); return page.MustEval(`() => ` + app + `.history.length`).Int() }
+	before := effectsCapture(t, page)
+
+	// Drag the gain wheel toward orange.
+	page.MustElement(wheel("gain")).MustScrollIntoView()
+	box := page.MustEval(`sel => { const r = document.querySelector(sel).getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.min(r.width, r.height) / 2 / 1.2}; }`, wheel("gain"))
+	cx, cy, radius := box.Get("x").Num(), box.Get("y").Num(), box.Get("r").Num()
+	tx, ty := cx+0.8*radius*math.Cos(math.Pi/6), cy-0.8*radius*math.Sin(math.Pi/6)
+	page.Mouse.MustMoveTo(cx, cy).MustDown(proto.InputMouseButtonLeft).MustMoveTo((cx+tx)/2, (cy+ty)/2).MustMoveTo(tx, ty).MustUp(proto.InputMouseButtonLeft)
+	got := params()
+	near("gain_x after the drag", got["gain_x"], 0.8*math.Cos(math.Pi/6), 0.05)
+	near("gain_y after the drag", got["gain_y"], 0.4, 0.05)
+	if text := valueText("gain"); !regexp.MustCompile(`^Hue (2[6-9]|3[0-4])°, strength (7[5-9]|8[0-5]) %$`).MatchString(text) {
+		t.Errorf("gain wheel aria-valuetext %q", text)
+	}
+	warm := effectsCapture(t, page)
+	if (warm[0]-warm[2])-(before[0]-before[2]) < 12 {
+		t.Fatalf("the gain wheel toward orange did not warm the GL capture: %v -> %v", before, warm)
+	}
+
+	// Keys on the lift wheel: one undo step each; focus stays on the wheel.
+	steps := history()
+	page.MustElement(wheel("lift")).MustFocus()
+	for i := 0; i < 3; i++ {
+		page.KeyActions().Type(input.ArrowRight).MustDo()
+	}
+	page.KeyActions().Press(input.ShiftLeft).Type(input.ArrowUp).MustDo()
+	got = params()
+	near("lift_x after three arrows", got["lift_x"], 0.03, 1e-9)
+	near("lift_y after Shift+ArrowUp", got["lift_y"], 0.1, 1e-9)
+	if n := history() - steps; n != 4 {
+		t.Errorf("four wheel keys made %d undo steps", n)
+	}
+	if !effectsFocused(page, wheel("lift")) {
+		t.Error("the lift wheel lost focus after its keys")
+	}
+	if text := valueText("lift"); text != "Hue 73°, strength 10 %" {
+		t.Errorf("lift wheel aria-valuetext %q", text)
+	}
+	page.KeyActions().Type(input.Delete).MustDo()
+	got = params()
+	near("lift_x after Delete", got["lift_x"], 0, 1e-9)
+	near("lift_y after Delete", got["lift_y"], 0, 1e-9)
+	effectsClip(t, page) // fails when Delete removed the clip
+
+	// A double-click resets the gain wheel.
+	page.MustEval(`sel => document.querySelector(sel).dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`, wheel("gain"))
+	got = params()
+	near("gain_x after the double-click", got["gain_x"], 0, 1e-9)
+	near("gain_y after the double-click", got["gain_y"], 0, 1e-9)
+	if !page.MustEval(`() => window.VideoStudioTimeline.validTimeline(` + app + `.project)`).Bool() {
+		t.Error("the wheel edits left an invalid timeline")
+	}
+	page.MustEval(`sel => document.querySelector(sel).scrollIntoView({ block: 'center' })`, wheel("gain"))
+	page.MustScreenshot(filepath.Join(shots, "effects-color-wheels-1280x900.png"))
+	page.MustEval(`sel => document.querySelector(sel).scrollIntoView({ block: 'center' })`, `[data-inspector] [data-fx-entry="0"] [data-fx-param="tint"]`)
+	page.MustScreenshot(filepath.Join(shots, "effects-color-sliders-1280x900.png"))
 }

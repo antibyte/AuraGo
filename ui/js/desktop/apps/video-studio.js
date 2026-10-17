@@ -796,7 +796,8 @@
         if (undoShortcut) { event.preventDefault(); undo(s, event.shiftKey); return; }
         // A focused timeline clip takes the clip shortcuts; Space and Enter stay with the timeline.
         const focusedClip = target.closest('[data-clip-id]') && !target.closest('button') ? target.closest('[data-clip-id]').dataset.clipId : '';
-        if (!focusedClip && target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"]')) return;
+        // A focused colour wheel (role="slider", video-studio-colorwheel.js) keeps its arrows and Delete.
+        if (!focusedClip && target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"],[role="slider"]')) return;
         if (focusedClip && (event.code === 'Space' || event.key === 'Enter')) return;
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
         // In source mode every key goes to the source monitor; timeline keys do nothing there (undo ran above).

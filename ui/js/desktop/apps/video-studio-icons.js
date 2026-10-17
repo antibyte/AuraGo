@@ -73,6 +73,7 @@
         flipV: '<path d="M3 12h18" stroke-dasharray="2 2"/><path d="M7 9 17 4v5z"/><path d="M7 15 17 20v-5z"/>',
         lut: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/>',
         reset: '<path d="M4 4v6h6"/><path d="M5.5 15a7 7 0 1 0 1.6-7.3L4 10"/>',
+        wheel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>',
         reverse: '<path d="M4 7h11"/><path d="m11 4 4 3-4 3"/><path d="M20 17H9"/><path d="m13 14-4 3 4 3"/>',
         freeze: '<rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>',
         label: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',

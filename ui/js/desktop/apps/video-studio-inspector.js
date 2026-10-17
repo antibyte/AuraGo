@@ -69,11 +69,23 @@
     function slider(v, field, label, min, max, step, value, output, extra) {
         return `<label class="vs-slider"><span>${v.esc(label)}</span><input type="range" data-field="${field}" min="${min}" max="${max}" step="${step}" value="${value}"${extra || ''}><output>${v.esc(output)}</output></label>`;
     }
-    // Stopwatch, diamond and previous/next keyframe buttons of one keyframable value (spec §8.2). v.keyframes is
+    // The control state of one path, or of several paths joined by spaces (a colour wheel's x and y):
+    // - animated when any of them is;
+    // - on a key when every animated one is;
+    // - prev and next are the nearest previous and next key over the animated ones.
+    function controlFor(kf, path) {
+        const list = String(path).split(' ').map(item => kf && kf.controls[item]).filter(Boolean);
+        if (!list.length) return null;
+        if (list.length === 1) return list[0];
+        const animated = list.filter(c => c.animated), pick = (values, fn) => { const known = values.filter(value => value != null); return known.length ? fn(...known) : null; };
+        return { animated: animated.length > 0, onKey: animated.length > 0 && animated.every(c => c.onKey), prev: pick(animated.map(c => c.prev), Math.max), next: pick(animated.map(c => c.next), Math.min), value: null };
+    }
+    // Stopwatch, diamond and previous/next keyframe buttons of one keyframable value (spec §8.2); path may list several
+    // paths joined by spaces (a colour wheel's x and y; controlFor). v.keyframes is
     // P.keyframeView(s) (video-studio-keyframes.js), which also keeps these buttons in sync while the playhead moves; they
     // are disabled while the playhead is outside the clip. Without v.keyframes nothing is drawn.
     function keyframeTools(v, path, name) {
-        const kf = v.keyframes, c = kf && kf.controls[path];
+        const kf = v.keyframes, c = kf && controlFor(kf, path);
         if (!c) return '';
         const text = (key, fallback) => v.esc(v.tr(key, fallback).split('{{name}}').join(name));
         const off = kf.locked || !kf.inside;
@@ -244,5 +256,5 @@
         host.innerHTML = `<div class="vs-insp-head"><span class="vs-insp-thumb vs-kind-${v.esc(kind)}"${thumb}>${thumb ? '' : v.icon(icon, 18)}</span><div class="vs-insp-title"><strong title="${v.esc(title)} · ${v.esc(track.name)}">${v.esc(title)}</strong><span class="vs-insp-meta"><small title="${v.esc(track.name)}">${v.esc(formatTime(clip.start, v.project))} – ${v.esc(formatTime(clip.start + clip.duration, v.project))}</small><span class="vs-insp-actions"><button type="button" class="vs-icon-button" data-action="clip-split" title="${v.esc(v.tr('splitHintShort', 'Split at the playhead (S)'))}" aria-label="${v.esc(v.tr('split', 'Split'))}">${v.icon('scissors', 16)}</button><button type="button" class="vs-icon-button" data-action="clip-duplicate" title="${v.esc(v.tr('duplicate', 'Duplicate'))}" aria-label="${v.esc(v.tr('duplicate', 'Duplicate'))}">${v.icon('copy', 16)}</button><button type="button" class="vs-icon-button vs-danger" data-action="clip-delete" title="${v.esc(v.tr('deleteHint', 'Delete (Del)'))}" aria-label="${v.esc(v.tr('delete', 'Delete'))}">${v.icon('trash', 16)}</button></span></span></div></div>${lock}${clip.text ? textSection(v, clip) : ''}${timeSection(v, clip, asset)}${clip.text ? '' : clipSection(v, clip, asset, track)}${visual ? pictureSection(v, clip) : ''}${visual && window.VideoStudioInspectorEffects ? window.VideoStudioInspectorEffects.section(v, clip, track) : ''}${animationSection(v, clip, asset, track, rampMuted)}${audioCapable ? soundSection(v, clip, rampMuted) : ''}${visual ? transitionSection(v, clip, v.transitionInfo) : ''}`;
     }
 
-    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools };
+    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor };
 })();

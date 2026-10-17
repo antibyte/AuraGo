@@ -593,3 +593,126 @@ func TestVideoStudioEffectStackLocales(t *testing.T) {
 		}
 	}
 }
+
+// Colour wheels (spec §8.3).
+//   - Model: pointer ↔ x/y with the SVG y axis flipped and clamped to the disc; arrow steps 0.01 (Shift 0.1); Delete and
+//     Backspace reset; the value text gives hue and strength; the hue ring and the point's angle follow the shared φ
+//     mapping (VideoStudioPicture.wheel).
+//   - Markup: role="slider" with aria-roledescription and aria-valuetext.
+//   - The color entry's panel: three wheels, the master sliders and five sliders.
+//   - Each wheel's one set of keyframe tools acts on its x and y together; handleKeys lets the wheel keep its keys.
+func TestVideoStudioColorWheelModel(t *testing.T) {
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(app), `[role="separator"],[role="slider"]`) {
+		t.Fatal("handleKeys must leave the keys of a focused colour wheel (role=slider) to the wheel")
+	}
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+require('./js/desktop/apps/video-studio-colorwheel.js');
+global.CSS = global.CSS || {escape: value => String(value)};
+const W = window.VideoStudioColorWheel, PIC = window.VideoStudioPicture;
+const tr = (key, fallback) => fallback;
+const rect = {left: 100, top: 50, width: 120, height: 120}; // centre (160, 110), disc radius 60 / 1.2 = 50 px
+assert.deepEqual(W.fromPointer(185, 110, rect), {x: 0.5, y: 0}, 'right of the centre is +x');
+assert.deepEqual(W.fromPointer(160, 85, rect), {x: 0, y: 0.5}, 'above the centre is +y (the SVG y axis points down)');
+assert.deepEqual(W.fromPointer(160, 160, rect), {x: 0, y: -1});
+const far = W.fromPointer(260, 10, rect);
+assert(Math.abs(Math.hypot(far.x, far.y) - 1) < 2e-3 && Math.abs(far.x - far.y) < 1e-9, 'clamped to the disc: ' + JSON.stringify(far));
+assert.deepEqual(W.clampDisc(3, 4), {x: 0.6, y: 0.8});
+assert.deepEqual(W.clampDisc(-0.0001, 0), {x: 0, y: 0}, 'no negative zero');
+assert.deepEqual(W.keyStep(0, 0, 'ArrowRight', false), {x: 0.01, y: 0});
+assert.deepEqual(W.keyStep(0.02, 0, 'ArrowLeft', false), {x: 0.01, y: 0});
+assert.deepEqual(W.keyStep(0, 0, 'ArrowUp', true), {x: 0, y: 0.1});
+assert.deepEqual(W.keyStep(0, 0, 'ArrowDown', false), {x: 0, y: -0.01});
+assert.deepEqual(W.keyStep(0, 0.95, 'ArrowUp', true), {x: 0, y: 1}, 'kept inside the disc');
+assert.deepEqual(W.keyStep(0.3, 0.2, 'Delete', false), {x: 0, y: 0});
+assert.deepEqual(W.keyStep(0.3, 0.2, 'Backspace', false), {x: 0, y: 0});
+assert.equal(W.keyStep(0.3, 0.2, 'Enter', false), null);
+let x = 0;
+for (let i = 0; i < 3; i++) x = W.keyStep(x, 0, 'ArrowRight', false).x;
+assert.equal(x, 0.03, 'steps stay on the 0.001 grid');
+assert.equal(W.valueText(tr, 0, 0), 'Hue 0°, strength 0 %');
+assert.equal(W.valueText(tr, 0.5, 0), 'Hue 0°, strength 50 %');
+assert.equal(W.valueText(tr, 0, 0.25), 'Hue 90°, strength 25 %');
+assert.equal(W.valueText(tr, -0.5, -0.866), 'Hue 240°, strength 100 %');
+assert.equal(W.valueText(tr, 0.03, 0.1), 'Hue 73°, strength 10 %');
+for (const [deg, channel] of [[0, 0], [120, 1], [240, 2]]) {
+  const a = deg * Math.PI / 180, v = W.fromPointer(160 + 40 * Math.cos(a), 110 - 40 * Math.sin(a), rect), rgb = PIC.wheel(v.x, v.y);
+  assert.equal(rgb.indexOf(Math.max(...rgb)), channel, deg + '° pushes channel ' + channel + ': ' + JSON.stringify(rgb));
+  assert.equal(W.polar(v.x, v.y).hue, deg);
+}
+assert.equal(W.ringColor(0), '#ff4040', 'the ring is drawn from the φ mapping: red at 0°');
+let html = W.markup({name: 'lift', label: 'Lift wheel', x: 0.5, y: 0, tr, esc: value => String(value)});
+for (const want of ['role="slider"', 'aria-roledescription="color wheel"', 'aria-valuetext="Hue 0°, strength 50 %"', 'aria-valuenow="50"', 'tabindex="0"', 'aria-label="Lift wheel"', 'data-wheel="lift"', 'cx="0.5" cy="0"']) assert(html.includes(want), 'markup lacks ' + want);
+assert.equal((html.match(/<path d="M[^"]*Z" fill="#[0-9a-f]{6}"/g) || []).length, 72, 'a hue ring of 72 segments');
+html = W.markup({name: 'gain', label: 'Gain wheel', x: 0, y: 0, tr, esc: value => String(value), disabled: true});
+assert(html.includes('tabindex="-1"') && html.includes('aria-disabled="true"'));
+const dot = {attrs: {}, setAttribute(key, value) { this.attrs[key] = value; }};
+const el = {dataset: {}, attrs: {}, setAttribute(key, value) { this.attrs[key] = value; }, querySelector: () => dot};
+assert.deepEqual(W.update(el, 0.3, 0.4, tr), {x: 0.3, y: 0.4});
+assert.deepEqual([dot.attrs.cx, dot.attrs.cy, el.attrs['aria-valuenow'], el.attrs['aria-valuetext'], el.dataset.wheelX, el.dataset.wheelY], ['0.3', '-0.4', '50', 'Hue 53°, strength 50 %', '0.3', '0.4']);
+
+// The color entry's panel.
+const p = project([track('v1','video',[clip('c',V,0,100,{offset:100})])]);
+assert.equal(K.addEffect(p, 'c', 'color'), true);
+at(p,'c').effects[0].params.gain_x = 0.5;
+valid(p);
+const s = {project: p, selectedClipId: 'c', frame: 10, readonly: false, stageMode: 'timeline', q: () => null};
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';');
+const host = {innerHTML: ''};
+IN.render(host, {selected: T.clipFor(p, 'c'), asset: V, project: p, locale: 'en', caps: {}, transitionInfo: {next: null}, esc, icon: name => '<i data-icon="' + name + '"></i>',
+  tr: (key, fallback) => fallback || key, keyframes: P.keyframeView(s), fineOpen: false, effects: {failed: new Set(), luts: [], collapsed: () => false}});
+html = host.innerHTML;
+assert.deepEqual(Array.from(html.matchAll(/data-wheel="([a-z]+)"/g), m => m[1]), ['lift', 'gamma', 'gain']);
+assert(/data-wheel="gain"[^>]*aria-valuetext="Hue 0°, strength 50 %"/.test(html), 'the gain wheel shows its stored x/y');
+for (const id of ['lift', 'gamma', 'gain', 'exposure', 'contrast', 'saturation', 'temperature', 'tint']) assert(html.includes('data-fx-param="' + id + '"'), id + ' slider');
+assert(!html.includes('data-fx-param="lift_x"'), 'the wheels replace the x/y sliders');
+assert(html.includes('class="vs-slider vs-fx-slider vs-fx-p-temperature"'), 'the temperature slider gets its blue-to-orange track');
+assert(html.includes('data-kf-path="effects.0.gain_x effects.0.gain_y"'), 'one set of keyframe tools per wheel');
+
+// The wheel's keyframe tools animate, key and stop x and y together.
+P.applyEdit = (state, label, op) => op(state.project, {}) === true;
+const wheelPair = 'effects.0.gain_x effects.0.gain_y';
+const click = action => P.handleKeyframeClick(s, {target: {closest: selector => (selector === '[data-kf-path][data-kf-action]' ? {dataset: {kfPath: wheelPair, kfAction: action}, disabled: false, parentElement: null} : null)}});
+assert.equal(click('stopwatch'), true);
+assert.deepEqual(at(p,'c').effects[0].keyframes, {gain_x: [kf(110, 0.5)], gain_y: [kf(110, 0)]});
+s.frame = 30;
+assert.deepEqual(IN.controlFor(P.keyframeView(s), wheelPair), {animated: true, onKey: false, prev: 10, next: null, value: null});
+assert.equal(click('key'), true);
+assert.deepEqual([at(p,'c').effects[0].keyframes.gain_x.map(key => key.f), at(p,'c').effects[0].keyframes.gain_y.map(key => key.f)], [[110, 130], [110, 130]]);
+assert.equal(IN.controlFor(P.keyframeView(s), wheelPair).onKey, true);
+assert.equal(click('key'), true, 'on a key of both, the diamond removes both');
+assert.deepEqual(at(p,'c').effects[0].keyframes.gain_x.map(key => key.f), [110]);
+assert.equal(click('stopwatch'), true);
+assert.equal('keyframes' in at(p,'c').effects[0], false, 'the stopwatch stops both');
+assert.equal(at(p,'c').effects[0].params.gain_x, 0.5);
+valid(p);
+`)
+}
+
+// Every desktop locale carries the colour wheel strings, keeps the hue and strength placeholders, and translates them.
+func TestVideoStudioColorWheelLocales(t *testing.T) {
+	keys := []string{"colorWheels", "colorWheelLift", "colorWheelGamma", "colorWheelGain", "colorWheelRole", "colorWheelValue", "colorWheelHint"}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		if text := values["videoStudio.colorWheelValue"]; !strings.Contains(text, "{{hue}}") || !strings.Contains(text, "{{strength}}") {
+			t.Errorf("%s videoStudio.colorWheelValue lost a placeholder: %q", lang, text)
+		}
+		if lang == "en" {
+			continue
+		}
+		for _, key := range []string{"colorWheelValue", "colorWheelHint", "colorWheelLift", "colorWheelGain"} {
+			if values["videoStudio."+key] == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
+}

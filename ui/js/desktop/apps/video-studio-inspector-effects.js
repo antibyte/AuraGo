@@ -82,7 +82,33 @@
         const slider = `<label class="vs-slider vs-fx-slider vs-fx-p-${v.esc(param.id)}${extra || ''}"><span>${v.esc(label)}</span><input type="range" data-fx-param="${v.esc(param.id)}" min="${param.min}" max="${param.max}" step="${param.step || 0.01}" value="${value}"${lock}><output>${v.esc(formatValue(param, value, v.locale))}</output></label>`;
         return `<div class="vs-kf-line vs-fx-line">${slider}${param.keyframable ? I().keyframeTools(v, path, label) : ''}</div>`;
     }
-    function paramsMarkup(v, clip, index, entry, spec) { return (spec.params || []).map(param => paramRow(v, index, entry, param)).join(''); }
+    // The color entry (spec §8.1, §8.3) is drawn as follows:
+    // - three wheels (lift, gamma, gain), each with one set of keyframe tools for its x and y;
+    // - their master sliders;
+    // - then exposure, contrast, saturation, temperature (track blue → orange: higher K warms) and tint
+    //   (green → magenta).
+    // Values show at the playhead. A wheel freezes like a slider while the playhead is outside the clip and the wheel is
+    // animated, and on a locked track.
+    const WHEELS = [['lift', 'colorWheelLift'], ['gamma', 'colorWheelGamma'], ['gain', 'colorWheelGain']];
+    const COLOR_SLIDERS = ['exposure', 'contrast', 'saturation', 'temperature', 'tint'];
+    function colorPanel(v, index, entry, spec) {
+        const param = id => (spec.params || []).find(item => item.id === id), kf = v.keyframes;
+        const control = id => (kf ? kf.controls['effects.' + index + '.' + id] : null);
+        const value = id => { const c = control(id), stored = entry.params ? entry.params[id] : undefined; return c ? Number(c.value) : Number(stored != null ? stored : param(id).default); };
+        const animated = id => { const c = control(id); return !!c && c.animated; };
+        const wheels = WHEELS.map(([id, key]) => {
+            const label = v.tr(key, id), paths = 'effects.' + index + '.' + id + '_x effects.' + index + '.' + id + '_y';
+            const off = !!kf && (kf.locked || (!kf.inside && (animated(id + '_x') || animated(id + '_y'))));
+            const wheel = window.VideoStudioColorWheel.markup({ name: id, label, x: value(id + '_x'), y: value(id + '_y'), tr: v.tr, esc: v.esc, disabled: off });
+            return `<div class="vs-wheel-cell" data-wheel-cell="${id}"><span class="vs-wheel-title">${v.esc(v.tr(param(id).label_key, id))}</span>${wheel}${I().keyframeTools(v, paths, label)}</div>`;
+        }).join('');
+        const masters = WHEELS.map(([id]) => paramRow(v, index, entry, param(id))).join('');
+        return `<div class="vs-fx-color"><div class="vs-wheel-row" role="group" aria-label="${v.esc(v.tr('colorWheels', 'Lift, gamma and gain'))}">${wheels}</div>${masters}${COLOR_SLIDERS.map(id => paramRow(v, index, entry, param(id))).join('')}</div>`;
+    }
+    function paramsMarkup(v, clip, index, entry, spec) {
+        if (entry.id === 'color' && window.VideoStudioColorWheel) return colorPanel(v, index, entry, spec);
+        return (spec.params || []).map(param => paramRow(v, index, entry, param)).join('');
+    }
     function entryMarkup(v, clip, index) {
         const entry = clip.effects[index], spec = Fx().effect(entry.id), fx = v.effects || {};
         const name = entryName(clip, index, (key, fallback) => v.tr(key, fallback)), open = !(fx.collapsed && fx.collapsed(entry));
@@ -312,6 +338,43 @@
         if (!entry || entry.id !== 'lut') return false;
         return P.applyEdit(s, 'LUT', project => K().setEffectParams(project, clipId, index, { lut: added.id }, s.frame));
     }
+    // ---- Colour wheels (Task 15).
+    // - A drag changes the project live (auto-key of x and y; no undo step) and records one step when it ends.
+    // - Keys and resets are one edit each.
+    // - A refused live change puts the clip back and explains itself once per drag.
+    const wheelValues = (el, x, y) => ({ [el.dataset.wheel + '_x']: x, [el.dataset.wheel + '_y']: y });
+    const wheelSelector = el => `[data-fx-entry="${entryIndex(el)}"] [data-wheel="${el.dataset.wheel}"]`;
+    const wheelText = s => (key, fallback) => P.tr(s, key, fallback);
+    function liveWheel(s, el, x, y) {
+        const target = paramTarget(s, el);
+        if (!target) return;
+        if (!el._vsBefore) { el._vsBefore = P.snapshot(s); s.fieldGesture = true; }
+        clearTimeout(s.autosaveTimer);
+        const clip = target.found.clip, saved = JSON.stringify(clip);
+        const result = K().setEffectParams(s.project, clip.id, target.index, wheelValues(el, x, y), s.frame);
+        if (result !== true) {
+            restoreClip(clip, saved);
+            if (!el._vsRefused) { el._vsRefused = true; P.showReason(s, result); }
+            return;
+        }
+        window.VideoStudioColorWheel.update(el, x, y, wheelText(s));
+        s.dirty = true; s.revision++;
+        P.renderToolbar(s);
+        if (s.preview) s.preview.seek(s.frame);
+    }
+    function commitWheel(s, el, cancelled) {
+        const before = el._vsBefore, selector = wheelSelector(el);
+        delete el._vsBefore; delete el._vsRefused;
+        s.fieldGesture = false;
+        if (!before) return;
+        if (cancelled) { s.project = P.hydrateProject(s, before); P.renderUI(s); }
+        else if (JSON.stringify(before) !== JSON.stringify(s.project)) P.recordChange(s, 'color wheel', before);
+        refocus(s, selector);
+    }
+    function changeWheel(s, el, x, y) {
+        const target = paramTarget(s, el);
+        if (target) stackEdit(s, 'color wheel', (project, id) => K().setEffectParams(project, id, target.index, wheelValues(el, x, y), s.frame), wheelSelector(el));
+    }
     // Delegated listeners on the inspector (they end with s.abort):
     // - sliders: input changes the project live, change records one step;
     // - the LUT picker and the crop fields commit on change;
@@ -374,6 +437,7 @@
             moveEntry(s, from, dropIndex(from, hit.index, hit.after));
         }, { signal });
         host.addEventListener('dragend', () => { s.fxDrag = null; clear(['is-drop-before', 'is-drop-after', 'is-dragging']); }, { signal });
+        if (window.VideoStudioColorWheel) window.VideoStudioColorWheel.wire(host, { live: (el, x, y) => liveWheel(s, el, x, y), commit: (el, cancelled) => commitWheel(s, el, cancelled), change: (el, x, y) => changeWheel(s, el, x, y) }, signal);
     }
     // Keeps the effect sliders and the crop fields on the playhead while it moves (paused), like the box fields. Called by
     // P.syncKeyframeControls with its keyframe view.
@@ -400,6 +464,15 @@
             input.disabled = view.locked || frozen;
             input.title = frozen ? outside : '';
             if (input !== active) input.value = String(Math.round(Number(c.value) * 1e8) / 1e6);
+        });
+        // Animated wheels follow the playhead too, and freeze outside the clip.
+        if (window.VideoStudioColorWheel) host.querySelectorAll('[data-fx-entry] [data-wheel]').forEach(el => {
+            const base = 'effects.' + entryIndex(el) + '.' + el.dataset.wheel, cx = view.controls[base + '_x'], cy = view.controls[base + '_y'];
+            if (!cx || !cy || (!cx.animated && !cy.animated)) return;
+            const off = view.locked || !view.inside;
+            el.setAttribute('aria-disabled', String(off));
+            el.tabIndex = off ? -1 : 0;
+            if (!el._vsBefore) window.VideoStudioColorWheel.update(el, cx.value, cy.value, (key, fallback) => P.tr(s, key, fallback));
         });
     }
 

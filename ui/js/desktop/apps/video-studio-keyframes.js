@@ -72,25 +72,51 @@
         if (event.target.closest('[data-inspector] [data-action="ramp-edit"]')) { openSpeedLane(s); return true; }
         const button = event.target.closest('[data-kf-path][data-kf-action]');
         if (!button || !s.project) return false;
-        const found = visualSelection(s), path = button.dataset.kfPath, action = button.dataset.kfAction;
+        // data-kf-path may hold several paths joined by spaces (a colour wheel's x and y): they act together.
+        const found = visualSelection(s), path = button.dataset.kfPath, action = button.dataset.kfAction, paths = path.split(' ');
         if (!found || button.disabled) return true;
         if (action === 'prev' || action === 'next') {
-            const frame = K().neighbor(found.clip, [path], s.frame, action === 'prev' ? -1 : 1);
+            const frame = K().neighbor(found.clip, paths, s.frame, action === 'prev' ? -1 : 1);
             if (frame != null) P.seekTo(s, frame);
             // At the first or last key the button turns off; the keyboard moves to the other one.
             if (button.disabled && button.parentElement) button.parentElement.querySelector(`[data-kf-action="${action === 'prev' ? 'next' : 'prev'}"]:not(:disabled)`)?.focus({ preventScroll: true });
             return true;
         }
-        if (action === 'stopwatch') applyAnimated(s, path, !isAnimated(found.clip, path));
-        else if (action === 'key') P.applyEdit(s, 'keyframe', project => K().toggleKeyframe(project, found.clip.id, path, s.frame));
+        if (action === 'stopwatch') applyAnimatedAll(s, found.clip.id, paths, !paths.some(item => isAnimated(found.clip, item)));
+        else if (action === 'key') toggleKeysAll(s, found.clip, paths);
         else return false;
         refocus(s, path, action);
         return true;
     }
+    // One stopwatch for several paths: they all start or all stop in one undo step (one path: applyAnimated).
+    function applyAnimatedAll(s, clipId, paths, on) {
+        if (paths.length === 1) return applyAnimated(s, paths[0], on);
+        return P.applyEdit(s, on ? 'animate' : 'stop animation', project => {
+            for (const path of paths) {
+                if (isAnimated(T().clipFor(project, clipId).clip, path) === on) continue;
+                const result = K().setAnimated(project, clipId, path, on, s.frame);
+                if (result !== true) return result;
+            }
+            return true;
+        });
+    }
+    // One diamond for several paths. When every animated one has a key at the playhead, those keys are removed;
+    // otherwise every path without one gets one (a static path starts its animation). One undo step.
+    function toggleKeysAll(s, clip, paths) {
+        const animated = paths.filter(path => isAnimated(clip, path)), remove = animated.length > 0 && animated.every(path => K().atPlayhead(clip, path, s.frame));
+        return P.applyEdit(s, 'keyframe', project => {
+            for (const path of remove ? animated : paths) {
+                if (!remove && K().atPlayhead(T().clipFor(project, clip.id).clip, path, s.frame)) continue;
+                const result = K().toggleKeyframe(project, clip.id, path, s.frame);
+                if (result !== true) return result;
+            }
+            return true;
+        });
+    }
 
     // One keyframe button follows the playhead: enabled state, aria-pressed, label and the diamond's icon.
     function syncButton(s, view, button) {
-        const path = button.dataset.kfPath, action = button.dataset.kfAction, c = view.controls[path];
+        const path = button.dataset.kfPath, action = button.dataset.kfAction, c = P.I().controlFor(view, path);
         if (!c) return;
         const name = (button.parentElement && button.parentElement.getAttribute('aria-label')) || path;
         const text = (key, fallback) => tr(s, key, fallback).split('{{name}}').join(name);
