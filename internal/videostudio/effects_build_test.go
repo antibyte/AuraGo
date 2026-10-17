@@ -117,18 +117,18 @@ func TestEffectChainSnapshots(t *testing.T) {
 	}
 
 	// LUT intensities: lut3d alone at 1, all_opacity in between (capped at 0.999), every lut3d trilinear.
-	split := "format=gbrap,split=2[vs_fx_0_1_0_in][vs_fx_0_1_0_orig];[vs_fx_0_1_0_in]lut3d=file=vs_lut_0_1_0.cube:interp=trilinear[vs_fx_0_1_0_lut];[vs_fx_0_1_0_lut][vs_fx_0_1_0_orig]"
+	split := "format=gbrap,split=2[vs_fx_0_1_0_in][vs_fx_0_1_0_orig];[vs_fx_0_1_0_in]lut3d=file=vs_lut_0.cube:interp=trilinear[vs_fx_0_1_0_lut];[vs_fx_0_1_0_lut][vs_fx_0_1_0_orig]"
 	for name, c := range map[string]struct {
 		intensity float64
 		want      string
 		twoInput  bool
 	}{
-		"full":      {1, "format=gbrap,lut3d=file=vs_lut_0_1_0.cube:interp=trilinear", false},
+		"full":      {1, "format=gbrap,lut3d=file=vs_lut_0.cube:interp=trilinear", false},
 		"partial":   {0.6, split + "blend=all_mode=normal:all_opacity=0.6", true},
 		"near full": {0.9995, split + "blend=all_mode=normal:all_opacity=0.999", true},
 	} {
 		parts := effectTestChain(effectTestClip(10, lutEntry("builtin:warm", c.intensity, nil)), false, map[int]*LUT3D{0: table}).effects()
-		if partFilters(parts) != c.want || len(parts) != 1 || parts[0].twoInput != c.twoInput || len(parts[0].luts) != 1 || parts[0].luts[0].name != "vs_lut_0_1_0.cube" || parts[0].luts[0].lut != table {
+		if partFilters(parts) != c.want || len(parts) != 1 || parts[0].twoInput != c.twoInput || len(parts[0].luts) != 1 || parts[0].luts[0].name != "vs_lut_0.cube" || parts[0].luts[0].lut != table {
 			t.Fatalf("lut %s = %q, parts %+v", name, partFilters(parts), parts)
 		}
 	}
@@ -156,10 +156,17 @@ func TestEffectChainSnapshots(t *testing.T) {
 		EffectInstance{ID: "color", On: false, Params: map[string]any{"contrast": 0.5}},
 		color(map[string]any{"saturation": 0.5}, nil))
 	want = "format=rgba,lutrgb=" + curveText(colorCurves(colorParamsAt(stack, 0, 0))) +
-		",format=gbrap,lut3d=file=vs_lut_0_1_1.cube:interp=trilinear,lut3d=file=vs_lut_0_1_2.cube:interp=trilinear" +
+		",format=gbrap,lut3d=file=vs_lut_0.cube:interp=trilinear,lut3d=file=vs_lut_1.cube:interp=trilinear" +
 		",format=rgba,colorchannelmixer=" + matrixText(saturationMatrix(0.5))
-	if got := partFilters(effectTestChain(stack, false, map[int]*LUT3D{1: table, 2: table}).effects()); got != want {
+	other := &LUT3D{Size: 2, DomainMax: [3]float64{1, 1, 1}, Data: make([]float32, 2*2*2*3)}
+	if got := partFilters(effectTestChain(stack, false, map[int]*LUT3D{1: table, 2: other}).effects()); got != want {
 		t.Fatalf("format insertion:\n got %s\nwant %s", got, want)
+	}
+
+	// Two entries of one table read one file; a second table gets the next number (index §4.11).
+	shared := partFilters(effectTestChain(stack, false, map[int]*LUT3D{1: table, 2: table}).effects())
+	if !strings.Contains(shared, "lut3d=file=vs_lut_0.cube:interp=trilinear,lut3d=file=vs_lut_0.cube:interp=trilinear") || strings.Contains(shared, "vs_lut_1.cube") {
+		t.Fatalf("one table twice:\n%s", shared)
 	}
 
 	// Commands after a LUT blend: the second colour entry's matrix and the clip's opacity read group 1, which sits right
@@ -179,7 +186,7 @@ func TestEffectChainSnapshots(t *testing.T) {
 		built.commands[1].tracks[9].Target != "colorchannelmixer@vs_opacity_0_1" {
 		t.Fatalf("command files = %+v", built.commands)
 	}
-	if len(built.luts) != 1 || built.luts[0].name != "vs_lut_0_1_1.cube" || built.luts[0].lut != table {
+	if len(built.luts) != 1 || built.luts[0].name != "vs_lut_0.cube" || built.luts[0].lut != table {
 		t.Fatalf("lut files = %+v", built.luts)
 	}
 }

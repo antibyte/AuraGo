@@ -24,6 +24,9 @@ type clipChain struct {
 	item                      layerClip
 	canvasWidth, canvasHeight int
 	rate                      Rate
+	// lutNames names the LUT files of the FFmpeg process the clip belongs to, so the clips of one process share a file
+	// per table. A chain built alone (nil) numbers its own tables.
+	lutNames *lutNames
 }
 
 // clipBuild is one clip's part of a segment graph (index §4.10):
@@ -41,7 +44,7 @@ type clipBuild struct {
 // chainStage is one stage between window and place, as assembleStages joins it:
 //   - filter: its filters without the separating comma ("" adds nothing);
 //   - tracks: the runtime commands for the single-input filters in it;
-//   - luts: the LUT tables it reads by bare name (vs_lut_<L>_<C>_<I>.cube);
+//   - luts: the LUT tables it reads by bare name (vs_lut_<n>.cube, one per distinct table of the process);
 //   - twoInput: the stage ends in a two-input filter (blend, alphamerge, 2d's mask merge).
 //
 // The tracks of every later stage go to the next command group, because commands must not cross a framesync. A
@@ -290,6 +293,9 @@ func coverWindow(x, y, w, h, boxWidth, boxHeight int) (int, int, int, int) {
 // two-input part (a LUT blend, the vignette alpha wrapper) carries twoInput, so assembleStages opens a command group
 // after it.
 func (c clipChain) effects() []chainStage {
+	if c.lutNames == nil {
+		c.lutNames = &lutNames{} // c is a copy: the entries of this stack still share their numbering
+	}
 	var parts []chainStage
 	format := ""
 	for index, entry := range c.item.whole.Effects {
@@ -315,9 +321,13 @@ func (c clipChain) effects() []chainStage {
 
 // entryInput describes stack entry index of the clip for its builder.
 func (c clipChain) entryInput(index int, spec EffectSpec) effectInput {
+	names := c.lutNames
+	if names == nil {
+		names = &lutNames{}
+	}
 	width, height := c.processedSize()
 	return effectInput{id: fmt.Sprintf("%d_%d", c.track, c.index), index: index, spec: spec, whole: c.item.whole, at: c.item.at,
-		frames: c.item.clip.Duration, pieces: c.item.pieces, rate: c.rate, image: c.item.image, width: width, height: height, lut: c.item.luts[index]}
+		frames: c.item.clip.Duration, pieces: c.item.pieces, rate: c.rate, image: c.item.image, width: width, height: height, lut: c.item.luts[index], lutNames: names}
 }
 
 // processedSize is the picture the effects process, in decoded pixels (index §4.20, resolution rule): the static crop

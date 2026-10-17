@@ -177,9 +177,12 @@ const (
 	MaxClipsPerProject  = 2000
 	MaxAssetsPerProject = 1024
 	// MaxSegmentInputs bounds the inputs of one FFmpeg process; the segment planner splits busier spans.
-	MaxSegmentInputs   = 32
-	MaxSourceDimension = 16384
-	MaxSourcePixels    = 64_000_000
+	MaxSegmentInputs = 32
+	// MaxSegmentLUTInstances bounds the lut effects (lut3d filters, each loading its table) of one FFmpeg process; the
+	// segment planner splits busier spans, like MaxSegmentInputs.
+	MaxSegmentLUTInstances = 64
+	MaxSourceDimension     = 16384
+	MaxSourcePixels        = 64_000_000
 	// MaxProjectFolders bounds project.folders; empty folders persist there.
 	MaxProjectFolders     = 128
 	MaxFolderDepth        = 4

@@ -24,9 +24,10 @@ type effectInput struct {
 	frames        int         // window frames
 	pieces        []rampPiece // the clip's ramp pieces, nil without a ramp
 	rate          Rate
-	image         bool   // a still (images, titles): alpha must survive every stage
-	width, height int    // the processed picture in decoded pixels (clipChain.processedSize)
-	lut           *LUT3D // lut effect: the entry's table, nil without one
+	image         bool      // a still (images, titles): alpha must survive every stage
+	width, height int       // the processed picture in decoded pixels (clipChain.processedSize)
+	lut           *LUT3D    // lut effect: the entry's table, nil without one
+	lutNames      *lutNames // names the LUT files of the whole FFmpeg process (never nil from entryInput)
 }
 
 // effectStage is one entry's share of the chain: the pixel format its first filter needs, the format its last filter
@@ -191,7 +192,8 @@ func buildColorEffect(in effectInput) effectStage {
 }
 
 // buildLUTEffect is the lut effect on gbrap (index §4.11, decision A4). Every lut3d reads the Go-written
-// vs_lut_L_C_I.cube with trilinear interpolation. The intensity k picks one of four forms:
+// vs_lut_<n>.cube of its table with trilinear interpolation: n numbers the process's distinct tables (lutNames), so the
+// lut effects of one table share one file. The intensity k picks one of four forms:
 //   - no table ("" ref) or a static 0: nothing;
 //   - a static 1: lut3d alone;
 //   - a static k in between: [lut][orig]blend=all_mode=normal:all_opacity=min(k, 0.999). The opacity weights the first
@@ -209,7 +211,7 @@ func buildLUTEffect(in effectInput) effectStage {
 	if !keyed && intensity <= 0 {
 		return effectStage{}
 	}
-	file := lutFile{name: fmt.Sprintf("vs_lut_%s_%d.cube", in.id, in.index), lut: in.lut}
+	file := lutFile{name: in.lutNames.name(in.lut), lut: in.lut}
 	lut3d := "lut3d=file=" + file.name + ":interp=trilinear"
 	if !keyed && intensity >= 1 {
 		return effectStage{input: "gbrap", output: "gbrap", parts: []chainStage{{filter: lut3d, luts: []lutFile{file}}}}

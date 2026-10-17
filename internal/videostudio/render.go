@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -441,21 +442,54 @@ type graphFiles struct {
 	luts     []lutFile
 }
 
-// lutFile is one LUT table that a clip's lut3d reads. name is vs_lut_<L>_<C>_<I>.cube (layer, clip, stack index).
+// lutFile is one LUT table that lut3d filters read. name is vs_lut_<n>.cube: n numbers the distinct tables of one FFmpeg
+// process in the order the graph first uses them (lutNames), so every lut3d of that process that uses the table reads
+// the same file.
 type lutFile struct {
 	name string
 	lut  *LUT3D
 }
 
+// lutNames gives each distinct LUT table of one FFmpeg process one file name, vs_lut_0.cube, vs_lut_1.cube, … in the
+// order of first use. Tables are told apart by identity: a built-in look and a project lut asset are each one shared
+// *LUT3D, so any number of lut effects of one table stage one file (index §4.11). The zero value is ready.
+type lutNames struct {
+	byTable map[*LUT3D]string
+}
+
+// name returns the file name of table and numbers it on first use.
+func (n *lutNames) name(table *LUT3D) string {
+	if name, ok := n.byTable[table]; ok {
+		return name
+	}
+	if n.byTable == nil {
+		n.byTable = make(map[*LUT3D]string)
+	}
+	name := fmt.Sprintf("vs_lut_%d.cube", len(n.byTable))
+	n.byTable[table] = name
+	return name
+}
+
+// addLUTs appends the LUT files of one clip or layer to the process's files. A file whose name is present already is
+// the same table (lutNames), so it is kept once and is written once.
+func (f *graphFiles) addLUTs(luts []lutFile) {
+	for _, file := range luts {
+		if !slices.ContainsFunc(f.luts, func(have lutFile) bool { return have.name == file.name }) {
+			f.luts = append(f.luts, file)
+		}
+	}
+}
+
 // sendCmdFileName and lutFileName are the only names a staged command or LUT file may have.
 var (
 	sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+(_[0-9]+)?\.txt$`)
-	lutFileName     = regexp.MustCompile(`^vs_lut_[0-9]+_[0-9]+_[0-9]+\.cube$`)
+	lutFileName     = regexp.MustCompile(`^vs_lut_[0-9]+\.cube$`)
 )
 
 // stageVideoGraph creates a fresh vsg-* directory in dir for one video FFmpeg process (renderVideoSegment,
 // RenderFrame). It writes the filter graph (graph.txt), every command file and every LUT file into it, all with mode
-// 0o600 (index §4.11).
+// 0o600 (index §4.11). Each LUT file is one distinct table (lutNames), written once however many lut3d filters read it;
+// a process stages at most MaxSegmentLUTInstances of them.
 //
 // FFmpeg runs with that directory as its working directory (runFFmpegIn), so the graph names files by bare name and no
 // host path reaches filter-graph escaping. The caller removes workDir; on error nothing is left behind.
@@ -474,6 +508,9 @@ func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, g
 	graphPath = filepath.Join(workDir, "graph.txt")
 	if err := os.WriteFile(graphPath, []byte(graph), 0o600); err != nil {
 		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
+	}
+	if len(files.luts) > MaxSegmentLUTInstances {
+		return fail(fmt.Errorf("%w: %d LUT tables for one FFmpeg process, at most %d", ErrTooManyInputs, len(files.luts), MaxSegmentLUTInstances))
 	}
 	seen := make(map[string]bool, len(files.commands)+len(files.luts))
 	for _, file := range files.commands {

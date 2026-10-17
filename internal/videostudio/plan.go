@@ -15,14 +15,16 @@ type Segment struct {
 type span struct{ start, end int }
 
 // PlanVideoSegments splits [start, end) into segments of about target frames. Boundaries avoid transitions
-// so segments rarely need pre-roll, and each segment opens at most MaxSegmentInputs clip inputs.
+// so segments rarely need pre-roll, and each segment opens at most MaxSegmentInputs clip inputs and at most
+// MaxSegmentLUTInstances lut effects.
 func PlanVideoSegments(project Project, start, end, target int) ([]Segment, error) {
 	spans := videoForbiddenSpans(project)
 	assets := assetMap(project)
 	count := func(seg Segment) int {
 		return countClips(project, assets, expandRange(seg, spans), func(track Track, clip Clip, _ Asset) bool { return visualClip(track) && !clip.Disabled })
 	}
-	return planSegments(start, end, target, spans, clipEdges(project), count)
+	lutCount := func(seg Segment) int { return countLUTInstances(project, expandRange(seg, spans)) }
+	return planSegments(start, end, target, spans, clipEdges(project), count, lutCount)
 }
 
 // PlanAudioSegments splits [start, end) like PlanVideoSegments; boundaries avoid audio fades.
@@ -30,10 +32,13 @@ func PlanAudioSegments(project Project, start, end, target int) ([]Segment, erro
 	assets := assetMap(project)
 	spans := audioForbiddenSpans(project, assets)
 	count := func(seg Segment) int { return countClips(project, assets, expandRange(seg, spans), audibleClip) }
-	return planSegments(start, end, target, spans, clipEdges(project), count)
+	return planSegments(start, end, target, spans, clipEdges(project), count, nil)
 }
 
-func planSegments(start, end, target int, spans []span, edges []int, inputs func(Segment) int) ([]Segment, error) {
+// planSegments cuts [start, end) at the frames in between. A segment whose inputs exceed MaxSegmentInputs, or whose
+// lutCount (nil for none) exceed MaxSegmentLUTInstances, is split until it fits; one that cannot be split further
+// fails with ErrTooManyInputs.
+func planSegments(start, end, target int, spans []span, edges []int, inputs, lutCount func(Segment) int) ([]Segment, error) {
 	if end <= start {
 		return nil, fmt.Errorf("render range %d–%d is empty", start, end)
 	}
@@ -59,12 +64,19 @@ func planSegments(start, end, target int, spans []span, edges []int, inputs func
 	var out []Segment
 	var split func(Segment) error
 	split = func(seg Segment) error {
-		if inputs(seg) <= MaxSegmentInputs {
+		luts := 0
+		if lutCount != nil {
+			luts = lutCount(seg)
+		}
+		if inputs(seg) <= MaxSegmentInputs && luts <= MaxSegmentLUTInstances {
 			out = append(out, seg)
 			return nil
 		}
 		cut, ok := splitPoint(seg, spans, edges)
 		if !ok {
+			if luts > MaxSegmentLUTInstances && inputs(seg) <= MaxSegmentInputs {
+				return tooManyLUTs(seg, luts)
+			}
 			return fmt.Errorf("%w between frames %d and %d", ErrTooManyInputs, seg.Start, seg.End)
 		}
 		if err := split(Segment{seg.Start, cut}); err != nil {
@@ -182,6 +194,28 @@ func countClips(project Project, assets map[string]Asset, window Segment, includ
 		}
 	}
 	return count
+}
+
+// countLUTInstances counts the lut effects (one lut3d filter each) of the enabled visual clips that overlap window: the
+// on lut entries that name a table (clipLUTRefs). Like countClips, it counts clips in the window, not per frame.
+func countLUTInstances(project Project, window Segment) int {
+	count := 0
+	for _, track := range project.Tracks {
+		if !visualClip(track) {
+			continue
+		}
+		for _, clip := range track.Clips {
+			if !clip.Disabled && clip.Start < window.End && clip.Start+clip.Duration > window.Start {
+				count += len(clipLUTRefs(clip))
+			}
+		}
+	}
+	return count
+}
+
+// tooManyLUTs is the refusal of a span that needs more simultaneous lut effects than one FFmpeg process may open.
+func tooManyLUTs(seg Segment, count int) error {
+	return fmt.Errorf("%w: %d lut effects between frames %d and %d, at most %d", ErrTooManyInputs, count, seg.Start, seg.End, MaxSegmentLUTInstances)
 }
 
 func clipEdges(project Project) []int {

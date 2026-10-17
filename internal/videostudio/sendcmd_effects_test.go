@@ -150,10 +150,10 @@ func TestCommandGroupAssembly(t *testing.T) {
 	sharpen := track("cas@vs_sharpen_1_2_2", "strength")
 	opacity := track("colorchannelmixer@vs_opacity_1_2", "aa")
 	table := &LUT3D{Size: 2, DomainMax: [3]float64{1, 1, 1}, Data: make([]float32, 24)}
-	blend := "format=gbrap,split=2[vs_a_1_2_1][vs_b_1_2_1];[vs_b_1_2_1]lut3d=file=vs_lut_1_2_1.cube:interp=trilinear[vs_l_1_2_1];[vs_l_1_2_1][vs_a_1_2_1]blend=all_mode=normal:all_opacity=0.6"
+	blend := "format=gbrap,split=2[vs_a_1_2_1][vs_b_1_2_1];[vs_b_1_2_1]lut3d=file=vs_lut_0.cube:interp=trilinear[vs_l_1_2_1];[vs_l_1_2_1][vs_a_1_2_1]blend=all_mode=normal:all_opacity=0.6"
 	filters, commands, luts := assembleStages("1_2", []chainStage{
 		{filter: "colorchannelmixer@vs_sat_1_2_0=rr=1", tracks: []SendCmdTrack{saturation}},
-		{filter: blend, twoInput: true, luts: []lutFile{{name: "vs_lut_1_2_1.cube", lut: table}}},
+		{filter: blend, twoInput: true, luts: []lutFile{{name: "vs_lut_0.cube", lut: table}}},
 		{},
 		{filter: "cas@vs_sharpen_1_2_2=strength=1", tracks: []SendCmdTrack{sharpen}},
 		{filter: "format=rgba"},
@@ -166,7 +166,7 @@ func TestCommandGroupAssembly(t *testing.T) {
 	if want := []sendCmdFile{{name: "vs_cmd_1_2.txt", tracks: []SendCmdTrack{saturation}}, {name: "vs_cmd_1_2_1.txt", tracks: []SendCmdTrack{sharpen, opacity}}}; !reflect.DeepEqual(commands, want) {
 		t.Fatalf("command files = %+v", commands)
 	}
-	if !reflect.DeepEqual(luts, []lutFile{{name: "vs_lut_1_2_1.cube", lut: table}}) {
+	if !reflect.DeepEqual(luts, []lutFile{{name: "vs_lut_0.cube", lut: table}}) {
 		t.Fatalf("LUT files = %+v", luts)
 	}
 	for _, file := range commands {

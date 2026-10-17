@@ -121,15 +121,20 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 	if err != nil {
 		return nil, "", graphFiles{}, err
 	}
+	if count := lutInstances(layers); count > MaxSegmentLUTInstances {
+		return nil, "", graphFiles{}, tooManyLUTs(seg, count)
+	}
 	width, height, frames := project.Width, project.Height, window.End-window.Start
 	filters := []string{fmt.Sprintf("color=c=black:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[vs_base0]", width, height, rate, rate.SecondsArg(frames), frames)}
 	output := "vs_base0"
 	var files graphFiles
+	// One numbering for the whole process: its lut effects of one table all read the same staged file.
+	names := &lutNames{}
 	for index, layer := range layers {
-		label, layerFilters, layerFiles := buildVisualLayer(layer, index, width, height, rate)
+		label, layerFilters, layerFiles := buildVisualLayer(layer, index, width, height, rate, names)
 		filters = append(filters, layerFilters...)
 		files.commands = append(files.commands, layerFiles.commands...)
-		files.luts = append(files.luts, layerFiles.luts...)
+		files.addLUTs(layerFiles.luts)
 		next := fmt.Sprintf("vs_base%d", index+1)
 		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", output, label, next))
 		output = next
@@ -281,7 +286,7 @@ func resolveLUTRef(ref string, sources map[string]renderSource) (*LUT3D, error) 
 	return nil, fmt.Errorf("LUT %q is not staged", ref)
 }
 
-func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate) (string, []string, graphFiles) {
+func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate, names *lutNames) (string, []string, graphFiles) {
 	filters := make([]string, 0, len(layer)*4)
 	sequence := 0
 	join := func() string {
@@ -294,11 +299,11 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 	var files graphFiles
 	for i, item := range layer {
 		labels[i] = fmt.Sprintf("vs_clip_%d_%d", trackIndex, i)
-		chain := clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate}
+		chain := clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate, lutNames: names}
 		built := chain.build(labels[i])
 		filters = append(filters, built.filter)
 		files.commands = append(files.commands, built.commands...)
-		files.luts = append(files.luts, built.luts...)
+		files.addLUTs(built.luts)
 	}
 	// concat outputs a microsecond timebase; settb after every concat and on both xfade inputs keeps xfade on the
 	// frame timebase (a no-op where the input already uses it).
@@ -508,4 +513,17 @@ func pictureSizeNeeded(clip Clip) bool {
 		}
 	}
 	return false
+}
+
+// lutInstances counts the lut3d filters a process opens: the on lut entries with a table, summed over the layers'
+// clips. It is the quantity the segment planner bounds with MaxSegmentLUTInstances (countLUTInstances); the build
+// checks it again, because RenderFrame builds one frame without the planner.
+func lutInstances(layers [][]layerClip) int {
+	count := 0
+	for _, layer := range layers {
+		for _, item := range layer {
+			count += len(item.luts)
+		}
+	}
+	return count
 }
