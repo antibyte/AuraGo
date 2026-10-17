@@ -172,6 +172,341 @@
         return true;
     }
 
-    window.VideoStudioKeyframes = { controlState };
-    Object.assign(P, { keyframeView, handleKeyframeClick, syncKeyframeControls, applyAnimated, keyframeCommand, isKeyframeShortcut, handleKeyframeKeys });
+    // ---- Timeline keyframe strip (2b, index §4.18). keyframeStrip draws it after the selected clip's track row
+    // (timelineOptions.stripAfter) while that visual clip has keyframes or a speed ramp, or copied keyframes wait in
+    // s.kfBoard (so they can be pasted onto a clip without keys). Its rows are .vs-kf-row: never data-track-row or
+    // .vs-track-lane, so the timeline's drags, rubber band, drops, blade and menus pass them by. View state:
+    // s.kfStrip = {clipId, expanded, selected}; selection ids are "<path>:<f>" with f in source frames.
+
+    // Strip geometry for one clip, DOM-free and Node-tested.
+    // - Every keyframe sits at timelineAt(clip, f) in lane pixels, through the clip's speed or ramp, so a diamond marks
+    //   where the clip shows its source frame.
+    // - Keys outside the clip's frames stay in the model with outside: true. They are kept, like trimmed media, but not
+    //   drawn.
+    // - The summary row has one diamond per source frame. It lists the paths keyed there, with e 'mixed' when their
+    //   easings differ.
+    // - Expanded adds one row per animated path, in registry order.
+    // view is {expanded} or null.
+    function stripModel(project, clip, pps, view) {
+        const Fx = window.VideoStudioEffects, fps = window.VideoStudioTime.rate(project);
+        const first = clip.start, last = clip.start + clip.duration - 1, keyframes = clip.keyframes || {};
+        const place = f => {
+            const frame = Fx.timelineAt(clip, f);
+            return { frame, x: frame / fps * pps, outside: !(frame >= first - 1e-9 && frame <= last + 1e-9) };
+        };
+        const groups = new Map();
+        const rows = Fx.keyframable().filter(path => Array.isArray(keyframes[path]) && keyframes[path].length).map(path => ({
+            id: path,
+            keys: keyframes[path].map(key => {
+                const at = place(key.f);
+                if (!groups.has(key.f)) groups.set(key.f, Object.assign({ f: key.f, paths: [], easings: [] }, at));
+                groups.get(key.f).paths.push(path);
+                groups.get(key.f).easings.push(key.e);
+                return Object.assign({ path, f: key.f, v: key.v, e: key.e }, at);
+            })
+        }));
+        const summary = Array.from(groups.values()).sort((a, b) => a.f - b.f).map(group => ({
+            f: group.f, frame: group.frame, x: group.x, outside: group.outside, paths: group.paths,
+            e: group.easings.every(e => e === group.easings[0]) ? group.easings[0] : 'mixed'
+        }));
+        const expanded = !!(view && view.expanded);
+        return { clipId: clip.id, left: clip.start / fps * pps, width: Math.max(2, clip.duration / fps * pps), expanded, rows: [{ id: 'summary', keys: summary }].concat(expanded ? rows : []) };
+    }
+    // One clip at a time: switching clips clears the selection and keeps the expanded state.
+    function stripView(s, clipId) {
+        const view = s.kfStrip || (s.kfStrip = { clipId: '', expanded: false, selected: [] });
+        if (view.clipId !== clipId) { view.clipId = clipId; view.selected = []; }
+        return view;
+    }
+    function stripSplit(id) { const at = id.lastIndexOf(':'); return { path: id.slice(0, at), f: Number(id.slice(at + 1)) }; }
+    // The per-path ids a diamond stands for: a summary diamond holds every path keyed at its source frame.
+    function stripIds(clip, path, f) {
+        const keyframes = clip.keyframes || {};
+        if (path !== 'summary') return [path + ':' + f];
+        return Object.keys(keyframes).filter(name => (keyframes[name] || []).some(key => key.f === f)).map(name => name + ':' + f);
+    }
+    function stripKeys(s) { return ((s.kfStrip && s.kfStrip.selected) || []).map(stripSplit); }
+    // After a move, unselected keys keep their frames and moved keys keep their order on each path. The new selection is
+    // therefore read from the clip, whatever rounding moveKeys applied. Returns a map from old id to new id.
+    function stripMoved(before, after, ids) {
+        const map = new Map(), byPath = new Map();
+        ids.forEach(id => { const { path, f } = stripSplit(id); if (!byPath.has(path)) byPath.set(path, []); byPath.get(path).push(f); });
+        byPath.forEach((frames, path) => {
+            const moving = new Set(frames);
+            const kept = new Set(((before.keyframes || {})[path] || []).map(key => key.f).filter(f => !moving.has(f)));
+            const landed = ((after.keyframes || {})[path] || []).map(key => key.f).filter(f => !kept.has(f));
+            frames.slice().sort((a, b) => a - b).forEach((f, index) => { if (landed[index] != null) map.set(path + ':' + f, path + ':' + landed[index]); });
+        });
+        return map;
+    }
+    // The id the pressed diamond has after a move (a summary diamond follows its keys).
+    function stripAnchor(map, id) {
+        if (!id) return '';
+        const { path, f } = stripSplit(id);
+        if (path !== 'summary') return map.get(id) || id;
+        for (const [from, to] of map) if (stripSplit(from).f === f) return 'summary:' + stripSplit(to).f;
+        return id;
+    }
+    // A re-render replaces the diamonds, and the timeline's focusSelector does not know them, so the strip restores
+    // focus itself. The fallback order is the diamond, then the chevron, then the selected clip.
+    function stripFocus(s, id) {
+        const root = s.q('[data-timeline]');
+        if (!root) return;
+        const target = (id && root.querySelector(`[data-kf-strip] [data-kf-key="${CSS.escape(id)}"]`)) || root.querySelector('[data-kf-strip] [data-kf-action="expand"]') || (s.selectedClipId && root.querySelector(`[data-clip-id="${CSS.escape(s.selectedClipId)}"]`));
+        if (target) target.focus({ preventScroll: true });
+    }
+    // timelineOptions.stripAfter: the strip markup after `track`'s row, or ''.
+    function keyframeStrip(s, track, pps, width) {
+        const Fx = window.VideoStudioEffects;
+        const found = s.project && s.selectedClipId ? P.T().clipFor(s.project, s.selectedClipId) : null;
+        if (!found || found.track.id !== track.id || track.kind === 'audio') return '';
+        const clip = found.clip, keyed = Object.keys(clip.keyframes || {}).length > 0;
+        if (!keyed && !Fx.hasRamp(clip) && !s.kfBoard) return '';
+        const view = stripView(s, clip.id), model = stripModel(s.project, clip, pps, view);
+        const known = new Set();
+        Object.keys(clip.keyframes || {}).forEach(path => (clip.keyframes[path] || []).forEach(key => known.add(path + ':' + key.f)));
+        view.selected = view.selected.filter(id => known.has(id));
+        const selected = new Set(view.selected), readonly = !!s.readonly || !!track.locked;
+        const esc = value => P.esc(s, value), tr = (key, fallback) => P.tr(s, key, fallback);
+        const label = path => tr((Fx.base(path) || {}).label_key || path, path);
+        const time = frame => P.I().formatTime(Math.max(0, Math.round(frame)), s.project);
+        const diamond = (row, key) => {
+            const summary = row.id === 'summary', path = summary ? 'summary' : row.id;
+            const ids = summary ? key.paths.map(name => name + ':' + key.f) : [path + ':' + key.f];
+            const parts = [tr('keyframes', 'Keyframes') + ': ' + time(key.frame), summary ? key.paths.map(label).join(', ') : label(path)];
+            if (key.e !== 'mixed') parts.push(tr('easing_' + key.e, key.e));
+            const text = parts.join(' · ');
+            return `<button type="button" class="vs-kf-diamond vs-kf-e-${esc(key.e)}" data-kf-key="${esc(path + ':' + key.f)}" data-kf-path="${esc(path)}" data-kf-f="${key.f}" style="left:${key.x.toFixed(2)}px" aria-pressed="${ids.length > 0 && ids.every(id => selected.has(id))}" aria-label="${esc(text)}" title="${esc(text)}"></button>`;
+        };
+        const toggle = model.expanded ? tr('keyframeCollapse', 'Show only the summary') : tr('keyframeExpand', 'Show keyframes per property');
+        const extent = `<span class="vs-kf-extent" style="left:${model.left.toFixed(2)}px;width:${model.width.toFixed(2)}px"></span>`;
+        const rowMarkup = row => {
+            const summary = row.id === 'summary';
+            const head = summary
+                ? `<button type="button" class="vs-kf-chevron" data-kf-action="expand" aria-expanded="${model.expanded}" title="${esc(toggle)}" aria-label="${esc(toggle)}">${P.icon(model.expanded ? 'chevronDown' : 'chevronRight', 14)}</button><span class="vs-kf-rowname">${esc(tr('keyframeSummary', 'All keyframes'))}</span>`
+                : `<span class="vs-kf-rowname">${esc(label(row.id))}</span>`;
+            const keys = (row.keys || []).filter(key => !key.outside).map(key => diamond(row, key)).join('');
+            return `<div class="vs-kf-row${summary ? ' vs-kf-summary' : ''}" data-kf-row="${esc(row.id)}"><div class="vs-kf-rowhead">${head}</div><div class="vs-kf-track" style="width:${width}px">${extent}${keys}</div></div>`;
+        };
+        const asset = (s.project.assets || []).find(item => item.id === clip.asset_id);
+        const name = clip.text ? clip.text.split(/\r?\n/)[0] : asset ? P.assetDisplayName(s, asset) : '';
+        return `<div class="vs-kf-strip${readonly ? ' is-readonly' : ''}" data-kf-strip="${esc(clip.id)}" role="group" aria-label="${esc(tr('keyframes', 'Keyframes') + (name ? ' – ' + name : ''))}">${model.rows.map(rowMarkup).join('')}</div>`;
+    }
+    // Pointer, keyboard and menu handling of the strip. The listeners sit on the timeline root and end with s.abort. The
+    // timeline's own handlers ignore strip targets, and these ignore everything else.
+    // - Diamonds: click selects (Shift toggles).
+    // - Drag moves in whole timeline frames, snapping to the playhead when snapping is on. The pressed diamond stays on
+    //   the clip; a refused position keeps the last valid one.
+    // - Enter/Space selects (Shift toggles), ←/→ move by one frame (Shift: ten), Del/Backspace deletes and stops the
+    //   event so the clip stays, Escape clears, and double-click moves the playhead to the diamond.
+    // - Right-click or Shift+F10 opens the easing / copy / paste / delete menu.
+    function wireKeyframeStrip(s, root) {
+        const signal = s.abort.signal;
+        const Fx = () => window.VideoStudioEffects, KE = () => window.VideoStudioKeyframeEdit;
+        const pps = () => P.T().BASE_PX_PER_SECOND * (s.zoom || 1);
+        const fps = () => P.rateOf(s);
+        const snapRange = () => Math.max(1, Math.round(8 / pps() * fps()));
+        let drag = null, suppressClick = false;
+        // The strip's clip, while it is still the selected clip.
+        function current() {
+            const found = s.kfStrip && s.project ? P.T().clipFor(s.project, s.kfStrip.clipId) : null;
+            return found && found.clip.id === s.selectedClipId ? found : null;
+        }
+        const editable = found => !!found && !s.readonly && !found.track.locked;
+        const idsOf = (found, button) => stripIds(found.clip, button.dataset.kfPath, Number(button.dataset.kfF));
+        const pressed = (found, button) => { const ids = idsOf(found, button); return ids.length > 0 && ids.every(id => s.kfStrip.selected.includes(id)); };
+        function select(found, button, add) {
+            const ids = idsOf(found, button), view = s.kfStrip;
+            if (!add) view.selected = ids;
+            else if (ids.every(id => view.selected.includes(id))) view.selected = view.selected.filter(id => !ids.includes(id));
+            else view.selected = Array.from(new Set(view.selected.concat(ids)));
+        }
+        // Selection-only changes update aria-pressed in place, so the focused diamond and the click target survive.
+        function syncPressed(found) { root.querySelectorAll('[data-kf-strip] [data-kf-key]').forEach(button => button.setAttribute('aria-pressed', String(pressed(found, button)))); }
+        function render(focusId) { P.renderTimeline(s); stripFocus(s, focusId); }
+        function clampDelta(clip, anchor, delta) { return Math.max(clip.start - anchor, Math.min(clip.start + clip.duration - 1 - anchor, delta)); }
+        // One undo step through applyEdit. A move reads the selection back from the clip; the ids are captured first,
+        // because the render inside applyEdit drops ids that no longer exist.
+        function edit(found, label, op, focusId, moved) {
+            const before = P.clone(found.clip), ids = s.kfStrip.selected.slice();
+            if (!P.applyEdit(s, label, op)) { stripFocus(s, focusId); return false; }
+            const after = P.T().clipFor(s.project, found.clip.id);
+            let focus = focusId;
+            if (moved && after) {
+                const map = stripMoved(before, after.clip, ids);
+                s.kfStrip.selected = Array.from(map.values());
+                focus = stripAnchor(map, focusId);
+            }
+            render(focus);
+            return true;
+        }
+        function deleteKeys(found) {
+            const keys = stripKeys(s);
+            if (!keys.length || !editable(found)) return;
+            if (P.applyEdit(s, 'delete keyframes', project => KE().removeKeys(project, found.clip.id, keys))) s.kfStrip.selected = [];
+            render('');
+        }
+        function copyKeys(found) {
+            const keys = stripKeys(s);
+            if (!keys.length) return;
+            const first = Math.min(...keys.map(key => Math.round(Fx().timelineAt(found.clip, key.f))));
+            s.kfBoard = KE().copyKeys(found.clip, keys, first);
+            P.showNotice(s, 'clipsCopied', 'Copied.', false);
+        }
+        function pasteKeys(found) {
+            if (s.kfBoard && editable(found)) edit(found, 'paste keyframes', project => KE().pasteKeys(project, found.clip.id, s.kfBoard, s.frame), '');
+        }
+        function easingOf(clip, key) {
+            const hit = ((clip.keyframes || {})[key.path] || []).find(item => item.f === key.f);
+            return hit ? hit.e : '';
+        }
+        // Easing (radio items; the easing all selected keys share is checked), copy, paste at the playhead, delete.
+        function openStripMenu(found, x, y, focusId) {
+            const ro = !editable(found), keys = stripKeys(s), easings = keys.map(key => easingOf(found.clip, key));
+            const shared = easings.length && easings.every(e => e === easings[0]) ? easings[0] : '';
+            const items = Fx().EASINGS.map(easing => ({ easing, label: P.tr(s, 'easing_' + easing, easing), icon: easing === shared ? 'check' : '', disabled: ro || !keys.length, run: () => edit(found, 'keyframe easing', project => KE().setEasing(project, found.clip.id, keys, easing), focusId) }))
+                .concat([
+                    { separator: true },
+                    { label: P.tr(s, 'keyframeCopy', 'Copy keyframes'), icon: 'copy', disabled: !keys.length, run: () => copyKeys(found) },
+                    { label: P.tr(s, 'keyframePaste', 'Paste keyframes at the playhead'), disabled: ro || !s.kfBoard, run: () => pasteKeys(found) },
+                    { separator: true },
+                    { label: P.tr(s, 'keyframeDelete', 'Delete the selected keyframes'), shortcut: P.tr(s, 'keyDel', 'Del'), icon: 'trash', disabled: ro || !keys.length, run: () => deleteKeys(found) }
+                ]);
+            const el = P.openMenu(s, x, y, items, P.tr(s, 'keyframes', 'Keyframes'), () => (focusId && s.q(`[data-timeline] [data-kf-key="${CSS.escape(focusId)}"]`)) || s.q('[data-timeline] [data-kf-strip] [data-kf-action="expand"]'));
+            items.forEach((item, index) => {
+                const button = item.easing && el ? el.querySelector(`[data-menu-index="${index}"]`) : null;
+                if (button) { button.setAttribute('role', 'menuitemradio'); button.setAttribute('aria-checked', String(item.easing === shared)); }
+            });
+        }
+        function down(event) {
+            suppressClick = false;
+            const button = event.button === 0 && event.target.closest ? event.target.closest('[data-kf-strip] [data-kf-key]') : null;
+            const found = button ? current() : null;
+            if (!found) return;
+            const id = button.dataset.kfKey;
+            // The click after this press is ignored whatever it lands on (a drag re-renders the diamond under it).
+            suppressClick = true;
+            event.preventDefault();
+            button.focus({ preventScroll: true });
+            // Shift changes the selection and never starts a drag.
+            if (event.shiftKey) { select(found, button, true); syncPressed(found); return; }
+            const wasPressed = pressed(found, button);
+            if (!wasPressed) select(found, button, false);
+            syncPressed(found);
+            if (!editable(found) || s.timelineDragging) return;
+            drag = { clipId: found.clip.id, before: P.clone(s.project), selected: s.kfStrip.selected.slice(), x: event.clientX, anchor: Math.round(Fx().timelineAt(found.clip, Number(button.dataset.kfF))), delta: 0, moved: false, focus: id, current: id, collapse: wasPressed && s.kfStrip.selected.length > 1, epoch: s.projectEpoch };
+            s.timelineDragging = true;
+            try { root.setPointerCapture(event.pointerId); } catch (_) { /* synthetic or finished pointer */ }
+        }
+        function move(event) {
+            if (!drag) return;
+            if (drag.epoch !== s.projectEpoch) { drag = null; s.timelineDragging = false; return; }
+            const clip = P.T().clipFor(drag.before, drag.clipId).clip;
+            let delta = Math.round((event.clientX - drag.x) / pps() * fps());
+            if (s.snap !== false && Math.abs(drag.anchor + delta - s.frame) <= snapRange()) delta = s.frame - drag.anchor;
+            delta = clampDelta(clip, drag.anchor, delta);
+            if (delta === drag.delta) return;
+            const project = P.clone(drag.before);
+            if (delta && KE().moveKeys(project, drag.clipId, drag.selected.map(stripSplit), delta) !== true) return; // a refused position keeps the last valid one
+            const map = delta ? stripMoved(clip, P.T().clipFor(project, drag.clipId).clip, drag.selected) : new Map(drag.selected.map(id => [id, id]));
+            drag.delta = delta;
+            drag.moved = true;
+            drag.current = stripAnchor(map, drag.focus);
+            s.project = project;
+            s.kfStrip.selected = Array.from(map.values());
+            render(drag.current);
+            if (s.preview) s.preview.seek(s.frame);
+        }
+        function up(event) {
+            if (!drag) return;
+            const done = drag;
+            drag = null;
+            s.timelineDragging = false;
+            if (done.epoch !== s.projectEpoch) return;
+            if (event.type === 'pointercancel') { s.project = done.before; s.kfStrip.selected = done.selected; render(done.focus); return; }
+            if (done.moved && JSON.stringify(done.before) !== JSON.stringify(s.project)) P.recordChange(s, 'move keyframes', done.before);
+            else if (!done.moved && done.collapse) {
+                // A press without movement on a diamond of a multi-selection selects only that diamond.
+                const { path, f } = stripSplit(done.focus), found = current();
+                if (found) { s.kfStrip.selected = stripIds(found.clip, path, f); syncPressed(found); }
+            }
+            if (s.timelineOptions && s.timelineOptions.onDragEnd) s.timelineOptions.onDragEnd();
+            stripFocus(s, done.current);
+            // A click on the editor background after the release must not keep the focus.
+            if (done.moved) window.setTimeout(() => { if (!s.disposed) stripFocus(s, done.current); }, 0);
+        }
+        const cancel = () => { if (drag) up({ type: 'pointercancel' }); };
+        function click(event) {
+            if (suppressClick) { suppressClick = false; return; }
+            const strip = event.target.closest && event.target.closest('[data-kf-strip]');
+            const found = strip ? current() : null;
+            if (!found) return;
+            if (event.target.closest('[data-kf-action="expand"]')) {
+                s.kfStrip.expanded = !s.kfStrip.expanded;
+                P.renderTimeline(s);
+                s.q('[data-timeline] [data-kf-strip] [data-kf-action="expand"]')?.focus({ preventScroll: true });
+                return;
+            }
+            // A click on empty strip space clears the key selection.
+            if (!event.target.closest('[data-kf-key],[data-ramp-point]') && s.kfStrip.selected.length) { s.kfStrip.selected = []; syncPressed(found); }
+        }
+        function dblclick(event) {
+            const button = event.target.closest && event.target.closest('[data-kf-strip] [data-kf-key]');
+            const found = button ? current() : null;
+            if (!found || !s.preview) return;
+            s.preview.pause();
+            s.preview.seek(Math.round(Fx().timelineAt(found.clip, Number(button.dataset.kfF))));
+        }
+        function keydown(event) {
+            suppressClick = false;
+            const button = event.target.closest && event.target.closest('[data-kf-strip] [data-kf-key]');
+            // Alt+K and Alt+↑/↓ belong to P.handleKeyframeKeys; Ctrl/Cmd keys stay with the editor.
+            if (!button || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+            const found = current();
+            if (!found) return;
+            const id = button.dataset.kfKey, key = event.key;
+            if (key === 'Enter' || key === ' ') { select(found, button, event.shiftKey); syncPressed(found); }
+            else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+                if (!editable(found)) return;
+                if (!pressed(found, button)) select(found, button, false);
+                const anchor = Math.round(Fx().timelineAt(found.clip, Number(button.dataset.kfF)));
+                const delta = clampDelta(found.clip, anchor, (key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1));
+                const keys = stripKeys(s);
+                if (delta) edit(found, 'move keyframes', project => KE().moveKeys(project, found.clip.id, keys, delta), id, true);
+                else syncPressed(found);
+            } else if (key === 'Delete' || key === 'Backspace') {
+                if (editable(found)) { if (!pressed(found, button)) select(found, button, false); deleteKeys(found); }
+            } else if (key === 'Escape' && s.kfStrip.selected.length) { s.kfStrip.selected = []; syncPressed(found); }
+            else return;
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        function contextmenu(event) {
+            const strip = event.target.closest && event.target.closest('[data-kf-strip]');
+            const found = strip ? current() : null;
+            if (!found) return;
+            event.preventDefault();
+            event.stopPropagation();
+            // A keyboard-opened menu has no pointer position inside the target, so it anchors below the target.
+            const anchor = event.target.closest('[data-kf-key],[data-ramp-point],[data-kf-action],.vs-kf-rowhead,.vs-kf-track') || strip, rect = anchor.getBoundingClientRect();
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            const x = inside ? event.clientX : rect.left + Math.min(24, rect.width / 2), y = inside ? event.clientY : rect.bottom;
+            const button = event.target.closest('[data-kf-key]');
+            if (button && !pressed(found, button)) { select(found, button, false); syncPressed(found); }
+            openStripMenu(found, x, y, button ? button.dataset.kfKey : '');
+        }
+        root.addEventListener('pointerdown', down, { signal });
+        window.addEventListener('pointermove', move, { signal });
+        window.addEventListener('pointerup', up, { signal });
+        window.addEventListener('pointercancel', up, { signal });
+        root.addEventListener('lostpointercapture', cancel, { signal });
+        window.addEventListener('blur', cancel, { signal });
+        root.addEventListener('click', click, { signal });
+        root.addEventListener('dblclick', dblclick, { signal });
+        root.addEventListener('keydown', keydown, { signal });
+        root.addEventListener('contextmenu', contextmenu, { signal });
+    }
+
+    window.VideoStudioKeyframes = { controlState, stripModel };
+    Object.assign(P, { keyframeView, handleKeyframeClick, syncKeyframeControls, applyAnimated, keyframeCommand, isKeyframeShortcut, handleKeyframeKeys, keyframeStrip, wireKeyframeStrip });
 })();

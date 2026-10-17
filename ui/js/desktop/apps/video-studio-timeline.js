@@ -304,7 +304,8 @@
             const emptyHint = !hasClips && track === firstVisual ? `<span class="vs-lane-hint">${icon(options, 'plus', 14)}${esc(label(options, 'laneHint', 'Drag media here or use + in the library'))}</span>` : '';
             const flags = (track.locked ? ' is-locked' : '') + (track.muted ? ' is-muted' : '') + (track.hidden ? ' is-hidden' : '') + (state.solo ? ' is-solo' : '');
             const height = state.height === 's' ? ' is-h-s' : state.height === 'l' ? ' is-h-l' : '';
-            return `<div class="vs-track-row vs-row-${esc(track.kind)}${flags}${height}" data-track-row="${esc(track.id)}">${trackHeader(options, project, track, state)}<div class="vs-track-lane" data-track-id="${esc(track.id)}" style="width:${width}px">${emptyHint}${clips}</div></div>`;
+            const strip = options.stripAfter ? options.stripAfter(track, pps, width) : '';
+            return `<div class="vs-track-row vs-row-${esc(track.kind)}${flags}${height}" data-track-row="${esc(track.id)}">${trackHeader(options, project, track, state)}<div class="vs-track-lane" data-track-id="${esc(track.id)}" style="width:${width}px">${emptyHint}${clips}</div></div>${strip}`;
         }).join('');
         const empty = project.tracks.length ? '' : `<div class="vs-tl-empty">${esc(label(options, 'noTracks', 'This project has no tracks yet.'))}</div>`;
         const selected = !!s.selectedClipId;

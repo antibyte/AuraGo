@@ -302,4 +302,98 @@ func TestDesktopVideoStudioKeyframesBrowser(t *testing.T) {
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors: %s", errs)
 	}
+	keyframeStripBrowserPart(t, page)
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors after the keyframe strip: %s", errs)
+	}
+}
+
+// keyframeStripPagePrelude finds the editor of the keyframe browser test, whatever id part 1 gave it.
+const keyframeStripPagePrelude = `const s=[...window.VideoStudioApp.instances.values()][0],P=window.VideoStudioParts,T=window.VideoStudioTimeline;
+const until=async(test,message)=>{for(let i=0;i<150;i++){const value=test();if(value)return value;await new Promise(resolve=>setTimeout(resolve,20));}throw new Error(message+': '+JSON.stringify({notice:document.querySelector('[data-notice]')?.textContent,selected:s.selectedClipId}));};
+const clipOf=id=>T.clipFor(s.project,id).clip;
+`
+
+// keyframeStripPageFixture puts two 90-frame clips of a 600-frame video with sound on their own video track: kfA with
+// opacity keys at source frames 0 and 60 and an x key at 30, and kfB without keys. Snapping is off, so drags land exactly.
+// It does not depend on what part 1 left behind, and parts 2 and 3 both start from it.
+const keyframeStripPageFixture = `s.snap=false;
+if(!P.mutate(s,'keyframe strip fixture',project=>{
+ if(!project.assets.some(asset=>asset.id==='kf-video'))project.assets.push({id:'kf-video',name:'Strip.mp4',path:'media/kf-video.mp4',kind:'video',duration_frames:600,width:1280,height:720,has_audio:true});
+ let track=project.tracks.find(item=>item.id==='kf-track');
+ if(!track){track=P.addTrackTo(s,project,'video');track.id='kf-track';track.name='Strip';}
+ const make=(id,start,extra)=>Object.assign(T.makeClip({id:'kf-video',kind:'video',duration_frames:600},start,id,project),{duration:90},extra||{});
+ track.clips=[make('kfA',0,{keyframes:{opacity:[{f:0,v:0,e:'linear'},{f:60,v:1,e:'linear'}],x:[{f:30,v:0.25,e:'linear'}]}}),make('kfB',120)];
+}))throw new Error('the strip fixture was refused: '+document.querySelector('[data-notice]')?.textContent);
+`
+
+// Part 2 of TestDesktopVideoStudioKeyframesBrowser (Task 13): the keyframe strip under the selected clip. The checks:
+// - the summary row appears and the chevron expands it;
+// - a real pointer drag moves a key ten frames;
+// - Del deletes the key and never the clip;
+// - the context menu sets the easing;
+// - Copy and Paste move two keys onto a second clip at the playhead;
+// - the chevron collapses the strip again.
+// It reads no pixels and assumes no painter.
+func keyframeStripBrowserPart(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{` + keyframeStripPagePrelude + keyframeStripPageFixture + `
+		P.setSelection(s,['kfA'],'kfA');P.renderTimeline(s);
+		const strip=await until(()=>document.querySelector('[data-kf-strip="kfA"]'),'no strip under the keyframed clip');
+		if(strip.closest('[data-track-row]')||strip.querySelector('[data-track-row],.vs-track-lane')||!strip.querySelector('.vs-kf-row[data-kf-row="summary"]'))throw new Error('the strip must hold .vs-kf-row rows outside the track rows: '+strip.outerHTML.slice(0,300));
+		const ids=[...strip.querySelectorAll('[data-kf-row="summary"] [data-kf-key]')].map(button=>button.dataset.kfKey);
+		if(JSON.stringify(ids)!=='["summary:0","summary:30","summary:60"]')throw new Error('summary diamonds: '+JSON.stringify(ids));
+		strip.querySelector('[data-kf-action="expand"]').click();
+		await until(()=>document.querySelector('[data-kf-strip="kfA"] [data-kf-row="opacity"] [data-kf-key="opacity:60"]')&&document.querySelector('[data-kf-strip="kfA"] [data-kf-row="x"]'),'the chevron did not open the per-property rows');
+		const expand=document.querySelector('[data-kf-strip="kfA"] [data-kf-action="expand"]');
+		if(expand.getAttribute('aria-expanded')!=='true'||document.activeElement!==expand)throw new Error('the chevron lost its state or its focus');
+		const key=document.querySelector('[data-kf-key="opacity:60"]');
+		key.scrollIntoView({block:'center',inline:'center'});
+		const rect=key.getBoundingClientRect();
+		window.kfStripProbe={x:rect.x+rect.width/2,y:rect.y+rect.height/2,dx:10/window.VideoStudioTime.rate(s.project)*T.BASE_PX_PER_SECOND*(s.zoom||1),history:s.history.length};
+	}`)
+	probe := page.MustEval(`()=>window.kfStripProbe`)
+	x, y, dx := probe.Get("x").Num(), probe.Get("y").Num(), probe.Get("dx").Num()
+	// A real drag through the window listeners: ten timeline frames to the right, in two moves.
+	page.Mouse.MustMoveTo(x, y).MustDown(proto.InputMouseButtonLeft).MustMoveTo(x+dx/2, y).MustMoveTo(x+dx, y).MustUp(proto.InputMouseButtonLeft)
+	waitForJSBool(t, page, `()=>{const s=[...window.VideoStudioApp.instances.values()][0],c=window.VideoStudioTimeline.clipFor(s.project,'kfA').clip;return JSON.stringify(c.keyframes.opacity.map(k=>k.f))==='[0,70]'&&s.history.length===window.kfStripProbe.history+1&&!s.timelineDragging;}`)
+	// Del on the dragged diamond deletes the key and leaves the clip alone.
+	page.MustEval(`()=>document.querySelector('[data-kf-key="opacity:70"]').focus()`)
+	page.Keyboard.MustType(input.Delete)
+	waitForJSBool(t, page, `()=>{const s=[...window.VideoStudioApp.instances.values()][0],found=window.VideoStudioTimeline.clipFor(s.project,'kfA');return !!found&&JSON.stringify(found.clip.keyframes.opacity.map(k=>k.f))==='[0]'&&s.selectedClipId==='kfA';}`)
+	page.MustEval(`async()=>{` + keyframeStripPagePrelude + `
+		const open=element=>{const r=element.getBoundingClientRect();element.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.x+r.width/2,clientY:r.y+r.height/2}));return until(()=>document.querySelector('.vs-context-menu'),'no keyframe menu');};
+		// Easing: five radio items in EASINGS order, the current one checked; item 4 is Hold.
+		let menu=await open(document.querySelector('[data-kf-row="x"] [data-kf-key="x:30"]'));
+		const radios=[...menu.querySelectorAll('[role="menuitemradio"]')];
+		if(radios.length!==5||radios[0].getAttribute('aria-checked')!=='true'||radios[4].getAttribute('aria-checked')!=='false')throw new Error('easing items: '+menu.innerHTML.slice(0,400));
+		menu.querySelector('[data-menu-index="4"]').click();
+		await until(()=>clipOf('kfA').keyframes.x[0].e==='hold','the menu did not set Hold');
+		// Enter selects one summary diamond and Shift+Enter adds another; Copy keyframes (item 6) puts both on the board.
+		const summaryKey=f=>document.querySelector('[data-kf-strip="kfA"] [data-kf-key="summary:'+f+'"]');
+		summaryKey(0).focus();summaryKey(0).dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+		summaryKey(30).focus();summaryKey(30).dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true,cancelable:true}));
+		if(JSON.stringify(s.kfStrip.selected.slice().sort())!=='["opacity:0","x:30"]')throw new Error('Enter and Shift+Enter did not select both keys: '+JSON.stringify(s.kfStrip.selected));
+		menu=await open(summaryKey(30));
+		menu.querySelector('[data-menu-index="6"]').click();
+		if(!s.kfBoard)throw new Error('Copy keyframes left the board empty');
+		// The board opens the strip under kfB, which has no keys; Paste keyframes (item 7) places them at frame 150.
+		P.setSelection(s,['kfB'],'kfB');P.renderTimeline(s);s.preview.seek(150);
+		await until(()=>s.frame===150,'the playhead did not reach frame 150');
+		const other=await until(()=>document.querySelector('[data-kf-strip="kfB"]'),'copied keys did not open the strip under the second clip');
+		menu=await open(other.querySelector('[data-kf-action="expand"]'));
+		menu.querySelector('[data-menu-index="7"]').click();
+		await until(()=>{const k=clipOf('kfB').keyframes||{};return JSON.stringify((k.opacity||[]).map(item=>item.f))==='[30]'&&JSON.stringify((k.x||[]).map(item=>[item.f,item.e]))==='[[60,"hold"]]';},'the keys were not pasted 30 frames into kfB with their spacing and easing');
+	}`)
+	if dir := os.Getenv("AURAGO_VIDEO_STUDIO_SCREENSHOTS"); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		page.MustScreenshot(filepath.Join(dir, "keyframe-strip-expanded.png"))
+	}
+	page.MustEval(`async()=>{` + keyframeStripPagePrelude + `
+		document.querySelector('[data-kf-strip="kfB"] [data-kf-action="expand"]').click();
+		await until(()=>{const strip=document.querySelector('[data-kf-strip="kfB"]');return strip&&!strip.querySelector('[data-kf-row="x"]')&&strip.querySelector('[data-kf-action="expand"]').getAttribute('aria-expanded')==='false';},'the chevron did not collapse the strip');
+		s.snap=true;
+	}`)
 }

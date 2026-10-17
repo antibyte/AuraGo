@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -418,4 +419,88 @@ assert(!/<input type="number" data-field="y"[^>]*disabled/.test(html), 'a static
 assert(/data-position="tl"[^>]*disabled/.test(html), 'the position grid moves x and y');
 assert.equal(P.keyframeView({project: p, selectedClipId: 'c', frame: 15, readonly: true}).locked, true);
 `)
+}
+
+// The keyframe strip's geometry (index §4.18 content anchor): every diamond sits at timelineAt(clip, f) in lane pixels,
+// through a constant speed or a ramp; keys outside the clip's frames stay in the model, flagged; the summary row has one
+// diamond per source frame and lists the paths keyed there.
+func TestVideoStudioKeyframeStripModel(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio keyframe strip checks")
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = { VideoStudioParts: {} };
+global.crypto = global.crypto || require('node:crypto').webcrypto;
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-edit.js');
+require('./js/desktop/apps/video-studio-keyframe-edit.js');
+require('./js/desktop/apps/video-studio-keyframes.js');
+const K = window.VideoStudioKeyframes, Fx = window.VideoStudioEffects;
+const project = {fps: 30};
+const near = (a, b, message) => assert(Math.abs(a - b) < 1e-9, message + ': ' + a + ' vs ' + b);
+// Speed 1.5 from source frame 15: f 45 shows at timeline frame 30 + 30 / 1.5 = 50.
+const fast = {id: 'c', asset_id: 'v', start: 30, offset: 15, duration: 60, speed: 1.5, keyframes: {
+  opacity: [{f: 15, v: 0, e: 'linear'}, {f: 45, v: 1, e: 'ease_in'}, {f: 200, v: 1, e: 'linear'}],
+  x: [{f: 0, v: 0, e: 'linear'}, {f: 45, v: 0.5, e: 'hold'}]}};
+let model = K.stripModel(project, fast, 52, {expanded: false});
+assert.equal(model.clipId, 'c');
+near(model.left, 52, 'the clip starts at one second');
+near(model.width, 104, 'sixty frames are two seconds');
+assert.equal(model.expanded, false);
+assert.deepEqual(model.rows.map(row => row.id), ['summary'], 'collapsed: the summary row only');
+const summary = model.rows[0].keys;
+assert.deepEqual(summary.map(key => [key.f, key.paths, key.e, key.outside]),
+  [[0, ['x'], 'linear', true], [15, ['opacity'], 'linear', false], [45, ['x', 'opacity'], 'mixed', false], [200, ['opacity'], 'linear', true]]);
+near(summary[1].frame, 30, 'source frame 15 is the first clip frame');
+near(summary[2].frame, 50, 'f 45 at speed 1.5');
+near(summary[2].x, 50 / 30 * 52, 'lane pixels follow pps');
+near(summary[0].frame, 20, 'a key before the offset maps before the clip');
+model = K.stripModel(project, fast, 104, {expanded: true});
+assert.deepEqual(model.rows.map(row => row.id), ['summary', 'x', 'opacity'], 'expanded: one row per animated path in registry order');
+const opacity = model.rows[2].keys;
+assert.deepEqual(opacity.map(key => [key.path, key.f, key.v, key.e, key.outside]),
+  [['opacity', 15, 0, 'linear', false], ['opacity', 45, 1, 'ease_in', false], ['opacity', 200, 1, 'linear', true]]);
+near(opacity[1].x, 50 / 30 * 104, 'zoom doubles the pixels');
+// A ramp places diamonds through the ramp's inverse: speed 1 to 2 over 49 frames reaches source 30 at t = 24.08.
+const ramped = {id: 'r', asset_id: 'v', start: 0, offset: 0, duration: 50,
+  ramp: [{f: 0, speed: 1, e: 'linear'}, {f: 49, speed: 2, e: 'linear'}], keyframes: {opacity: [{f: 30, v: 1, e: 'linear'}]}};
+const key = K.stripModel(project, ramped, 52, {expanded: true}).rows[1].keys[0];
+near(key.frame, Fx.timelineAt(ramped, 30), 'diamonds use the shared time map');
+assert(Math.abs(key.frame - 24.0821) < 1e-3, 'ramp inverse: ' + key.frame);
+assert(Math.abs(key.frame - 30) > 5, 'a ramp does not place keys at the constant-speed position');
+// Stills: offset 0 and speed 1, so source frames are clip frames.
+const still = {id: 's', asset_id: 'i', start: 10, offset: 0, duration: 20, keyframes: {rotation: [{f: 5, v: 90, e: 'linear'}]}};
+near(K.stripModel(project, still, 52, null).rows[0].keys[0].frame, 15, 'a still keys at start + f');
+assert.deepEqual(K.stripModel(project, {id: 'n', start: 0, offset: 0, duration: 10}, 52, {expanded: true}).rows.map(row => [row.id, row.keys.length]),
+  [['summary', 0]], 'no keyframes: an empty summary');
+`
+	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
+		t.Fatalf("keyframe strip checks: %v\n%s", err, output)
+	}
+}
+
+// Every desktop locale carries the keyframe strip strings, and the sentences are translated.
+func TestVideoStudioKeyframeStripLocales(t *testing.T) {
+	keys := []string{"keyframes", "keyframeSummary", "keyframeExpand", "keyframeCollapse", "easing_linear", "easing_ease_in", "easing_ease_out", "easing_ease_in_out", "easing_hold", "keyframeCopy", "keyframePaste", "keyframeDelete"}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		if lang == "en" {
+			continue
+		}
+		for _, key := range []string{"keyframeSummary", "keyframeExpand", "keyframeCollapse", "keyframeCopy", "keyframePaste", "keyframeDelete"} {
+			if values["videoStudio."+key] == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
 }

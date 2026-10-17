@@ -953,3 +953,26 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-source-bar [data-source-drag]:disabled { cursor: default; }
 .vs-source-scrub { flex: 1 1 160px; min-width: 120px; accent-color: var(--vs-accent); }
 .vs-source-insert { margin-left: auto; }
+
+/* Keyframe strip (2b): rows after the selected clip's track row. A .vs-kf-row is not a track row (no data-track-row,
+   no .vs-track-lane), so the timeline's drags, rubber band, drops and blade pass it by. The diamond's shape shows the
+   easing: diamond = linear, circle = eased, square = hold, dashed = mixed. */
+.vs-kf-strip { border-bottom: 1px solid var(--vs-border); background: color-mix(in srgb, var(--vs-accent) 4%, var(--vs-panel)); }
+.vs-kf-strip .vs-kf-row { display: flex; height: 22px; }
+.vs-kf-strip .vs-kf-row.vs-kf-summary { height: 28px; }
+.vs-kf-strip .vs-kf-row + .vs-kf-row { border-top: 1px dashed var(--vs-border); }
+.vs-kf-rowhead { position: sticky; left: 0; z-index: 6; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 0 6px 0 10px; background: var(--vs-panel); border-right: 1px solid var(--vs-border); color: var(--vs-muted); font-size: 11.5px; }
+.vs-kf-row:not(.vs-kf-summary) .vs-kf-rowhead { padding-left: 36px; }
+.vs-kf-rowname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-app .vs-kf-chevron { flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--vs-muted); }
+.vs-app .vs-kf-chevron:hover { background: var(--vs-control-hover); color: var(--vs-text); }
+.vs-kf-track { position: relative; height: 100%; }
+.vs-kf-extent { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; background: color-mix(in srgb, var(--vs-accent) 10%, transparent); pointer-events: none; }
+.vs-app .vs-kf-diamond { position: absolute; z-index: 2; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; padding: 0; border: 0; background: transparent; cursor: ew-resize; touch-action: none; }
+.vs-kf-diamond::before { content: ""; position: absolute; inset: 3px; transform: rotate(45deg); border: 1.5px solid var(--vs-text); border-radius: 2px; background: var(--vs-panel); }
+.vs-kf-diamond.vs-kf-e-ease_in::before, .vs-kf-diamond.vs-kf-e-ease_out::before, .vs-kf-diamond.vs-kf-e-ease_in_out::before { transform: none; border-radius: 50%; }
+.vs-kf-diamond.vs-kf-e-hold::before { transform: none; border-radius: 1px; }
+.vs-kf-diamond.vs-kf-e-mixed::before { border-style: dashed; }
+.vs-kf-diamond[aria-pressed="true"]::before { border-color: #fff; background: var(--vs-accent); }
+.vs-app .vs-kf-diamond:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 0; border-radius: 4px; }
+.vs-kf-strip.is-readonly .vs-kf-diamond { cursor: default; }

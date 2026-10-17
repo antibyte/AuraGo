@@ -129,7 +129,7 @@
             [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
             [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), key('Wheel')], 'shortcutHScroll', 'Scroll the timeline sideways'],
             [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
-            [[key('Alt'), 'K'], 'shortcutKeyframe', 'Add or remove keyframes of the animated values at the playhead'], [[key('Alt'), '↑', '↓'], 'shortcutKeyframeNav', 'Previous / next keyframe'],
+            [[key('Alt'), 'K'], 'shortcutKeyframe', 'Add or remove keyframes of the animated values at the playhead'], [[key('Alt'), '↑', '↓'], 'shortcutKeyframeNav', 'Previous / next keyframe'], [[key('Del')], 'keyframeDelete', 'Delete the selected keyframes'],
             [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips'],
             [[',', '.'], 'shortcutSourceEdit', 'Source monitor: insert (,) / overwrite (.)']
         ];
@@ -214,6 +214,7 @@
         s.media = window.VideoStudioMedia.create({ onUpdate: () => scheduleMediaRefresh(s), rate: () => rateOf(s) });
         s.timelineOptions = timelineOptions(s);
         s.detachTimeline = T().attach(s.q('[data-timeline]'), s.timelineOptions);
+        if (P.wireKeyframeStrip) P.wireKeyframeStrip(s, s.q('[data-timeline]'));
         // The stage asks for the GL compositor ('auto'); the hidden previewEngine setting forces '2d'. The source monitor stays 2D.
         s.preview = window.VideoStudioPreview.mount(s.q('[data-preview]'), () => s.project, () => s.frame, frame => {
             s.frame = frame;
@@ -590,6 +591,7 @@
             onAddTrack: kind => addTrack(s, kind),
             onDropAsset: (assetId, trackId, at, mode, part) => addAssetToTrack(s, assetId, trackId, at, mode, part),
             onReorderTrack: (from, to, side) => reorderTrack(s, from, to, side),
+            stripAfter: (track, pps, width) => (P.keyframeStrip ? P.keyframeStrip(s, track, pps, width) : ''),
             onSnap: value => writePref(PREF_SNAP, value)
         };
     }
