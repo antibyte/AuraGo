@@ -110,17 +110,33 @@ func buildMIME(from string, draft Draft, now time.Time, includeBCC bool) ([]byte
 		}
 		return out.Bytes(), nil
 	}
-	w, err := mailmime.CreateWriter(&out, header)
+	header.Set("Content-Type", "multipart/mixed")
+	w, err := message.CreateWriter(&out, header.Header)
 	if err != nil {
 		return nil, fmt.Errorf("create MIME message: %w", err)
 	}
-	inline, err := w.CreateInline()
+	body := w
+	for _, a := range draft.Attachments {
+		if a.Inline {
+			var related message.Header
+			related.Set("Content-Type", "multipart/related")
+			body, err = w.CreatePart(related)
+			if err != nil {
+				return nil, fmt.Errorf("create related body: %w", err)
+			}
+			break
+		}
+	}
+	var alternative message.Header
+	alternative.Set("Content-Type", "multipart/alternative")
+	inline, err := body.CreatePart(alternative)
 	if err != nil {
 		return nil, fmt.Errorf("create alternative body: %w", err)
 	}
 	var textHeader message.Header
 	textHeader.Set("Content-Type", "text/plain; charset=utf-8")
-	textPart, err := inline.CreatePart(mailmime.InlineHeader{Header: textHeader})
+	textHeader.Set("Content-Transfer-Encoding", "quoted-printable")
+	textPart, err := inline.CreatePart(textHeader)
 	if err != nil {
 		return nil, fmt.Errorf("create text part: %w", err)
 	}
@@ -138,7 +154,7 @@ func buildMIME(from string, draft Draft, now time.Time, includeBCC bool) ([]byte
 		var h message.Header
 		h.Set("Content-Type", "text/html; charset=utf-8")
 		h.Set("Content-Transfer-Encoding", "quoted-printable")
-		p, e := inline.CreatePart(mailmime.InlineHeader{Header: h})
+		p, e := inline.CreatePart(h)
 		if e != nil {
 			return nil, e
 		}
@@ -153,42 +169,58 @@ func buildMIME(from string, draft Draft, now time.Time, includeBCC bool) ([]byte
 		return nil, err
 	}
 	total := int64(0)
-	for _, a := range draft.Attachments {
-		if len(a.Data) == 0 && a.Size != 0 {
-			return nil, fmt.Errorf("attachment data is missing")
-		}
-		total += int64(len(a.Data))
-		if total > maxOutgoingAttachmentBytes {
-			return nil, fmt.Errorf("attachments exceed size limit")
-		}
-		name := safeFilename(a.Filename)
-		var h message.Header
-		ct := strings.TrimSpace(a.ContentType)
-		if ct == "" || strings.ContainsAny(ct, "\r\n") {
-			ct = "application/octet-stream"
-		}
-		h.Set("Content-Type", ct)
-		disp := "attachment"
-		if a.Inline {
-			disp = "inline"
-		}
-		h.Set("Content-Disposition", disp+`; filename="`+strings.ReplaceAll(strings.ReplaceAll(name, `\`, `\\`), `"`, `\"`)+`"`)
-		if a.ContentID != "" {
-			id, e := safeMessageID(a.ContentID)
-			if e != nil {
-				return nil, fmt.Errorf("invalid attachment content id")
+	// Related images belong beside the HTML alternative, before ordinary attachments.
+	for _, inlineParts := range []bool{true, false} {
+		for _, a := range draft.Attachments {
+			if a.Inline != inlineParts {
+				continue
 			}
-			h.Set("Content-ID", id)
+			if len(a.Data) == 0 && a.Size != 0 {
+				return nil, fmt.Errorf("attachment data is missing")
+			}
+			total += int64(len(a.Data))
+			if total > maxOutgoingAttachmentBytes {
+				return nil, fmt.Errorf("attachments exceed size limit")
+			}
+			name := safeFilename(a.Filename)
+			var h message.Header
+			ct := strings.TrimSpace(a.ContentType)
+			if ct == "" || strings.ContainsAny(ct, "\r\n") {
+				ct = "application/octet-stream"
+			}
+			h.Set("Content-Type", ct)
+			disp := "attachment"
+			if a.Inline {
+				disp = "inline"
+			}
+			h.Set("Content-Disposition", disp+`; filename="`+strings.ReplaceAll(strings.ReplaceAll(name, `\`, `\\`), `"`, `\"`)+`"`)
+			if a.ContentID != "" {
+				id, e := safeMessageID(a.ContentID)
+				if e != nil {
+					return nil, fmt.Errorf("invalid attachment content id")
+				}
+				h.Set("Content-ID", id)
+			}
+			h.Set("Content-Transfer-Encoding", "base64")
+			parent := w
+			if a.Inline {
+				parent = body
+			}
+			p, e := parent.CreatePart(h)
+			if e != nil {
+				return nil, e
+			}
+			if _, e = p.Write(a.Data); e != nil {
+				return nil, e
+			}
+			if e = p.Close(); e != nil {
+				return nil, e
+			}
 		}
-		p, e := w.CreateAttachment(mailmime.AttachmentHeader{Header: h})
-		if e != nil {
-			return nil, e
-		}
-		if _, e = p.Write(a.Data); e != nil {
-			return nil, e
-		}
-		if e = p.Close(); e != nil {
-			return nil, e
+		if inlineParts && body != w {
+			if err := body.Close(); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err = w.Close(); err != nil {
@@ -259,6 +291,12 @@ func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []strin
 			return
 		}
 		decodedTotal += int64(len(data))
+		if h, ok := p.Header.(*mailmime.InlineHeader); ok {
+			ct, _, _ := h.ContentType()
+			if !strings.HasPrefix(strings.ToLower(ct), "text/") {
+				p.Header = &mailmime.AttachmentHeader{Header: h.Header}
+			}
+		}
 		switch h := p.Header.(type) {
 		case *mailmime.InlineHeader:
 			ct, _, _ := h.ContentType()

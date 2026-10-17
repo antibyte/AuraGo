@@ -447,8 +447,8 @@
             scripts: ['/js/desktop/apps/bookshelf/reader.js', '/js/desktop/apps/bookshelf/api.js', '/js/desktop/apps/bookshelf/progress.js', '/js/desktop/apps/bookshelf.js']
         },
         'mailer': {
-            styles: appStyles('/css/desktop-app-mailer.css'),
-            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
+            styles: appStyles('/css/desktop-app-mailer.css', '/css/desktop-stickers.css'),
+            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-stickers.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
         },
         'local-wikipedia': {
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
@@ -603,7 +603,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'bookshelf': ['bookshelf'],
-        'mailer': ['mailer'],
+        'mailer': ['mailer', 'stickers'],
         'personal-radio': ['personalRadio'],
         'layerling': ['layerling'],
         'synth-studio': ['synthStudio'],

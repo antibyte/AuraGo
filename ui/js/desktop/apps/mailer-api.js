@@ -38,8 +38,12 @@
             draft: draftId => request('/drafts/' + id(draftId)),
             saveDraft: draft => request('/drafts' + (draft.id ? '/' + id(draft.id) : ''), json(draft.id ? 'PUT' : 'POST', draft)),
             deleteDraft: draft => request('/drafts/' + id(draft.id) + '?revision=' + encodeURIComponent(draft.revision || 0), { method: 'DELETE' }),
-            upload: (draftId, revision, file, progress) => new Promise((resolve, reject) => {
+            upload: (draftId, revision, file, progress, signal) => new Promise((resolve, reject) => {
+                if (signal?.aborted) { reject(new DOMException('closed', 'AbortError')); return; }
                 const xhr = new XMLHttpRequest();
+                const abort = () => xhr.abort();
+                signal?.addEventListener('abort', abort, { once: true });
+                xhr.onloadend = () => signal?.removeEventListener('abort', abort);
                 xhr.open('POST', root + '/drafts/' + id(draftId) + '/attachments?revision=' + encodeURIComponent(revision || 0));
                 xhr.withCredentials = true;
                 xhr.upload.onprogress = event => { if (event.lengthComputable && progress) progress(event.loaded / event.total); };

@@ -211,11 +211,13 @@ type UpdateMessageRequest struct {
 }
 
 type Attachment struct {
-	ID          string `json:"attachment_id,omitempty"`
-	Filename    string `json:"filename,omitempty"`
-	ContentType string `json:"content_type,omitempty"`
-	Size        int64  `json:"size,omitempty"`
-	DownloadURL string `json:"download_url,omitempty"`
+	ID                 string `json:"attachment_id,omitempty"`
+	Filename           string `json:"filename,omitempty"`
+	ContentType        string `json:"content_type,omitempty"`
+	Size               int64  `json:"size,omitempty"`
+	DownloadURL        string `json:"download_url,omitempty"`
+	ContentID          string `json:"content_id,omitempty"`
+	ContentDisposition string `json:"content_disposition,omitempty"`
 }
 
 type AttachmentInput struct {
@@ -226,9 +228,11 @@ type AttachmentInput struct {
 }
 
 type OutgoingAttachment struct {
-	Filename      string `json:"filename,omitempty"`
-	ContentType   string `json:"content_type,omitempty"`
-	ContentBase64 string `json:"content_base64,omitempty"`
+	Filename           string `json:"filename,omitempty"`
+	ContentType        string `json:"content_type,omitempty"`
+	ContentBase64      string `json:"content,omitempty"`
+	ContentID          string `json:"content_id,omitempty"`
+	ContentDisposition string `json:"content_disposition,omitempty"`
 }
 
 type SendMessageRequest struct {

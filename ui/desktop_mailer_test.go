@@ -43,7 +43,7 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	if settingsIndex < 0 || appIndex <= settingsIndex {
 		t.Fatal("desktop Mailer settings module must load before its app entry point")
 	}
-	if !strings.Contains(loader, "'mailer': ['mailer']") {
+	if !strings.Contains(loader, "'mailer': ['mailer', 'stickers']") {
 		t.Fatal("desktop Mailer must load its lazy translation section before app scripts")
 	}
 	if !strings.Contains(app, "ctx.t('mailer.' + key, vars)") {

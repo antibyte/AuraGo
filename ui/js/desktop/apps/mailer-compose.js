@@ -34,10 +34,11 @@
         return /^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(address);
     }
 
-    function cleanHtml(markdown) {
+    function cleanHtml(markdown, attachments) {
         const parser = window.marked;
         const html = parser && typeof parser.parse === 'function' ? parser.parse(markdown || '') : '<p>' + esc(markdown).replace(/\n/g, '<br>') + '</p>';
-        return window.DOMPurify ? window.DOMPurify.sanitize(html, { FORBID_TAGS: ['script', 'iframe', 'form', 'object', 'embed', 'style'], FORBID_ATTR: ['style'] }) : esc(markdown).replace(/\n/g, '<br>');
+        const safe = window.DOMPurify ? window.DOMPurify.sanitize(html, { FORBID_TAGS: ['script', 'iframe', 'form', 'object', 'embed', 'style'], FORBID_ATTR: ['style'] }) : esc(markdown).replace(/\n/g, '<br>');
+        return window.MailerStickers ? window.MailerStickers.html(safe, attachments) : safe;
     }
 
     function normalizeHTML(html) {
@@ -48,13 +49,6 @@
     function previewHTML(html) {
         const safe = normalizeHTML(html);
         return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'"><meta name="referrer" content="no-referrer"></head><body>${safe}</body></html>`;
-    }
-
-    function plainText(markdown) {
-        const html = cleanHtml(markdown);
-        const node = document.createElement('div');
-        node.innerHTML = html;
-        return node.textContent || '';
     }
 
     function recipientGroup(name, label, people, ctx) {
@@ -87,9 +81,9 @@
                 size: Number(item.size) || 0
             })).filter(item => item.messageId && item.attachmentId),
             forwardCopied: new Set(), forwardSkipped: new Set(), forwardCopying: false, forwardCopyPromise: Promise.resolve(), attachmentTask: Promise.resolve(),
-            preserveHTML: !!draft.html && normalizeHTML(draft.html) !== normalizeHTML(cleanHtml(draft.text || '')),
+            preserveHTML: !!draft.html && normalizeHTML(draft.html) !== normalizeHTML(cleanHtml(draft.text || '', draft.attachments)),
             bodyChanged: false,
-            statusTimer: 0, listeners: [], onClose: null, uploadTask: Promise.resolve()
+            statusTimer: 0, listeners: [], onClose: null, uploadTask: Promise.resolve(), uploadController: new AbortController()
         };
         active.set(windowId, inst);
         const composeTitle = options.replyType === 'forward' ? t(ctx, 'forward') : options.replyType ? t(ctx, 'reply') : t(ctx, 'compose');
@@ -105,8 +99,10 @@
                 <div data-copy-row="bcc" ${draft.bcc?.length ? '' : 'hidden'}>${recipientGroup('bcc', t(ctx, 'bcc'), inst.recipients.bcc, ctx)}</div>
                 <label class="vd-mailer-compose-row"><span>${esc(t(ctx, 'subject'))}</span><input name="subject" data-subject maxlength="998" value="${esc(draft.subject)}" ${inst.readonly ? 'readonly' : ''} autocomplete="off"></label>
                 <div class="vd-mailer-compose-toolbar"><div class="vd-mailer-compose-toolbar-left"><button type="button" class="vd-mailer-button" data-attach ${inst.readonly ? 'disabled' : ''}>${esc(t(ctx, 'attach_file'))}</button><input type="file" data-file-input multiple hidden>
+                    <button type="button" class="vd-mailer-button" data-stickers-open aria-expanded="false" ${inst.readonly || inst.preserveHTML ? 'disabled' : ''}>${esc(ctx.t('stickers.title'))}</button>
                     <label class="vd-mailer-schedule"><span>${esc(t(ctx, 'send_at'))}</span><input type="datetime-local" data-send-at ${inst.readonly ? 'disabled' : ''}></label></div>
                     <button type="button" class="vd-mailer-button vd-mailer-assist-open" data-assist-open ${inst.readonly || inst.preserveHTML ? 'disabled' : ''}>${esc(t(ctx, 'assist'))}</button></div>
+                <div class="vd-mailer-stickers" data-mailer-stickers hidden></div>
                 <div class="vd-mailer-format-toolbar" data-format-toolbar role="toolbar" aria-label="${esc(t(ctx, 'message_body'))}" ${inst.preserveHTML ? 'hidden' : ''}>${[
                     ['bold', 'B', 'format_bold'], ['italic', 'I', 'format_italic'], ['bulleted_list', '•', 'format_bulleted_list'], ['numbered_list', '1.', 'format_numbered_list'], ['quote', '❞', 'format_quote'], ['heading', 'H2', 'format_heading']
                 ].map(([format, label, key]) => `<button type="button" class="vd-mailer-format-button" data-format="${format}" aria-label="${esc(t(ctx, key))}" title="${esc(t(ctx, key))}" ${inst.readonly ? 'disabled' : ''}>${esc(label)}</button>`).join('')}</div>
@@ -131,6 +127,7 @@
                 <p class="vd-mailer-compose-status" data-compose-status role="status" aria-live="polite"></p>
             </form>
         </section>`;
+        inst.stickers = window.MailerStickers?.mount(inst, { editingLocked, queueUpload, changed });
         bind(inst);
         host.querySelector('[data-assist-context]').value = String(options.assistContext || '');
         syncAssistReview(inst);
@@ -179,12 +176,12 @@
             view.dom.setAttribute('spellcheck', 'true');
             view.dom.setAttribute('data-mailer-richtext', '');
             const previousDispatch = view.props.dispatchTransaction;
-            view.setProps({ dispatchTransaction(transaction) {
+            view.setProps({ ...(inst.stickers ? { nodeViews: { ...view.props.nodeViews, image: node => inst.stickers.imageView(node) } } : {}), dispatchTransaction(transaction) {
+                inst.stickers?.map(transaction.mapping);
                 if (previousDispatch) previousDispatch.call(view, transaction);
                 else view.updateState(view.state.apply(transaction));
                 if (transaction.docChanged && !editingLocked(inst)) { inst.bodyChanged = true; changed(inst); }
             }});
-            inst.editorView = view;
             inst.markdown = () => crepe.getMarkdown();
             inst.setMarkdown = value => {
                 const parsed = crepe.editor.action(ctx => ctx.get(lib.parserCtx)(String(value || '')));
@@ -275,6 +272,7 @@
         inst.host.querySelectorAll('[data-insert-template], [data-insert-signature], [data-assist-open]').forEach(control => { control.disabled = false; });
         inst.editorPromise = mountEditor(inst, text);
         await inst.editorPromise;
+        inst.stickers?.sync();
         changed(inst);
     }
 
@@ -411,7 +409,7 @@
             to: inst.recipients.to.slice(), cc: inst.recipients.cc.slice(), bcc: inst.recipients.bcc.slice(),
             subject: inst.host.querySelector('[data-subject]').value,
             text: body,
-            html: inst.preserveHTML && !inst.bodyChanged ? inst.draft.html : cleanHtml(body)
+            html: inst.preserveHTML && !inst.bodyChanged ? inst.draft.html : cleanHtml(body, inst.draft.attachments)
         });
     }
 
@@ -442,6 +440,7 @@
                 if (error && error.status === 409) setDraftConflict(inst, error, currentPayload);
                 throw error;
             }
+            if (inst.disposed) return result;
             inst.draft = Object.assign({}, currentPayload, result);
             inst.accountId = inst.draft.account_id || inst.accountId;
             inst.savedGeneration = currentGeneration;
@@ -516,7 +515,7 @@
             inst.draft.account_id = accountId;
             inst.recipients = { to: emailList(local.to), cc: emailList(local.cc), bcc: emailList(local.bcc) };
             inst.host.querySelector('[data-subject]').value = String(local.subject || '');
-            inst.preserveHTML = !!local.html && normalizeHTML(local.html) !== normalizeHTML(cleanHtml(local.text || ''));
+            inst.preserveHTML = !!local.html && normalizeHTML(local.html) !== normalizeHTML(cleanHtml(local.text || '', inst.draft.attachments));
             inst.bodyChanged = false;
             if (inst.preserveHTML) {
                 inst.host.querySelector('[data-preserved-html-frame]').srcdoc = previewHTML(local.html);
@@ -560,7 +559,7 @@
             const accountSelect = inst.host.querySelector('[data-account]');
             if (accountSelect && inst.accountId) accountSelect.value = inst.accountId;
             inst.host.querySelector('[data-subject]').value = String(latest.subject || '');
-            inst.preserveHTML = !!latest.html && normalizeHTML(latest.html) !== normalizeHTML(cleanHtml(latest.text || ''));
+            inst.preserveHTML = !!latest.html && normalizeHTML(latest.html) !== normalizeHTML(cleanHtml(latest.text || '', latest.attachments));
             inst.bodyChanged = false;
             inst.editorPromise = Promise.resolve(inst.editorPromise).then(() => {
                 if (inst.preserveHTML) {
@@ -602,7 +601,7 @@
 
     async function beforeClose(inst) {
         clearTimeout(inst.saveTimer);
-        await inst.uploadTask;
+        await inst.uploadTask.catch(() => {});
         await inst.forwardCopyPromise;
         await inst.attachmentTask;
         if (inst.failedUploads.size) {
@@ -619,15 +618,25 @@
 
     function trackUpload(inst, files) {
         if (!files.length || editingLocked(inst)) return;
+        return queueUpload(inst, async () => files);
+    }
+
+    function queueUpload(inst, loadFiles) {
+        if (editingLocked(inst)) return;
         inst.uploadQueueCount++;
         inst.attachmentBusy = true;
         syncSendButton(inst);
-        inst.uploadTask = inst.uploadTask.catch(() => {}).then(() => uploadFiles(inst, files)).finally(() => {
+        const task = inst.uploadTask.then(async () => {
+            const files = await loadFiles();
+            if (!inst.disposed) await uploadFiles(inst, files);
+        }).finally(() => {
             inst.uploadQueueCount = Math.max(0, inst.uploadQueueCount - 1);
             inst.attachmentBusy = inst.uploadQueueCount > 0 || !!inst.attachmentMutation;
-            syncSendButton(inst);
+            renderAttachments(inst);
         });
-        return inst.uploadTask;
+        inst.uploadTask = task;
+        task.catch(() => { if (inst.uploadTask === task) inst.uploadTask = Promise.resolve(); });
+        return task;
     }
 
     async function uploadFiles(inst, files) {
@@ -640,10 +649,12 @@
                 inst.uploads.set(key, { name: file.name, progress: 0 });
                 renderAttachments(inst);
                 try {
+                    const previousIDs = new Set((inst.draft.attachments || []).map(item => item.id));
                     const result = await inst.api.upload(inst.draft.id, inst.draft.revision, file, value => {
                         const item = inst.uploads.get(key);
                         if (item) { item.progress = value; renderAttachments(inst); }
-                    });
+                    }, inst.uploadController.signal);
+                    if (inst.disposed) return;
                     if (result && result.revision != null && Array.isArray(result.attachments)) {
                         inst.draft = Object.assign({}, inst.draft, result);
                     } else if (result && result.draft) {
@@ -651,8 +662,10 @@
                     } else {
                         inst.draft.attachments = (inst.draft.attachments || []).concat([result.attachment || result]);
                     }
+                    inst.stickers?.uploaded(file, previousIDs);
                     inst.failedUploads.delete(key);
                 } catch (error) {
+                    if (inst.disposed) return;
                     inst.failedUploads.set(key, { file, name: file.name, error });
                     if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
                     else setStatus(inst, t(inst.ctx, 'upload_failed_block_send'), true);
@@ -663,6 +676,7 @@
                 await save(inst);
             }
         } catch (error) {
+            if (inst.disposed) return;
             for (const file of files) {
                 if (!Array.from(inst.failedUploads.values()).some(item => item.file === file)) {
                     const key = 'upload-' + Math.random().toString(36).slice(2);
@@ -671,7 +685,7 @@
             }
             if (error?.status === 409) setDraftConflict(inst, error, snapshot(inst));
             setStatus(inst, errorText(inst, error), true);
-        } finally { inst.host.querySelector('[data-file-input]').value = ''; renderAttachments(inst); syncSendButton(inst); }
+        } finally { if (!inst.disposed) { inst.host.querySelector('[data-file-input]').value = ''; renderAttachments(inst); syncSendButton(inst); } }
     }
 
     function retryFailedUpload(inst, key) {
@@ -684,6 +698,7 @@
 
     function removeFailedUpload(inst, key) {
         if (editingLocked(inst)) return;
+        inst.stickers?.forget(inst.failedUploads.get(String(key))?.file);
         if (!inst.failedUploads.delete(String(key))) return;
         renderAttachments(inst);
         changed(inst);
@@ -693,6 +708,7 @@
     }
 
     function renderAttachments(inst) {
+        if (inst.disposed) return;
         const root = inst.host.querySelector('[data-attachments]');
         if (!root) return;
         const attachments = inst.draft.attachments || [];
@@ -752,6 +768,7 @@
     }
 
     function syncSendButton(inst) {
+        if (inst.disposed) return;
         const send = inst.host.querySelector('[data-send]');
         if (!send) return;
         const forwardPending = inst.forwardSources.some(item => !inst.forwardCopied.has(item.attachmentId) && !inst.forwardSkipped.has(item.attachmentId));
@@ -783,6 +800,7 @@
         inst.editor?.setReadonly?.(editLocked);
         const editorRoot = inst.host.querySelector('[data-rich-editor]');
         if (editorRoot) editorRoot.toggleAttribute('aria-readonly', editLocked);
+        inst.stickers?.sync();
     }
 
     async function reconcileForwardDraft(inst) {
@@ -855,6 +873,7 @@
 
     async function removeAttachmentItem(inst, attachmentId) {
         if (editingLocked(inst) || inst.attachmentBusy || !inst.draft.id) return;
+        const removed = (inst.draft.attachments || []).find(item => String(item.id) === String(attachmentId));
         inst.attachmentBusy = true;
         syncSendButton(inst);
         inst.attachmentTask = inst.attachmentTask.catch(() => {}).then(async () => {
@@ -862,6 +881,7 @@
                 const updated = await inst.api.removeAttachment(inst.draft.id, attachmentId, inst.draft.revision);
                 inst.draft = Object.assign({}, inst.draft, updated);
                 inst.draft.attachments = (inst.draft.attachments || []).filter(item => String(item.id) !== String(attachmentId));
+                inst.stickers?.remove(removed);
                 renderAttachments(inst);
                 changed(inst);
                 await save(inst);
@@ -1060,6 +1080,9 @@
         const inst = active.get(windowId);
         if (!inst) return;
         inst.disposed = true;
+        inst.stickers?.dispose();
+        inst.uploadController.abort();
+        inst.uploads.clear(); inst.failedUploads.clear();
         clearTimeout(inst.saveTimer);
         clearInterval(inst.statusTimer);
         cancelAssist(inst);

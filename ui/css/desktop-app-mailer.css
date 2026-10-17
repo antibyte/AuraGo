@@ -189,6 +189,8 @@
 .vd-mailer-save-state { color: var(--mail-muted); font-size: 11px; }
 .vd-mailer-save-state.is-error { color: #ff9b9b; }
 .vd-mailer-compose-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.vd-mailer-stickers { flex: 0 0 auto; max-height: 320px; overflow: auto; padding: 12px 16px; border-bottom: 1px solid var(--mail-border); --vs-border: var(--mail-border); --vs-control: var(--mail-panel); --vs-accent: var(--mail-accent); }
+.vd-mailer-sticker-image { width: 192px; height: 192px; max-width: 100%; object-fit: contain; vertical-align: middle; }
 .vd-mailer-compose-row, .vd-mailer-recipient-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--mail-border); }
 .vd-mailer-compose-row > span, .vd-mailer-field-label { width: 74px; flex: 0 0 74px; padding-top: 6px; color: var(--mail-muted); }
 .vd-mailer-compose-row select, .vd-mailer-compose-row input { flex: 1; min-width: 0; border: 0; background: transparent; }

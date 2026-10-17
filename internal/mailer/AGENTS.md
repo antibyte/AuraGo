@@ -56,6 +56,14 @@ remain in the Vault and are resolved only when an adapter is created.
   immediately before every external mutation and before publishing local state.
 - Attachments use generated IDs under a private configured root and enforce
   per-file and aggregate bounds. Never resolve a caller-provided path.
+- Composer stickers reuse private draft attachments with stable CID references.
+  SMTP/Gmail MIME puts inline PNGs in multipart/related beside the body alternative;
+  regular attachments remain outside it. Preserve bytes, Content-ID and inline
+  disposition through draft save/reopen and send. AgentMail sends `content`,
+  `content_id` and `content_disposition` per its public SendAttachment schema
+  (https://docs.agentmail.to/api-reference/inboxes/messages/send), and preserves
+  inbound inline metadata. Verify `TestStickerDraftAndMIMERoundTrip` and
+  `TestAgentMailStickerWireFormat` without sending real email.
 - Migrations take a consistent SQLite backup before changing an existing
   database. Reject schemas newer than this package understands.
 

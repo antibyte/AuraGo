@@ -2518,10 +2518,21 @@ registration lives in `internal/desktop/types.go`.
 - Pixel visible UI strings use `pixel.*` and shared `stickers.*` keys in all 16
   `ui/lang/desktop/*.json` files.
 - The shared sticker catalog contains 100 stable IDs, ten categories and ten styles.
-  Both apps use versioned local 192px thumbnails and 1024px RGBA PNG originals under
+  Video Studio, Pixel and Mailer use versioned local 192px thumbnails and 1024px RGBA PNG originals under
   `ui/img/stickers`; originals load only on insertion. `assets/stickers/production.json`
   records the individual Imagegen prompts; `node scripts/build-stickers.mjs --check`
   checks the generated catalog, files and translations. There is no sticker REST API.
+- Mailer loads `mailer-stickers.js` before its composer and reuses the shared picker
+  and all sixteen `stickers.*` locales. The existing draft upload/save path stores
+  each selected PNG privately with an inline Content-ID; Markdown and outgoing HTML
+  reference `cid:`, never an AuraGo asset URL. Only the editor resolves catalog
+  thumbnails locally. Display stickers at 192px and preserve their original PNGs.
+  Map the insertion bookmark through edits while loading, retain failed uploads for
+  explicit retry, and let send/close await the upload queue. Disposal aborts fetches
+  and uploads; late responses cannot touch another composer. Foreign HTML requires
+  the existing explicit conversion; read-only and queued drafts disable insertion.
+  Verify `scripts/test-mailer-stickers.mjs`, `scripts/test-mailer-browser.mjs`, and
+  `TestStickerDraftAndMIMERoundTrip` / `TestAgentMailStickerWireFormat`.
 - Video Studio imports originals through the existing project media importer before
   adding a four-second overlay at the playhead, at 24% of the shorter canvas edge.
   Recheck project identity/epoch after asynchronous work and keep busy/locked overlay
