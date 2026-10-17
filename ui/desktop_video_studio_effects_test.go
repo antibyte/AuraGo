@@ -227,6 +227,21 @@ const videoStudioParityRunners = `{
     if (input.unit_domain) table = VP.unitDomain(table);
     return {size: table.size, rgb: (input.rgb || []).map(rgb => VP.sampleLUT(table, rgb, input.intensity))};
   }},
+  // Blend modes and the composite in the real form (topic "blend", index §4.22); numbers within 1e-6.
+  blend: {exact: false, run(input) {
+    const V = window.VideoStudioPicture;
+    return {mode_rgb: [0, 1, 2].map(i => V.blendChannel(input.mode, input.below[i], input.layer[i])), rgb: V.compositeRGB(input.mode, input.below, input.layer, input.alpha)};
+  }},
+  // Mask law L in box pixels (topic "mask").
+  mask: {exact: false, run(input) {
+    const V = window.VideoStudioPicture, frame = V.maskFrame(input.mask, input.box);
+    return {frame: {cx: frame.cx, cy: frame.cy, rx: frame.rx, ry: frame.ry, ramp: frame.ramp}, m: input.points.map(p => V.maskAt(frame, p[0], p[1]))};
+  }},
+  // Chroma key alpha and spill suppression in the real form (topic "key").
+  key: {exact: false, run(input) {
+    const V = window.VideoStudioPicture;
+    return {alpha: input.rgb.map(rgb => V.keyAlpha(input.params, rgb)), rgb: input.rgb.map(rgb => V.despill(input.params, rgb))};
+  }},
 }`
 
 // Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.
@@ -468,14 +483,21 @@ process.stdout.write(JSON.stringify({min: E.MIN_BOX_SIZE, written: clip.keyframe
 func TestVideoStudioPictureConstantsMatchGo(t *testing.T) {
 	output := runVideoStudioEffectsScript(t, `
 const V = window.VideoStudioPicture;
-process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, temperatureGain: V.TEMPERATURE_GAIN, tintGain: V.TINT_GAIN, luma: V.LUMA, casP0: V.CAS_P0, casP1: V.CAS_P1}));
+process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, temperatureGain: V.TEMPERATURE_GAIN, tintGain: V.TINT_GAIN, luma: V.LUMA, casP0: V.CAS_P0, casP1: V.CAS_P1,
+  blendSwapped: V.BLEND_SWAPPED, overlap: [V.overlapBlend('multiply', 'multiply'), V.overlapBlend('multiply', 'screen'), V.overlapBlend('', 'normal'), V.overlapBlend('screen', '')]}));
 `)
 	var got struct {
 		WheelK, NeutralK, TemperatureGain, TintGain, CasP0, CasP1 float64
 		Luma                                                      []float64
+		BlendSwapped, Overlap                                     []string
 	}
 	if err := json.Unmarshal(output, &got); err != nil {
 		t.Fatalf("constants are not JSON: %v\n%s", err, output)
+	}
+	// 2d: Go's blendSwapped and overlapBlend are unexported; TestBlend8MatchesSpike (compositing_math_test.go) pins the
+	// same literals on the Go side.
+	if !reflect.DeepEqual(got.BlendSwapped, []string{"dodge", "burn"}) || !reflect.DeepEqual(got.Overlap, []string{"multiply", "normal", "normal", "normal"}) {
+		t.Fatalf("BLEND_SWAPPED = %v, overlapBlend = %v; want [dodge burn] and [multiply normal normal normal]", got.BlendSwapped, got.Overlap)
 	}
 	if got.WheelK != videostudio.ColorWheelK || got.NeutralK != videostudio.ColorNeutralKelvin || got.TemperatureGain != 0.5 || got.TintGain != 0.3 || !reflect.DeepEqual(got.Luma, []float64{0.2126, 0.7152, 0.0722}) {
 		t.Fatalf("VideoStudioPicture constants = %+v, want k %v, %v K, gains 0.5 and 0.3, luma BT.709", got, videostudio.ColorWheelK, videostudio.ColorNeutralKelvin)

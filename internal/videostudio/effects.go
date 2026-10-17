@@ -160,6 +160,11 @@ var registryBlendModes = []BlendModeSpec{
 	{ID: "burn", Blend: "burn", LabelKey: "blend_burn"},
 }
 
+// blendSwapped names the blend modes whose FFmpeg blend formula takes the layer as its FIRST input (spike 2026-10-17,
+// index §4.22): [layer][below] for dodge and burn, [below][layer] for every other mode. JS
+// VideoStudioPicture.BLEND_SWAPPED mirrors it (TestVideoStudioPictureConstantsMatchGo; TestBlend8MatchesSpike pins Go).
+var blendSwapped = map[string]bool{"dodge": true, "burn": true}
+
 // registryEffects is the effect stack menu (2c, plan index §4.2).
 //   - Label keys are effect.<id>.name and effect.<id>.<param>; the category label is the locale key
 //     effectCategory_<category>.

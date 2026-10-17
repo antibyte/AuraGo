@@ -9,7 +9,8 @@
     //  - Painters, the inspector and the colour wheels call in at call time; this file loads directly after
     //    video-studio-effects.js.
     // parseCube, sampleLUT and unitDomain mirror the Go LUT parser and sampler (plan 2c Task 4); capSize, decodedSize,
-    // passUniforms and the CAS peak constants serve the GL effect passes (Task 10).
+    // passUniforms and the CAS peak constants serve the GL effect passes (Task 10). Plan 2d adds the real-valued
+    // compositing forms of Go compositing_math.go (blend, mask, key; parity topics blend, mask and key).
 
     // Go ColorWheelK, ColorNeutralKelvin, colorTemperatureGain, colorTintGain and lumaBT709.
     const WHEEL_K = 0.2, NEUTRAL_K = 6500, TEMPERATURE_GAIN = 0.5, TINT_GAIN = 0.3;
@@ -329,5 +330,97 @@
         return [];
     }
 
-    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms };
+    // ---- Plan 2d: compositing (index §4.22), the real-valued forms of Go compositing_math.go. Colours are 0..1. ----
+    // The modes whose FFmpeg blend takes the layer as its first input (Go blendSwapped).
+    const BLEND_SWAPPED = Object.freeze(['dodge', 'burn']);
+    // One channel of a blend mode, below (the composite) and layer (straight colour) in 0..1 (Go blendChannel). normal
+    // and unknown modes give the layer.
+    function blendChannel(mode, below, layer) {
+        const a = num(below, 0), b = num(layer, 0);
+        switch (mode) {
+            case 'multiply': return a * b;
+            case 'screen': return 1 - (1 - a) * (1 - b);
+            case 'overlay': return 255 * a < 127.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b);
+            case 'hardlight': return 255 * b < 127.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b);
+            case 'softlight': return a * a + 2 * b * a * (1 - a);
+            case 'darken': return Math.min(a, b);
+            case 'lighten': return Math.max(a, b);
+            case 'difference': return Math.abs(a - b);
+            case 'exclusion': return a + b - 2 * a * b;
+            case 'addition': return Math.min(1, a + b);
+            case 'subtract': return Math.max(0, a - b);
+            case 'dodge': return b >= 1 ? 1 : Math.min(1, 256 / 255 * a / (1 - b));
+            case 'burn': return b <= 0 ? 0 : Math.max(0, 1 - 256 / 255 * (1 - a) / b);
+            default: return b;
+        }
+    }
+    // A layer composited onto the opaque composite below: below + (blendChannel − below)·alpha per channel (Go
+    // compositeChannel). With normal it is the straight-alpha mix.
+    function compositeRGB(mode, below, layer, alpha) {
+        const a = Array.isArray(below) ? below : [], b = Array.isArray(layer) ? layer : [], k = num(alpha, 0);
+        return [0, 1, 2].map(i => { const base = num(a[i], 0); return base + (blendChannel(mode, base, num(b[i], 0)) - base) * k; });
+    }
+    // The effective mode of a transition's overlap from a clip in mode outgoing to one in mode incoming: the shared mode,
+    // else normal; an empty name is normal (Go overlapBlend).
+    function overlapBlend(outgoing, incoming) {
+        const a = outgoing || 'normal', b = incoming || 'normal';
+        return a === b ? a : 'normal';
+    }
+    // A mask placed in a box of box.width × box.height px (Go maskFrameOf): centre ((x + w/2)·W, (y + h/2)·H), radii
+    // w·W/2 and h·H/2, the rotation's cos and sin (clockwise on screen), ramp F = max(feather·H, 1). mask is the
+    // clipState mask {shape, invert, x, y, w, h, rotation, feather}.
+    function maskFrame(mask, box) {
+        const m = mask || {}, W = num(box && box.width, 0), H = num(box && box.height, 0);
+        const x = num(m.x, 0), y = num(m.y, 0), w = num(m.w, 0), h = num(m.h, 0), theta = num(m.rotation, 0) * Math.PI / 180;
+        return {
+            cx: (x + w / 2) * W, cy: (y + h / 2) * H, rx: w * W / 2, ry: h * H / 2, cos: Math.cos(theta), sin: Math.sin(theta),
+            ramp: Math.max(num(m.feather, 0) * H, 1), shape: m.shape === 'ellipse' ? 'ellipse' : 'rect', invert: m.invert === true
+        };
+    }
+    // Law L at the box point (x, y) in continuous box px, a pixel centre being i + 0.5 (Go maskAt): the signed
+    // distance s (exact for rectangles, first order for ellipses), m = clip(0.5 − s/F, 0, 1), and 1 − m when inverted.
+    // The ellipse's gradient length is floored at 1e-12 like the GL MASK, so the exact centre gives m = 1.
+    function maskAt(frame, x, y) {
+        const f = frame || {}, dx = num(x, 0) - f.cx, dy = num(y, 0) - f.cy;
+        const lx = dx * f.cos + dy * f.sin, ly = -dx * f.sin + dy * f.cos;
+        let s;
+        if (f.shape === 'ellipse') {
+            const u = lx / f.rx, v = ly / f.ry, d = Math.max(Math.hypot(u, v), 0.000001);
+            s = (d - 1) * d / Math.max(Math.sqrt(u * u / (f.rx * f.rx) + v * v / (f.ry * f.ry)), 1e-12);
+        } else {
+            const qx = Math.abs(lx) - f.rx, qy = Math.abs(ly) - f.ry;
+            s = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0);
+        }
+        const m = unit(0.5 - s / f.ramp);
+        return f.invert ? 1 - m : m;
+    }
+    // A #rrggbb key colour as [r, g, b] in 0..1 (Go keyColor / 255); anything else is black.
+    function keyColor(hex) {
+        const text = typeof hex === 'string' && /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#000000';
+        return [1, 3, 5].map(i => parseInt(text.slice(i, i + 2), 16) / 255);
+    }
+    // The key alpha of one colour (Go keyAlpha): d = sqrt(Σ(c − key)²/3);
+    // 1/smoothness < 10000 ? clip((d − similarity)/smoothness, 0, 1) : (d > similarity ? 1 : 0).
+    // values are the chroma_key entry's values at the frame (clipState gives every param).
+    function keyAlpha(values, rgb) {
+        const v = values || {}, key = keyColor(v.color), input = Array.isArray(rgb) ? rgb : [];
+        let sum = 0;
+        for (let c = 0; c < 3; c++) { const d = num(input[c], 0) - key[c]; sum += d * d; }
+        const d = Math.sqrt(sum / 3), similarity = num(v.similarity, 0), smoothness = num(v.smoothness, 0);
+        if (1 / smoothness < 10000) return unit((d - similarity) / smoothness);
+        return d > similarity ? 1 : 0;
+    }
+    // Spill suppression of one colour (Go despillRGB): the screen channel (blue when the key's blue exceeds its green,
+    // else green) loses spill·max(c − (other1 + other2)/2, 0). spill 0 changes nothing.
+    function despill(values, rgb) {
+        const v = values || {}, input = Array.isArray(rgb) ? rgb : [], out = [0, 1, 2].map(i => num(input[i], 0));
+        const spill = num(v.spill, 0), key = keyColor(v.color);
+        if (!(spill > 0)) return out;
+        const [r, g, b] = out;
+        if (key[2] > key[1]) out[2] = Math.max(b - spill * Math.max(b - (0.5 * r + 0.5 * g), 0), 0);
+        else out[1] = Math.max(g - spill * Math.max(g - (0.5 * r + 0.5 * b), 0), 0);
+        return out;
+    }
+
+    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill };
 })();
