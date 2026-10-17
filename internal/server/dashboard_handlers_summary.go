@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"time"
 
 	"aurago/internal/agent"
@@ -441,4 +442,19 @@ func (c *dashboardSummaryCollector) collectRecentActivity() []dashboardSummaryAc
 		})
 	}
 	return out
+}
+
+// handleDashboardSummary serves GET /api/dashboard/summary. It is registered
+// behind requireAdmin (spec §8.3); other methods get 405. There is no server
+// cache; the client caches.
+func handleDashboardSummary(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, buildDashboardSummary(s, time.Now()))
+	}
 }

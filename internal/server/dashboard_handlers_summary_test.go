@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/tools"
 )
 
@@ -254,5 +258,161 @@ func TestDashboardSummaryBudgetKPIState(t *testing.T) {
 		if got != want {
 			t.Fatalf("dashboardSummaryBudgetKPI(%+v) = %+v, want %+v", tc.status, got, want)
 		}
+	}
+}
+
+func assertJSONKeys(t *testing.T, label string, obj map[string]json.RawMessage, want ...string) {
+	t.Helper()
+	got := make([]string, 0, len(obj))
+	for key := range obj {
+		got = append(got, key)
+	}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("%s keys = %v, want %v", label, got, want)
+	}
+}
+
+func assertJSONObjectKeys(t *testing.T, label string, raw json.RawMessage, want ...string) {
+	t.Helper()
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		t.Fatalf("%s: decode %s: %v", label, raw, err)
+	}
+	assertJSONKeys(t, label, obj, want...)
+}
+
+func TestDashboardSummaryHandlerShape(t *testing.T) {
+	s := testOperationalIssueServer(t)
+	s.Cfg = &config.Config{}
+	fingerprint, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+		Fingerprint: "heartbeat|heartbeat|tool|save_note", Source: "heartbeat", Context: "heartbeat",
+		Title: "Tool failed", Detail: "api_key=secret-value", Severity: "warning", OccurredAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("RecordOperationalIssue: %v", err)
+	}
+	s.storeSystemMetricsSnapshot(tools.SystemMetrics{Available: map[string]bool{"cpu": true, "memory": true, "disk": true}}, time.Now())
+
+	rec := httptest.NewRecorder()
+	handleDashboardSummary(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/dashboard/summary", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+	body := rec.Body.String()
+	for _, forbidden := range []string{fingerprint, "secret-value", "api_key"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("summary leaks %q: %s", forbidden, body)
+		}
+	}
+
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &top); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	assertJSONKeys(t, "summary", top, "generated_at", "overall", "agent", "context", "last_activity_hours",
+		"maintenance", "health", "attention", "attention_more", "badges", "kpis", "recent_activity", "unavailable")
+	assertJSONObjectKeys(t, "agent", top["agent"], "model", "provider", "personality", "context_window", "busy", "debug", "maintenance", "mood")
+	assertJSONObjectKeys(t, "context", top["context"], "total_chars")
+	assertJSONObjectKeys(t, "maintenance", top["maintenance"], "enabled", "last_run", "last_status", "next_run")
+	assertJSONObjectKeys(t, "health", top["health"], "cpu_percent", "memory_percent", "disk_percent", "uptime_seconds", "sampled_at")
+	assertJSONObjectKeys(t, "badges", top["badges"], "problems", "automations")
+
+	var kpis map[string]json.RawMessage
+	if err := json.Unmarshal(top["kpis"], &kpis); err != nil {
+		t.Fatalf("decode kpis: %v", err)
+	}
+	assertJSONKeys(t, "kpis", kpis, "budget", "automations", "knowledge")
+	assertJSONObjectKeys(t, "kpis.budget", kpis["budget"], "enabled", "spent_usd", "daily_limit_usd", "percentage", "state")
+	assertJSONObjectKeys(t, "kpis.automations", kpis["automations"], "missions_running", "missions_queued", "missions_failed_24h", "cron_errors", "daemons_failed")
+	assertJSONObjectKeys(t, "kpis.knowledge", kpis["knowledge"], "kg_nodes", "kg_edges", "core_facts")
+
+	var attention []map[string]json.RawMessage
+	if err := json.Unmarshal(top["attention"], &attention); err != nil {
+		t.Fatalf("decode attention: %v", err)
+	}
+	if len(attention) != 1 {
+		t.Fatalf("attention = %s, want one operational issue", top["attention"])
+	}
+	assertJSONKeys(t, "attention[0]", attention[0], "id", "severity", "code", "params", "section", "count", "at")
+	if got, want := string(attention[0]["id"]), `"operational_issue:`+planner.OperationalIssuePublicID(fingerprint)+`"`; got != want {
+		t.Fatalf("attention[0].id = %s, want %s", got, want)
+	}
+	if got := string(top["badges"]); got != `{"problems":1,"automations":0}` {
+		t.Fatalf("badges = %s, want one problem", got)
+	}
+	if got := string(top["overall"]); got != `"warning"` {
+		t.Fatalf("overall = %s, want \"warning\"", got)
+	}
+	for _, key := range []string{"recent_activity", "unavailable"} {
+		if got := string(top[key]); got != "[]" {
+			t.Fatalf("%s = %s, want []", key, got)
+		}
+	}
+}
+
+func TestDashboardSummaryHandlerRejectsNonGET(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		rec := httptest.NewRecorder()
+		handleDashboardSummary(s).ServeHTTP(rec, httptest.NewRequest(method, "/api/dashboard/summary", nil))
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("%s: status = %d, want 405", method, rec.Code)
+		}
+		if allow := rec.Header().Get("Allow"); allow != http.MethodGet {
+			t.Fatalf("%s: Allow = %q, want GET", method, allow)
+		}
+	}
+}
+
+func TestDashboardSummaryHandlerListsFailingSourcesAsUnavailable(t *testing.T) {
+	plannerDB, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("planner.InitDB: %v", err)
+	}
+	if err := plannerDB.Close(); err != nil {
+		t.Fatalf("close planner DB: %v", err)
+	}
+	if _, err := planner.ListOperationalIssues(plannerDB, planner.OperationalIssueListFilter{Status: "active", Limit: 20}); err == nil {
+		t.Fatal("precondition: ListOperationalIssues on a closed DB must fail")
+	}
+	missionDB, err := tools.InitMissionHistoryDB(filepath.Join(t.TempDir(), "mission_history.db"))
+	if err != nil {
+		t.Fatalf("InitMissionHistoryDB: %v", err)
+	}
+	if err := missionDB.Close(); err != nil {
+		t.Fatalf("close mission history DB: %v", err)
+	}
+	if _, err := tools.QueryMissionHistory(missionDB, tools.MissionHistoryFilter{Result: "error", Limit: 1}); err == nil {
+		t.Fatal("precondition: QueryMissionHistory on a closed DB must fail")
+	}
+
+	s := &Server{Cfg: &config.Config{}, PlannerDB: plannerDB, MissionHistoryDB: missionDB}
+	s.storeSystemMetricsSnapshot(tools.SystemMetrics{Available: map[string]bool{"cpu": true, "memory": true, "disk": true}}, time.Now())
+	rec := httptest.NewRecorder()
+	handleDashboardSummary(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/dashboard/summary", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 even with failing sources; body = %s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Overall     string                 `json:"overall"`
+		Badges      dashboardSummaryBadges `json:"badges"`
+		Unavailable []string               `json:"unavailable"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if want := []string{"operational_issues", "missions"}; !reflect.DeepEqual(got.Unavailable, want) {
+		t.Fatalf("unavailable = %v, want %v", got.Unavailable, want)
+	}
+	if got.Overall != "ok" || got.Badges != (dashboardSummaryBadges{}) {
+		t.Fatalf("overall = %q, badges = %+v; want ok and zero badges", got.Overall, got.Badges)
+	}
+	if strings.Contains(rec.Body.String(), "closed") {
+		t.Fatalf("summary leaks a raw error string: %s", rec.Body.String())
 	}
 }
