@@ -24,7 +24,7 @@ func TestRenderBundledSticker1080p(t *testing.T) {
 		t.Fatal(err)
 	}
 	asset.ID = "sticker"
-	project := Project{Version: 2, Name: "Transparent sticker", Width: 1920, Height: 1080, FPS: 30, Assets: []Asset{asset},
+	project := Project{Version: CurrentVersion, Name: "Transparent sticker", Width: 1920, Height: 1080, FPS: 30, Assets: []Asset{asset},
 		Tracks: []Track{{ID: "overlay", Name: "Sticker", Kind: TrackOverlay, Clips: []Clip{{
 			ID: "clip", AssetID: asset.ID, Start: 0, Duration: 120, X: .4, Y: .35, Width: .135, Height: .24, Opacity: 1, Volume: 1, Fit: FitContain,
 		}}}}}
