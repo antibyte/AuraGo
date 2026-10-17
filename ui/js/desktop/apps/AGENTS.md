@@ -1476,7 +1476,8 @@ buttons and menu popovers remain excluded from those gestures.
   applied the server project (it returns `true`; a timeline drag defers it to `onDragEnd` via `pendingRefresh`) and the
   new asset is in `s.project`; it re-finds its clips by id and never assumes they did not move. Reverse requests the
   union of the source ranges of the clip's same-asset group members (`E.reverseRange`, limit 300 s; also
-  `clipCapabilities.reversible`); `reverseClips` keeps the reversed clip (the anchor) in place and mirrors the other
+  `clipCapabilities.reversible`; `P.reverseFits` also checks `E.reverseRamped`, so Reverse is disabled for ramped clips
+  and their same-asset partners). `reverseClips` keeps the reversed clip (the anchor) in place and mirrors the other
   same-asset members around it (`start' = anchor.start + anchor.end − end`, offset mirrored within the union), so linked
   picture and sound stay in sync; a moved member that would overlap a clip, touch a transition or leave the project
   refuses with reason `room` (`reverseNoRoom`), before the job and when applying; freeze remembers the asset and
@@ -1689,7 +1690,9 @@ buttons and menu popovers remain excluded from those gestures.
   like static stickers (both separate image overlays). Titles and stickers look
   for a free unlocked overlay track (`findOverlaySlot`) before their artwork is
   uploaded, adding an overlay track when allowed. Re-applying title artwork keeps
-  the box center and the user's scale. Preserve editable text/style metadata and
+  the box center and the user's scale. The reference box is the one the clip shows at the playhead (`clipState`,
+  clamped to the clip, so keyframed values count); the new box is written through `VideoStudioKeyframeEdit.setValues`,
+  so animated values get a key. Preserve editable text/style metadata and
   use only same-origin staged media URLs.
 - Bound preview media to the active/near clips during playback and release clips
   that leave that window. Preserve both players for an actual transition overlap;

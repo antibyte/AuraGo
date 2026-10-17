@@ -59,7 +59,10 @@ projects; it does not affect exports. The timeline supports up to sixty
 minutes, eight video, eight audio and eight overlay tracks, and 2000 clips.
 Projects saved by earlier versions open unchanged at 30 fps. Import
 video, audio, and still images from the Desktop or upload them from the browser.
-Imports are copied; editing never modifies the original file.
+Imports are copied; editing never modifies the original file. Videos wider or taller than 16:1 are refused
+on import. Export, range render and frame export refuse a timeline that uses such a video, with a message.
+Still images are not limited. A very wide or tall still on a cover (fill) clip is trimmed around its centre to at most
+16 times the clip's shape before scaling; the clip shows the same picture and the export no longer runs out of memory.
 
 The window has a toolbar (project menu, save state, undo/redo, format, tasks,
 keyboard shortcuts, export), a library on the left with tabs for media, text,
@@ -220,7 +223,10 @@ keyframe controls work only while the playhead is inside the selected clip.
 Trimming, splitting, slipping, sliding and speed changes keep every keyframe on the same picture content. A split copies
 the keyframes to both parts, so the motion continues across the cut. Keyframes outside the visible part of a clip are
 kept. Reverse mirrors them, Freeze frame takes the values at the frozen frame, and a frame-rate change rescales them.
-Paste attributes has a Keyframes group that copies them with the same timing relative to the clip start.
+Paste attributes has a Keyframes group that copies them with the same timing relative to the clip start. Its Picture
+group writes a key at the playhead for each animated value and changes the field only for static values; an animated
+value is skipped while the playhead is outside the clip. With the Keyframes group in the same paste, the target's keys
+are replaced instead.
 
 **Easing.** Between two keyframes the easing of the first one applies:
 - Linear.
@@ -264,7 +270,8 @@ A ramp holds up to 16 points. An edit the media cannot hold is not applied.
 
 While a clip has a ramp, its Speed field is empty and shows **Ramp**. Entering a number replaces the ramp with that
 constant speed; undo brings the ramp back. Slip and Reverse are not available on a ramped clip: reverse it first, then
-add the ramp. Freeze frame and Export frame as PNG take the frame the ramp shows at the playhead.
+add the ramp. Reverse is also unavailable when another clip of the same media that is linked to this one has a ramp;
+its menu item and button are disabled. Freeze frame and Export frame as PNG take the frame the ramp shows at the playhead.
 
 **Sound of ramped clips.** A ramped clip's own sound is muted in the preview and in the export. The inspector says so in
 the Animation and Sound sections, and the clip shows a ramp badge with a crossed-out speaker. Use **Detach audio** to

@@ -17,7 +17,12 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 - Bound projects to 8 video, 8 audio and 8 overlay tracks, 2000 clips and 1024 assets. One FFmpeg process uses
   at most `MaxSegmentInputs` (32) inputs. Asset durations are server-owned microseconds (`duration_us`);
   `duration_frames` is derived for the project rate (`AssetAtRate`). Source images/video frames are limited
-  to 16,384 pixels per side and 64 megapixels.
+  to 16,384 pixels per side and 64 megapixels. Videos are also limited to a 16:1 aspect (`MaxVideoAspect`,
+  `source_aspect.go`): `Probe` fails with `ErrSourceAspect`, and exports, range renders and frame exports refuse a
+  video imported before the rule that an enabled visual clip in the range uses (`checkSourceAspects` in `renderOnce`
+  and `RenderFrame`). The job failure code is `source_aspect_extreme` (UI key `videoStudio.sourceAspectExtreme`).
+  Images are exempt (wide title PNGs); a static cover clip whose source is more than 16× off the box aspect is
+  pre-cropped before scaling, so its intermediates stay bounded.
 - Render through `RenderWithOptions` (`Render` is the whole-timeline wrapper): `PlanVideoSegments` cuts ~10 s
   segments whose boundaries avoid transitions, `PlanAudioSegments` avoids fades, and a segment needing more than
   `MaxSegmentInputs` clips is split. Every clip gets its own `-ss`-seeked input; a clip past the decodable video
@@ -143,7 +148,8 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
 - Capabilities (`capabilities.go`): `ProbeCapabilities` runs `-filters` and `-h filter=xfade` once per binary
   (memoized by resolved path, size and modification time) and lists `filter:<name>` / `xfade:<name>` gaps for the
   phase 2 filters and the registry transitions. `CheckRuntime` fills `RuntimeStatus.Missing`; `renderOnce` fails at
-  once with `*CapabilityError` (unwraps to `ErrFeatureUnavailable`, job error `feature_unavailable`). Readiness
+  once with `*CapabilityError` (unwraps to `ErrFeatureUnavailable`, job error `feature_unavailable`). The server's
+  `videoStudioJobFailure` maps `ErrSourceAspect` to `source_aspect_extreme` next to that mapping. Readiness
   (`hasRequiredRenderFilters`) is unchanged. The `-filters` flag column has three characters on FFmpeg 5.1 (`TSC`) and
   two on 8.x (`TS`); the parser accepts both. The captured `-h filter=xfade` outputs are
   `testdata/xfade-help-5.1.txt` and `testdata/xfade-help-8.txt`.
@@ -187,7 +193,8 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     opacity).
   - 1..`MaxKeyframesPerParam` (64) per path and at most `MaxKeyframesPerClip` (512) per clip.
   - Strictly increasing integer `f` with |f| ≤ `MaxClipSpeed`·maxFrames.
-  - Every value in its registry range. There is no cross-parameter check (`clipBox` clamps).
+  - Every value in its registry range; width and height keys are at least `MinBoxSize` (1 %), mirrored by
+    `VideoStudioEffects.MIN_BOX_SIZE` (read by keyframe-edit's `MIN_SIZE`). No cross-parameter check (`clipBox` clamps).
 - `validateRamp`:
   - Video-track clips with a video asset only.
   - 2..`MaxRampPoints` (16) points with strictly increasing `f` and |f| ≤ maxFrames.
@@ -207,12 +214,19 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     only guards overlay's configuration-time evaluation, where t is NaN);
   - `pad@vs_pad_L_C` (`eval=frame`) gives every frame one constant canvas, because format, crop and rotate keep their
     configured input size. The canvas size, the rotation flag and the cover bound are computed over all frames of the
-    whole clip, not the segment window (window-only sizes broke segmentation parity). Crop commands and the first crop
-    size still use the window. `rotate@vs_rotate_L_C` follows only when a rotation in the clip is non-zero: the canvas
+    whole clip, not the segment window (window-only sizes broke segmentation parity). `wholeExtent` is memoized once per
+    clip (keyed by a digest of everything that feeds it), so every stage and window shares it. Crop commands and the
+    first crop size still use the window. `rotate@vs_rotate_L_C` follows only when a rotation in the clip is non-zero: the canvas
     is 2 px larger, and the rotate canvas is the square `evenCeil(hypot)`;
   - cover clamps the source aspect with a static `crop`, scales, pads to the constant `coverBound` and crops the box
     with `crop@vs_crop_L_C` through `sendcmd` (a commanded crop needs a constant-size input). The commanded cover crop
-    is verified on FFmpeg 5.1.9 and 8.1.1.
+    is verified on FFmpeg 5.1.9 and 8.1.1. `coverBound` holds its clamp range `low`/`high` to [1/16, 16]
+    (`maxCoverAspect`), so a sliver box cannot make the bound huge.
+    A static cover clip gets `staticCoverClamp` (`source_aspect.go`), a crop in front of its cover scale:
+    `crop=w='min(iw,max(ih*H,2))':h='min(ih,max(iw/L,2))'` with L = box aspect/16 and H = box aspect·16. It is emitted
+    only when the source aspect or its inverse (autorotation can swap stored sizes) is outside L..H, never for an
+    unknown aspect. `aspectClampCrop` writes both this crop and the keyed cover crop (the keyed one has no minimum);
+    `minClampSide` (2 px) keeps tiny sources from being cropped to nothing. Commit 4fb40193e.
 
   The builders are in `keyframe_expr.go`: `ffExpr` (with a Go evaluator for tests), `windowSourceExpr`, `curveExpr`
   (balanced `if()` trees with `st`/`ld`) and `boxExprs` (Go's even rounding). Numbers are formatted with
