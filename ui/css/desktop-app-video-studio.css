@@ -415,6 +415,17 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fine-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--vs-muted); font-weight: 600; }
 .vs-fine-toggle .vs-icon { transition: transform .15s; transform: rotate(-90deg); }
 .vs-fine-toggle[aria-expanded="true"] .vs-icon { transform: none; }
+/* Keyframe controls (2b): stopwatch, diamond and previous/next under each keyframable value (a row of their own, so the
+   narrow inspector keeps its slider width). The focus ring is the app's :focus-visible outline. */
+.vs-kf-line { display: grid; margin-top: 8px; }
+.vs-kf-line > .vs-slider { margin-top: 0; }
+.vs-kf-line > .vs-kf-tools { justify-self: end; margin-top: 2px; }
+.vs-kf-field { display: grid; gap: 3px; min-width: 0; align-content: start; }
+.vs-kf-tools { display: inline-flex; align-items: center; gap: 1px; }
+.vs-app .vs-kf-button { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--vs-muted); }
+.vs-app .vs-kf-button:hover:not(:disabled) { background: var(--vs-control-hover); color: var(--vs-text); }
+.vs-app .vs-kf-button[aria-pressed="true"] { color: var(--vs-accent); }
+.vs-app .vs-kf-stopwatch[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-transition-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
 .vs-transition-grid button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 2px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); font-size: 10.5px; color: var(--vs-muted); }
 .vs-transition-grid button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

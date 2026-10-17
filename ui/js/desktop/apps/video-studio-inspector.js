@@ -2,6 +2,7 @@
     'use strict';
 
     const MARGIN = 0.04;
+    const BOX = ['x', 'y', 'width', 'height'];
     const FONTS = ['Arial', 'Georgia', 'Trebuchet MS', 'Impact', 'Verdana', 'Courier New'];
     const round6 = value => Math.round(value * 1e6) / 1e6;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -65,8 +66,22 @@
         return overlay >= 0 ? overlay : 0;
     }
 
-    function slider(v, field, label, min, max, step, value, output) {
-        return `<label class="vs-slider"><span>${v.esc(label)}</span><input type="range" data-field="${field}" min="${min}" max="${max}" step="${step}" value="${value}"><output>${v.esc(output)}</output></label>`;
+    function slider(v, field, label, min, max, step, value, output, extra) {
+        return `<label class="vs-slider"><span>${v.esc(label)}</span><input type="range" data-field="${field}" min="${min}" max="${max}" step="${step}" value="${value}"${extra || ''}><output>${v.esc(output)}</output></label>`;
+    }
+    // Stopwatch, diamond and previous/next keyframe buttons of one keyframable value (spec §8.2). v.keyframes is
+    // P.keyframeView(s) (video-studio-keyframes.js), which also keeps these buttons in sync while the playhead moves; they
+    // are disabled while the playhead is outside the clip. Without v.keyframes nothing is drawn.
+    function keyframeTools(v, path, name) {
+        const kf = v.keyframes, c = kf && kf.controls[path];
+        if (!c) return '';
+        const text = (key, fallback) => v.esc(v.tr(key, fallback).split('{{name}}').join(name));
+        const off = kf.locked || !kf.inside;
+        const button = (action, cls, iconName, label, extra, disabled) => `<button type="button" class="vs-kf-button${cls}" data-kf-path="${v.esc(path)}" data-kf-action="${action}" aria-label="${label}" title="${label}"${extra}${disabled ? ' disabled' : ''}>${v.icon(iconName, 14)}</button>`;
+        const stopwatch = c.animated ? text('keyframeStopwatchOff', 'Stop animating {{name}} (keeps the value at the playhead)') : text('keyframeStopwatch', 'Animate {{name}}');
+        const key = c.onKey ? text('keyframeRemove', 'Remove the keyframe of {{name}} at the playhead') : text('keyframeAdd', 'Add a keyframe for {{name}} at the playhead');
+        const outside = kf.inside ? '' : ` title="${v.esc(v.tr('keyframeOutside', 'Move the playhead into the clip to set keyframes.'))}"`;
+        return `<span class="vs-kf-tools" role="group" aria-label="${v.esc(name)}"${outside}>${button('stopwatch', ' vs-kf-stopwatch', 'stopwatch', stopwatch, ` aria-pressed="${c.animated}"`, off)}${button('key', '', c.onKey ? 'diamondFilled' : 'diamond', key, ` aria-pressed="${c.onKey}" data-kf-on="${c.onKey}"`, off)}${button('prev', '', 'chevronLeft', text('keyframePrev', 'Previous keyframe of {{name}}'), '', off || c.prev == null)}${button('next', '', 'chevronRight', text('keyframeNext', 'Next keyframe of {{name}}'), '', off || c.next == null)}</span>`;
     }
 
     // Marker colour dots use the timeline palette only; anything else is not drawn.
@@ -104,9 +119,18 @@
     function pictureSection(v, clip) {
         const anchors = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
         const isText = !!clip.text;
-        const size = Math.round(Number(clip.width || 1) * 100);
-        const fine = ['x', 'y', 'width', 'height'].map(field => `<label class="vs-field"><span>${v.esc(v.tr(field === 'x' || field === 'y' ? 'box_' + field : field, field.toUpperCase()))}</span><input type="number" data-field="${field}" min="${field === 'width' || field === 'height' ? 1 : 0}" max="100" step="0.5" value="${round6(Number(clip[field] || 0) * 100)}"></label>`).join('');
-        return `<section class="vs-insp-section"><h3>${v.icon('image', 14)}${v.esc(v.tr('picture', 'Picture'))}</h3><div class="vs-position"><div class="vs-position-grid" role="group" aria-label="${v.esc(v.tr('position', 'Position'))}">${anchors.map(anchor => `<button type="button" data-position="${anchor}" title="${v.esc(v.tr('pos_' + anchor, anchor))}" aria-label="${v.esc(v.tr('pos_' + anchor, anchor))}"><i></i></button>`).join('')}</div>${isText ? '' : `<button type="button" class="vs-chip-button" data-action="fill-frame">${v.icon('fullscreen', 14)}${v.esc(v.tr('fillFrame', 'Full frame'))}</button>`}</div>${isText ? '' : slider(v, 'size', v.tr('size', 'Size'), 5, 100, 1, size, size + ' %')}${slider(v, 'rotation', v.tr('rotation', 'Rotation'), -180, 180, 1, Math.round(Number(clip.rotation || 0)), Math.round(Number(clip.rotation || 0)) + '°')}${slider(v, 'opacity', v.tr('opacity', 'Opacity'), 0, 100, 1, Math.round(Number(clip.opacity == null ? 1 : clip.opacity) * 100), Math.round(Number(clip.opacity == null ? 1 : clip.opacity) * 100) + ' %')}${isText ? '' : `<div class="vs-segmented" role="group" aria-label="${v.esc(v.tr('fit', 'Fit'))}"><button type="button" data-fit="contain" aria-pressed="${clip.fit !== 'cover'}">${v.esc(v.tr('contain', 'Fit inside'))}</button><button type="button" data-fit="cover" aria-pressed="${clip.fit === 'cover'}">${v.esc(v.tr('cover', 'Fill'))}</button></div>`}<div class="vs-fine"><button type="button" class="vs-link-button vs-fine-toggle" data-action="toggle-fine" aria-expanded="${!!v.fineOpen}">${v.icon('chevronDown', 14)}<span>${v.esc(v.tr('fineTune', 'Fine tune (percent of the frame)'))}</span></button><div class="vs-field-grid" ${v.fineOpen ? '' : 'hidden'}>${fine}</div></div></section>`;
+        // Values at the playhead: v.keyframes (P.keyframeView) carries the clip's state with keyframes evaluated; without it
+        // the clip's own fields show.
+        const kf = v.keyframes, at = kf ? kf.state : clip;
+        const num = (path, fallback) => { const value = Number(at[path]); return at[path] == null || !Number.isFinite(value) ? fallback : value; };
+        // An animated value cannot change while the playhead is outside the clip: no keyframe can be set there.
+        const frozen = paths => !!kf && !kf.inside && paths.some(path => kf.controls[path] && kf.controls[path].animated);
+        const lock = paths => (frozen(paths) ? ` disabled title="${v.esc(v.tr('keyframeOutside', 'Move the playhead into the clip to set keyframes.'))}"` : '');
+        const label = field => v.tr(field === 'x' || field === 'y' ? 'box_' + field : field, field.toUpperCase());
+        const size = Math.round(num('width', 1) * 100), rotation = Math.round(num('rotation', 0)), opacity = Math.round(num('opacity', 1) * 100);
+        const fine = BOX.map(field => `<div class="vs-kf-field"><label class="vs-field"><span>${v.esc(label(field))}</span><input type="number" data-field="${field}" min="${field === 'width' || field === 'height' ? 1 : 0}" max="100" step="0.5" value="${round6(num(field, field === 'width' || field === 'height' ? 1 : 0) * 100)}"${lock([field])}></label>${keyframeTools(v, field, label(field))}</div>`).join('');
+        const boxLock = lock(BOX);
+        return `<section class="vs-insp-section"><h3>${v.icon('image', 14)}${v.esc(v.tr('picture', 'Picture'))}</h3><div class="vs-position"><div class="vs-position-grid" role="group" aria-label="${v.esc(v.tr('position', 'Position'))}">${anchors.map(anchor => `<button type="button" data-position="${anchor}" title="${v.esc(v.tr('pos_' + anchor, anchor))}" aria-label="${v.esc(v.tr('pos_' + anchor, anchor))}"${frozen(BOX) ? ' disabled' : ''}><i></i></button>`).join('')}</div>${isText ? '' : `<button type="button" class="vs-chip-button" data-action="fill-frame"${boxLock}>${v.icon('fullscreen', 14)}${v.esc(v.tr('fillFrame', 'Full frame'))}</button>`}</div>${isText ? '' : slider(v, 'size', v.tr('size', 'Size'), 5, 100, 1, size, size + ' %', boxLock)}<div class="vs-kf-line">${slider(v, 'rotation', v.tr('rotation', 'Rotation'), -180, 180, 1, rotation, rotation + '°', lock(['rotation']))}${keyframeTools(v, 'rotation', v.tr('rotation', 'Rotation'))}</div><div class="vs-kf-line">${slider(v, 'opacity', v.tr('opacity', 'Opacity'), 0, 100, 1, opacity, opacity + ' %', lock(['opacity']))}${keyframeTools(v, 'opacity', v.tr('opacity', 'Opacity'))}</div>${isText ? '' : `<div class="vs-segmented" role="group" aria-label="${v.esc(v.tr('fit', 'Fit'))}"><button type="button" data-fit="contain" aria-pressed="${clip.fit !== 'cover'}">${v.esc(v.tr('contain', 'Fit inside'))}</button><button type="button" data-fit="cover" aria-pressed="${clip.fit === 'cover'}">${v.esc(v.tr('cover', 'Fill'))}</button></div>`}<div class="vs-fine"><button type="button" class="vs-link-button vs-fine-toggle" data-action="toggle-fine" aria-expanded="${!!v.fineOpen}">${v.icon('chevronDown', 14)}<span>${v.esc(v.tr('fineTune', 'Fine tune (percent of the frame)'))}</span></button><div class="vs-field-grid" ${v.fineOpen ? '' : 'hidden'}>${fine}</div></div></section>`;
     }
 
     function soundSection(v, clip) {

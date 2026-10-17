@@ -129,6 +129,7 @@
             [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'],
             [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer'], [[key('Shift'), key('Wheel')], 'shortcutHScroll', 'Scroll the timeline sideways'],
             [[key('Shift'), 'F10'], 'shortcutMenu', 'Clip menu'],
+            [[key('Alt'), 'K'], 'shortcutKeyframe', 'Add or remove keyframes of the animated values at the playhead'], [[key('Alt'), '↑', '↓'], 'shortcutKeyframeNav', 'Previous / next keyframe'],
             [[key('Ctrl'), 'L'], 'shortcutLink', 'Link / unlink the selected clips'], [[key('Shift'), 'E'], 'shortcutDisable', 'Disable / enable the selected clips'],
             [[',', '.'], 'shortcutSourceEdit', 'Source monitor: insert (,) / overwrite (.)']
         ];
@@ -220,8 +221,9 @@
             if (s.q('[data-time]')) s.q('[data-time]').textContent = current;
             T().setPlayhead(s.q('[data-timeline]'), s, s.preview && s.preview.isPlaying());
             updateTransform(s);
+            if (P.syncKeyframeControls && s.preview && !s.preview.isPlaying()) P.syncKeyframeControls(s);
         }, playing => {
-            if (!playing && s.shuttle) s.shuttle.reset();
+            if (!playing && s.shuttle) s.shuttle.reset(); if (!playing && P.syncKeyframeControls) P.syncKeyframeControls(s);
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
         }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => P.syncPreviewNotice(s) });
@@ -532,10 +534,11 @@
         if (selected && s.inspectorClipId === selected.clip.id && host.contains(active) && (active.matches('[data-text-field],[data-text-style]') || active._vsBefore)) { P.updateTextStatus(s); return; }
         s.inspectorClipId = selected ? selected.clip.id : '';
         const focus = focusKey(s);
+        const keyframes = P.keyframeView ? P.keyframeView(s) : null;
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
-            locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s)
+            locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: s.fineOpen == null ? !!(keyframes && keyframes.boxAnimated) : !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -691,11 +694,12 @@
         const cancel = event.target.closest('[data-cancel-job]'); if (cancel) { cancelJob(s, cancel.dataset.cancelJob); return; }
         const stopWatch = event.target.closest('[data-stop-watch]'); if (stopWatch) { s.jobLocalStops.add(stopWatch.dataset.stopWatch); renderJobs(s); return; }
         if (P.handleRangeClick && P.handleRangeClick(s, event)) return;
+        if (P.handleKeyframeClick && P.handleKeyframeClick(s, event)) return;
         if (event.target.closest('[data-timeline]')) return;
         const sticker = event.target.closest('[data-sticker]');
         if (sticker) { if (s.readonly) showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); else addSticker(s, sticker.dataset.sticker); return; }
         const position = event.target.closest('[data-position]');
-        if (position) { mutateSelected(s, 'position', clip => { Object.assign(clip, I().presetBox(position.dataset.position, clip)); }); return; }
+        if (position) { const found = selectedClip(s); if (found) P.applyEdit(s, 'position', project => window.VideoStudioKeyframeEdit.setValues(project, found.clip.id, I().presetBox(position.dataset.position, window.VideoStudioEffects.clipState(found.clip, s.frame, s.project)), s.frame)); return; }
         const fit = event.target.closest('[data-fit]');
         if (fit) { mutateSelected(s, 'fit', clip => { clip.fit = fit.dataset.fit === 'cover' ? 'cover' : 'contain'; }); return; }
         const transition = event.target.closest('[data-transition]');
@@ -738,15 +742,15 @@
         else if (action === 'add-title') addTitle(s, button.dataset.preset || 'title');
         else if (action === 'apply-text') { if (s.selectedClipId) applyTextArtwork(s, s.selectedClipId); }
         else if (action === 'open-ai') openAI(s);
-        else if (action === 'toggle-fine') { s.fineOpen = !s.fineOpen; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
-        else if (action === 'fill-frame') mutateSelected(s, 'fill', clip => { Object.assign(clip, { x: 0, y: 0, width: 1, height: 1 }); });
+        else if (action === 'toggle-fine') { s.fineOpen = button.getAttribute('aria-expanded') !== 'true'; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
+        else if (action === 'fill-frame') { if (s.selectedClipId) P.applyEdit(s, 'fill', project => window.VideoStudioKeyframeEdit.setValues(project, s.selectedClipId, { x: 0, y: 0, width: 1, height: 1 }, s.frame)); }
         else if (action === 'clip-split' || action === 'clip-duplicate' || action === 'clip-delete') { if (s.selectedClipId) timelineAction(s, action.slice(5), s.selectedClipId); }
         else if (action.startsWith('clip-')) P.clipCommand(s, action.slice(5), button.dataset.value);
     }
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
         if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
-        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event) && !P.isSourceShortcut(s, event)) return;
+        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event) && !P.isSourceShortcut(s, event) && !(P.isKeyframeShortcut && P.isKeyframeShortcut(s, event))) return;
         if (event.key === 'Escape') {
             // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
             const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
@@ -774,6 +778,7 @@
         const sliderKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
         const sourceSlider = s.stageMode === 'source' && target.matches('[data-source-scrub]') && !sliderKeys.includes(event.key);
         if (!sourceSlider && target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        if (P.handleKeyframeKeys && P.handleKeyframeKeys(s, event)) return;
         // Escape leaves the source monitor. It sits after the text-field guard (Escape in the library search or a rename
         // stays there) and before the button guard (Escape on a focused source button still returns to the timeline).
         if (event.key === 'Escape' && s.stageMode === 'source' && !s.menu) { P.setStageMode(s, 'timeline'); event.preventDefault(); return; }

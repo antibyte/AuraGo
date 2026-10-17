@@ -296,3 +296,126 @@ assert.equal(K.setValues(p, 'c', {x: 0.2}, 10), true, 'an existing key still tak
 assert.equal(K.pasteKeys(p, 'c', {keys: [{path: 'x', dt: 0, v: 0.3, e: 'linear'}]}, 70), 'limit');
 `)
 }
+
+// videoStudioKeyframePartsPrelude loads the app parts the keyframe UI talks to (inspector, core, editing, source
+// monitor, transport) and video-studio-keyframes.js on top of the keyframe prelude; none of them touches the DOM at load.
+const videoStudioKeyframePartsPrelude = `
+require('./js/desktop/apps/video-studio-inspector.js');
+require('./js/desktop/apps/video-studio-core.js');
+require('./js/desktop/apps/video-studio-editing.js');
+require('./js/desktop/apps/video-studio-source.js');
+require('./js/desktop/apps/video-studio-transport.js');
+require('./js/desktop/apps/video-studio-keyframes.js');
+const P = window.VideoStudioParts, KF = window.VideoStudioKeyframes, IN = window.VideoStudioInspector;
+`
+
+// Keyframe shortcuts (index §4.18): Alt+K, Alt+ArrowUp and Alt+ArrowDown are matched by event.code (macOS Option changes
+// event.key) and collide with no edit, navigation or source shortcut; handleKeys tries them before the edit keys and the
+// shortcut overview lists them.
+func TestVideoStudioKeyframeShortcuts(t *testing.T) {
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(app)
+	keys, edit := strings.Index(text, "P.handleKeyframeKeys(s, event)"), strings.Index(text, "P.handleEditKeys(s, event, focusedClip)")
+	if keys < 0 || edit < keys {
+		t.Fatal("handleKeys must try P.handleKeyframeKeys before the edit shortcuts")
+	}
+	if !strings.Contains(text, "P.isKeyframeShortcut(s, event)") {
+		t.Fatal("the modifier guard in handleKeys must let the keyframe shortcuts through")
+	}
+	for _, key := range []string{"'shortcutKeyframe'", "'shortcutKeyframeNav'"} {
+		if !strings.Contains(text, key) {
+			t.Errorf("the shortcut overview does not list %s", key)
+		}
+	}
+	runVideoStudioKeyframesScript(t, videoStudioKeyframePartsPrelude+`
+const timeline = {stageMode: 'timeline', sourceAssetId: 'v', q: () => null};
+const source = Object.assign({}, timeline, {stageMode: 'source'});
+const ev = (code, key, mods) => Object.assign({code, key, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false}, mods || {});
+// Matched by code whatever key says; other modifier sets do not count.
+for (const [code, keys] of [['KeyK', ['k', 'K', '˚']], ['ArrowUp', ['ArrowUp']], ['ArrowDown', ['ArrowDown']]]) {
+  for (const key of keys) assert(P.isKeyframeShortcut(timeline, ev(code, key, {altKey: true})), code + ' with key ' + key);
+  for (const mods of [{}, {altKey: true, shiftKey: true}, {altKey: true, ctrlKey: true}, {altKey: true, metaKey: true}, {ctrlKey: true}]) assert(!P.isKeyframeShortcut(timeline, ev(code, keys[0], mods)), code + ' ' + JSON.stringify(mods));
+  assert(!P.isKeyframeShortcut(source, ev(code, keys[0], {altKey: true})), 'the source monitor keeps its keys');
+}
+// Every key with every Alt/Ctrl/Shift combination: the keyframe shortcuts are exactly three and collide with nothing.
+const codes = [];
+for (let c = 65; c <= 90; c++) codes.push(['Key' + String.fromCharCode(c), String.fromCharCode(c + 32)]);
+for (let d = 0; d <= 9; d++) codes.push(['Digit' + d, String(d)]);
+codes.push(['ArrowUp', 'ArrowUp'], ['ArrowDown', 'ArrowDown'], ['ArrowLeft', 'ArrowLeft'], ['ArrowRight', 'ArrowRight'], ['Delete', 'Delete'], ['Backspace', 'Backspace'], ['Comma', ','], ['Period', '.'], ['Space', ' '], ['Home', 'Home'], ['End', 'End']);
+let found = 0;
+for (const [code, key] of codes) for (const altKey of [false, true]) for (const ctrlKey of [false, true]) for (const shiftKey of [false, true]) {
+  const event = ev(code, key, {altKey, ctrlKey, shiftKey});
+  if (!P.isKeyframeShortcut(timeline, event)) continue;
+  found++;
+  const name = code + ' ' + JSON.stringify({altKey, ctrlKey, shiftKey});
+  assert(!P.isEditShortcut(timeline, event), 'edit collision: ' + name);
+  assert(!P.isNavShortcut(timeline, event), 'navigation collision: ' + name);
+  assert(!P.isSourceShortcut(timeline, event) && !P.isSourceShortcut(source, event), 'source collision: ' + name);
+}
+assert.equal(found, 3, 'Alt+K, Alt+ArrowUp and Alt+ArrowDown');
+`)
+}
+
+// Keyframe controls: controlState per value, P.keyframeView for the selected clip, and the inspector's Picture section
+// built from it (values at the playhead; stopwatch, diamond and ◀▶ per value; frozen while the playhead is outside).
+func TestVideoStudioKeyframeControls(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioKeyframePartsPrelude+`
+let p = project([track('v1','video',[clip('c',V,0,100,{offset:100, keyframes:{x:[kf(100, 0), kf(130, 0.6), kf(260, 1)]}})])]);
+valid(p);
+const c = at(p, 'c');
+assert.deepEqual(KF.controlState(p, c, 'x', 0), {animated: true, onKey: true, prev: null, next: 30, value: 0});
+const mid = KF.controlState(p, c, 'x', 15);
+assert.deepEqual([mid.animated, mid.onKey, mid.prev, mid.next], [true, false, 0, 30]);
+near(mid.value, 0.3, 'the value shown at frame 15');
+assert.equal(KF.controlState(p, c, 'x', 40).next, null, 'the key at timeline 160 lies past the clip end');
+assert.deepEqual(KF.controlState(p, c, 'opacity', 15), {animated: false, onKey: false, prev: null, next: null, value: 1});
+c.speed = 2; c.duration = 60;
+valid(p);
+assert.deepEqual(KF.controlState(p, c, 'x', 15), {animated: true, onKey: true, prev: 0, next: null, value: 0.6}, 'speed 2: source 130 is frame 15');
+c.speed = 1; c.duration = 100;
+
+// P.keyframeView: the selected visual clip at the playhead.
+const s = {project: p, selectedClipId: 'c', frame: 15, readonly: false};
+let view = P.keyframeView(s);
+assert.deepEqual(Object.keys(view.controls).sort(), ['height', 'opacity', 'rotation', 'width', 'x', 'y']);
+assert.equal(view.inside, true);
+assert.equal(view.locked, false);
+assert.equal(view.boxAnimated, true);
+near(view.state.x, 0.3, 'state at the playhead');
+assert.equal(P.keyframeView({project: p, selectedClipId: '', frame: 0}), null);
+
+// The inspector draws the controls from the view.
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';');
+const render = keyframes => {
+  const host = {innerHTML: ''}, track0 = p.tracks[0];
+  IN.render(host, {selected: {clip: track0.clips[0], track: track0}, asset: V, project: p, locale: 'en', caps: {}, transitionInfo: {next: null},
+    esc, icon: name => '<i data-icon="' + name + '"></i>', tr: key => '[' + key + ':{{name}}]', keyframes, fineOpen: true});
+  return host.innerHTML;
+};
+let html = render(view);
+const tag = (path, action) => (html.match(new RegExp('<button[^>]*data-kf-path="' + path + '" data-kf-action="' + action + '"[^>]*>')) || [''])[0];
+for (const path of ['x', 'y', 'width', 'height', 'rotation', 'opacity']) for (const action of ['stopwatch', 'key', 'prev', 'next']) assert(tag(path, action), 'missing ' + path + ' ' + action);
+assert(tag('x', 'stopwatch').includes('aria-pressed="true"'), 'x is animated');
+assert(tag('x', 'key').includes('aria-pressed="false"'), 'no x key at frame 15');
+assert(!/ disabled/.test(tag('x', 'prev')) && !/ disabled/.test(tag('x', 'next')));
+assert(tag('opacity', 'stopwatch').includes('aria-pressed="false"') && / disabled/.test(tag('opacity', 'prev')), 'a static value has no neighbours');
+assert(html.includes('[keyframeAdd:[box_x:{{name}}]]'), 'labels come from the locale keys with the value name filled in');
+assert(/<input type="number" data-field="x"[^>]*value="30"/.test(html), 'fields show the value at the playhead');
+assert(html.includes('data-icon="diamond"') && !html.includes('data-icon="diamondFilled"'));
+s.frame = 0;
+html = render(P.keyframeView(s));
+assert(tag('x', 'key').includes('aria-pressed="true"') && html.includes('data-icon="diamondFilled"'), 'on a key the diamond is filled');
+s.frame = 120;
+view = P.keyframeView(s);
+html = render(view);
+assert.equal(view.inside, false);
+assert(/ disabled/.test(tag('x', 'stopwatch')) && /title="\[keyframeOutside/.test(html), 'outside the clip the controls are disabled with a title');
+assert(/<input type="number" data-field="x"[^>]*disabled/.test(html), 'an animated value is frozen outside the clip');
+assert(!/<input type="number" data-field="y"[^>]*disabled/.test(html), 'a static value stays editable');
+assert(/data-position="tl"[^>]*disabled/.test(html), 'the position grid moves x and y');
+assert.equal(P.keyframeView({project: p, selectedClipId: 'c', frame: 15, readonly: true}).locked, true);
+`)
+}

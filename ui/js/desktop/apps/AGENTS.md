@@ -1433,7 +1433,8 @@ buttons and menu popovers remain excluded from those gestures.
   conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
   drawer, timeline height, transform box, field edits), `-editing.js`
-  (selection, clipboard, tools, edit commands and shortcuts), `-source.js`
+  (selection, clipboard, tools, edit commands and shortcuts), `-keyframes.js`
+  (keyframe controls, strip and shortcuts), `-source.js`
   (source monitor), `-tracks.js` (track commands, targets, heights, solo),
   `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
   loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-derive.js`
@@ -1442,7 +1443,7 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (33 scripts, same
+  `-menus.js` (context menus), and `video-studio.js` last (34 scripts, same
   order in `module-loader.js`, both browser fixtures and `TestVideoStudioNavigationLoadOrder`; lists only get
   insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with

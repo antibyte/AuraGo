@@ -59,16 +59,41 @@
     }
     function percentText(value) { return Math.round(value) + ' %'; }
     function updateOutput(input, text) { const output = input.parentElement && input.parentElement.querySelector('output'); if (output) output.textContent = text; }
+    // The clip's box at the playhead, keyframes included (index §4.18): field edits and drags start from what is shown.
+    function boxAt(s, clip) { const st = window.VideoStudioEffects.clipState(clip, s.frame, s.project); return { x: st.x, y: st.y, width: st.width, height: st.height }; }
+    // The box values a gesture has changed so far (holder._vsTouched; once changed, a value stays in the set, so moving back
+    // still writes it). Only these go to auto-key, so animated values the edit did not touch get no key. clampBox rounds
+    // to 1e-6, hence the tolerance.
+    function touchedBox(holder, from, box) {
+        holder._vsTouched = holder._vsTouched || new Set();
+        ['x', 'y', 'width', 'height'].forEach(path => { if (Math.abs(Number(box[path]) - Number(from[path])) > 1e-6) holder._vsTouched.add(path); });
+        const out = {};
+        holder._vsTouched.forEach(path => { out[path] = box[path]; });
+        return out;
+    }
+    // Auto-key during a live gesture (spec §8.2): animated values get a key at the playhead, the others change their
+    // field (VideoStudioKeyframeEdit.setValues). A refusal, for example the keyframe limit, is explained once per gesture.
+    function liveValues(s, found, values, holder) {
+        if (!Object.keys(values).length) return;
+        const clip = found.clip, saved = JSON.stringify(clip);
+        const result = window.VideoStudioKeyframeEdit.setValues(s.project, clip.id, values, s.frame);
+        if (result === true) return;
+        // A refusal can leave the clip partly changed (outside P.applyEdit nothing restores it): put it back, in place.
+        const before = JSON.parse(saved);
+        Object.keys(clip).forEach(key => { if (!(key in before)) delete clip[key]; });
+        Object.assign(clip, before);
+        if (!holder._vsRefused) { holder._vsRefused = true; P.showReason(s, result); }
+    }
     function liveField(s, input) {
         const found = selectedClip(s);
         if (!found || found.track.locked) return;
         const field = input.dataset.field, value = Number(input.value);
-        if (!input._vsBefore) { input._vsBefore = snapshot(s); input._vsBox = { x: found.clip.x, y: found.clip.y, width: found.clip.width, height: found.clip.height }; s.fieldGesture = true; }
+        if (!input._vsBefore) { input._vsBefore = snapshot(s); input._vsBox = boxAt(s, found.clip); s.fieldGesture = true; }
         clearTimeout(s.autosaveTimer);
-        if (field === 'opacity') { found.clip.opacity = clamp(value / 100, 0, 1); updateOutput(input, percentText(value)); }
+        if (field === 'opacity') { liveValues(s, found, { opacity: clamp(value / 100, 0, 1) }, input); updateOutput(input, percentText(value)); }
         else if (field === 'volume') { found.clip.volume = clamp(value / 100, 0, 4); updateOutput(input, percentText(value)); }
-        else if (field === 'rotation') { found.clip.rotation = clamp(Math.round(value), -360, 360); updateOutput(input, Math.round(value) + '°'); }
-        else if (field === 'size') { Object.assign(found.clip, I().scaleBox(input._vsBox, clamp(value / 100, 0.05, 1))); updateOutput(input, percentText(value)); }
+        else if (field === 'rotation') { liveValues(s, found, { rotation: clamp(Math.round(value), -360, 360) }, input); updateOutput(input, Math.round(value) + '°'); }
+        else if (field === 'size') { liveValues(s, found, touchedBox(input, input._vsBox, I().scaleBox(input._vsBox, clamp(value / 100, 0.05, 1))), input); updateOutput(input, percentText(value)); }
         else if (field === 'fade_in' || field === 'fade_out') { found.clip[field] = clamp(Math.round(value), 0, found.clip.duration); updateOutput(input, I().formatSeconds(found.clip[field], P.uiLocale(), s.project) + ' s'); }
         else return;
         s.dirty = true; s.revision++;
@@ -104,10 +129,14 @@
         if (['x', 'y', 'width', 'height'].includes(field)) {
             const value = Number(input.value) / 100;
             if (!Number.isFinite(value)) { renderInspector(s); return; }
-            mutate(s, 'box', project => { const target = T().clipFor(project, found.clip.id).clip; Object.assign(target, I().clampBox(Object.assign({ x: target.x, y: target.y, width: target.width, height: target.height }, { [field]: value }))); });
+            // The edit starts from the box shown at the playhead; animated values get a key there (auto-key).
+            P.applyEdit(s, 'box', project => {
+                const from = boxAt(s, T().clipFor(project, found.clip.id).clip);
+                return window.VideoStudioKeyframeEdit.setValues(project, found.clip.id, touchedBox({ _vsTouched: new Set([field]) }, from, I().clampBox(Object.assign({}, from, { [field]: value }))), s.frame);
+            });
             return;
         }
-        const before = input._vsBefore; delete input._vsBefore; delete input._vsBox;
+        const before = input._vsBefore; delete input._vsBefore; delete input._vsBox; delete input._vsTouched; delete input._vsRefused;
         s.fieldGesture = false;
         if (!before) { P.retryArtwork(s); return; }
         if (T().validTimeline && !T().validTimeline(s.project)) {
@@ -274,10 +303,11 @@
         const found = s.project && !s.q('.vs-no-project') ? transformTarget(s) : null;
         box.hidden = !found;
         if (!found) return;
-        const clip = found.clip;
-        box.style.left = clip.x * 100 + '%'; box.style.top = clip.y * 100 + '%';
-        box.style.width = clip.width * 100 + '%'; box.style.height = clip.height * 100 + '%';
-        box.style.transform = clip.rotation ? `rotate(${clip.rotation}deg)` : '';
+        // The box at the playhead, keyframes included.
+        const st = window.VideoStudioEffects.clipState(found.clip, s.frame, s.project);
+        box.style.left = st.x * 100 + '%'; box.style.top = st.y * 100 + '%';
+        box.style.width = st.width * 100 + '%'; box.style.height = st.height * 100 + '%';
+        box.style.transform = st.rotation ? `rotate(${st.rotation}deg)` : '';
         box.title = tr(s, 'dragToMove', 'Drag to move, corners to resize');
     }
     // The persistent preview notice (index §4.5): the 2D painter cannot show effects, blend modes, masks or keying, and a
@@ -301,7 +331,7 @@
             if (!found || event.button !== 0 || s.timelineDragging) return;
             const rect = mat.getBoundingClientRect();
             const clip = found.clip;
-            gesture = { clipId: clip.id, handle: event.target.closest('[data-handle]')?.dataset.handle || '', x: event.clientX, y: event.clientY, w: rect.width, h: rect.height, box: { x: clip.x, y: clip.y, width: clip.width, height: clip.height }, before: snapshot(s), epoch: s.projectEpoch, projectId: s.projectId };
+            gesture = { clipId: clip.id, handle: event.target.closest('[data-handle]')?.dataset.handle || '', x: event.clientX, y: event.clientY, w: rect.width, h: rect.height, box: boxAt(s, clip), before: snapshot(s), epoch: s.projectEpoch, projectId: s.projectId };
             s.timelineDragging = true; s.transformDrag = true;
             clearTimeout(s.autosaveTimer);
             try { box.setPointerCapture(event.pointerId); } catch (_) { /* synthetic pointer */ }
@@ -324,7 +354,7 @@
                 const height = width * ratio;
                 next = I().clampBox({ x: east ? b.x : b.x + b.width - width, y: south ? b.y : b.y + b.height - height, width, height });
             }
-            Object.assign(found.clip, next);
+            liveValues(s, found, touchedBox(gesture, gesture.box, next), gesture);
             s.preview.seek(s.frame);
             updateTransform(s);
         }, { signal });
@@ -351,7 +381,11 @@
             if (event.target.closest('[data-transform],[data-no-project],button') || !s.project) return;
             const rect = mat.getBoundingClientRect();
             const px = (event.clientX - rect.left) / rect.width, py = (event.clientY - rect.top) / rect.height;
-            const hit = I().displayTracks(s.project.tracks).filter(track => track.kind !== 'audio' && !track.hidden).flatMap(track => track.clips.filter(clip => s.frame >= clip.start && s.frame < clip.start + clip.duration && px >= clip.x && px <= clip.x + clip.width && py >= clip.y && py <= clip.y + clip.height))[0];
+            const hit = I().displayTracks(s.project.tracks).filter(track => track.kind !== 'audio' && !track.hidden).flatMap(track => track.clips.filter(clip => {
+                if (s.frame < clip.start || s.frame >= clip.start + clip.duration) return false;
+                const st = window.VideoStudioEffects.clipState(clip, s.frame, s.project);
+                return px >= st.x && px <= st.x + st.width && py >= st.y && py <= st.y + st.height;
+            }))[0];
             if ((hit ? hit.id : '') === s.selectedClipId) return;
             s.timelineOptions.onSelect(hit ? hit.id : '');
             T().render(s.q('[data-timeline]'), s.timelineOptions);
