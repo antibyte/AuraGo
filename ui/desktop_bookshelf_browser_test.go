@@ -86,6 +86,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	progressRevision := int64(0)
 	progressLocator := map[string]any{"page": 1, "y": 0.0}
 	progressFraction := 0.0
+	progressSaveFails := false
 	progressWrites := make(chan bookshelfProgressFixtureWrite, 16)
 	progressSnapshot := func() map[string]any {
 		return map[string]any{"revision": progressRevision, "rendition_revision": "fixture-revision", "locator": progressLocator, "fraction": progressFraction}
@@ -119,6 +120,19 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	}
 	byID["1984"]["format"] = "pdf"
 	delete(byID["1984"], "progress")
+	bookSnapshot := func(book map[string]any) map[string]any {
+		if book["id"] != "1984" {
+			return book
+		}
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		copy := make(map[string]any, len(book)+1)
+		for key, value := range book {
+			copy[key] = value
+		}
+		copy["progress"] = progressSnapshot()
+		return copy
+	}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/bookshelf/", func(w http.ResponseWriter, r *http.Request) {
@@ -135,6 +149,13 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			progressRevision++
 			progressLocator = map[string]any{"page": 2, "y": 0.0}
 			progressFraction = 1
+			progressMu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if path == "__fixture/fail-progress" {
+			progressMu.Lock()
+			progressSaveFails = true
 			progressMu.Unlock()
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -219,7 +240,9 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			}
 			progressMu.Lock()
 			status := http.StatusOK
-			if r.Header.Get("If-Match") != fmt.Sprint(progressRevision) {
+			if progressSaveFails {
+				status = http.StatusServiceUnavailable
+			} else if r.Header.Get("If-Match") != fmt.Sprint(progressRevision) {
 				status = http.StatusConflict
 			} else {
 				progressRevision++
@@ -232,9 +255,13 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			}
 			progressMu.Unlock()
 			progressWrites <- bookshelfProgressFixtureWrite{ifMatch: r.Header.Get("If-Match"), progress: progress, status: status}
-			if status == http.StatusConflict {
+			if status != http.StatusOK {
 				w.WriteHeader(status)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": "revision_conflict"})
+				errorCode := "revision_conflict"
+				if status == http.StatusServiceUnavailable {
+					errorCode = "fixture_failure"
+				}
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": errorCode})
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"progress": progress})
@@ -322,7 +349,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			}
 			for _, book := range candidates {
 				if query == "" || strings.Contains(strings.ToLower(book["title"].(string)+" "+book["author"].(string)), query) {
-					filtered = append(filtered, book)
+					filtered = append(filtered, bookSnapshot(book))
 				}
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"books": filtered, "total": len(filtered)})
@@ -335,16 +362,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 			if strings.HasPrefix(path, "books/") {
 				id := strings.TrimSuffix(strings.TrimPrefix(path, "books/"), "/cover")
 				if book, ok := byID[id]; ok {
-					if id == "1984" {
-						progressMu.Lock()
-						book = make(map[string]any, len(byID[id])+1)
-						for key, value := range byID[id] {
-							book[key] = value
-						}
-						book["progress"] = progressSnapshot()
-						progressMu.Unlock()
-					}
-					_ = json.NewEncoder(w).Encode(map[string]any{"book": book, "collections": []any{}, "renditions": []any{}})
+					_ = json.NewEncoder(w).Encode(map[string]any{"book": bookSnapshot(book), "collections": []any{}, "renditions": []any{}})
 					return
 				}
 			}
@@ -353,7 +371,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/bookshelf-fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];window.__slowResponseParsed=false;window.__disposeRequestStarted=false;window.__disposeResponseParsed=false;window.__uploadResponsesParsed=0;const nativeFetch=window.fetch.bind(window);window.fetch=(input,...args)=>{const url=String(input);if(url.includes('__bookshelf_dispose_search__')){window.__disposeRequestStarted=true;return new Promise(resolve=>{window.__releaseDisposeRequest=()=>resolve({ok:true,statusText:'OK',json:async()=>{window.__disposeResponseParsed=true;return{books:[],total:0};}});});}return nativeFetch(input,...args).then(response=>{if(url.includes('/imports')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__uploadResponsesParsed++;return body;});}if(url.includes('__bookshelf_slow_search__')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__slowResponseParsed=true;return body;});}return response;});};addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async()=>true};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-bookshelf.css"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:#17191c}#host{height:100%;width:100%}</style></head><body class="desktop-body" data-theme="standard"><div id="host"></div><script src="/js/desktop/apps/bookshelf/api.js"></script><script src="/js/desktop/apps/bookshelf/progress.js"></script><script src="/js/desktop/apps/bookshelf/reader.js"></script><script src="/js/desktop/apps/bookshelf.js"></script><script>window.errors=[];window.__slowResponseParsed=false;window.__disposeRequestStarted=false;window.__disposeResponseParsed=false;window.__uploadResponsesParsed=0;const nativeFetch=window.fetch.bind(window);window.fetch=(input,...args)=>{const url=String(input);if(url.includes('__bookshelf_dispose_search__')){window.__disposeRequestStarted=true;return new Promise(resolve=>{window.__releaseDisposeRequest=()=>resolve({ok:true,statusText:'OK',json:async()=>{window.__disposeResponseParsed=true;return{books:[],total:0};}});});}return nativeFetch(input,...args).then(response=>{if(url.includes('/imports')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__uploadResponsesParsed++;return body;});}if(url.includes('__bookshelf_slow_search__')){const json=response.json.bind(response);response.json=(...jsonArgs)=>json(...jsonArgs).then(body=>{window.__slowResponseParsed=true;return body;});}return response;});};addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();const api=async(path,opts={})=>{const response=await fetch(path,opts);const body=await response.json().catch(()=>({}));if(!response.ok){const error=new Error(body.error||response.statusText);error.status=response.status;error.body=body;throw error;}return body;};window.ctx={t:key=>labels[key]||key,api,confirmDialog:async(title,message)=>{if(typeof title!=='string'||typeof message!=='string')throw new TypeError('confirmDialog expects title and message strings');return true;},setWindowBeforeClose:(id,handler)=>{window.__beforeClose=handler;}};BookshelfApp.render(document.querySelector('#host'),'bookshelf-fixture',ctx);await new Promise(resolve=>{const deadline=Date.now()+5000;const poll=()=>document.querySelector('.bs-book')||Date.now()>deadline?resolve():setTimeout(poll,25);poll();});})();</script></body></html>`)
 	})
 	fixtureURL := ""
 	if address := os.Getenv("AURAGO_BOOKSHELF_FIXTURE_ADDR"); address != "" {
@@ -469,6 +487,7 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	}
 	page.MustSetViewport(1280, 860, 1, false)
 	page.MustElement(`[data-details="siddhartha"]`).MustClick()
+	page.MustWait(`() => { const state=BookshelfApp.instances.get('bookshelf-fixture'); return state.metadata!==state.selected; }`)
 	page.MustElement(".bs-details-panel:not([hidden])")
 	if title := page.MustElement(".bs-details-panel h2").MustText(); title != "Siddhartha" {
 		t.Fatalf("book response envelope was not unpacked: details title %q", title)
@@ -609,12 +628,116 @@ func TestDesktopBookshelfBrowser(t *testing.T) {
 	if !page.MustEval(`() => document.querySelector('[data-shelf]').innerHTML===window.__shelfBeforeDispose && window.__bookshelfStateBeforeDispose.total===window.__totalBeforeDispose`).Bool() {
 		t.Fatal("a Bookshelf request completed into a disposed app instance")
 	}
+	assertBookshelfConfirmDialogContract(t, page, progressWrites, dir)
 	if errs := page.MustEval(`() => JSON.stringify(window.errors)`).Str(); errs != "[]" {
 		t.Fatalf("browser errors: %s", errs)
 	}
 	if os.Getenv("AURAGO_BOOKSHELF_FIXTURE_HOLD") == "1" {
 		fmt.Printf("Bookshelf fixture is available at %s/bookshelf-fixture. Press Ctrl+C to stop.\n", fixtureURL)
 		select {}
+	}
+}
+
+func assertBookshelfConfirmDialogContract(t *testing.T, page *rod.Page, progressWrites <-chan bookshelfProgressFixtureWrite, screenshotDir string) {
+	t.Helper()
+	page.MustSetViewport(1280, 860, 1, false)
+	page.MustEval(`() => {
+		const style = document.createElement('style');
+		style.textContent = 'dialog.bs-confirm-fixture{width:min(34rem,calc(100vw - 2rem));border:1px solid #8d7655;border-radius:14px;padding:0;background:#23211e;color:#f5ead8;box-shadow:0 24px 80px #000a}dialog.bs-confirm-fixture::backdrop{background:#080b10bb}dialog.bs-confirm-fixture form{padding:24px}dialog.bs-confirm-fixture .vd-modal-title{font-size:1.25rem;font-weight:700}dialog.bs-confirm-fixture .vd-modal-copy{margin:14px 0 24px;line-height:1.5}dialog.bs-confirm-fixture .vd-modal-actions{display:flex;justify-content:flex-end;gap:10px}dialog.bs-confirm-fixture button{border:1px solid #8d7655;border-radius:8px;padding:8px 14px;background:#34312c;color:inherit;cursor:pointer}dialog.bs-confirm-fixture [data-confirm-accept]{background:#876a43}';
+		document.head.append(style);
+		window.__confirmCalls = [];
+		window.__beforeClose = null;
+		window.ctx.confirmDialog = (title, message) => {
+			if (typeof title !== 'string' || typeof message !== 'string') throw new TypeError('confirmDialog expects title and message strings');
+			window.__confirmCalls.push({title, message});
+			const dialog = document.createElement('dialog');
+			dialog.className = 'bs-confirm-fixture';
+			dialog.dataset.confirmDialog = '';
+			dialog.innerHTML = '<form class="vd-modal" role="dialog" aria-modal="true"><div class="vd-modal-title" data-confirm-title></div><div class="vd-modal-copy" data-confirm-message></div><div class="vd-modal-actions"><button type="button" data-confirm-cancel>Cancel</button><button type="button" data-confirm-accept>OK</button></div></form>';
+			dialog.querySelector('[data-confirm-title]').textContent = title;
+			dialog.querySelector('[data-confirm-message]').textContent = message;
+			document.body.append(dialog);
+			dialog.showModal();
+			return new Promise(resolve => {
+				let settled = false;
+				const finish = result => { if (settled) return; settled = true; dialog.close(); dialog.remove(); resolve(result); };
+				dialog.querySelector('[data-confirm-cancel]').addEventListener('click', () => finish(false));
+				dialog.querySelector('[data-confirm-accept]').addEventListener('click', () => finish(true));
+			});
+		};
+		window.ctx.setWindowBeforeClose = (id, handler) => { window.__beforeClose = handler; };
+		window.__attemptWindowClose = async () => {
+			window.__windowCloseResult = await window.__beforeClose();
+			return window.__windowCloseResult;
+		};
+		BookshelfApp.render(document.querySelector('#host'), 'bookshelf-dialog-fixture', window.ctx);
+	}`)
+	page.MustWait(`() => document.querySelectorAll('.bs-book').length===9`)
+	page.MustElement(`[data-action="sources"]`).MustClick()
+	page.MustElement(`[data-remove-source="shelf-local"]`).MustClick()
+	waitForBookshelfConfirmFixture(t, page, "bookshelf.remove_source", "bookshelf.remove_source_confirm", "Home Library")
+	page.MustScreenshot(filepath.Join(screenshotDir, "bookshelf-remove-source-confirmation.png"))
+	page.MustElement(`[data-confirm-cancel]`).MustClick()
+	page.MustWait(`() => !document.querySelector('[data-confirm-dialog]')`)
+	page.MustElement(`dialog[data-dialog] [data-dialog-close]`).MustClick()
+	page.MustElement(`[data-details="siddhartha"]`).MustClick()
+	page.MustWait(`() => { const state=BookshelfApp.instances.get('bookshelf-dialog-fixture'); return state.metadata!==state.selected; }`)
+	page.MustElement(`[data-action="forget-book"]`).MustClick()
+	waitForBookshelfConfirmFixture(t, page, "bookshelf.forget_book", "bookshelf.forget_book_confirm", "Siddhartha")
+	page.MustElement(`[data-confirm-cancel]`).MustClick()
+	page.MustWait(`() => !document.querySelector('[data-confirm-dialog]')`)
+	page.MustElement(`[data-action="details-close"]`).MustClick()
+	page.MustElement(`.bs-book-select[data-book="1984"]`).MustClick()
+	page.MustWait(`() => document.querySelector('.bs-app').dataset.page==='reader' && BookshelfApp.instances.get('bookshelf-dialog-fixture').readerReady && typeof window.__beforeClose==='function'`)
+	waitForBookshelfProgressWrite(t, progressWrites, "5", http.StatusOK)
+	if !page.MustEval(`async() => { const before=window.__confirmCalls.length; const allowed=await window.__attemptWindowClose(); return allowed===true && window.__confirmCalls.length===before; }`).Bool() {
+		t.Fatal("a clean Bookshelf reader close prompted for confirmation")
+	}
+	page.MustEval(`async() => { await BookshelfApp.instances.get('bookshelf-dialog-fixture').reader.goTo({page:2}); }`)
+	if !page.MustEval(`async() => (await fetch('/api/desktop/bookshelf/__fixture/fail-progress')).status===204`).Bool() {
+		t.Fatal("could not inject the fixture's failed progress saves")
+	}
+	page.MustEval(`() => { window.__windowCloseResult=null; window.__windowClosePromise=window.__attemptWindowClose(); }`)
+	waitForBookshelfProgressWrite(t, progressWrites, "6", http.StatusServiceUnavailable)
+	waitForBookshelfConfirmFixture(t, page, "bookshelf.progress_unsaved", "bookshelf.progress_unsaved_copy", "")
+	page.MustScreenshot(filepath.Join(screenshotDir, "bookshelf-unsaved-close-confirmation.png"))
+	page.MustElement(`[data-confirm-cancel]`).MustClick()
+	page.MustWait(`() => window.__windowCloseResult===false && !document.querySelector('[data-confirm-dialog]')`)
+	assertBookshelfPendingPosition(t, page)
+	page.MustElement(`[data-action="back"]`).MustClick()
+	waitForBookshelfProgressWrite(t, progressWrites, "6", http.StatusServiceUnavailable)
+	waitForBookshelfConfirmFixture(t, page, "bookshelf.progress_unsaved", "bookshelf.progress_unsaved_copy", "")
+	page.MustElement(`[data-confirm-cancel]`).MustClick()
+	page.MustWait(`() => !document.querySelector('[data-confirm-dialog]') && document.querySelector('.bs-app').dataset.page==='reader'`)
+	assertBookshelfPendingPosition(t, page)
+	page.MustEval(`() => { window.__windowCloseResult=null; window.__windowClosePromise=window.__attemptWindowClose(); }`)
+	waitForBookshelfProgressWrite(t, progressWrites, "6", http.StatusServiceUnavailable)
+	waitForBookshelfConfirmFixture(t, page, "bookshelf.progress_unsaved", "bookshelf.progress_unsaved_copy", "")
+	page.MustElement(`[data-confirm-accept]`).MustClick()
+	page.MustWait(`() => window.__windowCloseResult===true && !document.querySelector('[data-confirm-dialog]')`)
+}
+
+func waitForBookshelfConfirmFixture(t *testing.T, page *rod.Page, titleKey, messageKey, value string) {
+	t.Helper()
+	page.MustWait(`() => { const dialog=document.querySelector('[data-confirm-dialog]'); return !!dialog?.open; }`)
+	if !page.MustEval(`args => {
+		const dialog=document.querySelector('[data-confirm-dialog]');
+		const title=window.ctx.t(args.titleKey);
+		const message=window.ctx.t(args.messageKey).replace('{name}', args.value).replace('{title}', args.value);
+		const call=window.__confirmCalls.at(-1);
+		return dialog.querySelector('[data-confirm-title]').textContent===title && dialog.querySelector('[data-confirm-message]').textContent===message && call?.title===title && call?.message===message;
+	}`, map[string]string{"titleKey": titleKey, "messageKey": messageKey, "value": value}).Bool() {
+		t.Fatalf("Bookshelf confirmation did not pass and display the expected translated title and message for %s", titleKey)
+	}
+}
+
+func assertBookshelfPendingPosition(t *testing.T, page *rod.Page) {
+	t.Helper()
+	if !page.MustEval(`() => {
+		const state=BookshelfApp.instances.get('bookshelf-dialog-fixture');
+		return state.page==='reader' && state.progressQueue.size===1 && state.progressQueue.get('1984')?.progress.locator.page===2;
+	}`).Bool() {
+		t.Fatal("canceling an unsaved-position confirmation closed the reader or lost its pending position", page.MustEval(`() => { const state=BookshelfApp.instances.get('bookshelf-dialog-fixture'); return {page:state.page,pending:Array.from(state.progressQueue.values()).map(item=>item.progress),status:document.querySelector('[data-save-state]')?.textContent}; }`))
 	}
 }
 

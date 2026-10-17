@@ -705,7 +705,7 @@
         async function removeSource(id) {
             const source = state.sources.find(item => item.id === id);
             if (!source) return;
-            const accepted = ctx.confirmDialog ? await ctx.confirmDialog({ title: t('remove_source'), message: t('remove_source_confirm').replace('{name}', source.name || source.provider), confirmLabel: t('remove') }) : false;
+            const accepted = ctx.confirmDialog ? await ctx.confirmDialog(t('remove_source'), t('remove_source_confirm').replace('{name}', source.name || source.provider)) : false;
             if (!accepted) return;
             await request(api.removeSource, id);
             state.sources = state.sources.filter(item => item.id !== id);
@@ -928,11 +928,7 @@
 
         function confirmDiscardProgress() {
             if (!state.progressQueue.size) return Promise.resolve(true);
-            return ctx.confirmDialog ? ctx.confirmDialog({
-                title: t('progress_unsaved'),
-                message: t('progress_unsaved_copy'),
-                confirmLabel: t('leave_without_saving')
-            }) : Promise.resolve(false);
+            return ctx.confirmDialog ? ctx.confirmDialog(t('progress_unsaved'), t('progress_unsaved_copy')) : Promise.resolve(false);
         }
 
         function flushProgress() {
@@ -1463,7 +1459,7 @@
         async function forgetBook() {
             const book = state.selected;
             if (!book) return;
-            const accepted = ctx.confirmDialog ? await ctx.confirmDialog({ title: t('forget_book'), message: t('forget_book_confirm').replace('{title}', book.title || t('untitled')), confirmLabel: t('remove') }) : false;
+            const accepted = ctx.confirmDialog ? await ctx.confirmDialog(t('forget_book'), t('forget_book_confirm').replace('{title}', book.title || t('untitled'))) : false;
             if (!accepted) return;
             await request(api.removeBook, book.id);
             state.details = false;
