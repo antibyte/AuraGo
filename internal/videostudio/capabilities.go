@@ -200,8 +200,9 @@ func xfadeTransitionNames(output string) map[string]bool {
 
 // CheckProjectCapabilities returns a *CapabilityError for the first feature of project that needs an entry of
 // missing (as reported by ProbeCapabilities), or nil. Only what renders counts: transitions on hidden tracks, of
-// disabled clips or before a disabled clip are skipped, as in segmentLayers. 2b adds the keyframes check (sendcmd);
-// 2c adds effect checks, 2d blend and mask checks.
+// disabled clips or before a disabled clip are skipped, as in segmentLayers. 2b adds the keyframes check (sendcmd),
+// which 2c extends to crop and effect keyframes (clipHasKeyframes). 2c also adds the effect checks; 2d adds blend and
+// mask checks.
 func CheckProjectCapabilities(project Project, missing []string) error {
 	if len(missing) == 0 {
 		return nil
@@ -214,11 +215,32 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 		if !visualClip(track) {
 			continue
 		}
-		// Keyframes drive opacity and the cover crop through sendcmd (index §4.11). Disabled clips never render.
+		// Keyframes drive opacity, crops and effect parameters through sendcmd (index §4.11). Disabled clips never render.
 		if lacking["filter:sendcmd"] {
 			for _, clip := range track.Clips {
-				if !clip.Disabled && len(clip.Keyframes) > 0 {
+				if !clip.Disabled && clipHasKeyframes(clip) {
 					return &CapabilityError{Feature: "keyframes", Missing: "filter:sendcmd"}
+				}
+			}
+		}
+		// An effect that is on needs every filter of its registry row. The preview still draws it, the inspector badges
+		// it, and the export refuses it here (index §4.3).
+		for _, clip := range track.Clips {
+			if clip.Disabled {
+				continue
+			}
+			for _, entry := range clip.Effects {
+				if !entry.On {
+					continue
+				}
+				spec, ok := EffectByID(entry.ID)
+				if !ok {
+					continue // Validate rejects unknown effects.
+				}
+				for _, filter := range spec.Filters {
+					if need := "filter:" + filter; lacking[need] {
+						return &CapabilityError{Feature: "effect:" + entry.ID, Missing: need}
+					}
 				}
 			}
 		}
@@ -237,4 +259,18 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 		}
 	}
 	return nil
+}
+
+// clipHasKeyframes reports keyframes the export may drive through sendcmd: base and crop paths (Clip.Keyframes) and the
+// keyframes of the clip's effect entries that are on.
+func clipHasKeyframes(clip Clip) bool {
+	if len(clip.Keyframes) > 0 {
+		return true
+	}
+	for _, entry := range clip.Effects {
+		if entry.On && len(entry.Keyframes) > 0 {
+			return true
+		}
+	}
+	return false
 }

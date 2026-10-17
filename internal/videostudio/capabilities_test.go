@@ -318,3 +318,52 @@ func TestCheckProjectCapabilitiesKeyframes(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckProjectCapabilitiesEffects(t *testing.T) {
+	color := EffectInstance{ID: "color", On: true, Params: map[string]any{"exposure": 0.5}}
+	lut := EffectInstance{ID: "lut", On: true, Params: map[string]any{"lut": "builtin:warm", "intensity": 0.6}}
+	keyedColor := EffectInstance{ID: "color", On: true, Params: map[string]any{}, Keyframes: map[string][]Keyframe{"exposure": {{F: 0, V: 0, E: EaseLinear}, {F: 10, V: 1, E: EaseLinear}}}}
+	with := func(edit func(*Project), effects ...EffectInstance) Project {
+		project := validProject()
+		project.Tracks[0].Clips[0].Effects = effects
+		if edit != nil {
+			edit(&project)
+		}
+		return project
+	}
+	cropKeys := func(p *Project) {
+		p.Tracks[0].Clips[0].Keyframes = map[string][]Keyframe{"crop.l": {{F: 0, V: 0, E: EaseLinear}, {F: 10, V: 0.2, E: EaseLinear}}}
+	}
+	var capability *CapabilityError
+	for name, c := range map[string]struct {
+		project       Project
+		missing       []string
+		feature, need string
+	}{
+		"colour without lutrgb": {with(nil, color), []string{"filter:lutrgb"}, "effect:color", "filter:lutrgb"},
+		"lut without blend":     {with(nil, color, lut), []string{"filter:gblur", "filter:blend"}, "effect:lut", "filter:blend"},
+		"effect keyframes":      {with(nil, keyedColor), []string{"filter:sendcmd"}, "keyframes", "filter:sendcmd"},
+		"crop keyframes":        {with(cropKeys), []string{"filter:sendcmd"}, "keyframes", "filter:sendcmd"},
+	} {
+		err := CheckProjectCapabilities(c.project, c.missing)
+		if !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) || capability.Feature != c.feature || capability.Missing != c.need {
+			t.Errorf("%s = %v, want %s needs %s", name, err, c.feature, c.need)
+		}
+	}
+	offKeyed := keyedColor
+	offKeyed.On = false
+	for name, c := range map[string]struct {
+		project Project
+		missing []string
+	}{
+		"filters present":         {with(nil, color, lut), []string{"filter:gblur", "filter:cas"}},
+		"effect off":              {with(nil, EffectInstance{ID: "color", On: false, Params: map[string]any{"exposure": 0.5}}), []string{"filter:lutrgb"}},
+		"keys of an entry is off": {with(nil, offKeyed), []string{"filter:sendcmd"}},
+		"disabled clip":           {with(func(p *Project) { p.Tracks[0].Clips[0].Disabled = true }, color), []string{"filter:lutrgb"}},
+		"hidden track":            {with(func(p *Project) { p.Tracks[0].Hidden = true }, color), []string{"filter:lutrgb"}},
+	} {
+		if err := CheckProjectCapabilities(c.project, c.missing); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

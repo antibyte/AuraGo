@@ -45,10 +45,6 @@ type EffectSpec struct {
 	build effectBuilder
 }
 
-// effectBuilder is a placeholder until plan 2c Task 8. That task deletes this declaration and declares the final
-// builder type in effects_build.go. Every registry row leaves build nil until Tasks 8 and 9 attach the builders.
-type effectBuilder func()
-
 // TransitionSpec is one transition type and the xfade transition the export uses for it. The name avoids a clash
 // with the clip's Transition type.
 type TransitionSpec struct {

@@ -284,9 +284,51 @@ func coverWindow(x, y, w, h, boxWidth, boxHeight int) (int, int, int, int) {
 	return x, y + (h-height)/2, w, height
 }
 
-// effects runs the clip's effect stack, one chainStage per on entry in stack order (plan 2c Task 8, 2d). A two-input
-// entry (a LUT blend, the vignette alpha wrapper) is its own stage with twoInput set. Nothing until then.
-func (c clipChain) effects() []chainStage { return nil }
+// effects runs the clip's effect stack (index §4.10). Every entry that is on, in stack order, is built by its registry
+// builder (EffectSpec.build). Each builder declares the pixel format of its input, and format= is inserted only where
+// it differs from the format the previous stage left. Identity entries and effects without a builder leave no part. A
+// two-input part (a LUT blend, the vignette alpha wrapper) carries twoInput, so assembleStages opens a command group
+// after it.
+func (c clipChain) effects() []chainStage {
+	var parts []chainStage
+	format := ""
+	for index, entry := range c.item.whole.Effects {
+		if !entry.On {
+			continue
+		}
+		spec, ok := EffectByID(entry.ID)
+		if !ok || spec.build == nil {
+			continue // Validate admits registry effects only; a later slice's row has no builder until that slice lands.
+		}
+		stage := spec.build(c.entryInput(index, spec))
+		if len(stage.parts) == 0 {
+			continue
+		}
+		if stage.input != format {
+			stage.parts[0].filter = "format=" + stage.input + "," + stage.parts[0].filter
+		}
+		format = stage.output
+		parts = append(parts, stage.parts...)
+	}
+	return parts
+}
+
+// entryInput describes stack entry index of the clip for its builder.
+func (c clipChain) entryInput(index int, spec EffectSpec) effectInput {
+	width, height := c.processedSize()
+	return effectInput{id: fmt.Sprintf("%d_%d", c.track, c.index), index: index, spec: spec, whole: c.item.whole, at: c.item.at,
+		frames: c.item.clip.Duration, pieces: c.item.pieces, rate: c.rate, image: c.item.image, width: width, height: height, lut: c.item.luts[index]}
+}
+
+// processedSize is the picture the effects process, in decoded pixels (index §4.20, resolution rule): the static crop
+// rectangle, or the whole decoded picture when the crop is keyframed or absent.
+func (c clipChain) processedSize() (width, height int) {
+	width, height = c.item.pictureWidth, c.item.pictureHeight
+	if crop := c.item.whole.Crop; crop != nil && !cropAnimated(c.item.whole) && width > 0 && height > 0 {
+		_, _, width, height = cropRect(*crop, width, height)
+	}
+	return width, height
+}
 
 // mask applies the clip's mask as alpha (plan 2d, a two-input stage). Nothing in 2c.
 func (c clipChain) mask() string { return "" }
