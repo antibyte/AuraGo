@@ -11,6 +11,73 @@
     </div>
   </header>
   <div class="dash-grid">
+    <div class="dash-card span-12" id="card-personality">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.personality_title"></h3> <button type="button" class="collapse-toggle" data-card="card-personality" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="personality-content" class="personality-layout">
+          <canvas id="traits-chart"></canvas>
+          <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood"></div>
+          <section id="personality-dynamics"></section>
+          <div class="mood-trigger-text" id="mood-trigger"></div>
+          <div class="character-notes is-hidden" id="character-notes">
+            <div class="character-notes-header">
+              <span data-i18n="dashboard.personality_notes_title"></span>
+              <label class="character-notes-narrative">
+                <input type="checkbox" id="character-narrative-toggle">
+                <span data-i18n="dashboard.personality_notes_narrative"></span>
+              </label>
+            </div>
+            <p class="character-notes-hint" data-i18n="dashboard.personality_notes_narrative_hint"></p>
+            <div class="character-notes-cause is-hidden" id="character-notes-cause"></div>
+            <div class="character-notes-milestones is-hidden" id="character-notes-milestones"></div>
+            <ul class="character-notes-list" id="character-notes-list"></ul>
+            <div class="character-notes-empty is-hidden" id="character-notes-empty" data-i18n="dashboard.personality_notes_empty"></div>
+          </div>
+          <div class="affect-panel is-hidden" id="affect-panel">
+            <div class="affect-panel-title" data-i18n="dashboard.personality_affect_title"></div>
+            <div class="affect-meters">
+              <div class="affect-meter"><span data-i18n="dashboard.personality_affect_valence"></span> <strong id="affect-valence">—</strong></div>
+              <div class="affect-meter"><span data-i18n="dashboard.personality_affect_arousal"></span> <strong id="affect-arousal">—</strong></div>
+            </div>
+            <ul class="affect-event-list" id="affect-event-list"></ul>
+            <div class="affect-empty is-hidden" id="affect-empty" data-i18n="dashboard.personality_affect_empty"></div>
+          </div>
+          <div class="emotion-display" id="emotion-display">
+            <div class="emotion-label"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2C7 2 3 6 3 11c0 2 1 4 2 5l-2 4 5-2c2 1 4 1 6 0 5 0 9-4 9-9s-4-9-9-9z" fill="none"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/><path d="M9 15c1 1 4 1 5 0" stroke-linecap="round"/></svg> <span data-i18n="dashboard.emotion_label"></span></div>
+            <div class="emotion-text" id="emotion-text"></div>
+            <div class="emotion-meta is-hidden" id="emotion-meta">
+              <div class="emotion-meta-row">
+                <span class="emotion-meta-pill" id="emotion-cause-pill"></span>
+                <span class="emotion-meta-pill" id="emotion-style-pill"></span>
+                <span class="emotion-meta-pill" id="emotion-source-pill"></span>
+              </div>
+            </div>
+            <div class="emotion-summary is-hidden" id="emotion-summary"></div>
+            <div class="emotion-timeline is-hidden" id="emotion-timeline">
+              <div class="emotion-timeline-title" data-i18n="dashboard.emotion_timeline"></div>
+              <div class="emotion-timeline-list" id="emotion-timeline-list"></div>
+            </div>
+          </div>
+          <!-- Inline Mood Mini-Chart -->
+          <div class="mood-mini-wrap">
+            <div class="mood-mini-header">
+              <span><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><path d="M17 6h6v6" stroke-linecap="round" stroke-linejoin="round"/></svg> <span data-i18n="dashboard.personality_mood_timeline"></span></span>
+              <div class="mood-mini-btns">
+                <button class="mood-btn" data-hours="1" data-i18n="dashboard.personality_btn_1h"></button>
+                <button class="mood-btn" data-hours="6" data-i18n="dashboard.personality_btn_6h"></button>
+                <button class="mood-btn active" data-hours="24" data-i18n="dashboard.personality_btn_24h"></button>
+                <button class="mood-btn" data-hours="168" data-i18n="dashboard.personality_btn_7d"></button>
+                <button class="mood-btn" data-hours="720" data-i18n="dashboard.personality_btn_30d"></button>
+              </div>
+            </div>
+            <div class="mood-mini-chart-wrap">
+              <canvas id="mood-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div id="personality-disabled" class="empty-state is-hidden" data-i18n="dashboard.personality_disabled"></div>
+      </div>
+    </div>
   </div>
 </section>
 {{end}}

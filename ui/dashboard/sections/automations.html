@@ -11,6 +11,90 @@
     </div>
   </header>
   <div class="dash-grid">
+    <div class="dash-card span-12" id="card-cronjobs">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.cronjobs_title"></h3>
+        <button type="button" class="collapse-toggle" data-card="card-cronjobs" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <div class="cronjobs-summary" id="cronjobs-summary">
+          <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_total"></span></div>
+          <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_enabled"></span></div>
+          <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_disabled"></span></div>
+          <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_errors"></span></div>
+        </div>
+        <div class="cronjobs-controls">
+          <input type="search" id="cronjobs-search" class="profile-search pw-search" data-i18n-placeholder="dashboard.cronjobs_search_placeholder" placeholder="">
+          <select id="cronjobs-source-filter" class="cronjobs-select">
+            <option value="" data-i18n="dashboard.cronjobs_filter_all_sources"></option>
+            <option value="agent" data-i18n="dashboard.cronjobs_source_agent"></option>
+            <option value="mission" data-i18n="dashboard.cronjobs_source_mission"></option>
+            <option value="system" data-i18n="dashboard.cronjobs_source_system"></option>
+            <option value="flow" data-i18n="dashboard.cronjobs_source_flow"></option>
+          </select>
+          <select id="cronjobs-status-filter" class="cronjobs-select">
+            <option value="" data-i18n="dashboard.cronjobs_filter_all_statuses"></option>
+            <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled"></option>
+            <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled"></option>
+            <option value="error" data-i18n="dashboard.cronjobs_status_error"></option>
+          </select>
+          <button type="button" id="cronjobs-refresh" class="log-btn" data-i18n="dashboard.cronjobs_refresh"></button>
+        </div>
+        <div class="cronjobs-table-wrap">
+          <table class="cronjobs-table">
+            <thead>
+              <tr>
+                <th data-i18n="dashboard.cronjobs_col_id"></th>
+                <th data-i18n="dashboard.cronjobs_col_source"></th>
+                <th data-i18n="dashboard.cronjobs_col_schedule"></th>
+                <th data-i18n="dashboard.cronjobs_col_next_run"></th>
+                <th data-i18n="dashboard.cronjobs_col_status"></th>
+                <th data-i18n="dashboard.cronjobs_col_prompt"></th>
+                <th data-i18n="dashboard.cronjobs_col_actions"></th>
+              </tr>
+            </thead>
+            <tbody id="cronjobs-tbody"></tbody>
+          </table>
+          <div id="cronjobs-empty" class="empty-state" data-i18n="dashboard.cronjobs_empty"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-8" id="card-mission-history">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c3 2 5 5 5 9l-2 4h-6l-2-4c0-4 2-7 5-9z" fill="currentColor" stroke="none"/><path d="M9 15l-3 3c0-2 1-4 3-5M15 15l3 3c0-2-1-4-3-5"/><circle cx="12" cy="8" r="1.5" fill="none" stroke="currentColor"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.mission_history_title"></h3>
+        <button type="button" class="collapse-toggle" data-card="card-mission-history" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <div id="mission-history-content">
+          <table class="mh-table">
+            <caption class="visually-hidden" data-i18n="dashboard.mh_table_desc"></caption>
+            <thead>
+              <tr>
+                <th data-i18n="dashboard.mh_col_mission"></th>
+                <th data-i18n="dashboard.mh_col_status"></th>
+                <th data-i18n="dashboard.mh_col_trigger"></th>
+                <th data-i18n="dashboard.mh_col_started"></th>
+                <th data-i18n="dashboard.mh_col_duration"></th>
+              </tr>
+            </thead>
+            <tbody id="mission-history-tbody"></tbody>
+          </table>
+          <div id="mission-history-empty" class="empty-state" data-i18n="dashboard.mh_empty"></div>
+          <button id="mission-history-more" class="mh-more-btn is-initially-hidden" data-i18n="dashboard.mh_load_more"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-4 is-hidden" id="card-daemons">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V6z" fill="none"/><circle cx="12" cy="11" r="3" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.daemons_title"></h3> <button type="button" class="collapse-toggle" data-card="card-daemons" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="daemon-summary"></div>
+        <div id="daemon-list"></div>
+      </div>
+    </div>
   </div>
 </section>
 {{end}}

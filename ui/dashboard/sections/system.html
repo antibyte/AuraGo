@@ -11,6 +11,100 @@
     </div>
   </header>
   <div class="dash-grid">
+    <div class="dash-card span-4" id="card-system">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.system_title"></h3> <button type="button" class="collapse-toggle" data-card="card-system" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="gauge-grid">
+          <div class="gauge-item">
+            <canvas id="cpu-chart"></canvas>
+            <div class="gauge-value" id="cpu-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_cpu"></div>
+          </div>
+          <div class="gauge-item">
+            <canvas id="ram-chart"></canvas>
+            <div class="gauge-value" id="ram-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_ram"></div>
+          </div>
+          <div class="gauge-item">
+            <canvas id="disk-chart"></canvas>
+            <div class="gauge-value" id="disk-val">—</div>
+            <div class="gauge-label" data-i18n="dashboard.system_disk"></div>
+          </div>
+        </div>
+        <div class="stats-grid" id="system-stats">
+          <div class="stat-item">
+            <div class="stat-value" id="net-sent">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_sent"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="net-recv">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_recv"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="sse-clients">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_sse_clients"></div>
+          </div>
+        </div>
+        <div class="stats-grid stats-grid-single">
+          <div class="stat-item">
+            <div class="stat-value" id="uptime-val">—</div>
+            <div class="stat-label" data-i18n="dashboard.system_uptime"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-8" id="card-operations">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.operations_title"></h3> <button type="button" class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="ops-grid" id="ops-grid"></div>
+        <div class="integration-grid" id="integration-grid"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-4 is-hidden" id="card-guardian">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z" fill="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.guardian_title"></h3> <button type="button" class="collapse-toggle" data-card="card-guardian" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="guardian-status"></div>
+        <div id="guardian-metrics"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-4" id="card-realtime-speech">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l2-6 4 12 4-12 2 6h4"/><path d="M4 19h16" opacity=".45"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.realtime_speech_title"></h3>
+        <button type="button" class="collapse-toggle" data-card="card-realtime-speech" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <p class="dash-card-desc" data-i18n="dashboard.realtime_speech_desc"></p>
+        <div class="stats-grid" id="realtime-speech-status">
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-enabled">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_enabled"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-profiles">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_profiles"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-profile">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_active_profile"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-session">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_session"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-4 is-hidden" id="card-github">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v3a5 5 0 0 0 10 0V8a5 5 0 0 0-5-5z" fill="none"/><path d="M7 11c-3 0-5 2-5 5v2M12 11v6c0 2-1 4-3 4M17 11c3 0 5 2 5 5v2" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.github_title"></h3> <button type="button" class="collapse-toggle" data-card="card-github" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="github-content"></div>
+      </div>
+    </div>
   </div>
 </section>
 {{end}}

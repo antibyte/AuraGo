@@ -11,6 +11,31 @@
     </div>
   </header>
   <div class="dash-grid">
+    <div class="dash-card span-12" id="card-agent-banner">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.5" fill="currentColor" stroke="none"/><path d="M12 4v4M9 2h6"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.agent_banner_title"></h3> <button type="button" class="collapse-toggle" data-card="card-agent-banner" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="agent-banner" id="agent-banner">
+          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot" role="img" data-i18n-aria-label="dashboard.status_label"></span> <strong id="ab-model">—</strong></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 11l2 2-2 2M16 11l-2 2 2 2" stroke-linecap="round"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/></svg> <strong id="ab-personality">—</strong></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item context-gauge"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="6" x2="4" y2="10"/><line x1="4" y1="14" x2="4" y2="18"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="20" y1="6" x2="20" y2="12"/><line x1="20" y1="16" x2="20" y2="18"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></svg> <span data-i18n="dashboard.agent_banner_context"></span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item" id="ab-integrations"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4" stroke-linecap="round"/></svg> <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations"></span></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item" id="ab-last-activity"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> <span>—</span></div>
+          <div class="agent-banner-sep"></div>
+          <div class="agent-banner-item" id="ab-maintenance"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 7l3-3 3 3-3 3z"/><path d="M5 12l3-3 4 4-3 3zM14 7l3 3" stroke-linecap="round"/></svg> <span>—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-12" id="card-quickstatus">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.quickstatus_title"></h3> <button type="button" class="collapse-toggle" data-card="card-quickstatus" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="qs-grid" id="qs-grid"></div>
+      </div>
+    </div>
   </div>
 </section>
 {{end}}

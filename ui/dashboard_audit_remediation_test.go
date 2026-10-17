@@ -11,9 +11,9 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 
 	html := readDashboardMarkup(t)
 	for _, marker := range []string{
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-agent"`,
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-user"`,
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-system"`,
+		`<section class="dash-section" id="sec-personality" data-section="personality"`,
+		`<section class="dash-section" id="sec-user" data-section="user"`,
+		`<section class="dash-section" id="sec-system" data-section="system"`,
 		`<button type="button" class="collapse-toggle"`,
 		`aria-expanded="true"`,
 		`id="log-scroll-btn"`,
@@ -23,8 +23,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		`<span data-i18n="knowledge.filesync_rescan">`,
 		`data-i18n="dashboard.page_heading"`,
 		`data-pw-density-toggle`,
-		`dash-tab-group-sep`,
-		`data-tab-group="primary"`,
+		`class="dash-nav-group-label"`,
+		`data-section-link="overview"`,
 	} {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("dashboard HTML missing remediation marker %q", marker)
@@ -62,8 +62,6 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		":scope > [data-i18n-text], :scope > .i18n-text",
 		"nodeType === Node.TEXT_NODE",
 		"CardState.setLoading(id)",
-		"Always refresh the active tab",
-		"TabState.loaded[tabId] = true",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("dashboard main missing remediation marker %q", marker)

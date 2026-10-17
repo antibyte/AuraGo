@@ -11,8 +11,8 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 
 	html := readDashboardMarkup(t)
 	for _, marker := range []string{
-		`data-tab="cronjobs"`,
-		`id="tab-cronjobs"`,
+		`data-section-link="automations"`,
+		`id="sec-automations"`,
 		`id="cronjobs-search"`,
 		`id="cronjobs-source-filter"`,
 		`id="cronjobs-status-filter"`,
@@ -27,7 +27,6 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
-		"'cronjobs'",
 		"loadTabCronjobs()",
 		"setupCronjobsControls()",
 	} {
