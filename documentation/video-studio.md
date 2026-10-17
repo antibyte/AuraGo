@@ -138,7 +138,8 @@ L-cut), and imports a `(reversed)` media item in your language; reversing a reve
 name instead of a second suffix. The reversed clip keeps its place and its linked parts of the same media
 are mirrored around it, so picture and sound stay in sync (a J-cut becomes an L-cut); if a mirrored part would not fit
 on its track, Reverse is refused until you make room or unlink it; freeze frame inserts a two-second still at the playhead; the PNG download
-appears in the tasks list. If the clip changes while the job runs (for example it is slipped so another frame sits at the
+appears in the tasks list. Export frame as PNG saves the clip's original source frame at the playhead, without transform,
+crop, flips, effects or LUT. Exporting the graded frame is not offered yet. If the clip changes while the job runs (for example it is slipped so another frame sits at the
 playhead), the edit is not applied and the new media stays in the library. Video tracks take still images as well as videos.
 
 Transitions include dissolve, fade through black, and wipes in both directions.
@@ -333,7 +334,8 @@ Desktop files, or use **Upload .cube** in a LUT effect. Video Studio accepts 3D 
 - 2 to 65 points per axis (`LUT_3D_SIZE`), optionally with `DOMAIN_MIN`/`DOMAIN_MAX` or `LUT_3D_INPUT_RANGE`;
 - at most 16 MB per file and 32 LUTs per project.
 
-1D LUTs and unknown keywords are refused, and a file that cannot be parsed names the bad line. In the library a LUT
+1D LUTs and unknown keywords are refused, and a file that cannot be parsed names the bad line. A render refuses more than
+64 LUT effects playing at the same time (only enabled clips on visible tracks count). In the library a LUT
 shows as a **LUT** card, with its own **LUTs** filter while the project has LUTs. Drag it onto a clip to add a LUT
 effect with it, or press its **+** to add it to the selected clip. A LUT that an effect uses counts as used. Removing
 it asks first, removes those effects in the same undo step, and then deletes the file.

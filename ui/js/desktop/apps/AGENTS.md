@@ -1660,6 +1660,9 @@ buttons and menu popovers remain excluded from those gestures.
     `P.handleKeyframeKeys`; elsewhere Alt+↑/↓ still jumps keyframes). Unavailable effects are badged `No export`, and
     the inspector shows `effectsCropAnimatedHint` while the crop has keyframes. The section shows for every visual
     clip, titles included; the crop block, the flips and crop mode skip titles (`clip.text`).
+  - Effect key selection: selected `effects.<i>.<param>` diamonds in the keyframe strip are dropped by
+    `P.dropEffectKeySelection(s)` (`video-studio-core.js`) when an edit moves, removes or replaces stack entries
+    (`P.mutate`), and always on undo and redo (`P.undo`), since the stack indexes in those ids no longer match.
   - Colour wheels (`video-studio-colorwheel.js`, directly after `-inspector.js`; `VideoStudioColorWheel`): SVG,
     `role="slider"` with value text, arrows 0.01 (Shift 0.1), double-click and Delete (or Backspace) reset.
   - Crop handles (`video-studio-stage.js`): `P.setCropMode`, `P.updateCropBox` (called by `updateTransform`),
@@ -1669,6 +1672,10 @@ buttons and menu popovers remain excluded from those gestures.
     is one edit. The math (`P.cropGeometry`, `P.cropDrag`, `P.cropDragDelta`) is Node-tested. The source size comes from
     `VideoStudioPicture.decodedSize` with the size the preview's `mediaSize(clipId)` reports, so the overlay of a
     rotated phone video shows its upright aspect.
+  - Typed crop and box values next to an animated side: when one side of a crop pair (l/r, t/b) or a box pair
+    (x/width, y/height) is animated, a typed value on either side is clamped to the room its animated partner leaves at
+    the playhead (`fitAnimatedPair` in `video-studio-keyframe-edit.js`). The static field of an animated path is never written.
+    A typed key next to a static partner stays as typed, because keys are checked per parameter only.
   - Effects library (`video-studio-effects-library.js`, directly after `-library.js`; `VideoStudioEffectsLibrary`,
     `P.renderEffectsLibrary`, `P.wireEffectsLibrary`): tab `effects` with `[data-effects-library]`, items
     `[data-effect-item]` (`<effect id>` or `look:<id>`), drag MIME `application/x-aurago-vs-effect` with a delegated drop

@@ -6,7 +6,8 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 - Inputs passed to FFmpeg are server-staged local regular files. Never accept URLs,
   shell fragments, arbitrary filter expressions, or demuxer names from project data.
   Keyframe and ramp expressions and `sendcmd` scripts are generated in Go from validated numbers only.
-  FFmpeg reads LUTs only as Go-written `vs_lut_*.cube` copies of parsed tables; uploaded `.cube` text never reaches a filter graph.
+  FFmpeg reads LUTs only as Go-written `vs_lut_<n>.cube` copies of parsed tables (`lutFileName`: `^vs_lut_[0-9]+\.cube$`;
+  one file per distinct table of a process, written once); uploaded `.cube` text never reaches a filter graph.
 - Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
   24/30/60 with a 1001 denominator). Convert with `Rate` methods only. `Upgrade` steps version 1 (fixed 30 fps) → 2 → 3
   without modifying its input; `Validate` accepts version 3 only. Projects are limited to sixty minutes and the sizes in
@@ -16,7 +17,8 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   (`LabelColors`), the in point before the timeline end and the out point at least frame 1, with in < out when both
   are set. Markers never render; the renderer ignores them and so does `Upgrade`.
 - Bound projects to 8 video, 8 audio and 8 overlay tracks, 2000 clips and 1024 assets. One FFmpeg process uses
-  at most `MaxSegmentInputs` (32) inputs. Asset durations are server-owned microseconds (`duration_us`);
+  at most `MaxSegmentInputs` (32) inputs and at most `MaxSegmentLUTInstances` (64) lut effects (on, with a non-empty
+  ref and a table, sitting on enabled clips of visible visual tracks; `countLUTInstances`). Asset durations are server-owned microseconds (`duration_us`);
   `duration_frames` is derived for the project rate (`AssetAtRate`). Source images/video frames are limited
   to 16,384 pixels per side and 64 megapixels. Videos are also limited to a 16:1 aspect (`MaxVideoAspect`,
   `source_aspect.go`): `Probe` fails with `ErrSourceAspect`, and exports, range renders and frame exports refuse a
@@ -26,7 +28,8 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   pre-cropped before scaling, so its intermediates stay bounded.
 - Render through `RenderWithOptions` (`Render` is the whole-timeline wrapper): `PlanVideoSegments` cuts ~10 s
   segments whose boundaries avoid transitions, `PlanAudioSegments` avoids fades, and a segment needing more than
-  `MaxSegmentInputs` clips is split. Every clip gets its own `-ss`-seeked input; a clip past the decodable video
+  `MaxSegmentInputs` clips or `MaxSegmentLUTInstances` lut effects is split; an instant that needs more lut effects than
+  the cap fails with `ErrTooManyInputs` (server code `render_too_many_inputs`). Every clip gets its own `-ss`-seeked input; a clip past the decodable video
   seeks one second before its end and `tpad` holds the last frame. Ranges that start or end inside a transition
   or fade get pre-roll (`expandRange`) and are trimmed back.
 - Video segments run with `-copyts -start_at_zero`: video inputs seek about one second early and `fps` samples
@@ -323,7 +326,10 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   template and checked against `^[0-9a-z.()*/+,-]+$`. Group 0 follows `window()`; group g follows the g-th two-input
   stage (`vs_cmd_<L>_<C>_<g>.txt`), so no command crosses a two-input filter.
 - Staging (`render.go`): `stageVideoGraph(dir, graph, rate, files)` writes `graph.txt`, the command files and
-  `vs_lut_<L>_<C>_<I>.cube` (0o600, `WriteCube` of the table resampled onto the unit domain, `writeStagedLUT`).
+  `vs_lut_<n>.cube` (0o600, `WriteCube` of the table resampled onto the unit domain, `writeStagedLUT`). Each distinct
+  table of a process is written once: `lutNames` numbers the files from 0 in order of first use (keyed by the `*LUT3D`
+  identity, so one look or asset used by several effects is one file), `graphFiles.addLUTs` keeps each name once, and
+  `stageVideoGraph` refuses more than `MaxSegmentLUTInstances` (64) LUT files.
   `collectRenderSources` parses the referenced LUT assets with `LoadLUTFile` and takes the decoded (autorotated) size
   from `probeVideo`. The model's `Asset` gains only `LUTSize`; the render side wraps each asset in `renderSource`.
 - Capabilities: an `on` effect of an enabled visual clip needs its `Filters` (`effect:<id>`, job error
