@@ -62,6 +62,9 @@ type Manager struct {
 	runningConfig    *config.Config
 	recordingSession string
 	recordingAck     string
+	hintFn           func(string, bool)
+	hintOpen         map[string]bool
+	budgetLimited    bool
 }
 
 var defaultManager atomic.Pointer[Manager]
@@ -237,14 +240,21 @@ func (m *Manager) test(parent context.Context, generation context.Context) (Stat
 	if err != nil {
 		s.Error = err.Error()
 	}
+	var previous Status
+	var stored bool
 	m.mu.Lock()
 	current := ctx.Err() == nil && generation == m.generation && generation.Err() == nil
 	if current {
+		previous = m.status
 		s.StorageLimit = m.status.StorageLimit
 		m.status = s
 		m.observed = now
+		stored = true
 	}
 	m.mu.Unlock()
+	if stored {
+		m.noteSensing(previous, s, c.RuView)
+	}
 	if !current {
 		return m.Status(), context.Canceled
 	}
@@ -372,6 +382,7 @@ func (m *Manager) watch(ctx context.Context) context.Context {
 	m.status.StorageLimit = limited
 	generation := m.generation
 	m.mu.Unlock()
+	m.noteStorage(c.RuView.Mode, limited)
 	return generation
 }
 
