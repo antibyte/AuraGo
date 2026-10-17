@@ -280,7 +280,8 @@
             retimable: !found.track.locked && timedClip(s, clip.id),
             detachable: video && !!asset.has_audio && !clip.audio_detached,
             reattachable: !found.track.locked && E().canReattach(s.project, clip.id),
-            // The reverse job covers the clip and its same-asset link partners; their source range must fit one job.
+            // The reverse job covers the clip and its same-asset link partners; their source range must fit one job, and none
+            // of them may have a speed ramp (reverseClips refuses those).
             reversible: !!P.reverseClip && video && P.reverseFits(s, clip.id),
             freezable: !!P.freezeFrame && video && inside,
             exportable: !!P.exportFrame && asset.kind === 'video' && inside

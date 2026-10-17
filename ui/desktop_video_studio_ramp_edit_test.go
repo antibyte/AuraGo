@@ -189,3 +189,33 @@ assert.deepEqual(['ramp' in at(p,'r'), at(p,'r').speed], [false, 2], 'one point 
 valid(p);
 `)
 }
+
+// TestVideoStudioReverseIsOfferedOnlyWhereItRuns checks that the Reverse button and the clip-menu item (both read
+// P.clipCapabilities().reversible) are off for a ramped clip and for a clip whose same-asset link partner is ramped.
+// reverseClips refuses those with REASON.ramp, so offering them would be a button that always fails.
+func TestVideoStudioReverseIsOfferedOnlyWhereItRuns(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioKeyframePartsPrelude+`
+require('./js/desktop/apps/video-studio-derive.js');
+const ramp = [{f: 0, speed: 1, e: 'linear'}, {f: 50, speed: 2, e: 'linear'}];
+const caps = (p, id, frame) => P.clipCapabilities({project: p, selectedClipId: id, frame: frame == null ? 10 : frame, readonly: false});
+let p = project([
+  track('v1','video',[clip('plain',V,0,100), clip('r',V,100,100,{ramp})]),
+  track('v2','video',[clip('lp',V,0,100,{link:'L'})]),
+  track('v3','video',[clip('lr',V,0,100,{link:'L', ramp})]),
+  track('a1','audio',[])
+]);
+valid(p);
+assert.equal(caps(p, 'plain').reversible, true, 'a plain clip can be reversed');
+assert.equal(caps(p, 'r', 110).reversible, false, 'a ramped clip cannot: reverseClips refuses it with reason ramp');
+assert.equal(caps(p, 'lp').reversible, false, 'nor can a clip whose same-asset link partner is ramped');
+assert.equal(caps(p, 'lr').reversible, false);
+assert.equal(P.reverseFits({project: p, frame: 0}, 'r'), false, 'the shared gate says no for a ramped clip');
+assert.equal(P.reverseFits({project: p, frame: 0}, 'plain'), true);
+// The edit layer keeps its own refusal (the model rule does not depend on the UI gate).
+p.assets.push({id: 'rev', name: 'rev', kind: 'video', has_audio: true, duration_frames: 600});
+assert.equal(E.reverseClips(p, 'r', {assetId: 'rev', rangeStart: 0, frames: 600, sourceAssetId: 'v'}), 'ramp');
+// Once the ramp is gone the clip is offered again.
+delete at(p, 'r').ramp;
+assert.equal(caps(p, 'r', 110).reversible, true, 'without a ramp reverse is offered again');
+`)
+}

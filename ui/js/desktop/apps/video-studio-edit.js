@@ -803,6 +803,12 @@
     function sameAssetMembers(project, found) {
         return found.clip.link ? linkMembers(project, found.clip.link).filter(({ clip }) => clip.asset_id === found.clip.asset_id) : [found];
     }
+    // Whether the clip or a same-asset link partner has a speed ramp: reverseClips refuses those (reason ramp), so the UI
+    // offers Reverse only when this is false (P.reverseFits).
+    function reverseRamped(project, clipId) {
+        const found = T().clipFor(project, clipId);
+        return !!found && sameAssetMembers(project, found).some(({ clip }) => FX().hasRamp(clip));
+    }
     // The source range one reverse job covers: the union of the ranges the same-asset group members read, each
     // [offset, offset + ceil((duration - 1) × speed) + 1). A J- or L-cut partner trimmed past the clip widens it. At a
     // fractional speed the range holds the next source frame too (it exists: the source extent rule bounds
@@ -833,7 +839,7 @@
         const found = T().clipFor(project, clipId);
         if (!found) return REASON.nothing;
         if (found.track.locked) return REASON.locked;
-        if (sameAssetMembers(project, found).some(({ clip }) => FX().hasRamp(clip))) return REASON.ramp;
+        if (reverseRamped(project, clipId)) return REASON.ramp;
         const target = (project.assets || []).find(asset => asset.id === reversed.assetId);
         if (!target) return REASON.media;
         if (reversed.sourceAssetId && found.clip.asset_id !== reversed.sourceAssetId) return REASON.media;
@@ -889,5 +895,5 @@
         return insertClips(project, frame, [{ trackId: track.id, clips: [still] }]);
     }
 
-    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, sourceFrameAt, reversedName, reverseRange, reverseClips, freezeFrame };
+    window.VideoStudioEdit = { REASON, ATTRIBUTE_GROUPS, speedOf, maxDurationFrom, editable, gapAt, overwrite, insertGap, insertClips, removeClips, rippleDelete, rippleDeleteGap, rippleTrim, roll, slip, slide, blade, moveClips, copyClips, paste, duplicateClips, pasteAttributes, clipsFrom, neighborAt, snapPoints, snapDelta, linkGroup, withLinks, linkedEdges, audioPartner, setLink, setSpeed, detachAudio, canReattach, reattachAudio, setDisabled, setLabel, sourceFrameAt, reversedName, reverseRange, reverseRamped, reverseClips, freezeFrame };
 })();

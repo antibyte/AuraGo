@@ -17,9 +17,11 @@
     function insidePlayhead(s, clip) { return s.frame > clip.start && s.frame < clip.start + clip.duration; }
     // Go's MaxReverseFrames: the longest source range one reverse job accepts, in project frames.
     function maxReverseFrames(s) { return Math.floor(P.rateOf(s) * MAX_REVERSE_SECONDS + 1e-6); }
-    // Whether one reverse job covers the source range of the clip and its same-asset link partners (E.reverseRange).
+    // Whether Reverse can run for the clip: one reverse job covers the source range of the clip and its same-asset link
+    // partners (E.reverseRange), and none of them has a speed ramp (E.reverseRamped; reverseClips refuses those).
     function reverseFits(s, clipId) {
-        const range = s.project ? E().reverseRange(s.project, clipId) : null;
+        if (!s.project || E().reverseRamped(s.project, clipId)) return false;
+        const range = E().reverseRange(s.project, clipId);
         return !!range && range.frames <= maxReverseFrames(s);
     }
     function notifyRejected(s, error) {
