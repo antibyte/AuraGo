@@ -403,3 +403,72 @@ func TestCheckProjectCapabilitiesMask(t *testing.T) {
 		t.Fatal("capabilityFilters() lacks loop")
 	}
 }
+
+// blendModeIDs lists the registry blend modes with an FFmpeg name (all but normal), in registry order.
+func blendModeIDs() []string {
+	var ids []string
+	for _, mode := range EffectRegistry().BlendModes {
+		if mode.Blend != "" {
+			ids = append(ids, mode.ID)
+		}
+	}
+	return ids
+}
+
+// A blend mode composites through blend, maskedmerge and alphaextract (index §4.2, §4.22). Without any of them the
+// editor greys out all 13 modes, never normal, and the probe covers all three.
+func TestRegistryUnavailableBlendModes(t *testing.T) {
+	registry := EffectRegistry()
+	modes := blendModeIDs()
+	if len(modes) != 13 || len(registry.BlendModes) != 14 || registry.BlendModes[0].ID != BlendNormal || registry.BlendModes[0].Blend != "" {
+		t.Fatalf("blend modes = %+v", registry.BlendModes)
+	}
+	for _, filter := range []string{"blend", "maskedmerge", "alphaextract"} {
+		if got := registry.Unavailable([]string{"filter:" + filter}).BlendModes; !slices.Equal(got, modes) {
+			t.Errorf("without %s: unavailable blend modes %v, want %v", filter, got, modes)
+		}
+		if !slices.Contains(capabilityFilters(), filter) {
+			t.Errorf("capabilityFilters() lacks %q", filter)
+		}
+	}
+	for _, missing := range [][]string{nil, {"filter:lut3d", "filter:geq", "filter:sendcmd", "xfade:fadeblack"}} {
+		if got := registry.Unavailable(missing).BlendModes; len(got) != 0 {
+			t.Errorf("Unavailable(%v).BlendModes = %v, want none", missing, got)
+		}
+	}
+}
+
+// The export refuses a blend mode it cannot composite (index §4.3). Only clips that render count.
+func TestCheckProjectCapabilitiesBlend(t *testing.T) {
+	blended := func(edit func(*Project)) Project {
+		project := validProject()
+		project.Tracks[0].Clips[0].Blend = "screen"
+		if edit != nil {
+			edit(&project)
+		}
+		return project
+	}
+	if err := Validate(blended(nil)); err != nil {
+		t.Fatalf("blended project invalid: %v", err)
+	}
+	var capability *CapabilityError
+	for _, filter := range []string{"blend", "maskedmerge", "alphaextract"} {
+		err := CheckProjectCapabilities(blended(nil), []string{"filter:" + filter})
+		if !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) || capability.Feature != "blend:screen" || capability.Missing != "filter:"+filter {
+			t.Errorf("screen without %s = %v, want blend:screen needs filter:%s", filter, err, filter)
+		}
+	}
+	for name, c := range map[string]struct {
+		project Project
+		missing []string
+	}{
+		"filters present": {blended(nil), []string{"filter:lut3d", "filter:geq"}},
+		"normal clip":     {validProject(), []string{"filter:blend", "filter:maskedmerge", "filter:alphaextract"}},
+		"disabled clip":   {blended(func(p *Project) { p.Tracks[0].Clips[0].Disabled = true }), []string{"filter:blend"}},
+		"hidden track":    {blended(func(p *Project) { p.Tracks[0].Hidden = true }), []string{"filter:maskedmerge"}},
+	} {
+		if err := CheckProjectCapabilities(c.project, c.missing); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

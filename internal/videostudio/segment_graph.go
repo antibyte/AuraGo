@@ -114,7 +114,9 @@ func buildVideoSegment(project Project, seg Segment, sources map[string]renderSo
 }
 
 // buildVideoSegmentWith composes the visual tracks of seg. When seg starts or ends inside a transition the graph
-// covers the whole transition (pre-roll) and trims the composed frames back to seg.
+// covers the whole transition (pre-roll) and trims the composed frames back to seg. Each track layer composites onto
+// the layers below with the effective blend mode of every frame (compositeLayer, index §4.22). A layer whose frames are
+// all normal keeps the 2c overlay byte for byte.
 func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, graphFiles, error) {
 	window := expandRange(seg, videoForbiddenSpans(project))
 	layers, inputs, err := segmentLayers(project, window, sources, rate)
@@ -136,7 +138,7 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 		files.commands = append(files.commands, layerFiles.commands...)
 		files.addLUTs(layerFiles.luts)
 		next := fmt.Sprintf("vs_base%d", index+1)
-		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", output, label, next))
+		filters = append(filters, compositeLayer(output, label, layer, index, width, height, frames, rate, next)...)
 		output = next
 	}
 	tail := fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS", output, seg.Start-window.Start, seg.End-window.Start)

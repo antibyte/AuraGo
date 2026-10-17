@@ -30,7 +30,7 @@ func (e *CapabilityError) Unwrap() error { return ErrFeatureUnavailable }
 // phase2Filters are the FFmpeg filters phase 2 uses for colour, LUTs, keys, blur, sharpen, vignette, masks, blend
 // modes and runtime commands (spec §7.9). They are optional: a missing one makes the features that need it
 // unavailable. The readiness filters of hasRequiredRenderFilters stay a hard requirement.
-var phase2Filters = []string{"lutrgb", "colorchannelmixer", "lut3d", "colorkey", "despill", "gblur", "cas", "vignette", "geq", "alphamerge", "maskedmerge", "blend", "sendcmd", "loop"}
+var phase2Filters = []string{"lutrgb", "colorchannelmixer", "lut3d", "colorkey", "despill", "gblur", "cas", "vignette", "geq", "alphaextract", "alphamerge", "maskedmerge", "blend", "sendcmd", "loop"}
 
 // maskFilters are the filters a mask needs (index §4.3): geq generates it, loop repeats the static form, blend merges
 // it into the clip's alpha.
@@ -256,6 +256,19 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 			for _, filter := range maskFilters {
 				if need := "filter:" + filter; lacking[need] {
 					return &CapabilityError{Feature: "mask", Missing: need}
+				}
+			}
+		}
+		// A blend mode other than normal composites through blend, maskedmerge and alphaextract (index §4.22). The
+		// preview still blends it; the export refuses it here.
+		for _, clip := range track.Clips {
+			mode := clipBlendMode(clip)
+			if clip.Disabled || mode == BlendNormal {
+				continue
+			}
+			for _, filter := range blendModeFilters {
+				if need := "filter:" + filter; lacking[need] {
+					return &CapabilityError{Feature: "blend:" + mode, Missing: need}
 				}
 			}
 		}

@@ -2,6 +2,7 @@ package videostudio
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -189,5 +190,175 @@ func TestCollectRenderSourcesLoadsLUTs(t *testing.T) {
 	delete(sources, "used")
 	if _, _, err := segmentLayers(project, Segment{Start: 0, End: 25}, sources, ProjectRate(project)); err == nil {
 		t.Fatal("a missing LUT source was accepted")
+	}
+}
+
+// blendGraphProject is a 1280x720, 25 fps project with a full-canvas base clip on the video track (layer 0) and the given
+// clips on an overlay track (layer 1). Its one video asset is never decoded: these tests only build graphs.
+func blendGraphProject(top ...Clip) (Project, map[string]renderSource) {
+	project := Project{Version: CurrentVersion, Name: "Blend graph", Width: 1280, Height: 720, FPS: 25,
+		Assets: []Asset{{ID: "v", Name: "v.mp4", Kind: AssetVideo, DurationFrames: 900, Width: 64, Height: 36}},
+		Tracks: []Track{
+			{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{{ID: "base", AssetID: "v", Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}}},
+			{ID: "top", Name: "Top", Kind: TrackOverlay, Clips: top},
+		}}
+	return project, map[string]renderSource{"v": {asset: project.Assets[0], path: "v.mp4", videoEnd: 36}}
+}
+
+// blendGraphClip is a clip of blendGraphProject's overlay track in a box of half the canvas.
+func blendGraphClip(id string, start, duration int, blend string, transition *Transition) Clip {
+	return Clip{ID: id, AssetID: "v", Start: start, Duration: duration, X: 0.1, Y: 0.1, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1,
+		Fit: FitContain, Blend: blend, Transition: transition}
+}
+
+// twoCGraph is buildVideoSegment's composition at plan 2c (7e93ec73c), rebuilt from its unchanged parts:
+//   - the black base canvas;
+//   - buildVisualLayer per layer;
+//   - one overlay per layer;
+//   - the BT.709 tail at the project size.
+//
+// A layer whose frames are all normal must still produce exactly this (index §4.10, risk 18).
+func twoCGraph(t *testing.T, project Project, seg Segment, sources map[string]renderSource) string {
+	t.Helper()
+	rate := ProjectRate(project)
+	window := expandRange(seg, videoForbiddenSpans(project))
+	layers, _, err := segmentLayers(project, window, sources, rate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	width, height, frames := project.Width, project.Height, window.End-window.Start
+	filters := []string{fmt.Sprintf("color=c=black:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[vs_base0]", width, height, rate, rate.SecondsArg(frames), frames)}
+	output, names := "vs_base0", &lutNames{}
+	for index, layer := range layers {
+		label, layerFilters, _ := buildVisualLayer(layer, index, width, height, rate, names)
+		next := fmt.Sprintf("vs_base%d", index+1)
+		filters = append(filters, layerFilters...)
+		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", output, label, next))
+		output = next
+	}
+	filters = append(filters, fmt.Sprintf("[%s]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[vs_video_out]",
+		output, seg.Start-window.Start, seg.End-window.Start))
+	return strings.Join(filters, ";\n")
+}
+
+// TestSegmentGraphBlendSnapshots pins how track layers composite (index §4.10, §4.22):
+//   - All-normal layers are the 2c graph byte for byte, also next to a blended layer.
+//   - A layer with one mode composites without a split. It is padded with transparent frames when it ends before the
+//     window. Dodge takes the layer first.
+//   - A mixed layer splits into runs, trims them and concatenates one window-long sublayer per mode. Normal composites
+//     first, then the modes in registry order.
+func TestSegmentGraphBlendSnapshots(t *testing.T) {
+	dissolve := &Transition{Type: TransitionDissolve, Duration: 4}
+	graphOf := func(project Project, sources map[string]renderSource, seg Segment) string {
+		t.Helper()
+		_, graph, _, err := buildVideoSegment(project, seg, sources, ProjectRate(project), project.Width, project.Height, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return graph
+	}
+
+	// All normal: a transition, a gap, a pre-rolled window inside the transition and a window starting in a gap.
+	normal, sources := blendGraphProject(blendGraphClip("a", 0, 10, "", dissolve), blendGraphClip("b", 6, 10, "", nil), blendGraphClip("c", 20, 6, "", nil))
+	for _, seg := range []Segment{{0, 30}, {8, 9}, {18, 24}} {
+		if got, want := graphOf(normal, sources, seg), twoCGraph(t, normal, seg, sources); got != want {
+			t.Fatalf("all-normal graph of %v changed:\n got %s\nwant %s", seg, got, want)
+		}
+	}
+
+	// A normal layer under a blended one keeps its lines. Of the blended layer only the overlay line is replaced.
+	blended, sources := blendGraphProject(blendGraphClip("a", 0, 10, "multiply", dissolve), blendGraphClip("b", 6, 10, "multiply", nil), blendGraphClip("c", 20, 6, "screen", nil))
+	got := graphOf(blended, sources, Segment{0, 30})
+	reference := twoCGraph(t, normal, Segment{0, 30}, sources)
+	if cut := strings.Index(reference, "[vs_base1]") + len("[vs_base1]"); !strings.HasPrefix(got, reference[:cut]) {
+		t.Fatalf("the normal base layer changed:\n got %s\nwant prefix %s", got, reference[:cut])
+	}
+	for _, line := range strings.Split(reference, ";\n") {
+		if strings.HasSuffix(line, "[vs_base2]") && strings.Contains(line, "overlay=") {
+			if strings.Contains(got, line) {
+				t.Fatalf("the blended layer kept its normal overlay: %s", line)
+			}
+			continue
+		}
+		if !strings.Contains(got, line) {
+			t.Fatalf("blended graph lacks the 2c line %s:\n%s", line, got)
+		}
+	}
+
+	// One mode over the whole window: no split, no pad; dodge takes the layer first.
+	single, sources := blendGraphProject(blendGraphClip("d", 0, 30, "dodge", nil))
+	got = graphOf(single, sources, Segment{0, 30})
+	wantSingle := strings.Join([]string{
+		"[vs_base1]format=gbrp,split=2[vs_bl_1_1_b0][vs_bl_1_1_b1]",
+		"[vs_clip_1_0]split=2[vs_bl_1_1_l0][vs_bl_1_1_l1]",
+		"[vs_bl_1_1_l0]format=gbrp[vs_bl_1_1_lg]",
+		"[vs_bl_1_1_l1]alphaextract[vs_bl_1_1_la]",
+		"[vs_bl_1_1_lg][vs_bl_1_1_b0]blend=c0_mode=dodge:c1_mode=dodge:c2_mode=dodge[vs_bl_1_1_e]",
+		"[vs_bl_1_1_b1][vs_bl_1_1_e][vs_bl_1_1_la]maskedmerge=planes=7,format=rgba[vs_base2]",
+	}, ";\n")
+	if !strings.Contains(got, wantSingle) || strings.Contains(got, "vs_bl_1_0_") || strings.Contains(got, "_run]") || strings.Contains(got, "all_opacity") || strings.Contains(got, "sendcmd") {
+		t.Fatalf("single-mode layer:\n%s", got)
+	}
+
+	// One mode, but the layer ends at 20 of 30 frames: transparent frames pad it to the window before the composite.
+	early, sources := blendGraphProject(blendGraphClip("m", 0, 20, "multiply", nil))
+	got = graphOf(early, sources, Segment{0, 30})
+	wantEarly := strings.Join([]string{
+		"color=c=black@0:s=1280x720:r=25:d=0.400000,trim=end_frame=10,setpts=PTS-STARTPTS,format=rgba[vs_bl_1_0_tail]",
+		"[vs_clip_1_0][vs_bl_1_0_tail]concat=n=2:v=1:a=0,settb=1/25[vs_bl_1_0_window]",
+		"[vs_base1]format=gbrp,split=2[vs_bl_1_1_b0][vs_bl_1_1_b1]",
+		"[vs_bl_1_0_window]split=2[vs_bl_1_1_l0][vs_bl_1_1_l1]",
+	}, ";\n")
+	if !strings.Contains(got, wantEarly) || strings.Contains(got, "_run]") {
+		t.Fatalf("padded single-mode layer:\n%s", got)
+	}
+
+	// Multiply → gap → screen: the gap joins multiply and the tail joins screen. split, one trim per run, one window-long
+	// sublayer per mode with transparent stretches, multiply's composite feeding screen's.
+	mixed, sources := blendGraphProject(blendGraphClip("m1", 0, 10, "multiply", nil), blendGraphClip("m2", 14, 10, "screen", nil))
+	got = graphOf(mixed, sources, Segment{0, 30})
+	wantMixed := strings.Join([]string{
+		"color=c=black@0:s=1280x720:r=25:d=0.240000,trim=end_frame=6,setpts=PTS-STARTPTS,format=rgba[vs_bl_1_0_tail]",
+		"[vs_join_1_1][vs_bl_1_0_tail]concat=n=2:v=1:a=0,settb=1/25[vs_bl_1_0_window]",
+		"[vs_bl_1_0_window]split=2[vs_bl_1_1_in][vs_bl_1_2_in]",
+		"[vs_bl_1_1_in]trim=start_frame=0:end_frame=14,setpts=PTS-STARTPTS[vs_bl_1_1_run]",
+		"[vs_bl_1_2_in]trim=start_frame=14:end_frame=30,setpts=PTS-STARTPTS[vs_bl_1_2_run]",
+		"color=c=black@0:s=1280x720:r=25:d=0.640000,trim=end_frame=16,setpts=PTS-STARTPTS,format=rgba[vs_bl_1_2_gap1]",
+		"[vs_bl_1_1_run][vs_bl_1_2_gap1]concat=n=2:v=1:a=0,settb=1/25[vs_bl_1_1_sub]",
+		"color=c=black@0:s=1280x720:r=25:d=0.560000,trim=end_frame=14,setpts=PTS-STARTPTS,format=rgba[vs_bl_1_1_gap2]",
+		"[vs_bl_1_1_gap2][vs_bl_1_2_run]concat=n=2:v=1:a=0,settb=1/25[vs_bl_1_2_sub]",
+		"[vs_base1]format=gbrp,split=2[vs_bl_1_1_b0][vs_bl_1_1_b1]",
+		"[vs_bl_1_1_sub]split=2[vs_bl_1_1_l0][vs_bl_1_1_l1]",
+		"[vs_bl_1_1_l0]format=gbrp[vs_bl_1_1_lg]",
+		"[vs_bl_1_1_l1]alphaextract[vs_bl_1_1_la]",
+		"[vs_bl_1_1_b0][vs_bl_1_1_lg]blend=c0_mode=multiply:c1_mode=multiply:c2_mode=multiply[vs_bl_1_1_e]",
+		"[vs_bl_1_1_b1][vs_bl_1_1_e][vs_bl_1_1_la]maskedmerge=planes=7,format=rgba[vs_bl_1_1_out]",
+		"[vs_bl_1_1_out]format=gbrp,split=2[vs_bl_1_2_b0][vs_bl_1_2_b1]",
+		"[vs_bl_1_2_sub]split=2[vs_bl_1_2_l0][vs_bl_1_2_l1]",
+		"[vs_bl_1_2_l0]format=gbrp[vs_bl_1_2_lg]",
+		"[vs_bl_1_2_l1]alphaextract[vs_bl_1_2_la]",
+		"[vs_bl_1_2_b0][vs_bl_1_2_lg]blend=c0_mode=screen:c1_mode=screen:c2_mode=screen[vs_bl_1_2_e]",
+		"[vs_bl_1_2_b1][vs_bl_1_2_e][vs_bl_1_2_la]maskedmerge=planes=7,format=rgba[vs_base2]",
+		"[vs_base2]trim=start_frame=0:end_frame=30",
+	}, ";\n")
+	if !strings.Contains(got, wantMixed) {
+		t.Fatalf("mixed layer:\n%s", got)
+	}
+
+	// A dissolve between different modes is normal in its overlap, and normal composites first with the 2c overlay.
+	transition, sources := blendGraphProject(blendGraphClip("m", 0, 14, "multiply", dissolve), blendGraphClip("s", 10, 14, "screen", nil))
+	got = graphOf(transition, sources, Segment{0, 30})
+	for _, want := range []string{
+		"[vs_bl_1_0_window]split=3[vs_bl_1_1_in][vs_bl_1_2_in][vs_bl_1_3_in]",
+		"[vs_bl_1_1_gap1][vs_bl_1_2_run][vs_bl_1_3_gap1]concat=n=3:v=1:a=0,settb=1/25[vs_bl_1_1_sub]",
+		"[vs_base1][vs_bl_1_1_sub]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[vs_bl_1_1_out]",
+		"[vs_bl_1_1_out]format=gbrp,split=2[vs_bl_1_2_b0][vs_bl_1_2_b1]",
+		"[vs_bl_1_2_b0][vs_bl_1_2_lg]blend=c0_mode=multiply:c1_mode=multiply:c2_mode=multiply[vs_bl_1_2_e]",
+		"[vs_bl_1_2_out]format=gbrp,split=2[vs_bl_1_3_b0][vs_bl_1_3_b1]",
+		"[vs_bl_1_3_b1][vs_bl_1_3_e][vs_bl_1_3_la]maskedmerge=planes=7,format=rgba[vs_base2]",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("transition layer lacks %s:\n%s", want, got)
+		}
 	}
 }

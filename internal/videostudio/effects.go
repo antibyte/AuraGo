@@ -347,13 +347,19 @@ func cloneEffect(effect EffectSpec) EffectSpec {
 	return effect
 }
 
+// blendModeFilters are the filters that every blend mode with an FFmpeg name composites through (index §4.22): blend
+// for the mode, alphaextract for the layer's alpha and maskedmerge for the mix. Normal keeps the overlay and needs none
+// of them.
+var blendModeFilters = []string{"blend", "maskedmerge", "alphaextract"}
+
 // Unavailable maps the entries ProbeCapabilities reports ("filter:<name>", "xfade:<name>") to the registry ids the
 // editor greys out:
 //   - an effect when one of its Filters is missing;
 //   - a transition when its xfade transition is missing;
-//   - a blend mode with an FFmpeg blend name when the blend filter is missing.
+//   - a blend mode with an FFmpeg blend name when one of blendModeFilters is missing (never normal).
 //
-// Animation presets (2e) add their rule here. Unknown entries are ignored, and no list is nil.
+// Masks have no entry; the export refuses them (CheckProjectCapabilities). Animation presets (2e) add their rule here.
+// Unknown entries are ignored, and no list is nil.
 func (r Registry) Unavailable(missing []string) UnavailableSet {
 	lacking := make(map[string]bool, len(missing))
 	for _, entry := range missing {
@@ -374,8 +380,14 @@ func (r Registry) Unavailable(missing []string) UnavailableSet {
 		}
 	}
 	for _, mode := range r.BlendModes {
-		if mode.Blend != "" && lacking["filter:blend"] {
-			set.BlendModes = append(set.BlendModes, mode.ID)
+		if mode.Blend == "" {
+			continue
+		}
+		for _, filter := range blendModeFilters {
+			if lacking["filter:"+filter] {
+				set.BlendModes = append(set.BlendModes, mode.ID)
+				break
+			}
 		}
 	}
 	return set
