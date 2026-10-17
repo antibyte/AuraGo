@@ -2357,6 +2357,10 @@ registration lives in `internal/desktop/types.go`.
   to the sprite cache. Preserve opacity and nearest-neighbor scaling. Verify
   `TestGalaxaAsteroidAnimationBrowser` for continuity, Reduced Motion and cleanup.
   Sprite canvases have a 768-entry cap. Asset failures expose localized retry.
+- Galaxa background order is sector scenery, stars, planets, then gameplay/HUD.
+  Planet frame blending uses one reusable logical-size canvas and preserves body
+  opacity; dim the colors rather than the alpha so stars cannot show through.
+  Keep the two-sheet limit and verify `TestGalaxaPlanetOcclusionBrowser`.
 - `ctx.stepFrame` runs a fixed 60 Hz simulation independently of rendering.
   Use `ctx.scheduleGame`, not wall-clock timers, for combat transitions.
   `resetRun` resets the run generation and seeded RNG; delayed work cannot
