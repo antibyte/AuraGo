@@ -22,8 +22,8 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
-// videoStudioAppScripts returns every 'video-studio' script of the module loader in load order (index §5), so the
-// keyframe fixture follows later insertions without a list of its own.
+// videoStudioAppScripts returns every 'video-studio' script of the module loader in load order (index §5), the shared
+// sticker scripts included, so the keyframe fixture follows later insertions without a list of its own.
 func videoStudioAppScripts(t *testing.T) []string {
 	t.Helper()
 	loader, err := os.ReadFile(filepath.Join("js", "desktop", "core", "module-loader.js"))
@@ -35,7 +35,7 @@ func videoStudioAppScripts(t *testing.T) []string {
 		t.Fatal("module loader has no 'video-studio' scripts list")
 	}
 	var scripts []string
-	for _, match := range regexp.MustCompile(`'(/js/desktop/apps/video-studio[a-z0-9-]*\.js)'`).FindAllSubmatch(entry[1], -1) {
+	for _, match := range regexp.MustCompile(`'(/js/desktop/(?:shared/sticker|apps/video-studio)[a-z0-9-]*\.js)'`).FindAllSubmatch(entry[1], -1) {
 		scripts = append(scripts, string(match[1]))
 	}
 	return scripts
@@ -83,12 +83,12 @@ func newVideoStudioKeyframesServer(t *testing.T, project map[string]any) *httpte
 	}
 	locale := map[string]string{}
 	for key, value := range english {
-		if strings.HasPrefix(key, "videoStudio.") {
+		if strings.HasPrefix(key, "videoStudio.") || strings.HasPrefix(key, "stickers.") {
 			locale[key] = value
 		}
 	}
 	var page strings.Builder
-	page.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg)}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}</style></head><body class="desktop-body" data-theme="standard"><main class="vd-window-content"><div id="studio"></div></main>`)
+	page.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><link rel="stylesheet" href="/css/desktop-stickers.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg)}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}</style></head><body class="desktop-body" data-theme="standard"><main class="vd-window-content"><div id="studio"></div></main>`)
 	page.WriteString(`<script>window.kfErrors=[];addEventListener('error',e=>kfErrors.push(String(e.message)));addEventListener('unhandledrejection',e=>kfErrors.push(String(e.reason)));</script>`)
 	for _, script := range videoStudioAppScripts(t) {
 		fmt.Fprintf(&page, `<script src="%s"></script>`, script)

@@ -57,9 +57,12 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><title>Video Studio integration</title>
 <link rel="stylesheet" href="/css/desktop-app-video-studio.css">
+<link rel="stylesheet" href="/css/desktop-stickers.css">
 <style>html,body,#studio{margin:0;width:100%;height:100%;overflow:hidden}body{background:#151922}</style>
 <div id="studio"></div>
 <script>window.fixtureErrors=[];addEventListener('error',e=>fixtureErrors.push(e.message));addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));</script>
+<script src="/js/desktop/shared/sticker-catalog.js"></script>
+<script src="/js/desktop/shared/sticker-library.js"></script>
 <script src="/js/desktop/apps/video-studio-icons.js"></script>
 <script src="/js/desktop/apps/video-studio-time.js"></script>
 <script src="/js/desktop/apps/video-studio-effects.js"></script>
