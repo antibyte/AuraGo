@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/json"
+	"html/template"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,5 +40,38 @@ func TestDashboardShellKeysExistInAllLocales(t *testing.T) {
 		if !strings.Contains(values["dashboard.section.updated"], "{{time}}") {
 			t.Errorf("lang/dashboard/%s.json: dashboard.section.updated must keep the {{time}} placeholder", lang)
 		}
+	}
+}
+
+// TestDashboardTemplateExecutesAllSectionPartials: a {{template}} without its {{define}} only fails at Execute,
+// so the shell and every partial are parsed and executed here with the page's real data shape.
+func TestDashboardTemplateExecutesAllSectionPartials(t *testing.T) {
+	t.Parallel()
+
+	partials := dashboardSectionPartialFiles(t)
+	if len(partials) != len(dashboardSectionIDs) {
+		t.Fatalf("section partials = %v, want one per section %v", partials, dashboardSectionIDs)
+	}
+	tmpl, err := template.ParseFS(Content, append([]string{"dashboard.html"}, partials...)...)
+	if err != nil {
+		t.Fatalf("parse dashboard template: %v", err)
+	}
+	data := struct {
+		Lang             string
+		BuildVersion     string
+		TemplateDataJSON template.JS
+	}{Lang: "en", BuildVersion: "p2-test", TemplateDataJSON: template.JS(`{"systemLang":"en","i18n":{}}`)}
+	var out bytes.Buffer
+	if err := tmpl.Execute(&out, data); err != nil {
+		t.Fatalf("execute dashboard template: %v", err)
+	}
+	page := out.String()
+	for _, id := range dashboardSectionIDs {
+		if got := strings.Count(page, `id="sec-`+id+`"`); got != 1 {
+			t.Errorf("rendered dashboard has %d id=\"sec-%s\", want 1", got, id)
+		}
+	}
+	if strings.Contains(page, "{{") {
+		t.Error("rendered dashboard still contains template actions")
 	}
 }
