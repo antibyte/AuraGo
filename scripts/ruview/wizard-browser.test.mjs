@@ -179,6 +179,14 @@ try {
     });
     await ready();assert.equal(await page.locator('dialog [name="node"]').inputValue(),'2','the Config API entry must receive the same proposal');
     assert.equal(posts,0,'ID discovery must only read existing nodes');
+    await page.locator('dialog button[value="close"]').click();
+    await page.locator('dialog').waitFor({state:'detached'});
+    await page.evaluate(async()=>{
+        const {openWizard}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));
+        await openWizard({base:'/api/ruview/',t:key=>dict[key]||key,nodeID:9});
+    });
+    await ready();
+    assert.equal(await page.locator('dialog [name="node"]').inputValue(),'9','an explicit node id stays when discovery would suggest another');
     catalogFault='missing-offset';
     await open(); await ready();
     catalogFault=''; // The server is repaired while this dialog remains open.

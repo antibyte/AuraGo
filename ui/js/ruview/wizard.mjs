@@ -3,7 +3,7 @@ const [{ Onboarding, privateIPv4, validateConfig, revision }, { flash, serialAva
     import('./protocol.mjs' + resourceQuery), import('./flash.mjs' + resourceQuery)
 ]);
 
-export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
+export async function openWizard({base='/api/ruview/',t,receiverIP='',port,nodeID}={}){
     const tr=key=>t('ruview.'+key),dialog=document.createElement('dialog');dialog.className='ruview-wizard';dialog.setAttribute('aria-label','RuView · ESP32');
     const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let stopped=false,busy=false,serial=null,identity=null,expected=null,controller=new AbortController();
@@ -91,6 +91,7 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port}={}){
         else message.textContent=tr('connection_interrupted');
     }),3000);
     let catalog;
+    if(Number.isInteger(nodeID)&&nodeID>=1&&nodeID<=255){get('node').value=String(nodeID);get('node').dataset.edited='true';}
     try{await allowed();if(stopped)return close;await Promise.all([loadBoardSetup(),loadNodeID(),request('firmware').then(value=>catalog=value)]);if(stopped)return close;get('profile').innerHTML=catalog.firmware.map(p=>`<option value="${esc(p.id)}">${esc(p.id)}</option>`).join('');if(!serialAvailable())throw Error('serial_unsupported');feedback(catalog.firmware.length?'ready':'firmware_missing');}
     catch(error){feedback('error',explain(error));buttons.forEach(b=>b.disabled=true);return close;}
     const enableButtons=()=>{

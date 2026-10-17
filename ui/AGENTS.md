@@ -739,6 +739,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Strip those in the reproducible client adapter; keep proxy query restrictions
   and Vault authentication unchanged. Browser coverage must open the actual
   Live Demo stream and deliver a pose frame through its renderer callbacks.
+  The overview shows artifact verification, the storage budget, UDP scope, the
+  last error, why a control is disabled, and that a managed runtime was not
+  started in this session. Rendering does not start or probe. Devices show
+  a relative measurement age. An omitted measurement time stays blank. A
+  retained offline RSSI is the last value for the same receiver only. An idle
+  tab waits for the new snapshot before showing board ages. A tab switch during
+  a refresh paints the last snapshot and does not start a second request. Those
+  passive fields are defined in `internal/ruview/AGENTS.md`.
   Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
   backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
   The shared board wizard uses host theme tokens and native checkbox semantics.
@@ -752,7 +760,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   receiver/port defaults through the administrative `board-setup` read, preserve
   typed values and require explicit acceptance of unverified LAN suggestions.
   On each wizard opening, suggest the lowest unused node ID in 1–255 from the
-  AuraGo nodes read, including saved offline nodes. Preserve manually typed IDs;
+  AuraGo nodes read, including saved offline nodes. An explicit `nodeID` from
+  the Devices list is marked edited before that suggestion, so discovery cannot
+  replace it. Preserve manually typed IDs;
   the suggestion is not a reservation and cannot account for boards never observed
   or confirmed. After matching readback, register only the node ID with AuraGo;
   report a save failure without claiming that device registration succeeded.

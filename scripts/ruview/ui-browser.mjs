@@ -5,9 +5,9 @@ export async function checkDevices(page,fixture) {
     fixture.hold=new Promise(resolve=>{release=resolve;});
     fixture.statusFail=true;
     try {
-        const age=Number((await page.locator('[data-age]').innerText()).split(' ')[0]);
-        await page.waitForFunction(age=>parseInt(document.querySelector('[data-age]')?.textContent)>age+500,age);
-        await page.waitForFunction(()=>parseInt(document.querySelector('[data-age]')?.textContent)>10000,{},{timeout:16000});
+        const age=Number(await page.locator('[data-age]').getAttribute('data-age-ms'));
+        await page.waitForFunction(age=>Number(document.querySelector('[data-age]')?.dataset.ageMs)>age+500,age);
+        await page.waitForFunction(()=>Number(document.querySelector('[data-age]')?.dataset.ageMs)>10000,{},{timeout:16000});
         assert.match(await page.locator('[data-fresh]').innerText(),/Veraltet/i);
         assert.equal(fixture.max,1,'device polling must not overlap');
         fixture.fail=true;release();fixture.hold=null;
@@ -21,7 +21,7 @@ export async function checkDevices(page,fixture) {
         await page.locator('[data-tab=devices]').click();await page.waitForTimeout(4200);
         assert.equal(fixture.max,1,'returning to devices must not overlap a previous request');
         release();fixture.hold=null;
-        await page.waitForFunction(()=>parseInt(document.querySelector('[data-age]')?.textContent)<1000);
+        await page.waitForFunction(()=>Number(document.querySelector('[data-age]')?.dataset.ageMs)<1000);
         fixture.offline=true;
         await page.waitForFunction(()=>document.querySelector('[data-fresh]')?.textContent==='Keine aktuellen Sensordaten');
         assert.equal(await page.locator('.ruview-node').count(),1,'empty upstream after restart retains known boards');
@@ -50,7 +50,8 @@ export async function checkDevices(page,fixture) {
         await page.locator('#app').evaluate(el=>el.style.display='');
         await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').waitFor();
         const leftReads=fixture.reads;await page.waitForTimeout(4200);
-        assert.equal(fixture.reads,leftReads,'hidden devices view does not poll');
+        assert.ok(fixture.reads>leftReads,'overview checklist refreshes known boards');
+        assert.equal(fixture.max,1,'overview refresh does not overlap');
         await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
         await page.evaluate(()=>RuViewApp.dispose('test'));
         const closedReads=fixture.reads,closedAge=await page.locator('[data-age]').innerText();await page.waitForTimeout(4200);
