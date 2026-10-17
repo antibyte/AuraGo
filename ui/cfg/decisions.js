@@ -116,7 +116,7 @@ function renderDecisionsSection(section) {
     buttons.setup = setupButton;
     const steps = node('div', 'cfg-actions cfg-actions-row', '', advanced);
     for (const [action, label] of [
-        ['check', 'check'], ['install', 'download'], ['start', 'start_step']
+        ['check', 'check'], ['start', 'start_step']
     ]) {
         const step = node('div', '', '', steps);
         const button = node('button', 'btn-secondary', tr(label), step);
@@ -130,7 +130,9 @@ function renderDecisionsSection(section) {
     checkResult.dataset.decisionsCheck = '';
     checkResult.setAttribute('role', 'status');
     checkResult.hidden = true;
-    const setupLink = node('a', 'field-help', tr('setup_instructions'), advanced);
+    const setupLink = node('a', 'field-help', tr('setup_instructions'), localPanel);
+    setupLink.dataset.decisionsSetupHelp = '';
+    setupLink.hidden = true;
     setupLink.href = 'https://github.com/antibyte/AuraGo/blob/main/documentation/decisions.md';
     setupLink.target = '_blank';
     setupLink.rel = 'noopener noreferrer';
@@ -297,6 +299,9 @@ function renderDecisionsSection(section) {
         }
         const local = !providerMode();
         const changing = !!pendingAction || status?.setup_active || ['setting_up', 'installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
+        const setupFailed = ['error', 'blocked', 'stopped_with_error'].includes(status?.state)
+            || (!checkResult.hidden && installationCheck && !installationCheck.runtime_available);
+        setupLink.hidden = !local || busy || changing || localReady() || !setupFailed;
         // A failed autostart can leave Installed false even after verifying cached models.
         const canStart = status && status.state !== 'not_installed' && status.code !== 'model_not_installed'
             && (status.code !== 'runtime_artifact_missing' || status.installed || installationCheck?.runtime_available);
@@ -306,7 +311,7 @@ function renderDecisionsSection(section) {
         for (const [action, button] of Object.entries(buttons)) {
             button.hidden = !local;
             button.disabled = action === 'stop'
-                ? (busy && !['test', 'install', 'start', 'setup'].includes(activeAction)) || (!busy && !changing && idle)
+                ? (busy && !['test', 'start', 'setup'].includes(activeAction)) || (!busy && !changing && idle)
                 : busy || changing || (action !== 'setup' && localDirty()) || (!['check', 'setup'].includes(action) && !status?.enabled)
                     || (action === 'start' && (!canStart || localReady()))
                     || (action === 'test' && !localReady());
@@ -404,8 +409,7 @@ function renderDecisionsSection(section) {
             }
             if (pendingAction && pendingAction.revision === actionRevision) {
                 let outcome = '';
-                if (pendingAction.action === 'install' && status.state === 'installed') outcome = tr('installed');
-                else if (['start', 'setup'].includes(pendingAction.action) && status.ready) outcome = tr('ready');
+                if (['start', 'setup'].includes(pendingAction.action) && status.ready) outcome = tr('ready');
                 else if (['error', 'blocked', 'stopped_with_error'].includes(status.state)) outcome = reason(status.code) || tr('failed');
                 else if (['stopped', 'disabled'].includes(status.state)) outcome = errorText('cancelled');
                 if (outcome) { localResult.textContent = outcome; pendingAction = null; }
@@ -482,7 +486,7 @@ function renderDecisionsSection(section) {
         }
     };
     const run = async action => {
-        if (!attached() || (busy && !(action === 'stop' && ['test', 'install', 'start', 'setup'].includes(activeAction)))) return;
+        if (!attached() || (busy && !(action === 'stop' && ['test', 'start', 'setup'].includes(activeAction)))) return;
         const useProvider = providerMode();
         if (action === 'stop') { activeRequest?.abort(); pendingAction = null; }
         if (action !== 'check') checkResult.hidden = true;
@@ -565,10 +569,10 @@ function renderDecisionsSection(section) {
                     localResult.textContent = '';
                     errorCode.textContent = body.code || '';
                     paint();
-                } else if (!useProvider && response.status === 202 && ['install', 'start', 'setup'].includes(action)) {
+                } else if (!useProvider && response.status === 202 && ['start', 'setup'].includes(action)) {
                     pendingAction = {action, revision};
                     actionResult.textContent = tr('action_pending');
-                } else actionResult.textContent = useProvider || action === 'test' ? tr('test_passed') : action === 'install' ? tr('installed') : action === 'start' ? tr('ready') : t('config.local_llm.state_stopped');
+                } else actionResult.textContent = useProvider || action === 'test' ? tr('test_passed') : action === 'start' ? tr('ready') : t('config.local_llm.state_stopped');
             }
             else actionResult.textContent = useProvider ? errorText(body.code || 'external_provider_failed') : reason(body.code || 'request_failed');
             if (action !== 'check') await refresh();

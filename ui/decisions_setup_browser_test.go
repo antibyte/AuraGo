@@ -34,12 +34,17 @@ func TestDecisionsOneClickSetupBrowser(t *testing.T) {
 	page.MustElement(`.sidebar-group:has([data-section="decisions"]) .sidebar-group-header`).MustClick()
 	page.MustElement(`[data-section="decisions"]`).MustClick()
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-action="setup"]')?.disabled===false`)
+	if !page.MustEval(`()=>!document.querySelector('[data-decisions-action="install"]') && document.querySelector('[data-decisions-setup-help]').hidden`).Bool() {
+		t.Fatal("normal setup still shows redundant download or instructions")
+	}
 	page.MustEval(`()=>AuraConfigState.set('agent.name','unsaved elsewhere')`)
 	page.MustElement(`[data-decisions-action="setup"]`).MustFocus().MustType(input.Enter)
 	waitForJSBool(t, page, `()=>setupCalls.length===1 && AuraConfigState.get('decisions.enabled',{saved:true})===true && document.querySelector('[data-decisions-progress]').textContent.includes('Laufzeit herunterladen')`)
 	if !page.MustEval(`()=>setupCalls[0].cpu_fallback_allowed===false && AuraConfigState.buildPatch().agent.name==='unsaved elsewhere' && !AuraConfigState.buildPatch().decisions && document.querySelector('[data-decisions-action="setup"]').disabled && !document.querySelector('[data-decisions-action="stop"]').disabled`).Bool() {
 		t.Fatal("one-click setup lost draft state, changed consent or allowed duplicate setup")
 	}
+	page.MustEval(`()=>{setupStatus.progress={phase:'verifying_model',total_bytes:100,current_bytes:40,percent:40};document.dispatchEvent(new Event('aurago:config-saved'));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-settings] progress')?.value===40 && document.querySelector('[data-decisions-progress]')?.textContent.includes('Modellintegrität')`)
 	for _, width := range []int{1440, 390} {
 		page.MustSetViewport(width, 900, 1, false)
 		if page.MustEval(`()=>document.documentElement.scrollWidth>innerWidth+1`).Bool() {
@@ -54,11 +59,14 @@ func TestDecisionsOneClickSetupBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{setupStatus={...setupStatus,setup_active:false,state:'error',code:'runtime_download_failed'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
 	waitForJSBool(t, page, `()=>!document.querySelector('[data-decisions-action="setup"]').disabled && document.querySelector('[data-decisions-status]').textContent.includes('Verbindung')`)
+	if !page.MustEval(`()=>!document.querySelector('[data-decisions-setup-help]').hidden && document.querySelector('[data-decisions-setup-help]').closest('[data-decisions-mode="local"]') && !document.querySelector('[data-decisions-setup-help]').closest('details')`).Bool() {
+		t.Fatal("setup failure did not expose instructions outside advanced settings")
+	}
 	page.MustElement(`[data-decisions-action="setup"]`).MustClick()
 	waitForJSBool(t, page, `()=>setupCalls.length===2`)
 	page.MustEval(`()=>{setupStatus={...setupStatus,setup_active:false,ready:true,state:'ready',code:'',backend:'vulkan',device:'AMD GPU',deployment:'native'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]').textContent==='Decisions ist bereit' && !document.querySelector('[data-decisions-action="test"]').disabled`)
-	if !page.MustEval(`()=>AuraConfigState.buildPatch().agent.name==='unsaved elsewhere' && document.querySelector('[data-decisions-action="setup"]').hidden`).Bool() {
+	if !page.MustEval(`()=>AuraConfigState.buildPatch().agent.name==='unsaved elsewhere' && document.querySelector('[data-decisions-action="setup"]').hidden && document.querySelector('[data-decisions-setup-help]').hidden`).Bool() {
 		t.Fatal("ready setup lost unrelated draft")
 	}
 	page.MustEval(`()=>{setupStatus={enabled:true,ready:true,backend:'provider',state:'ready'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
@@ -114,7 +122,7 @@ func TestDecisionsOptionalCheckRejectsLateDraftResponse(t *testing.T) {
         resolveCheck(new Response(JSON.stringify({deployment:'native',runtime_available:true})));
         await new Promise(resolve=>setTimeout(resolve,30));
     }`)
-	if !page.MustEval(`()=>document.querySelector('[data-decisions-check]').hidden && document.querySelector('[data-decisions-action="install"]').disabled`).Bool() {
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-check]').hidden && document.querySelector('[data-decisions-action="start"]').disabled`).Bool() {
 		t.Fatal("late check response accepted for changed draft")
 	}
 }

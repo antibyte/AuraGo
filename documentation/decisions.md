@@ -44,9 +44,11 @@ that setting and explains the choice.
 
 After setup, **Test decision** runs another explicit text test; merely opening
 settings only reads status. **Stop** stops the process or container. Advanced
-options retain the independent check, installation, and start actions for
-diagnosis and compatibility. Installation alone leaves the service installed;
-it does not grant readiness. Reinstallation stops a serving generation before
+options retain the independent check and start actions for diagnosis. Setup
+already downloads the model; no separate download action is needed. A failed
+setup or prerequisite check reveals the setup guide. Installation through the
+legacy API alone leaves the service installed; it does not grant readiness.
+Reinstallation stops a serving generation before
 replacing files. Evaluation failures never silently replay the request or change
 the active backend.
 

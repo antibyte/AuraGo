@@ -882,14 +882,16 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   or section changes. Keep setup errors and the last successful request visible.
 - `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
   and explicit CPU/mixed-offload permission. Its status polling is passive,
-  bounded, cancelled on disposal, and cannot repaint another section. Install,
-  start, and test require saved settings; stop remains available for containment,
+  bounded, cancelled on disposal, and cannot repaint another section. Start
+  and test require saved settings; stop remains available for containment,
   including while a test is pending. A superseded test response must not replace the stop result.
-  Local setup presents check, download, and start separately. The explicit check
+  Local setup uses the single setup action for runtime/model download and start;
+  advanced controls retain the independent check and start. Show setup guidance
+  only after a failed setup or prerequisite check. The explicit check
   never runs on page load, uses saved settings, and stale replies cannot unlock
-  download after a deployment/backend change. Keep missing-package guidance,
+  start after a deployment/backend change. Keep missing-package guidance,
   installed-versus-ready status and a single visible outcome clear; technical
-  codes belong in diagnostic details. Verify `TestDecisionsSetupCheckBrowser`
+  codes belong in diagnostic details. Verify `TestDecisionsOneClickSetupBrowser`
   and `TestDecisionsLifecycleFeedbackBrowser` at narrow and wide sizes.
   Keep `config.decisions.*` in all sixteen locales aligned and verify
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
