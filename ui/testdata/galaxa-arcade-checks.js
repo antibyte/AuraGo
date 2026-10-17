@@ -16,6 +16,29 @@ async () => {
   if(baseline)assert(signature===baseline,'simulation differs at '+fps+' FPS');else baseline=signature;
   results.push('fixed step '+fps);
  }
+ for(const scenario of [
+  {name:'unshielded',startShield:0,shield:0,inv:0,alive:true,hit:true},
+  {name:'starting shield',startShield:3,shield:0,inv:0,alive:true,hit:true},
+  {name:'pickup shield',startShield:0,shield:1,inv:0,alive:true,hit:true},
+  {name:'invulnerable',startShield:0,shield:0,inv:1000,alive:true,hit:false},
+  {name:'already dead',startShield:0,shield:0,inv:0,alive:false,hit:false}
+ ]){
+  const c=await fresh(),g=c.G;g.st='PLAYING';g.lives=3;g.startShieldHits=scenario.startShield;g.shieldHits=scenario.shield;
+  Object.assign(g.p,{alive:scenario.alive,inv:scenario.inv,reviveTimer:0});
+  const e=c.newEnemy('bee',g.p.x,g.p.y,0,1);Object.assign(e,{x:g.p.x,y:g.p.y,st:'FORM'});g.enemies=[e];
+  assert(c.igniteSmolder(e,{blowMs:3000}),'smolder ignition failed');
+  const time=g.simTime;c.stepFrame(1/60);c.renderFrame();
+  const lethal=scenario.hit&&!scenario.startShield&&!scenario.shield;
+  assert(g.lives===(lethal?2:3)&&g.p.alive===(scenario.alive&&!lethal),'smolder player damage: '+scenario.name);
+  assert(g.startShieldHits===scenario.startShield-(scenario.hit&&scenario.startShield?1:0),'smolder starting shield: '+scenario.name);
+  assert(g.shieldHits===scenario.shield-(scenario.hit&&!scenario.startShield&&scenario.shield?1:0),'smolder pickup shield: '+scenario.name);
+  assert(g.killCount===(scenario.hit?1:0)&&e.st===(scenario.hit?'DEAD':'SMOLDER'),'smolder contact state/reward: '+scenario.name);
+  if(scenario.hit&&!lethal)assert(g.p.inv>0,'smolder shield hit did not grant invulnerability');
+  const score=g.score,credits=g.credits,kills=g.killCount,lives=g.lives;
+  for(let i=0;i<3;i++)c.stepFrame(1/60);
+  assert(g.simTime>time&&g.lives===lives&&g.killCount===kills&&g.score===score&&g.credits===credits,'smolder repeated damage/reward or stopped simulation: '+scenario.name);
+ }
+ results.push('smolder contact, both shields, invulnerability, death and single rewards');
  let c=await fresh(),g=c.G;g.st='PLAYING';g.p.inv=0;g.startShieldHits=0;
  assert(c.hit({x:100,y:100,prevX:100,prevY:300,w:2,h:4},{x:95,y:195,w:12,h:12}),'swept collision misses fast projectile');
  assert(!c.hit({x:150,y:100,prevX:150,prevY:300,w:2,h:4},{x:95,y:195,w:12,h:12}),'swept collision false positive');

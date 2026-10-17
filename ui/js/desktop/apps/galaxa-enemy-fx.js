@@ -436,7 +436,7 @@
             e.st = e.smolderIgnitedAir ? 'DIVING' : 'FORM'; e.hp = 0;
             ctx.finishEnemyKill(e, { noSmolder: true, x: e.x, y: e.y, vx: e.smolderVx || e.smolderKillVx, vy: e.smolderVy || e.smolderKillVy });
             addMark({ kind: 'crashShock', x: e.x, y: e.y, t: 0, dur: 360, col: e.smolderRingCol || '#ff7a33', r: 38 });
-            if (playerHit) ctx.damagePlayer(1, e.x, e.y, e.type);
+            if (playerHit) ctx.killP();
             if (ctx.SFX && ctx.SFX.smolderBlast) ctx.SFX.smolderBlast(e.x, e.smolderVariant);
         }
 
