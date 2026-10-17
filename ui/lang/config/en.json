@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Not enough disk space. Free some space and try again.",
   "config.decisions.disk_unknown": "Available disk space could not be checked. Check access permissions.",
   "config.decisions.save_failed": "Decisions settings could not be saved. Check write permissions and try again.",
-  "config.decisions.runtime_dependencies_missing": "The runtime cannot start. Check the supported operating system version and install an up-to-date graphics driver, then retry setup."
+  "config.decisions.runtime_dependencies_missing": "The runtime cannot start. Check the supported operating system version and install an up-to-date graphics driver, then retry setup.",
+  "config.decisions.pin_model": "Use fixed version",
+  "config.decisions.alias_target": "Current alias target: {value}",
+  "config.decisions.model_expiry": "Expiry notice: {value}",
+  "config.decisions.media_limits": "Up to {count} images, {bytes} KiB each. Images may be reduced; fine details can be lost.",
+  "config.decisions.model_checked": "Catalog checked: {value}",
+  "config.decisions.model_not_available": "This model is no longer available. Load the catalog and select another model.",
+  "config.decisions.model_context_unverified": "Context limit not verified. This model cannot be used.",
+  "config.decisions.model_unverified": "Model not checked. Load the catalog or run an explicit test.",
+  "config.decisions.responding_model": "Responding version: {value}",
+  "config.decisions.alias_changed": "The alias target changed. Check your routing thresholds for the new version.",
+  "config.decisions.runtime_discovery_timeout": "Device discovery exceeded 60 seconds. Check the runtime and try again. No CPU fallback was started.",
+  "config.decisions.runtime_discovery_output_limit": "Device discovery produced too much output and was stopped. Check the runtime.",
+  "config.decisions.image_limit_exceeded": "Images could not fit within the model limits. Send fewer or smaller images.",
+  "config.decisions.image_invalid": "An image is damaged or unsupported. Use a valid PNG or JPEG.",
+  "config.decisions.image_minimum_unmet": "An image is below the minimum dimensions for this model. Choose a larger original."
 }

@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Μεγέθυνση",
   "easydrag.ui.zoom_label": "Ζουμ",
   "easydrag.ui.zoom_out": "Σμίκρυνση",
-  "easydrag.ui.zoom_reset": "Ζουμ στο 100%"
+  "easydrag.ui.zoom_reset": "Ζουμ στο 100%",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Το μοντέλο δεν είναι πλέον διαθέσιμο. Φόρτωσε τον κατάλογο και επίλεξε άλλο μοντέλο.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Το όριο περιβάλλοντος δεν έχει επαληθευτεί. Το μοντέλο δεν μπορεί να χρησιμοποιηθεί."
 }

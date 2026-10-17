@@ -49,6 +49,13 @@ type DecisionModel struct {
 	Pricing           *DecisionModelPricing `json:"pricing,omitempty"`
 	SupportsDecisions bool                  `json:"supports_decisions"`
 	SupportsImages    bool                  `json:"supports_images"`
+	CanonicalSlug     string                `json:"canonical_slug,omitempty"`
+	AliasTarget       string                `json:"alias_target,omitempty"`
+	ExpirationDate    string                `json:"expiration_date,omitempty"`
+	Usable            bool                  `json:"usable"`
+	UnavailableCode   string                `json:"unavailable_code,omitempty"`
+	CheckedAt         time.Time             `json:"checked_at,omitempty"`
+	MediaLimits       DecisionMediaLimits   `json:"media_limits"`
 }
 
 // DecisionModelPricing contains the catalog's input and output prices.
@@ -181,8 +188,12 @@ func (client *OpenRouterClient) Models(ctx context.Context) ([]DecisionModel, er
 		return nil, NewError(CodeExternalProviderFailed, err)
 	}
 	client.cacheMu.Lock()
+	now := time.Now()
+	for index := range models {
+		models[index].CheckedAt = now
+	}
 	client.models = cloneDecisionModels(models)
-	client.modelsAt = time.Now()
+	client.modelsAt = now
 	client.cacheMu.Unlock()
 	return cloneDecisionModels(models), nil
 }
@@ -194,6 +205,13 @@ func (client *OpenRouterClient) cachedModels(now time.Time) ([]DecisionModel, bo
 		return nil, false
 	}
 	return cloneDecisionModels(client.models), true
+}
+
+// CatalogCheckedAt also timestamps a successfully loaded empty catalog.
+func (client *OpenRouterClient) CatalogCheckedAt() time.Time {
+	client.cacheMu.RLock()
+	defer client.cacheMu.RUnlock()
+	return client.modelsAt
 }
 
 func cloneDecisionModels(models []DecisionModel) []DecisionModel {
@@ -236,8 +254,11 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return Response{}, err
 	}
 	selected, ok := findDecisionModel(models, model)
-	if !ok || !selected.SupportsDecisions {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("selected model is not verified for Decisions"))
+	if !ok {
+		return Response{}, NewError(CodeModelNotAvailable, nil)
+	}
+	if code := selected.eligibilityCode(); code != "" {
+		return Response{}, NewError(code, nil)
 	}
 	if len(request.Images) > 0 && !selected.SupportsImages {
 		return Response{}, NewError(CodeInvalidRequest, errors.New("selected model does not advertise image input"))
@@ -251,16 +272,13 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
 	}
-	wire := openRouterDecisionRequest{Model: model, State: state, Questions: wireQuestions}
+	wire := openRouterDecisionRequest{Model: selected.ResolvedID(), State: state, Questions: wireQuestions}
 	body, err := json.Marshal(wire)
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, errors.New("encode OpenRouter Decisions request"))
 	}
 	if len(body) > openRouterMaxRequestBytes {
 		return Response{}, NewError(CodeInvalidRequest, errors.New("OpenRouter Decisions request exceeds the byte limit"))
-	}
-	if selected.ContextLength <= 0 {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("selected model has no verified context limit"))
 	}
 	contextLimit := int64(selected.ContextLength)
 	if contextLimit > openRouterMaxContextTokens {
@@ -285,7 +303,7 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return Response{}, NewError(CodeCancelled, err)
 	}
 
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterOrigin+openRouterDecisionsPath, strings.NewReader(string(body)))
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterOrigin+openRouterDecisionsPath, bytes.NewReader(body))
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
 	}
@@ -342,8 +360,17 @@ func openRouterFailureCode(status int, fallback string) string {
 }
 
 func findDecisionModel(models []DecisionModel, id string) (DecisionModel, bool) {
+	if !validDecisionModelID(id) {
+		return DecisionModel{}, false
+	}
 	for _, model := range models {
 		if model.ID == id {
+			return model, true
+		}
+	}
+	for _, model := range models {
+		if model.CanonicalSlug == id || model.AliasTarget == id {
+			model.ID, model.CanonicalSlug, model.AliasTarget = id, id, ""
 			return model, true
 		}
 	}
@@ -371,7 +398,12 @@ type openRouterCatalogModel struct {
 	ContextLength int                    `json:"context_length"`
 	Architecture  openRouterArchitecture `json:"architecture"`
 	Pricing       *DecisionModelPricing  `json:"pricing"`
-	TopProvider   struct {
+	CanonicalSlug string                 `json:"canonical_slug"`
+	AliasTarget   *struct {
+		Slug string `json:"slug"`
+	} `json:"alias_target"`
+	ExpirationDate string `json:"expiration_date"`
+	TopProvider    struct {
 		ContextLength int `json:"context_length"`
 	} `json:"top_provider"`
 }
@@ -385,7 +417,7 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 	models := make([]DecisionModel, 0, len(entries))
 	seen := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
-		if strings.TrimSpace(entry.ID) == "" {
+		if !validDecisionModelID(entry.ID) {
 			return nil, errors.New("OpenRouter catalog contains a model without an id")
 		}
 		if _, exists := seen[entry.ID]; exists {
@@ -404,7 +436,7 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 		if limit := entry.TopProvider.ContextLength; limit > 0 && (contextLength <= 0 || limit < contextLength) {
 			contextLength = limit
 		}
-		models = append(models, DecisionModel{
+		model := DecisionModel{
 			ID:                entry.ID,
 			Name:              name,
 			InputModalities:   modalities,
@@ -412,7 +444,18 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 			Pricing:           entry.Pricing,
 			SupportsDecisions: true,
 			SupportsImages:    containsModality(modalities, "image"),
-		})
+			ExpirationDate:    entry.ExpirationDate,
+		}
+		if validDecisionModelID(entry.CanonicalSlug) && !strings.HasPrefix(entry.CanonicalSlug, "~") {
+			model.CanonicalSlug = entry.CanonicalSlug
+		}
+		if entry.AliasTarget != nil && validDecisionModelID(entry.AliasTarget.Slug) && !strings.HasPrefix(entry.AliasTarget.Slug, "~") {
+			model.AliasTarget = entry.AliasTarget.Slug
+		}
+		model.UnavailableCode = model.eligibilityCode()
+		model.Usable = model.UnavailableCode == ""
+		model.MediaLimits = decisionMediaLimits(model.ResolvedID())
+		models = append(models, model)
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
 	return models, nil

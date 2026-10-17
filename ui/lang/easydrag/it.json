@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Ingrandisci",
   "easydrag.ui.zoom_label": "Zoom",
   "easydrag.ui.zoom_out": "Riduci",
-  "easydrag.ui.zoom_reset": "Zoom al 100%"
+  "easydrag.ui.zoom_reset": "Zoom al 100%",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Questo modello non è più disponibile. Carica il catalogo e scegli un altro modello.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Limite di contesto non verificato. Questo modello non può essere usato."
 }

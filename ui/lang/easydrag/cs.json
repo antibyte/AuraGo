@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Přiblížit",
   "easydrag.ui.zoom_label": "Zvětšení",
   "easydrag.ui.zoom_out": "Oddálit",
-  "easydrag.ui.zoom_reset": "Zvětšení 100 %"
+  "easydrag.ui.zoom_reset": "Zvětšení 100 %",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Tento model již není dostupný. Načti katalog a vyber jiný model.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Limit kontextu není ověřen. Tento model nelze použít."
 }

@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "空き容量が不足しています。容量を確保して再試行してください。",
   "config.decisions.disk_unknown": "空き容量を確認できませんでした。アクセス権を確認してください。",
   "config.decisions.save_failed": "Decisionsの設定を保存できませんでした。書き込み権限を確認してください。",
-  "config.decisions.runtime_dependencies_missing": "実行環境を起動できません。対応するOSのバージョンを確認し、最新のグラフィックスドライバーをインストールしてから、もう一度設定してください。"
+  "config.decisions.runtime_dependencies_missing": "実行環境を起動できません。対応するOSのバージョンを確認し、最新のグラフィックスドライバーをインストールしてから、もう一度設定してください。",
+  "config.decisions.pin_model": "固定バージョンを使う",
+  "config.decisions.alias_target": "現在のエイリアス先: {value}",
+  "config.decisions.model_expiry": "有効期限のお知らせ: {value}",
+  "config.decisions.media_limits": "画像は最大{count}枚、各{bytes} KiBです。縮小すると細部が失われることがあります。",
+  "config.decisions.model_checked": "カタログ確認日時: {value}",
+  "config.decisions.model_not_available": "このモデルは利用できなくなりました。カタログを読み込み、別のモデルを選んでください。",
+  "config.decisions.model_context_unverified": "コンテキスト上限が未確認のため、このモデルは使用できません。",
+  "config.decisions.model_unverified": "モデルは未確認です。カタログを読み込むか、明示的にテストを開始してください。",
+  "config.decisions.responding_model": "応答したバージョン: {value}",
+  "config.decisions.alias_changed": "エイリアス先が変更されました。新しいバージョンの振り分けしきい値を確認してください。",
+  "config.decisions.runtime_discovery_timeout": "デバイス検出が60秒を超えました。実行環境を確認して再試行してください。CPUへの切り替えは行われていません。",
+  "config.decisions.runtime_discovery_output_limit": "デバイス検出の出力が多すぎたため停止しました。実行環境を確認してください。",
+  "config.decisions.image_limit_exceeded": "画像がモデルの制限に収まりません。枚数を減らすか、小さい画像を送信してください。",
+  "config.decisions.image_invalid": "画像が破損しているか未対応です。有効なPNGまたはJPEGを使用してください。",
+  "config.decisions.image_minimum_unmet": "画像がモデルの最小寸法を下回っています。より大きな元画像を選んでください。"
 }

@@ -87,6 +87,10 @@ function renderDecisionsSection(section) {
     const loadModels = node('button', 'btn-secondary', tr('load_models'), catalogActions);
     loadModels.type = 'button';
     loadModels.dataset.decisionsLoadModels = '';
+    const pinModel = node('button', 'btn-secondary', tr('pin_model'), catalogActions);
+    pinModel.type = 'button';
+    pinModel.dataset.decisionsPinModel = '';
+    pinModel.hidden = true;
     const catalogResult = node('p', 'field-help', '', providerPanel);
     catalogResult.dataset.decisionsModels = '';
     catalogResult.setAttribute('role', 'status');
@@ -223,7 +227,16 @@ function renderDecisionsSection(section) {
         providerSelect.value = current;
         providerHelp.textContent = tr('provider_help');
     };
-    const modelFor = id => loadedModels.find(model => String(model.id) === String(id));
+    const modelFor = id => {
+        const current = status?.provider === providerSelect.value ? status.model_availability?.model : null;
+        if (current && [current.id, current.canonical_slug, current.alias_target].includes(id)) return current;
+        return loadedModels.find(model => [model.id, model.canonical_slug, model.alias_target].includes(id));
+    };
+    const modelBlocked = () => {
+        if (status?.model === modelSelect.value && status?.provider === providerSelect.value && status.model_availability) return status.model_availability.state === 'blocked';
+        const model = modelFor(modelSelect.value);
+        return !!model && (model.usable === false || Number(model.context_length) <= 0);
+    };
     const modelPrice = value => {
         if (value == null || String(value).trim() === '') return tr('price_unavailable');
         const n = Number(value);
@@ -234,6 +247,9 @@ function renderDecisionsSection(section) {
     };
     const showModelDetails = () => {
         const model = modelFor(modelSelect.value);
+        const target = model?.alias_target || model?.canonical_slug;
+        pinModel.hidden = !target || target === modelSelect.value;
+        pinModel.disabled = busy || modelBlocked();
         if (!model) {
             modelDetails.hidden = true;
             modelDetails.textContent = '';
@@ -249,8 +265,21 @@ function renderDecisionsSection(section) {
             tr('price_input', {value: modelPrice(pricing.prompt)}),
             tr('price_output', {value: modelPrice(pricing.completion)})
         ].join(' · ');
+        if (target && target !== modelSelect.value) modelDetails.textContent += ' · ' + tr('alias_target', {value: target});
+        if (model.expiration_date) modelDetails.textContent += ' · ' + tr('model_expiry', {value: model.expiration_date});
+        if (model.media_limits && model.supports_images) modelDetails.textContent += ' · ' + tr('media_limits', {count: model.media_limits.max_images, bytes: Math.round(model.media_limits.max_image_bytes / 1024)});
+        if (model.checked_at) modelDetails.textContent += ' · ' + tr('model_checked', {value: new Date(model.checked_at).toLocaleString()});
+        if (modelBlocked()) modelDetails.textContent += ' · ' + errorText(model.unavailable_code || 'model_not_available');
         modelDetails.hidden = false;
     };
+    pinModel.addEventListener('click', () => {
+        const model = modelFor(modelSelect.value);
+        const target = model?.alias_target || model?.canonical_slug;
+        if (!target || modelBlocked()) return;
+        if (![...modelSelect.options].some(option => option.value === target)) modelSelect.add(new Option(target, target));
+        modelSelect.value = target;
+        modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    });
     const updateButtons = () => {
         if (!attached()) return;
         const local = !providerMode();
@@ -288,7 +317,8 @@ function renderDecisionsSection(section) {
         cpuText.hidden = !local || !status?.cpu_fallback_active;
         providerPanel.hidden = !providerMode();
         localPanel.hidden = providerMode();
-        externalTest.disabled = busy || dirty() || !status?.enabled || !selectedProvider() || !modelSelect.value;
+        externalTest.disabled = busy || dirty() || !status?.enabled || !selectedProvider() || !modelSelect.value || modelBlocked();
+        externalTest.title = modelBlocked() ? errorText(status?.model_availability?.code || modelFor(modelSelect.value)?.unavailable_code || 'model_not_available') : '';
         loadModels.disabled = busy || !providerSelect.value;
         createProvider.disabled = busy;
         manageProviders.disabled = busy;
@@ -307,7 +337,7 @@ function renderDecisionsSection(section) {
             lifecycle_busy: 'lifecycle_busy', runtime_start_timeout: 'runtime_start_timeout', runtime_invalid_configuration: 'runtime_invalid_configuration',
             runtime_release_unavailable: 'release_unavailable', runtime_download_failed: 'runtime_download_failed', model_download_failed: 'runtime_download_failed',
             insufficient_disk_space: 'disk_full', disk_space_unavailable: 'disk_unknown', configuration_save_failed: 'save_failed',
-            runtime_dependencies_missing: 'runtime_dependencies_missing'
+            runtime_dependencies_missing: 'runtime_dependencies_missing', runtime_discovery_timeout: 'runtime_discovery_timeout', runtime_discovery_output_limit: 'runtime_discovery_output_limit'
         };
         return tr(exact[code] || 'failed');
     };
@@ -320,17 +350,21 @@ function renderDecisionsSection(section) {
             budget_exceeded: 'budget_exceeded', external_provider_failed: 'external_provider_failed',
             external_outcome_unknown: 'external_outcome_unknown', invalid_request: 'invalid_request',
             input_token_budget_exceeded: 'input_token_budget_exceeded', cancelled: 'cancelled',
-            provider_error: 'external_provider_failed'
+            provider_error: 'external_provider_failed', model_not_available: 'model_not_available', model_context_unverified: 'model_context_unverified', model_unverified: 'model_unverified', image_limit_exceeded: 'image_limit_exceeded', image_invalid: 'image_invalid', image_minimum_unmet: 'image_minimum_unmet'
         };
         return tr(keys[code] || 'failed');
     };
     const paint = () => {
         if (!attached() || !status) return;
         if (providerMode()) {
-            const state = status.ready ? tr('provider_ready') : status.state === 'error' ? errorText(status.last_error || status.code) : status.configured ? tr('provider_configured') : tr('provider_needs_setup');
+            const availability = status.model_availability;
+            const state = availability && availability.state !== 'usable' && status.configured ? errorText(availability.code || 'model_unverified') : status.ready ? tr('provider_ready') : status.state === 'error' ? errorText(status.last_error || status.code) : status.configured ? tr('provider_configured') : tr('provider_needs_setup');
             statusText.textContent = state;
             statusText.className = 'cfg-note-banner ' + (status.ready ? 'cfg-note-banner-success' : status.state === 'error' ? 'cfg-note-banner-warning' : '');
             deviceText.textContent = status.last_success ? tr('provider_last_success', {value: new Date(status.last_success).toLocaleString()}) : tr('provider_never_tested');
+            if (status.model_revision) deviceText.textContent += ' · ' + tr('responding_model', {value: status.model_revision});
+            if (status.alias_changed) deviceText.textContent += ' · ' + tr('alias_changed');
+            showModelDetails();
             cpuText.hidden = true;
         } else {
             const stateKeys = {disabled: 'disabled', stopped: 'stopped', installing: 'downloading', downloading: 'downloading', starting: 'starting', discovering_devices: 'starting', blocked: 'error', error: 'error', stopped_with_error: 'error'};
@@ -404,20 +438,27 @@ function renderDecisionsSection(section) {
             if (!attached() || request.signal.aborted || modelsRequest !== request) return;
             if (!response.ok) throw new Error(body?.code || 'external_provider_failed');
             loadedModels = Array.isArray(body.models) ? body.models : [];
-            if (!loadedModels.length) {
-                catalogResult.textContent = tr('models_empty');
-                return;
-            }
             const saved = modelSelect.value || data.model || '';
             modelSelect.replaceChildren(new Option(tr('model_select'), ''));
-            for (const model of loadedModels) modelSelect.add(new Option((model.name && model.name !== model.id ? model.name + ' · ' : '') + model.id, model.id));
+            for (const model of loadedModels) {
+                const blocked = model.usable === false || Number(model.context_length) <= 0;
+                const option = new Option((model.name && model.name !== model.id ? model.name + ' · ' : '') + model.id + (blocked ? ' · ' + errorText(model.unavailable_code || 'model_context_unverified') : ''), model.id);
+                option.disabled = blocked;
+                modelSelect.add(option);
+            }
             if (saved && !loadedModels.some(model => String(model.id) === saved)) {
-                const option = new Option(tr('model_saved_unavailable', {value: saved}), saved);
+                const known = loadedModels.find(model => [model.canonical_slug, model.alias_target].includes(saved));
+                const option = new Option(known ? saved : tr('model_saved_unavailable', {value: saved}), saved);
+                option.disabled = !known || known.usable === false;
                 option.dataset.preservedModel = 'true';
                 modelSelect.add(option);
             }
             modelSelect.value = saved;
-            catalogResult.textContent = tr('models_loaded', {count: loadedModels.length});
+            if (status?.model === saved && status?.provider === id) {
+                const model = loadedModels.find(model => [model.id, model.canonical_slug, model.alias_target].includes(saved));
+                status.model_availability = {state: model && model.usable !== false && Number(model.context_length) > 0 ? 'usable' : 'blocked', code: model?.unavailable_code || 'model_not_available', model};
+            }
+            catalogResult.textContent = tr(loadedModels.length ? 'models_loaded' : 'models_empty', {count: loadedModels.length});
             showModelDetails();
         } catch (error) {
             if (attached() && modelsRequest === request) catalogResult.textContent = errorText(error.message || 'external_provider_failed');
@@ -442,7 +483,7 @@ function renderDecisionsSection(section) {
         }
         let revision = actionRevision;
         if (useProvider && action === 'test') {
-            if (!status?.enabled || !selectedProvider() || !modelSelect.value) return;
+            if (!status?.enabled || !selectedProvider() || !modelSelect.value || modelBlocked()) return;
             const operation = {providerMode: useProvider, action, provider: providerSelect.value, model: modelSelect.value, requestStarted: false};
             revision = ++actionRevision;
             busy = true;

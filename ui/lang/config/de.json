@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Nicht genügend Speicherplatz. Gib Speicher frei und versuche es erneut.",
   "config.decisions.disk_unknown": "Der freie Speicherplatz konnte nicht geprüft werden. Prüfe die Zugriffsrechte.",
   "config.decisions.save_failed": "Die Decisions-Einstellungen konnten nicht gespeichert werden. Prüfe die Schreibrechte und versuche es erneut.",
-  "config.decisions.runtime_dependencies_missing": "Die Laufzeit kann nicht starten. Prüfe die unterstützte Systemversion und installiere einen aktuellen Grafiktreiber. Starte danach die Einrichtung erneut."
+  "config.decisions.runtime_dependencies_missing": "Die Laufzeit kann nicht starten. Prüfe die unterstützte Systemversion und installiere einen aktuellen Grafiktreiber. Starte danach die Einrichtung erneut.",
+  "config.decisions.pin_model": "Feste Version verwenden",
+  "config.decisions.alias_target": "Aktuelles Alias-Ziel: {value}",
+  "config.decisions.model_expiry": "Ablaufhinweis: {value}",
+  "config.decisions.media_limits": "Bis zu {count} Bilder mit je {bytes} KiB. Bilder werden bei Bedarf verkleinert; feine Details können verloren gehen.",
+  "config.decisions.model_checked": "Katalog geprüft: {value}",
+  "config.decisions.model_not_available": "Dieses Modell ist nicht mehr verfügbar. Lade den Katalog und wähle ein anderes Modell.",
+  "config.decisions.model_context_unverified": "Kontextgrenze nicht verifiziert. Dieses Modell kann nicht verwendet werden.",
+  "config.decisions.model_unverified": "Modell ungeprüft. Lade den Katalog oder starte ausdrücklich einen Test.",
+  "config.decisions.responding_model": "Antwortende Version: {value}",
+  "config.decisions.alias_changed": "Das Alias-Ziel hat sich geändert. Prüfe Deine Routing-Schwellenwerte für die neue Version.",
+  "config.decisions.runtime_discovery_timeout": "Die Geräteerkennung hat 60 Sekunden überschritten. Prüfe die Laufzeit und versuche es erneut. Es wurde kein CPU-Fallback gestartet.",
+  "config.decisions.runtime_discovery_output_limit": "Die Geräteerkennung hat zu viele Ausgaben erzeugt und wurde beendet. Prüfe die Laufzeit.",
+  "config.decisions.image_limit_exceeded": "Die Bilder passen nicht in die Modellgrenzen. Sende weniger oder kleinere Bilder.",
+  "config.decisions.image_invalid": "Ein Bild ist beschädigt oder wird nicht unterstützt. Verwende eine gültige PNG- oder JPEG-Datei.",
+  "config.decisions.image_minimum_unmet": "Ein Bild unterschreitet die Mindestabmessungen dieses Modells. Wähle ein größeres Original."
 }

@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "No hay suficiente espacio. Libera espacio e inténtalo de nuevo.",
   "config.decisions.disk_unknown": "No se pudo comprobar el espacio libre. Revisa los permisos de acceso.",
   "config.decisions.save_failed": "No se pudo guardar la configuración de Decisions. Revisa los permisos de escritura.",
-  "config.decisions.runtime_dependencies_missing": "No se puede iniciar el entorno de ejecución. Comprueba la versión de sistema compatible e instala un controlador gráfico actualizado. Después, repite la configuración."
+  "config.decisions.runtime_dependencies_missing": "No se puede iniciar el entorno de ejecución. Comprueba la versión de sistema compatible e instala un controlador gráfico actualizado. Después, repite la configuración.",
+  "config.decisions.pin_model": "Usar versión fija",
+  "config.decisions.alias_target": "Destino actual del alias: {value}",
+  "config.decisions.model_expiry": "Aviso de caducidad: {value}",
+  "config.decisions.media_limits": "Hasta {count} imágenes de {bytes} KiB cada una. Al reducirlas pueden perderse detalles finos.",
+  "config.decisions.model_checked": "Catálogo comprobado: {value}",
+  "config.decisions.model_not_available": "Este modelo ya no está disponible. Carga el catálogo y elige otro modelo.",
+  "config.decisions.model_context_unverified": "Límite de contexto sin verificar. Este modelo no se puede usar.",
+  "config.decisions.model_unverified": "Modelo sin comprobar. Carga el catálogo o inicia una prueba explícita.",
+  "config.decisions.responding_model": "Versión que respondió: {value}",
+  "config.decisions.alias_changed": "El destino del alias cambió. Revisa los umbrales de enrutamiento para la nueva versión.",
+  "config.decisions.runtime_discovery_timeout": "La detección de dispositivos superó los 60 segundos. Revisa el entorno de ejecución y reintenta. No se activó la CPU de respaldo.",
+  "config.decisions.runtime_discovery_output_limit": "La detección de dispositivos generó demasiada salida y se detuvo. Revisa el entorno de ejecución.",
+  "config.decisions.image_limit_exceeded": "Las imágenes no caben en los límites del modelo. Envía menos imágenes o más pequeñas.",
+  "config.decisions.image_invalid": "Una imagen está dañada o no es compatible. Usa un PNG o JPEG válido.",
+  "config.decisions.image_minimum_unmet": "Una imagen no alcanza las dimensiones mínimas del modelo. Elige un original más grande."
 }

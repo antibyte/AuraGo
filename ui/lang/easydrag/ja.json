@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "拡大",
   "easydrag.ui.zoom_label": "ズーム",
   "easydrag.ui.zoom_out": "縮小",
-  "easydrag.ui.zoom_reset": "100% で表示"
+  "easydrag.ui.zoom_reset": "100% で表示",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "このモデルは利用できなくなりました。カタログを読み込み、別のモデルを選んでください。",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "コンテキスト上限が未確認のため、このモデルは使用できません。"
 }

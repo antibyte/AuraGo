@@ -447,7 +447,7 @@ func TestOpenRouterRejectsBadProbabilitiesAndUnknownModelBeforePost(t *testing.T
 			return openRouterHTTPResponse(http.StatusOK, textDecisionCatalog, nil), nil
 		})
 		_, err := client.Evaluate(context.Background(), "unknown/model", request)
-		if ErrorCode(err) != CodeInvalidRequest || posts != 0 {
+		if ErrorCode(err) != CodeModelNotAvailable || posts != 0 {
 			t.Fatalf("error=%v code=%s posts=%d", err, ErrorCode(err), posts)
 		}
 	})

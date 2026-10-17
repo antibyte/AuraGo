@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Za mało miejsca na dysku. Zwolnij miejsce i spróbuj ponownie.",
   "config.decisions.disk_unknown": "Nie udało się sprawdzić wolnego miejsca. Sprawdź uprawnienia dostępu.",
   "config.decisions.save_failed": "Nie udało się zapisać ustawień Decisions. Sprawdź uprawnienia do zapisu.",
-  "config.decisions.runtime_dependencies_missing": "Nie można uruchomić środowiska. Sprawdź obsługiwaną wersję systemu i zainstaluj aktualny sterownik graficzny, a następnie ponów konfigurację."
+  "config.decisions.runtime_dependencies_missing": "Nie można uruchomić środowiska. Sprawdź obsługiwaną wersję systemu i zainstaluj aktualny sterownik graficzny, a następnie ponów konfigurację.",
+  "config.decisions.pin_model": "Użyj stałej wersji",
+  "config.decisions.alias_target": "Bieżący cel aliasu: {value}",
+  "config.decisions.model_expiry": "Informacja o wygaśnięciu: {value}",
+  "config.decisions.media_limits": "Do {count} obrazów po {bytes} KiB. Zmniejszanie może usunąć drobne szczegóły.",
+  "config.decisions.model_checked": "Katalog sprawdzony: {value}",
+  "config.decisions.model_not_available": "Ten model nie jest już dostępny. Wczytaj katalog i wybierz inny model.",
+  "config.decisions.model_context_unverified": "Limit kontekstu niezweryfikowany. Nie można użyć tego modelu.",
+  "config.decisions.model_unverified": "Model niesprawdzony. Wczytaj katalog lub jawnie uruchom test.",
+  "config.decisions.responding_model": "Wersja, która odpowiedziała: {value}",
+  "config.decisions.alias_changed": "Cel aliasu uległ zmianie. Sprawdź progi routingu dla nowej wersji.",
+  "config.decisions.runtime_discovery_timeout": "Wykrywanie urządzeń przekroczyło 60 sekund. Sprawdź środowisko wykonawcze i spróbuj ponownie. Nie uruchomiono trybu zapasowego CPU.",
+  "config.decisions.runtime_discovery_output_limit": "Wykrywanie urządzeń wygenerowało zbyt dużo danych i zostało zatrzymane. Sprawdź środowisko wykonawcze.",
+  "config.decisions.image_limit_exceeded": "Obrazy przekraczają limity modelu. Wyślij mniej obrazów lub mniejsze pliki.",
+  "config.decisions.image_invalid": "Obraz jest uszkodzony lub nieobsługiwany. Użyj poprawnego pliku PNG lub JPEG.",
+  "config.decisions.image_minimum_unmet": "Obraz jest mniejszy niż minimalne wymiary modelu. Wybierz większy oryginał."
 }

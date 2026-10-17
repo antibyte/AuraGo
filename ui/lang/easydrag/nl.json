@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Inzoomen",
   "easydrag.ui.zoom_label": "Zoom",
   "easydrag.ui.zoom_out": "Uitzoomen",
-  "easydrag.ui.zoom_reset": "Zoomen naar 100%"
+  "easydrag.ui.zoom_reset": "Zoomen naar 100%",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Dit model is niet meer beschikbaar. Laad de catalogus en kies een ander model.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Contextlimiet niet geverifieerd. Dit model kan niet worden gebruikt."
 }

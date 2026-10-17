@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Spazio insufficiente. Libera spazio e riprova.",
   "config.decisions.disk_unknown": "Impossibile verificare lo spazio libero. Controlla i permessi di accesso.",
   "config.decisions.save_failed": "Impossibile salvare le impostazioni di Decisions. Controlla i permessi di scrittura.",
-  "config.decisions.runtime_dependencies_missing": "Il motore non si avvia. Controlla la versione del sistema supportata e installa un driver grafico aggiornato, poi ripeti la configurazione."
+  "config.decisions.runtime_dependencies_missing": "Il motore non si avvia. Controlla la versione del sistema supportata e installa un driver grafico aggiornato, poi ripeti la configurazione.",
+  "config.decisions.pin_model": "Usa versione fissa",
+  "config.decisions.alias_target": "Destinazione attuale dell’alias: {value}",
+  "config.decisions.model_expiry": "Avviso di scadenza: {value}",
+  "config.decisions.media_limits": "Fino a {count} immagini di {bytes} KiB ciascuna. La riduzione può eliminare dettagli fini.",
+  "config.decisions.model_checked": "Catalogo verificato: {value}",
+  "config.decisions.model_not_available": "Questo modello non è più disponibile. Carica il catalogo e scegli un altro modello.",
+  "config.decisions.model_context_unverified": "Limite di contesto non verificato. Questo modello non può essere usato.",
+  "config.decisions.model_unverified": "Modello non verificato. Carica il catalogo o avvia esplicitamente un test.",
+  "config.decisions.responding_model": "Versione che ha risposto: {value}",
+  "config.decisions.alias_changed": "La destinazione dell’alias è cambiata. Verifica le soglie di instradamento per la nuova versione.",
+  "config.decisions.runtime_discovery_timeout": "Il rilevamento dei dispositivi ha superato 60 secondi. Controlla l’ambiente di esecuzione e riprova. Non è stato avviato il ripiego su CPU.",
+  "config.decisions.runtime_discovery_output_limit": "Il rilevamento dei dispositivi ha prodotto troppo output ed è stato interrotto. Controlla l’ambiente di esecuzione.",
+  "config.decisions.image_limit_exceeded": "Le immagini superano i limiti del modello. Invia meno immagini o immagini più piccole.",
+  "config.decisions.image_invalid": "Un’immagine è danneggiata o non supportata. Usa un PNG o JPEG valido.",
+  "config.decisions.image_minimum_unmet": "Un’immagine è sotto le dimensioni minime del modello. Scegli un originale più grande."
 }

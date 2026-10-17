@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Otillräckligt diskutrymme. Frigör utrymme och försök igen.",
   "config.decisions.disk_unknown": "Ledigt diskutrymme kunde inte kontrolleras. Kontrollera åtkomsträttigheterna.",
   "config.decisions.save_failed": "Decisions-inställningarna kunde inte sparas. Kontrollera skrivrättigheterna.",
-  "config.decisions.runtime_dependencies_missing": "Körmiljön kan inte starta. Kontrollera vilken systemversion som stöds och installera en aktuell grafikdrivrutin. Försök sedan konfigurera igen."
+  "config.decisions.runtime_dependencies_missing": "Körmiljön kan inte starta. Kontrollera vilken systemversion som stöds och installera en aktuell grafikdrivrutin. Försök sedan konfigurera igen.",
+  "config.decisions.pin_model": "Använd fast version",
+  "config.decisions.alias_target": "Aktuellt aliasmål: {value}",
+  "config.decisions.model_expiry": "Utgångsmeddelande: {value}",
+  "config.decisions.media_limits": "Högst {count} bilder på {bytes} KiB vardera. Förminskning kan göra att fina detaljer försvinner.",
+  "config.decisions.model_checked": "Katalog kontrollerad: {value}",
+  "config.decisions.model_not_available": "Modellen är inte längre tillgänglig. Läs in katalogen och välj en annan modell.",
+  "config.decisions.model_context_unverified": "Kontextgränsen är inte verifierad. Modellen kan inte användas.",
+  "config.decisions.model_unverified": "Modellen är inte kontrollerad. Läs in katalogen eller starta uttryckligen ett test.",
+  "config.decisions.responding_model": "Version som svarade: {value}",
+  "config.decisions.alias_changed": "Aliasets mål har ändrats. Kontrollera routningströsklarna för den nya versionen.",
+  "config.decisions.runtime_discovery_timeout": "Enhetssökningen överskred 60 sekunder. Kontrollera körmiljön och försök igen. Ingen CPU-reserv startades.",
+  "config.decisions.runtime_discovery_output_limit": "Enhetssökningen gav för mycket utdata och stoppades. Kontrollera körmiljön.",
+  "config.decisions.image_limit_exceeded": "Bilderna ryms inte inom modellens gränser. Skicka färre eller mindre bilder.",
+  "config.decisions.image_invalid": "En bild är skadad eller stöds inte. Använd en giltig PNG eller JPEG.",
+  "config.decisions.image_minimum_unmet": "En bild är mindre än modellens minimimått. Välj ett större original."
 }

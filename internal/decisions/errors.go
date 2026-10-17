@@ -39,6 +39,9 @@ const (
 	CodeProviderAuthFailed          = "provider_auth_failed"
 	CodeProviderCreditExhausted     = "provider_credit_exhausted"
 	CodeProviderRateLimited         = "provider_rate_limited"
+	CodeModelUnverified             = "model_unverified"
+	CodeModelNotAvailable           = "model_not_available"
+	CodeModelContextUnverified      = "model_context_unverified"
 )
 
 // Error carries a stable, safe-to-publish code and an optional wrapped cause.
@@ -100,7 +103,7 @@ func IsNonRetryable(err error) bool {
 		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable, CodeRuntimeDiscoveryTimeout, CodeRuntimeDiscoveryOutputLimit,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
-		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed,
+		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed, CodeModelNotAvailable, CodeModelContextUnverified,
 		CodeExternalOutcomeUnknown, CodeProviderAuthFailed, CodeProviderCreditExhausted, CodeProviderRateLimited:
 		return true
 	default:

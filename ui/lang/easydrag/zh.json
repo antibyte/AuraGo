@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "放大",
   "easydrag.ui.zoom_label": "缩放",
   "easydrag.ui.zoom_out": "缩小",
-  "easydrag.ui.zoom_reset": "缩放到 100%"
+  "easydrag.ui.zoom_reset": "缩放到 100%",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "此模型已不可用。请加载目录并选择其他模型。",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "上下文限制未经验证，无法使用此模型。"
 }

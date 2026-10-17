@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Der er ikke nok diskplads. Frigør plads og prøv igen.",
   "config.decisions.disk_unknown": "Ledig diskplads kunne ikke kontrolleres. Kontroller adgangsrettighederne.",
   "config.decisions.save_failed": "Decisions-indstillingerne kunne ikke gemmes. Kontroller skriverettighederne.",
-  "config.decisions.runtime_dependencies_missing": "Kørselsmiljøet kunne ikke starte. Kontrollér den understøttede systemversion, og installér en opdateret grafikdriver. Prøv derefter opsætningen igen."
+  "config.decisions.runtime_dependencies_missing": "Kørselsmiljøet kunne ikke starte. Kontrollér den understøttede systemversion, og installér en opdateret grafikdriver. Prøv derefter opsætningen igen.",
+  "config.decisions.pin_model": "Brug fast version",
+  "config.decisions.alias_target": "Aktuelt aliasmål: {value}",
+  "config.decisions.model_expiry": "Udløbsoplysning: {value}",
+  "config.decisions.media_limits": "Højst {count} billeder på hver {bytes} KiB. Billeder kan blive formindsket, så fine detaljer går tabt.",
+  "config.decisions.model_checked": "Katalog kontrolleret: {value}",
+  "config.decisions.model_not_available": "Modellen er ikke længere tilgængelig. Indlæs kataloget, og vælg en anden model.",
+  "config.decisions.model_context_unverified": "Kontekstgrænsen er ikke bekræftet. Modellen kan ikke bruges.",
+  "config.decisions.model_unverified": "Modellen er ikke kontrolleret. Indlæs kataloget, eller start en test.",
+  "config.decisions.responding_model": "Svarende version: {value}",
+  "config.decisions.alias_changed": "Aliasets mål er ændret. Kontroller routinggrænserne for den nye version.",
+  "config.decisions.runtime_discovery_timeout": "Enhedssøgningen overskred 60 sekunder. Kontroller kørselsmiljøet, og prøv igen. CPU-reserve blev ikke startet.",
+  "config.decisions.runtime_discovery_output_limit": "Enhedssøgningen gav for meget output og blev stoppet. Kontroller kørselsmiljøet.",
+  "config.decisions.image_limit_exceeded": "Billederne passer ikke inden for modellens grænser. Send færre eller mindre billeder.",
+  "config.decisions.image_invalid": "Et billede er beskadiget eller ikke understøttet. Brug en gyldig PNG eller JPEG.",
+  "config.decisions.image_minimum_unmet": "Et billede er under modellens minimumsmål. Vælg en større original."
 }

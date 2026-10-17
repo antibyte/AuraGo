@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Zoom inn",
   "easydrag.ui.zoom_label": "Zoom",
   "easydrag.ui.zoom_out": "Zoom ut",
-  "easydrag.ui.zoom_reset": "Zoom til 100 %"
+  "easydrag.ui.zoom_reset": "Zoom til 100 %",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Modellen er ikke lenger tilgjengelig. Last inn katalogen og velg en annen modell.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontekstgrensen er ikke bekreftet. Modellen kan ikke brukes."
 }

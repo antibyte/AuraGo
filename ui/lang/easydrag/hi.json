@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "ज़ूम इन",
   "easydrag.ui.zoom_label": "ज़ूम",
   "easydrag.ui.zoom_out": "ज़ूम आउट",
-  "easydrag.ui.zoom_reset": "100% पर ज़ूम करें"
+  "easydrag.ui.zoom_reset": "100% पर ज़ूम करें",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "यह मॉडल अब उपलब्ध नहीं है। कैटलॉग लोड करें और दूसरा मॉडल चुनें।",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "संदर्भ सीमा सत्यापित नहीं है। इस मॉडल का उपयोग नहीं हो सकता।"
 }

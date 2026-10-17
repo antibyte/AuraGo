@@ -37,6 +37,9 @@ type decisionProviderGeneration struct {
 	client                decisionProviderClient
 	releaseCredential     func()
 	status                decisions.Status
+	modelEpoch            uint64
+	modelIdentity         [32]byte
+	modelChecked          bool
 }
 
 var decisionGenerationSequence atomic.Uint64
@@ -242,6 +245,7 @@ func (d *routedDecisions) Status() decisions.Status {
 	d.mu.Lock()
 	if d.generation.settings.Backend == "provider" {
 		status := d.generation.status
+		status.ModelAvailability = status.ModelAvailability.Snapshot(time.Now())
 		d.mu.Unlock()
 		return status
 	}
@@ -310,7 +314,32 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	if g.ctx.Err() != nil {
 		cancel()
 	}
-	response, err = g.client.Evaluate(callCtx, g.settings.Model, request)
+	models, err := g.client.Models(callCtx)
+	d.mu.Lock()
+	if d.generation != g || d.closed || g.ctx.Err() != nil {
+		d.mu.Unlock()
+		return decisions.Response{}, decisions.NewError("configuration_changed", context.Canceled)
+	}
+	if err == nil {
+		d.publishModelCatalog(g, models)
+		if g.status.ModelAvailability.State == "blocked" {
+			err = decisions.NewError(g.status.ModelAvailability.Code, nil)
+		}
+	}
+	if epoch, ok := ctx.Value(decisionModelEpochKey{}).(uint64); ok && epoch != g.modelEpoch {
+		err = decisions.NewError("configuration_changed", context.Canceled)
+	}
+	if err != nil {
+		g.status.Ready, g.status.State = false, "error"
+		g.status.Code, g.status.LastError = decisions.ErrorCode(err), decisions.ErrorCode(err)
+		d.mu.Unlock()
+		return decisions.Response{}, err
+	}
+	model := g.status.ModelAvailability.Model.ResolvedID()
+	modelEpoch := g.modelEpoch
+	d.mu.Unlock()
+	response, err = g.client.Evaluate(callCtx, model, request)
+	response.Model = g.settings.Model
 	// A paid response still counts when policy revocation prevents its publication.
 	if response.Usage.CostUSD != nil && d.server.BudgetTracker != nil {
 		d.server.BudgetTracker.RecordCostForCategory(category, *response.Usage.CostUSD)
@@ -323,7 +352,7 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.generation != g || d.closed || g.ctx.Err() != nil {
+	if d.generation != g || d.closed || g.ctx.Err() != nil || g.modelEpoch != modelEpoch {
 		return failedResponse, decisions.NewError("configuration_changed", context.Canceled)
 	}
 	if err == nil && callCtx.Err() != nil {
@@ -341,6 +370,7 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	g.status.Code = ""
 	g.status.LastError = ""
 	g.status.LastSuccess = time.Now().UTC().Format(time.RFC3339)
+	g.status.ModelRevision = response.ModelRevision
 	if response.Execution != nil {
 		response.Execution.ProviderID = g.provider.ID
 	}
@@ -365,6 +395,25 @@ func (d *routedDecisions) Models(ctx context.Context, providerID string) ([]deci
 	if key == "" && normalizeProviderAuthType(p.AuthType) == "oauth2" {
 		d.mu.Unlock()
 		return nil, decisions.NewError("provider_key_missing", nil)
+	}
+	active := d.generation
+	if active.client != nil && active.provider.ID == p.ID && active.credentialFingerprint == credentialFingerprint && decisionProviderProfilesEqual(active.provider, profile) {
+		active.active.Add(1)
+		d.mu.Unlock()
+		defer active.active.Done()
+		callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		stop := context.AfterFunc(active.ctx, cancel)
+		defer func() { stop(); cancel() }()
+		models, err := active.client.Models(callCtx)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if d.generation != active || active.ctx.Err() != nil || d.closed {
+			return nil, decisions.NewError("configuration_changed", context.Canceled)
+		}
+		if err == nil {
+			d.publishModelCatalog(active, models)
+		}
+		return models, err
 	}
 	if d.catalogs == nil {
 		d.catalogs = make(map[string]*decisionCatalogGeneration)
@@ -399,6 +448,10 @@ func (d *routedDecisions) Models(ctx context.Context, providerID string) ([]deci
 	defer d.mu.Unlock()
 	if d.catalogs[p.ID] != g || g.ctx.Err() != nil || d.closed {
 		return nil, decisions.NewError("configuration_changed", context.Canceled)
+	}
+	active = d.generation
+	if err == nil && active.settings.Backend == "provider" && active.provider.ID == p.ID && active.credentialFingerprint == credentialFingerprint && decisionProviderProfilesEqual(active.provider, profile) {
+		d.publishModelCatalog(active, models)
 	}
 	return models, err
 }

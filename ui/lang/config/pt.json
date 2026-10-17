@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Espaço insuficiente. Liberta espaço e tenta novamente.",
   "config.decisions.disk_unknown": "Não foi possível verificar o espaço livre. Verifica as permissões de acesso.",
   "config.decisions.save_failed": "Não foi possível guardar as definições do Decisions. Verifica as permissões de escrita.",
-  "config.decisions.runtime_dependencies_missing": "O ambiente de execução não inicia. Verifica a versão do sistema suportada e instala um controlador gráfico atualizado. Depois, repete a configuração."
+  "config.decisions.runtime_dependencies_missing": "O ambiente de execução não inicia. Verifica a versão do sistema suportada e instala um controlador gráfico atualizado. Depois, repete a configuração.",
+  "config.decisions.pin_model": "Usar versão fixa",
+  "config.decisions.alias_target": "Destino atual do alias: {value}",
+  "config.decisions.model_expiry": "Aviso de expiração: {value}",
+  "config.decisions.media_limits": "Até {count} imagens de {bytes} KiB cada. A redução pode eliminar detalhes finos.",
+  "config.decisions.model_checked": "Catálogo verificado: {value}",
+  "config.decisions.model_not_available": "Este modelo já não está disponível. Carrega o catálogo e escolhe outro modelo.",
+  "config.decisions.model_context_unverified": "Limite de contexto não verificado. Este modelo não pode ser usado.",
+  "config.decisions.model_unverified": "Modelo não verificado. Carrega o catálogo ou inicia explicitamente um teste.",
+  "config.decisions.responding_model": "Versão que respondeu: {value}",
+  "config.decisions.alias_changed": "O destino do alias mudou. Verifica os limiares de encaminhamento para a nova versão.",
+  "config.decisions.runtime_discovery_timeout": "A deteção de dispositivos excedeu 60 segundos. Verifica o ambiente de execução e tenta novamente. Não foi iniciada a alternativa de CPU.",
+  "config.decisions.runtime_discovery_output_limit": "A deteção de dispositivos produziu demasiados dados e foi interrompida. Verifica o ambiente de execução.",
+  "config.decisions.image_limit_exceeded": "As imagens excedem os limites do modelo. Envia menos imagens ou imagens mais pequenas.",
+  "config.decisions.image_invalid": "Uma imagem está danificada ou não é suportada. Usa um PNG ou JPEG válido.",
+  "config.decisions.image_minimum_unmet": "Uma imagem está abaixo das dimensões mínimas do modelo. Escolhe um original maior."
 }

@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "磁盘空间不足。请释放空间后重试。",
   "config.decisions.disk_unknown": "无法检查可用空间。请检查访问权限。",
   "config.decisions.save_failed": "无法保存 Decisions 设置。请检查写入权限。",
-  "config.decisions.runtime_dependencies_missing": "无法启动运行环境。请检查支持的操作系统版本并安装最新显卡驱动，然后重新进行设置。"
+  "config.decisions.runtime_dependencies_missing": "无法启动运行环境。请检查支持的操作系统版本并安装最新显卡驱动，然后重新进行设置。",
+  "config.decisions.pin_model": "使用固定版本",
+  "config.decisions.alias_target": "当前别名目标：{value}",
+  "config.decisions.model_expiry": "到期提示：{value}",
+  "config.decisions.media_limits": "最多 {count} 张图片，每张 {bytes} KiB。缩小图片可能丢失精细细节。",
+  "config.decisions.model_checked": "目录检查时间：{value}",
+  "config.decisions.model_not_available": "此模型已不可用。请加载目录并选择其他模型。",
+  "config.decisions.model_context_unverified": "上下文限制未经验证，无法使用此模型。",
+  "config.decisions.model_unverified": "模型尚未检查。请加载目录或明确启动测试。",
+  "config.decisions.responding_model": "实际响应版本：{value}",
+  "config.decisions.alias_changed": "别名目标已更改。请检查新版本的路由阈值。",
+  "config.decisions.runtime_discovery_timeout": "设备发现超过了 60 秒。请检查运行环境后重试。未启动 CPU 回退。",
+  "config.decisions.runtime_discovery_output_limit": "设备发现产生了过多输出，已停止。请检查运行环境。",
+  "config.decisions.image_limit_exceeded": "图片无法满足模型限制。请发送更少或更小的图片。",
+  "config.decisions.image_invalid": "图片已损坏或不受支持。请使用有效的 PNG 或 JPEG。",
+  "config.decisions.image_minimum_unmet": "图片小于此模型的最小尺寸。请选择更大的原图。"
 }

@@ -869,5 +869,7 @@
   "easydrag.ui.zoom_in": "Zooma in",
   "easydrag.ui.zoom_label": "Zoom",
   "easydrag.ui.zoom_out": "Zooma ut",
-  "easydrag.ui.zoom_reset": "Zooma till 100 %"
+  "easydrag.ui.zoom_reset": "Zooma till 100 %",
+  "easydrag.availability.DECISIONS_MODEL_UNAVAILABLE": "Modellen är inte längre tillgänglig. Läs in katalogen och välj en annan modell.",
+  "easydrag.availability.DECISIONS_MODEL_CONTEXT_UNVERIFIED": "Kontextgränsen är inte verifierad. Modellen kan inte användas."
 }

@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Ikke nok diskplass. Frigjør plass og prøv igjen.",
   "config.decisions.disk_unknown": "Ledig diskplass kunne ikke kontrolleres. Kontroller tilgangsrettighetene.",
   "config.decisions.save_failed": "Decisions-innstillingene kunne ikke lagres. Kontroller skriverettighetene.",
-  "config.decisions.runtime_dependencies_missing": "Kjøremiljøet kan ikke starte. Kontroller den støttede systemversjonen og installer en oppdatert grafikkdriver. Prøv deretter oppsettet på nytt."
+  "config.decisions.runtime_dependencies_missing": "Kjøremiljøet kan ikke starte. Kontroller den støttede systemversjonen og installer en oppdatert grafikkdriver. Prøv deretter oppsettet på nytt.",
+  "config.decisions.pin_model": "Bruk fast versjon",
+  "config.decisions.alias_target": "Gjeldende aliasmål: {value}",
+  "config.decisions.model_expiry": "Utløpsvarsel: {value}",
+  "config.decisions.media_limits": "Opptil {count} bilder på {bytes} KiB hver. Forminsking kan fjerne fine detaljer.",
+  "config.decisions.model_checked": "Katalog kontrollert: {value}",
+  "config.decisions.model_not_available": "Modellen er ikke lenger tilgjengelig. Last inn katalogen og velg en annen modell.",
+  "config.decisions.model_context_unverified": "Kontekstgrensen er ikke bekreftet. Modellen kan ikke brukes.",
+  "config.decisions.model_unverified": "Modellen er ikke kontrollert. Last inn katalogen eller start en test uttrykkelig.",
+  "config.decisions.responding_model": "Versjonen som svarte: {value}",
+  "config.decisions.alias_changed": "Aliasmålet er endret. Kontroller rutingtersklene for den nye versjonen.",
+  "config.decisions.runtime_discovery_timeout": "Enhetssøket overskred 60 sekunder. Kontroller kjøremiljøet og prøv igjen. CPU-reserve ble ikke startet.",
+  "config.decisions.runtime_discovery_output_limit": "Enhetssøket produserte for mye utdata og ble stoppet. Kontroller kjøremiljøet.",
+  "config.decisions.image_limit_exceeded": "Bildene passer ikke innenfor modellens grenser. Send færre eller mindre bilder.",
+  "config.decisions.image_invalid": "Et bilde er skadet eller støttes ikke. Bruk en gyldig PNG eller JPEG.",
+  "config.decisions.image_minimum_unmet": "Et bilde er under modellens minstemål. Velg en større original."
 }
