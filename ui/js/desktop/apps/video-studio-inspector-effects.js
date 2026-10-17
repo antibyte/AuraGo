@@ -145,12 +145,6 @@
         const el = selector && typeof s.q === 'function' ? s.q('[data-inspector] ' + selector) : null;
         if (el && !el.disabled) el.focus({ preventScroll: true });
     }
-    // Moving or removing an entry shifts the stack indexes, so selected strip keys of effects.<i>.* (s.kfStrip.selected)
-    // could name another entry afterwards: a successful move or removal drops them (plan 2c R8). It runs inside the edit,
-    // before P.applyEdit re-renders the strip.
-    function dropEffectKeySelection(s) {
-        if (s.kfStrip && Array.isArray(s.kfStrip.selected)) s.kfStrip.selected = s.kfStrip.selected.filter(id => !String(id).startsWith('effects.'));
-    }
     // Puts a clip back in place after a refused live change (outside P.applyEdit nothing restores it).
     function restoreClip(clip, saved) {
         const before = JSON.parse(saved);
@@ -221,11 +215,12 @@
         body.hidden = !open;
         head.setAttribute('aria-expanded', String(open));
     }
-    // Moves an entry of the selected clip (drag, Alt+↑/↓); focus stays on the moved entry's header.
+    // Moves an entry of the selected clip (drag, Alt+↑/↓); focus stays on the moved entry's header. A move or a removal shifts
+    // the stack indexes; P.mutate then drops the selected strip keys of effects.<i>.* (P.dropEffectKeySelection).
     function moveEntry(s, from, to) {
         const found = selectedVisual(s), list = found && Array.isArray(found.clip.effects) ? found.clip.effects : [];
         if (from < 0 || from >= list.length || to < 0 || to >= list.length || to === from) return false;
-        return stackEdit(s, 'move effect', (project, id) => { const result = K().moveEffect(project, id, from, to); if (result === true) dropEffectKeySelection(s); return result; }, ok => `[data-fx-entry="${ok ? to : from}"] [data-fx-head]`);
+        return stackEdit(s, 'move effect', (project, id) => K().moveEffect(project, id, from, to), ok => `[data-fx-entry="${ok ? to : from}"] [data-fx-head]`);
     }
     // Clicks in the Effects section and on the Picture section's flip toggles; true when the click was one of them.
     function effectCommand(s, event) {
@@ -246,7 +241,7 @@
         else if (action === 'on') stackEdit(s, 'effect on', (project, id) => K().setEffectOn(project, id, index, button.getAttribute('aria-checked') !== 'true'), at('[data-fx-action="on"]'));
         else if (action === 'reset') stackEdit(s, 'reset effect', (project, id) => K().resetEffect(project, id, index), at('[data-fx-action="reset"]'));
         else if (action === 'remove') {
-            stackEdit(s, 'remove effect', (project, id) => { const result = K().removeEffect(project, id, index); if (result === true) dropEffectKeySelection(s); return result; }, ok => {
+            stackEdit(s, 'remove effect', (project, id) => K().removeEffect(project, id, index), ok => {
                 const found = selectedVisual(s), count = found && Array.isArray(found.clip.effects) ? found.clip.effects.length : 0;
                 if (!ok) return at('[data-fx-action="remove"]');
                 return count ? `[data-fx-entry="${Math.min(index, count - 1)}"] [data-fx-head]` : '[data-fx-action="add"]';

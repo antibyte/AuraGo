@@ -275,6 +275,22 @@
         scheduleSave(s);
         renderUI(s);
     }
+    // ---- Effect key selections (2c). The keyframe strip selects keys by "<path>:<f>" (s.kfStrip.selected), and an effect
+    // key's path names its entry by stack index (effects.<i>.<param>). When the stack changes under a selection, an id can
+    // name another entry afterwards and the strip, which keeps every id whose path and frame still exist, would select the
+    // wrong key. So the selection drops its effect ids whenever the stack of the strip's clip changes (mutate) and on every
+    // undo and redo (the project is rebuilt).
+    const isEffectKey = id => String(id).startsWith('effects.');
+    function dropEffectKeySelection(s) {
+        if (s.kfStrip && Array.isArray(s.kfStrip.selected) && s.kfStrip.selected.some(isEffectKey)) s.kfStrip.selected = s.kfStrip.selected.filter(id => !isEffectKey(id));
+    }
+    // The entry objects of the strip clip's effect stack, in order. An id can only name another entry when an old index now
+    // holds a different entry or none: a move or a removal does that, and so does an edit that replaces the entries (paste
+    // attributes, reverse, rate change). Edits of an entry in place and entries added at the end do not.
+    function stripStack(s) {
+        const found = s.project && s.kfStrip && s.kfStrip.clipId ? T().clipFor(s.project, s.kfStrip.clipId) : null;
+        return found && Array.isArray(found.clip.effects) ? found.clip.effects.slice() : [];
+    }
     // s.mediaRemoving counts running media removals (video-studio-mediabin.js): while the server deletes the files, edits
     // and undo/redo wait, so no step can bring back media whose file is about to be gone.
     function mutate(s, label, fn) {
@@ -283,6 +299,7 @@
         // The multi-selection is restored too: edits set it inside fn and a refusal must not keep it.
         const before = snapshot(s), selection = [s.selectedClipId, s.selectionRevision, s.selectionSet, s.selectionPrimary];
         const restore = () => { s.project = hydrateProject(s, before); [s.selectedClipId, s.selectionRevision, s.selectionSet, s.selectionPrimary] = selection; };
+        const stack = s.kfStrip && Array.isArray(s.kfStrip.selected) && s.kfStrip.selected.some(isEffectKey) ? stripStack(s) : null;
         if (fn(s.project) === false) { restore(); return false; }
         T().repairTransitions(s.project);
         if (T().validTimeline && !T().validTimeline(s.project)) {
@@ -290,6 +307,10 @@
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);
             renderUI(s);
             return false;
+        }
+        if (stack) {
+            const now = stripStack(s);
+            if (stack.some((entry, index) => now[index] !== entry)) dropEffectKeySelection(s);
         }
         s.history.push(before);
         if (s.history.length > 50) s.history.shift();
@@ -314,6 +335,7 @@
         // The playhead keeps its time when an undo or redo changes the frame rate.
         s.frame = window.VideoStudioTime.frameAtRate(s.frame, previous, s.project);
         if (s.selectedClipId && !T().clipFor(s.project, s.selectedClipId)) s.selectedClipId = '';
+        dropEffectKeySelection(s);
         P.resyncArtwork(s);
         s.dirty = true; s.revision++;
         persistDraft(s); scheduleSave(s); renderUI(s); s.preview.seek(s.frame);
@@ -594,5 +616,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, PREF_PREVIEW_ENGINE, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, previewEngine, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, PREF_PREVIEW_ENGINE, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, previewEngine, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, dropEffectKeySelection, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
 })();

@@ -552,6 +552,80 @@ assert.deepEqual(ids(), ['color', 'lut', 'vignette'], 'locked tracks never chang
 `)
 }
 
+// Selected effect keys follow the stack (fix 2c-review).
+//   - The strip names an effect key by its entry's stack index, so every edit that moves, removes or replaces entries,
+//     and every undo and redo, clears the selected effects.<i>.* ids. Base keys stay selected.
+//   - Edits that leave the entries in place (param changes, an entry added at the end) and refused edits keep the selection.
+func TestVideoStudioEffectKeySelectionFollowsTheStack(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+P.renderUI = () => {}; P.renderToolbar = () => {}; P.resyncArtwork = () => {};
+const p = project([track('v1','video',[clip('c',V,0,100,{offset:100, keyframes: {opacity: [kf(100, 1), kf(130, 0.5)]}})]), track('v2','video',[clip('d',V,0,100,{offset:100})])]);
+for (const id of ['color', 'lut', 'blur']) assert.equal(K.addEffect(p, 'c', id), true);
+at(p,'c').effects[0].keyframes = {exposure: [kf(100, 0), kf(160, 1)]};
+at(p,'c').effects[1].keyframes = {intensity: [kf(100, 1), kf(130, 0.5)]};
+valid(p);
+// conflict keeps scheduleSave from arming its autosave timer; the stubs above stand in for the rendered app.
+const s = {project: p, projectId: '', readonly: false, conflict: true, history: [], redo: [], frame: 20, dirty: false, revision: 0, selectedClipId: 'c', selectionRevision: 0,
+  selectionSet: new Set(['c']), selectionPrimary: 'c', ctx: {}, q: () => null, preview: {seek() {}}, kfStrip: {clipId: 'c', expanded: true, selected: []}};
+const ALL = ['opacity:100', 'effects.0.exposure:100', 'effects.1.intensity:130', 'effects.0.exposure:160'];
+const select = () => { s.kfStrip.selected = ALL.slice(); };
+const effectIds = () => s.kfStrip.selected.filter(id => id.startsWith('effects.'));
+const ids = () => at(s.project, 'c').effects.map(entry => entry.id).join();
+
+// Edits that keep the entries where they are keep the selection: a param change, an entry added at the end, a refusal.
+select();
+assert.equal(P.mutate(s, 'param', project => K.setEffectParams(project, 'c', 0, {contrast: 1.4}, 20) === true ? undefined : false), true);
+assert.deepEqual(s.kfStrip.selected, ALL, 'a param change keeps the selection');
+assert.equal(P.mutate(s, 'add', project => K.addEffect(project, 'c', 'vignette') === true ? undefined : false), true);
+assert.equal(ids(), 'color,lut,blur,vignette');
+assert.deepEqual(s.kfStrip.selected, ALL, 'an entry added at the end keeps it');
+assert.equal(P.mutate(s, 'refused', () => false), false);
+assert.deepEqual(s.kfStrip.selected, ALL, 'a refused edit keeps it');
+assert.equal(P.mutate(s, 'other clip', project => { at(project, 'd').opacity = 0.5; }), true);
+assert.deepEqual(s.kfStrip.selected, ALL, 'an edit of another clip keeps it');
+
+// A move shifts the indexes: the effect ids go, the base key stays.
+assert.equal(P.mutate(s, 'move', project => K.moveEffect(project, 'c', 0, 2) === true ? undefined : false), true);
+assert.equal(ids(), 'lut,blur,color,vignette');
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], 'a move drops the effect keys');
+
+// Undo and redo rebuild the project: the effect ids go whatever the step was.
+select();
+P.undo(s, false);
+assert.equal(ids(), 'color,lut,blur,vignette', 'the move is undone');
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], 'undo drops the effect keys');
+select();
+P.undo(s, true);
+assert.equal(ids(), 'lut,blur,color,vignette', 'the move is redone');
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], 'redo drops the effect keys');
+// Back through the move and the edit of the other clip to before the added entry: that step left the stack alone.
+P.undo(s, false);
+P.undo(s, false);
+select();
+P.undo(s, false);
+assert.equal(ids(), 'color,lut,blur', 'the added entry is undone');
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], 'undoing an edit that left the stack alone drops them too');
+
+// A removal and an edit that replaces the entries (paste attributes) drop them as well.
+select();
+assert.equal(P.mutate(s, 'remove', project => K.removeEffect(project, 'c', 0) === true ? undefined : false), true);
+assert.deepEqual(effectIds(), [], 'a removal drops the effect keys');
+assert.equal(ids(), 'lut,blur');
+select();
+assert.equal(P.mutate(s, 'paste', project => E.pasteAttributes(project, at(project, 'c'), ['c'], ['effects'], 20) === true ? undefined : false), true);
+assert.equal(ids(), 'lut,blur', 'the stack is the same');
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], 'paste attributes replaced the entries: the effect keys go');
+
+// Without effect ids selected nothing is touched, and a strip on no clip is no error.
+s.kfStrip.selected = ['opacity:130'];
+assert.equal(P.mutate(s, 'move', project => K.moveEffect(project, 'c', 0, 1) === true ? undefined : false), true);
+assert.deepEqual(s.kfStrip.selected, ['opacity:130']);
+delete s.kfStrip;
+P.undo(s, false);
+assert.equal(s.kfStrip, undefined);
+`)
+}
+
 // The keyframe strip covers crop sides and effect params.
 //   - Rows follow VideoStudioEffects.animatablePaths (base, crop, then each entry's params); summary diamonds include entry
 //     keys.
