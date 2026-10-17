@@ -48,7 +48,9 @@ func pictureClipEdit(id string, edit func(*videostudio.Clip)) func(*videostudio.
 	}
 }
 
-// validTimeline refuses what Go's Validate refuses for crop, flips and effects (plan 2c, index §4.4). Go validates
+// validTimeline refuses what Go's Validate refuses for crop, flips, effects (plan 2c) and for blend modes, masks and
+// the chroma_key entry (plan 2d, the rows of TestValidateCompositing without its non-finite numbers, which JSON
+// cannot carry; index §4.4). Go validates
 // every case first; then the same JSON goes through VideoStudioTimeline.validTimeline, and so through
 // VideoStudioEffects.validPicture and validAnimation. The projects reach Node through a file: together they exceed
 // the Windows command-line limit of node -e.
@@ -115,6 +117,24 @@ func TestVideoStudioPictureValidationMatchesGo(t *testing.T) {
 		return videostudio.EffectInstance{ID: "sharpen", On: true, Params: map[string]any{}, Keyframes: map[string][]videostudio.Keyframe{"strength": list}}
 	}
 	color := defaults("color")
+	blendOn := func(id, mode string) func(*videostudio.Project) {
+		return pictureClipEdit(id, func(c *videostudio.Clip) { c.Blend = mode })
+	}
+	validMask := func() *videostudio.Mask {
+		return &videostudio.Mask{Shape: videostudio.MaskEllipse, X: 0.25, Y: 0.2, W: 0.5, H: 0.6, Rotation: 15, Feather: 0.04}
+	}
+	same := func(*videostudio.Mask) {}
+	maskV := func(edit func(*videostudio.Mask), keys map[string][]videostudio.Keyframe) func(*videostudio.Project) {
+		return pictureClipEdit("v", func(c *videostudio.Clip) {
+			mask := validMask()
+			edit(mask)
+			c.Mask, c.Keyframes = mask, keys
+		})
+	}
+	keyEntry := func(params map[string]any, keys map[string][]videostudio.Keyframe) func(*videostudio.Project) {
+		return stack(videostudio.EffectInstance{ID: "chroma_key", On: true, Params: params, Keyframes: keys})
+	}
+	keyDefaults := defaults("chroma_key")
 	cases := []struct {
 		name  string
 		edit  func(*videostudio.Project)
@@ -161,6 +181,39 @@ func TestVideoStudioPictureValidationMatchesGo(t *testing.T) {
 		{"513 keys with one effect key", pictureClipEdit("v", func(c *videostudio.Clip) {
 			c.Keyframes, c.Effects = baseKeys(512), []videostudio.EffectInstance{strength([]videostudio.Keyframe{key(0, 0.5)})}
 		}), false},
+		{"multiply on the video clip", blendOn("v", "multiply"), true},
+		{"dodge on the overlay image", blendOn("o", "dodge"), true},
+		{"an ellipse mask with keys on every keyframable path", maskV(same, map[string][]videostudio.Keyframe{
+			"mask.x": {key(0, -1), key(20, 1)}, "mask.y": {key(0, 0.1)}, "mask.w": {key(0, 0.01), key(30, 2)},
+			"mask.h": {key(5, 0.5)}, "mask.rotation": {key(0, -360), key(10, 360)}, "mask.feather": {key(0, 0), key(10, 0.5)},
+		}), true},
+		{"a rect mask at its bounds on the overlay image", pictureClipEdit("o", func(c *videostudio.Clip) {
+			c.Mask = &videostudio.Mask{Shape: videostudio.MaskRect, X: -1, Y: 1, W: 2, H: 0.01, Rotation: -360, Feather: 0.5, Invert: true}
+		}), true},
+		{"chroma_key at its defaults with keyed similarity and smoothness", keyEntry(keyDefaults, map[string][]videostudio.Keyframe{
+			"similarity": {key(0, 0.01), key(30, 1)}, "smoothness": {key(0, 0)},
+		}), true},
+		{"an upper-case key colour", keyEntry(with(keyDefaults, "color", "#00B140"), nil), true},
+		{"blend normal", blendOn("v", "normal"), false},
+		{"an unknown blend mode", blendOn("v", "glow"), false},
+		{"a blend mode on the audio clip", blendOn("a", "multiply"), false},
+		{"a mask on the audio clip", pictureClipEdit("a", func(c *videostudio.Clip) { c.Mask = validMask() }), false},
+		{"mask keys without a mask", pictureClipEdit("v", func(c *videostudio.Clip) {
+			c.Keyframes = map[string][]videostudio.Keyframe{"mask.x": {key(0, 0.1)}}
+		}), false},
+		{"a mask shape star", maskV(func(m *videostudio.Mask) { m.Shape = "star" }, nil), false},
+		{"a mask without a shape", maskV(func(m *videostudio.Mask) { m.Shape = "" }, nil), false},
+		{"mask x above 1", maskV(func(m *videostudio.Mask) { m.X = 1.5 }, nil), false},
+		{"mask y below -1", maskV(func(m *videostudio.Mask) { m.Y = -1.5 }, nil), false},
+		{"mask w below 0.01", maskV(func(m *videostudio.Mask) { m.W = 0.005 }, nil), false},
+		{"mask h above 2", maskV(func(m *videostudio.Mask) { m.H = 2.5 }, nil), false},
+		{"mask rotation above 360", maskV(func(m *videostudio.Mask) { m.Rotation = 400 }, nil), false},
+		{"mask feather above 0.5", maskV(func(m *videostudio.Mask) { m.Feather = 0.6 }, nil), false},
+		{"a mask key out of range", maskV(same, map[string][]videostudio.Keyframe{"mask.w": {key(0, 3)}}), false},
+		{"a mask key below the 1 % size", maskV(same, map[string][]videostudio.Keyframe{"mask.h": {key(0, 0.005)}}), false},
+		{"a key colour that is not #rrggbb", keyEntry(with(keyDefaults, "color", "green"), nil), false},
+		{"similarity below 0.01", keyEntry(with(keyDefaults, "similarity", 0.0), nil), false},
+		{"keyframes on the key colour", keyEntry(keyDefaults, map[string][]videostudio.Keyframe{"color": {key(0, 0)}}), false},
 	}
 	projects := make([]videostudio.Project, len(cases))
 	for i, c := range cases {

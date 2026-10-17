@@ -180,6 +180,11 @@
     function effectAvailable(id) { return !!effect(id) && !missing.effects.has(id); }
     // The built-in looks in menu order, [{id, label_key}].
     function looks() { return current.looks.map(look => ({ id: look.id, label_key: look.label_key })); }
+    // Blend modes (2d) in menu order, [{id, blend, label_key, available}]. available is false when the server's FFmpeg
+    // cannot export the mode; the preview still draws it. blendAvailable(id) is false for unknown ids too.
+    function blendMode(id) { return current.blend_modes.find(spec => spec.id === id) || null; }
+    function blendModes() { return current.blend_modes.map(spec => Object.assign({}, spec, { available: !missing.blend_modes.has(spec.id) })); }
+    function blendAvailable(id) { return !!blendMode(id) && !missing.blend_modes.has(id); }
 
     // Mirror of Go validateKeyframes and validateRamp (index §4.18).
     // Keyframes:
@@ -200,6 +205,8 @@
             if (paths.length && (!track || track.kind === 'audio')) return false;
             // Base and effect keys share the 512 keys of a clip (spec §5.8, Go countKeyframes).
             if (keyCount(keyframes) + effectKeyCount(clip) > LIMITS.keyframesPerClip) return false;
+            // Mask keys need a mask (2d, Go validateMask).
+            if (paths.some(path => MASK_PATHS.includes(path)) && !isObject(clip.mask)) return false;
             const bound = MAX_SPEED * maxFrames;
             for (const path of paths) {
                 const spec = base(path), list = keyframes[path];
@@ -251,6 +258,23 @@
         return list.every((key, i) => !!key && Number.isSafeInteger(key.f) && Math.abs(key.f) <= bound && (i === 0 || key.f > list[i - 1].f) &&
             finite(key.v) && key.v >= spec.min && key.v <= spec.max && EASINGS.includes(key.e));
     }
+    // Mirror of Go validateBlend and validateMask (2d, index §4.1). Both belong to visual clips only.
+    //  - blend: absent, null or '' means normal; otherwise a registry mode other than 'normal' (the editor deletes the
+    //    field for normal).
+    //  - mask: an object with shape rect or ellipse; x, y, w, h, rotation and feather finite and inside their base rows
+    //    (a missing number reads 0, as Go decodes it); invert absent or a boolean.
+    // The mask keys go through validAnimation.
+    function validCompositing(clip, audio) {
+        const blend = clip.blend, mask = clip.mask;
+        if (blend != null && blend !== '' && (audio || typeof blend !== 'string' || blend === 'normal' || !blendMode(blend))) return false;
+        if (mask == null) return true;
+        if (audio || !isObject(mask) || (mask.shape !== 'rect' && mask.shape !== 'ellipse')) return false;
+        if (mask.invert != null && typeof mask.invert !== 'boolean') return false;
+        return MASK_PATHS.every(path => {
+            const spec = base(path), field = mask[path.slice('mask.'.length)], value = field == null ? 0 : field;
+            return !!spec && finite(value) && value >= spec.min && value <= spec.max;
+        });
+    }
     // Mirror of Go validateCrop and validateEffects. Crop, flips and effects belong to visual clips only.
     //  - crop: four numbers 0..0.95, l + r and t + b at most 0.95, not all zero (the editor deletes an empty crop).
     //  - effects: at most 8 entries. Each has a known registry id (on or off) and a params object of known parameters
@@ -268,6 +292,7 @@
             if (!sides.every(side => finite(side) && side >= 0 && side <= CROP_MAX)) return false;
             if (crop.l + crop.r > CROP_MAX + 1e-9 || crop.t + crop.b > CROP_MAX + 1e-9 || sides.every(side => side === 0)) return false;
         }
+        if (!validCompositing(clip, audio)) return false;
         if (stack == null) return true;
         if (!Array.isArray(stack)) return false;
         if (!stack.length) return true;
@@ -328,6 +353,11 @@
     function cropAnimated(clip) {
         const keyframes = clip && isObject(clip.keyframes) ? clip.keyframes : {};
         return CROP_PATHS.some(path => Array.isArray(keyframes[path]) && keyframes[path].length > 0);
+    }
+    // True when a mask path has keyframes (2d). The export then evaluates the mask per frame.
+    function maskAnimated(clip) {
+        const keyframes = clip && isObject(clip.keyframes) ? clip.keyframes : {};
+        return MASK_PATHS.some(path => Array.isArray(keyframes[path]) && keyframes[path].length > 0);
     }
     // Every path of a clip that can carry keyframes, in registry and stack order: the keyframable base paths (mask.*
     // only while the clip has a mask, 2d), then effects.<i>.<param> for the keyframable number parameters of each known
@@ -510,16 +540,30 @@
         });
         return out;
     }
+    // The clip's mask at a frame (2d, index §4.4): null without a mask object, else {shape, invert, x, y, w, h, rotation,
+    // feather} with the numbers through valueAt (keys at the source position, else the field) and the static shape and
+    // invert.
+    function maskState(clip, frame, project) {
+        const mask = clip && isObject(clip.mask) ? clip.mask : null;
+        if (!mask) return null;
+        const at = path => valueAt(clip, path, frame, project);
+        return {
+            shape: mask.shape === 'ellipse' ? 'ellipse' : 'rect', invert: mask.invert === true,
+            x: at('mask.x'), y: at('mask.y'), w: at('mask.w'), h: at('mask.h'), rotation: at('mask.rotation'), feather: at('mask.feather')
+        };
+    }
     // The resolved state of a clip at a frame, which both painters draw from (index §4.4). The shape stays fixed; later
-    // slices change how values are evaluated (2b keyframes, 2c crop/flip/effects, 2d blend/mask, 2e animation). In 2c
-    // the crop is evaluated like any base path (keyframes, else the field, else 0).
+    // slices change how values are evaluated (2b keyframes, 2c crop/flip/effects, 2d blend/mask, 2e animation). The crop
+    // is evaluated like any base path (keyframes, else the field, else 0); blend is the clip's mode (available or not)
+    // or 'normal'.
     function clipState(clip, frame, project) {
         const at = path => valueAt(clip, path, frame, project);
         return {
             x: at('x'), y: at('y'), width: at('width'), height: at('height'), rotation: at('rotation'),
             opacity: clamp01(at('opacity')), fit: clip && clip.fit === 'cover' ? 'cover' : 'contain',
             crop: { l: at('crop.l'), t: at('crop.t'), r: at('crop.r'), b: at('crop.b') },
-            flipH: !!(clip && clip.flip_h === true), flipV: !!(clip && clip.flip_v === true), blend: 'normal', mask: null,
+            flipH: !!(clip && clip.flip_h === true), flipV: !!(clip && clip.flip_v === true),
+            blend: clip && typeof clip.blend === 'string' && clip.blend ? clip.blend : 'normal', mask: maskState(clip, frame, project),
             effects: effectStates(clip, frame, project)
         };
     }
@@ -698,5 +742,5 @@
         return mapEffects(source && source.effects, keyframes => remapKeyframes(keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from))));
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, mirrorEffects, rescaleEffects, reanchorEffects, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, MASK_PATHS, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, blendModes, blendAvailable, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, maskAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, mirrorEffects, rescaleEffects, reanchorEffects, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();
