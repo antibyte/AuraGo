@@ -211,6 +211,20 @@ const videoStudioParityRunners = `{
     if (input.kind === 'blur') return {sigma: V.blurSigma(input.radius, input.height)};
     throw new Error('unknown picture input kind ' + input.kind);
   }},
+  // .cube parsing and trilinear sampling with intensity (topic "lut", index §4.20). A refused table returns the line
+  // of its error, so both parsers must refuse the same line. A case with unit_domain samples the unitDomain resampling
+  // (Go unitDomainLUT), the table that preview and export use.
+  lut: {exact: false, run(input) {
+    require('./js/desktop/apps/video-studio-picture.js');
+    const VP = window.VideoStudioPicture;
+    let table;
+    try { table = VP.parseCube(input.cube); } catch (error) {
+      if (error && typeof error.line === 'number') return {error_line: error.line};
+      throw error;
+    }
+    if (input.unit_domain) table = VP.unitDomain(table);
+    return {size: table.size, rgb: (input.rgb || []).map(rgb => VP.sampleLUT(table, rgb, input.intensity))};
+  }},
 }`
 
 // Every shared math fixture runs in JS too (plan index §4.13); a topic without a runner fails.
@@ -242,6 +256,57 @@ for (const file of files) {
 console.log('parity cases: ' + checked);
 `)
 	t.Logf("%s", output)
+}
+
+// parseCube's byte rules that the shared fixture cannot carry (index §4.20):
+//   - a BOM is skipped;
+//   - the 1024-byte line cap counts UTF-8 bytes;
+//   - the TITLE cap is 256 bytes;
+//   - grid 65 is accepted and 66 refused;
+//   - errors have the shape {line, reason};
+//   - sampleLUT clamps, and NaN reads as the domain minimum;
+//   - unitDomain keeps a unit-domain table and resamples any other domain onto [0, 1]³ (Go unitDomainLUT).
+func TestVideoStudioPictureParseCubeLimits(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+require('./js/desktop/apps/video-studio-picture.js');
+const VP = window.VideoStudioPicture;
+const identity = n => {
+  const lines = ['LUT_3D_SIZE ' + n];
+  for (let b = 0; b < n; b++) for (let g = 0; g < n; g++) for (let r = 0; r < n; r++) lines.push([r, g, b].map(v => (v / (n - 1)).toFixed(6)).join(' '));
+  return lines.join('\n') + '\n';
+};
+const refuses = (text, line, label) => {
+  let error = null;
+  try { VP.parseCube(text); } catch (caught) { error = caught; }
+  assert(error instanceof Error, label + ' was accepted');
+  assert.equal(error.line, line, label + ': ' + error.reason);
+  assert.equal(typeof error.reason, 'string', label);
+};
+assert.equal(VP.parseCube(String.fromCharCode(0xFEFF) + identity(2)).size, 2, 'a BOM is skipped');
+assert.equal(VP.parseCube('#' + 'x'.repeat(1023) + '\r\n' + identity(2)).size, 2, 'a 1024-byte line with CRLF');
+refuses('#' + 'x'.repeat(1024) + '\n' + identity(2), 1, 'a 1025-byte line');
+refuses('# ' + 'é'.repeat(512) + '\n', 1, 'UTF-8 bytes count, not characters');
+assert.equal(VP.parseCube('TITLE ' + 't'.repeat(256) + '\n' + identity(2)).size, 2, 'a 256-byte title');
+refuses('TITLE ' + 't'.repeat(257) + '\n', 1, 'a 257-byte title');
+const big = VP.parseCube(identity(65));
+assert.equal(big.size, 65);
+assert(big.data instanceof Float32Array);
+assert.equal(big.data.length, 3 * 65 * 65 * 65, 'RGB triplets, three numbers per entry');
+assert.equal(big.data[3], Math.fround(1 / 64), 'red runs fastest');
+refuses('LUT_3D_SIZE 66\n', 1, 'grid 66');
+refuses(42, 1, 'a non-string');
+const unit = VP.parseCube(identity(2));
+assert.deepEqual(unit.domainMin, [0, 0, 0]);
+assert.deepEqual(unit.domainMax, [1, 1, 1]);
+assert.deepEqual(VP.sampleLUT(unit, [NaN, 0.5, 2], 1), [0, 0.5, 1]);
+assert.deepEqual(VP.sampleLUT(unit, [0.25, 0.5, 0.75]), [0.25, 0.5, 0.75], 'the intensity defaults to 1');
+assert.equal(VP.unitDomain(unit), unit, 'a unit-domain table is kept');
+const narrow = VP.parseCube('DOMAIN_MIN 0.25 0.25 0.25\nDOMAIN_MAX 0.75 0.75 0.75\n' + identity(2));
+const resampled = VP.unitDomain(narrow);
+assert.deepEqual([resampled.size, resampled.domainMin, resampled.domainMax], [2, [0, 0, 0], [1, 1, 1]]);
+assert.deepEqual(Array.from(resampled.data), Array.from(unit.data), 'the 0.25..0.75 identity resampled onto the unit domain is the identity');
+console.log('ok');
+`)
 }
 
 // placement: the export's even box scaled to the preview canvas, the picture rectangle FFmpeg's scale produces, and
