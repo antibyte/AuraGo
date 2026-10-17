@@ -131,6 +131,11 @@ func TestMaintenanceTaskRecordsDeterministicPhaseErrorsInLedger(t *testing.T) {
 		t.Fatalf("read maintenance.go: %v", err)
 	}
 	text := string(source)
+	graphSource, err := os.ReadFile("maintenance_graph.go")
+	if err != nil {
+		t.Fatalf("read maintenance_graph.go: %v", err)
+	}
+	text += string(graphSource)
 	for _, marker := range []string{
 		"patterns_cleanup:",
 		"archive_events_cleanup:",
@@ -149,7 +154,7 @@ func TestMaintenanceTaskRecordsDeterministicPhaseErrorsInLedger(t *testing.T) {
 		"daily_summary:",
 	} {
 		if !strings.Contains(text, "ledger.addError(\""+marker) && !strings.Contains(text, "ledger.recordError(\""+strings.TrimSuffix(marker, ":")+"\"") {
-			t.Fatalf("maintenance.go is missing ledger error propagation for %s", marker)
+			t.Fatalf("maintenance sources are missing ledger error propagation for %s", marker)
 		}
 	}
 }

@@ -74,7 +74,9 @@ func (cv *ChromemVectorDB) StoreDocumentOwnedContext(ctx context.Context, concep
 	}
 
 	mu := cv.getConceptMutex(concept)
-	mu.Lock()
+	if err := lockMemoryMutex(ctx, mu); err != nil {
+		return result, err
+	}
 	defer mu.Unlock()
 	return cv.storeMemoryDocumentLocked(ctx, concept, content, "", mode)
 }

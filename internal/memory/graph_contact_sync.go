@@ -48,7 +48,7 @@ func (kg *KnowledgeGraph) SyncContact(ctx context.Context, id, label string, fie
 		return fmt.Errorf("encode contact node: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO kg_nodes (id,label,properties,updated_at) VALUES (?,?,?,CURRENT_TIMESTAMP)
-	 ON CONFLICT(id) DO UPDATE SET label=excluded.label,properties=excluded.properties,updated_at=CURRENT_TIMESTAMP`, id, strings.TrimSpace(label), string(encoded)); err != nil {
+	 ON CONFLICT(id) DO UPDATE SET label=excluded.label,properties=excluded.properties,updated_at=CURRENT_TIMESTAMP,semantic_indexed_at=NULL`, id, strings.TrimSpace(label), string(encoded)); err != nil {
 		return fmt.Errorf("write contact node: %w", err)
 	}
 
@@ -137,15 +137,15 @@ func (kg *KnowledgeGraph) SyncContact(ctx context.Context, id, label string, fie
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit contact sync: %w", err)
 	}
-	kg.indexSemanticNodeAfterWrite(Node{ID: id, Label: strings.TrimSpace(label), Properties: properties})
+	if err := kg.removeSemanticEdgeIndexBatchContext(ctx, id, stale, "belongs_to"); err != nil {
+		reviewErr = errors.Join(reviewErr, fmt.Errorf("remove contact relationship index: %w", err))
+	}
+	reviewErr = errors.Join(reviewErr, kg.finishNodeWrite(ctx, Node{ID: id, Label: strings.TrimSpace(label), Properties: properties}, true))
 	if createdOrg != nil {
-		kg.indexSemanticNodeAfterWrite(*createdOrg)
+		reviewErr = errors.Join(reviewErr, kg.finishNodeWrite(ctx, *createdOrg, true))
 	}
 	if createdEdge != nil {
-		kg.indexSemanticEdgeAfterWrite(*createdEdge)
-	}
-	if err := kg.removeSemanticEdgeIndexBatch(id, stale, "belongs_to"); err != nil {
-		reviewErr = errors.Join(reviewErr, fmt.Errorf("remove contact relationship index: %w", err))
+		reviewErr = errors.Join(reviewErr, kg.upsertSemanticEdgeIndexContext(ctx, *createdEdge))
 	}
 	return errors.Join(reviewErr, ctx.Err())
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,13 @@ const (
 // SyncExternalSources pulls container and SSH device data from Inventory DB
 // into the Knowledge Graph (using simple nodes/edges).
 func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.Logger) error {
+	return kg.SyncExternalSourcesContext(context.Background(), inventoryDB, logger)
+}
+
+func (kg *KnowledgeGraph) SyncExternalSourcesContext(ctx context.Context, inventoryDB *sql.DB, logger *slog.Logger) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if logger != nil {
 		logger.Info("Starting sync of external sources into knowledge graph...")
 	}
@@ -24,7 +32,7 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 		return fmt.Errorf("inventory database is nil")
 	}
 
-	rows, err := inventoryDB.Query(`SELECT id, name, type, COALESCE(ip_address, ''), COALESCE(description, ''), COALESCE(tags, '') FROM devices`)
+	rows, err := inventoryDB.QueryContext(ctx, `SELECT id, name, type, COALESCE(ip_address, ''), COALESCE(description, ''), COALESCE(tags, '') FROM devices`)
 	if err != nil {
 		return fmt.Errorf("query inventory devices: %w", err)
 	}
@@ -63,7 +71,7 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 		return fmt.Errorf("iterate inventory devices: %w", err)
 	}
 
-	tx, err := kg.db.Begin()
+	tx, err := kg.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin inventory KG sync transaction: %w", err)
 	}
@@ -75,15 +83,23 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 		if err != nil {
 			return fmt.Errorf("sync inventory device %s to knowledge graph: %w", device.nodeID, err)
 		}
+		if _, err := tx.ExecContext(ctx, `UPDATE kg_nodes SET semantic_indexed_at=NULL WHERE id=?`, node.ID); err != nil {
+			return fmt.Errorf("mark inventory node pending: %w", err)
+		}
 		upsertedNodes = append(upsertedNodes, node)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit inventory KG sync transaction: %w", err)
 	}
 	for _, node := range upsertedNodes {
-		kg.upsertSemanticNodeIndex(node)
+		if err := kg.finishNodeWrite(ctx, node, true); err != nil {
+			return err
+		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	removed := kg.removeStaleInventoryDeviceNodes(expected, logger)
 
 	if logger != nil {

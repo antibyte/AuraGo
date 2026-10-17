@@ -251,7 +251,9 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
 			ledger.addDeferred("consolidation", deferred)
 		}
-		ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg))
+		if consolidationCtx.Err() == nil {
+			ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(consolidationCtx, logger, shortTermMem, longTermMem, kg))
+		}
 	}
 	consolidationDeadline, _ := consolidationCtx.Deadline()
 	consolidationBudgetExpired := taskCtx.Err() == nil && (consolidationCtx.Err() != nil || !time.Now().Before(consolidationDeadline))
@@ -402,90 +404,18 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	ledger.beginPhase("knowledge_graph")
 
-	// Notes: clean up old completed notes (done for >7 days)
-	if cfg.Tools.Notes.Enabled && shortTermMem != nil {
-		deleted, err := shortTermMem.DeleteOldDoneNotes(retention.DoneNotesDays)
-		if err != nil {
-			logger.Error("[Maintenance] Failed to clean old done notes", "error", err)
-			ledger.addError("notes_cleanup: " + err.Error())
-		} else if deleted > 0 {
-			logger.Info("[Maintenance] Cleaned old done notes", "deleted", deleted)
-		}
-	}
-	if shortTermMem != nil {
-		hygieneStats := runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
-		for _, err := range hygieneStats.Errors {
-			ledger.recordError("memory_hygiene", err)
-		}
-		ledger.addDeferred("knowledge_graph", hygieneStats.Deferred)
-		ledger.phaseResults.JournalRemoved = hygieneStats.JournalRemoved
-		ledger.phaseResults.NotesArchived = hygieneStats.NotesArchived
-		ledger.addProcessed("knowledge_graph", hygieneStats.JournalRemoved+hygieneStats.NotesArchived)
+	graphCtx, cancelGraph, graphBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+	if graphBudgetAvailable {
+		runKnowledgeGraphMaintenance(graphCtx, cfg, logger, shortTermMem, longTermMem, kg, inventoryDB, contactsDB, plannerDB, ledger)
 	}
 
-	// Knowledge Graph: Garbage collection and semantic reindex
-	if kg != nil {
-		if _, _, err := kg.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
-			PendingCoMentionDays: cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
-			StaleNodeDays:        30,
-		}); err != nil {
-			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
-			ledger.addError("kg_cleanup: " + err.Error())
+	if !graphBudgetAvailable || graphCtx.Err() != nil {
+		if ledger.phaseDeferred("knowledge_graph") == 0 {
+			ledger.addDeferred("knowledge_graph", 1)
 		}
-		if ran, err := kg.RunSemanticReindexIfDue(); err != nil {
-			logger.Warn("[Maintenance] Failed to reindex semantic knowledge graph", "error", err)
-			ledger.addError("kg_semantic_reindex: " + err.Error())
-		} else if ran {
-			if extraPasses, drainErr := kg.DrainSemanticReindexBacklog(2); drainErr != nil {
-				logger.Warn("[Maintenance] Failed to drain knowledge graph semantic reindex backlog", "error", drainErr)
-				ledger.addError("kg_semantic_reindex: " + drainErr.Error())
-			} else if extraPasses > 0 {
-				logger.Debug("[Maintenance] Knowledge graph semantic reindex follow-up passes completed", "extra_passes", extraPasses)
-			}
-			logger.Debug("[Maintenance] Semantic knowledge graph reindex completed")
-			if backlog, dirtyNodes, dirtyEdges, backlogErr := kg.HasSemanticReindexBacklog(); backlogErr != nil {
-				logger.Warn("[Maintenance] Failed to inspect knowledge graph semantic reindex backlog", "error", backlogErr)
-				ledger.addError("kg_semantic_backlog: " + backlogErr.Error())
-			} else if backlog {
-				logger.Warn("[Maintenance] Knowledge graph semantic reindex backlog remains high", "dirty_nodes", dirtyNodes, "dirty_edges", dirtyEdges)
-				recordKnowledgeGraphSemanticReindexBacklogIssue(plannerDB, dirtyNodes, dirtyEdges, logger)
-			}
-		}
+		ledger.addPhaseCode("knowledge_graph", "phase_budget_exhausted")
 	}
-
-	if kg != nil && inventoryDB != nil {
-		if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
-			logger.Warn("[Maintenance] Inventory KG sync failed", "error", err)
-			ledger.addError("inventory_kg_sync: " + err.Error())
-		}
-	}
-
-	// Sync contacts and core memory
-	if kg != nil {
-		ledger.recordError("contacts_kg_sync", SyncContactsToKnowledgeGraph(taskCtx, contactsDB, kg, logger))
-	}
-	if kg != nil {
-		ledger.recordError("planner_kg_sync", SyncPlannerToKnowledgeGraph(taskCtx, plannerDB, kg, logger))
-	}
-	if plannerDB != nil {
-		if archived, err := planner.ArchiveStaleOperationalIssues(plannerDB, time.Now()); err != nil {
-			logger.Warn("[Maintenance] Failed to archive stale operational issues", "error", err)
-			ledger.addError("operational_issue_archive: " + err.Error())
-		} else if archived > 0 {
-			logger.Info("[Maintenance] Archived stale operational issues", "archived", archived)
-		}
-		if cleaned, err := planner.CleanupOperationalIssues(plannerDB, time.Duration(retention.OperationalIssuesDays)*24*time.Hour); err != nil {
-			logger.Warn("[Maintenance] Failed to clean up operational issues", "error", err)
-			ledger.addError("operational_issue_cleanup: " + err.Error())
-		} else if cleaned > 0 {
-			logger.Info("[Maintenance] Cleaned old operational issues", "deleted", cleaned)
-		}
-	}
-	if kg != nil && shortTermMem != nil {
-		ledger.recordError("core_kg_sync", SyncCoreMemoryToKnowledgeGraph(taskCtx, shortTermMem, kg, logger))
-		recordKnowledgeGraphSparseIssue(plannerDB, shortTermMem, kg, logger)
-		recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
-	}
+	cancelGraph()
 	if maintenanceContextDone(taskCtx, ledger, logger, "knowledge_graph") {
 		return
 	}
@@ -1905,7 +1835,10 @@ func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, f
 	return fallbackClient, strings.TrimSpace(fallbackModel)
 }
 
-func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (resultErr error) {
+func consolidateEpisodicHierarchy(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (resultErr error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if stm == nil || ltm == nil || ltm.IsDisabled() {
 		return
 	}
@@ -1931,6 +1864,9 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 		groups[groupKey] = append(groups[groupKey], episode)
 	}
 	for groupKey, group := range groups {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
 		if len(group) < 2 {
 			continue
 		}
@@ -1939,7 +1875,7 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			continue
 		}
 		concept := "Hierarchical memory synthesis " + groupKey
-		owned, err := memory.StoreAutomaticMemoryDocument(stm, ltm, concept, summary, memory.MemoryMetaUpdate{
+		owned, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, summary, memory.MemoryMetaUpdate{
 			ExtractionConfidence: 0.88, VerificationStatus: "unverified", SourceType: "hierarchical_consolidation", SourceReliability: 0.9,
 		})
 		ids := append(append(append([]string{}, owned.CreatedIDs...), owned.ReusedIDs...), owned.UnknownIDs...)
@@ -1954,10 +1890,13 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 				uniqueParticipants = uniqueHierarchyStrings(append(uniqueParticipants, episode.Participants...))
 			}
 			for _, participant := range uniqueParticipants {
+				if err := ctx.Err(); err != nil {
+					return errors.Join(resultErr, err)
+				}
 				if participant == "" {
 					continue
 				}
-				if err := kg.AddEdge(participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey}); err != nil {
+				if err := kg.AddEdgeContext(ctx, participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey}); err != nil {
 					resultErr = errors.Join(resultErr, err)
 					logger.Warn("[Hierarchy] Failed to sync participant synthesis edge to KG",
 						"participant", participant,
@@ -1966,6 +1905,9 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 						"error", err)
 				}
 			}
+		}
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
 		}
 		related := make([]string, 0, len(ids))
 		related = append(related, ids...)
@@ -2456,6 +2398,12 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		return
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if concrete, ok := kg.(*memory.KnowledgeGraph); ok {
+		kg = maintenancePlannerGraph{KnowledgeGraph: concrete, ctx: ctx}
+	}
 	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
 
 	tracker := planner.NewKGSyncTracker()
@@ -2470,6 +2418,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		logger.Error("[Maintenance] Failed to list appointments for KG sync", "error", err)
 	} else {
 		for _, a := range appointments {
+			if err := ctx.Err(); err != nil {
+				return errors.Join(resultErr, err)
+			}
 			if a.Status == "cancelled" {
 				continue
 			}
@@ -2486,6 +2437,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return errors.Join(resultErr, err)
+	}
 	todos, err := planner.ListTodos(plannerDB, "", "")
 	if err != nil {
 		resultErr = errors.Join(resultErr, err)
@@ -2493,6 +2447,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		return
 	}
 	for _, t := range todos {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
 		if err := planner.SyncTodoKGRecord(kg, t, tracker); err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] Failed to sync todo to KG", "nodeID", t.KGNodeID, "error", err)
@@ -2509,6 +2466,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		logger.Info("[Maintenance] Removed stale planner KG edges", "removed", removed)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return errors.Join(resultErr, err)
+	}
 	if removed, err := kg.PruneStalePlannerRootNodes(tracker.ActivePlannerNodes); err != nil {
 		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to prune stale planner KG nodes", "error", err)
@@ -2516,6 +2476,9 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 		logger.Info("[Maintenance] Removed stale planner KG nodes", "removed", removed)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return errors.Join(resultErr, err)
+	}
 	if removed, err := kg.PruneStalePlannerItemNodes(tracker.ActivePlannerNodes); err != nil {
 		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to prune stale planner KG item nodes", "error", err)
@@ -2534,6 +2497,9 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		ctx = context.Background()
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	logger.Info("[Maintenance] Syncing Core Memory to Knowledge Graph")
 
 	facts, err := stm.GetCoreMemoryFacts()

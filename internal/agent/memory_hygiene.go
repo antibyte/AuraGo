@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -45,6 +46,13 @@ func runJournalDuplicateConsolidation(stm *memory.SQLiteMemory, opts memory.Jour
 }
 
 func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) memoryHygieneStats {
+	return runAutomaticMemoryHygieneWithContext(context.Background(), cfg, logger, stm, ltm)
+}
+
+func runAutomaticMemoryHygieneWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) memoryHygieneStats {
+	if err := ctx.Err(); err != nil {
+		return memoryHygieneStats{Errors: []error{err}, Deferred: 1}
+	}
 	if cfg == nil || stm == nil {
 		return memoryHygieneStats{}
 	}
@@ -101,7 +109,7 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 
 	canonicalRepaired := 0
 	if ltm != nil && !ltm.IsDisabled() && ltm.IsReady() {
-		report, err := stm.RepairCanonicalMemoryNames(ltm, memory.CanonicalRepairOptions{
+		report, err := stm.RepairCanonicalMemoryNamesContext(ctx, ltm, memory.CanonicalRepairOptions{
 			Limit:  100,
 			Actor:  "maintenance",
 			DryRun: false,
@@ -111,6 +119,10 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 			failures = append(failures, err)
 			logger.Warn("[MemoryHygiene] Failed to repair canonical memory names", "error", err)
 			for _, item := range report.Items {
+				if ctx.Err() != nil {
+					deferred++
+					break
+				}
 				if strings.TrimSpace(item.Error) == "" {
 					continue
 				}
