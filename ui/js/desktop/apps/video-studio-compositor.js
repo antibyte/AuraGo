@@ -251,13 +251,55 @@
             ctx.draw(masked || placeProgram(), target, uniforms, { u_source: texture }, { blend: 'normal' });
         }
 
-        // Stage 4: compositing into the destination. 2a: premultiplied normal blending (ONE, ONE_MINUS_SRC_ALPHA, the
-        // export's straight-alpha overlay) inside placeClip. 2d renders other blend modes through VideoStudioShaders.blend.
-        function compositeClip(item, texture, target) { placeClip(item, texture, target); }
+        // Stage 4: compositing into the destination (index §4.8, §4.22).
+        // - normal: premultiplied normal blending (ONE, ONE_MINUS_SRC_ALPHA, the export's straight-alpha overlay) inside
+        //   placeClip.
+        // - Any other mode (2d): the clip is placed into a transparent canvas-size scratch layer, which blendLayer
+        //   composites with VideoStudioShaders.blend(mode).
+        // A mode without a program composites normal. A blend program that does not compile is reported once as
+        // ('effect', 'blend:<mode>').
+        function compositeClip(item, texture, target) {
+            const program = blendProgram(item.state && item.state.blend);
+            const layer = program ? ctx.target(target.width, target.height) : null;
+            if (!layer) { placeClip(item, texture, target); return; }
+            try {
+                ctx.clear(layer, [0, 0, 0, 0]);
+                placeClip(item, texture, layer);
+                blendLayer(program, layer, target);
+            } finally {
+                ctx.release(layer);
+            }
+        }
+        // The program of a blend mode, or null for normal, for ids without a source and for a program that does not
+        // compile. Programs compile on first use, keyed 'blend:<mode>', which is also the reported effect id.
+        function blendProgram(mode) {
+            const id = String(mode || 'normal'), source = id === 'normal' ? null : S().blend(id);
+            if (!source) return null;
+            const key = 'blend:' + id, program = ctx.program(key, S().QUAD_VERTEX, source);
+            if (!program && ctx.failed(key)) reportFailure('effect', key);
+            return program;
+        }
+        // Composites a premultiplied canvas-size layer onto target with a blend program, in two steps:
+        // - the program draws into scratch B with u_dst = target and u_src = layer, replacing (alpha 1);
+        // - B is copied back, so the composite target and the frame loop stay as they are (2f may ping-pong).
+        // Without a scratch target the layer composites normal.
+        function blendLayer(program, layer, target) {
+            const out = ctx.target(target.width, target.height);
+            if (!out) { ctx.draw(copyProgram(), target, { u_flipY: 0 }, { u_source: layer }, { blend: 'normal' }); return; }
+            try {
+                ctx.draw(program, out, { u_flipY: 0 }, { u_dst: target, u_src: layer });
+                ctx.draw(copyProgram(), target, { u_flipY: 0 }, { u_source: out });
+            } finally {
+                ctx.release(out);
+            }
+        }
 
-        // Stage 5: a transition pair. Both clips run stages 1–3 into transparent canvas-size targets, the transition
-        // shader mixes them (xfade on premultiplied layers) and the result composites with normal blending. An id without
-        // a shader draws as a dissolve; a shader that does not compile draws a hard cut at p >= 0.5.
+        // Stage 5: a transition pair. Both clips run stages 1–3 into transparent canvas-size targets, and the transition
+        // shader mixes them (xfade on premultiplied layers). The mix composites with the overlap's effective mode
+        // (transitionMode, index §4.22):
+        // - normal draws the mix straight into the target;
+        // - a shared non-normal mode draws it into a scratch track layer, which blendLayer composites like stage 4.
+        // An id without a shader draws as a dissolve; a shader that does not compile draws a hard cut at p >= 0.5.
         function transitionProgram(type) {
             const id = S().transition(type) ? type : 'dissolve';
             return ctx.program('transition:' + id, S().QUAD_VERTEX, S().transition(id));
@@ -267,10 +309,17 @@
             if (type === 'wipeleft' || type === 'wiperight') { const edge = E().wipeEdge(type, p, width); return { u_edge: [edge.left, edge.reveal] }; }
             return {};
         }
+        // The overlap of P → N takes blend(P) when blend(N) is the same, else normal (VideoStudioPicture.overlapBlend).
+        function transitionMode(transition) {
+            const mode = item => String((item && item.state && item.state.blend) || 'normal');
+            return Pic().overlapBlend(mode(transition.out), mode(transition.inc));
+        }
         function drawTransition(transition, target) {
             const width = target.width, height = target.height;
             const from = ctx.target(width, height), to = ctx.target(width, height);
             if (!from || !to) { ctx.release(from); ctx.release(to); return; }
+            const blend = blendProgram(transitionMode(transition));
+            const mixed = blend ? ctx.target(width, height) : null;
             try {
                 [[transition.out, from], [transition.inc, to]].forEach(([item, layer]) => {
                     ctx.clear(layer, [0, 0, 0, 0]);
@@ -278,16 +327,20 @@
                     if (texture) placeClip(item, clipPasses(item, texture), layer);
                 });
                 const p = clamp(Number(transition.progress) || 0, 0, 1);
+                const into = mixed || target;
+                if (mixed) ctx.clear(mixed, [0, 0, 0, 0]);
                 const program = transitionProgram(transition.type);
-                if (program) ctx.draw(program, target, Object.assign({ u_progress: p, u_size: [width, height] }, transitionUniforms(transition.type, p, width)), { u_from: from, u_to: to }, { blend: 'normal' });
+                if (program) ctx.draw(program, into, Object.assign({ u_progress: p, u_size: [width, height] }, transitionUniforms(transition.type, p, width)), { u_from: from, u_to: to }, { blend: 'normal' });
                 else {
                     // The shader did not compile: a hard cut at p >= 0.5, and the stage shows a notice.
                     reportFailure('transition', transition.type);
-                    ctx.draw(copyProgram(), target, { u_flipY: 0 }, { u_source: p >= 0.5 ? to : from }, { blend: 'normal' });
+                    ctx.draw(copyProgram(), into, { u_flipY: 0 }, { u_source: p >= 0.5 ? to : from }, { blend: 'normal' });
                 }
+                if (mixed) blendLayer(blend, mixed, target);
             } finally {
                 ctx.release(from);
                 ctx.release(to);
+                ctx.release(mixed);
             }
         }
 
@@ -355,7 +408,7 @@
         // The preview switches to the 2D painter in onFallback and disposes this painter.
         function giveUp(reason) { if (!disposed && typeof hooks.onFallback === 'function') hooks.onFallback(reason); }
         // A program that failed to compile is reported once per kind and id ('transition' since 2a, 'effect' since 2c;
-        // 2d adds the effect id 'mask').
+        // 2d adds the effect ids 'mask' and 'blend:<mode>').
         function reportFailure(kind, id) {
             const key = kind + ':' + id;
             if (reported.has(key)) return;

@@ -83,7 +83,8 @@ func evalCompositingGL(t *testing.T, page *rod.Page, body string) map[string]gso
 // pixels match the real forms of VideoStudioPicture within 3/255; and a test-injected broken shader passes its input
 // through and is reported once:
 //   - key (Task 9): the KEY pass against keyAlpha and despill;
-//   - mask (Task 10): PLACE_MASKED against maskAt in box space.
+//   - mask (Task 10): PLACE_MASKED against maskAt in box space;
+//   - blend (Task 11): blend(mode), the copy-back and the transition rule against compositeRGB.
 func TestDesktopVideoStudioCompositingGLBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dir := t.TempDir()
@@ -91,6 +92,7 @@ func TestDesktopVideoStudioCompositingGLBrowser(t *testing.T) {
 	requireWebGL2(t, page)
 	t.Run("key", func(t *testing.T) { testCompositingGLKey(t, page, dir) })
 	t.Run("mask", func(t *testing.T) { testCompositingGLMask(t, page, dir) })
+	t.Run("blend", func(t *testing.T) { testCompositingGLBlend(t, page, dir) })
 }
 
 // compositingGLKeyScript keys flat 64x36 patches with chroma_key and reads the centre over black and over white.
@@ -339,5 +341,118 @@ func testCompositingGLMask(t *testing.T, page *rod.Page, dir string) {
 	}
 	if got := compositingJSON(checks["brokenFailures"]); got != `[["effect","mask"]]` {
 		t.Errorf("onProgramFailed calls = %s, want one ('effect', 'mask')", got)
+	}
+}
+
+// compositingGLBlendScript composites flat 64x36 layers over flat backgrounds with every non-normal mode.
+const compositingGLBlendScript = `
+const project = sized(64, 36), out = {}, failures = [];
+const [below, layer, endsBelow, ends] = await Promise.all(['blend_below', 'blend_layer', 'blend_ends_below', 'blend_ends'].map(load));
+const painter = painterFor(project, { onProgramFailed: (kind, id) => failures.push([kind, id]) });
+if (!painter) return { created: false, error: C.lastError };
+out.created = true;
+const unitOf = rgb => rgb.map(value => value / 255);
+const normal = (a, b, alpha) => bytes(a.map((value, i) => value + (b[i] - value) * alpha));
+// There are two flat pairs:
+// - the first reaches both overlay and hardlight branches and soft dodge and burn values;
+// - the second holds the dodge end (layer 255 over below 0) and the burn end (layer 0 over below 255).
+const pairs = [[below, [40, 200, 140], layer, [180, 70, 230]], [endsBelow, [0, 255, 100], ends, [255, 0, 128]]];
+const blendFrame = (belowEl, layerClip, layerEl) => painter.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), belowEl)] }, { items: [itemOf(project, layerClip, layerEl)] }]));
+out.modes = E.blendModes().map(mode => mode.id).filter(id => id !== 'normal');
+out.rows = [];
+out.modes.forEach(mode => pairs.forEach(([belowEl, belowRGB, layerEl, layerRGB], pair) => [1, 0.5].forEach(alpha => {
+  const a = unitOf(belowRGB), b = unitOf(layerRGB);
+  blendFrame(belowEl, clipOf({ blend: mode, opacity: alpha }), layerEl);
+  out.rows.push({ mode, pair, alpha, got: pixel(painter, 32, 18), want: bytes(P.compositeRGB(mode, a, b, alpha)), normal: normal(a, b, alpha) });
+})));
+// Outside the placed quad (a half-width box and its contain letterbox) the copy-back leaves the composite as it was.
+const a0 = unitOf(pairs[0][1]), b0 = unitOf(pairs[0][3]);
+blendFrame(below, clipOf({ blend: 'multiply', x: 0.5, width: 0.5 }), layer);
+out.halfInside = pixel(painter, 48, 18); out.halfOutside = pixel(painter, 16, 18); out.halfLetterbox = pixel(painter, 48, 2);
+out.halfWant = bytes(P.compositeRGB('multiply', a0, b0, 1)); out.belowPixel = bytes(a0);
+// Transitions (index §4.22): the overlap takes the shared mode, else normal.
+const transitionFrame = (outMode, incMode) => {
+  const outClip = clipOf(Object.assign({ duration: 20 }, outMode === 'normal' ? {} : { blend: outMode }));
+  const incClip = clipOf(Object.assign({ start: 10, duration: 20 }, incMode === 'normal' ? {} : { blend: incMode }));
+  painter.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), below, 15)] }, { transition: { type: 'dissolve', progress: 0.5, out: itemOf(project, outClip, layer, 15), inc: itemOf(project, incClip, layer, 15) } }], 15));
+  return pixel(painter, 32, 18);
+};
+out.sharedGot = transitionFrame('multiply', 'multiply'); out.sharedWant = bytes(P.compositeRGB('multiply', a0, b0, 1));
+out.mixedGot = transitionFrame('multiply', 'screen'); out.mixedWant = normal(a0, b0, 1);
+out.failures = failures.slice();
+painter.dispose();
+// A blend program that does not compile composites normal and is reported once.
+const original = S.blend;
+S.blend = id => (id === 'multiply' ? '#version 300 es\nnot glsl' : original(id));
+try {
+  const broken = [];
+  const fallback = painterFor(project, { onProgramFailed: (kind, id) => broken.push([kind, id]) });
+  const clip = clipOf({ blend: 'multiply' });
+  [0, 1].forEach(() => fallback.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), below)] }, { items: [itemOf(project, clip, layer)] }])));
+  out.brokenGot = pixel(fallback, 32, 18); out.brokenWant = normal(a0, b0, 1);
+  out.brokenFailures = broken;
+  fallback.dispose();
+} finally {
+  S.blend = original;
+}
+stage.replaceChildren();
+return out;
+`
+
+// testCompositingGLBlend is the /blend subtest (plan 2d Task 11). It checks every mode at alpha 1 and 0.5 against
+// VideoStudioPicture.compositeRGB, the copy-back outside the layer, the transition rule, and a broken program.
+func testCompositingGLBlend(t *testing.T, page *rod.Page, dir string) {
+	for name, fill := range map[string]color.NRGBA{
+		"blend_below":      {R: 40, G: 200, B: 140, A: 255},
+		"blend_layer":      {R: 180, G: 70, B: 230, A: 255},
+		"blend_ends_below": {R: 0, G: 255, B: 100, A: 255},
+		"blend_ends":       {R: 255, G: 0, B: 128, A: 255},
+	} {
+		writeFlatNRGBAPNG(t, filepath.Join(dir, name+".png"), 64, 36, fill)
+	}
+	checks := evalCompositingGL(t, page, compositingGLBlendScript)
+	if got := compositingJSON(checks["failures"]); got != "[]" {
+		t.Errorf("program failures = %s, want none (every blend program must compile)", got)
+	}
+	if modes := checks["modes"].Arr(); len(modes) != 13 {
+		t.Fatalf("blendModes() lists %d non-normal modes, want 13: %s", len(modes), compositingJSON(checks["modes"]))
+	}
+	worst := map[string]int{}
+	gap := func(a, b uint8) int { return max(int(a)-int(b), int(b)-int(a)) }
+	for _, row := range checks["rows"].Arr() {
+		mode, pair, alpha := row.Get("mode").Str(), row.Get("pair").Int(), row.Get("alpha").Num()
+		got, want, normal := jsonRGBA(row.Get("got")), jsonRGBA(row.Get("want")), jsonRGBA(row.Get("normal"))
+		worst[mode] = max(worst[mode], gap(got.R, want.R), gap(got.G, want.G), gap(got.B, want.B))
+		if !rgbaNear(got, want, 3) {
+			t.Errorf("%s pair %d alpha %v = %v, want %v ±3 (compositeRGB)", mode, pair, alpha, got, want)
+		}
+		if pair == 0 && alpha == 1 && rgbaNear(want, normal, 12) {
+			t.Errorf("%s: compositeRGB is within 12 levels of normal on pair 0, so the case cannot catch a mode that composites normal", mode)
+		}
+	}
+	for _, mode := range checks["modes"].Arr() {
+		t.Logf("%s: largest difference from compositeRGB %d/255 (pairs 0 and 1, alpha 1 and 0.5)", mode.Str(), worst[mode.Str()])
+	}
+	if got, want := jsonRGBA(checks["halfInside"]), jsonRGBA(checks["halfWant"]); !rgbaNear(got, want, 3) {
+		t.Errorf("half-width multiply = %v, want %v ±3", got, want)
+	}
+	below := jsonRGBA(checks["belowPixel"])
+	for _, name := range []string{"halfOutside", "halfLetterbox"} {
+		if got := jsonRGBA(checks[name]); !rgbaNear(got, below, 1) {
+			t.Errorf("%s = %v, want the composite below %v unchanged by the copy-back", name, got, below)
+		}
+	}
+	for got, want := range map[string]string{"sharedGot": "sharedWant", "mixedGot": "mixedWant", "brokenGot": "brokenWant"} {
+		g, w := jsonRGBA(checks[got]), jsonRGBA(checks[want])
+		t.Logf("%s = %v, want %v", got, g, w)
+		if !rgbaNear(g, w, 3) {
+			t.Errorf("%s = %v, want %v ±3", got, g, w)
+		}
+	}
+	if rgbaNear(jsonRGBA(checks["sharedWant"]), jsonRGBA(checks["mixedWant"]), 12) {
+		t.Error("the shared-mode and normal transition results are within 12 levels, so the case cannot tell them apart")
+	}
+	if got := compositingJSON(checks["brokenFailures"]); got != `[["effect","blend:multiply"]]` {
+		t.Errorf("onProgramFailed calls = %s, want one ('effect', 'blend:multiply')", got)
 	}
 }

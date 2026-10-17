@@ -74,7 +74,8 @@ const declares = (source, uniforms, message) => Object.keys(uniforms).forEach(na
 // TestVideoStudioCompositingUniforms checks the GL side of plan 2d without a browser (index §4.4a, §4.7), one subtest
 // per program family:
 //   - key (Task 9): passUniforms('chroma_key') and the KEY pass;
-//   - mask (Task 10): maskUniforms, boxRect, PLACE_VERTEX's v_box and PLACE_MASKED.
+//   - mask (Task 10): maskUniforms, boxRect, PLACE_VERTEX's v_box and PLACE_MASKED;
+//   - blend (Task 11): one blend(id) source per non-normal registry mode.
 func TestVideoStudioCompositingUniforms(t *testing.T) {
 	t.Run("key", func(t *testing.T) {
 		runVideoStudioEffectsScript(t, compositingShadersPrelude+`
@@ -123,6 +124,21 @@ assert(!S.PLACE.includes('v_box'), 'PLACE ignores the box');
 assert(S.MASK.includes('float vsMask(vec2 p)'), 'MASK defines vsMask');
 assert(S.PLACE_MASKED.startsWith('#version 300 es') && S.PLACE_MASKED.includes(S.MASK) && S.PLACE_MASKED.includes('in vec2 v_box;'), 'PLACE_MASKED inlines MASK');
 declares(S.PLACE_MASKED, Object.assign({u_boxSize: [640, 360], u_opacity: 1}, u), 'PLACE_MASKED');
+`)
+	})
+	t.Run("blend", func(t *testing.T) {
+		runVideoStudioEffectsScript(t, compositingShadersPrelude+`
+const modes = E.blendModes().map(mode => mode.id);
+assert.equal(modes[0], 'normal', 'normal leads the menu');
+assert.equal(modes.length, 14, 'normal plus 13 modes');
+assert.equal(S.blend('normal'), null, 'normal composites inside placeClip');
+assert.equal(S.blend('unknown'), null, 'unknown ids have no program');
+modes.slice(1).forEach(id => {
+  const source = S.blend(id);
+  assert(typeof source === 'string' && source.startsWith('#version 300 es'), id + ' has a GLSL ES 3.00 source');
+  assert(source.includes('uniform sampler2D u_dst;') && source.includes('uniform sampler2D u_src;'), id + ' reads the composite and the layer');
+  assert(source.includes('vec3 vsBlend(vec3 a, vec3 b)') && source.includes('outColor = vec4(mix(below,'), id + ' mixes F with the layer alpha');
+});
 `)
 	})
 }

@@ -292,11 +292,52 @@ void main() {
     // Pass sources per registry effect id, in pass order (blur: horizontal, then vertical; chroma_key: one KEY pass).
     const EFFECTS = { color: [COLOR], lut: [LUT], blur: [BLUR, BLUR], sharpen: [SHARPEN], vignette: [VIGNETTE], chroma_key: [KEY] };
 
+    // ---- 2d blend modes (index §4.7, §4.22). ----
+    // blend(id) draws QUAD_VERTEX (u_flipY 0) into a canvas-size scratch target without blending. It reads u_dst, the
+    // opaque composite below, and u_src, the placed layer (premultiplied), and writes
+    //   rgb = mix(dst, F(dst, src.rgb / src.a), src.a), alpha 1,
+    // which is the export's blend followed by maskedmerge with the layer alpha.
+    // vsBlend(a, b) is F's real form with a = below and b = the layer's straight colour in 0..1. The roles are the same
+    // for every mode, because the export's swapped inputs for dodge and burn are already in the formulas. The ends of
+    // dodge (layer 255) and burn (layer 0) are tested on 8-bit levels, the only values the RGBA8 layer holds.
+    const BLEND_HEAD = FRAGMENT_HEAD + `uniform sampler2D u_dst;
+uniform sampler2D u_src;
+vec3 vsBlend(vec3 a, vec3 b) {
+`;
+    const BLEND_MAIN = `}
+void main() {
+    vec3 below = texture(u_dst, v_uv).rgb;
+    vec4 layer = texture(u_src, v_uv);
+    vec3 straight = layer.a > 0.0 ? clamp(layer.rgb / layer.a, 0.0, 1.0) : vec3(0.0);
+    outColor = vec4(mix(below, clamp(vsBlend(below, straight), 0.0, 1.0), layer.a), 1.0);
+}
+`;
+    // The upper branch of overlay and hardlight: 1 − 2(1 − a)(1 − b).
+    const SCREEN2 = '1.0 - 2.0 * (1.0 - a) * (1.0 - b)';
+    // vsBlend bodies per registry blend mode (normal has none: it composites inside placeClip).
+    const BLENDS = {
+        multiply: 'return a * b;',
+        screen: 'return 1.0 - (1.0 - a) * (1.0 - b);',
+        overlay: 'return mix(' + SCREEN2 + ', 2.0 * a * b, vec3(lessThan(a, vec3(0.5))));',
+        softlight: 'return a * a + 2.0 * b * a * (1.0 - a);',
+        hardlight: 'return mix(' + SCREEN2 + ', 2.0 * a * b, vec3(lessThan(b, vec3(0.5))));',
+        darken: 'return min(a, b);',
+        lighten: 'return max(a, b);',
+        difference: 'return abs(a - b);',
+        exclusion: 'return a + b - 2.0 * a * b;',
+        addition: 'return min(a + b, vec3(1.0));',
+        subtract: 'return max(a - b, vec3(0.0));',
+        dodge: 'return mix(min((256.0 / 255.0) * a / max(1.0 - b, vec3(0.5 / 255.0)), vec3(1.0)), vec3(1.0), vec3(greaterThan(b, vec3(254.5 / 255.0))));',
+        burn: 'return mix(max(1.0 - (256.0 / 255.0) * (1.0 - a) / max(b, vec3(0.5 / 255.0)), vec3(0.0)), vec3(0.0), vec3(lessThan(b, vec3(0.5 / 255.0))));'
+    };
+
     window.VideoStudioShaders = {
         QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED,
         // Fragment source for a registry transition id, or null (2e adds the other ids).
         transition(id) { return Object.prototype.hasOwnProperty.call(TRANSITIONS, id) ? TRANSITIONS[id] : null; },
         // {passes: [fragmentSource, ...]} for a registry effect id, or null (index §4.7).
-        effect(id) { return Object.prototype.hasOwnProperty.call(EFFECTS, id) ? { passes: EFFECTS[id].slice() } : null; }
+        effect(id) { return Object.prototype.hasOwnProperty.call(EFFECTS, id) ? { passes: EFFECTS[id].slice() } : null; },
+        // Fragment source for a registry blend mode, or null for normal and unknown ids (index §4.7, 2d).
+        blend(id) { return Object.prototype.hasOwnProperty.call(BLENDS, id) ? BLEND_HEAD + '    ' + BLENDS[id] + '\n' + BLEND_MAIN : null; }
     };
 })();
