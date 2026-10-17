@@ -16,8 +16,9 @@
     const BOX = ['x', 'y', 'width', 'height'];
     const outsideText = s => tr(s, 'keyframeOutside', 'Move the playhead into the clip to set keyframes.');
 
-    function isAnimated(clip, path) { const list = clip && clip.keyframes && clip.keyframes[path]; return Array.isArray(list) && list.length > 0; }
-    function animatedPaths(clip) { return Fx().keyframable().filter(path => isAnimated(clip, path)); }
+    // Through the keyframe path store (2c): base values and crop sides in clip.keyframes, effect params in their entry.
+    function isAnimated(clip, path) { return !!clip && K().keysOf(clip, path).length > 0; }
+    function animatedPaths(clip) { return Fx().animatablePaths(clip).filter(path => isAnimated(clip, path)); }
     function inside(clip, frame) { return frame >= clip.start && frame < clip.start + clip.duration; }
     // The selected clip when it has a picture: keyframes live on visual tracks only.
     function visualSelection(s) {
@@ -38,13 +39,13 @@
         };
     }
     // What the inspector shows for the selected visual clip at the playhead, or null: the resolved state, one controlState
-    // per keyframable value, whether the playhead is inside the clip (keys are set only there), whether the editor may
+    // per animatable path (base values, crop sides and the clip's effect params), whether the playhead is inside the clip (keys are set only there), whether the editor may
     // change the clip, and whether a box value is animated (fine tune opens by itself then).
     function keyframeView(s) {
         const found = visualSelection(s);
         if (!found) return null;
         const clip = found.clip, frame = Math.round(Number(s.frame) || 0), controls = {};
-        Fx().keyframable().forEach(path => { controls[path] = controlState(s.project, clip, path, frame); });
+        Fx().animatablePaths(clip).forEach(path => { controls[path] = controlState(s.project, clip, path, frame); });
         return {
             frame, inside: inside(clip, frame), locked: !!s.readonly || !!found.track.locked, controls,
             state: Fx().clipState(clip, frame, s.project), boxAnimated: BOX.some(path => controls[path] && controls[path].animated)
@@ -129,6 +130,7 @@
         put('opacity', Math.round(st.opacity * 100), P.percentText(st.opacity * 100), ['opacity']);
         BOX.forEach(path => put(path, round6(st[path] * 100), '', [path]));
         host.querySelectorAll('[data-position],[data-action="fill-frame"]').forEach(button => { button.disabled = view.locked || frozen(BOX); });
+        if (P.syncEffectControls) P.syncEffectControls(s, view, host);
     }
 
     // Alt+K: every animated value of the selected clip gets a key at the playhead; when all of them already have one, they
@@ -189,19 +191,19 @@
     //   drawn.
     // - The summary row has one diamond per source frame. It lists the paths keyed there, with e 'mixed' when their
     //   easings differ.
-    // - Expanded adds one row per animated path, in registry order.
+    // - Expanded adds one row per animated path, in VideoStudioEffects.animatablePaths order (base values, crop sides, then each effect entry's params).
     // view is {expanded} or null.
     function stripModel(project, clip, pps, view) {
         const Fx = window.VideoStudioEffects, fps = window.VideoStudioTime.rate(project);
-        const first = clip.start, last = clip.start + clip.duration - 1, keyframes = clip.keyframes || {};
+        const first = clip.start, last = clip.start + clip.duration - 1, keysOf = path => window.VideoStudioKeyframeEdit.keysOf(clip, path);
         const place = f => {
             const frame = Fx.timelineAt(clip, f);
             return { frame, x: frame / fps * pps, outside: !(frame >= first - 1e-9 && frame <= last + 1e-9) };
         };
         const groups = new Map();
-        const rows = Fx.keyframable().filter(path => Array.isArray(keyframes[path]) && keyframes[path].length).map(path => ({
+        const rows = Fx.animatablePaths(clip).filter(path => keysOf(path).length).map(path => ({
             id: path,
-            keys: keyframes[path].map(key => {
+            keys: keysOf(path).map(key => {
                 const at = place(key.f);
                 if (!groups.has(key.f)) groups.set(key.f, Object.assign({ f: key.f, paths: [], easings: [] }, at));
                 groups.get(key.f).paths.push(path);
@@ -225,9 +227,8 @@
     function stripSplit(id) { const at = id.lastIndexOf(':'); return { path: id.slice(0, at), f: Number(id.slice(at + 1)) }; }
     // The per-path ids a diamond stands for: a summary diamond holds every path keyed at its source frame.
     function stripIds(clip, path, f) {
-        const keyframes = clip.keyframes || {};
         if (path !== 'summary') return [path + ':' + f];
-        return Object.keys(keyframes).filter(name => (keyframes[name] || []).some(key => key.f === f)).map(name => name + ':' + f);
+        return K().keyedPaths(clip).filter(name => K().keysOf(clip, name).some(key => key.f === f)).map(name => name + ':' + f);
     }
     function stripKeys(s) { return ((s.kfStrip && s.kfStrip.selected) || []).map(stripSplit); }
     // After a move, unselected keys keep their frames and moved keys keep their order on each path. The new selection is
@@ -237,8 +238,8 @@
         ids.forEach(id => { const { path, f } = stripSplit(id); if (!byPath.has(path)) byPath.set(path, []); byPath.get(path).push(f); });
         byPath.forEach((frames, path) => {
             const moving = new Set(frames);
-            const kept = new Set(((before.keyframes || {})[path] || []).map(key => key.f).filter(f => !moving.has(f)));
-            const landed = ((after.keyframes || {})[path] || []).map(key => key.f).filter(f => !kept.has(f));
+            const kept = new Set(K().keysOf(before, path).map(key => key.f).filter(f => !moving.has(f)));
+            const landed = K().keysOf(after, path).map(key => key.f).filter(f => !kept.has(f));
             frames.slice().sort((a, b) => a - b).forEach((f, index) => { if (landed[index] != null) map.set(path + ':' + f, path + ':' + landed[index]); });
         });
         return map;
@@ -321,15 +322,19 @@
         const Fx = window.VideoStudioEffects;
         const found = s.project && s.selectedClipId ? P.T().clipFor(s.project, s.selectedClipId) : null;
         if (!found || found.track.id !== track.id || track.kind === 'audio') return '';
-        const clip = found.clip, keyed = Object.keys(clip.keyframes || {}).length > 0;
+        const clip = found.clip, keyed = K().keyedPaths(clip).length > 0;
         if (!keyed && !Fx.hasRamp(clip) && !s.kfBoard) return '';
         const view = stripView(s, clip.id), model = stripModel(s.project, clip, pps, view);
         const known = new Set();
-        Object.keys(clip.keyframes || {}).forEach(path => (clip.keyframes[path] || []).forEach(key => known.add(path + ':' + key.f)));
+        K().keyedPaths(clip).forEach(path => K().keysOf(clip, path).forEach(key => known.add(path + ':' + key.f)));
         view.selected = view.selected.filter(id => known.has(id));
         const selected = new Set(view.selected), readonly = !!s.readonly || !!track.locked;
         const esc = value => P.esc(s, value), tr = (key, fallback) => P.tr(s, key, fallback);
-        const label = path => tr((Fx.base(path) || {}).label_key || path, path);
+        // Row and diamond names: a base value's registry label, or "<entry name> · <param label>" for an effect param.
+        const label = path => {
+            const spec = Fx.paramSpec(clip, path), name = tr(spec ? spec.label_key : path, path), entry = /^effects\.(\d+)\./.exec(path);
+            return entry && window.VideoStudioInspectorEffects ? window.VideoStudioInspectorEffects.entryName(clip, Number(entry[1]), tr) + ' · ' + name : name;
+        };
         const time = frame => P.I().formatTime(Math.max(0, Math.round(frame)), s.project);
         const diamond = (row, key) => {
             const summary = row.id === 'summary', path = summary ? 'summary' : row.id;
@@ -419,7 +424,7 @@
             if (s.kfBoard && editable(found)) edit(found, 'paste keyframes', project => KE().pasteKeys(project, found.clip.id, s.kfBoard, s.frame), '');
         }
         function easingOf(clip, key) {
-            const hit = ((clip.keyframes || {})[key.path] || []).find(item => item.f === key.f);
+            const hit = KE().keysOf(clip, key.path).find(item => item.f === key.f);
             return hit ? hit.e : '';
         }
         // Easing (radio items; the easing all selected keys share is checked), copy, paste at the playhead, delete.

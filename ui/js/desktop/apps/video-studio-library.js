@@ -320,7 +320,7 @@
         const projectId = expectedProjectId || s.projectId, epoch = expectedEpoch == null ? s.projectEpoch : expectedEpoch;
         const folder = expectedFolder == null ? s.mediaFolder || '' : expectedFolder;
         if (!file || s.readonly || !projectId || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-        const allowed = /^(video\/|audio\/|image\/(png|webp)$)/i.test(file.type) || /\.(mp4|mov|webm|m4v|mkv|mp3|wav|ogg|m4a|aac|flac|png|webp)$/i.test(file.name);
+        const allowed = /^(video\/|audio\/|image\/(png|webp)$)/i.test(file.type) || /\.(mp4|mov|webm|m4v|mkv|mp3|wav|ogg|m4a|aac|flac|png|webp|cube)$/i.test(file.name);
         if (!allowed) return showNotice(s, 'unsupportedFile', 'Choose a video, audio, PNG or WebP file.', true);
         const max = Number(s.status.limits && s.status.limits.max_asset_size_bytes || 256 * 1024 * 1024);
         if (file.size > max) return showNotice(s, 'fileTooLarge', 'This file is larger than the server limit.', true);

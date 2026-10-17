@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/videostudio"
 )
 
 // Effect stack operations (index §4.16, spec §5.4, §8.1).
@@ -374,4 +376,220 @@ assert.equal(E.paste(p, board, 0, 'overwrite', {}), true);
 assert.equal(p.tracks[0].clips[0].effects[0].params.lut, '');
 valid(p);
 `)
+}
+
+// videoStudioEffectStackPartsPrelude loads the keyframe app parts, the shared picture math and the Effects section on
+// top of the keyframe prelude; none of them touches the DOM at load.
+const videoStudioEffectStackPartsPrelude = videoStudioKeyframePartsPrelude + `
+require('./js/desktop/apps/video-studio-picture.js');
+require('./js/desktop/apps/video-studio-inspector-effects.js');
+const FXI = window.VideoStudioInspectorEffects;
+`
+
+// The Effects section (spec §8.1).
+//   - The "+ Effect" menu groups the registry by category. Unavailable effects and a full stack disable their items
+//     with a reason.
+//   - Entries carry the header toggle, the on/off switch, reset, remove and the grip; sliders show the values at the
+//     playhead, with keyframe tools on keyframable params (none on the blur radius).
+//   - The LUT picker offers none, the looks and the project LUTs, plus "Upload .cube".
+//   - Badges mark unavailable effects and failed preview programs; effectsCropAnimatedHint shows with an animated crop.
+//   - The Picture section's crop fields and flips sit in the same view.
+func TestVideoStudioEffectStackMarkup(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+let groups = FXI.menuModel({});
+assert.deepEqual(groups.map(group => [group.label_key, group.items.map(item => item.id)]), [['effectCategory_color', ['color', 'lut']], ['effectCategory_detail', ['blur', 'sharpen']], ['effectCategory_stylize', ['vignette']]]);
+assert(groups.every(group => group.items.every(item => item.available && !item.disabled && item.reason === '')));
+FX.adopt(FX.BUILTIN, {effects: ['lut'], transitions: [], blend_modes: [], anim_presets: []});
+assert.deepEqual(FXI.menuModel({}).flatMap(group => group.items).find(item => item.id === 'lut'), {id: 'lut', label_key: 'effect.lut.name', available: false, disabled: true, reason: 'effectUnavailable'});
+const full = {effects: Array.from({length: 8}, () => ({id: 'blur', on: true, params: FX.defaults('blur')}))};
+assert(FXI.menuModel(full).flatMap(group => group.items).every(item => item.disabled), 'a full stack disables every item');
+assert.equal(FXI.menuModel(full)[0].items[0].reason, 'effectsFull');
+assert.deepEqual([FXI.dropIndex(0, 2, true), FXI.dropIndex(2, 0, false), FXI.dropIndex(0, 1, false), FXI.dropIndex(1, 1, true)], [2, 0, 0, 1]);
+assert.deepEqual([FXI.formatValue({unit: 'ev', step: 0.01}, 0.5, 'en'), FXI.formatValue({unit: 'ev', step: 0.01}, -1, 'en'), FXI.formatValue({unit: 'K', step: 10}, 6500, 'en'),
+  FXI.formatValue({unit: 'height', step: 0.0005}, 0.01, 'en'), FXI.formatValue({step: 0.01}, 1.2, 'en')], ['+0.50 EV', '-1.00 EV', '6,500 K', '1.00 %', '1.20']);
+const twin = {effects: [{id: 'color'}, {id: 'blur'}, {id: 'color'}]};
+assert.deepEqual([0, 1, 2].map(index => FXI.entryName(twin, index, key => '[' + key + ']')), ['[effect.color.name] 1', '[effect.blur.name]', '[effect.color.name] 2']);
+
+// A clip with an animated crop and three entries, at frame 20 (source 120).
+const p = project([
+  track('v1','video',[clip('c',V,0,100,{offset:100, keyframes: {'crop.l': [kf(100, 0), kf(150, 0.2)]}})]),
+  track('v2','video',[clip('e',V,0,50)]),
+  track('a1','audio',[clip('m',A,0,100)])
+]);
+K.addEffect(p, 'c', 'color'); K.addEffect(p, 'c', 'lut', {lut: 'builtin:warm'}); K.addEffect(p, 'c', 'blur');
+at(p,'c').effects[0].keyframes = {exposure: [kf(100, 0), kf(160, 1.5)]};
+p.assets.push({id: 'lut1', name: 'Film.cube', kind: 'lut', duration_frames: 0, lut_size: 17});
+valid(p);
+const s = {project: p, selectedClipId: 'c', frame: 20, readonly: false};
+const view = P.keyframeView(s);
+assert(view.controls['effects.0.exposure'] && view.controls['crop.l'], 'keyframe controls cover crop sides and effect params');
+assert.equal('effects.2.radius' in view.controls, false, 'the blur radius has no keyframe controls');
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';');
+const render = (clipId, asset, fx) => {
+  const host = {innerHTML: ''};
+  IN.render(host, {selected: T.clipFor(p, clipId), asset, project: p, locale: 'en', caps: {}, transitionInfo: {next: null}, esc,
+    icon: name => '<i data-icon="' + name + '"></i>', tr: key => '[' + key + ']', keyframes: P.keyframeView(Object.assign({}, s, {selectedClipId: clipId})), fineOpen: true, effects: fx});
+  return host.innerHTML;
+};
+const html = render('c', V, {failed: new Set(['blur']), luts: [{id: 'lut1', name: 'Film.cube'}], collapsed: entry => entry.id === 'blur'});
+const entry = index => { const start = html.indexOf('data-fx-entry="' + index + '"'), next = html.indexOf('data-fx-entry="' + (index + 1) + '"'); return html.slice(start, next < 0 ? html.indexOf('data-fx-action="add"') : next); };
+assert(html.indexOf('data-fx-section') > html.indexOf('[picture]') && html.indexOf('data-fx-section') < html.indexOf('[animation]'), 'Effects sit between Picture and Animation');
+assert(html.includes('<span class="vs-fx-count">3/8</span>'));
+assert.deepEqual(Array.from(html.matchAll(/data-fx-entry="(\d)" data-fx-id="([a-z_]+)"/g), m => m[1] + m[2]), ['0color', '1lut', '2blur']);
+assert(/<button[^>]*role="switch"[^>]*aria-checked="true"/.test(entry(0)), 'each entry has an on/off switch');
+assert(/<button[^>]*data-fx-head aria-expanded="true"/.test(entry(0)) && entry(0).includes('[effect.color.name]'));
+assert(/<button[^>]*data-fx-head aria-expanded="false"/.test(entry(2)) && /class="vs-fx-body"[^>]*hidden/.test(entry(2)), 'a collapsed entry hides its params');
+assert(entry(0).includes('data-fx-action="reset"') && entry(0).includes('data-fx-action="remove"') && entry(0).includes('data-fx-grip'));
+assert(/<input type="range" data-fx-param="exposure"[^>]*value="0.5"/.test(entry(0)), 'sliders show the value at the playhead');
+assert(entry(0).includes('<output>+0.50 EV</output>'));
+assert(entry(0).includes('data-kf-path="effects.0.exposure"') && entry(0).includes('data-kf-path="effects.0.lift_x"'), 'keyframable params carry keyframe tools');
+assert(/<input type="range" data-fx-param="radius"/.test(entry(2)) && !entry(2).includes('data-kf-path='), 'the blur radius is a slider without keyframe tools');
+assert(entry(1).includes('<option value="builtin:warm" selected>[look_warm]</option>'), 'the LUT picker shows the chosen look');
+assert(entry(1).includes('<option value="lut1">Film.cube</option>') && entry(1).includes('<option value="">[lutNone]</option>'));
+assert(entry(1).includes('data-fx-action="lut-upload"') && html.includes('data-fx-lut-file'));
+assert(entry(1).includes('data-fx-badge="unavailable"') && !entry(0).includes('data-fx-badge'), 'an effect the server lacks is badged');
+assert(entry(2).includes('data-fx-badge="failed"'), 'an effect whose preview program failed is badged');
+assert(html.includes('data-fx-hint') && html.includes('[effectsCropAnimatedHint]'), 'an animated crop explains the processing order');
+assert(/<input type="number" data-crop="l"[^>]*value="8"/.test(html), 'crop fields show the value at the playhead in percent');
+assert(html.includes('data-kf-path="crop.l"') && /<button[^>]*data-flip="h" aria-pressed="false"/.test(html), 'crop keyframe tools and the flip toggles');
+assert(!/<button[^>]*data-fx-action="add"[^>]*disabled/.test(html), 'a stack below 8 can grow');
+// No effects: a hint and an enabled button; a full stack disables it; audio clips have no Effects section.
+let other = render('e', V, {failed: new Set(), luts: [], collapsed: () => false});
+assert(other.includes('data-fx-empty') && !other.includes('data-fx-hint') && other.includes('<span class="vs-fx-count">0/8</span>'));
+at(p, 'e').effects = full.effects.map(item => JSON.parse(JSON.stringify(item)));
+other = render('e', V, {failed: new Set(), luts: [], collapsed: () => false});
+assert(/<button[^>]*data-fx-action="add"[^>]*disabled title="\[effectsFull\]"/.test(other), 'a full stack disables Add effect');
+assert(!render('m', A, null).includes('data-fx-section'), 'audio clips have no Effects section');
+FX.adopt(null, null);
+`)
+}
+
+// Alt+ArrowUp / Alt+ArrowDown on a focused entry header move the entry, stop the event and keep the playhead.
+// Elsewhere the keys still jump between keyframes (P.handleKeyframeKeys, matched by event.code), and handleKeys tries the
+// stack first.
+func TestVideoStudioEffectStackKeys(t *testing.T) {
+	app, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(app)
+	stack, keys := strings.Index(text, "P.handleEffectStackKeys(s, event)"), strings.Index(text, "P.handleKeyframeKeys(s, event)")
+	if stack < 0 || keys < stack {
+		t.Fatal("handleKeys must try P.handleEffectStackKeys before P.handleKeyframeKeys")
+	}
+	for _, want := range []string{"P.effectCommand(s, event)", "P.wireEffectStack(s)", "effects: P.effectView ? P.effectView(s) : null"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("video-studio.js lacks %s", want)
+		}
+	}
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+P.applyEdit = (state, label, op) => op(state.project, {}) === true;
+P.seekTo = (state, frame) => { state.frame = frame; };
+const p = project([track('v1','video',[clip('c',V,0,100,{offset:100, keyframes: {opacity: [kf(100, 1), kf(130, 0.5)]}})])]);
+for (const id of ['color', 'lut', 'vignette']) assert.equal(K.addEffect(p, 'c', id), true);
+valid(p);
+const s = {project: p, selectedClipId: 'c', frame: 20, stageMode: 'timeline', readonly: false, q: () => null};
+const ids = () => at(p, 'c').effects.map(entry => entry.id);
+const header = index => { const entry = {dataset: {fxEntry: String(index)}}, el = {closest: selector => (selector === '[data-fx-head]' ? el : selector === '[data-fx-entry]' ? entry : null)}; return el; };
+const elsewhere = {closest: () => null};
+const ev = (code, target, mods) => Object.assign({code, key: code, target, altKey: true, ctrlKey: false, metaKey: false, shiftKey: false,
+  prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }}, mods || {});
+let event = ev('ArrowUp', header(1));
+assert.equal(P.handleEffectStackKeys(s, event), true);
+assert(event.prevented && event.stopped, 'the stack stops the event');
+assert.deepEqual(ids(), ['lut', 'color', 'vignette']);
+assert.equal(s.frame, 20, 'the playhead stays');
+assert.equal(P.handleEffectStackKeys(s, ev('ArrowDown', header(0))), true);
+assert.deepEqual(ids(), ['color', 'lut', 'vignette']);
+event = ev('ArrowUp', header(0));
+assert.equal(P.handleEffectStackKeys(s, event), true, 'the top entry keeps the key without moving');
+assert(event.stopped);
+assert.deepEqual(ids(), ['color', 'lut', 'vignette']);
+assert.equal(P.handleEffectStackKeys(s, ev('ArrowDown', header(2))), true);
+assert.deepEqual(ids(), ['color', 'lut', 'vignette'], 'nor the bottom one');
+for (const mods of [{altKey: false}, {shiftKey: true}, {ctrlKey: true}, {metaKey: true}]) assert.equal(P.handleEffectStackKeys(s, ev('ArrowUp', header(1), mods)), false, JSON.stringify(mods));
+assert.equal(P.handleEffectStackKeys(s, ev('ArrowLeft', header(1))), false);
+assert.equal(P.handleEffectStackKeys(Object.assign({}, s, {stageMode: 'source'}), ev('ArrowUp', header(1))), false, 'the source monitor keeps its keys');
+event = ev('ArrowUp', elsewhere);
+assert.equal(P.handleEffectStackKeys(s, event), false);
+assert.equal(event.stopped, false);
+assert.equal(P.handleKeyframeKeys(s, event), true);
+assert.equal(s.frame, 0, 'Alt+ArrowUp elsewhere jumps to the previous keyframe');
+assert.equal(P.handleKeyframeKeys(s, ev('ArrowDown', elsewhere)), true);
+assert.equal(s.frame, 30);
+p.tracks[0].locked = true;
+assert.equal(P.handleEffectStackKeys(s, ev('ArrowUp', header(1))), true);
+assert.deepEqual(ids(), ['color', 'lut', 'vignette'], 'locked tracks never change');
+`)
+}
+
+// The keyframe strip covers crop sides and effect params.
+//   - Rows follow VideoStudioEffects.animatablePaths (base, crop, then each entry's params); summary diamonds include entry
+//     keys.
+//   - Effect rows are named "<entry> · <param>", and their diamonds select like base ones.
+func TestVideoStudioKeyframeStripEffectRows(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+const clip0 = () => ({id: 'c', asset_id: 'none', start: 30, offset: 0, duration: 60, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain',
+  keyframes: {opacity: [kf(0, 1)], 'crop.l': [kf(10, 0.1)]},
+  effects: [{id: 'blur', on: true, params: FX.defaults('blur')}, {id: 'color', on: true, params: FX.defaults('color'), keyframes: {exposure: [kf(10, 0.5, 'ease_in'), kf(20, 1)]}}]});
+const model = KF.stripModel({fps: 30}, clip0(), 52, {expanded: true});
+assert.deepEqual(model.rows.map(row => row.id), ['summary', 'opacity', 'crop.l', 'effects.1.exposure']);
+assert.deepEqual(model.rows[0].keys.map(key => [key.f, key.paths, key.e]), [[0, ['opacity'], 'linear'], [10, ['crop.l', 'effects.1.exposure'], 'mixed'], [20, ['effects.1.exposure'], 'linear']]);
+near(model.rows[3].keys[1].frame, 50, 'entry keys sit at timelineAt like base keys');
+const p = project([track('v1', 'video', [clip0()])]);
+const s = {project: p, selectedClipId: 'c', frame: 40, readonly: false, q: () => null, kfStrip: {clipId: 'c', expanded: true, selected: ['effects.1.exposure:20']},
+  ctx: {t: key => '[' + key.slice(12) + ']', esc: value => String(value)}};
+const html = P.keyframeStrip(s, p.tracks[0], 52, 2000);
+assert(html.includes('data-kf-row="effects.1.exposure"') && html.includes('[effect.color.name] · [effect.color.exposure]'), 'effect rows are named after their entry');
+assert(html.includes('data-kf-row="crop.l"') && html.includes('<span class="vs-kf-rowname">[crop_l]</span>'));
+assert(/data-kf-key="effects\.1\.exposure:20"[^>]*aria-pressed="true"/.test(html), 'the selection holds entry keys');
+assert(/data-kf-key="summary:10"[^>]*aria-pressed="false"/.test(html));
+`)
+}
+
+// Every desktop locale carries the Effects section strings (Task 14), and the sentences are translated:
+// - the registry's label keys: crop and flip; effect names, params and categories; the eight looks;
+// - the section's own strings, with their {{name}} placeholders.
+func TestVideoStudioEffectStackLocales(t *testing.T) {
+	registry := videostudio.EffectRegistry()
+	keys := []string{"effects", "effectAdd", "effectsEmpty", "effectsFull", "effectUnavailable", "effectBadgeUnavailable", "effectPreviewFailed", "effectBadgeFailed", "effectOn", "effectReset", "effectRemove", "effectDrag", "effectHeadHint", "effectsCropAnimatedHint", "crop", "flip", "lutNone", "lutLooks", "lutProject", "lutUpload", "lutUploadReady", "lutInvalid", "lutTooLarge", "lutCountLimit", "lutUploadType"}
+	for _, spec := range registry.Base {
+		if strings.HasPrefix(spec.ID, "crop.") || strings.HasPrefix(spec.ID, "flip_") {
+			keys = append(keys, spec.LabelKey)
+		}
+	}
+	for _, effect := range registry.Effects {
+		keys = append(keys, effect.LabelKey, "effectCategory_"+effect.Category)
+		for _, param := range effect.Params {
+			keys = append(keys, param.LabelKey)
+		}
+	}
+	for _, look := range registry.Looks {
+		keys = append(keys, look.LabelKey)
+	}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		if !strings.Contains(values["videoStudio.lutInvalid"], "{{line}}") {
+			t.Errorf("%s videoStudio.lutInvalid lost {{line}}: %q", lang, values["videoStudio.lutInvalid"])
+		}
+		for _, key := range []string{"effectPreviewFailed", "effectOn", "effectReset", "effectRemove", "effectHeadHint"} {
+			if !strings.Contains(values["videoStudio."+key], "{{name}}") {
+				t.Errorf("%s videoStudio.%s lost {{name}}: %q", lang, key, values["videoStudio."+key])
+			}
+		}
+		if lang == "en" {
+			continue
+		}
+		for _, key := range []string{"effectsEmpty", "effectsFull", "effectUnavailable", "effectPreviewFailed", "effectHeadHint", "effectsCropAnimatedHint", "lutUpload", "lutUploadType", "lutInvalid"} {
+			if values["videoStudio."+key] == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
 }

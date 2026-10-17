@@ -230,7 +230,7 @@
             if (!playing && s.shuttle) s.shuttle.reset(); if (!playing && P.syncKeyframeControls) P.syncKeyframeControls(s);
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
-        }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => P.syncPreviewNotice(s) });
+        }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => { P.syncPreviewNotice(s); if (s.project) renderInspector(s); } });
         // The JKL shuttle drives the preview; the preview reports its play state back (see the playing callback).
         s.shuttle = P.createShuttle({ getFrame: () => s.frame, seek: frame => s.preview.seek(frame), play: () => s.preview.play(), pause: () => s.preview.pause(), setRate: rate => s.preview.setRate(rate), maxFrame: () => maxFrames(s) });
         const signal = s.abort.signal;
@@ -275,6 +275,7 @@
         }, { signal });
         wireResize(s);
         wireTransform(s);
+        if (P.wireEffectStack) P.wireEffectStack(s);
         P.wireSource(s);
         if (typeof MutationObserver === 'function') {
             s.modalObserver = new MutationObserver(() => P.syncInert(s));
@@ -543,7 +544,7 @@
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: s.fineOpen == null ? !!(keyframes && keyframes.boxAnimated) : !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes, effects: P.effectView ? P.effectView(s) : null
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -701,6 +702,7 @@
         const stopWatch = event.target.closest('[data-stop-watch]'); if (stopWatch) { s.jobLocalStops.add(stopWatch.dataset.stopWatch); renderJobs(s); return; }
         if (P.handleRangeClick && P.handleRangeClick(s, event)) return;
         if (P.handleKeyframeClick && P.handleKeyframeClick(s, event)) return;
+        if (P.effectCommand && P.effectCommand(s, event)) return;
         if (event.target.closest('[data-timeline]')) return;
         const sticker = event.target.closest('[data-sticker]');
         if (sticker) { if (s.readonly) showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); else addSticker(s, sticker.dataset.sticker); return; }
@@ -784,6 +786,9 @@
         const sliderKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
         const sourceSlider = s.stageMode === 'source' && target.matches('[data-source-scrub]') && !sliderKeys.includes(event.key);
         if (!sourceSlider && target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        // Alt+ArrowUp/ArrowDown on a focused effect entry header moves the entry and stops the event; elsewhere the same
+        // keys jump between keyframes (index §4.18).
+        if (P.handleEffectStackKeys && P.handleEffectStackKeys(s, event)) return;
         if (P.handleKeyframeKeys && P.handleKeyframeKeys(s, event)) return;
         // Escape leaves the source monitor. It sits after the text-field guard (Escape in the library search or a rename
         // stays there) and before the button guard (Escape on a focused source button still returns to the timeline).

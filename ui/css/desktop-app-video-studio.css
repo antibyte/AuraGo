@@ -996,3 +996,39 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-ramp-glyph path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .vs-ramp-actions { margin-top: 10px; align-items: center; }
 .vs-ramp-notice { display: flex; align-items: flex-start; gap: 6px; color: var(--vs-warn); }
+
+/* Effects section (2c Task 14, video-studio-inspector-effects.js): the effect stack, the crop fields and flips of the
+   Picture section, and the "+ Effect" menu headings. */
+.vs-fx-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
+.vs-fx-stack { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vs-fx-entry { border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
+.vs-fx-entry.is-off .vs-fx-body, .vs-fx-entry.is-off .vs-fx-name { opacity: .55; }
+.vs-fx-entry.is-dragging { opacity: .5; }
+.vs-fx-entry.is-drop-before { box-shadow: 0 -2px 0 var(--vs-accent); }
+.vs-fx-entry.is-drop-after { box-shadow: 0 2px 0 var(--vs-accent); }
+.vs-fx-head { display: flex; align-items: center; gap: 2px; min-height: 32px; padding: 2px 4px 2px 2px; }
+.vs-fx-grip { flex: 0 0 auto; display: grid; place-items: center; width: 18px; height: 24px; color: var(--vs-muted); cursor: grab; }
+.vs-app .vs-fx-toggle { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; height: 28px; padding: 0 4px; border: 0; border-radius: 6px; background: transparent; color: var(--vs-text); font-size: 12px; font-weight: 650; text-align: left; }
+.vs-app .vs-fx-toggle:hover { background: var(--vs-control-hover); }
+.vs-fx-toggle .vs-icon { flex: 0 0 auto; transition: transform .15s ease; }
+.vs-fx-toggle[aria-expanded="false"] .vs-icon { transform: rotate(-90deg); }
+.vs-fx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-fx-badge { flex: 0 0 auto; padding: 1px 6px; border-radius: 999px; background: var(--vs-control-hover); color: var(--vs-muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.vs-fx-badge.is-warn { background: color-mix(in srgb, var(--vs-warn) 22%, transparent); color: var(--vs-warn); }
+.vs-app .vs-fx-switch { position: relative; flex: 0 0 auto; width: 30px; height: 18px; margin: 0 4px; padding: 0; border: 1px solid var(--vs-border-strong); border-radius: 999px; background: var(--vs-control); }
+.vs-fx-switch span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--vs-muted); transition: transform .15s ease, background .15s ease; }
+.vs-app .vs-fx-switch[aria-checked="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-fx-switch[aria-checked="true"] span { transform: translateX(12px); background: var(--vs-accent); }
+.vs-fx-body { padding: 0 10px 10px; }
+.vs-fx-line { margin-top: 6px; }
+.vs-fx-lut { display: grid; gap: 6px; margin-top: 8px; }
+.vs-fx-lut .vs-chip-button { justify-self: start; }
+.vs-fx-actions { display: flex; gap: 6px; margin-top: 8px; }
+.vs-fx-hint { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 8px; }
+.vs-fx-picture { margin-top: 12px; }
+.vs-fx-subhead { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--vs-muted); }
+.vs-fx-crop { margin-top: 6px; }
+.vs-fx-flips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.vs-app .vs-fx-flip[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-text); }
+.vs-fx-menu-heading { padding: 6px 12px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--vs-muted); }
+@media (prefers-reduced-motion: reduce) { .vs-fx-switch span, .vs-fx-toggle .vs-icon { transition: none; } }

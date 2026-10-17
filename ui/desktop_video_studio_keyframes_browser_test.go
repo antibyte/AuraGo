@@ -67,6 +67,13 @@ func videoStudioKeyframesProject() map[string]any {
 // window.kfSaves; script errors in window.kfErrors.
 func newVideoStudioKeyframesServer(t *testing.T, project map[string]any) *httptest.Server {
 	t.Helper()
+	return newVideoStudioKeyframesServerWith(t, project, nil)
+}
+
+// newVideoStudioKeyframesServerWith is newVideoStudioKeyframesServer with extra routes (mux pattern → handler) on the same
+// mux. The page's fetch stub passes every other request through, so the app reaches them (2c: the built-in LUTs).
+func newVideoStudioKeyframesServerWith(t *testing.T, project map[string]any, routes map[string]http.HandlerFunc) *httptest.Server {
+	t.Helper()
 	var art bytes.Buffer
 	picture := image.NewRGBA(image.Rect(0, 0, 512, 288))
 	for y := 0; y < 288; y++ {
@@ -119,6 +126,9 @@ window.VideoStudioApp.render(document.getElementById('studio'),'kf',{t:key=>wind
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte(html))
 	})
+	for pattern, handler := range routes {
+		mux.HandleFunc(pattern, handler)
+	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server
