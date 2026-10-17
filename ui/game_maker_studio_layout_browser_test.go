@@ -48,6 +48,7 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>{window.fixtureLang=
   if(path.endsWith('/preview-token'))return {url:'/preview-fixture',token:'fixture',revision:3};
   if(path.endsWith('/revisions'))return {revisions:[{number:3,summary:'Doppelsprung',created_at:new Date(now-5*60000).toISOString()},{number:2,summary:'Langsamere Gegner',created_at:new Date(now-40*60000).toISOString()},{number:1,summary:'Erste Version',created_at:new Date(now-90*60000).toISOString()}]};
   if(path.endsWith('/jobs'))return {id:'job-new',status:'queued',phase:'queued'};
+  if(path.endsWith('/workspace-drift'))return window.fixtureDrift||{revision:3,changed:[],added:[],removed:[],changed_count:0,added_count:0,removed_count:0,truncated:false};
   const project=fixtureProjects.find(p=>path.endsWith('/'+p.id))||fixtureProjects[0];
   return {project,messages:fixtureMessages[project.id]||[]};
  }});window.fixtureReady=true;});
@@ -143,6 +144,8 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	page.MustEval(`()=>{const notice=document.querySelector('[data-gm-capability-notice]');notice.hidden=false;notice.querySelector('[data-gm-capability-title]').textContent='Fixture notice'}`)
 	check("running: an additional notice does not displace the conversation", `()=>{const pane=document.querySelector('.gm-agent-pane').getBoundingClientRect(),phases=document.querySelector('[data-gm-phases]').getBoundingClientRect(),log=document.querySelector('[data-gm-conversation]').getBoundingClientRect(),form=document.querySelector('[data-gm-change-form]').getBoundingClientRect();return phases.height<90&&log.height>pane.height/3&&Math.abs(form.bottom-pane.bottom)<2&&Math.abs(log.bottom-form.top)<2}`)
 	page.MustEval(`()=>{document.querySelector('[data-gm-capability-notice]').hidden=true}`)
+	send(35, "phase", map[string]any{"phase": "validating"})
+	page.MustWait(`()=>{const hint=document.querySelector('[data-gm-validating-hint]');return hint&&!hint.hidden&&hint.textContent===fixtureLang['game_maker.validating_preview_hint']}`)
 
 	send(4, "validation_result", map[string]any{"result": map[string]any{"gameplay_status": "unavailable", "rules_status": "unverified", "repairable": true, "checks": []map[string]any{{"id": "required_rules", "status": "unavailable", "repairable": true, "expected": "pickup_events increased 0", "observed": "before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"}}}})
 	send(5, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased 0; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
@@ -155,6 +158,13 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	page.MustElement(`.gm-result-card.is-error summary`).MustClick()
 	check("failed: the opened report stays inside the conversation", `()=>{const card=document.querySelector('.gm-result-card.is-error'),report=card.querySelector('details p').getBoundingClientRect(),box=card.getBoundingClientRect();return card.querySelector('details').open&&report.height>10&&report.right<=box.right+1&&card.scrollWidth<=card.clientWidth+1}`)
 	snapshot("studio-03b-failed-details")
+	page.MustEval(`()=>{window.fixtureDrift={revision:3,changed:['src/main.ts'],added:[],removed:[],changed_count:1,added_count:0,removed_count:0,truncated:false}}`)
+	send(40, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased 0; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
+	page.MustWait(`()=>{const badge=document.querySelector('[data-gm-drift]');const adopt=badge&&badge.querySelector('[data-gm-action="adopt"]');return badge&&!badge.hidden&&adopt&&!adopt.hidden}`)
+	check("drift: the badge stays inside the preview", `()=>{const shell=document.querySelector('.gm-preview-shell').getBoundingClientRect(),badge=document.querySelector('[data-gm-drift]').getBoundingClientRect(),studio=document.querySelector('.gm-studio');return badge.width>20&&badge.left>=shell.left-1&&badge.right<=shell.right+1&&studio.scrollWidth<=studio.clientWidth+1}`)
+	page.MustEval(`()=>{window.fixtureDrift={revision:3,changed:[],added:[],removed:[],changed_count:0,added_count:0,removed_count:0,truncated:false}}`)
+	send(41, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased 0; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
+	page.MustWait(`()=>document.querySelector('[data-gm-drift]').hidden&&document.querySelector('[data-gm-drift-hint]').hidden`)
 
 	page.MustElement(`[data-gm-action="new"]`).MustClick()
 	page.MustWait(`()=>!!document.querySelector('[data-gm-create]')`)

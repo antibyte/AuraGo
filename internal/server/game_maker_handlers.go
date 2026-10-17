@@ -180,6 +180,12 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 			handleGameMakerPreviewReport(w, r, s, projectID)
 		case "export":
 			handleGameMakerExport(w, r, s, projectID)
+		case "workspace-drift":
+			if len(parts) != 2 {
+				jsonError(w, "Game Maker route not found", http.StatusNotFound)
+				return
+			}
+			handleGameMakerWorkspaceDrift(w, r, s, projectID)
 		default:
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
 		}
@@ -202,7 +208,20 @@ func handleGameMakerProjectRecord(w http.ResponseWriter, r *http.Request, s *Ser
 			handleGameMakerError(w, err)
 			return
 		}
-		writeGameMakerJSON(w, http.StatusOK, map[string]any{"project": project, "messages": messages})
+		body := map[string]any{"project": project, "messages": messages}
+		if job, ok, jobErr := s.GameMaker.LatestJob(r.Context(), projectID); jobErr != nil {
+			handleGameMakerError(w, jobErr)
+			return
+		} else if ok {
+			body["latest_job"] = job
+		}
+		if summary, summaryErr := s.GameMaker.LatestPlanSummary(r.Context(), projectID); summaryErr != nil {
+			handleGameMakerError(w, summaryErr)
+			return
+		} else if len(summary) > 0 {
+			body["plan_summary"] = summary
+		}
+		writeGameMakerJSON(w, http.StatusOK, body)
 	case http.MethodPatch:
 		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
 			return
@@ -229,6 +248,27 @@ func handleGameMakerProjectRecord(w http.ResponseWriter, r *http.Request, s *Ser
 	default:
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func handleGameMakerWorkspaceDrift(w http.ResponseWriter, r *http.Request, s *Server, projectID string) {
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		return
+	}
+	project, err := s.GameMaker.GetProject(r.Context(), projectID)
+	if err != nil {
+		handleGameMakerError(w, err)
+		return
+	}
+	drift, err := s.GameMaker.WorkspaceDrift(r.Context(), project)
+	if err != nil {
+		handleGameMakerError(w, err)
+		return
+	}
+	writeGameMakerJSON(w, http.StatusOK, drift)
 }
 
 func handleGameMakerStartJob(w http.ResponseWriter, r *http.Request, s *Server, projectID string) {

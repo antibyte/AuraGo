@@ -648,6 +648,38 @@
     opacity: 0.6;
 }
 
+.gm-drift {
+    position: absolute;
+    z-index: 3;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    max-width: calc(100% - 20px);
+    padding: 8px 10px;
+    border: 1px solid var(--gm-line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--gm-panel, #1a1c24) 94%, transparent);
+    color: var(--gm-text);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.gm-drift[hidden],
+.gm-drift [data-gm-action="adopt"][hidden] {
+    display: none !important;
+}
+
+.gm-drift [data-gm-drift-text] {
+    flex: 1 1 140px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .gm-preview-empty strong {
     color: var(--gm-text);
 }
@@ -1019,6 +1051,16 @@
     white-space: nowrap;
 }
 
+.gm-job-banner-text [data-gm-validating-hint] {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
+.gm-job-banner-text [data-gm-validating-hint][hidden] {
+    display: none !important;
+}
+
 .gm-job-elapsed {
     color: var(--gm-muted);
     font-size: 12px;
@@ -1113,6 +1155,36 @@
     background: rgba(255, 78, 78, 0.09);
 }
 
+.gm-result-card.is-plan {
+    color: var(--gm-text);
+    border: 1px solid var(--gm-line);
+    background: var(--gm-panel-2);
+}
+
+.gm-result-card.is-plan dl {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+}
+
+.gm-result-card.is-plan div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.gm-result-card.is-plan dt {
+    color: var(--gm-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.gm-result-card.is-plan dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 /* --- Preview toolbar, loading and stale states --- */
 
 .gm-pane-head > div:first-child { min-width: 0; }
@@ -1178,6 +1250,24 @@
 
 .gm-busy-hint[hidden] {
     display: none;
+}
+
+.gm-drift-hint {
+    margin: 7px 2px 0;
+    color: var(--gm-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.gm-drift-hint[hidden] {
+    display: none !important;
+}
+
+.gm-sources-note {
+    margin: 0;
+    color: var(--gm-muted);
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 .gm-narrow-new {

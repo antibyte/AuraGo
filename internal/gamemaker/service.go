@@ -450,6 +450,18 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	if err != nil {
 		return Job{}, err
 	}
+	if req.AdoptWorkspace {
+		if err := rejectAdoptRequest(req, project); err != nil {
+			return Job{}, err
+		}
+		drift, driftErr := s.WorkspaceDrift(ctx, project)
+		if driftErr != nil {
+			return Job{}, driftErr
+		}
+		if drift.Empty() {
+			return Job{}, fmt.Errorf("workspace matches the published revision")
+		}
+	}
 	modelAssetIDs := append([]string(nil), req.ModelAssetIDs...)
 	assetSelections, err := s.validateAssetSelections(project.Dimension, req.AssetSelections)
 	if err != nil {
@@ -482,23 +494,28 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	prompt := strings.TrimSpace(req.Prompt)
 	var resumeFrom string
-	if req.Resume || isContinuationPrompt(prompt) {
-		resumeFrom, err = s.resumableJob(ctx, project)
-		if err != nil {
-			return Job{}, fmt.Errorf("restore game maker working copy: %w", err)
-		}
-		if prompt == "" {
-			prompt = "Continue the previous task. Keep its original goal and completed work; fix the remaining failures."
-		}
-	}
 	kind := "create"
-	if project.CurrentRevision > 0 {
-		kind = "edit"
-		if prompt == "" {
-			return Job{}, fmt.Errorf("change request is required")
+	if req.AdoptWorkspace {
+		kind = "adopt"
+		prompt = ""
+	} else {
+		if req.Resume || isContinuationPrompt(prompt) {
+			resumeFrom, err = s.resumableJob(ctx, project)
+			if err != nil {
+				return Job{}, fmt.Errorf("restore game maker working copy: %w", err)
+			}
+			if prompt == "" {
+				prompt = "Continue the previous task. Keep its original goal and completed work; fix the remaining failures."
+			}
 		}
-	} else if prompt == "" {
-		prompt = project.Description
+		if project.CurrentRevision > 0 {
+			kind = "edit"
+			if prompt == "" {
+				return Job{}, fmt.Errorf("change request is required")
+			}
+		} else if prompt == "" {
+			prompt = project.Description
+		}
 	}
 	providerID := firstNonEmpty(req.ProviderID, project.ProviderID)
 	model := firstNonEmpty(req.Model, project.Model)
@@ -547,7 +564,9 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		s.releaseJob(job.ID)
 		return Job{}, fmt.Errorf("create game maker job: %w", err)
 	}
-	_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
+	if kind != "adopt" {
+		_, _ = s.appendMessage(ctx, project.ID, job.ID, "user", prompt)
+	}
 	_, _ = s.emit(ctx, project.ID, job.ID, "job_status", map[string]any{"status": "queued", "job": job})
 	go s.executeJob(jobCtx, job, project, boundedPreviewDiagnostics(req.PreviewDiagnostics), assetPackIDs, modelAssetIDs, req.Presentation, assetSelections)
 	return job, nil
@@ -597,6 +616,11 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
+	if job.Kind == "adopt" {
+		s.runAdoptJob(ctx, job, project, stage)
+		return
+	}
+	workspaceDrift := s.planningDrift(ctx, job, project)
 	if err := s.updateJobPhase(ctx, &job, "planning"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return
@@ -628,7 +652,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	runner := s.runner
 	s.mu.RUnlock()
 	if runner == nil {
-		s.terminateJob(job, ctx, fmt.Errorf("game maker agent runner is unavailable"))
+		s.terminateJob(job, ctx, &JobError{Code: "internal", Err: fmt.Errorf("game maker agent runner is unavailable")})
 		return
 	}
 	var plan *GamePlan
@@ -647,8 +671,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		restoredPlan := s.acceptedPlans[job.ID]
 		s.mu.RUnlock()
 		if !restoredPlan {
-			if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, AssetSelections: assetSelections, Presentation: selection}); err != nil {
-				s.terminateJob(job, ctx, err)
+			if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "planning", Job: job, Project: project, Diagnostics: planDiagnostics, AssetPacks: assetPacks, ModelAssetIDs: modelAssetIDs, AssetSelections: assetSelections, Presentation: selection, WorkspaceDrift: workspaceDrift}); err != nil {
+				s.terminateJob(job, ctx, &JobError{Code: "model", Err: err})
 				return
 			}
 		}
@@ -661,7 +685,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			var err error
 			plan, err = s.GetPlan(ctx, job.ID)
 			if err != nil || plan == nil {
-				s.terminateJob(job, ctx, fmt.Errorf("accepted plan is unavailable: %v", err))
+				s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("accepted plan is unavailable: %v", err)})
 				return
 			}
 			break
@@ -675,9 +699,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 	}
 	if plan == nil {
-		s.terminateJob(job, ctx, fmt.Errorf("game planning failed after at most two corrections: %s", diagnosticsText(planDiagnostics)))
+		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after at most two corrections: %s", diagnosticsText(planDiagnostics))})
 		return
 	}
+	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(plan))
 	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return
@@ -743,11 +768,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	}
 	if !s.validateRestoredDraftFirst(ctx, job, project) {
 		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "building", Plan: plan, Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
-			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				s.cancelledJob(job, context.Cause(ctx))
-				return
-			}
-			s.terminateJob(job, ctx, err)
+			s.terminateJob(job, ctx, &JobError{Code: "model", Err: err})
 			return
 		}
 	}
@@ -762,6 +783,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	result := s.validateForPublication(ctx, job.ID, scope)
 	// Missing browser evidence cannot be repaired by the model. Checks the running
 	// game left unverified (no target, blocked route, no effect) can.
+	passes := 0
+	repairPasses := &passes
 	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= 3; attempt++ {
 		s.mu.RLock()
 		exhausted := s.validationFailures[job.ID] >= 4
@@ -769,65 +792,41 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		if exhausted {
 			break
 		}
+		passes++
 		repairJob := job
 		if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
-			s.terminateJob(job, ctx, err)
+			s.finishFailure(job, ctx, &JobError{Code: "internal", Err: err}, &result, repairPasses)
 			return
 		}
 		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "repair", Result: &result, Plan: plan, Checks: result.Checks, Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
-			s.terminateJob(job, ctx, err)
+			s.finishFailure(job, ctx, &JobError{Code: "model", Err: err}, &result, repairPasses)
 			return
 		}
 		if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
-			s.terminateJob(job, ctx, err)
+			s.finishFailure(job, ctx, &JobError{Code: "internal", Err: err}, &result, repairPasses)
 			return
 		}
 		result = s.validateForPublication(ctx, job.ID, scope)
 	}
 	if !result.OK {
-		s.terminateJob(job, ctx, fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics)))
+		s.finishFailure(job, ctx, &JobError{Code: validationFailureCode(result), Err: fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics))}, &result, repairPasses)
 		return
 	}
 	if err := s.updateJobPhase(ctx, &job, "polishing"); err != nil {
-		s.terminateJob(job, ctx, err)
+		s.finishFailure(job, ctx, &JobError{Code: "internal", Err: err}, &result, repairPasses)
 		return
 	}
 	result = s.reviewAndRepairVisual(ctx, runner, JobRun{Plan: plan, Job: job, Project: project, AssetPacks: assetPacks}, result, scope)
 	if !result.OK || ctx.Err() != nil {
-		s.terminateJob(job, ctx, fmt.Errorf("visual repair validation failed: %s", diagnosticsText(result.Diagnostics)))
+		s.finishFailure(job, ctx, &JobError{Code: "validation", Err: fmt.Errorf("visual repair validation failed: %s", diagnosticsText(result.Diagnostics))}, &result, repairPasses)
 		return
 	}
 	revision, err := s.publishValidated(ctx, stage, project, job, result)
 	if err != nil {
-		s.terminateJob(job, ctx, err)
+		s.finishFailure(job, ctx, &JobError{Code: "internal", Err: err}, &result, repairPasses)
 		return
 	}
-	now := time.Now().UTC()
-	job.Status = "ready"
-	job.Phase = "ready"
-	job.ResultRevision = revision.Number
-	job.FinishedAt = &now
-	s.finishWorkingCopy(job)
-	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=? WHERE id=?`,
-		revision.Number, now, job.ID)
-	s.releaseJobLocked(job.ID)
-	s.mu.Unlock()
-	s.mu.RLock()
-	summary := s.jobSummaries[job.ID]
-	s.mu.RUnlock()
-	if strings.TrimSpace(summary) != "" {
-		_, _ = s.appendMessage(context.Background(), project.ID, job.ID, "assistant", summary)
-	}
-	_, _ = s.emit(context.Background(), project.ID, job.ID, "preview_reload",
-		map[string]any{"revision": revision.Number})
-	_, _ = s.emit(context.Background(), project.ID, job.ID, "revision",
-		map[string]any{"revision": revision})
-	ready := map[string]any{"status": "ready", "job": job}
-	if gameplay := strings.TrimSpace(result.GameplayStatus); gameplay != "" {
-		ready["gameplay_status"] = gameplay
-	}
-	_, _ = s.emit(context.Background(), project.ID, job.ID, "job_status", ready)
+	s.finishReady(job, project, revision, &result, repairPasses)
 }
 
 // An explicit retry can check an edited, restored 2D source before spending
@@ -859,9 +858,7 @@ func (s *Service) CancelJob(ctx context.Context, id string) error {
 }
 
 func (s *Service) GetJob(ctx context.Context, id string) (Job, error) {
-	job, err := scanJob(s.db.QueryRowContext(ctx, `SELECT id,project_id,kind,prompt,status,phase,
-		provider_id,model,error,base_revision,result_revision,created_at,started_at,finished_at
-		FROM gm_jobs WHERE id=?`, id))
+	job, err := scanJob(s.db.QueryRowContext(ctx, `SELECT `+jobSelectColumns+` FROM gm_jobs WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Job{}, ErrNotFound
 	}
@@ -893,17 +890,21 @@ func (s *Service) failJob(job Job, failure error) {
 	now := time.Now().UTC()
 	message := s.RedactHostPaths(strings.TrimSpace(failure.Error()))
 	job.Status = "failed"
+	job.Phase = "failed"
+	job.Error = message
+	job.ErrorCode = jobErrorCode(failure)
+	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,finished_at=? WHERE id=?`,
-		message, now, job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "diagnostic",
 		map[string]any{"level": "error", "message": message})
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
-		map[string]any{"status": "failed", "error": message})
+		applyJobOutcome(map[string]any{"status": "failed", "error": message}, job))
 }
 
 func (s *Service) terminateJob(job Job, ctx context.Context, failure error) {
@@ -917,18 +918,24 @@ func (s *Service) terminateJob(job Job, ctx context.Context, failure error) {
 func (s *Service) cancelledJob(job Job, cause error) {
 	now := time.Now().UTC()
 	message := "Game creation was cancelled."
+	code := "cancelled"
 	if errors.Is(cause, context.DeadlineExceeded) {
 		message = "Game creation exceeded its time limit."
+		code = "timeout"
 	}
 	job.Status = "cancelled"
+	job.Phase = "cancelled"
+	job.Error = message
+	job.ErrorCode = code
+	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,finished_at=? WHERE id=?`,
-		message, now, job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
-		map[string]any{"status": "cancelled", "error": message})
+		applyJobOutcome(map[string]any{"status": "cancelled", "error": message}, job))
 }
 
 func (s *Service) releaseJob(id string) {

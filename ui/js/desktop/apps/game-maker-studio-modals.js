@@ -17,6 +17,7 @@
         helpers.showModal(state, `<section class="gm-modal gm-skills-modal">
             <header><div><span>${esc(t('game_maker.curated'))}</span><h2>${esc(t('game_maker.skills_title'))}</h2></div>
                 <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
+            <p class="gm-sources-note">${esc(t('game_maker.sources_builtin'))}</p>
             <div class="gm-skill-list">${skills.map(skill => `<article>
                 <div><strong>${esc(skill.name)}</strong><span class="gm-skill-status is-${esc(skill.status)}">${esc(skillStatusLabel(state, skill.status))}</span></div>
                 <p>${esc(skill.description)}</p>

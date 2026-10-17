@@ -121,6 +121,38 @@ func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) 
 	return &plan, nil
 }
 
+// acceptPublishedPlan installs the plan already stored with this revision.
+// Structural checks still run. A preserve list is required only when a model
+// proposes an edit, so the plan from the first publication stays acceptable.
+func (s *Service) acceptPublishedPlan(ctx context.Context, jobID string) (*GamePlan, error) {
+	project, job, err := s.ProjectForJob(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if job.Phase != "planning" {
+		return nil, fmt.Errorf("plan is locked during %s; follow the accepted plan", job.Phase)
+	}
+	plan, err := s.GetPlan(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if plan == nil {
+		return nil, fmt.Errorf("stored game plan is missing")
+	}
+	published := project
+	published.CurrentRevision = 0
+	if err := s.checkPlan(published, *plan); err != nil {
+		return nil, err
+	}
+	if err := s.validatePlanSelections(jobID, *plan, false); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.acceptedPlans[jobID] = true
+	s.mu.Unlock()
+	return plan, nil
+}
+
 func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) error {
 	data, err := json.Marshal(plan)
 	if err != nil {

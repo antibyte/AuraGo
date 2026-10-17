@@ -7,7 +7,7 @@
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call', 'model_progress',
         'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress',
-        'stream_ready'
+        'plan_summary', 'stream_ready'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
@@ -30,6 +30,9 @@
             eventCatchup: false,
             backlogControl: null,
             gameplayStatus: '',
+            drift: null,
+            planSummary: null,
+            latestJob: null,
             frame: null,
             channelID: '',
             diagnostics: [],
@@ -61,8 +64,11 @@
         state.activity = window.GameMakerStudioActivity?.create(state);
         bindShell(state);
         window.addEventListener('message', state.previewListener = event => handlePreviewMessage(state, event));
-        context.setWindowBeforeClose?.(windowId, async () => await window.GameMakerStudioPreview.flush(state)
-            || await confirmAction(state, context.t('game_maker.save_failed_title'), context.t('game_maker.leave_unsaved')));
+        context.setWindowBeforeClose?.(windowId, async () => {
+            if (!await confirmLeaveValidating(state)) return false;
+            return await window.GameMakerStudioPreview.flush(state)
+                || await confirmAction(state, context.t('game_maker.save_failed_title'), context.t('game_maker.leave_unsaved'));
+        });
         initialize(state);
     }
 
@@ -84,7 +90,7 @@
                     <nav class="gm-actions" aria-label="${esc(t('game_maker.project_actions'))}">
                         <button type="button" class="gm-action-wide" data-gm-action="rename" disabled>${esc(t('game_maker.rename'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="delete" disabled>${esc(t('game_maker.delete'))}</button>
-                        <button type="button" data-gm-action="skills">${esc(t('game_maker.skills'))}</button>
+                        <button type="button" data-gm-action="skills">${esc(t('game_maker.sources'))}</button>
                         <button type="button" data-gm-action="knowledge" disabled>${esc(t('game_maker.knowledge'))}</button>
                         <button type="button" data-gm-action="assets">${esc(t('game_maker.assets'))}</button>
                         <button type="button" class="gm-action-wide" data-gm-action="revisions" disabled>${esc(t('game_maker.revisions'))}</button>
@@ -124,6 +130,7 @@
                                 <div class="gm-job-banner-text">
                                     <strong>${esc(t('game_maker.job_banner_title'))}</strong>
                                     <span data-gm-job-phase></span>
+                                    <span data-gm-validating-hint hidden></span>
                                 </div>
                                 <span class="gm-job-elapsed" data-gm-job-elapsed></span>
                                 <button type="button" class="gm-danger" data-gm-action="stop">${esc(t('game_maker.stop'))}</button>
@@ -144,6 +151,7 @@
                                     <button type="submit" class="gm-primary" disabled>${esc(t('game_maker.apply_change'))}</button>
                                 </div>
                                 <p class="gm-busy-hint" data-gm-busy-hint hidden></p>
+                                <p class="gm-drift-hint" data-gm-drift-hint hidden></p>
                                 ${window.GameMakerStudioAssets ? window.GameMakerStudioAssets.selectionMarkup(state) : ''}
                             </form>
                         </section>
@@ -161,6 +169,10 @@
                                 </div>
                             </div>
                             <div class="gm-preview-shell" data-gm-preview>
+                                <div class="gm-drift" data-gm-drift hidden>
+                                    <span data-gm-drift-text></span>
+                                    <button type="button" data-gm-action="adopt" hidden>${esc(t('game_maker.adopt_changes'))}</button>
+                                </div>
                                 <div class="gm-preview-empty">
                                     <img src="/img/desktop-icons/game-maker-studio.svg" alt="">
                                     <strong>${esc(t('game_maker.preview_waiting'))}</strong>
@@ -237,6 +249,7 @@
                 stop: () => stopJob(state),
                 visual_review: () => preview && preview.requestCapture(state),
                 reload: () => refreshLatestPreview(state, { force: true }),
+                adopt: () => adoptWorkspace(state),
                 scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
                 open_tab: () => preview && preview.openTab(state),
@@ -389,6 +402,9 @@
     async function openProject(state, projectID) {
         if (!projectID || state.disposed) return;
         const requestID = state.projectRequestID = (state.projectRequestID || 0) + 1;
+        const switching = state.project?.id && state.project.id !== projectID;
+        if (switching && !await confirmLeaveValidating(state)) return;
+        if (state.disposed || state.projectRequestID !== requestID) return;
         if (state.project?.id !== projectID && await window.GameMakerStudioPreview?.flush(state) === false) return;
         if (state.disposed || state.projectRequestID !== requestID) return;
         if (state.project?.id !== projectID) state.lastRevisionRefreshAttempt = null;
@@ -398,6 +414,11 @@
         state.lastPhase = '';
         state.gameplayStatus = '';
         state.previewStale = false;
+        if (switching) {
+            state.planSummary = null;
+            state.latestJob = null;
+            state.drift = null;
+        }
         try {
             const body = await state.api.getProject(projectID);
             if (state.disposed || state.projectRequestID !== requestID) return;
@@ -412,6 +433,8 @@
             if (state.knowledgeClose && state.project?.id !== body.project.id) state.knowledgeClose();
             state.project = body.project;
             state.messages = body.messages || [];
+            if (body.plan_summary) state.planSummary = body.plan_summary;
+            if (body.latest_job) state.latestJob = body.latest_job;
             state.job = null;
             clearDiagnostics(state);
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, '');
@@ -424,9 +447,12 @@
                 };
                 state.jobStartedAt = Date.now();
                 state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, state.activeJob.phase);
+            } else if (state.latestJob && terminalStatuses.has(state.latestJob.status)) {
+                state.job = state.latestJob;
             }
             renderProject(state);
             connectEvents(state);
+            refreshWorkspaceDrift(state);
             if (state.project.current_revision) refreshPreview(state);
         } catch (error) {
             if (!state.disposed && state.projectRequestID === requestID) fail(state, error);
@@ -464,6 +490,8 @@
         state.container.querySelector('[data-gm-conversation]').innerHTML = state.messages.length
             ? state.messages.map(message => messageMarkup(state, message)).join('')
             : `<div class="gm-empty"><strong>${esc(t('game_maker.agent_ready'))}</strong><span>${esc(state.project.description)}</span></div>`;
+        renderPlanCard(state);
+        if (!state.jobActive) renderOutcomeCard(state);
     }
 
     function messageMarkup(state, message) {
@@ -518,11 +546,13 @@
             if (!eventMatchesJob(state, body)) return;
             if (state.eventCatchup) {
                 if (body.type === 'validation_result') noteGameplay(state, body);
+                if (body.type === 'plan_summary') state.planSummary = body.payload || null;
                 if (body.type === 'job_status') {
                     // A later status often omits the job object. Keep the earlier
                     // one so the reloaded project record does not hide it.
                     if (body.payload?.job) state.job = body.payload.job;
                     if (state.job && body.payload?.status) state.job.status = body.payload.status;
+                    rememberJobOutcome(state, body.payload);
                     state.backlogControl = body;
                 } else if (body.type === 'phase') {
                     state.backlogControl = body;
@@ -562,6 +592,7 @@
         const control = state.backlogControl;
         state.backlogControl = null;
         if (control) handleEvent(state, control);
+        renderPlanCard(state);
     }
 
     function parseEvent(event) {
@@ -578,6 +609,10 @@
         switch (event.type) {
         case 'job_status':
             handleJobStatus(state, payload);
+            break;
+        case 'plan_summary':
+            state.planSummary = payload;
+            renderPlanCard(state);
             break;
         case 'phase':
             if (state.lastPhase === 'validating' && payload.phase === 'building') state.repairCount += 1;
@@ -655,6 +690,7 @@
     function handleJobStatus(state, payload) {
         if (payload.job) state.job = payload.job;
         if (state.job && payload.status) state.job.status = payload.status;
+        rememberJobOutcome(state, payload);
         if (state.job && !terminalStatuses.has(payload.status)) {
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
         } else if (state.activeJob?.job_id === state.job?.id) {
@@ -670,27 +706,20 @@
         stopElapsed(state);
         const status = payload.status;
         const job = state.job;
+        state.latestJob = Object.assign({}, job || {});
         state.repairCount = 0;
         state.lastPhase = '';
         state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, status);
         reloadProjectRecord(state).then(() => {
             if (state.disposed || state.job !== job) return;
             if (status === 'ready') {
-                const gameplay = payload.gameplay_status || state.gameplayStatus;
+                const gameplay = payload.gameplay_status || state.gameplayStatus || job?.gameplay_status;
                 if (state.project?.dimension === '3d' && state.project?.variant !== 'voxel' && gameplay === 'unverified') {
                     appendActivity(state, state.context.t('game_maker.gameplay_unverified'));
                 }
-                const revision = (state.job && state.job.result_revision) ||
-                    (state.project && state.project.current_revision) || '';
-                appendResultCard(state, 'success',
-                    state.context.t('game_maker.revision_ready', { n: revision }));
-            } else if (status === 'failed') {
-                appendResultCard(state, 'error', payload.error ||
-                    (state.job && state.job.error) || state.context.t('game_maker.job_failed_title'));
-            } else {
-                appendResultCard(state, 'cancelled', payload.error || state.job?.error || state.context.t('game_maker.status_cancelled'));
             }
             renderProjects(state);
+            refreshWorkspaceDrift(state);
         });
     }
 
@@ -700,29 +729,107 @@
         });
     }
 
-    function appendResultCard(state, kind, message) {
-        const { esc, t } = state.context;
+    const outcomeFields = ['error', 'error_code', 'checks_passed', 'checks_failed', 'repair_passes', 'gameplay_status'];
+
+    function rememberJobOutcome(state, payload) {
+        if (!payload) return;
+        if (!state.job) state.job = {};
+        outcomeFields.forEach(key => {
+            if (payload[key] === undefined || payload[key] === null) return;
+            if (key === 'error_code' && !payload[key]) return;
+            state.job[key] = payload[key];
+        });
+        if (terminalStatuses.has(payload.status || state.job.status)) {
+            state.latestJob = Object.assign({}, state.job);
+        }
+    }
+
+    function renderPlanCard(state) {
         const log = state.container.querySelector('[data-gm-conversation]');
-        log.querySelector('.gm-empty')?.remove();
+        if (!log) return;
+        const existing = log.querySelector('[data-gm-plan]');
+        const html = planCardMarkup(state);
+        if (!html) {
+            existing?.remove();
+            return;
+        }
+        if (existing) {
+            existing.outerHTML = html;
+            return;
+        }
+        const outcome = log.querySelector('[data-gm-outcome]');
+        if (outcome) outcome.insertAdjacentHTML('beforebegin', html);
+        else log.insertAdjacentHTML('beforeend', html);
+    }
+
+    function planCardMarkup(state) {
+        const plan = state.planSummary;
+        if (!plan || typeof plan !== 'object') return '';
+        const { esc, t } = state.context;
+        const controls = Array.isArray(plan.controls) ? plan.controls.filter(Boolean) : [];
+        const assets = Array.isArray(plan.assets) ? plan.assets : [];
+        const rows = [];
+        const template = [plan.template, plan.perspective].filter(Boolean).join(' · ');
+        if (template) rows.push(`<div><dt>${esc(t('game_maker.plan_template'))}</dt><dd>${esc(template)}</dd></div>`);
+        if (plan.objective) rows.push(`<div><dt>${esc(t('game_maker.plan_objective'))}</dt><dd>${esc(plan.objective)}</dd></div>`);
+        if (controls.length) rows.push(`<div><dt>${esc(t('game_maker.plan_controls'))}</dt><dd>${esc(controls.join(', '))}</dd></div>`);
+        if (assets.length) {
+            const listed = assets.map(asset => [asset.role, asset.id].filter(Boolean).join(' · ')).filter(Boolean);
+            if (listed.length) rows.push(`<div><dt>${esc(t('game_maker.plan_assets'))}</dt><dd>${esc(listed.join(', '))}</dd></div>`);
+        }
+        return `<article class="gm-result-card is-plan" data-gm-plan><strong>${esc(t('game_maker.plan_summary_title'))}</strong><dl>${rows.join('')}</dl></article>`;
+    }
+
+    function renderOutcomeCard(state) {
+        const log = state.container.querySelector('[data-gm-conversation]');
+        if (!log) return;
+        log.querySelector('[data-gm-outcome]')?.remove();
+        if (state.jobActive) return;
+        const job = state.latestJob;
+        if (!job || !terminalStatuses.has(job.status)) return;
+        const kind = job.status === 'ready' ? 'success' : (job.status === 'failed' ? 'error' : 'cancelled');
+        const message = kind === 'success'
+            ? state.context.t('game_maker.revision_ready', { n: job.result_revision || state.project?.current_revision || '' })
+            : (job.error || state.context.t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title'));
+        log.appendChild(outcomeCardElement(state, kind, message, job));
+        scrollConversation(state);
+    }
+
+    function outcomeCardElement(state, kind, message, job) {
+        const { esc, t } = state.context;
         const card = document.createElement('div');
         card.className = `gm-result-card is-${kind}`;
+        card.setAttribute('data-gm-outcome', '');
+        const counts = checksMarkup(state, job) + repairMarkup(state, job);
         if (kind === 'success') {
-            card.innerHTML = `<strong>${esc(message)}</strong>
+            card.innerHTML = `<strong>${esc(message)}</strong>${counts}
                 <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
-        } else {
-            // The backend reports in technical English: explain the situation in
-            // the user's language and keep the original one click away.
-            const cause = failureKind(kind, message);
-            const hint = cause ? `<p class="gm-result-hint">${esc(t('game_maker.failure_hint_' + cause))}</p>` : '';
-            const title = t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title');
-            const technical = String(message || '').trim();
-            card.setAttribute('role', 'alert');
-            card.innerHTML = `<strong>${esc(title)}</strong>${hint}
-                ${technical && technical !== title ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary><p>${esc(technical)}</p></details>` : ''}
-                <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>`;
+            return card;
         }
-        log.appendChild(card);
-        scrollConversation(state);
+        // Prefer the server code. English substring matching stays only for
+        // older jobs that have no error_code.
+        const code = job && job.error_code;
+        const cause = code || failureKind(kind, message);
+        const hint = cause ? `<p class="gm-result-hint">${esc(t('game_maker.failure_hint_' + cause))}</p>` : '';
+        const title = t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title');
+        const technical = String(message || '').trim();
+        card.setAttribute('role', 'alert');
+        card.innerHTML = `<strong>${esc(title)}</strong>${hint}${counts}
+            ${technical && technical !== title ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary><p>${esc(technical)}</p></details>` : ''}
+            <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>`;
+        return card;
+    }
+
+    function checksMarkup(state, job) {
+        if (!job || job.checks_passed == null || job.checks_failed == null) return '';
+        return `<p>${state.context.esc(state.context.t('game_maker.checks_summary', {
+            passed: job.checks_passed, failed: job.checks_failed
+        }))}</p>`;
+    }
+
+    function repairMarkup(state, job) {
+        if (!job || job.repair_passes == null || Number(job.repair_passes) <= 0) return '';
+        return `<p>${state.context.esc(state.context.t('game_maker.repair_passes', { count: job.repair_passes }))}</p>`;
     }
 
     function failureKind(kind, message) {
@@ -754,6 +861,8 @@
             if (state.disposed || state.project?.id !== projectID) return false;
             state.project = body.project;
             state.messages = body.messages || state.messages;
+            if (body.latest_job) state.latestJob = body.latest_job;
+            if (body.plan_summary) state.planSummary = body.plan_summary;
             const index = state.projects.findIndex(item => item.id === state.project.id);
             if (index >= 0) state.projects[index] = state.project;
             renderProjects(state);
@@ -859,8 +968,10 @@
             frame.setAttribute('allowfullscreen', '');
             frame.setAttribute('referrerpolicy', 'no-referrer');
             const shell = state.container.querySelector('[data-gm-preview]');
+            const drift = shell.querySelector('[data-gm-drift]');
             state.previewVisibility?.disconnect();
             shell.replaceChildren(frame);
+            if (drift) shell.append(drift);
             state.frame = frame;
             state.activity?.sync();
             let visible=true;
@@ -1059,6 +1170,7 @@
         // Lock the form immediately so a double click / double Enter cannot
         // fire a second request while startJob is still in flight.
         state.jobActive = true;
+        state.container.querySelector('[data-gm-outcome]')?.remove();
         input.disabled = true;
         form.querySelector('button[type="submit"]').disabled = true;
         if (!resume) {
@@ -1144,6 +1256,9 @@
             setButton(state, 'knowledge', false);
             state.project = null;
             state.job = null;
+            state.drift = null;
+            state.planSummary = null;
+            state.latestJob = null;
             stopElapsed(state);
             closeEvents(state);
             state.activity?.dispose();
@@ -1171,6 +1286,82 @@
         link.download = '';
         link.rel = 'noopener';
         link.click();
+    }
+
+    async function confirmLeaveValidating(state) {
+        const phase = state.job && (state.job.phase || state.job.status);
+        if (phase !== 'validating') return true;
+        return confirmAction(state, state.context.t('game_maker.leave_validating_title'), state.context.t('game_maker.leave_validating'));
+    }
+
+    function driftCount(drift) {
+        if (!drift || !Array.isArray(drift.changed) || !Array.isArray(drift.added) || !Array.isArray(drift.removed)) return 0;
+        const count = Number(drift.changed_count) + Number(drift.added_count) + Number(drift.removed_count);
+        return Number.isFinite(count) && count > 0 ? count : 0;
+    }
+
+    function renderDrift(state) {
+        const badge = state.container.querySelector('[data-gm-drift]');
+        const hint = state.container.querySelector('[data-gm-drift-hint]');
+        const count = driftCount(state.drift);
+        if (badge) {
+            badge.hidden = count <= 0;
+            const text = badge.querySelector('[data-gm-drift-text]');
+            if (text) text.textContent = count > 0 ? state.context.t('game_maker.workspace_drift', { count }) : '';
+            const adopt = badge.querySelector('[data-gm-action="adopt"]');
+            if (adopt) {
+                const allowed = count > 0 && !state.jobActive && !otherProjectBusy(state) && Boolean(state.capabilities?.allow_edit);
+                adopt.hidden = !allowed;
+            }
+        }
+        if (hint) {
+            hint.hidden = count <= 0;
+            hint.textContent = count > 0 ? state.context.t('game_maker.drift_inherits', { count }) : '';
+        }
+    }
+
+    async function refreshWorkspaceDrift(state) {
+        const projectID = state.project?.id;
+        if (!projectID || !state.api.workspaceDrift) return;
+        const requestID = state.driftRequestID = (state.driftRequestID || 0) + 1;
+        let drift = null;
+        try {
+            drift = await state.api.workspaceDrift(projectID);
+        } catch (_) {
+            drift = null;
+        }
+        if (state.disposed || state.project?.id !== projectID || state.driftRequestID !== requestID) return;
+        state.drift = drift;
+        renderDrift(state);
+    }
+
+    async function adoptWorkspace(state) {
+        if (state.adoptPending || state.jobActive || !state.project || !state.capabilities?.allow_edit) return;
+        if (driftCount(state.drift) <= 0 || otherProjectBusy(state)) return;
+        state.adoptPending = true;
+        try {
+            const confirmed = await confirmAction(state, state.context.t('game_maker.adopt_title'), state.context.t('game_maker.adopt_confirm'));
+            if (!confirmed || state.disposed || state.jobActive || !state.capabilities?.allow_edit) return;
+            if (state.project?.variant === 'voxel' && state.preparePreviewReplacement && !await state.preparePreviewReplacement()) return;
+            if (state.disposed || state.jobActive || driftCount(state.drift) <= 0) return;
+            state.jobActive = true;
+            state.container.querySelector('[data-gm-outcome]')?.remove();
+            syncJobControls(state);
+            state.job = await state.api.startJob(state.project.id, { adopt_workspace: true });
+            state.jobStartedAt = Date.now();
+            state.repairCount = 0;
+            state.lastPhase = '';
+            state.gameplayStatus = '';
+            state.previewStale = true;
+            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
+            syncJobControls(state);
+        } catch (error) {
+            state.jobActive = false;
+            syncJobControls(state);
+            fail(state, error);
+        } finally {
+            state.adoptPending = false;
+        }
     }
 
     function otherProjectBusy(state) {
@@ -1226,6 +1417,7 @@
         if (window.GameMakerStudioPreview && window.GameMakerStudioPreview.updateStaleBadge) {
             window.GameMakerStudioPreview.updateStaleBadge(state);
         }
+        renderDrift(state);
         syncBusyPoll(state);
     }
 
@@ -1244,6 +1436,11 @@
             label = state.context.t('game_maker.repair_attempt', { n: state.repairCount });
         }
         banner.querySelector('[data-gm-job-phase]').textContent = label;
+        const validating = banner.querySelector('[data-gm-validating-hint]');
+        if (validating) {
+            validating.hidden = phase !== 'validating';
+            if (phase === 'validating') validating.textContent = state.context.t('game_maker.validating_preview_hint');
+        }
         const stop = banner.querySelector('[data-gm-action="stop"]');
         stop.disabled = Boolean(state.job && state.job.status === 'cancelling');
     }

@@ -23,6 +23,7 @@
             listProjects: () => request('/projects'),
             createProject: body => request('/projects', { method: 'POST', body }),
             getProject: id => request('/projects/' + encodeURIComponent(id)),
+            workspaceDrift: id => request('/projects/' + encodeURIComponent(id) + '/workspace-drift'),
             renameProject: (id, name) => request('/projects/' + encodeURIComponent(id), {
                 method: 'PATCH',
                 body: { name }

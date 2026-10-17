@@ -100,6 +100,11 @@ type Job struct {
 	ProviderID            string     `json:"provider_id,omitempty"`
 	Model                 string     `json:"model,omitempty"`
 	Error                 string     `json:"error,omitempty"`
+	ErrorCode             string     `json:"error_code,omitempty"`
+	ChecksPassed          *int       `json:"checks_passed,omitempty"`
+	ChecksFailed          *int       `json:"checks_failed,omitempty"`
+	RepairPasses          *int       `json:"repair_passes,omitempty"`
+	GameplayStatus        string     `json:"gameplay_status,omitempty"`
 	BaseRevision          int64      `json:"base_revision,omitempty"`
 	ResultRevision        int64      `json:"result_revision,omitempty"`
 	CreatedAt             time.Time  `json:"created_at"`
@@ -115,6 +120,7 @@ type StartJobRequest struct {
 	AssetPackIDs          []string         `json:"asset_pack_ids,omitempty"`
 	ModelAssetIDs         []string         `json:"model_asset_ids,omitempty"`
 	PreviewDiagnostics    []Diagnostic     `json:"preview_diagnostics,omitempty"`
+	AdoptWorkspace        bool             `json:"adopt_workspace,omitempty"`
 	Prompt                string           `json:"prompt"`
 	ProviderID            string           `json:"provider_id"`
 	Model                 string           `json:"model"`
@@ -201,6 +207,7 @@ type JobRun struct {
 	Job             Job
 	Project         Project
 	Diagnostics     []Diagnostic
+	WorkspaceDrift  *WorkspaceDrift
 }
 
 // Runner is implemented by the server layer to execute the AuraGo agent with
