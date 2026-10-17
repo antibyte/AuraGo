@@ -43,9 +43,6 @@
         }
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadRealtimeSpeechStatus, { once: true });
-    } else {
-        void loadRealtimeSpeechStatus();
-    }
+    // Loaded by the system section (main.js loadSectionSystem) when it is shown or refreshed.
+    window.loadRealtimeSpeechStatus = loadRealtimeSpeechStatus;
 })();

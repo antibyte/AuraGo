@@ -2791,7 +2791,7 @@ function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
     document: { getElementById: () => null },
     t: key => key,
     showToast: () => {},
-    TabState: { active: 'audit' },
+    DashRouter: { current: () => 'audit' },
     CardState: {
       setLoading: id => cardEvents.push(`loading:${id}`),
       setLoaded: id => cardEvents.push(`loaded:${id}`),

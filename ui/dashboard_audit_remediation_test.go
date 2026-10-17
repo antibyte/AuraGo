@@ -62,6 +62,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		":scope > [data-i18n-text], :scope > .i18n-text",
 		"nodeType === Node.TEXT_NODE",
 		"CardState.setLoading(id)",
+		"onShow: id => loadSectionContent(id)",
+		"SectionState.loaded[id] = true",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("dashboard main missing remediation marker %q", marker)
