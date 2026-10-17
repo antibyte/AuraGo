@@ -20,6 +20,8 @@ const (
 	CodeRuntimeArtifactMissing      = "runtime_artifact_missing"
 	CodeRuntimeStartFailed          = "runtime_start_failed"
 	CodeRuntimeStartTimeout         = "runtime_start_timeout"
+	CodeRuntimeDiscoveryTimeout     = "runtime_discovery_timeout"
+	CodeRuntimeDiscoveryOutputLimit = "runtime_discovery_output_limit"
 	CodeRuntimeInvalidConfiguration = "runtime_invalid_configuration"
 	CodeDockerUnavailable           = "docker_unavailable"
 	CodeDeploymentDenied            = "deployment_denied"
@@ -95,7 +97,7 @@ func IsNonRetryable(err error) bool {
 	switch ErrorCode(err) {
 	case CodeServiceDisabled, CodeCPUConsentRequired, CodeModelNotInstalled,
 		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed, CodeRuntimeStartTimeout, CodeRuntimeInvalidConfiguration,
-		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable,
+		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable, CodeRuntimeDiscoveryTimeout, CodeRuntimeDiscoveryOutputLimit,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
 		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed,

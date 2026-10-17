@@ -89,15 +89,14 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 			if modelPath != "" {
 				args = append(args, "--model", modelPath)
 			}
-			command := exec.CommandContext(ctx, binary, args...)
-			onnxrt.ConfigureWorkerCommand(command, directory)
-			configureHiddenProcess(command)
-			command.Stdout = nil
-			output, err := command.Output()
+			output, err := runNativeDiscovery(ctx, binary, directory, args)
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, NewError(CodeCancelled, ctxErr)
 			}
-			if err != nil || len(output) > 1<<20 {
+			if ErrorCode(err) == CodeRuntimeDiscoveryOutputLimit {
+				return nil, err
+			}
+			if err != nil {
 				continue
 			}
 			var result struct {

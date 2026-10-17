@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,9 +19,41 @@ const nativeDiscoveryHelperEnv = "AURAGO_DECISIONS_DISCOVERY_TEST_HELPER"
 const nativeDiscoveryMarkerEnv = "AURAGO_DECISIONS_DISCOVERY_TEST_MARKER"
 
 func TestMain(m *testing.M) {
-	if os.Getenv(nativeDiscoveryHelperEnv) == "1" {
+	if mode := os.Getenv(nativeDiscoveryHelperEnv); mode != "" {
 		if err := os.WriteFile(os.Getenv(nativeDiscoveryMarkerEnv), []byte("started"), 0o600); err != nil {
 			os.Exit(2)
+		}
+		if mode == "stdout" || mode == "stderr" {
+			out := os.Stdout
+			if mode == "stderr" {
+				out = os.Stderr
+			}
+			for {
+				_, _ = out.Write(make([]byte, 8192))
+			}
+		}
+		if mode == "tree" {
+			executable, _ := os.Executable()
+			child := exec.Command(executable)
+			configureHiddenProcess(child)
+			child.Env = os.Environ()
+			for index, value := range child.Env {
+				if strings.HasPrefix(value, nativeDiscoveryHelperEnv+"=") {
+					child.Env[index] = nativeDiscoveryHelperEnv + "=heartbeat"
+				}
+				if strings.HasPrefix(value, nativeDiscoveryMarkerEnv+"=") {
+					child.Env[index] = nativeDiscoveryMarkerEnv + "=" + os.Getenv(nativeDiscoveryMarkerEnv) + ".child"
+				}
+			}
+			child.Stdout, child.Stderr = os.Stdout, os.Stderr
+			_ = child.Run()
+			os.Exit(0)
+		}
+		if mode == "heartbeat" {
+			for {
+				_ = os.WriteFile(os.Getenv(nativeDiscoveryMarkerEnv), []byte(time.Now().Format(time.RFC3339Nano)), 0600)
+				time.Sleep(10 * time.Millisecond)
+			}
 		}
 		for {
 			time.Sleep(time.Hour)
