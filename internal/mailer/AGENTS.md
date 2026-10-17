@@ -11,6 +11,9 @@ remain in the Vault and are resolved only when an adapter is created.
 
 ## Safety and lifecycle
 
+- Gmail requests bind redirects to the original API origin, including injected
+  clients, without mutating shared clients or relaxing stricter redirect policies.
+
 - Sync metadata in the background on the service lifecycle, independent of UI
   visibility. The loop still wakes every 10 seconds; only due accounts connect.
   Process start and manual sync run immediately. A quiet pass waits five

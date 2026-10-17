@@ -19,7 +19,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
-        infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra.js'] },
+        infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra-views.js', '/js/desktop/apps/infra.js'] },
         'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),

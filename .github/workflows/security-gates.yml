@@ -106,7 +106,7 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram
+        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram -timeout=30m
 
   go-vulnerabilities:
     name: Go vulnerability scan

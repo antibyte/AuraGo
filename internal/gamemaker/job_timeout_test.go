@@ -171,7 +171,7 @@ func TestGameJobTimeoutStillReportsTimeout(t *testing.T) {
 
 func TestGameJobProductiveWorkReceivesExtensionDiagnostic(t *testing.T) {
 	s := newTestService(t)
-	s.opts.JobTimeout = time.Second
+	s.opts.JobTimeout = 6 * time.Second
 	p := createTestProject(t, s, "3d")
 	events, unsubscribe := s.Subscribe(p.ID)
 	defer unsubscribe()
@@ -181,7 +181,7 @@ func TestGameJobProductiveWorkReceivesExtensionDiagnostic(t *testing.T) {
 		}
 		deadline, _ := ctx.Deadline()
 		// Make a real change in the final third of the base budget.
-		wake := time.NewTimer(time.Until(deadline.Add(-750 * time.Millisecond)))
+		wake := time.NewTimer(time.Until(deadline.Add(-jobTimeoutGrace(s.opts.JobTimeout) - s.opts.JobTimeout/4)))
 		defer wake.Stop()
 		select {
 		case <-wake.C:
@@ -201,7 +201,7 @@ func TestGameJobProductiveWorkReceivesExtensionDiagnostic(t *testing.T) {
 				if event.Type != "diagnostic" || event.Payload["code"] != "job_time_extended" {
 					continue
 				}
-				if event.Payload["extra_seconds"] != 0.5 || event.Payload["total_seconds"] != 1.5 || ctx.Err() != nil {
+				if event.Payload["extra_seconds"] != 3.0 || event.Payload["total_seconds"] != 9.0 || ctx.Err() != nil {
 					t.Error("extension was not granted or reported with the actual limits")
 				}
 				return errors.New("extension verified; validation still required")

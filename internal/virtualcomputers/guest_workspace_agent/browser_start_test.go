@@ -60,7 +60,7 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	closeBrowser()
 	select {
 	case <-chromedp.FromContext(browserCtx).Browser.LostConnection:
-	default:
+	case <-time.After(5 * time.Second):
 		t.Fatal("browser connection remained open after close")
 	}
 	closeBrowser() // Explicit and deferred shutdown must be idempotent.

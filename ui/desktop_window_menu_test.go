@@ -260,7 +260,7 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 		},
 		{
 			name:     "quick connect",
-			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)"),
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)"),
 			removed:  []string{`data-action="add"`, `data-action="refresh"`},
 			retained: []string{`data-device-list`, `data-terminal-area`},
 		},

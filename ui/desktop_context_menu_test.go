@@ -302,7 +302,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		{
 			name:      "quick connect",
 			source:    mainText,
-			signature: "function renderQuickConnect(id)",
+			signature: "function renderQuickConnect(id, context)",
 			markers: []string{
 				"showDeviceContextMenu",
 				"wireContextMenuBoundary(host",

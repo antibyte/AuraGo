@@ -1,17 +1,13 @@
 (function () {
     'use strict';
-
     const instances = new Map();
     const PAGE_SIZE = 40;
-
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
-
     function t(ctx, key, vars) {
         return ctx.t('mailer.' + key, vars);
     }
-
     function iconSVG(name) {
         const shapes = {
             archive: '<path d="M3 5h14v3H3zM4 8v8h12V8M8 11h4"/>',

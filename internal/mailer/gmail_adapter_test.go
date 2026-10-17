@@ -2,16 +2,38 @@ package mailer
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
+
+	"aurago/internal/httporigin"
 )
 
 type gmailFixtureTransport func(*http.Request) (*http.Response, error)
 
 func (f gmailFixtureTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestGmailRequestsBindRedirectsToOrigin(t *testing.T) {
+	for _, target := range []string{"https://other.example/profile", "http://gmail.googleapis.com/profile", "https://gmail.googleapis.com:444/profile"} {
+		t.Run(target, func(t *testing.T) {
+			calls := 0
+			client := &http.Client{Transport: gmailFixtureTransport(func(r *http.Request) (*http.Response, error) {
+				calls++
+				return &http.Response{StatusCode: http.StatusTemporaryRedirect, Header: http.Header{"Location": {target}}, Body: io.NopCloser(strings.NewReader(""))}, nil
+			})}
+			a := &gmailAdapter{cfg: TransportConfig{HTTPClient: client, Token: func(context.Context, string, bool) (string, error) { return "fixture-token", nil }}}
+			if err := a.Test(context.Background()); !errors.Is(err, httporigin.ErrCrossOriginRedirect) {
+				t.Fatalf("redirect error = %v", err)
+			}
+			if calls != 1 || client.CheckRedirect != nil {
+				t.Fatal("redirect escaped the origin or mutated the shared client")
+			}
+		})
+	}
+}
 
 func TestGmailExpiredHistoryStartsFreshSnapshot(t *testing.T) {
 	var historyCalls, profileCalls, messageListCalls int

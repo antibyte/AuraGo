@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/httporigin"
 )
 
 const gmailAPI = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -88,9 +90,20 @@ func (a *gmailAdapter) requestLimit(ctx context.Context, grant, method, path str
 	}
 	client := a.cfg.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 25 * time.Second}
+		client = httporigin.NewClient(25 * time.Second)
 	}
-	resp, err := client.Do(req)
+	// Keep injected transports and stricter policies without mutating a shared client.
+	boundClient := *client
+	boundClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := httporigin.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if client.CheckRedirect != nil {
+			return client.CheckRedirect(req, via)
+		}
+		return nil
+	}
+	resp, err := boundClient.Do(req)
 	if err != nil {
 		return err
 	}

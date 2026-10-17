@@ -29,7 +29,9 @@ import (
 func enrollmentExchange(t *testing.T, hub *RemoteHub) func(*RemoteMessage) (RemoteMessage, AuthResponsePayload) {
 	t.Helper()
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	handled := make(chan struct{}, 1)
 	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() { handled <- struct{}{} }()
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade: %v", err)
@@ -63,6 +65,12 @@ func enrollmentExchange(t *testing.T, hub *RemoteHub) func(*RemoteMessage) (Remo
 		var payload AuthResponsePayload
 		if err := json.Unmarshal(response.Payload, &payload); err != nil {
 			t.Fatal(err)
+		}
+		// Authentication replies precede registration; assertions need both settled.
+		select {
+		case <-handled:
+		case <-time.After(5 * time.Second):
+			t.Fatal("enrollment handler did not finish")
 		}
 		return response, payload
 	}

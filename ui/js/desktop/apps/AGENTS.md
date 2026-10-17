@@ -1,5 +1,13 @@
 # Desktop App Modules - Child DOX Contract
 
+## Infra
+
+- Load `infra-views.js` before `infra.js`. The view factory owns rendering and
+  node forms for one window; the app retains requests, lifecycle and source actions.
+  Both use the translated Desktop keys without literal English fallbacks.
+- Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
+  `TestDesktopInfra*Browser` suites after changes to this boundary.
+
 ## Synth Studio
 
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.

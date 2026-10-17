@@ -31,7 +31,7 @@ func TestDesktopQuickConnectUsesProtocolNeutralCopyAndFilters(t *testing.T) {
 	}
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
-	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)")
 	for _, marker := range []string{
 		`data-qc-filter="all"`,
 		`data-qc-filter="ssh"`,
@@ -49,7 +49,7 @@ func TestDesktopQuickConnectVNCSessionToolbarMarkers(t *testing.T) {
 	t.Parallel()
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
-	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)")
 	for _, marker := range []string{
 		"function renderVNCToolbar(",
 		"function setVNCStatus(",
@@ -84,7 +84,7 @@ func TestDesktopQuickConnectVNCErrorCodeCopyMarkers(t *testing.T) {
 	t.Parallel()
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
-	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)")
 	for _, marker := range []string{
 		"function vncErrorText(",
 		"desktop.qc_vnc_error_device_not_found",
@@ -104,7 +104,7 @@ func TestDesktopQuickConnectVNCPreservesErrorOnDisconnectMarkers(t *testing.T) {
 	t.Parallel()
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
-	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)")
 	for _, marker := range []string{
 		"let lastVNCError = null",
 		"JSON.parse(reason)",

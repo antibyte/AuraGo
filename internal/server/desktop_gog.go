@@ -49,6 +49,7 @@ func handleDesktopGog(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := s.storageContext(r.Context())
 		defer cancel()
+		ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(cfg))
 		go func() {
 			tick := time.NewTicker(time.Second)
 			defer tick.Stop()
@@ -64,7 +65,6 @@ func handleDesktopGog(s *Server) http.HandlerFunc {
 				}
 			}
 		}()
-		ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(cfg))
 		svc := s.gogService()
 		if action == "call" {
 			op, ok := gog.Lookup(body.Service, body.Operation)

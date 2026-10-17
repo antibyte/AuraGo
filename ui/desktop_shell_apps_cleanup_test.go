@@ -21,7 +21,7 @@ func TestDesktopQuickConnectCleanupRemovesModals(t *testing.T) {
 	t.Parallel()
 
 	source := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
-	if !strings.Contains(source, "function renderQuickConnect(id)") {
+	if !strings.Contains(source, "function renderQuickConnect(id, context)") {
 		t.Fatal("renderQuickConnect missing in quickconnect-launchpad-chat fragment")
 	}
 	for _, want := range []string{
