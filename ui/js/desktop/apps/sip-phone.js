@@ -491,7 +491,6 @@
                 const target = instance.host.querySelector('[data-sip-phone="target"]');
                 if (target) {
                     target.value = instance.target;
-                    target.focus();
                 }
             };
             button.addEventListener('pointerdown', () => {
@@ -528,7 +527,6 @@
                     const target = instance.host.querySelector('[data-sip-phone="target"]');
                     if (target) {
                         target.value = instance.target;
-                        target.focus();
                     }
                 }
             });
@@ -549,7 +547,6 @@
             const target = instance.host.querySelector('[data-sip-phone="target"]');
             if (target) {
                 target.value = instance.target;
-                target.focus();
             }
         });
         instance.host.querySelector('[data-sip-phone-action="dial"]')?.addEventListener('click', () => startDial(instance));

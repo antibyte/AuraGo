@@ -2710,6 +2710,10 @@ registration lives in `internal/desktop/types.go`.
 - SIP Phone visible UI strings use `desktop.sip_phone_*` keys in all 16
   `ui/lang/sip_phone/*.json` files (identical key sets); the dock/start name
   uses `desktop.app_sip_phone` in `ui/lang/desktop/*.json`.
+- SIP keypad digits, long-press `0` to `+`, and backspace update the number
+  without focusing its text field, so touch dialing does not summon the OS
+  keyboard. Direct field editing remains available. Verify
+  `TestDesktopSIPPhoneKeypadFocusBrowser`.
 - Pixel loads `shared/sticker-catalog.js` and `shared/sticker-library.js` first,
   followed by state, view, canvas, tools, actions, filters, events, stickers,
   and pixel.js. Load `desktop-stickers.css` and `pixel-stickers.css` with `pixel.css`. Modules attach via
