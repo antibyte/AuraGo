@@ -339,7 +339,7 @@ func TestFrontend_HTML_NoTextFallbacksInsideDataI18n(t *testing.T) {
 		"truenas.html",
 	}
 	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
-	dataI18nElementPattern :=regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
+	dataI18nElementPattern := regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
 	htmlTagPattern := regexp.MustCompile(`<[^>]+>`)
 	alphaPattern := regexp.MustCompile(`[\p{L}\p{N}]`)
 	symbolPattern := regexp.MustCompile(`[^\p{L}\p{N}\p{Zs}\t\r\n.,:;!?'"()/_|+\-=]`)

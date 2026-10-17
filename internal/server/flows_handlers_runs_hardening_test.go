@@ -746,7 +746,7 @@ func TestC18CancelTellsFinishedFromUnknownAndAuditsLiveRuns(t *testing.T) {
 func TestC18RunCancelAuditTypeIsRegistered(t *testing.T) {
 	ui := filepath.Join("..", "..", "ui")
 	html := readDashboardMarkupForTest(t)
-	if !strings.Contains(html,`<option value="flow_run_cancel" data-i18n="dashboard.audit_type_flow_run_cancel">`) {
+	if !strings.Contains(html, `<option value="flow_run_cancel" data-i18n="dashboard.audit_type_flow_run_cancel">`) {
 		t.Error("the dashboard audit filter does not list flow_run_cancel")
 	}
 	locales, err := filepath.Glob(filepath.Join(ui, "lang", "dashboard", "*.json"))

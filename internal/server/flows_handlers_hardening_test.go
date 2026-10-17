@@ -391,7 +391,7 @@ func TestC17AuditTypesAreRegisteredInTheDashboard(t *testing.T) {
 		t.Fatalf("dashboard locales = %v %v", locales, err)
 	}
 	for typ := range types {
-		if !strings.Contains(html,`<option value="`+typ+`" data-i18n="dashboard.audit_type_`+typ+`">`) {
+		if !strings.Contains(html, `<option value="`+typ+`" data-i18n="dashboard.audit_type_`+typ+`">`) {
 			t.Errorf("the dashboard audit filter does not list %s", typ)
 		}
 		for _, path := range locales {
