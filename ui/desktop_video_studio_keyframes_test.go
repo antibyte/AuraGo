@@ -624,3 +624,73 @@ func TestVideoStudioRampLocales(t *testing.T) {
 		}
 	}
 }
+
+// Paste attributes, Picture group on animated values (index §4.18): the clip shows the keys of an animated value and
+// ignores its field, so the paste writes a key at the playhead there (auto-key, like the inspector) and the field only
+// where the value is static. An animated value is not edited while the playhead is outside the clip, and with the
+// keyframes group in the same paste the target takes the source's keys and static fields as before.
+func TestVideoStudioPasteAttributesPictureKeysAnimatedValues(t *testing.T) {
+	runVideoStudioKeyframesScript(t, `
+const picture = {x: 0.5, y: 0.25, width: 0.5, height: 0.5, rotation: 15, opacity: 0.7, fit: 'cover'};
+const source = () => Object.assign(JSON.parse(JSON.stringify(at(project([track('v1','video',[clip('s',V,0,50)])]), 's'))), picture);
+const target = () => project([
+  track('v1','video',[clip('d',V,200,100,{offset:300, x:0.1, width:0.6, keyframes: {x: [kf(300, 0.1), kf(400, 0.3)], rotation: [kf(320, 0), kf(380, 45, 'ease_out')]}})]),
+  track('a1','audio',[clip('m',A,0,100)])
+]);
+const d = p => at(p, 'd');
+let p = target();
+valid(p);
+
+// At timeline 250 (source 350, inside the clip): animated x and rotation get a key there; the fields of the animated
+// values stay as they were; the static values take the source's field values.
+assert.equal(E.pasteAttributes(p, source(), ['d', 'm'], ['picture'], 250), true);
+assert.equal(d(p).x, 0.1, 'the static field of the animated x is untouched');
+assert.equal(d(p).rotation, 0, 'and so is the one of the animated rotation');
+assert.deepEqual(d(p).keyframes.x, [kf(300, 0.1), kf(350, 0.5), kf(400, 0.3)], 'a key at the playhead holds the pasted x');
+assert.deepEqual(d(p).keyframes.rotation, [kf(320, 0), kf(350, 15), kf(380, 45, 'ease_out')], 'a new key takes the easing of the key before it (linear here)');
+near(FX.valueAt(d(p), 'x', 250, p), 0.5, 'the clip now shows the pasted x at the playhead');
+near(FX.valueAt(d(p), 'rotation', 250, p), 15, 'and the pasted rotation');
+assert.deepEqual([d(p).y, d(p).width, d(p).height, d(p).opacity, d(p).fit], [0.25, 0.5, 0.5, 0.7, 'cover'], 'static values take the field');
+for (const path of ['y', 'width', 'height', 'opacity']) assert.equal(path in d(p).keyframes, false, path + ' stays static');
+assert.equal(at(p, 'm').x, 0, 'audio clips take no picture attributes');
+valid(p);
+
+// A key already at the playhead takes the value and keeps its easing.
+p = target();
+d(p).keyframes.x[0].e = 'ease_in';
+assert.equal(E.pasteAttributes(p, source(), ['d'], ['picture'], 200), true);
+assert.deepEqual(d(p).keyframes.x[0], kf(300, 0.5, 'ease_in'));
+assert.equal(d(p).keyframes.x.length, 2);
+
+// Outside the clip (or without a frame) an animated value is left alone; the static values still change.
+for (const frame of [150, 300, undefined]) {
+  p = target();
+  const before = JSON.stringify(d(p).keyframes);
+  assert.equal(E.pasteAttributes(p, source(), ['d'], ['picture'], frame), true, 'the static values still paste at ' + frame);
+  assert.equal(JSON.stringify(d(p).keyframes), before, 'no key outside the clip at ' + frame);
+  assert.equal(d(p).x, 0.1);
+  assert.deepEqual([d(p).y, d(p).width, d(p).opacity], [0.25, 0.5, 0.7]);
+  valid(p);
+}
+p = project([track('v1','video',[clip('d',V,200,100,{offset:300, keyframes: {x: [kf(300, 0.1)]}})])]);
+assert.equal(E.pasteAttributes(p, {x: 0.5}, ['d'], ['picture'], 10), 'nothing', 'only an animated value was asked for and the playhead is outside');
+
+// The key limit refuses the whole paste.
+p = project([track('v1','video',[clip('d',V,0,100,{keyframes: {x: Array.from({length: 64}, (_, i) => kf(10 + i, 0.2))}})])]);
+assert.equal(E.pasteAttributes(p, source(), ['d'], ['picture'], 5), 'limit');
+
+// With the keyframes group too, the target ends up with the source's keys and static fields: nothing is keyed at the
+// playhead, and the source without keys leaves the target static with the source's fields.
+p = target();
+assert.equal(E.pasteAttributes(p, source(), ['d'], ['picture', 'keyframes'], 250), true);
+assert.equal('keyframes' in d(p), false, 'the source has no keys, so the target loses its own');
+assert.deepEqual([d(p).x, d(p).rotation, d(p).y, d(p).width, d(p).opacity, d(p).fit], [0.5, 15, 0.25, 0.5, 0.7, 'cover']);
+valid(p);
+const keyed = Object.assign(source(), {keyframes: {opacity: [kf(0, 0), kf(40, 1)]}});
+p = target();
+assert.equal(E.pasteAttributes(p, keyed, ['d'], ['picture', 'keyframes'], 250), true);
+assert.deepEqual(Object.keys(d(p).keyframes), ['opacity'], 'only the source keys remain');
+assert.deepEqual([d(p).x, d(p).rotation], [0.5, 15]);
+valid(p);
+`)
+}

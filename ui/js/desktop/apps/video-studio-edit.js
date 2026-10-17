@@ -630,17 +630,32 @@
     // The speed group skips stills and goes through setSpeed for the clips and their link partners, so it follows the
     // timing rules (ripple by default); a ramped source gives its ramp instead (pasteRamp). keyframes replaces the
     // clip's keys, re-anchored after the speed group so each key keeps its timing from the clip start (index §4.18).
-    function pasteAttributes(project, source, ids, groups) {
-        const items = editable(project, ids), wanted = groups || [];
+    // A value the target animates ignores its field, so the picture group writes it as a key at `frame` (the playhead; the
+    // auto-key of VideoStudioKeyframeEdit.setValues) and changes the field only for static values. While `frame` is
+    // outside the clip (or not given) an animated value is left as it is. With the keyframes group in the same paste the
+    // target's keys are replaced anyway, so every field takes the source's value and nothing is keyed.
+    function pasteAttributes(project, source, ids, groups, frame) {
+        const items = editable(project, ids), wanted = groups || [], replaceKeys = wanted.includes('keyframes');
         if (!items.length) return refusal(project, ids);
+        const KE = window.VideoStudioKeyframeEdit;
         let changed = false;
-        items.forEach(({ track, clip }) => {
-            wanted.forEach(group => {
-                if (group === 'picture' && track.kind === 'audio') return;
-                (ATTRIBUTE_GROUPS[group] || []).forEach(key => { if (key !== 'speed' && key !== 'keyframes' && source[key] !== undefined) { clip[key] = clone(source[key]); changed = true; } });
-            });
+        for (const { track, clip } of items) {
+            for (const group of wanted) {
+                if (group === 'picture' && track.kind === 'audio') continue;
+                const keyed = {};
+                (ATTRIBUTE_GROUPS[group] || []).forEach(key => {
+                    if (key === 'speed' || key === 'keyframes' || source[key] === undefined) return;
+                    if (!replaceKeys && Array.isArray(clip.keyframes && clip.keyframes[key]) && clip.keyframes[key].length) keyed[key] = source[key];
+                    else { clip[key] = clone(source[key]); changed = true; }
+                });
+                if (Object.keys(keyed).length && KE && frame >= clip.start && frame < clip.start + clip.duration) {
+                    const result = KE.setValues(project, clip.id, keyed, frame);
+                    if (result !== true) return result;
+                    changed = true;
+                }
+            }
             clampFades(clip);
-        });
+        }
         if (wanted.includes('speed')) {
             const timed = withLinks(project, items.map(({ clip }) => clip.id)).filter(id => !isStill(project, T().clipFor(project, id).clip));
             if (timed.length) {

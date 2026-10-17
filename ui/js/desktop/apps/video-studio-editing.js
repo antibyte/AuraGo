@@ -190,7 +190,7 @@
             const groups = Array.from(host.querySelectorAll('[data-attr-group]:checked'), input => input.value);
             host.replaceChildren();
             s.app.focus({ preventScroll: true });
-            if (groups.length) applyEdit(s, 'paste attributes', project => E().pasteAttributes(project, source, ids, groups));
+            if (groups.length) applyEdit(s, 'paste attributes', project => E().pasteAttributes(project, source, ids, groups, s.frame));
         });
     }
 
