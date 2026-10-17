@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -289,5 +291,119 @@ func TestRecordingIDsStayInsideStorageAndNeverOverwrite(t *testing.T) {
 	}
 	if len(ids) != 2 || ids[0] == ids[1] || !resourceID.MatchString(ids[0]) || !resourceID.MatchString(ids[1]) {
 		t.Fatalf("recording identifiers are not distinct safe filenames: %v", ids)
+	}
+	if s := m.Status(); s.RecordingSession != "started" || s.RecordingAck != "" {
+		t.Fatalf("confirmed recording start was not remembered: %+v", s)
+	}
+}
+
+func TestStatusUDPFieldsStayPassive(t *testing.T) {
+	var calls atomic.Int32
+	m, c := fixture(t, func(http.ResponseWriter, *http.Request) { calls.Add(1) })
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c.Directories.DataDir = blocked
+	c.RuView.UDPEnabled = true
+	c.RuView.UDPBind = "192.168.1.20"
+	c.RuView.UDPAllow = []string{"192.168.1.50"}
+	c.RuView.ReceiverIP = "192.168.1.20"
+	s := m.Status()
+	if calls.Load() != 0 || s.UDPScope != "external" || s.UDPEnabled || s.UDPReady || !s.ReceiverConfigured || s.RecordingSession != "unknown" || s.RecordingAck != "" {
+		t.Fatalf("external status contacted something or exposed UDP as ready: %+v calls=%d", s, calls.Load())
+	}
+	c.RuView.Mode = "docker"
+	s = m.Status()
+	if calls.Load() != 0 || s.UDPScope != "managed" || !s.UDPEnabled || !s.UDPReady {
+		t.Fatalf("managed UDP was not reported from saved settings: %+v", s)
+	}
+	c.RuView.UDPAllow = nil
+	if s = m.Status(); s.UDPReady || s.UDPScope != "managed" {
+		t.Fatalf("empty allowlist still looked ready: %+v", s)
+	}
+	c.RuView.ReceiverIP = "receiver.example"
+	if s = m.Status(); s.ReceiverConfigured {
+		t.Fatal("hostname was accepted as a receiver")
+	}
+	c.RuView.Enabled = false
+	if s = m.Status(); s.UDPScope != "off" || s.DataState != "disabled" || s.UDPReady || calls.Load() != 0 {
+		t.Fatalf("disabled status probed or kept a UDP failure: %+v calls=%d", s, calls.Load())
+	}
+}
+
+func TestRecordingAcknowledgementFollowsForwardedResults(t *testing.T) {
+	var code atomic.Int32
+	code.Store(http.StatusBadGateway)
+	entered := make(chan struct{})
+	var once sync.Once
+	m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+		// HTTP/1 notices a client close only after the body has been read.
+		_, _ = io.Copy(io.Discard, r.Body)
+		if code.Load() == 0 {
+			once.Do(func() { close(entered) })
+			<-r.Context().Done()
+			return
+		}
+		w.WriteHeader(int(code.Load()))
+		io.WriteString(w, `{"ok":false}`)
+	})
+	c.RuView.ReadOnly = true
+	w := httptest.NewRecorder()
+	m.Proxy(w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)), "/api/v1/recording/start")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("read-only start: HTTP %d", w.Code)
+	}
+	if s := m.Status(); s.RecordingSession != "unknown" || s.RecordingAck != "" {
+		t.Fatalf("local reject changed the recording marker: %+v", s)
+	}
+	c.RuView.ReadOnly = false
+	w = httptest.NewRecorder()
+	m.Proxy(w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)), "/api/v1/recording/start")
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("upstream failure: HTTP %d", w.Code)
+	}
+	if s := m.Status(); s.RecordingSession != "unknown" || s.RecordingAck != "unconfirmed" {
+		t.Fatalf("failed start confirmed a session: %+v", s)
+	}
+	code.Store(http.StatusOK)
+	w = httptest.NewRecorder()
+	m.Proxy(w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)), "/api/v1/recording/start")
+	if s := m.Status(); w.Code != http.StatusOK || s.RecordingSession != "started" || s.RecordingAck != "" {
+		t.Fatalf("start was not confirmed: HTTP %d %+v", w.Code, s)
+	}
+	code.Store(http.StatusBadGateway)
+	w = httptest.NewRecorder()
+	m.Proxy(w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)), "/api/v1/recording/stop")
+	if s := m.Status(); s.RecordingSession != "started" || s.RecordingAck != "unconfirmed" {
+		t.Fatalf("failed stop replaced the confirmed session: %+v", s)
+	}
+	code.Store(0)
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)).WithContext(ctx)
+	finished := make(chan struct{})
+	go func() {
+		m.Proxy(httptest.NewRecorder(), req, "/api/v1/recording/stop")
+		close(finished)
+	}()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cancelled stop never reached upstream")
+	}
+	cancel()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cancelled stop did not return")
+	}
+	if s := m.Status(); s.RecordingSession != "started" || s.RecordingAck != "unconfirmed" {
+		t.Fatalf("cancelled stop changed the confirmed session: %+v", s)
+	}
+	code.Store(http.StatusOK)
+	w = httptest.NewRecorder()
+	m.Proxy(w, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{}`)), "/api/v1/recording/stop")
+	if s := m.Status(); w.Code != http.StatusOK || s.RecordingSession != "stopped" || s.RecordingAck != "" {
+		t.Fatalf("stop was not confirmed: HTTP %d %+v", w.Code, s)
 	}
 }

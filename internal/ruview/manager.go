@@ -18,42 +18,50 @@ import (
 )
 
 type Status struct {
-	Enabled          bool       `json:"enabled"`
-	ReadOnly         bool       `json:"readonly"`
-	AgentAccess      bool       `json:"agent_access"`
-	Mode             string     `json:"mode"`
-	Source           string     `json:"source"`
-	Revision         string     `json:"revision"`
-	RevisionVerified bool       `json:"revision_verified"`
-	Ready            bool       `json:"ready"`
-	DataState        string     `json:"data_state"`
-	Signal           string     `json:"signal"`
-	Simulated        bool       `json:"simulated"`
-	Fresh            bool       `json:"fresh"`
-	ObservedAt       *time.Time `json:"observed_at"`
-	FrameAgeMS       *int64     `json:"last_frame_age_ms"`
-	Error            string     `json:"error,omitempty"`
-	StorageLimit     bool       `json:"storage_limit"`
+	Enabled            bool       `json:"enabled"`
+	ReadOnly           bool       `json:"readonly"`
+	AgentAccess        bool       `json:"agent_access"`
+	Mode               string     `json:"mode"`
+	Source             string     `json:"source"`
+	Revision           string     `json:"revision"`
+	RevisionVerified   bool       `json:"revision_verified"`
+	Ready              bool       `json:"ready"`
+	DataState          string     `json:"data_state"`
+	Signal             string     `json:"signal"`
+	Simulated          bool       `json:"simulated"`
+	Fresh              bool       `json:"fresh"`
+	ObservedAt         *time.Time `json:"observed_at"`
+	FrameAgeMS         *int64     `json:"last_frame_age_ms"`
+	Error              string     `json:"error,omitempty"`
+	StorageLimit       bool       `json:"storage_limit"`
+	UDPEnabled         bool       `json:"udp_enabled"`
+	UDPReady           bool       `json:"udp_ready"`
+	UDPScope           string     `json:"udp_scope"`
+	ReceiverConfigured bool       `json:"receiver_configured"`
+	RecordingSession   string     `json:"recording_session"`
+	RecordingAck       string     `json:"recording_ack,omitempty"`
 }
 
 type Manager struct {
-	config        func() *config.Config
-	vault         *security.Vault
-	logger        *slog.Logger
-	mu            sync.Mutex
-	opMu          sync.Mutex
-	nodesMu       sync.Mutex
-	status        Status
-	observed      time.Time
-	generation    context.Context
-	cancel        context.CancelFunc
-	previous      config.RuViewConfig
-	lifetime      context.Context
-	stop          context.CancelFunc
-	done          chan struct{}
-	process       *nativeProcess
-	managed       bool
-	runningConfig *config.Config
+	config           func() *config.Config
+	vault            *security.Vault
+	logger           *slog.Logger
+	mu               sync.Mutex
+	opMu             sync.Mutex
+	nodesMu          sync.Mutex
+	status           Status
+	observed         time.Time
+	generation       context.Context
+	cancel           context.CancelFunc
+	previous         config.RuViewConfig
+	lifetime         context.Context
+	stop             context.CancelFunc
+	done             chan struct{}
+	process          *nativeProcess
+	managed          bool
+	runningConfig    *config.Config
+	recordingSession string
+	recordingAck     string
 }
 
 var defaultManager atomic.Pointer[Manager]
@@ -95,12 +103,14 @@ func (m *Manager) Status() Status {
 	s := m.status
 	s.RevisionVerified = m.managed
 	observed := m.observed
+	session, ack := m.recordingSession, m.recordingAck
 	m.mu.Unlock()
 	s.Enabled = c.Enabled
 	s.ReadOnly = c.ReadOnly
 	s.AgentAccess = c.AgentAccess
 	s.Mode = c.Mode
 	s.Revision = Revision
+	s = applyPassiveStatus(s, c, session, ack)
 	if s.Source == "" {
 		s.Source = c.Source
 	}
@@ -122,6 +132,50 @@ func (m *Manager) Status() Status {
 		}
 	}
 	return s
+}
+
+// applyPassiveStatus copies saved configuration and this process's recording
+// marker. It never dials, resolves DNS, or reads the node inventory.
+func applyPassiveStatus(s Status, c config.RuViewConfig, session, ack string) Status {
+	s.ReceiverConfigured = config.RuViewPrivateIPv4(c.ReceiverIP)
+	s.UDPEnabled = c.Mode != "external" && c.UDPEnabled
+	s.UDPReady = false
+	switch {
+	case !c.Enabled:
+		s.UDPScope = "off"
+	case c.Mode == "external":
+		s.UDPScope = "external"
+		s.UDPEnabled = false
+	default:
+		s.UDPScope = "managed"
+		s.UDPReady = s.UDPEnabled && config.RuViewPrivateIPv4(c.UDPBind) && len(c.UDPAllow) > 0
+	}
+	s.RecordingSession = session
+	if s.RecordingSession == "" {
+		s.RecordingSession = "unknown"
+	}
+	s.RecordingAck = ack
+	return s
+}
+
+// noteRecording remembers only a forwarded start or stop. A local reject never
+// reaches this helper. A non-2xx or a missing status leaves the last confirmed
+// session in place and marks the acknowledgement unconfirmed.
+func (m *Manager) noteRecording(p string, code int) {
+	if p != "/api/v1/recording/start" && p != "/api/v1/recording/stop" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if code >= 200 && code < 300 {
+		m.recordingSession = "stopped"
+		if p == "/api/v1/recording/start" {
+			m.recordingSession = "started"
+		}
+		m.recordingAck = ""
+		return
+	}
+	m.recordingAck = "unconfirmed"
 }
 
 func (m *Manager) Test(parent context.Context) (Status, error) {
