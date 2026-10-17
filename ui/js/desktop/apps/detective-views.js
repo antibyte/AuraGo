@@ -20,10 +20,22 @@
         return `<article class="dt-report">${r.partial ? `<p class="dt-notice">${esc(tr('partial'))}</p>` : ''}<h1>${esc(r.title)}</h1><small>${esc(new Date(r.created_at).toLocaleDateString())} · ${esc(tr('revision'))} ${r.revision}</small><p class="dt-lead">${esc(r.summary)}</p>${blocks}${r.limitations ? `<h3>${esc(tr('limitations'))}</h3><p>${esc(r.limitations)}</p>` : ''}<h3>${esc(tr('sources'))}</h3><ol>${cited.map(s => `<li>${url(s.url) ? `<a href="${url(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.url)}</a>` : esc(s.title || s.locator || s.url)}</li>`).join('')}</ol></article>`;
     }
     function activityItems(events, tr) {
-        return (events || []).map(e => `<li data-event="${esc(String(e.id))}"><time>${esc(new Date(e.at).toLocaleTimeString())}</time><strong>${esc(tr(e.kind))}</strong><span>${esc(['status', 'phase', 'model', 'recovery'].includes(e.kind) ? tr(e.text) : e.text)}</span></li>`).join('');
+        return (events || []).map(e => `<li data-event="${esc(String(e.id))}"><time>${esc(new Date(e.at).toLocaleTimeString())}</time><strong>${esc(tr(e.kind === 'auto_update' ? 'auto_title' : e.kind))}</strong><span>${esc(e.kind === 'auto_update' ? tr('auto_' + e.text) : ['status', 'phase', 'model', 'recovery'].includes(e.kind) ? tr(e.text) : e.text)}</span></li>`).join('');
     }
     function activity(events, tr) {
         return `<ol class="dt-activity">${activityItems(events, tr)}</ol>`;
     }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems };
+    function autoSettings(value, tr, readonly) {
+        const a = value || {}, hours = a.interval_hours || 24;
+        const days = hours % 24 === 0;
+        const options = (values, selected) => values.map(x => `<option value="${x}"${x === selected ? ' selected' : ''}>${esc(tr(x === 'append' || x === 'rewrite' ? 'auto_' + x : x))}</option>`).join('');
+        return `<fieldset class="dt-auto-settings"${readonly ? ' disabled' : ''}><legend>${esc(tr('auto_title'))}</legend><label class="dt-auto-toggle"><input type="checkbox" name="auto_enabled"${a.enabled ? ' checked' : ''}>${esc(tr('auto_enabled'))}</label><div class="dt-auto-grid"><label>${esc(tr('auto_interval'))}<input type="number" name="auto_interval" min="1" max="${days ? 365 : 8760}" step="1" required value="${days ? hours / 24 : hours}"></label><label>${esc(tr('auto_unit'))}<select name="auto_unit"><option value="hours"${!days ? ' selected' : ''}>${esc(tr('auto_hours'))}</option><option value="days"${days ? ' selected' : ''}>${esc(tr('auto_days'))}</option></select></label><label>${esc(tr('auto_style'))}<select name="auto_style">${options(['append','rewrite'], a.report_style || 'append')}</select></label><label>${esc(tr('auto_effort'))}<select name="auto_effort">${options(['quick','normal','maximum'], a.effort || 'quick')}</select></label></div><p class="dt-auto-help">${esc(tr('auto_help'))}</p></fieldset>`;
+    }
+    function autoStatus(a, tr) {
+        a = a || {};
+        const date = raw => raw && !raw.startsWith('0001-') && Number.isFinite(Date.parse(raw)) ? new Date(raw).toLocaleString() : '—';
+        const status = a.enabled ? (a.outcome || 'scheduled') : 'paused';
+        return `<strong>${esc(tr('auto_' + status))}</strong><dl><div><dt>${esc(tr('auto_next'))}</dt><dd>${esc(date(a.next_run_at))}</dd></div><div><dt>${esc(tr('auto_checked'))}</dt><dd>${esc(date(a.last_checked_at))}</dd></div><div><dt>${esc(tr('auto_changed'))}</dt><dd>${esc(date(a.last_changed_at))}</dd></div></dl>${a.error ? `<p>${esc(tr(a.error))}</p>` : ''}`;
+    }
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus };
 })();

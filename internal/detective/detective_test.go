@@ -150,6 +150,10 @@ func TestResearchEndToEndAndImmutableExports(t *testing.T) {
 func TestEvidenceRejectsUnseenAndSearchOnlySources(t *testing.T) {
 	s := newTestService(t)
 	c, _ := s.Create(Request{Topic: "facts"})
+	c.Run.Status = "running"
+	if err := s.saveLocked(&c); err != nil {
+		t.Fatal(err)
+	}
 	x := &Session{service: s, CaseID: c.ID}
 	source, err := x.RecordSource("https://example.org/", "Search hit", "ddg_search", "plausible fact", false)
 	if err != nil {
@@ -311,7 +315,7 @@ func TestActiveTimeSurvivesRestart(t *testing.T) {
 	if err = reopened.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 2 {
+	if version != 3 {
 		t.Fatalf("user_version=%d", version)
 	}
 	got, err := reopened.Get(c.ID)

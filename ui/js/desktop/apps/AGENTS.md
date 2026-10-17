@@ -168,6 +168,13 @@
   to the UI.
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
+- Automatic Update settings belong to each case (also available on creation):
+  integer hours/days, append/rewrite and a separate update effort. Preserve unsaved
+  settings, focus, selected revision, source disclosure and scroll across polls.
+  Pause remains available in readonly mode; enabling/changing settings does not.
+  Show due/checked/changed times and question/error/permission status. History and
+  source pages load on demand; append ancestry loads incrementally. Each export
+  stays bound to the selected revision, including all its ancestor additions.
 
 ## Local Wikipedia
 - `local-wikipedia-views.js` precedes `local-wikipedia.js`; both use

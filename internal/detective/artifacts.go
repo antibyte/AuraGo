@@ -7,11 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // ExportRevision publishes complete bytes transactionally and reuses them on retry.
 // The export slot is independent of the research worker and its budget.
 func (s *Service) ExportRevision(ctx context.Context, key string, revision int, format string) (Artifact, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
 	select {
 	case s.exports <- struct{}{}:
 		defer func() { <-s.exports }()
@@ -21,16 +24,12 @@ func (s *Service) ExportRevision(ctx context.Context, key string, revision int, 
 	if format != "md" && format != "pdf" && format != "docx" {
 		return Artifact{}, errors.New("unsupported export format")
 	}
-	c, err := s.Get(key)
-	if err != nil {
-		return Artifact{}, err
-	}
-	if revision < 1 || revision > len(c.Reports) {
+	if revision < 1 {
 		return Artifact{}, ErrNotFound
 	}
 	s.mu.Lock()
 	var a Artifact
-	err = s.db.QueryRow("SELECT body,mime,filename,sha256 FROM detective_artifacts WHERE case_id=? AND revision=? AND format=?", key, revision, format).Scan(&a.Data, &a.MIME, &a.Filename, &a.SHA256)
+	err := s.db.QueryRow("SELECT body,mime,filename,sha256 FROM detective_artifacts WHERE case_id=? AND revision=? AND format=?", key, revision, format).Scan(&a.Data, &a.MIME, &a.Filename, &a.SHA256)
 	s.mu.Unlock()
 	if err == nil {
 		return a, nil
@@ -38,11 +37,15 @@ func (s *Service) ExportRevision(ctx context.Context, key string, revision int, 
 	if !errors.Is(err, sql.ErrNoRows) {
 		return Artifact{}, err
 	}
+	report, err := s.resolvedReport(ctx, key, revision)
+	if err != nil {
+		return Artifact{}, err
+	}
 	if format == "pdf" && s.pdf != nil {
 		a = Artifact{Filename: fmt.Sprintf("detective-report-r%d.pdf", revision), MIME: "application/pdf"}
-		a.Data, err = s.pdf(ctx, c.Reports[revision-1])
+		a.Data, err = s.pdf(ctx, report)
 	} else {
-		a, err = Export(c.Reports[revision-1], format)
+		a, err = ExportContext(ctx, report, format)
 	}
 	if err != nil {
 		return a, err

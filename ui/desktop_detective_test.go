@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -55,6 +56,7 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	pendingEvent := false
 	readOnlyCaps := false
 	lastRunBody := ""
+	var archive []detective.Report
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/detective/", func(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +71,7 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 			if r.Method == "POST" {
 				exists = true
 				_ = json.NewDecoder(r.Body).Decode(&c.Request)
+				c.AutoUpdate.AutoUpdateSettings = c.Request.AutoUpdate
 				if failNextStart {
 					c.Run.Status = "draft"
 					c.Sources = nil
@@ -95,6 +98,42 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"events": events})
 		case "cases/case_fixture/live":
 			json.NewEncoder(w).Encode(fixtureLive(c))
+		case "cases/case_fixture/auto-update":
+			_ = json.NewDecoder(r.Body).Decode(&c.AutoUpdate.AutoUpdateSettings)
+			c.AutoUpdate.NextRunAt = time.Now().UTC().Add(time.Duration(c.AutoUpdate.IntervalHours) * time.Hour)
+			json.NewEncoder(w).Encode(c)
+		case "cases/case_fixture/report":
+			revision, _ := strconv.Atoi(r.URL.Query().Get("revision"))
+			for _, report := range append(append([]detective.Report{}, archive...), c.Reports...) {
+				if report.Revision == revision {
+					json.NewEncoder(w).Encode(report)
+					return
+				}
+			}
+			http.NotFound(w, r)
+		case "cases/case_fixture/reports":
+			before, _ := strconv.Atoi(r.URL.Query().Get("before"))
+			for i := len(archive) - 1; i >= 0; i-- {
+				if before == 0 || archive[i].Revision < before {
+					page := detective.ArchivePage{Reports: []detective.Report{archive[i]}}
+					if i > 0 {
+						page.Next = int64(archive[i].Revision)
+					}
+					json.NewEncoder(w).Encode(page)
+					return
+				}
+			}
+			json.NewEncoder(w).Encode(detective.ArchivePage{})
+		case "cases/case_fixture/sources":
+			json.NewEncoder(w).Encode(detective.ArchivePage{Sources: c.Sources})
+		case "cases/case_fixture/source":
+			for _, source := range c.Sources {
+				if source.ID == r.URL.Query().Get("id") {
+					json.NewEncoder(w).Encode(source)
+					return
+				}
+			}
+			http.NotFound(w, r)
 		case "cases/case_fixture/run":
 			raw, _ := io.ReadAll(r.Body)
 			lastRunBody = string(raw)
@@ -147,16 +186,45 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
 	defer launch.Cleanup()
 	defer browser.Close()
-	page := browser.MustPage(srv.URL + "/detective-fixture").Timeout(60 * time.Second)
+	page := browser.MustPage(srv.URL + "/detective-fixture").Timeout(120 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
 	page.MustWaitLoad()
 	page.MustElement(`[name=topic]`).MustInput(c.Request.Topic)
+	page.MustElement(`[name=auto_enabled]`).MustClick()
 	page.MustElement(`.dt-form [type=submit]`).MustClick()
 	page.MustElement(`[data-do=stop]`).MustClick()
 	page.MustElement(`[data-do=continue]`).MustClick()
 	page.MustElement(`[data-do=finish]`).MustClick()
 	page.MustElement(`.dt-report table`)
+	mu.Lock()
+	if !c.AutoUpdate.Enabled || c.AutoUpdate.IntervalHours != 24 || c.AutoUpdate.Effort != "quick" || c.AutoUpdate.ReportStyle != "append" {
+		mu.Unlock()
+		t.Fatal("new case lost automatic update defaults")
+	}
+	mu.Unlock()
+	page.MustElement(`.dt-auto-panel > summary`).MustClick()
+	page.MustEval(`()=>{const unit=document.querySelector('[name=auto_unit]'); unit.value='hours'; unit.dispatchEvent(new Event('change',{bubbles:true})); const n=document.querySelector('[name=auto_interval]'); n.value='6'; n.dispatchEvent(new Event('input',{bubbles:true})); const style=document.querySelector('[name=auto_style]'); style.value='rewrite'; style.dispatchEvent(new Event('change',{bubbles:true})); n.focus();}`)
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>{const n=document.querySelector('[name=auto_interval]');return n.value==='6'&&document.activeElement===n&&document.querySelector('[name=auto_style]').value==='rewrite'}`).Bool() {
+		t.Fatal("polling discarded automatic update settings or focus")
+	}
+	page.MustElement(`[data-do=auto-save]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	mu.Lock()
+	if c.AutoUpdate.IntervalHours != 6 || c.AutoUpdate.ReportStyle != "rewrite" {
+		mu.Unlock()
+		t.Fatal("automatic update settings were not saved")
+	}
+	c.AutoUpdate.Outcome = "permission_blocked"
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>document.querySelector('[data-do=auto-save]').disabled&&!document.querySelector('[data-do=auto-pause]').disabled&&document.querySelector('.dt-auto-settings').disabled`).Bool() {
+		t.Fatal("live permission revocation did not disable settings or kept pause blocked")
+	}
+	mu.Lock()
+	c.AutoUpdate.Outcome = "scheduled"
+	mu.Unlock()
 	page.MustElement(`[data-tab=sources]`).MustClick()
 	page.MustElement(`.dt-source summary`).MustClick()
 	if !page.MustEval(`()=>document.querySelector('.dt-source').open`).Bool() {
@@ -384,6 +452,15 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	page.MustEval(`()=>{DetectiveApp.dispose('test');DetectiveApp.render(document.querySelector('#host'),'test',ctx)}`)
 	waitDetectiveQuiet(t, page)
 	page.MustElement(`[data-do=stop]:not([disabled])`)
+	page.MustElement(`.dt-auto-panel > summary`).MustClick()
+	page.MustElement(`[data-do=auto-pause]:not([disabled])`).MustClick()
+	waitDetectiveQuiet(t, page)
+	mu.Lock()
+	if c.AutoUpdate.Enabled {
+		mu.Unlock()
+		t.Fatal("read-only mode prevented pausing automatic updates")
+	}
+	mu.Unlock()
 	if page.MustEval(`()=>!!document.querySelector('[data-do=finish]')?.disabled`).Bool() == false {
 		t.Fatal("finish stayed enabled while read-only")
 	}
@@ -420,6 +497,34 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	waitDetectiveQuiet(t, page)
 	page.MustElement(`.dt-report`)
 	page.MustElement(`[data-tab=report]`).MustClick()
+	mu.Lock()
+	addition := finished.Reports[0]
+	addition.Revision, addition.BaseRevision = 2, 1
+	addition.Summary = "Neue Messung im Oktober"
+	addition.Blocks = []detective.Block{{Type: "paragraph", Text: "Eine neue belegte Messung.", Evidence: []string{"ev_1"}}}
+	archive = []detective.Report{finished.Reports[0], addition}
+	c.Reports = []detective.Report{addition}
+	mu.Unlock()
+	page.MustElement(`[data-case=case_fixture]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-tab=history]`).MustClick()
+	page.MustElement(`[data-do=history-more]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-do=history-more]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-revision="1"]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	if !strings.Contains(page.MustElement(`.dt-report`).MustText(), "Speicher") || !strings.Contains(*page.MustElement(`a.dt-download`).MustAttribute("href"), "revision=1") {
+		t.Fatal("archive selection did not bind the report and export")
+	}
+	page.MustEval(`()=>{const s=document.querySelector('.dt-revision');s.value='2';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-base-revision="1"]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	if count := page.MustEval(`()=>document.querySelectorAll('.dt-report').length`).Int(); count != 2 {
+		t.Fatal("append base was not loaded", count)
+	}
+	page.MustElement(`.dt-auto-panel > summary`).MustClick()
 	dir := filepath.Join("..", "reports", "detective")
 	os.MkdirAll(dir, 0755)
 	for _, theme := range []string{"standard", "fruity"} {
@@ -475,6 +580,7 @@ func fixtureLive(c detective.Case) detective.LiveView {
 		ID: c.ID, UpdatedAt: c.UpdatedAt, Status: c.Run.Status, Phase: c.Run.Phase, Reason: c.Run.Reason,
 		Effort: c.Request.Effort, Topic: c.Request.Topic, Usage: c.Run.Usage, Profile: c.Run.Profile,
 		Sources: len(c.Sources), Findings: len(c.Findings), Reports: len(c.Reports),
+		AutoUpdate: c.AutoUpdate,
 	}
 	if n := len(c.Reports); n > 0 {
 		view.LatestRevision = c.Reports[n-1].Revision

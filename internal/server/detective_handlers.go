@@ -64,6 +64,16 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		Answer string `json:"answer"`
 	}
 	operation := desktopMethodOperation(r.Method)
+	var autoUpdate detective.AutoUpdateSettings
+	if len(parts) == 3 && parts[0] == "cases" && parts[2] == "auto-update" && r.Method == http.MethodPut {
+		if err := detectiveDecode(w, r, &autoUpdate); err != nil {
+			detectiveError(w, err)
+			return
+		}
+		if !autoUpdate.Enabled {
+			operation = desktopStop
+		}
+	}
 	if len(parts) == 3 && parts[0] == "cases" && parts[2] == "run" && r.Method == http.MethodPost {
 		if err := detectiveDecode(w, r, &runRequest); err != nil {
 			detectiveError(w, err)
@@ -198,6 +208,88 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch parts[2] {
+	case "auto-update":
+		if r.Method != http.MethodPut {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		var c detective.Case
+		var err error
+		if !autoUpdate.Enabled && (cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl) {
+			c, err = s.Detective.Get(key)
+			if err == nil {
+				autoUpdate = c.AutoUpdate.AutoUpdateSettings
+				autoUpdate.Enabled = false
+				c, err = s.Detective.SetAutoUpdate(key, autoUpdate)
+			}
+		} else {
+			ctx, release, grantErr := s.beginDesktopRun(r.Context())
+			if grantErr != nil {
+				detectiveError(w, grantErr)
+				return
+			}
+			defer release()
+			err = publishDesktopResult(ctx, func() error { c, err = s.Detective.SetAutoUpdate(key, autoUpdate); return err })
+		}
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, c)
+	case "reports", "sources", "findings":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		before, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
+		if r.URL.Query().Get("before") == "" {
+			before, err = 0, nil
+		}
+		if err != nil {
+			detectiveError(w, errors.New("invalid archive cursor"))
+			return
+		}
+		limit := 20
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			limit, err = strconv.Atoi(raw)
+		}
+		if err != nil {
+			detectiveError(w, errors.New("invalid archive limit"))
+			return
+		}
+		page, err := s.Detective.Archive(key, parts[2], before, limit, r.URL.Query().Get("query"))
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, page)
+	case "report":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		revision, err := strconv.Atoi(r.URL.Query().Get("revision"))
+		if err != nil || revision < 1 {
+			detectiveError(w, errors.New("report revision required"))
+			return
+		}
+		report, err := s.Detective.ReportRevision(key, revision)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, report)
+	case "source":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		source, err := s.Detective.Source(key, r.URL.Query().Get("id"))
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, source)
 	case "events":
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", 405)
