@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/videostudio"
 	"aurago/internal/videostudio/goldenframe"
 
 	"github.com/go-rod/rod"
@@ -84,8 +85,15 @@ const videoStudioGoldenJS = `(function () {
   window.vsGolden = { files, mediaURL, render };
 })();`
 
-// newVideoStudioEngineServer serves the shipped UI files, mediaDir under /media/ (when set) and /engine: a page that
-// loads only the preview engine (module-loader order up to video-studio-preview.js) plus window.vsGolden.
+// videoStudioEngineLookPath is the server's built-in look endpoint (index §4.20), which the engine page mirrors.
+const videoStudioEngineLookPath = "/api/desktop/video-studio/luts/builtin/"
+
+// newVideoStudioEngineServer serves:
+//   - the shipped UI files;
+//   - mediaDir under /media/ (when set);
+//   - the built-in looks under /api/desktop/video-studio/luts/builtin/<id>.cube from videostudio.BuiltinLookCube;
+//   - /engine, a page that loads only the preview engine (module-loader order up to video-studio-preview.js) plus
+//     window.vsGolden.
 func newVideoStudioEngineServer(t *testing.T, mediaDir string) *httptest.Server {
 	t.Helper()
 	var page strings.Builder
@@ -100,6 +108,18 @@ func newVideoStudioEngineServer(t *testing.T, mediaDir string) *httptest.Server 
 	if mediaDir != "" {
 		mux.Handle("/media/", http.StripPrefix("/media/", http.FileServer(http.Dir(mediaDir))))
 	}
+	// GL previews fetch builtin:<id> refs here, with the bytes the server's look endpoint serves.
+	mux.HandleFunc(videoStudioEngineLookPath, func(w http.ResponseWriter, r *http.Request) {
+		id, ok := strings.CutSuffix(strings.TrimPrefix(r.URL.Path, videoStudioEngineLookPath), ".cube")
+		data, found := videostudio.BuiltinLookCube(id)
+		if !ok || !found {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		_, _ = w.Write(data)
+	})
 	mux.HandleFunc("/engine", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")

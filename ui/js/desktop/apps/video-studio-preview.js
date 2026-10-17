@@ -6,6 +6,8 @@
     const MAX_RATE = 8, REVERSE_STEP_MS = 100;
     // settle() polls every 20 ms; a seek whose frame callback never arrives counts as shown 250 ms after 'seeked'.
     const SETTLE_POLL_MS = 20, SETTLE_GRACE_MS = 250;
+    // Built-in looks are served as .cube by the look endpoint (index §4.20).
+    const BUILTIN_LUT_URL = '/api/desktop/video-studio/luts/builtin/';
 
     // Only same-origin media plays. options.mediaURL may pick another URL (a proxy); it passes the same check.
     function sameOriginURL(value) {
@@ -93,7 +95,10 @@
                     if (programFailures.some(item => item.kind === kind && item.id === id)) return;
                     programFailures.push({ kind, id });
                     if (options && typeof options.onProgramFailed === 'function') options.onProgramFailed(kind, id);
-                }
+                },
+                // LUT tables for the GL painter's lut passes (index §4.5); a finished load repaints the frame.
+                loadLUT(ref) { return fetchLUT(ref); },
+                onResource() { if (!disposed) paint(frame); }
             };
         }
         function choosePainter() {
@@ -153,6 +158,27 @@
             let raw = asset.media_url;
             if (pickURL) { try { raw = pickURL(asset); } catch (_) { raw = asset.media_url; } }
             return sameOriginURL(raw);
+        }
+
+        // The URL of a LUT ref (index §4.5): builtin:<id> comes from the look endpoint. Any other ref must name a
+        // project asset of kind lut, fetched through the same media URL as other media (options.mediaURL, else
+        // media_url). Same origin only; '' when there is none.
+        function lutURL(ref) {
+            const text = String(ref || '');
+            if (text.startsWith('builtin:')) return text.length > 8 ? sameOriginURL(BUILTIN_LUT_URL + encodeURIComponent(text.slice(8)) + '.cube') : '';
+            const project = getProject();
+            const asset = text && project ? (project.assets || []).find(item => item.id === text && item.kind === 'lut') : null;
+            return asset ? sourceURL(asset) : '';
+        }
+        // Fetches and parses a LUT with VideoStudioPicture.parseCube (Go ParseCube's rules) into
+        // {size, domainMin, domainMax, data}. It rejects for an unknown ref, an HTTP error or a bad table.
+        function fetchLUT(ref) {
+            const url = lutURL(ref);
+            if (!url) return Promise.reject(new Error('lut_not_found'));
+            return fetch(url, { credentials: 'same-origin' }).then(response => {
+                if (!response.ok) throw new Error('lut_http_' + response.status);
+                return response.text();
+            }).then(text => window.VideoStudioPicture.parseCube(text));
         }
 
         function entry(asset, clip) {
@@ -399,7 +425,11 @@
                 return el.__vsFrameSeen !== false || (el.__vsSeekedAt > 0 && performance.now() - el.__vsSeekedAt >= SETTLE_GRACE_MS);
             }));
         }
-        // Resolves true once the media of the current frame settled, after one more paint; false after timeoutMs.
+        // The painter holds every resource the frame needs: the GL painter has no LUT load in flight (pending()), and the
+        // 2D painter never loads anything.
+        function painterIdle() { return !(painter && typeof painter.pending === 'function' && painter.pending() > 0); }
+        // Resolves true once the media of the current frame settled and the painter is idle, after one more paint; false
+        // after timeoutMs.
         function settle(timeoutMs) {
             const deadline = Date.now() + Math.max(0, Number(timeoutMs) || 0);
             paint(frame);
@@ -407,7 +437,7 @@
                 const check = () => {
                     const project = getProject();
                     if (disposed || !project) { resolve(false); return; }
-                    if (mediaSettled(project)) { paint(frame); resolve(true); return; }
+                    if (mediaSettled(project) && painterIdle()) { paint(frame); resolve(true); return; }
                     if (Date.now() >= deadline) { resolve(false); return; }
                     paint(frame);
                     setTimeout(check, SETTLE_POLL_MS);

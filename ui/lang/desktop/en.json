@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Preview quality",
   "videoStudio.previewFallback": "Simple preview: effects, blend modes, masks and keying are not shown here.",
   "videoStudio.previewTransitionFallback": "A transition cannot be drawn in this preview and shows as a cut. The export is not affected.",
+  "videoStudio.previewEffectFallback": "An effect cannot be drawn in this preview and is skipped here. The export is not affected.",
   "videoStudio.quality_auto": "Auto",
   "videoStudio.quality_full": "Full",
   "videoStudio.quality_half": "Half",

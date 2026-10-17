@@ -2,6 +2,7 @@
     'use strict';
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const NO_CROP = Object.freeze({ l: 0, t: 0, r: 0, b: 0 });
 
     // The 2D painter (phase 2 index §4.5, §4.8): the preview's previous drawing behind the painter interface. It keeps
     // the phase 0/1 geometry (no even rounding) and draws transform, opacity, contain/cover and the four transitions
@@ -24,25 +25,39 @@
             return layerContext;
         }
 
-        // Draws one item into ctx; alphaScale carries the share of a transition the clip owns.
+        // Draws one item into ctx; alphaScale carries the share of a transition the clip owns. Crop and flip follow
+        // index §4.8 and §4.20:
+        // - The crop rect is rounded in decoded pixels (VideoStudioPicture.decodedSize: the asset size, swapped for a
+        //   rotated element). It maps to the element's pixels (a proxy is smaller) and becomes drawImage's source
+        //   rectangle.
+        // - item.state.crop is evaluated per frame, so an animated crop uses the same per-frame rect.
+        // - Contain and cover fit that rectangle.
+        // - Flips mirror about the box centre with a negative scale. Crop fractions refer to the unflipped source, so
+        //   the source rectangle does not change.
+        // - Effects are never drawn here.
         function drawItem(ctx, item, alphaScale) {
             if (!item || !item.ready || !item.el) return;
-            const el = item.el, asset = item.asset || {}, state = item.state || {};
+            const el = item.el, asset = item.asset || {}, state = item.state || {}, picture = window.VideoStudioPicture;
             const iw = Number(el.videoWidth || el.naturalWidth || asset.width || 0);
             const ih = Number(el.videoHeight || el.naturalHeight || asset.height || 0);
             if (!iw || !ih) return;
+            const decoded = picture.decodedSize(asset, iw, ih);
+            const rect = picture.cropRect(state.crop || NO_CROP, decoded.width, decoded.height);
+            const sx = rect.x * iw / decoded.width, sy = rect.y * ih / decoded.height;
+            const sw = rect.w * iw / decoded.width, sh = rect.h * ih / decoded.height;
             const cw = canvas.width, ch = canvas.height;
             const x = Number(state.x || 0) * cw, y = Number(state.y || 0) * ch;
             const w = Number(state.width || 1) * cw, h = Number(state.height || 1) * ch;
             const cover = state.fit === 'cover';
-            const scale = cover ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih);
-            const dw = iw * scale, dh = ih * scale;
+            const scale = cover ? Math.max(w / sw, h / sh) : Math.min(w / sw, h / sh);
+            const dw = sw * scale, dh = sh * scale;
             ctx.save();
             ctx.globalAlpha = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1) * (alphaScale == null ? 1 : alphaScale);
             ctx.translate(x + w / 2, y + h / 2);
             ctx.rotate(Number(state.rotation || 0) * Math.PI / 180);
             if (cover) { ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip(); }
-            ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
+            if (state.flipH || state.flipV) ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
+            ctx.drawImage(el, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
             ctx.restore();
         }
 
@@ -104,6 +119,7 @@
         return {
             kind: '2d', canvas, frame, read,
             release() {}, // the 2D painter keeps no per-clip resources
+            pending() { return 0; }, // nothing loads: effects (and their LUTs) are never drawn in 2D
             dispose() { layer = null; layerContext = null; context.clearRect(0, 0, canvas.width, canvas.height); }
         };
     }

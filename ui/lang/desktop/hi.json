@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "पूर्वावलोकन गुणवत्ता",
   "videoStudio.previewFallback": "सरल पूर्वावलोकन: इफ़ेक्ट, ब्लेंड मोड, मास्क और कीइंग यहाँ नहीं दिखाए जाते।",
   "videoStudio.previewTransitionFallback": "इस पूर्वावलोकन में एक ट्रांज़िशन नहीं बनाया जा सकता, इसलिए वह कट के रूप में दिखता है। निर्यात पर इसका असर नहीं पड़ता।",
+  "videoStudio.previewEffectFallback": "इस पूर्वावलोकन में एक इफ़ेक्ट नहीं बनाया जा सकता, इसलिए उसे यहाँ छोड़ दिया जाता है। निर्यात पर इसका असर नहीं पड़ता।",
   "videoStudio.quality_auto": "ऑटो",
   "videoStudio.quality_full": "पूर्ण",
   "videoStudio.quality_half": "आधी",

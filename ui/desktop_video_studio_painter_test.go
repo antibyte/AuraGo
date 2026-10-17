@@ -86,6 +86,7 @@ window.VideoStudioCompositor = {
 };
 require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-picture.js');
 require('./js/desktop/apps/video-studio-painter2d.js');
 require('./js/desktop/apps/video-studio-preview.js');
 const Preview = window.VideoStudioPreview;

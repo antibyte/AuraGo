@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Förhandsvisningskvalitet",
   "videoStudio.previewFallback": "Enkel förhandsvisning: effekter, blandningslägen, masker och keying visas inte här.",
   "videoStudio.previewTransitionFallback": "En övergång kan inte ritas i den här förhandsvisningen och visas som ett klipp. Exporten påverkas inte.",
+  "videoStudio.previewEffectFallback": "En effekt kan inte ritas i den här förhandsvisningen och hoppas över här. Exporten påverkas inte.",
   "videoStudio.quality_auto": "Automatisk",
   "videoStudio.quality_full": "Full",
   "videoStudio.quality_half": "Halv",

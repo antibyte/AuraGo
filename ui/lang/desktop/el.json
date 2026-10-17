@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Ποιότητα προεπισκόπησης",
   "videoStudio.previewFallback": "Απλή προεπισκόπηση: τα εφέ, οι λειτουργίες ανάμειξης, οι μάσκες και το keying δεν εμφανίζονται εδώ.",
   "videoStudio.previewTransitionFallback": "Μια μετάβαση δεν μπορεί να σχεδιαστεί σε αυτή την προεπισκόπηση και εμφανίζεται ως απότομη αλλαγή. Η εξαγωγή δεν επηρεάζεται.",
+  "videoStudio.previewEffectFallback": "Ένα εφέ δεν μπορεί να σχεδιαστεί σε αυτή την προεπισκόπηση και παραλείπεται εδώ. Η εξαγωγή δεν επηρεάζεται.",
   "videoStudio.quality_auto": "Αυτόματη",
   "videoStudio.quality_full": "Πλήρης",
   "videoStudio.quality_half": "Μισή",

@@ -16,6 +16,7 @@ global.window = {};
 global.location = {origin:'http://localhost'};
 require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-picture.js');
 const allMedia = [], audioContexts = [];
 class MediaElement {
   constructor() { this.src=''; this.paused=true; this.currentTime=0; this.playbackRate=1; this.readyState=2; this.videoWidth=640; this.videoHeight=360; this.removed=0; }

@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Voorbeeldkwaliteit",
   "videoStudio.previewFallback": "Eenvoudig voorbeeld: effecten, overvloeimodi, maskers en keying worden hier niet getoond.",
   "videoStudio.previewTransitionFallback": "Een overgang kan in dit voorbeeld niet worden getekend en wordt als harde knip getoond. De export wordt niet beïnvloed.",
+  "videoStudio.previewEffectFallback": "Een effect kan in dit voorbeeld niet worden getekend en wordt hier overgeslagen. De export wordt niet beïnvloed.",
   "videoStudio.quality_auto": "Automatisch",
   "videoStudio.quality_full": "Volledig",
   "videoStudio.quality_half": "Half",

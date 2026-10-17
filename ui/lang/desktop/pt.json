@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Qualidade da pré-visualização",
   "videoStudio.previewFallback": "Pré-visualização simples: efeitos, modos de mistura, máscaras e chroma key não são mostrados aqui.",
   "videoStudio.previewTransitionFallback": "Uma transição não pode ser desenhada nesta pré-visualização e aparece como um corte. A exportação não é afetada.",
+  "videoStudio.previewEffectFallback": "Um efeito não pode ser desenhado nesta pré-visualização e é ignorado aqui. A exportação não é afetada.",
   "videoStudio.quality_auto": "Automática",
   "videoStudio.quality_full": "Total",
   "videoStudio.quality_half": "Metade",

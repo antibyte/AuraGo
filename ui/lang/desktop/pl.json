@@ -6151,6 +6151,7 @@
   "videoStudio.previewQuality": "Jakość podglądu",
   "videoStudio.previewFallback": "Uproszczony podgląd: efekty, tryby mieszania, maski i kluczowanie nie są tu wyświetlane.",
   "videoStudio.previewTransitionFallback": "Tego przejścia nie można narysować w podglądzie, dlatego jest wyświetlane jako cięcie. Nie wpływa to na eksport.",
+  "videoStudio.previewEffectFallback": "Tego efektu nie można narysować w podglądzie, dlatego jest tutaj pomijany. Nie wpływa to na eksport.",
   "videoStudio.quality_auto": "Automatyczna",
   "videoStudio.quality_full": "Pełna",
   "videoStudio.quality_half": "Połowa",
