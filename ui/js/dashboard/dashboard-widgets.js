@@ -185,6 +185,8 @@
                 body: JSON.stringify(payload)
             });
             if (!resp.ok) return null;
+            // The mutation changes /api/personality/state without a personality_update SSE.
+            DashAPI.invalidate('/api/personality/');
             const data = await resp.json();
             renderMoodBadge(data);
             return data;
