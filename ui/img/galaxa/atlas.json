@@ -20923,25 +20923,25 @@
       "frame": [
         0,
         0,
-        397,
+        387,
         661
       ]
     },
     "asteroid": {
       "sheet": "backgrounds",
       "frame": [
-        397,
+        389,
         0,
-        396,
+        384,
         661
       ]
     },
     "crystal": {
       "sheet": "backgrounds",
       "frame": [
-        793,
+        775,
         0,
-        397,
+        415,
         661
       ]
     },
@@ -20950,25 +20950,25 @@
       "frame": [
         0,
         661,
-        397,
+        387,
         661
       ]
     },
     "blackhole": {
       "sheet": "backgrounds",
       "frame": [
-        397,
+        389,
         661,
-        396,
+        384,
         661
       ]
     },
     "void": {
       "sheet": "backgrounds",
       "frame": [
-        793,
+        775,
         661,
-        397,
+        415,
         661
       ]
     }
