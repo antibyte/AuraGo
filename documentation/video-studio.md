@@ -206,6 +206,84 @@ stopped during the copy) is removed when it starts again. Deleting a project ask
 Export can render only the in/out range when both points are set: the export dialog offers the range with its times, and
 the download is named `<project> (in-out).mp4`.
 
+## Keyframes and speed ramps
+
+**Animate a clip.** The position, width, height, rotation and opacity of a picture, title or sticker can change over
+time. In the inspector's Picture section each of them has a stopwatch: turn it on and the current value becomes the
+first keyframe at the playhead. The diamond next to it adds or removes a keyframe at the playhead, and ◀ ▶ jump to the
+previous or next keyframe. While a property is animated, every change at the playhead sets a keyframe there: a slider,
+a field, a position button, Full frame or dragging the box in the preview. A new keyframe takes the easing of the
+keyframe before it. Turning the stopwatch off removes the property's keyframes and keeps the value at the playhead. The
+keyframe controls work only while the playhead is inside the selected clip.
+
+**Keyframes stay with the picture.** A keyframe belongs to a frame of the source, not to a place on the timeline.
+Trimming, splitting, slipping, sliding and speed changes keep every keyframe on the same picture content. A split copies
+the keyframes to both parts, so the motion continues across the cut. Keyframes outside the visible part of a clip are
+kept. Reverse mirrors them, Freeze frame takes the values at the frozen frame, and a frame-rate change rescales them.
+Paste attributes has a Keyframes group that copies them with the same timing relative to the clip start.
+
+**Easing.** Between two keyframes the easing of the first one applies:
+- Linear.
+- Ease in, Ease out, and Ease in and out (smooth cubic curves).
+- Hold: the value jumps at the next keyframe.
+
+Before the first and after the last keyframe the value stays constant. A property holds up to 64 keyframes and a clip
+up to 512.
+
+**Keyframe strip.** When the selected clip has keyframes or a speed ramp, a strip opens below its track. Its summary row
+has a diamond for every frame that holds keyframes, and the chevron shows one row per property and the speed lane. A
+diamond's shape shows its easing: a diamond for Linear, a circle for the smooth curves, a square for Hold.
+- Click a diamond to select it; `Shift` adds to the selection.
+- Drag a diamond along the timeline in whole frames; with snapping on, it snaps to the playhead.
+- `←`/`→` move the selection by one frame (`Shift`: ten), and `Del` deletes it. `Del` never deletes the clip there.
+- Double-click a diamond to put the playhead on it.
+- Right-click a diamond, or press `Shift+F10`, for its easing, Copy keyframes, Paste keyframes at the playhead and Delete.
+
+While keyframes are copied, the strip also opens under other picture clips, so the keyframes can be pasted there with
+the same spacing.
+
+**Speed ramps.** A video clip on a video track has an Animation section in the inspector with speed ramp presets:
+- Ramp up: up to twice the speed, easing in and out.
+- Ramp down: from twice the speed down.
+- Slow middle: a quarter of the speed between 40 % and 60 % of the clip.
+- Custom: a flat ramp that you shape in the speed lane.
+- None: back to 1×.
+
+Presets start from the clip's speed (1× when it already has a ramp). They keep the clip's source range and move the
+later clips on the track, like a speed change. With **Keep duration** checked they keep the clip's length and use more
+or less of the source, which needs enough media.
+
+**Edit in the timeline** opens the speed lane. It draws the speed on a logarithmic scale, from 0.25× at the bottom to
+16× at the top. In the lane:
+- Drag a point sideways to move it, and up or down to change its speed.
+- `←`/`→` move the point by a frame (`Shift`: ten), and `↑`/`↓` change its speed (`Shift`: by a factor of two).
+- Double-click the lane to add a point, and press `Del` to remove one.
+- Right-click a point for its easing.
+
+A ramp holds up to 16 points. An edit the media cannot hold is not applied.
+
+While a clip has a ramp, its Speed field is empty and shows **Ramp**. Entering a number replaces the ramp with that
+constant speed; undo brings the ramp back. Slip and Reverse are not available on a ramped clip: reverse it first, then
+add the ramp. Freeze frame and Export frame as PNG take the frame the ramp shows at the playhead.
+
+**Sound of ramped clips.** A ramped clip's own sound is muted in the preview and in the export. The inspector says so in
+the Animation and Sound sections, and the clip shows a ramp badge with a crossed-out speaker. Use **Detach audio** to
+keep the sound: the detached audio clip plays at normal speed and is not ramped.
+
+**Shortcuts.**
+- `Alt+K` adds or removes keyframes of every animated property of the selected clip at the playhead.
+- `Alt+↑` and `Alt+↓` jump to the previous or next keyframe.
+- `Del` in the keyframe strip deletes the selected keyframes.
+
+The shortcuts also work on keyboards where Option or AltGr changes the typed character, and while a button has focus.
+In a text or number field they keep their usual meaning there. The keyboard overview lists them.
+
+**Preview and export.** The preview shows keyframes and ramps with the same formulas as the export, in the WebGL2 and in
+the 2D drawing; golden tests compare both with FFmpeg's frames. The export moves and turns animated pictures exactly on
+every frame, whatever segments it renders in. Exports of keyframed clips need FFmpeg's `sendcmd` filter, which the
+FFmpeg 5.1 builds of supported systems include. When it is missing, **Check Video Studio** reports it and such an export
+stops with a message.
+
 ## Preview engine, proxies and range check
 
 **Preview engine.** The timeline preview draws with WebGL2 when the browser offers it. It shows what the export
@@ -334,9 +412,9 @@ landscape, portrait, or square export format remains independently selectable.
 ## Scope and verification
 
 Version 1 focuses on short videos. It does not include 4K, animated stickers,
-keyframe animation, automatic subtitles, professional color grading, or an AI
-editing assistant. Provider credentials and runtime state are never stored in
-project JSON. No agent tool is added by enabling the editor.
+automatic subtitles, professional color grading, or an AI editing assistant.
+Provider credentials and runtime state are never stored in project JSON. No agent
+tool is added by enabling the editor.
 
 Local verification includes model validation, real FFmpeg video/audio fixtures,
 file and job permission tests, conflict handling, and browser flows. A local

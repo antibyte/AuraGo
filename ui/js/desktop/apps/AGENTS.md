@@ -1434,7 +1434,7 @@ buttons and menu popovers remain excluded from those gestures.
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
   drawer, timeline height, transform box, field edits), `-editing.js`
   (selection, clipboard, tools, edit commands and shortcuts), `-keyframes.js`
-  (keyframe controls, strip and shortcuts), `-source.js`
+  (keyframe controls, strip, speed lane and shortcuts), `-source.js`
   (source monitor), `-tracks.js` (track commands, targets, heights, solo),
   `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
   loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-derive.js`
@@ -1578,6 +1578,51 @@ buttons and menu popovers remain excluded from those gestures.
   `painterKind()` instead of assuming one; the UI fixture also runs a forced-2D pass through the hidden setting. Never
   call `restoreContext()` in the same microtask as `webglcontextlost` (Chrome ignores it): wait a task first, and give
   every event wait a timeout.
+- Keyframes and speed ramps (phase 2b), DOM-free part: `VideoStudioKeyframeEdit` (`video-studio-keyframe-edit.js`,
+  directly after `-edit.js`) holds every keyframe and ramp operation, each returning `true` or a `VideoStudioEdit.REASON`:
+  `keyFrame`, `atPlayhead`, `setAnimated`, `toggleKeyframe`, `setValues`, `neighbor`, `moveKeys`, `removeKeys`,
+  `setEasing`, `copyKeys`, `pasteKeys`, `rampPreset`, `setRamp`, `applyRampPreset`, `addRampPoint`, `moveRampPoint`
+  and `removeRampPoint`. The app runs them through `applyEdit`.
+  - The shared math is in `VideoStudioEffects` (`ease`, `sample`, `sourceAt`/`timelineAt`, `rampPieces`, `clipSource`,
+    `sourceExtent`, `speedAt`, `headShift`, `meanSpeed`, …; parity topics `easing`, `keyframes`, `ramp`).
+  - Keyframe `f` is a source frame (the content anchor), so keys are never remapped on trims, split, slip, slide or
+    speed changes. Head edits go through `headShift`.
+  - `slip` and reverse refuse ramped clips with reason `ramp` (notice `editRamp`), and `setSpeed` replaces a ramp. On a
+    ramped clip `setSpeed` keeps `round(sourceExtent / speed) + 1` frames; `'none'` is `setSpeed(1)`, which also resets
+    a constant speed.
+  - Presets start from `speedOf(clip)` (1 once ramped). By default they keep the source range: the duration whose
+    ramped extent is closest, found by bisection. They then ripple the track like `setSpeed`; `keepDuration` keeps the
+    length.
+- Keyframes and speed ramps (phase 2b), UI part: `video-studio-keyframes.js` (DOM, directly after `-editing.js`) holds
+  the inspector controls, the shortcuts and the strip.
+  - Inspector controls: `[data-kf-path][data-kf-action="stopwatch|key|prev|next"]` (`P.keyframeView`,
+    `P.handleKeyframeClick`, `P.syncKeyframeControls`; auto-key through `setValues`). A live drag whose auto-key is
+    refused restores the clip in place (`liveValues` in `-stage.js`).
+  - Shortcuts: `P.keyframeCommand`, `P.isKeyframeShortcut` and `P.handleKeyframeKeys` (Alt+K, Alt+↑/↓, matched by
+    `event.code`). `handleKeyframeKeys` runs after the text-field guard, so the keys also work while a button has focus;
+    inside number inputs Alt+↑ still steps the field natively.
+  - Strip rendering: `timelineOptions.stripAfter` calls `P.keyframeStrip`, which draws `[data-kf-strip=<clipId>]` after
+    the selected visual clip's track row while the clip has keyframes or a ramp, or `s.kfBoard` holds copied keys. The
+    rows are `.vs-kf-row[data-kf-row="summary|<path>|speed"]` and carry no `data-track-row` and no `.vs-track-lane`, so
+    every timeline gesture (drag, band, drop, blade, context menu) passes them by. A key at the very first lane pixel
+    is half hidden under the sticky row head (known cosmetic issue).
+  - Strip geometry comes from `VideoStudioKeyframes.stripModel(project, clip, pps, view)`, which places keys at
+    `timelineAt` and flags keys outside the clip.
+  - Strip input: `P.wireKeyframeStrip` (listeners on the timeline root with `s.abort.signal`) handles the diamonds
+    `button[data-kf-key][data-kf-path][data-kf-f]`; a summary diamond has `data-kf-path="summary"`. The selection is
+    `s.kfStrip`. Drags move in timeline frames with playhead snap, and arrows move keys. Del/Backspace stop the event,
+    so the clip stays. The menu goes through `openMenu`, with `menuitemradio` easings. The handler also covers the
+    chevron `[data-kf-action="expand"]` and the ramp points `button[data-ramp-point]` (log-scale y, clamped to the
+    clip; drags keep the last valid state). The strip restores focus after its own re-renders, because the timeline's
+    `focusSelector` does not know the diamonds.
+  - Animation section: `[data-ramp-preset]`, `[data-ramp-keep]`, `[data-action="ramp-edit"]` (`P.applyRampPreset`), and
+    the notice `[data-ramp-notice]` (`rampMuted`, also in Sound). While ramped, the speed field is empty with the
+    placeholder `speedRampActive`. The clip badge is `.vs-clip-ramp`, and the timeline filmstrip samples `clipSource`
+    (`video-studio-library.js`).
+  - Preview: `clipState` evaluates keyframes for both painters, media sync uses `sourceAt`/`speedAt`, and linked audio of
+    ramped video-track clips is muted (`rules.audioAllowed`).
+  - Node checks: `go test ./ui -run 'TestVideoStudio(Keyframe|Ramp|Effects|Canonical|ValidTimeline|Preview|Navigation)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopVideoStudioKeyframesBrowser -count=1 -timeout 20m`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
