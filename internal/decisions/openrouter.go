@@ -696,7 +696,7 @@ func mapOpenRouterAnswer(question Question, options []Option, raw openRouterAnsw
 			return Answer{}, fmt.Errorf("OpenRouter response has an invalid noul answer for question %q", question.ID)
 		}
 		if len(raw.Probabilities) > 0 {
-			if err := validateProbabilityKeys(raw.Probabilities, []string{"no", "yes"}); err != nil || math.Abs(raw.Probabilities["yes"]-*raw.Noul) > openRouterProbabilityTolerance {
+			if err := validateProbabilityKeys(raw.Probabilities, []string{"no", "yes"}); err != nil || math.Abs(raw.Probabilities["yes"]-*raw.Noul) > openRouterProbabilityTolerance+1e-9 {
 				return Answer{}, fmt.Errorf("OpenRouter response has invalid noul probabilities for question %q", question.ID)
 			}
 		}
@@ -769,7 +769,7 @@ func mapOpenRouterAnswer(question Question, options []Option, raw openRouterAnsw
 		if math.IsNaN(expected) || math.IsInf(expected, 0) {
 			return Answer{}, fmt.Errorf("OpenRouter response expected score is not finite for question %q", question.ID)
 		}
-		if math.Abs(ordinalExpected-*raw.Score) > openRouterScoreTolerance {
+		if !openRouterScoreConsistent(raw.Probabilities, keys, ordinalExpected, *raw.Score) {
 			return Answer{}, fmt.Errorf("OpenRouter response score disagrees with its probabilities for question %q", question.ID)
 		}
 		maximum, best := maximumProbability(options, mapped)
@@ -809,10 +809,53 @@ func validateProbabilityKeys(probabilities map[string]float64, expected []string
 		}
 		total += probability
 	}
-	if math.Abs(total-1) > openRouterProbabilityTolerance {
+	tolerance := openRouterProbabilityTolerance
+	if hundredthProbabilities(probabilities, expected) {
+		tolerance = math.Max(tolerance, float64(len(expected))*0.005)
+	}
+	if total <= 0 || math.Abs(total-1) > tolerance+1e-9 {
 		return errors.New("probabilities are not normalized")
 	}
 	return nil
+}
+
+func hundredthProbabilities(probabilities map[string]float64, keys []string) bool {
+	for _, key := range keys {
+		value := probabilities[key] * 100
+		if math.Abs(value-math.Round(value)) > 1e-9 {
+			return false
+		}
+	}
+	return true
+}
+
+func openRouterScoreConsistent(probabilities map[string]float64, keys []string, expected, score float64) bool {
+	if !hundredthProbabilities(probabilities, keys) {
+		return math.Abs(expected-score) <= openRouterScoreTolerance+1e-9
+	}
+	// Fill the remaining probability mass from either end to bound every
+	// normalized distribution that could have produced these rounded values.
+	bound := func(reverse bool) float64 {
+		total, result := 0.0, 0.0
+		for i, key := range keys {
+			lower := math.Max(0, probabilities[key]-0.005)
+			total += lower
+			result += float64(i) * lower
+		}
+		remaining := math.Max(0, 1-total)
+		for offset := range keys {
+			i := offset
+			if reverse {
+				i = len(keys) - 1 - offset
+			}
+			p := probabilities[keys[i]]
+			mass := math.Min(remaining, math.Min(1, p+0.005)-math.Max(0, p-0.005))
+			remaining -= mass
+			result += float64(i) * mass
+		}
+		return result
+	}
+	return score >= bound(false)-0.005-1e-9 && score <= bound(true)+0.005+1e-9
 }
 
 func normalizedProbabilityMap(probabilities map[string]float64, expected []string) (map[string]float64, error) {
