@@ -165,6 +165,9 @@
         GC.createAudio(gameCtx);
         GC.createTweens(gameCtx);
         GC.createSprites(gameCtx);
+        GC.createExpansionContent(gameCtx);
+        GC.createPlanets(gameCtx);
+        GC.createAsteroids(gameCtx);
         GC.createBackground(gameCtx);
         GC.createEntities(gameCtx);
         GC.createRenderer(gameCtx);
@@ -318,6 +321,7 @@
             window.removeEventListener('blur', suspendLoop); window.removeEventListener('focus', syncLoop);
             document.removeEventListener('visibilitychange', syncLoop); document.removeEventListener('focusin', syncLoop); visibilityObserver.disconnect();
             host.removeEventListener('pointerdown', activate); cancelAnimationFrame(gameCtx.resizeRaf);
+            gameCtx.disposePlanets();
             gameCtx.clearGameSchedule(); if (gameCtx.disposeAudio) gameCtx.disposeAudio();
             ro.disconnect(); gameCtx.radialGradientCache.clear(); if (gameCtx.clearSpriteAtlasCache) gameCtx.clearSpriteAtlasCache();
             if (gameCtx.reverbNode) try { gameCtx.reverbNode.disconnect(); } catch (_) {}

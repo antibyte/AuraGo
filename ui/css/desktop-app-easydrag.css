@@ -507,7 +507,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ports */
 .ed-port {
-    position: absolute; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; z-index: 1;
+    position: absolute; top: var(--port-top, 50%); width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; z-index: 1;
     background: var(--ed-panel-strong); border: 2px solid var(--ed-border-strong); cursor: crosshair;
     transition: transform var(--ed-fast) var(--ed-ease), border-color var(--ed-fast) var(--ed-ease), background var(--ed-fast) var(--ed-ease);
 }
@@ -590,12 +590,16 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-minimap {
     position: absolute; right: 12px; bottom: 12px; width: 200px; height: 130px; overflow: hidden; cursor: pointer;
     border-radius: 12px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow); backdrop-filter: blur(10px);
-    transition: opacity var(--ed-base) var(--ed-ease);
+    transition: opacity var(--ed-base) var(--ed-ease), right var(--ed-base) var(--ed-ease);
 }
 .ed-minimap svg { width: 100%; height: 100%; }
+.ed-minimap-wire { stroke: color-mix(in srgb, var(--ed-muted) 55%, transparent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .ed-minimap-nodes rect { fill: color-mix(in srgb, var(--ed-cat) 55%, var(--ed-panel-strong)); }
+.ed-minimap-nodes rect[data-status="error"] { fill: var(--ed-danger); }
+.ed-minimap-nodes rect[data-status="running"], .ed-minimap-nodes rect[data-status="queued"] { fill: var(--ed-info); }
+.ed-minimap-nodes rect[data-status="success"] { fill: color-mix(in srgb, var(--ed-ok) 75%, var(--ed-panel-strong)); }
 .ed-minimap-view { fill: color-mix(in srgb, var(--ed-accent) 10%, transparent); stroke: var(--ed-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.ed-editor.has-drawer .ed-minimap { opacity: 0; pointer-events: none; }
+.ed-editor.has-drawer .ed-minimap { right: 352px; }
 .ed-empty:not([hidden]) ~ .ed-minimap { display: none; }
 
 /* ── quick add ──────────────────────────────────────────────────────────────── */
@@ -990,6 +994,14 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border-radius: var(--ed-radius); background: color-mix(in srgb, var(--ed-danger) 9%, transparent);
 }
 .ed-flow-grid > .ed-home-retry { grid-column: 1 / -1; justify-content: flex-start; margin-top: -6px; }
+.ed-home.is-drop-target { outline: 2px dashed var(--ed-accent); outline-offset: -8px; background: color-mix(in srgb, var(--ed-accent) 5%, var(--ed-bg)); }
+.ed-home-sort { width: auto; min-width: 140px; height: 34px; padding: 4px 10px; font-size: 12.5px; }
+.ed-col-tools { display: flex; align-items: center; gap: 6px; }
+.ed-input.is-invalid { border-color: var(--ed-danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ed-danger) 22%, transparent); }
+.ed-versions-list { display: grid; gap: 6px; max-height: 360px; overflow: auto; }
+.ed-version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: var(--ed-radius); background: var(--ed-control); border: 1px solid var(--ed-border); }
+.ed-version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; }
+.ed-chip--live { background: color-mix(in srgb, var(--ed-ok) 18%, transparent); color: var(--ed-ok-ink); }
 
 /* focus: these controls draw their own ring (border and shadow, or the template wrapper) and show no outline */
 .ed-app .ed-input:focus-visible,

@@ -1,0 +1,9 @@
+{
+  "id": "ringed-c",
+  "kind": "planet",
+  "file": "exp-planet-ringed-c.png",
+  "source": "exec-c0faa4c3-faf8-4552-81ad-3b3d4775673b.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-ringed-a.png",
+  "prompt": "Continue the supplied golden planet with full icy rings animation with exactly FOUR consecutive frames in a 2x2 grid, image dimensions at least 1024x1024, cells at least 512x512. Preserve reference geography, lighting, silhouette, scale and centered placement EXACTLY. Keep the entire planet and all ring tips inside its own cell, with a fully transparent margin. Create frames 9-12 of the twelve-frame subtle cloud cycle, gently returning the fine clouds and storm wisps to their starting positions; last frame almost matches the first reference frame. No changes to camera, solid structures or colors. Every frame subtly differs. True transparent background, no stars, labels, grid or extra objects."
+}

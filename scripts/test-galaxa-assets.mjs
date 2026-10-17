@@ -42,8 +42,10 @@ for (const buildKey of ['BUILD_VERSION', 'AURAGO_BUILD_VERSION']) {
     const pending = load();
     assert.equal(load(), pending, 'concurrent loads must share one request');
     const assets = await pending;
-    assert.equal(Object.keys(assets.images).length, Object.keys(atlas.sheets).length);
-    assert.equal(requests.length, 2 + Object.keys(atlas.sheets).length);
+    const eager = Object.entries(atlas.sheets).filter(([, sheet]) => !sheet.optional);
+    assert.equal(Object.keys(assets.images).length, eager.length);
+    assert.equal(requests.length, 2 + eager.length);
+    for (const [id, sheet] of Object.entries(atlas.sheets)) if (sheet.optional) assert.equal(assets.images[id], undefined, 'planets must remain lazy');
     assert.equal(await load(), assets, 'successful assets must remain cached');
 }
-console.log('Galaxa asset version, complete atlas loading, retry and shared load checks passed.');
+console.log('Galaxa asset version, eager atlas loading and optional planet exclusion, retry and shared load checks passed.');

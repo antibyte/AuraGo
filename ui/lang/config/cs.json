@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Nedostatek místa na disku. Uvolni místo a zkus to znovu.",
   "config.decisions.disk_unknown": "Volné místo nelze ověřit. Zkontroluj oprávnění k přístupu.",
   "config.decisions.save_failed": "Nastavení Decisions se nepodařilo uložit. Zkontroluj oprávnění k zápisu.",
-  "config.decisions.runtime_dependencies_missing": "Běhové prostředí nelze spustit. Zkontroluj podporovanou verzi systému a nainstaluj aktuální ovladač grafiky. Potom nastavení zopakuj."
+  "config.decisions.runtime_dependencies_missing": "Běhové prostředí nelze spustit. Zkontroluj podporovanou verzi systému a nainstaluj aktuální ovladač grafiky. Potom nastavení zopakuj.",
+  "config.decisions.pin_model": "Použít pevnou verzi",
+  "config.decisions.alias_target": "Aktuální cíl aliasu: {value}",
+  "config.decisions.model_expiry": "Upozornění na konec platnosti: {value}",
+  "config.decisions.media_limits": "Nejvýše {count} obrázků po {bytes} KiB. Obrázky mohou být zmenšeny a jemné detaily se mohou ztratit.",
+  "config.decisions.model_checked": "Katalog ověřen: {value}",
+  "config.decisions.model_not_available": "Tento model již není dostupný. Načti katalog a vyber jiný model.",
+  "config.decisions.model_context_unverified": "Limit kontextu není ověřen. Tento model nelze použít.",
+  "config.decisions.model_unverified": "Model není ověřen. Načti katalog nebo výslovně spusť test.",
+  "config.decisions.responding_model": "Odpovídající verze: {value}",
+  "config.decisions.alias_changed": "Cíl aliasu se změnil. Ověř prahové hodnoty směrování pro novou verzi.",
+  "config.decisions.runtime_discovery_timeout": "Vyhledávání zařízení překročilo 60 sekund. Zkontroluj běhové prostředí a zkus to znovu. Záložní CPU nebylo spuštěno.",
+  "config.decisions.runtime_discovery_output_limit": "Vyhledávání zařízení vytvořilo příliš mnoho výstupu a bylo zastaveno. Zkontroluj běhové prostředí.",
+  "config.decisions.image_limit_exceeded": "Obrázky se nevejdou do limitů modelu. Pošli méně nebo menší obrázky.",
+  "config.decisions.image_invalid": "Obrázek je poškozený nebo nepodporovaný. Použij platný PNG nebo JPEG.",
+  "config.decisions.image_minimum_unmet": "Obrázek je menší než minimální rozměry modelu. Vyber větší originál."
 }

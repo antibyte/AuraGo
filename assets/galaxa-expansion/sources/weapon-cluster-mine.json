@@ -1,0 +1,8 @@
+{
+  "id": "cluster-mine",
+  "kind": "weapon",
+  "file": "exp-weapon-cluster-mine.png",
+  "source": "exec-fbe4218e-3c61-4a78-a7e2-88ee2c713a16.png",
+  "tool": "image_gen",
+  "prompt": "Create ONE production-ready transparent RGBA PNG sprite animation sheet for Galaxa Deluxe. Subject: red-orange hexagonal cluster mine with six distinct radial steel shard compartments and a yellow central sensor. 12 frames in an exact 4 column by 3 row grid. First 8 cells are a seamless animated armed-state light/antenna cycle. Last 4 cells show unfolding, opening and lighting the mine from dormant to armed. Fixed body orientation. Original detailed arcade sprite art, crisp pixels and carefully shaded metallic/organic/stone surfaces, upper-left cool key light and subtle warm highlights, coordinated cyan/violet/amber palette. Each frame centered in its equal rectangular grid cell, fixed anchor and identical logical scale, every frame fully contained with at least 12 percent transparent cell padding including wings, sparks and exhaust. Consistent object identity and anatomy across all frames, actual small visible animation changes. No grid lines, text, numbers, labels, background, checkerboard, floor, shadow under sprite, framing or extra objects. Largest practical square or rectangular sheet with equal square cells. Pure transparency outside the sprite. One motif only; no alternate designs."
+}

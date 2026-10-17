@@ -123,6 +123,7 @@ func (m *Manager) start(ctx context.Context, expected context.Context) (startErr
 		}
 		return context.Canceled
 	}
+	m.noteStop(true, c.RuView.Mode)
 	return nil
 }
 
@@ -368,18 +369,24 @@ func (m *Manager) stopRuntime(ctx context.Context) (stopErr error) {
 	m.mu.Unlock()
 	defer func() {
 		m.mu.Lock()
-		defer m.mu.Unlock()
 		m.cancel()
 		m.generation, m.cancel = context.WithCancel(context.Background())
 		m.observed = time.Time{}
+		mode := ""
+		if c != nil {
+			mode = c.RuView.Mode
+		}
+		confirmed := stopErr == nil
 		if stopErr != nil {
 			m.status = Status{DataState: "disconnected", Error: "stop_failed"}
-			return
+		} else {
+			m.process = nil
+			m.managed = false
+			m.runningConfig = nil
+			m.status = Status{DataState: "stopped"}
 		}
-		m.process = nil
-		m.managed = false
-		m.runningConfig = nil
-		m.status = Status{DataState: "stopped"}
+		m.mu.Unlock()
+		m.noteStop(confirmed, mode)
 	}()
 	if c == nil {
 		c = m.config()

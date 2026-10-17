@@ -221,7 +221,7 @@ func decisionsFailureCode(err error) string {
 		return "invalid_image"
 	}
 	code := decisions.ErrorCode(err)
-	if code == decisions.CodeExternalOutcomeUnknown || code == "configuration_changed" || code == decisions.CodeRuntimeStartTimeout {
+	if code == decisions.CodeExternalOutcomeUnknown || code == "configuration_changed" || code == decisions.CodeRuntimeStartTimeout || code == decisions.CodeRuntimeDiscoveryTimeout {
 		return code
 	}
 	if errors.Is(err, context.Canceled) {
@@ -236,7 +236,7 @@ func decisionsFailureCode(err error) string {
 func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	code := decisionsFailureCode(err)
 	status := http.StatusServiceUnavailable
-	if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
+	if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == "image_invalid" || code == "image_limit_exceeded" || code == "image_minimum_unmet" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
 		status = http.StatusBadRequest
 	}
 	if code == decisions.CodeInvalidRuntimeResponse || code == decisions.CodeInferenceFailed {
@@ -254,7 +254,7 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	if code == decisions.CodeProviderAuthFailed {
 		status = http.StatusBadGateway
 	}
-	if code == "request_timeout" || code == decisions.CodeRuntimeStartTimeout {
+	if code == "request_timeout" || code == decisions.CodeRuntimeStartTimeout || code == decisions.CodeRuntimeDiscoveryTimeout {
 		status = http.StatusGatewayTimeout
 	}
 	if code == decisions.CodeExternalOutcomeUnknown || code == decisions.CodeExternalProviderFailed {

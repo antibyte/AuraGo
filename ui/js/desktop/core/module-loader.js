@@ -19,7 +19,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
-        infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra-views.js', '/js/desktop/apps/infra.js'] },
+        infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-views.js', '/js/desktop/apps/infra.js'] },
         'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),
@@ -310,11 +310,15 @@
                 '/js/desktop/apps/galaxa-audio-music.js',
                 '/js/desktop/apps/galaxa-audio.js',
                 '/js/desktop/apps/galaxa-sprites.js',
+                '/js/desktop/apps/galaxa-content.js',
+                '/js/desktop/apps/galaxa-planets.js',
                 '/js/desktop/apps/galaxa-background.js',
+                '/js/desktop/apps/galaxa-asteroids.js',
                 '/js/desktop/apps/galaxa-entities-core.js',
                 '/js/desktop/apps/galaxa-entities-spawning.js',
                 '/js/desktop/apps/galaxa-entities-behaviors.js',
                 '/js/desktop/apps/galaxa-entities-weapons.js',
+                '/js/desktop/apps/galaxa-entities-rewards.js',
                 '/js/desktop/apps/galaxa-entities-combat.js',
                 '/js/desktop/apps/galaxa-entities.js',
                 '/js/desktop/apps/galaxa-render-effects.js',

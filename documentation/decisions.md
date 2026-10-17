@@ -8,6 +8,9 @@ tasks when both features are enabled; its **Use Decisions** switch defaults on.
 Routing never starts or installs a stopped local service. External classification
 sends bounded task text and may incur cost, booked once under `routing`.
 
+See [model versions, image preparation and evaluation](decisions-validation.md)
+for the shared availability contract, shipping limits and opt-in evaluation.
+
 ## Setup and permissions
 
 For local processing, open **Configuration → Decisions**, select **On the
@@ -41,9 +44,11 @@ that setting and explains the choice.
 
 After setup, **Test decision** runs another explicit text test; merely opening
 settings only reads status. **Stop** stops the process or container. Advanced
-options retain the independent check, installation, and start actions for
-diagnosis and compatibility. Installation alone leaves the service installed;
-it does not grant readiness. Reinstallation stops a serving generation before
+options retain the independent check and start actions for diagnosis. Setup
+already downloads the model; no separate download action is needed. A failed
+setup or prerequisite check reveals the setup guide. Installation through the
+legacy API alone leaves the service installed; it does not grant readiness.
+Reinstallation stops a serving generation before
 replacing files. Evaluation failures never silently replay the request or change
 the active backend.
 
@@ -129,8 +134,7 @@ decisions:
 
 The adapter uses OpenRouter's **`POST /api/alpha/decisions`**, not chat completions.
 It discovers models through **`GET /api/v1/models?output_modalities=decisions`**
-and verifies advertised capabilities before evaluation. Microsoft Decision 1 and
-Typesafe Jev 1.13 are text-only; models advertising image input can accept
+and verifies advertised capabilities before evaluation. Models advertising image input can accept
 authorized images within the adapter's limits. An unavailable model or unsupported
 image input fails explicitly. There is no automatic fallback between local and
 external backends, models, or ordinary chat APIs.

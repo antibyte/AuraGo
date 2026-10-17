@@ -265,7 +265,25 @@ func desktopInfraProjectNode(node infra.Node, cfg *config.Config, targets map[st
 			break
 		}
 	}
+	node.Power = desktopInfraProjectPower(node.Sources)
 	return node
+}
+
+func desktopInfraProjectPower(sources []infra.Source) string {
+	chosen := ""
+	for _, source := range sources {
+		if source.State != infra.SourceCurrent || source.Observed.Power == "" {
+			continue
+		}
+		if chosen == "" {
+			chosen = source.Observed.Power
+			continue
+		}
+		if chosen != source.Observed.Power {
+			return infra.PowerUnknown
+		}
+	}
+	return chosen
 }
 
 func desktopInfraActionProjection(node infra.Node, cfg *config.Config) ([]string, map[string]string, map[string][]string, map[string]map[string]string) {

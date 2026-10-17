@@ -216,6 +216,7 @@ if (check) {
   }
   await copy(path.join(source, 'ui'));
   for (const name of ['LICENSE', 'NOTICE']) { try { await put(`${name}.txt`, await readFile(path.join(source, name))); } catch (e) { if (name === 'LICENSE') throw e; } }
+  // The adapter is the opaque-frame postMessage bridge. --check hashes the copy.
   await put('aurago-adapter.js', await readFile('ui/js/ruview/upstream-adapter.js'));
   await put('control-contracts.js', await readFile('ui/js/ruview/control-contracts.mjs'));
   await put('deps/three/build/three.module.js',await readFile('node_modules/three-ruview/build/three.module.js'));

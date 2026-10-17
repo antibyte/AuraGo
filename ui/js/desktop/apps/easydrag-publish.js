@@ -232,10 +232,62 @@
             }
         }
 
+        async function openVersions() {
+            let data;
+            try {
+                data = await ed.api.versions(ed.flow.id);
+            } catch (err) {
+                ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: core.errorText(t, err), type: 'error' });
+                return null;
+            }
+            const versions = (data && data.versions) || [];
+            const liveRev = Number(data && data.live_revision) || 0;
+            const ro = !!(ed.readonly || ed.runView);
+            const body = !versions.length
+                ? '<p class="ed-hint">' + esc(t('easydrag.ui.versions_empty')) + '</p>'
+                : '<div class="ed-versions-list">' + versions.map(v => {
+                    const isLive = Number(v.revision) === liveRev;
+                    return '<div class="ed-version-row">' +
+                        '<div class="ed-version-meta"><strong>v' + esc(v.revision) + '</strong>' +
+                        (isLive ? ' <span class="ed-chip ed-chip--live">' + esc(t('easydrag.ui.versions_live')) + '</span>' : '') +
+                        '<span class="ed-muted">' + esc(core.fmt.dateTime(v.published_at)) + ' · ' +
+                        esc(t('easydrag.ui.versions_stats', { nodes: v.node_count || 0, edges: v.edge_count || 0 })) + '</span></div>' +
+                        (!ro ? '<button type="button" class="ed-btn ed-btn--small" data-ed-restore-rev="' + esc(v.revision) + '">' +
+                            core.icon('history') + '<span>' + esc(t('easydrag.ui.versions_restore')) + '</span></button>' : '') +
+                        '</div>';
+                }).join('') + '</div>';
+            const dialog = core.modal(ed.root, {
+                title: t('easydrag.ui.versions_title'), closeLabel: t('easydrag.ui.close'),
+                body,
+                actions: [{ id: 'close-dialog', label: t('easydrag.ui.close') }]
+            });
+            dialog.el.addEventListener('click', async (event) => {
+                const b = event.target.closest('[data-ed-restore-rev]');
+                if (!b || b.disabled) return;
+                const rev = Number(b.dataset.edRestoreRev);
+                if (!Number.isInteger(rev) || rev <= 0) return;
+                const ok = await ed.ctx.confirmDialog(t('easydrag.ui.versions_title'), t('easydrag.ui.versions_confirm', { revision: rev }));
+                if (!ok) return;
+                b.disabled = true;
+                try {
+                    if (ed.saver && ed.saver.isDirty && ed.saver.isDirty()) await ed.saver.flush();
+                    const baseRev = ed.saver ? ed.saver.revision : ed.flow.draft_revision;
+                    const res = await ed.api.restoreVersion(ed.flow.id, rev, baseRev);
+                    dialog.close('restored');
+                    ed.bus.emit('restored', res);
+                    ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: t('easydrag.ui.versions_restored', { revision: rev }) });
+                } catch (err) {
+                    b.disabled = false;
+                    ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: core.errorText(t, err), type: 'error' });
+                }
+            });
+            return dialog;
+        }
+
         // Dispose drops a validation in flight (seq) along with the pending one.
         bag.add(() => { seq++; refreshIssues.cancel(); closeIssues(); });
 
-        return { refreshIssues, openIssues, closeIssues, openDialog, publish, setActive, focusIssue, partialText, dispose() { bag.dispose(); } };
+        return { refreshIssues, openIssues, closeIssues, openDialog, openVersions, publish, setActive, focusIssue, partialText, dispose() { bag.dispose(); } };
     }
 
     ED.publish = { create };

@@ -44,11 +44,14 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 	}
 	var generation *decisionProviderGeneration
 	var generationID uint64
+	var modelEpoch uint64
+	var modelIdentity [32]byte
 	local := s.Decisions
 	if router, ok := s.Decisions.(*routedDecisions); ok {
 		router.mu.Lock()
 		generation = router.generation
 		generationID = generation.id
+		modelEpoch, modelIdentity = generation.modelEpoch, generation.modelIdentity
 		closed := router.closed || generation.ctx.Err() != nil
 		router.mu.Unlock()
 		if closed {
@@ -66,7 +69,7 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 	}
 	version := localGeneration()
 	epoch := s.routingDecisionEpoch.Load()
-	identity, _ := json.Marshal([]any{settings, generationID, version, epoch, status.Enabled, status.Installed, status.Ready && settings.Backend != "provider"})
+	identity, _ := json.Marshal([]any{settings, generationID, modelIdentity, status.ModelAvailability.State, version, epoch, status.Enabled, status.Installed, status.Ready && settings.Backend != "provider"})
 	result.Identity = sha256.Sum256(identity)
 	result.Current = func() bool {
 		current := s.ConfigSnapshot()
@@ -75,7 +78,7 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 		}
 		if router, ok := s.Decisions.(*routedDecisions); ok {
 			router.mu.Lock()
-			valid := !router.closed && router.generation == generation && generation.settings == settings && generation.ctx.Err() == nil
+			valid := !router.closed && router.generation == generation && generation.settings == settings && generation.ctx.Err() == nil && generation.modelEpoch == modelEpoch
 			router.mu.Unlock()
 			if !valid {
 				return false
@@ -92,6 +95,8 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 		result.Code = "service_disabled"
 	case settings.Backend == "provider" && !status.Configured:
 		result.Code = "provider_not_configured"
+	case settings.Backend == "provider" && status.ModelAvailability.State == "blocked":
+		result.Code = status.ModelAvailability.Code
 	case settings.Backend != "provider" && !status.Ready:
 		result.Code = "service_not_ready"
 	default:
@@ -107,6 +112,7 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 		ctx = context.WithValue(ctx, routingDecisionUsageKey{}, true)
 		if router, ok := s.Decisions.(*routedDecisions); ok {
 			ctx = context.WithValue(ctx, router, generation)
+			ctx = context.WithValue(ctx, decisionModelEpochKey{}, modelEpoch)
 		}
 		response, err := s.Decisions.Evaluate(ctx, request)
 		if !result.Current() {

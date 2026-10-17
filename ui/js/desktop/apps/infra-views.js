@@ -13,6 +13,7 @@
         deleteNode, loadSourceEdit, reapplySourceDraft, reapplyNodeDraft, reviewSourceEdit, saveSourceEdit,
         openActionMenu, chooseEdgeEndpoint
     }) {
+        const model = window.InfraAppModel;
         const paintToolbar = () => {
             if (state.disposed || !root.isConnected) return;
             q('[data-action="add"]').disabled = !canWrite();
@@ -41,16 +42,16 @@
             q('[data-scope-count="attention"]').textContent = String(state.nodes.filter(node => ['stale', 'unknown', 'removed'].includes(sourceState(node))).length);
         };
         const paintGroups = () => {
-            const groups = state.nodes.filter(node => node.kind === 'group').sort((a, b) => a.name.localeCompare(b.name));
+            const groups = state.nodes.filter(node => model.isContainer(node.kind)).sort((a, b) => a.name.localeCompare(b.name));
             const groupIDs = new Set(groups.map(group => group.id)), children = new Map();
             for (const group of groups) if (groupIDs.has(group.parent_id)) { const list = children.get(group.parent_id) || []; list.push(group); children.set(group.parent_id, list); }
             const renderGroup = (group, depth = 0) => {
                 const count = groupChildren(group.id).length, collapsed = state.collapsed.has(group.id), nested = children.get(group.id) || [];
-                const row = `<div class="infra-group-item ${state.selected === group.id ? 'is-selected' : ''}" style="--infra-group-depth:${depth}"><button type="button" class="infra-group-toggle" data-collapse="${esc(group.id)}" aria-label="${esc(collapsed ? t('desktop.infra_expand_group') : t('desktop.infra_collapse_group'))}" aria-expanded="${!collapsed}">${collapsed ? '›' : '⌄'}</button><button type="button" class="infra-group-select" data-select="${esc(group.id)}" aria-pressed="${state.selected === group.id}">${icon('group')}<span>${esc(group.name)}</span><small>${count}</small></button></div>`;
+                const row = `<div class="infra-group-item ${state.selected === group.id ? 'is-selected' : ''}" style="--infra-group-depth:${depth}"><button type="button" class="infra-group-toggle" data-collapse="${esc(group.id)}" aria-label="${esc(collapsed ? t('desktop.infra_expand_container') : t('desktop.infra_collapse_container'))}" aria-expanded="${!collapsed}">${collapsed ? '›' : '⌄'}</button><button type="button" class="infra-group-select" data-select="${esc(group.id)}" aria-pressed="${state.selected === group.id}">${icon(group.icon || 'group')}<span>${esc(group.name)}</span><small>${count}</small></button></div>`;
                 return row + (!collapsed ? nested.map(child => renderGroup(child, depth + 1)).join('') : '');
             };
             const roots = groups.filter(group => !groupIDs.has(group.parent_id));
-            q('[data-groups]').innerHTML = roots.length ? roots.map(group => renderGroup(group)).join('') : `<p class="infra-groups-empty">${esc(t('desktop.infra_no_groups'))}</p>`;
+            q('[data-groups]').innerHTML = roots.length ? roots.map(group => renderGroup(group)).join('') : `<p class="infra-groups-empty">${esc(t('desktop.infra_no_containers'))}</p>`;
             q('[data-groups]').querySelectorAll('[data-collapse]').forEach(button => button.addEventListener('click', () => {
                 const id = button.dataset.collapse;
                 if (state.collapsed.has(id)) state.collapsed.delete(id); else state.collapsed.add(id);
@@ -75,19 +76,26 @@
             edgeLayer.setAttribute('width', dimensions.width); edgeLayer.setAttribute('height', dimensions.height);
             q('[data-zoom]').textContent = `${Math.round(state.zoom * 100)}%`;
             const coords = new Map(nodes.map(node => [node.id, pending.get(node.id) || node.placements?.[state.view] || { x: 0, y: 0 }]));
-            edgeLayer.innerHTML = state.edges.filter(edge => coords.has(edge.from) && coords.has(edge.to)).map(edge => {
-                const a = coords.get(edge.from), b = coords.get(edge.to);
-                const x1 = Number(a.x) - dimensions.originX, y1 = Number(a.y) - dimensions.originY, x2 = Number(b.x) - dimensions.originX, y2 = Number(b.y) - dimensions.originY;
-                return `<g class="infra-edge infra-edge-${esc(edge.kind)}" data-edge="${esc(edge.id)}"><path d="M${x1} ${y1} L${x2} ${y2}" vector-effect="non-scaling-stroke"/><circle cx="${x1}" cy="${y1}" r="4"/><circle cx="${x2}" cy="${y2}" r="4"/><title>${esc(edge.label || t(`desktop.infra_edge_${edge.kind}`))}</title></g>`;
+            const frames = nodes.filter(node => model.isContainer(node.kind)).map(node => model.containerFrame(node, nodes.filter(child => child.parent_id === node.id), item => coords.get(item.id))).filter(Boolean);
+            const frameMarkup = frames.map(frame => `<rect class="infra-frame" data-frame="${esc(frame.id)}" x="${frame.x - dimensions.originX}" y="${frame.y - dimensions.originY}" width="${frame.width}" height="${frame.height}" rx="16"><title>${esc(nodeById(frame.id)?.name || '')}</title></rect>`).join('');
+            edgeLayer.innerHTML = frameMarkup + state.edges.filter(edge => coords.has(edge.from) && coords.has(edge.to)).map(edge => {
+                const segment = model.edgeSegment(coords.get(edge.from), coords.get(edge.to));
+                const x1 = segment.x1 - dimensions.originX, y1 = segment.y1 - dimensions.originY, x2 = segment.x2 - dimensions.originX, y2 = segment.y2 - dimensions.originY;
+                const caption = model.edgeCaption(edge);
+                const title = [edge.label || t(`desktop.infra_edge_${edge.kind}`), caption].filter(Boolean).join(' · ');
+                const label = caption ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2}">${esc(caption)}</text>` : '';
+                return `<g class="infra-edge infra-edge-${esc(edge.kind)}" data-edge="${esc(edge.id)}"><path d="M${x1} ${y1} L${x2} ${y2}" vector-effect="non-scaling-stroke"/><circle cx="${x1}" cy="${y1}" r="4"/><circle cx="${x2}" cy="${y2}" r="4"/>${label}<title>${esc(title)}</title></g>`;
             }).join('');
             stageNodeLayer.innerHTML = nodes.map(node => {
                 const pos = pending.get(node.id) || node.placements?.[state.view] || { x: 0, y: 0 };
                 const selected = state.selected === node.id;
                 const stateName = sourceState(node);
-                const children = node.kind === 'group' ? groupChildren(node.id).length : 0;
+                const children = model.isContainer(node.kind) ? groupChildren(node.id).length : 0;
                 const hint = [node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · ');
-                return `<button type="button" class="infra-node infra-node-${esc(node.kind)} ${selected ? 'is-selected' : ''} ${state.layoutUndo?.ids?.includes(node.id) ? 'is-layout-dirty' : ''}" data-node="${esc(node.id)}" data-id="${esc(node.id)}" data-state="${esc(stateName)}" aria-pressed="${selected}" aria-label="${esc(`${node.name}, ${labelForKind(node.kind)}, ${statusLabel(stateName)}`)}" style="left:${Number(pos.x) - dimensions.originX}px;top:${Number(pos.y) - dimensions.originY}px;" draggable="false">
-                  <span class="infra-node-ring" aria-hidden="true"></span><span class="infra-node-art">${icon(node.icon)}${node.kind === 'group' ? `<b>${children}</b>` : ''}</span><span class="infra-node-copy"><strong>${esc(node.name)}</strong><small>${esc(hint || labelForKind(node.kind))}</small></span><i class="infra-node-status" aria-hidden="true"></i>
+                const powerKey = model.powerLabel(node.power);
+                const power = powerKey ? `<em class="infra-node-power" data-power="${esc(node.power)}">${esc(t(powerKey))}</em>` : '';
+                return `<button type="button" class="infra-node infra-node-${esc(node.kind)} ${selected ? 'is-selected' : ''} ${state.layoutUndo?.ids?.includes(node.id) ? 'is-layout-dirty' : ''}" data-node="${esc(node.id)}" data-id="${esc(node.id)}" data-state="${esc(stateName)}" ${node.power ? `data-power="${esc(node.power)}"` : ''} aria-pressed="${selected}" aria-label="${esc(`${node.name}, ${labelForKind(node.kind)}, ${statusLabel(stateName)}${powerKey ? `, ${t(powerKey)}` : ''}`)}" style="left:${Number(pos.x) - dimensions.originX}px;top:${Number(pos.y) - dimensions.originY}px;" draggable="false">
+                  <span class="infra-node-ring" aria-hidden="true"></span><span class="infra-node-art">${icon(node.icon)}${model.isContainer(node.kind) ? `<b>${children}</b>` : ''}</span><span class="infra-node-copy"><strong>${esc(node.name)}</strong><small>${esc(hint || labelForKind(node.kind))}</small></span>${power}<i class="infra-node-status" aria-hidden="true"></i>
                 </button>`;
             }).join('');
             q('[data-empty]').hidden = nodes.length > 0;
@@ -95,6 +103,7 @@
             q('[data-visible-count]').textContent = t('desktop.infra_visible_count').replace('{count}', nodes.length);
             q('[data-stage-title]').textContent = state.view === 'topology' ? t('desktop.infra_topology_title') : t('desktop.infra_atlas_title');
             q('[data-map-help]').textContent = state.edgeMode ? t('desktop.infra_connect_hint') : t('desktop.infra_map_hint');
+            edgeLayer.querySelectorAll('[data-frame]').forEach(frame => frame.addEventListener('click', event => { event.stopPropagation(); selectNode(frame.dataset.frame); }));
             stageNodeLayer.querySelectorAll('[data-id]').forEach(button => {
                 button.addEventListener('click', event => {
                     if (state.dragMoved) { state.dragMoved = false; event.preventDefault(); return; }
@@ -113,8 +122,12 @@
             const scroll = q('[data-table-scroll]');
             const slice = virtualSlice(items, scroll.scrollTop, scroll.clientHeight || 600);
             q('[data-table-total]').textContent = t('desktop.infra_asset_count').replace('{count}', items.length);
-            const row = node => `<tr data-row="${esc(node.id)}" class="${state.selected === node.id ? 'is-selected' : ''}" tabindex="0" aria-selected="${state.selected === node.id}"><td><button class="infra-table-name" data-select="${esc(node.id)}">${icon(node.icon)}<span>${esc(node.name)}</span></button></td><td>${esc(labelForKind(node.kind))}</td><td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td><td>${esc((node.sources || []).map(source => t(`desktop.infra_source_${source.kind}`)).join(', ') || t('desktop.infra_manual'))}</td><td><span class="infra-state-pill" data-state="${esc(sourceState(node))}"><i></i>${esc(statusLabel(sourceState(node)))}</span></td></tr>`;
-            q('[data-table-body]').innerHTML = `<tr class="infra-virtual-spacer"><td colspan="6" style="height:${slice.before}px"></td></tr>${slice.rows.map(row).join('')}<tr class="infra-virtual-spacer"><td colspan="6" style="height:${slice.after}px"></td></tr>`;
+            const row = node => {
+                const powerKey = model.powerLabel(node.power);
+                const power = powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : '—';
+                return `<tr data-row="${esc(node.id)}" class="${state.selected === node.id ? 'is-selected' : ''}" tabindex="0" aria-selected="${state.selected === node.id}"><td><button class="infra-table-name" data-select="${esc(node.id)}">${icon(node.icon)}<span>${esc(node.name)}</span></button></td><td>${esc(labelForKind(node.kind))}</td><td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td><td>${esc((node.sources || []).map(source => t(`desktop.infra_source_${source.kind}`)).join(', ') || t('desktop.infra_manual'))}</td><td><span class="infra-state-pill" data-state="${esc(sourceState(node))}"><i></i>${esc(statusLabel(sourceState(node)))}</span></td><td>${power}</td></tr>`;
+            };
+            q('[data-table-body]').innerHTML = `<tr class="infra-virtual-spacer"><td colspan="7" style="height:${slice.before}px"></td></tr>${slice.rows.map(row).join('')}<tr class="infra-virtual-spacer"><td colspan="7" style="height:${slice.after}px"></td></tr>`;
             q('[data-table-body]').querySelectorAll('[data-select]').forEach(button => button.addEventListener('click', () => selectNode(button.dataset.select, 'table')));
             q('[data-table-body]').querySelectorAll('[data-row]').forEach(tr => tr.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectNode(tr.dataset.row); } }));
         };
@@ -135,6 +148,8 @@
             if (state.filterSource && !(node.sources || []).some(source => source.kind === state.filterSource)) return false;
             if (state.query && !searchableText(node).includes(state.query.toLocaleLowerCase())) return false;
             if (state.scope === 'attention' && !['stale', 'unknown', 'removed'].includes(sourceState(node))) return false;
+            if (state.powerFilter === 'none' && node.power) return false;
+            if (state.powerFilter && state.powerFilter !== 'none' && node.power !== state.powerFilter) return false;
             return true;
         };
         const paintView = () => {
@@ -232,7 +247,9 @@
             const reasons = [...new Set(blocked.map(action => actionReason(node, source, action)))];
             const reasonLabel = reasons.length ? t(`desktop.infra_reason_${reasons[0]}`) : '';
             const blockedLabel = blocked.map(action => t(`desktop.infra_action_${action}`)).join(', ');
-            return `<div class="infra-source-row" data-source-row><div class="infra-source-icon" data-source="${esc(source.kind)}">${esc(source.kind.slice(0, 1).toUpperCase())}</div><div class="infra-source-copy"><strong>${esc(t(`desktop.infra_source_${source.kind}`))}</strong><span>${esc(source.name || source.instance || source.key || '')}</span>${reasonLabel ? `<small class="infra-action-reason">${esc(blockedLabel)} · ${esc(reasonLabel)}</small>` : ''}</div><span class="infra-state-pill" data-state="${esc(source.state)}"><i></i>${esc(statusLabel(source.state))}</span><small>${esc(source.fetched_at ? new Date(source.fetched_at).toLocaleString() : t('desktop.infra_no_observation'))}</small>${canEditSource() && !providerHost ? `<button type="button" data-edit-source="${esc(source.kind)}">${esc(t('desktop.infra_edit_source'))}</button>` : ''}${actions.some(action => allowedAction(node, action, source)) ? `<button type="button" data-source-action="${esc(source.kind)}" data-source-identity="${esc(sourceIdentity(source))}">${esc(t('desktop.infra_actions'))}</button>` : ''}</div>`;
+            const powerKey = source.state === 'current' ? model.powerLabel(source.observed?.power) : '';
+            const power = powerKey ? `<span class="infra-power-pill" data-power="${esc(source.observed.power)}">${esc(t(powerKey))}</span>` : '';
+            return `<div class="infra-source-row" data-source-row><div class="infra-source-icon" data-source="${esc(source.kind)}">${esc(source.kind.slice(0, 1).toUpperCase())}</div><div class="infra-source-copy"><strong>${esc(t(`desktop.infra_source_${source.kind}`))}</strong><span>${esc(source.name || source.instance || source.key || '')}</span>${reasonLabel ? `<small class="infra-action-reason">${esc(blockedLabel)} · ${esc(reasonLabel)}</small>` : ''}</div>${power}<span class="infra-state-pill" data-state="${esc(source.state)}"><i></i>${esc(statusLabel(source.state))}</span><small>${esc(source.fetched_at ? new Date(source.fetched_at).toLocaleString() : t('desktop.infra_no_observation'))}</small>${canEditSource() && !providerHost ? `<button type="button" data-edit-source="${esc(source.kind)}">${esc(t('desktop.infra_edit_source'))}</button>` : ''}${actions.some(action => allowedAction(node, action, source)) ? `<button type="button" data-source-action="${esc(source.kind)}" data-source-identity="${esc(sourceIdentity(source))}">${esc(t('desktop.infra_actions'))}</button>` : ''}</div>`;
         };
         const paintInspector = () => {
             if (state.disposed || !root.isConnected) return;
@@ -286,7 +303,7 @@
                 label.innerHTML = `<span>${esc(t('desktop.infra_group'))}</span><select data-node-field="parent_id" ${!canWrite() ? 'disabled' : ''}><option value="">${esc(t('desktop.infra_no_group'))}</option></select>`;
                 const select = label.querySelector('select'), descendants = new Set(), queue = [node.id];
                 while (queue.length) { const current = queue.pop(); for (const child of groupChildren(current)) if (!descendants.has(child.id)) { descendants.add(child.id); queue.push(child.id); } }
-                state.nodes.filter(group => group.kind === 'group' && group.id !== node.id && !descendants.has(group.id)).forEach(group => {
+                state.nodes.filter(group => model.isContainer(group.kind) && group.id !== node.id && !descendants.has(group.id)).forEach(group => {
                     const option = document.createElement('option'); option.value = group.id; option.textContent = group.name; option.selected = group.id === draft.parent_id; select.append(option);
                 });
                 if (!draft.parent_id) select.value = '';
@@ -430,7 +447,7 @@
             }
             finally { setBusy(`node-${id}`, false); }
         }
-        return { paintToolbar, paintGroups, paintStage, paintTable, paintTray, matchesFilters, paintAll, ensureMapView, paintInspector, readProfileLists };
+        return { paintToolbar, paintGroups, paintStage, paintTable, paintTray, paintStatus, matchesFilters, paintAll, ensureMapView, paintInspector, readProfileLists };
     }
 
     window.InfraAppViews = { create };

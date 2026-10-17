@@ -356,7 +356,7 @@ func (manager *Manager) installArtifacts(ctx context.Context, operationID uint64
 	}
 	if setup {
 		manager.setState("discovering_devices", "", Progress{Phase: "verifying_runtime"})
-		devices, err := manager.factory.discover(ctx, deployment, access, modelPaths{}, manager.dataDir)
+		devices, err := manager.discoverDevices(ctx, deployment, access, modelPaths{})
 		if err == nil {
 			usable := false
 			for _, device := range devices {
@@ -547,7 +547,7 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 		return err
 	}
 	manager.setState("discovering_devices", "", Progress{})
-	devices, err := manager.factory.discover(ctx, deployment, access, paths, manager.dataDir)
+	devices, err := manager.discoverDevices(ctx, deployment, access, paths)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return NewError(CodeCancelled, cancellationCause(callerCtx))
 	}

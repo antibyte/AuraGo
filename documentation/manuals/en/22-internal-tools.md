@@ -1629,7 +1629,7 @@ Interactive 3D CAD in the user's open browser editor. Needs an authenticated Des
 Drives RTL-SDR reception: status, devices, tuning, scans, favorites, recordings (FLAC), schedules, and re-running speech recognition. Requires `rtl_sdr.enabled`; receive-only by design.
 
 ### `ruview`
-Reads the administrator-configured RuView sensing service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`. Visible only when both the integration and agent access are enabled. No URLs, credentials, device paths or arbitrary API routes; the tool cannot install, flash, configure, calibrate, record, train or delete. Responses include source, observation time and data freshness; `ready` describes the service only. Details: chapter 8 and [ruview.md](../../ruview.md).
+Reads the administrator-configured RuView sensing service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`, `presence`. Visible only when both the integration and agent access are enabled. No URLs, credentials, device paths or arbitrary API routes; the tool cannot install, flash, configure, calibrate, record, train or delete. `presence` adds this receiver's saved offline board IDs. `fresh: false` does not prove presence, and a simulation is not a sensor. Responses include source, observation time and data freshness; `ready` describes the service only. Details: chapter 8 and [ruview.md](../../ruview.md).
 
 ### `sip_phone`
 Native SIP telephony: start, answer, and end calls, send DTMF, and read call lists — depending on the SIP configuration and call rules (Chapter 8).

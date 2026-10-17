@@ -1,0 +1,9 @@
+{
+  "id": "night-b",
+  "kind": "planet",
+  "file": "exp-planet-night-b.png",
+  "source": "exec-3b771fda-7d2f-45db-b960-be630db528d6.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-night-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is mysterious dark indigo alien night planet with intricate turquoise bioluminescent river networks, violet fungal continents, dim blue clouds and a thin lilac atmosphere. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

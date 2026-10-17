@@ -37,6 +37,7 @@ type Node struct {
 	Sources             []Source                     `json:"sources"`
 	AvailableActions    []string                     `json:"available_actions"`
 	AppLinks            []AppLink                    `json:"app_links"`
+	Power               string                       `json:"power,omitempty"`
 	ActionReasons       map[string]string            `json:"action_reasons,omitempty"`
 	SourceActions       map[string][]string          `json:"source_actions,omitempty"`
 	SourceActionReasons map[string]map[string]string `json:"source_action_reasons,omitempty"`
@@ -102,6 +103,13 @@ const (
 	SourceRemoved SourceState = "removed"
 )
 
+const (
+	PowerRunning = "running"
+	PowerStopped = "stopped"
+	PowerPaused  = "paused"
+	PowerUnknown = "unknown"
+)
+
 type SourceIdentity struct {
 	Kind     string `json:"kind"`
 	Instance string `json:"instance"`
@@ -139,6 +147,7 @@ type SourceObserved struct {
 	Protected    bool               `json:"protected,omitempty"`
 	Host         string             `json:"host,omitempty"`
 	MACAddress   string             `json:"mac_address,omitempty"`
+	Power        string             `json:"power,omitempty"`
 	Tags         []string           `json:"tags"`
 	Interfaces   []NetworkInterface `json:"interfaces"`
 }

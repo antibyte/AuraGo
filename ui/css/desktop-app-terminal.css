@@ -451,6 +451,16 @@
     --vd-term-wear: 0.04;
 }
 
+/* Classic colour monitor: platinum case, green power LED, the CGA colours behind an RGB aperture grille. */
+.vd-terminal-app[data-terminal-style="color-monitor"] {
+    --vd-term-bezel: #cfc9b6;
+    --vd-term-case-ink: #4d4a40;
+    --vd-term-wear: 0.28;
+    --vd-term-led-lit: #6dff7a;
+    --vd-term-glow: rgba(120, 160, 255, 0.16);
+    --vd-term-ink: #d8d8d8;
+}
+
 @container terminal (max-width: 520px) {
     .vd-terminal-bezel {
         gap: 12px;

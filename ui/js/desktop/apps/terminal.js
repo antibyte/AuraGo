@@ -41,7 +41,8 @@
             ibm3278: 'desktop.terminal_style_ibm3278',
             vintage: 'desktop.terminal_style_vintage',
             'mono-green': 'desktop.terminal_style_mono_green',
-            'transparent-green': 'desktop.terminal_style_transparent_green'
+            'transparent-green': 'desktop.terminal_style_transparent_green',
+            'color-monitor': 'desktop.terminal_style_color_monitor'
         })[id] || 'desktop.terminal_style_modern';
         return ctx.t(key);
     }

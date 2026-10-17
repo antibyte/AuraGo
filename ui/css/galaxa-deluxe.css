@@ -33,3 +33,6 @@
 .galaxa-relic-actions { margin-top:12px; }
 .galaxa-reduced-motion *, .galaxa-reduced-motion::before, .galaxa-reduced-motion::after { animation:none !important; transition:none !important; }
 @media (prefers-reduced-motion:reduce) { .galaxa-app * { animation:none !important; transition:none !important; } }
+
+.galaxa-planet-status { position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px; background: #111d32e8; color: #e5edf7; font: 11px/1.4 sans-serif; }
+.galaxa-planet-status button { color: #e5edf7; background: #243d72; border: 1px solid #74d6ff; border-radius: 4px; padding: 4px 8px; cursor: pointer; }

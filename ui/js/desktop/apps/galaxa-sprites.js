@@ -8,6 +8,7 @@
         if (!data || data.version !== 1 || !data.sheets || !data.animations) throw Error('Invalid Galaxa atlas manifest');
         for (const sheet of Object.values(data.sheets)) {
             if (!/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isInteger(sheet.width) || !Number.isInteger(sheet.height) || sheet.width <= 0 || sheet.height <= 0) throw Error('Invalid atlas sheet');
+            if (sheet.optional !== undefined && sheet.optional !== 'planet') throw Error('Invalid optional atlas sheet');
         }
         for (const scene of Object.values(data.scenes || {})) {
             const s = data.sheets[scene.sheet], f = scene.frame;
@@ -15,15 +16,24 @@
         }
         for (const [key, a] of Object.entries(data.animations)) {
             const sheet = data.sheets[a.sheet];
+            if (a.blendFrames !== undefined && typeof a.blendFrames !== 'boolean') throw Error('Invalid frame blending: ' + key);
             if (!sheet || !/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isFinite(a.ms) || a.ms <= 0 ||
                 !Number.isFinite(a.size) || a.size <= 0 || !Array.isArray(a.pivot) || a.pivot.length !== 2 ||
                 !a.pivot.every(n => Number.isFinite(n) && n >= 0 && n <= 1) || !Array.isArray(a.frames) || !a.frames.length) throw Error('Invalid animation: ' + key);
             if (a.sourceAnchors && (!Number.isFinite(a.sourceSize) || a.sourceSize <= 0 || !Array.isArray(a.sourceAnchors) || a.sourceAnchors.length !== a.frames.length || a.sourceAnchors.some((p, i) => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite) || p[0] < 0 || p[1] < 0 || p[0] > a.frames[i][2] || p[1] > a.frames[i][3]))) throw Error('Invalid source anchors: ' + key);
-            for (const f of a.frames) {
+            if (a.frameSheets && (!Array.isArray(a.frameSheets) || a.frameSheets.length !== a.frames.length)) throw Error('Invalid frame sheets: ' + key);
+            for (const [i, f] of a.frames.entries()) {
+                const frameSheet = a.frameSheets ? data.sheets[a.frameSheets[i]] : sheet;
+                if (frameSheet && frameSheet.optional && !key.startsWith('planet.')) throw Error('Lazy gameplay sheet: ' + key);
                 if (!Array.isArray(f) || f.length !== 4 || !f.every(Number.isFinite) ||
                     f[0] < 0 || f[1] < 0 || f[2] <= 0 || f[3] <= 0 ||
-                    f[0] + f[2] > sheet.width || f[1] + f[3] > sheet.height) throw Error('Invalid frame: ' + key);
+                    !frameSheet || f[0] + f[2] > frameSheet.width || f[1] + f[3] > frameSheet.height) throw Error('Invalid frame: ' + key);
             }
+        }
+        if (data.expansion) {
+            const motifs = data.expansion.motifs;
+            if (!Array.isArray(motifs) || motifs.length !== 50 || new Set(motifs.map(m => m.kind + '.' + m.id)).size !== 50) throw Error('Invalid expansion catalog');
+            for (const m of motifs) if (!Array.isArray(m.animations) || !m.animations.length || m.animations.some(key => !data.animations[key])) throw Error('Unregistered expansion motif');
         }
         function require(key, count) { if (!data.animations[key] || data.animations[key].frames.length < count) throw Error('Incomplete animation: ' + key); }
         for (const ship of Object.keys(GC.SHIP_TYPES)) {
@@ -50,7 +60,7 @@
             const response = await fetch(ROOT + 'atlas.json?v=' + GC.ART_VERSION);
             if (!response.ok) throw Error('Galaxa atlas HTTP ' + response.status);
             const manifest = validateManifest(await response.json()), images = {};
-            await Promise.all(Object.entries(manifest.sheets).map(([id, sheet]) => new Promise((resolve, reject) => {
+            await Promise.all(Object.entries(manifest.sheets).filter(([, sheet]) => !sheet.optional).map(([id, sheet]) => new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => {
                     if (img.naturalWidth !== sheet.width || img.naturalHeight !== sheet.height) return reject(Error('Atlas dimensions: ' + id));
@@ -67,7 +77,7 @@
     GC.loadAtlasAssets = loadAssets;
     GC.createSprites = function (ctx) {
         const radialGradientCache = new Map(), spriteAtlasCache = new Map();
-        let assets;
+        let assets, blendCanvas;
         const palette = { 1: '#f1f8ff', 2: '#74d6ff', 3: '#3684da', 4: '#243d72' };
         const SP = { player: 'player.classic.idle', playerIcon: 'icon.classic', pC: palette,
             playerFrames: ['player.classic.idle'], PLAYER_FRAME: { idleA: 0 }, pwShield: 'fx.shield', pwC: palette };
@@ -76,27 +86,50 @@
             const a = assets.manifest.animations[key];
             if (!a) throw Error('Missing Galaxa animation: ' + key);
             const t = Math.max(0, time || 0), loop = loopOverride === undefined ? a.loop : loopOverride;
-            const index = loop ? Math.floor(t / a.ms) % a.frames.length : Math.min(a.frames.length - 1, Math.floor(t / a.ms));
-            return { key, a, index, frame: a.frames[index] };
+            const position = t / a.ms, step = Math.floor(position);
+            const index = loop ? step % a.frames.length : Math.min(a.frames.length - 1, step);
+            const next = loop ? (index + 1) % a.frames.length : Math.min(a.frames.length - 1, index + 1);
+            const mix = a.blendFrames && next !== index ? position - step : 0;
+            return { key, a, index, frame: a.frames[index], next, mix };
         }
-        function drawAnimation(cv, key, x, y, time, size, tint, loop) {
-            const entry = animation(key, time, loop);
-            if (!entry) return;
-            const { a, frame, index } = entry, width = size || a.size;
+        function frameSprite(key, a, index, width, tint) {
             const cacheKey = key + ':' + index + ':' + width + ':' + (tint || '');
             let sprite = spriteAtlasCache.get(cacheKey);
             if (!sprite) {
+                const frame = a.frames[index];
                 const ratio = a.sourceAnchors ? width / a.sourceSize : 1, anchor = a.sourceAnchors && a.sourceAnchors[index];
                 const extent = anchor ? Math.ceil(Math.max(width / 2, anchor[0] * ratio, anchor[1] * ratio, (frame[2] - anchor[0]) * ratio, (frame[3] - anchor[1]) * ratio)) * 2 : width;
                 sprite = document.createElement('canvas'); sprite.width = sprite.height = extent;
                 const c = sprite.getContext('2d'); c.imageSmoothingEnabled = false;
                 if (anchor) {
-                    c.drawImage(assets.images[a.sheet], ...frame, extent / 2 - anchor[0] * ratio, extent / 2 - anchor[1] * ratio, frame[2] * ratio, frame[3] * ratio);
-                } else c.drawImage(assets.images[a.sheet], ...frame, 0, 0, width, width);
+                    c.drawImage(assets.images[a.frameSheets ? a.frameSheets[index] : a.sheet], ...frame, extent / 2 - anchor[0] * ratio, extent / 2 - anchor[1] * ratio, frame[2] * ratio, frame[3] * ratio);
+                } else c.drawImage(assets.images[a.frameSheets ? a.frameSheets[index] : a.sheet], ...frame, 0, 0, width, width);
                 if (tint) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = tint; c.fillRect(0, 0, extent, extent); }
                 // ponytail: bounded FIFO cache; revisit only if measured atlas churn matters.
                 if (spriteAtlasCache.size >= 768) spriteAtlasCache.delete(spriteAtlasCache.keys().next().value);
                 spriteAtlasCache.set(cacheKey, sprite);
+            }
+            return sprite;
+        }
+        function drawAnimation(cv, key, x, y, time, size, tint, loop) {
+            const entry = animation(key, time, loop);
+            if (!entry) return;
+            const { a, index, next, mix } = entry, width = size || a.size;
+            const sprite = frameSprite(key, a, index, width, tint);
+            if (mix > 0) {
+                const following = frameSprite(key, a, next, width, tint);
+                const extent = Math.max(sprite.width, following.width), padding = (extent - width) / 2;
+                if (!blendCanvas) { blendCanvas = document.createElement('canvas'); blendCanvas.width = blendCanvas.height = extent; }
+                if (blendCanvas.width < extent || blendCanvas.height < extent) blendCanvas.width = blendCanvas.height = extent;
+                const c = blendCanvas.getContext('2d');
+                c.clearRect(0, 0, blendCanvas.width, blendCanvas.height); c.imageSmoothingEnabled = false;
+                // Add weighted premultiplied pixels offscreen so opaque overlap never dims.
+                c.globalCompositeOperation = 'lighter';
+                c.globalAlpha = 1 - mix; c.drawImage(sprite, (extent - sprite.width) / 2, (extent - sprite.height) / 2);
+                c.globalAlpha = mix; c.drawImage(following, (extent - following.width) / 2, (extent - following.height) / 2);
+                cv.drawImage(blendCanvas, 0, 0, extent, extent,
+                    Math.round(x - width * a.pivot[0] - padding), Math.round(y - width * a.pivot[1] - padding), extent, extent);
+                return;
             }
             const padding = (sprite.width - width) / 2;
             cv.drawImage(sprite, Math.round(x - width * a.pivot[0] - padding), Math.round(y - width * a.pivot[1] - padding));
@@ -122,7 +155,7 @@
             return { key: 'player.' + ship + '.' + state, time: state === 'fire' ? Math.max(0, 160 - g.muzzleT) : g.animTime || 0 };
         }
         function enemySpriteFor(e) {
-            const type = e ? (e.sectorBoss ? 'sector.' + e.sectorBoss : e.type) : 'boss';
+            const type = e ? (e.sectorBoss ? 'sector.' + e.sectorBoss : e.artId ? 'alien.' + e.artId : e.type) : 'boss';
             const attack = e && ((e.attackAnim || 0) > 0 || e.telegraph);
             const state = e && e.sectorBoss ? 'phase' + (e.bossPhase || 1) : e && e.hitF > 0 ? 'damage' : attack ? 'attack' : 'idle';
             const time = e && e.sectorBoss ? e.attackAnim > 0 ? 800 - e.attackAnim : e.bossState === 'windup' ? Math.min(90, Math.max(0, 600 - e.attackClock)) : 0 : attack ? Math.max(0, 600 - (e.attackAnim || 600)) : (e && e.animTime) || 0;
@@ -143,6 +176,6 @@
         };
         Object.assign(ctx, { SP, drawSp, drawAnimation, enemySpriteFor, getPlayerSpriteFrame,
             radialGradientCache, spriteAtlasCache, cachedRadialGradient,
-            clearSpriteAtlasCache: () => spriteAtlasCache.clear(), rainbowPC: () => palette, spriteAnimation: animation });
+            clearSpriteAtlasCache: () => { spriteAtlasCache.clear(); blendCanvas = null; }, rainbowPC: () => palette, spriteAnimation: animation });
     };
 })();

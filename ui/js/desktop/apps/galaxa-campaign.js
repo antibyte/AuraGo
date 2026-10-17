@@ -35,10 +35,13 @@
             const G = ctx.G, plan = G.wavePlan[G.waveIndex++];
             if (!plan) return;
             const sector = ctx.stagePlan().sector;
+            let regularSlot = 0;
             for (let i = 0; i < plan.length; i++) {
                 const col = i % 8, row = Math.floor(i / 8);
                 const x = 62 + col * 59, y = 95 + row * 57 + (G.waveIndex % 2 ? Math.abs(3.5 - col) * 8 : 0);
-                const e = ctx.newEnemy(plan[i], x, y, i);
+                const art = ctx.expansionAlien(plan[i], plan[i] === 'boss' || plan[i] === 'miniboss' ? -1 : regularSlot++, G.waveIndex);
+                const e = ctx.newEnemy(art ? art.role : plan[i], x, y, i);
+                if (art) e.artId = art.id;
                 if (ctx.stagePlan().loop > 1) e.hp = e.maxHp = Math.min(6, e.hp + Math.floor((ctx.stagePlan().loop - 1) / 2));
                 G.enemies.push(e);
             }

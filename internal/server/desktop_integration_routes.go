@@ -37,6 +37,15 @@ func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc 
 			http.NotFound(w, r)
 			return
 		}
+		// The opaque RuView frame loads pinned scripts without a session cookie.
+		if r.Method == http.MethodGet && strings.HasPrefix(rel, "ruview/ui/") {
+			clone := r.Clone(r.Context())
+			clone.URL.Path = "/api/" + rel
+			clone.URL.RawPath = ""
+			clone.RequestURI = clone.URL.RequestURI()
+			routes.ServeHTTP(w, clone)
+			return
+		}
 		if !requireDesktopOperation(s, w, r, desktopScopeAdmin, desktopIntegrationOperation(r.Method, rel)) {
 			return
 		}

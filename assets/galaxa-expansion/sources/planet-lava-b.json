@@ -1,0 +1,9 @@
+{
+  "id": "lava-b",
+  "kind": "planet",
+  "file": "exp-planet-lava-b.png",
+  "source": "exec-e39aadc4-1238-462a-b132-2b49bb3a3e5f.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-lava-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is dark volcanic planet with intricate incandescent orange lava rivers, fractured black plates, small red lava lakes and very subtle sulphur haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 5,6,7,8 out of a 12-frame subtle looping atmosphere cycle: slowly move only fine cloud wisps, storm eddies or glowing atmospheric details a tiny amount farther along the same motion. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

@@ -162,3 +162,36 @@ test('legacy visualization does not synthesize frames without explicit demo',()=
  demo=false;state.isDemoMode=false;state.auragoFrameAt=now;update(0.1,0);assert.equal(state.scene.renderer.domElement.style.visibility,'');
  now=10001;update(0.1,0);assert.equal(state.scene.renderer.domElement.style.visibility,'hidden');
 });
+
+test('opaque relay matches the reviewed endpoint list and refuses other paths',async()=>{
+ const {endpoint,streams,reads,writes,cleanPath,tourFrameName}=await import('../../ui/js/ruview/relay.mjs');
+ const go=readFileSync('internal/ruview/policy.go','utf8');
+ const fn=go.slice(go.indexOf('func Endpoint'),go.indexOf('var readOperations'));
+ const groups=[...fn.matchAll(/\[\]string\{([^}]*)\}/g)].map(match=>[...match[1].matchAll(/"(\/[^"]*)"/g)].map(item=>item[1]));
+ assert.deepEqual(groups[0],[...streams]);
+ assert.deepEqual(groups[1],[...reads]);
+ assert.deepEqual(groups[2],[...writes]);
+ assert.deepEqual(groups[3],['/api/v1/recording/','/api/v1/models/']);
+ assert.equal(endpoint('GET','/api/config'),false);
+ assert.equal(endpoint('GET','/api/v1/status?view=raw'),false);
+ assert.equal(endpoint('GET','/api/v1/nodes/../sync'),false);
+ assert.equal(endpoint('GET','/api/../config'),false);
+ assert.equal(endpoint('GET','/api/v1/stream/pose'),'stream');
+ assert.equal(endpoint('GET','/ws/sensing'),'stream');
+ assert.equal(endpoint('GET','/health/live'),'read');
+ assert.equal(endpoint('GET','/api/v1/nodes/board_1/sync'),'read');
+ assert.equal(endpoint('POST','/api/v1/recording/stop'),'write');
+ assert.equal(endpoint('POST','/api/v1/recording/start'),'write');
+ assert.equal(endpoint('DELETE','/api/v1/recording/rec_fixture'),'write');
+ assert.equal(endpoint('DELETE','/api/v1/recording/../secret'),false);
+ assert.equal(cleanPath('/api/v1/status/'),'/api/v1/status');
+ const adapter=readFileSync('ui/js/ruview/upstream-adapter.js','utf8');
+ assert.equal(readFileSync('ui/js/vendor/ruview/aurago-adapter.js','utf8'),adapter);
+ assert.match(adapter,/postMessage/);
+ assert.match(adapter,/origin === 'null'/);
+ assert.equal(tourFrameName,'aurago-tour-done');
+ const app=readFileSync('ui/js/desktop/apps/ruview.js','utf8');
+ assert.match(app,/frame\.sandbox='allow-scripts'/);
+ assert.doesNotMatch(app,/allow-same-origin/);
+ assert.match(app,/tourFrameName/);
+});

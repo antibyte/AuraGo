@@ -93,4 +93,13 @@ func TestExternalAssetsVersionAndRange(t *testing.T) {
 	if r.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal("unversioned resource can become stale")
 	}
+	if r.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("ordinary UI scripts must not become readable to every site")
+	}
+	fonts := versionedUIHandler(fstest.MapFS{"fonts/fonts.css": {Data: []byte("@font-face{}")}}, "digest")
+	font := httptest.NewRecorder()
+	fonts.ServeHTTP(font, httptest.NewRequest("GET", "/fonts/fonts.css", nil))
+	if font.Code != http.StatusOK || font.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("font CORS = %d %q", font.Code, font.Header().Get("Access-Control-Allow-Origin"))
+	}
 }

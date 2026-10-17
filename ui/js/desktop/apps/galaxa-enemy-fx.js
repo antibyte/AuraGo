@@ -432,50 +432,12 @@
         function smolderDetonate(e, defused, playerHit) {
             const G = ctx.G;
             if (!e || e.st !== 'SMOLDER') return;
-            e.st = 'DEAD';
-            if (defused) { ctx.boom(e.x, e.y, false, e.type, e.smolderKillVx, e.smolderKillVy); return; }
-            ctx.registerKill(e.x, e.y);
-            const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][e.smolderIgnitedAir === true ? 1 : 0] : 200;
-            ctx.addScore(pts, e.x, e.y, e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : '#44cc44');
-            ctx.boom(e.x, e.y, false, e.type, e.smolderVx || e.smolderKillVx, e.smolderVy || e.smolderKillVy);
+            if (defused) { e.st = 'DEAD'; ctx.boom(e.x, e.y, false, e.type, e.smolderKillVx, e.smolderKillVy); return; }
+            e.st = e.smolderIgnitedAir ? 'DIVING' : 'FORM'; e.hp = 0;
+            ctx.finishEnemyKill(e, { noSmolder: true, x: e.x, y: e.y, vx: e.smolderVx || e.smolderKillVx, vy: e.smolderVy || e.smolderKillVy });
             addMark({ kind: 'crashShock', x: e.x, y: e.y, t: 0, dur: 360, col: e.smolderRingCol || '#ff7a33', r: 38 });
-            ctx.dropPU(e);
-            const creditGain = 1 + (ctx.G.comboMult >= 4 ? 5 : 0);
-            const creditMult = ctx.relic_getRelicBonuses ? ctx.relic_getRelicBonuses().creditMult : 1;
-            const earned = (ctx.G.creditRemainder || 0) + creditGain * creditMult;
-            ctx.G.credits += Math.floor(earned); ctx.G.creditRemainder = earned % 1;
-            try { localStorage.setItem('galaxa_credits', String(ctx.G.credits)); } catch (e2) {}
-            if (ctx.G.chal) ctx.G.chalHits++;
-            if (e.hasCap) ctx.G.p.cap = { x: e.x, y: e.y };
-            if (e.type === 'splitter') smolderSplit(e);
-            if (e.type === 'carrier') smolderRelease(e);
-            ctx.G.killCount++;
-            ctx.G.stageKills = (ctx.G.stageKills || 0) + 1;
-            if (ctx.G.killCount === 1) ctx.unlockAchievement('first_blood');
-            if (ctx.G.activePU && ctx.G.activePU.type === 'chain_lightning') ctx.G._chainLightningTarget = e;
-            ctx.G.weaponXP += 1; ctx.grantWeaponLevel(); ctx.checkWeaponEvo();
-            if (playerHit) ctx.damagePlayer(1, e.x, e.y, e.type);
+            if (playerHit) ctx.killP();
             if (ctx.SFX && ctx.SFX.smolderBlast) ctx.SFX.smolderBlast(e.x, e.smolderVariant);
-        }
-
-        // Splitter mini-release on a crash blast (mirrors the bullet-kill split).
-        function smolderSplit(e) {
-            const G = ctx.G;
-            const chained = G.stage >= 15 && !(e._chained);
-            const splitType = chained ? 'splitter' : 'bee';
-            for (let i = 0; i < 2; i++) {
-                const sx = e.x + (i === 0 ? -15 : 15), sy = e.y - 10;
-                G.enemies.push({ type: splitType, r: 0, col: 0, x: sx, y: sy, fx: sx, fy: sy, hp: 1, maxHp: 1, st: 'DIVING', eTmr: 0, fr: 0, frT: 0, dTmr: 2000, dPath: { ph: 0, amp: 20, vx: (i === 0 ? -40 : 40) }, sTmr: 500, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0, 0, 0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 8, spawnAnim: 0, spawnDur: 300, rowPhase: ctx.random() * 3, bobAmp: 2, _chained: chained });
-            }
-        }
-
-        // Carrier bee release on a crash blast (mirrors the bullet-kill release).
-        function smolderRelease(e) {
-            const G = ctx.G;
-            for (let i = 0; i < 3; i++) {
-                const ca = (i / 3) * Math.PI * 2;
-                G.enemies.push({ type: 'bee', r: 0, col: 0, x: e.x, y: e.y, fx: e.x + Math.cos(ca) * 40, fy: e.y + Math.sin(ca) * 40, hp: 1, maxHp: 1, st: 'ENTER', eTmr: 300 + i * 100, fr: 0, frT: 0, dTmr: 1500, dPath: null, sTmr: 800, shootPh: 0, hasCap: false, hitF: 0, elite: false, bossPhase: 0, bossPhaseTransition: 0, bossPhaseHP: [0, 0, 0], animFrame: 0, animTimer: 0, animSpeed: 120, animFrames: 8, spawnAnim: 0, spawnDur: 300 });
-            }
         }
 
         function drawSmolderTelegraph(c, e, time, col) {

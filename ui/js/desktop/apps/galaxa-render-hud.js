@@ -76,6 +76,8 @@
                 bar(339, H - 14, 68, G.comboTimer / ctx.COMBO_TIMEOUT, '#f6d38d', G.comboMult >= 8);
             }
             if (G.activePU) {
+                c.fillStyle = '#d5e8f7'; c.textAlign = 'right'; c.font = '11px monospace';
+                c.fillText(ctx.t('galaxa.' + G.activePU.type), W - 12, H - 50, 220);
                 ctx.drawAnimation(c, 'pickup.' + G.activePU.type, W - 23, H - 20, G.animTime, 24);
                 if (ctx.PU_DUR[G.activePU.type]) bar(W - 114, H - 14, 72, G.puTimer / ctx.PU_DUR[G.activePU.type], '#86c7c9');
             }

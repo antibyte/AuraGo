@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -47,12 +48,19 @@ func NormalizeCanonicalMemoryNames(content string) string {
 }
 
 func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRepairOptions) (CanonicalRepairReport, error) {
+	return s.RepairCanonicalMemoryNamesContext(context.Background(), ltm, opts)
+}
+
+func (s *SQLiteMemory) RepairCanonicalMemoryNamesContext(ctx context.Context, ltm VectorDB, opts CanonicalRepairOptions) (CanonicalRepairReport, error) {
 	report := CanonicalRepairReport{
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		DryRun:      opts.DryRun,
 	}
 	if s == nil || ltm == nil || ltm.IsDisabled() || !ltm.IsReady() {
 		return report, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return report, err
 	}
 	limit := opts.Limit
 	if limit <= 0 || limit > 100 {
@@ -76,6 +84,9 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 	}
 	var joinedErr error
 	for _, meta := range metas {
+		if err := ctx.Err(); err != nil {
+			return report, errors.Join(joinedErr, err)
+		}
 		if IsMemoryArchived(meta) || meta.Protected || meta.KeepForever {
 			continue
 		}
@@ -109,7 +120,7 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			// a synthetic repair concept that breaks factual deduplication.
 			concept, body = fact, provenance
 		}
-		newIDs, err := s.ReplaceMemoryDocument(ltm, meta.DocID, concept, content, body, meta, reason, actor)
+		newIDs, err := s.ReplaceMemoryDocumentContext(ctx, ltm, meta.DocID, concept, content, body, meta, reason, actor)
 		if err != nil {
 			item.Error = err.Error()
 			if len(newIDs) == 0 && strings.Contains(item.Error, "delete replacement vector") {
@@ -124,6 +135,9 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 		item.NewDocIDs = append([]string(nil), newIDs...)
 		report.RepairedCount++
 		report.Items = append(report.Items, item)
+	}
+	if err := ctx.Err(); err != nil {
+		return report, errors.Join(joinedErr, err)
 	}
 	if !opts.DryRun {
 		if len(metas) < limit {

@@ -190,3 +190,39 @@ func TestDiffFlows(t *testing.T) {
 		t.Fatalf("removed = %+v", d)
 	}
 }
+
+func TestServiceVersionsAndPreviewEdges(t *testing.T) {
+	s, _ := newServiceFixture(t, nil)
+	ctx := context.Background()
+	rec, err := s.CreateFlow(ctx, CreateRequest{Import: simpleFlow("Versioned")})
+	if err != nil {
+		t.Fatalf("CreateFlow: %v", err)
+	}
+	pub1, _, err := s.Publish(ctx, rec.ID, rec.DraftRevision)
+	if err != nil {
+		t.Fatalf("Publish v1: %v", err)
+	}
+	edited := simpleFlow("Versioned v2")
+	edited.Nodes = append(edited.Nodes, Node{ID: testNodeID(40), Key: "extra", Type: TypeSet, Params: map[string]any{"fields": []any{map[string]any{"name": "y", "value": "2"}}}})
+	edited.Edges = append(edited.Edges, Edge{ID: "e_extra", Source: PortRef{Node: edited.Nodes[1].ID, Port: PortOut}, Target: PortRef{Node: testNodeID(40), Port: PortIn}})
+	rev2, _, err := s.SaveDraft(ctx, rec.ID, edited, pub1.DraftRevision)
+	if err != nil {
+		t.Fatalf("SaveDraft v2: %v", err)
+	}
+	pub2, _, err := s.Publish(ctx, rec.ID, rev2)
+	if err != nil {
+		t.Fatalf("Publish v2: %v", err)
+	}
+	versions, err := s.ListVersions(ctx, rec.ID)
+	if err != nil || len(versions) != 2 || versions[0].Revision != 2 || versions[0].NodeCount != 3 || versions[1].Revision != 1 || versions[1].NodeCount != 2 {
+		t.Fatalf("ListVersions = %+v, %v", versions, err)
+	}
+	restored, _, err := s.RestoreVersion(ctx, rec.ID, 1, pub2.DraftRevision)
+	if err != nil || len(restored.Draft.Nodes) != 2 {
+		t.Fatalf("RestoreVersion = %+v, %v", restored, err)
+	}
+	summaries, err := s.ListFlows(ctx)
+	if err != nil || len(summaries) != 1 || len(summaries[0].PreviewEdges) != 1 || summaries[0].PreviewEdges[0] != [2]int{0, 1} {
+		t.Fatalf("PreviewEdges = %+v, %v", summaries, err)
+	}
+}

@@ -727,8 +727,17 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   remain operator-managed. Background health reads update the cached status;
   app opening stays passive. Show unchecked/starting separately from unavailable.
   Manual stop, process exit and uncertain stop must not trigger an automatic restart.
+  The Desktop frame is sandboxed with `allow-scripts` only. Its UI responses use
+  `connect-src 'none'`. API calls and WebSockets reach the parent through
+  `postMessage`; the parent relays reviewed proxy paths plus the status,
+  capabilities, and UI `.wasm` reads the opaque frame cannot make, and replies
+  with target origin `*`. The frame accepts a reply only from its parent. An iframe
+  fetch of any other path, including `/api/config`, must not arrive. The pinned
+  UI files and public fonts are readable without the session cookie so the
+  opaque frame can load its modules.
   Remember skipped/completed Dashboard tours across iframe, app and page reopening
-  using only the boolean `aurago.ruview.onboarding.done` browser preference. Keep
+  using only the boolean `aurago.ruview.onboarding.done` browser preference. The
+  opaque frame learns that flag from its name and asks the parent to store it. Keep
   explicit replay available; all other upstream storage stays memory-only and
   clearing it must never clear unrelated AuraGo preferences. Blocked storage falls
   back to memory without breaking the Dashboard.
@@ -739,6 +748,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Strip those in the reproducible client adapter; keep proxy query restrictions
   and Vault authentication unchanged. Browser coverage must open the actual
   Live Demo stream and deliver a pose frame through its renderer callbacks.
+  The overview shows artifact verification, the storage budget, UDP scope, the
+  last error, why a control is disabled, and that a managed runtime was not
+  started in this session. Rendering does not start or probe. Devices show
+  a relative measurement age. An omitted measurement time stays blank. A
+  retained offline RSSI is the last value for the same receiver only. An idle
+  tab waits for the new snapshot before showing board ages. A tab switch during
+  a refresh paints the last snapshot and does not start a second request. Those
+  passive fields are defined in `internal/ruview/AGENTS.md`.
   Verify `scripts/ruview/upstream.test.mjs`, `scripts/ruview/browser.test.mjs` and
   backend `TestDashboardHealthEndpointsAreReadOnly`; keep `documentation/ruview.md` aligned.
   The shared board wizard uses host theme tokens and native checkbox semantics.
@@ -752,7 +769,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   receiver/port defaults through the administrative `board-setup` read, preserve
   typed values and require explicit acceptance of unverified LAN suggestions.
   On each wizard opening, suggest the lowest unused node ID in 1–255 from the
-  AuraGo nodes read, including saved offline nodes. Preserve manually typed IDs;
+  AuraGo nodes read, including saved offline nodes. An explicit `nodeID` from
+  the Devices list is marked edited before that suggestion, so discovery cannot
+  replace it. Preserve manually typed IDs;
   the suggestion is not a reservation and cannot account for boards never observed
   or confirmed. After matching readback, register only the node ID with AuraGo;
   report a save failure without claiming that device registration succeeded.
@@ -863,14 +882,16 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   or section changes. Keep setup errors and the last successful request visible.
 - `cfg/decisions.js` uses the shared saved/draft state for activation, deployment,
   and explicit CPU/mixed-offload permission. Its status polling is passive,
-  bounded, cancelled on disposal, and cannot repaint another section. Install,
-  start, and test require saved settings; stop remains available for containment,
+  bounded, cancelled on disposal, and cannot repaint another section. Start
+  and test require saved settings; stop remains available for containment,
   including while a test is pending. A superseded test response must not replace the stop result.
-  Local setup presents check, download, and start separately. The explicit check
+  Local setup uses the single setup action for runtime/model download and start;
+  advanced controls retain the independent check and start. Show setup guidance
+  only after a failed setup or prerequisite check. The explicit check
   never runs on page load, uses saved settings, and stale replies cannot unlock
-  download after a deployment/backend change. Keep missing-package guidance,
+  start after a deployment/backend change. Keep missing-package guidance,
   installed-versus-ready status and a single visible outcome clear; technical
-  codes belong in diagnostic details. Verify `TestDecisionsSetupCheckBrowser`
+  codes belong in diagnostic details. Verify `TestDecisionsOneClickSetupBrowser`
   and `TestDecisionsLifecycleFeedbackBrowser` at narrow and wide sizes.
   Keep `config.decisions.*` in all sixteen locales aligned and verify
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and

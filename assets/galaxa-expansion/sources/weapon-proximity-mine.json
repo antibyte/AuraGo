@@ -1,0 +1,8 @@
+{
+  "id": "proximity-mine",
+  "kind": "weapon",
+  "file": "exp-weapon-proximity-mine.png",
+  "source": "exec-758d2ecd-c89b-4bef-938a-ab9f3a842b10.png",
+  "tool": "image_gen",
+  "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. PROXIMITY MINE: squat bronze six-pronged mechanical space mine, dark metal center, amber sensor eye, small side clasps. 12 frames in a precise 4x3 grid. First 8 frames loop a softly pulsing armed sensor; last 4 frames unfold the clasps and ignite the sensor, showing unarmed to armed. No explosion, no projectiles. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+}

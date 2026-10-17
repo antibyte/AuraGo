@@ -33,6 +33,7 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 	}{
 		{"GET", "status", readToken, "", 403},
 		{"GET", "status", admin, "", 200},
+		{"GET", "ui/observatory.html", readToken, "", 200},
 		{"GET", "ui/observatory.html", admin, "", 200},
 		{"GET", "ui/pose-fusion/pkg/ruvector-attention/ruvector_attention_wasm_bg.wasm", admin, "", 200},
 		{"GET", "test", admin, "", 405},
@@ -56,6 +57,9 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 			if w.Header().Get("Content-Type") != "application/wasm" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "'wasm-unsafe-eval'") || !strings.HasPrefix(w.Body.String(), "\x00asm") {
 				t.Fatal("pinned WebAssembly is missing or blocked by its response policy")
 			}
+			if w.Header().Get("Access-Control-Allow-Origin") != "*" || w.Header().Get("Access-Control-Allow-Credentials") != "" {
+				t.Fatal("pinned WebAssembly must load in the opaque frame without the session")
+			}
 		}
 		if strings.HasSuffix(tc.route, ".html") {
 			policy := w.Header().Get("Content-Security-Policy")
@@ -64,9 +68,23 @@ func TestRuViewRoutesRequireAdminAndWriteOrigin(t *testing.T) {
 			if !ok || !found || nonce == "" || strings.Contains(strings.Split(policy, ";")[1], "'unsafe-inline'") {
 				t.Fatal("RuView scripts lack a restricted nonce policy")
 			}
+			if !strings.Contains(policy, "connect-src 'none'") || strings.Contains(policy, "connect-src 'self'") {
+				t.Fatal("RuView UI must not open its own network connections")
+			}
+			if w.Header().Get("Access-Control-Allow-Origin") != "*" || w.Header().Get("Access-Control-Allow-Credentials") != "" {
+				t.Fatal("RuView UI modules must load in the opaque frame without the session")
+			}
 			if strings.Count(w.Body.String(), "<script") != strings.Count(w.Body.String(), "<script nonce=\""+nonce+"\"") {
 				t.Fatal("trusted inline scripts/import maps lack their nonce")
 			}
 		}
+	}
+	s.Cfg.RuView.Enabled = false
+	disabled := httptest.NewRequest(http.MethodGet, "http://aurago.test/api/desktop/integrations/ruview/ui/observatory.html", nil)
+	disabled.Header.Set("Authorization", "Bearer "+admin)
+	got := httptest.NewRecorder()
+	handler(got, disabled)
+	if got.Code != 403 {
+		t.Fatalf("disabled UI status = %d, want 403", got.Code)
 	}
 }

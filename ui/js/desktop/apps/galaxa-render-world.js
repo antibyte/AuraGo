@@ -74,7 +74,10 @@
                 }
                 ctx.drawAnimation(c, 'pickup.' + pu.type, pu.x, pu.y, time, 32);
             }
-            for (const mine of G.playerMines || []) ctx.drawAnimation(c, 'projectile.mine', mine.x, mine.y, time, 22);
+            for (const mine of G.playerMines || []) {
+                const def = ctx.EXPANSION_WEAPONS[mine.weapon] || ctx.EXPANSION_WEAPONS.mine_layer;
+                ctx.drawAnimation(c, 'weapon.' + def.art + (mine.armT > 0 ? '.arming' : ''), mine.x, mine.y, mine.armT > 0 ? ctx.MINE_ARM_MS - mine.armT : time, 24, null, mine.armT <= 0);
+            }
             for (const drone of G.drones || []) ctx.drawAnimation(c, 'player.interceptor.idle', drone.x, drone.y, time, 24);
             for (const clone of G.clones || []) {
                 drawThruster(c, clone.x, clone.y, time, false, '#aa66ff');
@@ -97,7 +100,7 @@
                     const puType = (G.activePU && G.activePU.type) || '';
                     const isLaserMuz = puType === 'laser' || puType === 'mega_laser' || (G.weaponEvo && ctx.WEAPON_EVOS && ctx.WEAPON_EVOS[G.weaponEvo] && ctx.WEAPON_EVOS[G.weaponEvo].isBeam);
                     const isSpreadMuz = puType === 'spread' || puType === 'mega_spread';
-                    const isRocketMuz = puType === 'rocket_launcher' || puType === 'mega_rocket';
+                    const isRocketMuz = ctx.EXPANSION_WEAPONS[puType] && !ctx.EXPANSION_WEAPONS[puType].mine;
                     const mCol = isLaserMuz ? '#ff66cc' : isSpreadMuz ? '#66eeff' : isRocketMuz ? '#ff8833' : '#ffee88';
                     c.save();
                     c.globalCompositeOperation = 'lighter';
@@ -147,7 +150,12 @@
                     c.fillRect(bullet.x - 1.5, bullet.y + 4, 3, bullet.laser ? 14 : 9);
                     c.restore();
                 }
-                ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, bullet.laser ? 28 : bullet.rocket ? 24 : 18);
+                if (bullet.rocket) {
+                    c.save(); c.translate(bullet.x, bullet.y); c.rotate(Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2);
+                    if (!ctx.settings.reducedMotion) ctx.drawAnimation(c, 'effect.rocket-exhaust', 0, 10, time, 22);
+                    ctx.drawAnimation(c, 'weapon.' + (bullet.artId || 'seeker-rocket'), 0, 0, time, bullet.weapon === 'seeker_torpedo' ? 34 : 24); c.restore();
+                    if (ctx.isSeekerTarget(bullet.target)) ctx.drawAnimation(c, 'effect.target-lock', bullet.target.x, bullet.target.y, ctx.settings.reducedMotion ? 0 : time, 34);
+                } else ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, bullet.laser ? 28 : 18);
             }
             for (const ex of G.exp) ctx.drawAnimation(c, ex.animation || ('fx.explosion.' + (ex.isBoss ? 'large' : 'small')), ex.x, ex.y, ex.t, ex.size || (ex.isBoss ? 128 : 48), null, false);
             for (const r of G.plasmaRings) ring(r.x, r.y, r.r, r.col, Math.max(0, 1 - r.t / r.dur) * 0.45);
@@ -165,16 +173,7 @@
                 if (h.x === undefined || h.y === undefined) continue;
                 ring(h.x, h.y, h.r || 18, '#ef9675', 0.8);
             }
-            for (const ast of G.asteroids || []) {
-                c.save();
-                c.translate(ast.x, ast.y);
-                c.rotate(ast.rot || 0);
-                c.fillStyle = '#6b5344';
-                const ar = ast.r || 12;
-                c.beginPath(); c.arc(0, 0, ar, 0, Math.PI * 2); c.fill();
-                c.strokeStyle = '#a8846c'; c.lineWidth = 1.5; c.stroke();
-                c.restore();
-            }
+            ctx.drawAsteroids(c);
             if (G.solarFlareActive && !ctx.settings.reducedMotion) {
                 c.save();
                 c.globalCompositeOperation = 'lighter';

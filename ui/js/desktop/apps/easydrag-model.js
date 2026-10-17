@@ -73,6 +73,14 @@
         d.kind = d.kind || 'flow';
         d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(isPlainObject) : [];
         d.edges = Array.isArray(d.edges) ? d.edges.filter(e => isPlainObject(e) && isPlainObject(e.source) && isPlainObject(e.target)) : [];
+        if (Array.isArray(d.notes)) {
+            d.notes = d.notes.filter(isPlainObject).map(note => {
+                const pos = isPlainObject(note.position) ? note.position : {};
+                return Object.assign({}, note, {
+                    position: { x: finite(pos.x), y: finite(pos.y) }
+                });
+            });
+        }
         d.settings = d.settings || {};
         // A damaged emergency copy can repeat an id. node() keeps the first; the canvas card is keyed
         // by id, so a later copy would be the one on screen. Drop the later copies. Edges stay and
@@ -88,6 +96,7 @@
         d.nodes.forEach(n => {
             n.params = n.params || {};
             n.settings = n.settings || {};
+            if (n.parent !== undefined && typeof n.parent !== 'string') delete n.parent;
             const pos = isPlainObject(n.position) ? n.position : {};
             n.position = { x: finite(pos.x), y: finite(pos.y) };
         });
@@ -502,6 +511,23 @@
         }
 
         function moveNodes(ids, dx, dy) {
+            if (isPlainObject(ids)) {
+                const map = ids;
+                const keys = Object.keys(map).filter(id => {
+                    const n = node(id);
+                    const p = map[id];
+                    return n && isPlainObject(p) && (Math.round(finite(p.x)) !== n.position.x || Math.round(finite(p.y)) !== n.position.y);
+                });
+                if (!keys.length) return;
+                change('move', rec => {
+                    keys.forEach(id => {
+                        const n = rec.node(id);
+                        const p = map[id];
+                        n.position = { x: Math.round(finite(p.x)), y: Math.round(finite(p.y)) };
+                    });
+                }, typeof dx === 'string' ? { coalesce: dx } : undefined);
+                return;
+            }
             if (!dx && !dy) return;
             const present = new Set(state.doc.nodes.map(n => n.id));
             const list = (ids || []).filter(id => present.has(id));

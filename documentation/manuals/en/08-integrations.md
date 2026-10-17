@@ -2566,7 +2566,7 @@ virtual_desktop:
 | External | Existing RuView service at the saved HTTP(S) origin; private/loopback access requires `allow_private` |
 
 **Important:**
-- The agent tool `ruview` (read-only) offers only `status`, `nodes`, `sensing`, `model_info` and `recordings` — never install, flash, configure, calibrate, record or train.
+- The agent tool `ruview` (read-only) offers only `status`, `nodes`, `sensing`, `model_info`, `recordings`, and `presence` — never install, flash, configure, calibrate, record or train. `fresh: false` does not prove presence, and a simulation is not a sensor.
 - Tokens live in Vault keys `ruview_api_token` and `ruview_managed_token` (both export-denied for Python/agent).
 - ESP32 reception needs explicit UDP publication: a concrete RFC1918 IPv4 LAN bind plus an allowlist of private sources (default port 5005).
 - Managed recordings/models live under `data/ruview/data`; a storage watcher stops recordings in a controlled way at the budget (default 1024 MiB) but never deletes anything automatically.

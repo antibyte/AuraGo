@@ -148,6 +148,13 @@
 .infra-node[data-state="stale"] .infra-node-status { background: var(--infra-warn); }
 .infra-node[data-state="unknown"] .infra-node-status { background: var(--infra-muted); }
 .infra-node[data-state="removed"] .infra-node-status { background: var(--infra-bad); }
+.infra-node-power, .infra-power-pill { display: inline-flex; align-items: center; max-width: 100%; padding: 0 6px; border-radius: 999px; color: var(--infra-ink); background: color-mix(in srgb, var(--infra-muted) 22%, transparent); font-size: 12px; font-style: normal; line-height: 1.5; }
+.infra-node-power { position: absolute; top: 8px; left: 10px; }
+.infra-power-pill[data-power="running"], .infra-node-power[data-power="running"] { background: color-mix(in srgb, var(--infra-good) 28%, transparent); }
+.infra-power-pill[data-power="stopped"], .infra-node-power[data-power="stopped"] { background: color-mix(in srgb, var(--infra-bad) 28%, transparent); }
+.infra-power-pill[data-power="paused"], .infra-node-power[data-power="paused"] { background: color-mix(in srgb, var(--infra-warn) 34%, transparent); }
+.infra-frame { fill: color-mix(in srgb, var(--infra-accent) 8%, transparent); stroke: color-mix(in srgb, var(--infra-accent) 42%, transparent); stroke-width: 1.5; pointer-events: auto; cursor: pointer; }
+.infra-edge text { font-size: 12px; fill: var(--infra-muted); text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 .infra-node:hover .infra-node-art { transform: translateY(-3px); filter: drop-shadow(0 11px 6px rgba(5,13,16,.3)); }
 .infra-node:hover .infra-node-ring { border-color: color-mix(in srgb, var(--infra-accent) 62%, transparent); }
 .infra-node.is-selected { border-color: color-mix(in srgb, var(--infra-accent) 52%, transparent); background: color-mix(in srgb, var(--infra-accent) 8%, transparent); }

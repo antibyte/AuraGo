@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Onvoldoende schijfruimte. Maak ruimte vrij en probeer opnieuw.",
   "config.decisions.disk_unknown": "De vrije ruimte kon niet worden gecontroleerd. Controleer de toegangsrechten.",
   "config.decisions.save_failed": "De Decisions-instellingen konden niet worden opgeslagen. Controleer de schrijfrechten.",
-  "config.decisions.runtime_dependencies_missing": "De runtime kan niet starten. Controleer de ondersteunde systeemversie en installeer een actueel grafisch stuurprogramma. Probeer de installatie daarna opnieuw."
+  "config.decisions.runtime_dependencies_missing": "De runtime kan niet starten. Controleer de ondersteunde systeemversie en installeer een actueel grafisch stuurprogramma. Probeer de installatie daarna opnieuw.",
+  "config.decisions.pin_model": "Vaste versie gebruiken",
+  "config.decisions.alias_target": "Huidig aliasdoel: {value}",
+  "config.decisions.model_expiry": "Vervalmelding: {value}",
+  "config.decisions.media_limits": "Maximaal {count} afbeeldingen van elk {bytes} KiB. Verkleinen kan fijne details verloren laten gaan.",
+  "config.decisions.model_checked": "Catalogus gecontroleerd: {value}",
+  "config.decisions.model_not_available": "Dit model is niet meer beschikbaar. Laad de catalogus en kies een ander model.",
+  "config.decisions.model_context_unverified": "Contextlimiet niet geverifieerd. Dit model kan niet worden gebruikt.",
+  "config.decisions.model_unverified": "Model niet gecontroleerd. Laad de catalogus of start bewust een test.",
+  "config.decisions.responding_model": "Antwoordende versie: {value}",
+  "config.decisions.alias_changed": "Het aliasdoel is gewijzigd. Controleer de routeringsdrempels voor de nieuwe versie.",
+  "config.decisions.runtime_discovery_timeout": "Apparaatdetectie duurde langer dan 60 seconden. Controleer de runtime en probeer opnieuw. Er is geen CPU-terugval gestart.",
+  "config.decisions.runtime_discovery_output_limit": "Apparaatdetectie produceerde te veel uitvoer en is gestopt. Controleer de runtime.",
+  "config.decisions.image_limit_exceeded": "De afbeeldingen passen niet binnen de modellimieten. Stuur minder of kleinere afbeeldingen.",
+  "config.decisions.image_invalid": "Een afbeelding is beschadigd of wordt niet ondersteund. Gebruik een geldige PNG of JPEG.",
+  "config.decisions.image_minimum_unmet": "Een afbeelding is kleiner dan de minimale modelafmetingen. Kies een groter origineel."
 }

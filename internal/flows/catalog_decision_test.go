@@ -147,7 +147,7 @@ func TestAIDecisionPortsAreStableAndModeAware(t *testing.T) {
 		}
 		return names
 	}
-	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution", "decision", "confidence"}) {
+	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution", "image_adjustments", "decision", "confidence"}) {
 		t.Fatalf("route output fields = %v", got)
 	}
 	want := []string{"choice_approve", "choice_reject", "uncertain"}
@@ -164,7 +164,7 @@ func TestAIDecisionPortsAreStableAndModeAware(t *testing.T) {
 	if got := def.OutputPorts(node); !reflect.DeepEqual(got, []string{PortOut, "uncertain"}) {
 		t.Fatalf("evaluate ports = %v", got)
 	}
-	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution"}) {
+	if got := fieldNames(def.FieldsOf(node)); !reflect.DeepEqual(got, []string{"answers", "model", "model_revision", "calibration", "runtime", "usage", "execution", "image_adjustments"}) {
 		t.Fatalf("evaluate output fields = %v", got)
 	}
 	node.Settings.OnError = ErrorPort
@@ -177,12 +177,16 @@ func TestAIDecisionRoutesAndPassesOnlyMediaReferences(t *testing.T) {
 	def := decisionDef(t)
 	params := routeDecisionParams()
 	media := &fakeDecisionEvaluator{response: choiceResponse("intent", "approve", .82)}
+	media.response.ImageAdjustments = []decisions.ImageAdjustment{{Index: 0, OriginalWidth: 800, Width: 400}}
 	res, err := execDef(def, params, &Services{Decisions: media})
 	if err != nil {
 		t.Fatalf("execute: %v", err)
 	}
 	if !reflect.DeepEqual(res.Ports, []string{"choice_approve"}) || res.Output["decision"] != "approve" || res.Output["confidence"] != .82 {
 		t.Fatalf("result = %+v", res)
+	}
+	if !reflect.DeepEqual(res.Output["image_adjustments"], media.response.ImageAdjustments) {
+		t.Fatal("image adjustments missing from flow output")
 	}
 	if media.request.State == nil || !reflect.DeepEqual(media.request.Images, []string{"{{trigger.data.image}}"}) || len(media.request.Questions) != 1 || media.request.Questions[0].ID != "intent" {
 		t.Fatalf("service request = %+v", media.request)

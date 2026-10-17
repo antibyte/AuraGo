@@ -10,9 +10,12 @@
             ctx.G.bossWarningShown = false;
             const isMini = ctx.isMiniBossStage();
             const formType = (ctx.G.stage - 1) % 6;
-            let idx = 0;
+            let idx = 0, regularSlot = 0;
 
             function pushEnemy(type, r, col, fx, fy, hp) {
+                const art = ctx.expansionAlien(type, type === 'boss' || type === 'miniboss' ? -1 : regularSlot++, 1);
+                if (art) { type = art.role; hp = ['hunter', 'shield_bee', 'carrier'].includes(type) ? 3 : ['bomber', 'spinner', 'splitter', 'teleporter'].includes(type) ? 2 : 1; }
+
                 if (ctx.G.glassCannon && type !== 'boss') hp = 1;
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + ctx.random() * 3000 + idx * 50);
@@ -27,6 +30,7 @@
                     spawnAnim: 0, spawnDur: GC.ENEMY_SPAWN_DURATION, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5,
                     weakPoint: (type === 'boss' || type === 'miniboss') ? { x: 0, y: -10, angle: 0 } : null,
                     rageMode: 0, rageSpeedMult: 1, phaseTimer: 0 };
+                if (art) enemy.artId = art.id;
                 ctx.G.enemies.push(enemy);
                 if (ctx.assignEnemyQuirk) ctx.assignEnemyQuirk(enemy);
                 idx++;
@@ -143,11 +147,7 @@
             ctx.G.envHazards = [];
             ctx.G.solarFlareT = 0; ctx.G.solarFlareActive = false; ctx.G.emStormT = 0;
             const theme = ctx.G.bgTheme;
-            if (theme === 'asteroid') {
-                for (let i = 0; i < 4; i++) {
-                    ctx.G.envHazards.push({ type: 'asteroid_h', x: 40 + ctx.random() * (ctx.W - 80), y: 80 + ctx.random() * (ctx.H - 200), hp: 2, maxHp: 2, r: 8 + ctx.random() * 6, vx: (ctx.random() - 0.5) * 20, vy: 8 + ctx.random() * 12, rot: ctx.random() * 6.28, rotSpd: (ctx.random() - 0.5) * 2 });
-                }
-            } else if (theme === 'nebula' && ctx.G.stage >= 8) {
+            if (theme === 'nebula' && ctx.G.stage >= 8) {
                 ctx.G.solarFlareT = 5000 + ctx.random() * 3000;
             } else if (theme === 'crystal') {
                 for (let i = 0; i < 3; i++) {

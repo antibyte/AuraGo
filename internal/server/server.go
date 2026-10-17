@@ -1854,6 +1854,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
 	s.RuView = ruview.New(s.ConfigSnapshot, opts.Vault, logger)
 	ruview.SetDefault(s.RuView)
+	bindRuViewOperationalHints(s.RuView, opts.PlannerDB, logger)
 	s.LocalMusic = acestep.New(cfg, opts.Vault, logger)
 	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)

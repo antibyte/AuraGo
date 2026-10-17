@@ -1,0 +1,9 @@
+{
+  "id": "terran-c",
+  "kind": "planet",
+  "file": "exp-planet-terran-c.png",
+  "source": "exec-5c31027c-0da7-40c3-a869-5605645859ec.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-terran-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is lush terran world with emerald continents, detailed mountain ranges, deep blue seas, white clouds and tiny warm city lights on its night edge. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

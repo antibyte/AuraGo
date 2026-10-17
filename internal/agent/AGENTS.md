@@ -131,6 +131,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - `huggingface` results use `externalToolOutput` before the model sees them.
   Dispatch registers the resolved Vault token with `security.RegisterSensitive`
   first. `RunHuggingFace` still returns the raw JSON for non-model callers.
+- `ruview` has one dispatch path, `Manager.Read`. `status` only probes the service. `nodes`, `sensing`, `model_info`, and `recordings` stay live reads. `presence` is the only operation that adds this receiver's saved offline board IDs. A successful payload is returned when the following status probe fails. Field rules live in `internal/ruview/AGENTS.md`.
 
 - Tool-result inline budget: the primary output vault archives a successful
   native result above the inline limit. A positive `max_inline_chars` fixes

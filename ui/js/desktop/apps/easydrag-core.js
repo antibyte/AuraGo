@@ -304,6 +304,8 @@
             testData: (id, node) => api(flow(id) + '/test-data/' + enc(node)),
             saveTestData: (id, node, data) => api(flow(id) + '/test-data/' + enc(node), json('PUT', { data })),
             exportUrl: id => flow(id) + '/export',
+            versions: id => api(flow(id) + '/versions'),
+            restoreVersion: (id, revision, baseRevision) => api(flow(id) + '/versions', json('POST', { revision, base_revision: baseRevision })),
             nodeTypes: () => api(base + '/node-types' + query({ lang: lang() })),
             options: (type, param) => api(base + '/node-types/' + enc(type) + '/options/' + enc(param) + query({ lang: lang() })),
             templates: () => api(base + '/templates' + query({ lang: lang() })),

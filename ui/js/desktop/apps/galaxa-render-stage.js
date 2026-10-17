@@ -45,6 +45,8 @@
             label(ctx.t('galaxa.high_score') + '  ' + String(ctx.G.hi).padStart(8, '0'), ctx.W / 2, 486, 15, '#84afc9');
             const rows = ctx.G.hiScores.slice(0, 4);
             rows.forEach((row, i) => label((i + 1) + '  ' + row.name + '  ' + row.score + '  · ' + row.stage, ctx.W / 2, 513 + i * 19, 12, '#afbdd0'));
+            label(ctx.t('galaxa.weapon_fire_hint'), ctx.W / 2, 592, 10, '#afbdd0');
+            label(ctx.t('galaxa.weapon_mine_hint'), ctx.W / 2, 608, 10, '#afbdd0');
             label(ctx.t('galaxa.play_hint'), ctx.W / 2, 626, 11, '#afbdd0');
             label(ctx.t('galaxa.menu_hint'), ctx.W / 2, 649, 11, '#809bb6');
             label(ctx.t('galaxa.action_parry') + ' X  ·  ' + ctx.t('galaxa.action_super') + ' C', ctx.W / 2, 676, 11, '#e1be7d');
@@ -53,7 +55,7 @@
             const plan = ctx.stagePlan();
             panel(42, 294, ctx.W - 84, 102, true);
             label(ctx.t('galaxa.stage') + ' ' + ctx.G.stage, ctx.W / 2, 325, 24, '#e1be7d');
-            label(ctx.t('galaxa.sector_' + GC.SECTORS[plan.sector].id), ctx.W / 2, 354, 18);
+            label(ctx.t('galaxa.sector_' + ctx.expansionSector()), ctx.W / 2, 354, 18);
             label(ctx.t('galaxa.stage_' + plan.kind), ctx.W / 2, 379, 12, '#91b4cd');
         }
         function renderPause() {

@@ -2,9 +2,13 @@
 
 ## Infra
 
-- Load `infra-views.js` before `infra.js`. The view factory owns rendering and
-  node forms for one window; the app retains requests, lifecycle and source actions.
-  Both use the translated Desktop keys without literal English fallbacks.
+- Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
+  pure map math. The view factory owns rendering and node forms for one window.
+  The app retains requests, lifecycle and source actions. A snapshot poll
+  repaints the inspector only when the selected draft is clean and focus is
+  outside it. Dragging, panning and keyboard moves defer that paint until the
+  gesture ends. All three use the translated Desktop keys without literal
+  English fallbacks.
 - Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
   `TestDesktopInfra*Browser` suites after changes to this boundary.
 
@@ -839,6 +843,12 @@
   vendor, wiring, stylesheet, devices/transfer and key tests) and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
   `TestDesktopCYDCreatorFlashBrowser` (fixture `ui/testdata/cyd-creator-flash-fixture.js`: fake `navigator.serial`
   and esptool). After an esptool-js change: `npm run build:browser-vendor -- --check`.
+
+## RuView
+
+- `ruview.js` owns one Desktop window. Overview and Devices poll status and known boards together while the window is visible, pause when it is hidden, and do not overlap requests. An idle tab waits for that snapshot before showing board ages. A tab switch during a refresh paints the last snapshot and does not start another request. The first summary value stays the service state. A failed status or node read keeps the previous board list. A successful status is still applied when the board read fails.
+- Devices name CSI and RSSI and show a relative age. An offline RSSI is labelled as the last value for the same receiver. A measurement time the reply omitted stays blank. Each board can open the wizard with that node ID. Disabled actions share one visible reason. Rendering never starts a runtime or enables UDP.
+- The upstream iframe sandbox is `allow-scripts` only. `relay.mjs` posts reviewed API calls and sensing sockets to this window and replies with target origin `*`; the frame accepts a reply only from this window and cannot open its own connections. Serial, camera, and microphone stay off the frame. Backend status and recording acknowledgement: `internal/ruview/AGENTS.md`. Verify `node scripts/ruview/browser.test.mjs`.
 
 ## Purpose
 
@@ -2397,7 +2407,15 @@ registration lives in `internal/desktop/types.go`.
   Verify with `node scripts/test-galaxa-assets.mjs`. Animation rectangles, durations,
   loops and anchors belong in that manifest; never restore inline pixel
   definitions or fixed frame counts. Collision geometry is independent of art.
+  Asteroid animations opt into `blendFrames`; adjacent anchored frames, including
+  the loop boundary, blend on one reusable scratch canvas without adding phases
+  to the sprite cache. Preserve opacity and nearest-neighbor scaling. Verify
+  `TestGalaxaAsteroidAnimationBrowser` for continuity, Reduced Motion and cleanup.
   Sprite canvases have a 768-entry cap. Asset failures expose localized retry.
+- Galaxa background order is sector scenery, stars, planets, then gameplay/HUD.
+  Planet frame blending uses one reusable logical-size canvas and preserves body
+  opacity; dim the colors rather than the alpha so stars cannot show through.
+  Keep the two-sheet limit and verify `TestGalaxaPlanetOcclusionBrowser`.
 - `ctx.stepFrame` runs a fixed 60 Hz simulation independently of rendering.
   Use `ctx.scheduleGame`, not wall-clock timers, for combat transitions.
   `resetRun` resets the run generation and seeded RNG; delayed work cannot
@@ -3932,8 +3950,8 @@ registration lives in `internal/desktop/types.go`.
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
   `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
   IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
-  `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
-  `aurago.desktop.terminal.style` and audio mute
+  `ibm3278`, `vintage`, `mono-green`, `transparent-green`, `color-monitor`.
+  Persist `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
   xterm 6 with its WebGL addon, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;

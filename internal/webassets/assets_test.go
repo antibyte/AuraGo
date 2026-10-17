@@ -30,6 +30,7 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 	}{
 		{"empty", 0, false},
 		{"sticker-sized pack", (512 << 20) + 1, true},
+		{"galaxa expansion pack", (640 << 20) + 1, true},
 		{"limit", MaxArchiveBytes, true},
 		{"over limit", MaxArchiveBytes + 1, false},
 	} {

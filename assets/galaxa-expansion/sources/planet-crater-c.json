@@ -1,0 +1,9 @@
+{
+  "id": "crater-c",
+  "kind": "planet",
+  "file": "exp-planet-crater-c.png",
+  "source": "exec-c3f60c69-43b4-41e7-8f99-8d8dda9b44f7.png",
+  "tool": "image_gen",
+  "reference": "exp-planet-crater-a.png",
+  "prompt": "Continue the supplied planet animation sheet. Produce ONLY the NEXT FOUR FRAMES in the identical 2x2 grid, same overall image dimensions at least 1024x1024 and each cell at least 512x512. This is ancient grey-brown cratered moonlike planet with overlapping impact basins, bright ejecta rays and faint silver dust haze. Keep EXACTLY the reference silhouette, centered placement, size, surface geography, craters, continents, light direction and camera. These are frames 9,10,11,12 out of a 12-frame subtle looping atmosphere cycle: slowly return cloud wisps, storm eddies or glowing atmospheric details toward the first reference frame, final frame almost matches the first frame so the loop closes smoothly. Every frame is visually distinct but extremely subtle. Preserve true transparent background. No stars, extra planets, grids, text or labels. Keep ALL atmosphere and any rings within the cell with a transparent margin; do not crop. Do not redesign, recolor or rotate the surface."
+}

@@ -42,7 +42,7 @@ func (f *fakeDecisionProvider) Models(ctx context.Context) ([]decisions.Decision
 	if f.models != nil {
 		return f.models(ctx)
 	}
-	return []decisions.DecisionModel{{ID: "microsoft/microsoft-decision-1"}}, nil
+	return []decisions.DecisionModel{{ID: "microsoft/microsoft-decision-1", ContextLength: 8192, SupportsDecisions: true, Usable: true}}, nil
 }
 
 func routedDecisionFixture(t *testing.T) (*Server, *routedDecisions, *fakeDecisions, *fakeDecisionProvider) {
@@ -382,8 +382,8 @@ func TestDecisionProviderOAuthCredentialsResolveFromVaultForEvaluateAndModels(t 
 	if _, err := d.Evaluate(context.Background(), decisions.Request{}); err != nil {
 		t.Fatal(err)
 	}
-	if len(keys) != 2 || keys[0] != access || keys[1] != access {
-		t.Fatalf("OAuth credential was not applied to both route and catalog clients (clients=%d)", len(keys))
+	if len(keys) != 1 || keys[0] != access {
+		t.Fatalf("OAuth credential was not applied to the shared route/catalog client (clients=%d)", len(keys))
 	}
 	if got := security.Scrub(access); got == access {
 		t.Fatal("active OAuth credential was not scrubbed")
@@ -471,13 +471,6 @@ func TestDecisionProviderOAuthRotationCancelsOnlyMatchingProviderWork(t *testing
 		<-releaseFirst
 		return decisions.Response{}, nil
 	}
-	first.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
-		close(firstModelsStarted)
-		<-ctx.Done()
-		close(firstModelsCanceled)
-		<-releaseFirst
-		return []decisions.DecisionModel{{ID: "late-cloud"}}, nil
-	}
 	otherClient.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
 		close(otherStarted)
 		select {
@@ -490,9 +483,16 @@ func TestDecisionProviderOAuthRotationCancelsOnlyMatchingProviderWork(t *testing
 	}
 	finishedEval, finishedCloudModels, finishedOtherModels := make(chan error, 1), make(chan error, 1), make(chan error, 1)
 	go func() { _, err := d.Evaluate(context.Background(), decisions.Request{}); finishedEval <- err }()
+	<-firstEvalStarted
+	first.models = func(ctx context.Context) ([]decisions.DecisionModel, error) {
+		close(firstModelsStarted)
+		<-ctx.Done()
+		close(firstModelsCanceled)
+		<-releaseFirst
+		return []decisions.DecisionModel{{ID: "late-cloud"}}, nil
+	}
 	go func() { _, err := d.Models(context.Background(), "cloud"); finishedCloudModels <- err }()
 	go func() { _, err := d.Models(context.Background(), "other"); finishedOtherModels <- err }()
-	<-firstEvalStarted
 	<-firstModelsStarted
 	<-otherStarted
 	if err := s.Vault.WriteSecret("oauth_cloud", `{"access_token":"`+accessV2+`","refresh_token":"refresh-token-cloud-2","token_type":"Bearer"}`); err != nil {

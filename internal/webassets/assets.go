@@ -20,7 +20,7 @@ import (
 var SetID, ArchiveSHA256, ArchiveBytes, DownloadURL string
 
 const ManifestName = "manifest.json"
-const MaxArchiveBytes int64 = 640 << 20
+const MaxArchiveBytes int64 = 768 << 20
 const MaxExpandedBytes int64 = 1 << 30
 const MaxFiles = 20000
 

@@ -186,7 +186,7 @@ func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {
 	_ = stm.InsertEpisodicMemoryWithDetails("2026-03-31", "Fix", "Resolved reverse proxy config issue", map[string]string{"scope": "proxy"}, 3, "consolidation", memory.EpisodicMemoryDetails{SessionID: "session-a", HierarchyLevel: 1, Participants: []string{"user", "agent"}})
 
 	vdb := &hierarchyVectorDB{}
-	consolidateEpisodicHierarchy(logger, stm, vdb, nil)
+	consolidateEpisodicHierarchy(t.Context(), logger, stm, vdb, nil)
 
 	levelOne, err := stm.GetEpisodicMemoriesByHierarchyLevel(1, 10)
 	if err != nil {
@@ -220,14 +220,14 @@ func TestConsolidateEpisodicHierarchyKGFailureDoesNotRepeatSynthesis(t *testing.
 		}
 	}
 	vdb := &hierarchyVectorDB{}
-	if err := consolidateEpisodicHierarchy(logger, stm, vdb, kg); err == nil {
+	if err := consolidateEpisodicHierarchy(t.Context(), logger, stm, vdb, kg); err == nil {
 		t.Fatal("KG failure was hidden")
 	}
 	before, err := stm.GetEpisodicMemoriesByHierarchyLevel(2, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := consolidateEpisodicHierarchy(logger, stm, vdb, nil); err != nil {
+	if err := consolidateEpisodicHierarchy(t.Context(), logger, stm, vdb, nil); err != nil {
 		t.Fatal(err)
 	}
 	after, err := stm.GetEpisodicMemoriesByHierarchyLevel(2, 20)

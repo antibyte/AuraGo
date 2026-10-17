@@ -87,6 +87,10 @@ function renderDecisionsSection(section) {
     const loadModels = node('button', 'btn-secondary', tr('load_models'), catalogActions);
     loadModels.type = 'button';
     loadModels.dataset.decisionsLoadModels = '';
+    const pinModel = node('button', 'btn-secondary', tr('pin_model'), catalogActions);
+    pinModel.type = 'button';
+    pinModel.dataset.decisionsPinModel = '';
+    pinModel.hidden = true;
     const catalogResult = node('p', 'field-help', '', providerPanel);
     catalogResult.dataset.decisionsModels = '';
     catalogResult.setAttribute('role', 'status');
@@ -112,7 +116,7 @@ function renderDecisionsSection(section) {
     buttons.setup = setupButton;
     const steps = node('div', 'cfg-actions cfg-actions-row', '', advanced);
     for (const [action, label] of [
-        ['check', 'check'], ['install', 'download'], ['start', 'start_step']
+        ['check', 'check'], ['start', 'start_step']
     ]) {
         const step = node('div', '', '', steps);
         const button = node('button', 'btn-secondary', tr(label), step);
@@ -126,7 +130,9 @@ function renderDecisionsSection(section) {
     checkResult.dataset.decisionsCheck = '';
     checkResult.setAttribute('role', 'status');
     checkResult.hidden = true;
-    const setupLink = node('a', 'field-help', tr('setup_instructions'), advanced);
+    const setupLink = node('a', 'field-help', tr('setup_instructions'), localPanel);
+    setupLink.dataset.decisionsSetupHelp = '';
+    setupLink.hidden = true;
     setupLink.href = 'https://github.com/antibyte/AuraGo/blob/main/documentation/decisions.md';
     setupLink.target = '_blank';
     setupLink.rel = 'noopener noreferrer';
@@ -167,7 +173,7 @@ function renderDecisionsSection(section) {
 
     const lifetime = new AbortController();
     let status, busy = false, activeAction = '', actionRevision = 0, timer, statusRequest, modelsRequest, activeRequest, activeOperation;
-    let loadedModels = [];
+    let loadedModels = [], modelsCheckedAt = 0;
     let pendingAction = null;
     let installationCheck = null;
     const attached = () => !lifetime.signal.aborted && root.isConnected;
@@ -223,7 +229,21 @@ function renderDecisionsSection(section) {
         providerSelect.value = current;
         providerHelp.textContent = tr('provider_help');
     };
-    const modelFor = id => loadedModels.find(model => String(model.id) === String(id));
+    const modelFor = id => {
+        const availability = status?.provider === providerSelect.value ? status.model_availability : null;
+        const current = availability?.state !== 'unknown' ? availability?.model : null;
+        const fresh = model => Date.now() - (Date.parse(model.checked_at) || modelsCheckedAt) < 300000;
+        if (current?.id === id) return current;
+        const exact = loadedModels.find(model => model.id === id && fresh(model));
+        if (exact) return exact;
+        if (current && [current.id, current.canonical_slug, current.alias_target].includes(id)) return current;
+        return loadedModels.find(model => [model.canonical_slug, model.alias_target].includes(id) && fresh(model));
+    };
+    const modelBlocked = (id = modelSelect.value) => {
+        if (status?.model === id && status?.provider === providerSelect.value && status.model_availability) return status.model_availability.state === 'blocked';
+        const model = modelFor(id);
+        return model ? model.usable === false || Number(model.context_length) <= 0 : modelsCheckedAt > 0 && Date.now() - modelsCheckedAt < 300000;
+    };
     const modelPrice = value => {
         if (value == null || String(value).trim() === '') return tr('price_unavailable');
         const n = Number(value);
@@ -234,6 +254,9 @@ function renderDecisionsSection(section) {
     };
     const showModelDetails = () => {
         const model = modelFor(modelSelect.value);
+        const target = model?.alias_target || model?.canonical_slug;
+        pinModel.hidden = !target || target === modelSelect.value;
+        pinModel.disabled = busy || modelBlocked();
         if (!model) {
             modelDetails.hidden = true;
             modelDetails.textContent = '';
@@ -249,12 +272,36 @@ function renderDecisionsSection(section) {
             tr('price_input', {value: modelPrice(pricing.prompt)}),
             tr('price_output', {value: modelPrice(pricing.completion)})
         ].join(' · ');
+        if (target && target !== modelSelect.value) modelDetails.textContent += ' · ' + tr('alias_target', {value: target});
+        if (model.expiration_date) modelDetails.textContent += ' · ' + tr('model_expiry', {value: model.expiration_date});
+        if (model.media_limits && model.supports_images) modelDetails.textContent += ' · ' + tr('media_limits', {count: model.media_limits.max_images, bytes: Math.round(model.media_limits.max_image_bytes / 1024)});
+        if (model.checked_at) modelDetails.textContent += ' · ' + tr('model_checked', {value: new Date(model.checked_at).toLocaleString()});
+        if (modelBlocked()) modelDetails.textContent += ' · ' + errorText(model.unavailable_code || 'model_not_available');
         modelDetails.hidden = false;
     };
+    pinModel.addEventListener('click', () => {
+        const model = modelFor(modelSelect.value);
+        const target = model?.alias_target || model?.canonical_slug;
+        if (!target || modelBlocked()) return;
+        if (![...modelSelect.options].some(option => option.value === target)) modelSelect.add(new Option(target, target));
+        modelSelect.value = target;
+        modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    });
     const updateButtons = () => {
         if (!attached()) return;
+        for (const option of modelSelect.options) {
+            if (!option.value) continue;
+            const model = modelFor(option.value);
+            option.disabled = modelBlocked(option.value);
+            const label = (model?.name && model.name !== option.value ? model.name + ' · ' : '') + option.value;
+            const code = status?.provider === providerSelect.value && status?.model === option.value ? status.model_availability?.code : model?.unavailable_code;
+            option.textContent = option.disabled ? label + ' · ' + errorText(code || 'model_not_available') : model ? label : tr('model_saved_unverified', {value: option.value});
+        }
         const local = !providerMode();
         const changing = !!pendingAction || status?.setup_active || ['setting_up', 'installing', 'downloading', 'starting', 'stopping', 'discovering_devices'].includes(status?.state);
+        const setupFailed = ['error', 'blocked', 'stopped_with_error'].includes(status?.state)
+            || (!checkResult.hidden && installationCheck && !installationCheck.runtime_available);
+        setupLink.hidden = !local || busy || changing || localReady() || !setupFailed;
         // A failed autostart can leave Installed false even after verifying cached models.
         const canStart = status && status.state !== 'not_installed' && status.code !== 'model_not_installed'
             && (status.code !== 'runtime_artifact_missing' || status.installed || installationCheck?.runtime_available);
@@ -264,7 +311,7 @@ function renderDecisionsSection(section) {
         for (const [action, button] of Object.entries(buttons)) {
             button.hidden = !local;
             button.disabled = action === 'stop'
-                ? (busy && !['test', 'install', 'start', 'setup'].includes(activeAction)) || (!busy && !changing && idle)
+                ? (busy && !['test', 'start', 'setup'].includes(activeAction)) || (!busy && !changing && idle)
                 : busy || changing || (action !== 'setup' && localDirty()) || (!['check', 'setup'].includes(action) && !status?.enabled)
                     || (action === 'start' && (!canStart || localReady()))
                     || (action === 'test' && !localReady());
@@ -288,7 +335,8 @@ function renderDecisionsSection(section) {
         cpuText.hidden = !local || !status?.cpu_fallback_active;
         providerPanel.hidden = !providerMode();
         localPanel.hidden = providerMode();
-        externalTest.disabled = busy || dirty() || !status?.enabled || !selectedProvider() || !modelSelect.value;
+        externalTest.disabled = busy || dirty() || !status?.enabled || !selectedProvider() || !modelSelect.value || modelBlocked();
+        externalTest.title = modelBlocked() ? errorText(status?.model_availability?.code || modelFor(modelSelect.value)?.unavailable_code || 'model_not_available') : '';
         loadModels.disabled = busy || !providerSelect.value;
         createProvider.disabled = busy;
         manageProviders.disabled = busy;
@@ -307,7 +355,7 @@ function renderDecisionsSection(section) {
             lifecycle_busy: 'lifecycle_busy', runtime_start_timeout: 'runtime_start_timeout', runtime_invalid_configuration: 'runtime_invalid_configuration',
             runtime_release_unavailable: 'release_unavailable', runtime_download_failed: 'runtime_download_failed', model_download_failed: 'runtime_download_failed',
             insufficient_disk_space: 'disk_full', disk_space_unavailable: 'disk_unknown', configuration_save_failed: 'save_failed',
-            runtime_dependencies_missing: 'runtime_dependencies_missing'
+            runtime_dependencies_missing: 'runtime_dependencies_missing', runtime_discovery_timeout: 'runtime_discovery_timeout', runtime_discovery_output_limit: 'runtime_discovery_output_limit'
         };
         return tr(exact[code] || 'failed');
     };
@@ -320,17 +368,21 @@ function renderDecisionsSection(section) {
             budget_exceeded: 'budget_exceeded', external_provider_failed: 'external_provider_failed',
             external_outcome_unknown: 'external_outcome_unknown', invalid_request: 'invalid_request',
             input_token_budget_exceeded: 'input_token_budget_exceeded', cancelled: 'cancelled',
-            provider_error: 'external_provider_failed'
+            provider_error: 'external_provider_failed', model_not_available: 'model_not_available', model_context_unverified: 'model_context_unverified', model_unverified: 'model_unverified', image_limit_exceeded: 'image_limit_exceeded', image_invalid: 'image_invalid', image_minimum_unmet: 'image_minimum_unmet'
         };
         return tr(keys[code] || 'failed');
     };
     const paint = () => {
         if (!attached() || !status) return;
         if (providerMode()) {
-            const state = status.ready ? tr('provider_ready') : status.state === 'error' ? errorText(status.last_error || status.code) : status.configured ? tr('provider_configured') : tr('provider_needs_setup');
+            const availability = status.model_availability;
+            const state = availability && availability.state !== 'usable' && status.configured ? errorText(availability.code || 'model_unverified') : status.ready ? tr('provider_ready') : status.state === 'error' ? errorText(status.last_error || status.code) : status.configured ? tr('provider_configured') : tr('provider_needs_setup');
             statusText.textContent = state;
             statusText.className = 'cfg-note-banner ' + (status.ready ? 'cfg-note-banner-success' : status.state === 'error' ? 'cfg-note-banner-warning' : '');
             deviceText.textContent = status.last_success ? tr('provider_last_success', {value: new Date(status.last_success).toLocaleString()}) : tr('provider_never_tested');
+            if (status.model_revision) deviceText.textContent += ' · ' + tr('responding_model', {value: status.model_revision});
+            if (status.alias_changed) deviceText.textContent += ' · ' + tr('alias_changed');
+            showModelDetails();
             cpuText.hidden = true;
         } else {
             const stateKeys = {disabled: 'disabled', stopped: 'stopped', installing: 'downloading', downloading: 'downloading', starting: 'starting', discovering_devices: 'starting', blocked: 'error', error: 'error', stopped_with_error: 'error'};
@@ -357,8 +409,7 @@ function renderDecisionsSection(section) {
             }
             if (pendingAction && pendingAction.revision === actionRevision) {
                 let outcome = '';
-                if (pendingAction.action === 'install' && status.state === 'installed') outcome = tr('installed');
-                else if (['start', 'setup'].includes(pendingAction.action) && status.ready) outcome = tr('ready');
+                if (['start', 'setup'].includes(pendingAction.action) && status.ready) outcome = tr('ready');
                 else if (['error', 'blocked', 'stopped_with_error'].includes(status.state)) outcome = reason(status.code) || tr('failed');
                 else if (['stopped', 'disabled'].includes(status.state)) outcome = errorText('cancelled');
                 if (outcome) { localResult.textContent = outcome; pendingAction = null; }
@@ -404,20 +455,28 @@ function renderDecisionsSection(section) {
             if (!attached() || request.signal.aborted || modelsRequest !== request) return;
             if (!response.ok) throw new Error(body?.code || 'external_provider_failed');
             loadedModels = Array.isArray(body.models) ? body.models : [];
-            if (!loadedModels.length) {
-                catalogResult.textContent = tr('models_empty');
-                return;
-            }
+            modelsCheckedAt = Date.parse(loadedModels[0]?.checked_at) || Date.now();
             const saved = modelSelect.value || data.model || '';
             modelSelect.replaceChildren(new Option(tr('model_select'), ''));
-            for (const model of loadedModels) modelSelect.add(new Option((model.name && model.name !== model.id ? model.name + ' · ' : '') + model.id, model.id));
+            for (const model of loadedModels) {
+                const blocked = model.usable === false || Number(model.context_length) <= 0;
+                const option = new Option((model.name && model.name !== model.id ? model.name + ' · ' : '') + model.id + (blocked ? ' · ' + errorText(model.unavailable_code || 'model_context_unverified') : ''), model.id);
+                option.disabled = blocked;
+                modelSelect.add(option);
+            }
             if (saved && !loadedModels.some(model => String(model.id) === saved)) {
-                const option = new Option(tr('model_saved_unavailable', {value: saved}), saved);
+                const known = loadedModels.find(model => [model.canonical_slug, model.alias_target].includes(saved));
+                const option = new Option(known ? saved : tr('model_saved_unavailable', {value: saved}), saved);
+                option.disabled = !known || known.usable === false;
                 option.dataset.preservedModel = 'true';
                 modelSelect.add(option);
             }
             modelSelect.value = saved;
-            catalogResult.textContent = tr('models_loaded', {count: loadedModels.length});
+            if (status?.model === saved && status?.provider === id) {
+                const model = loadedModels.find(model => [model.id, model.canonical_slug, model.alias_target].includes(saved));
+                status.model_availability = {state: model && model.usable !== false && Number(model.context_length) > 0 ? 'usable' : 'blocked', code: model?.unavailable_code || 'model_not_available', model};
+            }
+            catalogResult.textContent = tr(loadedModels.length ? 'models_loaded' : 'models_empty', {count: loadedModels.length});
             showModelDetails();
         } catch (error) {
             if (attached() && modelsRequest === request) catalogResult.textContent = errorText(error.message || 'external_provider_failed');
@@ -427,7 +486,7 @@ function renderDecisionsSection(section) {
         }
     };
     const run = async action => {
-        if (!attached() || (busy && !(action === 'stop' && ['test', 'install', 'start', 'setup'].includes(activeAction)))) return;
+        if (!attached() || (busy && !(action === 'stop' && ['test', 'start', 'setup'].includes(activeAction)))) return;
         const useProvider = providerMode();
         if (action === 'stop') { activeRequest?.abort(); pendingAction = null; }
         if (action !== 'check') checkResult.hidden = true;
@@ -442,7 +501,7 @@ function renderDecisionsSection(section) {
         }
         let revision = actionRevision;
         if (useProvider && action === 'test') {
-            if (!status?.enabled || !selectedProvider() || !modelSelect.value) return;
+            if (!status?.enabled || !selectedProvider() || !modelSelect.value || modelBlocked()) return;
             const operation = {providerMode: useProvider, action, provider: providerSelect.value, model: modelSelect.value, requestStarted: false};
             revision = ++actionRevision;
             busy = true;
@@ -510,10 +569,10 @@ function renderDecisionsSection(section) {
                     localResult.textContent = '';
                     errorCode.textContent = body.code || '';
                     paint();
-                } else if (!useProvider && response.status === 202 && ['install', 'start', 'setup'].includes(action)) {
+                } else if (!useProvider && response.status === 202 && ['start', 'setup'].includes(action)) {
                     pendingAction = {action, revision};
                     actionResult.textContent = tr('action_pending');
-                } else actionResult.textContent = useProvider || action === 'test' ? tr('test_passed') : action === 'install' ? tr('installed') : action === 'start' ? tr('ready') : t('config.local_llm.state_stopped');
+                } else actionResult.textContent = useProvider || action === 'test' ? tr('test_passed') : action === 'start' ? tr('ready') : t('config.local_llm.state_stopped');
             }
             else actionResult.textContent = useProvider ? errorText(body.code || 'external_provider_failed') : reason(body.code || 'request_failed');
             if (action !== 'check') await refresh();
@@ -552,6 +611,7 @@ function renderDecisionsSection(section) {
         cancelModels();
         invalidateAction();
         loadedModels = [];
+        modelsCheckedAt = 0;
         modelDetails.hidden = true;
         modelSelect.replaceChildren(new Option(tr('model_select'), ''));
         catalogResult.textContent = '';
@@ -573,11 +633,17 @@ function renderDecisionsSection(section) {
         if (item) item.click();
     });
     window.addEventListener('aurago:providers-saved', event => {
+        cancelModels();
+        loadedModels = [];
+        modelsCheckedAt = 0;
+        if (status) status.model_availability = {state: 'unknown', code: 'model_unverified'};
         renderProviders(event.detail?.preferredProviderId || '');
         if (event.detail?.preferredProviderId) {
             providerSelect.dispatchEvent(new Event('change', {bubbles: true}));
         }
+        showModelDetails();
         updateButtons();
+        refresh();
     }, {signal: lifetime.signal});
 
     renderProviders(data.provider || '');

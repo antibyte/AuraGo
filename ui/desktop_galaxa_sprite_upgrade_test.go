@@ -14,9 +14,11 @@ type galaxaAtlas struct {
 	Sheets  map[string]struct {
 		File          string
 		Width, Height int
+		Optional      string
 	}
 	Animations map[string]struct {
 		Sheet         string
+		FrameSheets   []string
 		Frames        [][4]int
 		Size, Origin  int
 		Pivot         [2]float64
@@ -28,6 +30,13 @@ type galaxaAtlas struct {
 	Scenes map[string]struct {
 		Sheet string
 		Frame [4]int
+	}
+	Expansion struct {
+		Motifs []struct {
+			Number          int
+			ID, Kind, Usage string
+			Animations      []string
+		}
 	}
 }
 
@@ -65,6 +74,15 @@ func TestGalaxaEmbeddedArcadeAtlases(t *testing.T) {
 			t.Fatalf("invalid animation %s", key)
 		}
 		for i, f := range a.Frames {
+			if len(a.FrameSheets) > 0 {
+				if len(a.FrameSheets) != len(a.Frames) {
+					t.Fatalf("invalid frame sheet count %s", key)
+				}
+				im = images[a.FrameSheets[i]]
+				if im == nil {
+					t.Fatalf("missing frame sheet %s/%d", key, i)
+				}
+			}
 			if a.SourceAnchors != nil {
 				if a.SourceSize <= 0 || len(a.SourceAnchors) != len(a.Frames) {
 					t.Fatalf("invalid source anchor count %s", key)

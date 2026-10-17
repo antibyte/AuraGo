@@ -20,6 +20,8 @@ const (
 	CodeRuntimeArtifactMissing      = "runtime_artifact_missing"
 	CodeRuntimeStartFailed          = "runtime_start_failed"
 	CodeRuntimeStartTimeout         = "runtime_start_timeout"
+	CodeRuntimeDiscoveryTimeout     = "runtime_discovery_timeout"
+	CodeRuntimeDiscoveryOutputLimit = "runtime_discovery_output_limit"
 	CodeRuntimeInvalidConfiguration = "runtime_invalid_configuration"
 	CodeDockerUnavailable           = "docker_unavailable"
 	CodeDeploymentDenied            = "deployment_denied"
@@ -37,6 +39,9 @@ const (
 	CodeProviderAuthFailed          = "provider_auth_failed"
 	CodeProviderCreditExhausted     = "provider_credit_exhausted"
 	CodeProviderRateLimited         = "provider_rate_limited"
+	CodeModelUnverified             = "model_unverified"
+	CodeModelNotAvailable           = "model_not_available"
+	CodeModelContextUnverified      = "model_context_unverified"
 )
 
 // Error carries a stable, safe-to-publish code and an optional wrapped cause.
@@ -95,10 +100,11 @@ func IsNonRetryable(err error) bool {
 	switch ErrorCode(err) {
 	case CodeServiceDisabled, CodeCPUConsentRequired, CodeModelNotInstalled,
 		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed, CodeRuntimeStartTimeout, CodeRuntimeInvalidConfiguration,
-		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable,
+		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable, CodeRuntimeDiscoveryTimeout, CodeRuntimeDiscoveryOutputLimit,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
 		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
-		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed,
+		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed, CodeModelNotAvailable, CodeModelContextUnverified,
+		"image_limit_exceeded", "image_invalid", "image_minimum_unmet",
 		CodeExternalOutcomeUnknown, CodeProviderAuthFailed, CodeProviderCreditExhausted, CodeProviderRateLimited:
 		return true
 	default:

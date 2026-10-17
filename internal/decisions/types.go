@@ -34,13 +34,14 @@ type Image struct {
 // Response contains normalized choices. Calibration is "uncalibrated" unless
 // the selected model has a separately verified calibration contract.
 type Response struct {
-	Model         string             `json:"model"`
-	ModelRevision string             `json:"model_revision"`
-	Answers       map[string]Answer  `json:"answers"`
-	Calibration   string             `json:"calibration"`
-	Runtime       RuntimeInfo        `json:"runtime"`
-	Usage         Usage              `json:"usage"`
-	Execution     *ExternalExecution `json:"execution,omitempty"`
+	Model            string             `json:"model"`
+	ModelRevision    string             `json:"model_revision"`
+	Answers          map[string]Answer  `json:"answers"`
+	Calibration      string             `json:"calibration"`
+	Runtime          RuntimeInfo        `json:"runtime"`
+	Usage            Usage              `json:"usage"`
+	Execution        *ExternalExecution `json:"execution,omitempty"`
+	ImageAdjustments []ImageAdjustment  `json:"image_adjustments,omitempty"`
 }
 
 // ExternalExecution identifies the provider that executed a remotely routed
@@ -92,34 +93,36 @@ type Usage struct {
 
 // Status is a detached, safe-to-publish snapshot of the managed service.
 type Status struct {
-	SetupID            string      `json:"setup_id,omitempty"`
-	SetupActive        bool        `json:"setup_active,omitempty"`
-	Enabled            bool        `json:"enabled"`
-	Installed          bool        `json:"installed"`
-	Ready              bool        `json:"ready"`
-	State              string      `json:"state"`
-	Code               string      `json:"code,omitempty"`
-	ErrorMessage       string      `json:"error_message,omitempty"`
-	Deployment         string      `json:"deployment"`
-	ExecutionMode      string      `json:"execution_mode,omitempty"`
-	Backend            string      `json:"backend,omitempty"`
-	Provider           string      `json:"provider,omitempty"`
-	Model              string      `json:"model,omitempty"`
-	Configured         bool        `json:"configured"`
-	LastSuccess        string      `json:"last_success,omitempty"`
-	LastError          string      `json:"last_error,omitempty"`
-	Device             string      `json:"device,omitempty"`
-	ModelRevision      string      `json:"model_revision,omitempty"`
-	ModelSHA256        string      `json:"model_sha256,omitempty"`
-	ProjectorRevision  string      `json:"projector_revision,omitempty"`
-	ProjectorSHA256    string      `json:"projector_sha256,omitempty"`
-	DeviceAttested     bool        `json:"device_attested"`
-	GPUOffloadVerified bool        `json:"gpu_offload_verified"`
-	CPUFallbackAllowed bool        `json:"cpu_fallback_allowed"`
-	CPUFallbackActive  bool        `json:"cpu_fallback_active"`
-	CPUFallbackReason  string      `json:"cpu_fallback_reason,omitempty"`
-	Progress           Progress    `json:"progress"`
-	Runtime            RuntimeInfo `json:"runtime"`
+	SetupID            string            `json:"setup_id,omitempty"`
+	SetupActive        bool              `json:"setup_active,omitempty"`
+	Enabled            bool              `json:"enabled"`
+	Installed          bool              `json:"installed"`
+	Ready              bool              `json:"ready"`
+	State              string            `json:"state"`
+	Code               string            `json:"code,omitempty"`
+	ErrorMessage       string            `json:"error_message,omitempty"`
+	Deployment         string            `json:"deployment"`
+	ExecutionMode      string            `json:"execution_mode,omitempty"`
+	Backend            string            `json:"backend,omitempty"`
+	Provider           string            `json:"provider,omitempty"`
+	Model              string            `json:"model,omitempty"`
+	Configured         bool              `json:"configured"`
+	ModelAvailability  ModelAvailability `json:"model_availability"`
+	AliasChanged       bool              `json:"alias_changed,omitempty"`
+	LastSuccess        string            `json:"last_success,omitempty"`
+	LastError          string            `json:"last_error,omitempty"`
+	Device             string            `json:"device,omitempty"`
+	ModelRevision      string            `json:"model_revision,omitempty"`
+	ModelSHA256        string            `json:"model_sha256,omitempty"`
+	ProjectorRevision  string            `json:"projector_revision,omitempty"`
+	ProjectorSHA256    string            `json:"projector_sha256,omitempty"`
+	DeviceAttested     bool              `json:"device_attested"`
+	GPUOffloadVerified bool              `json:"gpu_offload_verified"`
+	CPUFallbackAllowed bool              `json:"cpu_fallback_allowed"`
+	CPUFallbackActive  bool              `json:"cpu_fallback_active"`
+	CPUFallbackReason  string            `json:"cpu_fallback_reason,omitempty"`
+	Progress           Progress          `json:"progress"`
+	Runtime            RuntimeInfo       `json:"runtime"`
 }
 
 // Progress reports a bounded artifact/install phase without exposing paths.

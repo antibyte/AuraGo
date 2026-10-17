@@ -90,7 +90,7 @@ func TestDecisionsProviderConfigBrowser(t *testing.T) {
 		const backend=document.querySelector('[data-path="decisions.backend"]');backend.value='provider';backend.dispatchEvent(new Event('change',{bubbles:true}));
 		const provider=document.querySelector('[data-path="decisions.provider"]');provider.value='fixture-decisions';provider.dispatchEvent(new Event('change',{bubbles:true}));
 	}`)
-	if !page.MustEval(`()=>document.querySelector('[data-decisions-mode="local"]')?.hidden===true && document.querySelector('[data-decisions-mode="provider"]')?.hidden===false && document.querySelector('[data-decisions-action="install"]')?.hidden===true && document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true && decisionCatalogCalls===0 && decisionTestCalls===0`).Bool() {
+	if !page.MustEval(`()=>document.querySelector('[data-decisions-mode="local"]')?.hidden===true && document.querySelector('[data-decisions-mode="provider"]')?.hidden===false && !document.querySelector('[data-decisions-action="install"]') && document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true && decisionCatalogCalls===0 && decisionTestCalls===0`).Bool() {
 		t.Fatal("provider mode exposed local lifecycle actions, skipped the save-first gate, or made an automatic provider request")
 	}
 	if !page.MustEval(`()=>AuraConfigState.isDirty() && document.querySelector('[data-decisions-create-provider]')?.disabled===false`).Bool() {
@@ -204,8 +204,8 @@ func TestDecisionsLifecycleFeedbackBrowser(t *testing.T) {
 		window.fetch=async(url,options)=>{
 			if(url==='/api/decisions/status') return new Response(JSON.stringify(decisionStatus));
 			if(url==='/api/decisions/check') return new Response(JSON.stringify({runtime_available:true,deployment:'native',target:'linux-amd64'}));
-			if(url==='/api/decisions/install'||url==='/api/decisions/start') {
-				window.decisionStatus={...decisionStatus,state:url.endsWith('install')?'installing':'starting',code:'',progress:{phase:url.endsWith('install')?'verifying_runtime':'loading_model'}};
+			if(url==='/api/decisions/start') {
+				window.decisionStatus={...decisionStatus,state:'starting',code:'',progress:{phase:'loading_model'}};
 				if(window.holdDecisionStart) return new Promise(resolve=>window.resolveDecisionStart=resolve);
 				return new Response('{"status":"accepted"}',{status:202});
 			}
@@ -221,17 +221,10 @@ func TestDecisionsLifecycleFeedbackBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]')?.textContent.includes('Modell heruntergeladen und geprüft')`)
 	page.MustEval(`async()=>{document.querySelector('[data-path="decisions.enabled"]').click();await saveConfig();}`)
 	page.MustEval(`()=>document.querySelector('[data-decisions-action="check"]').click()`)
-	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-action="install"]')?.disabled===false`)
-	if !page.MustEval(`()=>document.querySelector('[data-decisions-settings] a[href*="documentation/decisions.md"]')?.textContent.includes('Anleitung') && document.querySelector('[data-decisions-check]').textContent.includes('linux-amd64')`).Bool() {
-		t.Fatal("runtime prerequisites are not discoverable before installation")
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-check]')?.textContent.includes('linux-amd64')`)
+	if !page.MustEval(`()=>!document.querySelector('[data-decisions-action="install"]') && document.querySelector('[data-decisions-setup-help]').hidden`).Bool() {
+		t.Fatal("redundant download or setup help is visible after a successful check")
 	}
-	page.MustEval(`()=>document.querySelector('[data-decisions-action="install"]').click()`)
-	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Hintergrund') && document.querySelector('[data-decisions-progress]')?.textContent.includes('Laufzeitdateien')`)
-	page.MustEval(`()=>{decisionStatus.progress={phase:'verifying_model',total_bytes:100,current_bytes:40,percent:40};document.dispatchEvent(new Event('aurago:config-saved'));}`)
-	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-settings] progress')?.value===40 && document.querySelector('[data-decisions-progress]')?.textContent.includes('Modellintegrität')`)
-	// Let the real poll finish the accepted action without re-rendering the section.
-	page.MustEval(`async()=>{decisionStatus={...decisionStatus,state:'installed',progress:null};await new Promise(resolve=>setTimeout(resolve,5500));}`)
-	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-result]')?.textContent.includes('Modell heruntergeladen und geprüft') && document.querySelector('[data-decisions-status]')?.textContent.includes('Modell heruntergeladen und geprüft')`)
 	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="start"]').disabled===false && document.querySelector('[data-decisions-action="test"]').disabled===true`).Bool() {
 		t.Fatal("installed was confused with ready")
 	}
@@ -318,7 +311,7 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 		t.Fatal("opening settings changed configuration or started service")
 	}
 	page.MustEval(`()=>document.querySelector('[data-path="decisions.enabled"]').click()`)
-	if !page.MustEval(`()=>AuraConfigState.buildPatch().decisions.enabled===true && document.querySelector('[data-decisions-action="install"]').disabled`).Bool() {
+	if !page.MustEval(`()=>AuraConfigState.buildPatch().decisions.enabled===true && document.querySelector('[data-decisions-action="start"]').disabled`).Bool() {
 		t.Fatal("activation draft/save gate failed")
 	}
 	page.MustEval(`async()=>{await saveConfig();window.decisionStatus={enabled:true,installed:false,ready:false,state:'blocked',code:'cpu_consent_required',deployment:'native'};await selectSection('decisions',{scrollBehavior:'auto'});}`)

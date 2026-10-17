@@ -1,0 +1,8 @@
+{
+  "id": "nebula-ray",
+  "kind": "alien",
+  "file": "exp-alien-nebula-ray.png",
+  "source": "exec-817136e2-09d2-41c6-ada4-c4b5b7e19997.png",
+  "tool": "image_gen",
+  "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. ALIEN NEBULA RAY: blue-violet manta shaped alien spacecraft, swept organic wings, small amber eyes, metallic chitin and luminous cyan veins. 16 frames in a precise 4x4 grid. First 8 frames are a smooth idle wing-flex loop, next 6 frames charge and release a small forward energy pulse, final 2 frames show localized hit reaction without changing the silhouette. Top-down, nose downward. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+}

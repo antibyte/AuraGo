@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Espace disque insuffisant. Libère de l’espace et réessaie.",
   "config.decisions.disk_unknown": "Impossible de vérifier l’espace libre. Vérifie les droits d’accès.",
   "config.decisions.save_failed": "Impossible d’enregistrer les réglages de Decisions. Vérifie les droits d’écriture.",
-  "config.decisions.runtime_dependencies_missing": "Le moteur ne peut pas démarrer. Vérifie la version du système prise en charge et installe un pilote graphique à jour, puis relance la configuration."
+  "config.decisions.runtime_dependencies_missing": "Le moteur ne peut pas démarrer. Vérifie la version du système prise en charge et installe un pilote graphique à jour, puis relance la configuration.",
+  "config.decisions.pin_model": "Utiliser une version fixe",
+  "config.decisions.alias_target": "Cible actuelle de l’alias : {value}",
+  "config.decisions.model_expiry": "Avis d’expiration : {value}",
+  "config.decisions.media_limits": "Jusqu’à {count} images de {bytes} Kio chacune. Leur réduction peut faire perdre des détails fins.",
+  "config.decisions.model_checked": "Catalogue vérifié : {value}",
+  "config.decisions.model_not_available": "Ce modèle n’est plus disponible. Charge le catalogue et choisis un autre modèle.",
+  "config.decisions.model_context_unverified": "Limite de contexte non vérifiée. Ce modèle ne peut pas être utilisé.",
+  "config.decisions.model_unverified": "Modèle non vérifié. Charge le catalogue ou lance explicitement un test.",
+  "config.decisions.responding_model": "Version ayant répondu : {value}",
+  "config.decisions.alias_changed": "La cible de l’alias a changé. Vérifie les seuils de routage pour la nouvelle version.",
+  "config.decisions.runtime_discovery_timeout": "La détection des appareils a dépassé 60 secondes. Vérifie l’environnement d’exécution et réessaie. Aucun repli sur le CPU n’a été lancé.",
+  "config.decisions.runtime_discovery_output_limit": "La détection des appareils a produit trop de données et a été arrêtée. Vérifie l’environnement d’exécution.",
+  "config.decisions.image_limit_exceeded": "Les images dépassent les limites du modèle. Envoie moins d’images ou des images plus petites.",
+  "config.decisions.image_invalid": "Une image est endommagée ou non prise en charge. Utilise un PNG ou JPEG valide.",
+  "config.decisions.image_minimum_unmet": "Une image est inférieure aux dimensions minimales du modèle. Choisis un original plus grand."
 }

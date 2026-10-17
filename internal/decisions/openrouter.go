@@ -3,13 +3,11 @@ package decisions
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
-	"mime"
 	"net/http"
 	"net/url"
 	"sort"
@@ -29,10 +27,6 @@ const (
 	openRouterModelCacheTTL              = 5 * time.Minute
 	openRouterMaxCatalogBytes            = 8 << 20
 	openRouterMaxResponseBytes           = 1 << 20
-	openRouterMaxRequestBytes            = 3 << 20
-	openRouterMaxImages                  = 4
-	openRouterMaxImageBytes              = 300 << 10
-	openRouterMaxTotalImageBytes         = openRouterMaxImages * openRouterMaxImageBytes
 	openRouterMaxContextTokens     int64 = 1 << 20
 	openRouterProbabilityTolerance       = 0.01
 	openRouterScoreTolerance             = 0.1
@@ -49,6 +43,13 @@ type DecisionModel struct {
 	Pricing           *DecisionModelPricing `json:"pricing,omitempty"`
 	SupportsDecisions bool                  `json:"supports_decisions"`
 	SupportsImages    bool                  `json:"supports_images"`
+	CanonicalSlug     string                `json:"canonical_slug,omitempty"`
+	AliasTarget       string                `json:"alias_target,omitempty"`
+	ExpirationDate    string                `json:"expiration_date,omitempty"`
+	Usable            bool                  `json:"usable"`
+	UnavailableCode   string                `json:"unavailable_code,omitempty"`
+	CheckedAt         time.Time             `json:"checked_at,omitempty"`
+	MediaLimits       DecisionMediaLimits   `json:"media_limits"`
 }
 
 // DecisionModelPricing contains the catalog's input and output prices.
@@ -181,8 +182,12 @@ func (client *OpenRouterClient) Models(ctx context.Context) ([]DecisionModel, er
 		return nil, NewError(CodeExternalProviderFailed, err)
 	}
 	client.cacheMu.Lock()
+	now := time.Now()
+	for index := range models {
+		models[index].CheckedAt = now
+	}
 	client.models = cloneDecisionModels(models)
-	client.modelsAt = time.Now()
+	client.modelsAt = now
 	client.cacheMu.Unlock()
 	return cloneDecisionModels(models), nil
 }
@@ -194,6 +199,13 @@ func (client *OpenRouterClient) cachedModels(now time.Time) ([]DecisionModel, bo
 		return nil, false
 	}
 	return cloneDecisionModels(client.models), true
+}
+
+// CatalogCheckedAt also timestamps a successfully loaded empty catalog.
+func (client *OpenRouterClient) CatalogCheckedAt() time.Time {
+	client.cacheMu.RLock()
+	defer client.cacheMu.RUnlock()
+	return client.modelsAt
 }
 
 func cloneDecisionModels(models []DecisionModel) []DecisionModel {
@@ -236,8 +248,11 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return Response{}, err
 	}
 	selected, ok := findDecisionModel(models, model)
-	if !ok || !selected.SupportsDecisions {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("selected model is not verified for Decisions"))
+	if !ok {
+		return Response{}, NewError(CodeModelNotAvailable, nil)
+	}
+	if code := selected.eligibilityCode(); code != "" {
+		return Response{}, NewError(code, nil)
 	}
 	if len(request.Images) > 0 && !selected.SupportsImages {
 		return Response{}, NewError(CodeInvalidRequest, errors.New("selected model does not advertise image input"))
@@ -247,45 +262,15 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
 	}
-	state, imageTokenEstimate, err := makeOpenRouterState(request.State, request.Images)
+	body, adjustments, err := prepareOpenRouterRequest(ctx, selected, request, wireQuestions)
 	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, err)
-	}
-	wire := openRouterDecisionRequest{Model: model, State: state, Questions: wireQuestions}
-	body, err := json.Marshal(wire)
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("encode OpenRouter Decisions request"))
-	}
-	if len(body) > openRouterMaxRequestBytes {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("OpenRouter Decisions request exceeds the byte limit"))
-	}
-	if selected.ContextLength <= 0 {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("selected model has no verified context limit"))
-	}
-	contextLimit := int64(selected.ContextLength)
-	if contextLimit > openRouterMaxContextTokens {
-		contextLimit = openRouterMaxContextTokens
-	}
-	textState, err := openRouterTextState(request.State)
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("estimate OpenRouter Decisions request context"))
-	}
-	textRequest, err := json.Marshal(openRouterDecisionRequest{Model: model, State: textState, Questions: wireQuestions})
-	if err != nil {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("estimate OpenRouter Decisions request context"))
-	}
-	contextEstimate := int64(len(textRequest)) + imageTokenEstimate + 512
-	if isOpenRouterClefModel(model) && int64(len(textRequest))+512 > 2000 {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("OpenRouter Clef Decisions requests are limited to 2000 conservative text tokens"))
-	}
-	if contextEstimate > contextLimit {
-		return Response{}, NewError(CodeInputTokenBudgetExceeded, errors.New("OpenRouter Decisions request exceeds the conservative context limit"))
+		return Response{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return Response{}, NewError(CodeCancelled, err)
 	}
 
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterOrigin+openRouterDecisionsPath, strings.NewReader(string(body)))
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterOrigin+openRouterDecisionsPath, bytes.NewReader(body))
 	if err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
 	}
@@ -310,6 +295,7 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return partial, NewError(CodeExternalOutcomeUnknown, errors.New("OpenRouter Decisions response is malformed"))
 	}
 	result, err := mapOpenRouterResponse(model, request, candidates, decoded)
+	result.ImageAdjustments = adjustments
 	if err != nil {
 		return result, NewError(CodeExternalOutcomeUnknown, err)
 	}
@@ -342,8 +328,17 @@ func openRouterFailureCode(status int, fallback string) string {
 }
 
 func findDecisionModel(models []DecisionModel, id string) (DecisionModel, bool) {
+	if !validDecisionModelID(id) {
+		return DecisionModel{}, false
+	}
 	for _, model := range models {
 		if model.ID == id {
+			return model, true
+		}
+	}
+	for _, model := range models {
+		if model.CanonicalSlug == id || model.AliasTarget == id {
+			model.ID, model.CanonicalSlug, model.AliasTarget = id, id, ""
 			return model, true
 		}
 	}
@@ -371,7 +366,12 @@ type openRouterCatalogModel struct {
 	ContextLength int                    `json:"context_length"`
 	Architecture  openRouterArchitecture `json:"architecture"`
 	Pricing       *DecisionModelPricing  `json:"pricing"`
-	TopProvider   struct {
+	CanonicalSlug string                 `json:"canonical_slug"`
+	AliasTarget   *struct {
+		Slug string `json:"slug"`
+	} `json:"alias_target"`
+	ExpirationDate string `json:"expiration_date"`
+	TopProvider    struct {
 		ContextLength int `json:"context_length"`
 	} `json:"top_provider"`
 }
@@ -385,7 +385,7 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 	models := make([]DecisionModel, 0, len(entries))
 	seen := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
-		if strings.TrimSpace(entry.ID) == "" {
+		if !validDecisionModelID(entry.ID) {
 			return nil, errors.New("OpenRouter catalog contains a model without an id")
 		}
 		if _, exists := seen[entry.ID]; exists {
@@ -404,7 +404,7 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 		if limit := entry.TopProvider.ContextLength; limit > 0 && (contextLength <= 0 || limit < contextLength) {
 			contextLength = limit
 		}
-		models = append(models, DecisionModel{
+		model := DecisionModel{
 			ID:                entry.ID,
 			Name:              name,
 			InputModalities:   modalities,
@@ -412,7 +412,18 @@ func decisionModels(entries []openRouterCatalogModel) ([]DecisionModel, error) {
 			Pricing:           entry.Pricing,
 			SupportsDecisions: true,
 			SupportsImages:    containsModality(modalities, "image"),
-		})
+			ExpirationDate:    entry.ExpirationDate,
+		}
+		if validDecisionModelID(entry.CanonicalSlug) && !strings.HasPrefix(entry.CanonicalSlug, "~") {
+			model.CanonicalSlug = entry.CanonicalSlug
+		}
+		if entry.AliasTarget != nil && validDecisionModelID(entry.AliasTarget.Slug) && !strings.HasPrefix(entry.AliasTarget.Slug, "~") {
+			model.AliasTarget = entry.AliasTarget.Slug
+		}
+		model.UnavailableCode = model.eligibilityCode()
+		model.Usable = model.UnavailableCode == ""
+		model.MediaLimits = decisionMediaLimits(model.ResolvedID())
+		models = append(models, model)
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
 	return models, nil
@@ -485,47 +496,6 @@ type openRouterImageURL struct {
 type openRouterImagePart struct {
 	Type     string             `json:"type"`
 	ImageURL openRouterImageURL `json:"image_url"`
-}
-
-func makeOpenRouterState(state any, images []Image) (any, int64, error) {
-	if len(images) > openRouterMaxImages {
-		return nil, 0, fmt.Errorf("OpenRouter accepts at most %d images per request", openRouterMaxImages)
-	}
-	stateText, err := openRouterTextState(state)
-	if err != nil {
-		return nil, 0, errors.New("encode request state")
-	}
-	if len(images) == 0 {
-		return stateText, 0, nil
-	}
-	parts := make([]any, 0, len(images)+1)
-	parts = append(parts, stateText)
-	var totalBytes int
-	var imageTokens int64
-	for index, image := range images {
-		mediaType, _, err := mime.ParseMediaType(image.MIME)
-		if err != nil {
-			return nil, 0, fmt.Errorf("image %d has an invalid MIME type", index)
-		}
-		mediaType = strings.ToLower(mediaType)
-		if mediaType != "image/jpeg" && mediaType != "image/png" {
-			return nil, 0, fmt.Errorf("OpenRouter Decisions supports JPEG and PNG image inputs only")
-		}
-		if len(image.Data) == 0 || len(image.Data) > openRouterMaxImageBytes {
-			return nil, 0, fmt.Errorf("image %d exceeds the OpenRouter size limit", index)
-		}
-		totalBytes += len(image.Data)
-		if totalBytes > openRouterMaxTotalImageBytes {
-			return nil, 0, errors.New("OpenRouter images exceed the total size limit")
-		}
-		encoded := base64.StdEncoding.EncodeToString(image.Data)
-		imageTokens += int64((len(encoded) + 3) / 4)
-		parts = append(parts, openRouterImagePart{
-			Type:     "image_url",
-			ImageURL: openRouterImageURL{URL: "data:" + mediaType + ";base64," + encoded},
-		})
-	}
-	return parts, imageTokens, nil
 }
 
 // openRouterTextState keeps caller-provided structured state as plain text.
@@ -696,7 +666,7 @@ func mapOpenRouterAnswer(question Question, options []Option, raw openRouterAnsw
 			return Answer{}, fmt.Errorf("OpenRouter response has an invalid noul answer for question %q", question.ID)
 		}
 		if len(raw.Probabilities) > 0 {
-			if err := validateProbabilityKeys(raw.Probabilities, []string{"no", "yes"}); err != nil || math.Abs(raw.Probabilities["yes"]-*raw.Noul) > openRouterProbabilityTolerance {
+			if err := validateProbabilityKeys(raw.Probabilities, []string{"no", "yes"}); err != nil || math.Abs(raw.Probabilities["yes"]-*raw.Noul) > openRouterProbabilityTolerance+1e-9 {
 				return Answer{}, fmt.Errorf("OpenRouter response has invalid noul probabilities for question %q", question.ID)
 			}
 		}
@@ -769,7 +739,7 @@ func mapOpenRouterAnswer(question Question, options []Option, raw openRouterAnsw
 		if math.IsNaN(expected) || math.IsInf(expected, 0) {
 			return Answer{}, fmt.Errorf("OpenRouter response expected score is not finite for question %q", question.ID)
 		}
-		if math.Abs(ordinalExpected-*raw.Score) > openRouterScoreTolerance {
+		if !openRouterScoreConsistent(raw.Probabilities, keys, ordinalExpected, *raw.Score) {
 			return Answer{}, fmt.Errorf("OpenRouter response score disagrees with its probabilities for question %q", question.ID)
 		}
 		maximum, best := maximumProbability(options, mapped)
@@ -809,10 +779,62 @@ func validateProbabilityKeys(probabilities map[string]float64, expected []string
 		}
 		total += probability
 	}
-	if math.Abs(total-1) > openRouterProbabilityTolerance {
+	tolerance := openRouterProbabilityTolerance
+	if hundredthProbabilities(probabilities, expected) {
+		tolerance = math.Max(tolerance, float64(len(expected))*0.005)
+		// Zero probabilities cannot supply negative mass to compensate rounded-up values.
+		var minimum, maximum float64
+		for _, key := range expected {
+			minimum += math.Max(0, probabilities[key]-0.005)
+			maximum += math.Min(1, probabilities[key]+0.005)
+		}
+		if minimum > 1+1e-9 || maximum < 1-1e-9 {
+			return errors.New("probability rounding intervals cannot sum to one")
+		}
+	}
+	if total <= 0 || math.Abs(total-1) > tolerance+1e-9 {
 		return errors.New("probabilities are not normalized")
 	}
 	return nil
+}
+
+func hundredthProbabilities(probabilities map[string]float64, keys []string) bool {
+	for _, key := range keys {
+		value := probabilities[key] * 100
+		if math.Abs(value-math.Round(value)) > 1e-9 {
+			return false
+		}
+	}
+	return true
+}
+
+func openRouterScoreConsistent(probabilities map[string]float64, keys []string, expected, score float64) bool {
+	if !hundredthProbabilities(probabilities, keys) {
+		return math.Abs(expected-score) <= openRouterScoreTolerance+1e-9
+	}
+	// Fill the remaining probability mass from either end to bound every
+	// normalized distribution that could have produced these rounded values.
+	bound := func(reverse bool) float64 {
+		total, result := 0.0, 0.0
+		for i, key := range keys {
+			lower := math.Max(0, probabilities[key]-0.005)
+			total += lower
+			result += float64(i) * lower
+		}
+		remaining := math.Max(0, 1-total)
+		for offset := range keys {
+			i := offset
+			if reverse {
+				i = len(keys) - 1 - offset
+			}
+			p := probabilities[keys[i]]
+			mass := math.Min(remaining, math.Min(1, p+0.005)-math.Max(0, p-0.005))
+			remaining -= mass
+			result += float64(i) * mass
+		}
+		return result
+	}
+	return score >= bound(false)-0.005-1e-9 && score <= bound(true)+0.005+1e-9
 }
 
 func normalizedProbabilityMap(probabilities map[string]float64, expected []string) (map[string]float64, error) {

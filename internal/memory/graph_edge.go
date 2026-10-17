@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,12 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 		SourceKind: "manual",
 		Confidence: 1.0,
 	})
+	return err
+}
+
+// AddEdgeContext bounds embedding work and leaves incomplete indexing pending.
+func (kg *KnowledgeGraph) AddEdgeContext(ctx context.Context, source, target, relation string, properties map[string]string) error {
+	_, err := kg.addEdgeWithProvenance(ctx, source, target, relation, properties, KGProvenanceInput{SourceKind: "manual", Confidence: 1}, true)
 	return err
 }
 

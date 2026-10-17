@@ -147,7 +147,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.cond_type_":   {"auto", "text", "number", "date", "bool"},
 		"easydrag.ui.concurrency_": {"queue", "parallel", "skip"},
 		"easydrag.ui.notify_":      {"desktop", "push", "telegram", "off"},
-		"easydrag.ui.home_filter_": {"all", "active", "inactive", "errors"},
+		"easydrag.ui.home_filter_": {"all", "active", "inactive", "drafts", "errors"},
 		"easydrag.ui.runs_filter_": {"all", "errors", "tests", "live"},
 		"easydrag.ui.detail_":      {"input", "parameters", "output"},
 		"easydrag.ui.op_":          {"eq", "ne", "contains", "not_contains", "starts_with", "ends_with", "matches", "gt", "gte", "lt", "lte", "before", "after", "empty", "not_empty", "is_true", "is_false"},

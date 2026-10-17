@@ -83,7 +83,7 @@ func TestKGReindexRetainsStrictlyIndexedNewerContent(t *testing.T) {
 	if _, err = kg.UpdateNodeIndexed(t.Context(), "core_fact_1", "Current fact", map[string]string{"type": "concept", "source": "core_memory"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := kg.upsertSemanticNodeReindexBatch(kg.semanticIndex(), []Node{*loaded}); err != nil {
+	if _, err := kg.upsertSemanticNodeReindexBatch(t.Context(), kg.semanticIndex(), []Node{*loaded}); err != nil {
 		t.Fatal(err)
 	}
 	doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), "core_fact_1")

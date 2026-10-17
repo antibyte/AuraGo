@@ -1,0 +1,8 @@
+{
+  "id": "rock-shatter",
+  "kind": "effect",
+  "file": "exp-effect-rock-shatter.png",
+  "source": "exec-3303ca2b-8835-44e1-9b07-9610030c1b3b.png",
+  "tool": "image_gen",
+  "prompt": "Create an original production PNG sprite sheet for AuraGo Galaxa Deluxe. ROCK SHATTER EFFECT: a single brown-grey stone asteroid bursting into jagged rock fragments and fine dust. Exactly 12 frames in a precise 4x3 grid, progressing from a tight fractured center to expanding debris to near-transparent fading dust. Consistent center and scale; every fragment remains within its cell. Warm upper-left highlights, crisp detailed arcade pixel art, no fixed backdrop or planet. Genuinely transparent alpha background. All cells exactly equal, all subjects centered at the exact cell centers. Read left-to-right then top-to-bottom. Generous transparent padding at least 12 percent of each cell on every side; no overlap between cells. No text, labels, watermark, grid, shadows on a background or extra objects. Target 2048x2048 for 4x4 or 2048x1536 for 4x3. Polished top-down arcade pixel-art clusters with rich metallic shading, matching classic detailed space shooter sprites. Preserve frame-to-frame identity and a fixed camera and upper-left light."
+}

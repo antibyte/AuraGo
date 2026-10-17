@@ -18,9 +18,12 @@
     }
 
     // portPoint returns the world position of a port. side is "in" or "out".
-    function portPoint(position, side, index, outputCount) {
-        const h = nodeHeight(outputCount);
-        if (side === 'in') return { x: position.x, y: position.y + h / 2 };
+    function portPoint(position, side, index, outputCount, inputCount) {
+        const h = nodeHeight(Math.max(outputCount || 0, inputCount || 0));
+        if (side === 'in') {
+            const y = inputCount > 1 ? PORT_TOP + (index || 0) * PORT_PITCH : h / 2;
+            return { x: position.x, y: position.y + y };
+        }
         const y = outputCount > 1 ? PORT_TOP + index * PORT_PITCH : h / 2;
         return { x: position.x + NODE_W, y: position.y + y };
     }

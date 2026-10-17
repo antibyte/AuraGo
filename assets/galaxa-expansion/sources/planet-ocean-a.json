@@ -1,0 +1,8 @@
+{
+  "id": "ocean-a",
+  "kind": "planet",
+  "file": "exp-planet-ocean-a.png",
+  "source": "exec-aa9d062c-7ada-43b9-9355-034c7b8ac887.png",
+  "tool": "image_gen",
+  "prompt": "Recreate the OCEAN PLANET from this reference as the FIRST FOUR keyframes of a 12-frame slow cloud animation. Production transparent PNG sprite sheet, exactly 2 columns by 2 rows, FOUR planets total, no tiny additional frames. All four cells equal, planets at exact cell centers and identical scale, generous fully transparent 12% gutters. Keep the identical volcanic islands, turquoise shallows, blue oceans, fixed upper-left light and right terminator. Very fine realistic cloud and coast detail, delicate thin cyan atmospheric rim. Only clouds and glints advance subtly across frames 1,2,3,4 of a seamless twelve-frame loop. Make every frame at least 512x512 pixels, use the largest square output. No text, grid, stars, background, extra moons or rings. The reference identifies the planet; output must show ONLY FOUR large frames."
+}

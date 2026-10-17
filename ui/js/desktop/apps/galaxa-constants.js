@@ -68,6 +68,34 @@
     };
     GC.PU_RARITY_WEIGHT = { common: 50, uncommon: 30, rare: 15, legendary: 5 };
     GC.PLAYER_MINE_MAX = 12;
+    GC.EXPANSION_WEAPONS = {
+        mine_layer: { art: 'proximity-mine', mine: true, interval: 780, radius: 52, damage: 1 },
+        mega_mine_layer: { art: 'proximity-mine', mine: true, interval: 520, count: 2, radius: 52, damage: 1 },
+        emp_mine_layer: { art: 'emp-mine', mine: true, interval: 1000, radius: 72, damage: 0, emp: true },
+        cluster_mine_layer: { art: 'cluster-mine', mine: true, interval: 1000, radius: 40, damage: 1, shards: 6 },
+        rocket_launcher: { art: 'seeker-rocket', interval: 380, count: 1, damage: 1, radius: 50, speed: 575 },
+        mega_rocket: { art: 'seeker-rocket', interval: 280, count: 2, damage: 1, radius: 50, speed: 575 },
+        swarm_launcher: { art: 'swarm-rocket', interval: 850, count: 3, damage: 1, radius: 0, speed: 575 },
+        seeker_torpedo: { art: 'seeker-torpedo', interval: 1200, count: 1, damage: 4, radius: 70, speed: 210 }
+    };
+    for (const type of ['emp_mine_layer', 'cluster_mine_layer', 'swarm_launcher', 'seeker_torpedo']) {
+        GC.PU_TYPES.push(type); GC.PU_RARITY.rare.push(type);
+        GC.PU_DUR[type] = GC.EXPANSION_WEAPONS[type].mine ? 10000 : 12000;
+    }
+    Object.assign(GC.PU_COL, { emp_mine_layer: '#66ddff', cluster_mine_layer: '#ffcc55', swarm_launcher: '#66ffaa', seeker_torpedo: '#ffaa66' });
+    Object.assign(GC.PU_TRAIL_COL, { emp_mine_layer: '102,221,255', cluster_mine_layer: '255,204,85', swarm_launcher: '102,255,170', seeker_torpedo: '255,170,102' });
+    GC.ASTEROID_LIMIT = 20;
+    GC.ASTEROID_HP = [1, 3, 6];
+    GC.ASTEROID_RADIUS = [12, 21, 31];
+    GC.ASTEROID_WARNING_MS = 900;
+    GC.MINE_ARM_MS = 450;
+    GC.MINE_LIFE_MS = 9000;
+    GC.SEEKER_LIFE_MS = 6000;
+    GC.PLANET_SHEET_LIMIT = 2;
+    GC.EXPANSION_ALIENS = {"nebula": [{"id": "nebula-ray", "role": "butterfly"}, {"id": "spore-hunter", "role": "stalker"}], "asteroid": [{"id": "ore-cracker", "role": "bomber"}, {"id": "armor-crab", "role": "shield_bee"}], "crystal": [{"id": "prism-falcon", "role": "sniper"}, {"id": "splinter-polyp", "role": "splitter"}], "storm": [{"id": "lightning-jelly", "role": "spinner"}, {"id": "storm-wasp", "role": "hunter"}], "blackhole": [{"id": "gravity-spider", "role": "weaver"}, {"id": "phase-isopod", "role": "teleporter"}], "void": [{"id": "void-runner", "role": "kamikaze"}, {"id": "swarm-carrier", "role": "carrier"}]};
+    GC.ASTEROID_ART = [{"id": "crater-boulder", "effect": "rock-shatter"}, {"id": "basalt-monolith", "effect": "rock-shatter"}, {"id": "iron-meteor", "effect": "metal-sparks"}, {"id": "ore-geode", "effect": "metal-sparks"}, {"id": "ice-boulder", "effect": "ice-shatter"}, {"id": "frost-comet", "effect": "ice-shatter"}, {"id": "crystal-cluster", "effect": "crystal-shatter"}, {"id": "prism-shard", "effect": "crystal-shatter"}, {"id": "lava-boulder", "effect": "lava-ejecta"}, {"id": "slag-core", "effect": "lava-ejecta"}, {"id": "wreck-fragment", "effect": "metal-sparks"}, {"id": "hollow-asteroid", "effect": "rock-shatter"}];
+    GC.PLANET_ART = {"nebula": ["ocean", "terran"], "asteroid": ["desert", "crater"], "crystal": ["ice", "crystal"], "storm": ["storm-gas", "ringed"], "blackhole": ["lava"], "void": ["night"]};
+
     GC.PU_SYNERGIES = {
         'rapid+pierce': { name: 'Phaser', col: '#00ffaa', desc: 'Double fire rate + pierce' },
         'spread+homing': { name: 'Swarm', col: '#ff8844', desc: 'Spread bullets curve toward targets' },

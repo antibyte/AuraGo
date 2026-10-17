@@ -5,7 +5,13 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const source = ['infra-views.js', 'infra.js'].map(file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8')).join('\n');
+const files = ['infra-model.js', 'infra-views.js', 'infra.js'];
+for (const file of files) {
+    const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
+    const lines = text.split('\n').length;
+    assert.ok(lines < 1100, `${file} has ${lines} lines, want fewer than 1100`);
+}
+const source = files.map(file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8')).join('\n');
 const window = { BUILD_VERSION: 'test-build', btoa: value => Buffer.from(value, 'binary').toString('base64') };
 vm.runInNewContext(source, { window, console, setTimeout, clearTimeout, DOMException, TextEncoder, Map, Set, JSON, Math, Date, URL });
 const model = window.InfraAppModel;
@@ -72,6 +78,7 @@ for (const [family, values] of Object.entries({
     infra_source: ['registry', 'docker', 'proxmox', 'fritzbox'],
     infra_edge: ['ethernet', 'fiber', 'wifi', 'member_of', 'runs_on', 'depends_on', 'powered_by'],
     infra_state: ['current', 'stale', 'unknown', 'removed', 'manual'],
+    infra_power: ['running', 'stopped', 'paused', 'unknown', 'filter', 'all', 'none'],
     infra_action: ['start', 'stop', 'restart', 'shutdown', 'reboot', 'wake'],
     infra_action_help: ['start', 'stop', 'restart', 'shutdown', 'reboot', 'wake'],
     infra_action_status: ['running', 'accepted', 'completed', 'failed', 'unknown'],
@@ -86,5 +93,63 @@ for (const locale of locales) {
     const missing = [...required].filter(key => typeof dictionary[key] !== 'string');
     assert.deepEqual(missing, [], `${locale}.json is missing keys: ${missing.join(', ')}`);
 }
+
+assert.equal(model.powerLabel('stopped'), 'desktop.infra_power_stopped');
+assert.equal(model.powerLabel(''), '');
+assert.equal(model.powerLabel('on'), '');
+assert.deepEqual(Array.from(model.containerKinds()), ['site', 'room', 'rack', 'group']);
+assert.equal(model.isContainer('room'), true);
+assert.equal(model.isContainer('device'), false);
+
+const room = { id: 'room', kind: 'room', parent_id: '' };
+const rack = { id: 'rack', kind: 'rack', parent_id: 'room' };
+const host = { id: 'host', kind: 'device', parent_id: 'rack' };
+assert.equal(model.visibleByCollapsed([room, rack, host], new Set(['room'])).length, 1);
+
+const placedContainer = { id: 'room', kind: 'room' };
+const placedChild = { id: 'host', kind: 'device' };
+const positions = new Map([['room', { x: 200, y: 200 }], ['host', { x: 420, y: 260 }]]);
+const frame = model.containerFrame(placedContainer, [placedChild], item => positions.get(item.id));
+assert.equal(frame.x, 200 - 48);
+assert.equal(frame.y, 200 - 48);
+assert.equal(frame.width, 220 + 96);
+assert.equal(frame.height, 60 + 96);
+assert.equal(model.containerFrame(placedContainer, [{ id: 'loose' }], () => null), null);
+
+const segment = model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 });
+assert.equal(segment.x1, 78);
+assert.equal(segment.y1, 0);
+assert.equal(segment.x2, 322);
+assert.equal(segment.y2, 0);
+const short = model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 });
+assert.equal(short.x1, 0);
+assert.equal(short.y1, 0);
+assert.equal(short.x2, 100);
+assert.equal(short.y2, 0);
+assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: '1G' }), 'ge-0/0/1 → eth0 · 1G');
+
+const topology = model.topologyPositions([
+    { id: 'lan', kind: 'network', name: 'LAN' },
+    { id: 'nas', kind: 'device', name: 'NAS' },
+    { id: 'backup', kind: 'service', name: 'Backup' },
+], [{ x: 110, y: 280 }]);
+const placedAt = (id, x, y) => {
+    const position = topology.get(id);
+    assert.equal(position.x, x);
+    assert.equal(position.y, y);
+    assert.equal(position.pinned, false);
+};
+placedAt('lan', 110, 100);
+placedAt('nas', 330, 280);
+placedAt('backup', 110, 640);
+
+const base = { nodes: [{ id: 'n', version: 1, kind: 'device', name: 'NAS', power: 'running', placements: { atlas: { x: 1, y: 2 } }, sources: [] }], edges: [], sources: [{ kind: 'docker', instance: 'engine', key: 'abc', state: 'current', observed: { power: 'running' }, fetched_at: '2026-01-01T00:00:00Z' }], caps: { write: true, source_edit: false, control: false } };
+const same = model.snapshotStamp(base.nodes, base.edges, base.sources, base.caps);
+const later = model.snapshotStamp(base.nodes, base.edges, [{ ...base.sources[0], fetched_at: '2026-01-02T00:00:00Z' }], base.caps);
+assert.equal(same, later);
+const moved = model.snapshotStamp([{ ...base.nodes[0], placements: { atlas: { x: 9, y: 2 } } }], base.edges, base.sources, base.caps);
+const powered = model.snapshotStamp([{ ...base.nodes[0], power: 'stopped' }], base.edges, base.sources, base.caps);
+assert.notEqual(same, moved);
+assert.notEqual(same, powered);
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

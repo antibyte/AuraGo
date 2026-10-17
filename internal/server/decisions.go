@@ -194,6 +194,13 @@ func (e *flowCatalogEnv) DecisionAvailability() flows.Availability {
 	case !status.Enabled:
 		result.Code = "DECISIONS_DISABLED"
 	case status.Backend == "provider":
+		if status.ModelAvailability.State == "blocked" {
+			result.Code = "DECISIONS_MODEL_UNAVAILABLE"
+			if status.ModelAvailability.Code == decisions.CodeModelContextUnverified {
+				result.Code = "DECISIONS_MODEL_CONTEXT_UNVERIFIED"
+			}
+			return result
+		}
 		if status.Configured {
 			return flows.Availability{State: flows.AvailableState}
 		}

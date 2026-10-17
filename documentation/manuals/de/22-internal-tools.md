@@ -1610,7 +1610,7 @@ Interaktives 3D-CAD im offenen Browser-Editor des Nutzers. Braucht einen authent
 Steuert den RTL-SDR-Empfang: Status, Geräte, Abstimmung, Scans, Favoriten, Aufnahmen (FLAC), Zeitpläne und erneute Spracherkennung. Nur mit `rtl_sdr.enabled`; rein empfangsorientiert.
 
 ### `ruview`
-Liest den administrierten RuView-Sensing-Service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`. Nur sichtbar, wenn Integration **und** Agent-Zugriff aktiviert sind. Keine URLs, Zugangsdaten, Gerätepfade oder freien API-Routen; das Tool kann weder installieren, flashen, konfigurieren, kalibrieren, aufnehmen, trainieren noch löschen. Antworten nennen Quelle, Beobachtungszeit und Datenfrische; `ready` beschreibt nur den Service. Details: Kapitel 8 und [ruview.md](../../ruview.md).
+Liest den administrierten RuView-Sensing-Service (read-only): `status`, `nodes`, `sensing`, `model_info`, `recordings`, `presence`. Nur sichtbar, wenn Integration **und** Agent-Zugriff aktiviert sind. Keine URLs, Zugangsdaten, Gerätepfade oder freien API-Routen; das Tool kann weder installieren, flashen, konfigurieren, kalibrieren, aufnehmen, trainieren noch löschen. `presence` ergänzt die gespeicherten Offline-IDs dieses Empfängers. `fresh: false` belegt keine Anwesenheit, und eine Simulation ist kein Sensor. Antworten nennen Quelle, Beobachtungszeit und Datenfrische; `ready` beschreibt nur den Service. Details: Kapitel 8 und [ruview.md](../../ruview.md).
 
 ### `sip_phone`
 Native SIP-Telefonie: Anrufe starten, annehmen, beenden, DTMF senden und Anruflisten lesen — abhängig von der SIP-Konfiguration und den Rufregeln (Kapitel 8).

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -338,6 +339,13 @@ func (s *SQLiteMemory) rollbackUnpublishedReplacement(ltm VectorDB, id, concept,
 // committed, a failed old-vector retirement is returned as an error while the
 // new replacement remains active; deleting it could lose the only valid copy.
 func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expectedContent, replacement string, expected MemoryMeta, reason, actor string) ([]string, error) {
+	return s.ReplaceMemoryDocumentContext(context.Background(), ltm, oldID, concept, expectedContent, replacement, expected, reason, actor)
+}
+
+func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm VectorDB, oldID, concept, expectedContent, replacement string, expected MemoryMeta, reason, actor string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	oldID = strings.TrimSpace(oldID)
 	if s == nil || ltm == nil || oldID == "" || strings.TrimSpace(expectedContent) == "" || strings.TrimSpace(replacement) == "" {
 		return nil, fmt.Errorf("memory replacement requires store, old document ID, expected content, and replacement content")
@@ -375,7 +383,13 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 		return nil, fmt.Errorf("memory replacement source %s metadata changed before staging", oldID)
 	}
 
-	stored, err := owned.StoreDocumentOwned(concept, replacement, VectorStoreForceCreate)
+	var stored VectorStoreResult
+	if cancellable, ok := owned.(ContextOwnershipAwareVectorDB); ok {
+		stored, err = cancellable.StoreDocumentOwnedContext(ctx, concept, replacement, VectorStoreForceCreate)
+	} else {
+		stored, err = owned.StoreDocumentOwned(concept, replacement, VectorStoreForceCreate)
+	}
+	err = errors.Join(err, ctx.Err())
 	if err != nil {
 		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		if rollbackErr != nil {

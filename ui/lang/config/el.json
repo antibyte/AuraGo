@@ -761,5 +761,20 @@
   "config.decisions.disk_full": "Δεν υπάρχει αρκετός χώρος. Ελευθέρωσε χώρο και δοκίμασε ξανά.",
   "config.decisions.disk_unknown": "Δεν ήταν δυνατός ο έλεγχος ελεύθερου χώρου. Έλεγξε τα δικαιώματα πρόσβασης.",
   "config.decisions.save_failed": "Δεν αποθηκεύτηκαν οι ρυθμίσεις Decisions. Έλεγξε τα δικαιώματα εγγραφής.",
-  "config.decisions.runtime_dependencies_missing": "Το περιβάλλον εκτέλεσης δεν ξεκινά. Έλεγξε την υποστηριζόμενη έκδοση συστήματος και εγκατάστησε ενημερωμένο οδηγό γραφικών. Έπειτα επανάλαβε τη ρύθμιση."
+  "config.decisions.runtime_dependencies_missing": "Το περιβάλλον εκτέλεσης δεν ξεκινά. Έλεγξε την υποστηριζόμενη έκδοση συστήματος και εγκατάστησε ενημερωμένο οδηγό γραφικών. Έπειτα επανάλαβε τη ρύθμιση.",
+  "config.decisions.pin_model": "Χρήση σταθερής έκδοσης",
+  "config.decisions.alias_target": "Τρέχων προορισμός ψευδωνύμου: {value}",
+  "config.decisions.model_expiry": "Ειδοποίηση λήξης: {value}",
+  "config.decisions.media_limits": "Έως {count} εικόνες, {bytes} KiB η καθεμία. Η σμίκρυνση μπορεί να αφαιρέσει λεπτές λεπτομέρειες.",
+  "config.decisions.model_checked": "Έλεγχος καταλόγου: {value}",
+  "config.decisions.model_not_available": "Το μοντέλο δεν είναι πλέον διαθέσιμο. Φόρτωσε τον κατάλογο και επίλεξε άλλο μοντέλο.",
+  "config.decisions.model_context_unverified": "Το όριο περιβάλλοντος δεν έχει επαληθευτεί. Το μοντέλο δεν μπορεί να χρησιμοποιηθεί.",
+  "config.decisions.model_unverified": "Το μοντέλο δεν έχει ελεγχθεί. Φόρτωσε τον κατάλογο ή εκκίνησε δοκιμή.",
+  "config.decisions.responding_model": "Έκδοση που απάντησε: {value}",
+  "config.decisions.alias_changed": "Ο προορισμός του ψευδωνύμου άλλαξε. Έλεγξε τα όρια δρομολόγησης για τη νέα έκδοση.",
+  "config.decisions.runtime_discovery_timeout": "Η ανίχνευση συσκευών ξεπέρασε τα 60 δευτερόλεπτα. Έλεγξε το περιβάλλον εκτέλεσης και δοκίμασε ξανά. Δεν ενεργοποιήθηκε εφεδρική CPU.",
+  "config.decisions.runtime_discovery_output_limit": "Η ανίχνευση συσκευών παρήγαγε υπερβολική έξοδο και σταμάτησε. Έλεγξε το περιβάλλον εκτέλεσης.",
+  "config.decisions.image_limit_exceeded": "Οι εικόνες υπερβαίνουν τα όρια του μοντέλου. Στείλε λιγότερες ή μικρότερες εικόνες.",
+  "config.decisions.image_invalid": "Μια εικόνα είναι κατεστραμμένη ή μη υποστηριζόμενη. Χρησιμοποίησε έγκυρο PNG ή JPEG.",
+  "config.decisions.image_minimum_unmet": "Μια εικόνα είναι μικρότερη από τις ελάχιστες διαστάσεις του μοντέλου. Επίλεξε μεγαλύτερο πρωτότυπο."
 }

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
-func galaxaArcadeServer(t *testing.T) *httptest.Server {
+func galaxaArcadeServer(t *testing.T, failPlanets ...*atomic.Bool) *httptest.Server {
 	t.Helper()
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
 	section := strings.Split(strings.Split(loader, "'galaxa-deluxe': {")[1], "prefetch:")[0]
@@ -30,6 +31,15 @@ func galaxaArcadeServer(t *testing.T) *httptest.Server {
 	words := readDesktopAssetText(t, "lang/desktop/en.json")
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
+	if len(failPlanets) > 0 {
+		mux.HandleFunc("/img/galaxa/", func(w http.ResponseWriter, r *http.Request) {
+			if failPlanets[0].Load() && strings.Contains(r.URL.Path, "exp-planet-") {
+				http.Error(w, "fixture failure", http.StatusServiceUnavailable)
+				return
+			}
+			http.FileServer(http.FS(Content)).ServeHTTP(w, r)
+		})
+	}
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `<html><meta charset="utf-8"><link rel="stylesheet" href="/css/galaxa-deluxe.css"><style>body{margin:0;background:#030817}#host{width:600px;height:800px;margin:auto}</style><div id="host"></div><script>window.errors=[];onerror=(m,s,l,c,e)=>errors.push(e?.stack||m);onunhandledrejection=e=>errors.push(String(e.reason));</script>`+scripts.String()+`<script>
 const words=`+words+`;window.active=true;window.mount=()=>GalaxaDeluxe.render(document.querySelector('#host'),'test',{t:k=>words[k]||k,api:async()=>[],isActive:()=>active,onReady:c=>window.game=c});mount();
@@ -51,7 +61,9 @@ func TestGalaxaArcadeSoak(t *testing.T) {
 	}
 	deadline, cancel := context.WithTimeout(context.Background(), time.Duration(seconds+120)*time.Second)
 	defer cancel()
-	u, err := launcher.New().Context(deadline).Bin(bin).Headless(true).NoSandbox(true).Set("disable-dev-shm-usage").Set("disable-gpu").Launch()
+	l := launcher.New().Context(deadline).Bin(bin).Headless(true).NoSandbox(true).Leakless(false).Set("disable-dev-shm-usage").Set("disable-gpu")
+	defer l.Kill()
+	u, err := l.Launch()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,10 +80,11 @@ func TestGalaxaArcadeSoak(t *testing.T) {
 	page.MustElement("canvas").MustClick()
 	page.MustEval(`()=>{
  const c=game,g=c.G;c.settings.mode='classic';g.kb.s=true;
- window.soak={frames:0,started:performance.now(),maxParticles:0,maxBullets:0,maxSprites:0,stages:new Set(),samples:[],last:performance.now()};
+ window.soak={frames:0,started:performance.now(),maxParticles:0,maxBullets:0,maxSprites:0,maxPlanetSheets:0,maxAsteroids:0,maxMines:0,weapon:0,nextWeapon:0,stages:new Set(),samples:[],last:performance.now()};
  window.soakTick=()=>{
-  const q=soak;q.frames++;q.stages.add(g.stage);q.maxParticles=Math.max(q.maxParticles,g.part.length);q.maxBullets=Math.max(q.maxBullets,g.bul.length+g.ebul.length);q.maxSprites=Math.max(q.maxSprites,c.spriteAtlasCache.size);
+  const q=soak;q.frames++;q.stages.add(g.stage);q.maxParticles=Math.max(q.maxParticles,g.part.length);q.maxBullets=Math.max(q.maxBullets,g.bul.length+g.ebul.length);q.maxSprites=Math.max(q.maxSprites,c.spriteAtlasCache.size);q.maxPlanetSheets=Math.max(q.maxPlanetSheets,c.planetCache.size);q.maxAsteroids=Math.max(q.maxAsteroids,(g.asteroids||[]).length);q.maxMines=Math.max(q.maxMines,(g.playerMines||[]).length);
   g.p.inv=10000;g.kb.s=g.st==='TITLE';g.kb.f=true;
+  if(g.st==='PLAYING'&&g.simTime>=q.nextWeapon){const weapons=['mine_layer','emp_mine_layer','cluster_mine_layer','rocket_launcher','swarm_launcher','seeker_torpedo'];c.collectPU({type:weapons[q.weapon++%weapons.length],x:g.p.x,y:g.p.y});q.nextWeapon=g.simTime+15000;}
   if(g.evoChoiceOpen)c.selectEvolution(0);
   if(g.st==='SHOP')c.closeShop();if(g.st==='LOOP_CLEAR')c.openShop();
   const target=g.encounterBoss?.st!=='DEAD'&&g.encounterBoss || g.enemies.filter(e=>e.st!=='DEAD'&&e.y>40&&e.y<560).sort((a,b)=>b.y-a.y)[0];
@@ -82,11 +95,11 @@ func TestGalaxaArcadeSoak(t *testing.T) {
 	started := time.Now()
 	for time.Since(started) < time.Duration(seconds)*time.Second {
 		time.Sleep(10 * time.Second)
-		value := page.MustEval(`()=>{const now=performance.now(),q=soak;const result={elapsed:(now-q.started)/1000,fps:q.frames/((now-q.last)/1000),stage:game.G.stage,state:game.G.st,particles:q.maxParticles,bullets:q.maxBullets,sprites:q.maxSprites,audio:game.audioStats(),heap:performance.memory?.usedJSHeapSize,dom:document.querySelectorAll('*').length,errors};q.frames=0;q.last=now;q.samples.push(result);return result}`)
+		value := page.MustEval(`()=>{const now=performance.now(),q=soak;const result={elapsed:(now-q.started)/1000,fps:q.frames/((now-q.last)/1000),stage:game.G.stage,state:game.G.st,particles:q.maxParticles,bullets:q.maxBullets,sprites:q.maxSprites,planetSheets:q.maxPlanetSheets,asteroids:q.maxAsteroids,mines:q.maxMines,audio:game.audioStats(),heap:performance.memory?.usedJSHeapSize,dom:document.querySelectorAll('*').length,errors};q.frames=0;q.last=now;q.samples.push(result);return result}`)
 		if time.Since(started)%time.Minute < 11*time.Second {
 			t.Log(value.String())
 		}
-		if page.MustEval(`()=>errors.length>0 || game.audioStats().effects>32 || game.spriteAtlasCache.size>768`).Bool() {
+		if page.MustEval(`()=>errors.length>0 || game.audioStats().effects>32 || game.spriteAtlasCache.size>768 || game.planetCache.size>2 || (game.G.asteroids||[]).length>20 || (game.G.playerMines||[]).length>12`).Bool() {
 			t.Fatal(value.String())
 		}
 	}
@@ -111,7 +124,7 @@ func TestGalaxaArcadeBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(60 * time.Second)
+	page := newGalaxaSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(60 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>window.errors.length>0 || window.game?.G.st==='TITLE'`)
@@ -159,7 +172,7 @@ func TestGalaxaArcadeBehaviorBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(120 * time.Second)
+	page := newGalaxaSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(120 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>game?.G.st==='TITLE' || errors.length>0`)
@@ -179,7 +192,7 @@ func TestGalaxaArcadeAudioBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(120 * time.Second)
+	page := newGalaxaSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(120 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>game?.G.st==='TITLE' || errors.length>0`)
@@ -222,7 +235,7 @@ func TestGalaxaArcadeVisualBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	browser := newSmokeBrowser(t).NoDefaultDevice()
+	browser := newGalaxaSmokeBrowser(t).NoDefaultDevice()
 	page := browser.MustPage(server.URL + "/fixture").Timeout(90 * time.Second)
 	defer page.Close()
 	version, _ := browser.Version()
@@ -272,7 +285,7 @@ func TestGalaxaArcadeInputBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).NoDefaultDevice().MustPage()
+	page := newGalaxaSmokeBrowser(t).NoDefaultDevice().MustPage()
 	defer page.Close()
 	page.MustEvalOnNewDocument(`
  Object.defineProperty(navigator,'maxTouchPoints',{get:()=>2});
@@ -314,7 +327,7 @@ func TestGalaxaArcadePerformanceBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture")
+	page := newGalaxaSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture")
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>game.G.st==='TITLE'`)
@@ -383,7 +396,7 @@ func TestDesktopGalaxaArcadeBrowser(t *testing.T) {
 	}
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	page := newSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture").Timeout(90 * time.Second)
+	page := newGalaxaSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture").Timeout(90 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1140, 900, 1, false)
 	page.MustWaitLoad()
@@ -396,6 +409,15 @@ func TestDesktopGalaxaArcadeBrowser(t *testing.T) {
 	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 		os.MkdirAll(dir, 0755)
 		os.WriteFile(filepath.Join(dir, "galaxa-real-desktop.png"), page.MustScreenshot(), 0644)
+	}
+	for _, theme := range []string{"standard", "fruity"} {
+		page.MustEval(`theme=>{document.body.dataset.theme=theme;game.resize();game.renderFrame()}`, theme)
+		if !page.MustEval(`()=>{const r=game.canvas.getBoundingClientRect(),h=game.wrapEl.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=h.left-.5&&r.right<=h.right+.5}`).Bool() {
+			t.Fatal("game clipped in " + theme)
+		}
+		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+			os.WriteFile(filepath.Join(dir, "galaxa-desktop-"+theme+".png"), page.MustScreenshot(), 0644)
+		}
 	}
 	page.MustEval(`()=>{window.galaxaID=galaxaShell.state.activeWindowId;galaxaShell.openApp('calculator')}`)
 	waitForJSBool(t, page, `()=>game.G.st==='PAUSED'`)
@@ -424,7 +446,7 @@ func TestGalaxaArcadeMusicReview(t *testing.T) {
 		t.Skip("set AURAGO_GALAXA_AUDIO_REVIEW=1 for synthesized music review")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture").Timeout(140 * time.Second)
+	page := newGalaxaSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture").Timeout(140 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>game.G.st==='TITLE'`)
@@ -468,7 +490,7 @@ func TestGalaxaArcadeAllFramesBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE and AURAGO_BROWSER_ARTIFACT_DIR")
 	}
 	server := galaxaArcadeServer(t)
-	page := newSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture")
+	page := newGalaxaSmokeBrowser(t).NoDefaultDevice().MustPage(server.URL + "/fixture")
 	defer page.Close()
 	page.MustWaitLoad()
 	waitForJSBool(t, page, `()=>game.G.st==='TITLE'`)

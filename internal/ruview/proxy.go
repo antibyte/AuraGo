@@ -135,6 +135,7 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 				defer resp.Body.Close()
 				data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 				if err != nil || len(data) > maxResponseBytes || !json.Valid(data) {
+					m.noteRecording(p, 0)
 					return fmt.Errorf("invalid RuView JSON response")
 				}
 				data = []byte(security.Scrub(string(data)))
@@ -143,9 +144,11 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 				resp.Header.Set("Content-Length", fmt.Sprint(len(data)))
 				resp.Header.Set("Content-Type", "application/json")
 			}
+			m.noteRecording(p, resp.StatusCode)
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			m.noteRecording(p, 0)
 			http.Error(w, "RuView upstream unavailable", http.StatusBadGateway)
 		},
 	}

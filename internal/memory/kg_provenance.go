@@ -2,6 +2,7 @@ package memory
 
 import (
 	"aurago/internal/security"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -101,6 +102,13 @@ type KGProvenanceInput struct {
 }
 
 func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string, properties map[string]string, provenance KGProvenanceInput) (*KGClaim, error) {
+	return kg.addEdgeWithProvenance(context.Background(), source, target, relation, properties, provenance, false)
+}
+
+func (kg *KnowledgeGraph) addEdgeWithProvenance(ctx context.Context, source, target, relation string, properties map[string]string, provenance KGProvenanceInput, strict bool) (*KGClaim, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	source = strings.TrimSpace(source)
 	target = strings.TrimSpace(target)
 	relation = strings.TrimSpace(relation)
@@ -110,7 +118,7 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 	properties = normalizeKnowledgeGraphProperties(properties)
 	now := time.Now()
 
-	tx, err := kg.db.Begin()
+	tx, err := kg.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin add edge with provenance: %w", err)
 	}
@@ -189,21 +197,35 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 		return nil, fmt.Errorf("load inserted kg claim: %w", err)
 	}
 
+	if strict {
+		if _, err := tx.ExecContext(ctx, `UPDATE kg_edges SET semantic_indexed_at=NULL WHERE source=? AND target=? AND relation=?`, source, target, relation); err != nil {
+			return nil, fmt.Errorf("mark edge pending: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
 	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
-		kg.indexSemanticNodeAfterWrite(*sourceNode)
+		if err := kg.finishNodeWrite(ctx, *sourceNode, strict); err != nil {
+			return claim, err
+		}
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdgeWithProvenance: failed to reload source node for semantic index", "id", source, "error", err)
 	}
 	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
-		kg.indexSemanticNodeAfterWrite(*targetNode)
+		if err := kg.finishNodeWrite(ctx, *targetNode, strict); err != nil {
+			return claim, err
+		}
 	} else if err != nil && kg.logger != nil {
 		kg.logger.Warn("AddEdgeWithProvenance: failed to reload target node for semantic index", "id", target, "error", err)
 	}
-	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation, Properties: finalProps})
+	edge := Edge{Source: source, Target: target, Relation: relation, Properties: finalProps}
+	if strict {
+		// The reindex pass clears the durable pending marker after checking the row snapshot.
+		return claim, kg.upsertSemanticEdgeIndexContext(ctx, edge)
+	}
+	kg.indexSemanticEdgeAfterWrite(edge)
 	return claim, nil
 }
 

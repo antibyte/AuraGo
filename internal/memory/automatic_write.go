@@ -67,7 +67,9 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 		return AutomaticMemoryStoreResult{}, err
 	}
 	if s != nil {
-		s.automaticMemoryMu.Lock()
+		if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+			return AutomaticMemoryStoreResult{}, err
+		}
 		defer s.automaticMemoryMu.Unlock()
 	}
 	var result AutomaticMemoryStoreResult

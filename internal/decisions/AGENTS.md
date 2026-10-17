@@ -16,6 +16,21 @@ attestation, request validation, candidate-logit normalization, and status.
   semantics. Provider confidence is separate; external calibration is unverified.
   Missing cost stays unknown. Never claim local GPU/device attestation remotely.
 
+- Model eligibility is shared and passive in status: a fresh catalog requires a
+  positive context limit, expired metadata is unknown, and missing models are
+  blocked. Explicit evaluations may refresh within their own budget. Preserve
+  aliases and pin each call to the observed catalog version; alias changes revoke
+  routing caches without rejecting the initial resolution's own response.
+- Hundredth-grid provider distributions have a bounded rounding compatibility
+  rule, not an upstream precision guarantee. Validate all keys/values/mass before
+  normalization, and derive score intervals from the same rounding bounds.
+- External image preparation preserves originals, alpha and aspect ratio. Apply
+  JPEG orientation, enforce profile/context/base64 budgets and bounded sequential
+  encoding, never enlarge/drop/crop. Return metadata-only image adjustments.
+- Discovery has a separate 60-second pass budget, 1 MiB stdout and 64 KiB stderr
+  caps while reading. Terminate descendants and drain readers. Discovery timeout
+  is `runtime_discovery_timeout` (HTTP 504), never a reason for CPU fallback.
+
 - The service is opt-in. Constructing or reconfiguring its manager is passive;
   only explicit install/start or an authorized evaluation may acquire runtime
   resources. Never claim ready until model, projector, runtime build, and
