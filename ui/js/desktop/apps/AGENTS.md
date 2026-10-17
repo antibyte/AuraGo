@@ -2352,6 +2352,10 @@ registration lives in `internal/desktop/types.go`.
   Verify with `node scripts/test-galaxa-assets.mjs`. Animation rectangles, durations,
   loops and anchors belong in that manifest; never restore inline pixel
   definitions or fixed frame counts. Collision geometry is independent of art.
+  Asteroid animations opt into `blendFrames`; adjacent anchored frames, including
+  the loop boundary, blend on one reusable scratch canvas without adding phases
+  to the sprite cache. Preserve opacity and nearest-neighbor scaling. Verify
+  `TestGalaxaAsteroidAnimationBrowser` for continuity, Reduced Motion and cleanup.
   Sprite canvases have a 768-entry cap. Asset failures expose localized retry.
 - `ctx.stepFrame` runs a fixed 60 Hz simulation independently of rendering.
   Use `ctx.scheduleGame`, not wall-clock timers, for combat transitions.

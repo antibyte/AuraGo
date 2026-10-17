@@ -12878,7 +12878,8 @@
           151.5,
           140.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.basalt-monolith": {
       "sheet": "exp-asteroid-basalt-monolith",
@@ -13054,7 +13055,8 @@
           156,
           155.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.iron-meteor": {
       "sheet": "exp-asteroid-iron-meteor",
@@ -13230,7 +13232,8 @@
           171,
           140
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.ore-geode": {
       "sheet": "exp-asteroid-ore-geode",
@@ -13406,7 +13409,8 @@
           152,
           150.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.ice-boulder": {
       "sheet": "exp-asteroid-ice-boulder",
@@ -13582,7 +13586,8 @@
           157,
           156
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.frost-comet": {
       "sheet": "exp-asteroid-frost-comet",
@@ -13758,7 +13763,8 @@
           164,
           146
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.crystal-cluster": {
       "sheet": "exp-asteroid-crystal-cluster",
@@ -13934,7 +13940,8 @@
           168.5,
           152.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.prism-shard": {
       "sheet": "exp-asteroid-prism-shard",
@@ -14110,7 +14117,8 @@
           136,
           152.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.lava-boulder": {
       "sheet": "exp-asteroid-lava-boulder",
@@ -14286,7 +14294,8 @@
           163,
           143
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.slag-core": {
       "sheet": "exp-asteroid-slag-core",
@@ -14462,7 +14471,8 @@
           155.5,
           145.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.wreck-fragment": {
       "sheet": "exp-asteroid-wreck-fragment",
@@ -14638,7 +14648,8 @@
           171,
           145
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "asteroid.hollow-asteroid": {
       "sheet": "exp-asteroid-hollow-asteroid",
@@ -14814,7 +14825,8 @@
           150.5,
           159.5
         ]
-      ]
+      ],
+      "blendFrames": true
     },
     "alien.nebula-ray.idle": {
       "sheet": "exp-alien-nebula-ray",

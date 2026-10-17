@@ -44,7 +44,7 @@ for (const [motifIndex, m] of motifs.entries()) {
         if (m.powerup === 'mine_layer') atlas.animations['pickup.mega_mine_layer'] = { ...atlas.animations['pickup.mine_layer'] };
         if (m.powerup === 'rocket_launcher') atlas.animations['pickup.mega_rocket'] = { ...atlas.animations['pickup.rocket_launcher'] };
     } else if (m.kind === 'planet') add(key, 0, 12, 280, 2000 + (motifIndex - 30) * 200);
-    else if (m.kind === 'asteroid') add(key, 0, 16, 48, 100);
+    else if (m.kind === 'asteroid') add(key, 0, 16, 48, 100).blendFrames = true;
     else add(key, 0, 12, 64, 55, ['target-lock', 'rocket-exhaust'].includes(m.id));
     atlas.expansion.motifs.push({ number: motifIndex + 1, id: m.id, kind: m.kind, animations: keys, usage: m.role || m.powerup || m.biome || m.effect || 'combat-effect' });
 }

@@ -16,6 +16,7 @@
         }
         for (const [key, a] of Object.entries(data.animations)) {
             const sheet = data.sheets[a.sheet];
+            if (a.blendFrames !== undefined && typeof a.blendFrames !== 'boolean') throw Error('Invalid frame blending: ' + key);
             if (!sheet || !/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isFinite(a.ms) || a.ms <= 0 ||
                 !Number.isFinite(a.size) || a.size <= 0 || !Array.isArray(a.pivot) || a.pivot.length !== 2 ||
                 !a.pivot.every(n => Number.isFinite(n) && n >= 0 && n <= 1) || !Array.isArray(a.frames) || !a.frames.length) throw Error('Invalid animation: ' + key);
@@ -76,7 +77,7 @@
     GC.loadAtlasAssets = loadAssets;
     GC.createSprites = function (ctx) {
         const radialGradientCache = new Map(), spriteAtlasCache = new Map();
-        let assets;
+        let assets, blendCanvas;
         const palette = { 1: '#f1f8ff', 2: '#74d6ff', 3: '#3684da', 4: '#243d72' };
         const SP = { player: 'player.classic.idle', playerIcon: 'icon.classic', pC: palette,
             playerFrames: ['player.classic.idle'], PLAYER_FRAME: { idleA: 0 }, pwShield: 'fx.shield', pwC: palette };
@@ -85,16 +86,17 @@
             const a = assets.manifest.animations[key];
             if (!a) throw Error('Missing Galaxa animation: ' + key);
             const t = Math.max(0, time || 0), loop = loopOverride === undefined ? a.loop : loopOverride;
-            const index = loop ? Math.floor(t / a.ms) % a.frames.length : Math.min(a.frames.length - 1, Math.floor(t / a.ms));
-            return { key, a, index, frame: a.frames[index] };
+            const position = t / a.ms, step = Math.floor(position);
+            const index = loop ? step % a.frames.length : Math.min(a.frames.length - 1, step);
+            const next = loop ? (index + 1) % a.frames.length : Math.min(a.frames.length - 1, index + 1);
+            const mix = a.blendFrames && next !== index ? position - step : 0;
+            return { key, a, index, frame: a.frames[index], next, mix };
         }
-        function drawAnimation(cv, key, x, y, time, size, tint, loop) {
-            const entry = animation(key, time, loop);
-            if (!entry) return;
-            const { a, frame, index } = entry, width = size || a.size;
+        function frameSprite(key, a, index, width, tint) {
             const cacheKey = key + ':' + index + ':' + width + ':' + (tint || '');
             let sprite = spriteAtlasCache.get(cacheKey);
             if (!sprite) {
+                const frame = a.frames[index];
                 const ratio = a.sourceAnchors ? width / a.sourceSize : 1, anchor = a.sourceAnchors && a.sourceAnchors[index];
                 const extent = anchor ? Math.ceil(Math.max(width / 2, anchor[0] * ratio, anchor[1] * ratio, (frame[2] - anchor[0]) * ratio, (frame[3] - anchor[1]) * ratio)) * 2 : width;
                 sprite = document.createElement('canvas'); sprite.width = sprite.height = extent;
@@ -106,6 +108,28 @@
                 // ponytail: bounded FIFO cache; revisit only if measured atlas churn matters.
                 if (spriteAtlasCache.size >= 768) spriteAtlasCache.delete(spriteAtlasCache.keys().next().value);
                 spriteAtlasCache.set(cacheKey, sprite);
+            }
+            return sprite;
+        }
+        function drawAnimation(cv, key, x, y, time, size, tint, loop) {
+            const entry = animation(key, time, loop);
+            if (!entry) return;
+            const { a, index, next, mix } = entry, width = size || a.size;
+            const sprite = frameSprite(key, a, index, width, tint);
+            if (mix > 0) {
+                const following = frameSprite(key, a, next, width, tint);
+                const extent = Math.max(sprite.width, following.width), padding = (extent - width) / 2;
+                if (!blendCanvas) { blendCanvas = document.createElement('canvas'); blendCanvas.width = blendCanvas.height = extent; }
+                if (blendCanvas.width < extent || blendCanvas.height < extent) blendCanvas.width = blendCanvas.height = extent;
+                const c = blendCanvas.getContext('2d');
+                c.clearRect(0, 0, blendCanvas.width, blendCanvas.height); c.imageSmoothingEnabled = false;
+                // Add weighted premultiplied pixels offscreen so opaque overlap never dims.
+                c.globalCompositeOperation = 'lighter';
+                c.globalAlpha = 1 - mix; c.drawImage(sprite, (extent - sprite.width) / 2, (extent - sprite.height) / 2);
+                c.globalAlpha = mix; c.drawImage(following, (extent - following.width) / 2, (extent - following.height) / 2);
+                cv.drawImage(blendCanvas, 0, 0, extent, extent,
+                    Math.round(x - width * a.pivot[0] - padding), Math.round(y - width * a.pivot[1] - padding), extent, extent);
+                return;
             }
             const padding = (sprite.width - width) / 2;
             cv.drawImage(sprite, Math.round(x - width * a.pivot[0] - padding), Math.round(y - width * a.pivot[1] - padding));
@@ -152,6 +176,6 @@
         };
         Object.assign(ctx, { SP, drawSp, drawAnimation, enemySpriteFor, getPlayerSpriteFrame,
             radialGradientCache, spriteAtlasCache, cachedRadialGradient,
-            clearSpriteAtlasCache: () => spriteAtlasCache.clear(), rainbowPC: () => palette, spriteAnimation: animation });
+            clearSpriteAtlasCache: () => { spriteAtlasCache.clear(); blendCanvas = null; }, rainbowPC: () => palette, spriteAnimation: animation });
     };
 })();
