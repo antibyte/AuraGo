@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -48,6 +49,8 @@ CREATE TABLE IF NOT EXISTS gm_jobs (
  id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL, prompt TEXT NOT NULL,
  status TEXT NOT NULL, phase TEXT NOT NULL, provider_id TEXT NOT NULL DEFAULT '',
  model TEXT NOT NULL DEFAULT '', error TEXT NOT NULL DEFAULT '',
+ error_code TEXT NOT NULL DEFAULT '', gameplay_status TEXT NOT NULL DEFAULT '',
+ checks_passed INTEGER, checks_failed INTEGER, repair_passes INTEGER,
  base_revision INTEGER NOT NULL DEFAULT 0, result_revision INTEGER NOT NULL DEFAULT 0,
  created_at DATETIME NOT NULL, started_at DATETIME, finished_at DATETIME,
  FOREIGN KEY(project_id) REFERENCES gm_projects(id) ON DELETE CASCADE
@@ -94,6 +97,9 @@ CREATE TABLE IF NOT EXISTS gm_blobs (
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("migrate game maker database: %w", err)
 	}
+	if err := ensureJobOutcomeColumns(db); err != nil {
+		return err
+	}
 	_, err := db.Exec(`UPDATE gm_jobs SET status='interrupted', phase='interrupted',
 		error='Server restarted while the job was active', finished_at=?
 		WHERE status IN ('queued','planning','building','validating','polishing')`, time.Now().UTC())
@@ -113,19 +119,101 @@ func scanProject(row interface{ Scan(...any) error }) (Project, error) {
 	return p, err
 }
 
+const jobSelectColumns = `id,project_id,kind,prompt,status,phase,provider_id,model,error,error_code,base_revision,result_revision,created_at,started_at,finished_at,gameplay_status,checks_passed,checks_failed,repair_passes`
+
 func scanJob(row interface{ Scan(...any) error }) (Job, error) {
 	var j Job
 	var started, finished sql.NullTime
+	var passed, failed, repairs sql.NullInt64
 	err := row.Scan(&j.ID, &j.ProjectID, &j.Kind, &j.Prompt, &j.Status, &j.Phase,
-		&j.ProviderID, &j.Model, &j.Error, &j.BaseRevision, &j.ResultRevision,
-		&j.CreatedAt, &started, &finished)
+		&j.ProviderID, &j.Model, &j.Error, &j.ErrorCode, &j.BaseRevision, &j.ResultRevision,
+		&j.CreatedAt, &started, &finished, &j.GameplayStatus, &passed, &failed, &repairs)
 	if started.Valid {
 		j.StartedAt = &started.Time
 	}
 	if finished.Valid {
 		j.FinishedAt = &finished.Time
 	}
+	j.ChecksPassed = nullInt(passed)
+	j.ChecksFailed = nullInt(failed)
+	j.RepairPasses = nullInt(repairs)
 	return j, err
+}
+
+func nullInt(value sql.NullInt64) *int {
+	if !value.Valid {
+		return nil
+	}
+	number := int(value.Int64)
+	return &number
+}
+
+// ensureJobOutcomeColumns adds outcome fields to databases created before them.
+// A backup is written only when a column is missing. Fresh databases already
+// have the columns from CREATE TABLE and skip the copy.
+func ensureJobOutcomeColumns(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(gm_jobs)`)
+	if err != nil {
+		return fmt.Errorf("inspect game maker job columns: %w", err)
+	}
+	have := map[string]bool{}
+	exists := false
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, kind string
+		var def any
+		if err := rows.Scan(&cid, &name, &kind, &notnull, &def, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		exists = true
+		have[name] = true
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	columns := []struct{ name, ddl string }{
+		{"error_code", `ALTER TABLE gm_jobs ADD COLUMN error_code TEXT NOT NULL DEFAULT ''`},
+		{"gameplay_status", `ALTER TABLE gm_jobs ADD COLUMN gameplay_status TEXT NOT NULL DEFAULT ''`},
+		{"checks_passed", `ALTER TABLE gm_jobs ADD COLUMN checks_passed INTEGER`},
+		{"checks_failed", `ALTER TABLE gm_jobs ADD COLUMN checks_failed INTEGER`},
+		{"repair_passes", `ALTER TABLE gm_jobs ADD COLUMN repair_passes INTEGER`},
+	}
+	missing := false
+	for _, column := range columns {
+		if !have[column.name] {
+			missing = true
+			break
+		}
+	}
+	if !missing {
+		return nil
+	}
+	var seq int
+	var name, path string
+	if err := db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path); err != nil {
+		return fmt.Errorf("locate game maker database: %w", err)
+	}
+	if path != "" {
+		backup := path + ".before-job-outcome-" + time.Now().UTC().Format("20060102T150405.000000000") + ".bak"
+		if _, err := db.Exec(`VACUUM INTO '` + strings.ReplaceAll(backup, "'", "''") + `'`); err != nil {
+			return fmt.Errorf("backup before game maker job outcome migration: %w", err)
+		}
+	}
+	for _, column := range columns {
+		if have[column.name] {
+			continue
+		}
+		if _, err := db.Exec(column.ddl); err != nil {
+			return fmt.Errorf("migrate game maker job outcome: %w", err)
+		}
+	}
+	return nil
 }
 
 func scanRevision(row interface{ Scan(...any) error }) (Revision, error) {

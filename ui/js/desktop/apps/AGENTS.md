@@ -2160,9 +2160,14 @@ registration lives in `internal/desktop/types.go`.
   header and footer with offsets of `-var(--gm-modal-pad)`, and `modalError`
   inserts above the footer. Signal colours use the `--gm-tone-*` variables, never
   fixed light tints. Failure cards show `game_maker.failure_hint_<cause>` and
-  keep the backend text inside `details`; library states use
-  `game_maker.status_<status>`. Verify with `TestGameMakerStudioLayoutBrowser`
-  (`GAMEMAKER_STUDIO_REPORTS` writes screenshots).
+  keep the backend text inside `details`. Use `error_code` from the job when
+  it is present; English substring matching remains only for older jobs that
+  have no code. A plan card (`plan_summary`) and a check-result card render
+  from `latest_job` so a reload does not depend on the SSE backlog. Omit the
+  check line unless both counts are present, and omit repair passes at nil or
+  0. Library states use `game_maker.status_<status>`. Verify with
+  `TestGameMakerStudioLayoutBrowser` (`GAMEMAKER_STUDIO_REPORTS` writes
+  screenshots).
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
@@ -2271,6 +2276,18 @@ registration lives in `internal/desktop/types.go`.
   no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
 - The ready-job line `game_maker.gameplay_unverified` is shown only when
   `gameplay_status` is `unverified` on a non-voxel 3D project.
+- A non-empty workspace drift draws a badge on the preview and a hint under
+  the change form. Preview replacement keeps that badge in the shell. The
+  badge action `adopt` confirms, then posts `adopt_workspace: true` with no
+  prompt and no model. Voxel adopt flushes through `preparePreviewReplacement`
+  first and stops when that returns false. The badge and hint stay hidden
+  when the drift payload is not three arrays or the count is zero. The adopt
+  action also stays hidden while a job is active or editing is off. While
+  phase is `validating`, the banner tells the user to keep this project's
+  preview visible. Switching
+  projects or closing the window confirms first; declining leaves the project
+  open. The sources button keeps `data-gm-action="skills"` and the dialog says
+  it does not turn generation on or off.
 - Game Maker retry buttons submit `resume: true`,
   `validate_restored_draft: true` and an empty `prompt` directly through the
   existing job-start flow, even after reopening the app. The server stores the

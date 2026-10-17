@@ -375,6 +375,9 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 		if len(run.ModelAssetIDs) > 0 {
 			contextData["user_selected_model_ids"] = run.ModelAssetIDs[:min(64, len(run.ModelAssetIDs))]
 		}
+		if run.WorkspaceDrift != nil && !run.WorkspaceDrift.Empty() {
+			contextData["workspace_drift"] = run.WorkspaceDrift.PromptView()
+		}
 	case "building":
 		contextData["plan"] = compactGameMakerPlan(run.Plan)
 		contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)

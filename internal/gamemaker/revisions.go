@@ -95,7 +95,11 @@ func (s *Service) publishValidated(ctx context.Context, stage string, project Pr
 	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {
 		return Revision{}, err
 	}
-	return s.publish(ctx, stage, project, job, "agent", job.Prompt)
+	source, summary := "agent", job.Prompt
+	if job.Kind == "adopt" {
+		source, summary = "adopt", adoptPublicationSummary
+	}
+	return s.publish(ctx, stage, project, job, source, summary)
 }
 
 func (s *Service) publish(ctx context.Context, stage string, project Project, job Job, source, summary string) (Revision, error) {

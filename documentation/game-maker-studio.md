@@ -240,9 +240,18 @@ browser validation still decide whether the resulting game is ready.
 - Finished jobs end with a result card in the conversation: a playable
   revision offers **Play now**. A failure explains the cause in the interface
   language (failed play test, unavailable browser test, time limit, plan,
-  language model or unexpected end), keeps the backend report folded under
-  **Technical details**, and offers **Try again**, which continues the saved
-  working copy and agent context.
+  language model, cancelled run, or unexpected end), keeps the backend report
+  folded under **Technical details**, and offers **Try again**, which continues
+  the saved working copy and agent context. When the server sends check counts,
+  the card shows how many passed and failed, and how many repair passes ran.
+- After the plan is accepted, the conversation shows that plan: template,
+  objective, controls, and assets. It does not wait for the build to finish.
+- Code Studio edits the workspace. Preview and ZIP export keep reading the
+  published revision. When those files differ, the preview shows how many
+  files differ and **Check edits** tests them without calling a model. AuraGo
+  publishes that workspace only when the checks pass. The next ordinary change
+  request also receives those edited paths. While checks run, keep this
+  project's preview visible; leaving or closing asks first.
 - The library shows every project state in the interface language.
 - The preview toolbar reloads the game, toggles fullscreen, or opens the
   current revision in a new browser tab with a fresh preview token. While a
@@ -258,8 +267,10 @@ browser validation still decide whether the resulting game is ready.
   workspace scrolls between them.
 - Dialogs never exceed the Studio window. Title and actions stay pinned while
   the fields scroll, and a submit error appears directly above the actions.
-- The skills dialog summarizes status in plain language and folds source,
-  commit, and license details into a collapsible section.
+- The sources dialog summarizes where the built-in guidance comes from and
+  folds source, commit, and license details into a collapsible section. A
+  Studio run already includes that guidance. The dialog does not turn it on
+  or off.
 
 ## Offline sprite library
 
@@ -688,9 +699,14 @@ success does not imply that the game has passed validation or been published.
 ### Studio endpoints
 
 Authenticated Virtual Desktop clients use `/api/game-maker/capabilities`,
-`/projects`, project jobs/events/revisions/restore/preview-token/export, and
-`/jobs/{id}/cancel`. SSE event IDs are monotonic and support reconnecting with
-`Last-Event-ID`.
+`/projects`, project jobs/events/revisions/restore/preview-token/export,
+`/projects/{id}/workspace-drift`, and `/jobs/{id}/cancel`. The drift route
+returns relative paths and counts only. `GET /projects/{id}` also returns
+`latest_job` and, when one was stored, `plan_summary`. SSE event IDs are
+monotonic and support reconnecting with `Last-Event-ID`. `plan_summary` is
+one of those events. A finished `job_status` includes `error_code` and the
+check counts. Start-job accepts `adopt_workspace: true` alone to test the
+current workspace and publish it without a model.
 
 Authenticated sprite endpoints are `GET /api/game-maker/asset-packs`,
 `GET /api/game-maker/asset-packs/{id}/sheet.json`, and the corresponding

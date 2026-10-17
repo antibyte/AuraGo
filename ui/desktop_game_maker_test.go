@@ -145,6 +145,12 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.check_skipped",
 		"game_maker.check_reviewed",
 		"game_maker.gameplay_unverified",
+		"game_maker.workspace_drift", "game_maker.adopt_changes", "game_maker.adopt_title", "game_maker.adopt_confirm",
+		"game_maker.drift_inherits", "game_maker.plan_summary_title", "game_maker.plan_template", "game_maker.plan_objective",
+		"game_maker.plan_controls", "game_maker.plan_assets", "game_maker.checks_summary", "game_maker.repair_passes",
+		"game_maker.validating_preview_hint", "game_maker.leave_validating_title", "game_maker.leave_validating",
+		"game_maker.sources", "game_maker.sources_builtin",
+		"game_maker.failure_hint_internal", "game_maker.failure_hint_cancelled",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -159,6 +165,14 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Errorf("%s missing %s", file, key)
 			}
+		}
+		for _, key := range []string{"game_maker.workspace_drift", "game_maker.drift_inherits", "game_maker.repair_passes"} {
+			if !strings.Contains(values[key], "{{count}}") {
+				t.Errorf("%s %s missing {{count}}", file, key)
+			}
+		}
+		if summary := values["game_maker.checks_summary"]; !strings.Contains(summary, "{{passed}}") || !strings.Contains(summary, "{{failed}}") {
+			t.Errorf("%s game_maker.checks_summary missing count placeholders", file)
 		}
 	}
 }
