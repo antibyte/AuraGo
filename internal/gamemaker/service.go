@@ -901,6 +901,7 @@ func (s *Service) failJob(job Job, failure error) {
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
+	s.attachPromptUsage(&job)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "diagnostic",
 		map[string]any{"level": "error", "message": message})
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
@@ -934,6 +935,7 @@ func (s *Service) cancelledJob(job Job, cause error) {
 		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
+	s.attachPromptUsage(&job)
 	_, _ = s.emit(context.Background(), job.ProjectID, job.ID, "job_status",
 		applyJobOutcome(map[string]any{"status": "cancelled", "error": message}, job))
 }

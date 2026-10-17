@@ -244,6 +244,12 @@ browser validation still decide whether the resulting game is ready.
   folded under **Technical details**, and offers **Try again**, which continues
   the saved working copy and agent context. When the server sends check counts,
   the card shows how many passed and failed, and how many repair passes ran.
+  When the job recorded `prompt_usage` calls, the same card shows the call
+  count, measured input plus output tokens, and a price. A missing measurement
+  is labeled unknown in the interface language. That line uses only
+  `prompt_usage`. It does not add legacy `token_usage`, and it does not add
+  cache tokens onto the measured total. A job with no such calls, including a
+  check of workspace edits, leaves the line out.
 - After the plan is accepted, the conversation shows that plan: template,
   objective, controls, and assets. It does not wait for the build to finish.
 - Code Studio edits the workspace. Preview and ZIP export keep reading the
@@ -263,8 +269,11 @@ browser validation still decide whether the resulting game is ready.
 - The layout follows the width of the Studio window, not of the screen. Below
   1180 px the secondary project actions move into an overflow menu. Below
   980 px the library collapses into a project dropdown in the agent pane, next
-  to its own **New game** button. Below 760 px agent and preview stack and the
-  workspace scrolls between them.
+  to its own **New game** button. Below 760 px the conversation and the preview
+  are separate steps. The conversation is the default. **Play now** opens the
+  preview. When checks start, the preview opens on its own because they need
+  this window's canvas; leaving it asks first. Wider windows keep both panes
+  side by side.
 - Dialogs never exceed the Studio window. Title and actions stay pinned while
   the fields scroll, and a submit error appears directly above the actions.
 - The sources dialog summarizes where the built-in guidance comes from and
@@ -296,9 +305,11 @@ provide four directions; rotatable vehicles record their exact forward angle.
 
 Search/filter packs, inspect sprites, play animations, and switch between
 checkerboard, white and dark backgrounds. **Use for next job** prepares the next
-creation/change request without starting it. The form shows the selection;
-starting a job consumes it. Selections belong to the current Studio window.
-An empty selection lets the agent choose.
+creation or change request without starting it. The form shows the selection.
+Each project remembers that selection in this browser, and the next change
+request uses it again until it is cleared. Try again continues without sending
+the selection again, so a binding the plan already accepted stays. An empty
+selection lets the agent choose.
 
 Selected packs import before the agent starts. Additional packs are available
 through `game_maker_asset` operations `list_packs`, `describe_pack`, `import_pack`,
@@ -497,8 +508,11 @@ guidance. A version comment alone never enables instrumentation. Browser tests
 must still observe real input and target effects before publication; compatibility
 does not make a failed game pass by itself.
 
-2D and guided 3D publication require full validation. Free-code `three` uses
-startup validation and explicitly reports gameplay unverified. Technical failures share at most
+2D and guided 3D publication require full validation. Planning a new 3D game
+prefers fps, exploration, transport, flight or space when that loop fits, and
+keeps an existing base. Free-code `three` stays available for a custom or
+procedural engine. It uses startup validation and explicitly reports gameplay
+unverified. Technical failures share at most
 three repair passes across tool calls and orchestration, with no nested allowance.
 Repairs receive the accepted plan and exact check/expected/observed mismatch.
 Exhausted repair budgets or unavailable browser feedback end the agent round
@@ -568,6 +582,9 @@ static-host subdirectory without the preview boot or driver. It exercises real
 input, checks runtime/resource errors and external requests, and decodes the
 packaged WAVs. Optional screenshots/ZIPs go to `GAMEMAKER_EXPORT_REPORTS`; keep
 these and any real project fixtures under ignored `reports/`.
+`TestNightlyExportBrowser` is the small scheduled pair: one unmodified platformer
+export and one guided exploration export, skipped unless
+`GAMEMAKER_NIGHTLY_BROWSER=1`.
 
 ## Security model
 
@@ -705,7 +722,9 @@ returns relative paths and counts only. `GET /projects/{id}` also returns
 `latest_job` and, when one was stored, `plan_summary`. SSE event IDs are
 monotonic and support reconnecting with `Last-Event-ID`. `plan_summary` is
 one of those events. A finished `job_status` includes `error_code` and the
-check counts. Start-job accepts `adopt_workspace: true` alone to test the
+check counts. When `prompt_usage` calls exist, the nested job also carries
+`usage` with `calls`, plus `tokens` or `cost_usd` only when every call reported
+that measurement. Start-job accepts `adopt_workspace: true` alone to test the
 current workspace and publish it without a model.
 
 Authenticated sprite endpoints are `GET /api/game-maker/asset-packs`,
@@ -738,6 +757,17 @@ internal plans/reports. The series also runs the exact documented multiball
 example and rejects collider arguments containing `{body,art}` wrapper records
 instead of physics GameObjects. Groups retain collision coverage for later spawns;
 fixing that wiring must preserve passing sprite/input behavior and pack imports.
+
+A nightly GitHub job (`.github/workflows/game-maker-nightly-browser.yml`) sets
+`GAMEMAKER_NIGHTLY_BROWSER=1` and runs `TestNightlyExportBrowser` only. That
+test builds one unmodified 2D platformer starter and one guided 3D exploration
+starter from the catalog default models, with no model call. It publishes each
+through the revision store and opens the extracted ZIP in headless Chrome from
+a static subdirectory. It checks canvas startup, the start control, packaged
+audio, no external resources, no preview boot, and no private preview-test or
+dot-path files. Without the variable the test skips, so ordinary
+`go test ./...` does not need Chrome. The larger browser suites stay behind
+their own environment flags.
 
 `game-maker-comparison.json` defines eight fixed weak-model cases and the recorded
 fields. Run both commits with the same configured provider/model and settings,

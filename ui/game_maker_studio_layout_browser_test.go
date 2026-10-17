@@ -118,8 +118,8 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	layout := func(name string) {
 		t.Helper()
 		check(name+": studio fits the window without horizontal overflow", `()=>{const s=document.querySelector('.gm-studio');return s.scrollWidth<=s.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1&&[...s.querySelectorAll('.gm-workspace,.gm-agent-pane,.gm-preview-pane,.gm-conversation')].every(e=>e.scrollWidth<=e.clientWidth+1)}`)
-		check(name+": every visible control stays inside the window", `()=>{const s=document.querySelector('.gm-studio').getBoundingClientRect();return [...document.querySelectorAll('.gm-topbar button,.gm-pane-head button,.gm-pane-head select,.gm-change-form button,.gm-library-head button')].filter(b=>b.offsetParent).every(b=>{const r=b.getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1})}`)
-		check(name+": no control text is clipped", `()=>[...document.querySelectorAll('.gm-topbar button,.gm-preview-tools button,.gm-change-form button,.gm-library-head button,.gm-pane-head button')].filter(b=>b.offsetParent).every(b=>b.scrollWidth<=b.clientWidth+2)`)
+		check(name+": every visible control stays inside the window", `()=>{const s=document.querySelector('.gm-studio').getBoundingClientRect();return [...document.querySelectorAll('.gm-topbar button,.gm-pane-head button,.gm-pane-head select,.gm-change-form button,.gm-library-head button,.gm-steps button')].filter(b=>b.offsetParent).every(b=>{const r=b.getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1})}`)
+		check(name+": no control text is clipped", `()=>[...document.querySelectorAll('.gm-topbar button,.gm-preview-tools button,.gm-change-form button,.gm-library-head button,.gm-pane-head button,.gm-steps button')].filter(b=>b.offsetParent).every(b=>b.scrollWidth<=b.clientWidth+2)`)
 		check(name+": a new game can always be started", `()=>[...document.querySelectorAll('[data-gm-action="new"]')].filter(b=>b.offsetParent&&!b.disabled).length===1`)
 	}
 	send := func(id int, kind string, payload map[string]any) {
@@ -148,12 +148,13 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	page.MustWait(`()=>{const hint=document.querySelector('[data-gm-validating-hint]');return hint&&!hint.hidden&&hint.textContent===fixtureLang['game_maker.validating_preview_hint']}`)
 
 	send(4, "validation_result", map[string]any{"result": map[string]any{"gameplay_status": "unavailable", "rules_status": "unverified", "repairable": true, "checks": []map[string]any{{"id": "required_rules", "status": "unavailable", "repairable": true, "expected": "pickup_events increased 0", "observed": "before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"}}}})
-	send(5, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased 0; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
+	send(5, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased 0; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)", "usage": map[string]any{"calls": 2, "tokens": 110}})
 	page.MustWait(`()=>!!document.querySelector('.gm-result-card.is-error')`)
 	layout("failed")
 	check("failed: the result card offers a retry inside the conversation", `()=>{const card=document.querySelector('.gm-result-card.is-error'),log=document.querySelector('[data-gm-conversation]').getBoundingClientRect(),r=card.getBoundingClientRect();return !!card.querySelector('[data-gm-retry]')&&r.left>=log.left-1&&r.right<=log.right+1}`)
 	check("failed: long technical errors wrap instead of overflowing", `()=>{const card=document.querySelector('.gm-result-card.is-error');return card.scrollWidth<=card.clientWidth+1}`)
 	check("failed: the card explains the failure and keeps the report one click away", `()=>{const card=document.querySelector('.gm-result-card.is-error'),details=card.querySelector('details');return card.querySelector('.gm-result-hint').textContent===fixtureLang['game_maker.failure_hint_validation']&&!details.open&&details.querySelector('summary').textContent===fixtureLang['game_maker.failure_details']&&details.querySelector('p').textContent.includes('required_rules: expected pickup_events increased 0')}`)
+	check("failed: the card shows measured calls and tokens and an unknown price", `()=>{const line=document.querySelector('.gm-result-card.is-error .gm-result-usage');const tokens=fixtureLang['game_maker.usage_tokens'].replaceAll('{{count}}','110');const expected=fixtureLang['game_maker.usage_line'].replaceAll('{{calls}}','2').replaceAll('{{tokens}}',tokens).replaceAll('{{cost}}',fixtureLang['game_maker.usage_cost_unknown']);return !!line&&line.textContent===expected&&line.scrollWidth<=line.clientWidth+1}`)
 	snapshot("studio-03-failed")
 	page.MustElement(`.gm-result-card.is-error summary`).MustClick()
 	check("failed: the opened report stays inside the conversation", `()=>{const card=document.querySelector('.gm-result-card.is-error'),report=card.querySelector('details p').getBoundingClientRect(),box=card.getBoundingClientRect();return card.querySelector('details').open&&report.height>10&&report.right<=box.right+1&&card.scrollWidth<=card.clientWidth+1}`)
@@ -194,14 +195,67 @@ return m.top>=s.top-1&&m.bottom<=s.bottom+1&&m.left>=s.left-1&&m.right<=s.right+
 	snapshot("studio-06-laptop")
 
 	// A narrow window on a wide screen must adapt exactly like a narrow screen.
+	// Validation selects the preview step. Put the conversation back before the
+	// narrow checks, which expect that default.
+	page.MustEval(`()=>{const studio=document.querySelector('.gm-studio');studio.setAttribute('data-gm-step','agent');studio.querySelectorAll('[data-gm-steps] [data-gm-step]').forEach(b=>b.setAttribute('aria-pressed',b.getAttribute('data-gm-step')==='agent'?'true':'false'))}`)
 	for _, width := range []int{900, 780, 640, 420} {
 		page.MustEval(`async width=>{document.getElementById('app').style.width=width+'px';await new Promise(r=>setTimeout(r,120))}`, width)
 		name := fmt.Sprintf("window %dpx", width)
 		layout(name)
 		check(name+": a project can be chosen without the sidebar", `()=>{const select=document.querySelector('[data-gm-mobile-projects]');return document.querySelector('.gm-library').offsetParent===null&&select.offsetParent!==null&&select.options.length===3&&select.getBoundingClientRect().width>=120}`)
-		check(name+": panes share the window as designed", `width=>{const a=document.querySelector('.gm-agent-pane').getBoundingClientRect(),p=document.querySelector('.gm-preview-pane').getBoundingClientRect();return width>760?Math.abs(a.top-p.top)<2&&p.left>=a.right-1&&a.width>=300:p.top>=a.bottom-1&&a.width<=width&&a.width>=width-20}`, width)
+		check(name+": panes share the window as designed", `width=>{const studio=document.querySelector('.gm-studio'),a=document.querySelector('.gm-agent-pane').getBoundingClientRect(),p=document.querySelector('.gm-preview-pane').getBoundingClientRect(),bar=document.querySelector('[data-gm-steps]');if(width>760)return Math.abs(a.top-p.top)<2&&p.left>=a.right-1&&a.width>=300&&bar.offsetParent===null;return studio.getAttribute('data-gm-step')==='agent'&&bar.offsetParent!==null&&a.width<=width&&a.width>=width-20&&document.querySelector('.gm-preview-pane').offsetParent===null&&a.height>120}`, width)
 		snapshot(fmt.Sprintf("studio-06b-window-%d", width))
 	}
+	check("window 420px: the preview is its own step", `async()=>{
+		const fail=(reason)=>{throw new Error(reason)};
+		const studio=document.querySelector('.gm-studio');
+		const bar=document.querySelector('[data-gm-steps]');
+		const agent=document.querySelector('.gm-agent-pane');
+		const preview=document.querySelector('.gm-preview-pane');
+		const agentBtn=bar.querySelector('[data-gm-step="agent"]');
+		const previewBtn=bar.querySelector('[data-gm-step="preview"]');
+		const state=GameMakerStudioApp.instances.get('fixture');
+		if (!bar || bar.offsetParent===null) fail('step bar is hidden');
+		if (agentBtn.textContent!==fixtureLang['game_maker.step_agent'] || previewBtn.textContent!==fixtureLang['game_maker.step_preview']) fail('step labels');
+		if (studio.getAttribute('data-gm-step')!=='agent' || preview.offsetParent || !agent.offsetParent) fail('agent step does not own the workspace');
+		previewBtn.click();
+		await new Promise(r=>setTimeout(r,40));
+		if (studio.getAttribute('data-gm-step')!=='preview' || !preview.offsetParent || agent.offsetParent) fail('preview step did not replace the agent');
+		if (studio.scrollWidth>studio.clientWidth+1) fail('preview step overflows');
+		state.job=Object.assign({}, state.job||{}, {id:'job', phase:'validating', status:'validating'});
+		const saved=state.context.confirmDialog;
+		let asks=0;
+		state.context.confirmDialog=async()=>{asks++; return false};
+		agentBtn.click();
+		await new Promise(r=>setTimeout(r,40));
+		if (asks!==1 || studio.getAttribute('data-gm-step')!=='preview' || !preview.offsetParent) fail('a declined check left the preview');
+		state.context.confirmDialog=async()=>{asks++; return true};
+		agentBtn.click();
+		await new Promise(r=>setTimeout(r,40));
+		if (asks!==2 || studio.getAttribute('data-gm-step')!=='agent' || preview.offsetParent) fail('confirming the check did not return to the agent');
+		state.context.confirmDialog=saved;
+		state.lastPhase='building';
+		state.validationPreviewDismissed=true;
+		return true;
+	}`)
+	send(42, "phase", map[string]any{"phase": "validating"})
+	page.MustWait(`()=>{const s=GameMakerStudioApp.instances.get('fixture');return s.lastPhase==='validating'&&document.querySelector('.gm-studio').getAttribute('data-gm-step')==='agent'}`)
+	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.validationPreviewDismissed=false;s.lastPhase='building'}`)
+	send(43, "phase", map[string]any{"phase": "validating"})
+	page.MustWait(`()=>document.querySelector('.gm-studio').getAttribute('data-gm-step')==='preview'&&!!document.querySelector('.gm-preview-pane').offsetParent`)
+	page.MustEval(`()=>{
+		const s=GameMakerStudioApp.instances.get('fixture');
+		s.validationPreviewDismissed=false;
+		s.lastPhase='';
+		s.job.phase='failed';
+		s.job.status='failed';
+		s.jobActive=false;
+		const banner=document.querySelector('[data-gm-job-banner]');
+		if (banner) banner.hidden=true;
+		const studio=document.querySelector('.gm-studio');
+		studio.setAttribute('data-gm-step','agent');
+		studio.querySelectorAll('[data-gm-steps] [data-gm-step]').forEach(b=>b.setAttribute('aria-pressed', b.getAttribute('data-gm-step')==='agent'?'true':'false'));
+	}`)
 	page.MustElement(`.gm-narrow-new`).MustClick()
 	page.MustWait(`()=>!!document.querySelector('[data-gm-create]')`)
 	check("window 420px: the create dialog fits the window", dialog)
@@ -224,5 +278,93 @@ return m.top>=s.top-1&&m.bottom<=s.bottom+1&&m.left>=s.left-1&&m.right<=s.right+
 	page.MustEval(`async()=>{document.body.dataset.theme='fruity';document.body.dataset.fruityMode='light';await new Promise(r=>setTimeout(r,120))}`)
 	layout("light")
 	snapshot("studio-09-light")
+	page.MustEval(`()=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/js/desktop/apps/game-maker-studio-assets.js';s.onload=resolve;s.onerror=()=>reject(new Error('assets script failed'));document.body.append(s)})`)
+	check("selection: each project keeps its last pick and retry sends none", `async()=>{
+		const fail=(reason)=>{throw new Error(reason)};
+		const A=window.GameMakerStudioAssets, state=GameMakerStudioApp.instances.get('fixture');
+		const key='aurago.game-maker.asset-selection';
+		localStorage.setItem(key, JSON.stringify({projects:{
+			forest:{packs:['../nope','pine','pine'], models:['engine_-1.7','../x'], assets:[{pack_id:'aurago-low-poly', asset_id:'oak'},{pack_id:'../x', asset_id:'y'}], dimensions:{'aurago-low-poly':'3d','../x':'2d'}, presentation:{effects:['rain'], sounds:[{event:'step', sound:'step-grass'}], environment:'', quality:'nope', tweaks:{a:1}}},
+			'bad id':{packs:['pine']},
+			orbit:{packs:['space']}
+		}, order:['forest','bad id','orbit']}));
+		A.applyProjectSelection(state);
+		if (state.selectedAssetPackIDs.join(',')!=='pine' || state.selectedModelAssetIDs.join(',')!=='engine_-1.7') fail('stored forest selection was not restored');
+		if (!state.selectedAssetSelections[0] || state.selectedAssetSelections[0].asset_id!=='oak' || state.selectedAssetDimensions['aurago-low-poly']!=='3d') fail('stored asset dimension was not restored');
+		if (!state.selectedPresentation || state.selectedPresentation.effects[0]!=='rain' || state.selectedPresentation.quality!=='auto' || state.selectedPresentation.tweaks) fail('presentation extras were kept');
+		A.applyProjectSelection(state, 'orbit');
+		if (state.selectedAssetPackIDs.join(',')!=='space') fail('switching projects kept the previous selection');
+		A.applyProjectSelection(state, 'missing');
+		if (state.selectedAssetPackIDs.length || state.selectedPresentation) fail('a project without a memory kept the previous selection');
+		state.selectedAssetPackIDs=['pine'];
+		state.selectedModelAssetIDs=['engine_-1.7'];
+		state.selectedAssetSelections=[{pack_id:'aurago-low-poly', asset_id:'oak'}];
+		state.selectedAssetDimensions={'aurago-low-poly':'3d'};
+		state.selectedPresentation={effects:['rain'], sounds:[{event:'step', sound:'step-grass'}], environment:'', quality:'auto'};
+		A.rememberAssetSelection(state, 'forest');
+		state.selectedAssetPackIDs=['space'];
+		state.selectedModelAssetIDs=[];
+		state.selectedAssetSelections=[];
+		state.selectedAssetDimensions={};
+		state.selectedPresentation=null;
+		A.rememberAssetSelection(state, 'orbit');
+		A.applyProjectSelection(state, 'forest');
+		const resume=A.jobSelection(state, true);
+		const flat=A.jobSelection(state, false);
+		const solid=A.jobSelection(state, false, '3d');
+		if (resume.asset_pack_ids.length || resume.model_asset_ids.length || resume.asset_selections.length || resume.presentation!==null) fail('retry included the remembered selection');
+		if (flat.asset_pack_ids[0]!=='pine' || flat.model_asset_ids.length || solid.model_asset_ids[0]!=='engine_-1.7') fail('the next change request lost the remembered selection');
+		A.holdSelection(state);
+		state.selectedAssetPackIDs=['cards'];
+		const layer=state.container.querySelector('[data-gm-modal]');
+		layer.hidden=false;
+		layer.innerHTML='<form data-gm-create></form>';
+		GameMakerStudioModals.closeModal(state);
+		if (state.selectionHold || state.selectedAssetPackIDs[0]!=='pine') fail('cancelling a new game kept the draft selection');
+		A.holdSelection(state);
+		state.selectedAssetPackIDs=['nature'];
+		layer.hidden=false;
+		layer.innerHTML='<section class="gm-assets-modal"></section>';
+		GameMakerStudioModals.closeModal(state);
+		if (state.selectedAssetPackIDs[0]!=='nature') fail('closing the asset browser dropped the draft');
+		A.forgetAssetSelection('forest');
+		A.applyProjectSelection(state, 'forest');
+		if (state.selectedAssetPackIDs.length) fail('a deleted project kept its selection');
+		for (let i=0;i<30;i++){state.selectedAssetPackIDs=['pack-'+i]; A.rememberAssetSelection(state, 'p'+i);}
+		const stored=JSON.parse(localStorage.getItem(key));
+		if (stored.order.length!==25 || stored.projects.p0 || !stored.projects.p29 || stored.order[stored.order.length-1]!=='p29') fail('selection memory did not keep the newest 25 projects');
+		state.selectedAssetPackIDs=['pine'];
+		state.selectedModelAssetIDs=[];
+		state.selectedAssetSelections=[];
+		state.selectedAssetDimensions={};
+		state.selectedPresentation={effects:['rain'], sounds:[{event:'step', sound:'step-grass'}], environment:'', quality:'auto'};
+		const calls=[];
+		state.api.startJob=async(id, body)=>{calls.push({id, body}); return {id:'job-memory', status:'queued', phase:'planning', prompt: body.resume ? 'continue' : ''};};
+		const form=state.container.querySelector('[data-gm-change-form]');
+		const input=form.querySelector('textarea');
+		state.jobActive=false;
+		input.disabled=false;
+		form.querySelector('button').disabled=false;
+		input.value='add a coin';
+		form.requestSubmit();
+		const wait=n=>new Promise((resolve,reject)=>{const start=Date.now(); const tick=()=>{if(calls.length>=n) return resolve(); if(Date.now()-start>2000) return reject(new Error('startJob was not called')); setTimeout(tick, 20);}; tick();});
+		await wait(1);
+		if (calls[0].body.asset_pack_ids[0]!=='pine' || calls[0].body.model_asset_ids.length || calls[0].body.presentation.effects[0]!=='rain') fail('the change request did not send the visible selection');
+		if (state.selectedAssetPackIDs[0]!=='pine') fail('starting a change cleared the selection');
+		state.jobActive=false;
+		input.disabled=false;
+		const retry=document.createElement('button');
+		retry.type='button';
+		retry.dataset.gmRetry='1';
+		state.container.querySelector('.gm-studio').append(retry);
+		retry.click();
+		await wait(2);
+		retry.remove();
+		const again=calls[1].body;
+		if (!again.resume || again.asset_pack_ids.length || again.model_asset_ids.length || again.asset_selections.length || again.presentation!==null) fail('retry sent the remembered selection');
+		if (state.selectedAssetPackIDs[0]!=='pine') fail('retry cleared the visible selection');
+		localStorage.removeItem(key);
+		return true;
+	}`)
 	check("no script errors", `()=>fixtureErrors.length===0`)
 }

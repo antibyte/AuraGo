@@ -97,6 +97,13 @@ revision publication and standalone export for Phaser and Three.js games.
   `PresentationPlanningGuide`; wiring belongs to `PresentationGuide2D/3D`.
   Voxel planning uses `VoxelPlanningGuide` (with a validated goal example) plus
   `PresentationPlanningGuide`, editing `VoxelRuntimeGuide`.
+  3D planning inserts `## Guided 3D base` immediately after the planning workflow
+  and before phase guidance. A new game whose loop fits uses fps, exploration,
+  transport, flight or space. Base three stays for a custom or procedural engine,
+  and an existing base stays. Free three still has startup checks only and gameplay
+  stays unverified. The same choice is the `design.base` description on the 3D
+  planning schema only. 2D, voxel, building and repair omit that section. Building
+  and repair stay byte-identical. Phase guidance length is unchanged.
 - Planning a new game (phase planning, base revision 0) has only a scaffold. The
   planning workflow says so, and every file read/search answer carries a
   next_action to submit set_design instead of exploring. In bound runs a
@@ -334,6 +341,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - A normal edit that copied a drifted workspace (`ResumeFrom` empty, base revision above 0, kind not adopt) names that drift on the planning `JobRun` only. `compactGameMakerContext` puts `workspace_drift` in the untrusted context after the stable profile. Building omits it. A drift error omits the field and does not fail the job. The profile fingerprint stays unchanged.
 - After plan acceptance, emit `plan_summary` once: template, objective truncated to 240 runes, perspective, up to 8 sorted control keys, and up to 12 assets `{role, id}`. No scene, mechanics, or model prose. `GET /api/game-maker/projects/{id}` also returns the latest `plan_summary` and `latest_job`.
 - `gm_jobs` stores `error_code`, `gameplay_status`, and nullable `checks_passed`, `checks_failed`, and `repair_passes`. `ensureJobOutcomeColumns` backs up the database only when a column is missing. Fresh databases already include the columns. Terminal `job_status` carries the code and counts. Codes are `planning`, `validation`, `preview`, `timeout`, `cancelled`, `model`, and `internal`. Unavailable checks are not failures. A nil repair count means the run never entered repair; adopt stores 0.
+- The result card reads that job's `prompt_usage` events only. It reports the call count, the sum of measured input and output tokens when every call reported both, and `estimated_cost_usd` when every call has a finite price. Cache reads and writes stay out of the token sum. Legacy `token_usage` is ignored. A missing measurement stays off the field so the UI can call it unknown. Zero calls omit the line, including adopt. Fill it on the terminal `job_status` and in `LatestJob`. It is not a `gm_jobs` column and `GetJob` does not scan it.
 - Game Maker planning/building/repair use a server-owned per-run tool budget of `max(40, ceil(circuit_breaker.max_tool_calls * 1.25))`, rounded upward and logged at job start. It overrides personality/tool adjustments for that run only; the shared system setting, other agents, time/token limits and plan/repair attempt limits remain unchanged. Tool-free implementation/image review stays tool-free.
 - Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.
 - Plan submission rejects unknown JSON fields within the same correction budget and reports independent asset errors together. Each asset role uses singular pack/asset/assembly IDs; variants need distinct roles. Legacy plan perspective errors target root `plan.perspective`, never a writable asset `view`. Compact-design errors instead target `design.assets`, keep the requested base and return bounded compatible catalog alternatives; corrections retain the complete asset array. Asset search ranks content above pack names and excludes pack-name matches when already scoped to that pack.
@@ -343,7 +351,7 @@ revision publication and standalone export for Phaser and Three.js games.
   correction budget. Never report acceptance and revoke it later for selections.
 - Exhausted repair budgets, unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
 - A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
-- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure only when the value is `unverified` on a non-voxel 3D project. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
+- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. New 3D planning prefers one of those bases when the request fits that loop. It does not rewrite an explicit `three` design. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure only when the value is `unverified` on a non-voxel 3D project. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
 - Phaser 4.2.1 and Three.js 0.186.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
 - Phaser `scene.restart()` reuses the instance. Guidance and source references
@@ -397,7 +405,7 @@ revision publication and standalone export for Phaser and Three.js games.
   attestation of hostile game code: the driver and project share one JavaScript
   realm. Preserve sandbox/API isolation; do not claim that window/channel checks
   authenticate observations independently of the generated game.
-- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio.
+- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio. `TestNightlyExportBrowser` does that for one unmodified platformer export and one exploration export that uses the guided default catalog models, with no LLM, when `GAMEMAKER_NIGHTLY_BROWSER=1`. The larger `GAMEMAKER_*_BROWSER` suites stay opt-in.
 
 ### Agent guidance and repairable checks
 
@@ -518,6 +526,8 @@ Do not patch a published game merely because a new starter changed.
   assertions and driven transition coverage. `TestValidationRequestErrors*`
   covers request correction without preview, budget or round changes;
   `TestFreeCodeThreePlanning*` checks the disclosed gameplay boundary.
+  `TestGameMakerPlanningNamesGuided3DBasesBeforeFreeCode` and
+  `TestGameMaker3DPlanningBasePrefersGuidedTemplates` check the early 3D base choice.
 - `TestVoxel*` covers deterministic worlds, chunk collision/mesh updates,
   transactions, malformed saves, CAS/revision isolation, restart and copied DB
   migration. `GAMEMAKER_VOXEL_BROWSER=1` adds actual gameplay, touch, respawn,
@@ -548,8 +558,8 @@ Do not patch a published game merely because a new starter changed.
   `TestGameMakerBudgetIsStableAndPhaseSpecific` cover the tool and context side.
 - `go test ./internal/gamemaker` and focused agent/server tests.
   `TestWorkspaceDrift*`, `TestAdopt*`, `TestPlanSummaryPayload`,
-  `TestJobOutcomeColumns`, and server `TestWorkspaceDrift*` cover drift,
-  adopt, plan summaries, and stored job outcomes.
+  `TestJobOutcomeColumns`, `TestPromptUsageCard*`, and server `TestWorkspaceDrift*` cover drift,
+  adopt, plan summaries, stored job outcomes, and the result-card usage line.
 - `GAMEMAKER_EXPERIENCE_BROWSER=1`: normal-input contact, feedback, checkpoint,
   pause, stage/result/restart and narrow-screen controls in exported 2D/3D fixtures.
   `TestPlayerUIBrowser` covers pre-start freeze, compact desktop/narrow-window HUD,
@@ -576,6 +586,7 @@ Do not patch a published game merely because a new starter changed.
   weapons and their broken-collision variant. `TestShooterScenarioInput*`
   covers accepted-plan preservation, budgets, disclosure and custom-input isolation.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
+- `GAMEMAKER_NIGHTLY_BROWSER=1` runs only `TestNightlyExportBrowser`: one unmodified platformer export and one exploration export using `defaultModelRoles`, with no LLM. `.github/workflows/game-maker-nightly-browser.yml` schedules that test. The other `GAMEMAKER_*_BROWSER` suites stay opt-in and are not part of the job. Without the variable the test skips, so `go test ./...` does not need Chrome.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
   canvases and loading-HUD recovery in Chrome.
 - `GAMEMAKER_OPTIMIZATION_BROWSER=1`: `TestFPSCoverBrowser` checks actual enemy

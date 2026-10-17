@@ -89,27 +89,28 @@ type UpdateProjectRequest struct {
 
 type Job struct {
 	// ResumeFrom is server-owned and never accepted as an arbitrary client path.
-	ResumeFrom            string     `json:"-"`
-	ValidateRestoredDraft bool       `json:"-"`
-	ID                    string     `json:"id"`
-	ProjectID             string     `json:"project_id"`
-	Kind                  string     `json:"kind"`
-	Prompt                string     `json:"prompt"`
-	Status                string     `json:"status"`
-	Phase                 string     `json:"phase"`
-	ProviderID            string     `json:"provider_id,omitempty"`
-	Model                 string     `json:"model,omitempty"`
-	Error                 string     `json:"error,omitempty"`
-	ErrorCode             string     `json:"error_code,omitempty"`
-	ChecksPassed          *int       `json:"checks_passed,omitempty"`
-	ChecksFailed          *int       `json:"checks_failed,omitempty"`
-	RepairPasses          *int       `json:"repair_passes,omitempty"`
-	GameplayStatus        string     `json:"gameplay_status,omitempty"`
-	BaseRevision          int64      `json:"base_revision,omitempty"`
-	ResultRevision        int64      `json:"result_revision,omitempty"`
-	CreatedAt             time.Time  `json:"created_at"`
-	StartedAt             *time.Time `json:"started_at,omitempty"`
-	FinishedAt            *time.Time `json:"finished_at,omitempty"`
+	ResumeFrom            string           `json:"-"`
+	ValidateRestoredDraft bool             `json:"-"`
+	ID                    string           `json:"id"`
+	ProjectID             string           `json:"project_id"`
+	Kind                  string           `json:"kind"`
+	Prompt                string           `json:"prompt"`
+	Status                string           `json:"status"`
+	Phase                 string           `json:"phase"`
+	ProviderID            string           `json:"provider_id,omitempty"`
+	Model                 string           `json:"model,omitempty"`
+	Error                 string           `json:"error,omitempty"`
+	ErrorCode             string           `json:"error_code,omitempty"`
+	ChecksPassed          *int             `json:"checks_passed,omitempty"`
+	ChecksFailed          *int             `json:"checks_failed,omitempty"`
+	RepairPasses          *int             `json:"repair_passes,omitempty"`
+	GameplayStatus        string           `json:"gameplay_status,omitempty"`
+	Usage                 *PromptUsageCard `json:"usage,omitempty"`
+	BaseRevision          int64            `json:"base_revision,omitempty"`
+	ResultRevision        int64            `json:"result_revision,omitempty"`
+	CreatedAt             time.Time        `json:"created_at"`
+	StartedAt             *time.Time       `json:"started_at,omitempty"`
+	FinishedAt            *time.Time       `json:"finished_at,omitempty"`
 }
 
 type StartJobRequest struct {

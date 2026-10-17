@@ -2152,8 +2152,18 @@ registration lives in `internal/desktop/types.go`.
   `gm-studio` inline-size container and `.gm-preview-pane` the `gm-preview`
   container. Every width rule exists as `@container` and as its `@media` twin,
   because fixtures render panes outside the shell; change both together. Below
-  980px the library is hidden, so the project select and `.gm-narrow-new` in the
-  agent pane head are the only way to switch or create. Keep the library button
+  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column
+  and one flexible row. `.gm-studio` starts at `data-gm-step="agent"`. That
+  step hides `.gm-preview-pane`; `preview` hides `.gm-agent-pane`. The bar uses
+  `display:none` above 760px, not the `hidden` attribute, and those pane rules
+  stay inside the 760px queries so a wide window keeps both panes. The buttons
+  are `game_maker.step_agent` and `game_maker.step_preview`. `playNow` selects
+  the preview. A phase event that enters `validating` selects it once, as does
+  opening a project whose active job is already validating. A repeated
+  validating event does not return there after the visible bar's
+  `confirmLeaveValidating` confirmation. Below 980px the library is hidden, so
+  the project select and `.gm-narrow-new` in the agent pane head are the only
+  way to switch or create. Keep the library button
   the first `[data-gm-action="new"]` in document order and update all of them in
   `applyCapabilities`. Only `.gm-conversation` may stretch in the agent pane;
   banner and notice come and go. Dialogs size against the Studio window, pin
@@ -2165,7 +2175,10 @@ registration lives in `internal/desktop/types.go`.
   have no code. A plan card (`plan_summary`) and a check-result card render
   from `latest_job` so a reload does not depend on the SSE backlog. Omit the
   check line unless both counts are present, and omit repair passes at nil or
-  0. Library states use `game_maker.status_<status>`. Verify with
+  0. When `usage.calls` is present, success and failure cards add one usage
+  line from that object. Omit it when calls are missing or zero. Tokens and
+  price use the localized unknown phrase when the field is absent. Do not add
+  a second usage stream in the client. Library states use `game_maker.status_<status>`. Verify with
   `TestGameMakerStudioLayoutBrowser` (`GAMEMAKER_STUDIO_REPORTS` writes
   screenshots).
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
@@ -2196,12 +2209,20 @@ registration lives in `internal/desktop/types.go`.
   mechanics helpers use the existing engine loop, pause and disposal owners.
   Verify with `GAMEMAKER_BUILDER_BROWSER=1` and `TestBuilderBrowser`, including
   actual inputs, repeated resource counts, exported games and narrow layouts.
-- Sprite selection is window-local and prepares the next create/edit request
-  via `asset_pack_ids`; selecting packs never starts a job. Clear selection only
-  after job acceptance. The asset browser owns an AbortController and animation
-  timer, released on modal replacement/close and disposal. Metadata stays English
-  for agents; controls and pack titles cover all 16 locales. Preview backgrounds
-  are CSS only: PNGs contain genuine alpha, no painted checkerboard.
+- Each project remembers its last asset selection in this browser
+  (`localStorage` key `aurago.game-maker.asset-selection`, with an in-memory
+  fallback). The next change request sends that selection again until the user
+  clears it. Try again sends empty `asset_pack_ids`, `model_asset_ids` and
+  `asset_selections`, and no presentation, so an accepted binding stays. An
+  empty selection lets the agent choose. Selecting packs never starts a job.
+  A new-game dialog holds the open project's selection until create succeeds
+  or the dialog is cancelled. Opening the asset browser from that dialog
+  stores the draft on the open project when the browser closes. The asset
+  browser still owns its AbortController and animation timer, released on
+  modal replacement/close and disposal. Metadata
+  stays English for agents; controls and pack titles cover all 16 locales.
+  Preview backgrounds are CSS only: PNGs contain genuine alpha, no painted
+  checkerboard.
 - Modular pack previews default to a complete assembly. Parts use metadata
   coordinates and shared animation time; selecting an individual sprite exits
   assembly mode. Reuse the window's existing preview timer and cleanup path.

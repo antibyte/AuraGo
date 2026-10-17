@@ -744,6 +744,68 @@ func TestGameMakerPromptsArePhaseAndDimensionPure(t *testing.T) {
 	}
 }
 
+// A new 3D plan sees the five guided bases before phase guidance. Free-code
+// three stays available for a custom engine and still leaves gameplay unverified.
+func TestGameMakerPlanningNamesGuided3DBasesBeforeFreeCode(t *testing.T) {
+	planning, err := gameMakerPromptProfile("planning", "3d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	system := planning.SystemPrompt()
+	choice := strings.Index(system, "## Guided 3D base")
+	phase := strings.Index(system, "## Player experience")
+	if choice < 0 || phase < 0 || choice > phase {
+		t.Fatalf("guided base choice at %d is not before phase guidance at %d", choice, phase)
+	}
+	early := system[choice:phase]
+	for _, want := range []string{
+		"fps (shooting on foot)",
+		"exploration (walk and look)",
+		"transport (drive)",
+		"flight (aircraft)",
+		"space (spacecraft)",
+		"custom or procedural engine",
+		"Keep an existing base",
+		"gameplay stays unverified",
+	} {
+		if !strings.Contains(early, want) {
+			t.Errorf("early 3D planning lacks %q", want)
+		}
+	}
+	if strings.Count(system, "gameplay stays unverified") < 2 {
+		t.Fatal("phase guidance no longer discloses unverified free-code gameplay")
+	}
+	building, err := gameMakerPromptProfile("building", "3d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repair, err := gameMakerPromptProfile("repair", "3d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if building.SystemPrompt() != repair.SystemPrompt() {
+		t.Fatal("repair prompt diverged from building")
+	}
+	for _, absent := range []struct {
+		stage, dimension string
+		variant          []string
+	}{
+		{"planning", "2d", nil},
+		{"building", "2d", nil},
+		{"building", "3d", nil},
+		{"planning", "3d", []string{"voxel"}},
+		{"building", "3d", []string{"voxel"}},
+	} {
+		profile, err := gameMakerPromptProfile(absent.stage, absent.dimension, absent.variant...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(profile.SystemPrompt(), "## Guided 3D base") {
+			t.Errorf("%s/%s/%v includes the 3D planning base choice", absent.stage, absent.dimension, absent.variant)
+		}
+	}
+}
+
 // Planning a new game has no source to read; voxel planning also needs the
 // presentation choices it otherwise looked up in minified bundles.
 func TestGameMakerPlanningPromptsExplainNewGameScaffold(t *testing.T) {

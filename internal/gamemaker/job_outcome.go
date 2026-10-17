@@ -152,6 +152,9 @@ func applyJobOutcome(payload map[string]any, job Job) map[string]any {
 	if strings.TrimSpace(job.GameplayStatus) != "" {
 		payload["gameplay_status"] = job.GameplayStatus
 	}
+	if job.Usage != nil && job.Usage.Calls > 0 {
+		payload["usage"] = job.Usage
+	}
 	payload["job"] = job
 	return payload
 }
@@ -186,6 +189,7 @@ func (s *Service) finishReady(job Job, project Project, revision Revision, resul
 	s.mu.RLock()
 	summary := s.jobSummaries[job.ID]
 	s.mu.RUnlock()
+	s.attachPromptUsage(&job)
 	if strings.TrimSpace(summary) != "" {
 		_, _ = s.appendMessage(context.Background(), project.ID, job.ID, "assistant", summary)
 	}
@@ -239,6 +243,7 @@ func (s *Service) LatestJob(ctx context.Context, projectID string) (Job, bool, e
 	if err != nil {
 		return Job{}, false, fmt.Errorf("get latest game maker job: %w", err)
 	}
+	s.attachPromptUsage(&job)
 	return job, true, nil
 }
 

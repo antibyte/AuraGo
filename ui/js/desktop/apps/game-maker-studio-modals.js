@@ -109,8 +109,11 @@
     }
 
     function closeModal(state) {
+        const layer = state.container?.querySelector('[data-gm-modal]');
+        if (state.selectionHold && window.GameMakerStudioAssets?.releaseSelectionHold) {
+            window.GameMakerStudioAssets.releaseSelectionHold(state, Boolean(layer?.querySelector('[data-gm-create]')));
+        }
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
-        const layer = state.container.querySelector('[data-gm-modal]');
         if (!layer) return;
         layer.hidden = true;
         layer.replaceChildren();

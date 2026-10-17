@@ -9,8 +9,213 @@
         return ids.length || models.length ? state.context.t('game_maker.assets_selected') + ': ' + [...ids.map(id => packName(state, id)), ...models].join(', ')
             : state.context.t('game_maker.assets_automatic');
     }
-    function updateSelection(state) {
+    const selectionStoreKey = 'aurago.game-maker.asset-selection';
+    const selectionProjectLimit = 25;
+    let selectionLoaded = false;
+    const selectionMemory = { projects: {}, order: [] };
+
+    function cleanToken(value) {
+        const id = String(value ?? '');
+        if (id.length < 1 || id.length > 80 || id.includes('..') || /[\s/\\]/.test(id)) return '';
+        return /^[A-Za-z0-9_.-]+$/.test(id) ? id : '';
+    }
+    function cleanProjectID(value) {
+        const id = String(value ?? '');
+        return /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : '';
+    }
+    function uniqueTokens(values, max) {
+        const out = [];
+        const seen = new Set();
+        for (const value of values || []) {
+            const id = cleanToken(value);
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            out.push(id);
+            if (out.length >= max) break;
+        }
+        return out;
+    }
+    function emptySnapshot() {
+        return { packs: [], models: [], assets: [], dimensions: {}, presentation: null };
+    }
+    function selectionSnapshot(state) {
+        const packs = uniqueTokens(state.selectedAssetPackIDs, 22);
+        const models = uniqueTokens(state.selectedModelAssetIDs, 64);
+        const assets = [];
+        const seenAssets = new Set();
+        for (const item of state.selectedAssetSelections || []) {
+            const packID = cleanToken(item && item.pack_id);
+            const assetID = cleanToken(item && item.asset_id);
+            if (!packID || !assetID) continue;
+            const key = packID + '/' + assetID;
+            if (seenAssets.has(key)) continue;
+            seenAssets.add(key);
+            assets.push({ pack_id: packID, asset_id: assetID });
+            if (assets.length >= 64) break;
+        }
+        const dimensions = {};
+        const sourceDimensions = state.selectedAssetDimensions || {};
+        for (const asset of assets) {
+            const dimension = sourceDimensions[asset.pack_id];
+            if (dimension === '2d' || dimension === '3d') dimensions[asset.pack_id] = dimension;
+        }
+        let presentation = null;
+        const raw = state.selectedPresentation;
+        if (raw && typeof raw === 'object') {
+            const effects = uniqueTokens(raw.effects, 32);
+            const sounds = [];
+            const seenSounds = new Set();
+            for (const sound of raw.sounds || []) {
+                const event = cleanToken(sound && sound.event);
+                const soundID = cleanToken(sound && sound.sound);
+                if (!event || !soundID || seenSounds.has(soundID)) continue;
+                seenSounds.add(soundID);
+                sounds.push({ event, sound: soundID });
+                if (sounds.length >= 32) break;
+            }
+            const environment = cleanToken(raw.environment);
+            const quality = ['auto', 'low', 'medium', 'high'].includes(raw.quality) ? raw.quality : 'auto';
+            if (effects.length || sounds.length || environment) {
+                presentation = { effects, sounds, environment, quality };
+            }
+        }
+        return { packs, models, assets, dimensions, presentation };
+    }
+    function applySnapshot(state, snapshot) {
+        const clean = snapshot ? selectionSnapshot({
+            selectedAssetPackIDs: snapshot.packs,
+            selectedModelAssetIDs: snapshot.models,
+            selectedAssetSelections: snapshot.assets,
+            selectedAssetDimensions: snapshot.dimensions,
+            selectedPresentation: snapshot.presentation
+        }) : emptySnapshot();
+        state.selectedAssetPackIDs = clean.packs;
+        state.selectedModelAssetIDs = clean.models;
+        state.selectedAssetSelections = clean.assets;
+        state.selectedAssetDimensions = { ...clean.dimensions };
+        state.selectedPresentation = clean.presentation ? {
+            effects: [...clean.presentation.effects],
+            sounds: clean.presentation.sounds.map(sound => ({ event: sound.event, sound: sound.sound })),
+            environment: clean.presentation.environment,
+            quality: clean.presentation.quality
+        } : null;
+    }
+    function ensureSelectionStore() {
+        if (selectionLoaded) return;
+        selectionLoaded = true;
+        try {
+            const raw = localStorage.getItem(selectionStoreKey);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            const incoming = parsed && parsed.projects && typeof parsed.projects === 'object' ? parsed.projects : {};
+            const incomingOrder = Array.isArray(parsed && parsed.order) ? parsed.order : Object.keys(incoming);
+            const ids = [];
+            for (const value of incomingOrder) {
+                const id = cleanProjectID(value);
+                if (!id || ids.includes(id) || !incoming[id]) continue;
+                ids.push(id);
+            }
+            selectionMemory.projects = {};
+            selectionMemory.order = [];
+            for (const id of ids.slice(-selectionProjectLimit)) {
+                selectionMemory.projects[id] = selectionSnapshot({
+                    selectedAssetPackIDs: incoming[id].packs,
+                    selectedModelAssetIDs: incoming[id].models,
+                    selectedAssetSelections: incoming[id].assets,
+                    selectedAssetDimensions: incoming[id].dimensions,
+                    selectedPresentation: incoming[id].presentation
+                });
+                selectionMemory.order.push(id);
+            }
+        } catch (_) {
+            selectionMemory.projects = {};
+            selectionMemory.order = [];
+        }
+    }
+    function persistSelectionStore() {
+        try {
+            localStorage.setItem(selectionStoreKey, JSON.stringify({
+                projects: selectionMemory.projects,
+                order: selectionMemory.order
+            }));
+        } catch (_) { /* private mode keeps the in-memory map only */ }
+    }
+    function rememberAssetSelection(state, projectId) {
+        if (state.selectionHold) return;
+        const id = cleanProjectID(projectId || state.project?.id);
+        if (!id) return;
+        ensureSelectionStore();
+        selectionMemory.projects[id] = selectionSnapshot(state);
+        selectionMemory.order = selectionMemory.order.filter(item => item !== id);
+        selectionMemory.order.push(id);
+        while (selectionMemory.order.length > selectionProjectLimit) {
+            delete selectionMemory.projects[selectionMemory.order.shift()];
+        }
+        persistSelectionStore();
+    }
+    function applyProjectSelection(state, projectId) {
+        const id = cleanProjectID(projectId || state.project?.id);
+        ensureSelectionStore();
+        applySnapshot(state, id ? selectionMemory.projects[id] : null);
+        paintSelection(state);
+    }
+    function forgetAssetSelection(projectId) {
+        const id = cleanProjectID(projectId);
+        if (!id) return;
+        ensureSelectionStore();
+        delete selectionMemory.projects[id];
+        selectionMemory.order = selectionMemory.order.filter(item => item !== id);
+        persistSelectionStore();
+    }
+    function holdSelection(state) {
+        state.selectionStash = selectionSnapshot(state);
+        state.selectionHold = true;
+        state.selectionHoldProject = state.project?.id || '';
+    }
+    function releaseSelectionHold(state, createStillMounted) {
+        if (!state.selectionHold) return;
+        const owner = state.selectionHoldProject || '';
+        const current = state.project?.id || '';
+        if (createStillMounted) {
+            if (current === owner) {
+                applySnapshot(state, state.selectionStash);
+            } else {
+                const id = cleanProjectID(current);
+                ensureSelectionStore();
+                applySnapshot(state, id ? selectionMemory.projects[id] : null);
+            }
+        }
+        state.selectionHold = false;
+        state.selectionStash = null;
+        state.selectionHoldProject = '';
+        rememberAssetSelection(state);
+        paintSelection(state);
+    }
+    function jobSelection(state, resume, dimension) {
+        if (resume) {
+            return { asset_pack_ids: [], model_asset_ids: [], asset_selections: [], presentation: null };
+        }
+        const dim = dimension || state.project?.dimension;
+        const presentation = state.selectedPresentation ? {
+            effects: [...(state.selectedPresentation.effects || [])],
+            sounds: (state.selectedPresentation.sounds || []).map(sound => ({ event: sound.event, sound: sound.sound })),
+            environment: state.selectedPresentation.environment || '',
+            quality: state.selectedPresentation.quality || 'auto'
+        } : null;
+        return {
+            asset_pack_ids: [...(state.selectedAssetPackIDs || [])],
+            model_asset_ids: dim === '3d' ? [...(state.selectedModelAssetIDs || [])] : [],
+            asset_selections: (state.selectedAssetSelections || []).map(item => ({ pack_id: item.pack_id, asset_id: item.asset_id })),
+            presentation
+        };
+    }
+    function paintSelection(state) {
+        if (!state.container) return;
         state.container.querySelectorAll('[data-gm-asset-selection]').forEach(node => { node.textContent = selectionText(state); });
+    }
+    function updateSelection(state) {
+        paintSelection(state);
+        if (!state.selectionHold) rememberAssetSelection(state);
     }
     function selectionMarkup(state) {
         return `<p class="gm-asset-selection" data-gm-asset-selection>${state.context.esc(selectionText(state))}</p>`;
@@ -26,6 +231,40 @@
         return (state.selectedAssetSelections||[]).some(a=>state.selectedAssetDimensions[a.pack_id]!==dimension)
             ? state.context.t('game_maker.assets_dimension_mismatch') : '';
     }
+    function pruneUnknownSelection(state, packs, modelPacks, atlasPacks, presentationPacks) {
+        const spriteIDs = new Set(packs.filter(pack => pack.kind === 'sprite2d' && pack.manifest_schema !== 2).map(pack => pack.id));
+        state.selectedAssetPackIDs = (state.selectedAssetPackIDs || []).filter(id => spriteIDs.has(id));
+        const modelIDs = new Set(modelPacks.flatMap(pack => (pack.assets || []).map(asset => asset.id)));
+        state.selectedModelAssetIDs = (state.selectedModelAssetIDs || []).filter(id => modelIDs.has(id));
+        const assetKeys = new Set();
+        for (const pack of [...modelPacks, ...atlasPacks]) {
+            for (const asset of pack.assets || []) assetKeys.add(pack.id + '\n' + asset.id);
+        }
+        state.selectedAssetSelections = (state.selectedAssetSelections || []).filter(item => assetKeys.has(item.pack_id + '\n' + item.asset_id));
+        const effects = new Set();
+        const sounds = new Set();
+        const environments = new Set();
+        for (const pack of presentationPacks) {
+            for (const asset of pack.assets || []) {
+                if (pack.kind === 'audio') sounds.add(asset.id);
+                else if (asset.category === 'environment') environments.add(asset.id);
+                else effects.add(asset.id);
+            }
+        }
+        if (state.selectedPresentation) {
+            const presentation = state.selectedPresentation;
+            presentation.effects = (presentation.effects || []).filter(id => effects.has(id));
+            presentation.sounds = (presentation.sounds || []).filter(sound => sounds.has(sound.sound));
+            if (presentation.environment && !environments.has(presentation.environment)) presentation.environment = '';
+            if (!presentation.effects.length && !presentation.sounds.length && !presentation.environment) state.selectedPresentation = null;
+        }
+        const livePacks = new Set((state.selectedAssetSelections || []).map(item => item.pack_id));
+        const dimensions = {};
+        for (const [packID, dimension] of Object.entries(state.selectedAssetDimensions || {})) {
+            if (livePacks.has(packID) && (dimension === '2d' || dimension === '3d')) dimensions[packID] = dimension;
+        }
+        state.selectedAssetDimensions = dimensions;
+    }
     function show(state, helpers) {
         const { esc, t } = state.context;
         helpers.showModal(state, `<section class="gm-modal gm-assets-modal" role="dialog" aria-modal="true" aria-label="${esc(t('game_maker.assets'))}">
@@ -38,7 +277,7 @@
             ${selectionMarkup(state)}<footer><button type="button" data-clear-selection>${esc(t('game_maker.assets_auto_button'))}</button>
                 <button type="button" data-modal-close>${esc(t('game_maker.close'))}</button></footer></section>`, layer => {
             const abort = new AbortController();
-            let timer = null, detailID = 0, packs = [], modelPacks = [], atlasPacks = [], presentationPacks = [], viewerCleanup = null;
+            let timer = null, detailID = 0, packs = [], modelPacks = [], atlasPacks = [], presentationPacks = [], viewerCleanup = null, catalogComplete = true;
             const cleanup = () => {
                 abort.abort(); clearInterval(timer);
                 viewerCleanup?.(); viewerCleanup = null;
@@ -240,12 +479,12 @@
                 renderCards();
                 for (const summary of packs.filter(p=>p.kind==='model3d'||p.manifest_schema===2)) {
                     try { const pack=await state.api.modelPack(summary.id, { signal: abort.signal });if(!current())return;(pack.kind==='model3d'?modelPacks:atlasPacks).push(pack); }
-                    catch (error) { const message = reportedError(state, error); if (message && current()) helpers.modalError(layer, message); }
+                    catch (error) { catalogComplete = false; const message = reportedError(state, error); if (message && current()) helpers.modalError(layer, message); }
                     if (!current()) return;
                 }
                 for(const p of packs.filter(p=>['effect','audio'].includes(p.kind))){
                     try {const manifest=await state.api.modelPack(p.id,{signal:abort.signal});if(!current())return;presentationPacks.push(manifest);category.innerHTML+=`<option value="${esc(p.id)}">${esc(t('game_maker.asset_kind_'+p.kind))}</option>`}
-                    catch(error){const message=reportedError(state,error);if(message&&current())helpers.modalError(layer,message)}
+                    catch(error){catalogComplete=false;const message=reportedError(state,error);if(message&&current())helpers.modalError(layer,message)}
                 }
                 for (const pack of modelPacks) {
                     const title=packName(state,pack.id);
@@ -255,7 +494,9 @@
                     const key='game_maker.model_category_'+({people:'humans',nature:'vegetation',harbor:'architecture',coast:'landscape',equipment:'props'}[cat]||cat),translated=t(key);
                     category.innerHTML+=`<option value="${esc('3d:'+cat)}">${esc(t('game_maker.asset_kind_model3d'))} · ${esc(translated===key?cat:translated)}</option>`;
                 }
+                if (catalogComplete) pruneUnknownSelection(state, packs, modelPacks, atlasPacks, presentationPacks);
                 if (state.project?.dimension === '3d' && modelPacks.length) category.value = modelPacks[0].id;
+                updateSelection(state);
                 renderCards();
                 const first=modelPacks.find(p=>p.id===category.value);
                 if(first?.assets.length)showEntry(first.id,first.assets[0].id);
@@ -361,5 +602,9 @@
         return()=>{if(disposed)return;disposed=true;revision++;abort.abort();visibility.disconnect();stop()};
     }
 
-    window.GameMakerStudioAssets = { show, selectionMarkup, updateSelection, clearSelection, selectionError };
+    window.GameMakerStudioAssets = {
+        show, selectionMarkup, updateSelection, clearSelection, selectionError,
+        holdSelection, releaseSelectionHold, rememberAssetSelection, applyProjectSelection,
+        forgetAssetSelection, jobSelection, selectionSnapshot
+    };
 })();

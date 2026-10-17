@@ -46,6 +46,7 @@
             elapsedTimer: null,
             repairCount: 0,
             lastPhase: '',
+            validationPreviewDismissed: false,
             busyPoll: null,
             previewLoadTimer: null,
             previewLoadClear: null,
@@ -77,7 +78,7 @@
         const menuItem = (action, key, extra) =>
             `<button type="button" role="menuitem" ${extra || ''} data-gm-action="${action}" disabled>${esc(t(key))}</button>`;
         return `
-            <div class="gm-studio" data-gm-window="${esc(state.windowId)}">
+            <div class="gm-studio" data-gm-window="${esc(state.windowId)}" data-gm-step="agent">
                 <header class="gm-topbar">
                     <div class="gm-brand">
                         <img src="/img/desktop-icons/game-maker-studio.svg" alt="">
@@ -118,6 +119,10 @@
                         <div class="gm-project-list" data-gm-projects role="list"></div>
                     </aside>
                     <main class="gm-workspace">
+                        <div class="gm-steps" role="group" data-gm-steps aria-label="${esc(t('game_maker.steps'))}">
+                            <button type="button" data-gm-step="agent" aria-pressed="true">${esc(t('game_maker.step_agent'))}</button>
+                            <button type="button" data-gm-step="preview" aria-pressed="false">${esc(t('game_maker.step_preview'))}</button>
+                        </div>
                         <section class="gm-agent-pane">
                             <div class="gm-pane-head">
                                 <div><span class="gm-kicker">${esc(t('game_maker.agent'))}</span><h2 data-gm-title>${esc(t('game_maker.choose_project'))}</h2></div>
@@ -227,6 +232,11 @@
             const retry = event.target.closest('[data-gm-retry]');
             if (retry) {
                 retryLastPrompt(state);
+                return;
+            }
+            const stepButton = event.target.closest('[data-gm-steps] [data-gm-step]');
+            if (stepButton) {
+                setStudioStep(state, stepButton.dataset.gmStep);
                 return;
             }
             const button = event.target.closest('[data-gm-action]');
@@ -412,6 +422,7 @@
         stopElapsed(state);
         state.repairCount = 0;
         state.lastPhase = '';
+        state.validationPreviewDismissed = false;
         state.gameplayStatus = '';
         state.previewStale = false;
         if (switching) {
@@ -435,6 +446,10 @@
             state.messages = body.messages || [];
             if (body.plan_summary) state.planSummary = body.plan_summary;
             if (body.latest_job) state.latestJob = body.latest_job;
+            // A new-game dialog owns the live selection until it closes.
+            if (!state.selectionHold && window.GameMakerStudioAssets?.applyProjectSelection) {
+                window.GameMakerStudioAssets.applyProjectSelection(state);
+            }
             state.job = null;
             clearDiagnostics(state);
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, '');
@@ -447,6 +462,7 @@
                 };
                 state.jobStartedAt = Date.now();
                 state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, state.activeJob.phase);
+                if ((state.activeJob.phase || state.activeJob.status) === 'validating') setStudioStep(state, 'preview');
             } else if (state.latestJob && terminalStatuses.has(state.latestJob.status)) {
                 state.job = state.latestJob;
             }
@@ -614,8 +630,10 @@
             state.planSummary = payload;
             renderPlanCard(state);
             break;
-        case 'phase':
+        case 'phase': {
             if (state.lastPhase === 'validating' && payload.phase === 'building') state.repairCount += 1;
+            if (payload.phase !== 'validating') state.validationPreviewDismissed = false;
+            const showValidationPreview = payload.phase === 'validating' && state.lastPhase !== 'validating' && !state.validationPreviewDismissed;
             state.lastPhase = payload.phase;
             if (!state.job) state.job = { id: event.job_id };
             state.job.phase = payload.phase;
@@ -623,7 +641,9 @@
             if (!state.jobStartedAt) state.jobStartedAt = Date.now();
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, payload.phase);
             syncJobControls(state);
+            if (showValidationPreview) setStudioStep(state, 'preview');
             break;
+        }
         case 'text_delta':
             appendAgentDelta(state, payload.content || '');
             break;
@@ -709,6 +729,7 @@
         state.latestJob = Object.assign({}, job || {});
         state.repairCount = 0;
         state.lastPhase = '';
+        state.validationPreviewDismissed = false;
         state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, status);
         reloadProjectRecord(state).then(() => {
             if (state.disposed || state.job !== job) return;
@@ -729,7 +750,7 @@
         });
     }
 
-    const outcomeFields = ['error', 'error_code', 'checks_passed', 'checks_failed', 'repair_passes', 'gameplay_status'];
+    const outcomeFields = ['error', 'error_code', 'checks_passed', 'checks_failed', 'repair_passes', 'gameplay_status', 'usage'];
 
     function rememberJobOutcome(state, payload) {
         if (!payload) return;
@@ -800,7 +821,7 @@
         const card = document.createElement('div');
         card.className = `gm-result-card is-${kind}`;
         card.setAttribute('data-gm-outcome', '');
-        const counts = checksMarkup(state, job) + repairMarkup(state, job);
+        const counts = checksMarkup(state, job) + repairMarkup(state, job) + usageMarkup(state, job);
         if (kind === 'success') {
             card.innerHTML = `<strong>${esc(message)}</strong>${counts}
                 <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
@@ -832,6 +853,25 @@
         return `<p>${state.context.esc(state.context.t('game_maker.repair_passes', { count: job.repair_passes }))}</p>`;
     }
 
+    function usageMarkup(state, job) {
+        const usage = job && job.usage;
+        if (!usage || !Number(usage.calls)) return '';
+        const { esc, t } = state.context;
+        const tokens = usage.tokens == null
+            ? t('game_maker.usage_tokens_unknown')
+            : t('game_maker.usage_tokens', { count: usage.tokens });
+        const cost = usage.cost_usd == null || !Number.isFinite(Number(usage.cost_usd)) || Number(usage.cost_usd) < 0
+            ? t('game_maker.usage_cost_unknown')
+            : t('game_maker.usage_cost', { cost: formatUsageCost(usage.cost_usd) });
+        return `<p class="gm-result-usage">${esc(t('game_maker.usage_line', { calls: usage.calls, tokens, cost }))}</p>`;
+    }
+
+    function formatUsageCost(value) {
+        const n = Number(value);
+        const digits = n === 0 || n >= 0.01 ? 4 : 6;
+        return n.toFixed(digits).replace(/\.?0+$/, '');
+    }
+
     function failureKind(kind, message) {
         const text = String(message || '').toLowerCase();
         if (/time limit|timed out|timeout|deadline exceeded/.test(text)) return 'timeout';
@@ -843,7 +883,32 @@
         return 'generic';
     }
 
+    function stepBarShown(state) {
+        const bar = state.container.querySelector('[data-gm-steps]');
+        return !!(bar && bar.offsetParent);
+    }
+
+    async function setStudioStep(state, step) {
+        if (step !== 'agent' && step !== 'preview') return false;
+        const root = state.container.querySelector('.gm-studio');
+        if (!root) return false;
+        const current = root.getAttribute('data-gm-step') || 'agent';
+        if (current !== step && step === 'agent' && stepBarShown(state)) {
+            if (!await confirmLeaveValidating(state)) return false;
+            if (state.disposed) return false;
+            const phase = state.job && (state.job.phase || state.job.status);
+            if (phase === 'validating') state.validationPreviewDismissed = true;
+        }
+        if (step === 'preview') state.validationPreviewDismissed = false;
+        root.setAttribute('data-gm-step', step);
+        state.container.querySelectorAll('[data-gm-steps] [data-gm-step]').forEach(button => {
+            button.setAttribute('aria-pressed', button.dataset.gmStep === step ? 'true' : 'false');
+        });
+        return true;
+    }
+
     async function playNow(state) {
+        await setStudioStep(state, 'preview');
         await refreshPreview(state);
         const shellEl = state.container.querySelector('[data-gm-preview]');
         if (shellEl && shellEl.scrollIntoView) shellEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1028,9 +1093,23 @@
         panel.open = false;
     }
 
+    function postedSelection(state, resume, dimension) {
+        if (window.GameMakerStudioAssets?.jobSelection) {
+            return window.GameMakerStudioAssets.jobSelection(state, resume, dimension);
+        }
+        const dim = dimension || state.project?.dimension;
+        return {
+            asset_pack_ids: state.selectedAssetPackIDs || [],
+            model_asset_ids: dim === '3d' ? state.selectedModelAssetIDs || [] : [],
+            asset_selections: state.selectedAssetSelections || [],
+            presentation: state.selectedPresentation
+        };
+    }
+
     function showCreateModal(state) {
         const cap = state.capabilities;
         if (capabilityState(cap).status !== 'ready') return;
+        if (!state.selectionHold) window.GameMakerStudioAssets?.holdSelection(state);
         const { esc, t } = state.context;
         const prefer3D=state.selectedModelAssetIDs?.length || state.selectedAssetSelections?.some(a=>state.selectedAssetDimensions[a.pack_id]==='3d');
         const eligibleProviders = (cap.providers || []).filter(provider => provider && provider.id && provider.usage !== 'decisions');
@@ -1121,12 +1200,19 @@
                 let createdProject = null;
                 try {
                     createdProject = await state.api.createProject(request);
+                    if (window.GameMakerStudioAssets?.rememberAssetSelection) {
+                        state.selectionHold = false;
+                        state.selectionStash = null;
+                        state.selectionHoldProject = '';
+                        window.GameMakerStudioAssets.rememberAssetSelection(state, createdProject.id);
+                    }
+                    const selection = postedSelection(state, false, request.dimension);
                     const job = await state.api.startJob(createdProject.id, {
                         prompt: request.description,
-                        asset_pack_ids: state.selectedAssetPackIDs || [],
-                        model_asset_ids: request.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
-                        asset_selections: state.selectedAssetSelections||[],
-                        presentation: state.selectedPresentation,
+                        asset_pack_ids: selection.asset_pack_ids,
+                        model_asset_ids: selection.model_asset_ids,
+                        asset_selections: selection.asset_selections,
+                        presentation: selection.presentation,
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
@@ -1134,7 +1220,6 @@
                     });
                     closeModal(state);
                     state.projects.unshift(createdProject);
-                    if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
                     state.jobStartedAt = Date.now();
                     state.activeJob = { job_id: job.id, project_id: createdProject.id, status: job.status, phase: job.phase };
                     await openProject(state, createdProject.id);
@@ -1182,15 +1267,16 @@
         }
         try {
             finalizeStreaming(state);
+            const selection = postedSelection(state, resume);
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 resume,
                 validate_restored_draft: resume,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
-                asset_pack_ids: state.selectedAssetPackIDs || [],
-                model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],
-                asset_selections: state.selectedAssetSelections||[],
-                presentation: state.selectedPresentation,
+                asset_pack_ids: selection.asset_pack_ids,
+                model_asset_ids: selection.model_asset_ids,
+                asset_selections: selection.asset_selections,
+                presentation: selection.presentation,
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
@@ -1199,10 +1285,10 @@
                 renderConversation(state);
                 scrollConversation(state);
             }
-            if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
             state.jobStartedAt = Date.now();
             state.repairCount = 0;
             state.lastPhase = '';
+            state.validationPreviewDismissed = false;
             state.gameplayStatus = '';
             state.previewStale = true;
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
@@ -1250,8 +1336,10 @@
             state.context.t('game_maker.delete_confirm', { name: state.project.name }));
         if (!confirmed) return;
         try {
-            await state.api.deleteProject(state.project.id);
-            state.projects = state.projects.filter(item => item.id !== state.project.id);
+            const removedID = state.project.id;
+            await state.api.deleteProject(removedID);
+            if (window.GameMakerStudioAssets?.forgetAssetSelection) window.GameMakerStudioAssets.forgetAssetSelection(removedID);
+            state.projects = state.projects.filter(item => item.id !== removedID);
             if (state.knowledgeClose) state.knowledgeClose();
             setButton(state, 'knowledge', false);
             state.project = null;
@@ -1351,6 +1439,7 @@
             state.jobStartedAt = Date.now();
             state.repairCount = 0;
             state.lastPhase = '';
+            state.validationPreviewDismissed = false;
             state.gameplayStatus = '';
             state.previewStale = true;
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };

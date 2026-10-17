@@ -148,6 +148,8 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.workspace_drift", "game_maker.adopt_changes", "game_maker.adopt_title", "game_maker.adopt_confirm",
 		"game_maker.drift_inherits", "game_maker.plan_summary_title", "game_maker.plan_template", "game_maker.plan_objective",
 		"game_maker.plan_controls", "game_maker.plan_assets", "game_maker.checks_summary", "game_maker.repair_passes",
+		"game_maker.usage_line", "game_maker.usage_tokens", "game_maker.usage_tokens_unknown",
+		"game_maker.usage_cost", "game_maker.usage_cost_unknown",
 		"game_maker.validating_preview_hint", "game_maker.leave_validating_title", "game_maker.leave_validating",
 		"game_maker.sources", "game_maker.sources_builtin",
 		"game_maker.failure_hint_internal", "game_maker.failure_hint_cancelled",
@@ -173,6 +175,15 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		}
 		if summary := values["game_maker.checks_summary"]; !strings.Contains(summary, "{{passed}}") || !strings.Contains(summary, "{{failed}}") {
 			t.Errorf("%s game_maker.checks_summary missing count placeholders", file)
+		}
+		if line := values["game_maker.usage_line"]; !strings.Contains(line, "{{calls}}") || !strings.Contains(line, "{{tokens}}") || !strings.Contains(line, "{{cost}}") {
+			t.Errorf("%s game_maker.usage_line missing placeholders", file)
+		}
+		if !strings.Contains(values["game_maker.usage_tokens"], "{{count}}") {
+			t.Errorf("%s game_maker.usage_tokens missing {{count}}", file)
+		}
+		if !strings.Contains(values["game_maker.usage_cost"], "{{cost}}") {
+			t.Errorf("%s game_maker.usage_cost missing {{cost}}", file)
 		}
 	}
 }

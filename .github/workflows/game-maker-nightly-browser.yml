@@ -1,0 +1,37 @@
+name: Game Maker nightly browser
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nightly-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install Chrome
+        run: |
+          set -euo pipefail
+          if [ -x /usr/bin/google-chrome-stable ]; then
+            echo "CHROME_BIN=/usr/bin/google-chrome-stable" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ -x /usr/bin/google-chrome ]; then
+            echo "CHROME_BIN=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          curl -fsSL -o /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y /tmp/google-chrome.deb
+          echo "CHROME_BIN=/usr/bin/google-chrome-stable" >> "$GITHUB_ENV"
+      - name: Accept one 2D and one guided 3D export
+        env:
+          GAMEMAKER_NIGHTLY_BROWSER: "1"
+        run: go test ./internal/gamemaker -count=1 -timeout 10m -run '^TestNightlyExportBrowser$'

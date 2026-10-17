@@ -336,6 +336,9 @@ Tools are defined in `internal/tools/`:
   parsed by the same validator as source edits; no chunk/save payloads in prompts.
   Keep non-Voxel schemas compatible and regenerate the training catalog without
   replacing curated operation examples or tool tiers when optional fields change.
+  3D planning `design.base` describes the guided-base preference and still allows
+  `three`. 2D and voxel base fields stay without that description. The shared
+  catalog schema is unchanged.
 
 - Optional `RunConfig.PreparedPrompt` (also in `MinimalLoopOptions`) owns a
   complete immutable system prompt and ordered schemas. Its revision covers

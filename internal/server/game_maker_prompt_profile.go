@@ -27,6 +27,15 @@ const gameMakerPlanningWorkflow = `## Planning workflow
 Never write files, import or generate assets during planning. Scene data is optional; scene_inspect is read-only here.
 A new game has only a scaffold: src/common.ts, src/voxel.json, assets and the runtime API are created after acceptance, and building receives the complete API reference. Do not read vendor or runtime files to plan.`
 
+// gameMakerGuided3DBase is 3D planning only, and it is placed before phase
+// guidance so the base choice is visible before the long design rules.
+// Free-code three stays legal for a custom or procedural engine. Gameplay
+// there stays unverified. Building, repair, 2D and voxel omit this section.
+const gameMakerGuided3DBase = `## Guided 3D base
+- For a new 3D game choose fps (shooting on foot), exploration (walk and look), transport (drive), flight (aircraft) or space (spacecraft) when that loop fits.
+- Use base three only for a custom or procedural engine those bases cannot express. Keep an existing base.
+- Free three has startup checks only and gameplay stays unverified.`
+
 const gameMakerBuildingWorkflow = `## Building and repair workflow
 1. Use current_sources directly when supplied. omitted_sources lists unread files with reasons and read guidance: read affected ranges before editing, never overwrite unread source. Use runtime.api_reference only when supplied; otherwise follow runtime.guidance and the installed helper's hook locations.
 2. For a new game whose complete src/main.ts is supplied, write it with expected_sha256; otherwise use operation="replace" on a unique block read from the current file. For separate blocks use replace_many with the same original sha256 per file; blocks must not overlap. Keep common.ts and its lifecycle.
@@ -65,6 +74,9 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 			sections = append(sections, gamemaker.VoxelRuntimeGuide)
 		}
 		return agent.NewPreparedPromptProfile("game-maker/v1/"+stage+"/voxel", strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
+	}
+	if stage == "planning" && dimension == "3d" {
+		sections = append(sections, gameMakerGuided3DBase)
 	}
 	sections = append(sections, gamemaker.PhaseGuidance(stage, dimension))
 	if stage == "planning" {

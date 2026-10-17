@@ -321,7 +321,11 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 				} else {
 					delete(design, "voxel")
 				}
-				design["base"] = map[string]interface{}{"type": "string", "enum": bases}
+				baseSchema := map[string]interface{}{"type": "string", "enum": bases}
+				if dimension == "3d" && !voxel {
+					baseSchema["description"] = "Prefer fps, exploration, transport, flight or space when that loop fits a new game. Use three only for a custom or procedural engine those bases cannot express. Keep an existing base. Free three leaves gameplay unverified."
+				}
+				design["base"] = baseSchema
 				if dimension != "3d" {
 					delete(design, "settings")
 				}

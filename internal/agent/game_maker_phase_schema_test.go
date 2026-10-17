@@ -141,6 +141,43 @@ func TestGameMakerSettingsSchemaExplainsFreeBaseCorrection(t *testing.T) {
 	}
 }
 
+func TestGameMaker3DPlanningBasePrefersGuidedTemplates(t *testing.T) {
+	const want = "Prefer fps, exploration, transport, flight or space when that loop fits a new game. Use three only for a custom or procedural engine those bases cannot express. Keep an existing base. Free three leaves gameplay unverified."
+	for _, variant := range [][]string{nil, {"voxel"}} {
+		for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", "3d", variant...)).StrictSchemas() {
+			if tool.Function.Name != "game_maker_project" {
+				continue
+			}
+			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+			base := props["design"].(map[string]interface{})["properties"].(map[string]interface{})["base"].(map[string]interface{})
+			description, _ := base["description"].(string)
+			if variant != nil {
+				if description != "" {
+					t.Fatalf("voxel base description = %q", description)
+				}
+				continue
+			}
+			if description != want {
+				t.Fatalf("strict 3D base description = %q", description)
+			}
+			enum, _ := base["enum"].([]string)
+			if !slices.Equal(enum, []string{"fps", "exploration", "transport", "flight", "space", "three"}) {
+				t.Fatalf("3D base enum = %v", enum)
+			}
+		}
+	}
+	for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", "2d")).StrictSchemas() {
+		if tool.Function.Name != "game_maker_project" {
+			continue
+		}
+		props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+		base := props["design"].(map[string]interface{})["properties"].(map[string]interface{})["base"].(map[string]interface{})
+		if description, _ := base["description"].(string); description != "" {
+			t.Fatalf("2D base description = %q", description)
+		}
+	}
+}
+
 func TestGameMakerPhaseSchemasOmitBoundIdentityAndDuplicateScene(t *testing.T) {
 	for _, stage := range []string{"planning", "building", "repair"} {
 		schemas := GameMakerPhaseToolSchemas(stage, "3d")

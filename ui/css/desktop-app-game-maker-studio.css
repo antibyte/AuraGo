@@ -327,6 +327,25 @@
     min-height: 0;
 }
 
+.gm-steps {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--gm-line);
+    background: var(--gm-panel);
+}
+
+.gm-steps button {
+    min-width: 0;
+}
+
+.gm-steps button[aria-pressed="true"] {
+    border-color: transparent;
+    background: linear-gradient(135deg, #8b7cf6, #6857d9);
+    box-shadow: inset 0 1px 0 #ffffff20;
+}
+
 .gm-agent-pane,
 .gm-preview-pane {
     display: grid;
@@ -1107,6 +1126,11 @@
     overflow-wrap: anywhere;
 }
 
+.gm-result-card .gm-result-usage {
+    color: var(--gm-muted);
+    font-size: 11px;
+}
+
 .gm-result-card .gm-result-hint {
     color: var(--gm-text);
 }
@@ -1519,15 +1543,36 @@
         margin-left: auto;
     }
 
+    .gm-steps {
+        display: grid;
+    }
+
     .gm-workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(420px, 1fr) minmax(360px, 1fr);
-        overflow-x: hidden;
-        overflow-y: auto;
+        grid-template-rows: auto minmax(0, 1fr);
+        overflow: hidden;
+    }
+
+    .gm-steps,
+    .gm-agent-pane,
+    .gm-preview-pane {
+        grid-column: 1;
+    }
+
+    .gm-steps { grid-row: 1; }
+
+    .gm-agent-pane,
+    .gm-preview-pane {
+        grid-row: 2;
+    }
+
+    .gm-studio[data-gm-step="preview"] .gm-agent-pane,
+    .gm-studio:not([data-gm-step="preview"]) .gm-preview-pane {
+        display: none;
     }
 
     .gm-preview-pane {
-        border-top: 1px solid var(--gm-line);
+        border-top: 0;
         border-left: 0;
     }
 
@@ -1569,15 +1614,36 @@
         margin-left: auto;
     }
 
+    .gm-steps {
+        display: grid;
+    }
+
     .gm-workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(420px, 1fr) minmax(360px, 1fr);
-        overflow-x: hidden;
-        overflow-y: auto;
+        grid-template-rows: auto minmax(0, 1fr);
+        overflow: hidden;
+    }
+
+    .gm-steps,
+    .gm-agent-pane,
+    .gm-preview-pane {
+        grid-column: 1;
+    }
+
+    .gm-steps { grid-row: 1; }
+
+    .gm-agent-pane,
+    .gm-preview-pane {
+        grid-row: 2;
+    }
+
+    .gm-studio[data-gm-step="preview"] .gm-agent-pane,
+    .gm-studio:not([data-gm-step="preview"]) .gm-preview-pane {
+        display: none;
     }
 
     .gm-preview-pane {
-        border-top: 1px solid var(--gm-line);
+        border-top: 0;
         border-left: 0;
     }
 
