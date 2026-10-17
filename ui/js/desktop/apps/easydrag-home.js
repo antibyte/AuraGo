@@ -10,7 +10,7 @@
     // FLOW_TOO_LARGE.
     const IMPORT_MAX_BYTES = 4 * 1024 * 1024;
 
-    function previewSVG(nodes, esc) {
+    function previewSVG(nodes, esc, edges) {
         if (!nodes || !nodes.length) return '<svg viewBox="0 0 240 110" aria-hidden="true"><rect class="ed-mini-empty" x="94" y="39" width="52" height="32" rx="8"></rect></svg>';
         const xs = nodes.map(n => n.x);
         const ys = nodes.map(n => n.y);
@@ -19,14 +19,23 @@
         const scale = Math.min(220 / Math.max(maxX - minX, 1), 90 / Math.max(maxY - minY, 1), 0.35);
         const ox = (240 - (maxX - minX) * scale) / 2;
         const oy = (110 - (maxY - minY) * scale) / 2;
-        const sorted = nodes.slice().sort((a, b) => a.x - b.x);
-        const lines = sorted.slice(1).map((n, i) => {
-            const p = sorted[i];
+        const pathBetween = (p, n) => {
             const x1 = ox + (p.x - minX + 232) * scale; const y1 = oy + (p.y - minY + 36) * scale;
             const x2 = ox + (n.x - minX) * scale; const y2 = oy + (n.y - minY + 36) * scale;
-            const dx = Math.max(6, (x2 - x1) / 2);
+            const dx = Math.max(6, Math.abs(x2 - x1) / 2);
             return '<path d="M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' C' + (x1 + dx).toFixed(1) + ' ' + y1.toFixed(1) + ' ' + (x2 - dx).toFixed(1) + ' ' + y2.toFixed(1) + ' ' + x2.toFixed(1) + ' ' + y2.toFixed(1) + '"></path>';
-        }).join('');
+        };
+        let lines = '';
+        if (Array.isArray(edges) && edges.length) {
+            lines = edges.map(pair => {
+                const a = Array.isArray(pair) ? nodes[pair[0]] : null;
+                const b = Array.isArray(pair) ? nodes[pair[1]] : null;
+                return a && b ? pathBetween(a, b) : '';
+            }).join('');
+        } else {
+            const sorted = nodes.slice().sort((a, b) => a.x - b.x);
+            lines = sorted.slice(1).map((n, i) => pathBetween(sorted[i], n)).join('');
+        }
         const rects = nodes.map(n => '<rect data-cat="' + esc(String(n.category).startsWith('tool:') ? 'tool' : n.category) + '" x="' + (ox + (n.x - minX) * scale).toFixed(1) + '" y="' + (oy + (n.y - minY) * scale).toFixed(1) +
             '" width="' + (232 * scale).toFixed(1) + '" height="' + (72 * scale).toFixed(1) + '" rx="' + (10 * scale + 2).toFixed(1) + '"></rect>').join('');
         return '<svg viewBox="0 0 240 110" aria-hidden="true"><g class="ed-mini-wires">' + lines + '</g>' + rects + '</svg>';
@@ -41,6 +50,7 @@
         let flows = [];
         let templates = [];
         let filter = core.storage.get(FILTER_KEY, 'all');
+        let sortBy = 'updated';
         let query = '';
         let focusFlow = (opts && opts.focusFlow) || '';
 
@@ -52,7 +62,11 @@
             '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file></div></header>' +
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
-            ['all', 'active', 'inactive', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div></div>' +
+            ['all', 'active', 'inactive', 'drafts', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div>' +
+            '<select class="ed-select ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
+            '<option value="updated">' + esc(t('easydrag.ui.home_sort_updated')) + '</option>' +
+            '<option value="last_run">' + esc(t('easydrag.ui.home_sort_last_run')) + '</option>' +
+            '<option value="name">' + esc(t('easydrag.ui.home_sort_name')) + '</option></select></div>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-flow-grid"></div></section>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p><div class="ed-template-grid"></div></section>' +
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
@@ -83,15 +97,26 @@
 
         function visibleFlows() {
             const q = query.trim().toLowerCase();
-            return flows.filter(f => {
+            const list = flows.filter(f => {
                 if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q)) return false;
                 if (filter === 'active') return f.enabled;
                 // "Paused" (the stored filter id stays "inactive"): published and switched off. A
                 // flow that was never published is not paused; it shows under All.
                 if (filter === 'inactive') return f.published && !f.enabled;
+                if (filter === 'drafts') return !f.published || !!f.has_unpublished_changes;
                 if (filter === 'errors') return f.last_run && f.last_run.status === 'error';
                 return true;
             });
+            if (sortBy === 'name') {
+                list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            } else if (sortBy === 'last_run') {
+                list.sort((a, b) => {
+                    const ta = a.last_run && a.last_run.started_at ? Date.parse(a.last_run.started_at) || 0 : 0;
+                    const tb = b.last_run && b.last_run.started_at ? Date.parse(b.last_run.started_at) || 0 : 0;
+                    return tb - ta;
+                });
+            }
+            return list;
         }
 
         // loadError is the error of the last failed list request. While it is set the flow grid shows
@@ -130,7 +155,7 @@
             } else {
                 grid.innerHTML = list.map(f =>
                     '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(f.name) + '">' +
-                    '<div class="ed-flow-preview">' + previewSVG(f.preview, esc) + '</div>' +
+                    '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
                     '<div class="ed-flow-meta">' + statusBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
@@ -145,6 +170,8 @@
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
             el.querySelector('[data-ed-import]').disabled = off;
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
+            const sortSel = el.querySelector('[data-ed-home-sort]');
+            if (sortSel) sortSel.disabled = !!loadError;
             el.querySelectorAll('[data-ed-filter]').forEach(b => { b.disabled = !!loadError; });
         }
 
@@ -333,10 +360,33 @@
             cardMenu(flows.find(x => x.id === card.dataset.edFlow), event.clientX, event.clientY);
         });
         bag.listen(el.querySelector('[data-ed-home-search]'), 'input', core.debounce(event => { query = event.target.value; render(); }, 120));
+        bag.listen(el.querySelector('[data-ed-home-sort]'), 'change', (event) => {
+            sortBy = event.target.value || 'updated';
+            render();
+        });
         bag.listen(el.querySelector('[data-ed-import-file]'), 'change', (event) => {
             const file = event.target.files && event.target.files[0];
             event.target.value = '';
             if (file) importFile(file);
+        });
+        bag.listen(el, 'dragover', (event) => {
+            if (createOff()) return;
+            const dt = event.dataTransfer;
+            if (!dt || !Array.from(dt.types || []).includes('Files')) return;
+            event.preventDefault();
+            dt.dropEffect = 'copy';
+            el.classList.add('is-drop-target');
+        });
+        bag.listen(el, 'dragleave', (event) => {
+            if (!el.contains(event.relatedTarget)) el.classList.remove('is-drop-target');
+        });
+        bag.listen(el, 'drop', (event) => {
+            el.classList.remove('is-drop-target');
+            if (createOff()) return;
+            const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+            if (!file) return;
+            event.preventDefault();
+            importFile(file);
         });
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};

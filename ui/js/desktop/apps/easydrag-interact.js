@@ -202,7 +202,10 @@
                 dropEdge = null;
                 if (ids.length === 1 && !ed.model.incoming(nodeId).length && !ed.model.outgoing(nodeId).length && ed.model.inputs(primary).length) {
                     const rect = canvas.nodeRect(nodeId);
-                    const near = edgeNear({ x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 }, nodeId);
+                    const cy = rect.y + rect.h / 2;
+                    const near = edgeNear({ x: rect.x + rect.w / 2, y: cy }, nodeId) ||
+                        edgeNear({ x: rect.x + 16, y: cy }, nodeId) ||
+                        edgeNear({ x: rect.x + rect.w - 16, y: cy }, nodeId);
                     dropEdge = near ? near.id : null;
                 }
                 wires.markDropTarget(dropEdge);
@@ -389,16 +392,26 @@
             if (!ed.selection.has(id)) select([id]);
             const n = ed.model.node(id);
             const ro = readonly();
-            ed.ctx.showContextMenu(x, y, [
+            const items = [
                 { icon: 'edit', label: t('easydrag.ui.menu_open_node'), action: () => ed.bus.emit('open-detail', { nodeId: id }) },
                 { icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) },
                 { separator: true },
                 { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => select(ed.model.duplicate(Array.from(ed.selection))) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
-                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => ed.model.toggleDisabled(Array.from(ed.selection)) },
+                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => ed.model.toggleDisabled(Array.from(ed.selection)) }
+            ];
+            if (ed.selection.size >= 2) {
+                items.push(
+                    { separator: true },
+                    { icon: 'sliders', label: t('easydrag.ui.align_horizontal'), disabled: ro, action: () => canvas.alignSelection('horizontal') },
+                    { icon: 'sliders', label: t('easydrag.ui.align_vertical'), disabled: ro, action: () => canvas.alignSelection('vertical') }
+                );
+            }
+            items.push(
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.node_delete'), disabled: ro, action: () => removeSelection() }
-            ]);
+            );
+            ed.ctx.showContextMenu(x, y, items);
         }
 
         function openCanvasMenu(x, y) {
@@ -408,6 +421,8 @@
                 { icon: 'plus', label: t('easydrag.ui.menu_add_node'), disabled: ro, action: () => ed.bus.emit('quick-add', { x, y }) },
                 { icon: 'copy', label: t('easydrag.ui.menu_paste'), disabled: ro, action: () => pasteAt(canvas.clientToWorld(x, y)) },
                 { separator: true },
+                { icon: 'search', label: t('easydrag.ui.find_step'), disabled: !ed.model.doc.nodes.length, action: () => ed.bus.emit('find-step') },
+                { icon: 'sparkles', label: t('easydrag.ui.auto_layout'), disabled: ro || ed.model.doc.nodes.length < 2, action: () => canvas.autoLayout() },
                 { icon: 'list', label: t('easydrag.ui.menu_select_all'), action: selectAll },
                 { icon: 'refresh', label: t('easydrag.ui.zoom_fit'), action: () => canvas.fit({ animate: true }) }
             ]);
@@ -574,7 +589,7 @@
         bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
-            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection,
+            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, edgeNear,
             lastPointer: () => lastPointer,
             // abortGesture cancels a pan, drag, connect or box select in progress (a drag moves back).
             abortGesture() { if (gesture) gesture.abort(); },

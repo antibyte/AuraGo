@@ -489,6 +489,14 @@ func (s *Store) readPublished(ctx context.Context, id string) (*FlowRecord, erro
 	return s.GetFlow(context.WithoutCancel(ctx), id)
 }
 
+// FlowVersionSummary describes a stored published revision in flow_versions.
+type FlowVersionSummary struct {
+	Revision    int       `json:"revision"`
+	PublishedAt time.Time `json:"published_at"`
+	NodeCount   int       `json:"node_count"`
+	EdgeCount   int       `json:"edge_count"`
+}
+
 // GetVersion returns a published revision.
 func (s *Store) GetVersion(ctx context.Context, id string, revision int) (*Flow, error) {
 	var data string
@@ -501,6 +509,41 @@ func (s *Store) GetVersion(ctx context.Context, id string, revision int) (*Flow,
 	}
 	return ParseFlow([]byte(data))
 }
+
+// ListVersions returns the stored published revisions of a flow, newest first.
+func (s *Store) ListVersions(ctx context.Context, id string) ([]FlowVersionSummary, error) {
+	var exists int
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM flows WHERE id = ?`, id).Scan(&exists); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT revision, published_at, json FROM flow_versions WHERE flow_id = ? ORDER BY revision DESC`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []FlowVersionSummary{}
+	for rows.Next() {
+		var rev int
+		var pubAt, raw string
+		if err := rows.Scan(&rev, &pubAt, &raw); err != nil {
+			return nil, err
+		}
+		sum := FlowVersionSummary{
+			Revision:    rev,
+			PublishedAt: parseTime(pubAt),
+		}
+		if f, err := ParseFlow([]byte(raw)); err == nil && f != nil {
+			sum.NodeCount = len(f.Nodes)
+			sum.EdgeCount = len(f.Edges)
+		}
+		out = append(out, sum)
+	}
+	return out, rows.Err()
+}
+
 
 // SetMissionID links the flow to its mission.
 func (s *Store) SetMissionID(ctx context.Context, id, missionID string) error {

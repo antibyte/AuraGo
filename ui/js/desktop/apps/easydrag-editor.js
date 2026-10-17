@@ -393,6 +393,7 @@
             const run = runNowState();
             ctx.showContextMenu(r.left, r.bottom + 4, [
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: () => runs.runLive() },
+                { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
@@ -436,6 +437,7 @@
                         { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
                         { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: restoring || run.disabled, disabledHint: run.hint, action: unlessModal(() => runs.runLive()) },
                         { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
+                        { id: 'versions', labelKey: 'easydrag.ui.versions_title', icon: 'history', disabled: restoring, action: unlessModal(() => publish.openVersions()) },
                         { type: 'separator' },
                         { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
                         { id: 'export', labelKey: 'easydrag.ui.home_export', icon: 'download', action: exportFlow },
@@ -453,7 +455,8 @@
                         { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
                         { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
-                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) }
+                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) },
+                        { id: 'auto-layout', labelKey: 'easydrag.ui.auto_layout', icon: 'sparkles', disabled: ro || busy || ed.model.doc.nodes.length < 2, action: unlessOverlay(() => canvas.autoLayout()) }
                     ]
                 },
                 {
@@ -462,6 +465,7 @@
                         { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcutHint: '−', action: () => canvas.zoomBy(1 / 1.2) },
                         { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcutHint: 'Shift+1', action: () => canvas.fit({ animate: true }) },
                         { type: 'separator' },
+                        { id: 'find-step', labelKey: 'easydrag.ui.find_step', icon: 'search', action: unlessModal(() => ED.dialogs.findStep(ed, canvas, interact)) },
                         { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: 'Ctrl+K', disabled: !!ed.runView, action: unlessModal(searchPalette) },
                         { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), disabled: !!ed.runView, action: () => togglePalette() },
                         { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
@@ -520,6 +524,7 @@
         bag.add(ed.bus.on('node-test', req => runs.startTest({ onlyNode: req.nodeId })));
         bag.add(ed.bus.on('focus-node', id => { interact.select([id]); canvas.centerOn(id, { animate: true }); }));
         bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId)));
+        bag.add(ed.bus.on('find-step', () => ED.dialogs.findStep(ed, canvas, interact)));
         bag.add(ed.bus.on('selection', setMenusSoon));
         bag.add(ed.bus.on('palette', () => { renderHeader(); setMenusSoon(); }));
         bag.add(ed.bus.on('issues', renderIssues));
@@ -531,6 +536,23 @@
             partialRevision = ed.publishIncomplete ? Number(ed.flow.live_revision) || 0 : 0;
             renderHeader();
             setMenus();
+        }));
+        bag.add(ed.bus.on('restored', res => {
+            if (!res || !res.flow) return;
+            if (ed.runView) exitRunView();
+            ed.flow = Object.assign(ed.flow, res.flow);
+            draftModel.replaceDoc(res.flow.draft);
+            contentDirty = false;
+            if (ed.saver) {
+                ed.saver.revision = res.flow.draft_revision;
+                ed.saver.markSaved();
+                ED.saver.dropEmergencyCopy(ed.flow.id);
+            }
+            ed.issues = res.issues || [];
+            ed.bus.emit('issues', ed.issues);
+            renderHeader();
+            setMenus();
+            canvas.fit({ animate: true, readable: true });
         }));
         // The Active switch also decides whether Run now is offered.
         bag.add(ed.bus.on('enabled', () => { renderHeader(); setMenus(); }));
@@ -599,11 +621,13 @@
             // moves the focus to its address bar on Ctrl+K). No dialog field uses Mod+Enter.
             if (mod && key === 's') event.preventDefault();
             const dialogOpen = !!(ed.detail || el.querySelector('.ed-modal-backdrop'));
-            if (dialogOpen && mod && (key === 'k' || event.key === 'Enter')) event.preventDefault();
+            if (dialogOpen && mod && (key === 'k' || key === 'f' || event.key === 'Enter')) event.preventDefault();
             if (dialogOpen || document.querySelector('.vd-context-menu')) return;
             if (mod && key === 's') { if (!restoring) saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
             if (mod && key === 'k') { event.preventDefault(); searchPalette(); return; }
+            if (mod && key === 'f') { event.preventDefault(); ED.dialogs.findStep(ed, canvas, interact); return; }
+            if (event.altKey && event.shiftKey && key === 'f' && !core.isEditable(target)) { event.preventDefault(); canvas.autoLayout(); return; }
             if (core.isEditable(target) || ed.quickAdd) return;
             const active = document.activeElement;
             const onCanvas = canvas.el.contains(active) || active === document.body || active === el;

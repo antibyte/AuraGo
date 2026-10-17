@@ -156,10 +156,21 @@
                 ghost.classList.toggle('is-over-canvas', overCanvas);
                 el.querySelectorAll('.is-drop-target').forEach(n => n.classList.remove('is-drop-target'));
                 overEdge = null;
+                canvas.el.querySelectorAll('.ed-edge.is-drop-target').forEach(g => g.classList.remove('is-drop-target'));
                 if (overCanvas && (info.inputs || []).length && (info.outputs || []).length) {
-                    const target = document.elementFromPoint(ev.clientX, ev.clientY).closest('.ed-edge');
-                    canvas.el.querySelectorAll('.ed-edge.is-drop-target').forEach(g => g.classList.remove('is-drop-target'));
-                    if (target) { overEdge = target.dataset.edgeId; target.classList.add('is-drop-target'); }
+                    const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
+                    const target = hitEl && hitEl.closest && hitEl.closest('.ed-edge');
+                    if (target) {
+                        overEdge = target.dataset.edgeId;
+                        target.classList.add('is-drop-target');
+                    } else if (ed.interact && typeof ed.interact.edgeNear === 'function') {
+                        const near = ed.interact.edgeNear(canvas.clientToWorld(ev.clientX, ev.clientY), null);
+                        if (near) {
+                            overEdge = near.id;
+                            const edgeEl = canvas.el.querySelector('.ed-edge[data-edge-id="' + near.id + '"]');
+                            if (edgeEl) edgeEl.classList.add('is-drop-target');
+                        }
+                    }
                 }
             };
             const up = (ev, cancelled) => {

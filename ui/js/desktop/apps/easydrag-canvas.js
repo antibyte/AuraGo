@@ -56,7 +56,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-zoom="in" title="' + esc(t('easydrag.ui.zoom_in')) + '" aria-label="' + esc(t('easydrag.ui.zoom_in')) + '">' + core.icon('plus') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-zoom="fit" title="' + esc(t('easydrag.ui.zoom_fit')) + ' (' + esc(core.shortcut('Shift+1')) + ')" aria-label="' + esc(t('easydrag.ui.zoom_fit')) + '">' + core.icon('fit') + '</button>' +
             '</div>' +
-            '<div class="ed-minimap" title="' + esc(t('easydrag.ui.minimap')) + '"><svg viewBox="0 0 200 130" preserveAspectRatio="xMidYMid meet"><g class="ed-minimap-nodes"></g><rect class="ed-minimap-view" rx="3"></rect></svg></div>' +
+            '<div class="ed-minimap" title="' + esc(t('easydrag.ui.minimap')) + '"><svg viewBox="0 0 200 130" preserveAspectRatio="xMidYMid meet"><g class="ed-minimap-wires"></g><g class="ed-minimap-nodes"></g><rect class="ed-minimap-view" rx="3"></rect></svg></div>' +
             '<ul class="ed-sr-only ed-node-list" aria-label="' + esc(t('easydrag.ui.node_list')) + '"></ul>' +
             '<div class="ed-sr-only" aria-live="polite" data-ed-live></div>' +
             '</div>');
@@ -68,6 +68,7 @@
         const emptyEl = el.querySelector('.ed-empty');
         const zoomValue = el.querySelector('.ed-zoom-value');
         const minimap = el.querySelector('.ed-minimap svg');
+        const minimapWires = minimap.querySelector('.ed-minimap-wires');
         const minimapNodes = minimap.querySelector('.ed-minimap-nodes');
         const listEl = el.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
@@ -344,8 +345,9 @@
         function cardMarkup(n, sum) {
             const i = info(n);
             const ports = ed.model.outputs(n);
-            const h = G.nodeHeight(ports.length);
-            const inPorts = ed.model.inputs(n).map(p => '<span class="ed-port ed-port--in" data-ed-port="' + esc(p) + '" data-ed-side="in" style="top:' + (h / 2) + 'px"></span>').join('');
+            const ins = ed.model.inputs(n);
+            const h = G.nodeHeight(Math.max(ports.length, ins.length));
+            const inPorts = ins.map((p, idx) => '<span class="ed-port ed-port--in" data-ed-port="' + esc(p) + '" data-ed-side="in" style="top:' + (ins.length > 1 ? G.PORT_TOP + idx * G.PORT_PITCH : h / 2) + 'px"></span>').join('');
             const outPorts = ports.map((p, idx) => {
                 const y = ports.length > 1 ? G.PORT_TOP + idx * G.PORT_PITCH : h / 2;
                 const showLabel = ports.length > 1 || p !== 'out';
@@ -495,6 +497,8 @@
                 const card = nodeEls.get(n.id);
                 if (card) renderNode(n);
             });
+            selectionTick++;
+            minimapFrame.request();
         }
 
         // refreshSelection updates the card classes and the tools' tab stops only: card markup does
@@ -531,13 +535,31 @@
             if (minimapModel !== ed.model || key !== minimapKey) {
                 minimapModel = ed.model;
                 minimapKey = key;
-                minimapNodes.innerHTML = ed.model.doc.nodes.map(n => {
-                    const rc = G.nodeRect(n.position, outCount(n));
-                    return '<rect x="' + rc.x + '" y="' + rc.y + '" width="' + Math.max(minSize, rc.w).toFixed(1) + '" height="' + Math.max(minSize, rc.h).toFixed(1) +
-                        '" rx="12" data-cat="' + esc(core.catOf(info(n))) + '"' + (ed.selection.has(n.id) ? ' class="is-selected"' : '') + '></rect>';
+                const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
+                const wires = ed.model.doc.edges.map(e => {
+                    const src = byId.get(e.source && e.source.node);
+                    const dst = byId.get(e.target && e.target.node);
+                    if (!src || !dst) return '';
+                    const x1 = src.position.x + G.NODE_W;
+                    const y1 = src.position.y + G.NODE_H / 2;
+                    const x2 = dst.position.x;
+                    const y2 = dst.position.y + G.NODE_H / 2;
+                    return '<line class="ed-minimap-wire" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"></line>';
                 }).join('');
+                const rectsMarkup = ed.model.doc.nodes.map(n => {
+                    const rc = G.nodeRect(n.position, outCount(n));
+                    const st = statusOf(n.id);
+                    return '<rect x="' + rc.x + '" y="' + rc.y + '" width="' + Math.max(minSize, rc.w).toFixed(1) + '" height="' + Math.max(minSize, rc.h).toFixed(1) +
+                        '" rx="12" data-cat="' + esc(core.catOf(info(n))) + '"' +
+                        (st ? ' data-status="' + esc(st) + '"' : '') +
+                        (ed.selection.has(n.id) ? ' class="is-selected"' : '') + '></rect>';
+                }).join('');
+                minimapWires.innerHTML = wires;
+                minimapNodes.innerHTML = rectsMarkup;
             }
-            minimapNodes.setAttribute('transform', 'matrix(' + scale + ' 0 0 ' + scale + ' ' + ox.toFixed(1) + ' ' + oy.toFixed(1) + ')');
+            const matrix = 'matrix(' + scale + ' 0 0 ' + scale + ' ' + ox.toFixed(1) + ' ' + oy.toFixed(1) + ')';
+            minimapWires.setAttribute('transform', matrix);
+            minimapNodes.setAttribute('transform', matrix);
             const v = minimap.querySelector('.ed-minimap-view');
             v.setAttribute('x', (viewRect.x * scale + ox).toFixed(1));
             v.setAttribute('y', (viewRect.y * scale + oy).toFixed(1));
@@ -567,6 +589,82 @@
             miniDrag = core.capturePointer(minimap, event, panMinimap, () => { miniDrag = null; });
         });
         bag.add(() => { if (miniDrag) miniDrag.detach(); });
+
+        // ── auto-layout and multi-selection alignment ───────────────────────────
+
+        // autoLayout arranges steps into topological columns from left to right and sorts each
+        // column by the vertical barycenter of its predecessors to reduce wire crossings.
+        function autoLayout() {
+            if (ed.readonly || ed.runView) return;
+            const nodes = ed.model.doc.nodes;
+            if (nodes.length < 2) return;
+            const edges = ed.model.doc.edges;
+            const rank = new Map();
+            const preds = new Map();
+            nodes.forEach(n => { rank.set(n.id, 0); preds.set(n.id, []); });
+            edges.forEach(e => {
+                const u = e.source && e.source.node;
+                const v = e.target && e.target.node;
+                if (u && v && u !== v && preds.has(v) && rank.has(u)) preds.get(v).push(u);
+            });
+            const maxPass = Math.min(nodes.length, 64);
+            for (let pass = 0; pass < maxPass; pass++) {
+                let changed = false;
+                edges.forEach(e => {
+                    const u = e.source && e.source.node;
+                    const v = e.target && e.target.node;
+                    if (!rank.has(u) || !rank.has(v) || u === v) return;
+                    const next = Math.min(maxPass, rank.get(u) + 1);
+                    if (next > rank.get(v)) { rank.set(v, next); changed = true; }
+                });
+                if (!changed) break;
+            }
+            const layers = new Map();
+            nodes.forEach(n => {
+                const r = rank.get(n.id) || 0;
+                if (!layers.has(r)) layers.set(r, []);
+                layers.get(r).push(n);
+            });
+            const assignedY = new Map();
+            const positions = {};
+            Array.from(layers.keys()).sort((a, b) => a - b).forEach((r, colIdx) => {
+                const col = layers.get(r);
+                col.sort((a, b) => {
+                    const pa = (preds.get(a.id) || []).filter(id => assignedY.has(id));
+                    const pb = (preds.get(b.id) || []).filter(id => assignedY.has(id));
+                    const ya = pa.length ? pa.reduce((s, id) => s + assignedY.get(id), 0) / pa.length : a.position.y;
+                    const yb = pb.length ? pb.reduce((s, id) => s + assignedY.get(id), 0) / pb.length : b.position.y;
+                    return ya - yb || a.position.y - b.position.y;
+                });
+                let y = 80;
+                col.forEach(n => {
+                    const x = G.snap(80 + colIdx * 304);
+                    const sy = G.snap(y);
+                    positions[n.id] = { x, y: sy };
+                    assignedY.set(n.id, sy);
+                    y = sy + G.nodeHeight(outCount(n)) + 48;
+                });
+            });
+            ed.model.moveNodes(positions, 'auto-layout:' + Date.now());
+            fit({ animate: true });
+        }
+
+        function alignSelection(axis) {
+            if (ed.readonly || ed.runView) return;
+            const ids = Array.from(ed.selection);
+            if (ids.length < 2) return;
+            const sel = ids.map(id => ed.model.node(id)).filter(Boolean);
+            if (sel.length < 2) return;
+            const positions = {};
+            if (axis === 'horizontal') {
+                const targetY = G.snap(sel.reduce((s, n) => s + n.position.y, 0) / sel.length);
+                sel.forEach(n => { positions[n.id] = { x: n.position.x, y: targetY }; });
+            } else {
+                const targetX = G.snap(sel.reduce((s, n) => s + n.position.x, 0) / sel.length);
+                sel.forEach(n => { positions[n.id] = { x: targetX, y: n.position.y }; });
+            }
+            ed.model.moveNodes(positions, 'align:' + axis + ':' + Date.now());
+        }
 
         // ── accessible list and live region ─────────────────────────────────────
 
@@ -648,6 +746,7 @@
         return {
             el, world, wiresSvg, nodesHost,
             render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce,
+            autoLayout, alignSelection,
             nodeEl: id => nodeEls.get(id) || null,
             dispose() { bag.dispose(); }
         };

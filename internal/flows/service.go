@@ -422,6 +422,7 @@ type FlowSummary struct {
 	LastRun               *RunRecord    `json:"last_run,omitempty"`
 	Triggers              []string      `json:"triggers"`
 	Preview               []PreviewNode `json:"preview"`
+	PreviewEdges          [][2]int      `json:"preview_edges,omitempty"`
 }
 
 // PreviewNode positions a node in the start page's mini preview.
@@ -454,7 +455,9 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 			r := run
 			sum.LastRun = &r
 		}
-		for _, n := range rec.Draft.Nodes {
+		nodeIdx := make(map[string]int, len(rec.Draft.Nodes))
+		for i, n := range rec.Draft.Nodes {
+			nodeIdx[n.ID] = i
 			category := "unknown"
 			if def, ok := s.reg.Lookup(n.Type); ok {
 				category = def.Category
@@ -464,10 +467,42 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 			}
 			sum.Preview = append(sum.Preview, PreviewNode{X: n.Position.X, Y: n.Position.Y, Category: category})
 		}
+		for _, e := range rec.Draft.Edges {
+			from, ok1 := nodeIdx[e.Source.Node]
+			to, ok2 := nodeIdx[e.Target.Node]
+			if ok1 && ok2 && from != to {
+				sum.PreviewEdges = append(sum.PreviewEdges, [2]int{from, to})
+				if len(sum.PreviewEdges) >= 48 {
+					break
+				}
+			}
+		}
 		sum.Enabled = rec.MissionID != "" && s.bridge.FlowMissionEnabled(rec.MissionID)
 		out = append(out, sum)
 	}
 	return out, nil
+}
+
+// ListVersions returns the stored published revisions of a flow, newest first.
+func (s *Service) ListVersions(ctx context.Context, id string) ([]FlowVersionSummary, error) {
+	return s.store.ListVersions(ctx, id)
+}
+
+// RestoreVersion loads a stored published revision and saves it as the new draft revision.
+func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseRevision int) (*FlowRecord, []Issue, error) {
+	doc, err := s.store.GetVersion(ctx, id, revision)
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, issues, err := s.SaveDraft(ctx, id, doc, baseRevision); err != nil {
+		return nil, issues, err
+	} else {
+		rec, err := s.store.GetFlow(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		return rec, issues, nil
+	}
 }
 
 // DiffSummary counts what changed between the published revision and the draft.

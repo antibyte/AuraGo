@@ -33,6 +33,8 @@
             ['Ctrl+S', 'easydrag.ui.save_now'],
             ['Ctrl+Enter', 'easydrag.ui.test'],
             ['Ctrl+K', 'easydrag.ui.keys_search'],
+            ['Ctrl+F', 'easydrag.ui.find_step'],
+            ['Alt+Shift+F', 'easydrag.ui.auto_layout'],
             ['?', 'easydrag.ui.keys_help'],
             ['Esc', 'easydrag.ui.keys_escape']
         ]]
@@ -52,6 +54,53 @@
             rows.map(([keys, label]) => '<div class="ed-keys-row"><dt>' + kbd(esc, keys) + '</dt><dd>' + esc(t(label)) + '</dd></div>').join('') +
             '</dl></section>').join('') + '</div>';
         return ED.core.modal(ed.root, { title: t('easydrag.ui.keys_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--keys', body });
+    }
+
+    // findStep searches existing steps on the canvas by label, key, type or parameter/template text.
+    function findStep(ed, canvas, interact) {
+        const core = ED.core;
+        const { t, esc } = ed;
+        const nodes = ed.model.doc.nodes.slice();
+        const haystacks = new Map();
+        nodes.forEach(n => {
+            const info = ed.model.info(n.type);
+            const paramsText = n.params ? JSON.stringify(n.params) : '';
+            haystacks.set(n.id, [n.label || '', n.key || '', n.type || '', info ? info.label || '' : '', paramsText].join(' ').toLowerCase());
+        });
+        const row = n => {
+            const info = ed.model.info(n.type);
+            const keyChip = n.key ? '<span class="ed-chip ed-chip--muted">' + esc(n.key) + '</span>' : '';
+            return '<button type="button" class="ed-pick-row" data-ed-find="' + esc(n.id) + '" data-cat="' + esc(core.catOf(info)) + '">' +
+                '<span class="ed-tile">' + core.icon(info ? info.icon : 'tool') + '</span>' +
+                '<span class="ed-pick-label">' + esc(n.label || n.type) + '</span>' + keyChip + '</button>';
+        };
+        const body = '<div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-find-search aria-label="' + esc(t('easydrag.ui.find_step')) + '" placeholder="' + esc(t('easydrag.ui.find_step_placeholder')) + '" autofocus></div>' +
+            '<div class="ed-pick-list" role="list">' + (nodes.length ? nodes.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.palette_no_results')) + '</p>') + '</div>';
+        const dialog = core.modal(ed.root, {
+            title: t('easydrag.ui.find_step'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--picker', body
+        });
+        const search = dialog.body.querySelector('[data-ed-find-search]');
+        search.addEventListener('input', () => {
+            const q = search.value.trim().toLowerCase();
+            dialog.body.querySelectorAll('[data-ed-find]').forEach(b => {
+                const hay = haystacks.get(b.dataset.edFind) || '';
+                b.hidden = !!q && !hay.includes(q);
+            });
+        });
+        search.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            const first = dialog.body.querySelector('[data-ed-find]:not([hidden])');
+            if (first) { event.preventDefault(); first.click(); }
+        });
+        dialog.body.addEventListener('click', (event) => {
+            const b = event.target.closest('[data-ed-find]');
+            if (!b) return;
+            const id = b.dataset.edFind;
+            dialog.close('picked');
+            if (interact && typeof interact.select === 'function') interact.select([id]);
+            canvas.centerOn(id, { animate: true });
+        });
+        return dialog;
     }
 
     // connectPicker lists nodes the single selected node can connect to (first free ports).
@@ -235,5 +284,5 @@
         return dialog.done.then(result => (result === 'restore' || result === 'discard' ? result : null));
     }
 
-    ED.dialogs = { shortcuts, connectPicker, flowSettings, conflict, restore, SHORTCUTS };
+    ED.dialogs = { shortcuts, findStep, connectPicker, flowSettings, conflict, restore, SHORTCUTS };
 })();

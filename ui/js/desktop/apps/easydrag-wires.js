@@ -39,8 +39,10 @@
             const dst = byId ? byId.get(e.target.node) : ed.model.node(e.target.node);
             if (!src || !dst) return null;
             const outs = ed.model.outputs(src);
+            const ins = ed.model.inputs(dst);
             const idx = outs.indexOf(e.source.port);
-            const b = G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length);
+            const inIdx = Math.max(0, ins.indexOf(e.target.port));
+            const b = G.portPoint(dst.position, 'in', inIdx, ed.model.outputs(dst).length, ins.length);
             // An output the node type does not have is drawn under the card, so the
             // edge can be selected and deleted. portPoint would sit on the only real
             // output when the step has one. A missing step is still not drawn.

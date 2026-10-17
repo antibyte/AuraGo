@@ -50,7 +50,7 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"test": 1, "run": 1, "runs": 1, "test-data": 2}
+	"versions": 1, "test": 1, "run": 1, "runs": 1, "test-data": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -665,6 +665,46 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
 		flowsJSON(w, http.StatusOK, rec.Draft)
+	case "versions":
+		switch r.Method {
+		case http.MethodGet:
+			rec, err := s.Flows.GetFlow(ctx, id)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			versions, err := s.Flows.ListVersions(ctx, id)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			flowsJSON(w, http.StatusOK, map[string]any{
+				"versions":       versions,
+				"live_revision":  rec.LiveRevision,
+				"draft_revision": rec.DraftRevision,
+			})
+		case http.MethodPost:
+			var body struct {
+				Revision     int `json:"revision"`
+				BaseRevision int `json:"base_revision"`
+			}
+			if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+				return
+			}
+			if body.Revision <= 0 {
+				flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "a positive revision is required")
+				return
+			}
+			rec, issues, err := s.Flows.RestoreVersion(ctx, id, body.Revision, body.BaseRevision)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			s.broadcastFlowsChanged(id, "saved")
+			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues)})
+		default:
+			flowsMethodNotAllowed(w)
+		}
 	default:
 		if !s.flowRunAction(w, r, id, action, rest[1:]) {
 			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")

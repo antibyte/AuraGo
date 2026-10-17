@@ -380,6 +380,7 @@
                 const card = c.el('<div class="ed-case"><div class="ed-case-head"><span class="ed-case-port">' + esc(t('easydrag.ui.port_case', { n: idx + 1 })) + '</span>' +
                     '<input class="ed-input ed-case-label" placeholder="' + esc(t('easydrag.ui.case_label')) + '" aria-label="' + esc(t('easydrag.ui.case_label')) + '" value="' + esc(cs.label || '') + '"' + (env.readonly ? ' disabled' : '') + '>' +
                     (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-case-up="' + idx + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (idx === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button>' +
+                        '<button type="button" class="ed-icon-btn" data-ed-case-down="' + idx + '" aria-label="' + esc(t('easydrag.ui.move_down')) + '"' + (idx === list.length - 1 ? ' disabled' : '') + '>' + c.icon('chevron-down') + '</button>' +
                         '<button type="button" class="ed-icon-btn" data-ed-case-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('trash') + '</button>') + '</div></div>');
                 card.querySelector('.ed-case-label').addEventListener('change', (event) => { cs.label = event.target.value; emit(); });
                 card.appendChild(conditionGroup(env, cs.condition, v => { cs.condition = v; emit(); }));
@@ -390,6 +391,8 @@
             if (event.target.closest('[data-ed-case-add]')) { list.push({ label: '', condition: { match: 'all', rows: [blankRow()] } }); emit(); render(); return; }
             const up = event.target.closest('[data-ed-case-up]');
             if (up) { const i = Number(up.dataset.edCaseUp); list.splice(i - 1, 0, list.splice(i, 1)[0]); emit(); render(); return; }
+            const down = event.target.closest('[data-ed-case-down]');
+            if (down) { const i = Number(down.dataset.edCaseDown); list.splice(i + 1, 0, list.splice(i, 1)[0]); emit(); render(); return; }
             const rm = event.target.closest('[data-ed-case-remove]');
             if (rm) { list.splice(Number(rm.dataset.edCaseRemove), 1); emit(); render(); }
         });
@@ -633,15 +636,37 @@
             pairs.forEach(p => { if (p.k.trim()) out[p.k.trim()] = p.v; });
             onChange(out);
         };
+        const markDuplicates = () => {
+            const counts = new Map();
+            pairs.forEach(p => {
+                const k = p.k.trim();
+                if (k) counts.set(k, (counts.get(k) || 0) + 1);
+            });
+            rows.querySelectorAll('[data-ed-kv-key]').forEach((inp, i) => {
+                const k = (pairs[i] && pairs[i].k || '').trim();
+                const dup = Boolean(k && (counts.get(k) || 0) > 1);
+                inp.classList.toggle('is-invalid', dup);
+                if (dup) inp.setAttribute('aria-invalid', 'true');
+                else inp.removeAttribute('aria-invalid');
+            });
+        };
         function render() {
             rows.innerHTML = '';
             pairs.forEach((p, idx) => {
-                const row = c.el('<div class="ed-kv-row"><input class="ed-input" placeholder="' + esc(t('easydrag.ui.kv_key')) + '" aria-label="' + esc(t('easydrag.ui.kv_key')) + '" value="' + esc(p.k) + '"' + (env.readonly ? ' disabled' : '') + '><div class="ed-kv-value"></div>' +
+                const row = c.el('<div class="ed-kv-row"><input class="ed-input" data-ed-kv-key placeholder="' + esc(t('easydrag.ui.kv_key')) + '" aria-label="' + esc(t('easydrag.ui.kv_key')) + '" value="' + esc(p.k) + '"' + (env.readonly ? ' disabled' : '') + '><div class="ed-kv-value"></div>' +
                     (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-kv-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>') + '</div>');
-                row.querySelector('input').addEventListener('change', (event) => { p.k = event.target.value; emit(); });
+                const keyInp = row.querySelector('input');
+                const onKeyEdit = (event) => {
+                    p.k = event.target.value;
+                    markDuplicates();
+                    emit();
+                };
+                keyInp.addEventListener('input', onKeyEdit);
+                keyInp.addEventListener('change', onKeyEdit);
                 row.querySelector('.ed-kv-value').appendChild(templateField(withChange(env, v => { p.v = v; emit(); }), p.v, { placeholder: t('easydrag.ui.kv_value'), label: t('easydrag.ui.kv_value') }).el);
                 rows.appendChild(row);
             });
+            markDuplicates();
         }
         el.addEventListener('click', (event) => {
             if (event.target.closest('[data-ed-kv-add]')) { pairs.push({ k: '', v: '' }); render(); return; }

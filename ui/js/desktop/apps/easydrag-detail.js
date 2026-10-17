@@ -159,6 +159,7 @@
         let pane = 'params';
         let narrowTab = 'params';
         let outputView = 'tree';
+        let outputSubject = 'output';
         let sourceId = 'last';
         let form = null;
         let mapping = null;
@@ -193,8 +194,14 @@
             '<button type="button" role="tab" data-ed-pane="settings">' + esc(t('easydrag.ui.detail_settings')) + '</button>' +
             '<button type="button" role="tab" data-ed-pane="note">' + esc(t('easydrag.ui.detail_note')) + '</button></div>' +
             '<div class="ed-detail-pane" data-pane="params"></div><div class="ed-detail-pane" data-pane="settings" hidden></div><div class="ed-detail-pane" data-pane="note" hidden></div></section>' +
-            '<section class="ed-detail-col" data-col="output"><div class="ed-col-head"><h3>' + esc(t('easydrag.ui.detail_output')) + '</h3><div class="ed-seg ed-seg--small" role="radiogroup">' +
-            ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div></div>' +
+            '<section class="ed-detail-col" data-col="output"><div class="ed-col-head">' +
+            '<h3 data-ed-output-title>' + esc(t('easydrag.ui.detail_output')) + '</h3>' +
+            '<div class="ed-seg ed-seg--small" role="radiogroup" data-ed-subject-group hidden>' +
+            '<button type="button" role="radio" data-ed-subject="output">' + esc(t('easydrag.ui.detail_output')) + '</button>' +
+            '<button type="button" role="radio" data-ed-subject="params">' + esc(t('easydrag.ui.detail_resolved_params')) + '</button></div>' +
+            '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup">' +
+            ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div>' +
+            '<button type="button" class="ed-icon-btn" data-ed-copy-json aria-label="' + esc(t('easydrag.ui.copy_json')) + '" title="' + esc(t('easydrag.ui.copy_json')) + '" hidden>' + core.icon('copy') + '</button></div></div>' +
             '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +
             '</div></div></div>');
         function mountDetail() {
@@ -376,6 +383,15 @@
             const step = currentStep();
             const status = el.querySelector('.ed-output-status');
             const out = el.querySelector('.ed-output');
+            const hasParams = !!(step && step.params != null && typeof step.params === 'object');
+            if (!hasParams && outputSubject === 'params') outputSubject = 'output';
+            const subjGroup = el.querySelector('[data-ed-subject-group]');
+            const titleEl = el.querySelector('[data-ed-output-title]');
+            const copyBtn = el.querySelector('[data-ed-copy-json]');
+            if (subjGroup) subjGroup.hidden = !hasParams;
+            if (titleEl) titleEl.hidden = hasParams;
+            if (copyBtn) copyBtn.hidden = !step || (step.status === 'error' && outputSubject === 'output');
+            el.querySelectorAll('[data-ed-subject]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.edSubject === outputSubject)));
             // A new result of the same node keeps the scroll position; another node starts at the top.
             const scroll = shownNode === node.id ? out.scrollTop || 0 : 0;
             shownStep = step;
@@ -392,12 +408,12 @@
             if (step.item_count) parts.push(esc(t('easydrag.ui.output_items', { count: step.item_count })));
             if (step.output_truncated) parts.push('<span class="ed-chip ed-chip--warn">' + esc(t('easydrag.ui.output_truncated')) + '</span>');
             status.innerHTML = parts.join(' · ');
-            if (step.status === 'error') {
+            if (step.status === 'error' && outputSubject === 'output') {
                 out.innerHTML = '<div class="ed-callout ed-callout--error">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.output_error')) + '</strong><p>' + esc(core.stepErrorText(t, step)) + '</p></div></div>';
                 return;
             }
-            const output = step.output || {};
-            const fileList = files(output);
+            const payload = outputSubject === 'params' && hasParams ? step.params : (step.output || {});
+            const fileList = outputSubject === 'output' ? files(payload) : [];
             let html = fileList.map(f => {
                 const mime = String(f.mime || '');
                 const url = safeFileUrl(f.web_path);
@@ -408,14 +424,14 @@
                     (f.size ? '<span class="ed-muted">' + esc(core.fmt.bytes(f.size)) + '</span>' : '') +
                     (url ? '<a class="ed-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.output_open')) + '</a>' : '') + '</div></div>';
             }).join('');
-            if (outputView === 'json') html += '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(capped(output), null, 2)) + '</pre>';
+            if (outputView === 'json') html += '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(capped(payload), null, 2)) + '</pre>';
             else if (outputView === 'table') {
-                const table = tableOf(output);
+                const table = tableOf(payload);
                 html += table ? '<div class="ed-table-wrap"><table class="ed-table"><thead><tr>' + table.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
                     table.rows.map(r => '<tr>' + table.cols.map(c => '<td>' + esc(ED.mapping.preview(r ? r[c] : null)) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' +
                     (table.total > table.rows.length ? '<p class="ed-hint">' + esc(t('easydrag.ui.tree_more', { count: table.total - table.rows.length })) + '</p>' : '')
                     : '<p class="ed-hint">' + esc(t('easydrag.ui.output_no_table')) + '</p>';
-            } else html += '<div class="ed-json-tree">' + jsonTree(output, esc) + '</div>';
+            } else html += '<div class="ed-json-tree">' + jsonTree(payload, esc) + '</div>';
             out.innerHTML = html;
             out.scrollTop = scroll;
             // PDF thumbnails come from the cache (pdf.js renders each file version once). Without
@@ -509,6 +525,21 @@
             if (p) { pane = p.dataset.edPane; applyPane(); return; }
             const nt = event.target.closest('[data-ed-narrow]');
             if (nt) { narrowTab = nt.dataset.edNarrow; applyNarrow(); return; }
+            const subj = event.target.closest('[data-ed-subject]');
+            if (subj) { outputSubject = subj.dataset.edSubject; renderOutput(); return; }
+            if (event.target.closest('[data-ed-copy-json]')) {
+                const step = currentStep();
+                if (!step) return;
+                const payload = outputSubject === 'params' && step.params != null ? step.params : (step.output || {});
+                const json = JSON.stringify(capped(payload), null, 2);
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    navigator.clipboard.writeText(json).catch(() => {});
+                }
+                if (ed.ctx && typeof ed.ctx.notify === 'function') {
+                    ed.ctx.notify({ title: node.label || node.type, message: t('easydrag.ui.copied_json') });
+                }
+                return;
+            }
             const v = event.target.closest('[data-ed-view]');
             if (v) { outputView = v.dataset.edView; renderOutput(); }
         });
