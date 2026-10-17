@@ -248,6 +248,12 @@ func renderOnce(ctx context.Context, opts RenderOptions) error {
 	return nil
 }
 
+// collectRenderSources stages what a render reads, by asset id:
+//   - the assets of enabled clips on visible visual tracks, and of audible clips;
+//   - the LUT assets that on lut effects of those visual clips reference (clipLUTRefs).
+//
+// Videos are probed for their decodable end and their decoded (autorotated) size. LUT files are parsed with
+// LoadLUTFile, so the graph only ever reads Go-written copies (stageVideoGraph).
 func collectRenderSources(ctx context.Context, ffmpeg string, project Project, assetPaths map[string]string) (map[string]renderSource, error) {
 	assets := assetMap(project)
 	used := make(map[string]struct{})
@@ -258,6 +264,14 @@ func collectRenderSources(ctx context.Context, ffmpeg string, project Project, a
 			}
 			if visualClip(track) || audibleClip(track, clip, assets[clip.AssetID]) {
 				used[clip.AssetID] = struct{}{}
+			}
+			if !visualClip(track) {
+				continue
+			}
+			for _, ref := range clipLUTRefs(clip) {
+				if _, assetID, ok := ParseLUTRef(ref); ok && assetID != "" {
+					used[assetID] = struct{}{}
+				}
 			}
 		}
 	}
@@ -275,12 +289,22 @@ func collectRenderSources(ctx context.Context, ffmpeg string, project Project, a
 			return nil, fmt.Errorf("asset %q is not a private staged file: %w", asset.ID, err)
 		}
 		source := renderSource{asset: asset, path: path}
-		if asset.Kind == AssetVideo {
-			probed, err := Probe(ctx, ffmpeg, path)
+		switch asset.Kind {
+		case AssetVideo:
+			probed, rotation, err := probeVideo(ctx, ffmpeg, path)
 			if err != nil {
 				return nil, fmt.Errorf("inspect asset %q: %w", asset.ID, err)
 			}
 			source.videoEnd = float64(probed.VideoDurationUs) / 1e6
+			source.decodedWidth, source.decodedHeight = rotatedSize(probed.Width, probed.Height, rotation)
+		case AssetImage:
+			source.decodedWidth, source.decodedHeight = asset.Width, asset.Height
+		case AssetLUT:
+			table, err := LoadLUTFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("load LUT asset %q: %w", asset.ID, err)
+			}
+			source.lut = table
 		}
 		sources[asset.ID] = source
 	}
@@ -300,11 +324,11 @@ func rangeHasAudio(project Project, sources map[string]renderSource, start, end 
 }
 
 func renderVideoSegment(ctx context.Context, ffmpeg string, project Project, seg Segment, sources map[string]renderSource, rate Rate, width, height int, encoder Encoder, output string, progress func(float64)) error {
-	inputs, graph, commands, err := buildVideoSegment(project, seg, sources, rate, width, height, encoder.filterTail())
+	inputs, graph, files, err := buildVideoSegment(project, seg, sources, rate, width, height, encoder.filterTail())
 	if err != nil {
 		return err
 	}
-	workDir, graphPath, err := stageVideoGraph(filepath.Dir(output), graph, rate, commands)
+	workDir, graphPath, err := stageVideoGraph(filepath.Dir(output), graph, rate, files)
 	if err != nil {
 		return err
 	}
@@ -409,14 +433,33 @@ func writeGraph(dir, graph string) (string, error) {
 	return file.Name(), nil
 }
 
-// sendCmdFileName is the only name a staged command file may have.
-var sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+\.txt$`)
+// graphFiles are the files a video FFmpeg process reads next to graph.txt, by bare name (index §4.10, §4.11):
+//   - the sendcmd scripts of every clip's command groups;
+//   - the LUT tables of its lut effects.
+type graphFiles struct {
+	commands []sendCmdFile
+	luts     []lutFile
+}
 
-// stageVideoGraph creates a fresh vsg-* directory in dir for one video FFmpeg process (renderVideoSegment, RenderFrame)
-// and writes the filter graph (graph.txt) and every command file into it (index §4.11). FFmpeg runs with that
-// directory as its working directory (runFFmpegIn), so the graph names command files by bare name and no host path
-// reaches filter-graph escaping. The caller removes workDir; on error nothing is left behind.
-func stageVideoGraph(dir, graph string, rate Rate, commands []sendCmdFile) (workDir, graphPath string, err error) {
+// lutFile is one LUT table that a clip's lut3d reads. name is vs_lut_<L>_<C>_<I>.cube (layer, clip, stack index).
+type lutFile struct {
+	name string
+	lut  *LUT3D
+}
+
+// sendCmdFileName and lutFileName are the only names a staged command or LUT file may have.
+var (
+	sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+(_[0-9]+)?\.txt$`)
+	lutFileName     = regexp.MustCompile(`^vs_lut_[0-9]+_[0-9]+_[0-9]+\.cube$`)
+)
+
+// stageVideoGraph creates a fresh vsg-* directory in dir for one video FFmpeg process (renderVideoSegment,
+// RenderFrame). It writes the filter graph (graph.txt), every command file and every LUT file into it, all with mode
+// 0o600 (index §4.11).
+//
+// FFmpeg runs with that directory as its working directory (runFFmpegIn), so the graph names files by bare name and no
+// host path reaches filter-graph escaping. The caller removes workDir; on error nothing is left behind.
+func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, graphPath string, err error) {
 	created, err := os.MkdirTemp(dir, "vsg-")
 	if err != nil {
 		return "", "", fmt.Errorf("create FFmpeg graph directory: %w", err)
@@ -432,8 +475,8 @@ func stageVideoGraph(dir, graph string, rate Rate, commands []sendCmdFile) (work
 	if err := os.WriteFile(graphPath, []byte(graph), 0o600); err != nil {
 		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
 	}
-	seen := make(map[string]bool, len(commands))
-	for _, file := range commands {
+	seen := make(map[string]bool, len(files.commands)+len(files.luts))
+	for _, file := range files.commands {
 		if !sendCmdFileName.MatchString(file.name) || seen[file.name] {
 			return fail(fmt.Errorf("invalid sendcmd file name %q", file.name))
 		}
@@ -442,7 +485,41 @@ func stageVideoGraph(dir, graph string, rate Rate, commands []sendCmdFile) (work
 			return fail(err)
 		}
 	}
+	for _, file := range files.luts {
+		if !lutFileName.MatchString(file.name) || seen[file.name] || file.lut == nil {
+			return fail(fmt.Errorf("invalid LUT file %q", file.name))
+		}
+		seen[file.name] = true
+		if err := writeStagedLUT(filepath.Join(workDir, file.name), file.lut); err != nil {
+			return fail(err)
+		}
+	}
 	return workDir, graphPath, nil
+}
+
+// writeStagedLUT writes a LUT for FFmpeg's lut3d as a new 0o600 file. It writes the table resampled onto the unit
+// domain (unitDomainLUT), without TITLE or DOMAIN lines, through WriteCube: FFmpeg reads only Go-formatted numbers
+// from parsed floats (index §4.20) and never depends on its own DOMAIN handling.
+func writeStagedLUT(path string, l *LUT3D) error {
+	if err := checkLUT(l); err != nil {
+		return fmt.Errorf("write LUT file: %w", err)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("write LUT file: %w", err)
+	}
+	writer := bufio.NewWriterSize(file, 64<<10)
+	err = WriteCube(writer, unitDomainLUT(l))
+	if err == nil {
+		err = writer.Flush()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return fmt.Errorf("write LUT file: %w", err)
+	}
+	return nil
 }
 
 // runFFmpeg runs FFmpeg in the current working directory (see runFFmpegIn).

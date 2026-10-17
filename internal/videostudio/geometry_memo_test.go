@@ -73,7 +73,7 @@ func TestGeometrySizesTheWholeClipOnce(t *testing.T) {
 	for n := 0; n < windows; n++ {
 		c := chain(whole, n, 1920, 1080)
 		_ = c.filter("out") // transform and place
-		if _, ok := c.commandFile(); !ok {
+		if len(c.commandFiles()) == 0 {
 			t.Fatal("a cover clip with keyframed geometry has a command file")
 		}
 	}

@@ -3,6 +3,7 @@ package videostudio
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -124,8 +125,8 @@ func TestClipChainKeyframedSnapshots(t *testing.T) {
 	if got := c.filter("vs_clip_1_2"); got != want {
 		t.Fatalf("contain:\n got %s\nwant %s", got, want)
 	}
-	if _, ok := c.commandFile(); ok {
-		t.Fatal("contain geometry needs no command file")
+	if files := c.commandFiles(); len(files) != 0 {
+		t.Fatalf("contain geometry needs no command file: %+v", files)
 	}
 	// The layer canvas sits around the box centre in whole pixels: frame 0 has a 320 px box at x 128, frame 45 a 640 px box.
 	x := exprOp("-", b.cx, exprNum(320))
@@ -155,10 +156,17 @@ func TestClipChainKeyframedSnapshots(t *testing.T) {
 	if got := cc.filter("vs_clip_0_0"); got != want {
 		t.Fatalf("cover:\n got %s\nwant %s", got, want)
 	}
-	file, ok := cc.commandFile()
+	files := cc.commandFiles()
+	file, ok := sendCmdFile{}, len(files) == 1
+	if ok {
+		file = files[0]
+	}
 	if !ok || file.name != "vs_cmd_0_0.txt" || len(file.tracks) != 2 || file.tracks[0].Target != "crop@vs_crop_0_0" || file.tracks[0].Option != "w" ||
 		file.tracks[1].Option != "h" || file.tracks[0].Values[1] != 336 || file.tracks[1].Values[29] != 360 {
 		t.Fatalf("cover command file = %+v, %v", file, ok)
+	}
+	if built := cc.build("vs_clip_0_0"); built.filter != cc.filter("vs_clip_0_0") || !reflect.DeepEqual(built.commands, files) || built.luts != nil {
+		t.Fatalf("build differs from filter and commandFiles: %+v", built)
 	}
 
 	// Opacity only keeps the static transform and adds the named, command-driven colorchannelmixer.
@@ -169,7 +177,11 @@ func TestClipChainKeyframedSnapshots(t *testing.T) {
 	if got := oc.filter("vs_clip_0_0"); got != want {
 		t.Fatalf("opacity only:\n got %s\nwant %s", got, want)
 	}
-	file, ok = oc.commandFile()
+	files = oc.commandFiles()
+	file, ok = sendCmdFile{}, len(files) == 1
+	if ok {
+		file = files[0]
+	}
 	if !ok || len(file.tracks) != 1 || file.tracks[0].Target != "colorchannelmixer@vs_opacity_0_0" || file.tracks[0].Option != "aa" || len(file.tracks[0].Values) != 60 {
 		t.Fatalf("opacity command file = %+v, %v", file, ok)
 	}

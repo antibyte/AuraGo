@@ -8,11 +8,26 @@ import (
 	"strings"
 )
 
-// renderSource is one staged asset of a render.
+// renderSource is one staged asset of a render:
+//   - videoEnd: the seconds of decodable video (0 when unknown or not a video);
+//   - decodedWidth × decodedHeight: the picture FFmpeg decodes (videos autorotated, images as imported); 0 when not
+//     probed;
+//   - lut: the parsed table of a lut asset.
 type renderSource struct {
-	asset    Asset
-	path     string
-	videoEnd float64 // seconds of decodable video; 0 when unknown or not a video
+	asset                       Asset
+	path                        string
+	videoEnd                    float64
+	decodedWidth, decodedHeight int
+	lut                         *LUT3D
+}
+
+// decodedSize is the picture size FFmpeg decodes. It falls back to the asset's size when the render did not probe it
+// (for example sources built by tests).
+func (s renderSource) decodedSize() (int, int) {
+	if s.decodedWidth > 0 && s.decodedHeight > 0 {
+		return s.decodedWidth, s.decodedHeight
+	}
+	return s.asset.Width, s.asset.Height
 }
 
 // segmentInput is one FFmpeg input of a segment process.
@@ -45,10 +60,16 @@ type layerClip struct {
 	pieces []rampPiece
 	// sourceAspect is the asset's width / height (0 when unknown); the cover bound of keyframed geometry uses it.
 	sourceAspect float64
+	// luts holds the table of every on lut entry with a reference, by stack index (built-in looks included); nil
+	// without one. pictureWidth × pictureHeight is the decoded (autorotated) and uncropped picture: crop commands and
+	// the effects' resolution rule work in these pixels (index §4.20).
+	luts                        map[int]*LUT3D
+	pictureWidth, pictureHeight int
 }
 
-// sendCmdFile is one clip's sendcmd script for one FFmpeg process. name is the bare file name the graph reads
-// (vs_cmd_<layer>_<clip>.txt); stageVideoGraph writes it next to graph.txt in the process's working directory.
+// sendCmdFile is one command group's sendcmd script for one FFmpeg process. name is the bare file name the graph
+// reads: vs_cmd_<L>_<C>.txt for group 0, vs_cmd_<L>_<C>_<g>.txt after the g-th two-input stage. stageVideoGraph writes
+// it next to graph.txt in the process's working directory.
 type sendCmdFile struct {
 	name   string
 	tracks []SendCmdTrack
@@ -86,28 +107,29 @@ type videoTail struct {
 	rgb           bool   // RenderFrame: 8-bit RGB (rgb24) instead of the BT.709 YUV tail
 }
 
-// buildVideoSegment composes the visual tracks of seg for the encoder (BT.709 YUV tail). The command files are the
-// sendcmd scripts the graph reads; stageVideoGraph writes them.
-func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, []sendCmdFile, error) {
+// buildVideoSegment composes the visual tracks of seg for the encoder (BT.709 YUV tail). The graph files are the
+// sendcmd scripts and LUT tables the graph reads; stageVideoGraph writes them.
+func buildVideoSegment(project Project, seg Segment, sources map[string]renderSource, rate Rate, outWidth, outHeight int, upload string) ([]segmentInput, string, graphFiles, error) {
 	return buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: outWidth, height: outHeight, upload: upload})
 }
 
 // buildVideoSegmentWith composes the visual tracks of seg. When seg starts or ends inside a transition the graph
 // covers the whole transition (pre-roll) and trims the composed frames back to seg.
-func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, []sendCmdFile, error) {
+func buildVideoSegmentWith(project Project, seg Segment, sources map[string]renderSource, rate Rate, out videoTail) ([]segmentInput, string, graphFiles, error) {
 	window := expandRange(seg, videoForbiddenSpans(project))
 	layers, inputs, err := segmentLayers(project, window, sources, rate)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", graphFiles{}, err
 	}
 	width, height, frames := project.Width, project.Height, window.End-window.Start
 	filters := []string{fmt.Sprintf("color=c=black:s=%dx%d:r=%s:d=%s,trim=end_frame=%d,setpts=PTS-STARTPTS,format=rgba[vs_base0]", width, height, rate, rate.SecondsArg(frames), frames)}
 	output := "vs_base0"
-	var commands []sendCmdFile
+	var files graphFiles
 	for index, layer := range layers {
-		label, layerFilters, layerCommands := buildVisualLayer(layer, index, width, height, rate)
+		label, layerFilters, layerFiles := buildVisualLayer(layer, index, width, height, rate)
 		filters = append(filters, layerFilters...)
-		commands = append(commands, layerCommands...)
+		files.commands = append(files.commands, layerFiles.commands...)
+		files.luts = append(files.luts, layerFiles.luts...)
 		next := fmt.Sprintf("vs_base%d", index+1)
 		filters = append(filters, fmt.Sprintf("[%s][%s]overlay=eof_action=pass:repeatlast=0:shortest=0:format=auto[%s]", output, label, next))
 		output = next
@@ -120,7 +142,7 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 			finish = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic,format=rgb24", out.width, out.height)
 		}
 		filters = append(filters, tail+","+finish+"[vs_video_out]")
-		return inputs, strings.Join(filters, ";\n"), commands, nil
+		return inputs, strings.Join(filters, ";\n"), files, nil
 	}
 	// Convert RGBA to limited-range BT.709 YUV here, together with the optional resize: left to the encoder's
 	// automatic conversion, FFmpeg before 7.1 uses BT.601 while the stream is tagged BT.709. Hardware encoders
@@ -130,7 +152,7 @@ func buildVideoSegmentWith(project Project, seg Segment, sources map[string]rend
 		convert = fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv", out.width, out.height)
 	}
 	filters = append(filters, tail+","+convert+",format=yuv420p"+out.upload+"[vs_video_out]")
-	return inputs, strings.Join(filters, ";\n"), commands, nil
+	return inputs, strings.Join(filters, ";\n"), files, nil
 }
 
 // segmentLayers cuts every visual track to the window. Disabled clips are left out. A transition applies only when
@@ -169,6 +191,17 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 			if source.asset.Height > 0 {
 				item.sourceAspect = float64(source.asset.Width) / float64(source.asset.Height)
 			}
+			item.pictureWidth, item.pictureHeight = source.decodedSize()
+			for index, ref := range clipLUTRefs(clip) {
+				table, err := resolveLUTRef(ref, sources)
+				if err != nil {
+					return nil, nil, fmt.Errorf("clip %q effect %d: %w", clip.ID, index, err)
+				}
+				if item.luts == nil {
+					item.luts = make(map[int]*LUT3D)
+				}
+				item.luts[index] = table
+			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
 				// The source position of the first window frame: a clip at speed s advances s source frames per frame; a
@@ -202,7 +235,45 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 	return layers, inputs, nil
 }
 
-func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate) (string, []string, []sendCmdFile) {
+// clipLUTRefs returns the LUT reference of every on lut entry of a clip's effect stack, by stack index. Entries
+// without a table ("") are left out. Renders load these (collectRenderSources) and layer clips carry them.
+func clipLUTRefs(clip Clip) map[int]string {
+	var refs map[int]string
+	for index, entry := range clip.Effects {
+		if !entry.On || entry.ID != "lut" {
+			continue
+		}
+		ref, _ := entry.Params["lut"].(string)
+		if ref == "" {
+			continue
+		}
+		if refs == nil {
+			refs = make(map[int]string)
+		}
+		refs[index] = ref
+	}
+	return refs
+}
+
+// resolveLUTRef finds the table of a LUT reference: a built-in look, or a staged project lut asset.
+func resolveLUTRef(ref string, sources map[string]renderSource) (*LUT3D, error) {
+	builtin, assetID, ok := ParseLUTRef(ref)
+	switch {
+	case !ok:
+		return nil, fmt.Errorf("invalid LUT reference %q", ref)
+	case builtin != "":
+		if table, found := BuiltinLook(builtin); found {
+			return table, nil
+		}
+	case assetID != "":
+		if source, staged := sources[assetID]; staged && source.lut != nil {
+			return source.lut, nil
+		}
+	}
+	return nil, fmt.Errorf("LUT %q is not staged", ref)
+}
+
+func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight int, rate Rate) (string, []string, graphFiles) {
 	filters := make([]string, 0, len(layer)*4)
 	sequence := 0
 	join := func() string {
@@ -212,14 +283,14 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 	}
 	timebase := fmt.Sprintf("settb=%d/%d", rate.Den, rate.Num)
 	labels := make([]string, len(layer))
-	var commands []sendCmdFile
+	var files graphFiles
 	for i, item := range layer {
 		labels[i] = fmt.Sprintf("vs_clip_%d_%d", trackIndex, i)
 		chain := clipChain{track: trackIndex, index: i, item: item, canvasWidth: canvasWidth, canvasHeight: canvasHeight, rate: rate}
-		filters = append(filters, chain.filter(labels[i]))
-		if file, ok := chain.commandFile(); ok {
-			commands = append(commands, file)
-		}
+		built := chain.build(labels[i])
+		filters = append(filters, built.filter)
+		files.commands = append(files.commands, built.commands...)
+		files.luts = append(files.luts, built.luts...)
 	}
 	// concat outputs a microsecond timebase; settb after every concat and on both xfade inputs keeps xfade on the
 	// frame timebase (a no-op where the input already uses it).
@@ -250,7 +321,7 @@ func buildVisualLayer(layer []layerClip, trackIndex, canvasWidth, canvasHeight i
 		combined = out
 		combinedEnd = clip.Start + clip.Duration
 	}
-	return combined, filters, commands
+	return combined, filters, files
 }
 
 // concatPieces joins pieces of a layer end to end; each is frames[i] whole frames with timestamps from zero. FFmpeg's

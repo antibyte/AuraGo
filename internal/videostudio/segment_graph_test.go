@@ -1,7 +1,10 @@
 package videostudio
 
 import (
+	"context"
 	"math"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,9 +23,9 @@ func TestVideoSegmentGraphSeeksAndPreRolls(t *testing.T) {
 	rate := ProjectRate(project)
 	sources := map[string]renderSource{"v": {asset: project.Assets[0], path: "v.mp4", videoEnd: 30}}
 
-	inputs, graph, commands, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720, "")
-	if commands != nil {
-		t.Fatalf("a project without keyframes needs no command files: %+v", commands)
+	inputs, graph, files, err := buildVideoSegment(project, Segment{55, 80}, sources, rate, 1280, 720, "")
+	if files.commands != nil || files.luts != nil {
+		t.Fatalf("a project without keyframes or LUTs needs no graph files: %+v", files)
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -114,5 +117,77 @@ func TestSegmentLayersCarryWholeClipAndRamp(t *testing.T) {
 	}
 	if b.at != 40 || b.whole.ID != "b" || b.whole.Duration != 60 || !reflect.DeepEqual(b.pieces, rampPieces(ramp, 0, 60)) {
 		t.Fatalf("b = whole %+v, at %d, pieces %v", b.whole, b.at, b.pieces)
+	}
+}
+
+// A render loads the LUT assets that on lut effects of enabled clips on visible visual tracks reference
+// (LoadLUTFile). Each layer clip then carries its tables by stack index (built-in looks included) and its decoded
+// picture size.
+func TestCollectRenderSourcesLoadsLUTs(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, text string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	paths := map[string]string{
+		"img":    write("logo.png", "png"),
+		"used":   write("used.cube", lutTestCube(2, lutIdentity, "\n")),
+		"off":    write("off.cube", "not a cube"),
+		"hidden": write("hidden.cube", "not a cube"),
+	}
+	lut := func(on bool, ref string) EffectInstance {
+		return EffectInstance{ID: "lut", On: on, Params: map[string]any{"intensity": 1.0, "lut": ref}}
+	}
+	clip := func(id string, effects ...EffectInstance) Clip {
+		return Clip{ID: id, AssetID: "img", Duration: 25, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, Effects: effects}
+	}
+	project := Project{Version: CurrentVersion, Name: "LUTs", Width: 1280, Height: 720, FPS: 25,
+		Assets: []Asset{
+			{ID: "img", Name: "logo.png", Kind: AssetImage, Width: 64, Height: 32},
+			{ID: "used", Name: "used.cube", Kind: AssetLUT, LUTSize: 2},
+			{ID: "off", Name: "off.cube", Kind: AssetLUT, LUTSize: 2},
+			{ID: "hidden", Name: "hidden.cube", Kind: AssetLUT, LUTSize: 2},
+		},
+		Tracks: []Track{
+			{ID: "v", Name: "Video", Kind: TrackVideo, Clips: []Clip{clip("c", lut(true, "used"), lut(false, "off"), lut(true, "builtin:warm"))}},
+			{ID: "h", Name: "Hidden", Kind: TrackOverlay, Hidden: true, Clips: []Clip{clip("o", lut(true, "hidden"))}},
+		}}
+	sources, err := collectRenderSources(context.Background(), "ffmpeg-not-needed", project, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if source := sources["used"]; source.lut == nil || source.lut.Size != 2 {
+		t.Fatalf("used LUT source = %+v", source)
+	}
+	if _, ok := sources["off"]; ok {
+		t.Fatal("the LUT of an off entry was loaded")
+	}
+	if _, ok := sources["hidden"]; ok {
+		t.Fatal("the LUT of a hidden track was loaded")
+	}
+	if source := sources["img"]; source.decodedWidth != 64 || source.decodedHeight != 32 {
+		t.Fatalf("image decoded size %dx%d", source.decodedWidth, source.decodedHeight)
+	}
+	layers, _, err := segmentLayers(project, Segment{Start: 0, End: 25}, sources, ProjectRate(project))
+	if err != nil || len(layers) != 1 || len(layers[0]) != 1 {
+		t.Fatalf("layers %+v, %v", layers, err)
+	}
+	item := layers[0][0]
+	warm, _ := BuiltinLook("warm")
+	if len(item.luts) != 2 || item.luts[0] != sources["used"].lut || item.luts[2] != warm || item.pictureWidth != 64 || item.pictureHeight != 32 {
+		t.Fatalf("layer clip luts %v, picture %dx%d", item.luts, item.pictureWidth, item.pictureHeight)
+	}
+	// A LUT that does not parse fails the render before FFmpeg runs, and so does a table that was not staged.
+	broken := map[string]string{"img": paths["img"], "used": paths["off"]}
+	if _, err := collectRenderSources(context.Background(), "ffmpeg-not-needed", project, broken); err == nil || !strings.Contains(err.Error(), `"used"`) {
+		t.Fatalf("a broken LUT asset: %v", err)
+	}
+	delete(sources, "used")
+	if _, _, err := segmentLayers(project, Segment{Start: 0, End: 25}, sources, ProjectRate(project)); err == nil {
+		t.Fatal("a missing LUT source was accepted")
 	}
 }

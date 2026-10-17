@@ -8,13 +8,16 @@ import (
 	"sync"
 )
 
-// clipChain builds one visual clip's export filter chain (spec §7.1, plan index §4.10): the clip's input is retimed
+// clipChain builds one visual clip's export filter chain (spec §7.1, plan index §4.10). The clip's input is retimed
 // onto the project frame grid, cut to its window, transformed into its box and placed on a transparent canvas-size
-// layer. Each stage returns its filters without the separating comma, or "" when it adds nothing; filter joins the
-// stages in the preview's pipeline order. Later slices extend a stage, never the assembly in filter:
-//   - 2b: retime (speed ramps), the commands stage (sendcmd) and runtime-command targets in transform and opacity.
-//   - 2c: picture (crop, flip) and effects.
-//   - 2d: mask and the blend path of place.
+// layer.
+//
+// Each string stage returns its filters without the separating comma, or "" when it adds nothing. build joins the
+// stages in the preview's pipeline order (stages, assembleStages) and collects the command and LUT files they read.
+// Later slices extend a stage, never the assembly in build:
+//   - 2b: retime (speed ramps) and runtime-command targets in transform and opacity.
+//   - 2c: picture (crop, flip), effects (one chainStage per entry) and command groups after two-input stages.
+//   - 2d: mask (a two-input stage) and the blend path of place.
 type clipChain struct {
 	track, index              int
 	item                      layerClip
@@ -22,16 +25,105 @@ type clipChain struct {
 	rate                      Rate
 }
 
-// filter returns the clip's chain ending in the label output. A clip without keyframes and ramp produces, byte for
+// clipBuild is one clip's part of a segment graph (index §4.10):
+//   - the filter chain ending in the output label;
+//   - the sendcmd scripts it reads (one per non-empty command group);
+//   - the LUT tables it reads.
+//
+// Files are referred to by bare name.
+type clipBuild struct {
+	filter   string
+	commands []sendCmdFile
+	luts     []lutFile
+}
+
+// chainStage is one stage between window and place, as assembleStages joins it:
+//   - filter: its filters without the separating comma ("" adds nothing);
+//   - tracks: the runtime commands for the single-input filters in it;
+//   - luts: the LUT tables it reads by bare name (vs_lut_<L>_<C>_<I>.cube);
+//   - twoInput: the stage ends in a two-input filter (blend, alphamerge, 2d's mask merge).
+//
+// The tracks of every later stage go to the next command group, because commands must not cross a framesync. A
+// two-input stage holds no command target in 2c. Targets inside one, before its merge, would be read by the group in
+// front of it.
+type chainStage struct {
+	filter   string
+	tracks   []SendCmdTrack
+	luts     []lutFile
+	twoInput bool
+}
+
+// build assembles the clip's chain once. A clip without keyframes, ramp, picture fields or effects produces, byte for
 // byte, the 2a graph (TestClipChainSnapshots).
-func (c clipChain) filter(output string) string {
-	parts := make([]string, 0, 8)
-	for _, stage := range []string{c.retime(), c.window(), c.commands(), c.picture(), c.effects(), c.mask(), c.transform(), c.opacity()} {
+func (c clipChain) build(output string) clipBuild {
+	body, commands, luts := assembleStages(fmt.Sprintf("%d_%d", c.track, c.index), c.stages())
+	parts := make([]string, 0, len(body)+2)
+	for _, stage := range []string{c.retime(), c.window()} {
 		if stage != "" {
 			parts = append(parts, stage)
 		}
 	}
-	return fmt.Sprintf("[%d:V:0]%s", c.item.input, strings.Join(parts, ",")) + c.place(output)
+	parts = append(parts, body...)
+	return clipBuild{filter: fmt.Sprintf("[%d:V:0]%s", c.item.input, strings.Join(parts, ",")) + c.place(output), commands: commands, luts: luts}
+}
+
+// filter returns the clip's chain ending in the label output.
+func (c clipChain) filter(output string) string { return c.build(output).filter }
+
+// stages lists the stages after window in the preview's pipeline order: picture, the effect entries, mask,
+// transform and opacity.
+func (c clipChain) stages() []chainStage {
+	stages := []chainStage{{filter: c.picture()}}
+	stages = append(stages, c.effects()...)
+	return append(stages,
+		chainStage{filter: c.mask()},
+		chainStage{filter: c.transform(), tracks: c.transformTracks()},
+		chainStage{filter: c.opacity(), tracks: c.opacityTracks()})
+}
+
+// assembleStages joins the stages of clip id ("<L>_<C>") and splits their command tracks into command groups (index
+// §4.11):
+//   - Group 0 is vs_cmd_<L>_<C>.txt. Its sendcmd comes first, directly after window, whose timestamps restart at the
+//     window's first frame, so the script's times are window-local.
+//   - Group g ≥ 1 is vs_cmd_<L>_<C>_<g>.txt. Its sendcmd follows the g-th two-input stage, whose output keeps those
+//     timestamps.
+//   - Between a sendcmd and its targets lie single-input filters only, so no command overtakes its frame.
+//   - Empty groups get neither a file nor a sendcmd.
+//
+// The LUT files are listed in stage order.
+func assembleStages(id string, stages []chainStage) (filters []string, commands []sendCmdFile, luts []lutFile) {
+	groups := [][]SendCmdTrack{nil}
+	for _, stage := range stages {
+		last := len(groups) - 1
+		groups[last] = append(groups[last], stage.tracks...)
+		if stage.twoInput {
+			groups = append(groups, nil)
+		}
+	}
+	reader := func(group int) {
+		if len(groups[group]) == 0 {
+			return
+		}
+		name := "vs_cmd_" + id + ".txt"
+		if group > 0 {
+			name = fmt.Sprintf("vs_cmd_%s_%d.txt", id, group)
+		}
+		commands = append(commands, sendCmdFile{name: name, tracks: groups[group]})
+		filters = append(filters, "sendcmd=f="+name)
+	}
+	reader(0)
+	group := 0
+	for _, stage := range stages {
+		if stage.filter != "" {
+			filters = append(filters, stage.filter)
+		}
+		luts = append(luts, stage.luts...)
+		if stage.twoInput {
+			group++
+			reader(group)
+		}
+	}
+	return filters, commands, luts
 }
 
 // retime samples the source on the project frame grid. Images start at zero. Video keeps absolute timestamps, so fps
@@ -56,24 +148,14 @@ func (c clipChain) window() string {
 	return fmt.Sprintf("setpts='max(PTS-%d,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS", c.item.first, clip.Duration, clip.Duration*2, clip.Duration)
 }
 
-// commands reads the clip's sendcmd script (index §4.11) when it drives single-input filters: the keyframed opacity and
-// the cover crop of keyframed geometry. It sits right after window, whose timestamps restart at the window's first
-// frame, so the script's times are window-local; only single-input filters lie between it and its targets (a
-// two-input filter in between would let commands overtake their frames).
-func (c clipChain) commands() string {
-	if file, ok := c.commandFile(); ok {
-		return "sendcmd=f=" + file.name
-	}
-	return ""
-}
-
-// picture crops and flips the source (plan 2c). Nothing in 2a.
+// picture crops and flips the source (plan 2c Task 7). Nothing until then.
 func (c clipChain) picture() string { return "" }
 
-// effects runs the clip's effect stack (plans 2c and 2d). Nothing in 2a.
-func (c clipChain) effects() string { return "" }
+// effects runs the clip's effect stack, one chainStage per on entry in stack order (plan 2c Task 8, 2d). A two-input
+// entry (a LUT blend, the vignette alpha wrapper) is its own stage with twoInput set. Nothing until then.
+func (c clipChain) effects() []chainStage { return nil }
 
-// mask applies the clip's mask as alpha (plan 2d). Nothing in 2a.
+// mask applies the clip's mask as alpha (plan 2d, a two-input stage). Nothing in 2c.
 func (c clipChain) mask() string { return "" }
 
 // transform fits the picture into the clip box (contain pads, cover crops), converts to RGBA and rotates it. A static
@@ -339,37 +421,42 @@ func (c clipChain) animatedTransform() string {
 	return strings.Join(parts, ",")
 }
 
-// commandFile is the clip's sendcmd script for this FFmpeg process (index §4.11):
-//   - the opacity of every window frame when opacity is keyframed;
-//   - the cover crop's size of every window frame when the geometry is keyframed.
-//
-// Values come from absolute frames (layerClip.at + k), and the crop sizes are exactly the box sizes FFmpeg's scale
-// computes. ok is false when the clip drives no runtime command.
-func (c clipChain) commandFile() (sendCmdFile, bool) {
-	geometry, opacity := clipAnimation(c.item.whole)
+// commandFiles are the clip's sendcmd scripts for this FFmpeg process (index §4.11), one per non-empty command group.
+func (c clipChain) commandFiles() []sendCmdFile {
+	_, commands, _ := assembleStages(fmt.Sprintf("%d_%d", c.track, c.index), c.stages())
+	return commands
+}
+
+// transformTracks drive the transform stage. When the geometry is keyframed, they hold the cover crop's size for
+// every window frame: exactly the box sizes FFmpeg's scale computes, from absolute frames. 2c Task 7 adds the
+// animated picture crop, which opens transform.
+func (c clipChain) transformTracks() []SendCmdTrack {
+	if geometry, _ := clipAnimation(c.item.whole); !geometry || c.item.whole.Fit != FitCover {
+		return nil
+	}
 	id := fmt.Sprintf("%d_%d", c.track, c.index)
-	var tracks []SendCmdTrack
-	if opacity {
-		values := make([]float64, c.item.clip.Duration)
-		for k := range values {
-			values[k], _ = ValueAt(c.item.whole, "opacity", c.item.at+k)
-		}
-		tracks = append(tracks, SendCmdTrack{Target: "colorchannelmixer@vs_opacity_" + id, Option: "aa", Values: values})
+	g := c.geometry()
+	widths, heights := make([]float64, len(g.widths)), make([]float64, len(g.heights))
+	for k := range widths {
+		widths[k], heights[k] = float64(g.widths[k]), float64(g.heights[k])
 	}
-	if geometry && c.item.whole.Fit == FitCover {
-		g := c.geometry()
-		widths, heights := make([]float64, len(g.widths)), make([]float64, len(g.heights))
-		for k := range widths {
-			widths[k], heights[k] = float64(g.widths[k]), float64(g.heights[k])
-		}
-		tracks = append(tracks,
-			SendCmdTrack{Target: "crop@vs_crop_" + id, Option: "w", Values: widths},
-			SendCmdTrack{Target: "crop@vs_crop_" + id, Option: "h", Values: heights})
+	return []SendCmdTrack{
+		{Target: "crop@vs_crop_" + id, Option: "w", Values: widths},
+		{Target: "crop@vs_crop_" + id, Option: "h", Values: heights},
 	}
-	if len(tracks) == 0 {
-		return sendCmdFile{}, false
+}
+
+// opacityTracks drive the opacity stage: when opacity is keyframed, they hold its value for every window frame, from
+// absolute frames (layerClip.at + k).
+func (c clipChain) opacityTracks() []SendCmdTrack {
+	if _, opacity := clipAnimation(c.item.whole); !opacity {
+		return nil
 	}
-	return sendCmdFile{name: "vs_cmd_" + id + ".txt", tracks: tracks}, true
+	values := make([]float64, c.item.clip.Duration)
+	for k := range values {
+		values[k], _ = ValueAt(c.item.whole, "opacity", c.item.at+k)
+	}
+	return []SendCmdTrack{{Target: fmt.Sprintf("colorchannelmixer@vs_opacity_%d_%d", c.track, c.index), Option: "aa", Values: values}}
 }
 
 // coverBound returns an even canvas that holds the cover-scaled picture of every window frame, and the range

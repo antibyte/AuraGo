@@ -232,3 +232,22 @@ func clampUnit(v float64) float64 {
 	}
 	return v
 }
+
+// channelCurveExpr is the lutrgb expression of one colour channel (index §4.11):
+//
+//	clip(round(255*pow(clip((clip((val/255*M-0.5)*C+0.5,0,1)*(1-L)+L)*G,0,1),IG)),0,255)
+//
+// It follows steps 1–5 of §4.20 on the input level val, the same operations as ChannelCurve.apply. It is built
+// through ffExpr:
+//   - every infix is parenthesized;
+//   - every number is FormatFloat('f', -1), negatives in parentheses;
+//   - the only letters are clip, round, pow and val.
+//
+// The sendcmd writer checks the text against that grammar before it quotes it.
+func channelCurveExpr(c ChannelCurve) ffExpr {
+	level := exprOp("/", exprVar("val"), exprNum(255))
+	contrast := exprOp("clip", exprOp("+", exprOp("*", exprOp("-", exprOp("*", level, exprNum(c.Mul)), exprNum(0.5)), exprNum(c.Contrast)), exprNum(0.5)), exprNum(0), exprNum(1))
+	lifted := exprOp("+", exprOp("*", contrast, exprOp("-", exprNum(1), exprNum(c.Lift))), exprNum(c.Lift))
+	gained := exprOp("clip", exprOp("*", lifted, exprNum(c.Gain)), exprNum(0), exprNum(1))
+	return exprOp("clip", exprOp("round", exprOp("*", exprNum(255), exprOp("pow", gained, exprNum(c.InvGamma)))), exprNum(0), exprNum(255))
+}

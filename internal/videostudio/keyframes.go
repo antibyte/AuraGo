@@ -286,29 +286,89 @@ func clipAnimation(clip Clip) (geometry, opacity bool) {
 	return geometry, len(clip.Keyframes["opacity"]) > 0
 }
 
-// SendCmdTrack is one runtime option of one Go-named single-input filter instance, with one value per window frame of a
-// clip (window frame k = absolute frame layerClip.at + k).
+// SendCmdTrack is one runtime option of one Go-named single-input filter instance. It holds one entry per window
+// frame of a clip (window frame k = absolute frame layerClip.at + k). Exactly one of Values and Curves is set.
 type SendCmdTrack struct {
-	Target string    // "<filter>@vs_<role>_<layer>_<clip>", checked against ^[a-z]+@vs_[a-z]+_[0-9]+_[0-9]+$
-	Option string    // allowed per "<filter>@vs_<role>" in sendCmdOptions
-	Values []float64 // finite; all tracks of one file have the same length
+	Target string         // "<filter>@vs_<role>_<L>_<C>[_<I>]", checked against sendCmdTargetPattern (I = stack index)
+	Option string         // allowed per "<filter>@vs_<role>" in sendCmdOptions
+	Values []float64      // numeric tracks; finite; all tracks of one file have the same length
+	Curves []ChannelCurve // expression tracks (sendCmdExprOptions only), written through channelCurveExpr
 }
 
-// sendCmdTargetPattern is the only shape of a command target: a Go-named filter instance.
-var sendCmdTargetPattern = regexp.MustCompile(`^[a-z]+@vs_[a-z]+_[0-9]+_[0-9]+$`)
+// sendCmdTargetPattern is the only shape of a command target: a Go-named filter instance "<filter>@vs_<role>_<L>_<C>".
+// Effect filters append the entry's stack index. The first group is the sendCmdOptions key.
+var sendCmdTargetPattern = regexp.MustCompile(`^([a-z][a-z0-9]*@vs_[a-z]+)_[0-9]+_[0-9]+(?:_[0-9]+)?$`)
 
 // sendCmdOptions lists, per "<filter>@vs_<role>", the options a script may set. Only single-input filters belong here:
-// sendcmd to a two-input filter (overlay, blend) lands 1–3 frames early on FFmpeg 8.1 (index §4.11, risk 10). 2c/2d
-// extend the list.
+// sendcmd to a two-input filter (overlay, blend) lands 1–3 frames early on FFmpeg 8.1 (index §4.11, risk 10). Commands
+// behind a two-input stage go into a later command group (assembleStages). 2d extends the list.
 var sendCmdOptions = map[string][]string{
 	"colorchannelmixer@vs_opacity": {"aa"},
 	"crop@vs_crop":                 {"w", "h"},
+	"crop@vs_picture":              {"w", "h", "x", "y"},
+	"lutrgb@vs_color":              {"r", "g", "b"},
+	"colorchannelmixer@vs_sat":     {"rr", "rg", "rb", "gr", "gg", "gb", "br", "bg", "bb"},
+	"cas@vs_sharpen":               {"strength"},
 }
 
-// WriteSendCmd writes one clip's sendcmd script (0o600). Frame k's commands start half a frame early ((k − 0.5)·Den/Num
-// seconds, %.6f; frame 0 at 0), so NTSC microsecond rounding never moves a command to a neighbour frame. Commands of one
-// frame share one interval (comma-separated); a value equal to the previous frame's is skipped. Only Go-formatted
-// numbers, checked targets and allowed options are written.
+// sendCmdExprOptions are the options that take colour-curve expressions instead of numbers (spike 2026-10-17: lutrgb
+// r/g/b expression commands are exact to 1 LSB on 5.1.9 and 8.1.1). Numeric tracks are refused for them, and curve
+// tracks for every other option.
+var sendCmdExprOptions = map[string][]string{
+	"lutrgb@vs_color": {"r", "g", "b"},
+}
+
+var (
+	sendCmdCurvePattern = regexp.MustCompile(`^[0-9a-z.()*/+,-]+$`)
+	sendCmdCurveWords   = regexp.MustCompile(`[a-z]+`)
+)
+
+// validSendCmdCurve reports whether text is inside the colour-curve grammar: digits, '.', parentheses, the four
+// operators and commas, with letters only in clip, round, pow and val.
+func validSendCmdCurve(text string) bool {
+	if !sendCmdCurvePattern.MatchString(text) {
+		return false
+	}
+	for _, word := range sendCmdCurveWords.FindAllString(text, -1) {
+		switch word {
+		case "clip", "round", "pow", "val":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// sendCmdCurveValue writes one colour curve as a single-quoted expression argument.
+func sendCmdCurveValue(curve ChannelCurve) (string, error) {
+	for _, v := range []float64{curve.Mul, curve.Contrast, curve.Lift, curve.Gain, curve.InvGamma} {
+		if !finite(v) {
+			return "", fmt.Errorf("a colour curve has a non-finite number")
+		}
+	}
+	text := channelCurveExpr(curve).String()
+	if !validSendCmdCurve(text) {
+		return "", fmt.Errorf("colour curve expression %q is outside the sendcmd grammar", text)
+	}
+	return "'" + text + "'", nil
+}
+
+func sendCmdTrackLength(track SendCmdTrack) int { return max(len(track.Values), len(track.Curves)) }
+
+// sendCmdUnchanged reports whether window frame k repeats frame k−1.
+func sendCmdUnchanged(track SendCmdTrack, k int) bool {
+	if len(track.Curves) > 0 {
+		return track.Curves[k] == track.Curves[k-1]
+	}
+	return track.Values[k] == track.Values[k-1]
+}
+
+// WriteSendCmd writes one clip's sendcmd script (0o600).
+//   - Frame k's commands start half a frame early ((k − 0.5)·Den/Num seconds, %.6f; frame 0 at 0), so NTSC
+//     microsecond rounding never moves a command to a neighbour frame.
+//   - The commands of one frame share one interval (comma-separated), and a value equal to the previous frame's is
+//     skipped.
+//   - Only Go-formatted numbers, grammar-checked curve expressions, checked targets and allowed options are written.
 func WriteSendCmd(path string, rate Rate, tracks []SendCmdTrack) error {
 	script, err := sendCmdScript(rate, tracks)
 	if err != nil {
@@ -325,17 +385,23 @@ func sendCmdScript(rate Rate, tracks []SendCmdTrack) (string, error) {
 	if rate.Num <= 0 || rate.Den <= 0 {
 		return "", fmt.Errorf("sendcmd script needs a valid frame rate")
 	}
-	if len(tracks) == 0 || len(tracks[0].Values) == 0 {
+	if len(tracks) == 0 || sendCmdTrackLength(tracks[0]) == 0 {
 		return "", fmt.Errorf("sendcmd script needs a track with values")
 	}
-	frames := len(tracks[0].Values)
+	frames := sendCmdTrackLength(tracks[0])
 	seen := make(map[string]bool, len(tracks))
-	for _, track := range tracks {
-		if !sendCmdTargetPattern.MatchString(track.Target) {
+	texts := make([][]string, len(tracks))
+	for i, track := range tracks {
+		match := sendCmdTargetPattern.FindStringSubmatch(track.Target)
+		if match == nil {
 			return "", fmt.Errorf("sendcmd target %q is not a Go-named filter instance", track.Target)
 		}
-		parts := strings.Split(track.Target, "_")
-		if !slices.Contains(sendCmdOptions[strings.Join(parts[:len(parts)-2], "_")], track.Option) {
+		curves := len(track.Curves) > 0
+		if curves == (len(track.Values) > 0) {
+			return "", fmt.Errorf("sendcmd track %s %s must hold either numbers or colour curves", track.Target, track.Option)
+		}
+		expression := slices.Contains(sendCmdExprOptions[match[1]], track.Option)
+		if !slices.Contains(sendCmdOptions[match[1]], track.Option) || curves != expression {
 			return "", fmt.Errorf("sendcmd option %q is not allowed for %q", track.Option, track.Target)
 		}
 		key := track.Target + " " + track.Option
@@ -343,24 +409,34 @@ func sendCmdScript(rate Rate, tracks []SendCmdTrack) (string, error) {
 			return "", fmt.Errorf("sendcmd track %s appears twice", key)
 		}
 		seen[key] = true
-		if len(track.Values) != frames {
-			return "", fmt.Errorf("sendcmd track %s has %d values, want %d", key, len(track.Values), frames)
+		if sendCmdTrackLength(track) != frames {
+			return "", fmt.Errorf("sendcmd track %s has %d values, want %d", key, sendCmdTrackLength(track), frames)
 		}
-		for _, value := range track.Values {
-			if !finite(value) {
+		texts[i] = make([]string, frames)
+		for k := range frames {
+			if curves {
+				text, err := sendCmdCurveValue(track.Curves[k])
+				if err != nil {
+					return "", fmt.Errorf("sendcmd track %s: %w", key, err)
+				}
+				texts[i][k] = text
+				continue
+			}
+			if !finite(track.Values[k]) {
 				return "", fmt.Errorf("sendcmd track %s has a non-finite value", key)
 			}
+			texts[i][k] = strconv.FormatFloat(track.Values[k], 'f', -1, 64)
 		}
 	}
 	var script strings.Builder
 	commands := make([]string, 0, len(tracks))
 	for k := range frames {
 		commands = commands[:0]
-		for _, track := range tracks {
-			if k > 0 && track.Values[k] == track.Values[k-1] {
+		for i, track := range tracks {
+			if k > 0 && sendCmdUnchanged(track, k) {
 				continue
 			}
-			commands = append(commands, track.Target+" "+track.Option+" "+strconv.FormatFloat(track.Values[k], 'f', -1, 64))
+			commands = append(commands, track.Target+" "+track.Option+" "+texts[i][k])
 		}
 		if len(commands) == 0 {
 			continue

@@ -29,6 +29,14 @@ type ffprobeResult struct {
 		Disposition  struct {
 			AttachedPicture int `json:"attached_pic"`
 		} `json:"disposition"`
+		// The display rotation:
+		//   - FFmpeg 5.1 reports a display matrix as side data and may add the legacy "rotate" tag;
+		//   - 8.x reports the side data only.
+		// Both are read leniently, as a number or a string.
+		Tags struct {
+			Rotate json.RawMessage `json:"rotate"`
+		} `json:"tags"`
+		SideDataList []ffprobeSideData `json:"side_data_list"`
 	} `json:"streams"`
 	Format struct {
 		Name     string `json:"format_name"`
@@ -36,20 +44,34 @@ type ffprobeResult struct {
 	} `json:"format"`
 }
 
+// ffprobeSideData is one side-data entry of a stream; only the display matrix's rotation is read.
+type ffprobeSideData struct {
+	SideDataType string          `json:"side_data_type"`
+	Rotation     json.RawMessage `json:"rotation"`
+}
+
 // Probe inspects one private staged media file using the FFprobe paired with
 // binaryPath, which may be either the configured FFmpeg or FFprobe path.
 func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
+	asset, _, err := probeVideo(ctx, binaryPath, input)
+	return asset, err
+}
+
+// probeVideo is Probe plus the display rotation of the first video stream: the clockwise degrees (0..359) by which
+// FFmpeg's autorotation turns its frames. A render uses it to know the decoded size (rotatedSize); Asset keeps the
+// coded size.
+func probeVideo(ctx context.Context, binaryPath, input string) (Asset, int, error) {
 	path, err := ensureRegularLocalFile(input)
 	if err != nil {
-		return Asset{}, fmt.Errorf("open staged media: %w", err)
+		return Asset{}, 0, fmt.Errorf("open staged media: %w", err)
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return Asset{}, fmt.Errorf("open staged media: %w", err)
+		return Asset{}, 0, fmt.Errorf("open staged media: %w", err)
 	}
 	probePath, err := resolveProbeFromConfiguredPath(binaryPath)
 	if err != nil {
-		return Asset{}, err
+		return Asset{}, 0, err
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
@@ -61,14 +83,20 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 	}
 	output, err := runSmallCommand(probeCtx, probePath, args, 8<<20)
 	if err != nil {
-		return Asset{}, fmt.Errorf("probe staged media: %w", err)
+		return Asset{}, 0, fmt.Errorf("probe staged media: %w", err)
 	}
+	return assetFromFFprobe(output, filepath.Base(path), info.Size())
+}
+
+// assetFromFFprobe turns FFprobe's JSON into the asset and the display rotation (see probeVideo).
+func assetFromFFprobe(output []byte, name string, size int64) (Asset, int, error) {
 	var result ffprobeResult
 	if err := json.Unmarshal(output, &result); err != nil {
-		return Asset{}, fmt.Errorf("decode FFprobe output: %w", err)
+		return Asset{}, 0, fmt.Errorf("decode FFprobe output: %w", err)
 	}
 
-	asset := Asset{Name: filepath.Base(path), SizeBytes: info.Size()}
+	asset := Asset{Name: name, SizeBytes: size}
+	rotation := 0
 	hasVideo := false
 	audioCodec := ""
 	videoDuration := 0.0
@@ -96,6 +124,7 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 			hasVideo = true
 			if asset.Width == 0 && stream.Width > 0 && stream.Height > 0 {
 				asset.Width, asset.Height = stream.Width, stream.Height
+				rotation = streamRotation(stream.SideDataList, stream.Tags.Rotate)
 			}
 		}
 	}
@@ -110,14 +139,14 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 	} else if asset.HasAudio {
 		asset.Kind = AssetAudio
 	} else {
-		return Asset{}, fmt.Errorf("staged media has no supported audio or video stream")
+		return Asset{}, 0, fmt.Errorf("staged media has no supported audio or video stream")
 	}
 	if asset.Kind != AssetImage {
 		if duration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
-			return Asset{}, fmt.Errorf("staged media has no valid duration")
+			return Asset{}, 0, fmt.Errorf("staged media has no valid duration")
 		}
 		if duration > 366*24*3600 {
-			return Asset{}, fmt.Errorf("staged media duration is too large")
+			return Asset{}, 0, fmt.Errorf("staged media duration is too large")
 		}
 		asset.DurationUs = int64(math.Round(duration * 1e6))
 		asset.DurationFrames = Rate{Num: FramesPerSecond, Den: 1}.FramesAt(asset.DurationUs)
@@ -129,12 +158,61 @@ func Probe(ctx context.Context, binaryPath, input string) (Asset, error) {
 		}
 	}
 	if asset.Kind != AssetAudio && !validSourceDimensions(asset.Width, asset.Height) {
-		return Asset{}, fmt.Errorf("staged media dimensions exceed the supported source limit")
+		return Asset{}, 0, fmt.Errorf("staged media dimensions exceed the supported source limit")
 	}
 	if asset.Kind == AssetVideo && !validVideoAspect(asset.Width, asset.Height) {
-		return Asset{}, fmt.Errorf("%w: %dx%d, the longer side may be at most %d times the shorter one", ErrSourceAspect, asset.Width, asset.Height, MaxVideoAspect)
+		return Asset{}, 0, fmt.Errorf("%w: %dx%d, the longer side may be at most %d times the shorter one", ErrSourceAspect, asset.Width, asset.Height, MaxVideoAspect)
 	}
-	return asset, nil
+	return asset, rotation, nil
+}
+
+// streamRotation returns the clockwise degrees FFmpeg's autorotation applies (get_rotation in fftools):
+//   - the negated rotation of the display matrix side data (ffprobe prints it counter-clockwise);
+//   - else the legacy "rotate" tag (clockwise);
+//   - else 0.
+func streamRotation(sideData []ffprobeSideData, tag json.RawMessage) int {
+	for _, entry := range sideData {
+		if !strings.EqualFold(entry.SideDataType, "Display Matrix") {
+			continue
+		}
+		if degrees, ok := probeDegrees(entry.Rotation); ok {
+			return normalizedRotation(-degrees)
+		}
+	}
+	if degrees, ok := probeDegrees(tag); ok {
+		return normalizedRotation(degrees)
+	}
+	return 0
+}
+
+// probeDegrees reads a JSON number or a numeric string.
+func probeDegrees(raw json.RawMessage) (float64, bool) {
+	text := strings.Trim(strings.TrimSpace(string(raw)), `"`)
+	if text == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil || !finite(value) {
+		return 0, false
+	}
+	return value, true
+}
+
+// normalizedRotation rounds to whole degrees in 0..359, as FFmpeg does before it picks transpose, flips or rotate.
+func normalizedRotation(degrees float64) int {
+	turned := math.Mod(math.Round(degrees), 360)
+	if turned < 0 {
+		turned += 360
+	}
+	return int(turned)
+}
+
+// rotatedSize is the decoded size of a width×height stream after autorotation; a quarter turn swaps the sides.
+func rotatedSize(width, height, rotation int) (int, int) {
+	if rotation == 90 || rotation == 270 {
+		return height, width
+	}
+	return width, height
 }
 
 // MaxPreviewBytes bounds one 540p preview proxy.

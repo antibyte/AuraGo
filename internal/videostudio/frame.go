@@ -76,14 +76,14 @@ func RenderFrame(ctx context.Context, opts FrameOptions) error {
 		}
 	}
 	rate := ProjectRate(project)
-	inputs, graph, commands, err := buildVideoSegmentWith(project, Segment{Start: opts.Frame, End: opts.Frame + 1}, sources, rate, videoTail{width: width, height: height, rgb: true})
+	inputs, graph, files, err := buildVideoSegmentWith(project, Segment{Start: opts.Frame, End: opts.Frame + 1}, sources, rate, videoTail{width: width, height: height, rgb: true})
 	if err != nil {
 		return err
 	}
 	if len(inputs) > MaxSegmentInputs {
 		return fmt.Errorf("%w at frame %d", ErrTooManyInputs, opts.Frame)
 	}
-	workDir, graphPath, err := stageVideoGraph(filepath.Dir(outputPath), graph, rate, commands)
+	workDir, graphPath, err := stageVideoGraph(filepath.Dir(outputPath), graph, rate, files)
 	if err != nil {
 		return err
 	}

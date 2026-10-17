@@ -24,12 +24,12 @@ func renderRawRGB(t *testing.T, ctx context.Context, ffmpeg string, project Proj
 		t.Fatal(err)
 	}
 	rate := ProjectRate(project)
-	inputs, graph, commands, err := buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: project.Width, height: project.Height, rgb: true})
+	inputs, graph, files, err := buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: project.Width, height: project.Height, rgb: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	workDir, graphPath, err := stageVideoGraph(root, graph, rate, commands)
+	workDir, graphPath, err := stageVideoGraph(root, graph, rate, files)
 	if err != nil {
 		t.Fatal(err)
 	}

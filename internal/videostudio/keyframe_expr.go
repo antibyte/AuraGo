@@ -11,10 +11,15 @@ import (
 // text; eval computes the same tree in Go with the same IEEE double operations in the same order, so tests check every
 // frame without FFmpeg and the export derives command values (the cover crop) from exactly the numbers FFmpeg computes.
 //
-// op is "num" (the literal num), "var" (the variable name: t, PTS, TB), an infix "+", "-", "*", "/" or ";" (evaluate
-// the left operand, return the right one), or a function: "if", "lt", "gte", "max", "min", "round", "floor", "ceil",
-// "sqrt", "st" (store in register 0..9) and "ld". Every infix node is written in parentheses and every literal
-// without an exponent, so neither operator precedence nor av_strtod's suffixes ever matter.
+// op is one of:
+//   - "num": the literal num;
+//   - "var": the variable name (t, T, PTS, TB, val);
+//   - an infix: "+", "-", "*", "/", or ";" (evaluate the left operand, return the right one);
+//   - a function: "if", "lt", "gte", "max", "min", "round", "floor", "ceil", "sqrt", "clip" (clip(x, min, max)),
+//     "pow", "st" (store in register 0..9) and "ld".
+//
+// Every infix node is written in parentheses and every literal without an exponent, so neither operator precedence nor
+// av_strtod's suffixes ever matter.
 type ffExpr struct {
 	op   string
 	num  float64
@@ -141,6 +146,22 @@ func (e ffExpr) evalWith(vars map[string]float64, registers *[10]float64) float6
 		return math.Ceil(arg(0))
 	case "sqrt":
 		return math.Sqrt(arg(0))
+	case "clip":
+		// libavutil: NaN when an argument is NaN or min > max, else av_clipd. (It evaluates x twice, which changes
+		// nothing for the export's side-effect-free curve expressions.)
+		x, low, high := arg(0), arg(1), arg(2)
+		if math.IsNaN(x) || math.IsNaN(low) || math.IsNaN(high) || low > high {
+			return math.NaN()
+		}
+		if x < low {
+			return low
+		}
+		if x > high {
+			return high
+		}
+		return x
+	case "pow":
+		return math.Pow(arg(0), arg(1))
 	case "ld":
 		return registers[register()]
 	case "st":
@@ -271,22 +292,28 @@ func rampInverseExpr(pieces []rampPiece, u ffExpr) ffExpr {
 	return balancedTree(len(pieces)+2, u, leaf, threshold)
 }
 
-// windowSourceExpr stores the absolute frame and the source position of a window frame (index §4.11):
-//   - Register 0 holds T = at + round(t·Num/Den).
-//   - Register 1 holds offset + clipSource(T − start): linear for a constant speed, S by the ramp pieces otherwise
+// windowSourceExprVar stores the absolute frame and the source position of a window frame (index §4.11):
+//   - Register 0 holds T = at + round(variable·Num/Den), where variable is the filter's time in seconds: t for
+//     scale, overlay, rotate and vignette, and T for blend's all_expr.
+//   - Register 1 holds offset + clipSource(T − start): linear for a constant speed, otherwise S by the ramp pieces
 //     (register 2 then holds the clip time).
 //
-// max(t, 0) keeps the evaluation at configuration time (t is NaN in overlay then) on the window's first frame, and
-// does not change any real frame.
-func windowSourceExpr(clip Clip, at int, pieces []rampPiece, rate Rate) ffExpr {
+// max(variable, 0) keeps the evaluation at configuration time (t is NaN in overlay then) on the window's first frame,
+// and does not change any real frame.
+func windowSourceExprVar(clip Clip, at int, pieces []rampPiece, rate Rate, variable string) ffExpr {
 	frame := exprOp("+", exprNum(float64(at)), exprOp("round", exprOp("/",
-		exprOp("*", exprOp("max", exprVar("t"), exprNum(0)), exprNum(float64(rate.Num))), exprNum(float64(rate.Den)))))
+		exprOp("*", exprOp("max", exprVar(variable), exprNum(0)), exprNum(float64(rate.Num))), exprNum(float64(rate.Den)))))
 	clipTime := exprOp("-", exprLd(0), exprNum(float64(clip.Start)))
 	consumed := exprOp("*", clipTime, exprNum(ClipSpeed(clip)))
 	if len(pieces) > 0 {
 		consumed = exprOp(";", exprSt(2, clipTime), rampSourceExpr(pieces, exprLd(2)))
 	}
 	return exprOp(";", exprSt(0, frame), exprSt(1, exprOp("+", exprNum(float64(clip.Offset)), consumed)))
+}
+
+// windowSourceExpr is windowSourceExprVar in t.
+func windowSourceExpr(clip Clip, at int, pieces []rampPiece, rate Rate) ffExpr {
+	return windowSourceExprVar(clip, at, pieces, rate, "t")
 }
 
 // boxExpr holds the per-frame expressions of a keyframed clip's box on the canvas (index §4.11):
