@@ -172,9 +172,10 @@ func buildDashboardSummary(s *Server, now time.Time) dashboardSummaryResponse {
 	in.BudgetPercentage = budgetStatus.Percentage
 	resp.KPIs.Budget = dashboardSummaryBudgetKPI(budgetStatus)
 
-	if s.FileIndexer != nil {
+	// Read the field once: restartFileIndexer nils it while the indexer is replaced.
+	if fi := s.FileIndexer; fi != nil {
 		in.IndexerPresent = true
-		in.IndexerErrorCount = len(s.FileIndexer.Status().Errors)
+		in.IndexerErrorCount = len(fi.Status().Errors)
 	}
 	resp.KPIs.Knowledge = c.collectKnowledge(&in)
 	resp.LastActivityHours = c.collectLastActivity()
@@ -376,11 +377,11 @@ func dashboardDaemonFailed(st tools.DaemonState) bool {
 func (c *dashboardSummaryCollector) collectKnowledge(in *attentionInputs) dashboardSummaryKnowledge {
 	var out dashboardSummaryKnowledge
 	if c.s.KG != nil {
-		stats, err := c.s.KG.GetStats()
+		nodes, edges, err := c.s.KG.CountNodesAndActiveEdges()
 		if err != nil {
 			c.sourceFailed("knowledge", err)
-		} else if stats != nil {
-			out.KGNodes, out.KGEdges = stats.TotalNodes, stats.TotalEdges
+		} else {
+			out.KGNodes, out.KGEdges = nodes, edges
 		}
 	}
 	if stm := c.s.ShortTermMem; stm != nil {
@@ -417,15 +418,12 @@ func (c *dashboardSummaryCollector) collectRecentActivity() []dashboardSummaryAc
 	if c.s.ShortTermMem == nil {
 		return out
 	}
-	page, err := c.s.ShortTermMem.SearchAuditEvents(memory.AuditFilter{Limit: dashboardSummaryActivityLimit})
+	events, err := c.s.ShortTermMem.RecentAuditEvents(dashboardSummaryActivityLimit)
 	if err != nil {
 		c.sourceFailed("audit", err)
 		return out
 	}
-	if page == nil {
-		return out
-	}
-	for _, event := range page.Entries {
+	for _, event := range events {
 		section := "audit"
 		if event.Source == memory.AuditSourceMission {
 			section = "automations"
