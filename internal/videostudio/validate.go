@@ -321,8 +321,14 @@ func validateClip(track Track, clip Clip, assets map[string]Asset, clipIDs map[s
 	if err := validateKeyframes(track, clip, maxFrames); err != nil {
 		return err
 	}
-	// Crop, flips and the effect stack (plan 2c). Both checks return a *FieldError.
+	// Crop, flips, blend mode, mask and the effect stack (plans 2c and 2d). Every check returns a *FieldError.
 	if err := validateCrop(track, clip); err != nil {
+		return err
+	}
+	if err := validateBlend(track, clip); err != nil {
+		return err
+	}
+	if err := validateMask(track, clip); err != nil {
 		return err
 	}
 	return validateEffects(track, clip, assets, maxFrames)

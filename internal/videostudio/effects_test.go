@@ -113,6 +113,24 @@ func TestEffectRegistryInvariants(t *testing.T) {
 		}
 		ids["blend:"+mode.ID] = true
 	}
+	// The base blend row offers exactly the BlendModes ids in menu order (2d). Normal comes first and is the only mode
+	// without an FFmpeg name; every other mode's FFmpeg name is its id.
+	var modeIDs []string
+	for i, mode := range registry.BlendModes {
+		modeIDs = append(modeIDs, mode.ID)
+		if (i == 0) != (mode.Blend == "") || i > 0 && mode.Blend != mode.ID {
+			t.Fatalf("blend mode %d = %+v: only normal (first) has no FFmpeg name, the others use their id", i, mode)
+		}
+		if found, ok := BlendModeByID(mode.ID); !ok || found != mode {
+			t.Fatalf("BlendModeByID(%q) = %+v, %t", mode.ID, found, ok)
+		}
+	}
+	if blend, ok := BaseParam("blend"); !ok || len(modeIDs) == 0 || modeIDs[0] != BlendNormal || blend.Default != BlendNormal || !slices.Equal(blend.Choices, modeIDs) {
+		t.Fatalf("base row blend = %+v, %t; want the choices %v with default normal", blend, ok, modeIDs)
+	}
+	if shape, ok := BaseParam("mask.shape"); !ok || shape.Default != string(MaskRect) || !slices.Equal(shape.Choices, []string{string(MaskRect), string(MaskEllipse)}) {
+		t.Fatalf("base row mask.shape = %+v, %t", shape, ok)
+	}
 	for _, preset := range registry.AnimPresets {
 		if preset.ID == "" || ids["anim:"+preset.ID] || preset.LabelKey == "" {
 			t.Fatalf("animation preset %+v needs a unique id and a label key", preset)

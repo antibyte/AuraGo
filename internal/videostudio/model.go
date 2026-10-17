@@ -123,6 +123,8 @@ type Clip struct {
 	Crop          *Crop                 `json:"crop,omitempty"` // fractions of the uncropped, unflipped source (2c)
 	FlipH         bool                  `json:"flip_h,omitempty"`
 	FlipV         bool                  `json:"flip_v,omitempty"`
+	Blend         string                `json:"blend,omitempty"` // a registry blend mode other than "normal"; absent means normal (2d)
+	Mask          *Mask                 `json:"mask,omitempty"`  // one rectangle or ellipse in box space (2d)
 	Effects       []EffectInstance      `json:"effects,omitempty"`
 }
 
@@ -164,6 +166,39 @@ type EffectInstance struct {
 	On        bool                  `json:"on"`
 	Params    map[string]any        `json:"params"`
 	Keyframes map[string][]Keyframe `json:"keyframes,omitempty"`
+}
+
+// MaskShape names the outline of a clip mask (2d).
+type MaskShape string
+
+const (
+	MaskRect    MaskShape = "rect"
+	MaskEllipse MaskShape = "ellipse"
+)
+
+// BlendNormal is the default blend mode. A clip in normal mode has no blend field: Validate refuses the name "normal",
+// so the canonical form stays unique.
+const BlendNormal = "normal"
+
+// Mask is a clip's mask (2d, spec §5.3, plan index §4.1 and §4.22). It belongs to the clip box: position and size are
+// fractions of the box, so moving, resizing or rotating the box carries the mask, while crop, flips and effects change
+// only the picture under it.
+//   - X, Y: the top left of the unrotated mask, −1..1. W, H: its size, 0.01..2.
+//   - Rotation: degrees about the mask centre, positive = clockwise on screen, −360..360.
+//   - Feather: the full width F of the linear edge as a fraction of the box height, 0..0.5 (F is at least 1 px).
+//   - Invert: the mask keeps the outside instead.
+//
+// The ranges are the registry base rows mask.*. The JSON always holds all eight keys in this order, invert too.
+// Keyframes sit in Clip.Keyframes under mask.x|y|w|h|rotation|feather; shape and invert are static.
+type Mask struct {
+	Shape    MaskShape `json:"shape"`
+	X        float64   `json:"x"`
+	Y        float64   `json:"y"`
+	W        float64   `json:"w"`
+	H        float64   `json:"h"`
+	Rotation float64   `json:"rotation"`
+	Feather  float64   `json:"feather"`
+	Invert   bool      `json:"invert"`
 }
 
 const (

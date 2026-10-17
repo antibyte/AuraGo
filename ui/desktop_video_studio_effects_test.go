@@ -102,7 +102,9 @@ assert.equal(E.valueAt({rotation: null}, 'rotation', 0, {fps: 30}), 0);
 assert.equal(E.valueAt({width: '0.5'}, 'width', 0, {fps: 30}), 1, 'only numbers count');
 assert.equal(E.valueAt({crop: {l: 0.1}}, 'crop.l', 0, {fps: 30}), 0.1);
 assert.equal(E.valueAt({effects: [{id: 'blur', params: {radius: 3}}]}, 'effects.0.radius', 0, {fps: 30}), 3);
-assert.equal(E.valueAt({}, 'mask.feather', 0, {fps: 30}), null);
+assert.equal(E.valueAt({}, 'mask.feather', 0, {fps: 30}), 0, 'without a mask, a mask path reads its registry default (2d, Go ValueAt)');
+assert.equal(E.valueAt({}, 'mask.x', 0, {fps: 30}), 0.25);
+assert.equal(E.valueAt({mask: {shape: 'rect', feather: 0.1}}, 'mask.feather', 0, {fps: 30}), 0.1);
 // clipState: the resolved per-frame state both painters draw from, with neutral 2a defaults.
 const neutral = {crop: {l: 0, t: 0, r: 0, b: 0}, flipH: false, flipV: false, blend: 'normal', mask: null, effects: []};
 assert.deepEqual(E.clipState({x: 0.1, y: 0.2, width: 0.5, height: 0.4, rotation: 15, opacity: 0.5, fit: 'cover'}, 0, {fps: 30}),
@@ -337,7 +339,7 @@ console.log('ok');
 func TestVideoStudioEffectsKeyframeSampling(t *testing.T) {
 	runVideoStudioEffectsScript(t, `
 const near = (got, want, label) => assert(Math.abs(got - want) < 1e-12, label + ': ' + got + ' != ' + want);
-assert.deepEqual(E.keyframable(), ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'crop.l', 'crop.t', 'crop.r', 'crop.b']);
+assert.deepEqual(E.keyframable(), ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'crop.l', 'crop.t', 'crop.r', 'crop.b', 'mask.x', 'mask.y', 'mask.w', 'mask.h', 'mask.rotation', 'mask.feather']);
 near(E.ease('ease_in', 0.5), 0.125, 'ease_in');
 near(E.ease('ease_out', 0.5), 0.875, 'ease_out');
 near(E.ease('ease_in_out', 0.25), 0.0625, 'ease_in_out');

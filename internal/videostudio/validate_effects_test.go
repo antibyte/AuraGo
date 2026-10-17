@@ -205,9 +205,9 @@ func TestValueAtCropAndEffectPaths(t *testing.T) {
 	}
 }
 
-// The registry rows of plan 2c (index §4.2), pinned: the crop and flip base rows after fit, the five effects in menu
-// order with their filters and parameters, and the eight looks. TestVideoStudioEffectsRegistryMatchesGo (ui) keeps the
-// JS mirror equal.
+// The registry rows of plans 2c and 2d (index §4.2), pinned: the crop, flip, blend and mask base rows after fit, the
+// six effects in menu order with their filters and parameters, the eight looks and the fourteen blend modes.
+// TestVideoStudioEffectsRegistryMatchesGo (ui) keeps the JS mirror equal.
 func TestEffectRegistryRows(t *testing.T) {
 	number := func(value float64) string { return strconv.FormatFloat(value, 'g', -1, 64) }
 	line := func(p ParamSpec) string {
@@ -251,6 +251,15 @@ func TestEffectRegistryRows(t *testing.T) {
 		"crop.b number 0..0.95 =0 step 0.001 kf fraction crop_b",
 		"flip_h bool 0..0 =false flip_h",
 		"flip_v bool 0..0 =false flip_v",
+		`blend choice 0..0 ="normal" blend`,
+		`mask.shape choice 0..0 ="rect" mask_shape`,
+		"mask.x number -1..1 =0.25 step 0.001 kf fraction mask_x",
+		"mask.y number -1..1 =0.25 step 0.001 kf fraction mask_y",
+		"mask.w number 0.01..2 =0.5 step 0.001 kf fraction mask_w",
+		"mask.h number 0.01..2 =0.5 step 0.001 kf fraction mask_h",
+		"mask.rotation number -360..360 =0 step 0.1 kf deg mask_rotation",
+		"mask.feather number 0..0.5 =0 step 0.001 kf height mask_feather",
+		"mask.invert bool 0..0 =false mask_invert",
 		"effect color color lutrgb,colorchannelmixer effect.color.name",
 		"exposure number -3..3 =0 step 0.01 kf ev effect.color.exposure",
 		"contrast number 0..3 =1 step 0.01 kf effect.color.contrast",
@@ -276,6 +285,11 @@ func TestEffectRegistryRows(t *testing.T) {
 		"effect vignette stylize vignette,alphaextract,alphamerge effect.vignette.name",
 		"amount number 0..1 =0.5 step 0.01 kf effect.vignette.amount",
 		"size number 0.25..2 =1 step 0.01 kf height effect.vignette.size",
+		"effect chroma_key key colorkey,despill effect.chroma_key.name",
+		`color color 0..0 ="#00b140" effect.chroma_key.color`,
+		"similarity number 0.01..1 =0.25 step 0.005 kf effect.chroma_key.similarity",
+		"smoothness number 0..1 =0.1 step 0.005 kf effect.chroma_key.smoothness",
+		"spill number 0..1 =0.5 step 0.01 effect.chroma_key.spill",
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("registry rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -305,6 +319,24 @@ func TestEffectRegistryRows(t *testing.T) {
 	if MaxEffectsPerClip != 8 {
 		t.Errorf("MaxEffectsPerClip = %d, want 8", MaxEffectsPerClip)
 	}
+	// Blend modes (2d): normal has no FFmpeg name; every other mode carries its FFmpeg blend mode name, equal to its id.
+	var modes []string
+	for _, mode := range registry.BlendModes {
+		modes = append(modes, mode.ID+":"+mode.Blend+":"+mode.LabelKey)
+	}
+	wantModes := []string{"normal::blend_normal"}
+	for _, id := range []string{"multiply", "screen", "overlay", "softlight", "hardlight", "darken", "lighten", "difference", "exclusion", "addition", "subtract", "dodge", "burn"} {
+		wantModes = append(wantModes, id+":"+id+":blend_"+id)
+	}
+	if !slices.Equal(modes, wantModes) {
+		t.Fatalf("blend modes = %v, want %v", modes, wantModes)
+	}
+	if mode, ok := BlendModeByID("overlay"); !ok || mode.Blend != "overlay" {
+		t.Errorf("BlendModeByID(overlay) = %+v, %v", mode, ok)
+	}
+	if _, ok := BlendModeByID("glow"); ok {
+		t.Error("BlendModeByID found an unknown mode")
+	}
 }
 
 // An effect is unavailable when FFmpeg lacks one of its filters (index §4.3). The export refuses it; the preview still
@@ -318,6 +350,7 @@ func TestRegistryUnavailableEffects(t *testing.T) {
 		{[]string{"filter:premultiply"}, []string{"blur"}},
 		{[]string{"filter:alphaextract"}, []string{"vignette"}},
 		{[]string{"filter:cas", "filter:lutrgb"}, []string{"color", "sharpen"}},
+		{[]string{"filter:colorkey"}, []string{"chroma_key"}},
 	} {
 		if got := registry.Unavailable(c.missing).Effects; !slices.Equal(got, c.want) {
 			t.Errorf("Unavailable(%v).Effects = %v, want %v", c.missing, got, c.want)

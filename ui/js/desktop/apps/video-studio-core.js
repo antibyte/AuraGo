@@ -118,11 +118,20 @@
         if (keyframes) out.keyframes = keyframes;
         return out;
     }
+    // A mask (2d) in Go's JSON form: all eight keys in the order shape, x, y, w, h, rotation, feather, invert. invert is
+    // always present, like Go's bool field, and a missing number reads 0, as Go decodes it. null without a mask object.
+    function canonicalMask(mask) {
+        if (!mask || typeof mask !== 'object' || Array.isArray(mask)) return null;
+        return {
+            shape: String(mask.shape || ''), x: Number(mask.x) || 0, y: Number(mask.y) || 0, w: Number(mask.w) || 0, h: Number(mask.h) || 0,
+            rotation: Number(mask.rotation) || 0, feather: Number(mask.feather) || 0, invert: !!mask.invert
+        };
+    }
     // Version 2 and 3 clip fields after transition, in Go's order (plan index §4.1):
-    //   speed, link, audio_detached, disabled, label, keyframes, ramp, crop, flip_h, flip_v, effects
-    // (2d inserts blend and mask before effects). Each appears only when set (omitempty): the editor removes speed 1,
-    // and an enabled, unlinked, labelless clip without keyframes, ramp or picture fields carries none of them. A ramp is
-    // [{f, speed, e}] sorted by f.
+    //   speed, link, audio_detached, disabled, label, keyframes, ramp, crop, flip_h, flip_v, blend, mask, effects
+    // Each appears only when set (omitempty). The editor removes speed 1, an empty crop and blend 'normal' (Go refuses
+    // that name), so an enabled, unlinked, labelless clip without keyframes, ramp or picture fields carries none of them.
+    // A ramp is [{f, speed, e}] sorted by f.
     function canonicalClipExtras(clip) {
         const out = {};
         if (clip.speed != null && Number(clip.speed) !== 1) out.speed = Number(clip.speed);
@@ -137,6 +146,9 @@
         if (crop) out.crop = crop;
         if (clip.flip_h) out.flip_h = true;
         if (clip.flip_v) out.flip_v = true;
+        if (typeof clip.blend === 'string' && clip.blend && clip.blend !== 'normal') out.blend = clip.blend;
+        const mask = canonicalMask(clip.mask);
+        if (mask) out.mask = mask;
         if (Array.isArray(clip.effects) && clip.effects.length) out.effects = clip.effects.map(canonicalEffect);
         return out;
     }

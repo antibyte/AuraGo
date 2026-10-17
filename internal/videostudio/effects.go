@@ -98,7 +98,11 @@ type UnavailableSet struct {
 
 // registryBase holds the fixed picture properties of a clip. The label keys of x and y are the inspector's existing
 // keys box_x and box_y (the fine-tune X and Y fields); crop and flip (2c) use crop_l|t|r|b and flip_h|v. Number
-// defaults are float64, as JSON decodes them. 2d appends blend and mask.*.
+// defaults are float64, as JSON decodes them.
+//
+// 2d appends blend (its choices are the registryBlendModes ids, TestEffectRegistryInvariants) and mask.*: shape and
+// invert are static, every number is keyframable, and the defaults are the values of a new mask. mask.feather is a
+// share of the box height.
 var registryBase = []ParamSpec{
 	{ID: "x", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_x"},
 	{ID: "y", Type: ParamNumber, Min: 0, Max: 1, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "box_y"},
@@ -113,6 +117,15 @@ var registryBase = []ParamSpec{
 	{ID: "crop.b", Type: ParamNumber, Min: 0, Max: maxCropFraction, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "crop_b"},
 	{ID: "flip_h", Type: ParamBool, Default: false, LabelKey: "flip_h"},
 	{ID: "flip_v", Type: ParamBool, Default: false, LabelKey: "flip_v"},
+	{ID: "blend", Type: ParamChoice, Default: BlendNormal, Choices: []string{BlendNormal, "multiply", "screen", "overlay", "softlight", "hardlight", "darken", "lighten", "difference", "exclusion", "addition", "subtract", "dodge", "burn"}, LabelKey: "blend"},
+	{ID: "mask.shape", Type: ParamChoice, Default: string(MaskRect), Choices: []string{string(MaskRect), string(MaskEllipse)}, LabelKey: "mask_shape"},
+	{ID: "mask.x", Type: ParamNumber, Min: -1, Max: 1, Default: 0.25, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "mask_x"},
+	{ID: "mask.y", Type: ParamNumber, Min: -1, Max: 1, Default: 0.25, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "mask_y"},
+	{ID: "mask.w", Type: ParamNumber, Min: 0.01, Max: 2, Default: 0.5, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "mask_w"},
+	{ID: "mask.h", Type: ParamNumber, Min: 0.01, Max: 2, Default: 0.5, Step: 0.001, Keyframable: true, Unit: "fraction", LabelKey: "mask_h"},
+	{ID: "mask.rotation", Type: ParamNumber, Min: -360, Max: 360, Default: 0.0, Step: 0.1, Keyframable: true, Unit: "deg", LabelKey: "mask_rotation"},
+	{ID: "mask.feather", Type: ParamNumber, Min: 0, Max: 0.5, Default: 0.0, Step: 0.001, Keyframable: true, Unit: "height", LabelKey: "mask_feather"},
+	{ID: "mask.invert", Type: ParamBool, Default: false, LabelKey: "mask_invert"},
 }
 
 // registryTransitions keeps the phase 1 ids, export mapping and label keys. A wipe id names the edge the incoming
@@ -125,10 +138,27 @@ var registryTransitions = []TransitionSpec{
 	{ID: TransitionWipeRight, XFade: "wipeleft", Category: "wipe", LabelKey: "wiperight"},
 }
 
-var (
-	registryBlendModes  = []BlendModeSpec{}  // 2d
-	registryAnimPresets = []AnimPresetSpec{} // 2e
-)
+var registryAnimPresets = []AnimPresetSpec{} // 2e
+
+// registryBlendModes are the clip blend modes in menu order (2d, plan index §4.2 and §4.22). Label keys are
+// blend_<id>. Normal has no FFmpeg name: the export keeps its straight-alpha overlay for it, and it is never
+// unavailable. Every other mode carries its FFmpeg blend mode name, which equals its id.
+var registryBlendModes = []BlendModeSpec{
+	{ID: BlendNormal, Blend: "", LabelKey: "blend_normal"},
+	{ID: "multiply", Blend: "multiply", LabelKey: "blend_multiply"},
+	{ID: "screen", Blend: "screen", LabelKey: "blend_screen"},
+	{ID: "overlay", Blend: "overlay", LabelKey: "blend_overlay"},
+	{ID: "softlight", Blend: "softlight", LabelKey: "blend_softlight"},
+	{ID: "hardlight", Blend: "hardlight", LabelKey: "blend_hardlight"},
+	{ID: "darken", Blend: "darken", LabelKey: "blend_darken"},
+	{ID: "lighten", Blend: "lighten", LabelKey: "blend_lighten"},
+	{ID: "difference", Blend: "difference", LabelKey: "blend_difference"},
+	{ID: "exclusion", Blend: "exclusion", LabelKey: "blend_exclusion"},
+	{ID: "addition", Blend: "addition", LabelKey: "blend_addition"},
+	{ID: "subtract", Blend: "subtract", LabelKey: "blend_subtract"},
+	{ID: "dodge", Blend: "dodge", LabelKey: "blend_dodge"},
+	{ID: "burn", Blend: "burn", LabelKey: "blend_burn"},
+}
 
 // registryEffects is the effect stack menu (2c, plan index §4.2).
 //   - Label keys are effect.<id>.name and effect.<id>.<param>; the category label is the locale key
@@ -136,8 +166,8 @@ var (
 //   - Colour parameters follow the index table order.
 //   - The blur radius is not keyframable: gblur takes no reproducible sigma commands (index §7, risk 16).
 //   - The blur filters include premultiply and unpremultiply, which wrap gblur on image clips (plan 2c decision A2).
-//
-// 2d appends chroma_key (category key).
+//   - chroma_key (2d, category key): the key colour is not keyframable, because a keyframe holds one number. Spill stays
+//     static unless despill takes exact spill commands (plan 2d Task 4). The defaults are provisional (index §4.23).
 var registryEffects = []EffectSpec{
 	{ID: "color", Category: "color", LabelKey: "effect.color.name", Filters: []string{"lutrgb", "colorchannelmixer"}, Params: []ParamSpec{
 		{ID: "exposure", Type: ParamNumber, Min: -3, Max: 3, Default: 0.0, Step: 0.01, Keyframable: true, Unit: "ev", LabelKey: "effect.color.exposure"},
@@ -168,6 +198,12 @@ var registryEffects = []EffectSpec{
 	{ID: "vignette", Category: "stylize", LabelKey: "effect.vignette.name", Filters: []string{"vignette", "alphaextract", "alphamerge"}, Params: []ParamSpec{
 		{ID: "amount", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, Keyframable: true, LabelKey: "effect.vignette.amount"},
 		{ID: "size", Type: ParamNumber, Min: 0.25, Max: 2, Default: 1.0, Step: 0.01, Keyframable: true, Unit: "height", LabelKey: "effect.vignette.size"},
+	}},
+	{ID: "chroma_key", Category: "key", LabelKey: "effect.chroma_key.name", Filters: []string{"colorkey", "despill"}, Params: []ParamSpec{
+		{ID: "color", Type: ParamColor, Default: "#00b140", LabelKey: "effect.chroma_key.color"},
+		{ID: "similarity", Type: ParamNumber, Min: 0.01, Max: 1, Default: 0.25, Step: 0.005, Keyframable: true, LabelKey: "effect.chroma_key.similarity"},
+		{ID: "smoothness", Type: ParamNumber, Min: 0, Max: 1, Default: 0.1, Step: 0.005, Keyframable: true, LabelKey: "effect.chroma_key.smoothness"},
+		{ID: "spill", Type: ParamNumber, Min: 0, Max: 1, Default: 0.5, Step: 0.01, LabelKey: "effect.chroma_key.spill"},
 	}},
 }
 
@@ -259,6 +295,16 @@ func LookByID(id string) (LookSpec, bool) {
 		}
 	}
 	return LookSpec{}, false
+}
+
+// BlendModeByID returns the registry entry of a blend mode (2d).
+func BlendModeByID(id string) (BlendModeSpec, bool) {
+	for _, mode := range registryBlendModes {
+		if mode.ID == id {
+			return mode, true
+		}
+	}
+	return BlendModeSpec{}, false
 }
 
 // effectParamSpec returns one parameter of a registry effect without copying the table. It is for read-only callers:

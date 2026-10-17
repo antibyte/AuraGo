@@ -426,7 +426,7 @@ const FXI = window.VideoStudioInspectorEffects;
 func TestVideoStudioEffectStackMarkup(t *testing.T) {
 	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
 let groups = FXI.menuModel({});
-assert.deepEqual(groups.map(group => [group.label_key, group.items.map(item => item.id)]), [['effectCategory_color', ['color', 'lut']], ['effectCategory_detail', ['blur', 'sharpen']], ['effectCategory_stylize', ['vignette']]]);
+assert.deepEqual(groups.map(group => [group.label_key, group.items.map(item => item.id)]), [['effectCategory_color', ['color', 'lut']], ['effectCategory_detail', ['blur', 'sharpen']], ['effectCategory_stylize', ['vignette']], ['effectCategory_key', ['chroma_key']]]);
 assert(groups.every(group => group.items.every(item => item.available && !item.disabled && item.reason === '')));
 FX.adopt(FX.BUILTIN, {effects: ['lut'], transitions: [], blend_modes: [], anim_presets: []});
 assert.deepEqual(FXI.menuModel({}).flatMap(group => group.items).find(item => item.id === 'lut'), {id: 'lut', label_key: 'effect.lut.name', available: false, disabled: true, reason: 'effectUnavailable'});
@@ -650,16 +650,20 @@ assert(/data-kf-key="summary:10"[^>]*aria-pressed="false"/.test(html));
 `)
 }
 
-// Every desktop locale carries the Effects section strings (Task 14), and the sentences are translated:
-// - the registry's label keys: crop and flip; effect names, params and categories; the eight looks;
-// - the section's own strings, with their {{name}} placeholders.
+// Every desktop locale carries the Effects section strings (plan 2c Task 14), and the sentences are translated:
+//   - the registry's label keys: crop and flip; blend, the mask fields and every blend mode (2d); effect names, params
+//     and categories (chroma_key and the key category of 2d included); the eight looks;
+//   - the section's own strings, with their {{name}} placeholders.
 func TestVideoStudioEffectStackLocales(t *testing.T) {
 	registry := videostudio.EffectRegistry()
 	keys := []string{"effects", "effectAdd", "effectsEmpty", "effectsFull", "effectUnavailable", "effectBadgeUnavailable", "effectPreviewFailed", "effectBadgeFailed", "effectOn", "effectReset", "effectRemove", "effectDrag", "effectHeadHint", "effectsCropAnimatedHint", "crop", "flip", "lutNone", "lutLooks", "lutProject", "lutUpload", "lutUploadReady", "lutInvalid", "lutTooLarge", "lutCountLimit", "lutUploadType"}
 	for _, spec := range registry.Base {
-		if strings.HasPrefix(spec.ID, "crop.") || strings.HasPrefix(spec.ID, "flip_") {
+		if strings.HasPrefix(spec.ID, "crop.") || strings.HasPrefix(spec.ID, "flip_") || spec.ID == "blend" || strings.HasPrefix(spec.ID, "mask.") {
 			keys = append(keys, spec.LabelKey)
 		}
+	}
+	for _, mode := range registry.BlendModes {
+		keys = append(keys, mode.LabelKey)
 	}
 	for _, effect := range registry.Effects {
 		keys = append(keys, effect.LabelKey, "effectCategory_"+effect.Category)
@@ -689,7 +693,7 @@ func TestVideoStudioEffectStackLocales(t *testing.T) {
 		if lang == "en" {
 			continue
 		}
-		for _, key := range []string{"effectsEmpty", "effectsFull", "effectUnavailable", "effectPreviewFailed", "effectHeadHint", "effectsCropAnimatedHint", "lutUpload", "lutUploadType", "lutInvalid"} {
+		for _, key := range []string{"effectsEmpty", "effectsFull", "effectUnavailable", "effectPreviewFailed", "effectHeadHint", "effectsCropAnimatedHint", "lutUpload", "lutUploadType", "lutInvalid", "blend", "mask_invert", "effect.chroma_key.spill"} {
 			if values["videoStudio."+key] == english["videoStudio."+key] {
 				t.Errorf("%s copies the English videoStudio.%s", lang, key)
 			}

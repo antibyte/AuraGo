@@ -29,7 +29,16 @@
             { id: 'crop.r', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_r' },
             { id: 'crop.b', type: 'number', min: 0, max: 0.95, default: 0, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'crop_b' },
             { id: 'flip_h', type: 'bool', min: 0, max: 0, default: false, label_key: 'flip_h' },
-            { id: 'flip_v', type: 'bool', min: 0, max: 0, default: false, label_key: 'flip_v' }
+            { id: 'flip_v', type: 'bool', min: 0, max: 0, default: false, label_key: 'flip_v' },
+            { id: 'blend', type: 'choice', min: 0, max: 0, default: 'normal', choices: ['normal', 'multiply', 'screen', 'overlay', 'softlight', 'hardlight', 'darken', 'lighten', 'difference', 'exclusion', 'addition', 'subtract', 'dodge', 'burn'], label_key: 'blend' },
+            { id: 'mask.shape', type: 'choice', min: 0, max: 0, default: 'rect', choices: ['rect', 'ellipse'], label_key: 'mask_shape' },
+            { id: 'mask.x', type: 'number', min: -1, max: 1, default: 0.25, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'mask_x' },
+            { id: 'mask.y', type: 'number', min: -1, max: 1, default: 0.25, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'mask_y' },
+            { id: 'mask.w', type: 'number', min: 0.01, max: 2, default: 0.5, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'mask_w' },
+            { id: 'mask.h', type: 'number', min: 0.01, max: 2, default: 0.5, step: 0.001, keyframable: true, unit: 'fraction', label_key: 'mask_h' },
+            { id: 'mask.rotation', type: 'number', min: -360, max: 360, default: 0, step: 0.1, keyframable: true, unit: 'deg', label_key: 'mask_rotation' },
+            { id: 'mask.feather', type: 'number', min: 0, max: 0.5, default: 0, step: 0.001, keyframable: true, unit: 'height', label_key: 'mask_feather' },
+            { id: 'mask.invert', type: 'bool', min: 0, max: 0, default: false, label_key: 'mask_invert' }
         ],
         effects: [
             { id: 'color', category: 'color', label_key: 'effect.color.name', filters: ['lutrgb', 'colorchannelmixer'], params: [
@@ -61,6 +70,12 @@
             { id: 'vignette', category: 'stylize', label_key: 'effect.vignette.name', filters: ['vignette', 'alphaextract', 'alphamerge'], params: [
                 { id: 'amount', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, keyframable: true, label_key: 'effect.vignette.amount' },
                 { id: 'size', type: 'number', min: 0.25, max: 2, default: 1, step: 0.01, keyframable: true, unit: 'height', label_key: 'effect.vignette.size' }
+            ] },
+            { id: 'chroma_key', category: 'key', label_key: 'effect.chroma_key.name', filters: ['colorkey', 'despill'], params: [
+                { id: 'color', type: 'color', min: 0, max: 0, default: '#00b140', label_key: 'effect.chroma_key.color' },
+                { id: 'similarity', type: 'number', min: 0.01, max: 1, default: 0.25, step: 0.005, keyframable: true, label_key: 'effect.chroma_key.similarity' },
+                { id: 'smoothness', type: 'number', min: 0, max: 1, default: 0.1, step: 0.005, keyframable: true, label_key: 'effect.chroma_key.smoothness' },
+                { id: 'spill', type: 'number', min: 0, max: 1, default: 0.5, step: 0.01, label_key: 'effect.chroma_key.spill' }
             ] }
         ],
         transitions: [
@@ -69,7 +84,22 @@
             { id: 'wipeleft', xfade: 'wiperight', category: 'wipe', label_key: 'wipeleft' },
             { id: 'wiperight', xfade: 'wipeleft', category: 'wipe', label_key: 'wiperight' }
         ],
-        blend_modes: [],
+        blend_modes: [
+            { id: 'normal', blend: '', label_key: 'blend_normal' },
+            { id: 'multiply', blend: 'multiply', label_key: 'blend_multiply' },
+            { id: 'screen', blend: 'screen', label_key: 'blend_screen' },
+            { id: 'overlay', blend: 'overlay', label_key: 'blend_overlay' },
+            { id: 'softlight', blend: 'softlight', label_key: 'blend_softlight' },
+            { id: 'hardlight', blend: 'hardlight', label_key: 'blend_hardlight' },
+            { id: 'darken', blend: 'darken', label_key: 'blend_darken' },
+            { id: 'lighten', blend: 'lighten', label_key: 'blend_lighten' },
+            { id: 'difference', blend: 'difference', label_key: 'blend_difference' },
+            { id: 'exclusion', blend: 'exclusion', label_key: 'blend_exclusion' },
+            { id: 'addition', blend: 'addition', label_key: 'blend_addition' },
+            { id: 'subtract', blend: 'subtract', label_key: 'blend_subtract' },
+            { id: 'dodge', blend: 'dodge', label_key: 'blend_dodge' },
+            { id: 'burn', blend: 'burn', label_key: 'blend_burn' }
+        ],
         anim_presets: [],
         looks: [
             { id: 'warm', label_key: 'look_warm' },
@@ -101,6 +131,9 @@
     // Go's maxCropFraction: the largest share of one crop side, and of l + r and t + b (with 1e-9 of float slack).
     const CROP_MAX = 0.95;
     const CROP_PATHS = Object.freeze(['crop.l', 'crop.t', 'crop.r', 'crop.b']);
+    // The keyframable mask paths (2d) in registry order (Go maskPaths). animatablePaths lists them only while the clip
+    // has a mask.
+    const MASK_PATHS = Object.freeze(['mask.x', 'mask.y', 'mask.w', 'mask.h', 'mask.rotation', 'mask.feather']);
     const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
     // Keys in a keyframe map (clip.keyframes or an effect entry's keyframes); anything but a list counts 0.
     const keyCount = map => (isObject(map) ? Object.values(map).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0) : 0);
@@ -288,17 +321,20 @@
         const a = list[lo], b = list[hi];
         return a.v + (b.v - a.v) * ease(a.e, (x - a.f) / (b.f - a.f));
     }
-    // The keyframable base parameters of the registry (2b: x, y, width, height, rotation, opacity), in registry order.
+    // The keyframable base parameters of the registry (2b: x, y, width, height, rotation, opacity; 2c: crop.*; 2d:
+    // mask.*), in registry order.
     function keyframable() { return current.base.filter(spec => spec.keyframable && spec.type === 'number').map(spec => spec.id); }
     // True when a crop side has keyframes. The export then crops after the effects (index §4.20).
     function cropAnimated(clip) {
         const keyframes = clip && isObject(clip.keyframes) ? clip.keyframes : {};
         return CROP_PATHS.some(path => Array.isArray(keyframes[path]) && keyframes[path].length > 0);
     }
-    // Every path of a clip that can carry keyframes, in stack and registry order: the keyframable base paths, then
-    // effects.<i>.<param> for the keyframable number parameters of each known entry (on or off).
+    // Every path of a clip that can carry keyframes, in registry and stack order: the keyframable base paths (mask.*
+    // only while the clip has a mask, 2d), then effects.<i>.<param> for the keyframable number parameters of each known
+    // entry (on or off).
     function animatablePaths(clip) {
-        const paths = keyframable();
+        const masked = !!clip && isObject(clip.mask);
+        const paths = keyframable().filter(path => masked || !MASK_PATHS.includes(path));
         (clip && Array.isArray(clip.effects) ? clip.effects : []).forEach((entry, index) => {
             const spec = entry ? effect(entry.id) : null;
             if (spec) spec.params.forEach(param => { if (param.keyframable && param.type === 'number') paths.push('effects.' + index + '.' + param.id); });

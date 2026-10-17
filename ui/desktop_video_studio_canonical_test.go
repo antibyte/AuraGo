@@ -116,6 +116,8 @@ func canonicalGuardProject() videostudio.Project {
 				Crop:          &videostudio.Crop{L: 0.1, T: 0.05, R: 0.2, B: 0.15},
 				FlipH:         true,
 				FlipV:         true,
+				Blend:         "multiply",
+				Mask:          &videostudio.Mask{Shape: videostudio.MaskEllipse, X: 0.25, Y: 0.2, W: 0.5, H: 0.6, Rotation: 15, Feather: 0.04, Invert: true},
 				Effects: []videostudio.EffectInstance{{ID: "color", On: true, Params: map[string]any{"contrast": 1.1, "exposure": 0.5}, Keyframes: map[string][]videostudio.Keyframe{
 					"contrast": {{F: 0, V: 1, E: videostudio.EaseLinear}, {F: 12, V: 1.2, E: videostudio.EaseOut}},
 					"exposure": {{F: 0, V: 0, E: videostudio.EaseLinear}, {F: 10, V: 1, E: videostudio.EaseHold}},
@@ -306,6 +308,54 @@ process.stdout.write(JSON.stringify(P.canonicalProject(live)));
 	output, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("canonical effects: %v\n%s", err, stderr.String())
+	}
+	if string(output) != string(data) {
+		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)
+	}
+}
+
+// Blend and mask reach the server in Go's JSON form (plan 2d, index §4.1). The guard project's canonical copy
+// stringifies exactly like json.Marshal, even when the live mask holds its keys in another order plus an editor-only
+// key. Blend normal (or an empty or null name) and a missing mask take Go's omitempty form; a mask always carries all
+// eight keys, invert too, and a missing number reads 0 as Go decodes it.
+func TestVideoStudioCanonicalCompositingMatchGo(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio canonical form checks")
+	}
+	data, err := json.Marshal(canonicalGuardProject())
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const P = window.VideoStudioParts;
+const live = ` + string(data) + `;
+const clip = live.tracks[0].clips[0], m = clip.mask;
+clip.mask = {invert: m.invert, dragging: true, feather: m.feather, rotation: m.rotation, h: m.h, w: m.w, y: m.y, x: m.x, shape: m.shape};
+const bare = JSON.parse(JSON.stringify(live)), bareClip = bare.tracks[0].clips[0];
+for (const blend of ['normal', '', null]) {
+  Object.assign(bareClip, {blend, mask: null});
+  const keys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+  assert(!keys.includes('blend') && !keys.includes('mask'), JSON.stringify(blend) + ': blend and mask are omitted like Go omitempty');
+}
+Object.assign(bareClip, {blend: 'screen', mask: {shape: 'rect', x: 0.1, y: 0.2, w: 0.3, h: 0.4}});
+assert.equal(JSON.stringify(P.canonicalProject(bare).tracks[0].clips[0].mask), '{"shape":"rect","x":0.1,"y":0.2,"w":0.3,"h":0.4,"rotation":0,"feather":0,"invert":false}');
+const keys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+assert.deepEqual(keys.slice(keys.indexOf('flip_v'), keys.indexOf('effects') + 1), ['flip_v', 'blend', 'mask', 'effects'], 'blend and mask sit between flip_v and effects');
+process.stdout.write(JSON.stringify(P.canonicalProject(live)));
+`
+	cmd := exec.Command(node, "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("canonical compositing: %v\n%s", err, stderr.String())
 	}
 	if string(output) != string(data) {
 		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)

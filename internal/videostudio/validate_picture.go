@@ -17,6 +17,7 @@ const maxCropFraction = 0.95
 
 // FieldError is a validation error with the path of the field it concerns. Paths look like:
 //   - clips/<id>/crop, clips/<id>/flip_h and clips/<id>/flip_v;
+//   - clips/<id>/blend, clips/<id>/mask and clips/<id>/mask/<field> (2d);
 //   - clips/<id>/effects (stack limits), clips/<id>/effects/<i>, clips/<id>/effects/<i>/params and
 //     clips/<id>/effects/<i>/params/<param>;
 //   - clips/<id>/effects/<i>/keyframes/<param>;
@@ -71,6 +72,63 @@ func validateCrop(track Track, clip Clip) error {
 	}
 	if *crop == (Crop{}) {
 		return fieldError(path+"/crop", "clip %q has an empty crop; leave crop out instead", clip.ID)
+	}
+	return nil
+}
+
+// maskPaths are the keyframable mask paths (the base rows mask.x|y|w|h|rotation|feather, 2d) in registry order. JS:
+// VideoStudioEffects.MASK_PATHS.
+var maskPaths = []string{"mask.x", "mask.y", "mask.w", "mask.h", "mask.rotation", "mask.feather"}
+
+// validateBlend checks a clip's blend mode (2d, plan index §4.1): visual clips only, a registry mode, and never the name
+// "normal". An absent blend is normal, so refusing the explicit name keeps the canonical form unique; the editor
+// deletes the field instead.
+func validateBlend(track Track, clip Clip) error {
+	if clip.Blend == "" {
+		return nil
+	}
+	path := "clips/" + clip.ID + "/blend"
+	switch {
+	case track.Kind == TrackAudio:
+		return fieldError(path, "clip %q on an audio track cannot have a blend mode", clip.ID)
+	case clip.Blend == BlendNormal:
+		return fieldError(path, "clip %q: normal is the default blend mode; leave blend out instead", clip.ID)
+	}
+	if _, ok := BlendModeByID(clip.Blend); !ok {
+		return fieldError(path, "clip %q has an unknown blend mode %q", clip.ID, clip.Blend)
+	}
+	return nil
+}
+
+// validateMask checks a clip's mask (2d, plan index §4.1 and §4.2):
+//   - visual clips only;
+//   - mask.* keyframes only on a clip with a mask (validateKeyframes has already checked their values against the base
+//     rows);
+//   - shape rect or ellipse;
+//   - x, y, w, h, rotation and feather finite and inside their base rows.
+func validateMask(track Track, clip Clip) error {
+	path := "clips/" + clip.ID + "/mask"
+	mask := clip.Mask
+	if mask == nil {
+		for _, key := range maskPaths {
+			if len(clip.Keyframes[key]) > 0 {
+				return fieldError(path, "clip %q has mask keyframes but no mask", clip.ID)
+			}
+		}
+		return nil
+	}
+	if track.Kind == TrackAudio {
+		return fieldError(path, "clip %q on an audio track cannot have a mask", clip.ID)
+	}
+	if mask.Shape != MaskRect && mask.Shape != MaskEllipse {
+		return fieldError(path+"/shape", "clip %q mask shape must be rect or ellipse", clip.ID)
+	}
+	for i, value := range []float64{mask.X, mask.Y, mask.W, mask.H, mask.Rotation, mask.Feather} {
+		spec, _ := BaseParam(maskPaths[i])
+		if !finite(value) || value < spec.Min || value > spec.Max {
+			name := strings.TrimPrefix(maskPaths[i], "mask.")
+			return fieldError(path+"/"+name, "clip %q mask %s must be between %v and %v", clip.ID, name, spec.Min, spec.Max)
+		}
 	}
 	return nil
 }

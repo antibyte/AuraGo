@@ -233,7 +233,7 @@ assert.deepEqual(E.clipState(clip, 105, project).effects.map(e => e.id), ['color
 assert.equal(E.effectAvailable('lut'), false);
 assert.equal(E.effectAvailable('color'), true);
 assert.equal(E.effectAvailable('nope'), false);
-assert.deepEqual(E.effects().map(e => [e.id, e.available]), [['color', true], ['lut', false], ['blur', true], ['sharpen', true], ['vignette', true]]);
+assert.deepEqual(E.effects().map(e => [e.id, e.available]), [['color', true], ['lut', false], ['blur', true], ['sharpen', true], ['vignette', true], ['chroma_key', true]]);
 E.adopt(undefined, undefined);
 assert.deepEqual(E.looks(), ['warm', 'cool', 'teal_orange', 'mono', 'faded_film', 'high_contrast', 'vintage', 'bleach_bypass'].map(id => ({id, label_key: 'look_' + id})));
 assert.equal(E.LIMITS.effectsPerClip, 8);

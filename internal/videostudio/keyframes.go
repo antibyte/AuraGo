@@ -76,7 +76,7 @@ func countKeyframes(clip Clip) int {
 //
 // Parameters are not checked against each other: x + width may exceed 1, because the export's clip box clamps it.
 // crop.l|t|r|b are registry base rows (2c), so they pass here; validateEffects checks the keyframes of effect entries.
-// 2d adds mask.*.
+// mask.x|y|w|h|rotation|feather are base rows too (2d); validateMask refuses them on a clip without a mask.
 func validateKeyframes(track Track, clip Clip, maxFrames int) error {
 	if len(clip.Keyframes) == 0 {
 		return nil
@@ -177,15 +177,16 @@ func sampleKeyframes(list []Keyframe, f float64) float64 {
 }
 
 // ValueAt returns a keyframable path of a clip at absolute timeline frame frame (plan index §4.4, §4.16). Paths:
-//   - the base paths x, y, width, height, rotation, opacity and crop.l|t|r|b (0 without a crop);
+//   - the base paths x, y, width, height, rotation, opacity, crop.l|t|r|b (0 without a crop) and
+//     mask.x|y|w|h|rotation|feather (the registry default without a mask, 2d);
 //   - effects.<i>.<param>, a number parameter of effect entry i: its keyframes, else its params value, else the
 //     registry default.
 //
 // With keyframes on the path, the list is sampled at ClipSourceAt(clip, frame), the source position the clip shows
 // there: offset + (frame − start)·speed, or offset + S(frame − start) with a ramp. Keyframes thus stay on the picture
 // content (spec §5.1). Without keyframes it returns the static value, and the frame may lie outside the clip. ok is
-// false for any other path, for an unknown entry or effect, and for a parameter that is not a number. JS:
-// VideoStudioEffects.valueAt.
+// false for any other path (mask.shape and mask.invert included), for an unknown entry or effect, and for a parameter
+// that is not a number. JS: VideoStudioEffects.valueAt.
 func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 	var static float64
 	switch path {
@@ -203,6 +204,8 @@ func ValueAt(clip Clip, path string, frame int) (float64, bool) {
 		static = clip.Opacity
 	case "crop.l", "crop.t", "crop.r", "crop.b":
 		static = cropValue(clip.Crop, path)
+	case "mask.x", "mask.y", "mask.w", "mask.h", "mask.rotation", "mask.feather":
+		static = maskValue(clip.Mask, path)
 	default:
 		return effectEntryValue(clip, path, frame)
 	}
@@ -226,6 +229,29 @@ func cropValue(crop *Crop, path string) float64 {
 		return crop.R
 	}
 	return crop.B
+}
+
+// maskValue is one number of a clip's static mask (path mask.x|y|w|h|rotation|feather, 2d). Without a mask it is the
+// registry default, the value a new mask gets.
+func maskValue(mask *Mask, path string) float64 {
+	if mask == nil {
+		spec, _ := BaseParam(path)
+		value, _ := spec.Default.(float64)
+		return value
+	}
+	switch path {
+	case "mask.x":
+		return mask.X
+	case "mask.y":
+		return mask.Y
+	case "mask.w":
+		return mask.W
+	case "mask.h":
+		return mask.H
+	case "mask.rotation":
+		return mask.Rotation
+	}
+	return mask.Feather
 }
 
 // effectEntryValue resolves effects.<i>.<param> for ValueAt. <i> is a plain decimal index into clip.Effects (the entry

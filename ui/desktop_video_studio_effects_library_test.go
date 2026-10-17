@@ -66,12 +66,13 @@ assert.equal(L.MIME, 'application/x-aurago-vs-effect');
 assert.equal(L.MAX_LUT_BYTES, %d, 'MAX_LUT_BYTES mirrors Go videostudio.MaxLUTBytes');
 
 const groups = L.model();
-assert.deepEqual(groups.map(group => group.category), ['color', 'detail', 'stylize']);
-assert.deepEqual(groups.map(group => group.label_key), ['effectCategory_color', 'effectCategory_detail', 'effectCategory_stylize']);
+assert.deepEqual(groups.map(group => group.category), ['color', 'detail', 'stylize', 'key']);
+assert.deepEqual(groups.map(group => group.label_key), ['effectCategory_color', 'effectCategory_detail', 'effectCategory_stylize', 'effectCategory_key']);
 const looks = ['warm', 'cool', 'teal_orange', 'mono', 'faded_film', 'high_contrast', 'vintage', 'bleach_bypass'];
 assert.deepEqual(groups[0].items.map(entry => entry.key), ['color', 'lut'].concat(looks.map(id => 'look:' + id)));
 assert.deepEqual(groups[1].items.map(entry => entry.key), ['blur', 'sharpen']);
 assert.deepEqual(groups[2].items.map(entry => entry.key), ['vignette']);
+assert.deepEqual(groups[3].items.map(entry => entry.key), ['chroma_key'], 'chroma_key opens the key category (2d)');
 const look = L.item('look:teal_orange');
 assert.deepEqual([look.effect, look.params, look.label_key, look.look, look.category], ['lut', {lut: 'builtin:teal_orange'}, 'look_teal_orange', 'teal_orange', 'color']);
 assert.deepEqual(L.item('lut').params, {}, 'the plain LUT item starts without a table (lut.lut defaults to "")');
