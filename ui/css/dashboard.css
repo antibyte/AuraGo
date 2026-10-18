@@ -972,6 +972,10 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"] .profile-search::placeholder {
     color: var(--pw-muted);
 }
+/* A search box directly in a card body (a column flex box) must not grow: .pw-search sets flex: 1 1 220px */
+.pw-page[data-workspace-page="dashboard"] .dash-card-body > .profile-search {
+    flex: none;
+}
 .pw-page[data-workspace-page="dashboard"] .profile-category {
     margin-bottom: 0.75rem;
 }
@@ -1810,7 +1814,9 @@ to { opacity: 1; }
     border-color: var(--pw-accent);
     background: var(--pw-surface);
 }
-.pw-page[data-workspace-page="dashboard"] .log-controls .log-btn {
+.pw-page[data-workspace-page="dashboard"] .log-controls .log-btn,
+.pw-page[data-workspace-page="dashboard"] .operational-issues-controls .log-btn,
+.pw-page[data-workspace-page="dashboard"] .cronjobs-controls .log-btn {
     padding: 0.45rem 0.85rem;
     border-radius: 0.6rem;
     background: var(--pw-surface);
@@ -1824,7 +1830,9 @@ to { opacity: 1; }
     overflow: hidden;
     font-weight: 500;
 }
-.pw-page[data-workspace-page="dashboard"] .log-controls .log-btn:hover {
+.pw-page[data-workspace-page="dashboard"] .log-controls .log-btn:hover,
+.pw-page[data-workspace-page="dashboard"] .operational-issues-controls .log-btn:hover,
+.pw-page[data-workspace-page="dashboard"] .cronjobs-controls .log-btn:hover {
     color: var(--pw-accent);
     border-color: color-mix(in srgb, var(--pw-accent) 40%, var(--pw-line));
     transform: translateY(-1px);

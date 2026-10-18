@@ -60,3 +60,26 @@ func TestDashboardCSSDropsSupersededRules(t *testing.T) {
 		}
 	}
 }
+
+// TestDashboardControlsAndProfileSearchStyles: the problems and cron job control bars use the logs toolbar button
+// look, and the profile search box keeps its height in the user card's column flex body (.pw-search sets
+// flex: 1 1 220px, which grew it to about 220 px there).
+func TestDashboardControlsAndProfileSearchStyles(t *testing.T) {
+	t.Parallel()
+
+	css := dashboardCSSWithoutComments(t, "css/dashboard.css")
+	for _, scope := range []string{".log-controls", ".operational-issues-controls", ".cronjobs-controls"} {
+		body := dashboardCSSRuleBody(t, css, scope+" .log-btn")
+		for _, want := range []string{"padding: 0.45rem 0.85rem;", "border-radius: 0.6rem;", "cursor: pointer;", "font-size: var(--text-sm);"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s .log-btn misses %q", scope, want)
+			}
+		}
+		if hover := dashboardCSSRuleBody(t, css, scope+" .log-btn:hover"); !strings.Contains(hover, "color: var(--pw-accent);") {
+			t.Errorf("%s .log-btn:hover must use the accent colour", scope)
+		}
+	}
+	if body := dashboardCSSRuleBody(t, css, ".dash-card-body > .profile-search"); !strings.Contains(body, "flex: none;") {
+		t.Error("a profile search box directly in a card body must not grow (flex: none)")
+	}
+}
