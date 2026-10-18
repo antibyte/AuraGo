@@ -7,6 +7,10 @@ import (
 	"sort"
 )
 
+func terminalPlanTaskStatus(status string) bool {
+	return status == PlanTaskCompleted || status == PlanTaskFailed || status == PlanTaskSkipped
+}
+
 func invalidPlanDependencies(dependencies map[string][]string) (string, error) {
 	state := make(map[string]uint8, len(dependencies))
 	var visit func(string) error
@@ -44,16 +48,29 @@ func invalidPlanDependencies(dependencies map[string][]string) (string, error) {
 }
 
 func invalidPlanDependenciesTx(tx *sql.Tx, planID string) (string, error) {
-	rows, err := tx.Query(`SELECT id,depends_on_json FROM plan_tasks WHERE plan_id=? ORDER BY task_order`, planID)
+	return invalidPlanDependenciesTxWithStatus(tx, planID, "", "")
+}
+
+func invalidPlanDependenciesTxWithStatus(tx *sql.Tx, planID, overrideTaskID, overrideStatus string) (string, error) {
+	rows, err := tx.Query(`SELECT id,status,depends_on_json FROM plan_tasks WHERE plan_id=? ORDER BY task_order`, planID)
 	if err != nil {
 		return "", fmt.Errorf("read plan dependencies: %w", err)
 	}
 	defer rows.Close()
 	dependencies := map[string][]string{}
 	for rows.Next() {
-		var id, raw string
-		if err := rows.Scan(&id, &raw); err != nil {
+		var id, status, raw string
+		if err := rows.Scan(&id, &status, &raw); err != nil {
 			return "", fmt.Errorf("scan plan dependencies: %w", err)
+		}
+		if id == overrideTaskID {
+			status = overrideStatus
+		}
+		// Completed and skipped tasks are terminal leaves. Their historical
+		// dependency data must not prevent the remaining plan from progressing.
+		if status == PlanTaskCompleted || status == PlanTaskSkipped {
+			dependencies[id] = nil
+			continue
 		}
 		var deps []string
 		if err := json.Unmarshal([]byte(raw), &deps); err != nil || deps == nil {
@@ -66,4 +83,25 @@ func invalidPlanDependenciesTx(tx *sql.Tx, planID string) (string, error) {
 	}
 	id, _ := invalidPlanDependencies(dependencies)
 	return id, nil
+}
+
+func planTaskDependenciesReadyTx(tx *sql.Tx, planID, taskID string) (bool, error) {
+	var raw string
+	if err := tx.QueryRow(`SELECT depends_on_json FROM plan_tasks WHERE plan_id=? AND id=?`, planID, taskID).Scan(&raw); err != nil {
+		return false, fmt.Errorf("read task dependencies: %w", err)
+	}
+	var dependencies []string
+	if err := json.Unmarshal([]byte(raw), &dependencies); err != nil || dependencies == nil {
+		return false, nil
+	}
+	for _, dependencyID := range dependencies {
+		var status string
+		if err := tx.QueryRow(`SELECT status FROM plan_tasks WHERE plan_id=? AND id=?`, planID, dependencyID).Scan(&status); err != nil {
+			return false, nil
+		}
+		if status != PlanTaskCompleted && status != PlanTaskSkipped {
+			return false, nil
+		}
+	}
+	return true, nil
 }

@@ -528,6 +528,40 @@ func (s *SQLiteMemory) UpdatePlanTask(planID, taskID, status, resultSummary, tas
 	}
 	defer tx.Rollback()
 
+	var previousStatus, planStatus string
+	if err := tx.QueryRow(
+		`SELECT t.status,p.status FROM plan_tasks t JOIN plans p ON p.id=t.plan_id WHERE t.plan_id=? AND t.id=?`,
+		planID, taskID,
+	).Scan(&previousStatus, &planStatus); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("plan task not found")
+		}
+		return nil, fmt.Errorf("read task status: %w", err)
+	}
+
+	reopening := terminalPlanTaskStatus(previousStatus) && (status == PlanTaskPending || status == PlanTaskInProgress)
+	if status == PlanTaskInProgress {
+		if invalidTaskID, err := invalidPlanDependenciesTxWithStatus(tx, planID, taskID, status); err != nil {
+			return nil, err
+		} else if invalidTaskID != "" {
+			return nil, fmt.Errorf("cannot start task while dependencies for task %s are invalid", invalidTaskID)
+		}
+		ready, err := planTaskDependenciesReadyTx(tx, planID, taskID)
+		if err != nil {
+			return nil, err
+		}
+		if !ready {
+			return nil, fmt.Errorf("cannot start task %s before its dependencies are completed or skipped", taskID)
+		}
+		var otherInProgress int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM plan_tasks WHERE plan_id=? AND id!=? AND status=?`, planID, taskID, PlanTaskInProgress).Scan(&otherInProgress); err != nil {
+			return nil, fmt.Errorf("count other in-progress tasks: %w", err)
+		}
+		if otherInProgress != 0 {
+			return nil, fmt.Errorf("cannot start task %s while another task is in progress", taskID)
+		}
+	}
+
 	startedAt := ""
 	completedAt := ""
 	switch status {
@@ -537,23 +571,40 @@ func (s *SQLiteMemory) UpdatePlanTask(planID, taskID, status, resultSummary, tas
 		completedAt = now
 	}
 
-	res, err := tx.Exec(
-		`UPDATE plan_tasks
-		 SET status = ?,
-		     result_summary = CASE WHEN ? != '' THEN ? ELSE result_summary END,
-		     error = CASE WHEN ? != '' THEN ? ELSE error END,
-		     blocker_reason = CASE WHEN ? IN ('completed','failed','skipped','pending','in_progress') THEN '' ELSE blocker_reason END,
-		     started_at = CASE WHEN ? != '' THEN ? ELSE started_at END,
-		     completed_at = CASE WHEN ? != '' THEN ? ELSE completed_at END
-		 WHERE plan_id = ? AND id = ?`,
-		status,
-		resultSummary, resultSummary,
-		taskError, taskError,
-		status,
-		startedAt, startedAt,
-		completedAt, completedAt,
-		planID, taskID,
-	)
+	var res sql.Result
+	if reopening {
+		res, err = tx.Exec(
+			`UPDATE plan_tasks
+			 SET status = ?,
+			     result_summary = CASE WHEN ? != '' THEN ? ELSE result_summary END,
+			     error = CASE WHEN ? != '' THEN ? ELSE error END,
+			     blocker_reason = '', started_at = ?, completed_at = ?
+			 WHERE plan_id = ? AND id = ?`,
+			status,
+			resultSummary, resultSummary,
+			taskError, taskError,
+			startedAt, completedAt,
+			planID, taskID,
+		)
+	} else {
+		res, err = tx.Exec(
+			`UPDATE plan_tasks
+			 SET status = ?,
+			     result_summary = CASE WHEN ? != '' THEN ? ELSE result_summary END,
+			     error = CASE WHEN ? != '' THEN ? ELSE error END,
+			     blocker_reason = CASE WHEN ? IN ('completed','failed','skipped','pending','in_progress') THEN '' ELSE blocker_reason END,
+			     started_at = CASE WHEN ? != '' THEN ? ELSE started_at END,
+			     completed_at = CASE WHEN ? != '' THEN ? ELSE completed_at END
+			 WHERE plan_id = ? AND id = ?`,
+			status,
+			resultSummary, resultSummary,
+			taskError, taskError,
+			status,
+			startedAt, startedAt,
+			completedAt, completedAt,
+			planID, taskID,
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("update task status: %w", err)
 	}
@@ -574,14 +625,21 @@ func (s *SQLiteMemory) UpdatePlanTask(planID, taskID, status, resultSummary, tas
 	); err != nil {
 		return nil, fmt.Errorf("insert task event: %w", err)
 	}
+	if reopening && planStatus == PlanStatusCompleted {
+		if _, err := tx.Exec(`UPDATE plans SET status=?, completed_at='', blocked_reason='', updated_at=? WHERE id=?`, PlanStatusActive, now, planID); err != nil {
+			return nil, fmt.Errorf("reactivate reopened plan: %w", err)
+		}
+	}
 	if _, err := tx.Exec(`UPDATE plans SET updated_at = ? WHERE id = ?`, now, planID); err != nil {
 		return nil, fmt.Errorf("touch plan: %w", err)
 	}
 
-	if status == PlanTaskCompleted {
+	if status == PlanTaskCompleted || (status == PlanTaskPending && reopening) {
 		if err := s.promoteNextPlanTaskTx(tx, planID, now); err != nil {
 			return nil, err
 		}
+	}
+	if status == PlanTaskCompleted {
 		if err := s.finalizeCompletedPlanTx(tx, planID, now); err != nil {
 			return nil, err
 		}
@@ -667,6 +725,17 @@ func (s *SQLiteMemory) SetPlanTaskBlocker(planID, taskID, reason string) (*Plan,
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
+
+	var taskStatus string
+	if err := tx.QueryRow(`SELECT status FROM plan_tasks WHERE plan_id=? AND id=?`, planID, taskID).Scan(&taskStatus); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("plan task not found")
+		}
+		return nil, fmt.Errorf("read task status: %w", err)
+	}
+	if terminalPlanTaskStatus(taskStatus) {
+		return nil, fmt.Errorf("cannot block terminal task %s with status %s", taskID, taskStatus)
+	}
 
 	res, err := tx.Exec(
 		`UPDATE plan_tasks
@@ -1290,13 +1359,23 @@ const planTaskDependencyBlocker = "Task dependency data is unreadable or invalid
 // blockPlanTaskForUnreadableDependenciesTx blocks the task and its plan the same way
 // SetPlanTaskBlocker does, so ClearPlanTaskBlocker resumes it after a repair.
 func blockPlanTaskForUnreadableDependenciesTx(tx *sql.Tx, planID, taskID, now string) error {
-	if _, err := tx.Exec(
+	res, err := tx.Exec(
 		`UPDATE plan_tasks
 		 SET status = ?, blocker_reason = ?, completed_at = '', error = CASE WHEN error = '' THEN ? ELSE error END
-		 WHERE plan_id = ? AND id = ?`,
+		 WHERE plan_id = ? AND id = ? AND status NOT IN (?, ?, ?)`,
 		PlanTaskBlocked, planTaskDependencyBlocker, planTaskDependencyBlocker, planID, taskID,
-	); err != nil {
+		PlanTaskCompleted, PlanTaskFailed, PlanTaskSkipped,
+	)
+	if err != nil {
 		return fmt.Errorf("block task %s with unreadable dependencies: %w", taskID, err)
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("check task dependency blocker update: %w", err)
+	} else if affected == 0 {
+		var exists int
+		if err := tx.QueryRow(`SELECT 1 FROM plan_tasks WHERE plan_id=? AND id=?`, planID, taskID).Scan(&exists); err != nil {
+			return fmt.Errorf("read task %s for dependency blocker: %w", taskID, err)
+		}
 	}
 	if _, err := tx.Exec(
 		`UPDATE plans SET status = ?, blocked_reason = ?, updated_at = ? WHERE id = ?`,

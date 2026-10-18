@@ -139,3 +139,149 @@ func TestLegacyEmptyDependencyArrayRemainsRunnable(t *testing.T) {
 		t.Fatalf("empty array prevented promotion: %+v %v", plan, err)
 	}
 }
+
+func TestSkippedTaskWithUnreadableLegacyDependenciesCanResumePlan(t *testing.T) {
+	s := newTestPlansDB(t)
+	plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE plan_tasks SET depends_on_json='null' WHERE id=?`, plan.Tasks[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+	if err != nil || plan.Tasks[0].Status != PlanTaskBlocked {
+		t.Fatalf("invalid legacy task was not visibly blocked: %+v %v", plan, err)
+	}
+	plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[0].ID, PlanTaskSkipped, "skip corrupt legacy task", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "resume after skip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Status != PlanStatusActive || plan.Tasks[0].Status != PlanTaskSkipped || plan.Tasks[1].Status != PlanTaskInProgress {
+		t.Fatalf("skipped terminal leaf prevented plan resumption: status=%s tasks=%+v", plan.Status, plan.Tasks)
+	}
+}
+
+func TestFailedDependencyDoesNotReleaseDependentTask(t *testing.T) {
+	s := newTestPlansDB(t)
+	plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[0].ID, PlanTaskFailed, "step failed", "failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Tasks[0].Status != PlanTaskFailed || plan.Tasks[1].Status != PlanTaskPending {
+		t.Fatalf("failed prerequisite incorrectly released dependent: %+v", plan.Tasks)
+	}
+}
+
+func TestAutomaticDependencyBlockPreservesTerminalFailure(t *testing.T) {
+	s := newTestPlansDB(t)
+	plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE plan_tasks SET depends_on_json='{broken' WHERE id=?`, plan.Tasks[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[0].ID, PlanTaskFailed, "failed", "failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "retry plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Tasks[0].Status != PlanTaskFailed || plan.Status != PlanStatusBlocked {
+		t.Fatalf("dependency blocker overwrote terminal failure or failed to expose plan error: status=%s task=%+v", plan.Status, plan.Tasks[0])
+	}
+}
+
+func TestReopeningTaskRevalidatesDependenciesAndDirectStart(t *testing.T) {
+	t.Run("reopen with corrupt dependencies is blocked", func(t *testing.T) {
+		s := newTestPlansDB(t)
+		plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range plan.Tasks {
+			plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[i].ID, PlanTaskCompleted, "done", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if plan.Status != PlanStatusCompleted {
+			t.Fatalf("plan did not complete: %+v", plan)
+		}
+		if _, err := s.db.Exec(`UPDATE plan_tasks SET depends_on_json='null' WHERE id=?`, plan.Tasks[0].ID); err != nil {
+			t.Fatal(err)
+		}
+		plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[0].ID, PlanTaskPending, "retry", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plan.Status != PlanStatusBlocked || plan.Tasks[0].Status != PlanTaskBlocked {
+			t.Fatalf("reopened task bypassed invalid dependency validation: %+v", plan)
+		}
+	})
+
+	t.Run("direct start cannot bypass dependency status", func(t *testing.T) {
+		s := newTestPlansDB(t)
+		plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.UpdatePlanTask(plan.ID, plan.Tasks[1].ID, PlanTaskInProgress, "", ""); err == nil || !strings.Contains(err.Error(), "dependencies") {
+			t.Fatalf("direct start error = %v, want unmet dependency rejection", err)
+		}
+		plan, err = s.GetPlan(plan.ID)
+		if err != nil || plan.Tasks[1].Status != PlanTaskPending {
+			t.Fatalf("rejected direct start mutated dependent task: %+v %v", plan, err)
+		}
+	})
+}
+
+func TestSetPlanTaskBlockerDoesNotOverwriteTerminalTask(t *testing.T) {
+	s := newTestPlansDB(t)
+	plan, err := s.CreatePlan("s", "plan", "", "", 2, samplePlanTasks())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.SetPlanStatus(plan.ID, PlanStatusActive, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = s.UpdatePlanTask(plan.ID, plan.Tasks[0].ID, PlanTaskCompleted, "done", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetPlanTaskBlocker(plan.ID, plan.Tasks[0].ID, "late blocker"); err == nil {
+		t.Fatal("SetPlanTaskBlocker accepted a completed task")
+	}
+	plan, err = s.GetPlan(plan.ID)
+	if err != nil || plan.Tasks[0].Status != PlanTaskCompleted || plan.Status != PlanStatusActive {
+		t.Fatalf("terminal blocker attempt changed task or plan: %+v %v", plan, err)
+	}
+}
