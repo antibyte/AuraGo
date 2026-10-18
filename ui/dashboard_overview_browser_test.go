@@ -247,7 +247,7 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	got := p.MustEval(`() => {
 		const rows = [...document.querySelectorAll('#ov-attention-list a.ov-attention-row')];
 		const badge = id => { const el = document.querySelector('[data-nav-badge="' + id + '"]'); return el.hidden ? '' : el.textContent + '|' + el.getAttribute('aria-label'); };
-		const pillWant = t('dashboard.overview.pill_critical', { n: '1' }) + ', ' + t('dashboard.overview.pill_warning', { n: '2' });
+		const pillWant = t('dashboard.overview.pill_critical_one', { n: '1' }) + ', ' + t('dashboard.overview.pill_warning', { n: '2' });
 		return {
 			severities: rows.map(r => r.dataset.severity).join(','),
 			hrefs: rows.map(r => r.getAttribute('href')).join(','),

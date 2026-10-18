@@ -61,20 +61,25 @@
         };
     }
 
+    // Plural-aware key: "<key>_one" for exactly one (never for an open count such as "1+"), else the plural key.
+    function countKey(key, count, open) {
+        return count === 1 && !open ? key + '_one' : key;
+    }
+
     function overallState(summary) {
         const overall = summary ? summary.overall : '';
         return overall === 'ok' || overall === 'warning' || overall === 'critical' ? overall : '';
     }
 
-    // Pill text: "All good" or "1 critical, 2 warning(s)" from the attention rows. translate is t(key, params).
+    // Pill text: "All good" or "1 critical, 2 warnings" from the attention rows. translate is t(key, params).
     function overallText(summary, translate) {
         const state = overallState(summary);
         if (!state) return translate('dashboard.overview.pill_unavailable');
         if (state === 'ok') return translate('dashboard.overview.pill_ok');
         const counts = attentionCounts(summary);
         const parts = [];
-        if (counts.critical > 0) parts.push(translate('dashboard.overview.pill_critical', { n: counts.critical + (counts.criticalOpen ? '+' : '') }));
-        if (counts.warning > 0) parts.push(translate('dashboard.overview.pill_warning', { n: counts.warning + (counts.warningOpen ? '+' : '') }));
+        if (counts.critical > 0) parts.push(translate(countKey('dashboard.overview.pill_critical', counts.critical, counts.criticalOpen), { n: counts.critical + (counts.criticalOpen ? '+' : '') }));
+        if (counts.warning > 0) parts.push(translate(countKey('dashboard.overview.pill_warning', counts.warning, counts.warningOpen), { n: counts.warning + (counts.warningOpen ? '+' : '') }));
         return parts.length ? parts.join(', ') : translate('dashboard.overview.severity_' + state);
     }
 
@@ -268,5 +273,6 @@
         badgeTexts,
         overallState,
         overallText,
+        countKey,
     };
 })();

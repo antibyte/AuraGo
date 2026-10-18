@@ -101,10 +101,15 @@ async function main() {
         assert.equal(feed.overviewBadgeText(null), '');
         assert.equal(json(feed.badgeTexts(mixed)), json({ overview: '3', problems: '3', automations: '' }));
         const tr = (key, params) => key.replace('dashboard.overview.', '') + (params ? ':' + params.n : '');
-        assert.equal(feed.overallText(mixed, tr), 'pill_critical:1, pill_warning:2');
+        assert.equal(feed.overallText(mixed, tr), 'pill_critical_one:1, pill_warning:2');
         assert.equal(feed.overallText(full, tr), 'pill_warning:8+');
         assert.equal(feed.overallText({ overall: 'ok', attention: [row('info', 'x')] }, tr), 'pill_ok', 'info rows keep ok');
         assert.equal(feed.overallText(null, tr), 'pill_unavailable');
+        assert.equal(feed.overallText({ overall: 'warning', attention: [row('warning', 'w')], attention_more: 0 }, tr), 'pill_warning_one:1', 'one warning uses the _one string');
+        assert.equal(feed.overallText({ overall: 'critical', attention: [row('critical', 'c')], attention_more: 2 }, tr), 'pill_critical:1+', 'an open count is never singular');
+        assert.equal(feed.countKey('k', 1, false), 'k_one');
+        assert.equal(feed.countKey('k', 2, false), 'k');
+        assert.equal(feed.countKey('k', 0, false), 'k');
     }
     {
         const env = load([ok(mixed), ok(full)]);

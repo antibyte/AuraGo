@@ -316,7 +316,8 @@
         }
         const more = Math.max(0, Math.floor(Number(summary.attention_more) || 0));
         if (more > 0) {
-            rows.push('<li><a class="ov-attention-more" href="#problems">' + esc(t('dashboard.overview.attention_more', { n: String(more) })) + '</a></li>');
+            const moreKey = window.DashSummary.countKey('dashboard.overview.attention_more', more, false);
+            rows.push('<li><a class="ov-attention-more" href="#problems">' + esc(t(moreKey, { n: String(more) })) + '</a></li>');
         }
         list.innerHTML = rows.join('');
     }

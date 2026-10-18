@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -21,7 +22,9 @@ func dashboardOverviewI18nKeys() []string {
 		"dashboard.overview.status_title",
 		"dashboard.overview.pill_ok",
 		"dashboard.overview.pill_critical",
+		"dashboard.overview.pill_critical_one",
 		"dashboard.overview.pill_warning",
+		"dashboard.overview.pill_warning_one",
 		"dashboard.overview.pill_loading",
 		"dashboard.overview.pill_unavailable",
 		"dashboard.overview.label_agent",
@@ -33,6 +36,7 @@ func dashboardOverviewI18nKeys() []string {
 		"dashboard.overview.attention_title",
 		"dashboard.overview.attention_empty",
 		"dashboard.overview.attention_more",
+		"dashboard.overview.attention_more_one",
 		"dashboard.overview.attention_problems_unchecked",
 		"dashboard.overview.severity_critical",
 		"dashboard.overview.severity_warning",
@@ -97,7 +101,7 @@ func TestDashboardOverviewKeysExistInAllLocales(t *testing.T) {
 	if err := json.Unmarshal(mustReadUIFile(t, "lang/dashboard/en.json"), &english); err != nil {
 		t.Fatalf("lang/dashboard/en.json: %v", err)
 	}
-	for _, lang := range []string{"cs", "da", "de", "el", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		var values map[string]string
 		if err := json.Unmarshal(mustReadUIFile(t, "lang/dashboard/"+lang+".json"), &values); err != nil {
 			t.Fatalf("lang/dashboard/%s.json: %v", lang, err)
@@ -105,6 +109,9 @@ func TestDashboardOverviewKeysExistInAllLocales(t *testing.T) {
 		for _, key := range keys {
 			if got, want := placeholders(values[key]), placeholders(english[key]); !slices.Equal(got, want) {
 				t.Errorf("lang/dashboard/%s.json %s placeholders = %v, want %v", lang, key, got, want)
+			}
+			if value := values[key]; strings.Contains(value, "(s)") || strings.Contains(value, "(en)") {
+				t.Errorf("lang/dashboard/%s.json %s = %q: use a plural string plus a %s_one variant instead of (s)/(en)", lang, key, value, key)
 			}
 		}
 	}
