@@ -77,28 +77,14 @@
 }
 
 /* Legacy controls resolve through the same light/dark material tokens. */
-.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) {
+.desktop-body[data-theme] {
     --vd-control-bg: var(--vd-theme-control-bg);
     --vd-control-hover: var(--vd-theme-control-hover);
     --ds-color-control-bg: var(--vd-theme-control-bg);
     --ds-color-control-hover: var(--vd-theme-control-hover);
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .vd-start-menu,
-    .vd-context-menu,
-    .vd-context-submenu-popover,
-    .vd-window-menu-popover,
-    .vd-widget-frame,
-    .vd-widget-manager,
-    .vd-widget-drawer,
-    .vd-disabled-panel,
-    .vd-shortcuts-modal,
-    .vd-file-dialog,
-    .vd-modal,
-    .vd-toast
-),
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .vd-start-menu,
     .vd-context-menu,
     .vd-context-submenu-popover,
@@ -121,8 +107,7 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast),
-.desktop-body[data-theme="fruity"] :where(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast) {
+.desktop-body[data-theme] :where(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast) {
     border-radius: var(--vd-theme-radius-modal);
     box-shadow: var(--vd-theme-shadow-modal);
 }
@@ -134,20 +119,17 @@
     backdrop-filter: blur(10px) saturate(1.08);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row, .vd-shortcuts-keys),
-.desktop-body[data-theme="fruity"] :where(.vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row, .vd-shortcuts-keys) {
+.desktop-body[data-theme] :where(.vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row, .vd-shortcuts-keys) {
     border-color: var(--vd-theme-border);
     background: var(--vd-theme-control-bg);
     color: var(--vd-text);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action),
-.desktop-body[data-theme="fruity"] :where(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action) {
+.desktop-body[data-theme] :where(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action) {
     color: var(--vd-theme-muted);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-window-content, .vd-panel),
-.desktop-body[data-theme="fruity"] :where(.vd-window-content, .vd-panel) {
+.desktop-body[data-theme] :where(.vd-window-content, .vd-panel) {
     color: var(--vd-text);
 }
 
@@ -688,8 +670,7 @@
     background: rgba(255, 255, 255, 0.1);
 }
 
-.desktop-body[data-theme="standard"] .vd-toast,
-.desktop-body[data-theme="fruity"] .vd-toast {
+.desktop-body[data-theme] .vd-toast {
     box-shadow: var(--vd-theme-shadow-modal), var(--vd-chrome-highlight);
 }
 
@@ -805,13 +786,11 @@
     background-clip: padding-box;
 }
 
-.desktop-body[data-theme="standard"] .vd-start-apps::-webkit-scrollbar,
-.desktop-body[data-theme="fruity"] .vd-start-apps::-webkit-scrollbar {
+.desktop-body[data-theme] .vd-start-apps::-webkit-scrollbar {
     width: 10px;
 }
 
-.desktop-body[data-theme="standard"] .vd-toast-title,
-.desktop-body[data-theme="fruity"] .vd-toast-title {
+.desktop-body[data-theme] .vd-toast-title {
     letter-spacing: -0.012em;
 }
 
@@ -840,8 +819,7 @@
     font-weight: 620;
 }
 
-.desktop-body[data-theme="standard"] .vd-widget-kind,
-.desktop-body[data-theme="fruity"] .vd-widget-kind {
+.desktop-body[data-theme] .vd-widget-kind {
     letter-spacing: 0.08em;
     opacity: 0.72;
 }
@@ -861,23 +839,15 @@
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.desktop-body[data-theme="standard"] .vd-window-switcher,
-.desktop-body[data-theme="fruity"] .vd-window-switcher {
+.desktop-body[data-theme] .vd-window-switcher {
     box-shadow: var(--vd-theme-shadow-panel), var(--vd-chrome-highlight);
 }
 
-.desktop-body[data-theme="standard"] .vd-switcher-item,
-.desktop-body[data-theme="fruity"] .vd-switcher-item {
+.desktop-body[data-theme] .vd-switcher-item {
     border-radius: 10px;
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .vd-notification-center,
-    .vd-clock-popup,
-    .vd-spotlight,
-    .vd-shortcuts-panel
-),
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .vd-notification-center,
     .vd-clock-popup,
     .vd-spotlight,
@@ -891,18 +861,11 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher),
-.desktop-body[data-theme="fruity"] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher) {
+.desktop-body[data-theme] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher) {
     background: var(--vd-theme-overlay-bg);
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .vd-notification-button,
-    .vd-spotlight-input,
-    .vd-space-pager-btn,
-    .vd-switcher-item
-),
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .vd-notification-button,
     .vd-spotlight-input,
     .vd-space-pager-btn,
@@ -912,16 +875,13 @@
     background: var(--vd-theme-control-bg);
 }
 
-.desktop-body[data-theme="standard"] .vd-space-pager-btn.active,
-.desktop-body[data-theme="fruity"] .vd-space-pager-btn.active,
-.desktop-body[data-theme="standard"] .vd-space-pager-btn[aria-pressed="true"],
-.desktop-body[data-theme="fruity"] .vd-space-pager-btn[aria-pressed="true"] {
+.desktop-body[data-theme] .vd-space-pager-btn.active,
+.desktop-body[data-theme] .vd-space-pager-btn[aria-pressed="true"] {
     border-color: var(--vd-theme-accent-border);
     background: var(--vd-theme-accent-soft);
 }
 
-.desktop-body[data-theme="standard"] .vd-taskbar-thumbnail,
-.desktop-body[data-theme="fruity"] .vd-taskbar-thumbnail {
+.desktop-body[data-theme] .vd-taskbar-thumbnail {
     border-color: var(--vd-theme-border);
     border-radius: var(--vd-theme-radius-panel);
     background: var(--vd-theme-panel-bg-strong);
@@ -930,12 +890,9 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme="standard"] .vd-spaces-overview-panel,
-.desktop-body[data-theme="fruity"] .vd-spaces-overview-panel,
-.desktop-body[data-theme="standard"] .vd-space-column,
-.desktop-body[data-theme="fruity"] .vd-space-column,
-.desktop-body[data-theme="standard"] .vd-space-window-card,
-.desktop-body[data-theme="fruity"] .vd-space-window-card {
+.desktop-body[data-theme] .vd-spaces-overview-panel,
+.desktop-body[data-theme] .vd-space-column,
+.desktop-body[data-theme] .vd-space-window-card {
     border-color: var(--vd-theme-border);
     background: var(--vd-theme-panel-bg-strong);
     box-shadow: var(--vd-theme-shadow-panel);
@@ -943,8 +900,7 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme="standard"] .vd-space-column,
-.desktop-body[data-theme="fruity"] .vd-space-column {
+.desktop-body[data-theme] .vd-space-column {
     background: var(--vd-theme-control-bg);
 }
 
