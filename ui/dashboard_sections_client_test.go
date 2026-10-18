@@ -38,7 +38,7 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 		}
 	}
 	for url, want := range map[string]int{
-		"'/api/dashboard/overview'":       2, // overview + system loaders share one cached answer
+		"'/api/dashboard/overview'":       1, // system loader (card-operations); the overview reads the summary feed
 		"'/api/dashboard/logs?lines=100'": 1,
 		"'/api/dashboard/tool-stats'":     1,
 	} {

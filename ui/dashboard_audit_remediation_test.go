@@ -85,8 +85,6 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		"dashboard.profile_save_error",
 		"t('dashboard.btn_delete')",
 		"t('dashboard.operations_buffered'",
-		"t('dashboard.quickstatus_n_pending'",
-		"t('dashboard.quickstatus_n_auto_disabled'",
 		"data-bar-width",
 	} {
 		if !strings.Contains(widgets, marker) {
@@ -155,8 +153,6 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 
 	en := readDesktopAssetText(t, "lang/dashboard/en.json")
 	for _, key := range []string{
-		`"dashboard.quickstatus_n_pending"`,
-		`"dashboard.quickstatus_n_auto_disabled"`,
 		`"dashboard.page_heading"`,
 		`"dashboard.btn_delete"`,
 		`"dashboard.gauge_used"`,

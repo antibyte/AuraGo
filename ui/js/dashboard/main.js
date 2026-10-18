@@ -261,16 +261,19 @@
         }
 
         async function loadSectionOverview({ force = false } = {}) {
-            CardState.setLoading('card-quickstatus');
-            // One overview answer feeds the banner and Quick Status; the system section reuses it
-            // from the DashAPI cache for card-operations.
-            const overviewR = await API.getWithStatus('/api/dashboard/overview', sectionFetch(force));
-            const overview = overviewR.ok ? overviewR.data : null;
-            overviewR.ok ? CardState.setLoaded('card-quickstatus') : CardState.setError('card-quickstatus', loadSectionOverview, { status: overviewR.status });
-            if (overview) {
-                renderAgentBanner(overview, overview?.context?.total_chars);
-                renderQuickStatus(overview);
+            CardState.setLoading('ov-status');
+            CardState.setLoading('ov-attention');
+            // One summary answer (dash-summary.js, also behind the sidebar status block and badges) renders
+            // every overview tile; only the system section still reads the old overview answer (card-operations).
+            const result = await DashSummary.refresh({ force });
+            const summary = DashSummary.latest();
+            if (!summary) {
+                const retry = () => loadSectionContent('overview', { force: true });
+                CardState.setError('ov-status', retry, { status: result.status });
+                CardState.setError('ov-attention', retry, { status: result.status });
+                return;
             }
+            DashOverview.render(summary);
         }
 
         async function loadSectionPersonality({ force = false } = {}) {
@@ -483,7 +486,7 @@
             ]);
             const [systemR, overviewR, githubReposR] = await Promise.all([
                 API.getWithStatus('/api/dashboard/system', opts),
-                // Same URL as the overview section: served from the DashAPI cache while fresh.
+                // card-operations and the integration flags (the overview reads /api/dashboard/summary).
                 API.getWithStatus('/api/dashboard/overview', opts),
                 API.getWithStatus('/api/dashboard/github-repos', opts),
             ]);
@@ -779,10 +782,16 @@
                 }
             });
 
+            // Sidebar status block, badges and the summary refresh schedule run on every section
+            // (dash-summary.js); the overview tiles and "Customize" belong to dash-overview.js.
+            DashSummary.init();
+            DashOverview.init();
+
             // Show the section from the hash (old tab ids are mapped) or the stored one.
             // Every show loads its section (served from the DashAPI cache while fresh).
             DashRouter.init({ onShow: id => loadSectionContent(id) });
         }
 
         // Note: live system, mission, memory, personality, daemon, and audit updates flow through
-        // SSE handlers registered in dashboard-events.js#connectSSE; no client-side polling is needed.
+        // SSE handlers registered in dashboard-events.js#connectSSE. The only polling is the summary
+        // feed (dash-summary.js): every 60 s while the page is visible, for sources without events.
