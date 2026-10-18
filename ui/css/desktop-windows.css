@@ -95,15 +95,6 @@
     to { opacity: 1; }
 }
 
-.desktop-body[data-theme] .vd-window-switcher {
-    border-color: var(--vd-theme-border);
-    border-radius: var(--vd-theme-radius-panel);
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: var(--vd-theme-shadow-panel);
-    -webkit-backdrop-filter: var(--vd-theme-blur);
-    backdrop-filter: var(--vd-theme-blur);
-}
-
 .vd-window {
     position: absolute;
     width: min(820px, calc(100vw - 32px));
