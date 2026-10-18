@@ -36,6 +36,10 @@ func exprNum(value float64) ffExpr {
 	return ffExpr{op: "num", num: value}
 }
 
+// exprIsNum reports whether e is the literal value (boxExprs leaves the 2b expressions alone when an animation part is
+// a literal rest value).
+func exprIsNum(e ffExpr, value float64) bool { return e.op == "num" && e.num == value }
+
 // exprVar is a filter variable such as t.
 func exprVar(name string) ffExpr { return ffExpr{op: "var", name: name} }
 
@@ -364,6 +368,14 @@ type boxExpr struct {
 
 // boxExprs builds the box expressions of clip for the window whose first frame is absolute frame at. Paths without
 // keyframes are the static fields. The size sits in register 5 (width) or 6 (height) while the centre is computed.
+//
+// 2e (index §4.24): an effective slide or pop applies after the even clamp, from the absolute frame in register 0:
+//   - the size becomes max(2, 2·round(BW·s/2)) about the box centre, with no canvas cap;
+//   - the centre moves by 2·round(d·canvas/2); it keeps the clamped size BW (registers 5 and 6);
+//   - the terms come from animExprs and work in registers 7 and 8 (4 inside easeExpr).
+//
+// TestBoxExprsMatchAnimBox evaluates them against animBox. Clips without such an animation get the 2b expressions byte
+// for byte.
 func boxExprs(clip Clip, at int, pieces []rampPiece, canvasWidth, canvasHeight int, rate Rate) boxExpr {
 	source := windowSourceExpr(clip, at, pieces, rate)
 	value := func(path string, static float64) ffExpr {
@@ -372,7 +384,7 @@ func boxExprs(clip Clip, at int, pieces []rampPiece, canvasWidth, canvasHeight i
 		}
 		return exprNum(static)
 	}
-	even := func(v ffExpr, bound int) ffExpr { // round(v·bound / 2)·2, as evenPixels and evenPosition
+	even := func(v ffExpr, bound int) ffExpr { // round(v·bound / 2)·2, as evenPixels, evenPosition and animBox
 		return exprOp("*", exprOp("round", exprOp("/", exprOp("*", v, exprNum(float64(bound))), exprNum(2))), exprNum(2))
 	}
 	size := func(v ffExpr, bound int) ffExpr { // evenPixels: at least 2, at most bound
@@ -383,11 +395,26 @@ func boxExprs(clip Clip, at int, pieces []rampPiece, canvasWidth, canvasHeight i
 		return exprOp("+", position, exprOp("/", exprLd(register), exprNum(2)))
 	}
 	width, height := size(value("width", clip.Width), canvasWidth), size(value("height", clip.Height), canvasHeight)
+	w, h := width, height
+	cx, cy := centre(value("x", clip.X), 5, canvasWidth), centre(value("y", clip.Y), 6, canvasHeight)
+	anim := animExprs(clip, exprLd(0))
+	if !exprIsNum(anim.scale, 1) { // animBox: max(2, 2·round(BW·s/2))
+		scaled := func(v ffExpr) ffExpr {
+			return exprOp("max", exprOp("*", exprOp("round", exprOp("/", exprOp("*", v, anim.scale), exprNum(2))), exprNum(2)), exprNum(2))
+		}
+		w, h = scaled(width), scaled(height)
+	}
+	if !exprIsNum(anim.dx, 0) { // animBox: + 2·round(dx·canvasWidth/2)
+		cx = exprOp("+", cx, even(anim.dx, canvasWidth))
+	}
+	if !exprIsNum(anim.dy, 0) {
+		cy = exprOp("+", cy, even(anim.dy, canvasHeight))
+	}
 	return boxExpr{
-		w:     exprOp(";", source, width),
-		h:     exprOp(";", source, height),
-		cx:    exprOp(";", source, exprOp(";", exprSt(5, width), centre(value("x", clip.X), 5, canvasWidth))),
-		cy:    exprOp(";", source, exprOp(";", exprSt(6, height), centre(value("y", clip.Y), 6, canvasHeight))),
+		w:     exprOp(";", source, w),
+		h:     exprOp(";", source, h),
+		cx:    exprOp(";", source, exprOp(";", exprSt(5, width), cx)),
+		cy:    exprOp(";", source, exprOp(";", exprSt(6, height), cy)),
 		angle: exprOp(";", source, exprOp("*", value("rotation", clip.Rotation), exprNum(math.Pi/180))),
 	}
 }

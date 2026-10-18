@@ -135,6 +135,11 @@ func TestMaskExprMatchesMaskAt(t *testing.T) {
 			c.Fit = FitCover
 			c.Keyframes = map[string][]Keyframe{"crop.l": keys(0, 0.3, EaseLinear), "mask.w": keys(0.2, 0.8, EaseLinear)}
 		}), 4},
+		// 2e: the mask follows the animated box (pop scales it, the slide moves the box, not the mask inside it).
+		{"pop in and slide_left out on a masked box", base(func(c *Clip) {
+			c.Mask.Shape, c.Mask.Rotation = MaskRect, 10
+			c.AnimIn, c.AnimOut = &ClipAnim{Preset: "pop", Duration: 8}, &ClipAnim{Preset: "slide_left", Duration: 8}
+		}), 4},
 	} {
 		c := chain(tc.clip, tc.at)
 		plan := maskPlanOf(c)

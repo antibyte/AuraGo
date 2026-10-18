@@ -624,3 +624,112 @@ func TestClipChainMaskSnapshots(t *testing.T) {
 		t.Fatalf("command files = %+v", built.commands)
 	}
 }
+
+// TestClipChainAnimSnapshots pins the 2e chains of fade, slides and pop (index §4.10, §4.24):
+//   - fade only: the static transform, the named opacity filter and group 0's commands (clipOpacityAt);
+//   - pop: 2b's animated-geometry chain for the whole clip, on the pad canvas of the largest scaled box (1.08× at p = 0.7);
+//   - slide_left out on a masked cover clip: the cover crop commands, the per-frame mask on the pad canvas, and opacity in
+//     group 1 behind the merge;
+//   - an animation without an effective span leaves the chain unchanged.
+func TestClipChainAnimSnapshots(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	chain := func(index int, clip Clip) clipChain {
+		return clipChain{track: 0, index: index, item: layerClip{clip: clip, whole: clip, at: clip.Start, input: index, pictureWidth: 1920, pictureHeight: 1080, sourceAspect: 16.0 / 9}, canvasWidth: 1280, canvasHeight: 720, rate: pal}
+	}
+	head := func(input, duration int) string {
+		return fmt.Sprintf("[%d:V:0]setpts='if(eq(N,0),min(PTS,floor(0.000000000/TB)),PTS)',fps=25,setpts='max(PTS-0,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,", input, duration, duration*2, duration)
+	}
+	tail := func(index, duration int, overlay string) string {
+		return fmt.Sprintf("[vs_layer_0_%[1]d];color=c=black@0:s=1280x720:r=25:d=%[2]s,trim=end_frame=%[3]d,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_%[1]d];[vs_clip_bg_0_%[1]d][vs_layer_0_%[1]d]%[4]s[vs_clip_0_%[1]d]", index, pal.SecondsArg(duration), duration, overlay)
+	}
+	base := func(edit func(*Clip)) Clip {
+		c := Clip{ID: "a", AssetID: "a", Duration: 40, X: 0.25, Y: 0.25, Width: 0.5, Height: 0.5, Opacity: 0.8, Volume: 1, Fit: FitContain}
+		edit(&c)
+		return c
+	}
+	plain := boxExprs(base(func(*Clip) {}), 0, nil, 1280, 720, pal)
+
+	// Fade in 10 and out 8: the static box, opacity 0.8 × p.
+	fade := chain(0, base(func(c *Clip) {
+		c.AnimIn, c.AnimOut = &ClipAnim{Preset: "fade", Duration: 10}, &ClipAnim{Preset: "fade", Duration: 8}
+	}))
+	containFit := "scale=w=640:h=360:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0"
+	want := head(0, 40) + "sendcmd=f=vs_cmd_0_0.txt," + containFit + ",format=rgba,colorchannelmixer@vs_opacity_0_0=aa=0" + tail(0, 40, "overlay=x=320:y=180:format=auto:shortest=1")
+	if got := fade.filter("vs_clip_0_0"); got != want {
+		t.Fatalf("fade:\n got %s\nwant %s", got, want)
+	}
+	files := fade.commandFiles()
+	if len(files) != 1 || files[0].name != "vs_cmd_0_0.txt" || len(files[0].tracks) != 1 || files[0].tracks[0].Target != "colorchannelmixer@vs_opacity_0_0" ||
+		files[0].tracks[0].Option != "aa" || len(files[0].tracks[0].Values) != 40 {
+		t.Fatalf("fade command files = %+v", files)
+	}
+	for k, v := range files[0].tracks[0].Values {
+		if want := clipOpacityAt(fade.item.whole, k); v != want {
+			t.Fatalf("fade opacity at frame %d = %v, want clipOpacityAt %v", k, v, want)
+		}
+	}
+	if v := files[0].tracks[0].Values; v[0] != 0 || v[5] != 0.4 || v[20] != 0.8 || v[39] != 0 {
+		t.Fatalf("fade opacity values %v", v)
+	}
+
+	// Pop in over 10 frames: frame 7 has p = 0.7, the 1.08 peak (640·1.08 → 692, 360·1.08 → 388), which sizes the pad.
+	popClip := base(func(c *Clip) { c.AnimIn = &ClipAnim{Preset: "pop", Duration: 10} })
+	pop := chain(1, popClip)
+	g := pop.geometry()
+	if g.rotated || g.padWidth != 692 || g.padHeight != 388 || g.layerWidth != 692 || g.widths[0] != 384 || g.heights[0] != 216 ||
+		g.widths[7] != 692 || g.heights[7] != 388 || g.widths[20] != 640 || g.heights[20] != 360 {
+		t.Fatalf("pop geometry = %+v", g)
+	}
+	b := boxExprs(popClip, 0, nil, 1280, 720, pal)
+	if b.cx.String() != plain.cx.String() || b.cy.String() != plain.cy.String() || b.angle.String() != plain.angle.String() ||
+		!strings.Contains(b.w.String(), "st(7,") || !strings.Contains(b.h.String(), "st(8,") {
+		t.Fatalf("pop scales the box only:\nw %s\ncx %s", b.w.String(), b.cx.String())
+	}
+	want = head(1, 40) + "sendcmd=f=vs_cmd_0_1.txt," +
+		fmt.Sprintf("scale@vs_scale_0_1=w='%s':h='%s':force_original_aspect_ratio=decrease:force_divisible_by=2:eval=frame,pad@vs_pad_0_1=w=692:h=388:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0:eval=frame,format=rgba,colorchannelmixer@vs_opacity_0_1=aa=0", b.w.String(), b.h.String()) +
+		tail(1, 40, fmt.Sprintf("overlay@vs_place_0_1=x='%s':y='%s':eval=frame:format=auto:shortest=1", exprOp("-", b.cx, exprNum(346)).String(), exprOp("-", b.cy, exprNum(194)).String()))
+	if got := pop.filter("vs_clip_0_1"); got != want {
+		t.Fatalf("pop:\n got %s\nwant %s", got, want)
+	}
+	files = pop.commandFiles()
+	if len(files) != 1 || files[0].name != "vs_cmd_0_1.txt" || len(files[0].tracks) != 1 || files[0].tracks[0].Values[0] != 0 || files[0].tracks[0].Values[3] != 0.8 {
+		t.Fatalf("pop command files = %+v", files)
+	}
+
+	// slide_left out on a masked cover clip: the box keeps its size; the centre's x moves; the mask is per frame.
+	slide := chain(2, base(func(c *Clip) {
+		c.Fit, c.Mask, c.AnimOut = FitCover, &Mask{Shape: MaskRect, X: 0.1, Y: 0.1, W: 0.8, H: 0.8}, &ClipAnim{Preset: "slide_left", Duration: 10}
+	}))
+	bs := boxExprs(slide.item.whole, 0, nil, 1280, 720, pal)
+	if bs.w.String() != plain.w.String() || bs.h.String() != plain.h.String() || bs.cy.String() != plain.cy.String() || !strings.Contains(bs.cx.String(), "st(7,") {
+		t.Fatalf("slide_left moves the centre's x only:\ncx %s", bs.cx.String())
+	}
+	if gs := slide.geometry(); gs.padWidth != 640 || gs.padHeight != 360 {
+		t.Fatalf("a slide keeps the box size: pad %dx%d", gs.padWidth, gs.padHeight)
+	}
+	if plan := maskPlanOf(slide); !plan.perFrame || plan.canvasWidth != 640 || plan.canvasHeight != 360 {
+		t.Fatalf("slide mask plan %+v", plan)
+	}
+	text, last := slide.filter("vs_clip_0_2"), -1
+	for _, part := range []string{"sendcmd=f=vs_cmd_0_2.txt,", "crop=w='min(iw,ih*", "scale@vs_scale_0_2=", "crop@vs_crop_0_2=w=640:h=360", "pad@vs_pad_0_2=w=640:h=360",
+		"format=gbrap[vs_mk_0_2_in]", "c3_mode=multiply,sendcmd=f=vs_cmd_0_2_1.txt,format=rgba,colorchannelmixer@vs_opacity_0_2=aa=0.8[vs_layer_0_2]", "overlay@vs_place_0_2="} {
+		at := strings.Index(text, part)
+		if at <= last {
+			t.Fatalf("slide chain: %q missing or out of order in\n%s", part, text)
+		}
+		last = at
+	}
+	files = slide.commandFiles()
+	if len(files) != 2 || files[0].name != "vs_cmd_0_2.txt" || files[0].tracks[0].Target != "crop@vs_crop_0_2" || files[1].name != "vs_cmd_0_2_1.txt" ||
+		files[1].tracks[0].Target != "colorchannelmixer@vs_opacity_0_2" || files[1].tracks[0].Values[29] != 0.8 || files[1].tracks[0].Values[39] != 0 {
+		t.Fatalf("slide command files = %+v", files)
+	}
+
+	// No effective span: a one-frame clip with a pop renders as without it.
+	short := base(func(c *Clip) { c.Duration = 1 })
+	animated := short
+	animated.AnimIn = &ClipAnim{Preset: "pop", Duration: 10}
+	if got, want := chain(3, animated).filter("vs_clip_0_3"), chain(3, short).filter("vs_clip_0_3"); got != want {
+		t.Fatalf("a pop without an effective span changed the chain:\n got %s\nwant %s", got, want)
+	}
+}

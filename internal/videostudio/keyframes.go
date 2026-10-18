@@ -308,18 +308,21 @@ func clipOpacityAt(clip Clip, frame int) float64 {
 }
 
 // clipAnimation reports which parts of a clip's picture can change over time:
-//   - geometry, when x, y, width, height or rotation has keyframes;
-//   - opacity, when opacity has keyframes.
+//   - geometry, when x, y, width, height or rotation has keyframes, or a slide or pop animates the box (2e);
+//   - opacity, when opacity has keyframes, or a fade, slide, pop or blur_in animates it (2e).
 //
-// A path with a single keyframe counts, because its value replaces the static field. 2e also marks clips with in/out
-// animation.
+// A path with a single keyframe counts, because its value replaces the static field. An in/out animation counts for
+// the whole clip, so the pad and rotate canvas are sized over all of it (index §4.24, controller decision 9). It counts
+// only when its effective span is at least one frame (animSpans). The wipe and blur_in's cascade have their own stages
+// (Tasks 7 and 8).
 func clipAnimation(clip Clip) (geometry, opacity bool) {
 	for _, path := range []string{"x", "y", "width", "height", "rotation"} {
 		if len(clip.Keyframes[path]) > 0 {
 			geometry = true
 		}
 	}
-	return geometry, len(clip.Keyframes["opacity"]) > 0
+	kinds := animKindsOf(clip)
+	return geometry || kinds.geometry, len(clip.Keyframes["opacity"]) > 0 || kinds.opacity
 }
 
 // SendCmdTrack is one runtime option of one Go-named single-input filter instance. It holds one entry per window

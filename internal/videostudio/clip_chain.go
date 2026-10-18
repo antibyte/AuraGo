@@ -408,12 +408,12 @@ func (c clipChain) orient() string {
 	return fmt.Sprintf("format=rgba,rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
 }
 
-// opacity scales the picture's alpha; full opacity adds no filter. Keyframed opacity names the instance and starts at
-// the window's first value; the sendcmd script sets every later frame.
+// opacity scales the picture's alpha; full opacity adds no filter. Keyframed or animated opacity (2e: fade, slides, pop,
+// blur_in) names the instance. It starts at the window's first value of clipOpacityAt, the keyed opacity times the
+// animation's; the sendcmd script sets every later frame.
 func (c clipChain) opacity() string {
-	if _, keyframed := clipAnimation(c.item.whole); keyframed {
-		first, _ := ValueAt(c.item.whole, "opacity", c.item.at)
-		return fmt.Sprintf("colorchannelmixer@vs_opacity_%d_%d=aa=%s", c.track, c.index, exprNum(first).String())
+	if _, animated := clipAnimation(c.item.whole); animated {
+		return fmt.Sprintf("colorchannelmixer@vs_opacity_%d_%d=aa=%s", c.track, c.index, exprNum(clipOpacityAt(c.item.whole, c.item.at)).String())
 	}
 	if c.item.clip.Opacity < 0.999999 {
 		return fmt.Sprintf("colorchannelmixer=aa=%.6f", c.item.clip.Opacity)
@@ -674,15 +674,15 @@ func (c clipChain) transformTracks() []SendCmdTrack {
 	}
 }
 
-// opacityTracks drive the opacity stage: when opacity is keyframed, they hold its value for every window frame, from
-// absolute frames (layerClip.at + k).
+// opacityTracks drive the opacity stage. When opacity is keyframed or animated they hold clipOpacityAt for every window
+// frame, from absolute frames (layerClip.at + k), so a later segment commands the same values (index §4.24).
 func (c clipChain) opacityTracks() []SendCmdTrack {
 	if _, opacity := clipAnimation(c.item.whole); !opacity {
 		return nil
 	}
 	values := make([]float64, c.item.clip.Duration)
 	for k := range values {
-		values[k], _ = ValueAt(c.item.whole, "opacity", c.item.at+k)
+		values[k] = clipOpacityAt(c.item.whole, c.item.at+k)
 	}
 	return []SendCmdTrack{{Target: fmt.Sprintf("colorchannelmixer@vs_opacity_%d_%d", c.track, c.index), Option: "aa", Values: values}}
 }

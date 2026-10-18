@@ -120,3 +120,34 @@ func TestKeyframeClipFrameAndAnimation(t *testing.T) {
 		t.Fatalf("a single key replaces the static value and the last key holds: %+v", got)
 	}
 }
+
+// 2e: an in/out animation counts like keyframes (index §4.10). Slides and pop animate the geometry; every preset with an
+// opacity part animates the opacity. Both hold for the whole clip, and only with an effective span. A masked clip with
+// a pop takes the per-frame mask; a fade keeps the static one.
+func TestClipAnimationIncludesInOutAnimation(t *testing.T) {
+	for _, c := range []struct {
+		preset            string
+		geometry, opacity bool
+	}{{"fade", false, true}, {"slide_up", true, true}, {"slide_down", true, true}, {"slide_left", true, true}, {"slide_right", true, true},
+		{"pop", true, true}, {"wipe", false, false}, {"blur_in", false, true}} {
+		for side, clip := range map[string]Clip{
+			"in":  {Duration: 40, AnimIn: &ClipAnim{Preset: c.preset, Duration: 10}},
+			"out": {Duration: 40, AnimOut: &ClipAnim{Preset: c.preset, Duration: 10}},
+		} {
+			if geometry, opacity := clipAnimation(clip); geometry != c.geometry || opacity != c.opacity {
+				t.Errorf("%s %s: geometry %v, opacity %v; want %v, %v", c.preset, side, geometry, opacity, c.geometry, c.opacity)
+			}
+		}
+	}
+	if geometry, opacity := clipAnimation(Clip{Duration: 1, AnimIn: &ClipAnim{Preset: "pop", Duration: 10}}); geometry || opacity {
+		t.Errorf("a pop without an effective span animates: geometry %v, opacity %v", geometry, opacity)
+	}
+	masked := Clip{Duration: 40, Mask: &Mask{Shape: MaskRect, W: 0.5, H: 0.5}, AnimIn: &ClipAnim{Preset: "pop", Duration: 10}}
+	if !maskPerFrame(masked) {
+		t.Error("a masked pop keeps the static mask; the mask must follow the animated box")
+	}
+	masked.AnimIn.Preset = "fade"
+	if maskPerFrame(masked) {
+		t.Error("a masked fade takes the per-frame mask; its box does not move")
+	}
+}

@@ -240,3 +240,65 @@ func animRevealPx(a animState, boxWidth int) (x0, x1 int) {
 	}
 	return 0, boxWidth
 }
+
+// ---- Plan 2e Task 6: the animation's geometry as export expressions (index §4.10, §4.24) ----
+
+// animExpr is the geometry of a clip's in/out animation as expressions of the absolute frame (animExprs): the box scale
+// and the centre offsets dx and dy as shares of the canvas width and height.
+type animExpr struct{ scale, dx, dy ffExpr }
+
+// animExprs is animAt's geometry as expressions of frame, an expression of the absolute timeline frame. boxExprs passes
+// register 0, which windowSourceExpr fills with T = at + round(max(t,0)·Num/Den). Each part is a tree over the spans:
+//
+//	if(lt(frame, Start + D_in), (st(7, p_in); in term), if(lt(frame, Start + Duration − D_out), rest, (st(7, p_out); out term)))
+//
+// with p_in = (frame − Start)/D_in and p_out = (Start + Duration − 1 − frame)/D_out.
+//   - The terms repeat animPresetAt's operations in the same order: pop keeps smoothstep's input in register 8, and
+//     ease_out keeps its inner term in register 4 (easeExpr). Go's eval and FFmpeg therefore give animBox's numbers
+//     exactly.
+//   - A part that no effective preset moves is its rest value as a literal (scale 1, offsets 0).
+//   - A side whose span is 0 adds no branch.
+//
+// Every register is stored before it is read, so a filter that keeps its registers from frame to frame (scale, overlay)
+// or from row to row (the mask's geq) reads nothing stale.
+func animExprs(clip Clip, frame ffExpr) animExpr {
+	in, out := animSpans(clip)
+	p := exprLd(7)
+	slide := func(axis int) func(preset string, sigma float64) (ffExpr, bool) {
+		return func(preset string, sigma float64) (ffExpr, bool) {
+			u, ok := animSlideAxes[preset]
+			if !ok || u[axis] == 0 {
+				return ffExpr{}, false
+			}
+			shift := exprOp("*", exprOp("-", exprNum(1), easeExpr(EaseOut, p)), exprNum(animSlideDistance)) // animSlideShift
+			return exprOp("*", exprNum(sigma*float64(u[axis])), shift), true
+		}
+	}
+	pop := func(preset string, _ float64) (ffExpr, bool) { // animPopScale
+		if preset != "pop" {
+			return ffExpr{}, false
+		}
+		u := exprLd(8)
+		rise := exprOp("+", exprNum(animPopFrom), exprOp("*", exprNum(animPopRise), easeExpr(EaseOut, exprOp("/", p, exprNum(animPopPeakAt)))))
+		settle := exprOp(";", exprSt(8, exprOp("/", exprOp("-", p, exprNum(animPopPeakAt)), exprNum(animPopTail))),
+			exprOp("-", exprNum(animPopPeak), exprOp("*", exprNum(animPopSettle), exprOp("*", exprOp("*", u, u), exprOp("-", exprNum(3), exprOp("*", exprNum(2), u))))))
+		return exprOp("if", exprOp("lt", p, exprNum(animPopPeakAt)), rise, settle), true
+	}
+	part := func(rest float64, term func(preset string, sigma float64) (ffExpr, bool)) ffExpr {
+		tree := exprNum(rest)
+		if out > 0 {
+			if body, ok := term(clip.AnimOut.Preset, 1); ok {
+				progress := exprSt(7, exprOp("/", exprOp("-", exprNum(float64(clip.Start+clip.Duration-1)), frame), exprNum(float64(out))))
+				tree = exprOp("if", exprOp("lt", frame, exprNum(float64(clip.Start+clip.Duration-out))), tree, exprOp(";", progress, body))
+			}
+		}
+		if in > 0 {
+			if body, ok := term(clip.AnimIn.Preset, -1); ok {
+				progress := exprSt(7, exprOp("/", exprOp("-", frame, exprNum(float64(clip.Start))), exprNum(float64(in))))
+				tree = exprOp("if", exprOp("lt", frame, exprNum(float64(clip.Start+in))), exprOp(";", progress, body), tree)
+			}
+		}
+		return tree
+	}
+	return animExpr{scale: part(1, pop), dx: part(0, slide(0)), dy: part(0, slide(1))}
+}
