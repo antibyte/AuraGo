@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -402,6 +403,9 @@ const goldenSeekFile = "seekframes.mp4"
 // meet the Delta's bounds. A report-only Delta (the 2c opt-ins) logs its failure instead. An SSIM failure no longer
 // stops the subtest, so the delta is still measured.
 //
+// A case the local FFmpeg cannot export is skipped, and the skip message names the capability (goldenCapabilitySkip,
+// plan 2e decision 13). On FFmpeg 5.1 that skips transition_fadegrays_50. The last log line counts the skips.
+//
 // The seek_frame_starts subtest is the paused-seek evidence of plan 2a (open question 12). Needs AURAGO_RUN_BROWSER_SMOKE=1,
 // ffmpeg and Chrome or Edge. Each case gets its own SwiftShader browser, so no browser outlives the launcher's 180 s
 // context. The whole run gets 40 minutes (run it with -timeout 45m), and its last log line gives the measured time.
@@ -418,6 +422,11 @@ func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MakeMedia: %v", err)
 	}
+	// What this FFmpeg cannot export: filters, xfade types, and the fadegrays self-test (memoized per binary).
+	missing, err := videostudio.ProbeCapabilities(ctx, ffmpeg)
+	if err != nil {
+		t.Fatalf("ProbeCapabilities(%s): %v", ffmpeg, err)
+	}
 	seekPath := filepath.Join(media.Dir, goldenSeekFile)
 	writeGoldenSeekMedia(t, ctx, ffmpeg, seekPath)
 	engine := newVideoStudioEngineServer(t, media.Dir)
@@ -429,8 +438,16 @@ func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 			deltas++
 		}
 	}
+	var skipped []string
 	for _, c := range cases {
+		skip := goldenCapabilitySkip(c, missing)
+		if skip != "" {
+			skipped = append(skipped, c.Name)
+		}
 		t.Run(c.Name, func(t *testing.T) {
+			if skip != "" {
+				t.Skip(skip)
+			}
 			want := goldenRenderWant(t, ctx, ffmpeg, media, c, filepath.Join(frames, c.Name+".png"))
 			// The baseline of a Delta: the same case with its feature off, rendered the same way.
 			var base goldenframe.Case
@@ -461,7 +478,8 @@ func TestDesktopVideoStudioGoldenFrames(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("golden run finished after %s (%d registered cases, %d with a delta check)", time.Since(started).Round(time.Second), len(cases), deltas)
+	t.Logf("golden run finished after %s (%d registered cases, %d with a delta check; %d skipped for the local FFmpeg: %s; missing capabilities %v)",
+		time.Since(started).Round(time.Second), len(cases), deltas, len(skipped), strings.Join(skipped, ", "), missing)
 }
 
 // goldenEnginePage opens the Task 10 engine page in a fresh SwiftShader browser (openVideoStudioEngine) and fills the
@@ -472,6 +490,33 @@ func goldenEnginePage(t *testing.T, engine *httptest.Server, files map[string]st
 	page := openVideoStudioEngine(t, newWebGLSmokeBrowser(t), engine)
 	page.MustEval(`files=>{Object.assign(window.vsGolden.files,files);}`, files)
 	return page
+}
+
+// goldenCapabilitySkip says why the local FFmpeg cannot render case c, or returns "" when it can (plan 2e decision 13).
+// It runs CheckProjectCapabilities against the probe's missing list for the case project and for its delta baseline;
+// a baseline that cannot render leaves the delta unmeasured. On FFmpeg 5.1 the fadegrays self-test (Task 3) lists
+// xfade:fadegrays, so the fadegrays golden is skipped there.
+func goldenCapabilitySkip(c goldenframe.Case, missing []string) string {
+	projects := []videostudio.Project{c.Project}
+	if c.Delta != nil {
+		projects = append(projects, c.Delta.Baseline)
+	}
+	for i, project := range projects {
+		err := videostudio.CheckProjectCapabilities(project, missing)
+		if err == nil {
+			continue
+		}
+		part := "the case"
+		if i > 0 {
+			part = "its delta baseline"
+		}
+		var capability *videostudio.CapabilityError
+		if errors.As(err, &capability) {
+			return fmt.Sprintf("the local FFmpeg cannot export %s: %s needs %s (skipped, plan 2e decision 13)", part, capability.Feature, capability.Missing)
+		}
+		return fmt.Sprintf("the local FFmpeg cannot export %s: %v", part, err)
+	}
+	return ""
 }
 
 func goldenDecodePNG(t *testing.T, path string) image.Image {
@@ -532,6 +577,40 @@ func goldenCheckDelta(t *testing.T, page *rod.Page, c, base goldenframe.Case, pa
 		t.Logf("delta report-only FAIL: %v (baseline want/got/diff PNGs: %s)", failure, kept)
 	default:
 		t.Errorf("delta FAIL: %v (baseline want/got/diff PNGs: %s)", failure, kept)
+	}
+}
+
+// TestVideoStudioGoldenCapabilitySkip pins the golden runner's capability skip (plan 2e decision 13). With
+// xfade:fadegrays missing (FFmpeg 5.1):
+//   - a fadegrays case is skipped, and the reason names the feature and the capability;
+//   - a case whose delta baseline needs fadegrays is skipped too;
+//   - every other case runs.
+//
+// With nothing missing, nothing is skipped.
+func TestVideoStudioGoldenCapabilitySkip(t *testing.T) {
+	m := goldenframe.Media{Assets: map[string]videostudio.Asset{
+		"red":  {ID: "red", Name: "red.png", Kind: videostudio.AssetImage, Width: 640, Height: 360},
+		"blue": {ID: "blue", Name: "blue.png", Kind: videostudio.AssetImage, Width: 640, Height: 360},
+	}}
+	pair := func(kind videostudio.TransitionType) videostudio.Project {
+		a, b := goldenframe.NewClip("a", "red", 0, 40), goldenframe.NewClip("b", "blue", 20, 40)
+		a.Transition = &videostudio.Transition{Type: kind, Duration: 20}
+		return m.Project("pair", goldenframe.VideoTrack("v1", a, b))
+	}
+	missing := []string{"xfade:fadegrays"}
+	skip := goldenCapabilitySkip(goldenframe.Case{Name: "transition_fadegrays_50", Project: pair("fadegrays")}, missing)
+	if !strings.Contains(skip, "the case") || !strings.Contains(skip, "transition:fadegrays") || !strings.Contains(skip, "xfade:fadegrays") {
+		t.Errorf("fadegrays without xfade:fadegrays: %q, want the case, the feature and the capability named", skip)
+	}
+	if skip := goldenCapabilitySkip(goldenframe.Case{Name: "transition_fadewhite_50", Project: pair("fadewhite")}, missing); skip != "" {
+		t.Errorf("fadewhite needs no fadegrays, but the runner skips it: %q", skip)
+	}
+	based := goldenframe.Case{Name: "transition_fadewhite_50", Project: pair("fadewhite"), Delta: &goldenframe.Delta{Baseline: pair("fadegrays")}}
+	if skip := goldenCapabilitySkip(based, missing); !strings.Contains(skip, "its delta baseline") || !strings.Contains(skip, "xfade:fadegrays") {
+		t.Errorf("a baseline that needs fadegrays: %q, want a skip that names the baseline", skip)
+	}
+	if skip := goldenCapabilitySkip(goldenframe.Case{Name: "transition_fadegrays_50", Project: pair("fadegrays")}, nil); skip != "" {
+		t.Errorf("nothing is missing, but the runner skips: %q", skip)
 	}
 }
 
