@@ -3,7 +3,6 @@ package ui
 import (
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -252,7 +251,7 @@ func TestDashboardKnowledgeCardsPutKPIsFirst(t *testing.T) {
 
 // TestDashboardMemoryCardPutsKPIsFirst (decision 6): core facts (a button for the core facts modal), messages, vector
 // entries and graph nodes on top; counters with the chart, strategy and usage, curation (counted conflicts), insights
-// (the learnings host), notes, the chat-privacy jobs when present, episodes and milestones as closed disclosures.
+// (the learnings host), notes, the chat-privacy jobs, episodes and milestones as closed disclosures.
 func TestDashboardMemoryCardPutsKPIsFirst(t *testing.T) {
 	t.Parallel()
 	disclosures := []dashboardDisclosure{
@@ -261,12 +260,9 @@ func TestDashboardMemoryCardPutsKPIsFirst(t *testing.T) {
 		{key: "curation", label: "dashboard.memory_curator_title", holds: []string{`id="memory-curator-wrap"`, `id="memory-curator-list"`}, counted: true},
 		{key: "insights", label: "dashboard.memory_insights_title", holds: []string{`<div data-learnings-memory></div>`}},
 		{key: "notes", label: "dashboard.memory_notes", holds: []string{`data-i18n="dashboard.notes_protection_hint"`, `id="memory-note-protection"`}},
+		{key: "privacy", label: "dashboard.memory_privacy_title", holds: []string{`id="memory-privacy-title"`, `id="memory-privacy-deletions"`, `id="memory-privacy-job-list"`}},
 		{key: "episodes", label: "dashboard.memory_episodic_title", holds: []string{`id="memory-episodic-wrap"`, `id="memory-episodic-list"`}},
 		{key: "milestones", label: "dashboard.memory_milestones_title", holds: []string{`id="milestone-list"`}},
-	}
-	// The chat-privacy deletion block (added next to the notes while P5 was planned) is a disclosure of its own.
-	if strings.Contains(readDashboardSection(t, "memory"), `id="memory-privacy-deletions"`) {
-		disclosures = slices.Insert(disclosures, 5, dashboardDisclosure{key: "privacy", label: "dashboard.memory_privacy_title", holds: []string{`id="memory-privacy-title"`, `id="memory-privacy-deletions"`, `id="memory-privacy-job-list"`}})
 	}
 	assertDashboardBigCard(t, dashboardBigCard{section: "memory", card: "card-memory", kpi: "memory-kpis", disclosures: disclosures})
 
