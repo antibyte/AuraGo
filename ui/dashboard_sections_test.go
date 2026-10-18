@@ -80,7 +80,7 @@ func TestDashboardTemplateExecutesAllSectionPartials(t *testing.T) {
 
 // dashboardCardPlacement is the P2 placement: section → cards in DOM order with their span (spec §5.1, §7.2).
 var dashboardCardPlacement = map[string][]string{
-	"overview":    {"card-agent-banner:12", "card-quickstatus:12"},
+	"overview":    nil, // P3: ov-* tiles instead of cards (TestDashboardOverviewTilesMarkup)
 	"personality": {"card-personality:12"},
 	"memory":      {"card-memory:8", "card-memory-reflection:4"},
 	"user":        {"card-profile:6", "card-activity-overview:6", "card-journal:8", "card-newspaper:4"},
@@ -239,8 +239,8 @@ func TestDashboardCardsFollowSectionPlacementAndAnatomy(t *testing.T) {
 			t.Errorf("section %s cards = %v, want %v", id, got, dashboardCardPlacement[id])
 		}
 	}
-	if len(seen) != 36 {
-		t.Errorf("dashboard has %d cards, want 36", len(seen))
+	if len(seen) != 34 {
+		t.Errorf("dashboard has %d cards, want 34", len(seen))
 	}
 
 	errorCard := dashboardCardMarkup(t, readDashboardSection(t, "problems"), "card-error-patterns")

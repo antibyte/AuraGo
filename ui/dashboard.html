@@ -74,7 +74,14 @@
   <div class="dash-shell">
     <div class="dash-sidebar-backdrop" id="dash-sidebar-backdrop" hidden></div>
     <nav class="dash-sidebar" id="dash-sidebar" data-i18n-aria-label="dashboard.nav.label">
-      <a class="dash-nav-link" href="#overview" data-section-link="overview"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span data-i18n="dashboard.section.overview.title"></span></a>
+      <a class="dash-sidebar-status" href="#overview" data-sidebar-status data-i18n-aria-label="dashboard.section.overview.title">
+        <span class="dash-sidebar-pill" data-sidebar-overall></span>
+        <span class="dash-sidebar-indicators">
+          <span class="dash-sidebar-indicator"><span class="status-dot gray" data-sidebar-busy aria-hidden="true"></span><span data-sidebar-busy-label></span></span>
+          <span class="dash-sidebar-indicator"><span class="status-dot gray" data-sidebar-live aria-hidden="true"></span><span data-sidebar-live-label></span></span>
+        </span>
+      </a>
+      <a class="dash-nav-link" href="#overview" data-section-link="overview"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span data-i18n="dashboard.section.overview.title"></span><span class="dash-nav-badge" data-nav-badge="overview" role="img" hidden></span></a>
       <div class="dash-nav-group">
         <div class="dash-nav-group-label" id="dash-nav-group-agent" data-i18n="dashboard.nav.group.agent"></div>
         <ul class="dash-nav-list" aria-labelledby="dash-nav-group-agent">
@@ -93,8 +100,8 @@
       <div class="dash-nav-group">
         <div class="dash-nav-group-label" id="dash-nav-group-operations" data-i18n="dashboard.nav.group.operations"></div>
         <ul class="dash-nav-list" aria-labelledby="dash-nav-group-operations">
-          <li><a class="dash-nav-link" href="#problems" data-section-link="problems"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 9v5M12 18h.01"/></svg><span data-i18n="dashboard.section.problems.title"></span></a></li>
-          <li><a class="dash-nav-link" href="#automations" data-section-link="automations"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span data-i18n="dashboard.section.automations.title"></span></a></li>
+          <li><a class="dash-nav-link" href="#problems" data-section-link="problems"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 9v5M12 18h.01"/></svg><span data-i18n="dashboard.section.problems.title"></span><span class="dash-nav-badge" data-nav-badge="problems" role="img" hidden></span></a></li>
+          <li><a class="dash-nav-link" href="#automations" data-section-link="automations"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span data-i18n="dashboard.section.automations.title"></span><span class="dash-nav-badge" data-nav-badge="automations" role="img" hidden></span></a></li>
           <li><a class="dash-nav-link" href="#system" data-section-link="system"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span data-i18n="dashboard.section.system.title"></span></a></li>
           <li><a class="dash-nav-link" href="#audit" data-section-link="audit"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg><span data-i18n="dashboard.section.audit.title"></span></a></li>
           <li><a class="dash-nav-link" href="#logs" data-section-link="logs"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg><span data-i18n="dashboard.section.logs.title"></span></a></li>
@@ -131,6 +138,8 @@
   <script src="/js/shared/learnings.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/dash-router.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/dash-api.js?v={{.BuildVersion}}" defer></script>
+  <script src="/js/dashboard/dash-summary.js?v={{.BuildVersion}}" defer></script>
+  <script src="/js/dashboard/dash-overview.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/main.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/operational-issues.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/dashboard-charts.js?v={{.BuildVersion}}" defer></script>
