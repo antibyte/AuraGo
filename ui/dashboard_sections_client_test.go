@@ -62,13 +62,13 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 		}
 	}
 
-	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	// A narrative toggle changes /api/personality/state without a personality_update SSE, so the
 	// cached state must be dropped by the mutation itself.
-	if at := strings.Index(widgets, "async function characterNoteAction("); at < 0 {
-		t.Error("dashboard-widgets.js misses characterNoteAction")
-	} else if end := strings.Index(widgets[at:], "function renderCharacterNotes("); end < 0 ||
-		!strings.Contains(widgets[at:at+end], "DashAPI.invalidate('/api/personality/');") {
+	personalityJS := readDesktopAssetText(t, "js/dashboard/sections/personality.js")
+	if at := strings.Index(personalityJS, "async function characterNoteAction("); at < 0 {
+		t.Error("sections/personality.js misses characterNoteAction")
+	} else if end := strings.Index(personalityJS[at:], "function renderCharacterNotes("); end < 0 ||
+		!strings.Contains(personalityJS[at:at+end], "DashAPI.invalidate('/api/personality/');") {
 		t.Error("characterNoteAction must call DashAPI.invalidate('/api/personality/') after a successful POST")
 	}
 	for _, gone := range []string{"TabState", "loadTabAgent", "loadTabUser", "function loadErrorPatterns"} {
