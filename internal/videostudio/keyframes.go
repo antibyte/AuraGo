@@ -282,19 +282,29 @@ func effectEntryValue(clip Clip, path string, frame int) (float64, bool) {
 }
 
 // clipFrame is the resolved picture state of a visual clip at one timeline frame. It is the Go side of the JS
-// clipState for the keyframable base properties. The export's animated chain and its tests read it, and 2e applies
-// in/out animation here, on top of the keyframes.
+// clipState for the keyframable base properties:
+//   - the geometry is the keyed values (the animated box is animBox's);
+//   - Opacity is the opacity the export applies, the keyed opacity times the in/out animation's (2e, clipOpacityAt).
 type clipFrame struct {
 	X, Y, Width, Height, Rotation, Opacity float64
 }
 
-// clipFrameAt resolves every keyframable base property of a clip at absolute timeline frame frame through ValueAt.
+// clipFrameAt resolves every keyframable base property of a clip at absolute timeline frame frame through ValueAt, and
+// the opacity through clipOpacityAt.
 func clipFrameAt(clip Clip, frame int) clipFrame {
 	value := func(path string) float64 {
 		v, _ := ValueAt(clip, path, frame)
 		return v
 	}
-	return clipFrame{X: value("x"), Y: value("y"), Width: value("width"), Height: value("height"), Rotation: value("rotation"), Opacity: value("opacity")}
+	return clipFrame{X: value("x"), Y: value("y"), Width: value("width"), Height: value("height"), Rotation: value("rotation"), Opacity: clipOpacityAt(clip, frame)}
+}
+
+// clipOpacityAt is the opacity the export applies at absolute timeline frame frame (index §4.24): the keyed opacity
+// (ValueAt) times the in/out animation's opacity (animAt; 1 at rest and outside the clip). Without an animation it is
+// ValueAt's value exactly.
+func clipOpacityAt(clip Clip, frame int) float64 {
+	keyed, _ := ValueAt(clip, "opacity", frame)
+	return keyed * animAt(clip, frame).Opacity
 }
 
 // clipAnimation reports which parts of a clip's picture can change over time:

@@ -14,13 +14,14 @@ import (
 )
 
 // videoStudioEffectsPrelude loads the DOM-free modules the way the app does: the effect module directly after the time
-// module, and the picture math directly after it (plan 2c).
+// module, the picture math directly after it (plan 2c) and the in/out animation math after that (plan 2e).
 const videoStudioEffectsPrelude = `
 const assert = require('node:assert/strict');
 global.window = {};
 require('./js/desktop/apps/video-studio-time.js');
 require('./js/desktop/apps/video-studio-effects.js');
 require('./js/desktop/apps/video-studio-picture.js');
+require('./js/desktop/apps/video-studio-anim.js');
 const E = window.VideoStudioEffects;
 `
 
@@ -250,6 +251,21 @@ const videoStudioParityRunners = `{
   key: {exact: false, run(input) {
     const V = window.VideoStudioPicture;
     return {alpha: input.rgb.map(rgb => V.keyAlpha(input.params, rgb)), rgb: input.rgb.map(rgb => V.despill(input.params, rgb))};
+  }},
+  // In/out animation (topic "anim", index §4.4b, §4.24): states, exact boxes, wipe columns, frame ranges and spans;
+  // numbers within 1e-6. At rest at() is null, which reads as the rest values.
+  anim: {exact: false, run(input) {
+    const A = window.VideoStudioAnim;
+    if (input.kind === 'state') {
+      const a = A.at(input.clip, input.frame, {fps: input.fps, ntsc: input.ntsc});
+      return a ? {active: true, opacity: a.opacity, dx: a.dx, dy: a.dy, scale: a.scale, blur: a.blur, wipe: a.wipe}
+        : {active: false, opacity: 1, dx: 0, dy: 0, scale: 1, blur: null, wipe: null};
+    }
+    if (input.kind === 'box') return A.box(input.box, input.anim, input.canvas);
+    if (input.kind === 'reveal') { const r = A.revealPx(input.anim, input.width); return {x0: r[0], x1: r[1]}; }
+    if (input.kind === 'range') return A.frameRange({fps: input.fps, ntsc: input.ntsc});
+    if (input.kind === 'spans') return A.spans(input.clip);
+    throw new Error('unknown anim input kind ' + input.kind);
   }},
 }`
 
@@ -639,4 +655,55 @@ assert.deepEqual(V.transitionParams('dissolve', -2, 0, 64, 36), {P: 1, Q: 0});
 assert(V.transitionParams('dissolve', 89, 90, 64, 36).P > 0);
 console.log('ok');
 `)
+}
+
+// VideoStudioAnim's constants are Go's (index §4.4b). SECONDS is checked against the exported AnimMinSeconds,
+// AnimMaxSeconds and AnimDefaultSeconds. The preset numbers are checked against the unexported constants of anim.go,
+// read from their `name = <decimal>` lines like the CAS pair above.
+func TestVideoStudioAnimConstantsMatchGo(t *testing.T) {
+	output := runVideoStudioEffectsScript(t, `
+const A = window.VideoStudioAnim;
+process.stdout.write(JSON.stringify({seconds: A.SECONDS, slide: A.SLIDE, pop: A.POP, blurRadius: A.BLUR_RADIUS, blurNode: A.BLUR_NODE}));
+`)
+	var got struct {
+		Seconds struct {
+			Min, Max, Default float64
+		}
+		Slide float64
+		Pop   struct {
+			From, Peak, PeakAt, FadeUntil, Rise, Settle, Tail float64
+		}
+		BlurRadius, BlurNode float64
+	}
+	if err := json.Unmarshal(output, &got); err != nil {
+		t.Fatalf("constants are not JSON: %v\n%s", err, output)
+	}
+	if got.Seconds.Min != float64(videostudio.AnimMinSeconds) || got.Seconds.Max != float64(videostudio.AnimMaxSeconds) || got.Seconds.Default != float64(videostudio.AnimDefaultSeconds) {
+		t.Fatalf("SECONDS = %+v, want %v..%v s, default %v s", got.Seconds, videostudio.AnimMinSeconds, videostudio.AnimMaxSeconds, videostudio.AnimDefaultSeconds)
+	}
+	source, err := os.ReadFile(filepath.Join("..", "internal", "videostudio", "anim.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	goConst := func(name string) float64 {
+		t.Helper()
+		for _, line := range strings.Split(string(source), "\n") {
+			fields := strings.Fields(strings.ReplaceAll(strings.TrimPrefix(strings.TrimSpace(line), "const "), "=", " = "))
+			var value float64
+			if len(fields) >= 3 && fields[0] == name && fields[1] == "=" && json.Unmarshal([]byte(fields[2]), &value) == nil {
+				return value
+			}
+		}
+		t.Fatalf("anim.go declares no numeric constant %s", name)
+		return 0
+	}
+	for name, value := range map[string]float64{
+		"animSlideDistance": got.Slide, "animPopFrom": got.Pop.From, "animPopPeak": got.Pop.Peak, "animPopPeakAt": got.Pop.PeakAt,
+		"animPopFadeUntil": got.Pop.FadeUntil, "animPopRise": got.Pop.Rise, "animPopSettle": got.Pop.Settle, "animPopTail": got.Pop.Tail,
+		"animBlurRadius": got.BlurRadius, "animBlurNode": got.BlurNode,
+	} {
+		if want := goConst(name); value != want {
+			t.Errorf("VideoStudioAnim's %s is %v, Go's %v", name, value, want)
+		}
+	}
 }

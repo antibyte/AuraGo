@@ -1511,7 +1511,7 @@ buttons and menu popovers remain excluded from those gestures.
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css` and `desktop-stickers.css`, then
   `shared/sticker-catalog.js`, `shared/sticker-library.js`,
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-effects.js` (DOM-free registry mirror and shared
-  math), `video-studio-picture.js` (DOM-free colour and picture math), `video-studio-media.js`, `video-studio-gl.js`
+  math), `video-studio-picture.js` (DOM-free colour and picture math), `video-studio-anim.js` (DOM-free in/out animation math), `video-studio-media.js`, `video-studio-gl.js`
   (WebGL2 helper), `video-studio-shaders.js`,
   `video-studio-compositor.js` (GL painter), `video-studio-painter2d.js` (2D painter), `video-studio-preview.js`,
   `video-studio-timeline.js`,
@@ -1537,8 +1537,8 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (39 Video Studio scripts after the two shared
-  sticker scripts, so 41 in all; the same order in `module-loader.js`, both browser fixtures and
+  `-menus.js` (context menus), and `video-studio.js` last (40 Video Studio scripts after the two shared
+  sticker scripts, so 42 in all; the same order in `module-loader.js`, both browser fixtures and
   `TestVideoStudioNavigationLoadOrder`; lists only get insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
