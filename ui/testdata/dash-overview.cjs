@@ -90,4 +90,19 @@ const rest = O.agentStateView({ enabled: true, mood: 'curious', dynamics: { tren
 assert.equal(json([rest.affect, rest.trend]), '[false,"steady"]', 'no affect while at rest; unknown trends read as steady');
 assert.equal(O.agentStateView({ enabled: false }).enabled, false);
 assert.equal(O.agentStateView({}).enabled, false);
-console.log('DashOverview: hidden tiles, ' + Object.keys(samples).length + ' attention codes, tile sources and views pass.');
+// Tile spans: the visible tiles take the columns of hidden ones (markup spans stay for hidden tiles)
+assert.equal(json(O.tileSpans([])), json({ 'ov-system': 3, 'ov-budget': 3, 'ov-automations': 3, 'ov-knowledge': 3, 'ov-activity': 8, 'ov-agent-state': 4 }));
+const spans = (hidden, ids) => ids.map(id => O.tileSpans(hidden)[id]).join(',');
+assert.equal(spans(['ov-budget'], ['ov-system', 'ov-automations', 'ov-knowledge']), '4,4,4', 'three KPI tiles take a third each');
+assert.equal(spans(['ov-budget', 'ov-knowledge'], ['ov-system', 'ov-automations']), '6,6');
+assert.equal(spans(['ov-system', 'ov-budget', 'ov-knowledge'], ['ov-automations']), '12');
+assert.equal(spans(['ov-activity'], ['ov-agent-state']), '12', 'agent state takes the full row alone');
+assert.equal(spans(['ov-agent-state'], ['ov-activity']), '12');
+assert.equal(spans(['ov-activity', 'ov-agent-state'], ['ov-system']), '3', 'the pair does not change the KPI row');
+assert.equal(O.tileSpans(['ov-budget'])['ov-budget'], 3, 'a hidden tile keeps its markup span');
+assert.equal(json(O.tileSpans(null)), json(O.tileSpans([])));
+
+// Maintenance item: before the first run only the status shows
+assert.equal(O.maintenanceValue('OK', '17.10., 03:00'), 'OK · 17.10., 03:00');
+assert.equal(O.maintenanceValue('no run yet', ''), 'no run yet');
+console.log('DashOverview: hidden tiles, ' + Object.keys(samples).length + ' attention codes, tile sources, views, tile spans and the maintenance item pass.');

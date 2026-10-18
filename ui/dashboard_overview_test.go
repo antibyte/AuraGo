@@ -120,6 +120,9 @@ func TestDashboardOverviewTilesMarkup(t *testing.T) {
 			t.Errorf("%s must declare display: none; block:\n%s", selector, body)
 		}
 	}
+	if body := dashboardCSSRuleBody(t, shellCSS, ".ov-kpi"); !strings.Contains(body, "grid-template-rows: 1fr auto;") {
+		t.Errorf(".ov-kpi must keep its value on the bottom row (grid-template-rows: 1fr auto;) so values of one row line up; block:\n%s", body)
+	}
 }
 
 // TestDashboardSidebarStatusAndBadges: the sidebar opens with the status block (a plain link to #overview, not a

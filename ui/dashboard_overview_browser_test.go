@@ -317,15 +317,15 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	toggleBox := toggle.MustShape().Box()
 	p.Mouse.MustMoveTo(toggleBox.X+3, toggleBox.Y+toggleBox.Height/2)
 	p.Mouse.MustClick(proto.InputMouseButtonLeft)
-	wait(`() => document.querySelector('[data-tile-toggle="ov-budget"]').getAttribute('aria-pressed') === 'false' && document.getElementById('ov-budget').classList.contains('ov-tile-off')`)
+	wait(`() => document.querySelector('[data-tile-toggle="ov-budget"]').getAttribute('aria-pressed') === 'false' && document.getElementById('ov-budget').classList.contains('ov-tile-off') && document.getElementById('ov-system').classList.contains('span-3')`)
 	p.MustElement(`[data-action="overview-customize"]`).MustClick()
-	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '["ov-budget"]' && document.querySelectorAll('[data-tile-toggle]:not([hidden])').length === 0`)
+	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '["ov-budget"]' && document.querySelectorAll('[data-tile-toggle]:not([hidden])').length === 0 && ['ov-system', 'ov-automations', 'ov-knowledge'].every(id => document.getElementById(id).classList.contains('span-4'))`)
 	open(1440)
 	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && getComputedStyle(document.getElementById('ov-system')).display !== 'none'`)
 	p.MustElement(`[data-action="overview-customize"]`).MustClick()
 	p.MustElement(`[data-action="overview-show-all"]`).MustClick()
 	p.MustElement(`[data-action="overview-customize"]`).MustClick()
-	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display !== 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '[]'`)
+	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display !== 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '[]' && document.getElementById('ov-system').classList.contains('span-3')`)
 
 	// 700 px: drawer with the status block; a section link closes it; the status block returns to the overview.
 	open(700)

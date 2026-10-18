@@ -10,6 +10,11 @@
     const STORAGE_KEY = 'aurago-dash-hidden-tiles';
     const HIDEABLE_TILES = Object.freeze(['ov-system', 'ov-budget', 'ov-automations', 'ov-knowledge', 'ov-activity', 'ov-agent-state']);
     const ALL_TILES = Object.freeze(['ov-status', 'ov-attention'].concat(HIDEABLE_TILES));
+    // Grid spans of the hideable tiles in overview.html, and the span classes of the 12-column grid.
+    const TILE_SPANS = Object.freeze({ 'ov-system': 3, 'ov-budget': 3, 'ov-automations': 3, 'ov-knowledge': 3, 'ov-activity': 8, 'ov-agent-state': 4 });
+    const KPI_TILES = Object.freeze(['ov-system', 'ov-budget', 'ov-automations', 'ov-knowledge']);
+    const PAIR_TILES = Object.freeze(['ov-activity', 'ov-agent-state']);
+    const SPAN_CLASSES = Object.freeze(['span-3', 'span-4', 'span-6', 'span-8', 'span-12']);
     // Summary sources (summary.unavailable) a tile depends on. Health is never listed: a null health only means
     // "not sampled yet", so ov-system waits for the first sample instead.
     const TILE_SOURCES = Object.freeze({
@@ -51,6 +56,19 @@
     function serializeHiddenTiles(ids) {
         const list = Array.isArray(ids) ? ids : [];
         return JSON.stringify(HIDEABLE_TILES.filter(id => list.indexOf(id) !== -1));
+    }
+
+    // Spans that close the gaps of hidden tiles: the visible KPI tiles share the 12 columns (4 → 3 each, 3 → 4,
+    // 2 → 6, 1 → 12); activity and agent state keep 8/4 together and take the full row alone. Hidden tiles keep
+    // their markup span (they are display: none).
+    function tileSpans(hiddenIds) {
+        const hidden = Array.isArray(hiddenIds) ? hiddenIds : [];
+        const spans = Object.assign({}, TILE_SPANS);
+        const kpis = KPI_TILES.filter(id => hidden.indexOf(id) === -1);
+        kpis.forEach(id => { spans[id] = 12 / kpis.length; });
+        const pair = PAIR_TILES.filter(id => hidden.indexOf(id) === -1);
+        if (pair.length === 1) spans[pair[0]] = 12;
+        return spans;
     }
 
     function tileUnavailable(tileId, summary) {
@@ -144,6 +162,12 @@
         if (d > 0) return d + 'd ' + h + 'h';
         if (h > 0) return h + 'h ' + m + 'm';
         return m + 'm';
+    }
+
+    // Status-line value of the nightly maintenance item: "<status> · <last run>", only the status before the first
+    // run (a fresh instance would otherwise read "no run yet · no run yet").
+    function maintenanceValue(statusText, lastRunText) {
+        return lastRunText ? statusText + ' · ' + lastRunText : String(statusText);
     }
 
     // /api/personality/state -> ov-agent-state. affect_valence (-1..1) and affect_arousal (0..1) are only present
@@ -260,7 +284,8 @@
             const lastRun = maintenance.last_run ? formatTimestamp(maintenance.last_run) : t('dashboard.maintenance_status_never');
             const nextRun = maintenance.next_run ? formatTimestamp(maintenance.next_run) : '—';
             const title = t('dashboard.maintenance_last_run', { time: lastRun }) + ' · ' + t('dashboard.maintenance_next_run', { time: nextRun });
-            items.push(statusItem(t('dashboard.maintenance_nightly_title'), esc(tOr('dashboard.maintenance_status_' + status, status)) + ' · ' + esc(lastRun), title));
+            const statusText = tOr('dashboard.maintenance_status_' + status, status);
+            items.push(statusItem(t('dashboard.maintenance_nightly_title'), esc(maintenanceValue(statusText, maintenance.last_run ? lastRun : '')), title));
         }
         line.innerHTML = items.join('');
     }
@@ -423,17 +448,20 @@
         });
     }
 
-    // Customize: outside the mode hidden tiles get .is-hidden (display: none, no grid gap); inside it they
-    // stay visible but dimmed (.ov-tile-off) so each one can be switched back on.
+    // Customize: outside the mode hidden tiles get .is-hidden (display: none) and the visible tiles take over the freed
+    // columns (tileSpans); inside it every tile keeps its markup span and hidden ones stay visible but dimmed
+    // (.ov-tile-off), so each one can be switched back on in place.
     function applyVisibility() {
         const section = byId('sec-overview');
         if (section) section.classList.toggle('is-customizing', customizing);
+        const spans = customizing ? TILE_SPANS : tileSpans(hiddenTiles);
         HIDEABLE_TILES.forEach(id => {
             const tile = byId(id);
             if (!tile) return;
             const off = isHidden(id);
             tile.classList.toggle('is-hidden', off && !customizing);
             tile.classList.toggle('ov-tile-off', off && customizing);
+            SPAN_CLASSES.forEach(name => tile.classList.toggle(name, name === 'span-' + spans[id]));
             const toggle = tile.querySelector('[data-tile-toggle]');
             if (toggle) {
                 toggle.hidden = !customizing;
@@ -559,5 +587,7 @@
         healthFromMetrics,
         uptimeText,
         agentStateView,
+        tileSpans,
+        maintenanceValue,
     };
 })();
