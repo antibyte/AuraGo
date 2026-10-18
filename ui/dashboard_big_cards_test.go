@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -59,4 +60,25 @@ func TestDashboardKPIRowAndDisclosureStyles(t *testing.T) {
 	if !regexp.MustCompile(`(?s)\[data-density="compact"\] \.dash-disclosure-summary\s*\{[^}]*min-height: 44px;`).MatchString(phone) {
 		t.Error("compact density on phones must restore 44 px disclosure summaries")
 	}
+}
+
+// dashboardBigCardI18nKeys lists the keys P5 adds for the KPI rows and disclosure summaries of the big cards.
+func dashboardBigCardI18nKeys() []string {
+	return []string{
+		"dashboard.prompt_cache_title",
+		"dashboard.tooling_telemetry_format_errors",
+		"dashboard.tooling_telemetry_all_counters",
+		"dashboard.knowledge_all_metrics",
+		"dashboard.knowledge_health_consistency_issues",
+		"dashboard.knowledge_health_consistency_unavailable",
+		"dashboard.memory_all_counters",
+		"dashboard.memory_health_title",
+		"dashboard.memory_insights_title",
+		"dashboard.memory_milestones_title",
+	}
+}
+
+func TestDashboardBigCardKeysExistInAllLocales(t *testing.T) {
+	t.Parallel()
+	assertLocaleKeys(t, filepath.Join("lang", "dashboard"), dashboardBigCardI18nKeys())
 }
