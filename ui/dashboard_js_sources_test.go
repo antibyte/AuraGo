@@ -36,3 +36,33 @@ func readDashboardJS(t *testing.T) string {
 	}
 	return b.String()
 }
+
+// TestDashboardSectionScriptsLoadInPageOrder: the registry loads after dash-overview.js and before main.js, deferred
+// and cache-busted like every dashboard script.
+func TestDashboardSectionScriptsLoadInPageOrder(t *testing.T) {
+	t.Parallel()
+	assertDashboardScriptOrder(t, readDashboardShell(t), []string{
+		"/js/dashboard/dash-overview.js",
+		"/js/dashboard/dash-sections.js",
+		"/js/dashboard/main.js",
+	})
+}
+
+// assertDashboardScriptOrder checks that every src has exactly one deferred, cache-busted script tag in the shell
+// and that the tags appear in the given order.
+func assertDashboardScriptOrder(t *testing.T, shell string, order []string) {
+	t.Helper()
+	previous := -1
+	for _, src := range order {
+		tag := `<script src="` + src + `?v={{.BuildVersion}}" defer></script>`
+		if n := strings.Count(shell, tag); n != 1 {
+			t.Errorf("dashboard.html has %d tags %s, want 1", n, tag)
+			continue
+		}
+		at := strings.Index(shell, tag)
+		if at < previous {
+			t.Errorf("%s loads out of order", src)
+		}
+		previous = at
+	}
+}

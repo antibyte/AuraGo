@@ -37,3 +37,8 @@ func TestDashboardOverviewHelpers(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-overview.cjs")
 }
+
+func TestDashboardSectionRegistry(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-sections.cjs")
+}
