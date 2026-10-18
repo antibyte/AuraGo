@@ -277,14 +277,6 @@
             return String(str).replace(/[&<>"']/g, c => map[c]);
         }
 
-        function escapeJsString(str) {
-            return String(str)
-                .replace(/\\/g, '\\\\')
-                .replace(/'/g, "\\'")
-                .replace(/\r/g, '\\r')
-                .replace(/\n/g, '\\n');
-        }
-
         // ── Relative Time ────────────────────────────────────────────────────────────
         function relativeTime(unixMillis) {
             const diff = Math.floor((Date.now() - unixMillis) / 1000);
@@ -380,6 +372,11 @@
             setupAuditControls();
             setupCronjobsControls();
             document.addEventListener('click', (e) => {
+                const kgAction = e.target.closest('[data-kg-action]');
+                if (kgAction) {
+                    if (typeof runKnowledgeGraphAction === 'function') runKnowledgeGraphAction(kgAction);
+                    return;
+                }
                 const mergeButton = e.target.closest('[data-kg-merge-source]');
                 if (mergeButton) {
                     e.preventDefault();

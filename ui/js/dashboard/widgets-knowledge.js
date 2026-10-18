@@ -444,8 +444,8 @@
                 <div class="knowledge-detail-row knowledge-edge-row">
                     <div><strong>${escapeHtml(edge.relation || '')}</strong>: ${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn btn-danger btn-sm" data-kg-action="delete-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_edge_delete')}</button>
                     </div>
                 </div>
             `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
@@ -461,9 +461,9 @@
                         </div>
                         <div class="knowledge-detail-actions">
                             ${isProtected ? `<span class="knowledge-item-badge knowledge-item-badge-protected">${t('dashboard.knowledge_detail_protected')}</span>` : ''}
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-node" data-kg-node="${escAttr(node.id || '')}">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-kg-action="protect-node" data-kg-node="${escAttr(node.id || '')}" data-kg-protect="${isProtected ? 'false' : 'true'}">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
+                            <button type="button" class="btn btn-danger btn-sm" data-kg-action="delete-node" data-kg-node="${escAttr(node.id || '')}" data-kg-label="${escAttr(node.label || node.id || 'Node')}">${t('dashboard.knowledge_action_delete')}</button>
                         </div>
                     </div>
                     ${renderKnowledgeGraphNodeEditor(node, isEditing)}
@@ -522,8 +522,8 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphNodeEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" data-kg-action="save-node" data-kg-node="${escAttr(node.id || '')}">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-node" data-kg-node="${escAttr(node.id || '')}">${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
@@ -547,11 +547,33 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphEdgeEdit('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" data-kg-action="save-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
+        }
+
+        // The detail panel's buttons name their node or edge in data-kg-* attributes, not in inline onclick code, where
+        // a quote in an agent-written id or relation could end the attribute. main.js's delegated click listener hands
+        // every [data-kg-action] button to runKnowledgeGraphAction.
+        function knowledgeGraphEdgeDataAttrs(edge) {
+            return `data-kg-source="${escAttr(edge.source || '')}" data-kg-target="${escAttr(edge.target || '')}" data-kg-relation="${escAttr(edge.relation || '')}"`;
+        }
+
+        function runKnowledgeGraphAction(button) {
+            const data = button.dataset;
+            const nodeID = data.kgNode || '';
+            const edge = { source: data.kgSource || '', target: data.kgTarget || '', relation: data.kgRelation || '' };
+            switch (data.kgAction) {
+                case 'edit-node': return toggleKnowledgeGraphEdit(nodeID);
+                case 'protect-node': return toggleKnowledgeGraphProtection(nodeID, data.kgProtect === 'true');
+                case 'delete-node': return deleteKnowledgeGraphNode(nodeID, data.kgLabel || '');
+                case 'save-node': return saveKnowledgeGraphNodeEdit(nodeID);
+                case 'edit-edge': return toggleKnowledgeGraphEdgeEdit(knowledgeGraphEdgeIdentity(edge));
+                case 'delete-edge': return deleteKnowledgeGraphEdge(edge.source, edge.target, edge.relation);
+                case 'save-edge': return saveKnowledgeGraphEdgeEdit(edge.source, edge.target, edge.relation);
+            }
         }
 
         function toggleKnowledgeGraphEdit(nodeID) {

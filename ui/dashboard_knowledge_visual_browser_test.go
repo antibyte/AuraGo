@@ -52,7 +52,6 @@ window.truncate = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n 
 window.esc = (s) => String(s);
 window.escapeHtml = (s) => String(s);
 window.escAttr = (s) => String(s);
-window.escapeJsString = (s) => String(s);
 window.showToast = () => {};
 window.showAlert = async () => {};
 window.showConfirm = async () => true;
