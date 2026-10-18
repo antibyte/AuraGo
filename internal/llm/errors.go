@@ -57,6 +57,10 @@ func ClassifyError(err error) ErrorCategory {
 		return ""
 	}
 
+	var classified *LLMError
+	if errors.As(err, &classified) && classified.Category != "" && classified.InnerError == nil {
+		return classified.Category
+	}
 	if errors.Is(err, context.Canceled) {
 		return ErrCategoryContextCanceled
 	}
@@ -121,6 +125,10 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 	case statusCode == http.StatusUnprocessableEntity:
 		// 422 Unprocessable Entity is also a structural payload error; same rationale as 400.
 		return ErrCategoryNonRetryableConfig
+	case statusCode >= 400 && statusCode < 500 && statusCode != http.StatusRequestTimeout:
+		return ErrCategoryNonRetryableConfig
+	case statusCode == http.StatusRequestTimeout:
+		return ErrCategoryTemporaryTransport
 	case statusCode == 529:
 		// Anthropic "overloaded" error - explicitly retryable
 		return ErrCategoryTemporaryTransport

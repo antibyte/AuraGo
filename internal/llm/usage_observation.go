@@ -43,6 +43,12 @@ func CaptureUsage(ctx context.Context) (context.Context, *UsageCapture) {
 	return context.WithValue(ctx, usageCaptureKey{}, c), c
 }
 
+// UsageCaptureFromContext shares an observer's request-local measurements.
+func UsageCaptureFromContext(ctx context.Context) *UsageCapture {
+	capture, _ := ctx.Value(usageCaptureKey{}).(*UsageCapture)
+	return capture
+}
+
 func (c *UsageCapture) Snapshot() []RequestUsage {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -123,14 +129,18 @@ func (t *usageObservationTransport) RoundTrip(req *http.Request) (*http.Response
 		return resp, err
 	}
 	usage.Status = resp.StatusCode
-	if resp.Body == nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.Body == nil {
 		finish()
 		return resp, nil
 	}
 	consume := func(data []byte) []byte {
 		usageMu.Lock()
 		defer usageMu.Unlock()
-		return normalizeObservedUsage(data, stepFun, &usage)
+		normalized := normalizeObservedUsage(data, stepFun && resp.StatusCode >= 200 && resp.StatusCode < 300, &usage)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return data
+		}
+		return normalized
 	}
 	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
 		resp.Body = &usageStreamBody{source: resp.Body, reader: bufio.NewReader(resp.Body), consume: consume, finish: finish}
@@ -263,6 +273,10 @@ func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) (no
 
 // Exact registry prices only. Missing cache measurements/prices and subscription
 // or custom endpoints do not support a monetary estimate.
+// EstimateMeasuredCost applies exact model rates to measured cache partitions.
+// Nil means incomplete measurements or unsupported service-tier pricing.
+func EstimateMeasuredCost(u RequestUsage) *float64 { return estimateMeasuredCost(u) }
+
 func estimateMeasuredCost(u RequestUsage) *float64 {
 	if u.ServiceTier != "" && u.ServiceTier != "default" {
 		return nil // The registry has no prices for priority/flex or other tiers.

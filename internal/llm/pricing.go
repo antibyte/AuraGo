@@ -113,6 +113,10 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 			return p, true
 		}
 	}
+	// Exact provider/model metadata wins over a family substring.
+	if entry, ok := GetModelInfo(providerType, modelID); ok && (entry.InputPricePer1M > 0 || entry.OutputPricePer1M > 0) {
+		return ModelPricing{ModelID: entry.ID, InputPerMillion: entry.InputPricePer1M, OutputPerMillion: entry.OutputPricePer1M}, true
+	}
 	// Partial-match fallback (e.g. "gpt-4o-2024-08-06" → "gpt-4o").
 	// When both a family and variant key match, use the most specific key.
 	var best ModelPricing

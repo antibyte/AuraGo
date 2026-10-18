@@ -145,7 +145,12 @@ func (s *observedCompletionStream) Recv() (openai.ChatCompletionStreamResponse, 
 	response, err := s.stream.Recv()
 	if err != nil {
 		if s.ctx.Err() != nil || IsContextError(err) {
-			s.finishNeutral()
+			outcome := providerOutcomeError(s.ctx, err)
+			if outcome == nil || IsContextError(outcome) {
+				s.finishNeutral()
+			} else {
+				s.finishError(outcome)
+			}
 		} else if errors.Is(err, io.EOF) {
 			s.finishError(io.ErrUnexpectedEOF)
 		} else {

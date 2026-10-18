@@ -21,10 +21,9 @@ func WithThinkingCallback(ctx context.Context, cb func(content, state string)) c
 	return context.WithValue(ctx, cbCtxKey, cb)
 }
 
-const anthropicAPIVersion = "2024-10-22"
+const anthropicAPIVersion = "2023-06-01"
 const anthropicDefaultMaxTokens = 8192
 const maxThinkingBudget = 32000
-const maxReasoningContentLen = 100000
 
 // anthropicTransport is an http.RoundTripper that translates OpenAI-format
 // chat completion requests into the Anthropic Messages API format and maps
@@ -77,6 +76,9 @@ func (c anthropicThinkingConfig) enabledForModel(model string) bool {
 		return false
 	}
 
+	if anthropicAdaptiveModel(lower) {
+		return true
+	}
 	// Auto-detect: enable only for newer Claude model families (avoid older Claude 3).
 	switch {
 	case strings.Contains(lower, "claude-3-7"),
@@ -124,6 +126,8 @@ type anthropicMessage struct {
 }
 
 type anthropicContentBlock struct {
+	native json.RawMessage
+
 	Type         string                 `json:"type"`
 	Text         string                 `json:"text,omitempty"`
 	CacheControl *anthropicCacheControl `json:"cache_control,omitempty"`
@@ -181,6 +185,8 @@ type anthropicResponse struct {
 }
 
 type anthropicResponseBlock struct {
+	native json.RawMessage
+
 	Type     string                    `json:"type"`
 	Text     string                    `json:"text,omitempty"`
 	ID       string                    `json:"id,omitempty"`
@@ -261,6 +267,7 @@ type anthropicStreamDeltaBody struct {
 	Text        string `json:"text,omitempty"`
 	PartialJSON string `json:"partial_json,omitempty"`
 	Thinking    string `json:"thinking,omitempty"`
+	Signature   string `json:"signature,omitempty"`
 }
 
 type anthropicStreamMessageDelta struct {
@@ -300,6 +307,8 @@ type openaiRequest struct {
 }
 
 type openaiMessage struct {
+	Reasoning string `json:"reasoning_content,omitempty"`
+
 	Role       string           `json:"role"`
 	Content    any              `json:"content"` // string or []openaiContentPart
 	ToolCalls  []openaiToolCall `json:"tool_calls,omitempty"`
@@ -369,6 +378,8 @@ type openaiRespMessage struct {
 }
 
 type openaiRespDelta struct {
+	Reasoning string `json:"reasoning_content,omitempty"`
+
 	Role      string           `json:"role,omitempty"`
 	Content   string           `json:"content,omitempty"`
 	ToolCalls []openaiToolCall `json:"tool_calls,omitempty"`
@@ -522,17 +533,22 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 	}
 
 	if thinkingCfg.enabledForModel(oai.Model) {
-		budget := thinkingCfg.BudgetTokens
-		if budget <= 0 {
-			budget = 10000
+		if anthropicAdaptiveModel(oai.Model) {
+			ant.Thinking = &anthropicThinking{Type: "adaptive"}
+		} else if ant.MaxTokens > 1024 {
+			budget := thinkingCfg.BudgetTokens
+			if budget <= 0 {
+				budget = 10000
+			}
+			budget = max(1024, min(budget, maxThinkingBudget, ant.MaxTokens-1))
+			ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
 		}
-		if budget >= ant.MaxTokens {
-			budget = ant.MaxTokens / 2
-		}
-		if budget > maxThinkingBudget {
-			budget = maxThinkingBudget
-		}
-		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
+	}
+	if ant.Thinking != nil || anthropicFixedSamplingModel(oai.Model) {
+		ant.Temperature, ant.TopP = nil, nil
+	} else if ant.Temperature != nil {
+		// Claude accepts either sampling control, never both.
+		ant.TopP = nil
 	}
 
 	// stop → stop_sequences (Anthropic only accepts an array)
@@ -554,6 +570,10 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 			return ant, fmt.Errorf("translate tool_choice: %w", err)
 		}
 		ant.ToolChoice = tc
+		if tc != nil && ant.Thinking != nil && ant.Thinking.Type == "enabled" && (tc.Type == "any" || tc.Type == "tool") {
+			// Honor an explicit forced tool choice by disabling incompatible manual thinking.
+			ant.Thinking = nil
+		}
 	}
 
 	// user → metadata.user_id
@@ -615,11 +635,20 @@ func translateTools(rawTools []json.RawMessage) ([]anthropicToolDef, error) {
 }
 
 func cacheableAnthropicSystem(system string) []anthropicContentBlock {
-	return []anthropicContentBlock{{
-		Type:         "text",
-		Text:         system,
-		CacheControl: &anthropicCacheControl{Type: "ephemeral"},
-	}}
+	boundary := strings.Index(system, "# TURN CONTEXT")
+	if boundary < 0 {
+		boundary = strings.Index(system, "#TURN CONTEXT")
+	}
+	if boundary == 0 {
+		return []anthropicContentBlock{{Type: "text", Text: system}}
+	}
+	if boundary > 0 {
+		return []anthropicContentBlock{
+			{Type: "text", Text: system[:boundary], CacheControl: &anthropicCacheControl{Type: "ephemeral"}},
+			{Type: "text", Text: system[boundary:]},
+		}
+	}
+	return []anthropicContentBlock{{Type: "text", Text: system, CacheControl: &anthropicCacheControl{Type: "ephemeral"}}}
 }
 
 func translateToolChoice(tc any) (*anthropicToolChoice, error) {
@@ -673,7 +702,7 @@ func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, e
 			}
 
 		case "assistant":
-			if len(msg.ToolCalls) > 0 {
+			if len(msg.ToolCalls) > 0 || strings.HasPrefix(msg.Reasoning, anthropicReasoningPrefix) {
 				// Assistant message with tool calls → Anthropic content blocks
 				blocks := buildAssistantBlocks(msg)
 				antMsgs = appendMergedMessage("assistant", blocks, antMsgs)
@@ -738,6 +767,9 @@ func extractTextContent(content any) string {
 
 func buildAssistantBlocks(msg openaiMessage) []anthropicContentBlock {
 	var blocks []anthropicContentBlock
+	for _, raw := range decodeAnthropicReasoning(msg.Reasoning) {
+		blocks = append(blocks, anthropicContentBlock{native: raw})
+	}
 
 	// Add text content first if present
 	text := extractTextContent(msg.Content)
@@ -979,7 +1011,7 @@ func translateAnthropicResponse(resp *http.Response) (*http.Response, error) {
 func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 	var content string
 	var toolCalls []openaiToolCall
-	var reasoningContent string
+	var reasoningBlocks []json.RawMessage
 	toolIdx := 0
 
 	for _, block := range ant.Content {
@@ -1005,13 +1037,8 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 				Index: &idx,
 			})
 			toolIdx++
-		case "thinking":
-			if block.Thinking != nil && block.Thinking.Thinking != "" {
-				reasoningContent += block.Thinking.Thinking
-				if len(reasoningContent) > maxReasoningContentLen {
-					reasoningContent = reasoningContent[:maxReasoningContentLen]
-				}
-			}
+		case "thinking", "redacted_thinking":
+			reasoningBlocks = append(reasoningBlocks, nativeThinkingBlock(block))
 		}
 	}
 
@@ -1029,7 +1056,7 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 					Role:      "assistant",
 					Content:   content,
 					ToolCalls: toolCalls,
-					Reasoning: reasoningContent,
+					Reasoning: encodeAnthropicReasoning(reasoningBlocks),
 				},
 				FinishReason: &finishReason,
 			},
@@ -1137,6 +1164,8 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 	// Track active thinking block state
 	thinkingBlockActive := false
+	var thinkingBlocks []json.RawMessage
+	thinkingIndices := map[int]int{}
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -1211,8 +1240,10 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				}
 				writeSSEChunk(writer, chunk)
 				toolCallIndex++
-			} else if evt.ContentBlock.Type == "thinking" {
-				thinkingBlockActive = true
+			} else if evt.ContentBlock.Type == "thinking" || evt.ContentBlock.Type == "redacted_thinking" {
+				thinkingIndices[evt.Index] = len(thinkingBlocks)
+				thinkingBlocks = append(thinkingBlocks, nativeThinkingBlock(evt.ContentBlock))
+				thinkingBlockActive = evt.ContentBlock.Type == "thinking"
 				if thinkingCB != nil {
 					thinkingCB("", "start")
 				}
@@ -1259,7 +1290,14 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				}
 				writeSSEChunk(writer, chunk)
 
+			case "signature_delta":
+				if i, ok := thinkingIndices[evt.Index]; ok {
+					thinkingBlocks[i] = appendThinkingField(thinkingBlocks[i], "signature", evt.Delta.Signature)
+				}
 			case "thinking_delta":
+				if i, ok := thinkingIndices[evt.Index]; ok {
+					thinkingBlocks[i] = appendThinkingField(thinkingBlocks[i], "thinking", evt.Delta.Thinking)
+				}
 				if thinkingBlockActive && thinkingCB != nil {
 					thinkingCB(evt.Delta.Thinking, "delta")
 				}
@@ -1277,6 +1315,11 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			var evt anthropicStreamMessageDelta
 			if json.Unmarshal([]byte(data), &evt) != nil {
 				continue
+			}
+			if len(thinkingBlocks) > 0 {
+				writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
+					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}})
+				thinkingBlocks = nil
 			}
 			finishReason := mapStopReason(evt.Delta.StopReason)
 			chunk := openaiStreamChunk{

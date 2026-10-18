@@ -34,6 +34,7 @@ type BudgetStatus struct {
 
 // ModelUsage tracks per-model token usage and cost.
 type ModelUsage struct {
+	EstimatedCalls  int     `json:"estimated_calls"`
 	InputTokens     int     `json:"input_tokens"`
 	OutputTokens    int     `json:"output_tokens"`
 	CostUSD         float64 `json:"cost_usd"`
@@ -44,6 +45,8 @@ type ModelUsage struct {
 
 // persistedState is the JSON structure saved to disk.
 type persistedState struct {
+	ModelCost      map[string]float64 `json:"model_cost,omitempty"`
+	EstimatedCalls map[string]int     `json:"estimated_calls,omitempty"`
 	Date           string             `json:"date"`
 	TotalCostUSD   float64            `json:"total_cost_usd"`
 	CategoryCost   map[string]float64 `json:"category_cost,omitempty"`
@@ -72,7 +75,9 @@ type Tracker struct {
 	lastWarningPct float64
 	exceeded       bool
 
-	persistPath string
+	modelCost      map[string]float64
+	estimatedCalls map[string]int
+	persistPath    string
 
 	// Optional mission trigger callback: eventType is "budget_warning" or "budget_exceeded"
 	missionCallback func(eventType string, spentUSD, limitUSD, percentage float64)
@@ -175,6 +180,10 @@ func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
 // RecordForCategory logs token usage for a specific execution category such as
 // "chat" or "coagent". Category costs are persisted and can be used for quota checks.
 func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputTokens int) bool {
+	return t.recordUsage(category, model, inputTokens, outputTokens, nil, true)
+}
+
+func (t *Tracker) recordUsage(category, model string, inputTokens, outputTokens int, measuredCost *float64, estimated bool) bool {
 	if t == nil {
 		return false
 	}
@@ -197,7 +206,20 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 	t.callCounts[model]++
 
 	cost := t.calcCostLocked(model, inputTokens, outputTokens)
+	if measuredCost != nil {
+		cost = *measuredCost
+	}
 	t.totalCostUSD += cost
+	if t.modelCost == nil {
+		t.modelCost = make(map[string]float64)
+	}
+	if t.estimatedCalls == nil {
+		t.estimatedCalls = make(map[string]int)
+	}
+	t.modelCost[model] += cost
+	if estimated {
+		t.estimatedCalls[model]++
+	}
 	if category != "" {
 		t.categoryCost[strings.ToLower(category)] += cost
 	}
@@ -477,7 +499,8 @@ func (t *Tracker) GetStatus() BudgetStatus {
 		models[m] = ModelUsage{
 			InputTokens:     in,
 			OutputTokens:    out,
-			CostUSD:         t.calcCostLocked(m, in, out),
+			CostUSD:         t.modelCost[m],
+			EstimatedCalls:  t.estimatedCalls[m],
 			Calls:           calls,
 			AvgInputTokens:  avgIn,
 			AvgOutputTokens: avgOut,
@@ -673,6 +696,8 @@ func (t *Tracker) scheduleMidnightReset() {
 
 // resetForNewDayLocked zeroes all daily counters. Must be called with t.mu held.
 func (t *Tracker) resetForNewDayLocked(today string) {
+	t.modelCost = make(map[string]float64)
+	t.estimatedCalls = make(map[string]int)
 	t.date = today
 	t.totalCostUSD = 0
 	t.categoryCost = make(map[string]float64)
@@ -730,6 +755,7 @@ func (t *Tracker) Flush() {
 // doPersistLocked writes the budget state to disk. Must be called with t.mu held.
 func (t *Tracker) doPersistLocked() {
 	state := persistedState{
+		ModelCost: t.modelCost, EstimatedCalls: t.estimatedCalls,
 		Date:           t.date,
 		TotalCostUSD:   t.totalCostUSD,
 		CategoryCost:   t.categoryCost,
@@ -773,6 +799,8 @@ func (t *Tracker) load() {
 
 	t.date = state.Date
 	t.totalCostUSD = state.TotalCostUSD
+	t.modelCost = state.ModelCost
+	t.estimatedCalls = state.EstimatedCalls
 
 	// Migrate legacy WarningsSent to LastWarningPct if needed
 	lastWarningPct := state.LastWarningPct
@@ -796,6 +824,18 @@ func (t *Tracker) load() {
 	}
 	if state.OutputTokens != nil {
 		t.outputTokens = state.OutputTokens
+	}
+	if t.modelCost == nil {
+		t.modelCost = make(map[string]float64)
+		for model, in := range state.InputTokens {
+			t.modelCost[model] = t.calcCostLocked(model, in, state.OutputTokens[model])
+		}
+	}
+	if t.estimatedCalls == nil {
+		t.estimatedCalls = make(map[string]int)
+		for model, calls := range state.CallCounts {
+			t.estimatedCalls[model] = calls
+		}
 	}
 	if state.CallCounts != nil {
 		t.callCounts = state.CallCounts

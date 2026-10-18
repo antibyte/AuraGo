@@ -145,16 +145,13 @@ func TestAnthropicThinkingBudgetClamping(t *testing.T) {
 		Messages:  marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
 	}
 
-	// Budget exceeding MaxTokens should be clamped to MaxTokens/2
+	// A finite output cap below the manual thinking minimum disables thinking.
 	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 10000})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
-	if ant.Thinking == nil {
-		t.Fatal("expected thinking to be enabled")
-	}
-	if ant.Thinking.BudgetTokens != 64 {
-		t.Errorf("expected budget clamped to 64, got %d", ant.Thinking.BudgetTokens)
+	if ant.Thinking != nil {
+		t.Fatalf("thinking must be disabled below minimum: %+v", ant.Thinking)
 	}
 
 	// Budget exceeding maxThinkingBudget should be clamped to maxThinkingBudget
@@ -180,8 +177,8 @@ func TestAnthropicThinkingBudgetClamping(t *testing.T) {
 		t.Fatal("expected thinking to be enabled")
 	}
 	// Default 10000 is clamped to MaxTokens/2 = 4096
-	if ant.Thinking.BudgetTokens != 4096 {
-		t.Errorf("expected default budget clamped to 4096, got %d", ant.Thinking.BudgetTokens)
+	if ant.Thinking.BudgetTokens != 8191 {
+		t.Errorf("expected default budget clamped to 8191, got %d", ant.Thinking.BudgetTokens)
 	}
 }
 

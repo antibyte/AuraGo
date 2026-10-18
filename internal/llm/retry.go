@@ -197,7 +197,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			)
 		}
 		callStart := time.Now()
-		resp, err := client.CreateChatCompletion(attemptCtx, req)
+		resp, err := client.CreateChatCompletion(withAttemptParent(attemptCtx, ctx), req)
 		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := ctx.Err()
@@ -274,7 +274,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			if waitTime > 0 && remaining < waitTime {
 				waitTime = remaining
 			}
-		} else if waitTime > timeout {
+		} else if waitTime > timeout && GetRetryAfter(err) <= 0 {
 			waitTime = timeout
 		}
 
@@ -340,7 +340,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			)
 		}
 		callStart := time.Now()
-		stream, err := client.CreateChatCompletionStream(attemptCtx, req)
+		stream, err := client.CreateChatCompletionStream(withAttemptParent(attemptCtx, ctx), req)
 		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := ctx.Err()
@@ -417,7 +417,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			if waitTime > 0 && remaining < waitTime {
 				waitTime = remaining
 			}
-		} else if waitTime > timeout {
+		} else if waitTime > timeout && GetRetryAfter(err) <= 0 {
 			waitTime = timeout
 		}
 

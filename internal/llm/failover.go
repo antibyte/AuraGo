@@ -38,10 +38,13 @@ type FailoverManager struct {
 
 	logger *slog.Logger
 
-	clientFactory func(*config.Config) *openai.Client
+	clientFactory      func(*config.Config) *openai.Client
+	probeUsageRecorder func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)
 }
 
 type failoverProbeSnapshot struct {
+	route          ModelRoute
+	recorder       func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)
 	generation     int
 	onFallback     bool
 	primaryClient  *openai.Client
@@ -61,6 +64,14 @@ func WithClientFactory(factory func(*config.Config) *openai.Client) FailoverOpti
 			manager.clientFactory = factory
 		}
 	}
+}
+
+// SetProbeUsageRecorder attaches process-owned per-response accounting to bounded
+// recovery confirmations. The callback is snapshotted with the provider route.
+func (fm *FailoverManager) SetProbeUsageRecorder(recorder func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)) {
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+	fm.probeUsageRecorder = recorder
 }
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...FailoverOption) *FailoverManager {
@@ -196,34 +207,34 @@ func (fm *FailoverManager) Stop() {
 }
 
 func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-	client, model, onFallback := fm.active()
-	if onFallback && !fm.fallbackSupportsFeatures(req) {
-		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
-		fm.mu.RLock()
-		client = fm.primary
-		model = fm.primaryModel
-		fm.mu.RUnlock()
+	route := fm.activeStreamRoute()
+	if route.onFallback && !fm.fallbackSupportsFeatures(req) {
+		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", route.model)
+		route = fm.primaryStreamRoute(route)
+	}
+	if !route.valid || route.client == nil {
+		return openai.ChatCompletionResponse{}, errors.New("LLM provider client is unavailable")
 	}
 	reqCopy := req
-	reqCopy.Model = model
-
-	resp, err := client.CreateChatCompletion(ctx, reqCopy)
+	reqCopy.Model = route.model
+	response, err := route.client.CreateChatCompletion(ctx, reqCopy)
 	if err != nil {
-		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, onFallback, req); retry {
-			reqCopy.Model = fallbackModel
-			resp, err = fallbackClient.CreateChatCompletion(ctx, reqCopy)
-			if err != nil {
-				fm.recordError(err)
-			} else {
-				fm.recordSuccess()
+		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, route.onFallback, req, route.generation); retry {
+			fallbackRoute := fm.fallbackStreamRoute(route.generation, fallbackClient)
+			if !fallbackRoute.valid {
+				return response, err
 			}
-			return resp, err
+			reqCopy.Model = fallbackModel
+			response, err = fallbackClient.CreateChatCompletion(ctx, reqCopy)
+			route = fallbackRoute
 		}
-		fm.recordError(err)
-	} else {
-		fm.recordSuccess()
 	}
-	return resp, err
+	if err != nil {
+		fm.recordStreamError(route, providerOutcomeError(ctx, err))
+	} else {
+		fm.recordStreamSuccess(route)
+	}
+	return response, err
 }
 
 func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
@@ -248,12 +259,12 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 			reqCopy.Model = fallbackModel
 			stream, err = fallbackClient.CreateChatCompletionStream(ctx, reqCopy)
 			if err != nil {
-				fm.recordStreamError(fallbackRoute, err)
+				fm.recordStreamError(fallbackRoute, providerOutcomeError(ctx, err))
 				return nil, err
 			}
 			return fm.observeStream(ctx, stream, req, fallbackRoute), nil
 		}
-		fm.recordStreamError(route, err)
+		fm.recordStreamError(route, providerOutcomeError(ctx, err))
 		return nil, err
 	}
 	return fm.observeStream(ctx, stream, req, route), nil
@@ -514,9 +525,19 @@ func (fm *FailoverManager) recordSuccess() {
 }
 
 func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
+	probeCtx, stopProbes := context.WithCancel(context.Background())
+	defer stopProbes()
+	go func() {
+		select {
+		case <-stopCh:
+			stopProbes()
+		case <-probeCtx.Done():
+		}
+	}()
 	fm.mu.RLock()
 	interval := fm.probeInterval
 	fm.mu.RUnlock()
+	var nextProbe time.Time
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -526,29 +547,25 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			fm.logger.Debug("LLM failover: probe loop stopped")
 			return
 		case <-ticker.C:
+			if time.Now().Before(nextProbe) {
+				continue
+			}
 			snapshot := fm.primaryProbeSnapshot()
 			if !snapshot.onFallback {
 				continue
 			}
 
 			fm.logger.Debug("LLM failover: probing primary endpoint...")
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(probeCtx, 30*time.Second)
 
 			// Safe: primaryClient is a pointer copy. Even if Reconfigure()
 			// replaces fm.primary after the unlock, the old pointer still
 			// references the original client and remains valid for the probe.
 			// The local copy is used (not fm.primary) for all HTTP calls.
 
-			err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey)
-			if err != nil {
-				fm.logger.Debug("LLM failover: token-free probe failed, trying minimal completion fallback", "error", err)
-				_, err = snapshot.primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-					Model: snapshot.primaryModel,
-					Messages: []openai.ChatCompletionMessage{
-						{Role: openai.ChatMessageRoleUser, Content: "ok"},
-					},
-					MaxTokens: 1,
-				})
+			err := probePrimaryGeneration(ctx, snapshot)
+			if wait := GetRetryAfter(err); wait > interval {
+				nextProbe = time.Now().Add(wait)
 			}
 			cancel()
 
@@ -566,10 +583,36 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 	}
 }
 
+// Metadata availability alone cannot confirm that generation has recovered.
+func probePrimaryGeneration(ctx context.Context, snapshot failoverProbeSnapshot) error {
+	err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey)
+	if err != nil && !IsProbeInconclusive(err) {
+		return err
+	}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	request := openai.ChatCompletionRequest{Model: snapshot.primaryModel, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "ok"}}, MaxTokens: 1}
+	if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
+		request.MaxTokens = 0
+		request.MaxCompletionTokens = 1
+	}
+	callCtx, capture := CaptureUsage(ctx)
+	response, err := snapshot.primaryClient.CreateChatCompletion(callCtx, request)
+	if snapshot.recorder != nil {
+		snapshot.recorder(snapshot.route, capture, response)
+	}
+	if err == nil && len(response.Choices) == 0 {
+		return errors.New("primary generation probe returned no choices")
+	}
+	return err
+}
+
 func (fm *FailoverManager) primaryProbeSnapshot() failoverProbeSnapshot {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	return failoverProbeSnapshot{
+		route: fm.primaryRoute, recorder: fm.probeUsageRecorder,
 		generation:     fm.generation,
 		onFallback:     fm.isOnFallback,
 		primaryClient:  fm.primary,

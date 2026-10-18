@@ -82,11 +82,11 @@ func TestClassifyError_TemporaryTransport(t *testing.T) {
 }
 
 func TestClassifyError_ProviderValidation(t *testing.T) {
-	// Unrecognised 4xx codes fall through to ErrCategoryProviderValidation.
+	// Permanent 4xx payload errors must not replay the same paid request.
 	apiErr := &openai.APIError{HTTPStatusCode: http.StatusConflict} // 409
 	cat := ClassifyError(apiErr)
-	if cat != ErrCategoryProviderValidation {
-		t.Errorf("ClassifyError(409) = %v, want %v", cat, ErrCategoryProviderValidation)
+	if cat != ErrCategoryNonRetryableConfig {
+		t.Errorf("ClassifyError(409) = %v, want %v", cat, ErrCategoryNonRetryableConfig)
 	}
 }
 
