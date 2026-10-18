@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // clipState and placement in 2e (index §4.4, §4.4b):
 //   - anim is the in/out animation at the frame, or null at rest; every other field keeps the keyed value.
@@ -338,5 +341,128 @@ p = project([track('v1','video',[clip('d',V,200,100,{offset:300, anim_in: {prese
 assert.equal(E.pasteAttributes(p, plain, ['d'], ['picture', 'basePicture', 'effects'], 250), true);
 assert.deepEqual(at(p,'d').anim_in, {preset: 'blur_in', duration: 25}, 'the other groups leave the animations alone');
 valid(p);
+`)
+}
+
+// The inspector's Animation section (2e, Task 15; spec §8.1; index §4.24) and its locale keys:
+//   - Every visual clip shows the in and out rows, titles and stickers included; audio clips show none. The speed ramp
+//     stays on video-track clips of video media, after the rows.
+//   - The list is None plus the presets in menu order, labelled by label_key. An unavailable preset is disabled with a
+//     title, except the clip's own.
+//   - The length slider runs over frameRange in frames, with its output in seconds; it is disabled without an animation.
+//   - The clamp hint shows only while the stored length is longer than half the clip, and names the length the render
+//     plays.
+//   - P.animChange takes the preset lists and the length sliders (one applyEdit each) and nothing else.
+func TestVideoStudioAnimInspector(t *testing.T) {
+	binding := map[string][2]string{
+		"animIn":          {"In animation", "Animation am Anfang"},
+		"animOut":         {"Out animation", "Animation am Ende"},
+		"animLength":      {"Length", "Länge"},
+		"animClamped":     {"This clip is short: the animation plays over {{seconds}} s, half the clip.", "Dieser Clip ist kurz: Die Animation dauert {{seconds}} s, die halbe Cliplänge."},
+		"animUnavailable": {"This server's FFmpeg cannot export this animation.", "Das FFmpeg dieses Servers kann diese Animation nicht exportieren."},
+	}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for key := range binding {
+			text := strings.TrimSpace(values["videoStudio."+key])
+			if text == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			} else if lang != "en" && text == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+		if !strings.Contains(values["videoStudio.animClamped"], "{{seconds}}") {
+			t.Errorf("%s: videoStudio.animClamped lacks {{seconds}}", lang)
+		}
+	}
+	for key, texts := range binding {
+		for i, lang := range []string{"en", "de"} {
+			if got := readDesktopLocale(t, lang)["videoStudio."+key]; got != texts[i] {
+				t.Errorf("%s: videoStudio.%s = %q, want %q", lang, key, got, texts[i])
+			}
+		}
+	}
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+require('./js/desktop/apps/video-studio-anim.js');
+const AN = window.VideoStudioAnim;
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';');
+const title = {font_family: 'Arial', font_size: 72, color: '#ffffff', alignment: 'center'};
+const p = project([
+  track('v1','video',[clip('c',V,0,100,{offset:100})]),
+  track('o1','overlay',[clip('t',I,0,60,{text: 'Title', text_style: title}), clip('k',I,100,50)]),
+  track('a1','audio',[clip('m',A,0,100)])
+]);
+valid(p);
+const tr = (key, fallback) => key === 'animClamped' ? 'SHORT {{seconds}}' : key === 'animUnavailable' ? 'NO EXPORT' : '[' + key + ']';
+const render = (clipId, asset) => {
+  const host = {innerHTML: ''};
+  IN.render(host, {selected: T.clipFor(p, clipId), asset, project: p, locale: 'en', caps: {}, transitionInfo: {next: null}, esc,
+    icon: name => '<i data-icon="' + name + '"></i>', tr, keyframes: P.keyframeView({project: p, selectedClipId: clipId, frame: 10, readonly: false}), fineOpen: false, effects: null});
+  return host.innerHTML;
+};
+const side = (html, name) => { const start = html.indexOf('data-anim-side="' + name + '"'); assert(start >= 0, 'no ' + name + ' row'); return html.slice(start, html.indexOf('</div>', start)); };
+
+// A video clip without animations: None on both sides, sliders disabled at the default 15 frames (0.5 s at 30 fps) over
+// 6..90, no hint. The rows come after Effects and before the speed ramp.
+let html = render('c', V);
+assert(html.includes('vs-anim-section') && html.includes('data-ramp-preset="ramp_up"'), 'a video clip shows the animations and the speed ramp');
+assert(html.indexOf('data-fx-section') < html.indexOf('data-anim-side="in"'), 'the Animation section follows Effects');
+assert(html.indexOf('data-anim-side="in"') < html.indexOf('data-anim-side="out"') && html.indexOf('data-anim-side="out"') < html.indexOf('data-ramp-preset'), 'In, Out, then the speed ramp');
+assert.deepEqual(Array.from(side(html, 'in').matchAll(/<option value="([a-z_]+)"/g), m => m[1]), ['none', 'fade', 'slide_up', 'slide_down', 'slide_left', 'slide_right', 'pop', 'wipe', 'blur_in'], 'None plus the presets in menu order');
+assert(side(html, 'in').includes('<option value="none" selected>[none]</option>') && side(html, 'in').includes('<option value="pop">[anim_pop]</option>'), 'None first; labels from label_key');
+for (const name of ['in', 'out']) {
+  assert(new RegExp('<input type="range" data-anim-duration="' + name + '" min="6" max="90" step="1" value="15"[^>]*disabled').test(html), name + ': a disabled slider at the default length');
+  assert(side(html, name).includes('<output>0.5 s</output>') && side(html, name).includes('data-anim-clamped="' + name + '" hidden'), name + ': 0.5 s and no hint');
+}
+assert(side(html, 'in').includes('aria-label="[animIn]: [animLength]"') && side(html, 'out').includes('<span class="vs-fx-subhead">[animOut]</span>'), 'each side names its list and its slider');
+
+// Stored animations: the presets are selected and the sliders hold the lengths. The out side's 80 frames are more than
+// half the 100-frame clip, so the hint names the 50 frames (1.7 s) the render plays.
+at(p,'c').anim_in = {preset: 'pop', duration: 20};
+at(p,'c').anim_out = {preset: 'fade', duration: 80};
+valid(p);
+html = render('c', V);
+assert(side(html, 'in').includes('<option value="pop" selected>[anim_pop]</option>') && side(html, 'out').includes('<option value="fade" selected>[anim_fade]</option>'));
+assert(/<input type="range" data-anim-duration="in" min="6" max="90" step="1" value="20" aria-label="[^"]*">/.test(html), 'an enabled slider at the stored length');
+assert(side(html, 'in').includes('<output>0.7 s</output>') && side(html, 'in').includes('data-anim-clamped="in" hidden'), '20 frames fit in half the clip');
+assert(!side(html, 'out').includes('data-anim-clamped="out" hidden') && side(html, 'out').includes('<span>SHORT 1.7</span>'), 'the out side plays over 50 frames');
+assert.equal(IN.animClampText({tr, locale: 'en', project: p}, at(p,'c'), 'out'), 'SHORT 1.7');
+assert.equal(IN.animClampText({tr, locale: 'en', project: p}, at(p,'c'), 'in'), '');
+
+// A preset the server's FFmpeg cannot export is disabled with a title, except the clip's own.
+FX.adopt(FX.BUILTIN, {effects: [], transitions: [], blend_modes: [], anim_presets: ['pop', 'blur_in']});
+html = render('c', V);
+assert(side(html, 'in').includes('<option value="pop" selected title="NO EXPORT">'), 'the current preset stays selectable');
+assert(side(html, 'in').includes('<option value="blur_in" disabled title="NO EXPORT">') && side(html, 'out').includes('<option value="pop" disabled title="NO EXPORT">'), 'other unavailable presets are disabled');
+assert(side(html, 'in').includes('<option value="fade">[anim_fade]</option>'), 'available presets carry no title');
+FX.adopt(null, null);
+
+// Titles and stickers (stills on overlay tracks) take the animations without the speed ramp; audio clips take neither.
+for (const id of ['t', 'k']) {
+  const other = render(id, I);
+  assert(other.includes('data-anim-side="in"') && other.includes('data-anim-side="out"') && !other.includes('data-ramp-preset'), id + ': animations, no speed ramp');
+}
+assert(!render('m', A).includes('vs-anim-section'), 'audio clips have no Animation section');
+
+// The slider range follows the project rate: 25 fps gives 5..75 frames, 13 by default.
+p.fps = 25;
+assert.deepEqual(AN.frameRange(p), {min: 5, max: 75, default: 13});
+assert(/data-anim-duration="in" min="5" max="75" step="1" value="13"/.test(render('k', I)));
+p.fps = 30;
+
+// P.animChange takes the preset lists and the length sliders (one applyEdit each), and nothing else.
+const edits = [];
+P.applyEdit = (state, label, op) => { edits.push(label); return op(state.project, {}) === true; };
+const s = {project: p, selectedClipId: 'k', frame: 110, readonly: false, q: () => null};
+const control = (selector, data, value) => ({value, dataset: data, matches: sel => sel === selector, closest: () => null});
+assert.equal(P.animChange(s, control('select[data-anim-preset]', {animPreset: 'in'}, 'wipe')), true);
+assert.deepEqual(at(p,'k').anim_in, {preset: 'wipe', duration: 15});
+assert.equal(P.animChange(s, control('input[type="range"][data-anim-duration]', {animDuration: 'in'}, '45')), true);
+assert.equal(at(p,'k').anim_in.duration, 45);
+assert.equal(P.animChange(s, control('select[data-anim-preset]', {animPreset: 'in'}, 'none')), true);
+assert.equal('anim_in' in at(p,'k'), false, 'None removes the side');
+assert.deepEqual(edits, ['animation', 'animation length', 'animation'], 'one edit per commit');
+assert.equal(P.animChange(s, control('select[data-blend]', {}, 'multiply')), false, 'other inputs are not animation changes');
 `)
 }

@@ -202,19 +202,53 @@
         return `<section class="vs-insp-section"><h3>${v.icon('image', 14)}${v.esc(v.tr('picture', 'Picture'))}</h3><div class="vs-position"><div class="vs-position-grid" role="group" aria-label="${v.esc(v.tr('position', 'Position'))}">${anchors.map(anchor => `<button type="button" data-position="${anchor}" title="${v.esc(v.tr('pos_' + anchor, anchor))}" aria-label="${v.esc(v.tr('pos_' + anchor, anchor))}"${frozen(BOX) ? ' disabled' : ''}><i></i></button>`).join('')}</div>${isText ? '' : `<button type="button" class="vs-chip-button" data-action="fill-frame"${boxLock}>${v.icon('fullscreen', 14)}${v.esc(v.tr('fillFrame', 'Full frame'))}</button>${cropModeButton(v)}`}</div>${isText ? '' : slider(v, 'size', v.tr('size', 'Size'), 5, 100, 1, size, size + ' %', boxLock)}<div class="vs-kf-line">${slider(v, 'rotation', v.tr('rotation', 'Rotation'), -180, 180, 1, rotation, rotation + '°', lock(['rotation']))}${keyframeTools(v, 'rotation', v.tr('rotation', 'Rotation'))}</div><div class="vs-kf-line">${slider(v, 'opacity', v.tr('opacity', 'Opacity'), 0, 100, 1, opacity, opacity + ' %', lock(['opacity']))}${keyframeTools(v, 'opacity', v.tr('opacity', 'Opacity'))}</div>${isText ? '' : `<div class="vs-segmented" role="group" aria-label="${v.esc(v.tr('fit', 'Fit'))}"><button type="button" data-fit="contain" aria-pressed="${clip.fit !== 'cover'}">${v.esc(v.tr('contain', 'Fit inside'))}</button><button type="button" data-fit="cover" aria-pressed="${clip.fit === 'cover'}">${v.esc(v.tr('cover', 'Fill'))}</button></div>`}${isText ? '' : cropMarkup(v, clip, at, lock)}${blendMarkup(v, clip, v.selected.track)}${maskMarkup(v, clip, at, lock)}<div class="vs-fine"><button type="button" class="vs-link-button vs-fine-toggle" data-action="toggle-fine" aria-expanded="${!!v.fineOpen}">${v.icon('chevronDown', 14)}<span>${v.esc(v.tr('fineTune', 'Fine tune (percent of the frame)'))}</span></button><div class="vs-field-grid" ${v.fineOpen ? '' : 'hidden'}>${fine}</div></div></section>`;
     }
 
+    // In and out animations (2e; spec §5.6, §8.1; plan index §4.24) for every visual clip, titles and stickers included.
+    // ANIM_SIDES rows are [side, clip field, label key, fallback]. Each side has:
+    //   - a preset list: None plus the registry presets (VideoStudioEffects.animPresets). A preset the server's FFmpeg
+    //     cannot export is disabled with a title, except the clip's own, which stays selectable so it still shows.
+    //   - a length slider in timeline frames over VideoStudioAnim.frameRange (0.2 to 3 s), with its output in seconds.
+    //     It is disabled while the side has no animation.
+    //   - [data-anim-clamped]: while the stored length is longer than half the clip, the render plays it over half the
+    //     clip (VideoStudioAnim.spans), and this hint says so (animClampText).
+    // The edits run in video-studio-inspector-effects.js (P.animChange, P.liveAnimDuration). animationRows returns ''
+    // without VideoStudioAnim. The app loads it before the inspector (§5); the guard keeps Node checks working that
+    // load the inspector alone.
+    const ANIM_SIDES = Object.freeze([['in', 'anim_in', 'animIn', 'In animation'], ['out', 'anim_out', 'animOut', 'Out animation']]);
+    function animClampText(v, clip, side) {
+        const anim = clip && clip['anim_' + side], played = anim ? window.VideoStudioAnim.spans(clip)[side] : 0;
+        if (!anim || !(Number(anim.duration) > played)) return '';
+        return v.tr('animClamped', 'This clip is short: the animation plays over {{seconds}} s, half the clip.').split('{{seconds}}').join(formatSeconds(played, v.locale, v.project));
+    }
+    function animationRows(v, clip) {
+        const A = window.VideoStudioAnim;
+        if (!A) return '';
+        const range = A.frameRange(v.project), unavailable = v.tr('animUnavailable', "This server's FFmpeg cannot export this animation."), lengthName = v.tr('animLength', 'Length');
+        return `<div class="vs-anim">${ANIM_SIDES.map(([side, key, labelKey, fallback]) => {
+            const anim = clip[key] || null, current = anim ? anim.preset : 'none', name = v.tr(labelKey, fallback), clamped = animClampText(v, clip, side);
+            const option = (id, label, available) => `<option value="${v.esc(id)}"${id === current ? ' selected' : ''}${!available && id !== current ? ' disabled' : ''}${available ? '' : ` title="${v.esc(unavailable)}"`}>${v.esc(label)}</option>`;
+            const options = option('none', v.tr('none', 'None'), true) + Effects().animPresets().map(preset => option(preset.id, v.tr(preset.label_key, preset.id), preset.available)).join('');
+            const frames = anim ? clamp(Math.round(Number(anim.duration)) || range.default, range.min, range.max) : range.default;
+            return `<div class="vs-anim-side" data-anim-side="${side}"><label class="vs-field vs-anim-preset"><span class="vs-fx-subhead">${v.esc(name)}</span><select data-anim-preset="${side}">${options}</select></label><label class="vs-slider vs-anim-length"><span>${v.esc(lengthName)}</span><input type="range" data-anim-duration="${side}" min="${range.min}" max="${range.max}" step="1" value="${frames}" aria-label="${v.esc(name + ': ' + lengthName)}"${anim ? '' : ' disabled'}><output>${v.esc(formatSeconds(frames, v.locale, v.project))} s</output></label><p class="vs-hint vs-anim-clamped" data-anim-clamped="${side}"${clamped ? '' : ' hidden'}>${v.icon('info', 14)}<span>${v.esc(clamped)}</span></p></div>`;
+        }).join('')}</div>`;
+    }
+
     // Animation section presets (spec §8.1): [preset id, label key, glyph path on a 30×18 box, fast at the top].
     const RAMP_PRESET_BUTTONS = [['none', 'ramp_none', 'M2 9h26'], ['ramp_up', 'ramp_up', 'M2 15C12 15 18 3 28 3'], ['ramp_down', 'ramp_down', 'M2 3C12 3 18 15 28 15'], ['slow_middle', 'ramp_slow_middle', 'M2 4C8 4 9 14 13 14h4c4 0 5-10 11-10'], ['custom', 'ramp_custom', 'M2 12l8-6 8 7 10-8']];
     // Linked sound of a ramped video-track clip is muted in preview and export (index §4.18); detached sound is not.
     function rampNotice(v) {
         return `<p class="vs-hint vs-ramp-notice" data-ramp-notice>${v.icon('speakerOff', 14)}<span>${v.esc(v.tr('rampMuted', 'The clip\'s sound is muted while it has a speed ramp. Use Detach audio to hear it at normal speed.'))}</span></p>`;
     }
-    // Animation (spec §8.1, index §4.18): speed ramp presets for clips on video tracks with a video asset. 2e adds the
-    // in/out animation presets here. Keep duration keeps the clip length, and Edit in the timeline opens the speed lane.
+    // Animation (spec §8.1; index §4.18, §4.24): the in and out animations of every visual clip (2e, animationRows),
+    // then the speed ramp presets for clips on video tracks with a video asset. Keep duration keeps the clip length, and
+    // Edit in the timeline opens the speed lane. Audio clips have no Animation section.
     function animationSection(v, clip, asset, track, muted) {
-        if (track.kind !== 'video' || asset.kind !== 'video' || clip.text) return '';
+        const rows = track.kind === 'audio' ? '' : animationRows(v, clip), rampable = track.kind === 'video' && asset.kind === 'video' && !clip.text;
+        if (track.kind === 'audio' || (!rows && !rampable)) return '';
+        const head = `<h3>${v.icon('sparkle', 14)}${v.esc(v.tr('animation', 'Animation'))}</h3>${rows}`;
+        if (!rampable) return `<section class="vs-insp-section vs-anim-section">${head}</section>`;
         const ramped = Effects().hasRamp(clip);
         const presets = RAMP_PRESET_BUTTONS.map(([id, key, glyph]) => { const name = v.tr(key, id); return `<button type="button" data-ramp-preset="${id}" title="${v.esc(name)}"><svg class="vs-ramp-glyph" viewBox="0 0 30 18" aria-hidden="true" focusable="false"><path d="${glyph}"/></svg><span>${v.esc(name)}</span></button>`; }).join('');
-        return `<section class="vs-insp-section vs-ramp-section"><h3>${v.icon('ramp', 14)}${v.esc(v.tr('animation', 'Animation'))}</h3><div class="vs-ramp-presets" role="group" aria-label="${v.esc(v.tr('speedRamp', 'Speed ramp'))}">${presets}</div><div class="vs-field-row vs-ramp-actions"><label class="vs-check"><input type="checkbox" data-ramp-keep><span>${v.esc(v.tr('keepDuration', 'Keep duration'))}</span></label><button type="button" class="vs-chip-button" data-action="ramp-edit" ${ramped ? '' : 'disabled'}>${v.icon('ramp', 14)}<span>${v.esc(v.tr('rampEdit', 'Edit in the timeline'))}</span></button></div>${muted ? rampNotice(v) : ''}</section>`;
+        return `<section class="vs-insp-section vs-anim-section vs-ramp-section">${head}<div class="vs-fx-subhead vs-ramp-head">${v.icon('ramp', 14)}<span>${v.esc(v.tr('speedRamp', 'Speed ramp'))}</span></div><div class="vs-ramp-presets" role="group" aria-label="${v.esc(v.tr('speedRamp', 'Speed ramp'))}">${presets}</div><div class="vs-field-row vs-ramp-actions"><label class="vs-check"><input type="checkbox" data-ramp-keep><span>${v.esc(v.tr('keepDuration', 'Keep duration'))}</span></label><button type="button" class="vs-chip-button" data-action="ramp-edit" ${ramped ? '' : 'disabled'}>${v.icon('ramp', 14)}<span>${v.esc(v.tr('rampEdit', 'Edit in the timeline'))}</span></button></div>${muted ? rampNotice(v) : ''}</section>`;
     }
 
     function soundSection(v, clip, muted) {
@@ -301,5 +335,5 @@
         host.innerHTML = `<div class="vs-insp-head"><span class="vs-insp-thumb vs-kind-${v.esc(kind)}"${thumb}>${thumb ? '' : v.icon(icon, 18)}</span><div class="vs-insp-title"><strong title="${v.esc(title)} · ${v.esc(track.name)}">${v.esc(title)}</strong><span class="vs-insp-meta"><small title="${v.esc(track.name)}">${v.esc(formatTime(clip.start, v.project))} – ${v.esc(formatTime(clip.start + clip.duration, v.project))}</small><span class="vs-insp-actions"><button type="button" class="vs-icon-button" data-action="clip-split" title="${v.esc(v.tr('splitHintShort', 'Split at the playhead (S)'))}" aria-label="${v.esc(v.tr('split', 'Split'))}">${v.icon('scissors', 16)}</button><button type="button" class="vs-icon-button" data-action="clip-duplicate" title="${v.esc(v.tr('duplicate', 'Duplicate'))}" aria-label="${v.esc(v.tr('duplicate', 'Duplicate'))}">${v.icon('copy', 16)}</button><button type="button" class="vs-icon-button vs-danger" data-action="clip-delete" title="${v.esc(v.tr('deleteHint', 'Delete (Del)'))}" aria-label="${v.esc(v.tr('delete', 'Delete'))}">${v.icon('trash', 16)}</button></span></span></div></div>${lock}${clip.text ? textSection(v, clip) : ''}${timeSection(v, clip, asset)}${clip.text ? '' : clipSection(v, clip, asset, track)}${visual ? pictureSection(v, clip) : ''}${visual && window.VideoStudioInspectorEffects ? window.VideoStudioInspectorEffects.section(v, clip, track) : ''}${animationSection(v, clip, asset, track, rampMuted)}${audioCapable ? soundSection(v, clip, rampMuted) : ''}${visual ? transitionSection(v, clip, v.transitionInfo) : ''}`;
     }
 
-    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins };
+    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins, animClampText };
 })();

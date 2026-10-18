@@ -13,6 +13,7 @@
     //   explains itself in a toast. A slider drag changes the project live and records one step when it ends.
     // - 2d: the Picture section's blend list and mask block (markup in video-studio-inspector.js) and a chroma_key
     //   entry's key colour commit here (compositingChange, effectCommand); addEntry puts a new chroma_key at index 0.
+    // - 2e: the Animation section's preset lists and length sliders commit here (animChange, liveAnimDuration).
     // menuModel, entryName, dropIndex, formatValue, section and addEntry are DOM-free and Node-tested.
     const P = window.VideoStudioParts;
     const Fx = () => window.VideoStudioEffects;
@@ -433,8 +434,56 @@
         const target = paramTarget(s, el);
         if (target) stackEdit(s, 'color wheel', (project, id) => K().setEffectParams(project, id, target.index, wheelValues(el, x, y), s.frame), wheelSelector(el));
     }
+    // ---- In and out animations (2e; markup in video-studio-inspector.js).
+    //   - A preset list commits one undo step (VideoStudioKeyframeEdit.setAnim; None removes the side).
+    //   - A length slider changes the project live while it is dragged: no undo step and no re-render, but its output
+    //     and the clamp hint follow. It records one step when the gesture ends.
+    //   - A change without a gesture (some keyboard paths) is one applyEdit.
+    //   - A refusal puts the clip back and explains itself once per gesture.
+    function animClampHint(s, input, clip) {
+        const row = input.closest('[data-anim-side]'), hint = row && row.querySelector('[data-anim-clamped]');
+        if (!hint) return;
+        const text = I().animClampText({ tr: (key, fallback) => P.tr(s, key, fallback), locale: P.uiLocale(), project: s.project }, clip, input.dataset.animDuration);
+        hint.hidden = !text;
+        const span = hint.querySelector('span');
+        if (span) span.textContent = text;
+    }
+    function liveAnimDuration(s, input) {
+        const found = selectedVisual(s), side = input.dataset.animDuration;
+        if (!found || found.track.locked || s.readonly) return;
+        if (!input._vsBefore) { input._vsBefore = P.snapshot(s); s.fieldGesture = true; }
+        clearTimeout(s.autosaveTimer);
+        const clip = found.clip, saved = JSON.stringify(clip), result = K().setAnim(s.project, clip.id, side, { duration: Number(input.value) });
+        if (result !== true && result !== window.VideoStudioEdit.REASON.nothing) {
+            restoreClip(clip, saved);
+            if (!input._vsRefused) { input._vsRefused = true; P.showReason(s, result); }
+            return;
+        }
+        P.updateOutput(input, I().formatSeconds(Number(input.value), P.uiLocale(), s.project) + ' s');
+        animClampHint(s, input, clip);
+        if (result !== true) return;
+        s.dirty = true; s.revision++;
+        P.renderToolbar(s);
+        if (s.preview) s.preview.seek(s.frame);
+    }
+    // The change event of a preset list or a length slider; true when the input was one of them.
+    function animChange(s, input) {
+        if (input.matches('select[data-anim-preset]')) {
+            const side = input.dataset.animPreset;
+            stackEdit(s, 'animation', (project, id) => K().setAnim(project, id, side, { preset: input.value }), `[data-anim-preset="${side}"]`);
+            return true;
+        }
+        if (!input.matches('input[type="range"][data-anim-duration]')) return false;
+        const side = input.dataset.animDuration, before = input._vsBefore, selector = `[data-anim-duration="${side}"]`;
+        delete input._vsBefore; delete input._vsRefused;
+        s.fieldGesture = false;
+        if (!before) stackEdit(s, 'animation length', (project, id) => K().setAnim(project, id, side, { duration: Number(input.value) }), selector);
+        else { if (JSON.stringify(before) !== JSON.stringify(s.project)) P.recordChange(s, 'animation length', before); refocus(s, selector); }
+        return true;
+    }
     // Delegated listeners on the inspector (they end with s.abort):
     // - sliders: input changes the project live, change records one step;
+    // - the Animation section's lists commit on change, its length sliders like the effect sliders (2e);
     // - the LUT picker and the crop fields commit on change;
     // - the hidden file input uploads a .cube for the entry that asked;
     // - entries drag by their grip and drop before or after another entry.
@@ -443,7 +492,9 @@
         if (!host) return;
         host.addEventListener('input', event => {
             const input = event.target;
-            if (input && input.matches && input.matches('input[type="range"][data-fx-param]')) liveParam(s, input);
+            if (!input || !input.matches) return;
+            if (input.matches('input[type="range"][data-fx-param]')) liveParam(s, input);
+            else if (input.matches('input[type="range"][data-anim-duration]')) liveAnimDuration(s, input);
         }, { signal });
         host.addEventListener('change', event => {
             const input = event.target;
@@ -451,7 +502,7 @@
             if (input.matches('input[type="range"][data-fx-param]')) commitParam(s, input);
             else if (input.matches('select[data-fx-param]')) selectParam(s, input);
             else if (input.matches('[data-crop]')) commitCrop(s, input);
-            else if (compositingChange(s, input)) return;
+            else if (compositingChange(s, input) || animChange(s, input)) return;
             else if (input.matches('[data-fx-lut-file]')) {
                 const file = input.files && input.files[0], target = s.fxUpload;
                 input.value = '';
@@ -550,5 +601,5 @@
     }
 
     window.VideoStudioInspectorEffects = { section, menuModel, entryName, dropIndex, formatValue, addEntry, KEY_PRESETS };
-    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls, compositingChange });
+    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls, compositingChange, animChange, liveAnimDuration });
 })();

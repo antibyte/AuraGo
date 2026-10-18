@@ -1054,6 +1054,16 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-ramp-glyph path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .vs-ramp-actions { margin-top: 10px; align-items: center; }
 .vs-ramp-notice { display: flex; align-items: flex-start; gap: 6px; color: var(--vs-warn); }
+/* In and out animations (2e Task 15, video-studio-inspector.js): a preset list and a length slider per side, above the
+   speed ramp. The hint shows while the render plays a side over half the clip. */
+.vs-anim { display: grid; gap: 12px; }
+.vs-anim-side { display: grid; gap: 2px; min-width: 0; }
+.vs-anim-preset select { width: 100%; min-width: 0; }
+.vs-anim-length { margin-top: 2px; }
+.vs-anim-clamped { display: flex; align-items: flex-start; gap: 6px; margin: 2px 0 0; }
+.vs-anim-clamped[hidden] { display: none; }
+.vs-ramp-head { margin-top: 14px; }
+.vs-ramp-head + .vs-ramp-presets { margin-top: 6px; }
 
 /* Effects section (2c Task 14, video-studio-inspector-effects.js): the effect stack, the crop fields and flips of the
    Picture section, and the "+ Effect" menu headings. */
