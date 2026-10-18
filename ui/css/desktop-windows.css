@@ -203,8 +203,9 @@
     border-radius: inherit;
 }
 
-/* Maximized windows end above the bottom taskbar (Standard) or dock (Fruity)
-   at every width. The touch phone layout below sizes windows with its own
+/* Maximized windows end above the bottom taskbar (`data-shell="taskbar"`) or
+   dock (`data-shell="dock"`, e.g. Fruity and Lollipop) at every width. The
+   touch phone layout below sizes windows with its own
    --vd-mobile-taskbar-reserve instead. */
 .desktop-body {
     --vd-maximized-window-reserve: var(--vd-taskbar-height, 54px);

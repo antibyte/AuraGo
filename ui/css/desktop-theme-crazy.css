@@ -34,6 +34,7 @@
     --vd-accent-g: 43;
     --vd-accent-b: 214;
     --vd-accent-glow: rgba(255, 43, 214, 0.32);
+    --vd-accent-contrast: #000000; /* text on the accent: black on hot pink, 6.6:1 (white only 3.2:1) */
 
     /* Theme bridge */
     --vd-theme-app-bg: #1D0440;

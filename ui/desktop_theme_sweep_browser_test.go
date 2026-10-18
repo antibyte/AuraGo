@@ -40,11 +40,18 @@ var themeSweepSeam = []string{
 // themeSweepWideMinWidth is the first viewport width that is not a compact layout.
 const themeSweepWideMinWidth = 821
 
+// themeSweepNetworkQuiet is how long the booted fixture desktop has to stay off the network before a session is
+// handed out. The shell hydrates the pet catalog and the settings from the server on boot, and the pet runtime
+// polls for the bootstrap every 100 ms and hydrates again when it has it, so the last boot request follows
+// the one before within about 100 ms.
+const themeSweepNetworkQuiet = 500 * time.Millisecond
+
 // ---------------------------------------------------------------------------------------------------
 // Settings API double.
 
 // themeSweepStore answers the desktop settings API for the browser: it validates PUT bodies like the
 // server does, merges them and replies with all settings, as internal/server/desktop_handlers_settings.go.
+// Every reply, a GET included, carries the live settings as they are when the reply is built.
 type themeSweepStore struct {
 	mu       sync.Mutex
 	settings map[string]string
@@ -354,6 +361,8 @@ func newThemeSweepSession(t *testing.T, reducedMotion string) *themeSweepSession
 	if err := media.Call(page); err != nil {
 		t.Fatalf("emulate prefers-reduced-motion: %v", err)
 	}
+	// Armed before the navigation, because rod only counts the requests that start after this call.
+	networkIdle := page.WaitRequestIdle(themeSweepNetworkQuiet, nil, nil, nil)
 	if err := page.Timeout(60 * time.Second).Navigate(server.url + "/fixture"); err != nil {
 		t.Fatalf("open the fixture desktop: %v", err)
 	}
@@ -361,6 +370,9 @@ func newThemeSweepSession(t *testing.T, reducedMotion string) *themeSweepSession
 		t.Fatalf("load the fixture desktop: %v", err)
 	}
 	s.waitFor(t, "the desktop shell to start", 30*time.Second, `() => !!(window.auditTest && auditTest.state.ws && auditTest.state.bootstrap && document.body.dataset.theme)`)
+	// The boot is not over yet: its settings request may still be in flight, and its answer would land on
+	// top of whatever the test pushed in the meantime (see pushSettings).
+	s.waitForNetworkIdle(t, networkIdle)
 	reduced := reducedMotion == "reduce"
 	if got := s.eval(t, `() => matchMedia('(prefers-reduced-motion: reduce)').matches`).Value.Bool(); got != reduced {
 		t.Fatalf("emulated prefers-reduced-motion %q, but matchMedia(reduce) is %v", reducedMotion, got)
@@ -379,6 +391,7 @@ func (s *themeSweepSession) pageState() string {
 	state := "unavailable"
 	if result, err := s.page.Timeout(5 * time.Second).Eval(`() => JSON.stringify({
 		theme: document.body.dataset.theme, animations: document.body.dataset.animations,
+		storedTheme: window.auditTest ? auditTest.settingValue('appearance.theme') : null,
 		fxHost: typeof window.AuraDesktopThemeFx, fxActive: window.AuraDesktopThemeFx ? AuraDesktopThemeFx.activeId() : null,
 		fxLayers: document.querySelectorAll('.vd-theme-fx-layer').length,
 		reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -425,6 +438,22 @@ func (s *themeSweepSession) waitFor(t testing.TB, what string, timeout time.Dura
 	}
 }
 
+// waitForNetworkIdle runs the wait function of Page.WaitRequestIdle, which ends once the page has been off the
+// network for themeSweepNetworkQuiet, and fails the test when that takes more than 30 seconds.
+func (s *themeSweepSession) waitForNetworkIdle(t testing.TB, idle func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		idle()
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("the fixture desktop was still busy on the network 30s after it started; %s", s.pageState())
+	}
+}
+
 // waitForStore polls the settings double until predicate holds.
 func (s *themeSweepSession) waitForStore(t testing.TB, what string, timeout time.Duration, predicate func(*themeSweepStore) bool) {
 	t.Helper()
@@ -459,17 +488,27 @@ func (s *themeSweepSession) closeAllWindows(t testing.TB) {
 
 // pushSettings copies the store into the page settings (in place, so every holder sees them) and re-applies
 // them the way a saved setting would: attributes, taskbar, icons and the start menu.
+//
+// The shell hydrates its settings from GET /api/desktop/settings and merges the answer over
+// state.bootstrap.settings whenever it lands, however old the snapshot it carries. The session constructor waits
+// for the boot requests, so none is left in flight when a test pushes; copying once more on the next frame
+// covers one that still slips in right behind the push.
 func (s *themeSweepSession) pushSettings(t testing.TB) {
 	t.Helper()
 	s.eval(t, `(snapshot) => {
-		const a = auditTest, settings = a.state.bootstrap.settings;
-		for (const key of Object.keys(settings)) delete settings[key];
-		Object.assign(settings, snapshot);
+		const a = auditTest;
+		const copy = () => {
+			const settings = a.state.bootstrap.settings;
+			for (const key of Object.keys(settings)) delete settings[key];
+			Object.assign(settings, snapshot);
+		};
+		copy();
 		a.applyDesktopSettings();
 		a.refreshSpacesForViewport();
 		a.renderIcons();
 		a.renderStartButtonIcon();
 		a.renderStartApps();
+		requestAnimationFrame(copy);
 	}`, s.store.snapshot())
 	s.settle(t)
 }
