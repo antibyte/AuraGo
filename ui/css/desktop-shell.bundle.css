@@ -1431,9 +1431,12 @@
 .desktop-body[data-shell="dock"] .vd-dock-scroll {
     min-width: 0;
     max-width: 100%;
-    /* Leave room for the lifted icon and its label inside the scroll clip. */
+    /* Leave room inside the scroll clip for the lifted icon and its label above, and for the running/active
+       dot below (.vd-dock-button::after sits 7 px under the button); the buttons themselves do not move. */
     margin-top: -64px;
     padding-top: 64px;
+    margin-bottom: -10px;
+    padding-bottom: 10px;
     overflow: auto hidden;
     scrollbar-width: none;
     scroll-behavior: smooth;
@@ -3614,22 +3617,6 @@
     display: none;
 }
 
-.vd-window-switcher {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    gap: 8px;
-    padding: 12px;
-    border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
-    backdrop-filter: blur(24px);
-    z-index: var(--vd-z-modal);
-}
-
 .vd-switcher-item {
     display: flex;
     align-items: center;
@@ -3660,22 +3647,14 @@
     white-space: nowrap;
 }
 
+/* The overlay itself (full screen, items centred) lives in desktop-chrome.css; only the fade-in stays here. */
 .desktop-body:not([data-animations="false"]) .vd-window-switcher {
     animation: vd-switcher-in 150ms var(--ds-motion-ease-emphasized) both;
 }
 
 @keyframes vd-switcher-in {
-    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
-    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-.desktop-body[data-theme] .vd-window-switcher {
-    border-color: var(--vd-theme-border);
-    border-radius: var(--vd-theme-radius-panel);
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: var(--vd-theme-shadow-panel);
-    -webkit-backdrop-filter: var(--vd-theme-blur);
-    backdrop-filter: var(--vd-theme-blur);
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .vd-window {
@@ -8751,7 +8730,8 @@
     font-size: 1rem;
 }
 
-.vd-shortcuts-close {
+/* Legacy icon button of .vd-shortcuts-modal; the live F1 panel (.vd-shortcuts-panel) styles its text button in desktop-chrome.css. */
+.vd-shortcuts-modal .vd-shortcuts-close {
     width: 32px;
     height: 32px;
     border-radius: 8px;
@@ -8765,7 +8745,7 @@
     justify-content: center;
 }
 
-.vd-shortcuts-close:hover {
+.vd-shortcuts-modal .vd-shortcuts-close:hover {
     background: var(--ds-color-control-hover);
 }
 
@@ -9636,10 +9616,6 @@
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-widget-head {
     border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-.desktop-body[data-theme] .vd-window-switcher {
-    box-shadow: var(--vd-theme-shadow-panel), var(--vd-chrome-highlight);
 }
 
 .desktop-body[data-theme] .vd-switcher-item {
@@ -10550,7 +10526,21 @@
 
 .vd-shortcuts-close {
     display: block;
+    min-height: 32px;
     margin: 0 14px 14px auto;
+    padding: 0 14px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg, var(--ds-color-control-bg));
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vd-shortcuts-close:hover {
+    background: var(--vd-theme-control-hover, var(--ds-color-control-hover));
 }
 
 .vd-taskbar-pins {
@@ -11082,6 +11072,21 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-global-menus="true"] .vd-clock { font-size: 12px; color: var(--vd-text); }
 .desktop-body[data-global-menus="true"] .vd-space-pager { gap: 2px; }
 .desktop-body[data-global-menus="true"] .vd-space-pager button { min-width:22px; min-height:22px; }
+/* Touch targets: the global bar grows to 44 px and every tray control fills it; the brand and menu buttons reach 40 px.
+   Amiga sizes its gadgets from the same bar height in its skin (equal specificity, later in the bundle). */
+@media (pointer: coarse) {
+    .desktop-body[data-global-menus="true"] { --vd-global-bar-height: 44px; }
+    .desktop-body[data-global-menus="true"] .vd-global-brand,
+    .desktop-body[data-global-menus="true"] .vd-global-bar .vd-window-menu-button { min-height: 40px; }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system { height: 44px; }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-clock { min-height: 44px; }
+}
 .desktop-body[data-theme="fruity"] .vd-window-button::after {
     display: grid;
     place-items: center;
@@ -11799,6 +11804,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="amiga"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-disabled-panel) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); animation: none; }
 .desktop-body[data-theme="amiga"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: rgba(0, 0, 0, 0.3); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
 
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="amiga"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
+
 /* ---- Motion: none, like Workbench. The Guru blink above is the only animation. ---- */
 .desktop-body[data-theme="amiga"] :is(
     .vd-window-opening, .vd-window-closing, .vd-window-minimizing, .vd-window-restoring,
@@ -12343,10 +12351,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="cyberpunk"] .vd-icon.selected .vd-icon-label { border-color: var(--vd-accent); background: #000; color: var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-desktop-selection-marquee { border-color: rgba(0, 240, 255, 0.8); border-radius: 0; background: rgba(0, 240, 255, 0.12); box-shadow: none; }
 
-/* === App tokens: Video Studio paints white text on --vs-accent-strong (primary, play, toast action, range switch). Its
-   shared 74% mix of the yellow accent is only 2.4:1 under white; this 46% mix (#706A00) is 5.6:1. The hover fill of the
-   primary and play buttons mixes --vs-accent itself (app CSS) and stays pale. === */
-.desktop-body[data-theme="cyberpunk"] .vs-app { --vs-accent-strong: #706A00; }
+/* === App tokens: Video Studio paints white text on --vs-accent-strong (primary, play, toast action, range switch) and on
+   --vs-accent-hover (primary and play hover). Its shared mixes of the yellow accent are only 2.4:1 (74 %) and 1.9:1 (84 %)
+   under white; #706A00 is 5.6:1 and the hover #7A7400 is 4.9:1. Code Studio paints --cs-accent-contrast on the raw accent. === */
+.desktop-body[data-theme="cyberpunk"] .vs-app { --vs-accent-strong: #706A00; --vs-accent-hover: #7A7400; }
+.desktop-body[data-theme="cyberpunk"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
 
 /* === Keyboard focus: a yellow ring everywhere in the shell chrome (the per-component outline: none rules lose) === */
 .desktop-body[data-theme="cyberpunk"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-titlebar, .vd-window-menu-popover, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-toast, .vd-icons) :is(a, button, input, select, textarea, [tabindex]):focus-visible {
@@ -13469,6 +13478,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="crazy"] .vd-fx-c4 { background: #7A5CFF; }
 .desktop-body[data-theme="crazy"] .vd-fx-c5 { background: #FF7A00; }
 
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="crazy"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
+
 /* ---- Motion --------------------------------------------------------------------------------------- */
 
 /* One-shot motion; each duration is 20 ms under the JS fallback timer of the theme registry. Roomy
@@ -13869,8 +13881,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="lollipop"] :is(.vd-dock-button:hover, .vd-dock-button:focus-visible) { filter: drop-shadow(0 10px 14px rgba(194, 24, 107, 0.3)); }
 .desktop-body[data-theme="lollipop"] .vd-dock-button:focus-visible { outline: 2px solid #4A1F3D; outline-offset: 2px; box-shadow: none; }
 
-/* The scroll region clips at the bottom of the buttons, so the dot sits inside the button, not below it. */
-.desktop-body[data-theme="lollipop"] .vd-dock-button::after { bottom: 2px; background: #69CFA8; box-shadow: 0 0 0 1.5px #fff; }
+/* Mint running dot below the icon (the shared position), pink when active. */
+.desktop-body[data-theme="lollipop"] .vd-dock-button::after { background: #69CFA8; box-shadow: 0 0 0 1.5px #fff; }
 .desktop-body[data-theme="lollipop"] .vd-dock-button:is(.running, .active)::after { opacity: 1; }
 .desktop-body[data-theme="lollipop"] .vd-dock-button.active::after { background: #E65CA5; }
 .desktop-body[data-theme="lollipop"] .vd-dock-icon { filter: drop-shadow(0 6px 8px rgba(194, 24, 107, 0.24)); }
@@ -14131,8 +14143,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="lollipop"] .vd-button-primary { border-color: #A0125A; background: var(--vd-accent); color: #fff; }
 .desktop-body[data-theme="lollipop"] .vd-button-primary:hover { background: #A0125A; }
 
-/* The help panel closes with a text button; the shared rule sizes it like an icon button and clips the label. */
-.desktop-body[data-theme="lollipop"] .vd-shortcuts-panel .vd-shortcuts-close { width: auto; padding: 0 16px; }
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="lollipop"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
 
 /* ---- Motion: durations stay 20 ms under the fallback timers of the theme registry. ---- */
 .desktop-body[data-theme="lollipop"]:not([data-animations="false"]) .vd-workspace::before { will-change: transform; animation: vd-theme-lollipop-drift 24s ease-in-out infinite; }
