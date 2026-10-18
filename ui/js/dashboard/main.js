@@ -232,6 +232,8 @@
                 if (outcome === false) return;
                 const updated = document.querySelector('[data-section-updated="' + id + '"]');
                 if (updated) updated.textContent = t('dashboard.section.updated').replace('{{time}}', new Date().toLocaleTimeString());
+                // CardState may have put a card body back from its saved markup: re-open the stored disclosures.
+                DashDisclosures.restore(document.getElementById('sec-' + id));
             } catch (err) {
                 console.warn('loadSectionContent failed', id, err);
             }
@@ -422,6 +424,9 @@
             // (dash-summary.js); the overview tiles and "Customize" belong to dash-overview.js.
             DashSummary.init();
             DashOverview.init();
+            // Big-card disclosures (dash-disclosures.js): the toggle listener, and the stored blocks open before the
+            // first section loads.
+            DashDisclosures.init(document);
 
             // Show the section from the hash (old tab ids are mapped) or the stored one.
             // Every show loads its section (served from the DashAPI cache while fresh).

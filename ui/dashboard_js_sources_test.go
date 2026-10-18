@@ -37,13 +37,13 @@ func readDashboardJS(t *testing.T) string {
 	return b.String()
 }
 
-// TestDashboardSectionScriptsLoadInPageOrder: the registry loads after dash-overview.js and before main.js; the 14
+// TestDashboardSectionScriptsLoadInPageOrder: the registry and the disclosure state load after dash-overview.js and before main.js; the 14
 // section modules load deferred, cache-busted and in sidebar order between widgets-knowledge.js and
 // dashboard-events.js, so main.js's helpers exist when a module runs and every module has registered before
 // dashboard-events.js boots the router on DOMContentLoaded.
 func TestDashboardSectionScriptsLoadInPageOrder(t *testing.T) {
 	t.Parallel()
-	order := []string{"/js/dashboard/dash-overview.js", "/js/dashboard/dash-sections.js", "/js/dashboard/main.js", "/js/dashboard/widgets-knowledge.js"}
+	order := []string{"/js/dashboard/dash-overview.js", "/js/dashboard/dash-sections.js", "/js/dashboard/dash-disclosures.js", "/js/dashboard/main.js", "/js/dashboard/widgets-knowledge.js"}
 	for _, id := range dashboardSectionIDs {
 		order = append(order, "/js/dashboard/sections/"+id+".js")
 	}

@@ -82,6 +82,7 @@ window.DashRouter = { init() {}, current: () => 'knowledge' };
 </script>
 <script>` + helpers + `</script>
 <script src="/chart.min.js"></script>
+<script src="/js/dashboard/dash-disclosures.js"></script>
 <script src="/js/dashboard/main.js"></script>
 <script src="/js/dashboard/widgets-knowledge.js"></script>
 <script src="/js/dashboard/sections/automations.js"></script>

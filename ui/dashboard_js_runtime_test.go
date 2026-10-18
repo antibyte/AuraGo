@@ -47,3 +47,8 @@ func TestDashboardEscapeHtmlComesFromMainJS(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-page-scripts.cjs")
 }
+
+func TestDashboardDisclosureState(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-disclosures.cjs")
+}
