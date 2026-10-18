@@ -19,6 +19,10 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        'minigolf': {
+            styles: appStyles('/css/desktop-app-minigolf.css'),
+            scripts: ['/js/vendor/synth-studio/gm-data.js', '/js/desktop/apps/synth-studio-voices.js', '/js/desktop/apps/synth-studio-audio.js', '/js/desktop/apps/minigolf.js']
+        },
         infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-views.js', '/js/desktop/apps/infra.js'] },
         'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
@@ -591,6 +595,7 @@
     // App id → i18n section prefixes to merge into window.I18N before scripts run.
     // Shell only embeds desktop.*; apps load their own sections on demand.
     const APP_I18N_SECTIONS = {
+        'minigolf': ['minigolf'],
         infra: [],
         'ruview': ['ruview'],
         'agent-chat': ['chat'],

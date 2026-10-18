@@ -380,7 +380,8 @@ func (c *agodeskKnowledgeCoordinator) process(documentID string) {
 		return
 	}
 	directory, ok := agodeskKnowledgeDirectory(c.server)
-	if !ok || c.server.FileIndexer == nil {
+	fileIndexer := c.server.fileIndexer()
+	if !ok || fileIndexer == nil {
 		c.failProcessing(*record, "Knowledge indexing is unavailable.")
 		return
 	}
@@ -400,7 +401,7 @@ func (c *agodeskKnowledgeCoordinator) process(documentID string) {
 		"source_channel":      "agodesk",
 		"source_device_id":    record.OwnerDeviceID,
 	}
-	result, err := c.server.FileIndexer.IndexFile(c.ctx, directory, resolvedPath, metadata)
+	result, err := fileIndexer.IndexFile(c.ctx, directory, resolvedPath, metadata)
 	if err != nil {
 		if c.ctx.Err() != nil {
 			return
@@ -1150,7 +1151,7 @@ func validateAgodeskKnowledgeZIP(path, requiredEntry, requiredMimetype string) e
 }
 
 func agodeskKnowledgeArchiveUploadsEnabled(s *Server) bool {
-	if s == nil || s.Cfg == nil || s.ShortTermMem == nil || s.FileIndexer == nil || s.LongTermMem == nil || s.LongTermMem.IsDisabled() {
+	if s == nil || s.Cfg == nil || s.ShortTermMem == nil || s.fileIndexer() == nil || s.LongTermMem == nil || s.LongTermMem.IsDisabled() {
 		return false
 	}
 	s.CfgMu.RLock()

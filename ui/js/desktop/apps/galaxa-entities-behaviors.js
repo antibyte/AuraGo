@@ -33,6 +33,8 @@
                 mirrorBullet(b);
                 ctx.G.ebul.push(b);
             }
+            const variant = (stageMin, chance) => ctx.G.stage >= stageMin && ctx.random() < chance;
+            const P = ctx.ATTACK_PATTERNS, player = ctx.G.p;
 
             // NEW: Boss phase-based attack patterns
             if ((e.type === 'boss' || e.type === 'miniboss') && e.bossPhase) {
@@ -45,12 +47,14 @@
                     case 2:
                         ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.aimed_burst(e, 5, 0.55, 0, ebSpd, ctx.G.p.x, ctx.G.p.y));
                         ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.random_spread(e, 4, 0.4, 0.8, ebSpd, ctx.random));
+                        if (ctx.random() < 0.5) ctx.G.ebul.push(...P.fan_sweep(e, 7, 0.4, 2.0, ebSpd));
                         ctx.SFX.hunterShot(e.x);
                         break;
                     case 3:
                         ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.spiral(e, 12, 0.35, 0, ebSpd));
                         ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.circle(e, 8, 0.3, ebSpd));
                         if (ctx.random() < 0.5) ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.wall(e, 3, 5, 0.25, ebSpd));
+                        if (ctx.random() < 0.5) ctx.G.ebul.push(...P.rain(e, 8, 0.38, 180, ebSpd, ctx.random));
                         ctx.SFX.spinnerShot(e.x);
                         ctx.G.shkT = Math.max(ctx.G.shkT, 200); ctx.G.shkM = Math.max(ctx.G.shkM, 3);
                         break;
@@ -58,21 +62,25 @@
             } else switch (e.type) {
                 case 'hunter':
                     if (!ctx.G.p.alive) break;
+                    if (variant(4, 0.4)) { ctx.G.ebul.push(...P.predictive(e, 3, 0.68, spd, player)); ctx.SFX.hunterShot(e.x); break; }
                     ctx.SFX.hunterShot(e.x);
                     { const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy) || 1, baseA = Math.atan2(dy, dx);
                       for (let i = -2; i <= 2; i++) { const a = baseA + i * 0.22; ctx.G.ebul.push({ x: px, y: py, w: 2, h: 5, vx: Math.cos(a) * spd * 0.62, vy: Math.sin(a) * spd * 0.62, kind: 'hunter' }); } }
                     break;
                 case 'spinner':
+                    if (variant(3, 0.45)) { ctx.SFX.spinnerShot(e.x); ctx.G.ebul.push(...P.fan_sweep(e, 7, 0.42, 1.9, spd)); break; }
                     ctx.SFX.spinnerShot(e.x);
                     e.shootPh = (e.shootPh || 0) + Math.PI / 3;
                     for (let i = 0; i < 8; i++) { const a = e.shootPh + i * Math.PI / 4; ctx.G.ebul.push({ x: px, y: py, w: 2, h: 4, vx: Math.cos(a) * spd * 0.44, vy: Math.sin(a) * spd * 0.44, kind: 'spiral' }); }
                     break;
                 case 'bomber':
+                    if (variant(5, 0.4)) { if (ctx.SFX.lobShot) ctx.SFX.lobShot(e.x); ctx.G.ebul.push(...P.lob(e, 3, 0.5, spd, ctx.random)); break; }
                     ctx.SFX.bomberDrop(e.x);
                     for (let i = -1; i <= 1; i++) ctx.G.ebul.push({ x: px + i * 10, y: py, w: 3, h: 3, vx: i * 38, vy: spd * 0.22, kind: 'mine', fuse: 2200, t: 0 });
                     break;
                 case 'lasher':
                     if (!ctx.G.p.alive) break;
+                    if (variant(4, 0.4)) { ctx.SFX.lasherShot(e.x); ctx.G.ebul.push(...P.pincer(e, 0.5, spd, player.x, 'plasma')); break; }
                     ctx.SFX.lasherShot(e.x);
                     { const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy) || 1;
                       ctx.G.ebul.push({ x: px, y: py, w: 4, h: 10, vx: (dx / dist) * spd * 0.52, vy: (dy / dist) * spd * 0.52, kind: 'plasma' });
@@ -82,10 +90,12 @@
                 // NEW: Enemy type firing patterns
                 case 'weaver':
                     if (!ctx.G.p.alive) break;
+                    if (variant(3, 0.5)) { if (ctx.SFX.pincerShot) ctx.SFX.pincerShot(e.x); ctx.G.ebul.push(...P.pincer(e, 0.45, spd, player.x)); break; }
                     { const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy) || 1;
                       ctx.G.ebul.push({ x: px, y: py, w: 2, h: 5, vx: (dx / dist) * spd * 0.45, vy: (dy / dist) * spd * 0.45, kind: 'hunter' }); }
                     break;
                 case 'splitter':
+                    if (variant(4, 0.5)) { ctx.G.ebul.push(...P.rain(e, 6, 0.42, 110, spd, ctx.random)); break; }
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.random_spread(e, 5, 0.35, 0.6, spd, ctx.random));
                     break;
                 case 'shield_bee':
@@ -95,18 +105,22 @@
                     // Kamikaze doesn't shoot — it charges
                     break;
                 case 'carrier':
+                    if (variant(4, 0.5)) { if (ctx.SFX.lobShot) ctx.SFX.lobShot(e.x); ctx.G.ebul.push(...P.lob(e, 4, 0.45, spd, ctx.random)); break; }
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.aimed_burst(e, 3, 0.4, 0, spd, ctx.G.p.x, ctx.G.p.y));
                     break;
                 case 'teleporter':
+                    if (variant(3, 0.5)) { ctx.G.ebul.push(...P.fan_sweep(e, 5, 0.34, 1.4, spd)); break; }
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.circle(e, 6, 0.3, spd));
                     break;
                 case 'stalker':
+                    if (variant(4, 0.4) && player.alive) { ctx.G.ebul.push(...P.predictive(e, 1, 0.58, spd, player)); break; }
                     ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6 });
                     ctx.G.ebul.push({ x: px - 6, y: py - 2, w: 2, h: 6 });
                     ctx.G.ebul.push({ x: px + 6, y: py - 2, w: 2, h: 6 });
                     break;
                 case 'sniper':
                     if (ctx.G.p.alive) {
+                        if (variant(6, 0.5)) { ctx.G.ebul.push(...P.predictive(e, 1, 0.62, spd, player)); ctx.SFX.sniperShot(e.x); break; }
                         const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy);
                         if (dist > 1) { ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6, vx: (dx / dist) * spd * 0.6, vy: (dy / dist) * spd * 0.6, kind: 'sniper' }); ctx.SFX.sniperShot(e.x); }
                     }
@@ -121,6 +135,7 @@
                         }
                         break;
                     }
+                    if (e.type === 'butterfly' && player.alive && variant(3, 0.3)) { if (ctx.SFX.pincerShot) ctx.SFX.pincerShot(e.x); ctx.G.ebul.push(...P.pincer(e, 0.4, spd, player.x)); break; }
                     ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6 });
                     if (ctx.G.stage >= 5 && e.type === 'boss') { ctx.G.ebul.push({ x: px - 8, y: py, w: 2, h: 6 }); ctx.G.ebul.push({ x: px + 8, y: py, w: 2, h: 6 }); }
                     if (ctx.G.stage >= 8 && e.type === 'boss') { for (let k = 0; k < 3; k++) ctx.scheduleGame(() => { if (!ctx.state.disposed && e.st === 'DIVING') pushEbul({ x: e.x, y: e.y + 8, w: 2, h: 6 }); }, k * 150); }
@@ -171,6 +186,21 @@
                 else if (e.x > ctx.W - 30) { e.x = ctx.W - 30; d.vx = -Math.abs(d.vx); }
             } else if (k === 'weave') {
                 e.x += (d.vx + Math.cos(d.ph) * d.amp * 3 + Math.sin(d.ph * 2.3) * d.amp * 1.6) * eDt;
+            } else if (k === 'loop') {
+                // Vertical sine on top of the dive descent curls the path into loops.
+                e.x += (d.vx * 0.5 + Math.cos(d.ph) * d.amp * 3.2) * eDt;
+                e.y += Math.sin(d.ph) * d.amp * 2.4 * eDt;
+            } else if (k === 'strafe') {
+                // Dive to mid-screen, then sweep sideways across the field before plunging on.
+                if (!d.strafing && !d.strafed && e.y > ctx.H * 0.42) { d.strafed = true; d.strafing = true; d.vx = (e.x < ctx.W / 2 ? 1 : -1) * 190; e.sTmr = Math.min(e.sTmr, 200); }
+                d.yMul = d.strafing ? 0.12 : (d.strafed ? 1.4 : 1);
+                e.x += d.vx * eDt;
+                if (d.strafing && (e.x < 24 || e.x > ctx.W - 24)) { d.strafing = false; d.vx = 0; }
+            } else if (k === 'hover') {
+                // Stop short, hover while firing, then plunge.
+                if (d.hoverT === undefined && e.y > ctx.H * 0.36) { d.hoverT = 900; e.sTmr = Math.min(e.sTmr, 150); }
+                if (d.hoverT > 0) { d.hoverT -= eDt * 1000; d.yMul = 0.05; e.x += Math.sin(d.ph * 1.3) * d.amp * 2.2 * eDt; }
+                else { d.yMul = d.hoverT !== undefined ? 1.5 : 1; e.x += d.vx * eDt; }
             } else {
                 e.x += d.vx * eDt + Math.cos(d.ph) * d.amp * 3 * eDt;
             }
@@ -212,12 +242,6 @@
             e.dPath = { ph: 0, kind: pickDivePath(e), amp: e.type === 'hunter' ? 18 + ctx.random() * 20 : 30 + ctx.random() * 40, vx: (ctx.random() - 0.5) * (e.type === 'hunter' ? 70 : 130) };
             e.dTmr = e.type === 'hunter' ? 4500 : 3000;
             e.sTmr = e.type === 'hunter' ? 280 + ctx.random() * 420 : 500 + ctx.random() * 1000;
-            if (isHomingType(e)) {
-                e.rot = 0;
-                e.rotTarget = Math.PI;
-                e.rotTimer = 0;
-                e.rotDuration = 500;
-            }
             // Quirk "feint": dive a short way, then abort and climb back. Never
             // applied to homing types (they already rotate/flip on the way in).
             // Feint dives are shorter and can end in the air (no bottom reset).
@@ -304,10 +328,6 @@
                 }
                 else if (e.st === 'FORM') {
                     e.x = e.fx + formationX; e.y = e.fy + Math.sin(formationTime * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
-                    if (e.rotPhase === undefined) e.rotPhase = ctx.random() * Math.PI * 2;
-                    e.rotPhase += eDt * 1.5;
-                    e.rot = Math.sin(e.rotPhase) * 0.35;
-                    if (window.__galaxaDebug && (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && (ctx.tick % 30 === 0)) console.log('[rot]', e.type, 'FORM rot=', e.rot, 'rotPhase=', e.rotPhase);
                     if ((e.spawnAnim || 0) < (e.spawnDur || 400)) e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
@@ -363,22 +383,10 @@
                     e.dTmr -= dtMs;
                     if (e.dTmr <= 0 || e.y > ctx.H + 20) {
                         e.st = 'RETURN'; e.y = -20;
-                        if (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') {
-                            e.rotTimer = 0;
-                            e.rotDuration = 500;
-                            e.rotTarget = 0;
-                            if (window.__galaxaDebug) console.log('[rot]', e.type, 'enter RETURN at rot=', e.rot, 'rotTimer=', e.rotTimer);
-                        }
                     }
                     else {
-                        if ((e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && e.rotTimer < e.rotDuration) {
-                            e.rotTimer += dtMs;
-                            const t = Math.min(e.rotTimer / e.rotDuration, 1);
-                            e.rot = e.rotTarget * t;
-                            if (window.__galaxaDebug) console.log('[rot]', e.type, 'DIVE t=', t, 'rot=', e.rot);
-                        }
                         const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1) * (e.rageSpeedMult || 1);
-                        e.y += diveSpd * eDt;
+                        e.y += diveSpd * eDt * (e.dPath && e.dPath.yMul != null ? e.dPath.yMul : 1);
                         if (e.type === 'hunter' && ctx.G.p.alive) {
                             e.x += (ctx.G.p.x - e.x) * eDt * 4.8;
                             e.y += (ctx.G.p.y - e.y) * eDt * 1.1;
@@ -425,11 +433,6 @@
                 }
                 else if (e.st === 'RETURN') {
                     e.x += (e.fx + formationX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3;
-                    if ((e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && e.rotTimer < e.rotDuration) {
-                        e.rotTimer += dtMs;
-                        const t = Math.min(e.rotTimer / e.rotDuration, 1);
-                        e.rot = e.rotTarget * t;
-                    }
                     if (Math.abs(e.x - e.fx - formationX) < 3 && Math.abs(e.y - e.fy) < 3) { if (ctx.G.chal) { e.st = 'DEAD'; ctx.G.chalHits++; } else e.st = 'FORM'; }
                 }
             }

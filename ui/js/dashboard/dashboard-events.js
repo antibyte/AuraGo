@@ -49,9 +49,11 @@
                     Charts[key] = null;
                 }
             }
-            // Reset loaded state so tab switch forces re-render
-            Object.keys(TabState.loaded).forEach(k => { TabState.loaded[k] = false; });
-            loadTabContent(TabState.active);
+            // Reset loaded state and re-render the visible section with the new colours
+            // (from the DashAPI cache while it is fresh, so a theme switch costs no requests).
+            Object.keys(SectionState.loaded).forEach(k => { SectionState.loaded[k] = false; });
+            const active = DashRouter.current();
+            if (active) loadSectionContent(active);
         }
         window.addEventListener('aurago:themechange', updateChartColors);
 
@@ -102,12 +104,15 @@
                 }, 8000);
             });
             window.AuraSSE.on('system_metrics', function (sys) {
+                // The live values are newer than a cached /api/dashboard/system answer.
+                DashAPI.invalidate('/api/dashboard/system');
                 updateGauge(Charts.cpu, 'cpu-val', (sys.cpu && sys.cpu.usage_percent) || 0);
                 updateGauge(Charts.ram, 'ram-val', (sys.memory && sys.memory.used_percent) || 0);
                 updateGauge(Charts.disk, 'disk-val', (sys.disk && sys.disk.used_percent) || 0);
                 renderSystemStats(sys);
             });
             window.AuraSSE.on('memory_update', function (mem) {
+                DashAPI.invalidate('/api/dashboard/memory');
                 if (mem && Charts.memory) {
                     Charts.memory.data.datasets[0].data = [
                         mem.core_memory_facts || 0,
@@ -121,17 +126,22 @@
                 }
             });
             window.AuraSSE.on('personality_update', function (personality) {
+                DashAPI.invalidate('/api/personality/');
+                DashAPI.invalidate('/api/dashboard/mood-history');
+                DashAPI.invalidate('/api/dashboard/emotion-history');
                 renderMoodBadge(personality);
-                if (TabState.active === 'agent') {
+                if (DashRouter.current() === 'personality') {
                     API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours).then(data => renderEmotionHistory(data, personality));
                 }
             });
             window.AuraSSE.on('daemon_update', function () {
-                if (TabState.active === 'system') {
+                DashAPI.invalidate('/api/daemons');
+                if (DashRouter.current() === 'automations') {
                     loadDaemonsCard();
                 }
             });
             window.AuraSSE.on('audit_update', function () {
+                DashAPI.invalidate('/api/dashboard/audit');
                 if (typeof scheduleAuditRefresh === 'function') {
                     scheduleAuditRefresh();
                 }
@@ -139,6 +149,9 @@
             window.AuraSSE.onLegacy(function (event) {
                 try {
                     const data = JSON.parse(event.data);
+                    if (typeof data.event === 'string' && data.event.startsWith('budget_')) {
+                        DashAPI.invalidate('/api/budget');
+                    }
                     if (data.event === 'budget_update') {
                         if (data.spent_usd != null) {
                             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
@@ -315,11 +328,12 @@
         }
 
         async function refreshCronViews() {
-            if (typeof TabState !== 'undefined' && TabState.active === 'cronjobs') {
+            if (typeof DashRouter !== 'undefined' && DashRouter.current() === 'automations') {
                 await loadTabCronjobs();
             }
             if (document.getElementById('activity-stats')) {
-                const activity = await API.get('/api/dashboard/activity');
+                // Forced and cached: the tools section shows the change on its next visit as well.
+                const activity = await API.get('/api/dashboard/activity', sectionFetch(true));
                 renderActivity(activity);
             }
         }
@@ -336,6 +350,25 @@
                 if (e.key === 'Escape' && cronOverlay && cronOverlay.classList.contains('open'))
                     closeCronEditModal();
             });
+        });
+
+        // -- Declarative actions ---------------------------------------------------------
+        // Markup buttons carry data-action instead of inline onclick handlers. Unknown actions
+        // (for example personality-dynamics' own reset button) are left to their own listeners.
+        const DASH_ACTIONS = {
+            'filesync-refresh': () => loadFileSyncStatus(),
+            'filesync-rescan': () => triggerFileSyncRescan(),
+            'memory-reflection-run': () => runWeeklyReflectionNow(),
+            'cron-edit-cancel': () => closeCronEditModal(),
+            'cron-edit-save': () => saveCronEdit(),
+        };
+        document.addEventListener('click', (e) => {
+            const trigger = e.target instanceof Element ? e.target.closest('[data-action]') : null;
+            if (!trigger) return;
+            const action = trigger.getAttribute('data-action');
+            if (!Object.prototype.hasOwnProperty.call(DASH_ACTIONS, action)) return;
+            e.preventDefault();
+            DASH_ACTIONS[action]();
         });
 
         // ── Core-Facts Modal ─────────────────────────────────────────────────────────

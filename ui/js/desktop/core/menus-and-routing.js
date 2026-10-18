@@ -1812,6 +1812,13 @@ if (appId === 'pixel') {
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, isActive: () => state.activeWindowId === id }));
         }
+        if (appId === 'minigolf') {
+            if (!window.MinigolfApp) {
+                window.AuraDesktopModules.loadAppScript('minigolf').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.MinigolfApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, isActive: () => state.activeWindowId === id }));
+        }
         if (appId === 'chess') {
             if (!window.ChessApp) {
                 window.AuraDesktopModules.loadAppScript('chess').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

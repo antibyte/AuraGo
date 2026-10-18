@@ -8,7 +8,6 @@
   const TINY = 0.0001;
   const DEFAULT_PARAMS = { tone: 0.5, resonance: 0, drive: 0, attack: 0.01, release: 0.3, chorus: 0, phaser: 0, reverb: 0, delay: 0 };
   const GM = root.SynthStudioGMData;
-  const PRESETS = root.SynthStudioPresets;
 
   const DRIVE_CURVES = Array.from({ length: 33 }, (_, step) => {
     const curve = new Float32Array(513);
@@ -201,7 +200,7 @@
     const instrument = track.instrument;
     if (instrument === "gm-drums") return getGMPatch(pitch);
     if (instrument === "drums-kit") return customDrumPatch(pitch) || getGMPatch(pitch);
-    const preset = PRESETS?.get(instrument);
+    const preset = root.SynthStudioPresets?.get(instrument);
     if (preset?.category === "drums") return customDrumPatch(preset.drumNote) || getGMPatch(preset.drumNote);
     const match = /^gm-(\d+)$/.exec(instrument);
     if (match) return GM?.programs?.[Number(match[1])]?.operators || customPatch({ wave: "sine" });
@@ -397,7 +396,7 @@
   function updateTrackBus(bus, track) {
     const p = trackParams(track);
     const now = bus.input.context.currentTime;
-    const presetTone = PRESETS?.get(track.instrument)?.patch?.cutoff;
+    const presetTone = root.SynthStudioPresets?.get(track.instrument)?.patch?.cutoff;
     const tone = Number.isFinite(presetTone) ? p.tone * 0.65 + presetTone * 0.35 : p.tone;
     const resonance = clamp(p.resonance, 0, 1, 0);
     const driveAmount = clamp(p.drive, 0, 1, 0);
@@ -471,7 +470,7 @@
   function createVoice(context, mix, bus, state, track, pitch, velocity, at, operators) {
     const voiceGain = context.createGain();
     voiceGain.gain.value = 1;
-    const patch = PRESETS?.get(track.instrument)?.patch;
+    const patch = root.SynthStudioPresets?.get(track.instrument)?.patch;
     const params = trackParams(track);
     const pitchHz = 440 * Math.pow(2, (pitch - 69) / 12);
     let voiceFilter = null;

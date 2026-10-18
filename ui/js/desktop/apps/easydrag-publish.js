@@ -124,6 +124,7 @@
         }
 
         async function showDialog() {
+            if (ed.flushPendingEdits && ed.flushPendingEdits() === false) return;
             if (ed.saver && !(await ed.saver.flush())) {
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_unsaved'), type: 'error' });
                 return;
@@ -270,6 +271,7 @@
                 if (!ok) return;
                 b.disabled = true;
                 try {
+                    if (ed.flushPendingEdits && ed.flushPendingEdits() === false) { b.disabled = false; return; }
                     if (ed.saver && ed.saver.isDirty && ed.saver.isDirty()) await ed.saver.flush();
                     const baseRev = ed.saver ? ed.saver.revision : ed.flow.draft_revision;
                     const res = await ed.api.restoreVersion(ed.flow.id, rev, baseRev);

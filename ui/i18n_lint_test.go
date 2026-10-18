@@ -274,6 +274,7 @@ func TestFrontend_HTML_HardcodedGermanUIText(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
 
 	var failures []string
 	checkedFiles := 0
@@ -337,6 +338,7 @@ func TestFrontend_HTML_NoTextFallbacksInsideDataI18n(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
 	dataI18nElementPattern := regexp.MustCompile(`<([a-zA-Z][\w:-]*)([^>]*\sdata-i18n=(["'])[^"']+["'][^>]*)>([^<]*)</[a-zA-Z][\w:-]*>`)
 	htmlTagPattern := regexp.MustCompile(`<[^>]+>`)
 	alphaPattern := regexp.MustCompile(`[\p{L}\p{N}]`)
@@ -391,6 +393,7 @@ func TestFrontend_HTML_NoAttributeFallbacksInsideDataI18n(t *testing.T) {
 		"plans.html",
 		"truenas.html",
 	}
+	htmlFiles = append(htmlFiles, dashboardSectionPartialFiles(t)...)
 	directAttrPairs := []struct {
 		marker string
 		attr   string
@@ -499,7 +502,7 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		}
 	}
 
-	for _, htmlFile := range []string{
+	staticHTMLFiles := []string{
 		"404.html",
 		"index.html",
 		"config.html",
@@ -517,7 +520,9 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 		"skills.html",
 		"plans.html",
 		"truenas.html",
-	} {
+	}
+	staticHTMLFiles = append(staticHTMLFiles, dashboardSectionPartialFiles(t)...)
+	for _, htmlFile := range staticHTMLFiles {
 		content, err := os.ReadFile(htmlFile)
 		if err != nil {
 			continue
@@ -1051,6 +1056,8 @@ type localI18nHelper struct {
 // static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
 // Register every new prefix helper here so its keys stay verified.
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
+	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/bookshelf.js":               {name: "t", prefix: "bookshelf."},
 	"js/desktop/apps/gog-sources.js":             {name: "tr", prefix: "desktop.gog."},
 	"js/desktop/apps/layerling.js":               {name: "t", prefix: "layerling."},

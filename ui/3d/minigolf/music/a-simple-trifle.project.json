@@ -1,0 +1,1140 @@
+{
+  "version": 1,
+  "name": "A Simple Trifle",
+  "tempo": 170.0000850000425,
+  "ppq": 480,
+  "beatsPerBar": 4,
+  "loop": {
+    "enabled": false,
+    "start": 0,
+    "end": 7680
+  },
+  "tracks": [
+    {
+      "id": "a-simple-trifle-track-1",
+      "name": "Track 1",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "a-simple-trifle-clip-1-1",
+          "name": "Track 1",
+          "start": 0,
+          "length": 32640,
+          "notes": [
+            {
+              "id": "a-simple-trifle-note-1-1-1",
+              "pitch": 76,
+              "start": 0,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-2",
+              "pitch": 79,
+              "start": 480,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-3",
+              "pitch": 74,
+              "start": 960,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-4",
+              "pitch": 79,
+              "start": 1440,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-5",
+              "pitch": 76,
+              "start": 1920,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-6",
+              "pitch": 77,
+              "start": 2160,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-7",
+              "pitch": 79,
+              "start": 2400,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-8",
+              "pitch": 74,
+              "start": 2880,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-9",
+              "pitch": 76,
+              "start": 3360,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-10",
+              "pitch": 77,
+              "start": 3600,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-11",
+              "pitch": 79,
+              "start": 3840,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-12",
+              "pitch": 72,
+              "start": 4320,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-13",
+              "pitch": 74,
+              "start": 4800,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-14",
+              "pitch": 71,
+              "start": 5280,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-15",
+              "pitch": 72,
+              "start": 5760,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-16",
+              "pitch": 74,
+              "start": 6240,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-17",
+              "pitch": 76,
+              "start": 6480,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-18",
+              "pitch": 74,
+              "start": 6720,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-19",
+              "pitch": 67,
+              "start": 7200,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-20",
+              "pitch": 72,
+              "start": 7680,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-21",
+              "pitch": 74,
+              "start": 8160,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-22",
+              "pitch": 76,
+              "start": 8400,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-23",
+              "pitch": 74,
+              "start": 8640,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-24",
+              "pitch": 67,
+              "start": 9120,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-25",
+              "pitch": 72,
+              "start": 9600,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-26",
+              "pitch": 74,
+              "start": 9840,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-27",
+              "pitch": 76,
+              "start": 10080,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-28",
+              "pitch": 74,
+              "start": 10560,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-29",
+              "pitch": 76,
+              "start": 10800,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-30",
+              "pitch": 77,
+              "start": 11040,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-31",
+              "pitch": 76,
+              "start": 11520,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-32",
+              "pitch": 77,
+              "start": 11760,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-33",
+              "pitch": 79,
+              "start": 12000,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-34",
+              "pitch": 76,
+              "start": 12240,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-35",
+              "pitch": 74,
+              "start": 12480,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-36",
+              "pitch": 76,
+              "start": 12720,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-37",
+              "pitch": 77,
+              "start": 12960,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-38",
+              "pitch": 74,
+              "start": 13200,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-39",
+              "pitch": 72,
+              "start": 13440,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-40",
+              "pitch": 74,
+              "start": 13680,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-41",
+              "pitch": 76,
+              "start": 13920,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-42",
+              "pitch": 74,
+              "start": 14400,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-43",
+              "pitch": 76,
+              "start": 14640,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-44",
+              "pitch": 77,
+              "start": 14880,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-45",
+              "pitch": 79,
+              "start": 15360,
+              "duration": 1920,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-46",
+              "pitch": 81,
+              "start": 17280,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-47",
+              "pitch": 81,
+              "start": 17760,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-48",
+              "pitch": 76,
+              "start": 18000,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-49",
+              "pitch": 81,
+              "start": 18240,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-50",
+              "pitch": 81,
+              "start": 18720,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-51",
+              "pitch": 76,
+              "start": 18960,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-52",
+              "pitch": 84,
+              "start": 19200,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-53",
+              "pitch": 83,
+              "start": 19440,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-54",
+              "pitch": 81,
+              "start": 19680,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-55",
+              "pitch": 81,
+              "start": 20160,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-56",
+              "pitch": 76,
+              "start": 20640,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-57",
+              "pitch": 81,
+              "start": 21120,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-58",
+              "pitch": 81,
+              "start": 21600,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-59",
+              "pitch": 76,
+              "start": 21840,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-60",
+              "pitch": 81,
+              "start": 22080,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-61",
+              "pitch": 81,
+              "start": 22560,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-62",
+              "pitch": 76,
+              "start": 22800,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-63",
+              "pitch": 84,
+              "start": 23040,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-64",
+              "pitch": 83,
+              "start": 23280,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-65",
+              "pitch": 81,
+              "start": 23520,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-66",
+              "pitch": 79,
+              "start": 23760,
+              "duration": 120,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-67",
+              "pitch": 76,
+              "start": 24000,
+              "duration": 960,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-68",
+              "pitch": 74,
+              "start": 24960,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-69",
+              "pitch": 76,
+              "start": 25200,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-70",
+              "pitch": 77,
+              "start": 25440,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-71",
+              "pitch": 81,
+              "start": 25920,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-72",
+              "pitch": 83,
+              "start": 26160,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-73",
+              "pitch": 84,
+              "start": 26400,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-74",
+              "pitch": 69,
+              "start": 26880,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-75",
+              "pitch": 71,
+              "start": 27120,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-76",
+              "pitch": 72,
+              "start": 27360,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-77",
+              "pitch": 74,
+              "start": 27840,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-78",
+              "pitch": 76,
+              "start": 28080,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-79",
+              "pitch": 77,
+              "start": 28320,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-80",
+              "pitch": 74,
+              "start": 28800,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-81",
+              "pitch": 74,
+              "start": 29280,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-82",
+              "pitch": 79,
+              "start": 29760,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-83",
+              "pitch": 77,
+              "start": 30000,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-84",
+              "pitch": 76,
+              "start": 30240,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-85",
+              "pitch": 74,
+              "start": 30480,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-1-1-86",
+              "pitch": 72,
+              "start": 30720,
+              "duration": 1920,
+              "velocity": 0.5039370078740157
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "a-simple-trifle-track-2",
+      "name": "Track 2",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "a-simple-trifle-clip-2-1",
+          "name": "Track 2",
+          "start": 0,
+          "length": 32640,
+          "notes": [
+            {
+              "id": "a-simple-trifle-note-2-1-1",
+              "pitch": 60,
+              "start": 0,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-2",
+              "pitch": 64,
+              "start": 480,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-3",
+              "pitch": 55,
+              "start": 960,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-4",
+              "pitch": 62,
+              "start": 1440,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-5",
+              "pitch": 60,
+              "start": 1920,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-6",
+              "pitch": 64,
+              "start": 2400,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-7",
+              "pitch": 55,
+              "start": 2880,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-8",
+              "pitch": 62,
+              "start": 3360,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-9",
+              "pitch": 60,
+              "start": 3840,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-10",
+              "pitch": 64,
+              "start": 4320,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-11",
+              "pitch": 55,
+              "start": 4800,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-12",
+              "pitch": 62,
+              "start": 5280,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-13",
+              "pitch": 60,
+              "start": 5760,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-14",
+              "pitch": 64,
+              "start": 6240,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-15",
+              "pitch": 55,
+              "start": 6720,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-16",
+              "pitch": 62,
+              "start": 7200,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-17",
+              "pitch": 60,
+              "start": 7680,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-18",
+              "pitch": 64,
+              "start": 8160,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-19",
+              "pitch": 55,
+              "start": 8640,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-20",
+              "pitch": 62,
+              "start": 9120,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-21",
+              "pitch": 60,
+              "start": 9600,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-22",
+              "pitch": 64,
+              "start": 10080,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-23",
+              "pitch": 55,
+              "start": 10560,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-24",
+              "pitch": 62,
+              "start": 11040,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-25",
+              "pitch": 60,
+              "start": 11520,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-26",
+              "pitch": 64,
+              "start": 12000,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-27",
+              "pitch": 55,
+              "start": 12480,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-28",
+              "pitch": 62,
+              "start": 12960,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-29",
+              "pitch": 60,
+              "start": 13440,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-30",
+              "pitch": 64,
+              "start": 13920,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-31",
+              "pitch": 55,
+              "start": 14400,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-32",
+              "pitch": 62,
+              "start": 14880,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-33",
+              "pitch": 60,
+              "start": 15360,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-34",
+              "pitch": 64,
+              "start": 15840,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-35",
+              "pitch": 55,
+              "start": 16320,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-36",
+              "pitch": 62,
+              "start": 16800,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-37",
+              "pitch": 60,
+              "start": 17280,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-38",
+              "pitch": 64,
+              "start": 17760,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-39",
+              "pitch": 57,
+              "start": 18240,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-40",
+              "pitch": 64,
+              "start": 18720,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-41",
+              "pitch": 57,
+              "start": 19200,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-42",
+              "pitch": 60,
+              "start": 19680,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-43",
+              "pitch": 64,
+              "start": 20160,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-44",
+              "pitch": 60,
+              "start": 20640,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-45",
+              "pitch": 60,
+              "start": 21120,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-46",
+              "pitch": 64,
+              "start": 21600,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-47",
+              "pitch": 57,
+              "start": 22080,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-48",
+              "pitch": 64,
+              "start": 22560,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-49",
+              "pitch": 57,
+              "start": 23040,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-50",
+              "pitch": 60,
+              "start": 23520,
+              "duration": 240,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-51",
+              "pitch": 64,
+              "start": 24000,
+              "duration": 960,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-52",
+              "pitch": 62,
+              "start": 24960,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-53",
+              "pitch": 69,
+              "start": 25440,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-54",
+              "pitch": 57,
+              "start": 25920,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-55",
+              "pitch": 64,
+              "start": 26400,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-56",
+              "pitch": 53,
+              "start": 26880,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-57",
+              "pitch": 60,
+              "start": 27360,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-58",
+              "pitch": 50,
+              "start": 27840,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-59",
+              "pitch": 57,
+              "start": 28320,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-60",
+              "pitch": 55,
+              "start": 28800,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-61",
+              "pitch": 62,
+              "start": 29280,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-62",
+              "pitch": 67,
+              "start": 29760,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-63",
+              "pitch": 62,
+              "start": 30240,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-64",
+              "pitch": 60,
+              "start": 30720,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-65",
+              "pitch": 67,
+              "start": 31200,
+              "duration": 480,
+              "velocity": 0.5039370078740157
+            },
+            {
+              "id": "a-simple-trifle-note-2-1-66",
+              "pitch": 48,
+              "start": 31680,
+              "duration": 960,
+              "velocity": 0.5039370078740157
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    }
+  ]
+}

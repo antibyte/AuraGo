@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -8,11 +9,11 @@ import (
 func TestDashboardAuditRemediationContracts(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-agent"`,
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-user"`,
-		`class="dash-tab-panel pw-tab-panel is-hidden" id="tab-system"`,
+		`<section class="dash-section" id="sec-personality" data-section="personality"`,
+		`<section class="dash-section" id="sec-user" data-section="user"`,
+		`<section class="dash-section" id="sec-system" data-section="system"`,
 		`<button type="button" class="collapse-toggle"`,
 		`aria-expanded="true"`,
 		`id="log-scroll-btn"`,
@@ -22,8 +23,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		`<span data-i18n="knowledge.filesync_rescan">`,
 		`data-i18n="dashboard.page_heading"`,
 		`data-pw-density-toggle`,
-		`dash-tab-group-sep`,
-		`data-tab-group="primary"`,
+		`class="dash-nav-group-label"`,
+		`data-section-link="overview"`,
 	} {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("dashboard HTML missing remediation marker %q", marker)
@@ -35,6 +36,25 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	if strings.Contains(html, `id="log-scroll-btn" data-i18n="`) {
 		t.Fatal("log scroll button must not carry data-i18n on the button itself")
 	}
+	if regexp.MustCompile(`(?i)\son[a-z]+\s*=\s*["']`).MatchString(html) {
+		t.Fatal("dashboard markup must not use inline event handlers; use data-action and the delegated listener")
+	}
+	for _, marker := range []string{
+		`<button type="button" class="btn btn-secondary btn-sm" data-action="filesync-refresh" id="btn-fs-refresh-dash">`,
+		`<button type="button" class="btn btn-primary btn-sm" data-action="filesync-rescan" id="btn-fs-rescan-dash">`,
+		`id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run"`,
+		`<button type="button" class="cf-add-btn cron-btn-cancel" data-action="cron-edit-cancel"`,
+		`<button type="button" class="cf-add-btn" id="cronEditSaveBtn" data-action="cron-edit-save"`,
+		`<div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div>`,
+		`<div id="budget-disabled" class="empty-state is-hidden" data-i18n="dashboard.budget_disabled"></div>`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("dashboard HTML missing declarative-action marker %q", marker)
+		}
+	}
+	if strings.Contains(html, `kc-sync-loading">Loading`) {
+		t.Fatal("File sync placeholders must be translated")
+	}
 
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
@@ -42,8 +62,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		":scope > [data-i18n-text], :scope > .i18n-text",
 		"nodeType === Node.TEXT_NODE",
 		"CardState.setLoading(id)",
-		"Always refresh the active tab",
-		"TabState.loaded[tabId] = true",
+		"onShow: id => loadSectionContent(id)",
+		"SectionState.loaded[id] = true",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("dashboard main missing remediation marker %q", marker)
@@ -104,11 +124,22 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	if strings.Contains(events, `showAlert('Error'`) {
 		t.Fatal("error alerts must use i18n title")
 	}
+	for _, marker := range []string{
+		"'filesync-refresh': () => loadFileSyncStatus()",
+		"'filesync-rescan': () => triggerFileSyncRescan()",
+		"'memory-reflection-run': () => runWeeklyReflectionNow()",
+		"'cron-edit-cancel': () => closeCronEditModal()",
+		"'cron-edit-save': () => saveCronEdit()",
+		"e.target.closest('[data-action]')",
+	} {
+		if !strings.Contains(events, marker) {
+			t.Fatalf("dashboard events missing delegated action %q", marker)
+		}
+	}
 
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 	for _, marker := range []string{
 		"dash-card-shimmer",
-		".dash-tab-group-sep",
 		"max-height: 148px",
 		"width: var(--bar-width, 4%)",
 		".cronjobs-row-actions",

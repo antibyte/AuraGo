@@ -1,0 +1,410 @@
+/* AuraGo dashboard shell (P2): sidebar and drawer, section header, 12-column grid, card title.
+   Loads after dashboard.css and before enhancements.css (order pinned by precision_pages_test.go).
+   Every selector is scoped to the dashboard page; only existing tokens are used. */
+
+/* Shell: fixed-width sidebar column next to the content column */
+.pw-page[data-workspace-page="dashboard"] .dash-shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    align-items: start;
+    min-height: calc(100dvh - var(--pw-header-height));
+}
+
+/* Sidebar */
+.pw-page[data-workspace-page="dashboard"] .dash-sidebar {
+    position: sticky;
+    top: var(--pw-header-height);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pw-space-1);
+    height: calc(100dvh - var(--pw-header-height));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--pw-space-4) var(--pw-space-3) var(--pw-space-8);
+    border-right: 1px solid var(--pw-line);
+    background: var(--pw-surface);
+    scrollbar-width: thin;
+    scrollbar-color: var(--pw-line-strong) transparent;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-group {
+    display: grid;
+    gap: var(--pw-space-1);
+    margin-top: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-group-label {
+    padding: 0 var(--pw-space-3);
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--pw-space-3);
+    min-height: 44px;
+    padding: var(--pw-space-2) var(--pw-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    color: var(--pw-muted);
+    font-size: var(--pw-label-size);
+    line-height: 1.3;
+    text-decoration: none;
+    transition:
+        background var(--pw-duration-fast) var(--pw-ease),
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        color var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link .dash-ic {
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link:hover {
+    color: var(--pw-text);
+    background: var(--pw-surface-elevated);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link[aria-current="page"] {
+    color: var(--pw-text);
+    border-color: color-mix(in srgb, var(--pw-accent) 32%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 14%, var(--pw-surface));
+    font-weight: 650;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-link[aria-current="page"]::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 0;
+    width: 3px;
+    border-radius: 4px;
+    background: var(--pw-accent);
+}
+
+/* Count badge (filled from P3: problems, automations, overview) */
+.pw-page[data-workspace-page="dashboard"] .dash-nav-badge {
+    margin-left: auto;
+    min-width: 1.5rem;
+    padding: 0 var(--pw-space-2);
+    border-radius: 999px;
+    background: var(--pw-danger);
+    color: var(--pw-canvas);
+    font-size: var(--pw-meta-size);
+    font-weight: 700;
+    line-height: 1.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-nav-badge[hidden] {
+    display: none;
+}
+
+/* Menu button (drawer mode only) and backdrop */
+.pw-page[data-workspace-page="dashboard"] .dash-menu-btn {
+    display: none;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface);
+    color: var(--pw-text);
+    cursor: pointer;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-menu-btn:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-menu-btn .dash-ic {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-sidebar-backdrop {
+    display: none;
+}
+
+/* Content column */
+.pw-page[data-workspace-page="dashboard"] .dash-content {
+    width: 100%;
+    max-width: var(--pw-dashboard-frame);
+    min-width: 0;
+    margin-inline: auto;
+    padding: var(--pw-space-6) clamp(1rem, 2.5vw, 2rem) var(--pw-space-10);
+}
+
+/* Sections. Each section is the query container for its grid: main also holds the fixed-position
+   modals, so it must not become a containment/containing block. */
+.pw-page[data-workspace-page="dashboard"] .dash-section {
+    container-type: inline-size;
+    display: grid;
+    gap: var(--pw-space-5);
+    min-width: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section[hidden] {
+    display: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--pw-space-3) var(--pw-space-5);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-heading {
+    display: grid;
+    flex: 1 1 22rem;
+    gap: var(--pw-space-1);
+    min-width: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-title {
+    margin: 0;
+    color: var(--pw-text);
+    font-size: var(--pw-heading-size);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-title:focus {
+    outline: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-title:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 4px;
+    border-radius: var(--pw-radius-sm);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-desc {
+    margin: 0;
+    color: var(--pw-muted);
+    font-size: var(--pw-help-size);
+    line-height: 1.5;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-meta {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-updated {
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-updated:empty {
+    display: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface);
+    color: var(--pw-muted);
+    cursor: pointer;
+    transition:
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        color var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh:hover {
+    border-color: var(--pw-line-strong);
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh .dash-ic {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh.is-busy .dash-ic {
+    animation: dash-spin 0.9s linear infinite;
+}
+
+/* 12-column grid: row flow, no dense packing, reading order equals DOM order */
+.pw-page[data-workspace-page="dashboard"] .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--pw-space-5);
+    margin: 0;
+    padding: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .span-12 {
+    grid-column: span 12;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .span-8 {
+    grid-column: span 8;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .span-6 {
+    grid-column: span 6;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .span-4 {
+    grid-column: span 4;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .span-3 {
+    grid-column: span 3;
+}
+
+/* Feature-disabled cards keep .is-hidden; the card rule's display: flex in dashboard.css would otherwise win. */
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card.is-hidden {
+    display: none;
+}
+
+/* Card anatomy: the h3 title keeps the header's type scale */
+.pw-page[data-workspace-page="dashboard"] .dash-card-title {
+    flex: 0 1 auto;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    overflow-wrap: break-word;
+}
+
+/* The filesync header carries a status and two actions: when a long title word leaves no room for them they drop to a second row instead of overflowing the card */
+.pw-page[data-workspace-page="dashboard"] #card-filesync .dash-card-header {
+    flex-wrap: wrap;
+    row-gap: var(--pw-space-2);
+}
+
+/* Compact density */
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-content {
+    padding-block: var(--pw-space-4) var(--pw-space-8);
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-section,
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid {
+    gap: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-nav-link {
+    min-height: 36px;
+    padding-block: var(--pw-space-1);
+}
+
+/* Section width below 1100px: quarter and third cards take half the row, two-thirds cards the full row */
+@container (max-width: 1099px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-3,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-4 {
+        grid-column: span 6;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-8 {
+        grid-column: span 12;
+    }
+}
+
+/* Section width below 700px: one card per row */
+@container (max-width: 699px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-3,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-4,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-6,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-8 {
+        grid-column: span 12;
+    }
+}
+
+/* Drawer: the sidebar slides in from the left below the header; the menu button opens it */
+@media (max-width: 900px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-menu-btn {
+        display: inline-grid;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-sidebar {
+        position: fixed;
+        top: var(--pw-header-height);
+        bottom: 0;
+        left: 0;
+        z-index: 90;
+        width: min(300px, calc(100vw - 3rem));
+        height: auto;
+        visibility: hidden;
+        transform: translateX(-102%);
+        transition:
+            transform var(--pw-duration-base) var(--pw-ease),
+            visibility 0s linear var(--pw-duration-base);
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-sidebar.open {
+        visibility: visible;
+        transform: translateX(0);
+        transition: transform var(--pw-duration-base) var(--pw-ease);
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-sidebar-backdrop:not([hidden]) {
+        position: fixed;
+        top: var(--pw-header-height);
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 85;
+        display: block;
+        background: color-mix(in srgb, var(--pw-canvas) 72%, transparent);
+    }
+}
+
+/* Phones: tighter frame, full-width section meta, 44px touch targets in compact density */
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-content {
+        padding: var(--pw-space-4) var(--pw-space-3) var(--pw-space-8);
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-section-meta {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-section-refresh {
+        width: 44px;
+        height: 44px;
+    }
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-nav-link {
+        min-height: 44px;
+    }
+}

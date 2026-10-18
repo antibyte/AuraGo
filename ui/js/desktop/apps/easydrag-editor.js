@@ -39,12 +39,13 @@
         const el = core.el('<div class="ed-editor">' +
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('arrow-left') + '</button>' +
-            '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span></div>' +
+            '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span><span class="ed-revision" data-ed-revision data-ed-revisions></span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
             '<div class="ed-head-actions">' +
             '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + core.icon('rocket') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + core.icon('play') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
             '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
             '</div></header>' +
@@ -62,7 +63,6 @@
             '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-run-dot" data-ed-last-dot></span><span data-ed-last-run></span></button>' +
             '<span class="ed-foot-spacer"></span>' +
             '<button type="button" class="ed-foot-item" data-ed-cmd="issues" aria-haspopup="dialog"><span data-ed-issues></span></button>' +
-            '<span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span>' +
             '</footer></div>');
         const nameInput = el.querySelector('[data-ed-name]');
         const body = el.querySelector('.ed-body');
@@ -120,6 +120,37 @@
             return { disabled: ro || !ed.flow.live || paused, hint: paused && !ro ? t('easydrag.ui.error_flow_disabled') : '' };
         }
 
+        // revisionText is the persistent draft-versus-live line. Partial publish stays on the state chip.
+        function revisionText() {
+            if (ed.runView) return t('easydrag.ui.state_run_view');
+            if (!ed.flow.live) return t('easydrag.ui.state_draft');
+            const liveN = Number(ed.flow.live_revision) || 0;
+            if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return t('easydrag.ui.revision_ahead', { n: liveN });
+            return t('easydrag.ui.revision_live', { n: liveN });
+        }
+
+        function runNowTitle() {
+            const state = runNowState();
+            if (state.hint) return state.hint;
+            if (ed.runView) return t('easydrag.ui.state_run_view');
+            if (ed.readonly) return t('easydrag.ui.run_readonly');
+            return '';
+        }
+
+        function paintRevision() {
+            const node = el.querySelector('[data-ed-revisions]');
+            if (!node) return;
+            const draftN = String(Number(ed.flow.draft_revision) || 0);
+            const liveN = String(Number(ed.flow.live_revision) || 0);
+            const kind = !ed.flow.live ? 'draft' : ed.flow.draft_revision !== ed.flow.published_draft_revision ? 'newer' : 'live';
+            const paused = !!(ed.flow.live && !ed.flowEnabled);
+            node.dataset.kind = kind;
+            node.dataset.draft = draftN;
+            node.dataset.live = liveN;
+            node.dataset.paused = paused ? 'true' : 'false';
+            node.textContent = revisionText();
+        }
+
         function renderHeader() {
             // A save answered after dispose must not point the window context at this flow again.
             if (disposed) return;
@@ -130,6 +161,7 @@
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
                 (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '');
+            paintRevision();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
@@ -138,6 +170,15 @@
             btn('cancel').hidden = !running;
             btn('publish').disabled = ro;
             btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
+            const runBtn = btn('run-now');
+            if (runBtn) {
+                const run = runNowState();
+                const reason = runNowTitle();
+                runBtn.hidden = !ed.flow.live;
+                runBtn.disabled = !!run.disabled;
+                if (reason && ed.flow.live) { runBtn.title = reason; runBtn.setAttribute('title', reason); }
+                else { runBtn.title = ''; runBtn.removeAttribute('title'); }
+            }
             const sw = btn('active');
             sw.setAttribute('aria-checked', String(!!ed.flowEnabled));
             sw.disabled = !!ed.readonly || !!ed.runView;
@@ -230,6 +271,7 @@
         }
 
         function enterRunView(detail) {
+            if (!ed.flushPendingEdits()) return;
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
             if (!ed.runView) {
@@ -261,6 +303,7 @@
 
         function exitRunView() {
             if (!ed.runView) return;
+            if (!ed.flushPendingEdits()) return;
             ED.detail.close(ed);
             ed.runView = null;
             ed.model = draftModel;
@@ -284,15 +327,37 @@
 
         async function saveNow() {
             if (ed.readonly || ed.runView) return;
+            if (!ed.flushPendingEdits()) return;
             await ed.saver.save();
             if (ed.saver.state === 'saved') canvas.announce(t('easydrag.ui.save_saved'));
         }
 
-        function test() { if (!runs.isRunning()) runs.startTest({}); }
+        function test() {
+            if (!ed.flushPendingEdits()) return;
+            if (!runs.isRunning()) runs.startTest({});
+        }
+
+        function publishNow() { if (ed.flushPendingEdits()) publish.openDialog(); }
+        function runLiveNow() { if (ed.flushPendingEdits()) runs.runLive(); }
 
         // The palette stays hidden in the run view; its toggle and the search key wait until it ends.
         function togglePalette() { if (!ed.runView) palette.setOpen(!palette.isOpen()); }
-        function searchPalette() { if (!ed.runView) palette.focusSearch(); }
+        function searchPalette() {
+            if (ed.runView || !ed.flushPendingEdits()) return;
+            const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
+            const src = one && ed.model.node(one);
+            const outs = src && typeof ed.model.outputs === 'function' ? ed.model.outputs(src) : [];
+            if (src && outs.length && !ed.readonly) {
+                const card = canvas.nodeEl(one);
+                const rect = card && card.getBoundingClientRect ? card.getBoundingClientRect() : null;
+                const x = rect && Number.isFinite(rect.right) ? rect.right + 24 : 0;
+                const y = rect && Number.isFinite(rect.top) ? rect.top : 0;
+                ED.palette.openQuickAdd(ed, canvas, { x, y, from: { node: one, port: outs[0] } });
+                setMenus();
+                return;
+            }
+            palette.focusSearch();
+        }
 
         function exportFlow() {
             const a = document.createElement('a');
@@ -377,11 +442,25 @@
             return leaving;
         }
 
+        // flushPendingEdits writes the open step's field and note. False keeps the text in place.
+        function flushPendingEdits() {
+            const detail = ed.detail;
+            if (!detail) return true;
+            try {
+                if (typeof detail.flushPendingEdits === 'function') return detail.flushPendingEdits() !== false;
+                if (typeof detail.flushNote === 'function') detail.flushNote();
+                return true;
+            } catch (err) {
+                if (typeof ctx.notify === 'function') ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+                return false;
+            }
+        }
+        ed.flushPendingEdits = flushPendingEdits;
+
         async function leaveOnce() {
             interact.abortGesture();
-            // A note typed in the step dialog waits 400 ms for its own write: it goes into the
-            // draft now, so the flush below saves it (the dialog stays open if leaving is refused).
-            if (ed.detail) ed.detail.flushNote();
+            // A pending field or note is written before the saver runs. A failed check keeps the editor open.
+            if (!ed.flushPendingEdits()) return false;
             if (ed.readonly || !contentDirty) return true;
             const ok = await ed.saver.flush();
             if (ok) return true;
@@ -392,7 +471,7 @@
             const r = anchor.getBoundingClientRect();
             const run = runNowState();
             ctx.showContextMenu(r.left, r.bottom + 4, [
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: () => runs.runLive() },
+                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
@@ -412,13 +491,12 @@
         // does not run it a second time. Keys the canvas handles itself (interact, "?") are
         // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
         // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
-        // take it); they do nothing while a dialog is open, the step dialog (detail view, also
-        // aria-modal) included, or while a desktop context menu is open (the shell runs the
-        // shortcut before onKeyDown can see that menu). Edits wait while a dialog, the detail
-        // view or quick-add covers the canvas, and while the restore offer waits for its answer.
-        function modalOpen() { return !!(ed.detail || el.querySelector('.ed-modal-backdrop:not(.is-closing)')); }
+        // take it); they do nothing while a real dialog or a desktop context menu is open (the
+        // shell runs the shortcut before onKeyDown can see that menu). The step inspector is not
+        // a dialog. Edits wait for a real dialog, quick-add, or the restore offer.
+        function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
         function contextMenuOpen() { return !!document.querySelector('.vd-context-menu'); }
-        function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
+        function overlayOpen() { return !!(ed.quickAdd || modalOpen()); }
         const unlessModal = fn => () => { if (!modalOpen() && !contextMenuOpen()) fn(); };
         const unlessOverlay = fn => () => { if (!overlayOpen() && !restoring) fn(); };
 
@@ -435,8 +513,8 @@
                         { type: 'separator' },
                         { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: unlessModal(saveNow) },
                         { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
-                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: restoring || run.disabled, disabledHint: run.hint, action: unlessModal(() => runs.runLive()) },
-                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
+                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: restoring || run.disabled, disabledHint: run.hint, action: unlessModal(runLiveNow) },
+                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(publishNow) },
                         { id: 'versions', labelKey: 'easydrag.ui.versions_title', icon: 'history', disabled: restoring, action: unlessModal(() => publish.openVersions()) },
                         { type: 'separator' },
                         { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
@@ -512,18 +590,22 @@
         // away from on a phone), where no later timer may run. A note still waiting for its
         // 400 ms in the step dialog goes into the draft first, so the copy holds it.
         const pageAway = () => {
-            if (ed.detail) ed.detail.flushNote();
+            ed.flushPendingEdits();
             ed.saver.flushCopy();
         };
         bag.add(ed.bus.on('gesture-end', () => ed.saver.flushCopy()));
         bag.listen(window, 'pagehide', pageAway);
         bag.listen(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') pageAway(); });
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
-        bag.add(ed.bus.on('open-detail', req => { ED.detail.open(ed, req.nodeId, { param: req.param }); setMenus(); }));
+        bag.add(ed.bus.on('open-detail', req => {
+            if (!ed.flushPendingEdits()) return;
+            ED.detail.open(ed, req.nodeId, { param: req.param });
+            setMenus();
+        }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));
         bag.add(ed.bus.on('node-test', req => runs.startTest({ onlyNode: req.nodeId })));
         bag.add(ed.bus.on('focus-node', id => { interact.select([id]); canvas.centerOn(id, { animate: true }); }));
-        bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId)));
+        bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId, req)));
         bag.add(ed.bus.on('find-step', () => ED.dialogs.findStep(ed, canvas, interact)));
         bag.add(ed.bus.on('selection', setMenusSoon));
         bag.add(ed.bus.on('palette', () => { renderHeader(); setMenusSoon(); }));
@@ -580,7 +662,8 @@
             else if (cmd === 'runs') { runs.toggleDrawer(); renderHeader(); setMenus(); }
             else if (cmd === 'test') test();
             else if (cmd === 'cancel') runs.cancel();
-            else if (cmd === 'publish') publish.openDialog();
+            else if (cmd === 'publish') publishNow();
+            else if (cmd === 'run-now') runLiveNow();
             else if (cmd === 'active') publish.setActive(!ed.flowEnabled);
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
@@ -612,15 +695,15 @@
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
             const mod = core.isMod(event);
             const key = event.key.toLowerCase();
-            // Mod+S belongs to the editor even when it cannot save (a dialog, the step dialog or a
-            // context menu is open, or Save is disabled): the browser's "Save Page" never opens
-            // from here. It saves only when the desktop did not run the Save item (prevented keys
-            // return above) and Save is enabled (saveNow checks read-only and the run view; the
-            // restore offer here). Ctrl+Enter and Ctrl+K wait for the step dialog too; under any
-            // EasyDrag dialog they are prevented as well, so the browser does not take them (Chrome
-            // moves the focus to its address bar on Ctrl+K). No dialog field uses Mod+Enter.
+            // Mod+S belongs to the editor even when it cannot save (a real dialog or a context
+            // menu is open, or Save is disabled): the browser's "Save Page" never opens from here.
+            // It saves only when the desktop did not run the Save item (prevented keys return
+            // above) and Save is enabled (saveNow checks read-only and the run view; the restore
+            // offer here). The step inspector does not block these keys. Under a real EasyDrag
+            // dialog Ctrl+Enter and Ctrl+K are prevented too (Chrome takes Ctrl+K to the address
+            // bar). Text fields keep native undo and IME. No dialog field uses Mod+Enter.
             if (mod && key === 's') event.preventDefault();
-            const dialogOpen = !!(ed.detail || el.querySelector('.ed-modal-backdrop'));
+            const dialogOpen = !!el.querySelector('.ed-modal-backdrop');
             if (dialogOpen && mod && (key === 'k' || key === 'f' || event.key === 'Enter')) event.preventDefault();
             if (dialogOpen || document.querySelector('.vd-context-menu')) return;
             if (mod && key === 's') { if (!restoring) saveNow(); return; }

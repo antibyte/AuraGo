@@ -343,7 +343,7 @@
 
         function effectsMarkup(list) {
             if (!list.size) return '';
-            return '<div class="ed-callout ed-callout--warn" data-ed-test-effects>' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.effects_title')) + '</strong><ul class="ed-effects">' +
+            return '<div class="ed-callout ed-callout--warn" data-ed-test-effects>' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.effects_title')) + '</strong><p data-ed-effects-real>' + esc(t('easydrag.ui.effects_real_stop')) + '</p><ul class="ed-effects">' +
                 Array.from(list.entries()).map(([effect, nodes]) => '<li data-ed-effect="' + esc(effect) + '">' + core.icon(EFFECT_ICONS[effect] || 'bolt') + '<span>' + esc(core.tr(t, 'easydrag.ui.effect_' + effect, effect)) + '</span><span class="ed-muted">' + esc(nodes.join(', ')) + '</span></li>').join('') +
                 '</ul><label class="ed-check"><input type="checkbox" data-ed-effects-skip> ' + esc(t('easydrag.ui.effects_remember')) + '</label></div></div>';
         }
@@ -351,9 +351,23 @@
         // starting is true from a startTest call until its run was posted or its dialog closed:
         // one test at a time, and none while a run is active (it would orphan that run's stream).
         let starting = false;
+        // startPost is the test or live POST in flight. A second call waits on the same
+        // promise and does not send again. An uncertain result is not sent again.
+        let startPost = null;
+
+        function trackStart(work) {
+            if (startPost) return startPost;
+            const pending = work().finally(() => { if (startPost === pending) startPost = null; });
+            startPost = pending;
+            return pending;
+        }
+
+        function editsReady() {
+            return !(ed.flushPendingEdits && ed.flushPendingEdits() === false);
+        }
 
         async function startTest(opts) {
-            if (disposed || ed.readonly || ed.runView || starting || isRunning()) return undefined;
+            if (disposed || ed.readonly || ed.runView || starting || startPost || isRunning()) return undefined;
             starting = true;
             let dialog;
             try {
@@ -366,6 +380,8 @@
         }
 
         async function openTest(o) {
+            // Field and note edits land before the draft is saved for the test.
+            if (!editsReady()) return undefined;
             // A test runs the saved draft: an invalid, offline or conflicting draft is not tested
             // silently in its last saved version.
             if (ed.saver && !(await ed.saver.flush())) {
@@ -399,6 +415,7 @@
             // recheck follows an edit that landed after the flush: it saves again and asks the
             // preview again. False when the draft cannot be saved.
             const recheck = async () => {
+                if (!editsReady()) return false;
                 if (ed.saver && !(await ed.saver.flush())) return false;
                 version = ed.model.version;
                 await loadReal();
@@ -496,37 +513,37 @@
             return dialog;
         }
 
-        async function run(triggerNode, data, onlyNode, remember) {
-            try {
-                const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
-                if (data) body.trigger_data = data;
-                const res = await ed.api.test(ed.flow.id, body);
-                if (res.run_id && !disposed) attach(res.run_id, { mode: 'test' });
-                return true;
-            } catch (err) {
-                ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
-                return false;
-            }
+        function run(triggerNode, data, onlyNode, remember) {
+            return trackStart(async () => {
+                try {
+                    const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
+                    if (data) body.trigger_data = data;
+                    const res = await ed.api.test(ed.flow.id, body);
+                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'test' });
+                    return true;
+                } catch (err) {
+                    ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
+                    return false;
+                }
+            });
         }
 
-        async function runLive() {
-            if (disposed || ed.runView || starting || isRunning()) return;
-            try {
-                const res = await ed.api.runNow(ed.flow.id);
-                if (res.run_id && !disposed) attach(res.run_id, { mode: 'live' });
-            } catch (err) {
-                ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
-            }
+        function runLive() {
+            if (disposed || ed.runView || starting || startPost || isRunning()) return undefined;
+            return trackStart(async () => {
+                try {
+                    const res = await ed.api.runNow(ed.flow.id);
+                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'live' });
+                } catch (err) {
+                    ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
+                }
+            });
         }
 
         async function cancel() {
             if (!ed.run || isFinal(ed.run.status)) return;
-            const runId = ed.run.id;
-            try { await ed.api.cancel(runId); } catch (err) {
-                // The run ended before the cancel arrived: show its result, not an error.
-                if (core.errorCode(err) === 'FLOW_RUN_FINISHED') { await settleFinished(runId); return; }
-                ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
-            }
+            const record = Object.assign({ id: ed.run.id, status: ed.run.status, mode: ed.run.mode || 'test' }, ed.run.record || {});
+            return stopRun(record);
         }
 
         // settleFinished shows the stored result of a run that ended before its stream said so:
@@ -546,18 +563,49 @@
         // stopPolls holds the timers of followStop.
         const stopPolls = new Set();
 
-        // stopRun stops a run of the drawer or the run view, also one this window did not start: a
-        // live run of a trigger that waits for a slot, or another window's test. Any run but a
-        // test stops only after a confirmation. 202, and 409 FLOW_RUN_FINISHED (it ended
-        // meanwhile), refresh the list and the viewed run quietly; other errors are shown. A
-        // read-only desktop stops runs too: a stop is no write (the server lets the cancel
-        // through; read-only missions refuse it with an error).
+        // stopButtons are every control for this still-active run: drawer, header and run view.
+        function stopButtons(id) {
+            if (!ed.root || !ed.root.querySelectorAll) return [];
+            return Array.from(ed.root.querySelectorAll('[data-ed-run-stop], [data-ed-cmd="cancel"], [data-ed-cmd="stop-viewed"]')).filter(b => {
+                if (b.dataset.edRunStop) return b.dataset.edRunStop === String(id);
+                if (b.dataset.edCmd === 'cancel') return !!(ed.run && ed.run.id === id && !ed.run.view);
+                return !!(ed.runView && ed.runView.run && ed.runView.run.id === id);
+            });
+        }
+
+        // setStopPending shows the stop request on those buttons until it settles.
+        function setStopPending(id, on) {
+            stopButtons(id).forEach(b => {
+                b.disabled = !!on;
+                if (on) b.setAttribute('aria-busy', 'true');
+                else b.removeAttribute('aria-busy');
+                b.classList.toggle('is-busy', !!on);
+                const span = b.querySelector('span');
+                if (!span) return;
+                if (on) {
+                    if (!b.dataset.edStopLabel) b.dataset.edStopLabel = span.textContent;
+                    span.textContent = t('easydrag.ui.run_stopping');
+                } else if (b.dataset.edStopLabel) {
+                    span.textContent = b.dataset.edStopLabel;
+                    delete b.dataset.edStopLabel;
+                }
+            });
+        }
+
+        // stopRun stops a queued, waiting or running run of the drawer, the header or the run
+        // view, also one this window did not start. A test stops at once. Any other mode asks
+        // first. While the cancel is in flight the button stays disabled. 202, and 409
+        // FLOW_RUN_FINISHED (it ended meanwhile), refresh quietly; other errors are shown.
+        // Stop does not undo a step that already ran. A read-only desktop stops runs too.
         async function stopRun(record) {
             if (disposed || !record || !isActive(record.status) || stopping.has(record.id)) return false;
             stopping.add(record.id);
+            let pending = false;
             try {
                 if (record.mode !== 'test' && !(await confirmStop(record))) return false;
                 if (disposed) return false;
+                pending = true;
+                setStopPending(record.id, true);
                 let accepted = true;
                 try { await ed.api.cancel(record.id); } catch (err) {
                     if (core.errorCode(err) !== 'FLOW_RUN_FINISHED') {
@@ -572,6 +620,7 @@
                 if (accepted && !streamed(record.id)) followStop(record.id, 0);
                 return true;
             } finally {
+                if (pending) setStopPending(record.id, false);
                 stopping.delete(record.id);
             }
         }
@@ -730,7 +779,7 @@
                 '<button type="button" class="ed-icon-btn" data-ed-drawer-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header>' +
                 '<div class="ed-seg ed-seg--small" role="radiogroup">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
                 '<div class="ed-runs-list"></div></aside>');
-            ed.root.appendChild(drawer);
+            (ed.root.querySelector('.ed-body') || ed.root).appendChild(drawer);
             ed.root.classList.add('has-drawer');
             drawer.addEventListener('click', (event) => {
                 if (event.target.closest('[data-ed-drawer-close]')) { toggleDrawer(false); return; }

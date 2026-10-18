@@ -9,10 +9,10 @@ import (
 func TestDashboardCronjobsTabContract(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
-		`data-tab="cronjobs"`,
-		`id="tab-cronjobs"`,
+		`data-section-link="automations"`,
+		`id="sec-automations"`,
 		`id="cronjobs-search"`,
 		`id="cronjobs-source-filter"`,
 		`id="cronjobs-status-filter"`,
@@ -27,7 +27,6 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
-		"'cronjobs'",
 		"loadTabCronjobs()",
 		"setupCronjobsControls()",
 	} {
@@ -73,7 +72,7 @@ func TestDashboardCronjobsFlowJobsAreReadOnly(t *testing.T) {
 			t.Errorf("dashboard widgets JS misses %q", marker)
 		}
 	}
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	if !strings.Contains(html, `<option value="flow" data-i18n="dashboard.cronjobs_source_flow"></option>`) {
 		t.Error("the cron job source filter misses the flow option")
 	}

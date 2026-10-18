@@ -1,0 +1,72 @@
+{{define "dash-section-tools"}}
+<section class="dash-section" id="sec-tools" data-section="tools" aria-labelledby="sec-tools-title" hidden>
+  <header class="dash-section-header">
+    <div class="dash-section-heading">
+      <h2 class="dash-section-title" id="sec-tools-title" tabindex="-1" data-i18n="dashboard.section.tools.title"></h2>
+      <p class="dash-section-desc" data-i18n="dashboard.section.tools.desc"></p>
+    </div>
+    <div class="dash-section-meta">
+      <span class="dash-section-updated" data-section-updated="tools"></span>
+      <button type="button" class="dash-section-refresh" data-section-refresh="tools" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+    </div>
+  </header>
+  <div class="dash-grid">
+    <div class="dash-card span-12" id="card-activity">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.activity_title"></h3> <button type="button" class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="activity-grid" id="activity-stats"></div>
+        <div id="activity-details"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-12 is-hidden" id="card-adaptive-tools">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7l3-3 3 3-3 3z" fill="none"/><path d="M5 12l3-3 4 4-3 3zM14 7l3 3" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.adaptive_tools_title"></h3> <button type="button" class="collapse-toggle" data-card="card-adaptive-tools" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="prompt-kpi-grid" id="adaptive-tools-kpis"></div>
+        <div id="adaptive-tools-list" class="mt-sm"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-12 is-hidden" id="card-tooling-telemetry">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a5 5 0 0 0 10 0V3" stroke-linecap="round"/><circle cx="19" cy="14" r="3"/><path d="M9 14v3a4 4 0 0 0 4 4" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.tooling_telemetry_title"></h3> <button type="button" class="collapse-toggle" data-card="card-tooling-telemetry" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="tooling-telemetry-summary" class="mb-sm"></div>
+        <div class="tooling-telemetry-grid">
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_parse_sources"></h4>
+            <div id="tooling-telemetry-parse"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_recovery_events"></h4>
+            <div id="tooling-telemetry-recovery"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_policy_events"></h4>
+            <div id="tooling-telemetry-policy"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_retrieval_events"></h4>
+            <div id="tooling-telemetry-retrieval"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_failure_tools"></h4>
+            <div id="tooling-telemetry-failures"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_tool_families"></h4>
+            <div id="tooling-telemetry-families"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_scopes"></h4>
+            <div id="tooling-telemetry-scopes"></div>
+          </div>
+          <div class="tooling-telemetry-section">
+            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_model_comparison"></h4>
+            <div id="tooling-telemetry-comparison"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}

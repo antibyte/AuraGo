@@ -8,7 +8,6 @@
     // SHORTCUTS lists [keys, label key] per group; "Ctrl" becomes ⌘ on macOS.
     const SHORTCUTS = [
         ['easydrag.ui.keys_group_canvas', [
-            ['Tab', 'easydrag.ui.keys_add'],
             ['Enter', 'easydrag.ui.keys_open'],
             ['C', 'easydrag.ui.keys_connect'],
             ['D', 'easydrag.ui.keys_disable'],
@@ -47,12 +46,20 @@
         return (text.startsWith('+') ? [text] : text.split('+')).map(k => '<kbd>' + esc(k) + '</kbd>').join('<span class="ed-kbd-plus">+</span>');
     }
 
+    // Ctrl+K adds from one selected step. Otherwise it searches. Tab does not add.
+    function shortcutRows(ed) {
+        const adding = !!(ed && ed.selection && ed.selection.size === 1 && !ed.quickAdd);
+        return SHORTCUTS.map(([group, rows]) => [group, rows.map(([keys, label]) =>
+            (keys === 'Ctrl+K' ? [keys, adding ? 'easydrag.ui.keys_add' : 'easydrag.ui.keys_search'] : [keys, label]))]);
+    }
+
     function shortcuts(ed) {
         const { t, esc } = ed;
-        const body = '<div class="ed-keys">' + SHORTCUTS.map(([group, rows]) =>
+        const body = '<div class="ed-keys">' + shortcutRows(ed).map(([group, rows]) =>
             '<section><h4 class="ed-section-title">' + esc(t(group)) + '</h4><dl>' +
             rows.map(([keys, label]) => '<div class="ed-keys-row"><dt>' + kbd(esc, keys) + '</dt><dd>' + esc(t(label)) + '</dd></div>').join('') +
-            '</dl></section>').join('') + '</div>';
+            '</dl></section>').join('') +
+            '<p class="ed-hint" data-ed-keys-tab>' + esc(t('easydrag.ui.keys_tab_note')) + '</p></div>';
         return ED.core.modal(ed.root, { title: t('easydrag.ui.keys_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--keys', body });
     }
 
@@ -103,35 +110,39 @@
         return dialog;
     }
 
-    // connectPicker lists nodes the single selected node can connect to (first free ports).
-    function connectPicker(ed, canvas, nodeId) {
+    // A port tap fixes that endpoint; the card action lists every compatible output.
+    function connectPicker(ed, canvas, nodeId, endpoint) {
         const core = ED.core;
         const { t, esc } = ed;
         const src = ed.model.node(nodeId);
-        if (!src) return null;
-        const outs = ed.model.outputs(src);
+        if (!src || ed.readonly || ed.runView) return null;
+        const reverse = !!(endpoint && endpoint.side === 'in');
+        const outs = ed.model.outputs(src).filter(port => !endpoint || !endpoint.port || reverse || port === endpoint.port);
+        const inputs = ed.model.inputs(src).filter(port => !endpoint || !endpoint.port || !reverse || port === endpoint.port);
         const candidates = [];
         ed.model.doc.nodes.forEach(n => {
             if (n.id === nodeId) return;
-            const ins = ed.model.inputs(n);
-            for (const port of outs) {
-                const inPort = ins.find(p => ed.model.canConnect(nodeId, port, n.id, p).ok);
-                if (inPort) { candidates.push({ node: n, port, inPort }); return; }
-            }
+            const source = reverse ? n : src;
+            const target = reverse ? src : n;
+            const sourcePorts = reverse ? ed.model.outputs(n) : outs;
+            const targetPorts = reverse ? inputs : ed.model.inputs(n);
+            sourcePorts.forEach(port => targetPorts.forEach(inPort => {
+                if (ed.model.canConnect(source.id, port, target.id, inPort).ok) candidates.push({ node: n, source, target, port, inPort });
+            }));
         });
         const row = c => {
             const info = ed.model.info(c.node.type);
-            const portLabel = outs.length > 1 ? '<span class="ed-chip ed-chip--muted">' + esc(ED.canvas.portLabel(t, src, c.port)) + '</span>' : '';
-            return '<button type="button" class="ed-pick-row" data-ed-pick="' + esc(c.node.id) + '" data-cat="' + esc(core.catOf(info)) + '">' +
+            const portLabel = '<span class="ed-chip ed-chip--muted">' + esc(ED.canvas.portLabel(t, c.source, c.port)) + '</span>';
+            return '<button type="button" class="ed-pick-row" data-ed-pick="' + esc(c.node.id) + '" data-ed-pick-output="' + esc(c.port) + '" data-ed-pick-input="' + esc(c.inPort) + '" data-cat="' + esc(core.catOf(info)) + '">' +
                 '<span class="ed-tile">' + core.icon(info ? info.icon : 'tool') + '</span><span class="ed-pick-label">' + esc(c.node.label || c.node.type) + '</span>' + portLabel + '</button>';
         };
         const body = '<div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-pick-search aria-label="' + esc(t('easydrag.ui.search')) + '" placeholder="' + esc(t('easydrag.ui.search')) + '" autofocus></div>' +
             '<div class="ed-pick-list" role="list">' + (candidates.length ? candidates.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.connect_none')) + '</p>') + '</div>';
         const dialog = core.modal(ed.root, {
             title: t('easydrag.ui.connect_title', { name: src.label || src.type }), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--picker', body,
-            actions: [{ id: 'new', label: t('easydrag.ui.connect_new'), icon: 'plus' }],
+            actions: !reverse && outs.length === 1 ? [{ id: 'new', label: t('easydrag.ui.connect_new'), icon: 'plus' }] : [],
             onAction: (id) => {
-                if (id !== 'new') return true;
+                if (id !== 'new' || reverse || outs.length !== 1 || ed.readonly || ed.runView) return true;
                 const r = canvas.nodeEl(nodeId) ? canvas.nodeEl(nodeId).getBoundingClientRect() : null;
                 setTimeout(() => ed.bus.emit('quick-add', { x: r ? r.right + 40 : 0, y: r ? r.top : 0, from: { node: nodeId, port: outs[0] } }), 0);
                 return true;
@@ -150,10 +161,16 @@
         dialog.body.addEventListener('click', (event) => {
             const b = event.target.closest('[data-ed-pick]');
             if (!b) return;
-            const c = candidates.find(x => x.node.id === b.dataset.edPick);
+            const c = candidates.find(x => x.node.id === b.dataset.edPick && x.port === b.dataset.edPickOutput && x.inPort === b.dataset.edPickInput);
+            if (!c || ed.readonly || ed.runView) return;
+            const check = ed.model.canConnect(c.source.id, c.port, c.target.id, c.inPort);
+            if (!check.ok) {
+                canvas.announce(core.tr(t, 'easydrag.ui.connect_' + check.reason, t('easydrag.ui.connect_port')));
+                return;
+            }
+            ed.model.connect(c.source.id, c.port, c.target.id, c.inPort);
             dialog.close('picked');
-            ed.model.connect(nodeId, c.port, c.node.id, c.inPort);
-            canvas.announce(t('easydrag.ui.connect_done', { from: src.label || src.type, to: c.node.label || c.node.type }));
+            canvas.announce(t('easydrag.ui.connect_done', { from: c.source.label || c.source.type, to: c.target.label || c.target.type }));
         });
         return dialog;
     }

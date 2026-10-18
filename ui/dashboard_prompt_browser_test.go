@@ -45,11 +45,7 @@ func TestDashboardPromptStagesBrowser(t *testing.T) {
 	if !ok {
 		t.Fatal("browser required for prompt dashboard acceptance")
 	}
-	dashboard := string(mustReadUIFile(t, "dashboard.html"))
-	id := strings.Index(dashboard, `id="card-prompt"`)
-	start := strings.LastIndex(dashboard[:id], "<div")
-	end := strings.Index(dashboard[id:], "<!-- 10.") + id
-	card := dashboard[start:end]
+	card := dashboardCardMarkup(t, readDashboardSection(t, "prompts"), "card-prompt")
 	html := `<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-utilities.css">
 <link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/tokens.css">

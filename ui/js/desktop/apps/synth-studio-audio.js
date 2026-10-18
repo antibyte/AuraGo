@@ -9,7 +9,8 @@
   const MAX_ACTIVE_NOTES = 256;
   const MAX_RENDER_SECONDS = 300;
   const MAX_EFFECT_TAIL_SECONDS = 3.5;
-  const LOOKAHEAD = 0.12;
+  const DEFAULT_LOOKAHEAD = 0.12;
+  const MAX_LOOKAHEAD = 1;
   const TICK_MS = 25;
 
   const {
@@ -292,7 +293,11 @@
     return peak;
   }
 
-  function create() {
+  function create(options = {}) {
+    // Browser rendering can temporarily starve the UI-thread scheduler. Keep
+    // the editor's established reserve by default, while allowing consumers
+    // such as Minigolf to keep more notes queued during a render hitch.
+    const lookAhead = clamp(options?.lookAhead, 0.05, MAX_LOOKAHEAD, DEFAULT_LOOKAHEAD);
     let context = null;
     let mix = null;
     let buses = new Map();
@@ -303,6 +308,7 @@
     let rejectPlayback = null;
     let playGeneration = 0;
     let retireBuses = false;
+    let volume = 1;
     const voices = new Set();
     const liveStates = new Map();
 
@@ -312,7 +318,19 @@
       if (!Constructor) throw codedError("SYNTH_STUDIO_AUDIO_UNAVAILABLE", "Web Audio is unavailable in this browser.");
       context = new Constructor();
       mix = makeMix(context);
+      mix.master.gain.value = 0.78 * volume;
       return context;
+    }
+
+    function setVolume(value) {
+      volume = clamp(value, 0, 1, 1);
+      if (mix && context) {
+        const gain = mix.master.gain;
+        const now = context.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setTargetAtTime(0.78 * volume, now, 0.02);
+      }
+      return volume;
     }
 
     function busFor(track) {
@@ -548,13 +566,13 @@
           try {
             const now = context.currentTime;
             if (loop) {
-              while (nextCycleTime <= now + LOOKAHEAD) {
+              while (nextCycleTime <= now + lookAhead) {
                 const baseTime = nextCycleTime;
                 enqueue(scheduleCycle(baseTime, loopStart, false, cycleIndex++));
                 nextCycleTime += (loopEnd - loopStart) * secPerTick;
               }
             }
-            const horizon = now + LOOKAHEAD;
+            const horizon = now + lookAhead;
             while (pending.length && pending[0].at <= horizon) process(pending.shift());
             const elapsedTick = tick + Math.max(0, now - startTime) / secPerTick;
             let shownTick = elapsedTick;
@@ -664,7 +682,7 @@
       }
     }
 
-    return { unlock, play, stop, currentTick, noteOn, addController, panic, dispose };
+    return { unlock, play, stop, currentTick, noteOn, addController, panic, setVolume, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {

@@ -98,12 +98,15 @@
         function visibleFlows() {
             const q = query.trim().toLowerCase();
             const list = flows.filter(f => {
-                if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q)) return false;
+                // Names, descriptions and trigger labels already on the card. No catalog refetch.
+                if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q) &&
+                    !triggerLabels(f).some(label => String(label).toLowerCase().includes(q))) return false;
                 if (filter === 'active') return f.enabled;
                 // "Paused" (the stored filter id stays "inactive"): published and switched off. A
                 // flow that was never published is not paused; it shows under All.
                 if (filter === 'inactive') return f.published && !f.enabled;
                 if (filter === 'drafts') return !f.published || !!f.has_unpublished_changes;
+                // Cancelled is not an error. Only last_run.status "error" counts.
                 if (filter === 'errors') return f.last_run && f.last_run.status === 'error';
                 return true;
             });
@@ -119,23 +122,83 @@
             return list;
         }
 
-        // loadError is the error of the last failed list request. While it is set the flow grid shows
-        // it (a calm lock card for FLOWS_DISABLED) instead of cards that may be gone, and search and
-        // filters wait; the templates still show.
+        // loadError replaces the grid: first load never succeeded, or a later answer withdrew the
+        // list (FLOWS_DISABLED, or the session can no longer read). staleError keeps the last list
+        // in memory only. Nothing is written to storage for either.
         let loadError = null;
+        let staleError = null;
+        let listed = false;
+        let spoken = '';
+
+        function errorIdentity(err) {
+            const body = err && err.body || {};
+            return String(body.code || body.error || '').toLowerCase();
+        }
+
+        // authLoss: the session or the read scope is gone. Every 401 and every 403 counts,
+        // whatever its code. desktop_readonly is the exception: the list stays, changes do not.
+        function authLoss(err) {
+            if (!err) return false;
+            const status = Number(err.status) || 0;
+            const code = errorIdentity(err);
+            if (code === 'desktop_readonly') return false;
+            if (status === 401 || status === 403) return true;
+            return code === 'unauthorized' || code === 'forbidden' || code === 'permission_denied' || code === 'desktop_scope_required';
+        }
+
+        function writesRevoked(err) { return errorIdentity(err) === 'desktop_readonly'; }
+
+        // createOff: no create, import, duplicate, delete, toggle or run. Read-only open stays.
+        function createOff() {
+            return !!app.readonly || !!staleError || core.errorCode(loadError) === 'FLOWS_DISABLED' || authLoss(loadError) || writesRevoked(loadError);
+        }
+
+        function blockReason() {
+            if (!staleError) return '';
+            return t('easydrag.ui.home_stale_locked', { reason: core.errorText(t, staleError) });
+        }
 
         // errorCard offers the actions of the window's lock card (easydrag.js showError): "Open
         // settings" for FLOWS_DISABLED, and "Try again" (a new list request) for every error.
         function errorCard(err) {
             const retry = '<button type="button" class="ed-btn ed-btn--primary" data-ed-home-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button>';
             return core.errorCode(err) === 'FLOWS_DISABLED'
-                ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p>' +
+                ? '<div class="ed-home-empty" role="status">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p>' +
                     '<div class="ed-row"><button type="button" class="ed-btn" data-ed-home-settings>' + core.icon('settings') + '<span>' + esc(t('easydrag.ui.open_settings')) + '</span></button>' + retry + '</div></div>'
-                : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p><div class="ed-row ed-home-retry">' + retry + '</div>';
+                : '<p class="ed-error" role="alert">' + esc(core.errorText(t, err)) + '</p><div class="ed-row ed-home-retry">' + retry + '</div>';
         }
 
-        // createOff: nothing can be created, the desktop is read-only or flows are switched off.
-        function createOff() { return !!app.readonly || core.errorCode(loadError) === 'FLOWS_DISABLED'; }
+        function staleBanner() {
+            return '<div class="ed-home-stale" role="status"><h3>' + esc(t('easydrag.ui.home_stale_title')) + '</h3><p>' +
+                esc(t('easydrag.ui.home_stale_text', { reason: core.errorText(t, staleError) })) + '</p>' +
+                '<button type="button" class="ed-btn" data-ed-home-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
+        }
+
+        function emptyCard() {
+            const off = createOff();
+            const dis = off ? ' disabled' : '';
+            const why = off && blockReason() ? ' title="' + esc(blockReason()) + '"' : '';
+            return '<div class="ed-home-empty"><h3>' + esc(t('easydrag.ui.home_empty_title')) + '</h3><p>' + esc(t('easydrag.ui.home_empty_text')) + '</p>' +
+                '<div class="ed-empty-actions">' +
+                '<button type="button" class="ed-btn" data-ed-home-templates' + dis + why + '>' + core.icon('sparkles') + '<span>' + esc(t('easydrag.ui.home_empty_template')) + '</span></button>' +
+                '<button type="button" class="ed-btn ed-btn--primary" data-ed-new' + dis + why + '>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_empty_create')) + '</span></button>' +
+                '<button type="button" class="ed-btn" data-ed-import' + dis + why + '>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.home_import')) + '</span></button>' +
+                '</div></div>';
+        }
+
+        function noMatchCard() {
+            let actions = '';
+            if (query.trim()) actions += '<button type="button" class="ed-btn" data-ed-home-clear-search>' + esc(t('easydrag.ui.home_clear_search')) + '</button>';
+            if (filter !== 'all') actions += '<button type="button" class="ed-btn" data-ed-home-clear-filter>' + esc(t('easydrag.ui.home_clear_filter')) + '</button>';
+            return '<div class="ed-home-empty"><p class="ed-hint">' + esc(t('easydrag.ui.home_no_match')) + '</p><div class="ed-empty-actions">' + actions + '</div></div>';
+        }
+
+        function speak(mode, text) {
+            if (spoken === mode) return;
+            spoken = mode;
+            const live = el.querySelector('[data-ed-home-live]');
+            if (live) live.textContent = text;
+        }
 
         // reportLoaded tells the shell the list has settled, so the window menu can follow createOff.
         function reportLoaded() {
@@ -145,22 +208,26 @@
         function render() {
             const list = visibleFlows();
             const off = createOff();
+            const banner = !loadError && staleError ? staleBanner() : '';
             if (loadError) {
                 grid.innerHTML = errorCard(loadError);
+                speak(core.errorCode(loadError) === 'FLOWS_DISABLED' ? 'disabled' : 'error', core.errorCode(loadError) === 'FLOWS_DISABLED' ? t('easydrag.ui.disabled_title') : core.errorText(t, loadError));
             } else if (!flows.length) {
-                grid.innerHTML = '<div class="ed-home-empty">' + core.icon('sparkles') + '<h3>' + esc(t('easydrag.ui.home_empty_title')) + '</h3><p>' + esc(t('easydrag.ui.home_empty_text')) + '</p>' +
-                    '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button></div>';
+                grid.innerHTML = banner + emptyCard();
+                speak(staleError ? 'stale-empty' : 'empty', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_empty_title'));
             } else if (!list.length) {
-                grid.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.home_no_match')) + '</p>';
+                grid.innerHTML = banner + noMatchCard();
+                speak(staleError ? 'stale-none' : 'none', t('easydrag.ui.home_no_match'));
             } else {
-                grid.innerHTML = list.map(f =>
+                grid.innerHTML = banner + list.map(f =>
                     '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(f.name) + '">' +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
                     '<div class="ed-flow-meta">' + statusBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
-                    (f.published && !app.readonly ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
+                    (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');
+                speak(staleError ? 'stale' : 'ready', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_flows'));
             }
             tplGrid.classList.toggle('is-disabled', off);
             tplGrid.innerHTML = templates.map(tp =>
@@ -168,7 +235,7 @@
                 '<div class="ed-template-cats">' + (tp.categories || []).map(c => '<span class="ed-cat-dot" data-cat="' + esc(c) + '"></span>').join('') + '</div>' +
                 '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
-            el.querySelector('[data-ed-import]').disabled = off;
+            el.querySelectorAll('[data-ed-import]').forEach(b => { b.disabled = off; });
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
             const sortSel = el.querySelector('[data-ed-home-sort]');
             if (sortSel) sortSel.disabled = !!loadError;
@@ -190,14 +257,31 @@
                 [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
             } catch (err) {
                 if (mine !== loadSeq) return;
-                flows = [];
-                loadError = err;
+                // A refresh that fails keeps the last authoritative list and blocks changes.
+                // The first load, FLOWS_DISABLED and a lost session do not keep protected cards.
+                if (authLoss(err)) {
+                    flows = [];
+                    templates = [];
+                    listed = false;
+                    staleError = null;
+                    loadError = err;
+                } else if (core.errorCode(err) === 'FLOWS_DISABLED' || !listed) {
+                    flows = [];
+                    listed = false;
+                    staleError = null;
+                    loadError = err;
+                } else {
+                    staleError = err;
+                    loadError = null;
+                }
                 render();
                 reportLoaded();
                 return;
             }
             if (mine !== loadSeq) return;
             loadError = null;
+            staleError = null;
+            listed = true;
             flows = list.flows || [];
             templates = tpl.templates || [];
             render();
@@ -234,10 +318,15 @@
         }
 
         // creating allows one create at a time (a held Enter on a template card, a double click).
+        // gone is dispose. A confirmation, file read or duplicate fetch can outlive the authority
+        // it started with, so the mutation checks again at the request.
         let creating = false;
+        let gone = false;
+        const runsPending = new Set();
+        function mayChange() { return !gone && !createOff(); }
 
         async function create(body) {
-            if (creating) return;
+            if (!mayChange() || creating) return;
             creating = true;
             try {
                 const res = await app.api.create(body);
@@ -250,7 +339,7 @@
         }
 
         async function newFlow() {
-            if (app.readonly) return;
+            if (createOff()) return;
             const name = await ctx.promptDialog(t('easydrag.ui.home_new_title'), t('easydrag.ui.new_flow_name'));
             if (name === null || name === undefined) return;
             create({ name: String(name).trim() || t('easydrag.ui.new_flow_name') });
@@ -258,15 +347,17 @@
 
         // importFile reads a flow file; one over the server's request-body limit is not read at all.
         async function importFile(file) {
+            if (!mayChange() || !file) return;
             if (Number(file.size) > IMPORT_MAX_BYTES) {
                 ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.error_flow_too_large'), type: 'error' });
                 return;
             }
             let doc;
             try { doc = JSON.parse(await file.text()); } catch (err) {
-                ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
+                if (!gone) ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
                 return;
             }
+            if (!mayChange()) return;
             create({ import: doc });
         }
 
@@ -280,18 +371,23 @@
         }
 
         async function duplicate(id) {
+            if (!mayChange()) return;
             try {
                 const res = await app.api.get(id);
+                if (!mayChange()) return;
                 const doc = res.flow.draft;
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
                 create({ import: doc });
-            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+            } catch (err) {
+                if (!gone) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            }
         }
 
         async function remove(f) {
+            if (!mayChange() || !f) return;
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: f.name }));
-            if (!ok) return;
-            try { await app.api.remove(f.id); } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return; }
+            if (!ok || !mayChange()) return;
+            try { await app.api.remove(f.id); } catch (err) { if (!gone) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return; }
             // The flow's local leftovers go with it: its emergency copy, its view, its confirmed
             // test effects and its last test trigger.
             core.forgetFlow(f.id);
@@ -299,7 +395,22 @@
             reload();
         }
 
+        // runNow allows one request per flow until that request settles. A failure is not sent again.
+        async function runNow(f) {
+            if (!mayChange() || !f || !f.published || !f.enabled || runsPending.has(f.id)) return;
+            runsPending.add(f.id);
+            try {
+                await app.api.runNow(f.id);
+                if (!gone) ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') });
+            } catch (err) {
+                if (!gone) ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' });
+            } finally {
+                runsPending.delete(f.id);
+            }
+        }
+
         async function toggle(f, button) {
+            if (createOff() || !f || !button) return;
             const on = button.getAttribute('aria-checked') !== 'true';
             button.setAttribute('aria-checked', String(on));
             try { await app.api.setEnabled(f.id, on); f.enabled = on; render(); } catch (err) {
@@ -309,24 +420,58 @@
         }
 
         function cardMenu(f, x, y) {
-            if (typeof ctx.showContextMenu !== 'function') return;
-            const ro = !!app.readonly;
+            if (!f || typeof ctx.showContextMenu !== 'function') return;
+            const locked = createOff();
             // Run now needs a published flow that is switched on (a paused one is refused).
             const paused = !!f.published && !f.enabled;
+            const why = blockReason();
             ctx.showContextMenu(x, y, [
                 { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => app.openFlow(f.id) },
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: ro || !f.published || paused, disabledHint: paused && !ro ? t('easydrag.ui.error_flow_disabled') : '', action: async () => { try { await app.api.runNow(f.id); ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') }); } catch (err) { ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' }); } } },
-                { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: ro, action: () => duplicate(f.id) },
+                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: locked || !f.published || paused || runsPending.has(f.id), disabledHint: why || (paused && !app.readonly ? t('easydrag.ui.error_flow_disabled') : ''), action: () => runNow(f) },
+                { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: locked, disabledHint: why, action: () => duplicate(f.id) },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: () => download(f.id, f.name) },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
-                { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: ro, action: () => remove(f) }
+                { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: locked, disabledHint: why, action: () => remove(f) }
             ]);
+        }
+
+        // focusTemplates moves to the existing template section. It never creates a flow.
+        function focusTemplates() {
+            const section = tplGrid.parentElement;
+            if (section && typeof section.scrollIntoView === 'function') section.scrollIntoView({ block: 'start' });
+            const head = section && section.querySelector('h2');
+            const card = !createOff() ? tplGrid.querySelector('[data-ed-template]') : null;
+            const target = card || head || section;
+            if (target === head && head && typeof head.setAttribute === 'function') head.setAttribute('tabindex', '-1');
+            if (target && typeof target.focus === 'function') target.focus();
+        }
+
+        function clearSearch() {
+            query = '';
+            const input = el.querySelector('[data-ed-home-search]');
+            if (input) {
+                input.value = '';
+                if (typeof input.focus === 'function') input.focus();
+            }
+            render();
+        }
+
+        function clearFilter() {
+            filter = 'all';
+            core.storage.set(FILTER_KEY, filter);
+            el.querySelectorAll('[data-ed-filter]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.edFilter === 'all')));
+            render();
+            const all = el.querySelector('[data-ed-filter="all"]');
+            if (all && typeof all.focus === 'function') all.focus();
         }
 
         bag.listen(el, 'click', (event) => {
             if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
             if (event.target.closest('[data-ed-home-retry]')) { retry(); return; }
+            if (event.target.closest('[data-ed-home-templates]')) { focusTemplates(); return; }
+            if (event.target.closest('[data-ed-home-clear-search]')) { clearSearch(); return; }
+            if (event.target.closest('[data-ed-home-clear-filter]')) { clearFilter(); return; }
             if (event.target.closest('[data-ed-new]')) { newFlow(); return; }
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');
@@ -398,7 +543,7 @@
 
         render();
         reload();
-        return { el, reload, createOff, dispose() { bag.dispose(); el.remove(); } };
+        return { el, reload, createOff, dispose() { gone = true; bag.dispose(); el.remove(); } };
     }
 
     ED.home = { create, previewSVG };

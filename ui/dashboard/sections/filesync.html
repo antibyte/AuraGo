@@ -1,0 +1,48 @@
+{{define "dash-section-filesync"}}
+<section class="dash-section" id="sec-filesync" data-section="filesync" aria-labelledby="sec-filesync-title" hidden>
+  <header class="dash-section-header">
+    <div class="dash-section-heading">
+      <h2 class="dash-section-title" id="sec-filesync-title" tabindex="-1" data-i18n="dashboard.section.filesync.title"></h2>
+      <p class="dash-section-desc" data-i18n="dashboard.section.filesync.desc"></p>
+    </div>
+    <div class="dash-section-meta">
+      <span class="dash-section-updated" data-section-updated="filesync"></span>
+      <button type="button" class="dash-section-refresh" data-section-refresh="filesync" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+    </div>
+  </header>
+  <div class="dash-grid">
+    <div class="dash-card span-12" id="card-filesync">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6m0 0L8 6m4 2l4-2" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M7 13h2v4H7zm8 0h2v4h-2z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.filesync_title"></h3>
+        <button type="button" class="collapse-toggle" data-card="card-filesync" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+        <div class="fs-dash-toolbar-actions">
+          <span class="kc-sync-status-dot fs-dash-toolbar-dot" id="fs-indexer-dot"></span>
+          <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="filesync-refresh" id="btn-fs-refresh-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="knowledge.filesync_refresh"></span></button>
+          <button type="button" class="btn btn-primary btn-sm" data-action="filesync-rescan" id="btn-fs-rescan-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> <span data-i18n="knowledge.filesync_rescan"></span></button>
+        </div>
+      </div>
+      <div class="dash-card-body">
+        <div class="fs-dash-grid">
+          <div class="fs-dash-col" id="fs-dash-indexer">
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_indexer_title"></span></div>
+            <div class="fs-dash-body" id="fs-indexer-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
+          </div>
+          <div class="fs-dash-col" id="fs-dash-kg">
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="knowledge.filesync_kg_title"></span></div>
+            <div class="fs-dash-body" id="fs-kg-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
+          </div>
+          <div class="fs-dash-col" id="fs-dash-colls">
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" fill="none"/></svg> <span data-i18n="knowledge.filesync_collections_title"></span></div>
+            <div class="fs-dash-body" id="fs-collections-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
+          </div>
+          <div class="fs-dash-col" id="fs-dash-lastsync">
+            <div class="fs-dash-section-title"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> <span data-i18n="knowledge.filesync_last_sync_title"></span></div>
+            <div class="fs-dash-body" id="fs-lastsync-body"><div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}

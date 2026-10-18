@@ -78,6 +78,31 @@ var uiI18NSections = map[string][]string{
 
 const uiI18NSectionsDataKey = "_I18NSections"
 
+// dashboardSectionPartials lists the dashboard section partials in sidebar order. The ui asset namespace
+// serves manifest paths only (no glob), so the list is explicit; TestDashboardTemplatePartialsAreListedAndPacked
+// keeps it equal to ui/dashboard/sections.
+var dashboardSectionPartials = []string{
+	"dashboard/sections/overview.html",
+	"dashboard/sections/personality.html",
+	"dashboard/sections/memory.html",
+	"dashboard/sections/user.html",
+	"dashboard/sections/knowledge.html",
+	"dashboard/sections/filesync.html",
+	"dashboard/sections/problems.html",
+	"dashboard/sections/automations.html",
+	"dashboard/sections/system.html",
+	"dashboard/sections/audit.html",
+	"dashboard/sections/logs.html",
+	"dashboard/sections/llm.html",
+	"dashboard/sections/prompts.html",
+	"dashboard/sections/tools.html",
+}
+
+// parseDashboardTemplate parses ui/dashboard.html together with its section partials.
+func parseDashboardTemplate(fsys fs.FS) (*template.Template, error) {
+	return template.ParseFS(fsys, append([]string{"dashboard.html"}, dashboardSectionPartials...)...)
+}
+
 // uiTemplateData returns the common template data map shared by all HTML pages.
 // The optional page key selects sections through the centralized manifest. With
 // no page key, the full language blob remains available for compatibility.
@@ -692,7 +717,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Config UI enabled at /config")
 
 			// Dashboard page (separate template, guarded by WebConfig.Enabled)
-			dashTmpl, dashErr := template.ParseFS(uiFS, "dashboard.html")
+			dashTmpl, dashErr := parseDashboardTemplate(uiFS)
 			if dashErr != nil {
 				s.Logger.Error("Failed to parse dashboard UI template", "error", dashErr)
 			}

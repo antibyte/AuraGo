@@ -96,9 +96,11 @@ export async function run(env) {
         const bus = ED.core.emitter();
         const quickAdds = [];
         const details = [];
+        const connects = [];
         let selections = 0;
         bus.on('quick-add', p => quickAdds.push(p));
         bus.on('open-detail', p => details.push(p));
+        bus.on('connect-picker', p => connects.push(p));
         bus.on('selection', () => { selections++; });
         // subscriptions holds the bus listeners the modules have not removed yet.
         const subscriptions = new Set();
@@ -122,7 +124,7 @@ export async function run(env) {
         const interact = ED.interact.create(ed, Object.assign({}, canvas, { announce: text => { announced.push(text); announce(text); } }), wires);
         const h = {
             ED, ed, canvas, wires, interact, model, bus, el: canvas.el, dom, win: box.window, store, navigator, announced, logged, counts, timers, frames,
-            observers, subscriptions, quickAdds, details, selections: () => selections,
+            observers, subscriptions, quickAdds, details, connects, selections: () => selections,
             card: id => canvas.nodeEl(id),
             pos: id => Object.assign({}, model.node(id).position),
             pe: (id, x, y, extra) => Object.assign({ pointerId: id, clientX: x, clientY: y, button: 0, buttons: 1, pointerType: 'mouse', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false }, extra),
@@ -216,10 +218,16 @@ export async function run(env) {
         h.ed.readonly = false;
         const afterStep = interact.handleKey(key('Tab'));
         interact.select([]);
-        const inMiddle = interact.handleKey(key('Tab'));
-        eq('c1d04 Tab on the canvas still opens quick-add, after the selected step or in the middle',
-            [afterStep, inMiddle, h.quickAdds.map(q => q.from || { x: q.x, y: q.y })], [true, true, [{ node: A, port: 'out' }, { x: 400, y: 300 }]]);
+        const inMiddle = interact.handleKey(key('Tab', el, { shiftKey: true }));
+        const field = h.ED.core.el('<textarea></textarea>');
+        const inField = interact.handleKey(key('Delete', field));
+        eq('c1d04 Tab and Shift+Tab on the canvas move focus on and add no step',
+            [afterStep, inMiddle, inField, h.quickAdds.length, h.model.doc.nodes.length], [false, false, false, 0, 2]);
         interact.select([A]);
+        h.card(A).querySelector('[data-ed-node-tool="add"]').fire('click');
+        h.card(A).querySelector('[data-ed-node-tool="connect"]').fire('click');
+        eq('c1d04 Add opens quick-add from the first output and Connect opens the picker',
+            [h.quickAdds.map(q => [q.x, q.y, q.from]), h.connects], [[[8, 0, { node: A, port: 'out' }]], [{ nodeId: A }]]);
         eq('c1d04 Space and Enter on the canvas keep their shortcuts', [interact.handleKey(key(' ')), el.classList.contains('is-space'), interact.handleKey(key('Enter')), h.details.length], [true, true, true, 1]);
         interact.handleKeyUp(key(' '));
         eq('c1d04 the keyboard checks log no errors', h.logged, []);
@@ -323,18 +331,42 @@ export async function run(env) {
         const lifted = p.model.doc.edges.length;
         p.el.fire('pointermove', p.pe(51, 500, 100));
         p.el.fire('pointercancel', p.pe(51, 500, 100));
-        eq('c1d04 a cancelled pick-up of a wired input puts the wire back', [lifted, JSON.stringify(p.model.doc) === before], [0, true]);
+        eq('c1d04 a press leaves the wire intact and a cancelled drag restores it', [lifted, JSON.stringify(p.model.doc) === before], [1, true]);
         inPort().fire('pointerdown', p.pe(52, 600, 36));
         p.el.fire('pointermove', p.pe(52, 900, 500));
         p.el.fire('pointerup', p.pe(52, 900, 500));
         eq('c1d04 a pick-up released on empty canvas keeps the wire off and offers quick-add from its source',
-            [p.model.doc.edges.length, p.quickAdds.map(q => q.from)], [0, [{ node: A, port: 'out' }]]);
+            [p.model.doc.edges.length, p.quickAdds.map(q => q.from), p.connects.length], [0, [{ node: A, port: 'out' }], 0]);
+        const tap = harness(twoNodes());
+        const edgesBefore = tap.model.doc.edges.length;
+        tap.card(A).querySelector('.ed-port--out').fire('pointerdown', tap.pe(71, 232, 36));
+        tap.el.fire('pointermove', tap.pe(71, 234, 36));
+        tap.el.fire('pointerup', tap.pe(71, 234, 36));
+        const outTap = [tap.model.doc.edges.length, tap.connects.slice(), tap.quickAdds.length];
+        tap.card(B).querySelector('.ed-port--in').fire('pointerdown', tap.pe(72, 600, 36));
+        tap.el.fire('pointerup', tap.pe(72, 600, 36));
+        const inTap = [tap.model.doc.edges.length === edgesBefore, tap.connects.slice(), JSON.stringify(tap.model.doc.edges.map(e => e.source.node + '>' + e.target.node))];
+        tap.card(A).querySelector('.ed-port--out').fire('pointerdown', tap.pe(73, 232, 36));
+        tap.el.fire('pointermove', tap.pe(73, 236, 36));
+        tap.el.fire('pointerup', tap.pe(73, 900, 400));
+        eq('c1d04 a port tap under 4px opens the picker and a longer drag still connects by pulling',
+            [outTap, inTap, tap.connects.length, tap.quickAdds.map(q => q.from)],
+            [[edgesBefore, [{ nodeId: A, port: 'out', side: 'out' }], 0], [true, [{ nodeId: A, port: 'out', side: 'out' }, { nodeId: B, port: 'in', side: 'in' }], '["' + A + '>' + B + '"]'], 2, [{ node: A, port: 'out' }]]);
         // When the document changed during the pick-up, a cancel must not undo that change.
         const q = harness(twoNodes());
         q.card(B).querySelector('.ed-port--in').fire('pointerdown', q.pe(53, 600, 36));
         q.model.setLabel(A, 'Other');
         q.el.fire('pointercancel', q.pe(53, 600, 36));
-        eq('c1d04 a cancelled pick-up after another change undoes nothing', [q.model.doc.edges.length, q.model.node(A).label], [0, 'Other']);
+        eq('c1d04 a cancelled press after another change undoes nothing', [q.model.doc.edges.length, q.model.node(A).label], [1, 'Other']);
+        const history = harness(twoNodes());
+        history.model.setLabel(A, 'Redo survives');
+        history.model.undo();
+        const versionBeforeTap = history.model.version;
+        history.card(B).querySelector('.ed-port--in').fire('pointerdown', history.pe(74, 600, 36));
+        history.el.fire('pointerup', history.pe(74, 600, 36));
+        eq('c1d04 a wired input tap leaves version and document untouched', [history.model.version, history.model.doc.edges.length], [versionBeforeTap, 1]);
+        history.model.redo();
+        eq('c1d04 a wired input tap preserves previous redo', history.model.node(A).label, 'Redo survives');
         eq('c1d04 the wire checks log no errors', [h.logged, p.logged, q.logged], [[], [], []]);
     });
 
@@ -500,8 +532,8 @@ export async function run(env) {
         const panned = [h.counts.minimapNodes - drawn, view.getAttribute('x') !== x0, /^matrix\(/.test(nodes.getAttribute('transform') || ''), nodes.children[1].getAttribute('x')];
         h.interact.select([A]);
         h.flushFrames();
-        eq('c1d04 a pan or zoom moves the minimap layer without redrawing it; a selection redraws it once',
-            [panned, h.counts.minimapNodes - drawn, nodes.html.includes('is-selected')], [[0, true, true, '600'], 1, true]);
+        eq('c1d04 pan, zoom and selection preserve minimap geometry while selection updates',
+            [panned, h.counts.minimapNodes - drawn, nodes.html.includes('is-selected')], [[0, true, true, '600'], 0, true]);
         // A click on the minimap still centres the view on the point under it.
         const mini = h.el.querySelector('.ed-minimap svg');
         mini.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 130, width: 200, height: 130 });

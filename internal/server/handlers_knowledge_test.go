@@ -230,7 +230,7 @@ func TestHandleKnowledgeUploadTriggersIndexerRescan(t *testing.T) {
 
 	vdb := &knowledgeUploadVectorDB{}
 	s := &Server{Cfg: cfg, Logger: logger, ShortTermMem: stm, LongTermMem: vdb}
-	s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, vdb, stm, logger)
+	s.setFileIndexer(services.NewFileIndexer(cfg, &s.CfgMu, vdb, stm, logger))
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)

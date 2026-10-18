@@ -600,16 +600,21 @@ export async function run(env) {
     function canvasFor() {
         const dom = miniDom();
         const proto = dom.El.prototype;
+        proto.removeAttribute = function (name) { this.attrs.delete(name); };
         Object.defineProperty(proto, 'style', {
             configurable: true,
             get() { return this.styles; },
             set(value) { this.styles = Object.assign(value, { setProperty(name, v) { this[name] = String(v); } }); }
         });
         Object.assign(dom.document, { addEventListener() {}, removeEventListener() {} });
+        const frames = new Map();
+        let nextFrame = 1;
         const box = vm.createContext({
             window: {}, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, console,
             localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-            setTimeout: () => 0, clearTimeout() {}, requestAnimationFrame: () => 0, cancelAnimationFrame() {},
+            setTimeout: () => 0, clearTimeout() {},
+            requestAnimationFrame: fn => { const id = nextFrame++; frames.set(id, fn); return id; },
+            cancelAnimationFrame: id => { frames.delete(id); },
             matchMedia: () => ({ matches: false }), CSS: { escape: value => String(value) },
             ResizeObserver: class { observe() {} disconnect() {} }
         });
@@ -627,7 +632,16 @@ export async function run(env) {
         const canvas = ED.canvas.create(ed);
         let size = { width: 1000, height: 600 };
         canvas.el.getBoundingClientRect = () => ({ left: 0, top: 0, right: size.width, bottom: size.height, width: size.width, height: size.height });
-        return { ed, canvas, resize(w, h) { size = { width: w, height: h }; } };
+        return {
+            ed, canvas, resize(w, h) { size = { width: w, height: h }; },
+            flushFrames() {
+                for (let i = 0; frames.size && i < 20; i++) {
+                    const [id, fn] = frames.entries().next().value;
+                    frames.delete(id);
+                    fn();
+                }
+            }
+        };
     }
     const round = v => ({ x: Math.round(v.x * 100) / 100, y: Math.round(v.y * 100) / 100, zoom: Math.round(v.zoom * 1000) / 1000 });
 
@@ -659,5 +673,46 @@ export async function run(env) {
         // An explicit fit shows everything, below the readable zoom when it must.
         h.canvas.fit();
         check('c1d14 an explicit fit goes below the readable zoom on a narrow canvas', h.ed.view.zoom < 0.8, String(h.ed.view.zoom));
+    });
+
+    await guardAsync('minimap selection keeps geometry', async () => {
+        const h = canvasFor();
+        const A = 'n_aaaaaaaa';
+        const B = 'n_bbbbbbbb';
+        h.canvas.render();
+        h.flushFrames();
+        const layer = h.canvas.el.querySelector('.ed-minimap-nodes');
+        const wires = h.canvas.el.querySelector('.ed-minimap-wires');
+        const before = layer.children.slice();
+        const wireBefore = wires.children.slice();
+        const cats = before.map(r => r.getAttribute('data-cat'));
+        const xs = before.map(r => r.getAttribute('x'));
+        const matrix0 = layer.getAttribute('transform');
+        const view0 = h.canvas.el.querySelector('.ed-minimap-view').getAttribute('x');
+        h.ed.selection.add(A);
+        h.ed.bus.emit('selection');
+        h.flushFrames();
+        const cardName = h.canvas.nodeEl(A).className;
+        h.ed.bus.emit('selection');
+        h.flushFrames();
+        const stillNamed = h.canvas.nodeEl(A).className === cardName;
+        h.canvas.setView({ x: -300, y: 40, zoom: 1 });
+        h.flushFrames();
+        const view = h.canvas.el.querySelector('.ed-minimap-view');
+        const same = layer.children.every((r, i) => r === before[i]) && wires.children.every((r, i) => r === wireBefore[i]);
+        const selected = before.map(r => r.classList.contains('is-selected'));
+        h.ed.run = { steps: new Map([[B, { status: 'error' }]]) };
+        h.ed.bus.emit('run');
+        h.flushFrames();
+        const status = before.map(r => r.getAttribute('data-status'));
+        h.ed.selection.delete(A);
+        h.ed.selection.add(T1);
+        h.ed.bus.emit('selection');
+        h.flushFrames();
+        eq('minimap selection and pan keep the same rects; selection and status update in place',
+            [same, before.length, selected, before.map(r => r.getAttribute('data-cat')), before.map(r => r.getAttribute('x')),
+                layer.getAttribute('transform') !== matrix0, view.getAttribute('x') !== view0, status,
+                before.map(r => r.classList.contains('is-selected')), stillNamed, h.canvas.nodeEl(T1).classList.contains('is-selected')],
+            [true, 3, [false, true, false], cats, xs, true, true, [null, null, 'error'], [true, false, false], true, true]);
     });
 }

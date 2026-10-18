@@ -120,8 +120,8 @@ func handleDebugFileSyncStatus(s *Server) http.HandlerFunc {
 		}
 
 		// Get FileIndexer status if available
-		if s.FileIndexer != nil {
-			status := s.FileIndexer.Status()
+		if fi := s.fileIndexer(); fi != nil {
+			status := fi.Status()
 			response["indexer"] = map[string]interface{}{
 				"running":            status.Running,
 				"total_files":        status.TotalFiles,

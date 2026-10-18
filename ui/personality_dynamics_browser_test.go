@@ -90,13 +90,7 @@ func TestPersonalityDynamicsBrowser(t *testing.T) {
 	}
 
 	// Exercise the Dashboard consumer against its actual card markup and source.
-	html := string(mustReadUIFile(t, "dashboard.html"))
-	start := strings.Index(html, `<!-- 3. Personality Traits`)
-	end := strings.Index(html[start+5:], "<!--")
-	if start < 0 || end < 0 {
-		t.Fatal("personality card boundary unavailable")
-	}
-	card := html[start : start+5+end]
+	card := dashboardCardMarkup(t, readDashboardSection(t, "personality"), "card-personality")
 	page.MustEval(`(html)=>{document.getElementById('content').innerHTML=html;window.dashSetHidden=(el,hide)=>{if(el)el.classList.toggle('is-hidden',hide)}}`, card)
 	if err := page.AddScriptTag("", string(mustReadUIFile(t, "js/dashboard/dashboard-widgets.js"))); err != nil {
 		t.Fatal(err)

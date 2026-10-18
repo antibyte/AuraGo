@@ -8,7 +8,7 @@ import (
 func TestDashboardMemoryCurationContract(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`id="memory-health-summary"`,
 		`id="memory-curator-list"`,

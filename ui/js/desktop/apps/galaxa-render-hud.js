@@ -83,15 +83,15 @@
             }
             if (G.achievementPopups.length) label(ctx.t('galaxa.achievement_unlocked') + ' · ' + G.achievementPopups[0].text, W / 2, 94, 11, '#f6d38d', 'center');
             if (G.evoChoiceOpen) {
-                c.fillStyle = '#071222f5'; c.fillRect(28, 170, W - 56, 346);
+                c.fillStyle = '#071222f5'; c.fillRect(28, 170, W - 56, 376);
                 label(ctx.t('galaxa.weapon_evolution'), W / 2, 210, 22, '#e7d2a6', 'center');
-                ['vulcan', 'cannon', 'beam'].forEach((id, i) => {
-                    const y = 239 + i * 76, selected = ctx.evoSel() === i;
-                    c.fillStyle = selected ? '#25405a' : '#101f31'; c.fillRect(48, y, W - 96, 63);
-                    label(ctx.WEAPON_EVOS[id].name, W / 2, y + 25, 18, selected ? '#e7d2a6' : '#b6d1e2', 'center');
-                    label(ctx.t('galaxa.evo_' + id), W / 2, y + 47, 12, '#88abc6', 'center');
+                ctx.WEAPON_EVO_IDS.forEach((id, i) => {
+                    const y = 239 + i * 46, selected = ctx.evoSel() === i;
+                    c.fillStyle = selected ? '#25405a' : '#101f31'; c.fillRect(48, y, W - 96, 40); c.fillStyle = ctx.WEAPON_EVOS[id].col; c.fillRect(48, y, 3, 40);
+                    label(ctx.WEAPON_EVOS[id].name, W / 2, y + 17, 15, selected ? '#e7d2a6' : '#b6d1e2', 'center');
+                    label(ctx.t('galaxa.evo_' + id), W / 2, y + 32, 10, '#88abc6', 'center');
                 });
-                label(ctx.t('galaxa.settings_hint'), W / 2, 494, 10, '#88abc6', 'center');
+                label(ctx.t('galaxa.settings_hint'), W / 2, 239 + ctx.WEAPON_EVO_IDS.length * 46 + 14, 10, '#88abc6', 'center');
             }
         }
         Object.assign(ctx, { renderHUD, renderBeam });

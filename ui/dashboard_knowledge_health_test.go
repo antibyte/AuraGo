@@ -8,7 +8,7 @@ import (
 func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
 	coreJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")

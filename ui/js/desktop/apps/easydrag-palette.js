@@ -1,5 +1,5 @@
 // EasyDrag palette: collapsible node catalogue with search and drag to canvas, plus the
-// quick-add popover (Tab, wire dropped into empty space, "+" on ports and wires).
+// quick-add popover (selected Add, "+" on ports, a wire dropped into empty space).
 (function () {
     'use strict';
 
@@ -210,9 +210,15 @@
 
         // ── floating panel (narrow windows) ──────────────────────────────────────
 
-        // isOverlay: the panel floats over the canvas (narrow windows) instead of beside it.
+        // isOverlay: the panel floats over the canvas (narrow windows, or beside an inspector) instead of beside it.
         function isOverlay() { return !!el.isConnected && typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'absolute'; }
         function isOpen() { return !el.classList.contains('is-collapsed'); }
+        // layoutHidden: an open panel the stylesheet pulled out of view. Tab must not land there.
+        function layoutHidden() {
+            if (typeof getComputedStyle !== 'function') return false;
+            const style = getComputedStyle(el);
+            return style.display === 'none' || style.visibility === 'hidden' || el.hidden === true;
+        }
 
         // A floating panel covers the flow: it closes once a step was added and when the canvas is
         // pressed. Closing it this way leaves the stored choice as it is.
@@ -222,14 +228,22 @@
         // one again restores the stored choice (not in the run view, which keeps the panel hidden).
         // The editor runs it before its first view.
         let overlay = null;
+        let syncing = false;
         function syncLayout() {
-            if (!el.isConnected) return;
-            const now = isOverlay();
-            if (now === overlay) return;
-            const was = overlay;
-            overlay = now;
-            if (now) closeOverlay();
-            else if (was && !ed.runView) setOpen(!!core.storage.get(OPEN_KEY, true), true);
+            if (!el.isConnected || syncing) return;
+            syncing = true;
+            try {
+                const now = isOverlay();
+                if (now !== overlay) {
+                    const was = overlay;
+                    overlay = now;
+                    if (now) closeOverlay();
+                    else if (was && !ed.runView) setOpen(!!core.storage.get(OPEN_KEY, true), true);
+                } else if (isOpen() && layoutHidden()) {
+                    // Hidden while still "open" stays in the tab order. Collapse it. Search and the rail call setOpen(true).
+                    setOpen(false, true);
+                }
+            } finally { syncing = false; }
         }
 
         // afterMove runs fn once the panel stopped moving (its margin transition), at the latest after
@@ -255,6 +269,13 @@
             const watch = new ResizeObserver(() => syncLayout());
             watch.observe(ed.root);
             bag.add(() => watch.disconnect());
+        }
+        if (typeof MutationObserver === 'function' && ed.root) {
+            const body = ed.root.querySelector('.ed-body') || ed.root;
+            const watchTree = new MutationObserver(() => syncLayout());
+            watchTree.observe(body, { childList: true });
+            watchTree.observe(ed.root, { attributes: true, attributeFilter: ['class'] });
+            bag.add(() => watchTree.disconnect());
         }
         bag.listen(canvas.el, 'pointerdown', closeOverlay);
 

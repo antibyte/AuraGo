@@ -1802,3 +1802,22 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 	}
 	return stats, nil
 }
+
+// CountNodesAndActiveEdges returns the node count and the active edge count,
+// the two totals of GetStats, without its per-type, per-source and quality
+// passes. The dashboard summary reads it on every request.
+func (kg *KnowledgeGraph) CountNodesAndActiveEdges() (nodes, edges int, err error) {
+	tx, err := kg.beginReadTx("CountNodesAndActiveEdges")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer tx.Rollback()
+
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&nodes); err != nil {
+		return 0, 0, fmt.Errorf("count knowledge graph nodes: %w", err)
+	}
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE " + activeKGEdgePredicate("")).Scan(&edges); err != nil {
+		return 0, 0, fmt.Errorf("count knowledge graph edges: %w", err)
+	}
+	return nodes, edges, nil
+}

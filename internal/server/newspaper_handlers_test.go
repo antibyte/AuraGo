@@ -176,3 +176,62 @@ func TestNewspaperAgentMailChallengeOutcome(t *testing.T) {
 		})
 	}
 }
+
+func TestNewspaperEditionsListSafeWithEmptyStories(t *testing.T) {
+	s, _, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualDesktop.Enabled = true
+	s.Cfg.Newspaper.Enabled = true
+	service, err := newspaper.New(newspaper.Options{
+		Path:   filepath.Join(t.TempDir(), "newspaper.db"),
+		Policy: func() newspaper.Policy { return newspaper.Policy{Enabled: true} },
+		Research: func(context.Context, newspaper.Profile, time.Time, func(newspaper.Progress)) (newspaper.Draft, error) {
+			return newspaper.Draft{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	s.Newspaper = service
+
+	now := time.Now().UTC()
+	run, err := service.Store().Start(context.Background(), "2026-10-18", false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := newspaper.Edition{
+		ID:        run.ID,
+		LocalDate: run.LocalDate,
+		Revision:  run.Revision,
+		Title:     "Empty Test",
+		CreatedAt: now,
+		Stories:   []newspaper.Story{},
+	}
+	if err := e.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Store().Publish(context.Background(), run, e); err != nil {
+		t.Fatal(err)
+	}
+
+	adminToken, _, err := s.TokenManager.Create("newspaper admin", []string{desktopScopeAdmin}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/api/desktop/newspaper/editions", nil)
+	r.Header.Set("Authorization", "Bearer "+adminToken)
+	w := httptest.NewRecorder()
+	s.handleNewspaper(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("editions list failed: %d %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Editions []map[string]any `json:"editions"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Editions) != 1 || resp.Editions[0]["lead"] != "" {
+		t.Fatalf("unexpected editions response: %#v", resp.Editions)
+	}
+}

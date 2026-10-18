@@ -81,59 +81,27 @@
         const Charts = {};
 
         // ── API ─────────────────────────────────────────────────────────────────────
-        let _apiErrorShown = false;
+        // Thin wrapper over DashAPI (dash-api.js, loaded before this file). The default ttl is 0:
+        // calls outside the section loaders (pagers, searches, reloads after an edit, SSE follow-ups)
+        // always get fresh data; concurrent calls for one URL still share one request. Section
+        // loaders pass sectionFetch(force) and use the 15 s cache.
+        const SECTION_CACHE_TTL_MS = 15000;
         const API = {
             /**
-             * GET request. Returns parsed JSON or null on failure.
+             * GET request. Returns parsed JSON or null on failure (401 -> login redirect).
              * Card-level error handling is done via CardState helpers.
              */
-            get: url => fetch(url, { credentials: 'same-origin' }).then(r => {
-                if (r.status === 401) {
-                    window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-                    return null;
-                }
-                return r.ok ? r.json() : null;
-            }).catch(() => {
-                if (!_apiErrorShown && typeof showToast === 'function') {
-                    _apiErrorShown = true;
-                    showToast(t('dashboard.api_error'), 'error', 5000);
-                    setTimeout(() => { _apiErrorShown = false; }, 15000);
-                }
-                return null;
-            }),
+            get: (url, opts) => DashAPI.get(url, Object.assign({ ttl: 0 }, opts)),
             /**
              * GET request with structured result for per-card error handling.
              * Returns { ok: true, data } on success, { ok: false, status } on failure.
-             * Use this with CardState.load() for automatic loading/error states.
              */
-            getWithStatus(url) {
-                return fetch(url, { credentials: 'same-origin' }).then(r => {
-                    if (r.status === 401) {
-                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-                        return { ok: false, status: 401 };
-                    }
-                    if (!r.ok) return { ok: false, status: r.status };
-                    return r.json().then(data => ({ ok: true, data })).catch(() => ({ ok: false, status: 0 }));
-                }).catch(() => ({ ok: false, status: 0 }));
-            },
-            fetchAll(hours) {
-                return Promise.all([
-                    this.get('/api/dashboard/system'),
-                    this.get('/api/budget'),
-                    this.get('/api/personality/state'),
-                    this.get('/api/dashboard/mood-history?hours=' + (hours || 24)),
-                    this.get('/api/dashboard/memory'),
-                    this.get('/api/dashboard/profile'),
-                    this.get('/api/dashboard/activity'),
-                    this.get('/api/dashboard/prompt-stats'),
-                    this.get('/api/dashboard/logs?lines=100'),
-                    this.get('/api/dashboard/github-repos'),
-                    this.get('/api/dashboard/overview'),
-                    this.get('/api/credits'),
-                    this.get('/api/dashboard/tool-stats'),
-                ]);
-            }
+            getWithStatus: (url, opts) => DashAPI.getWithStatus(url, Object.assign({ ttl: 0 }, opts)),
         };
+        // Fetch options for section loaders: cached for SECTION_CACHE_TTL_MS unless forced.
+        function sectionFetch(force) {
+            return { ttl: SECTION_CACHE_TTL_MS, force: force === true };
+        }
 
         // ══════════════════════════════════════════════════════════════════════════════
         // CARD STATE MANAGER — loading / error / loaded states per card
@@ -242,168 +210,82 @@
         let currentMoodHours = 24;
 
         // ══════════════════════════════════════════════════════════════════════════════
-        // TAB SYSTEM
+        // SECTIONS — DashRouter (dash-router.js) shows a section, then calls loadSectionContent(id)
         // ══════════════════════════════════════════════════════════════════════════════
 
-        const TabState = { active: 'overview', loaded: {} };
+        const SectionState = { loaded: {} };
         const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '', modalKind: '', modalNodeId: '', modalTriggerEl: null };
-        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'audit', 'cronjobs', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
             el.classList.toggle('is-hidden', hidden);
         }
 
-        function showTab(tabId) {
-            if (!VALID_TABS.includes(tabId)) tabId = 'overview';
-            history.replaceState(null, '', '#' + tabId);
-            // Persist last tab only after the next microtask. This guards against a failing
-            // initial network call leaving the user with a broken saved tab on reload.
-            queueMicrotask(() => { try { localStorage.setItem('aurago-dash-tab', tabId); } catch (_) {} });
-            // Clean up stale retry function references from previous tab
-            CardState.clearAllRetryFns();
-            const tablist = document.getElementById('dashTabs');
-            const buttons = tablist ? Array.from(tablist.querySelectorAll('.dash-tab')) : [];
-            buttons.forEach(btn => {
-                const isActive = btn.dataset.tab === tabId;
-                btn.classList.toggle('active', isActive);
-                btn.setAttribute('aria-selected', String(isActive));
-                btn.tabIndex = isActive ? 0 : -1;
-            });
-            document.querySelectorAll('.dash-tab-panel').forEach(panel => {
-                dashSetHidden(panel, panel.id !== 'tab-' + tabId);
-            });
-            TabState.active = tabId;
-            // Always refresh the active tab so Overview/Agent/User stay current (M7).
-            loadTabContent(tabId);
-        }
+        // One loader per section id (sidebar order). Loaders from scripts that run after main.js
+        // (file_sync_status.js, dashboard-widgets.js) are wrapped so they resolve at call time and
+        // never receive the options object.
+        const SECTION_LOADERS = {
+            'overview': loadSectionOverview,
+            'personality': loadSectionPersonality,
+            'memory': loadSectionMemory,
+            'user': loadSectionUser,
+            'knowledge': loadSectionKnowledge,
+            'filesync': () => loadFileSyncStatus(),
+            'problems': loadSectionProblems,
+            'automations': loadSectionAutomations,
+            'system': loadSectionSystem,
+            'audit': () => loadTabAudit(),
+            'logs': loadSectionLogs,
+            'llm': loadSectionLlm,
+            'prompts': loadSectionPrompts,
+            'tools': loadSectionTools,
+        };
 
-        // ── Tab keyboard navigation (ARIA tablist pattern) ─────────────────────────
-        function initTabKeyboardNav() {
-            const tablist = document.getElementById('dashTabs');
-            if (!tablist) return;
-            tablist.addEventListener('keydown', (e) => {
-                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-                const buttons = Array.from(tablist.querySelectorAll('.dash-tab'));
-                const currentIndex = buttons.findIndex(b => b.classList.contains('active'));
-                if (currentIndex === -1) return;
-                e.preventDefault();
-                let nextIndex;
-                if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
-                else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
-                else if (e.key === 'Home') nextIndex = 0;
-                else if (e.key === 'End') nextIndex = buttons.length - 1;
-                if (nextIndex == null) return;
-                const targetBtn = buttons[nextIndex];
-                if (targetBtn) {
-                    showTab(targetBtn.dataset.tab);
-                    targetBtn.focus();
-                }
-            });
-        }
-
-        async function loadTabContent(tabId) {
+        // Every show reloads its section; within SECTION_CACHE_TTL_MS the data comes from the
+        // DashAPI cache. force (section refresh button, reload after an edit) bypasses the cache.
+        async function loadSectionContent(id, { force = false } = {}) {
+            if (!Object.prototype.hasOwnProperty.call(SECTION_LOADERS, id)) return;
             try {
-                switch (tabId) {
-                    case 'overview': await loadTabOverview(); break;
-                    case 'agent':    await loadTabAgent(); break;
-                    case 'user':     await loadTabUser(); break;
-                    case 'knowledge': await loadTabKnowledge(); break;
-                    case 'filesync':  await loadFileSyncStatus(); break;
-                    case 'audit':     await loadTabAudit(); break;
-                    case 'cronjobs':  await loadTabCronjobs(); break;
-                    case 'system':   await loadTabSystem(); break;
-                }
-                TabState.loaded[tabId] = true;
+                await SECTION_LOADERS[id]({ force });
+                SectionState.loaded[id] = true;
+                const updated = document.querySelector('[data-section-updated="' + id + '"]');
+                if (updated) updated.textContent = t('dashboard.section.updated').replace('{{time}}', new Date().toLocaleTimeString());
             } catch (err) {
-                console.warn('loadTabContent failed', tabId, err);
+                console.warn('loadSectionContent failed', id, err);
             }
         }
 
-        async function loadAgentBanner() {
-            const overview = await API.get('/api/dashboard/overview');
-            if (overview) {
-                renderAgentBanner(overview, overview?.context?.total_chars);
-            }
+        // Fresh reload after knowledge-graph edits: widgets-knowledge.js and the knowledge
+        // card retry buttons call this name.
+        function loadTabKnowledge() {
+            return loadSectionContent('knowledge', { force: true });
         }
 
-        async function loadTabOverview() {
-            // Set loading state on all overview cards
-            CardState.setLoading('card-system');
+        async function loadSectionOverview({ force = false } = {}) {
             CardState.setLoading('card-quickstatus');
-            CardState.setLoading('card-budget');
-            CardState.setLoading('card-optimization');
-            CardState.setLoading('card-compression');
-            CardState.setLoading('card-mission-history');
-
-            const results = await Promise.all([
-                API.getWithStatus('/api/dashboard/system'),
-                API.getWithStatus('/api/budget'),
-                API.getWithStatus('/api/dashboard/overview'),
-                API.getWithStatus('/api/credits'),
-                API.getWithStatus('/api/dashboard/optimization'),
-                API.getWithStatus('/api/dashboard/compression'),
-            ]);
-            const [systemR, budgetR, overviewR, creditsR, optR, compR] = results;
-            const system = systemR.ok ? systemR.data : null;
-            const budget = budgetR.ok ? budgetR.data : null;
+            // One overview answer feeds the banner and Quick Status; the system section reuses it
+            // from the DashAPI cache for card-operations.
+            const overviewR = await API.getWithStatus('/api/dashboard/overview', sectionFetch(force));
             const overview = overviewR.ok ? overviewR.data : null;
-            const credits = creditsR.ok ? creditsR.data : null;
-            const opt = optR.ok ? optR.data : null;
-            const comp = compR.ok ? compR.data : null;
-
-            // Set loaded/error per card
-            systemR.ok ? CardState.setLoaded('card-system') : CardState.setError('card-system', loadTabOverview, { status: systemR.status });
-            overviewR.ok ? CardState.setLoaded('card-quickstatus') : CardState.setError('card-quickstatus', loadTabOverview, { status: overviewR.status });
-            budgetR.ok ? CardState.setLoaded('card-budget') : CardState.setError('card-budget', loadTabOverview, { status: budgetR.status });
-            optR.ok ? CardState.setLoaded('card-optimization') : CardState.setError('card-optimization', loadTabOverview, { status: optR.status });
-            compR.ok ? CardState.setLoaded('card-compression') : CardState.setError('card-compression', loadTabOverview, { status: compR.status });
-
+            overviewR.ok ? CardState.setLoaded('card-quickstatus') : CardState.setError('card-quickstatus', loadSectionOverview, { status: overviewR.status });
             if (overview) {
                 renderAgentBanner(overview, overview?.context?.total_chars);
                 renderQuickStatus(overview);
             }
-            if (opt) renderOptimizationStats(opt);
-            if (comp) renderCompressionStats(comp);
-            loadMissionHistory();
-            if (system) {
-                if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
-                updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
-                if (!Charts.ram) Charts.ram = createGauge('ram-chart', system.memory?.used_percent || 0);
-                updateGauge(Charts.ram, 'ram-val', system.memory?.used_percent || 0);
-                if (!Charts.disk) Charts.disk = createGauge('disk-chart', system.disk?.used_percent || 0);
-                updateGauge(Charts.disk, 'disk-val', system.disk?.used_percent || 0);
-                renderSystemStats(system);
-            }
-            if (budget) {
-                renderBudget(budget, credits);
-                if (budget.enabled) {
-                    if (Charts.budget) { Charts.budget.destroy(); Charts.budget = null; }
-                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.daily_limit_usd || 0);
-                    if (Charts.budgetModels) { Charts.budgetModels.destroy(); Charts.budgetModels = null; }
-                    Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
-                }
-            }
         }
 
-        async function loadTabAgent() {
-            // Set loading state on agent cards
+        async function loadSectionPersonality({ force = false } = {}) {
             CardState.setLoading('card-personality');
-            CardState.setLoading('card-memory');
-
-            const results = await Promise.all([
-                API.getWithStatus('/api/personality/state'),
-                API.getWithStatus('/api/dashboard/mood-history?hours=' + currentMoodHours),
-                API.getWithStatus('/api/dashboard/emotion-history?hours=' + currentMoodHours),
-                API.getWithStatus('/api/dashboard/memory'),
+            const opts = sectionFetch(force);
+            const [personalityR, moodHistoryR, emotionHistoryR] = await Promise.all([
+                API.getWithStatus('/api/personality/state', opts),
+                API.getWithStatus('/api/dashboard/mood-history?hours=' + currentMoodHours, opts),
+                API.getWithStatus('/api/dashboard/emotion-history?hours=' + currentMoodHours, opts),
             ]);
-            const [personalityR, moodHistoryR, emotionHistoryR, memDataR] = results;
             const personality = personalityR.ok ? personalityR.data : null;
             const moodHistory = moodHistoryR.ok ? moodHistoryR.data : null;
             const emotionHistory = emotionHistoryR.ok ? emotionHistoryR.data : null;
-            const memData = memDataR.ok ? memDataR.data : null;
 
-            personalityR.ok ? CardState.setLoaded('card-personality') : CardState.setError('card-personality', loadTabAgent, { status: personalityR.status });
-            memDataR.ok ? CardState.setLoaded('card-memory') : CardState.setError('card-memory', loadTabAgent, { status: memDataR.status });
+            personalityR.ok ? CardState.setLoaded('card-personality') : CardState.setError('card-personality', loadSectionPersonality, { status: personalityR.status });
 
             if (personality) {
                 renderMoodBadge(personality);
@@ -415,50 +297,56 @@
             if (Charts.mood) { Charts.mood.destroy(); Charts.mood = null; }
             Charts.mood = createMoodLineChart('mood-chart', moodHistory || []);
             renderEmotionHistory(emotionHistory, personality);
+        }
+
+        async function loadSectionMemory({ force = false } = {}) {
+            CardState.setLoading('card-memory');
+            const memDataR = await API.getWithStatus('/api/dashboard/memory', sectionFetch(force));
+            const memData = memDataR.ok ? memDataR.data : null;
+            memDataR.ok ? CardState.setLoaded('card-memory') : CardState.setError('card-memory', loadSectionMemory, { status: memDataR.status });
             if (memData) {
                 renderMemoryStats(memData);
+                // renderMemoryHealth also fills card-memory-reflection (renderWeeklyReflection).
                 renderMemoryHealth(memData);
                 if (Charts.memory) { Charts.memory.destroy(); Charts.memory = null; }
                 Charts.memory = createMemoryBarChart('memory-chart', memData);
                 renderMilestones(memData.milestones);
             }
-            loadErrorPatterns();
         }
 
-        async function loadTabUser() {
-            // Set loading state on user cards
+        async function loadSectionUser({ force = false } = {}) {
             CardState.setLoading('card-profile');
             CardState.setLoading('card-activity-overview');
             CardState.setLoading('card-journal');
-			CardState.setLoading('card-newspaper');
+            CardState.setLoading('card-newspaper');
 
-            const results = await Promise.all([
-                API.getWithStatus('/api/dashboard/profile'),
-				API.getWithStatus('/api/memory/activity-overview?days=7'),
-				API.getWithStatus('/api/desktop/newspaper/capabilities'),
-				API.getWithStatus('/api/desktop/newspaper/editions')
+            const opts = sectionFetch(force);
+            const [profileR, activityOverviewR, newspaperCapsR, newspaperEditionsR] = await Promise.all([
+                API.getWithStatus('/api/dashboard/profile', opts),
+                API.getWithStatus('/api/memory/activity-overview?days=7', opts),
+                API.getWithStatus('/api/desktop/newspaper/capabilities', opts),
+                API.getWithStatus('/api/desktop/newspaper/editions', opts),
             ]);
-			const [profileR, activityOverviewR, newspaperCapsR, newspaperEditionsR] = results;
             const profile = profileR.ok ? profileR.data : null;
             const activityOverview = activityOverviewR.ok ? activityOverviewR.data : null;
 
-            profileR.ok ? CardState.setLoaded('card-profile') : CardState.setError('card-profile', loadTabUser, { status: profileR.status });
-            activityOverviewR.ok ? CardState.setLoaded('card-activity-overview') : CardState.setError('card-activity-overview', loadTabUser, { status: activityOverviewR.status });
+            profileR.ok ? CardState.setLoaded('card-profile') : CardState.setError('card-profile', loadSectionUser, { status: profileR.status });
+            activityOverviewR.ok ? CardState.setLoaded('card-activity-overview') : CardState.setError('card-activity-overview', loadSectionUser, { status: activityOverviewR.status });
 
             if (profile) renderProfile(profile);
             if (activityOverview) renderActivityOverview(activityOverview);
-			const newsStatus = document.getElementById('newspaper-dashboard-status');
-			const newsNext = document.getElementById('newspaper-dashboard-next');
-			if (newsStatus && newsNext) {
-				const caps = newspaperCapsR.data, issues = newspaperEditionsR.data?.editions || [];
-				newsStatus.textContent = !newspaperCapsR.ok ? t('dashboard.newspaper_unavailable') : !caps.enabled ? t('dashboard.newspaper_disabled') : issues.length ? t('dashboard.newspaper_latest') + ': ' + issues[0].lead : t('dashboard.newspaper_empty');
-				newsNext.textContent = caps?.daily && caps.next_run ? t('dashboard.newspaper_next') + ': ' + new Date(caps.next_run).toLocaleString(LANG) : '';
-				CardState.setLoaded('card-newspaper');
-			}
-            loadJournal();
+            const newsStatus = document.getElementById('newspaper-dashboard-status');
+            const newsNext = document.getElementById('newspaper-dashboard-next');
+            if (newsStatus && newsNext) {
+                const caps = newspaperCapsR.data, issues = newspaperEditionsR.data?.editions || [];
+                newsStatus.textContent = !newspaperCapsR.ok ? t('dashboard.newspaper_unavailable') : !caps.enabled ? t('dashboard.newspaper_disabled') : issues.length ? t('dashboard.newspaper_latest') + ': ' + issues[0].lead : t('dashboard.newspaper_empty');
+                newsNext.textContent = caps?.daily && caps.next_run ? t('dashboard.newspaper_next') + ': ' + new Date(caps.next_run).toLocaleString(LANG) : '';
+                CardState.setLoaded('card-newspaper');
+            }
+            await loadJournal();
         }
 
-        async function loadTabKnowledge() {
+        async function loadSectionKnowledge({ force = false } = {}) {
             const kgCards = [
                 'card-knowledge-graph-summary',
                 'card-knowledge-graph-health',
@@ -468,11 +356,12 @@
             ];
             kgCards.forEach((id) => CardState.setLoading(id));
 
+            const opts = sectionFetch(force);
             const results = await Promise.all([
-                API.getWithStatus('/api/knowledge-graph/important?limit=30&min_score=15'),
-                API.getWithStatus('/api/knowledge-graph/stats'),
-                API.getWithStatus('/api/knowledge-graph/quality?limit=6'),
-                API.getWithStatus('/api/knowledge-graph/health'),
+                API.getWithStatus('/api/knowledge-graph/important?limit=30&min_score=15', opts),
+                API.getWithStatus('/api/knowledge-graph/stats', opts),
+                API.getWithStatus('/api/knowledge-graph/quality?limit=6', opts),
+                API.getWithStatus('/api/knowledge-graph/health', opts),
             ]);
             const [importantR, statsR, qualityR, healthR] = results;
             const anyOk = results.some((r) => r.ok);
@@ -505,14 +394,14 @@
 
             let allEdges = [];
             if (importantIDs.size > 0) {
-                const edgeResp = await API.get('/api/knowledge-graph/edges?limit=200');
+                const edgeResp = await API.get('/api/knowledge-graph/edges?limit=200', opts);
                 allEdges = Array.isArray(edgeResp) ? edgeResp.filter(e => e.relation !== 'co_mentioned_with') : [];
             }
             KnowledgeGraphState.importantEdges = allEdges;
             KnowledgeGraphState.stats = stats || null;
 
             const displayNodes = KnowledgeGraphState.showAll
-                ? await loadAllNodes()
+                ? await loadAllNodes(opts)
                 : KnowledgeGraphState.importantNodes;
 
             KnowledgeGraphState.nodes = displayNodes;
@@ -550,8 +439,8 @@
             }
         }
 
-        async function loadAllNodes() {
-            const nodes = await API.get('/api/knowledge-graph/nodes?limit=200');
+        async function loadAllNodes(opts) {
+            const nodes = await API.get('/api/knowledge-graph/nodes?limit=200', opts);
             return Array.isArray(nodes) ? nodes : [];
         }
 
@@ -561,48 +450,122 @@
             return edges.filter(e => nodeIDs.has(e.source) && nodeIDs.has(e.target));
         }
 
-        async function loadTabSystem() {
-            loadTaskRouterStats();
-            // Set loading state on system cards
+        async function loadSectionProblems({ force = false } = {}) {
+            CardState.setLoading('card-error-patterns');
+            const issues = typeof window.loadOperationalIssues === 'function' ? window.loadOperationalIssues() : null;
+            const errorsR = await API.getWithStatus('/api/dashboard/errors', sectionFetch(force));
+            const card = document.getElementById('card-error-patterns');
+            if (errorsR.ok) {
+                CardState.setLoaded('card-error-patterns');
+                renderErrorPatterns(errorsR.data);
+                // renderErrorPatterns hides #error-patterns-wrap when nothing recurs; hide the card then.
+                const wrap = document.getElementById('error-patterns-wrap');
+                dashSetHidden(card, !!wrap && wrap.classList.contains('is-hidden'));
+            } else {
+                dashSetHidden(card, false);
+                CardState.setError('card-error-patterns', loadSectionProblems, { status: errorsR.status });
+            }
+            await issues;
+        }
+
+        async function loadSectionAutomations() {
+            CardState.setLoading('card-mission-history');
+            await Promise.all([loadTabCronjobs(), loadMissionHistory(), loadDaemonsCard()]);
+        }
+
+        async function loadSectionSystem({ force = false } = {}) {
+            CardState.setLoading('card-system');
             CardState.setLoading('card-operations');
-            CardState.setLoading('card-operational-issues');
-            CardState.setLoading('card-helper-llm');
-            CardState.setLoading('card-activity');
-            CardState.setLoading('card-prompt');
-            CardState.setLoading('card-logs');
-
-            const results = await Promise.all([
-                API.getWithStatus('/api/dashboard/activity'),
-                API.getWithStatus('/api/dashboard/prompt-stats'),
-                API.getWithStatus('/api/dashboard/logs?lines=100'),
-                API.getWithStatus('/api/dashboard/github-repos'),
-                API.getWithStatus('/api/dashboard/overview'),
-                API.getWithStatus('/api/dashboard/tool-stats'),
+            const opts = sectionFetch(force);
+            const cards = Promise.all([
+                loadGuardianCard(),
+                typeof window.loadRealtimeSpeechStatus === 'function' ? window.loadRealtimeSpeechStatus() : null,
             ]);
-            const [activityR, promptStatsR, logResultsR, githubReposR, overviewR, toolStatsR] = results;
-            const activity = activityR.ok ? activityR.data : null;
-            const promptStats = promptStatsR.ok ? promptStatsR.data : null;
-            const logResults = logResultsR.ok ? logResultsR.data : null;
-            const githubRepos = githubReposR.ok ? githubReposR.data : null;
+            const [systemR, overviewR, githubReposR] = await Promise.all([
+                API.getWithStatus('/api/dashboard/system', opts),
+                // Same URL as the overview section: served from the DashAPI cache while fresh.
+                API.getWithStatus('/api/dashboard/overview', opts),
+                API.getWithStatus('/api/dashboard/github-repos', opts),
+            ]);
+            const system = systemR.ok ? systemR.data : null;
             const overview = overviewR.ok ? overviewR.data : null;
-            const toolStats = toolStatsR.ok ? toolStatsR.data : null;
+            const githubRepos = githubReposR.ok ? githubReposR.data : null;
 
-            overviewR.ok ? CardState.setLoaded('card-operations') : CardState.setError('card-operations', loadTabSystem, { status: overviewR.status });
-            activityR.ok ? CardState.setLoaded('card-activity') : CardState.setError('card-activity', loadTabSystem, { status: activityR.status });
-            promptStatsR.ok ? CardState.setLoaded('card-prompt') : CardState.setError('card-prompt', loadTabSystem, { status: promptStatsR.status });
-            logResultsR.ok ? CardState.setLoaded('card-logs') : CardState.setError('card-logs', loadTabSystem, { status: logResultsR.status });
+            systemR.ok ? CardState.setLoaded('card-system') : CardState.setError('card-system', loadSectionSystem, { status: systemR.status });
+            overviewR.ok ? CardState.setLoaded('card-operations') : CardState.setError('card-operations', loadSectionSystem, { status: overviewR.status });
 
+            if (system) {
+                if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
+                updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
+                if (!Charts.ram) Charts.ram = createGauge('ram-chart', system.memory?.used_percent || 0);
+                updateGauge(Charts.ram, 'ram-val', system.memory?.used_percent || 0);
+                if (!Charts.disk) Charts.disk = createGauge('disk-chart', system.disk?.used_percent || 0);
+                updateGauge(Charts.disk, 'disk-val', system.disk?.used_percent || 0);
+                renderSystemStats(system);
+            }
             if (overview) {
                 renderOperations(overview);
                 renderIntegrations(overview);
             }
-            if (typeof window.loadOperationalIssues === 'function') {
-                window.loadOperationalIssues();
+            if (githubRepos) renderGitHubRepos(githubRepos);
+            await cards;
+        }
+
+        async function loadSectionLogs({ force = false } = {}) {
+            CardState.setLoading('card-logs');
+            const logResultsR = await API.getWithStatus('/api/dashboard/logs?lines=100', sectionFetch(force));
+            const logResults = logResultsR.ok ? logResultsR.data : null;
+            logResultsR.ok ? CardState.setLoaded('card-logs') : CardState.setError('card-logs', loadSectionLogs, { status: logResultsR.status });
+            if (logResults) {
+                renderLogs(logResults);
+                scrollLogsToBottom();
             }
-            loadGuardianCard();
-            loadHelperLLMCard();
-            loadDaemonsCard();
-            if (activity) renderActivity(activity);
+        }
+
+        async function loadSectionLlm({ force = false } = {}) {
+            CardState.setLoading('card-budget');
+            CardState.setLoading('card-helper-llm');
+            const opts = sectionFetch(force);
+            const cards = Promise.all([loadTaskRouterStats(), loadHelperLLMCard()]);
+            const [budgetR, creditsR] = await Promise.all([
+                API.getWithStatus('/api/budget', opts),
+                API.getWithStatus('/api/credits', opts),
+            ]);
+            const budget = budgetR.ok ? budgetR.data : null;
+            const credits = creditsR.ok ? creditsR.data : null;
+
+            budgetR.ok ? CardState.setLoaded('card-budget') : CardState.setError('card-budget', loadSectionLlm, { status: budgetR.status });
+
+            if (budget) {
+                renderBudget(budget, credits);
+                if (budget.enabled) {
+                    if (Charts.budget) { Charts.budget.destroy(); Charts.budget = null; }
+                    Charts.budget = createBudgetDoughnut('budget-chart', budget.spent_usd || 0, budget.daily_limit_usd || 0);
+                    if (Charts.budgetModels) { Charts.budgetModels.destroy(); Charts.budgetModels = null; }
+                    Charts.budgetModels = createBudgetModelsChart('budget-models-chart', budget.models || {});
+                }
+            }
+            await cards;
+        }
+
+        async function loadSectionPrompts({ force = false } = {}) {
+            CardState.setLoading('card-prompt');
+            CardState.setLoading('card-optimization');
+            CardState.setLoading('card-compression');
+            const opts = sectionFetch(force);
+            const [promptStatsR, optR, compR] = await Promise.all([
+                API.getWithStatus('/api/dashboard/prompt-stats', opts),
+                API.getWithStatus('/api/dashboard/optimization', opts),
+                API.getWithStatus('/api/dashboard/compression', opts),
+            ]);
+            const promptStats = promptStatsR.ok ? promptStatsR.data : null;
+            const opt = optR.ok ? optR.data : null;
+            const comp = compR.ok ? compR.data : null;
+
+            promptStatsR.ok ? CardState.setLoaded('card-prompt') : CardState.setError('card-prompt', loadSectionPrompts, { status: promptStatsR.status });
+            optR.ok ? CardState.setLoaded('card-optimization') : CardState.setError('card-optimization', loadSectionPrompts, { status: optR.status });
+            compR.ok ? CardState.setLoaded('card-compression') : CardState.setError('card-compression', loadSectionPrompts, { status: compR.status });
+
             if (promptStats) {
                 renderPromptStats(promptStats);
                 if (Charts.promptSize) Charts.promptSize.destroy();
@@ -614,15 +577,28 @@
                 if (Charts.promptSectionDist) Charts.promptSectionDist.destroy();
                 Charts.promptSectionDist = createPromptSectionDistChart('prompt-section-dist-chart', promptStats.avg_section_sizes);
             }
+            if (opt) renderOptimizationStats(opt);
+            if (comp) renderCompressionStats(comp);
+        }
+
+        async function loadSectionTools({ force = false } = {}) {
+            CardState.setLoading('card-activity');
+            const opts = sectionFetch(force);
+            const [activityR, toolStatsR] = await Promise.all([
+                API.getWithStatus('/api/dashboard/activity', opts),
+                API.getWithStatus('/api/dashboard/tool-stats', opts),
+            ]);
+            const activity = activityR.ok ? activityR.data : null;
+            const toolStats = toolStatsR.ok ? toolStatsR.data : null;
+
+            activityR.ok ? CardState.setLoaded('card-activity') : CardState.setError('card-activity', loadSectionTools, { status: activityR.status });
+
+            if (activity) renderActivity(activity);
+            // One tool-stats answer feeds both tool cards.
             if (toolStats) {
                 renderAdaptiveToolStats(toolStats);
                 renderToolingTelemetry(toolStats);
             }
-            if (logResults) {
-                renderLogs(logResults);
-                scrollLogsToBottom();
-            }
-            if (githubRepos) renderGitHubRepos(githubRepos);
         }
 
         async function loadTaskRouterStats() {
@@ -713,15 +689,8 @@
             return Math.floor(diff / 86400) + 'd';
         }
 
-        async function initDashboard() {
-            // Set up tab click listeners
-            document.querySelectorAll('.dash-tab').forEach(btn => {
-                btn.addEventListener('click', () => showTab(btn.dataset.tab));
-            });
-            // Set up tab keyboard navigation (arrow keys, Home, End)
-            initTabKeyboardNav();
-
-            // Set up log viewer listeners (elements are in DOM even when tab is hidden)
+        function initDashboard() {
+            // Log viewer listeners (the elements exist while the logs section is hidden)
             const logFilter = document.getElementById('log-filter');
             const logScrollBtn = document.getElementById('log-scroll-btn');
             const logRefreshBtn = document.getElementById('log-refresh-btn');
@@ -732,9 +701,8 @@
                 logRefreshBtn.disabled = true;
                 logRefreshBtn.setAttribute('aria-busy', 'true');
                 try {
-                    const data = await API.get('/api/dashboard/logs?lines=100');
-                    renderLogs(data);
-                    scrollLogsToBottom();
+                    // Same path as the section refresh button: one logs request, cache bypassed.
+                    await loadSectionContent('logs', { force: true });
                 } finally {
                     logRefreshBtn.classList.remove('is-busy');
                     logRefreshBtn.disabled = false;
@@ -798,21 +766,22 @@
                     }
                 }
             });
+            // Section header refresh buttons reload their section and bypass the DashAPI cache.
+            // aria-busy (not disabled) guards double clicks without dropping keyboard focus.
+            document.addEventListener('click', async (e) => {
+                const refreshBtn = e.target.closest('[data-section-refresh]');
+                if (!refreshBtn || refreshBtn.getAttribute('aria-busy') === 'true') return;
+                refreshBtn.setAttribute('aria-busy', 'true');
+                try {
+                    await loadSectionContent(refreshBtn.getAttribute('data-section-refresh'), { force: true });
+                } finally {
+                    refreshBtn.removeAttribute('aria-busy');
+                }
+            });
 
-            // Determine initial tab from hash or localStorage
-            const hashTab = window.location.hash.replace('#', '');
-            const savedTab = localStorage.getItem('aurago-dash-tab') || 'overview';
-            const initialTab = VALID_TABS.includes(hashTab) ? hashTab : (VALID_TABS.includes(savedTab) ? savedTab : 'overview');
-
-            // Show initial tab – showTab() invokes loadTabContent() synchronously when
-            // TabState.loaded[tabId] is false, and loadTabContent() marks the tab loaded before
-            // its async body runs, so no defensive double-load is required here.
-            showTab(initialTab);
-
-            // Always load agent banner regardless of initial tab
-            if (initialTab !== 'overview') {
-                loadAgentBanner();
-            }
+            // Show the section from the hash (old tab ids are mapped) or the stored one.
+            // Every show loads its section (served from the DashAPI cache while fresh).
+            DashRouter.init({ onShow: id => loadSectionContent(id) });
         }
 
         // Note: live system, mission, memory, personality, daemon, and audit updates flow through

@@ -11,7 +11,7 @@ import (
 func TestOperationalIssuesDashboardContract(t *testing.T) {
 	t.Parallel()
 
-	html := string(mustReadUIFile(t, "dashboard.html"))
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`id="card-operational-issues"`,
 		`id="operational-issues-status"`,

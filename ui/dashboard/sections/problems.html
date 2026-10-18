@@ -1,0 +1,89 @@
+{{define "dash-section-problems"}}
+<section class="dash-section" id="sec-problems" data-section="problems" aria-labelledby="sec-problems-title" hidden>
+  <header class="dash-section-header">
+    <div class="dash-section-heading">
+      <h2 class="dash-section-title" id="sec-problems-title" tabindex="-1" data-i18n="dashboard.section.problems.title"></h2>
+      <p class="dash-section-desc" data-i18n="dashboard.section.problems.desc"></p>
+    </div>
+    <div class="dash-section-meta">
+      <span class="dash-section-updated" data-section-updated="problems"></span>
+      <button type="button" class="dash-section-refresh" data-section-refresh="problems" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+    </div>
+  </header>
+  <div class="dash-grid">
+    <div class="dash-card span-12" id="card-operational-issues">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 9v5M12 18h.01"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.operational_issues_title"></h3>
+        <span class="status-badge" id="operational-issues-counts"></span>
+        <button type="button" class="collapse-toggle" data-card="card-operational-issues" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <p class="dash-card-desc" data-i18n="dashboard.operational_issues_desc"></p>
+        <div class="operational-issues-controls">
+          <select id="operational-issues-status" class="audit-select">
+            <option value="active" data-i18n="dashboard.operational_issues_filter_active"></option>
+            <option value="archived" data-i18n="dashboard.operational_issues_filter_archived"></option>
+            <option value="done" data-i18n="dashboard.operational_issues_filter_done"></option>
+            <option value="all" data-i18n="dashboard.operational_issues_filter_all"></option>
+          </select>
+          <select id="operational-issues-kind" class="audit-select">
+            <option value="" data-i18n="dashboard.operational_issues_kind_all"></option>
+            <option value="runtime_failure" data-i18n="dashboard.operational_issues_kind_runtime"></option>
+            <option value="tool_failure" data-i18n="dashboard.operational_issues_kind_tool"></option>
+            <option value="review_required" data-i18n="dashboard.operational_issues_kind_review"></option>
+          </select>
+          <select id="operational-issues-severity" class="audit-select">
+            <option value="" data-i18n="dashboard.operational_issues_severity_all"></option>
+            <option value="error" data-i18n="dashboard.operational_issues_severity_error"></option>
+            <option value="warning" data-i18n="dashboard.operational_issues_severity_warning"></option>
+            <option value="info" data-i18n="dashboard.operational_issues_severity_info"></option>
+          </select>
+          <input type="search" id="operational-issues-source" class="profile-search pw-search" maxlength="64" data-i18n-placeholder="dashboard.operational_issues_source_placeholder" placeholder="">
+          <button type="button" id="operational-issues-refresh" class="log-btn" data-i18n="dashboard.operational_issues_refresh"></button>
+          <button type="button" id="operational-issues-archive-stale" class="log-btn" data-i18n="dashboard.operational_issues_archive_stale"></button>
+        </div>
+        <div id="operational-issues-confirm" class="operational-issues-confirm is-hidden" role="alert">
+          <span id="operational-issues-confirm-text"></span>
+          <div class="operational-issues-confirm-actions">
+            <button type="button" id="operational-issues-confirm-cancel" class="log-btn" data-i18n="dashboard.operational_issues_cancel"></button>
+            <button type="button" id="operational-issues-confirm-apply" class="log-btn audit-danger-btn" data-i18n="dashboard.operational_issues_confirm"></button>
+          </div>
+        </div>
+        <div class="operational-issues-table-wrap">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th data-i18n="dashboard.operational_issues_col_last_seen"></th>
+                <th data-i18n="dashboard.operational_issues_col_issue"></th>
+                <th data-i18n="dashboard.operational_issues_col_source"></th>
+                <th data-i18n="dashboard.operational_issues_col_kind"></th>
+                <th data-i18n="dashboard.operational_issues_col_severity"></th>
+                <th data-i18n="dashboard.operational_issues_col_occurrences"></th>
+                <th data-i18n="dashboard.operational_issues_col_status"></th>
+                <th data-i18n="dashboard.operational_issues_col_actions"></th>
+              </tr>
+            </thead>
+            <tbody id="operational-issues-tbody"></tbody>
+          </table>
+          <div id="operational-issues-empty" class="empty-state" data-i18n="dashboard.operational_issues_empty"></div>
+          <div class="audit-pager">
+            <button type="button" id="operational-issues-prev" class="mh-more-btn" data-i18n="dashboard.audit_prev"></button>
+            <span id="operational-issues-page-meta" class="audit-page-meta"></span>
+            <button type="button" id="operational-issues-next" class="mh-more-btn" data-i18n="dashboard.audit_next"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-12" id="card-error-patterns">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.error_patterns_title"></h3> <button type="button" class="collapse-toggle" data-card="card-error-patterns" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="error-patterns-wrap">
+          <div id="error-patterns-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}

@@ -166,6 +166,46 @@
                 }
             }
             return bullets;
+        },
+        // Fan that swings left/right from volley to volley, like a turret sweeping the field.
+        fan_sweep: function (e, count, speed, arc, ebSpd) {
+            e.sweepPh = ((e.sweepPh || 0) + 0.55) % (Math.PI * 2);
+            const center = Math.PI / 2 + Math.sin(e.sweepPh) * arc * 0.5, bullets = [];
+            for (let i = 0; i < count; i++) {
+                const a = Math.max(0.15, Math.min(Math.PI - 0.15, center + (i - (count - 1) / 2) * (arc / Math.max(1, count - 1))));
+                bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 4, vx: Math.cos(a) * ebSpd * speed, vy: Math.sin(a) * ebSpd * speed, kind: 'spiral' });
+            }
+            return bullets;
+        },
+        // Two shots leave sideways and curve back toward the target column (steerX spring, see updateBul).
+        pincer: function (e, speed, ebSpd, targetX, kind) {
+            return [-1, 1].map(side => ({ x: e.x + side * 6, y: e.y + 8, w: 2, h: 5, vx: side * ebSpd * speed * 0.9, vy: ebSpd * speed * 0.55, steerX: targetX, steer: 4, kind: kind || 'hunter' }));
+        },
+        // Lobbed shells: they rise about half their speed value before gravity (ay) pulls them down into the player's lane.
+        lob: function (e, count, speed, ebSpd, random) {
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const sx = (i - (count - 1) / 2) * 0.35 + (random() - 0.5) * 0.2;
+                bullets.push({ x: e.x, y: e.y + 8, w: 3, h: 3, vx: sx * ebSpd * speed, vy: -ebSpd * speed * 1.1, ay: ebSpd * speed * 1.2, kind: 'gravity' });
+            }
+            return bullets;
+        },
+        // A curtain of shots across a span, staggered in height so they arrive as a rolling wall.
+        rain: function (e, count, speed, span, ebSpd, random) {
+            const bullets = [];
+            for (let i = 0; i < count; i++) {
+                const fx = (count > 1 ? i / (count - 1) - 0.5 : 0) * span + (random() - 0.5) * 14;
+                bullets.push({ x: e.x + fx, y: e.y + 8 - Math.abs(fx) * 0.25 - random() * 18, w: 2, h: 6, vx: 0, vy: ebSpd * speed, kind: 'ion' });
+            }
+            return bullets;
+        },
+        // Leads the target: aims where the ship will be when the shot arrives (two refinement passes).
+        predictive: function (e, count, speed, ebSpd, target) {
+            const vel = ebSpd * speed; let tx = target.x, ty = target.y;
+            for (let k = 0; k < 2; k++) { const t = Math.hypot(tx - e.x, ty - e.y) / Math.max(1, vel); tx = target.x + (target.vx || 0) * t; ty = target.y + (target.vy || 0) * t; }
+            const base = Math.atan2(ty - e.y, tx - e.x), bullets = [];
+            for (let i = 0; i < count; i++) { const a = base + (i - (count - 1) / 2) * 0.12; bullets.push({ x: e.x, y: e.y + 8, w: 2, h: 5, vx: Math.cos(a) * vel, vy: Math.sin(a) * vel, kind: 'sniper' }); }
+            return bullets;
         }
     };
 
@@ -288,6 +328,27 @@
         sniper: { pulse: { amp: 0.04, speed: 1.2 }, blink: { on: 140, off: 3400, blinkAim: true } }
     };
 
+    // Sprite heading (galaxa-enemy-motion.js): `sway` = idle breathing roll in formation,
+    // `bank` = max lean into lateral motion while flying, `face` = nose follows the
+    // velocity fully (homing types), `spin` = continuous rotation rad/s, `rate` = smoothing.
+    GC.ENEMY_HEADING = {
+        default: { sway: 0.06, swaySpeed: 1.4, bank: 0.42, rate: 7 },
+        bee: { sway: 0.08, swaySpeed: 2.2, bank: 0.5, rate: 8 },
+        butterfly: { sway: 0.1, swaySpeed: 1.8, bank: 0.55, rate: 7 },
+        shield_bee: { sway: 0.07, swaySpeed: 2.0, bank: 0.45, rate: 8 },
+        hunter: { sway: 0.04, swaySpeed: 1.2, bank: 0.3, rate: 9, face: true },
+        stalker: { sway: 0.05, swaySpeed: 1.0, bank: 0.3, rate: 8, face: true },
+        kamikaze: { sway: 0.03, swaySpeed: 2.6, bank: 0.3, rate: 11, face: true },
+        spinner: { sway: 0, swaySpeed: 0, bank: 0, rate: 6, spin: 2.4 },
+        teleporter: { sway: 0.12, swaySpeed: 3.0, bank: 0.4, rate: 7 },
+        sniper: { sway: 0.02, swaySpeed: 0.8, bank: 0.25, rate: 6 },
+        carrier: { sway: 0.03, swaySpeed: 0.9, bank: 0.2, rate: 5 },
+        bomber: { sway: 0.05, swaySpeed: 1.1, bank: 0.35, rate: 6 },
+        weaver: { sway: 0.09, swaySpeed: 2.4, bank: 0.5, rate: 8 },
+        boss: { sway: 0.03, swaySpeed: 0.9, bank: 0.18, rate: 5 },
+        miniboss: { sway: 0.03, swaySpeed: 1.0, bank: 0.2, rate: 5 }
+    };
+
     // NEW: Enemy unpredictability — per-enemy behaviour quirks plus extra dive
     // path profiles. Gameplay decisions must go through ctx.random (seeded) so
     // runs stay reproducible per seed; visual-only randomness may use Math.random.
@@ -317,7 +378,10 @@
         zigzag: { stageMin: 3, weight: 3 },
         arc: { stageMin: 4, weight: 3 },
         bounce: { stageMin: 5, weight: 2 },
-        weave: { stageMin: 6, weight: 2 }
+        weave: { stageMin: 6, weight: 2 },
+        loop: { stageMin: 4, weight: 2 },
+        strafe: { stageMin: 5, weight: 2 },
+        hover: { stageMin: 6, weight: 2 }
     };
     // Rage aura + biome tint colours for enemy motion FX / auras (galaxa-enemy-fx.js).
     GC.ENEMY_RAGE_COL = '#ff4a2a';

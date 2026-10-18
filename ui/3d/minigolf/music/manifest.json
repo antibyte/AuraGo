@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "tracks": [
+    {
+      "id": "a-simple-trifle",
+      "title": "A Simple Trifle",
+      "author": "jestar",
+      "source": "https://opengameart.org/content/a-simple-trifle",
+      "download": "https://opengameart.org/sites/default/files/ASimpleTrifle.mid",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "original": "a-simple-trifle.mid",
+      "sha256": "6398219955416a1ac2c88e8d3dcba483b439e94a704da6b400176fe93b18060f",
+      "project": "a-simple-trifle.project.json",
+      "tempo": 170.0000850000425,
+      "trackCount": 2,
+      "noteCount": 152,
+      "durationSeconds": 24
+    },
+    {
+      "id": "piano-emotional-solo-139",
+      "title": "Piano Emotional Solo 139",
+      "author": "Tozan",
+      "source": "https://opengameart.org/content/piano-emotional-solo-139",
+      "download": "https://opengameart.org/sites/default/files/pianoemo139a.mid",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "original": "piano-emotional-solo-139.mid",
+      "sha256": "fea6fb5ff7448880508303e80e0fb69106b58b2b722ba8436132428275d956f6",
+      "project": "piano-emotional-solo-139.project.json",
+      "tempo": 120,
+      "trackCount": 1,
+      "noteCount": 341,
+      "durationSeconds": 202.71
+    },
+    {
+      "id": "crystal-tune-bright-1",
+      "title": "Crystal Tune Bright 1",
+      "author": "Tozan",
+      "source": "https://opengameart.org/content/crystal-tune-bright-1",
+      "download": "https://opengameart.org/sites/default/files/piuray2.mid",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "original": "crystal-tune-bright-1.mid",
+      "sha256": "0500f080404b3dab84051e805d609271bed5431a986432477db41310f51bdcee",
+      "project": "crystal-tune-bright-1.project.json",
+      "tempo": 120,
+      "trackCount": 12,
+      "noteCount": 706,
+      "durationSeconds": 122.84
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{{define "dash-section-prompts"}}
+<section class="dash-section" id="sec-prompts" data-section="prompts" aria-labelledby="sec-prompts-title" hidden>
+  <header class="dash-section-header">
+    <div class="dash-section-heading">
+      <h2 class="dash-section-title" id="sec-prompts-title" tabindex="-1" data-i18n="dashboard.section.prompts.title"></h2>
+      <p class="dash-section-desc" data-i18n="dashboard.section.prompts.desc"></p>
+    </div>
+    <div class="dash-section-meta">
+      <span class="dash-section-updated" data-section-updated="prompts"></span>
+      <button type="button" class="dash-section-refresh" data-section-refresh="prompts" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+    </div>
+  </header>
+  <div class="dash-grid">
+    <div class="dash-card span-12" id="card-prompt">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.prompt_title"></h3> <button type="button" class="collapse-toggle" data-card="card-prompt" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_measurements"></div>
+        <div id="prompt-content">
+          <h4 class="dash-subheading" data-i18n="dashboard.prompt_modules_title"></h4>
+          <p data-i18n="dashboard.prompt_modules_help"></p>
+          <div class="prompt-kpi-grid" id="prompt-module-kpis"></div>
+          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_base_title"></h4>
+          <p data-i18n="dashboard.prompt_base_help"></p>
+          <div class="prompt-kpi-grid" id="prompt-kpis"></div>
+          <div class="prompt-details-grid">
+            <div>
+              <h4 class="dash-subheading" id="prompt-base-chart-title" data-i18n="dashboard.prompt_history"></h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-size-chart" role="img" aria-labelledby="prompt-base-chart-title" aria-describedby="prompt-kpis"></canvas>
+              </div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" id="prompt-tier-chart-title" data-i18n="dashboard.prompt_tier_distribution"></h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-tier-chart" role="img" aria-labelledby="prompt-tier-chart-title"></canvas>
+              </div>
+            </div>
+          </div>
+          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_fit_title"></h4>
+          <p data-i18n="dashboard.prompt_fit_help"></p>
+          <div class="prompt-kpi-grid" id="prompt-fit-kpis"></div>
+          <div class="prompt-details-grid mt-sm">
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections"></h4>
+              <div class="shed-list" id="shed-list"></div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" id="prompt-fit-chart-title" data-i18n="dashboard.prompt_fit_history"></h4>
+              <div class="prompt-chart-wrap">
+                <canvas id="prompt-savings-chart" role="img" aria-labelledby="prompt-fit-chart-title" aria-describedby="prompt-fit-kpis"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="mt-sm">
+            <p data-i18n="dashboard.prompt_session_help"></p>
+            <div class="prompt-kpi-grid" id="prompt-cache-kpis"></div>
+          </div>
+          <!-- Prompt section distribution -->
+          <div class="prompt-details-grid mt-sm">
+            <div>
+              <h4 class="dash-subheading" id="prompt-section-chart-title" data-i18n="dashboard.prompt_section_dist"></h4>
+              <div class="prompt-chart-wrap prompt-chart-wrap-lg">
+                <canvas id="prompt-section-dist-chart" role="img" aria-labelledby="prompt-section-chart-title" aria-describedby="prompt-section-legend"></canvas>
+              </div>
+            </div>
+            <div>
+              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_bytes_hint"></h4>
+              <div class="prompt-section-legend" id="prompt-section-legend"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card span-6" id="card-optimization">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.optimization_title"></h3> <button type="button" class="collapse-toggle" data-card="card-optimization" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <p class="dash-card-desc" data-i18n="dashboard.optimization_desc"></p>
+        <div class="stats-grid" id="opt-grid"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-6" id="card-compression">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9V3M15 9V3M9 15v6M15 15v6M3 9h6M15 9h6M3 15h6M15 15h6" stroke-linecap="round"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.compression_title"></h3>
+        <span class="status-badge" id="compression-status-badge">
+          <span data-i18n="dashboard.compression_enabled"></span>
+        </span>
+        <button type="button" class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <div class="stats-grid" id="compression-stats"></div>
+        <div id="compression-details" class="mt-sm">
+          <div id="compression-tools-wrap">
+            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_tools"></h4>
+            <div id="compression-tools-list" class="compression-rank-list"></div>
+          </div>
+          <div id="compression-filters-wrap" class="mt-xs">
+            <h4 class="dash-subheading" data-i18n="dashboard.compression_top_filters"></h4>
+            <div id="compression-filters-list" class="compression-rank-list"></div>
+          </div>
+        </div>
+        <div id="compression-empty" class="empty-state" data-i18n="dashboard.compression_no_data"></div>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}

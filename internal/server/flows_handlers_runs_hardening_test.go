@@ -745,11 +745,8 @@ func TestC18CancelTellsFinishedFromUnknownAndAuditsLiveRuns(t *testing.T) {
 // type filter and labelled in every dashboard locale (the rule of recordFlowAudit).
 func TestC18RunCancelAuditTypeIsRegistered(t *testing.T) {
 	ui := filepath.Join("..", "..", "ui")
-	html, err := os.ReadFile(filepath.Join(ui, "dashboard.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(html), `<option value="flow_run_cancel" data-i18n="dashboard.audit_type_flow_run_cancel">`) {
+	html := readDashboardMarkupForTest(t)
+	if !strings.Contains(html, `<option value="flow_run_cancel" data-i18n="dashboard.audit_type_flow_run_cancel">`) {
 		t.Error("the dashboard audit filter does not list flow_run_cancel")
 	}
 	locales, err := filepath.Glob(filepath.Join(ui, "lang", "dashboard", "*.json"))

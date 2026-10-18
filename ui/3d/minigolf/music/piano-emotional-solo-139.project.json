@@ -1,0 +1,2432 @@
+{
+  "version": 1,
+  "name": "Piano Emotional Solo 139",
+  "tempo": 120,
+  "ppq": 480,
+  "beatsPerBar": 4,
+  "loop": {
+    "enabled": false,
+    "start": 0,
+    "end": 7680
+  },
+  "tracks": [
+    {
+      "id": "piano-emotional-solo-139-track-1",
+      "name": "Track 1",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "piano-emotional-solo-139-clip-1-1",
+          "name": "Track 1",
+          "start": 0,
+          "length": 195840,
+          "notes": [
+            {
+              "id": "piano-emotional-solo-139-note-1-1-1",
+              "pitch": 67,
+              "start": 467,
+              "duration": 1230,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-2",
+              "pitch": 69,
+              "start": 961,
+              "duration": 510,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-3",
+              "pitch": 76,
+              "start": 1441,
+              "duration": 2866,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-4",
+              "pitch": 65,
+              "start": 1921,
+              "duration": 4350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-5",
+              "pitch": 77,
+              "start": 4457,
+              "duration": 180,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-6",
+              "pitch": 76,
+              "start": 4636,
+              "duration": 226,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-7",
+              "pitch": 74,
+              "start": 4907,
+              "duration": 780,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-8",
+              "pitch": 72,
+              "start": 5716,
+              "duration": 1320,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-9",
+              "pitch": 67,
+              "start": 6662,
+              "duration": 1049,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-10",
+              "pitch": 69,
+              "start": 7097,
+              "duration": 3614,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-11",
+              "pitch": 74,
+              "start": 7561,
+              "duration": 3240,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-12",
+              "pitch": 65,
+              "start": 8011,
+              "duration": 4726,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-13",
+              "pitch": 76,
+              "start": 11281,
+              "duration": 435,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-14",
+              "pitch": 74,
+              "start": 11716,
+              "duration": 391,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-15",
+              "pitch": 72,
+              "start": 12137,
+              "duration": 420,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-16",
+              "pitch": 71,
+              "start": 12587,
+              "duration": 465,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-17",
+              "pitch": 53,
+              "start": 13036,
+              "duration": 1680,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-18",
+              "pitch": 72,
+              "start": 13067,
+              "duration": 840,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-19",
+              "pitch": 60,
+              "start": 13531,
+              "duration": 1275,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-20",
+              "pitch": 67,
+              "start": 14027,
+              "duration": 855,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-21",
+              "pitch": 53,
+              "start": 14956,
+              "duration": 1680,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-22",
+              "pitch": 67,
+              "start": 14971,
+              "duration": 420,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-23",
+              "pitch": 63,
+              "start": 15391,
+              "duration": 1336,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-24",
+              "pitch": 73,
+              "start": 15886,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-25",
+              "pitch": 72,
+              "start": 16801,
+              "duration": 525,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-26",
+              "pitch": 53,
+              "start": 16846,
+              "duration": 1470,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-27",
+              "pitch": 60,
+              "start": 17297,
+              "duration": 1094,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-28",
+              "pitch": 67,
+              "start": 17731,
+              "duration": 1230,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-29",
+              "pitch": 53,
+              "start": 18556,
+              "duration": 1381,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-30",
+              "pitch": 63,
+              "start": 19022,
+              "duration": 1245,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-31",
+              "pitch": 73,
+              "start": 19516,
+              "duration": 810,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-32",
+              "pitch": 52,
+              "start": 20326,
+              "duration": 945,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-33",
+              "pitch": 72,
+              "start": 20326,
+              "duration": 525,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-34",
+              "pitch": 61,
+              "start": 20791,
+              "duration": 1246,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-35",
+              "pitch": 67,
+              "start": 21271,
+              "duration": 1336,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-36",
+              "pitch": 52,
+              "start": 22126,
+              "duration": 990,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-37",
+              "pitch": 60,
+              "start": 22591,
+              "duration": 1336,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-38",
+              "pitch": 70,
+              "start": 23071,
+              "duration": 856,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-39",
+              "pitch": 52,
+              "start": 23926,
+              "duration": 1515,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-40",
+              "pitch": 67,
+              "start": 23926,
+              "duration": 480,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-41",
+              "pitch": 61,
+              "start": 24361,
+              "duration": 1170,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-42",
+              "pitch": 67,
+              "start": 24857,
+              "duration": 1155,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-43",
+              "pitch": 52,
+              "start": 25636,
+              "duration": 1050,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-44",
+              "pitch": 60,
+              "start": 26071,
+              "duration": 1366,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-45",
+              "pitch": 75,
+              "start": 26582,
+              "duration": 1365,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-46",
+              "pitch": 53,
+              "start": 27406,
+              "duration": 945,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-47",
+              "pitch": 63,
+              "start": 27886,
+              "duration": 1155,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-48",
+              "pitch": 70,
+              "start": 28321,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-49",
+              "pitch": 53,
+              "start": 29147,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-50",
+              "pitch": 60,
+              "start": 29596,
+              "duration": 1275,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-51",
+              "pitch": 67,
+              "start": 30062,
+              "duration": 1215,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-52",
+              "pitch": 53,
+              "start": 30886,
+              "duration": 1560,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-53",
+              "pitch": 63,
+              "start": 31337,
+              "duration": 570,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-54",
+              "pitch": 73,
+              "start": 31846,
+              "duration": 840,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-55",
+              "pitch": 53,
+              "start": 32657,
+              "duration": 1380,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-56",
+              "pitch": 72,
+              "start": 32671,
+              "duration": 556,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-57",
+              "pitch": 60,
+              "start": 33107,
+              "duration": 1290,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-58",
+              "pitch": 67,
+              "start": 33556,
+              "duration": 1306,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-59",
+              "pitch": 52,
+              "start": 34366,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-60",
+              "pitch": 61,
+              "start": 34817,
+              "duration": 1290,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-61",
+              "pitch": 70,
+              "start": 35281,
+              "duration": 1290,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-62",
+              "pitch": 52,
+              "start": 36107,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-63",
+              "pitch": 60,
+              "start": 36526,
+              "duration": 1305,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-64",
+              "pitch": 72,
+              "start": 37022,
+              "duration": 1380,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-65",
+              "pitch": 52,
+              "start": 37801,
+              "duration": 930,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-66",
+              "pitch": 61,
+              "start": 38281,
+              "duration": 1306,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-67",
+              "pitch": 73,
+              "start": 38731,
+              "duration": 1395,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-68",
+              "pitch": 52,
+              "start": 39617,
+              "duration": 1005,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-69",
+              "pitch": 60,
+              "start": 40067,
+              "duration": 1035,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-70",
+              "pitch": 75,
+              "start": 40516,
+              "duration": 810,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-71",
+              "pitch": 60,
+              "start": 41371,
+              "duration": 1590,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-72",
+              "pitch": 75,
+              "start": 41387,
+              "duration": 735,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-73",
+              "pitch": 67,
+              "start": 41806,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-74",
+              "pitch": 73,
+              "start": 42257,
+              "duration": 900,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-75",
+              "pitch": 60,
+              "start": 43156,
+              "duration": 1351,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-76",
+              "pitch": 72,
+              "start": 43156,
+              "duration": 600,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-77",
+              "pitch": 67,
+              "start": 43606,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-78",
+              "pitch": 72,
+              "start": 44057,
+              "duration": 765,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-79",
+              "pitch": 61,
+              "start": 44956,
+              "duration": 1530,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-80",
+              "pitch": 72,
+              "start": 44956,
+              "duration": 871,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-81",
+              "pitch": 68,
+              "start": 45422,
+              "duration": 1335,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-82",
+              "pitch": 73,
+              "start": 45857,
+              "duration": 885,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-83",
+              "pitch": 75,
+              "start": 46742,
+              "duration": 735,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-84",
+              "pitch": 61,
+              "start": 46756,
+              "duration": 1351,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-85",
+              "pitch": 68,
+              "start": 47222,
+              "duration": 1125,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-86",
+              "pitch": 75,
+              "start": 47686,
+              "duration": 901,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-87",
+              "pitch": 70,
+              "start": 48587,
+              "duration": 705,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-88",
+              "pitch": 67,
+              "start": 48646,
+              "duration": 1501,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-89",
+              "pitch": 79,
+              "start": 48646,
+              "duration": 736,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-90",
+              "pitch": 60,
+              "start": 49111,
+              "duration": 1366,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-91",
+              "pitch": 70,
+              "start": 49547,
+              "duration": 1364,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-92",
+              "pitch": 67,
+              "start": 50431,
+              "duration": 1606,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-93",
+              "pitch": 60,
+              "start": 50911,
+              "duration": 1261,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-94",
+              "pitch": 70,
+              "start": 51347,
+              "duration": 360,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-95",
+              "pitch": 71,
+              "start": 51782,
+              "duration": 900,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-96",
+              "pitch": 68,
+              "start": 52246,
+              "duration": 2011,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-97",
+              "pitch": 61,
+              "start": 52681,
+              "duration": 1875,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-98",
+              "pitch": 71,
+              "start": 53161,
+              "duration": 795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-99",
+              "pitch": 75,
+              "start": 54001,
+              "duration": 1096,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-100",
+              "pitch": 68,
+              "start": 54481,
+              "duration": 856,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-101",
+              "pitch": 61,
+              "start": 54916,
+              "duration": 495,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-102",
+              "pitch": 75,
+              "start": 55366,
+              "duration": 990,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-103",
+              "pitch": 53,
+              "start": 55801,
+              "duration": 1501,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-104",
+              "pitch": 63,
+              "start": 56236,
+              "duration": 1021,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-105",
+              "pitch": 75,
+              "start": 56731,
+              "duration": 1305,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-106",
+              "pitch": 52,
+              "start": 57542,
+              "duration": 855,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-107",
+              "pitch": 61,
+              "start": 57977,
+              "duration": 1110,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-108",
+              "pitch": 71,
+              "start": 58396,
+              "duration": 1381,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-109",
+              "pitch": 53,
+              "start": 59251,
+              "duration": 1456,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-110",
+              "pitch": 63,
+              "start": 59686,
+              "duration": 1216,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-111",
+              "pitch": 73,
+              "start": 60137,
+              "duration": 825,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-112",
+              "pitch": 52,
+              "start": 60902,
+              "duration": 1529,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-113",
+              "pitch": 72,
+              "start": 60947,
+              "duration": 644,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-114",
+              "pitch": 61,
+              "start": 61366,
+              "duration": 1275,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-115",
+              "pitch": 68,
+              "start": 61862,
+              "duration": 885,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-116",
+              "pitch": 53,
+              "start": 62716,
+              "duration": 1365,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-117",
+              "pitch": 67,
+              "start": 62731,
+              "duration": 555,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-118",
+              "pitch": 60,
+              "start": 63182,
+              "duration": 1335,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-119",
+              "pitch": 67,
+              "start": 63662,
+              "duration": 855,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-120",
+              "pitch": 52,
+              "start": 64516,
+              "duration": 1381,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-121",
+              "pitch": 68,
+              "start": 64516,
+              "duration": 871,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-122",
+              "pitch": 61,
+              "start": 64966,
+              "duration": 1320,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-123",
+              "pitch": 70,
+              "start": 65446,
+              "duration": 840,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-124",
+              "pitch": 53,
+              "start": 66257,
+              "duration": 1305,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-125",
+              "pitch": 67,
+              "start": 66286,
+              "duration": 480,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-126",
+              "pitch": 60,
+              "start": 66737,
+              "duration": 1290,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-127",
+              "pitch": 67,
+              "start": 67187,
+              "duration": 840,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-128",
+              "pitch": 68,
+              "start": 68027,
+              "duration": 1004,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-129",
+              "pitch": 52,
+              "start": 68071,
+              "duration": 1516,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-130",
+              "pitch": 53,
+              "start": 68071,
+              "duration": 151,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-131",
+              "pitch": 61,
+              "start": 68611,
+              "duration": 1291,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-132",
+              "pitch": 70,
+              "start": 69046,
+              "duration": 616,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-133",
+              "pitch": 53,
+              "start": 69886,
+              "duration": 1830,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-134",
+              "pitch": 75,
+              "start": 69886,
+              "duration": 781,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-135",
+              "pitch": 61,
+              "start": 70351,
+              "duration": 871,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-136",
+              "pitch": 75,
+              "start": 70817,
+              "duration": 1814,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-137",
+              "pitch": 63,
+              "start": 71222,
+              "duration": 420,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-138",
+              "pitch": 60,
+              "start": 71716,
+              "duration": 1711,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-139",
+              "pitch": 52,
+              "start": 72121,
+              "duration": 1066,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-140",
+              "pitch": 73,
+              "start": 72631,
+              "duration": 766,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-141",
+              "pitch": 53,
+              "start": 73366,
+              "duration": 1816,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-142",
+              "pitch": 72,
+              "start": 73396,
+              "duration": 570,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-143",
+              "pitch": 63,
+              "start": 73862,
+              "duration": 1065,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-144",
+              "pitch": 72,
+              "start": 74342,
+              "duration": 870,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-145",
+              "pitch": 60,
+              "start": 75182,
+              "duration": 1755,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-146",
+              "pitch": 73,
+              "start": 75196,
+              "duration": 690,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-147",
+              "pitch": 65,
+              "start": 75601,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-148",
+              "pitch": 73,
+              "start": 76081,
+              "duration": 435,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-149",
+              "pitch": 72,
+              "start": 76516,
+              "duration": 421,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-150",
+              "pitch": 52,
+              "start": 76937,
+              "duration": 1470,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-151",
+              "pitch": 68,
+              "start": 77071,
+              "duration": 406,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-152",
+              "pitch": 61,
+              "start": 77431,
+              "duration": 1261,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-153",
+              "pitch": 68,
+              "start": 77881,
+              "duration": 435,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-154",
+              "pitch": 70,
+              "start": 78316,
+              "duration": 991,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-155",
+              "pitch": 53,
+              "start": 78707,
+              "duration": 1515,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-156",
+              "pitch": 60,
+              "start": 79156,
+              "duration": 1335,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-157",
+              "pitch": 68,
+              "start": 79651,
+              "duration": 795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-158",
+              "pitch": 52,
+              "start": 80446,
+              "duration": 1456,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-159",
+              "pitch": 67,
+              "start": 80446,
+              "duration": 525,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-160",
+              "pitch": 61,
+              "start": 80911,
+              "duration": 1261,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-161",
+              "pitch": 67,
+              "start": 81347,
+              "duration": 465,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-162",
+              "pitch": 68,
+              "start": 81811,
+              "duration": 886,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-163",
+              "pitch": 53,
+              "start": 82201,
+              "duration": 1590,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-164",
+              "pitch": 60,
+              "start": 82651,
+              "duration": 1155,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-165",
+              "pitch": 68,
+              "start": 83102,
+              "duration": 705,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-166",
+              "pitch": 58,
+              "start": 85592,
+              "duration": 810,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-167",
+              "pitch": 65,
+              "start": 86072,
+              "duration": 3060,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-168",
+              "pitch": 58,
+              "start": 86521,
+              "duration": 3405,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-169",
+              "pitch": 70,
+              "start": 87512,
+              "duration": 1395,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-170",
+              "pitch": 70,
+              "start": 89041,
+              "duration": 376,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-171",
+              "pitch": 53,
+              "start": 89491,
+              "duration": 3256,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-172",
+              "pitch": 70,
+              "start": 89507,
+              "duration": 945,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-173",
+              "pitch": 63,
+              "start": 89987,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-174",
+              "pitch": 68,
+              "start": 90467,
+              "duration": 2160,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-175",
+              "pitch": 63,
+              "start": 91441,
+              "duration": 1890,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-176",
+              "pitch": 68,
+              "start": 92837,
+              "duration": 360,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-177",
+              "pitch": 52,
+              "start": 93286,
+              "duration": 3346,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-178",
+              "pitch": 71,
+              "start": 93317,
+              "duration": 945,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-179",
+              "pitch": 61,
+              "start": 93797,
+              "duration": 3240,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-180",
+              "pitch": 70,
+              "start": 94262,
+              "duration": 870,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-181",
+              "pitch": 68,
+              "start": 95147,
+              "duration": 1395,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-182",
+              "pitch": 67,
+              "start": 96542,
+              "duration": 450,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-183",
+              "pitch": 53,
+              "start": 96992,
+              "duration": 3705,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-184",
+              "pitch": 68,
+              "start": 96992,
+              "duration": 526,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-185",
+              "pitch": 63,
+              "start": 97457,
+              "duration": 1170,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-186",
+              "pitch": 68,
+              "start": 97952,
+              "duration": 1710,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-187",
+              "pitch": 63,
+              "start": 98897,
+              "duration": 1741,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-188",
+              "pitch": 68,
+              "start": 100441,
+              "duration": 1125,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-189",
+              "pitch": 58,
+              "start": 101086,
+              "duration": 2835,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-190",
+              "pitch": 65,
+              "start": 101552,
+              "duration": 2955,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-191",
+              "pitch": 68,
+              "start": 101987,
+              "duration": 870,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-192",
+              "pitch": 70,
+              "start": 102902,
+              "duration": 1336,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-193",
+              "pitch": 70,
+              "start": 104387,
+              "duration": 900,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-194",
+              "pitch": 53,
+              "start": 104747,
+              "duration": 3315,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-195",
+              "pitch": 63,
+              "start": 105227,
+              "duration": 1365,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-196",
+              "pitch": 68,
+              "start": 105691,
+              "duration": 901,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-197",
+              "pitch": 65,
+              "start": 106592,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-198",
+              "pitch": 68,
+              "start": 107942,
+              "duration": 1020,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-199",
+              "pitch": 52,
+              "start": 108406,
+              "duration": 3091,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-200",
+              "pitch": 61,
+              "start": 108872,
+              "duration": 3105,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-201",
+              "pitch": 68,
+              "start": 109382,
+              "duration": 405,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-202",
+              "pitch": 70,
+              "start": 109787,
+              "duration": 420,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-203",
+              "pitch": 71,
+              "start": 110206,
+              "duration": 1125,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-204",
+              "pitch": 70,
+              "start": 111451,
+              "duration": 526,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-205",
+              "pitch": 53,
+              "start": 111977,
+              "duration": 3255,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-206",
+              "pitch": 68,
+              "start": 111977,
+              "duration": 495,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-207",
+              "pitch": 63,
+              "start": 112382,
+              "duration": 1125,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-208",
+              "pitch": 68,
+              "start": 112891,
+              "duration": 1875,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-209",
+              "pitch": 63,
+              "start": 113777,
+              "duration": 1515,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-210",
+              "pitch": 68,
+              "start": 115171,
+              "duration": 976,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-211",
+              "pitch": 48,
+              "start": 115667,
+              "duration": 3150,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-212",
+              "pitch": 65,
+              "start": 116147,
+              "duration": 931,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-213",
+              "pitch": 60,
+              "start": 117077,
+              "duration": 2550,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-214",
+              "pitch": 68,
+              "start": 117077,
+              "duration": 1740,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-215",
+              "pitch": 67,
+              "start": 118771,
+              "duration": 1966,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-216",
+              "pitch": 58,
+              "start": 120737,
+              "duration": 1920,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-217",
+              "pitch": 70,
+              "start": 120766,
+              "duration": 600,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-218",
+              "pitch": 65,
+              "start": 121217,
+              "duration": 1815,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-219",
+              "pitch": 73,
+              "start": 121651,
+              "duration": 886,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-220",
+              "pitch": 72,
+              "start": 122521,
+              "duration": 720,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-221",
+              "pitch": 58,
+              "start": 122957,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-222",
+              "pitch": 68,
+              "start": 123406,
+              "duration": 1411,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-223",
+              "pitch": 65,
+              "start": 123841,
+              "duration": 436,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-224",
+              "pitch": 53,
+              "start": 124277,
+              "duration": 2040,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-225",
+              "pitch": 63,
+              "start": 124726,
+              "duration": 2701,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-226",
+              "pitch": 70,
+              "start": 125192,
+              "duration": 825,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-227",
+              "pitch": 72,
+              "start": 126077,
+              "duration": 764,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-228",
+              "pitch": 68,
+              "start": 126931,
+              "duration": 870,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-229",
+              "pitch": 53,
+              "start": 127352,
+              "duration": 375,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-230",
+              "pitch": 52,
+              "start": 127832,
+              "duration": 2340,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-231",
+              "pitch": 69,
+              "start": 127877,
+              "duration": 854,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-232",
+              "pitch": 61,
+              "start": 128312,
+              "duration": 2370,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-233",
+              "pitch": 71,
+              "start": 128881,
+              "duration": 810,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-234",
+              "pitch": 68,
+              "start": 129737,
+              "duration": 1335,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-235",
+              "pitch": 52,
+              "start": 130606,
+              "duration": 571,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-236",
+              "pitch": 67,
+              "start": 131057,
+              "duration": 480,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-237",
+              "pitch": 53,
+              "start": 131477,
+              "duration": 1635,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-238",
+              "pitch": 68,
+              "start": 131507,
+              "duration": 480,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-239",
+              "pitch": 63,
+              "start": 131942,
+              "duration": 915,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-240",
+              "pitch": 68,
+              "start": 132361,
+              "duration": 1845,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-241",
+              "pitch": 75,
+              "start": 132857,
+              "duration": 1590,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-242",
+              "pitch": 53,
+              "start": 133307,
+              "duration": 1335,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-243",
+              "pitch": 63,
+              "start": 134237,
+              "duration": 600,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-244",
+              "pitch": 68,
+              "start": 134686,
+              "duration": 826,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-245",
+              "pitch": 58,
+              "start": 135121,
+              "duration": 1936,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-246",
+              "pitch": 65,
+              "start": 135557,
+              "duration": 2235,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-247",
+              "pitch": 73,
+              "start": 136022,
+              "duration": 825,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-248",
+              "pitch": 72,
+              "start": 136891,
+              "duration": 541,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-249",
+              "pitch": 58,
+              "start": 137312,
+              "duration": 825,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-250",
+              "pitch": 68,
+              "start": 137747,
+              "duration": 1350,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-251",
+              "pitch": 53,
+              "start": 138526,
+              "duration": 931,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-252",
+              "pitch": 60,
+              "start": 138977,
+              "duration": 2895,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-253",
+              "pitch": 65,
+              "start": 139457,
+              "duration": 1575,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-254",
+              "pitch": 70,
+              "start": 139457,
+              "duration": 781,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-255",
+              "pitch": 72,
+              "start": 140326,
+              "duration": 856,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-256",
+              "pitch": 65,
+              "start": 141241,
+              "duration": 810,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-257",
+              "pitch": 68,
+              "start": 141241,
+              "duration": 871,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-258",
+              "pitch": 52,
+              "start": 142157,
+              "duration": 3240,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-259",
+              "pitch": 68,
+              "start": 142187,
+              "duration": 735,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-260",
+              "pitch": 63,
+              "start": 142606,
+              "duration": 3256,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-261",
+              "pitch": 68,
+              "start": 143086,
+              "duration": 781,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-262",
+              "pitch": 71,
+              "start": 144001,
+              "duration": 1186,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-263",
+              "pitch": 70,
+              "start": 145397,
+              "duration": 449,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-264",
+              "pitch": 53,
+              "start": 145787,
+              "duration": 3720,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-265",
+              "pitch": 68,
+              "start": 145846,
+              "duration": 571,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-266",
+              "pitch": 63,
+              "start": 146297,
+              "duration": 3165,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-267",
+              "pitch": 68,
+              "start": 146792,
+              "duration": 2190,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-268",
+              "pitch": 75,
+              "start": 147782,
+              "duration": 1395,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-269",
+              "pitch": 68,
+              "start": 149177,
+              "duration": 1200,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-270",
+              "pitch": 52,
+              "start": 149731,
+              "duration": 3541,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-271",
+              "pitch": 63,
+              "start": 150211,
+              "duration": 1381,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-272",
+              "pitch": 68,
+              "start": 150721,
+              "duration": 736,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-273",
+              "pitch": 68,
+              "start": 151622,
+              "duration": 2505,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-274",
+              "pitch": 76,
+              "start": 151622,
+              "duration": 1260,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-275",
+              "pitch": 75,
+              "start": 153062,
+              "duration": 1065,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-276",
+              "pitch": 53,
+              "start": 153542,
+              "duration": 5370,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-277",
+              "pitch": 63,
+              "start": 154051,
+              "duration": 586,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-278",
+              "pitch": 68,
+              "start": 154637,
+              "duration": 1080,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-279",
+              "pitch": 75,
+              "start": 154637,
+              "duration": 1049,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-280",
+              "pitch": 63,
+              "start": 155822,
+              "duration": 2416,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-281",
+              "pitch": 75,
+              "start": 155837,
+              "duration": 2369,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-282",
+              "pitch": 67,
+              "start": 155851,
+              "duration": 4230,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-283",
+              "pitch": 53,
+              "start": 161237,
+              "duration": 3180,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-284",
+              "pitch": 68,
+              "start": 161237,
+              "duration": 540,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-285",
+              "pitch": 63,
+              "start": 161686,
+              "duration": 2656,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-286",
+              "pitch": 68,
+              "start": 162107,
+              "duration": 825,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-287",
+              "pitch": 70,
+              "start": 162961,
+              "duration": 1261,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-288",
+              "pitch": 72,
+              "start": 164312,
+              "duration": 1080,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-289",
+              "pitch": 52,
+              "start": 164747,
+              "duration": 3405,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-290",
+              "pitch": 61,
+              "start": 165182,
+              "duration": 2970,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-291",
+              "pitch": 72,
+              "start": 165632,
+              "duration": 435,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-292",
+              "pitch": 70,
+              "start": 166067,
+              "duration": 405,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-293",
+              "pitch": 65,
+              "start": 166517,
+              "duration": 1889,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-294",
+              "pitch": 53,
+              "start": 168361,
+              "duration": 3045,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-295",
+              "pitch": 68,
+              "start": 168406,
+              "duration": 496,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-296",
+              "pitch": 63,
+              "start": 168811,
+              "duration": 3061,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-297",
+              "pitch": 68,
+              "start": 169217,
+              "duration": 390,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-298",
+              "pitch": 70,
+              "start": 169667,
+              "duration": 360,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-299",
+              "pitch": 72,
+              "start": 170117,
+              "duration": 884,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-300",
+              "pitch": 70,
+              "start": 171001,
+              "duration": 376,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-301",
+              "pitch": 68,
+              "start": 171377,
+              "duration": 495,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-302",
+              "pitch": 52,
+              "start": 171797,
+              "duration": 3300,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-303",
+              "pitch": 71,
+              "start": 171872,
+              "duration": 526,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-304",
+              "pitch": 61,
+              "start": 172277,
+              "duration": 3240,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-305",
+              "pitch": 71,
+              "start": 172726,
+              "duration": 691,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-306",
+              "pitch": 75,
+              "start": 173611,
+              "duration": 1486,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-307",
+              "pitch": 73,
+              "start": 175097,
+              "duration": 421,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-308",
+              "pitch": 53,
+              "start": 175517,
+              "duration": 3374,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-309",
+              "pitch": 75,
+              "start": 175517,
+              "duration": 465,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-310",
+              "pitch": 63,
+              "start": 175937,
+              "duration": 585,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-311",
+              "pitch": 67,
+              "start": 176477,
+              "duration": 884,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-312",
+              "pitch": 75,
+              "start": 176507,
+              "duration": 2115,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-313",
+              "pitch": 68,
+              "start": 177422,
+              "duration": 1155,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-314",
+              "pitch": 70,
+              "start": 178742,
+              "duration": 1200,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-315",
+              "pitch": 75,
+              "start": 178771,
+              "duration": 1246,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-316",
+              "pitch": 52,
+              "start": 179206,
+              "duration": 3346,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-317",
+              "pitch": 61,
+              "start": 179627,
+              "duration": 2955,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-318",
+              "pitch": 67,
+              "start": 180107,
+              "duration": 795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-319",
+              "pitch": 75,
+              "start": 180137,
+              "duration": 735,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-320",
+              "pitch": 68,
+              "start": 180977,
+              "duration": 1200,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-321",
+              "pitch": 75,
+              "start": 180977,
+              "duration": 1261,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-322",
+              "pitch": 67,
+              "start": 182326,
+              "duration": 991,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-323",
+              "pitch": 75,
+              "start": 182326,
+              "duration": 991,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-324",
+              "pitch": 53,
+              "start": 182822,
+              "duration": 3270,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-325",
+              "pitch": 63,
+              "start": 183227,
+              "duration": 2865,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-326",
+              "pitch": 67,
+              "start": 183707,
+              "duration": 795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-327",
+              "pitch": 75,
+              "start": 183707,
+              "duration": 795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-328",
+              "pitch": 70,
+              "start": 184592,
+              "duration": 1020,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-329",
+              "pitch": 75,
+              "start": 184651,
+              "duration": 1006,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-330",
+              "pitch": 72,
+              "start": 185837,
+              "duration": 1020,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-331",
+              "pitch": 75,
+              "start": 185867,
+              "duration": 990,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-332",
+              "pitch": 52,
+              "start": 186331,
+              "duration": 3795,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-333",
+              "pitch": 61,
+              "start": 186737,
+              "duration": 3390,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-334",
+              "pitch": 72,
+              "start": 187187,
+              "duration": 765,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-335",
+              "pitch": 75,
+              "start": 187187,
+              "duration": 2055,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-336",
+              "pitch": 70,
+              "start": 188057,
+              "duration": 1215,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-337",
+              "pitch": 68,
+              "start": 189497,
+              "duration": 975,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-338",
+              "pitch": 63,
+              "start": 190787,
+              "duration": 2820,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-339",
+              "pitch": 53,
+              "start": 190787,
+              "duration": 2820,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-340",
+              "pitch": 67,
+              "start": 190787,
+              "duration": 135,
+              "velocity": 0.3937007874015748
+            },
+            {
+              "id": "piano-emotional-solo-139-note-1-1-341",
+              "pitch": 68,
+              "start": 190862,
+              "duration": 3736,
+              "velocity": 0.3937007874015748
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    }
+  ]
+}

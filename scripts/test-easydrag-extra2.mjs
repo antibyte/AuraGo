@@ -85,6 +85,7 @@ export async function run(env) {
         proto.setSelectionRange = function (start, end) { this.selectionStart = start; this.selectionEnd = end; };
         proto.scrollIntoView = function () {};
         proto.click = function () { this.fire('click'); };
+        proto.dispatchEvent = function (event) { this.fire(event && event.type, event || {}); return true; };
         const docListeners = {};
         const windowListeners = {};
         Object.assign(dom.document, {
@@ -118,6 +119,7 @@ export async function run(env) {
             clearTimeout: id => { timers.delete(id); },
             requestAnimationFrame: fn => { const id = nextId++; frames.set(id, fn); return id; },
             cancelAnimationFrame: id => { frames.delete(id); },
+            Event: function Event(type, init) { this.type = type; if (init) Object.assign(this, init); },
             CSS: { escape: value => String(value) },
             ResizeObserver: class { observe() {} disconnect() {} }
         });
@@ -762,17 +764,171 @@ export async function run(env) {
         const toNote = [active().getAttribute('data-ed-pane'), root.querySelector('[data-ed-pane="note"]').getAttribute('aria-selected'), h.ed.detail.nodeId()];
         active().fire('keydown', { key: 'ArrowRight' });
         const wrapped = active().getAttribute('data-ed-pane');
-        // Tab and Shift+Tab stay inside the dialog.
+        // The inspector is not modal: Tab is not trapped and there is no aria-modal dialog.
         const first = root.querySelector('[data-ed-nav="-1"]');
         first.focus();
         const back = first.fire('keydown', { key: 'Tab', shiftKey: true });
-        const last = active();
-        const forth = last.fire('keydown', { key: 'Tab', shiftKey: false });
-        eq('c1d06 the detail view names its fields, keeps arrows in tab groups and traps Tab',
-            [names, toNote, wrapped, back.defaultPrevented, last !== first && dialog.contains(last), forth.defaultPrevented, active() === first],
-            [[true, 'settings_on_error', 'detail_note'], ['note', 'true', A], 'params', true, true, true, true]);
+        const forth = first.fire('keydown', { key: 'Tab', shiftKey: false });
+        const backdrop = root.querySelector('.ed-detail-backdrop');
+        eq('c1d06 the detail view names its fields, keeps arrows in tab groups and does not trap Tab',
+            [names, toNote, wrapped, back.defaultPrevented, forth.defaultPrevented, active() === first, dialog.getAttribute('role'), dialog.getAttribute('aria-modal'), backdrop.localName],
+            [[true, 'settings_on_error', 'detail_note'], ['note', 'true', A], 'params', false, false, true, 'region', null, 'aside']);
         h.ED.detail.close(h.ed);
         eq('c1d06 the keyboard checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 inspector is not a modal', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.ed.root = h.ED.core.el('<div class="ed-editor"><div class="ed-body"></div></div>');
+        h.ed.root.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 700, width: 400, height: 700 });
+        h.ED.detail.open(h.ed, A);
+        const backdrop = h.ed.root.querySelector('.ed-detail-backdrop');
+        const narrow = h.ed.root.classList.contains('is-inspector');
+        backdrop.fire('click');
+        const stayed = !!h.ed.detail;
+        h.ed.root.getBoundingClientRect = () => ({ left: 0, top: 0, right: 1200, bottom: 800, width: 1200, height: 800 });
+        h.win.dispatchEvent({ type: 'resize' });
+        const wide = h.ed.root.classList.contains('is-inspector');
+        const body = h.ed.root.querySelector('.ed-body');
+        const mounted = backdrop.parentNode === body;
+        // Flush writes the open template and leaves that editor on screen.
+        const tpl = h.ed.root.querySelector('[data-pane="params"] .ed-tpl');
+        tpl.querySelector('.ed-tpl-view').fire('click');
+        const tplInput = tpl.querySelector('.ed-tpl-input');
+        tplInput.value = 'fresh';
+        const tplFlushed = h.ed.detail.flushPendingEdits();
+        const tplStill = tpl.classList.contains('is-editing') && tplInput.value === 'fresh' && h.model.node(A).params.query === 'fresh';
+        // A refused key stays typed and blocks the switch onto another step.
+        h.ed.root.querySelector('[data-ed-pane="settings"]').fire('click');
+        const keyInput = h.ed.root.querySelector('[data-pane="settings"] input.ed-code');
+        keyInput.value = 'beta';
+        const refused = h.ed.detail.flushPendingEdits();
+        const typed = keyInput.value;
+        const blocked = h.ED.detail.open(h.ed, B);
+        keyInput.value = 'alpha';
+        const noteHost = () => h.ed.root.querySelector('[data-pane="note"] textarea');
+        h.ed.root.querySelector('[data-ed-pane="note"]').fire('click');
+        noteHost().value = 'kept';
+        noteHost().fire('input');
+        const noted = h.ed.detail.flushPendingEdits();
+        const gone = h.ed.detail.nodeId();
+        const orig = h.ed.model.node.bind(h.ed.model);
+        h.ed.model.node = id => (id === gone ? null : orig(id));
+        h.bus.emit('model', { nodes: [gone], kind: 'change' });
+        h.runTimers();
+        const kept = orig(A);
+        eq('c1d06 the inspector mounts in the body, does not close on an outside click, and flushes before a switch',
+            [mounted, narrow, stayed, wide, tplFlushed, tplStill, refused, typed, blocked && blocked.nodeId(), kept.key, noted, kept.settings.notes, h.ed.detail],
+            [true, true, true, false, true, true, false, 'beta', A, 'alpha', true, 'kept', null]);
+        eq('c1d06 the inspector checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 a hidden settings key does not rewrite the next step', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.ED.detail.open(h.ed, A);
+        h.ed.root.querySelector('[data-ed-pane="settings"]').fire('click');
+        const keyInput = () => h.ed.root.querySelector('[data-pane="settings"] input.ed-code');
+        keyInput().value = 'beta';
+        keyInput().fire('input');
+        h.ed.root.querySelector('[data-ed-pane="params"]').fire('click');
+        h.ed.root.querySelector('[data-ed-nav="1"]').fire('click');
+        const blocked = [h.ed.detail.nodeId(), keyInput().value, h.model.node(A).key, h.model.node(B).key];
+        keyInput().value = 'alpha';
+        keyInput().fire('input');
+        h.ed.root.querySelector('[data-ed-pane="params"]').fire('click');
+        h.ed.root.querySelector('[data-ed-nav="1"]').fire('click');
+        const moved = h.ed.detail.nodeId();
+        const stale = h.ed.root.querySelector('[data-pane="settings"] input.ed-code');
+        const flushed = h.ed.detail.flushPendingEdits();
+        h.ed.detail.close();
+        eq('c1d06 settings, parameters, next, then save leaves both keys unchanged',
+            [blocked, moved, !!stale, flushed, h.model.node(A).key, h.model.node(B).key, h.ed.detail],
+            [['n_aaaaaaaa', 'beta', 'alpha', 'beta'], B, false, true, 'alpha', 'beta', null]);
+        eq('c1d06 the hidden key checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 decision instruction flush keeps questions and ports', async () => {
+        const decisionTypes = new Map(types);
+        decisionTypes.set('ai.decision', Object.assign({}, types.get('ai.decision'), {
+            params: [{ name: 'questions', kind: 'decision_questions', label: 'Questions' }]
+        }));
+        const D = 'n_dddddddd';
+        const branch = 'n_eeeeeeee';
+        const doc = {
+            schema: 1, name: 'Flow',
+            nodes: [
+                { id: T1, key: 'start', type: 'trigger.manual', label: 'Start', position: { x: 0, y: 0 }, params: {}, settings: {} },
+                { id: D, key: 'decide', type: 'ai.decision', label: 'Decide', position: { x: 300, y: 0 }, params: { questions: [{ id: 'intent', type: 'choice', instructions: 'Choose', options: [{ id: 'approve', label: 'Approve' }, { id: 'reject', label: 'Reject' }] }] }, settings: {} },
+                { id: branch, key: 'branch', type: 'logic.if', label: 'Branch', position: { x: 600, y: 0 }, params: {}, settings: {} }
+            ],
+            edges: [{ id: 'e1', source: { node: D, port: 'choice_approve' }, target: { node: branch, port: 'in' } }]
+        };
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); }, { doc, types: decisionTypes });
+        h.ED.detail.open(h.ed, D);
+        const tpl = h.ed.root.querySelector('.ed-decision-instructions .ed-tpl');
+        tpl.querySelector('.ed-tpl-view').fire('click');
+        tpl.querySelector('.ed-tpl-input').value = 'Choose carefully';
+        const ok = h.ed.detail.flushPendingEdits();
+        const node = h.model.node(D);
+        const q = node.params.questions;
+        eq('c1d06 flushing decision instructions keeps the question array, option ids and ports',
+            [!!tpl, ok, tpl.classList.contains('is-editing'), q.map(item => [item.id, item.instructions, item.options.map(o => o.id)]), h.model.outputs(node), h.model.outgoing(D).map(e => e.source.port)],
+            [true, true, true, [['intent', 'Choose carefully', ['approve', 'reject']]], ['choice_approve', 'choice_reject', 'uncertain'], ['choice_approve']]);
+        h.ED.detail.close(h.ed);
+        eq('c1d06 the decision flush checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 focused decision fields and a bad number flush', async () => {
+        const decisionTypes = new Map(types);
+        decisionTypes.set('ai.decision', Object.assign({}, types.get('ai.decision'), {
+            params: [{ name: 'questions', kind: 'decision_questions', label: 'Questions' }]
+        }));
+        const D = 'n_dddddddd';
+        const questions = [{ id: 'intent', type: 'score', instructions: 'Choose', options: [{ id: 'approve', label: 'Approve', value: 1 }, { id: 'reject', label: 'Reject', value: 0 }] }];
+        const doc = {
+            schema: 1, name: 'Flow',
+            nodes: [
+                { id: T1, key: 'start', type: 'trigger.manual', label: 'Start', position: { x: 0, y: 0 }, params: {}, settings: {} },
+                { id: D, key: 'decide', type: 'ai.decision', label: 'Decide', position: { x: 300, y: 0 }, params: { questions }, settings: {} }
+            ],
+            edges: []
+        };
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); }, { doc, types: decisionTypes });
+        h.ED.detail.open(h.ed, D);
+        const option = () => h.model.node(D).params.questions[0].options[0];
+        const other = () => h.model.node(D).params.questions[0].options[1];
+        const idInput = h.ed.root.querySelector('[data-ed-decision-option-id]');
+        idInput.focus();
+        idInput.value = 'kept';
+        const idOk = h.ed.detail.flushPendingEdits();
+        const label = h.ed.root.querySelector('[data-ed-decision-label]');
+        label.focus();
+        label.value = 'Kept';
+        const labelOk = h.ed.detail.flushPendingEdits();
+        const score = h.ed.root.querySelector('[data-ed-decision-score]');
+        score.focus();
+        score.value = '4';
+        const scoreOk = h.ed.detail.flushPendingEdits();
+        const saved = [idOk, labelOk, scoreOk, option(), other(), h.model.node(D).params.questions.map(q => q.id)];
+        h.ED.detail.close(h.ed);
+        const n = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        n.ED.detail.open(n.ed, A);
+        const count = n.ed.root.querySelectorAll('[data-pane="params"] input').find(el => el.getAttribute('type') === 'number');
+        count.focus();
+        count.value = '5';
+        const seeded = n.ed.detail.flushPendingEdits();
+        count.value = '';
+        count.validity = { badInput: true, valid: false };
+        const bad = n.ed.detail.flushPendingEdits();
+        const keptCount = n.model.node(A).params.count;
+        const keptText = count.value;
+        count.validity = { badInput: false, valid: true };
+        const cleared = n.ed.detail.flushPendingEdits();
+        eq('c1d06 a focused decision option id, label and score flush, and a bad number does not clear',
+            [saved, seeded, bad, keptCount, keptText, cleared, n.model.node(A).params.count],
+            [[true, true, true, { id: 'kept', label: 'Kept', value: 4 }, { id: 'reject', label: 'Reject', value: 0 }, ['intent']], true, false, 5, '', true, undefined]);
+        n.ED.detail.close(n.ed);
+        eq('c1d06 the focused field flush checks log no errors', h.logged.concat(n.logged), []);
     });
 
     await guardAsync('c1d06 review dispose', async () => {

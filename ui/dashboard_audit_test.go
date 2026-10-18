@@ -8,10 +8,10 @@ import (
 func TestDashboardAuditTabContract(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "dashboard.html")
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
-		`data-tab="audit"`,
-		`id="tab-audit"`,
+		`data-section-link="audit"`,
+		`id="sec-audit"`,
 		`id="audit-search"`,
 		`id="audit-source-filter"`,
 		`id="audit-status-filter"`,

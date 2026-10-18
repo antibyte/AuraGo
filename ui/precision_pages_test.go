@@ -265,15 +265,16 @@ func TestConfigPrecisionWorkspaceSharedIntegration(t *testing.T) {
 func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	t.Parallel()
 
-	html := normalizeAssetText(mustReadUIFile(t, "dashboard.html"))
+	html := readDashboardMarkup(t)
 	for _, marker := range []string{
 		`<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">`,
 		`href="#main-content"`,
 		`/css/dashboard.css?v={{.BuildVersion}}`,
-		`data-tab="overview" id="dash-tab-overview"`,
-		`data-tab="agent" id="dash-tab-agent"`,
-		`id="tab-overview" role="tabpanel"`,
-		`id="tab-agent" role="tabpanel"`,
+		`href="#overview" data-section-link="overview"`,
+		`href="#personality" data-section-link="personality"`,
+		`<section class="dash-section" id="sec-overview"`,
+		`<section class="dash-section" id="sec-personality"`,
+		`<main class="dash-content pw-page-frame" id="main-content">`,
 		`id="card-agent-banner"`,
 		`id="agent-banner"`,
 		`id="card-system"`,
@@ -290,12 +291,13 @@ func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	}
 
 	dashboardAt := strings.Index(html, `/css/dashboard.css?v={{.BuildVersion}}`)
+	shellAt := strings.Index(html, `/css/dashboard-shell.css?v={{.BuildVersion}}`)
 	enhancementsAt := strings.Index(html, `/css/enhancements.css?v={{.BuildVersion}}`)
 	foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
 	componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
-	if dashboardAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
-		!(dashboardAt < enhancementsAt && enhancementsAt < foundationAt && foundationAt < componentsAt) {
-		t.Errorf("Dashboard Precision CSS order = dashboard:%d enhancements:%d foundation:%d components:%d", dashboardAt, enhancementsAt, foundationAt, componentsAt)
+	if dashboardAt < 0 || shellAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
+		!(dashboardAt < shellAt && shellAt < enhancementsAt && enhancementsAt < foundationAt && foundationAt < componentsAt) {
+		t.Errorf("Dashboard Precision CSS order = dashboard:%d shell:%d enhancements:%d foundation:%d components:%d", dashboardAt, shellAt, enhancementsAt, foundationAt, componentsAt)
 	}
 
 	workspaceAt := strings.Index(html, `/js/precision/workspace.js?v={{.BuildVersion}}`)
@@ -333,8 +335,6 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 		`@media (max-width: 640px)`,
 		`min-height: 44px;`,
 		`@media (prefers-reduced-motion: reduce)`,
-		prefix + ` #tab-agent .dash-grid`,
-		`columns: 2;`,
 	} {
 		if !strings.Contains(styles, marker) {
 			t.Errorf("Dashboard Precision styles missing marker %q", marker)
@@ -385,16 +385,13 @@ func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testi
 		mobileEnd   = `@media (prefers-reduced-motion: reduce)`
 		prefix      = `.pw-page[data-workspace-page="dashboard"][data-density="compact"]`
 	)
-	styles := css
-	mobileAt := strings.Index(styles, mobileStart)
-	reducedMotionAt := strings.Index(styles, mobileEnd)
+	mobileAt := strings.Index(css, mobileStart)
+	reducedMotionAt := strings.Index(css, mobileEnd)
 	if mobileAt < 0 || reducedMotionAt <= mobileAt {
 		t.Fatalf("Dashboard Precision styles missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
 	}
-	mobile := styles[mobileAt:reducedMotionAt]
-
+	mobile := css[mobileAt:reducedMotionAt]
 	for _, marker := range []string{
-		prefix + ` .dash-tab {`,
 		prefix + ` input,`,
 		prefix + ` select,`,
 		prefix + ` textarea,`,
@@ -404,9 +401,6 @@ func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testi
 			t.Errorf("Dashboard compact mobile block missing touch-target selector %q", marker)
 		}
 	}
-	if matches := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` .dash-tab`) + `\s*\{[^}]*min-height:\s*44px;`).FindString(mobile); matches == "" {
-		t.Error("Dashboard compact mobile tab rule must explicitly restore min-height: 44px")
-	}
 	controlsAt := strings.Index(mobile, prefix+` input,`)
 	if controlsAt < 0 {
 		t.Fatal("Dashboard compact mobile controls rule not found")
@@ -414,6 +408,13 @@ func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testi
 	controlsEnd := strings.Index(mobile[controlsAt:], "}")
 	if controlsEnd < 0 || !strings.Contains(mobile[controlsAt:controlsAt+controlsEnd], `min-height: 44px;`) {
 		t.Error("Dashboard compact mobile controls rule must explicitly restore min-height: 44px")
+	}
+
+	// The sidebar links replace the tab buttons as compact-density touch targets.
+	shell := normalizeAssetText(mustReadUIFile(t, "css/dashboard-shell.css"))
+	shellMobile := dashboardCSSAtBlock(t, shell, mobileStart)
+	if regexp.MustCompile(`(?s)`+regexp.QuoteMeta(prefix+` .dash-nav-link`)+`\s*\{[^}]*min-height:\s*44px;`).FindString(shellMobile) == "" {
+		t.Error("Dashboard compact mobile sidebar links must explicitly restore min-height: 44px")
 	}
 }
 
@@ -2269,7 +2270,7 @@ func TestPrecisionChangedPageAssetsUseReleaseBuildVersion(t *testing.T) {
 		assets   []string
 	}{
 		{template: "config.html", assets: []string{`/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/config/main.js?v={{.BuildVersion}}`}},
-		{template: "dashboard.html", assets: []string{`/css/dashboard.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "dashboard.html", assets: []string{`/css/dashboard.css?v={{.BuildVersion}}`, `/css/dashboard-shell.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
 		{template: "plans.html", assets: []string{`/css/plans.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
 		{template: "missions_v2.html", assets: []string{`/css/missions.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
 		{template: "cheatsheets.html", assets: []string{`/css/cheatsheets.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},

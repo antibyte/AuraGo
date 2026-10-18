@@ -1,0 +1,5325 @@
+{
+  "version": 1,
+  "name": "Crystal Tune Bright 1",
+  "tempo": 120,
+  "ppq": 480,
+  "beatsPerBar": 4,
+  "loop": {
+    "enabled": false,
+    "start": 0,
+    "end": 7680
+  },
+  "tracks": [
+    {
+      "id": "crystal-tune-bright-1-track-1",
+      "name": "Track 1",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-1-1",
+          "name": "Track 1",
+          "start": 0,
+          "length": 19200,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-1-1-1",
+              "pitch": 48,
+              "start": 571,
+              "duration": 645,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-2",
+              "pitch": 72,
+              "start": 571,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-3",
+              "pitch": 60,
+              "start": 1216,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-4",
+              "pitch": 63,
+              "start": 1681,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-5",
+              "pitch": 67,
+              "start": 1696,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-6",
+              "pitch": 60,
+              "start": 2191,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-7",
+              "pitch": 72,
+              "start": 2191,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-8",
+              "pitch": 49,
+              "start": 2716,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-9",
+              "pitch": 71,
+              "start": 2716,
+              "duration": 975,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-10",
+              "pitch": 61,
+              "start": 3256,
+              "duration": 1335,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-11",
+              "pitch": 65,
+              "start": 3796,
+              "duration": 750,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-12",
+              "pitch": 71,
+              "start": 3796,
+              "duration": 1095,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-13",
+              "pitch": 48,
+              "start": 4891,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-14",
+              "pitch": 67,
+              "start": 4906,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-15",
+              "pitch": 60,
+              "start": 5431,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-16",
+              "pitch": 63,
+              "start": 5956,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-17",
+              "pitch": 68,
+              "start": 5956,
+              "duration": 1290,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-18",
+              "pitch": 60,
+              "start": 6496,
+              "duration": 751,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-19",
+              "pitch": 49,
+              "start": 7246,
+              "duration": 570,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-20",
+              "pitch": 67,
+              "start": 7246,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-21",
+              "pitch": 61,
+              "start": 7771,
+              "duration": 1290,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-22",
+              "pitch": 64,
+              "start": 8386,
+              "duration": 675,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-23",
+              "pitch": 67,
+              "start": 8401,
+              "duration": 990,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-24",
+              "pitch": 48,
+              "start": 9511,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-25",
+              "pitch": 72,
+              "start": 9511,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-26",
+              "pitch": 60,
+              "start": 10051,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-27",
+              "pitch": 63,
+              "start": 10561,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-28",
+              "pitch": 67,
+              "start": 10591,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-29",
+              "pitch": 60,
+              "start": 11131,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-30",
+              "pitch": 72,
+              "start": 11131,
+              "duration": 495,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-31",
+              "pitch": 49,
+              "start": 11641,
+              "duration": 570,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-32",
+              "pitch": 71,
+              "start": 11686,
+              "duration": 1350,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-33",
+              "pitch": 61,
+              "start": 12181,
+              "duration": 1410,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-34",
+              "pitch": 64,
+              "start": 12736,
+              "duration": 855,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-35",
+              "pitch": 70,
+              "start": 13381,
+              "duration": 496,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-36",
+              "pitch": 67,
+              "start": 13891,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-37",
+              "pitch": 48,
+              "start": 13921,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-38",
+              "pitch": 60,
+              "start": 14431,
+              "duration": 630,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-39",
+              "pitch": 63,
+              "start": 14986,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-40",
+              "pitch": 70,
+              "start": 15076,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-41",
+              "pitch": 72,
+              "start": 16186,
+              "duration": 901,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-42",
+              "pitch": 48,
+              "start": 16276,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-43",
+              "pitch": 60,
+              "start": 16726,
+              "duration": 375,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-44",
+              "pitch": 53,
+              "start": 17266,
+              "duration": 781,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-1-1-45",
+              "pitch": 72,
+              "start": 17266,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-2",
+      "name": "Track 2",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-2-1",
+          "name": "Track 2",
+          "start": 0,
+          "length": 115200,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-2-1-1",
+              "pitch": 53,
+              "start": 18497,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-2",
+              "pitch": 65,
+              "start": 18497,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-3",
+              "pitch": 60,
+              "start": 19022,
+              "duration": 1245,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-4",
+              "pitch": 65,
+              "start": 19531,
+              "duration": 856,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-5",
+              "pitch": 68,
+              "start": 20086,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-6",
+              "pitch": 55,
+              "start": 20582,
+              "duration": 990,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-7",
+              "pitch": 71,
+              "start": 20611,
+              "duration": 2056,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-8",
+              "pitch": 62,
+              "start": 21151,
+              "duration": 1531,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-9",
+              "pitch": 67,
+              "start": 21707,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-10",
+              "pitch": 53,
+              "start": 22756,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-11",
+              "pitch": 65,
+              "start": 22771,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-12",
+              "pitch": 60,
+              "start": 23326,
+              "duration": 1545,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-13",
+              "pitch": 67,
+              "start": 23836,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-14",
+              "pitch": 68,
+              "start": 24347,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-15",
+              "pitch": 55,
+              "start": 24886,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-16",
+              "pitch": 71,
+              "start": 24886,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-17",
+              "pitch": 62,
+              "start": 25411,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-18",
+              "pitch": 71,
+              "start": 25966,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-19",
+              "pitch": 67,
+              "start": 25996,
+              "duration": 615,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-20",
+              "pitch": 53,
+              "start": 27046,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-21",
+              "pitch": 65,
+              "start": 27062,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-22",
+              "pitch": 60,
+              "start": 27601,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-23",
+              "pitch": 67,
+              "start": 28142,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-24",
+              "pitch": 62,
+              "start": 28201,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-25",
+              "pitch": 68,
+              "start": 28697,
+              "duration": 494,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-26",
+              "pitch": 55,
+              "start": 29177,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-27",
+              "pitch": 71,
+              "start": 29206,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-28",
+              "pitch": 62,
+              "start": 29747,
+              "duration": 1575,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-29",
+              "pitch": 71,
+              "start": 30302,
+              "duration": 1095,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-30",
+              "pitch": 65,
+              "start": 30331,
+              "duration": 825,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-31",
+              "pitch": 53,
+              "start": 31366,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-32",
+              "pitch": 65,
+              "start": 31411,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-33",
+              "pitch": 60,
+              "start": 31982,
+              "duration": 495,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-34",
+              "pitch": 62,
+              "start": 32446,
+              "duration": 960,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-35",
+              "pitch": 67,
+              "start": 32462,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-36",
+              "pitch": 68,
+              "start": 32987,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-37",
+              "pitch": 55,
+              "start": 33467,
+              "duration": 900,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-38",
+              "pitch": 71,
+              "start": 33526,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-39",
+              "pitch": 62,
+              "start": 34081,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-40",
+              "pitch": 57,
+              "start": 34681,
+              "duration": 570,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-41",
+              "pitch": 71,
+              "start": 34697,
+              "duration": 1170,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-42",
+              "pitch": 72,
+              "start": 35881,
+              "duration": 1066,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-43",
+              "pitch": 60,
+              "start": 35881,
+              "duration": 1395,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-44",
+              "pitch": 63,
+              "start": 36391,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-45",
+              "pitch": 67,
+              "start": 36991,
+              "duration": 511,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-46",
+              "pitch": 60,
+              "start": 37441,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-47",
+              "pitch": 72,
+              "start": 37516,
+              "duration": 586,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-48",
+              "pitch": 49,
+              "start": 38057,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-49",
+              "pitch": 70,
+              "start": 38116,
+              "duration": 1501,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-50",
+              "pitch": 61,
+              "start": 38611,
+              "duration": 1336,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-51",
+              "pitch": 65,
+              "start": 39151,
+              "duration": 586,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-52",
+              "pitch": 68,
+              "start": 39737,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-53",
+              "pitch": 48,
+              "start": 40276,
+              "duration": 1066,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-54",
+              "pitch": 67,
+              "start": 40291,
+              "duration": 1006,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-55",
+              "pitch": 60,
+              "start": 40756,
+              "duration": 1455,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-56",
+              "pitch": 63,
+              "start": 41342,
+              "duration": 765,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-57",
+              "pitch": 68,
+              "start": 41371,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-58",
+              "pitch": 53,
+              "start": 42377,
+              "duration": 974,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-59",
+              "pitch": 67,
+              "start": 42391,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-60",
+              "pitch": 60,
+              "start": 42931,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-61",
+              "pitch": 65,
+              "start": 43471,
+              "duration": 511,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-62",
+              "pitch": 67,
+              "start": 43982,
+              "duration": 645,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-63",
+              "pitch": 48,
+              "start": 44686,
+              "duration": 451,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-64",
+              "pitch": 70,
+              "start": 44686,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-65",
+              "pitch": 60,
+              "start": 45137,
+              "duration": 705,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-66",
+              "pitch": 63,
+              "start": 45766,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-67",
+              "pitch": 72,
+              "start": 45766,
+              "duration": 1950,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-68",
+              "pitch": 60,
+              "start": 46307,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-69",
+              "pitch": 49,
+              "start": 46862,
+              "duration": 569,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-70",
+              "pitch": 61,
+              "start": 47401,
+              "duration": 1365,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-71",
+              "pitch": 65,
+              "start": 47926,
+              "duration": 781,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-72",
+              "pitch": 72,
+              "start": 47956,
+              "duration": 375,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-73",
+              "pitch": 75,
+              "start": 48497,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-74",
+              "pitch": 48,
+              "start": 49006,
+              "duration": 630,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-75",
+              "pitch": 77,
+              "start": 49022,
+              "duration": 1020,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-76",
+              "pitch": 60,
+              "start": 49561,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-77",
+              "pitch": 63,
+              "start": 50206,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-78",
+              "pitch": 75,
+              "start": 50281,
+              "duration": 1890,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-79",
+              "pitch": 48,
+              "start": 51391,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-80",
+              "pitch": 60,
+              "start": 51902,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-81",
+              "pitch": 50,
+              "start": 52441,
+              "duration": 781,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-82",
+              "pitch": 75,
+              "start": 52471,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-83",
+              "pitch": 53,
+              "start": 53566,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-84",
+              "pitch": 65,
+              "start": 53582,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-85",
+              "pitch": 60,
+              "start": 54182,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-86",
+              "pitch": 65,
+              "start": 54646,
+              "duration": 315,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-87",
+              "pitch": 67,
+              "start": 54977,
+              "duration": 360,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-88",
+              "pitch": 68,
+              "start": 55307,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-89",
+              "pitch": 55,
+              "start": 55817,
+              "duration": 990,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-90",
+              "pitch": 71,
+              "start": 55817,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-91",
+              "pitch": 62,
+              "start": 56267,
+              "duration": 1665,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-92",
+              "pitch": 65,
+              "start": 56897,
+              "duration": 675,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-93",
+              "pitch": 71,
+              "start": 56897,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-94",
+              "pitch": 53,
+              "start": 57931,
+              "duration": 1020,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-95",
+              "pitch": 65,
+              "start": 57961,
+              "duration": 570,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-96",
+              "pitch": 60,
+              "start": 58531,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-97",
+              "pitch": 65,
+              "start": 59027,
+              "duration": 90,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-98",
+              "pitch": 67,
+              "start": 59116,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-99",
+              "pitch": 68,
+              "start": 59611,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-100",
+              "pitch": 55,
+              "start": 60151,
+              "duration": 976,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-101",
+              "pitch": 71,
+              "start": 60151,
+              "duration": 901,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-102",
+              "pitch": 62,
+              "start": 60676,
+              "duration": 1650,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-103",
+              "pitch": 67,
+              "start": 61262,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-104",
+              "pitch": 71,
+              "start": 61276,
+              "duration": 1066,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-105",
+              "pitch": 53,
+              "start": 62342,
+              "duration": 945,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-106",
+              "pitch": 65,
+              "start": 62356,
+              "duration": 645,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-107",
+              "pitch": 60,
+              "start": 63017,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-108",
+              "pitch": 63,
+              "start": 63377,
+              "duration": 734,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-109",
+              "pitch": 67,
+              "start": 63391,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-110",
+              "pitch": 68,
+              "start": 63916,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-111",
+              "pitch": 55,
+              "start": 64471,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-112",
+              "pitch": 71,
+              "start": 64471,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-113",
+              "pitch": 62,
+              "start": 64996,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-114",
+              "pitch": 67,
+              "start": 65566,
+              "duration": 675,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-115",
+              "pitch": 71,
+              "start": 65566,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-116",
+              "pitch": 53,
+              "start": 66662,
+              "duration": 1095,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-117",
+              "pitch": 67,
+              "start": 66796,
+              "duration": 991,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-118",
+              "pitch": 60,
+              "start": 67246,
+              "duration": 945,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-119",
+              "pitch": 63,
+              "start": 67831,
+              "duration": 871,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-120",
+              "pitch": 68,
+              "start": 67831,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-121",
+              "pitch": 71,
+              "start": 68356,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-122",
+              "pitch": 71,
+              "start": 68971,
+              "duration": 780,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-123",
+              "pitch": 55,
+              "start": 68987,
+              "duration": 990,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-124",
+              "pitch": 62,
+              "start": 69497,
+              "duration": 1260,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-125",
+              "pitch": 67,
+              "start": 70036,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-126",
+              "pitch": 71,
+              "start": 70067,
+              "duration": 1140,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-127",
+              "pitch": 48,
+              "start": 71222,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-128",
+              "pitch": 72,
+              "start": 71222,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-129",
+              "pitch": 60,
+              "start": 71761,
+              "duration": 1605,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-130",
+              "pitch": 63,
+              "start": 72361,
+              "duration": 586,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-131",
+              "pitch": 65,
+              "start": 72391,
+              "duration": 496,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-132",
+              "pitch": 71,
+              "start": 72947,
+              "duration": 1755,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-133",
+              "pitch": 49,
+              "start": 73366,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-134",
+              "pitch": 61,
+              "start": 73937,
+              "duration": 1245,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-135",
+              "pitch": 65,
+              "start": 74491,
+              "duration": 630,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-136",
+              "pitch": 71,
+              "start": 74987,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-137",
+              "pitch": 48,
+              "start": 75511,
+              "duration": 646,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-138",
+              "pitch": 67,
+              "start": 75617,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-139",
+              "pitch": 60,
+              "start": 76097,
+              "duration": 734,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-140",
+              "pitch": 63,
+              "start": 76711,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-141",
+              "pitch": 68,
+              "start": 76711,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-142",
+              "pitch": 60,
+              "start": 77267,
+              "duration": 524,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-143",
+              "pitch": 53,
+              "start": 77791,
+              "duration": 946,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-144",
+              "pitch": 67,
+              "start": 77806,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-145",
+              "pitch": 60,
+              "start": 78331,
+              "duration": 1740,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-146",
+              "pitch": 65,
+              "start": 78902,
+              "duration": 855,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-147",
+              "pitch": 67,
+              "start": 79756,
+              "duration": 285,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-148",
+              "pitch": 71,
+              "start": 80057,
+              "duration": 870,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-149",
+              "pitch": 48,
+              "start": 80086,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-150",
+              "pitch": 60,
+              "start": 80657,
+              "duration": 645,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-151",
+              "pitch": 63,
+              "start": 81166,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-152",
+              "pitch": 72,
+              "start": 81166,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-153",
+              "pitch": 60,
+              "start": 81691,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-154",
+              "pitch": 49,
+              "start": 82126,
+              "duration": 661,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-155",
+              "pitch": 75,
+              "start": 82307,
+              "duration": 795,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-156",
+              "pitch": 61,
+              "start": 82787,
+              "duration": 1290,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-157",
+              "pitch": 75,
+              "start": 83311,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-158",
+              "pitch": 65,
+              "start": 83371,
+              "duration": 660,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-159",
+              "pitch": 48,
+              "start": 84436,
+              "duration": 675,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-160",
+              "pitch": 77,
+              "start": 84511,
+              "duration": 960,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-161",
+              "pitch": 60,
+              "start": 84991,
+              "duration": 720,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-162",
+              "pitch": 63,
+              "start": 85577,
+              "duration": 660,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-163",
+              "pitch": 76,
+              "start": 85651,
+              "duration": 886,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-164",
+              "pitch": 49,
+              "start": 86686,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-165",
+              "pitch": 75,
+              "start": 86836,
+              "duration": 840,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-166",
+              "pitch": 61,
+              "start": 87286,
+              "duration": 736,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-167",
+              "pitch": 65,
+              "start": 87827,
+              "duration": 570,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-168",
+              "pitch": 75,
+              "start": 87841,
+              "duration": 2130,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-169",
+              "pitch": 61,
+              "start": 88351,
+              "duration": 301,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-170",
+              "pitch": 48,
+              "start": 88937,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-171",
+              "pitch": 60,
+              "start": 89431,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-172",
+              "pitch": 63,
+              "start": 90017,
+              "duration": 825,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-173",
+              "pitch": 67,
+              "start": 90542,
+              "duration": 3255,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-174",
+              "pitch": 52,
+              "start": 91142,
+              "duration": 1920,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-175",
+              "pitch": 48,
+              "start": 93991,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-176",
+              "pitch": 67,
+              "start": 94036,
+              "duration": 2895,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-177",
+              "pitch": 60,
+              "start": 94561,
+              "duration": 1786,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-178",
+              "pitch": 63,
+              "start": 95191,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-179",
+              "pitch": 49,
+              "start": 96406,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-180",
+              "pitch": 61,
+              "start": 96947,
+              "duration": 1800,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-181",
+              "pitch": 65,
+              "start": 97651,
+              "duration": 931,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-182",
+              "pitch": 48,
+              "start": 98822,
+              "duration": 1169,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-183",
+              "pitch": 60,
+              "start": 99391,
+              "duration": 1920,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-184",
+              "pitch": 63,
+              "start": 99991,
+              "duration": 1246,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-185",
+              "pitch": 53,
+              "start": 101311,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-186",
+              "pitch": 62,
+              "start": 101851,
+              "duration": 1830,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-187",
+              "pitch": 65,
+              "start": 102481,
+              "duration": 795,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-188",
+              "pitch": 48,
+              "start": 103606,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-189",
+              "pitch": 60,
+              "start": 104131,
+              "duration": 1740,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-190",
+              "pitch": 63,
+              "start": 104731,
+              "duration": 1155,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-191",
+              "pitch": 49,
+              "start": 105841,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-192",
+              "pitch": 61,
+              "start": 106366,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-193",
+              "pitch": 65,
+              "start": 106937,
+              "duration": 854,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-194",
+              "pitch": 48,
+              "start": 108062,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-195",
+              "pitch": 60,
+              "start": 108631,
+              "duration": 1680,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-196",
+              "pitch": 63,
+              "start": 109201,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-197",
+              "pitch": 55,
+              "start": 110251,
+              "duration": 1171,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-198",
+              "pitch": 62,
+              "start": 110822,
+              "duration": 1740,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-2-1-199",
+              "pitch": 67,
+              "start": 111916,
+              "duration": 2866,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-3",
+      "name": "Track 3",
+      "instrument": "gm-72",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-3-1",
+          "name": "Track 3",
+          "start": 0,
+          "length": 74880,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-3-1-1",
+              "pitch": 72,
+              "start": 511,
+              "duration": 1111,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-2",
+              "pitch": 67,
+              "start": 1636,
+              "duration": 631,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-3",
+              "pitch": 72,
+              "start": 2267,
+              "duration": 450,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-4",
+              "pitch": 71,
+              "start": 2731,
+              "duration": 1576,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-5",
+              "pitch": 68,
+              "start": 4366,
+              "duration": 616,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-6",
+              "pitch": 67,
+              "start": 4937,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-7",
+              "pitch": 68,
+              "start": 6031,
+              "duration": 1096,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-8",
+              "pitch": 71,
+              "start": 7126,
+              "duration": 1216,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-9",
+              "pitch": 71,
+              "start": 8417,
+              "duration": 915,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-10",
+              "pitch": 72,
+              "start": 9676,
+              "duration": 901,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-11",
+              "pitch": 67,
+              "start": 10606,
+              "duration": 465,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-12",
+              "pitch": 72,
+              "start": 11086,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-13",
+              "pitch": 71,
+              "start": 11671,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-14",
+              "pitch": 68,
+              "start": 13307,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-15",
+              "pitch": 67,
+              "start": 13907,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-16",
+              "pitch": 63,
+              "start": 15031,
+              "duration": 1096,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-17",
+              "pitch": 65,
+              "start": 16097,
+              "duration": 1725,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-18",
+              "pitch": 64,
+              "start": 17836,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-19",
+              "pitch": 65,
+              "start": 18391,
+              "duration": 1171,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-20",
+              "pitch": 67,
+              "start": 19561,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-21",
+              "pitch": 68,
+              "start": 20116,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-22",
+              "pitch": 71,
+              "start": 20657,
+              "duration": 2220,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-23",
+              "pitch": 65,
+              "start": 22891,
+              "duration": 990,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-24",
+              "pitch": 67,
+              "start": 23867,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-25",
+              "pitch": 68,
+              "start": 24377,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-26",
+              "pitch": 71,
+              "start": 24931,
+              "duration": 2056,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-27",
+              "pitch": 65,
+              "start": 27121,
+              "duration": 1005,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-28",
+              "pitch": 67,
+              "start": 28111,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-29",
+              "pitch": 68,
+              "start": 28697,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-30",
+              "pitch": 71,
+              "start": 29251,
+              "duration": 945,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-31",
+              "pitch": 71,
+              "start": 30257,
+              "duration": 1140,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-32",
+              "pitch": 72,
+              "start": 31427,
+              "duration": 1124,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-33",
+              "pitch": 75,
+              "start": 32551,
+              "duration": 1006,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-34",
+              "pitch": 77,
+              "start": 33571,
+              "duration": 2025,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-35",
+              "pitch": 72,
+              "start": 36017,
+              "duration": 930,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-36",
+              "pitch": 67,
+              "start": 36977,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-37",
+              "pitch": 72,
+              "start": 37486,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-38",
+              "pitch": 70,
+              "start": 38041,
+              "duration": 1530,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-39",
+              "pitch": 68,
+              "start": 39707,
+              "duration": 524,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-40",
+              "pitch": 67,
+              "start": 40231,
+              "duration": 1141,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-41",
+              "pitch": 68,
+              "start": 41371,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-42",
+              "pitch": 70,
+              "start": 42422,
+              "duration": 975,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-43",
+              "pitch": 70,
+              "start": 43441,
+              "duration": 1155,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-44",
+              "pitch": 72,
+              "start": 44582,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-45",
+              "pitch": 67,
+              "start": 45737,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-46",
+              "pitch": 72,
+              "start": 46337,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-47",
+              "pitch": 70,
+              "start": 46891,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-48",
+              "pitch": 68,
+              "start": 48511,
+              "duration": 556,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-49",
+              "pitch": 67,
+              "start": 49067,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-50",
+              "pitch": 63,
+              "start": 50267,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-51",
+              "pitch": 60,
+              "start": 51316,
+              "duration": 2325,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-52",
+              "pitch": 65,
+              "start": 53671,
+              "duration": 1036,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-53",
+              "pitch": 67,
+              "start": 54721,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-54",
+              "pitch": 68,
+              "start": 55231,
+              "duration": 676,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-55",
+              "pitch": 71,
+              "start": 55876,
+              "duration": 2101,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-56",
+              "pitch": 72,
+              "start": 58006,
+              "duration": 1680,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-57",
+              "pitch": 71,
+              "start": 59747,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-58",
+              "pitch": 68,
+              "start": 60302,
+              "duration": 75,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-59",
+              "pitch": 71,
+              "start": 60361,
+              "duration": 885,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-60",
+              "pitch": 71,
+              "start": 61291,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-61",
+              "pitch": 65,
+              "start": 62387,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-62",
+              "pitch": 67,
+              "start": 63497,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-63",
+              "pitch": 68,
+              "start": 63991,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-64",
+              "pitch": 71,
+              "start": 64516,
+              "duration": 2205,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-65",
+              "pitch": 72,
+              "start": 66721,
+              "duration": 1170,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-66",
+              "pitch": 75,
+              "start": 67891,
+              "duration": 1651,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-67",
+              "pitch": 77,
+              "start": 69542,
+              "duration": 225,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-68",
+              "pitch": 75,
+              "start": 69766,
+              "duration": 345,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-69",
+              "pitch": 74,
+              "start": 70081,
+              "duration": 1216,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-3-1-70",
+              "pitch": 72,
+              "start": 71267,
+              "duration": 2070,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-4",
+      "name": "Track 4",
+      "instrument": "gm-11",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-4-1",
+          "name": "Track 4",
+          "start": 0,
+          "length": 117120,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-4-1-1",
+              "pitch": 84,
+              "start": 631,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-2",
+              "pitch": 79,
+              "start": 1666,
+              "duration": 496,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-3",
+              "pitch": 84,
+              "start": 2191,
+              "duration": 466,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-4",
+              "pitch": 82,
+              "start": 2791,
+              "duration": 1440,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-5",
+              "pitch": 80,
+              "start": 4516,
+              "duration": 421,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-6",
+              "pitch": 79,
+              "start": 4981,
+              "duration": 991,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-7",
+              "pitch": 75,
+              "start": 6031,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-8",
+              "pitch": 77,
+              "start": 7021,
+              "duration": 2311,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-9",
+              "pitch": 84,
+              "start": 9586,
+              "duration": 991,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-10",
+              "pitch": 79,
+              "start": 10651,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-11",
+              "pitch": 84,
+              "start": 11131,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-12",
+              "pitch": 82,
+              "start": 11701,
+              "duration": 1276,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-13",
+              "pitch": 80,
+              "start": 13306,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-14",
+              "pitch": 79,
+              "start": 13906,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-15",
+              "pitch": 75,
+              "start": 15076,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-16",
+              "pitch": 72,
+              "start": 16111,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-17",
+              "pitch": 76,
+              "start": 17311,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-18",
+              "pitch": 77,
+              "start": 18526,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-19",
+              "pitch": 79,
+              "start": 19591,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-20",
+              "pitch": 80,
+              "start": 20146,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-21",
+              "pitch": 83,
+              "start": 20671,
+              "duration": 2131,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-22",
+              "pitch": 77,
+              "start": 22817,
+              "duration": 1169,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-23",
+              "pitch": 79,
+              "start": 23986,
+              "duration": 405,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-24",
+              "pitch": 80,
+              "start": 24421,
+              "duration": 511,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-25",
+              "pitch": 82,
+              "start": 24946,
+              "duration": 2160,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-26",
+              "pitch": 77,
+              "start": 27106,
+              "duration": 1066,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-27",
+              "pitch": 79,
+              "start": 28171,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-28",
+              "pitch": 80,
+              "start": 28697,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-29",
+              "pitch": 83,
+              "start": 29236,
+              "duration": 2085,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-30",
+              "pitch": 84,
+              "start": 31351,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-31",
+              "pitch": 87,
+              "start": 32551,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-32",
+              "pitch": 89,
+              "start": 33586,
+              "duration": 915,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-33",
+              "pitch": 89,
+              "start": 34651,
+              "duration": 180,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-34",
+              "pitch": 87,
+              "start": 34817,
+              "duration": 315,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-35",
+              "pitch": 86,
+              "start": 35177,
+              "duration": 734,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-36",
+              "pitch": 84,
+              "start": 35897,
+              "duration": 1289,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-37",
+              "pitch": 79,
+              "start": 37217,
+              "duration": 329,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-38",
+              "pitch": 84,
+              "start": 37561,
+              "duration": 616,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-39",
+              "pitch": 83,
+              "start": 38177,
+              "duration": 1484,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-40",
+              "pitch": 80,
+              "start": 39721,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-41",
+              "pitch": 79,
+              "start": 40276,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-42",
+              "pitch": 75,
+              "start": 41401,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-43",
+              "pitch": 77,
+              "start": 42436,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-44",
+              "pitch": 76,
+              "start": 43531,
+              "duration": 1230,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-45",
+              "pitch": 84,
+              "start": 44821,
+              "duration": 930,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-46",
+              "pitch": 79,
+              "start": 45766,
+              "duration": 451,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-47",
+              "pitch": 84,
+              "start": 46291,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-48",
+              "pitch": 82,
+              "start": 46937,
+              "duration": 1350,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-49",
+              "pitch": 80,
+              "start": 48466,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-50",
+              "pitch": 79,
+              "start": 49081,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-51",
+              "pitch": 75,
+              "start": 50177,
+              "duration": 1230,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-52",
+              "pitch": 77,
+              "start": 51406,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-53",
+              "pitch": 76,
+              "start": 52516,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-54",
+              "pitch": 77,
+              "start": 53626,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-55",
+              "pitch": 79,
+              "start": 54766,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-56",
+              "pitch": 80,
+              "start": 55306,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-57",
+              "pitch": 83,
+              "start": 55861,
+              "duration": 2085,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-58",
+              "pitch": 77,
+              "start": 57977,
+              "duration": 1140,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-59",
+              "pitch": 79,
+              "start": 59116,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-60",
+              "pitch": 80,
+              "start": 59626,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-61",
+              "pitch": 83,
+              "start": 60166,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-62",
+              "pitch": 83,
+              "start": 61261,
+              "duration": 1186,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-63",
+              "pitch": 77,
+              "start": 62446,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-64",
+              "pitch": 79,
+              "start": 63511,
+              "duration": 466,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-65",
+              "pitch": 80,
+              "start": 64006,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-66",
+              "pitch": 83,
+              "start": 64516,
+              "duration": 2101,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-67",
+              "pitch": 84,
+              "start": 66646,
+              "duration": 1215,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-68",
+              "pitch": 87,
+              "start": 67861,
+              "duration": 1036,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-69",
+              "pitch": 89,
+              "start": 68926,
+              "duration": 180,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-70",
+              "pitch": 87,
+              "start": 69137,
+              "duration": 315,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-71",
+              "pitch": 89,
+              "start": 69451,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-72",
+              "pitch": 87,
+              "start": 70651,
+              "duration": 750,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-73",
+              "pitch": 84,
+              "start": 71401,
+              "duration": 1020,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-74",
+              "pitch": 79,
+              "start": 72421,
+              "duration": 525,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-75",
+              "pitch": 84,
+              "start": 72946,
+              "duration": 6781,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-76",
+              "pitch": 84,
+              "start": 80026,
+              "duration": 1186,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-77",
+              "pitch": 79,
+              "start": 81211,
+              "duration": 7695,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-78",
+              "pitch": 84,
+              "start": 81737,
+              "duration": 7185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-79",
+              "pitch": 75,
+              "start": 88981,
+              "duration": 2176,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-80",
+              "pitch": 74,
+              "start": 91156,
+              "duration": 3061,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-81",
+              "pitch": 72,
+              "start": 93826,
+              "duration": 3720,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-82",
+              "pitch": 79,
+              "start": 94337,
+              "duration": 2880,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-83",
+              "pitch": 75,
+              "start": 97546,
+              "duration": 1275,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-84",
+              "pitch": 79,
+              "start": 97546,
+              "duration": 1216,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-85",
+              "pitch": 79,
+              "start": 98866,
+              "duration": 2251,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-86",
+              "pitch": 72,
+              "start": 98897,
+              "duration": 4560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-87",
+              "pitch": 77,
+              "start": 101221,
+              "duration": 2085,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-88",
+              "pitch": 82,
+              "start": 101236,
+              "duration": 2430,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-89",
+              "pitch": 72,
+              "start": 103726,
+              "duration": 2131,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-90",
+              "pitch": 79,
+              "start": 103726,
+              "duration": 1995,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-91",
+              "pitch": 75,
+              "start": 105857,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-92",
+              "pitch": 79,
+              "start": 105886,
+              "duration": 1095,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-93",
+              "pitch": 74,
+              "start": 107071,
+              "duration": 1141,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-94",
+              "pitch": 79,
+              "start": 107071,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-95",
+              "pitch": 72,
+              "start": 108137,
+              "duration": 5609,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-96",
+              "pitch": 79,
+              "start": 108241,
+              "duration": 2025,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-97",
+              "pitch": 79,
+              "start": 110417,
+              "duration": 3089,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-98",
+              "pitch": 84,
+              "start": 110417,
+              "duration": 5609,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-99",
+              "pitch": 79,
+              "start": 114031,
+              "duration": 1995,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-4-1-100",
+              "pitch": 72,
+              "start": 114211,
+              "duration": 1860,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-5",
+      "name": "Track 5",
+      "instrument": "gm-20",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-5-1",
+          "name": "Track 5",
+          "start": 0,
+          "length": 1920,
+          "notes": [],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-6",
+      "name": "Track 6",
+      "instrument": "gm-49",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-6-1",
+          "name": "Track 6",
+          "start": 0,
+          "length": 71040,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-6-1-1",
+              "pitch": 72,
+              "start": 691,
+              "duration": 811,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-2",
+              "pitch": 67,
+              "start": 1651,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-3",
+              "pitch": 72,
+              "start": 2206,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-4",
+              "pitch": 70,
+              "start": 2761,
+              "duration": 1395,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-5",
+              "pitch": 65,
+              "start": 2777,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-6",
+              "pitch": 68,
+              "start": 4411,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-7",
+              "pitch": 67,
+              "start": 4937,
+              "duration": 1005,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-8",
+              "pitch": 63,
+              "start": 5131,
+              "duration": 195,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-9",
+              "pitch": 63,
+              "start": 6046,
+              "duration": 301,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-10",
+              "pitch": 67,
+              "start": 6046,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-11",
+              "pitch": 68,
+              "start": 6556,
+              "duration": 346,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-12",
+              "pitch": 67,
+              "start": 6931,
+              "duration": 136,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-13",
+              "pitch": 65,
+              "start": 7022,
+              "duration": 1230,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-14",
+              "pitch": 70,
+              "start": 7081,
+              "duration": 1110,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-15",
+              "pitch": 65,
+              "start": 8401,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-16",
+              "pitch": 70,
+              "start": 8431,
+              "duration": 556,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-17",
+              "pitch": 67,
+              "start": 9497,
+              "duration": 885,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-18",
+              "pitch": 72,
+              "start": 9497,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-19",
+              "pitch": 67,
+              "start": 10636,
+              "duration": 826,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-20",
+              "pitch": 72,
+              "start": 11131,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-21",
+              "pitch": 70,
+              "start": 11686,
+              "duration": 1425,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-22",
+              "pitch": 68,
+              "start": 13246,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-23",
+              "pitch": 67,
+              "start": 13846,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-24",
+              "pitch": 63,
+              "start": 14987,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-25",
+              "pitch": 60,
+              "start": 16126,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-26",
+              "pitch": 63,
+              "start": 17851,
+              "duration": 526,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-27",
+              "pitch": 65,
+              "start": 18361,
+              "duration": 1261,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-28",
+              "pitch": 67,
+              "start": 19622,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-29",
+              "pitch": 68,
+              "start": 20116,
+              "duration": 450,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-30",
+              "pitch": 67,
+              "start": 20566,
+              "duration": 1861,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-31",
+              "pitch": 71,
+              "start": 20566,
+              "duration": 1861,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-32",
+              "pitch": 65,
+              "start": 22831,
+              "duration": 886,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-33",
+              "pitch": 65,
+              "start": 23777,
+              "duration": 345,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-34",
+              "pitch": 67,
+              "start": 24331,
+              "duration": 2206,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-35",
+              "pitch": 71,
+              "start": 24857,
+              "duration": 1005,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-36",
+              "pitch": 71,
+              "start": 25982,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-37",
+              "pitch": 65,
+              "start": 27031,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-38",
+              "pitch": 67,
+              "start": 28171,
+              "duration": 465,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-39",
+              "pitch": 68,
+              "start": 28667,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-40",
+              "pitch": 67,
+              "start": 29147,
+              "duration": 1350,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-41",
+              "pitch": 71,
+              "start": 29191,
+              "duration": 991,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-42",
+              "pitch": 71,
+              "start": 30302,
+              "duration": 615,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-43",
+              "pitch": 72,
+              "start": 31291,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-44",
+              "pitch": 67,
+              "start": 31307,
+              "duration": 4035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-45",
+              "pitch": 75,
+              "start": 32491,
+              "duration": 1140,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-46",
+              "pitch": 77,
+              "start": 33631,
+              "duration": 1680,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-47",
+              "pitch": 67,
+              "start": 35822,
+              "duration": 1049,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-48",
+              "pitch": 72,
+              "start": 35822,
+              "duration": 1289,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-49",
+              "pitch": 67,
+              "start": 36991,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-50",
+              "pitch": 72,
+              "start": 37471,
+              "duration": 616,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-51",
+              "pitch": 65,
+              "start": 38086,
+              "duration": 1755,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-52",
+              "pitch": 70,
+              "start": 38086,
+              "duration": 1531,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-53",
+              "pitch": 68,
+              "start": 39721,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-54",
+              "pitch": 63,
+              "start": 40231,
+              "duration": 946,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-55",
+              "pitch": 67,
+              "start": 40231,
+              "duration": 1621,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-56",
+              "pitch": 63,
+              "start": 41222,
+              "duration": 1140,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-57",
+              "pitch": 68,
+              "start": 41881,
+              "duration": 480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-58",
+              "pitch": 65,
+              "start": 42361,
+              "duration": 1816,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-59",
+              "pitch": 70,
+              "start": 42391,
+              "duration": 1800,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-60",
+              "pitch": 60,
+              "start": 42497,
+              "duration": 1214,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-61",
+              "pitch": 67,
+              "start": 44582,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-62",
+              "pitch": 72,
+              "start": 44596,
+              "duration": 1351,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-63",
+              "pitch": 67,
+              "start": 45766,
+              "duration": 781,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-64",
+              "pitch": 72,
+              "start": 46291,
+              "duration": 616,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-65",
+              "pitch": 65,
+              "start": 46907,
+              "duration": 1604,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-66",
+              "pitch": 70,
+              "start": 46907,
+              "duration": 1515,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-67",
+              "pitch": 68,
+              "start": 48511,
+              "duration": 541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-68",
+              "pitch": 67,
+              "start": 49051,
+              "duration": 1096,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-69",
+              "pitch": 63,
+              "start": 50131,
+              "duration": 1305,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-70",
+              "pitch": 65,
+              "start": 51406,
+              "duration": 1605,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-71",
+              "pitch": 64,
+              "start": 53011,
+              "duration": 630,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-72",
+              "pitch": 65,
+              "start": 53596,
+              "duration": 1050,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-73",
+              "pitch": 63,
+              "start": 54646,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-74",
+              "pitch": 67,
+              "start": 54646,
+              "duration": 405,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-75",
+              "pitch": 69,
+              "start": 55217,
+              "duration": 60,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-76",
+              "pitch": 70,
+              "start": 55547,
+              "duration": 284,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-77",
+              "pitch": 67,
+              "start": 55831,
+              "duration": 1996,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-78",
+              "pitch": 71,
+              "start": 55996,
+              "duration": 1770,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-79",
+              "pitch": 65,
+              "start": 57991,
+              "duration": 1051,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-80",
+              "pitch": 67,
+              "start": 59147,
+              "duration": 420,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-81",
+              "pitch": 68,
+              "start": 59611,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-82",
+              "pitch": 67,
+              "start": 60182,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-83",
+              "pitch": 71,
+              "start": 60196,
+              "duration": 1095,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-84",
+              "pitch": 71,
+              "start": 61307,
+              "duration": 690,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-85",
+              "pitch": 67,
+              "start": 61427,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-86",
+              "pitch": 65,
+              "start": 62387,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-87",
+              "pitch": 67,
+              "start": 63451,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-88",
+              "pitch": 68,
+              "start": 63902,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-89",
+              "pitch": 63,
+              "start": 63931,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-90",
+              "pitch": 67,
+              "start": 64502,
+              "duration": 1635,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-91",
+              "pitch": 71,
+              "start": 64502,
+              "duration": 900,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-92",
+              "pitch": 71,
+              "start": 65537,
+              "duration": 645,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-93",
+              "pitch": 67,
+              "start": 66662,
+              "duration": 3480,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-94",
+              "pitch": 72,
+              "start": 66676,
+              "duration": 1215,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-95",
+              "pitch": 75,
+              "start": 67846,
+              "duration": 885,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-6-1-96",
+              "pitch": 77,
+              "start": 68791,
+              "duration": 2056,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-7",
+      "name": "Track 7",
+      "instrument": "gm-35",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-7-1",
+          "name": "Track 7",
+          "start": 0,
+          "length": 97920,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-7-1-1",
+              "pitch": 24,
+              "start": 497,
+              "duration": 2324,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-2",
+              "pitch": 36,
+              "start": 511,
+              "duration": 2221,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-3",
+              "pitch": 25,
+              "start": 2761,
+              "duration": 2190,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-4",
+              "pitch": 37,
+              "start": 2761,
+              "duration": 1890,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-5",
+              "pitch": 36,
+              "start": 4937,
+              "duration": 2160,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-6",
+              "pitch": 24,
+              "start": 4951,
+              "duration": 2146,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-7",
+              "pitch": 29,
+              "start": 7097,
+              "duration": 2430,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-8",
+              "pitch": 41,
+              "start": 7097,
+              "duration": 2414,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-9",
+              "pitch": 24,
+              "start": 9571,
+              "duration": 2190,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-10",
+              "pitch": 36,
+              "start": 9571,
+              "duration": 2190,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-11",
+              "pitch": 25,
+              "start": 11716,
+              "duration": 2130,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-12",
+              "pitch": 37,
+              "start": 11761,
+              "duration": 1785,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-13",
+              "pitch": 24,
+              "start": 13846,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-14",
+              "pitch": 36,
+              "start": 13891,
+              "duration": 1126,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-15",
+              "pitch": 39,
+              "start": 14986,
+              "duration": 1141,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-16",
+              "pitch": 27,
+              "start": 15001,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-17",
+              "pitch": 29,
+              "start": 16126,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-18",
+              "pitch": 41,
+              "start": 16126,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-19",
+              "pitch": 28,
+              "start": 17836,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-20",
+              "pitch": 40,
+              "start": 17851,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-21",
+              "pitch": 29,
+              "start": 18436,
+              "duration": 2221,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-22",
+              "pitch": 41,
+              "start": 18436,
+              "duration": 2221,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-23",
+              "pitch": 31,
+              "start": 20657,
+              "duration": 2235,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-24",
+              "pitch": 43,
+              "start": 20671,
+              "duration": 2206,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-25",
+              "pitch": 29,
+              "start": 22876,
+              "duration": 2070,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-26",
+              "pitch": 41,
+              "start": 22876,
+              "duration": 2055,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-27",
+              "pitch": 31,
+              "start": 24916,
+              "duration": 1695,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-28",
+              "pitch": 43,
+              "start": 24916,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-29",
+              "pitch": 44,
+              "start": 26581,
+              "duration": 556,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-30",
+              "pitch": 29,
+              "start": 27091,
+              "duration": 2206,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-31",
+              "pitch": 41,
+              "start": 27091,
+              "duration": 2220,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-32",
+              "pitch": 31,
+              "start": 29311,
+              "duration": 2160,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-33",
+              "pitch": 43,
+              "start": 29311,
+              "duration": 2160,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-34",
+              "pitch": 29,
+              "start": 31471,
+              "duration": 1096,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-35",
+              "pitch": 41,
+              "start": 31486,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-36",
+              "pitch": 31,
+              "start": 32566,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-37",
+              "pitch": 43,
+              "start": 32581,
+              "duration": 1050,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-38",
+              "pitch": 32,
+              "start": 33646,
+              "duration": 1035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-39",
+              "pitch": 44,
+              "start": 33646,
+              "duration": 1005,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-40",
+              "pitch": 46,
+              "start": 34741,
+              "duration": 1036,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-41",
+              "pitch": 24,
+              "start": 35806,
+              "duration": 2310,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-42",
+              "pitch": 36,
+              "start": 35806,
+              "duration": 2310,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-43",
+              "pitch": 25,
+              "start": 38116,
+              "duration": 1621,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-44",
+              "pitch": 37,
+              "start": 38116,
+              "duration": 1575,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-45",
+              "pitch": 39,
+              "start": 39706,
+              "duration": 600,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-46",
+              "pitch": 27,
+              "start": 39737,
+              "duration": 585,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-47",
+              "pitch": 24,
+              "start": 40261,
+              "duration": 2221,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-48",
+              "pitch": 36,
+              "start": 40337,
+              "duration": 2145,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-49",
+              "pitch": 29,
+              "start": 42497,
+              "duration": 1649,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-50",
+              "pitch": 41,
+              "start": 42497,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-51",
+              "pitch": 43,
+              "start": 44057,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-52",
+              "pitch": 24,
+              "start": 44596,
+              "duration": 2280,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-53",
+              "pitch": 36,
+              "start": 44596,
+              "duration": 2280,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-54",
+              "pitch": 25,
+              "start": 46891,
+              "duration": 1635,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-55",
+              "pitch": 37,
+              "start": 46891,
+              "duration": 1635,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-56",
+              "pitch": 27,
+              "start": 48526,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-57",
+              "pitch": 39,
+              "start": 48526,
+              "duration": 465,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-58",
+              "pitch": 24,
+              "start": 49006,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-59",
+              "pitch": 36,
+              "start": 49081,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-60",
+              "pitch": 27,
+              "start": 50131,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-61",
+              "pitch": 39,
+              "start": 50131,
+              "duration": 1185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-62",
+              "pitch": 29,
+              "start": 51316,
+              "duration": 1710,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-63",
+              "pitch": 41,
+              "start": 51331,
+              "duration": 1695,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-64",
+              "pitch": 40,
+              "start": 53026,
+              "duration": 586,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-65",
+              "pitch": 29,
+              "start": 53626,
+              "duration": 2191,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-66",
+              "pitch": 41,
+              "start": 53626,
+              "duration": 2205,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-67",
+              "pitch": 31,
+              "start": 55831,
+              "duration": 2176,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-68",
+              "pitch": 43,
+              "start": 55831,
+              "duration": 2131,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-69",
+              "pitch": 29,
+              "start": 58006,
+              "duration": 2190,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-70",
+              "pitch": 41,
+              "start": 58006,
+              "duration": 2205,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-71",
+              "pitch": 31,
+              "start": 60211,
+              "duration": 1665,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-72",
+              "pitch": 43,
+              "start": 60211,
+              "duration": 1665,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-73",
+              "pitch": 44,
+              "start": 61817,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-74",
+              "pitch": 29,
+              "start": 62371,
+              "duration": 2130,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-75",
+              "pitch": 41,
+              "start": 62386,
+              "duration": 2115,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-76",
+              "pitch": 31,
+              "start": 64501,
+              "duration": 2071,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-77",
+              "pitch": 43,
+              "start": 64516,
+              "duration": 2025,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-78",
+              "pitch": 29,
+              "start": 66556,
+              "duration": 1261,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-79",
+              "pitch": 41,
+              "start": 66556,
+              "duration": 1261,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-80",
+              "pitch": 31,
+              "start": 67831,
+              "duration": 1126,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-81",
+              "pitch": 43,
+              "start": 67831,
+              "duration": 1141,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-82",
+              "pitch": 32,
+              "start": 68971,
+              "duration": 975,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-83",
+              "pitch": 44,
+              "start": 68971,
+              "duration": 915,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-84",
+              "pitch": 46,
+              "start": 70261,
+              "duration": 1036,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-85",
+              "pitch": 48,
+              "start": 71356,
+              "duration": 2160,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-86",
+              "pitch": 36,
+              "start": 71476,
+              "duration": 150,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-87",
+              "pitch": 36,
+              "start": 71716,
+              "duration": 1800,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-88",
+              "pitch": 37,
+              "start": 73531,
+              "duration": 1530,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-89",
+              "pitch": 49,
+              "start": 73531,
+              "duration": 1530,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-90",
+              "pitch": 39,
+              "start": 75046,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-91",
+              "pitch": 51,
+              "start": 75046,
+              "duration": 555,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-92",
+              "pitch": 36,
+              "start": 75601,
+              "duration": 4185,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-93",
+              "pitch": 48,
+              "start": 75601,
+              "duration": 4155,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-94",
+              "pitch": 48,
+              "start": 80057,
+              "duration": 2294,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-95",
+              "pitch": 36,
+              "start": 80101,
+              "duration": 2250,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-96",
+              "pitch": 37,
+              "start": 82291,
+              "duration": 1665,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-97",
+              "pitch": 49,
+              "start": 82291,
+              "duration": 1620,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-98",
+              "pitch": 39,
+              "start": 83911,
+              "duration": 571,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-99",
+              "pitch": 51,
+              "start": 83911,
+              "duration": 586,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-100",
+              "pitch": 36,
+              "start": 84497,
+              "duration": 2355,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-101",
+              "pitch": 48,
+              "start": 84497,
+              "duration": 2265,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-102",
+              "pitch": 39,
+              "start": 86777,
+              "duration": 2294,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-103",
+              "pitch": 51,
+              "start": 86777,
+              "duration": 2174,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-104",
+              "pitch": 41,
+              "start": 88981,
+              "duration": 4216,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-105",
+              "pitch": 53,
+              "start": 89191,
+              "duration": 4021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-7-1-106",
+              "pitch": 37,
+              "start": 96406,
+              "duration": 1,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-8",
+      "name": "Track 8",
+      "instrument": "gm-11",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-8-1",
+          "name": "Track 8",
+          "start": 0,
+          "length": 1920,
+          "notes": [],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-9",
+      "name": "Track 9",
+      "instrument": "gm-98",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-9-1",
+          "name": "Track 9",
+          "start": 0,
+          "length": 38400,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-9-1-1",
+              "pitch": 84,
+              "start": 646,
+              "duration": 901,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-2",
+              "pitch": 84,
+              "start": 2267,
+              "duration": 465,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-3",
+              "pitch": 82,
+              "start": 2822,
+              "duration": 1169,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-4",
+              "pitch": 79,
+              "start": 5057,
+              "duration": 900,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-5",
+              "pitch": 75,
+              "start": 6107,
+              "duration": 795,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-6",
+              "pitch": 72,
+              "start": 7142,
+              "duration": 2205,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-7",
+              "pitch": 84,
+              "start": 9737,
+              "duration": 825,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-8",
+              "pitch": 79,
+              "start": 10681,
+              "duration": 435,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-9",
+              "pitch": 84,
+              "start": 11161,
+              "duration": 330,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-10",
+              "pitch": 82,
+              "start": 11761,
+              "duration": 1186,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-11",
+              "pitch": 79,
+              "start": 13891,
+              "duration": 1096,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-12",
+              "pitch": 75,
+              "start": 15046,
+              "duration": 1141,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-13",
+              "pitch": 77,
+              "start": 18511,
+              "duration": 931,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-14",
+              "pitch": 79,
+              "start": 19591,
+              "duration": 466,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-15",
+              "pitch": 80,
+              "start": 20147,
+              "duration": 180,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-16",
+              "pitch": 83,
+              "start": 20777,
+              "duration": 1680,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-17",
+              "pitch": 77,
+              "start": 22862,
+              "duration": 855,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-18",
+              "pitch": 79,
+              "start": 23926,
+              "duration": 405,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-19",
+              "pitch": 83,
+              "start": 25097,
+              "duration": 1590,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-20",
+              "pitch": 77,
+              "start": 27137,
+              "duration": 825,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-21",
+              "pitch": 80,
+              "start": 28697,
+              "duration": 540,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-22",
+              "pitch": 83,
+              "start": 29281,
+              "duration": 1230,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-23",
+              "pitch": 84,
+              "start": 31427,
+              "duration": 705,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-24",
+              "pitch": 87,
+              "start": 32521,
+              "duration": 1125,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-25",
+              "pitch": 89,
+              "start": 33662,
+              "duration": 1740,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-26",
+              "pitch": 84,
+              "start": 35822,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-9-1-27",
+              "pitch": 84,
+              "start": 37591,
+              "duration": 376,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-10",
+      "name": "Track 10",
+      "instrument": "gm-0",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-10-1",
+          "name": "Track 10",
+          "start": 0,
+          "length": 1920,
+          "notes": [],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-11",
+      "name": "Track 11",
+      "instrument": "gm-93",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-11-1",
+          "name": "Track 11",
+          "start": 0,
+          "length": 119040,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-11-1-1",
+              "pitch": 67,
+              "start": 35881,
+              "duration": 1545,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-2",
+              "pitch": 72,
+              "start": 35911,
+              "duration": 1575,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-3",
+              "pitch": 68,
+              "start": 38056,
+              "duration": 1470,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-4",
+              "pitch": 72,
+              "start": 38250,
+              "duration": 1246,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-5",
+              "pitch": 72,
+              "start": 40396,
+              "duration": 1755,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-6",
+              "pitch": 67,
+              "start": 40426,
+              "duration": 1696,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-7",
+              "pitch": 67,
+              "start": 44610,
+              "duration": 1381,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-8",
+              "pitch": 72,
+              "start": 44610,
+              "duration": 1411,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-9",
+              "pitch": 72,
+              "start": 71356,
+              "duration": 3614,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-10",
+              "pitch": 67,
+              "start": 71596,
+              "duration": 3180,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-11",
+              "pitch": 72,
+              "start": 80176,
+              "duration": 4035,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-12",
+              "pitch": 67,
+              "start": 80250,
+              "duration": 1816,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-13",
+              "pitch": 68,
+              "start": 82321,
+              "duration": 1950,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-14",
+              "pitch": 67,
+              "start": 84525,
+              "duration": 4276,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-15",
+              "pitch": 72,
+              "start": 84525,
+              "duration": 4171,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-16",
+              "pitch": 67,
+              "start": 95101,
+              "duration": 2176,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-17",
+              "pitch": 72,
+              "start": 95130,
+              "duration": 2176,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-18",
+              "pitch": 63,
+              "start": 97485,
+              "duration": 2296,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-19",
+              "pitch": 68,
+              "start": 97501,
+              "duration": 2040,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-20",
+              "pitch": 72,
+              "start": 97501,
+              "duration": 1995,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-21",
+              "pitch": 67,
+              "start": 100005,
+              "duration": 1816,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-22",
+              "pitch": 72,
+              "start": 100005,
+              "duration": 1771,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-23",
+              "pitch": 72,
+              "start": 102376,
+              "duration": 2250,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-24",
+              "pitch": 63,
+              "start": 102405,
+              "duration": 2280,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-25",
+              "pitch": 70,
+              "start": 102421,
+              "duration": 2235,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-26",
+              "pitch": 72,
+              "start": 104730,
+              "duration": 1951,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-27",
+              "pitch": 67,
+              "start": 104746,
+              "duration": 1875,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-28",
+              "pitch": 63,
+              "start": 106906,
+              "duration": 1065,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-29",
+              "pitch": 68,
+              "start": 106906,
+              "duration": 2070,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-30",
+              "pitch": 67,
+              "start": 109201,
+              "duration": 2385,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-31",
+              "pitch": 72,
+              "start": 109245,
+              "duration": 3541,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-32",
+              "pitch": 67,
+              "start": 114271,
+              "duration": 2865,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-11-1-33",
+              "pitch": 72,
+              "start": 114271,
+              "duration": 2865,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    },
+    {
+      "id": "crystal-tune-bright-1-track-12",
+      "name": "Track 12",
+      "instrument": "gm-10",
+      "volume": 0.8,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "params": {
+        "tone": 0.5,
+        "resonance": 0,
+        "drive": 0,
+        "attack": 0.01,
+        "release": 0.3,
+        "chorus": 0,
+        "phaser": 0,
+        "reverb": 0,
+        "delay": 0
+      },
+      "clips": [
+        {
+          "id": "crystal-tune-bright-1-clip-12-1",
+          "name": "Track 12",
+          "start": 0,
+          "length": 119040,
+          "notes": [
+            {
+              "id": "crystal-tune-bright-1-note-12-1-1",
+              "pitch": 44,
+              "start": 15016,
+              "duration": 1021,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-2",
+              "pitch": 41,
+              "start": 16111,
+              "duration": 1846,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-3",
+              "pitch": 47,
+              "start": 35866,
+              "duration": 1950,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-4",
+              "pitch": 44,
+              "start": 38146,
+              "duration": 1621,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-5",
+              "pitch": 36,
+              "start": 51511,
+              "duration": 1891,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-6",
+              "pitch": 47,
+              "start": 55890,
+              "duration": 1171,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-7",
+              "pitch": 41,
+              "start": 58006,
+              "duration": 1080,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-8",
+              "pitch": 43,
+              "start": 59116,
+              "duration": 494,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-9",
+              "pitch": 44,
+              "start": 59686,
+              "duration": 510,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-10",
+              "pitch": 47,
+              "start": 60271,
+              "duration": 1200,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-11",
+              "pitch": 47,
+              "start": 71370,
+              "duration": 1651,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-12",
+              "pitch": 44,
+              "start": 73546,
+              "duration": 1651,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-13",
+              "pitch": 43,
+              "start": 75601,
+              "duration": 1980,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-14",
+              "pitch": 44,
+              "start": 77896,
+              "duration": 1621,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-15",
+              "pitch": 43,
+              "start": 80056,
+              "duration": 1920,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-16",
+              "pitch": 44,
+              "start": 82321,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-17",
+              "pitch": 43,
+              "start": 84526,
+              "duration": 1020,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-18",
+              "pitch": 38,
+              "start": 85756,
+              "duration": 690,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-19",
+              "pitch": 36,
+              "start": 86791,
+              "duration": 1560,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-20",
+              "pitch": 36,
+              "start": 88921,
+              "duration": 2175,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-21",
+              "pitch": 36,
+              "start": 93601,
+              "duration": 2235,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-22",
+              "pitch": 37,
+              "start": 96256,
+              "duration": 1965,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-23",
+              "pitch": 36,
+              "start": 98761,
+              "duration": 2040,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-24",
+              "pitch": 40,
+              "start": 101056,
+              "duration": 2581,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-25",
+              "pitch": 36,
+              "start": 103666,
+              "duration": 2115,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-26",
+              "pitch": 37,
+              "start": 106081,
+              "duration": 1815,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-27",
+              "pitch": 36,
+              "start": 108196,
+              "duration": 1635,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-28",
+              "pitch": 48,
+              "start": 110596,
+              "duration": 2670,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-29",
+              "pitch": 48,
+              "start": 114031,
+              "duration": 3870,
+              "velocity": 0.7874015748031497
+            },
+            {
+              "id": "crystal-tune-bright-1-note-12-1-30",
+              "pitch": 36,
+              "start": 116086,
+              "duration": 1844,
+              "velocity": 0.7874015748031497
+            }
+          ],
+          "controllers": []
+        }
+      ]
+    }
+  ]
+}

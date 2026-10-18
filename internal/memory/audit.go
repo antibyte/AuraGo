@@ -232,6 +232,23 @@ func (s *SQLiteMemory) SearchAuditEvents(filter AuditFilter) (*AuditPage, error)
 	}, nil
 }
 
+// RecentAuditEvents returns the newest audit events (at most limit, default
+// 50 like SearchAuditEvents, capped at 200) without counting the table.
+func (s *SQLiteMemory) RecentAuditEvents(limit int) ([]AuditEvent, error) {
+	limit = normalizeAuditFilter(AuditFilter{Limit: limit}).Limit
+	rows, err := s.db.Query(`
+		SELECT id, timestamp, source, event_type, actor, session_id, target_id, target_name,
+			status, summary, detail, duration_ms, correlation_id, metadata_json
+		FROM audit_events
+		ORDER BY timestamp DESC, id DESC
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query audit events: %w", err)
+	}
+	defer rows.Close()
+	return scanAuditEvents(rows)
+}
+
 // DeleteAuditEvent removes one event by ID.
 func (s *SQLiteMemory) DeleteAuditEvent(id int64) error {
 	if id <= 0 {

@@ -163,8 +163,8 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 		}
 
 		s.Logger.Info("Knowledge file uploaded", "file", safeName)
-		if s.FileIndexer != nil {
-			s.FileIndexer.Rescan()
+		if fi := s.fileIndexer(); fi != nil {
+			fi.Rescan()
 			s.Logger.Info("Knowledge file indexing rescan triggered", "file", safeName)
 		}
 		w.Header().Set("Content-Type", "application/json")

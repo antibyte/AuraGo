@@ -614,6 +614,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            'minigolf': 'MinigolfApp',
             layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',

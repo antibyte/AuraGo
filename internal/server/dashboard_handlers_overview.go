@@ -688,8 +688,8 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		indexerStatus := map[string]interface{}{
 			"enabled": false,
 		}
-		if s.FileIndexer != nil {
-			status := s.FileIndexer.Status()
+		if fi := s.fileIndexer(); fi != nil {
+			status := fi.Status()
 			indexerStatus = map[string]interface{}{
 				"enabled":       true,
 				"running":       status.Running,

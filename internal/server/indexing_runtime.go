@@ -10,20 +10,31 @@ import (
 	"aurago/internal/services"
 )
 
+// fileIndexer returns the current file indexer, or nil while indexing is off
+// or being restarted. Callers must use the returned value, not call it again.
+func (s *Server) fileIndexer() *services.FileIndexer {
+	return s.fileIndexerRef.Load()
+}
+
+func (s *Server) setFileIndexer(fi *services.FileIndexer) {
+	s.fileIndexerRef.Store(fi)
+}
+
 func (s *Server) restartFileIndexer(cfg *config.Config) {
-	if s.FileIndexer != nil {
-		if !s.FileIndexer.Stop() {
+	if current := s.fileIndexer(); current != nil {
+		if !current.Stop() {
 			s.Logger.Warn("[Indexer] Existing file indexer did not stop; aborting restart")
 			return
 		}
-		s.FileIndexer = nil
+		s.setFileIndexer(nil)
 	}
 	if cfg == nil || !cfg.Indexing.Enabled {
 		return
 	}
-	s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	next := services.NewFileIndexer(cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	s.setFileIndexer(next)
 	s.attachFileKGSyncer()
-	s.FileIndexer.Start(context.Background())
+	next.Start(context.Background())
 }
 
 func resolveIndexingRequestPath(configDir, rawPath string) string {

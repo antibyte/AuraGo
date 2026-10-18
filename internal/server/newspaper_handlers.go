@@ -291,11 +291,15 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			for _, e := range items {
 				headlines := make([]string, 0, len(e.Stories))
 				sections := make([]string, 0, len(e.Stories))
+				lead := ""
+				if len(e.Stories) > 0 {
+					lead = e.Stories[0].Headline
+				}
 				for _, story := range e.Stories {
 					headlines = append(headlines, story.Headline)
 					sections = append(sections, story.Section)
 				}
-				out = append(out, map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": e.Revision, "title": e.Title, "created_at": e.CreatedAt, "hash": e.Hash, "partial": e.Partial, "stories": len(e.Stories), "lead": e.Stories[0].Headline, "headlines": headlines, "sections": sections})
+				out = append(out, map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": e.Revision, "title": e.Title, "created_at": e.CreatedAt, "hash": e.Hash, "partial": e.Partial, "stories": len(e.Stories), "lead": lead, "headlines": headlines, "sections": sections})
 			}
 			run, _ := s.Newspaper.LatestRun(r.Context())
 			newspaperJSON(w, 200, map[string]any{"editions": out, "latest_run": run})

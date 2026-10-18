@@ -6,6 +6,26 @@
             const c = ctx.c; c.save(); c.globalAlpha = alpha; c.strokeStyle = color; c.lineWidth = 2;
             c.beginPath(); c.arc(x, y, Math.max(0, radius), 0, Math.PI * 2); c.stroke(); c.restore();
         }
+        function drawEvoBullet(c, b, time) {
+            const rm = ctx.settings.reducedMotion;
+            c.save(); c.translate(b.x, b.y);
+            if (b.wave) {
+                // Teal lozenge leaning into its lateral swing, with two fading ghosts behind it.
+                c.rotate(Math.cos(b.age * b.waveFreq + b.wavePhase) * 0.55);
+                if (!rm) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35; c.fillStyle = '#55ffd6'; c.beginPath(); c.ellipse(0, 7, 4, 9, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 0.18; c.beginPath(); c.ellipse(0, 15, 3, 7, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
+                c.fillStyle = '#55ffd6'; c.beginPath(); c.moveTo(0, -8); c.lineTo(3.5, 0); c.lineTo(0, 8); c.lineTo(-3.5, 0); c.closePath(); c.fill();
+                c.fillStyle = '#ffffff'; c.fillRect(-1, -4, 2, 8);
+            } else if (b.flak) {
+                c.rotate(Math.atan2(b.vx, -b.vy));
+                if (!rm) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.4; c.fillStyle = '#ff8833'; c.fillRect(-2, 5, 4, 9); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+                c.fillStyle = '#ffaa33'; c.fillRect(-3, -5, 6, 10); c.fillStyle = '#5a2a10'; c.fillRect(-3, -5, 6, 2); c.fillStyle = '#ffe3a8'; c.fillRect(-1, -3, 2, 5);
+            } else if (b.flakShard) {
+                c.rotate(Math.atan2(b.vx, -b.vy));
+                if (!rm) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; c.fillStyle = '#ffd27a'; c.fillRect(-1, 2, 2, 7); }
+                c.globalAlpha = 1; c.fillStyle = '#ffd27a'; c.fillRect(-1.5, -2, 3, 4);
+            }
+            c.restore();
+        }
         function drawThruster(c, x, y, time, boost, col) {
             if (ctx.settings.reducedMotion) return;
             const flicker = 0.8 + 0.35 * Math.sin(time * 0.045 + x);
@@ -32,6 +52,12 @@
             }
             c.restore();
         }
+        function drawShip(c, x, y, ref) {
+            const bank = ctx.settings.reducedMotion ? 0 : (ctx.G.shipTilt || 0) * 0.6;
+            if (Math.abs(bank) < 0.004) { ctx.drawAnimation(c, ref.key, x, y, ref.time, 48); return; }
+            c.save(); c.translate(x, y); c.rotate(bank); ctx.drawAnimation(c, ref.key, 0, 0, ref.time, 48); c.restore();
+        }
+
         function renderGame() {
             const G = ctx.G, c = ctx.c, time = G.animTime || 0;
             if (!ctx.settings.reducedMotion) {
@@ -53,9 +79,13 @@
                 const { sp } = ctx.enemySpriteFor(e);
                 const baseAlpha = e.invulnerable && !e.sectorBoss ? 0.55 : 1;
                 const mAlpha = e.mAlpha != null ? e.mAlpha : 1;
+                const rot = e.rot || 0, sc = e.mScale || 1;
                 c.save();
                 c.globalAlpha = baseAlpha * mAlpha;
-                ctx.drawAnimation(c, sp.key, e.x, e.y, sp.time, undefined, e.hitF > 50 ? '#dbeeff' : null);
+                if (Math.abs(rot) > 0.002 || Math.abs(sc - 1) > 0.004) {
+                    c.translate(e.x, e.y); c.rotate(rot); c.scale(sc, sc);
+                    ctx.drawAnimation(c, sp.key, 0, 0, sp.time, undefined, e.hitF > 50 ? '#dbeeff' : null);
+                } else ctx.drawAnimation(c, sp.key, e.x, e.y, sp.time, undefined, e.hitF > 50 ? '#dbeeff' : null);
                 c.restore();
                 if (e.enraged) {
                     ring(e.x, e.y, (e.w || 28) * 0.65, '#ff4422', 0.35 + 0.2 * Math.sin(time * 0.018));
@@ -91,8 +121,8 @@
                 if (G.p.dual) drawThruster(c, G.p.x + 36, G.p.y, time, thrustBoost, thrustCol);
                 const ref = ctx.getPlayerSpriteFrame();
                 c.globalAlpha = G.p.inv > 0 && Math.floor(time / 90) % 2 ? 0.5 : 1;
-                ctx.drawAnimation(c, ref.key, G.p.x, G.p.y, ref.time, 48);
-                if (G.p.dual) ctx.drawAnimation(c, ref.key, G.p.x + 36, G.p.y, ref.time, 48);
+                drawShip(c, G.p.x, G.p.y, ref);
+                if (G.p.dual) drawShip(c, G.p.x + 36, G.p.y, ref);
                 if (G.mirrorActive) { c.globalAlpha = 0.4; ctx.drawAnimation(c, ref.key, ctx.W - G.p.x, G.p.y, ref.time, 48); }
                 c.globalAlpha = 1;
                 if (G.muzzleT > 0 && !ctx.settings.reducedMotion) {
@@ -101,7 +131,9 @@
                     const isLaserMuz = puType === 'laser' || puType === 'mega_laser' || (G.weaponEvo && ctx.WEAPON_EVOS && ctx.WEAPON_EVOS[G.weaponEvo] && ctx.WEAPON_EVOS[G.weaponEvo].isBeam);
                     const isSpreadMuz = puType === 'spread' || puType === 'mega_spread';
                     const isRocketMuz = ctx.EXPANSION_WEAPONS[puType] && !ctx.EXPANSION_WEAPONS[puType].mine;
-                    const mCol = isLaserMuz ? '#ff66cc' : isSpreadMuz ? '#66eeff' : isRocketMuz ? '#ff8833' : '#ffee88';
+                    const evo = !puType && G.weaponEvo && ctx.WEAPON_EVOS ? ctx.WEAPON_EVOS[G.weaponEvo] : null;
+                    const evoMode = evo && evo.mode;
+                    const mCol = isLaserMuz ? '#ff66cc' : isSpreadMuz ? '#66eeff' : isRocketMuz ? '#ff8833' : evo ? evo.col : '#ffee88';
                     c.save();
                     c.globalCompositeOperation = 'lighter';
                     for (const mx of (G.p.dual ? [G.p.x, G.p.x + 36] : [G.p.x])) {
@@ -119,8 +151,16 @@
                             c.strokeStyle = mCol; c.lineWidth = 2;
                             c.beginPath(); c.arc(mx, my, 4 + (1 - mRatio) * 7, 0, Math.PI * 2); c.stroke();
                             c.beginPath(); c.arc(mx, my, 4 * mRatio, 0, Math.PI * 2); c.fill();
+                        } else if (evoMode === 'rail') {
+                            c.fillRect(mx - 1.5, my - 20 * mRatio, 3, 20 * mRatio);
+                            c.strokeStyle = mCol; c.lineWidth = 1.5; c.beginPath(); c.arc(mx, my, 5 + (1 - mRatio) * 6, 0, Math.PI * 2); c.stroke();
+                        } else if (evoMode === 'wave') {
+                            for (const s of [-1, 1]) { c.beginPath(); c.arc(mx + s * 5 * mRatio, my, 3 * mRatio, 0, Math.PI * 2); c.fill(); }
+                        } else if (evoMode === 'flak') {
+                            c.strokeStyle = mCol; c.lineWidth = 2; c.beginPath(); c.arc(mx, my, 3 + (1 - mRatio) * 5, 0, Math.PI * 2); c.stroke();
+                            for (const a of [-0.6, 0, 0.6]) c.fillRect(mx + Math.sin(a) * 8 * mRatio - 1, my - Math.cos(a) * 8 * mRatio - 1, 2, 2);
                         } else {
-                            c.beginPath(); c.arc(mx, my, 5 * mRatio, 0, Math.PI * 2); c.fill();
+                            c.beginPath(); c.arc(mx, my, (G.weaponEvo === 'cannon' && !puType ? 7 : 5) * mRatio, 0, Math.PI * 2); c.fill();
                             c.fillRect(mx - 7 * mRatio, my - 0.8, 14 * mRatio, 1.6);
                         }
                         c.fillStyle = '#ffffff';
@@ -141,13 +181,16 @@
                 c.fillStyle = '#e5faff'; c.fillRect(Math.round(G.p.x - 1), Math.round(G.p.y - 1), 2, 2);
             }
             for (const bullet of G.bul) {
+                if (bullet.wave || bullet.flak || bullet.flakShard) { drawEvoBullet(c, bullet, time); continue; }
                 const kind = bullet.rocket ? 'rocket' : bullet.laser ? 'laser' : bullet._parried ? 'bolt' : bullet.kind === 'nova' ? 'plasma' : 'normal';
-                if (!ctx.settings.reducedMotion && (bullet.laser || bullet.rocket || bullet._parried || bullet.pierce)) {
+                if (!ctx.settings.reducedMotion && (bullet.laser || bullet.rocket || bullet._parried || bullet.pierce || bullet.evo)) {
                     c.save();
                     c.globalCompositeOperation = 'lighter';
                     c.globalAlpha = 0.45;
                     c.fillStyle = bullet.laser ? '#ff66aa' : bullet._parried ? '#66eeff' : bullet.rocket ? '#ffaa44' : '#88ffcc';
                     c.fillRect(bullet.x - 1.5, bullet.y + 4, 3, bullet.laser ? 14 : 9);
+                    if (bullet.evo === 'vulcan') { c.fillStyle = '#ffb070'; c.globalAlpha = 0.5; c.fillRect(bullet.x - 0.5, bullet.y + 3, 1, 10); c.globalAlpha = 1; }
+                    else if (bullet.evo === 'cannon') { c.fillStyle = '#ff6655'; c.fillRect(bullet.x - 3, bullet.y + 4, 6, 12); }
                     c.restore();
                 }
                 if (bullet.rocket) {
@@ -155,7 +198,21 @@
                     if (!ctx.settings.reducedMotion) ctx.drawAnimation(c, 'effect.rocket-exhaust', 0, 10, time, 22);
                     ctx.drawAnimation(c, 'weapon.' + (bullet.artId || 'seeker-rocket'), 0, 0, time, bullet.weapon === 'seeker_torpedo' ? 34 : 24); c.restore();
                     if (ctx.isSeekerTarget(bullet.target)) ctx.drawAnimation(c, 'effect.target-lock', bullet.target.x, bullet.target.y, ctx.settings.reducedMotion ? 0 : time, 34);
-                } else ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, bullet.laser ? 28 : 18);
+                } else {
+                    const bSize = bullet.laser ? 28 : bullet.evo === 'cannon' ? 26 : bullet.evo === 'vulcan' ? 14 : 18;
+                    if (bullet.vx && Math.abs(bullet.vx) > 1 && !bullet._parried) {
+                        c.save(); c.translate(bullet.x, bullet.y); c.rotate(Math.atan2(bullet.vx, -(bullet.vy || -ctx.PB_SPEED)));
+                        ctx.drawAnimation(c, 'projectile.' + kind, 0, 0, time, bSize); c.restore();
+                    } else ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, bSize);
+                }
+            }
+            for (const beam of G.railBeams || []) {
+                const k = Math.max(0, 1 - beam.t / beam.dur);
+                c.save(); c.globalCompositeOperation = 'lighter';
+                c.globalAlpha = k * 0.35; c.fillStyle = '#6fb8ff'; c.fillRect(beam.x - 5 * k - 1, beam.y1, 10 * k + 2, beam.y0 - beam.y1);
+                c.globalAlpha = k; c.fillStyle = '#ffffff'; c.fillRect(beam.x - 1, beam.y1, 2, beam.y0 - beam.y1);
+                if (!ctx.settings.reducedMotion) for (let sy = beam.y0 - ((time * 0.9) % 28); sy > beam.y1; sy -= 28) c.fillRect(beam.x - 4 * k - 1, sy, 8 * k + 2, 2);
+                c.restore();
             }
             for (const ex of G.exp) ctx.drawAnimation(c, ex.animation || ('fx.explosion.' + (ex.isBoss ? 'large' : 'small')), ex.x, ex.y, ex.t, ex.size || (ex.isBoss ? 128 : 48), null, false);
             for (const r of G.plasmaRings) ring(r.x, r.y, r.r, r.col, Math.max(0, 1 - r.t / r.dur) * 0.45);

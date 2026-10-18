@@ -185,6 +185,8 @@
                 body: JSON.stringify(payload)
             });
             if (!resp.ok) return null;
+            // The mutation changes /api/personality/state without a personality_update SSE.
+            DashAPI.invalidate('/api/personality/');
             const data = await resp.json();
             renderMoodBadge(data);
             return data;
@@ -572,7 +574,7 @@
                 if (!resp.ok) throw new Error(data.error || data.message || 'memory reflection run failed');
                 renderWeeklyReflection(data.latest_reflection || null, Number(data.reflection_actionable_count || data.latest_reflection?.actionable_count || 0));
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_reflection_run_success'), 'success', 3500);
-                if (typeof loadTabAgent === 'function') await loadTabAgent();
+                if (typeof loadSectionContent === 'function') await loadSectionContent('memory', { force: true });
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_reflection_run_error'), 'error', 5000);
             } finally {
@@ -670,7 +672,7 @@
                     method: 'DELETE', credentials: 'same-origin'
                 });
                 if (!r.ok) throw new Error('delete failed');
-                loadTabUser();
+                loadSectionContent('user', { force: true });
             } catch (_) {
                 if (typeof showToast === 'function') showToast(t('dashboard.profile_delete_error'), 'error', 4000);
             }
@@ -708,7 +710,7 @@
                     body: JSON.stringify({ category: cat, key: key, value: newVal })
                 });
                 if (!r.ok) throw new Error('save failed');
-                loadTabUser();
+                loadSectionContent('user', { force: true });
             } catch (_) {
                 if (typeof showToast === 'function') showToast(t('dashboard.profile_save_error'), 'error', 4000);
             }
@@ -1779,7 +1781,7 @@
                 if (!resp.ok) throw new Error('memory curation apply failed');
                 const data = await resp.json();
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_applied', { count: Number(data.applied || 0) }), 'success', 3500);
-                if (typeof loadTabAgent === 'function') await loadTabAgent();
+                if (typeof loadSectionContent === 'function') await loadSectionContent('memory', { force: true });
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_error'), 'error', 5000);
             }
@@ -1895,7 +1897,7 @@
                 } else if (typeof showToast === 'function') {
                     showToast(t('dashboard.memory_hygiene_applied', { count }), 'success', 3500);
                 }
-                if (typeof loadTabAgent === 'function') await loadTabAgent();
+                if (typeof loadSectionContent === 'function') await loadSectionContent('memory', { force: true });
             } catch (e) {
                 if (typeof showToast === 'function') showToast(t('dashboard.memory_hygiene_error'), 'error', 5000);
             }
@@ -2061,7 +2063,7 @@
         }
 
         function scheduleAuditRefresh() {
-            if (TabState.active !== 'audit') return;
+            if (typeof DashRouter === 'undefined' || DashRouter.current() !== 'audit') return;
             clearTimeout(auditRefreshTimer);
             auditRefreshTimer = setTimeout(() => {
                 auditRefreshTimer = null;
@@ -3244,9 +3246,4 @@
             const summaries = summariesR.ok ? summariesR.data : null;
             renderJournalTimeline(entries?.entries);
             renderJournalSummary(summaries?.summaries);
-        }
-
-        async function loadErrorPatterns() {
-            const data = await API.get('/api/dashboard/errors');
-            renderErrorPatterns(data);
         }

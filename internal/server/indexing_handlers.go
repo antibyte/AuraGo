@@ -24,7 +24,8 @@ func handleIndexingStatus(s *Server) http.HandlerFunc {
 
 		chunkingStrategy := indexingChunkingStrategy(s)
 		indexedDocuments := 0
-		if s.FileIndexer == nil {
+		fileIndexer := s.fileIndexer()
+		if fileIndexer == nil {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"enabled":           false,
@@ -34,7 +35,7 @@ func handleIndexingStatus(s *Server) http.HandlerFunc {
 			return
 		}
 
-		status := s.FileIndexer.Status()
+		status := fileIndexer.Status()
 		chunkingStrategy = status.ChunkingStrategy
 		indexedDocuments = status.IndexedDocuments
 		w.Header().Set("Content-Type", "application/json")
@@ -71,12 +72,13 @@ func handleIndexingRescan(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if s.FileIndexer == nil {
+		fileIndexer := s.fileIndexer()
+		if fileIndexer == nil {
 			jsonError(w, "Indexer not running", http.StatusServiceUnavailable)
 			return
 		}
 
-		s.FileIndexer.Rescan()
+		fileIndexer.Rescan()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Rescan gestartet"})
 	}
@@ -156,8 +158,8 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			s.CfgMu.Unlock()
 
 			// Trigger rescan
-			if s.FileIndexer != nil {
-				s.FileIndexer.Rescan()
+			if fi := s.fileIndexer(); fi != nil {
+				fi.Rescan()
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -214,12 +216,12 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			s.CfgMu.Unlock()
 
 			cleanupErrors := []string{}
-			if s.FileIndexer != nil {
-				cleanupErrors = s.FileIndexer.CleanupDirectory(removed)
+			if fi := s.fileIndexer(); fi != nil {
+				cleanupErrors = fi.CleanupDirectory(removed)
 				if len(cleanupErrors) > 0 {
 					s.Logger.Warn("[Indexer] Directory cleanup after removal produced errors", "path", removed.Path, "errors", cleanupErrors)
 				}
-				s.FileIndexer.Rescan()
+				fi.Rescan()
 			}
 
 			w.Header().Set("Content-Type", "application/json")

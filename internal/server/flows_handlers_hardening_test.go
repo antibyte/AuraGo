@@ -385,16 +385,13 @@ func TestC17AuditTypesAreRegisteredInTheDashboard(t *testing.T) {
 		t.Fatalf("audited types = %v, want the 8 flow actions", types)
 	}
 	ui := filepath.Join("..", "..", "ui")
-	html, err := os.ReadFile(filepath.Join(ui, "dashboard.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	html := readDashboardMarkupForTest(t)
 	locales, err := filepath.Glob(filepath.Join(ui, "lang", "dashboard", "*.json"))
 	if err != nil || len(locales) != 16 {
 		t.Fatalf("dashboard locales = %v %v", locales, err)
 	}
 	for typ := range types {
-		if !strings.Contains(string(html), `<option value="`+typ+`" data-i18n="dashboard.audit_type_`+typ+`">`) {
+		if !strings.Contains(html, `<option value="`+typ+`" data-i18n="dashboard.audit_type_`+typ+`">`) {
 			t.Errorf("the dashboard audit filter does not list %s", typ)
 		}
 		for _, path := range locales {

@@ -262,8 +262,8 @@ type Server struct {
 	agodeskDevToken           string // loopback-only AgoDesk development opt-in; never exposed to clients
 	ProxyManager              *proxy.Manager
 	TsNetManager              *tsnetnode.Manager
-	tsNetHandler              http.Handler // stored so the UI can restart tsnet without a full server restart
-	FileIndexer               *services.FileIndexer
+	tsNetHandler              http.Handler                         // stored so the UI can restart tsnet without a full server restart
+	fileIndexerRef            atomic.Pointer[services.FileIndexer] // use fileIndexer()/setFileIndexer(); restartFileIndexer swaps it while handlers run
 	WorkspaceSearch           *services.WorkspaceSearchService
 	MaintenanceScheduler      *agent.MaintenanceController
 	MQTTController            *mqtt.MQTTController
@@ -339,6 +339,10 @@ type Server struct {
 	loopbackSrv     *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
+
+	// latestSystemMetrics is the latest sample of the 10 s system-metrics
+	// collector; GET /api/dashboard/summary reads it (dashboard_metrics_snapshot.go).
+	latestSystemMetrics atomic.Pointer[systemMetricsSnapshot]
 
 	// pushRemoteAllowedPaths sends a changed remote_control.allowed_paths to
 	// connected agents (nil means (*remote.RemoteHub).PushDefaultAllowedPaths);
@@ -1461,9 +1465,10 @@ func Start(opts StartOptions) error {
 
 	// Start File Indexer if enabled
 	if cfg.Indexing.Enabled {
-		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
+		fileIndexer := services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
+		s.setFileIndexer(fileIndexer)
 		s.attachFileKGSyncer()
-		s.FileIndexer.Start(serverCtx)
+		fileIndexer.Start(serverCtx)
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}
 

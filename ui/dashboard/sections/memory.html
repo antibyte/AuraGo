@@ -1,0 +1,57 @@
+{{define "dash-section-memory"}}
+<section class="dash-section" id="sec-memory" data-section="memory" aria-labelledby="sec-memory-title" hidden>
+  <header class="dash-section-header">
+    <div class="dash-section-heading">
+      <h2 class="dash-section-title" id="sec-memory-title" tabindex="-1" data-i18n="dashboard.section.memory.title"></h2>
+      <p class="dash-section-desc" data-i18n="dashboard.section.memory.desc"></p>
+    </div>
+    <div class="dash-section-meta">
+      <span class="dash-section-updated" data-section-updated="memory"></span>
+      <button type="button" class="dash-section-refresh" data-section-refresh="memory" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+    </div>
+  </header>
+  <div class="dash-grid">
+    <div class="dash-card span-8" id="card-memory">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3a2 2 0 1 0 0 4v4h-4v-4a2 2 0 1 1 0-4z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.memory_title"></h3> <button type="button" class="collapse-toggle" data-card="card-memory" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-body">
+        <div class="memory-stats-grid" id="memory-stats"></div>
+        <div class="memory-bar-wrap">
+          <canvas id="memory-chart"></canvas>
+        </div>
+        <div id="memory-health-summary" class="mt-sm"></div>
+        <div id="memory-curator-wrap" class="mt-sm">
+          <h4 class="card-section-title" data-i18n="dashboard.memory_curator_title"></h4>
+          <div id="memory-curator-list"></div>
+        </div>
+        <div data-learnings-memory class="mt-sm"></div>
+        <div id="memory-episodic-wrap" class="mt-sm">
+          <h4 class="card-section-title" data-i18n="dashboard.memory_episodic_title"></h4>
+          <div id="memory-episodic-list"></div>
+        </div>
+        <div class="milestone-list" id="milestone-list"></div>
+      </div>
+    </div>
+
+    <div class="dash-card span-4" id="card-memory-reflection">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4"/><path d="M5.6 5.6l2.8 2.8"/><path d="M3 12h4"/><path d="M5.6 18.4l2.8-2.8"/><path d="M12 21v-4"/><path d="M18.4 18.4l-2.8-2.8"/><path d="M21 12h-4"/><path d="M18.4 5.6l-2.8 2.8"/><circle cx="12" cy="12" r="3"/></svg>
+        <h3 class="dash-card-title" data-i18n="dashboard.memory_latest_reflection"></h3>
+        <button type="button" id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run" data-i18n-title="dashboard.memory_reflection_run" title="">
+          <svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+          <span data-i18n="dashboard.memory_reflection_run"></span>
+        </button>
+        <button type="button" class="collapse-toggle" data-card="card-memory-reflection" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <div class="memory-reflection-card">
+          <div class="memory-reflection-meta">
+            <span id="memory-reflection-date" class="memory-health-strategy-chip" data-i18n="dashboard.memory_reflection_date_empty"></span>
+            <span id="memory-reflection-actionables" class="memory-reflection-actionables"></span>
+          </div>
+          <div id="memory-reflection-summary" class="memory-reflection-summary" data-i18n="dashboard.memory_latest_reflection_empty"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}

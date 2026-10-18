@@ -1,10 +1,11 @@
-// EasyDrag detail view: a large overlay with three columns (input · parameters · output),
-// tabs on narrow windows, node navigation, settings, note and "test this step".
+// EasyDrag step inspector: a non-modal pane on the right of .ed-body (input · parameters ·
+// output as tabs so it fits 360px). No backdrop, focus trap, or outside click to close.
 (function () {
     'use strict';
 
     const ED = window.EasyDrag = window.EasyDrag || {};
-    const NARROW = 900;
+    // Below this editor width the graph and the inspector take turns (class is-inspector).
+    const PANE_BREAK = 760;
     // Step output is untrusted data (web pages, webhooks, model text) and the server accepts
     // JSON nested 10000 levels deep: the recursive renderers stop at MAX_DEPTH levels.
     const MAX_DEPTH = 24;
@@ -151,6 +152,8 @@
     function open(ed, nodeId, opts) {
         const core = ED.core;
         const { t, esc } = ed;
+        // Another step must not open on top of a field the model refused. The typed text stays.
+        if (ed.detail && typeof ed.detail.flushPendingEdits === 'function' && ed.detail.flushPendingEdits() === false) return ed.detail;
         close(ed);
         const bag = core.bag();
         let node = ed.model.node(nodeId);
@@ -170,16 +173,9 @@
         let shownStep;
         let shownNode = null;
         let shownData = null;
-        const ownerWindow = ed.root.closest('.vd-window');
-        // Touch layouts deliberately keep EasyDrag's workspace wider than the viewport. The
-        // node detail is a modal, though, so mount it outside that clipped window content on
-        // phones and let it use the visible viewport instead.
-        const wantsViewportPortal = () => !!(ownerWindow && ownerWindow.classList.contains('vd-mobile-wide-window') &&
-            window.matchMedia('(max-width: 820px)').matches);
-        let useViewportPortal = wantsViewportPortal();
-
-        const el = core.el('<div class="ed-detail-backdrop"><div class="ed-detail" role="dialog" aria-modal="true">' +
+        const el = core.el('<aside class="ed-detail-backdrop"><div class="ed-detail" role="region">' +
             '<header class="ed-detail-head">' +
+            '<button type="button" class="ed-icon-btn ed-detail-back" data-ed-detail-back aria-label="' + esc(t('easydrag.ui.inspector_back')) + '" title="' + esc(t('easydrag.ui.inspector_back')) + '">' + core.icon('arrow-left') + '</button>' +
             '<div class="ed-detail-nav"><button type="button" class="ed-icon-btn" data-ed-nav="-1" aria-label="' + esc(t('easydrag.ui.detail_prev')) + '" title="' + esc(t('easydrag.ui.detail_prev')) + '">' + core.icon('chevron-left') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-nav="1" aria-label="' + esc(t('easydrag.ui.detail_next')) + '" title="' + esc(t('easydrag.ui.detail_next')) + '">' + core.icon('chevron-right') + '</button></div>' +
             '<span class="ed-detail-tile"></span><div class="ed-detail-title"><input class="ed-detail-label" aria-label="' + esc(t('easydrag.ui.detail_label')) + '"><span class="ed-detail-type"></span></div>' +
@@ -203,18 +199,9 @@
             ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div>' +
             '<button type="button" class="ed-icon-btn" data-ed-copy-json aria-label="' + esc(t('easydrag.ui.copy_json')) + '" title="' + esc(t('easydrag.ui.copy_json')) + '" hidden>' + core.icon('copy') + '</button></div></div>' +
             '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +
-            '</div></div></div>');
-        function mountDetail() {
-            const nextPortal = wantsViewportPortal();
-            const host = nextPortal ? (document.fullscreenElement || document.body) : ed.root;
-            const focused = el.contains(document.activeElement) ? document.activeElement : null;
-            useViewportPortal = nextPortal;
-            el.classList.toggle('ed-app', nextPortal);
-            el.classList.toggle('ed-detail-portal', nextPortal);
-            if (el.parentElement !== host) host.appendChild(el);
-            if (focused && document.activeElement !== focused) focused.focus({ preventScroll: true });
-        }
-        mountDetail();
+            '</div></div></aside>');
+        const host = ed.root.querySelector('.ed-body') || ed.root;
+        host.appendChild(el);
         const dialog = el.querySelector('.ed-detail');
         const labelInput = el.querySelector('.ed-detail-label');
 
@@ -302,9 +289,14 @@
                     '<a class="ed-link" href="/config#' + esc(avail.config_section || 'tools') + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.setup_open')) + '</a></div></div>'));
             }
             if (info.description) host.appendChild(core.el('<p class="ed-detail-desc">' + esc(info.description) + '</p>'));
+            const boundId = node.id;
             form = ED.forms.render({
                 ed, node, info, upstream: upstreamList(), roots: roots(), issues: ed.issues,
-                onChange: (name, value) => ed.model.setParam(node.id, name, value)
+                // id is the step the field was built for. A late blur must not write the step shown next.
+                onChange: (name, value, id) => {
+                    const target = id || boundId;
+                    if (ed.model.node(target)) ed.model.setParam(target, name, value);
+                }
             });
             host.appendChild(form.el);
             if (opts && opts.param) { const p = opts.param; opts = null; requestAnimationFrame(() => form.focus(p)); }
@@ -318,17 +310,16 @@
             const s = node.settings || {};
             const ro = !!(ed.readonly || ed.runView);
             const fenv = { t, esc, readonly: ro };
+            const existingKey = host.querySelector('input.ed-code');
+            // A refused or uncommitted key stays in the field. Rebuilding from the model would wipe it.
+            if (existingKey && existingKey.dataset.edNode === id && existingKey.dataset.edDirty === '1') return;
             host.innerHTML = '';
             const keyId = 'ed-key-' + ed.windowId + '-' + id;
             const keyField = core.el('<div class="ed-field"><div class="ed-field-head"><label for="' + esc(keyId) + '">' + esc(t('easydrag.ui.settings_key')) + '</label></div>' +
-                '<input class="ed-input ed-code" id="' + esc(keyId) + '" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" role="alert" hidden></p></div>');
-            keyField.querySelector('input').addEventListener('change', (event) => {
-                const res = ed.model.setKey(id, event.target.value.trim());
-                const err = keyField.querySelector('.ed-error');
-                err.hidden = res.ok;
-                const current = ed.model.node(id);
-                if (!res.ok) { err.textContent = core.tr(t, 'easydrag.ui.key_' + res.reason, t('easydrag.ui.key_invalid')); if (current) event.target.value = current.key; }
-            });
+                '<input class="ed-input ed-code" id="' + esc(keyId) + '" data-ed-node="' + esc(id) + '" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" role="alert" hidden></p></div>');
+            const keyInput = keyField.querySelector('input');
+            keyInput.addEventListener('input', () => { keyInput.dataset.edDirty = '1'; });
+            keyInput.addEventListener('change', () => { commitKey(); });
             host.appendChild(keyField);
             const onError = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_on_error')) + '</label></div></div>');
             const allowedErrors = Array.isArray(info && info.error_modes) && info.error_modes.length ? info.error_modes : ['stop', 'continue', 'error_port'];
@@ -366,8 +357,55 @@
             saveNote.cancel();
             if (!pendingNote) return;
             const { id, value } = pendingNote;
+            // Keep the text when the step is already gone so the caller can refuse the switch.
+            if (!ed.model.node(id)) return;
             pendingNote = null;
-            if (ed.model.node(id)) ed.model.setSettings(id, { notes: value || undefined });
+            ed.model.setSettings(id, { notes: value || undefined });
+        }
+
+        // commitKey writes the key field. A refused key stays on screen and flushPendingEdits
+        // returns false; nothing puts the previous key back into the input.
+        function commitKey() {
+            const keyInput = el.querySelector('[data-pane="settings"] input.ed-code');
+            if (!keyInput || keyInput.disabled) return true;
+            // The settings pane is not rebuilt on another tab. Its input still names the step
+            // it was drawn for, and a hidden field from that step must not write the step shown now.
+            const id = keyInput.dataset.edNode;
+            if (id !== node.id) return true;
+            const current = ed.model.node(id);
+            if (!current) return false;
+            const err = keyInput.closest('.ed-field').querySelector('.ed-error');
+            if (keyInput.value.trim() === current.key) {
+                keyInput.dataset.edInvalid = '';
+                keyInput.dataset.edDirty = '';
+                if (err) { err.hidden = true; err.textContent = ''; }
+                return true;
+            }
+            const res = ed.model.setKey(id, keyInput.value.trim());
+            if (!res.ok) {
+                keyInput.dataset.edInvalid = '1';
+                keyInput.dataset.edDirty = '1';
+                if (err) {
+                    err.hidden = false;
+                    err.textContent = core.tr(t, 'easydrag.ui.key_' + res.reason, t('easydrag.ui.key_invalid'));
+                }
+                return false;
+            }
+            keyInput.dataset.edInvalid = '';
+            keyInput.dataset.edDirty = '';
+            if (err) { err.hidden = true; err.textContent = ''; }
+            return true;
+        }
+
+        // flushPendingEdits writes a buffered field and the debounced note before save, test,
+        // publish, switch, run view or leave. False means the text is still in the inputs.
+        function flushPendingEdits() {
+            let ok = true;
+            flushNote();
+            if (pendingNote) ok = false;
+            if (form && typeof form.flush === 'function' && form.flush() === false) ok = false;
+            if (!commitKey()) ok = false;
+            return ok;
         }
 
         function renderNote() {
@@ -454,16 +492,22 @@
             if (pane === 'note') renderNote();
         }
 
-        function applyNarrow() {
-            const layoutWidth = useViewportPortal ? el.getBoundingClientRect().width : ed.root.getBoundingClientRect().width;
-            const narrow = layoutWidth < NARROW;
-            dialog.classList.toggle('is-narrow', narrow);
-            el.querySelectorAll('[data-ed-narrow]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.edNarrow === narrowTab)));
-            el.querySelectorAll('.ed-detail-col').forEach(c => { c.classList.toggle('is-active', c.dataset.col === narrowTab); });
+        // The inspector is one column at every width (the Input / Parameters / Output tabs).
+        // Under PANE_BREAK the editor shows that column or the graph, not both.
+        function syncPane() {
+            const width = ed.root.getBoundingClientRect().width;
+            ed.root.classList.toggle('is-inspector', width > 0 && width < PANE_BREAK);
         }
 
-        bag.listen(window, 'resize', () => { mountDetail(); applyNarrow(); });
-        bag.listen(document, 'fullscreenchange', () => { mountDetail(); applyNarrow(); });
+        function applyNarrow() {
+            dialog.classList.add('is-narrow');
+            el.querySelectorAll('[data-ed-narrow]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.edNarrow === narrowTab)));
+            el.querySelectorAll('.ed-detail-col').forEach(c => { c.classList.toggle('is-active', c.dataset.col === narrowTab); });
+            syncPane();
+        }
+
+        bag.listen(window, 'resize', () => { applyNarrow(); });
+        bag.listen(document, 'fullscreenchange', () => { applyNarrow(); });
 
         function renderAll() {
             renderHead();
@@ -479,29 +523,26 @@
             const idx = list.findIndex(n => n.id === node.id);
             const next = list[idx + delta];
             if (!next) return;
-            flushNote();
+            if (flushPendingEdits() === false) return;
             node = next;
             lastField = null;
             mapping = null;
             el.querySelector('[data-col="input"]').innerHTML = '';
+            if (pane !== 'settings') {
+                const settingsHost = el.querySelector('[data-pane="settings"]');
+                if (settingsHost) settingsHost.innerHTML = '';
+            }
             ed.selection.clear();
             ed.selection.add(node.id);
             ed.bus.emit('selection', ed.selection);
             renderAll();
         }
 
-        function closeSelf() { close(ed); }
-
-        // trapTab keeps Tab and Shift+Tab inside the dialog (it is aria-modal).
-        function trapTab(event) {
-            const items = Array.from(dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
-                .filter(n => !n.disabled && n.getAttribute('tabindex') !== '-1' && n.offsetParent !== null);
-            if (!items.length) return;
-            const active = document.activeElement;
-            const first = items[0];
-            const last = items[items.length - 1];
-            if (event.shiftKey && (active === first || !dialog.contains(active))) { event.preventDefault(); last.focus(); }
-            else if (!event.shiftKey && (active === last || !dialog.contains(active))) { event.preventDefault(); first.focus(); }
+        // force closes even when a field is invalid (the step was deleted). Otherwise the
+        // typed text stays and the inspector stays open.
+        function closeSelf(force) {
+            if (!force && flushPendingEdits() === false) return;
+            close(ed);
         }
 
         // stepGroup moves to the next tab or radio of a group and selects it.
@@ -515,11 +556,17 @@
             const field = event.target.closest && event.target.closest('.ed-field[data-param]');
             if (field) lastField = field.dataset.param;
         });
+        bag.listen(el, 'dragover', (event) => {
+            if (!event.target.closest('[data-ed-narrow="params"]') || !event.dataTransfer ||
+                !Array.from(event.dataTransfer.types).includes('application/x-easydrag-ref')) return;
+            event.preventDefault();
+            narrowTab = 'params';
+            applyNarrow();
+        });
         bag.listen(el, 'click', (event) => {
-            if (event.target === el) { closeSelf(); return; }
             const nav = event.target.closest('[data-ed-nav]');
             if (nav) { go(Number(nav.dataset.edNav)); return; }
-            if (event.target.closest('[data-ed-detail-close]')) { closeSelf(); return; }
+            if (event.target.closest('[data-ed-detail-back]') || event.target.closest('[data-ed-detail-close]')) { closeSelf(); return; }
             if (event.target.closest('[data-ed-detail-test]')) { ed.bus.emit('node-test', { nodeId: node.id }); return; }
             const p = event.target.closest('[data-ed-pane]');
             if (p) { pane = p.dataset.edPane; applyPane(); return; }
@@ -544,14 +591,14 @@
             if (v) { outputView = v.dataset.edView; renderOutput(); }
         });
         bag.listen(el, 'keydown', (event) => {
+            // Tab leaves normally; Escape closes from chrome, never from an active field.
+            if (event.defaultPrevented || event.isComposing || core.isEditable(event.target)) return;
             if (event.key === 'Escape') {
-                if (core.isEditable(event.target) && event.target.closest('.ed-tpl')) return;
+                event.preventDefault();
                 event.stopPropagation();
                 closeSelf();
                 return;
             }
-            if (event.key === 'Tab') { trapTab(event); return; }
-            if (core.isEditable(event.target)) return;
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
             const delta = event.key === 'ArrowRight' ? 1 : -1;
             // In a tab or radio group the arrows move within the group, not to another node.
@@ -565,7 +612,7 @@
         bag.listen(labelInput, 'input', () => ed.model.setLabel(node.id, labelInput.value));
         bag.add(ed.bus.on('model', change => {
             const current = ed.model.node(node.id);
-            if (!current) { closeSelf(); return; }
+            if (!current) { closeSelf(true); return; }
             node = current;
             renderHead();
             if (form && (change.nodes.includes(node.id) || change.kind !== 'change')) form.refresh(node, roots(), ed.issues);
@@ -590,13 +637,19 @@
         bag.add(() => ro.disconnect());
 
         // ed.detail exists before the first render, so a render that throws still closes cleanly.
+        let closed = false;
         ed.detail = {
             nodeId: () => node.id,
             // flushNote writes a note still waiting for its 400 ms into the draft (editor.leave()).
             flushNote: () => flushNote(),
+            // Editor calls this before save, test, publish, switch, run view and leave.
+            flushPendingEdits: () => flushPendingEdits(),
             close: () => {
-                flushNote();
+                if (closed) return;
+                closed = true;
+                try { flushPendingEdits(); } catch (err) { console.error('EasyDrag inspector flush failed', err); }
                 bag.dispose();
+                ed.root.classList.remove('is-inspector');
                 el.classList.add('is-closing');
                 setTimeout(() => el.remove(), 160);
                 ed.detail = null;

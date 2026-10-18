@@ -245,8 +245,13 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	if err != nil {
 		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %w", err))
 	}
-	lead := e.Stories[0]
-	intro := fmt.Sprintf("%s · %s\n%s\n\n%s\n\n%d stories · %d sources", e.Title, e.LocalDate, lead.Headline, lead.Deck, len(e.Stories), len(e.Sources))
+	leadHeadline := ""
+	leadDeck := ""
+	if len(e.Stories) > 0 {
+		leadHeadline = e.Stories[0].Headline
+		leadDeck = e.Stories[0].Deck
+	}
+	intro := fmt.Sprintf("%s · %s\n%s\n\n%s\n\n%d stories · %d sources", e.Title, e.LocalDate, leadHeadline, leadDeck, len(e.Stories), len(e.Sources))
 	if len([]rune(intro)) > 3000 {
 		return "", newspaper.SafeDelivery(errors.New("Telegram digest exceeds message limit"))
 	}

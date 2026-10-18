@@ -89,6 +89,7 @@
             ' aria-autocomplete="list" placeholder="' + esc(o.placeholder || '') + '"></textarea></div>');
         const view = el.querySelector('.ed-tpl-view');
         const input = el.querySelector('.ed-tpl-input');
+        const applyChange = env.change;
         let current = value == null ? '' : String(value);
         let suggest = null;
 
@@ -114,8 +115,17 @@
             const next = trimTrailingDots(multiline ? input.value : input.value.replace(/\n/g, ' '));
             if (next !== current) {
                 current = next;
-                env.change(current);
+                applyChange(current);
             }
+        }
+
+        // flush saves an open edit and leaves the caret, the suggestion list and is-editing
+        // alone. False means an IME composition still owns the text.
+        function flush() {
+            if (!el.classList.contains('is-editing')) return true;
+            if (input.edComposing) return false;
+            commit();
+            return true;
         }
 
         // leave ends editing from the keyboard and moves focus to the chips, so it never drops
@@ -238,10 +248,14 @@
             const li = event.target.closest('[data-ed-sug]');
             if (li) { event.preventDefault(); applySuggest(Number(li.dataset.edSug)); }
         });
+        input.addEventListener('compositionstart', () => { input.edComposing = true; });
+        input.addEventListener('compositionend', () => { input.edComposing = false; });
         input.addEventListener('blur', () => {
             setTimeout(() => {
                 if (el.contains(document.activeElement)) return;
                 closeSuggest();
+                if (input.edComposing) return;
+                // commit uses the change captured for this field, not a step opened later.
                 commit();
                 el.classList.remove('is-editing');
                 syncView();
@@ -256,19 +270,22 @@
             // insert puts a reference at the caret (or appends it) and saves.
             insert(ref) {
                 const token = '{{' + ref + '}}';
-                if (el.classList.contains('is-editing')) {
+                // A tab switch blurs the editor, but its unchanged buffer retains the caret.
+                if (el.classList.contains('is-editing') || input.value === current) {
                     const pos = input.selectionStart;
                     input.value = input.value.slice(0, pos) + token + input.value.slice(input.selectionEnd);
                     input.setSelectionRange(pos + token.length, pos + token.length);
                     commit();
+                    if (!el.classList.contains('is-editing')) syncView();
                     return;
                 }
                 current = current ? (multiline ? current + ' ' + token : current + token) : token;
-                env.change(current);
+                applyChange(current);
                 syncView();
             },
             focus: edit,
-            refresh: syncView
+            refresh: syncView,
+            flush
         };
         // forms and drops reach the field through its element (caret-aware insert).
         el.edTemplate = api;
@@ -684,11 +701,26 @@
         const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea><div class="ed-json-error" hidden></div></div>');
         const area = el.querySelector('textarea');
         const error = el.querySelector('.ed-json-error');
-        area.addEventListener('input', () => {
+        let committed = area.value;
+        function commit() {
+            if (area.edComposing) return false;
+            if (area.value === committed && error.hidden) return true;
             const raw = area.value.trim();
-            if (!raw) { error.hidden = true; onChange(undefined); return; }
-            try { const parsed = JSON.parse(raw); error.hidden = true; onChange(parsed); } catch (err) { error.hidden = false; error.textContent = t('easydrag.ui.json_invalid'); }
-        });
+            if (!raw) { error.hidden = true; committed = area.value; onChange(undefined); return true; }
+            try {
+                const parsed = JSON.parse(raw);
+                error.hidden = true;
+                committed = area.value;
+                onChange(parsed);
+                return true;
+            } catch (err) {
+                error.hidden = false;
+                error.textContent = t('easydrag.ui.json_invalid');
+                return false;
+            }
+        }
+        area.addEventListener('input', () => { commit(); });
+        area.edCommit = commit;
         return el;
     }
 
