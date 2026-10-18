@@ -243,10 +243,13 @@
                 ring(field.x, field.y, field.r || 55, '#af84f5', 0.55);
                 ctx.drawAnimation(c, 'fx.plasma', field.x, field.y, time, 44);
             }
-            if (G.beam && G.beam.active && ctx.renderBeam) ctx.renderBeam(G.beam);
+            // The tractor beam hangs on its attacker: no live owner, no beam.
+            const beamOwner = G.beam && G.beam.active ? G.beam.owner : null;
+            if (beamOwner && ctx.renderBeam && beamOwner.st !== 'DEAD' && beamOwner.st !== 'SMOLDER' && beamOwner.hp > 0) ctx.renderBeam(G.beam);
             for (const e of G.enemies) {
-                if (e.st === 'DEAD') continue;
-                if (e.shotWarning > 0) {
+                // Destroyed or smoldering attackers draw no telegraph (sector bosses are never SMOLDER).
+                if (e.st === 'DEAD' || e.st === 'SMOLDER') continue;
+                if (e.shotWarning > 0 && (e.shotPending || e.divePending) && G.p.alive) {
                     ring(e.x, e.y, 17, '#ffe79a', 0.9);
                     c.strokeStyle = '#d8ac60'; c.setLineDash([3, 9]); c.beginPath(); c.moveTo(e.x, e.y + 12); c.lineTo(G.p.x, G.p.y); c.stroke(); c.setLineDash([]);
                 }

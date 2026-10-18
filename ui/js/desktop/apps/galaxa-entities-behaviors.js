@@ -383,6 +383,7 @@
                     e.dTmr -= dtMs;
                     if (e.dTmr <= 0 || e.y > ctx.H + 20) {
                         e.st = 'RETURN'; e.y = -20;
+                        e.trail = null; e.trailFade = 0; e.trailAcc = 0;
                     }
                     else {
                         const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1) * (e.rageSpeedMult || 1);
@@ -439,6 +440,11 @@
             if (ctx.G.vipShip && ctx.G.vipShip.hp <= 0) {
                 ctx.G.archetypeFailed = true;
                 ctx.G.vipShip = null;
+            }
+            if (ctx.G.beam && ctx.G.beam.active) {
+                // The beam hangs on its attacker: it ends the moment the owner is gone.
+                const _own = ctx.G.beam.owner;
+                if (!_own || _own.st === 'DEAD' || _own.st === 'SMOLDER' || _own.hp <= 0 || ctx.G.enemies.indexOf(_own) < 0) { ctx.G.beam.active = false; ctx.G.beam = null; }
             }
             if (ctx.G.beam && ctx.G.beam.active) {
                 const _bm = ctx.G.beam;

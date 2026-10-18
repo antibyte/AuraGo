@@ -57,7 +57,7 @@
             G.fX = 0; G.dTmr = 2400; G.chal = plan.kind === 'bonus';
             G.bonusStage = G.chal; G.bonusStageT = G.chal ? 25000 : 0;
             if (plan.kind === 'boss') {
-                const hp = Math.round([650, 700, 750, 780, 850, 850][plan.sector] * Math.min(1.8, 1 + (plan.loop - 1) * 0.15));
+                const hp = Math.round([240, 400, 520, 640, 750, 850][plan.sector] * Math.min(1.8, 1 + (plan.loop - 1) * 0.15));
                 const e = ctx.newEnemy('miniboss', ctx.W / 2, 155, 0, hp);
                 Object.assign(e, { x: ctx.W / 2, y: -90, sectorBoss: sector.id, bossPhase: 1, bossPhaseHP: [0.65, 0.30],
                     phaseClock: 0, attackClock: 0, bossState: 'enter', invulnerable: true, st: 'FORM',
