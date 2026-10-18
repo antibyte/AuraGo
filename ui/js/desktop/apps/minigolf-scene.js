@@ -458,7 +458,9 @@ export function createScene(host, options) {
         return true;
     }
     function down(event) {
-        if (event.button !== 0 || !canAim || cameraMode) return;
+        // A second finger (pinch/pan) or another mouse button ends the drag without a shot.
+        if (!event.isPrimary || event.button !== 0) { cancelDrag(); return; }
+        if (!canAim || cameraMode) return;
         if (event.pointerType !== 'touch') {
             const screen = ballScreen();
             if (Math.hypot(event.clientX - screen.x, event.clientY - screen.y) > 46) return;
@@ -467,7 +469,7 @@ export function createScene(host, options) {
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
-        if (event.pointerType === 'mouse' && (event.buttons & 2)) { cancelDrag(); return; }
+        if (!canAim || cameraMode || (event.pointerType === 'mouse' && (event.buttons & 2))) { cancelDrag(); return; }
         const screen = ballScreen();
         const pixels = Math.hypot(event.clientX - screen.x, event.clientY - screen.y);
         dragged = pixels >= DRAG_DEAD_ZONE;
@@ -475,12 +477,12 @@ export function createScene(host, options) {
         const span = Math.max(140, Math.min(320, .3 * Math.min(screen.width, screen.height)));
         const direction = dragDirection(event, screen);
         if (!direction) return;
-        setAim(direction, Math.min(1, (pixels - DRAG_DEAD_ZONE) / (span - DRAG_DEAD_ZONE)), true);
+        setAim(direction, Math.max(.02, Math.min(1, (pixels - DRAG_DEAD_ZONE) / (span - DRAG_DEAD_ZONE))), true);
         options.onAim?.(aimDirection, aimPower);
     }
     function up(event) {
         if (pointerId !== event.pointerId) return;
-        const shot = event.type === 'pointerup' && dragged && aimPower > 0 && canAim;
+        const shot = event.type === 'pointerup' && event.button === 0 && dragged && aimPower > 0 && canAim;
         cancelDrag();
         if (shot) options.onShot?.(aimDirection, aimPower);
     }

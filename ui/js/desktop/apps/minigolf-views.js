@@ -118,7 +118,7 @@ export function createView(host, tr) {
         power(value, meters) {
             const percent = Math.round(value * 100);
             root.querySelector('[data-power]').value = percent;
-            const distance = Number.isFinite(meters) ? (meters < 10 ? Math.round(meters * 2) / 2 : Math.round(meters)) : null;
+            const distance = Number.isFinite(meters) ? (meters < 1 ? Math.round(meters * 10) / 10 : meters < 10 ? Math.round(meters * 2) / 2 : Math.round(meters)) : null;
             root.querySelector('[data-power-value]').textContent = percent + '%' + (distance === null ? '' : ' · ≈' + distance.toLocaleString(document.documentElement.lang || undefined) + ' m');
         },
         track(value) { const el = root.querySelector('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
