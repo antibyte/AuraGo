@@ -115,4 +115,5 @@ func (s *Server) beginHTTPDrain() {
 	for _, conn := range connections {
 		_ = conn.Close()
 	}
+	s.drainDesktopInfraRefresh()
 }

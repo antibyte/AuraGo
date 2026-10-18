@@ -179,7 +179,7 @@ func desktopInfraDecorateSnapshot(ctx context.Context, s *Server, cfg *config.Co
 		return
 	}
 	snapshot.Sources = desktopInfraProjectSourceStates(cfg, snapshot.Sources)
-	snapshot.Nodes = desktopInfraProjectNodes(ctx, s, cfg, snapshot.Nodes)
+	snapshot.Nodes = desktopInfraProjectNodes(ctx, s, cfg, desktopInfraVisibleNodes(snapshot))
 	if snapshot.Nodes == nil {
 		snapshot.Nodes = []infra.Node{}
 	}

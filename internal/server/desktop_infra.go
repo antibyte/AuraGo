@@ -28,6 +28,8 @@ type desktopInfraRuntime struct {
 	store          *infra.Store
 	mu             sync.Mutex
 	cache          map[string]*desktopInfraProviderCache
+	refreshDone    chan struct{}
+	refreshClosing bool
 	operations     map[uint64]context.CancelFunc
 	nextOperation  uint64
 	configKey      string
@@ -256,7 +258,11 @@ func (s *Server) desktopInfraRuntime() (*desktopInfraRuntime, error) {
 }
 
 func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
-	desktopInfraRefreshConfigured(r.Context(), s, cfg, store, runtime, r.URL.Query().Get("refresh") == "1")
+	if r.URL.Query().Get("refresh") == "1" {
+		desktopInfraRefreshConfigured(r.Context(), s, cfg, store, runtime, true)
+	} else {
+		desktopInfraScheduleRefreshConfigured(s, cfg, store, runtime)
+	}
 	snapshot, err := store.Snapshot(r.Context())
 	if err != nil {
 		desktopInfraStoreError(w, err)
@@ -265,6 +271,68 @@ func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg
 	snapshot.Capabilities = desktopInfraCapabilities(cfg)
 	desktopInfraDecorateSnapshot(r.Context(), s, cfg, &snapshot)
 	desktopInfraJSON(w, http.StatusOK, snapshot)
+}
+
+func desktopInfraScheduleRefreshConfigured(s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
+	if runtime == nil || s == nil || !s.desktopInfraConfigAdmitted(cfg) {
+		return
+	}
+	runtime.mu.Lock()
+	if runtime.refreshClosing || runtime.refreshDone != nil {
+		runtime.mu.Unlock()
+		return
+	}
+	done := make(chan struct{})
+	runtime.refreshDone = done
+	runtime.mu.Unlock()
+
+	parent := s.integrationCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, finish := runtime.beginOperation(parent, desktopInfraRuntimeConfigKey(s, cfg), cfg)
+	finishRefresh := func() {
+		runtime.mu.Lock()
+		if runtime.refreshDone == done {
+			runtime.refreshDone = nil
+		}
+		close(done)
+		runtime.mu.Unlock()
+	}
+	if ctx.Err() != nil || !s.desktopInfraConfigAdmitted(cfg) {
+		finish()
+		finishRefresh()
+		return
+	}
+	go func() {
+		defer finishRefresh()
+		defer finish()
+		desktopInfraRefreshConfigured(ctx, s, cfg, store, runtime, false)
+	}()
+}
+
+func (s *Server) drainDesktopInfraRefresh() {
+	if s == nil {
+		return
+	}
+	s.infraMu.Lock()
+	runtime := s.infraRuntime
+	s.infraMu.Unlock()
+	if runtime == nil {
+		return
+	}
+	runtime.mu.Lock()
+	runtime.refreshClosing = true
+	operations := runtime.operations
+	runtime.operations = make(map[uint64]context.CancelFunc)
+	done := runtime.refreshDone
+	runtime.mu.Unlock()
+	for _, cancel := range operations {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
 }
 
 func desktopInfraCandidates(w http.ResponseWriter, r *http.Request, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
@@ -276,6 +344,9 @@ func desktopInfraCandidates(w http.ResponseWriter, r *http.Request, s *Server, c
 	}
 	candidates := make([]infra.Candidate, 0, len(sources))
 	for _, source := range sources {
+		if !desktopInfraCandidateNamed(source) {
+			continue
+		}
 		candidate, err := store.GetCandidate(r.Context(), infra.CandidateID(source.SourceIdentity))
 		if err != nil {
 			if errors.Is(err, infra.ErrSourceNotFound) || errors.Is(err, infra.ErrSourceRemoved) || errors.Is(err, infra.ErrSourceLinked) {
