@@ -840,6 +840,21 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-global-menus="true"] .vd-clock { font-size: 12px; color: var(--vd-text); }
 .desktop-body[data-global-menus="true"] .vd-space-pager { gap: 2px; }
 .desktop-body[data-global-menus="true"] .vd-space-pager button { min-width:22px; min-height:22px; }
+/* Touch targets: the global bar grows to 44 px and every tray control fills it; the brand and menu buttons reach 40 px.
+   Amiga sizes its gadgets from the same bar height in its skin (equal specificity, later in the bundle). */
+@media (pointer: coarse) {
+    .desktop-body[data-global-menus="true"] { --vd-global-bar-height: 44px; }
+    .desktop-body[data-global-menus="true"] .vd-global-brand,
+    .desktop-body[data-global-menus="true"] .vd-global-bar .vd-window-menu-button { min-height: 40px; }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system { height: 44px; }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-clock { min-height: 44px; }
+}
 .desktop-body[data-theme="fruity"] .vd-window-button::after {
     display: grid;
     place-items: center;
