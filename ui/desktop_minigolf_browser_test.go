@@ -396,6 +396,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	// canvas coordinate deterministic. A tap must not shoot; a drag must.
 	page.MustElement(`[data-action="focus"]`).MustClick()
 	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,180))`)
+	page.Timeout(10 * time.Second).MustWait(`()=>(golfFixture.inspect().graphics?.preview||0)>=2`)
 	center := page.MustEval(`()=>{const r=document.querySelector('.mg-canvas canvas').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}`)
 	touchX, touchY := center.Get("x").Num(), center.Get("y").Num()
 	beforeTouch := page.MustEval(`()=>JSON.stringify({turn:golfFixture.inspect().round.turnIndex,strokes:golfFixture.inspect().round.players.map(p=>p.strokes)})`).Str()
