@@ -96,8 +96,14 @@
             if (!next.name) return;
             const settings = { width: next.width, height: next.height, fps: next.fps };
             if (next.ntsc) settings.ntsc = true;
-            try { await createProject(s, next.name, settings); }
-            catch (_) { showNotice(s, 'createFailed', 'Could not create the project.', true); }
+            try {
+                const created = await createProject(s, next.name, settings);
+                if (!created && s.cameraImportAwaitCreate && P.resumeCameraImport) P.resumeCameraImport(s);
+            }
+            catch (_) {
+                showNotice(s, 'createFailed', 'Could not create the project.', true);
+                if (s.cameraImportAwaitCreate && P.resumeCameraImport) P.resumeCameraImport(s);
+            }
         });
     }
 
@@ -423,5 +429,151 @@
         showNotice(s, 'versionRestored', 'Version restored.', false);
     }
 
-    Object.assign(P, { openProjectSettings, openNewProject, openProjectManager, openRenameStoredProject, deleteStoredProject, firstVisualAsset, handleManagerClick, openDuplicateProject, renderVersions, restoreVersion, watchJob });
+    function cameraVideoPath(path) {
+        return typeof path === 'string' && /^Videos\/[^/]+\.(webm|mp4|mov|m4v|mkv)$/i.test(path) && path.indexOf('..') < 0 ? path : '';
+    }
+    function receiveCameraImport(s, context) {
+        if (!s || s.disposed || !context || context.sessionRestore) return;
+        const path = cameraVideoPath(context.importPath);
+        const token = typeof context.importToken === 'string' ? context.importToken : '';
+        if (!path || !/^[A-Za-z0-9-]{8,80}$/.test(token)) return;
+        if (s.importOffer && s.importOffer.token === token) return;
+        if (s.importOffer || s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) {
+            showNotice(s, 'cameraImportBusy', 'Finish the open project choice before sending another clip.', true);
+            return;
+        }
+        s.importOffer = { token, path, key: (crypto.randomUUID ? crypto.randomUUID() : token), phase: 'pending' };
+        if (s.studioReady) beginCameraImport(s);
+    }
+    function beginCameraImport(s) {
+        const offer = s.importOffer;
+        if (!offer || offer.phase !== 'pending' || s.disposed) return;
+        const status = s.status;
+        if (!status || s.featureDisabled || !status.enabled || !status.desktop_enabled || !status.ffmpeg_ready) {
+            showNotice(s, 'cameraImportUnavailable', 'Video Studio is unavailable. The video stays in Videos.', true);
+            s.importOffer = null;
+            return;
+        }
+        if (s.readonly) {
+            showNotice(s, 'cameraImportReadonly', 'Read-only mode prevents adding this clip. The video stays in Videos.', true);
+            s.importOffer = null;
+            return;
+        }
+        offer.phase = 'choosing';
+        renderCameraImport(s);
+    }
+    function renderCameraImport(s) {
+        const offer = s.importOffer;
+        if (!offer || s.disposed || offer.phase === 'importing' || offer.phase === 'creating') return;
+        const rows = (s.projects || []).map(item => {
+            const id = listedId(item);
+            if (!id) return '';
+            const name = (listedId(item) === s.projectId && s.project && s.project.name) || (item.project && item.project.name) || tr(s, 'untitled', 'Untitled project');
+            return `<button type="button" data-camera-project="${esc(s, id)}">${esc(s, name)}</button>`;
+        }).join('');
+        const host = openModal(s, `<section class="vs-modal" role="dialog" aria-modal="true" aria-labelledby="vs-cam-title-${esc(s, s.id)}" data-camera-import><h2 id="vs-cam-title-${esc(s, s.id)}">${esc(s, tr(s, 'cameraImportTitle', 'Add this clip'))}</h2><p>${esc(s, tr(s, 'cameraImportIntro', 'Choose a project. The clip goes into its media library. The timeline stays as it is.'))}</p><div class="vs-manager-list" role="list">${rows || `<p class="vs-hint">${esc(s, tr(s, 'cameraImportEmpty', 'No projects yet. Create one to add this clip.'))}</p>`}</div><div class="vs-modal-actions"><button type="button" data-camera-cancel>${esc(s, tr(s, 'cancel', 'Cancel'))}</button><button type="button" data-camera-new class="vs-primary">${esc(s, tr(s, 'cameraImportNew', 'New project'))}</button></div></section>`);
+        const dialog = host.querySelector('[data-camera-import]');
+        dialog.addEventListener('click', event => {
+            event.stopPropagation();
+            const projectBtn = event.target.closest('[data-camera-project]');
+            if (projectBtn) { chooseCameraProject(s, projectBtn.dataset.cameraProject); return; }
+            if (event.target.closest('[data-camera-new]')) { startCameraNewProject(s); return; }
+            if (event.target.closest('[data-camera-cancel]')) cancelCameraImport(s);
+        });
+        dialog.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            cancelCameraImport(s);
+        });
+        (dialog.querySelector('[data-camera-project]') || dialog.querySelector('[data-camera-new]')).focus();
+    }
+    function cancelCameraImport(s) {
+        if (!s.importOffer || s.importOffer.phase === 'importing') return;
+        s.importOffer = null;
+        s.cameraImportAwaitCreate = '';
+        s.q('[data-modal-host]')?.replaceChildren();
+        if (s.app) s.app.focus({ preventScroll: true });
+        showNotice(s, 'cameraImportKept', 'Import cancelled. The video stays in Videos.', false);
+    }
+    async function chooseCameraProject(s, targetId) {
+        const offer = s.importOffer;
+        if (!offer || offer.phase !== 'choosing' || !targetId) return;
+        offer.phase = 'importing';
+        s.q('[data-modal-host]')?.replaceChildren();
+        if (targetId !== s.projectId) {
+            await switchProject(s, targetId);
+            if (s.disposed || !s.importOffer || s.importOffer.token !== offer.token) return;
+            if (s.projectId !== targetId) {
+                offer.phase = 'choosing';
+                const missing = !(s.projects || []).some(item => listedId(item) === targetId);
+                showNotice(s, missing ? 'cameraImportMissing' : 'cameraImportSaveFailed', 'The project was not changed. The video stays in Videos.', true);
+                renderCameraImport(s);
+                return;
+            }
+        }
+        await runCameraImport(s, offer);
+    }
+    async function runCameraImport(s, offer) {
+        let ok = false;
+        try { ok = await P.importDesktopFile(s, { sourcePath: offer.path, idempotencyKey: offer.key }); }
+        catch (_) { ok = false; }
+        if (s.disposed || !s.importOffer || s.importOffer.token !== offer.token) return;
+        if (ok) {
+            s.importOffer = null;
+            s.q('[data-modal-host]')?.replaceChildren();
+            if (P.setTab) P.setTab(s, 'media');
+            return;
+        }
+        offer.phase = 'choosing';
+        renderCameraImport(s);
+    }
+    async function startCameraNewProject(s) {
+        const offer = s.importOffer;
+        if (!offer || offer.phase !== 'choosing') return;
+        offer.phase = 'creating';
+        s.cameraImportAwaitCreate = offer.token;
+        await openNewProject(s);
+        if (s.disposed || !s.importOffer || s.importOffer.token !== offer.token) return;
+        if (s.cameraImportAwaitCreate !== offer.token) return;
+        const form = s.q('[data-new-project-form]');
+        if (!form) {
+            s.cameraImportAwaitCreate = '';
+            offer.phase = 'choosing';
+            renderCameraImport(s);
+            return;
+        }
+        s.q('[data-modal-host]').querySelectorAll('[data-modal-close]').forEach(button => {
+            button.addEventListener('click', () => {
+                window.setTimeout(() => {
+                    if (s.disposed || !s.importOffer || s.importOffer.token !== offer.token) return;
+                    if (s.cameraImportAwaitCreate !== offer.token) return;
+                    s.cameraImportAwaitCreate = '';
+                    s.importOffer.phase = 'choosing';
+                    renderCameraImport(s);
+                }, 0);
+            });
+        });
+    }
+    async function finishCameraImport(s) {
+        const token = s.cameraImportAwaitCreate;
+        const offer = s.importOffer;
+        if (!token || !offer || offer.token !== token || s.disposed) return;
+        s.cameraImportAwaitCreate = '';
+        if (!s.projectId) {
+            offer.phase = 'choosing';
+            renderCameraImport(s);
+            return;
+        }
+        offer.phase = 'importing';
+        await runCameraImport(s, offer);
+    }
+    function resumeCameraImport(s) {
+        if (!s.importOffer || s.importOffer.token !== s.cameraImportAwaitCreate) return;
+        s.cameraImportAwaitCreate = '';
+        s.importOffer.phase = 'choosing';
+        renderCameraImport(s);
+    }
+
+    Object.assign(P, { openProjectSettings, openNewProject, openProjectManager, openRenameStoredProject, deleteStoredProject, firstVisualAsset, handleManagerClick, openDuplicateProject, renderVersions, restoreVersion, watchJob, receiveCameraImport, beginCameraImport, finishCameraImport, resumeCameraImport });
 })();

@@ -364,7 +364,61 @@
             if (!s.disposed) renderAssets(s);
         }
     }
-    async function importDesktopFile(s) {
+    function cameraSourcePath(path) {
+        return typeof path === 'string' && /^Videos\/[^/]+\.(webm|mp4|mov|m4v|mkv)$/i.test(path) && path.indexOf('..') === -1;
+    }
+    async function importDesktopSource(s, direct) {
+        const sourcePath = direct.sourcePath;
+        const key = String(direct.idempotencyKey || '');
+        const camera = !!direct.camera;
+        if (camera && (!cameraSourcePath(sourcePath) || !/^[A-Za-z0-9-]{8,80}$/.test(key))) {
+            showNotice(s, 'cameraImportFailed', 'Could not add this clip. The video stays in Videos.', true);
+            return false;
+        }
+        if (s.readonly || !s.projectId) {
+            showNotice(s, s.readonly ? 'cameraImportReadonly' : 'cameraImportMissing', 'Could not add this clip. The video stays in Videos.', true);
+            return false;
+        }
+        if (s.uploads.has(key)) return false;
+        const projectId = s.projectId, epoch = s.projectEpoch;
+        const entry = { name: sourcePath.split('/').pop(), progress: 1, failed: false, projectId };
+        s.uploads.set(key, entry);
+        if (camera) setTab(s, 'media');
+        renderAssets(s);
+        try {
+            const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+                body: JSON.stringify({ source_path: sourcePath, folder: direct.folder || '' }),
+                signal: s.abort.signal
+            });
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
+            if (response.body.job) {
+                s.jobs.unshift(response.body.job);
+                renderJobs(s);
+                const job = await pollJob(s, response.body.job.id, projectId, epoch);
+                if (!job || job.status !== 'succeeded') return false;
+            } else await refreshProject(s);
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return false;
+            if (camera) {
+                setTab(s, 'media');
+                showNotice(s, 'cameraImportReady', 'Clip added to the media library.', false);
+            }
+            return true;
+        } catch (error) {
+            if (!(s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId)) {
+                const code = error.body && error.body.code;
+                if (camera && (code === 'asset_size_limit' || code === 'project_size_limit')) showNotice(s, 'cameraImportTooLarge', 'This clip is larger than the limit. It stays in Videos.', true);
+                else if (!P.lutUploadNotice(s, error.body)) showNotice(s, camera ? 'cameraImportFailed' : 'importFailed', camera ? 'Could not add this clip. The video stays in Videos.' : 'Could not import this Desktop file.', true);
+            }
+            return false;
+        } finally {
+            s.uploads.delete(key);
+            if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) renderAssets(s);
+        }
+    }
+    async function importDesktopFile(s, direct) {
+        if (direct && direct.sourcePath) return importDesktopSource(s, Object.assign({}, direct, { camera: true }));
         if (s.readonly || !s.projectId || !s.ctx.openFileDialog) return;
         const projectId = s.projectId, epoch = s.projectEpoch, folder = s.mediaFolder || '';
         const result = await s.ctx.openFileDialog({
@@ -372,15 +426,7 @@
             filters: [{ label: tr(s, 'videoAudioImages', 'Video, audio and images'), extensions: ['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.png', '.webp', '.cube'] }]
         });
         if (!result || result.canceled || !result.path || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-        const key = idempotencyKey(), entry = { name: String(result.path).split('/').pop(), progress: 1, failed: false, projectId };
-        s.uploads.set(key, entry); renderAssets(s);
-        try {
-            const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey() }, body: JSON.stringify({ source_path: result.path, folder }), signal: s.abort.signal });
-            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            if (response.body.job) { s.jobs.unshift(response.body.job); await pollJob(s, response.body.job.id, projectId, epoch); }
-            else await refreshProject(s);
-        } catch (error) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId && !P.lutUploadNotice(s, error.body)) showNotice(s, 'importFailed', 'Could not import this Desktop file.', true); }
-        finally { s.uploads.delete(key); if (!s.disposed) renderAssets(s); }
+        return importDesktopSource(s, { sourcePath: result.path, idempotencyKey: idempotencyKey(), folder });
     }
     function setTab(s, name) {
         s.libraryTab = name;

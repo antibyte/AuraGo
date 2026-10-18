@@ -36,7 +36,20 @@ func TestDesktopCameraRenderPassesContextMenuInBundle(t *testing.T) {
 	if end := strings.Index(cameraBlock, "if (appId === 'zipper')"); end > 0 {
 		cameraBlock = cameraBlock[:end]
 	}
-	if !strings.Contains(cameraBlock, "showContextMenu") {
-		t.Fatal("camera render context must include showContextMenu")
+	if !strings.Contains(cameraBlock, "showContextMenu") || !strings.Contains(cameraBlock, "openApp") {
+		t.Fatal("camera render context must include showContextMenu and openApp")
+	}
+}
+
+func TestDesktopCameraHandoffWiring(t *testing.T) {
+	t.Parallel()
+
+	shell := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	if !strings.Contains(shell, "delete windowContext.importPath") || !strings.Contains(shell, "VideoStudioApp.receiveImport") {
+		t.Fatal("video studio handoff must stay off the stored window context and reuse the open window")
+	}
+	studio := readDesktopAssetText(t, "js/desktop/apps/video-studio-projects.js")
+	if !strings.Contains(studio, "data-camera-import") || !strings.Contains(studio, "cameraImportKept") {
+		t.Fatal("video studio must ask before importing a camera clip and must be able to cancel")
 	}
 }

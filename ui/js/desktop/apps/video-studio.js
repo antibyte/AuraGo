@@ -204,7 +204,8 @@
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null,
-            stageMode: 'timeline', sourceAssetId: '', sourceProjectId: '', sourceIn: null, sourceOut: null, sourceFrame: 0, sourceRate: '', sourceProject: null, sourcePreview: null, sourceShuttle: null
+            stageMode: 'timeline', sourceAssetId: '', sourceProjectId: '', sourceIn: null, sourceOut: null, sourceFrame: 0, sourceRate: '', sourceProject: null, sourcePreview: null, sourceShuttle: null,
+            importOffer: null, cameraImportAwaitCreate: '', studioReady: false
         };
         instances.set(id, s);
         host.innerHTML = layoutMarkup(s);
@@ -331,7 +332,16 @@
         renderFilters(s);
         renderAIPanel(s);
         renderToolbar(s);
-        initialize(s).catch(() => showNotice(s, 'loadFailed', 'Video Studio could not load.', true));
+        if (ctx && ctx.importPath && !ctx.sessionRestore && P.receiveCameraImport) P.receiveCameraImport(s, ctx);
+        initialize(s).catch(() => {
+            if (!s.disposed) showNotice(s, 'loadFailed', 'Video Studio could not load.', true);
+            markStudioReady(s);
+        });
+    }
+    function markStudioReady(s) {
+        if (!s || s.studioReady || s.disposed) return;
+        s.studioReady = true;
+        if (P.beginCameraImport) P.beginCameraImport(s);
     }
     async function initialize(s) {
         const response = await request(API + '/status', { signal: s.abort.signal });
@@ -356,6 +366,7 @@
             populateCanvas(s);
             renderToolbar(s);
             disableWriteControls(s);
+            markStudioReady(s);
             return;
         }
         await loadProjects(s);
@@ -364,6 +375,7 @@
         populateCanvas(s);
         renderUI(s);
         s.jobsTimer = window.setInterval(() => { if (!s.disposed && s.projectId) loadJobs(s).catch(() => {}); }, 2500);
+        markStudioReady(s);
     }
     function disableWriteControls(s) {
         s.app.querySelectorAll(['new-project', 'save', 'export', 'upload', 'browse', 'add-media', 'add-title'].map(action => `[data-action="${action}"]`).join(',') + ',[data-sticker],[data-place-asset],[data-canvas]').forEach(control => { control.disabled = true; });
@@ -430,6 +442,7 @@
         await saveProject(s);
         await loadProjects(s);
         renderUI(s);
+        if (s.cameraImportAwaitCreate && P.finishCameraImport) await P.finishCameraImport(s);
         return true;
     }
     async function createProjectPrompt(s) {
@@ -768,14 +781,20 @@
     }
     function handleKeys(s, event) {
         const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
-        if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
+        if (s.disposed || event.defaultPrevented || (!s.project && !s.q('[data-modal-host] .vs-modal')) || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
         if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut && !P.isEditShortcut(s, event) && !P.isNavShortcut(s, event) && !P.isSourceShortcut(s, event) && !(P.isKeyframeShortcut && P.isKeyframeShortcut(s, event))) return;
         if (event.key === 'Escape') {
             // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
             const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
             if (keep) { keep.click(); event.preventDefault(); return; }
             const modal = s.q('[data-modal-host] .vs-modal');
-            if (modal) { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); event.preventDefault(); return; }
+            if (modal) {
+                const close = modal.querySelector('[data-modal-close], [data-camera-cancel]');
+                if (close) close.click();
+                else { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); }
+                event.preventDefault();
+                return;
+            }
             // An open marker popover is the topmost layer: Escape closes it and leaves the drawer behind it open.
             if (s.markerPop && s.markerPop.el.isConnected) { P.closeMarkerPopover(s, true); event.preventDefault(); return; }
             if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
@@ -838,5 +857,9 @@
         return s && s.preview && typeof s.preview.capture === 'function' ? s.preview.capture(rect) : null;
     }
 
-    window.VideoStudioApp = { render: appRender, dispose, instances, capturePreview };
+    function receiveImport(id, context) {
+        if (P.receiveCameraImport) P.receiveCameraImport(instances.get(id), context || {});
+    }
+
+    window.VideoStudioApp = { render: appRender, dispose, instances, capturePreview, receiveImport };
 })();
