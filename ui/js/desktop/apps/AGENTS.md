@@ -2133,6 +2133,7 @@ buttons and menu popovers remain excluded from those gestures.
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
   launcher, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows.
+- Apps read the colour scheme from `document.body.dataset.scheme` (`light` or `dark`), never the theme id, and observe `data-scheme` together with `data-theme` and `data-fruity-mode` to re-theme live (Code Studio editor, CYD Creator code, Layerling, Leafy). The Fruity check (`dataset.theme === 'fruity'` with `fruityMode`) is only a fallback for harnesses that set `data-theme` directly. Verify `TestDesktopThemeRegistryShellUsesCapabilities`.
 - Calculator programmer display (`.vd-calc-prog-display`) and history chrome
   use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
   DEC, OCT, and BIN labels stay muted. Do not put `.vd-calc-base button.active`
@@ -3734,6 +3735,13 @@ registration lives in `internal/desktop/types.go`.
   `window.SettingsApp`. Info and editable rows share inset spacing; bounded
   control columns must not let long provider/model names squeeze their labels.
   Keep full workspace paths wrappable and Info values at normal text weight.
+  The theme picker is a card grid (`renderDesktopThemes`, `data-desktop-theme`)
+  built from the `DESKTOP_THEMES` registry. A pick saves `appearance.theme`,
+  pairs `appearance.icon_theme` with the theme's `iconTheme` and runs
+  `followThemeWallpaper()`; if the wallpaper hand-over fails, a notification
+  shows and the saved theme stays. The light/dark row (`appearance.fruity_mode`)
+  shows only for themes with `schemeSetting`, and the accent row only for
+  `accent: 'user'`. Verify `TestDesktopThemeSweepBrowser`.
 - `camera.js` implements the Camera app (device webcam): photo mode with
   optional self-timer countdown, mirror toggle and rule-of-thirds grid, and
   MediaRecorder-based video mode with a centered REC badge. Live video, photo

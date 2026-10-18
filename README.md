@@ -174,7 +174,7 @@ Optional layers sit on top. The **LLM router** sends tasks to different models p
 
 **History** keeps recent turns; **Core Memory** keeps important facts; **RAG** finds related documents and memories; the **knowledge graph** connects entities and relationships. **Insights** keep what the agent learned, with the evidence behind each one and its revisions, and **memory corrections** let you fix what it got wrong. Relevant pieces go into the next request. Recall tools can fetch more. The illustrations simplify the system; they are not UI screenshots.
 
-[Memory deep dive](documentation/manuals/en/09-memory.md) · [Insights](documentation/learnings.md) · [Memory corrections](documentation/memory-corrections.md) · [Architecture](documentation/architecture.md) · [Co-agents](documentation/manuals/en/15-coagents.md) · [Eggs and Nests](documentation/manuals/en/12-invasion.md)
+[Memory deep dive](documentation/manuals/en/09-memory.md) · [Insights](documentation/learnings.md) · [Memory corrections](documentation/memory-corrections.md) · [Architecture](documentation/architecture.md) · [Co-agents](documentation/manuals/en/15-coagents.md) · [Eggs and Nests](documentation/manuals/en/12-invasion.md) · [Desktop themes](documentation/desktop-themes.md)
 
 ## What do I need to run it?
 

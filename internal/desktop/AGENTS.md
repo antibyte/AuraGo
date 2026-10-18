@@ -31,6 +31,7 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - OpenSCAD output and save reads use `openFileNoFollow` and reject the file when its size exceeds the configured cap, before hashing. The compiler log uses that same no-follow open, reads at most 6000 bytes, and still attaches to a successful export; a symlink or other non-regular log is a short read error and its target is not included. Job-file HTTP responses set `nosniff` and `Content-Security-Policy` with `script-src 'none'`, and they keep inline disposition unless `download=1`.
 - OpenSCAD status and render JSON omit host paths. `max_concurrent_jobs` loads from YAML and the effective queue is 1. One render deadline covers every export in the request.
 - `openscad_render` refuses when the virtual desktop is read-only, with the message `virtual desktop is read-only`, before it compiles.
+- Desktop theme ids: `DesktopThemeIDs()` in `themes.go` is the picker order and the allowed `appearance.theme` values (`DesktopSettingDefinitions()` in `types.go`); `DefaultDesktopTheme` (`standard`) is the theme of a fresh desktop. `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js` must list the same ids in the same order, and `ui/desktop_theme_registry_test.go` enforces it. `light` and `dark` name colour schemes and are never theme ids. Verify `go test ./ui -run DesktopTheme -count=1`.
 
 ## Work Guidance
 
