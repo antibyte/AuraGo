@@ -327,6 +327,30 @@ func videoStudioMaskHandlesPart(t *testing.T) {
 	if keys := videoStudioClipKeys(t, page, "c1", "mask.y"); keys != nil {
 		t.Errorf("the nudge keyed mask.y: %+v", keys)
 	}
+
+	// A drag of the mask at frame 90, between the keys of an animated mask.w (frames 30 and 120, ending at 0.99: not a round
+	// value at frame 90), keys the dragged number only; w keeps its two keys.
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'animate w', project => window.VideoStudioKeyframeEdit.setAnimated(project, 'c1', 'mask.w', true, 30) === true && window.VideoStudioKeyframeEdit.setValues(project, 'c1', {'mask.w': 0.99}, 120) === true)`).Bool() {
+		t.Fatal("animating mask.w was refused")
+	}
+	if w90 := page.MustEval(`() => window.VideoStudioEffects.valueAt(window.VideoStudioTimeline.clipFor(` + app + `.project, 'c1').clip, 'mask.w', 90, ` + app + `.project)`).Num(); math.Abs(math.Round(w90*1e6)/1e6-w90) < 1e-8 {
+		t.Fatalf("mask.w at frame 90 is %v, a round value the test cannot tell from a rounded one", w90)
+	}
+	wKeys := videoStudioClipKeys(t, page, "c1", "mask.w")
+	if len(wKeys) != 2 {
+		t.Fatalf("mask.w keys %+v, want two", wKeys)
+	}
+	xKeys := videoStudioClipKeys(t, page, "c1", "mask.x")
+	centre := page.MustEval(`() => { const r = document.querySelector('[data-mask-shape]').getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; }`)
+	cx, cy := centre.Get("x").Num(), centre.Get("y").Num()
+	page.Mouse.MustMoveTo(cx, cy).MustDown(proto.InputMouseButtonLeft).MustMoveTo(cx+10, cy).MustMoveTo(cx+20, cy).MustUp(proto.InputMouseButtonLeft)
+	requireVideoStudioKeys(t, "a drag between the keys of w", videoStudioClipKeys(t, page, "c1", "mask.w"), wKeys...)
+	if got := videoStudioClipKeys(t, page, "c1", "mask.x"); len(got) != 2 || got[1].F != 90 || got[1].V <= xKeys[1].V+0.001 {
+		t.Errorf("the drag did not move the key of mask.x at frame 90: keys %+v, before %+v", got, xKeys)
+	}
+	if keys := videoStudioClipKeys(t, page, "c1", "mask.y"); keys != nil {
+		t.Errorf("the drag keyed mask.y: %+v", keys)
+	}
 	press(input.Enter, false)
 	waitForJSBool(t, page, `() => document.querySelector('[data-mask-box]').hidden`)
 

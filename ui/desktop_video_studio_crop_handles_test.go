@@ -104,5 +104,57 @@ d = P.cropDragDelta(0, 64, Math.PI / 2, 256, 144);
 near(d.dx, 0.25, 'rotated 90 degrees: dragging down moves along the picture x axis');
 assert(Math.abs(d.dy) < 1e-9, 'rotated dy');
 assert.deepEqual(P.cropDragDelta(10, 10, 0, 0, 0), {dx: 0, dy: 0});
+
+// A gesture writes only the sides it moves. An animated side between its keys is not on the 0.001 step, so rounding it
+// would key it (and at 64 keys refuse the whole gesture): the other sides come back exactly as they were.
+const BETWEEN = {l: 0.1000001, t: 0.2000002, r: 0.2333333, b: 0.3000004};
+const untouched = (got, keys, message) => keys.forEach(key => assert.strictEqual(got[key], BETWEEN[key], message + ' ' + key));
+untouched(P.cropDrag(BETWEEN, false, false, 'w', 0.05, 0.3), ['t', 'r', 'b'], 'the left handle');
+untouched(P.cropDrag(BETWEEN, false, false, 'e', -0.02, 0.3), ['l', 't', 'b'], 'the right handle');
+untouched(P.cropDrag(BETWEEN, false, false, 'n', 0.3, 0.02), ['l', 'r', 'b'], 'the top handle');
+untouched(P.cropDrag(BETWEEN, false, false, 'se', -0.02, -0.02), ['l', 't'], 'the bottom right corner');
+untouched(P.cropDrag(BETWEEN, false, false, 'move', 0, 0.01), ['l', 'r'], 'a vertical move');
+untouched(P.cropDrag(BETWEEN, false, false, 'move', 0.01, 0), ['t', 'b'], 'a horizontal move');
+untouched(P.cropDrag(BETWEEN, true, false, 'w', 0.05, 0), ['l', 't', 'b'], 'the screen left handle of a flipped picture moves the source right side');
+untouched(P.cropDrag(BETWEEN, false, true, 's', 0, -0.02), ['l', 'r', 'b'], 'the screen bottom handle of a flipped picture moves the source top side');
+assert.strictEqual(P.cropDrag(BETWEEN, false, false, 'w', 0.05, 0).l, 0.15, 'the moved side is on the step');
+// The side that gives way at 0.95 rounds down, so the sum stays within the limit next to a side off the step.
+const full = P.cropDrag({l: 0, t: 0, r: 0.3184, b: 0}, false, false, 'w', 0.8, 0);
+assert.strictEqual(full.r, 0.3184); assert.strictEqual(full.l, 0.631); assert(full.l + full.r <= 0.95 + 1e-9, 'l + r stays at most 0.95: ' + (full.l + full.r));
+
+// The same through the keys, with the real edit: crop.r animated with the playhead between its keys.
+P.applyEdit = (s, label, op) => op(s.project) === true;
+const FXE = window.VideoStudioEffects;
+const kf = (f, v, e) => ({f, v, e: e || 'linear'});
+const stage = (keys, extra) => {
+  const c = clip('c1', V, 0, 200, Object.assign({keyframes: keys}, extra || {}));
+  const p = project([track('v1', 'video', [c])]);
+  return {p, c, s: {project: p, frame: 20, selectedClipId: 'c1', stageMode: 'timeline', readonly: false, cropMode: {clipId: 'c1'}, cropDrag: null}};
+};
+const press = (s, key, handle) => P.handleCropKeys(s, {key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, target: {closest: sel => sel === '[data-crop-box]' ? {} : sel === '[data-crop-handle]' && handle ? {dataset: {cropHandle: handle}} : null}, preventDefault() {}, stopPropagation() {}});
+let fix = stage({'crop.r': [kf(0, 0.1), kf(60, 0.5)]});
+const rKeys = JSON.stringify(fix.c.keyframes['crop.r']);
+assert(Math.abs(Math.round(FXE.valueAt(fix.c, 'crop.r', 20, fix.p) * 1000) / 1000 - FXE.valueAt(fix.c, 'crop.r', 20, fix.p)) > 1e-5, 'the fixture needs an r that is off the step');
+assert.equal(press(fix.s, 'ArrowRight', 'w'), true);
+assert.equal(JSON.stringify(fix.c.keyframes['crop.r']), rKeys, 'dragging the left handle leaves the keys of r alone');
+near(fix.c.crop.l, 0.01, 'the left side moved');
+assert.equal(fix.c.crop.r, 0, 'the static field of an animated side is never written');
+// With l animated as well, the key lands on the side the handle moves.
+fix = stage({'crop.l': [kf(0, 0.05), kf(60, 0.4)], 'crop.r': [kf(0, 0.1), kf(60, 0.5)]});
+const both = JSON.parse(JSON.stringify(fix.c.keyframes));
+press(fix.s, 'ArrowRight', 'w');
+assert.equal(fix.c.keyframes['crop.l'].length, 3, 'the left handle keys l at the playhead');
+assert.deepEqual(fix.c.keyframes['crop.r'], both['crop.r'], 'r keeps its keys');
+// A vertical move of the whole crop leaves the animated l and r alone.
+fix = stage({'crop.l': [kf(0, 0.05), kf(60, 0.4)], 'crop.r': [kf(0, 0.1), kf(60, 0.5)]}, {crop: {l: 0, t: 0.2, r: 0, b: 0.2}});
+const rails = JSON.parse(JSON.stringify(fix.c.keyframes));
+press(fix.s, 'ArrowDown');
+assert.deepEqual(fix.c.keyframes, rails, 'a vertical move does not key l or r');
+near(fix.c.crop.t, 0.21, 'the top moved'); near(fix.c.crop.b, 0.19, 'the bottom moved');
+// 64 keys on r: dragging the left handle is not refused for a key that is not its own.
+fix = stage({'crop.r': Array.from({length: 64}, (_, i) => kf(i * 3, 0.05 + i * 0.005))});
+assert.equal(press(fix.s, 'ArrowRight', 'w'), true);
+assert.equal(fix.c.keyframes['crop.r'].length, 64);
+near(fix.c.crop.l, 0.01, 'l moved although r has 64 keys');
 `)
 }

@@ -57,10 +57,16 @@
         });
         return out;
     }
-    // Clamps the six numbers to the registry ranges and rounds them.
-    function settled(values) {
+    // Clamps to the registry ranges and rounds the numbers a gesture changed; one that stays within UNCHANGED of its
+    // value in `before` keeps that value exactly. Rounding the others would move an animated path off its curve between
+    // two keys (commitMask would key it) and rewrite a static one for nothing.
+    const UNCHANGED = 1e-9;
+    function settled(values, before) {
         const out = {};
-        NUMBERS.forEach(key => { out[key] = round6(within(Number(values[key]) || 0, RANGES[key])); });
+        NUMBERS.forEach(key => {
+            const value = Number(values[key]) || 0;
+            out[key] = before && Math.abs(value - before[key]) <= UNCHANGED ? before[key] : round6(within(value, RANGES[key]));
+        });
         return out;
     }
     // The overlay geometry for a clip state with a mask (clipState at the playhead), in project pixels:
@@ -88,7 +94,8 @@
     // - dx and dy are box pixels in box directions (maskDragDelta has undone the clip rotation).
     // - box is {w, h} in the same pixels, plus scale (screen px per box px) for the knob distances; scale is 1 when
     //   missing.
-    // - Returns the six numbers, clamped to the registry ranges and rounded to 1e-6.
+    // - Returns the six numbers: the ones the gesture changed are clamped to the registry ranges and rounded to 1e-6, the
+    //   others are exactly what they were (an animated number between its keys is not a round value).
     function maskDrag(mask, handle, dx, dy, box) {
         const m = maskValues(mask), out = Object.assign({}, m), x = Number(dx) || 0, y = Number(dy) || 0;
         const W = Math.max(1e-9, Number(box && box.w) || 0), H = Math.max(1e-9, Number(box && box.h) || 0), scale = Number(box && box.scale) > 0 ? Number(box.scale) : 1;
@@ -110,7 +117,7 @@
             out.rotation = m.rotation + turn / DEG;
             if (out.rotation > 360) out.rotation -= 360; else if (out.rotation < -360) out.rotation += 360;
         } else if (handle === 'feather') out.feather = m.feather + 2 * ly / H;
-        return settled(out);
+        return settled(out, m);
     }
     // One arrow key on the mask ('move'), a size handle, the rotate knob or the feather knob; null for other keys.
     function maskNudge(mask, handle, key, shift, box) {
@@ -124,7 +131,7 @@
             const step = shift ? 0.1 : 0.01, t = m.rotation * DEG, lx = arrow[0] * step * (Number(box && box.w) || 0), ly = arrow[1] * step * (Number(box && box.h) || 0);
             return maskDrag(m, handle, lx * Math.cos(t) - ly * Math.sin(t), lx * Math.sin(t) + ly * Math.cos(t), box);
         } else { const step = shift ? 0.1 : 0.01; out.x = m.x + arrow[0] * step; out.y = m.y + arrow[1] * step; }
-        return settled(out);
+        return settled(out, m);
     }
 
     // The clip mask mode works on: the transform target, when it has a mask.
@@ -185,7 +192,8 @@
         else if (options && options.restoreFocus) (s.q('[data-inspector] [data-action="mask-mode"]:not(:disabled)') || s.app).focus({ preventScroll: true });
         return true;
     }
-    // One undo step with the values that changed; setMask keys animated mask paths at the playhead.
+    // One undo step with the values that changed (maskDrag and maskNudge return the others untouched); setMask keys
+    // animated mask paths at the playhead, so a number that did not change must not reach it.
     function commitMask(s, clipId, before, after) {
         const values = {};
         NUMBERS.forEach(key => { if (Math.abs(after[key] - before[key]) > 1e-9) values[key] = after[key]; });

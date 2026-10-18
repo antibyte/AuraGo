@@ -146,5 +146,71 @@ near(P.maskNudge(FLAT, 'feather', 'ArrowUp', false, box).feather, 0.041, 'feathe
 near(P.maskNudge(FLAT, 'feather', 'ArrowDown', true, box).feather, 0.03, 'Shift feather down');
 near(P.maskNudge(Object.assign({}, FLAT, {feather: 0}), 'feather', 'ArrowDown', false, box).feather, 0, 'feather stays at 0');
 assert.equal(P.maskNudge(FLAT, 'move', 'Delete', false, box), null);
+
+// A gesture writes only the numbers it changes. An animated number between its keys is not a round value, so rounding
+// it would key it (and at 64 keys refuse the whole gesture): the numbers a gesture leaves alone come back exactly as
+// they were.
+const BETWEEN = {shape: 'rect', x: 0.2500000123, y: 0.2000000456, w: 0.3185183333, h: 0.6000000789, rotation: 7.0000001, feather: 0.0400000123, invert: false};
+const untouched = (got, keys, message) => keys.forEach(key => assert.strictEqual(got[key], BETWEEN[key], message + ' ' + key));
+untouched(P.maskDrag(BETWEEN, 'move', 64, 0, box), ['y', 'w', 'h', 'rotation', 'feather'], 'a horizontal move');
+untouched(P.maskDrag(BETWEEN, 'move', 0, -36, box), ['x', 'w', 'h', 'rotation', 'feather'], 'a vertical move');
+untouched(P.maskDrag(Object.assign({}, BETWEEN, {rotation: 0}), 'e', 64, 30, box), ['x', 'y', 'h', 'feather'], 'the right edge');
+untouched(P.maskDrag(Object.assign({}, BETWEEN, {rotation: 0}), 's', 20, 30, box), ['x', 'y', 'w', 'feather'], 'the bottom edge');
+untouched(P.maskDrag(BETWEEN, 'rotate', 20, 10, box), ['x', 'y', 'w', 'h', 'feather'], 'the rotate knob');
+untouched(P.maskDrag(BETWEEN, 'feather', 0, 10, box), ['x', 'y', 'w', 'h', 'rotation'], 'the feather knob');
+untouched(P.maskNudge(BETWEEN, 'move', 'ArrowRight', false, box), ['y', 'w', 'h', 'rotation', 'feather'], 'a move key');
+untouched(P.maskNudge(BETWEEN, 'rotate', 'ArrowUp', false, box), ['x', 'y', 'w', 'h', 'feather'], 'a rotate key');
+untouched(P.maskNudge(BETWEEN, 'feather', 'ArrowUp', false, box), ['x', 'y', 'w', 'h', 'rotation'], 'a feather key');
+assert.strictEqual(P.maskDrag(BETWEEN, 'move', 64, 0, box).x, 0.35, 'the moved number is rounded to 1e-6');
+
+// The same through the keys, with the real edit: the playhead stands between two keys of every other animated number.
+// The edit holds the whole undo step, so a key on the wrong number shows in its key list.
+const kf = (f, v, e) => ({f, v, e: e || 'linear'});
+const stage = (keys, extra) => {
+  const m = Object.assign({shape: 'rect', x: 0.25, y: 0.25, w: 0.5, h: 0.5, rotation: 0, feather: 0, invert: false}, extra || {});
+  const c = clip('m1', V, 0, 200, {mask: m, keyframes: keys});
+  const p = project([track('v1', 'video', [c])]);
+  const s = {project: p, frame: 20, selectedClipId: 'm1', stageMode: 'timeline', readonly: false, maskMode: {clipId: 'm1'}, maskDrag: null};
+  return {p, s, c};
+};
+P.applyEdit = (s, label, op) => op(s.project) === true;
+const press = (s, key, handle) => P.handleMaskKeys(s, {key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, target: {closest: sel => sel === '[data-mask-box]' ? {} : sel === '[data-mask-handle]' && handle ? {dataset: {maskHandle: handle}} : null}, preventDefault() {}, stopPropagation() {}});
+const FXE = window.VideoStudioEffects, round6 = value => Math.round(value * 1e6) / 1e6;
+
+// w animated 0.2 to 1 with easing: at frame 20 it is not round. Moving x leaves its keys alone, and x (static) moves.
+let fix = stage({'mask.w': [kf(0, 0.2, 'ease_in_out'), kf(60, 1)]});
+const wKeys = JSON.stringify(fix.c.keyframes['mask.w']);
+assert(Math.abs(round6(FXE.valueAt(fix.c, 'mask.w', 20, fix.p)) - FXE.valueAt(fix.c, 'mask.w', 20, fix.p)) > 1e-8, 'the fixture needs a w that is not round');
+assert.equal(press(fix.s, 'ArrowRight'), true);
+assert.equal(JSON.stringify(fix.c.keyframes['mask.w']), wKeys, 'moving x leaves the keys of w alone');
+near(fix.c.mask.x, 0.26, 'x moved');
+assert.equal(fix.c.mask.w, 0.5, 'the static field of an animated number is never written');
+
+// Moving an animated x keys x only; the other animated numbers keep their keys. A size key on the right handle changes w
+// and nothing else, whatever else is animated.
+fix = stage({'mask.x': [kf(0, 0.1), kf(60, 0.7)], 'mask.w': [kf(0, 0.2, 'ease_in_out'), kf(60, 1)], 'mask.feather': [kf(0, 0.01), kf(60, 0.2)]});
+const before = JSON.stringify(fix.c.keyframes);
+press(fix.s, 'ArrowDown');
+assert.deepEqual(Object.keys(fix.c.keyframes).sort(), ['mask.feather', 'mask.w', 'mask.x']);
+assert.equal(fix.c.keyframes['mask.x'].length, 2, 'moving down does not key x');
+assert.equal(fix.c.keyframes['mask.w'].length, 2);
+assert.equal(JSON.stringify(fix.c.keyframes['mask.w']), JSON.stringify(JSON.parse(before)['mask.w']));
+assert.equal(JSON.stringify(fix.c.keyframes['mask.feather']), JSON.stringify(JSON.parse(before)['mask.feather']));
+press(fix.s, 'ArrowRight');
+assert.equal(fix.c.keyframes['mask.x'].length, 3, 'moving right keys x at the playhead');
+assert.equal(fix.c.keyframes['mask.x'][1].f, 20);
+assert.equal(JSON.stringify(fix.c.keyframes['mask.w']), JSON.stringify(JSON.parse(before)['mask.w']), 'w keeps its keys');
+assert.equal(JSON.stringify(fix.c.keyframes['mask.feather']), JSON.stringify(JSON.parse(before)['mask.feather']), 'feather keeps its keys');
+fix = stage({'mask.x': [kf(0, 0.1), kf(60, 0.7)], 'mask.h': [kf(0, 0.2), kf(60, 0.9)], 'mask.feather': [kf(0, 0.01), kf(60, 0.2)]});
+const sides = JSON.stringify(fix.c.keyframes);
+press(fix.s, 'ArrowRight', 'e');
+assert.equal(JSON.stringify(fix.c.keyframes), sides, 'the right edge changes w only');
+near(fix.c.mask.w, 0.51, 'w grew');
+
+// 64 keys on w: a gesture on x is not refused for a key that is not its own.
+fix = stage({'mask.w': Array.from({length: 64}, (_, i) => kf(i * 3, 0.2 + i * 0.012))});
+assert.equal(press(fix.s, 'ArrowRight'), true);
+assert.equal(fix.c.keyframes['mask.w'].length, 64);
+near(fix.c.mask.x, 0.26, 'x moved although w has 64 keys');
 `)
 }

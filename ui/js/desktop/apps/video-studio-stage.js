@@ -411,8 +411,8 @@
     const CROP_MAX = 0.95;
     const CROP_ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     const PIC = () => window.VideoStudioPicture;
-    // The crop.* registry step (0.001); adding 0 turns -0 into 0.
-    const cropStep = value => Math.round(value * 1000) / 1000 + 0;
+    // The crop.* registry step (0.001), rounded to nearest or down; adding 0 turns -0 into 0.
+    const cropStep = value => Math.round(value * 1000) / 1000 + 0, cropFloor = value => Math.floor(value * 1000 + 1e-6) / 1000 + 0;
     function cropOf(state) {
         const crop = state && state.crop || {};
         return { l: Number(crop.l) || 0, t: Number(crop.t) || 0, r: Number(crop.r) || 0, b: Number(crop.b) || 0 };
@@ -453,9 +453,9 @@
     }
     // A drag or nudge of one handle ('nw' … 'w') or of the whole crop ('move'). dx and dy are fractions of the whole
     // source in screen directions (x right, y down). Edges stay within 0..0.95 with at most 0.95 per axis, round to the
-    // 0.001 step and map back to unflipped fractions.
+    // 0.001 step (only the edges the gesture moves; the others stay exactly as they were) and map back to unflipped fractions.
     function cropDrag(crop, flipH, flipV, handle, dx, dy) {
-        const e = PIC().mirroredCrop(cropOf({ crop }), !!flipH, !!flipV), x = Number(dx) || 0, y = Number(dy) || 0;
+        const e = PIC().mirroredCrop(cropOf({ crop }), !!flipH, !!flipV), start = Object.assign({}, e), x = Number(dx) || 0, y = Number(dy) || 0;
         if (handle === 'move') {
             const sx = clamp(x, -e.l, e.r), sy = clamp(y, -e.t, e.b);
             e.l += sx; e.r -= sx; e.t += sy; e.b -= sy;
@@ -465,10 +465,10 @@
             if (handle.includes('n')) e.t = clamp(e.t + y, 0, CROP_MAX - e.b);
             if (handle.includes('s')) e.b = clamp(e.b - y, 0, CROP_MAX - e.t);
         }
-        const out = { l: cropStep(e.l), t: cropStep(e.t), r: cropStep(e.r), b: cropStep(e.b) };
-        // Rounding both edges of an axis up can pass 0.95 by one step; the dragged edge gives way.
-        if (out.l + out.r > CROP_MAX + 1e-9) { const key = handle.includes('w') ? 'l' : 'r'; out[key] = cropStep(CROP_MAX - out[key === 'l' ? 'r' : 'l']); }
-        if (out.t + out.b > CROP_MAX + 1e-9) { const key = handle.includes('n') ? 't' : 'b'; out[key] = cropStep(CROP_MAX - out[key === 't' ? 'b' : 't']); }
+        const settle = key => (e[key] === start[key] ? start[key] : cropStep(e[key])), out = { l: settle('l'), t: settle('t'), r: settle('r'), b: settle('b') };
+        // Rounding both edges of an axis up can pass 0.95 by one step; the dragged edge gives way (rounded down, the other edge may be off the step).
+        if (out.l + out.r > CROP_MAX + 1e-9) { const key = handle.includes('w') ? 'l' : 'r'; out[key] = cropFloor(CROP_MAX - out[key === 'l' ? 'r' : 'l']); }
+        if (out.t + out.b > CROP_MAX + 1e-9) { const key = handle.includes('n') ? 't' : 'b'; out[key] = cropFloor(CROP_MAX - out[key === 't' ? 'b' : 't']); }
         return PIC().mirroredCrop(out, !!flipH, !!flipV);
     }
     // Screen pixels of a drag to fractions of the whole source: the delta turns back by the clip's rotation (clockwise
@@ -529,7 +529,7 @@
         else if (options && options.restoreFocus) (s.q('[data-inspector] [data-action="crop-mode"]:not(:disabled)') || s.app).focus({ preventScroll: true });
         return true;
     }
-    // One undo step with the values that changed; setCrop keys animated crop paths at the playhead.
+    // One undo step with the values that changed (cropDrag returns the other sides untouched); setCrop keys animated crop paths at the playhead.
     function commitCrop(s, clipId, before, after) {
         const values = {};
         ['l', 't', 'r', 'b'].forEach(key => { if (Math.abs(after[key] - before[key]) > 1e-9) values[key] = after[key]; });

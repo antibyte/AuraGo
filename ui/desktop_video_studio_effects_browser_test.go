@@ -486,6 +486,25 @@ func videoStudioCropBrowserPart(t *testing.T) {
 	if keys := videoStudioClipKeys(t, page, "c1", "crop.r"); keys != nil {
 		t.Errorf("the nudge keyed crop.r: %+v", keys)
 	}
+
+	// A drag of the left handle at frame 90, between the keys of an animated crop.r (frames 30 and 120: 0.27 at frame 90,
+	// off the 0.001 step), keys crop.l only; crop.r keeps its two keys.
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'animate crop.r', project => window.VideoStudioKeyframeEdit.setAnimated(project, 'c1', 'crop.r', true, 30) === true && window.VideoStudioKeyframeEdit.setValues(project, 'c1', {'crop.r': 0.35}, 120) === true)`).Bool() {
+		t.Fatal("animating crop.r was refused")
+	}
+	rKeys := videoStudioClipKeys(t, page, "c1", "crop.r")
+	if len(rKeys) != 2 {
+		t.Fatalf("crop.r keys %+v, want two", rKeys)
+	}
+	lKeys := videoStudioClipKeys(t, page, "c1", "crop.l")
+	waitForJSBool(t, page, cropping)
+	grip := page.MustEval(`() => { const h = document.querySelector('[data-crop-handle="w"]').getBoundingClientRect(), f = document.querySelector('[data-crop-source]').getBoundingClientRect(); return {x: h.left + h.width / 2, y: h.top + h.height / 2, w: f.width}; }`)
+	gx, gy, gw := grip.Get("x").Num(), grip.Get("y").Num(), grip.Get("w").Num()
+	page.Mouse.MustMoveTo(gx, gy).MustDown(proto.InputMouseButtonLeft).MustMoveTo(gx+gw/32, gy).MustMoveTo(gx+gw/16, gy).MustUp(proto.InputMouseButtonLeft)
+	requireVideoStudioKeys(t, "a drag between the keys of crop.r", videoStudioClipKeys(t, page, "c1", "crop.r"), rKeys...)
+	if got := videoStudioClipKeys(t, page, "c1", "crop.l"); len(got) != 2 || got[1].F != 90 || got[1].V <= lKeys[1].V+0.03 {
+		t.Errorf("the drag did not move the key of crop.l at frame 90: keys %+v, before %+v", got, lKeys)
+	}
 	press(input.Enter, false)
 	waitForJSBool(t, page, `() => document.querySelector('[data-crop-box]').hidden`)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
