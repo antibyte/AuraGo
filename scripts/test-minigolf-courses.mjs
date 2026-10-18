@@ -11,24 +11,24 @@ const horizontalDistance = (position, target) => Math.hypot(position[0] - target
 // Deterministic playable routes found against the exported Rapier geometry.
 // Set AURAGO_MINIGOLF_SEARCH=1 to rerun the slower coarse route discovery.
 const ROUTES = {
-    'garden-01': [{ angle: 3.141592653589793, power: 0.9 }],
-    'garden-02': [{ angle: -3.1338970074971737, power: 0.95 }],
-    'garden-03': [{ angle: -3.394485381500596, power: 1 }],
-    'garden-04': [{ angle: 3.1302037161209193, power: 0.7 }],
-    'garden-05': [{ angle: -3.124900089818196, power: 0.975 }, { angle: -4.8581913447888585, power: 0.55 }],
-    'garden-06': [{ angle: -2.878714631232768, power: 0.85 }, { angle: 1.6125627320502407, power: 1, wait: 1.5 }],
-    'coast-07': [{ angle: 3.07599060245278, power: 0.7 }, { angle: 2.1452008615359777, power: 1 }],
-    'coast-08': [{ angle: -3.1157889013048896, power: 1 }],
-    'coast-09': [{ angle: -3.1362450018090966, power: 0.9 }],
-    'coast-10': [{ angle: -3.1349887067119764, power: 1 }, { angle: -4.797565855540604, power: 0.85 }],
-    'coast-11': [{ angle: -3.991407202631565, power: 0.8 }, { angle: -3.111628975767671, power: 0.2, wait: 3.009 }],
-    'coast-12': [{ angle: 3.033034331212618, power: 0.95 }, { angle: 2.601289829309998, power: 0.4 }],
-    'night-13': [{ angle: 3.08726085196407, power: 0.55 }, { angle: 2.942502248109428, power: 0.55 }],
-    'night-14': [{ angle: -3.107083897644142, power: 0.925 }, { angle: 1.8936867393410872, power: 0.5 }],
-    'night-15': [{ angle: 3.1223143485473197, power: 1 }, { angle: -2.093073619776795, power: 0.12 }],
-    'night-16': [{ angle: -3.6639796232205186, power: 1 }, { angle: -4.140663833934456, power: 0.55 }],
-    'night-17': [{ angle: -3.1300028695125954, power: 1 }, { angle: -3.3271326577227267, power: 0.12 }],
-    'night-18': [{ angle: -3.332961869066842, power: 1 }]
+    'garden-01': [{"angle":3.141592653589793,"power":0.3}],
+    'garden-02': [{"angle":-3.1338970074971737,"power":0.3}],
+    'garden-03': [{"angle":-3.394485381500596,"power":0.4}],
+    'garden-04': [{"angle":3.1302037161209193,"power":0.3}],
+    'garden-05': [{"angle":-3.124900089818196,"power":0.3}],
+    'garden-06': [{"angle":-3.1405140190319174,"power":0.2},{"angle":-3.5655648030674914,"power":0.55,"wait":6.058333333333334},{"angle":-4.756514089873838,"power":0.55,"wait":7.258333333333334}],
+    'coast-07': [{"angle":3.3377899902519297,"power":0.4}],
+    'coast-08': [{"angle":-3.1157889013048896,"power":0.55},{"angle":1.7111962800745042,"power":0.925}],
+    'coast-09': [{"angle":-3.1362450018090966,"power":0.3}],
+    'coast-10': [{"angle":-3.1349887067119764,"power":0.3}],
+    'coast-11': [{"angle":-2.856943188835251,"power":0.55},{"angle":0.012160516089894102,"power":0.55,"wait":4.291666666666667}],
+    'coast-12': [{"angle":3.2948337190117676,"power":0.7}],
+    'night-13': [{"angle":2.2145962259669054,"power":0.85}],
+    'night-14': [{"angle":-3.9797485236413066,"power":0.7}],
+    'night-15': [{"angle":2.598715572949021,"power":0.55}],
+    'night-16': [{"angle":-2.2677162216250553,"power":0.925},{"angle":-5.688700116261902,"power":0.4}],
+    'night-17': [{"angle":-3.1300028695125954,"power":0.3}],
+    'night-18': [{"angle":-3.0711624812676925,"power":0.55}]
 };
 
 function runShot(physics, position, shot, events, { resetTime = true } = {}) {
@@ -88,6 +88,36 @@ function findCupPath(physics, course, events) {
     return null;
 }
 
+// Replays a route with continuous obstacle time, like the real game. With
+// `period`, each shot first waits until the gates return to phase 0 (the
+// state the search assumed for every shot) and records that wait in the route.
+function replay(physics, course, path, events, period = 0) {
+    let position = course.tee;
+    physics.resetTime();
+    for (let index = 0; index < path.length; index++) {
+        if (period) {
+            const wait = Math.round((period - physics.getSnapshot().time % period) % period * 120) / 120;
+            if (wait > 0) path[index].wait = wait; else delete path[index].wait;
+        }
+        for (let tick = 0; tick < Math.round((path[index].wait || 0) * 120); tick++) physics.step(1 / 120);
+        const terminal = runShot(physics, position, path[index], events, { resetTime: false });
+        if (!terminal || terminal.type !== (index === path.length - 1 ? 'cup' : 'rest')) return false;
+        position = terminal.position;
+    }
+    return true;
+}
+
+// The search starts every shot at obstacle time 0. Routes behind a moving
+// gate therefore get phase-aligned waits (whole periods of 2π/speed).
+function timedRoute(physics, course, path, events) {
+    if (!path) return null;
+    const route = path.map(shot => ({ ...shot }));
+    if (replay(physics, course, route, events)) return route;
+    const periods = [...new Set((course.obstacles || []).map(obstacle => 2 * Math.PI / obstacle.speed))];
+    if (periods.length !== 1 || !replay(physics, course, route, events, periods[0])) return null;
+    return replay(physics, course, route, events) ? route : null;
+}
+
 for (const course of manifest.courses) {
     assert.ok(course.colliders.some(collider => collider.type === 'mesh' && collider.surface === 'grass'), `${course.id}: grass collision mesh`);
     const events = [];
@@ -117,7 +147,7 @@ for (const course of manifest.courses) {
             assert.ok(moved, `${course.id}: obstacle ${obstacle.id} advances with physics time`);
         });
 
-        const route = process.env.AURAGO_MINIGOLF_SEARCH === '1' ? findCupPath(physics, course, events) : ROUTES[course.id];
+        const route = process.env.AURAGO_MINIGOLF_SEARCH === '1' ? timedRoute(physics, course, findCupPath(physics, course, events), events) : ROUTES[course.id];
         const path = route;
         assert.ok(path, `${course.id}: coarse shot search finds a playable route to the cup`);
         assert.ok(path.length <= 12, `${course.id}: route respects the game's stroke cap`);
