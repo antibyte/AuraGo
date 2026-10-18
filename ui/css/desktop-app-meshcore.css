@@ -55,7 +55,8 @@
 }
 
 /* === Fruity light adjustments === */
-.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-meshcore {
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-meshcore,
+.desktop-body[data-scheme="light"] .vd-meshcore {
     --mc-accent: #0d9488;
     --mc-accent-strong: #0d9488;
     --mc-accent-text: #0a6960;

@@ -77,7 +77,7 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		".desktop-body[data-shell=\"dock\"] .vd-dock-orb",
 		".desktop-body[data-shell=\"dock\"] .vd-dock-button",
 		".desktop-body[data-shell=\"dock\"] .vd-dock-button:hover",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-button.running::after",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-button.running::after",
 		".desktop-body[data-shell=\"dock\"] .vd-dock-button.active::after",
 		".desktop-body[data-shell=\"dock\"] .vd-dock-icon",
 		".desktop-body[data-shell=\"dock\"] .vd-radial-anchor",

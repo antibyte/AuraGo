@@ -36,21 +36,7 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .fm-modal-overlay,
-    .fm-upload-overlay,
-    .cs-modal-backdrop,
-    .cs-shortcut-overlay,
-    .cs-command-palette-backdrop,
-    .vd-qc-modal-overlay,
-    .vd-people-modal-backdrop,
-    .cheater-modal,
-    .cheater-spotlight,
-    .vd-chat-drop-overlay.active,
-    .nc-modal-backdrop,
-    .gm-modal-layer
-),
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .fm-modal-overlay,
     .fm-upload-overlay,
     .cs-modal-backdrop,

@@ -92,8 +92,8 @@
 .writer-app .writer-primary{border-color:var(--writer-accent);background:var(--vd-theme-accent-soft,#263e55)}
 .writer-focus .writer-documentbar,.writer-focus .writer-toolbar,.writer-focus .writer-left,.writer-focus .writer-right,.writer-focus .writer-ruler{display:none!important}
 .writer-print-frame{position:fixed;left:-20000px;top:0;width:1200px;height:1000px;border:0}
-.desktop-body[data-theme=fruity][data-fruity-mode=light] .writer-canvas{background:radial-gradient(ellipse at top,#e4e8ee,transparent 80%),#b8c0cc}
-.desktop-body[data-theme=fruity][data-fruity-mode=light] .writer-ruler{color:#536175;background-image:repeating-linear-gradient(90deg,transparent,transparent calc(1.25% - 1px),#38496025 calc(1.25% - 1px),#38496025 1.25%)}
+.desktop-body[data-theme=fruity][data-fruity-mode=light] .writer-canvas,.desktop-body[data-scheme="light"] .writer-canvas{background:radial-gradient(ellipse at top,#e4e8ee,transparent 80%),#b8c0cc}
+.desktop-body[data-theme=fruity][data-fruity-mode=light] .writer-ruler,.desktop-body[data-scheme="light"] .writer-ruler{color:#536175;background-image:repeating-linear-gradient(90deg,transparent,transparent calc(1.25% - 1px),#38496025 calc(1.25% - 1px),#38496025 1.25%)}
 .desktop-body[data-theme=fruity] .writer-app{font-family:-apple-system,BlinkMacSystemFont,Geist,system-ui,sans-serif}
 .desktop-body[data-theme=fruity] .writer-documentbar{background:linear-gradient(180deg,#ffffff07,transparent)}
 .desktop-body[data-density=compact] .writer-documentbar{min-height:42px;padding-block:4px}

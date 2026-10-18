@@ -29,11 +29,13 @@
     position: relative;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .noisemaker-app {
+.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .noisemaker-app,
+.desktop-body[data-scheme="light"] .noisemaker-app {
     color-scheme: light;
 }
 
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .noisemaker-app {
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .noisemaker-app,
+.desktop-body[data-scheme="dark"] .noisemaker-app {
     color-scheme: dark;
 }
 

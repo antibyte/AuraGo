@@ -204,6 +204,15 @@
     --vd-shell-shadow-window: 0 28px 70px rgba(0, 0, 0, 0.48), 0 8px 24px rgba(0, 0, 0, 0.26);
 }
 
+/* Effects layer: created by theme-fx/fx-core.js for fx themes only; a skin may refine it under its own key. */
+.vd-theme-fx-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: calc(var(--vd-z-dock) - 1);
+}
+
 .vd-toast-container {
     position: fixed;
     top: 14px;
@@ -1359,7 +1368,7 @@
     display: none;
 }
 
-.desktop-body[data-theme="fruity"] .vd-start-button {
+.desktop-body[data-shell="dock"] .vd-start-button {
     display: none;
 }
 
@@ -1561,8 +1570,8 @@
         opacity 160ms var(--ds-motion-ease-standard);
 }
 
-.desktop-body[data-theme="fruity"] .vd-dock-button.running::after,
-.desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
+.desktop-body[data-shell="dock"] .vd-dock-button.running::after,
+.desktop-body[data-shell="dock"] .vd-dock-button.active::after {
     opacity: 1;
 }
 
@@ -1667,7 +1676,7 @@
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6v2H8v2h8v-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v8H4V7Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-.desktop-body[data-theme="fruity"] .vd-clock {
+.desktop-body[data-shell="dock"] .vd-clock {
     display: inline-flex;
     align-items: center;
     height: 22px;
@@ -1677,7 +1686,7 @@
     font-weight: 760;
 }
 
-.desktop-body[data-theme="fruity"] .vd-status-dot {
+.desktop-body[data-shell="dock"] .vd-status-dot {
     width: 7px;
     height: 7px;
     margin: 0 2px;
@@ -2018,7 +2027,7 @@
         padding: 8px max(8px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
     }
 
-    .desktop-body[data-theme="fruity"] .vd-start-button {
+    .desktop-body[data-shell="dock"] .vd-start-button {
         display: none;
     }
 

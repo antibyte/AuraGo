@@ -43,7 +43,9 @@
 }
 
 .desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .vd-calendar-shell,
-.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .vd-calendar-editor {
+.desktop-body[data-theme="fruity"]:not([data-fruity-mode="dark"]) .vd-calendar-editor,
+.desktop-body[data-scheme="light"] .vd-calendar-shell,
+.desktop-body[data-scheme="light"] .vd-calendar-editor {
     --cal-ink-soft: rgba(0, 0, 0, 0.07);
     --cal-status-completed: #2aa866;
     color-scheme: light;
@@ -52,7 +54,9 @@
 .desktop-body[data-theme="standard"] .vd-calendar-shell,
 .desktop-body[data-theme="standard"] .vd-calendar-editor,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-calendar-shell,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-calendar-editor {
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-calendar-editor,
+.desktop-body[data-scheme="dark"] .vd-calendar-shell,
+.desktop-body[data-scheme="dark"] .vd-calendar-editor {
     color-scheme: dark;
 }
 

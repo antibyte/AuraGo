@@ -271,6 +271,29 @@ func TestDesktopCodeStudioEditorRetention(t *testing.T) {
 	}
 }
 
+// An open editor swaps its syntax palette and dark flag when the desktop colour scheme changes, and the
+// window's observer is gone once the window is disposed.
+func TestDesktopCodeStudioEditorFollowsSchemeLive(t *testing.T) {
+	page, _ := newCodeStudioBrowser(t)
+	if !page.MustEval(`async()=>{
+        await csWait(()=>csState()?.terminalSessions.length);
+        const app=CodeStudioApp,target=csState(),id=target.windowId,body=document.body,settle=()=>new Promise(r=>setTimeout(r,60));
+        body.dataset.scheme='dark';
+        await app.openFile('/workspace/README.md',true,id);
+        const view=target.openTabs[0].view,dark=()=>view.state.facet(target.cmModule.EditorView.darkTheme),darkClasses=view.themeClasses;
+        if(!dark())return false;
+        body.dataset.scheme='light';await settle();
+        const lightClasses=view.themeClasses;
+        if(dark()||lightClasses===darkClasses||!view.dom.className.includes(lightClasses))return false;
+        body.dataset.scheme='dark';await settle();
+        if(!dark()||view.themeClasses!==darkClasses)return false;
+        app.dispose(id);body.dataset.scheme='light';
+        return target.schemeObserver.takeRecords().length===0;
+    }`).Bool() {
+		t.Fatal("an open Code Studio editor kept its palette after the colour scheme changed, or its observer outlived the window")
+	}
+}
+
 func TestDesktopCodeStudioTextareaRetention(t *testing.T) {
 	page, _ := newCodeStudioBrowser(t)
 	if !page.MustEval(`async()=>{

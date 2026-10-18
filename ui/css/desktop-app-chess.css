@@ -568,8 +568,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
-.desktop-body[data-theme="standard"] .vd-chess-segment button.active,
-.desktop-body[data-theme="fruity"] .vd-chess-segment button.active {
+.desktop-body[data-theme] .vd-chess-segment button.active {
     background: color-mix(in srgb, var(--vd-text, #fff) 92%, transparent);
     color: color-mix(in srgb, var(--vd-bg, #12382d) 88%, #000);
 }
@@ -700,8 +699,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
 
-.desktop-body[data-theme="standard"] .vd-chess-tabs button.active,
-.desktop-body[data-theme="fruity"] .vd-chess-tabs button.active {
+.desktop-body[data-theme] .vd-chess-tabs button.active {
     background: color-mix(in srgb, var(--vd-text, #fff) 92%, transparent);
     color: color-mix(in srgb, var(--vd-bg, #13392f) 88%, #000);
 }

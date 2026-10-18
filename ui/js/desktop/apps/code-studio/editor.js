@@ -82,6 +82,32 @@
         return cm.oneDark ? [cm.oneDark] : [];
     }
 
+    // Syntax palette plus dark flag: the only editor extensions that depend on the colour scheme. Each view
+    // keeps them in a compartment of its own so a theme switch can swap them on an open editor.
+    function codeMirrorSchemeExtensions(cm) {
+        const highlight = codeMirrorHighlightExtensions(cm);
+        return usesLightEditorTheme() || !cm.EditorView.darkTheme ? highlight : [...highlight, cm.EditorView.darkTheme.of(true)];
+    }
+
+    // One observer per Code Studio window re-themes its open CodeMirror views when the theme or scheme changes.
+    function watchEditorScheme() {
+        if (state.schemeObserver || typeof MutationObserver !== 'function' || !document.body) return;
+        const instance = state;
+        const observer = new MutationObserver(bindInstance(instance, () => {
+            const cm = state.cmModule;
+            const light = usesLightEditorTheme();
+            if (!cm) return;
+            state.openTabs.forEach(tab => (tab.views || []).forEach(view => {
+                if (!view || !view.csScheme || view.csLight === light) return;
+                view.csLight = light;
+                try { view.dispatch({ effects: view.csScheme.reconfigure(codeMirrorSchemeExtensions(cm)) }); } catch (_) {}
+            }));
+        }));
+        observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-fruity-mode', 'data-scheme'] });
+        state.schemeObserver = observer;
+        instance.disposers.push(() => observer.disconnect());
+    }
+
     function syncLinkedView(link, update) {
         if (!link || !update.docChanged || link.syncing) return;
         const other = (link.views || []).find(view => view && view !== update.view);
@@ -100,6 +126,7 @@
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
+        const scheme = new cm.Compartment();
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
@@ -110,7 +137,7 @@
             cm.EditorState.allowMultipleSelections && cm.EditorState.allowMultipleSelections.of(true),
             cm.indentUnit && cm.indentUnit.of('    '),
             cm.EditorView.lineWrapping,
-            ...codeMirrorHighlightExtensions(cm),
+            scheme.of(codeMirrorSchemeExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
             cm.rectangularSelection && cm.rectangularSelection(),
@@ -170,7 +197,7 @@
                 '.cm-indentGuide': {
                     borderLeft: '1px solid var(--cs-border-subtle)'
                 }
-            }, { dark: !light }),
+            }),
             link ? cm.EditorView.updateListener.of(bind(update => syncLinkedView(link, update))) : null,
             cm.EditorView.updateListener.of(bind(update => {
                 if (update.selectionSet && !update.docChanged) {
@@ -188,10 +215,14 @@
         const editorState = snapshot && snapshot.state || cm.EditorState.create({
             doc: tab.content, extensions: [index ? [] : cm.history(), compartment.of([])]
         });
-        return new cm.EditorView({
+        const view = new cm.EditorView({
             state: editorState.update({ effects: compartment.reconfigure(extensions) }).state,
             parent: container
         });
+        view.csScheme = scheme;
+        view.csLight = light;
+        watchEditorScheme();
+        return view;
     }
 
     function createTextareaEditor(container, tab, link) {

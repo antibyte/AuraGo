@@ -425,6 +425,13 @@
     transform: translateY(-1px);
 }
 
+/* Keyboard focus on a theme card stays a visible 2px ring (WCAG 2.4.7). The grid prefix gives the rule the
+   specificity of the shell-wide .vd-shell [tabindex]:focus-visible ring, and this sheet loads after it. */
+.vd-theme-grid .vd-theme-card:focus-visible {
+    outline: 2px solid var(--ds-color-border-focus, var(--vd-accent));
+    outline-offset: 2px;
+}
+
 .vd-screensaver-card.active,
 .vd-theme-card.active {
     border-color: var(--vd-accent);

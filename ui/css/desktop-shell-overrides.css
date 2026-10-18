@@ -112,8 +112,7 @@
     box-shadow: var(--vd-theme-shadow-modal);
 }
 
-.desktop-body[data-theme="standard"] :where(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay),
-.desktop-body[data-theme="fruity"] :where(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) {
+.desktop-body[data-theme] :where(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) {
     background: var(--vd-theme-overlay-bg);
     -webkit-backdrop-filter: blur(10px) saturate(1.08);
     backdrop-filter: blur(10px) saturate(1.08);
@@ -955,8 +954,8 @@
     .desktop-body[data-theme="fruity"] .vd-context-menu::before,
     .desktop-body[data-theme="standard"] .vd-widget::after,
     .desktop-body[data-theme="fruity"] .vd-widget::after,
-    .desktop-body[data-theme="fruity"] .vd-taskbar-system::after,
-    .desktop-body[data-theme="fruity"] .vd-taskbar-apps::after {
+    .desktop-body[data-shell="dock"] .vd-taskbar-system::after,
+    .desktop-body[data-shell="dock"] .vd-taskbar-apps::after {
         display: none;
     }
 

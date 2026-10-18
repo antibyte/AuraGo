@@ -30,7 +30,7 @@
     border-color: var(--vd-theme-accent-border);
 }
 
-.desktop-body[data-theme="fruity"] .vd-fullscreen-button {
+.desktop-body[data-shell="dock"] .vd-fullscreen-button {
     width: 24px;
     height: 24px;
     border-radius: 6px;

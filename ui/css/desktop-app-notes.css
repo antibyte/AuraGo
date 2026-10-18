@@ -118,7 +118,7 @@
 .notes-narrow .notes-name [data-name]{max-width:200px}
 .notes-narrow .notes-document [data-save-state]{max-width:100px;overflow:hidden;text-overflow:ellipsis}
 .notes-print-frame{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;bottom:0}
-.desktop-body[data-theme=fruity][data-fruity-mode=light] .vd-notes-app{--notes-paper:#fffdf9;--notes-ink:#25303c}
+.desktop-body[data-theme=fruity][data-fruity-mode=light] .vd-notes-app,.desktop-body[data-scheme="light"] .vd-notes-app{--notes-paper:#fffdf9;--notes-ink:#25303c}
 @container(max-width:600px){.notes-documentbar{padding:6px 8px}.notes-documentbar nav{gap:0}.notes-documentbar nav button{width:28px;padding:4px}.notes-name [data-name]{max-width:135px!important}.notes-document [data-save-state]{display:none}.notes-page{padding:25px 23px 70px}.notes-statusbar [data-mode]{display:none}.notes-notice{flex-wrap:wrap}.notes-notice>span{flex-basis:100%}.vd-notes-toolbar{padding:5px 8px;gap:5px}}
 .desktop-body[data-density=compact] .notes-documentbar{min-height:43px;padding-block:4px}
 .desktop-body[data-density=compact] .vd-notes-toolbar{min-height:39px;padding-block:4px}
