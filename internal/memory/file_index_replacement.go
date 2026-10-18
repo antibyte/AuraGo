@@ -125,6 +125,14 @@ func (cv *ChromemVectorDB) replaceIndexedDocuments(ctx context.Context, stm *SQL
 	if stm == nil {
 		return nil, fmt.Errorf("file replacement requires a metadata store")
 	}
+	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
+		return nil, err
+	}
+	ctx, release, err := stm.BeginMemoryPublication(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	before, err := stm.GetFileIndexState(path, collection)
 	if err != nil {
 		return nil, err
@@ -187,6 +195,11 @@ func (cv *ChromemVectorDB) recoverIndexedFiles(ctx context.Context, stm *SQLiteM
 	if stm == nil {
 		return fmt.Errorf("file recovery requires a metadata store")
 	}
+	ctx, release, err := stm.BeginMemoryPublication(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	rows, err := stm.db.QueryContext(ctx, `SELECT key,value FROM memory_maintenance_meta WHERE key LIKE ? ORDER BY key LIMIT 100`, fileReplacementPrefix+contentSHA256(collection)+".%")
 	if err != nil {
 		return err

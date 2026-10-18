@@ -11,10 +11,11 @@ import (
 // AutomaticMemoryWrite records only ownership established by this operation.
 // A nil snapshot is deliberately insufficient authority for rollback.
 type AutomaticMemoryWrite struct {
-	DocID       string
-	ContentHash string
-	Metadata    *MemoryMeta
-	Sources     []MemoryExtractionSource
+	PublicationID string
+	DocID         string
+	ContentHash   string
+	Metadata      *MemoryMeta
+	Sources       []MemoryExtractionSource
 }
 
 type AutomaticMemoryStoreResult struct {
@@ -51,18 +52,31 @@ func (s *SQLiteMemory) initializeAutomaticMemoryMeta(id string, details MemoryMe
 // StoreAutomaticMemoryDocument shares insert-only metadata and ownership
 // receipts across analysis, consolidation, hierarchy and queued retries.
 func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
-	return storeAutomaticMemoryDocument(context.Background(), s, ltm, concept, content, details, StoreDocumentWithOwnership)
+	return storeAutomaticMemoryDocument(context.Background(), s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+		if _, ok := ltm.(*ChromemVectorDB); ok {
+			return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
+		}
+		if err := startMemoryPublication(ctx); err != nil {
+			return VectorStoreResult{}, err
+		}
+		return StoreDocumentWithOwnership(ltm, concept, content)
+	})
 }
 
 // StoreAutomaticMemoryDocumentWithContext propagates the run deadline through
 // embedding and vector storage. Receipts and metadata still describe any writes.
 func StoreAutomaticMemoryDocumentWithContext(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
-	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+		if _, ok := ltm.(*ChromemVectorDB); !ok {
+			if err := startMemoryPublication(ctx); err != nil {
+				return VectorStoreResult{}, err
+			}
+		}
 		return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
 	})
 }
 
-func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate, store func(VectorDB, string, string) (VectorStoreResult, error)) (AutomaticMemoryStoreResult, error) {
+func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate, store func(context.Context, VectorDB, string, string) (VectorStoreResult, error)) (result AutomaticMemoryStoreResult, resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return AutomaticMemoryStoreResult{}, err
 	}
@@ -72,7 +86,6 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 		}
 		defer s.automaticMemoryMu.Unlock()
 	}
-	var result AutomaticMemoryStoreResult
 	if err := ctx.Err(); err != nil {
 		return result, err
 	}
@@ -86,22 +99,32 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 	if session == "" {
 		session = "default"
 	}
-	if s != nil {
+	validate := func() error {
+		if s == nil {
+			return nil
+		}
 		deleted, err := s.IsSessionDeleted(session)
 		if err != nil {
-			return result, fmt.Errorf("check memory source session: %w", err)
+			return fmt.Errorf("check memory source session: %w", err)
 		}
 		if deleted {
-			return result, fmt.Errorf("%w: source session deleted", ErrAutomaticMemorySkipped)
+			return fmt.Errorf("%w: source session deleted", ErrAutomaticMemorySkipped)
 		}
 		blocked, err := s.IsCorrectedMemoryFact(CorrectionFactText(buildContentString(concept, content)))
 		if err != nil {
-			return result, fmt.Errorf("check memory correction history: %w", err)
+			return fmt.Errorf("check memory correction history: %w", err)
 		}
 		if blocked {
-			return result, fmt.Errorf("%w: fact was corrected; automatic extraction cannot restore it", ErrAutomaticMemorySkipped)
+			return fmt.Errorf("%w: fact was corrected; automatic extraction cannot restore it", ErrAutomaticMemorySkipped)
 		}
+		return nil
 	}
+	if err := validate(); err != nil {
+		return result, err
+	}
+	ctx, publication := prepareMemoryPublication(ctx, s, validate)
+	complete := false
+	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()
 	if _, ok := AnalysisMemoryIdentity(concept, content, ""); ok && details.SourceType == "memory_analysis" {
 		content = MemoryAnalysisSourceMarker
 		if details.SourceRole != "" {
@@ -112,11 +135,13 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 			content += " role:" + role
 		}
 	}
-	stored, storeErr := store(ltm, concept, content)
+	stored, storeErr := store(ctx, ltm, concept, content)
 	result.VectorStoreResult = stored
-	resultErr := storeErr
+	resultErr = storeErr
+	publication.createdIDs = stored.CreatedIDs
+	publication.rollbackAllowed = len(stored.ReusedIDs)+len(stored.UnknownIDs) == 0
 	for _, id := range stored.CreatedIDs {
-		write := AutomaticMemoryWrite{DocID: id}
+		write := AutomaticMemoryWrite{DocID: id, PublicationID: publication.key}
 		if s != nil {
 			var err error
 			write.Metadata, err = s.initializeAutomaticMemoryMeta(id, details)
@@ -164,6 +189,7 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 	if resultErr == nil && len(stored.CreatedIDs)+len(stored.ReusedIDs)+len(stored.UnknownIDs) == 0 {
 		resultErr = fmt.Errorf("automatic memory write returned no document IDs")
 	}
+	complete = resultErr == nil
 	return result, resultErr
 }
 
@@ -175,9 +201,20 @@ func (s *SQLiteMemory) RollbackAutomaticMemoryWrites(ltm VectorDB, writes []Auto
 		s.automaticMemoryMu.Lock()
 		defer s.automaticMemoryMu.Unlock()
 	}
+	if s == nil {
+		return fmt.Errorf("memory metadata store is unavailable")
+	}
+	_, release, err := s.BeginMemoryPublication(context.Background())
+	if err != nil {
+		return err
+	}
+	defer release()
 	var result error
 	for _, write := range writes {
 		result = errors.Join(result, s.rollbackAutomaticMemoryWrite(ltm, write))
+	}
+	if result == nil {
+		result = s.completeRolledBackPublications(writes)
 	}
 	return result
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -394,7 +395,7 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 
 // ApplyMemoryBudgetEnforcement evicts lowest-priority tracked memories from LTM when over budget.
 // budget <= 0 disables enforcement. Protected and keep_forever rows are never evicted.
-func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (int, error) {
+func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (evicted int, resultErr error) {
 	if budget <= 0 || ltm == nil {
 		return 0, nil
 	}
@@ -408,6 +409,12 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (i
 	if len(toEvict) == 0 {
 		return 0, nil
 	}
+	ctx, publication := prepareMemoryPublication(context.Background(), s, nil)
+	if err := startMemoryPublication(ctx); err != nil {
+		return 0, err
+	}
+	complete := false
+	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()
 
 	// Batch-delete vector documents when the implementation supports it.
 	if batcher, ok := ltm.(interface{ DeleteDocuments([]string) error }); ok {
@@ -437,6 +444,7 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (i
 	}
 
 	s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", len(toEvict))
+	complete = true
 	return len(toEvict), nil
 }
 

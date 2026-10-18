@@ -51,7 +51,7 @@ func correctionItemMatches(item *MemoryCorrectionItem, actual, expected []byte) 
 }
 
 // Apply replays only the stored plan. Each database commits its own receipt with its mutation.
-func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID string) (*MemoryCorrection, error) {
+func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID string) (result *MemoryCorrection, resultErr error) {
 	if c.Memory == nil {
 		return nil, fmt.Errorf("memory unavailable")
 	}
@@ -104,7 +104,30 @@ func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID strin
 			return c.blockedCorrection(ctx, correction, item, fmt.Errorf("target changed since preview; prepare a new correction"))
 		}
 	}
-	// Embeddings are prepared before any original is changed; pending IDs are already archived.
+	// Prepare all embeddings before acquiring the publication lease or staging IDs.
+	if vector, ok := c.Vector.(*ChromemVectorDB); ok {
+		ctx, err = vector.prepareCorrectionVectors(ctx, correction)
+		if err != nil {
+			return correction, err
+		}
+	}
+	ctx, release, err := c.Memory.BeginMemoryPublication(ctx)
+	if err != nil {
+		return correction, err
+	}
+	defer release()
+	marker := "snapshot.publication.correction." + correction.ID
+	if err := c.Memory.SetMemoryMaintenanceState(marker, `{"version":1,"status":"publishing"}`); err != nil {
+		return correction, err
+	}
+	complete := false
+	defer func() {
+		if complete {
+			_, err := c.Memory.db.Exec(`DELETE FROM memory_maintenance_meta WHERE key=?`, marker)
+			resultErr = errors.Join(resultErr, err)
+		}
+	}()
+	ctx = context.WithValue(ctx, correctionDeferredIndexKey{}, true)
 	for i := range correction.Items {
 		item := &correction.Items[i]
 		if item.Reference.Store == "ltm" && item.Operation == "replace" && item.State != "done" {
@@ -144,8 +167,23 @@ func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID strin
 			return c.correctionFailure(ctx, persisted, &persisted.Items[i], err)
 		}
 	}
+	// All authoritative database mutations have committed. Derived semantic
+	// indexing may call a provider, so it runs after releasing the snapshot lease.
+	release()
+	ctx = context.WithValue(ctx, correctionDeferredIndexKey{}, false)
 	for i := range correction.Items {
-		if err := c.verifyCorrectionItem(ctx, &correction.Items[i]); err != nil {
+		item := &correction.Items[i]
+		if item.Reference.Store == "kg_node" || item.Reference.Store == "kg_edge" {
+			var snapshot correctionSnapshot
+			if err := json.Unmarshal(item.After, &snapshot); err != nil {
+				return correction, err
+			}
+			if err := c.Graph.finishCorrectionIndex(ctx, item, snapshot); err != nil {
+				item.State = "index_pending"
+				return c.correctionFailure(ctx, correction, item, err)
+			}
+		}
+		if err := c.verifyCorrectionItem(ctx, item); err != nil {
 			return c.correctionFailure(ctx, correction, &correction.Items[i], err)
 		}
 	}
@@ -156,6 +194,7 @@ func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID strin
 	if err := saveMemoryCorrection(ctx, c.Memory.db, correction); err != nil {
 		return correction, err
 	}
+	complete = true
 	return correction, nil
 }
 

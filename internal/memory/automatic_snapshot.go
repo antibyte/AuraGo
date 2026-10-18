@@ -21,9 +21,10 @@ import (
 )
 
 type automaticSnapshotManifest struct {
-	Kind      string            `json:"kind"`
-	CreatedAt time.Time         `json:"created_at"`
-	Files     map[string]string `json:"files"`
+	Kind        string            `json:"kind"`
+	Consistency string            `json:"consistency,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	Files       map[string]string `json:"files"`
 }
 
 // CreateAutomaticSnapshot saves the configured memory databases before maintenance.
@@ -73,35 +74,20 @@ func CreateAutomaticSnapshot(ctx context.Context, cfg *config.Config, now time.T
 	if err := fileutil.RestrictToOwner(dir); err != nil {
 		return err
 	}
-	manifest := automaticSnapshotManifest{Kind: "auto-memory-v1", CreatedAt: now.UTC(), Files: map[string]string{}}
-	for name, src := range sources {
+	manifest := automaticSnapshotManifest{Kind: "auto-memory-v2", Consistency: memorySnapshotConsistency, CreatedAt: now.UTC(), Files: map[string]string{}}
+	destinations := make(map[string]string, len(sources))
+	for name := range sources {
+		destinations[name] = filepath.Join(dir, name)
+	}
+	if err := CaptureMemorySnapshots(ctx, cfg, destinations); err != nil {
+		return err
+	}
+	for name := range sources {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := rejectSnapshotSymlinks(src); err != nil {
-			return err
-		}
-		info, err := os.Lstat(src)
-		if err != nil {
-			return fmt.Errorf("inspect automatic snapshot source: %w", err)
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("automatic snapshot source is not regular")
-		}
 		dst := filepath.Join(dir, name)
-		db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(src)+"?mode=ro&_pragma=busy_timeout(5000)")
-		if err != nil {
-			return fmt.Errorf("open automatic snapshot source: %w", err)
-		}
-		_, err = db.ExecContext(ctx, `VACUUM main INTO ?`, dst)
-		db.Close()
-		if err != nil {
-			return fmt.Errorf("create automatic snapshot: %w", err)
-		}
-		if err := fileutil.RestrictToOwner(dst); err != nil {
-			return err
-		}
-		check, err := sql.Open("sqlite", "file:"+filepath.ToSlash(dst)+"?mode=ro&immutable=1")
+		check, err := sql.Open("sqlite", snapshotSQLiteURI(dst, "mode=ro&immutable=1"))
 		if err != nil {
 			return err
 		}
@@ -183,7 +169,7 @@ func verifiedAutomaticSnapshots(root string) ([]verifiedAutomaticSnapshot, error
 			continue
 		}
 		var manifest automaticSnapshotManifest
-		if json.Unmarshal(data, &manifest) != nil || manifest.Kind != "auto-memory-v1" || manifest.CreatedAt.IsZero() || len(manifest.Files) != 3 {
+		if json.Unmarshal(data, &manifest) != nil || manifest.Kind != "auto-memory-v2" || manifest.Consistency != memorySnapshotConsistency || manifest.CreatedAt.IsZero() || len(manifest.Files) != 3 {
 			continue
 		}
 		files, err := os.ReadDir(dir)

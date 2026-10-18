@@ -253,7 +253,12 @@ func (kg *KnowledgeGraph) applyCorrection(ctx context.Context, receiptID string,
 	return encoded, kg.finishCorrectionIndex(ctx, item, after)
 }
 
+type correctionDeferredIndexKey struct{}
+
 func (kg *KnowledgeGraph) finishCorrectionIndex(ctx context.Context, item *MemoryCorrectionItem, snapshot correctionSnapshot) error {
+	if deferred, _ := ctx.Value(correctionDeferredIndexKey{}).(bool); deferred {
+		return ctx.Err()
+	}
 	if snapshot.Node != nil {
 		return kg.finishNodeWrite(ctx, *snapshot.Node, true)
 	}
