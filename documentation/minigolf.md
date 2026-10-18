@@ -11,16 +11,20 @@ Choose all eighteen holes, a six-hole world, or a single practice hole. All
 worlds are available immediately. One to four players share the same device
 and take turns after every shot. Other players' translucent ball markers show
 their names and never block the active ball. Pull back from the ball and
-release to putt; a dashed guide line, a color-graded power ring at the ball
-and the strength slider show the shot. Arrow keys adjust aim and strength
-while held (Shift gives finer steps); Space putts and Escape pauses. A gentle
-aim assist snaps shots within four degrees toward the cup, and after a
-penalty the rest position gets a marker ring. Right-drag rotates the view,
-the wheel zooms, and **To the ball** restores focus. Optional settings move
-the camera behind the ball on each turn and follow the rolling ball; reduced
-motion keeps both functional without smooth transitions. Touch users can
-switch between Camera and Aim; in Aim a one-finger drag from anywhere putts,
-and two fingers zoom/pan.
+release to putt. Strength follows the on-screen drag distance (independent of
+camera zoom); releasing next to the ball, a right click, a second finger or
+Escape cancels the drag. A dashed preview path shows the roll up to the first
+rail and a short stretch of the rebound, a color-graded ring marks the
+strength, and the strength readout adds the estimated flat roll distance (full
+strength rolls 28 m on flat felt). Arrow keys adjust aim and strength while
+held (Shift gives finer steps); Space putts and Escape pauses. A gentle aim
+assist snaps shots within four degrees toward the cup, and after a penalty the
+rest position gets a marker ring. Right-drag rotates the view, the wheel
+zooms, and **To the ball** restores focus. Optional settings move the camera
+behind the ball on each turn and follow the rolling ball; reduced motion keeps
+both functional without smooth transitions. Touch users can switch between
+Camera and Aim; in Aim a one-finger drag from anywhere putts, and two fingers
+zoom/pan.
 
 The stage shows a hole map with course bounds, water, tee, cup and every
 ball. Water and out-of-bounds cost one penalty stroke and return the ball to
@@ -71,6 +75,12 @@ buoys, glowing shards), pebble clusters, a dark cup lining whose floor sits
 above the island turf fan, and a seven-segment hole number on the flag pole.
 The isolated renderer uses Three.js 0.186.1 and Rapier 0.21.0 with 120 Hz fixed
 physics updates, continuous collision detection and bounded catch-up work.
+The ball rolls with its own model instead of Rapier contact friction: a
+constant plus a speed-proportional deceleration per floor surface, rolling
+spin from launch, rails that bounce (wood 0.78, stone 0.82), trimesh
+internal-edge fixing and a 5 mm contact skin so seams do not brake the ball.
+The aim preview re-simulates the shot in a cloned physics world with the same
+rolling code.
 Course generation is deterministic; on Windows a transient file lock can
 abort one export — rerun it until it reports `Wrote 18 courses`.
 
