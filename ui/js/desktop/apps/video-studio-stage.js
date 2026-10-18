@@ -46,16 +46,18 @@
         const el = s.q('[data-inspector]').querySelector(`[data-${key.attr}${key.value ? `="${CSS.escape(key.value)}"` : ''}]`);
         if (el && !el.disabled) el.focus({ preventScroll: true });
     }
-    // Transitions apply immediately: the outgoing clip owns an exact overlap with the next clip.
-    function applyTransition(s, type, frames) {
-        const found = T().clipFor(s.project, s.selectedClipId);
-        if (!found || s.readonly || found.track.locked || found.track.kind === 'audio') return;
+    // Transitions apply immediately: the outgoing clip owns an exact overlap with the next clip. clipId (2e, the effects
+    // library's cut drop and double-click) names the outgoing clip, which the edit then selects; without it the selected
+    // clip is used. True when the edit was applied.
+    function applyTransition(s, type, frames, clipId) {
+        const found = T().clipFor(s.project, clipId || s.selectedClipId);
+        if (!found || s.readonly || found.track.locked || found.track.kind === 'audio') return false;
         const ordered = found.track.clips.slice().sort((a, b) => a.start - b.start);
         const next = ordered[ordered.findIndex(clip => clip.id === found.clip.id) + 1];
-        if (type !== 'none' && !next) return showNotice(s, 'transitionNeedsNext', 'Add a following clip on this track first.', true);
+        if (type !== 'none' && !next) { showNotice(s, 'transitionNeedsNext', 'Add a following clip on this track first.', true); return false; }
         const rate = P.rateOf(s), duration = clamp(Math.round(Number(frames) || rate / 2), 1, Math.round(rate * 3));
-        if (type !== 'none' && duration >= Math.min(found.clip.duration, next.duration)) return showNotice(s, 'transitionTooLong', 'Transition duration must be shorter than both clips.', true);
-        mutate(s, 'transition', project => (T().setTransition(project, found.track.id, found.clip.id, type, duration) ? undefined : false));
+        if (type !== 'none' && duration >= Math.min(found.clip.duration, next.duration)) { showNotice(s, 'transitionTooLong', 'Transition duration must be shorter than both clips.', true); return false; }
+        return mutate(s, 'transition', project => (T().setTransition(project, found.track.id, found.clip.id, type, duration) ? (clipId ? P.assignSelection(s, [found.clip.id], found.clip.id) : undefined) : false));
     }
     function percentText(value) { return Math.round(value) + ' %'; }
     function updateOutput(input, text) { const output = input.parentElement && input.parentElement.querySelector('output'); if (output) output.textContent = text; }

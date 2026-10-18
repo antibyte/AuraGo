@@ -66,8 +66,8 @@ assert.equal(L.MIME, 'application/x-aurago-vs-effect');
 assert.equal(L.MAX_LUT_BYTES, %d, 'MAX_LUT_BYTES mirrors Go videostudio.MaxLUTBytes');
 
 const groups = L.model();
-assert.deepEqual(groups.map(group => group.category), ['color', 'detail', 'stylize', 'key']);
-assert.deepEqual(groups.map(group => group.label_key), ['effectCategory_color', 'effectCategory_detail', 'effectCategory_stylize', 'effectCategory_key']);
+assert.deepEqual(groups.map(group => group.category), ['color', 'detail', 'stylize', 'key', 'basic', 'wipe', 'motion', 'shape'], 'the transition groups follow the effect groups (2e)');
+assert.deepEqual(groups.map(group => group.label_key), ['effectCategory_color', 'effectCategory_detail', 'effectCategory_stylize', 'effectCategory_key', 'transitionCategory_basic', 'transitionCategory_wipe', 'transitionCategory_motion', 'transitionCategory_shape']);
 const looks = ['warm', 'cool', 'teal_orange', 'mono', 'faded_film', 'high_contrast', 'vintage', 'bleach_bypass'];
 assert.deepEqual(groups[0].items.map(entry => entry.key), ['color', 'lut'].concat(looks.map(id => 'look:' + id)));
 assert.deepEqual(groups[1].items.map(entry => entry.key), ['blur', 'sharpen']);
@@ -202,4 +202,174 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(L.lutRefs(s.project, ['lut1']).length, 2);
 })().catch(error => { console.error(error); process.exit(1); });
 `)
+}
+
+// Transitions in the effects library (2e, plan index §4.9). The test covers:
+//   - the model: one group per transition category after the effect groups, keys 'transition:<id>', availability from
+//     the unavailable list, the drag MIME of its own;
+//   - cutAt: both halves of a clip, an existing transition, a gap, the track ends, overlay and audio tracks, bad input;
+//   - addLibraryItem and addTransitionTo through P.applyTransition: the default length, short clips, an existing
+//     transition's length, the following-clip and length rules, locked, read-only, audio, no-clip and unavailable
+//     refusals, one undo step per edit and the outgoing clip selected; applyTransition without the 4th argument keeps
+//     the 2a behaviour;
+//   - the tab's markup: transition items with their generated icons and the unavailable title.
+func TestVideoStudioEffectsLibraryTransitions(t *testing.T) {
+	stage, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-stage.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(stage), "function applyTransition(s, type, frames, clipId) {") {
+		t.Error("applyTransition must take the outgoing clip as its 4th parameter")
+	}
+	runVideoStudioKeyframesScript(t, videoStudioKeyframePartsPrelude+`
+require('./js/desktop/apps/video-studio-picture.js');
+require('./js/desktop/apps/video-studio-anim.js');
+require('./js/desktop/apps/video-studio-icons.js');
+require('./js/desktop/apps/video-studio-effects-library.js');
+require('./js/desktop/apps/video-studio-stage.js');
+const L = window.VideoStudioEffectsLibrary;
+FX.adopt(undefined, undefined);
+
+// The model: the four transition groups follow the effect groups; their items are fresh 'transition:<id>' entries.
+const groups = L.model(), tx = groups.filter(group => group.kind === 'transition');
+assert.deepEqual(groups.filter(group => !group.kind).map(group => group.category), ['color', 'detail', 'stylize', 'key']);
+assert.deepEqual(tx.map(group => [group.category, group.label_key, group.items.length]), [['basic', 'transitionCategory_basic', 5], ['wipe', 'transitionCategory_wipe', 9], ['motion', 'transitionCategory_motion', 6], ['shape', 'transitionCategory_shape', 4]]);
+assert.deepEqual(tx.flatMap(group => group.items.map(entry => entry.key)), FX.transitionGroups().flatMap(group => group.items.map(spec => 'transition:' + spec.id)));
+assert.deepEqual(L.item('transition:wipeup'), {key: 'transition:wipeup', transition: 'wipeup', label_key: 'transition_wipeup', category: 'wipe', available: true});
+assert.equal(L.item('transition:dissolve').label_key, 'dissolve', 'the 2a label keys');
+for (const bad of ['transition:', 'transition:nope', 'transition:__proto__', 'transition:none', 'wipeup']) assert.equal(L.item(bad), null, bad);
+L.item('transition:radial').transition = 'changed';
+assert.equal(L.item('transition:radial').transition, 'radial', 'items are fresh copies');
+FX.adopt(FX.registry(), {effects: [], transitions: ['fadegrays'], blend_modes: [], anim_presets: []});
+assert.equal(L.item('transition:fadegrays').available, false);
+assert.equal(L.item('transition:fadewhite').available, true);
+FX.adopt(FX.registry(), {effects: [], transitions: [], blend_modes: [], anim_presets: []});
+assert.equal(L.TRANSITION_MIME, 'application/x-aurago-vs-transition');
+assert.notEqual(L.TRANSITION_MIME, L.MIME, 'a transition drag has a type of its own');
+
+// cutAt: the hovered clip's halves name the cut before and after it. The clips are listed out of order on purpose.
+const cuts = project([
+  track('v1', 'video', [clip('d', V, 200, 60), clip('a', V, 0, 60), clip('c', V, 110, 60), clip('b', V, 60, 60, {transition: {type: 'dissolve', duration: 10}})]),
+  track('o1', 'overlay', [clip('p', I, 0, 30), clip('q', I, 30, 30)]),
+  track('a1', 'audio', [clip('m', A, 0, 30), clip('n', A, 30, 30)])
+]);
+valid(cuts);
+const pairOf = (trackId, clipId, side) => { const cut = L.cutAt(cuts, trackId, clipId, side); return cut ? [cut.out.id, cut.inc.id] : null; };
+assert.deepEqual(pairOf('v1', 'a', 'after'), ['a', 'b'], 'the right half of a: the cut where b starts');
+assert.deepEqual(pairOf('v1', 'b', 'before'), ['a', 'b'], 'the left half of b: the same cut');
+assert.deepEqual(pairOf('v1', 'b', 'after'), ['b', 'c'], 'clips joined by a transition share a cut');
+assert.deepEqual(pairOf('v1', 'c', 'before'), ['b', 'c']);
+assert.equal(pairOf('v1', 'c', 'after'), null, 'a gap is no cut');
+assert.equal(pairOf('v1', 'd', 'before'), null, 'nor from the other side');
+assert.equal(pairOf('v1', 'a', 'before'), null, 'the track start');
+assert.equal(pairOf('v1', 'd', 'after'), null, 'the track end');
+assert.deepEqual(pairOf('o1', 'p', 'after'), ['p', 'q'], 'overlay tracks take transitions');
+assert.equal(pairOf('o1', 'p', 'before'), null);
+assert.equal(pairOf('a1', 'm', 'after'), null, 'audio tracks take none');
+assert.equal(pairOf('v1', 'nope', 'after'), null);
+assert.equal(pairOf('nope', 'a', 'after'), null);
+assert.equal(pairOf('v1', 'a', 'middle'), null);
+assert.equal(L.cutAt(null, 'v1', 'a', 'after'), null);
+
+// The edits: one undo step each through P.applyTransition, notices instead of changes when refused.
+P.renderUI = () => {}; P.renderToolbar = () => {}; P.renderInspector = () => {}; P.resyncArtwork = () => {};
+const notices = [];
+P.showNotice = (s, key) => { notices.push(key); };
+const session = p => ({project: p, projectId: '', readonly: false, conflict: true, history: [], redo: [], frame: 0, dirty: false, revision: 0,
+  selectedClipId: '', selectionRevision: 0, selectionSet: new Set(), selectionPrimary: '', ctx: {}, q: () => null, preview: {seek() {}}});
+const lane = () => project([track('v1', 'video', [clip('a', V, 0, 60), clip('b', V, 60, 60), clip('c', V, 150, 60)]), track('a1', 'audio', [clip('m', A, 0, 60)])]);
+const entry = id => L.item('transition:' + id);
+let s = session(lane());
+// A drop on the cut a|b: the default length (half a second at 30 fps), the later clips move with the overlap like the
+// inspector's, one undo step, and a is selected.
+assert.equal(P.addLibraryItem(s, 'a', entry('wipeup')), true);
+assert.deepEqual(at(s.project, 'a').transition, {type: 'wipeup', duration: 15});
+assert.deepEqual([at(s.project, 'b').start, at(s.project, 'c').start], [45, 135]);
+assert.equal(s.history.length, 1);
+assert.deepEqual([s.selectedClipId, s.selectionPrimary, Array.from(s.selectionSet)], ['a', 'a', ['a']]);
+valid(s.project);
+// Another type on the same cut keeps the existing length.
+assert.equal(P.applyTransition(s, 'wipeup', 20, 'a'), true);
+assert.equal(P.addLibraryItem(s, 'a', entry('circleopen')), true);
+assert.deepEqual(at(s.project, 'a').transition, {type: 'circleopen', duration: 20}, 'an existing transition keeps its length');
+assert.equal(s.history.length, 3);
+valid(s.project);
+// Short clips: the default stays below both clips (transitionLength).
+s = session(project([track('v1', 'video', [clip('a', V, 0, 8), clip('b', V, 8, 6)])]));
+assert.equal(P.addTransitionTo(s, 'a', 'dissolve'), true);
+assert.deepEqual(at(s.project, 'a').transition, {type: 'dissolve', duration: 5});
+// No following clip: the inspector's notice, and nothing changes.
+s = session(lane());
+notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'c', entry('fadewhite')), false);
+assert.deepEqual(notices, ['transitionNeedsNext']);
+assert.equal(s.history.length, 0);
+// Clips too short for any length: the length rule's notice.
+s = session(project([track('v1', 'video', [clip('a', V, 0, 2), clip('b', V, 2, 2)])]));
+notices.length = 0;
+assert.equal(P.addTransitionTo(s, 'a', 'dissolve'), false);
+assert.deepEqual(notices, ['transitionTooLong']);
+// Refusals: a locked track, read-only, an audio clip, no clip, an unavailable transition.
+s = session(lane()); s.project.tracks[0].locked = true; notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'a', entry('wipeup')), false);
+assert.deepEqual(notices, ['editLocked']);
+s = session(lane()); s.readonly = true; notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'a', entry('wipeup')), false);
+assert.deepEqual(notices, ['readonly']);
+s = session(lane()); notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'm', entry('wipeup')), false);
+assert.equal(P.addLibraryItem(s, '', entry('wipeup')), false);
+assert.deepEqual(notices, ['effectsLibraryNeedsClip', 'effectsLibraryNeedsClip']);
+FX.adopt(FX.registry(), {effects: [], transitions: ['radial'], blend_modes: [], anim_presets: []});
+notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'a', L.item('transition:radial')), false);
+assert.deepEqual(notices, ['transitionUnavailable']);
+FX.adopt(FX.registry(), {effects: [], transitions: [], blend_modes: [], anim_presets: []});
+assert.equal(s.history.length, 0);
+// Without the 4th argument applyTransition acts on the selected clip and leaves the selection alone (2a).
+s = session(lane()); s.selectedClipId = 'b';
+assert.equal(P.applyTransition(s, 'dissolve', 10), true);
+assert.deepEqual(at(s.project, 'b').transition, {type: 'dissolve', duration: 10});
+assert.equal(s.selectionSet.size, 0);
+
+// The tab's markup: transition items carry their generated icon; an unavailable one names the transition reason.
+Object.assign(P, {esc: (st, value) => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';'), icon: name => '<i data-icon="' + name + '"></i>', tr: (st, key) => '[' + key + ']'});
+const host = {innerHTML: '', contains: () => false, querySelector: () => null};
+const tab = {id: 'w', project: lane(), readonly: false, q: selector => (selector === '[data-effects-library]' ? host : null)};
+P.renderEffectsLibrary(tab);
+assert(host.innerHTML.includes('data-effect-item="transition:circleopen" draggable="true" aria-disabled="false" title="[transition_circleopen]">' + window.VideoStudioIcons.transition('circleopen', 30) + '<span>[transition_circleopen]</span>'));
+assert(host.innerHTML.includes('<h3 id="vs-fxlib-w-tx-basic">[transitionCategory_basic]</h3>'));
+assert(host.innerHTML.indexOf('[effectCategory_key]') < host.innerHTML.indexOf('[transitionCategory_basic]'), 'the transitions follow the effects');
+FX.adopt(FX.registry(), {effects: [], transitions: ['radial'], blend_modes: [], anim_presets: []});
+P.renderEffectsLibrary(tab);
+assert(/data-effect-item="transition:radial" draggable="false" aria-disabled="true" title="\[transition_radial\] \(\[transitionUnavailable\]\)"/.test(host.innerHTML), 'an unavailable transition says why');
+FX.adopt(FX.registry(), {effects: [], transitions: [], blend_modes: [], anim_presets: []});
+console.log('ok');
+`)
+}
+
+// The library strings of Task 17 in every desktop locale: the new intro and the cut notice. en and de are the plan's
+// texts; every other locale translates both.
+func TestVideoStudioEffectsLibraryTransitionLocales(t *testing.T) {
+	want := map[string][2]string{
+		"effectsLibraryIntro":     {"Drag an effect onto a clip, or a transition onto the cut between two clips. Double-click adds it to the selected clip.", "Ziehe einen Effekt auf einen Clip oder einen Übergang auf den Schnitt zwischen zwei Clips. Ein Doppelklick fügt ihn dem ausgewählten Clip hinzu."},
+		"effectsLibraryDropOnCut": {"Drop a transition on the cut between two clips on one track.", "Lege einen Übergang auf den Schnitt zwischen zwei Clips einer Spur."},
+	}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for key, texts := range want {
+			got := values["videoStudio."+key]
+			switch {
+			case strings.TrimSpace(got) == "":
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			case lang == "en" && got != texts[0]:
+				t.Errorf("en videoStudio.%s = %q, want %q", key, got, texts[0])
+			case lang == "de" && got != texts[1]:
+				t.Errorf("de videoStudio.%s = %q, want %q", key, got, texts[1])
+			case lang != "en" && got == english["videoStudio."+key]:
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
 }

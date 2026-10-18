@@ -3,18 +3,21 @@ package ui
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // TestDesktopVideoStudioAnimBrowser drives the 2e animation and transition UI in the real app on the keyframe fixture
-// with the default launcher. The controls are DOM, so either painter works. Subtests: inspector (Task 15) and picker
-// (Task 16); Task 17 adds library.
+// with the default launcher. The controls are DOM, so either painter works. Subtests: inspector (Task 15), picker
+// (Task 16) and library (Task 17).
 func TestDesktopVideoStudioAnimBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	t.Run("inspector", videoStudioAnimInspectorPart)
 	t.Run("picker", videoStudioTransitionPickerPart)
+	t.Run("library", videoStudioTransitionLibraryPart)
 }
 
 // videoStudioAnimControls is what one side of the Animation section shows.
@@ -297,5 +300,186 @@ func videoStudioTransitionPickerPart(t *testing.T) {
 	page.MustSetViewport(1280, 900, 1, false)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the picker part: %s", errs)
+	}
+}
+
+// videoStudioTransitionLibraryPart (Task 17) uses synthetic drag events, as in the 2c library part. It works on the
+// video-track pictures of videoStudioTransitionsProject: tx1 and tx2 meet at frame 150, and tx3 follows after a gap of
+// 30 frames.
+//   - The transition groups follow the effect groups in the Effects tab.
+//   - Dragging Wipe from bottom over the right half of tx1 marks the cut tx1|tx2. The drop sets that cut with the
+//     default length in one undo step and selects tx1.
+//   - Circle opens, dropped on the left half of tx2 (the same cut, now an overlap), replaces the type and keeps the
+//     length.
+//   - A drop on the right half of tx2 (a gap follows) marks nothing, changes nothing and explains the cut.
+//   - A double-click on Through white sets the selected clip's cut. Enter on it with the last clip selected gives the
+//     transitionNeedsNext notice.
+//   - An unavailable item is aria-disabled with its reason and changes nothing.
+//   - The 2c effect drop still works (Color onto tx1).
+//   - Screenshots show the cut mark on a plain cut and, with the tab at the effects/transitions boundary and at the wipes, on an unselected clip.
+func videoStudioTransitionLibraryPart(t *testing.T) {
+	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioTransitionsProject()))
+	shots := videoStudioKeyframesShotDir(t)
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	history := func() int { t.Helper(); return page.MustEval(`() => ` + app + `.history.length`).Int() }
+	// transition is "<type>/<duration>" of a clip's transition, or "none".
+	transition := func(id string) string {
+		t.Helper()
+		return page.MustEval(`id => { const tr = window.VideoStudioTimeline.clipFor(`+app+`.project, id).clip.transition; return tr ? tr.type + '/' + tr.duration : 'none'; }`, id).Str()
+	}
+	start := func(id string) int {
+		t.Helper()
+		return page.MustEval(`id => window.VideoStudioTimeline.clipFor(`+app+`.project, id).clip.start`, id).Int()
+	}
+	notice := func() string {
+		t.Helper()
+		return page.MustEval(`() => { const el = document.querySelector('[data-notice]'); return el && !el.hidden ? (el.querySelector('[data-notice-text]') || el).textContent.trim() : ''; }`).Str()
+	}
+	clearNotice := func() { t.Helper(); page.MustEval(`() => window.VideoStudioParts.clearNotice(` + app + `)`) }
+	// drag fires dragstart on a library item and dragover at a fraction of a clip's width, then the drop when finish is
+	// set. It returns the mark the dragover left on the clip: 'before', 'after', 'effect' or ''.
+	drag := func(key, clipID string, fraction float64, finish bool) string {
+		t.Helper()
+		return page.MustEval(`(key, id, fraction, finish) => {
+const clip = document.querySelector('.vs-clip[data-clip-id="' + id + '"]'), r = clip.getBoundingClientRect(), dt = new DataTransfer();
+document.querySelector('[data-effects-library] [data-effect-item="' + key + '"]').dispatchEvent(new DragEvent('dragstart', {dataTransfer: dt, bubbles: true, cancelable: true}));
+const at = {dataTransfer: dt, clientX: r.left + r.width * fraction, clientY: r.top + r.height / 2, bubbles: true, cancelable: true};
+clip.dispatchEvent(new DragEvent('dragover', at));
+const mark = clip.classList.contains('is-cut-drop-before') ? 'before' : clip.classList.contains('is-cut-drop-after') ? 'after' : clip.classList.contains('is-effect-drop') ? 'effect' : '';
+if (finish) clip.dispatchEvent(new DragEvent('drop', at));
+return mark;
+}`, key, clipID, fraction, finish).Str()
+	}
+	dblclick := func(key string) {
+		t.Helper()
+		point := page.MustEval(`key => { const el = document.querySelector('[data-effects-library] [data-effect-item="' + key + '"]'); el.scrollIntoView({block: 'center'}); const r = el.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; }`, key)
+		page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num())
+		if err := page.Mouse.Click(proto.InputMouseButtonLeft, 2); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	page.MustElement(`[data-tab="effects"]`).MustClick()
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-effects-library] [data-effect-item="transition:wipeup"][aria-disabled="false"]')`)
+	if got := page.MustEval(`() => JSON.stringify(Array.from(document.querySelectorAll('[data-effects-library] .vs-fxlib-group h3'), h => h.textContent))`).Str(); !strings.HasSuffix(got, `"Basic transitions","Wipes","Push and zoom","Shapes"]`) {
+		t.Fatalf("library groups %s: the transition groups must follow the effects", got)
+	}
+	if !page.MustHas(`[data-effects-library] [data-effect-item="transition:wipeup"] svg.vs-tx-icon`) {
+		t.Error("transition items carry no generated icon")
+	}
+
+	// A plain cut under the pointer, before anything changes: a screenshot of the mark, and dragend clears it.
+	if mark := drag("transition:wipeup", "tx1", 0.9, false); mark != "after" {
+		t.Fatalf("hovering the right half of tx1 marked %q, want the cut after it", mark)
+	}
+	page.MustScreenshot(filepath.Join(shots, "transition-library-cut-1280x900.png"))
+	page.MustEval(`() => window.dispatchEvent(new DragEvent('dragend'))`)
+
+	// Drop on the right half of tx1: the cut tx1|tx2, the default length, one undo step, tx1 selected.
+	steps := history()
+	if mark := drag("transition:wipeup", "tx1", 0.9, true); mark != "after" {
+		t.Fatalf("dragover on the right half of tx1 marked %q, want the cut after it", mark)
+	}
+	if got := transition("tx1"); got != "wipeup/15" {
+		t.Fatalf("tx1 after the drop: %s", got)
+	}
+	if got := history() - steps; got != 1 {
+		t.Errorf("the drop made %d undo steps, want 1", got)
+	}
+	if got := page.MustEval(`() => ` + app + `.selectedClipId`).Str(); got != "tx1" {
+		t.Errorf("the drop selected %q, want the outgoing clip tx1", got)
+	}
+	if got := start("tx2"); got != 135 {
+		t.Errorf("tx2 starts at %d, want 135 (the overlap of the inspector path)", got)
+	}
+
+	// The same cut from the left half of tx2 keeps an existing length (20 frames, set through the 2a path).
+	page.MustEval(`() => window.VideoStudioParts.applyTransition(` + app + `, 'wipeup', 20, 'tx1')`)
+	steps = history()
+	if mark := drag("transition:circleopen", "tx2", 0.25, true); mark != "before" {
+		t.Fatalf("dragover on the left half of tx2 marked %q, want the cut before it", mark)
+	}
+	if got := transition("tx1"); got != "circleopen/20" {
+		t.Fatalf("tx1 after the second drop: %s (an existing transition keeps its length)", got)
+	}
+	if got := history() - steps; got != 1 {
+		t.Errorf("the second drop made %d undo steps, want 1", got)
+	}
+
+	// The right half of tx2: a gap follows, so there is no cut. Nothing is marked, nothing changes, and a notice explains.
+	clearNotice()
+	steps = history()
+	if mark := drag("transition:fadewhite", "tx2", 0.9, true); mark != "" {
+		t.Errorf("a clip followed by a gap was marked %q", mark)
+	}
+	if transition("tx2") != "none" || history() != steps {
+		t.Fatalf("a drop at a gap changed the project: tx2 %s, undo steps +%d", transition("tx2"), history()-steps)
+	}
+	if got := notice(); got != "Drop a transition on the cut between two clips on one track." {
+		t.Errorf("gap drop notice %q", got)
+	}
+
+	// A double-click sets the cut after the selected clip (tx1, selected by the drops) and keeps its length.
+	steps = history()
+	dblclick("transition:fadewhite")
+	if got := transition("tx1"); got != "fadewhite/20" {
+		t.Fatalf("tx1 after the double-click: %s", got)
+	}
+	if got := history() - steps; got != 1 {
+		t.Errorf("the double-click made %d undo steps, want 1", got)
+	}
+	// Enter on a focused item with the last clip selected: no following clip, the inspector's notice, no change.
+	page.MustEval(`() => ` + app + `.timelineOptions.onSelect('tx3')`)
+	clearNotice()
+	steps = history()
+	page.MustElement(`[data-effects-library] [data-effect-item="transition:fadewhite"]`).MustFocus()
+	page.KeyActions().Type(input.Enter).MustDo()
+	if got := notice(); got != "Add a following clip on this track first." {
+		t.Errorf("Enter without a following clip: notice %q", got)
+	}
+	if transition("tx3") != "none" || history() != steps {
+		t.Errorf("Enter without a following clip changed the project")
+	}
+
+	// An unavailable transition is aria-disabled with its reason, and a double-click only explains.
+	page.MustEval(`() => { window.VideoStudioEffects.adopt(window.VideoStudioEffects.registry(), {effects: [], transitions: ['radial'], blend_modes: [], anim_presets: []}); window.VideoStudioParts.renderEffectsLibrary(` + app + `); }`)
+	radial := `[data-effects-library] [data-effect-item="transition:radial"]`
+	if got := page.MustEval(`sel => { const el = document.querySelector(sel); return el.getAttribute('aria-disabled') + '|' + el.getAttribute('draggable') + '|' + el.title; }`, radial).Str(); got != "true|false|Clock wipe (Not available: this server's FFmpeg lacks this transition)" {
+		t.Errorf("unavailable item %q", got)
+	}
+	page.MustEval(`() => ` + app + `.timelineOptions.onSelect('tx1')`)
+	clearNotice()
+	steps = history()
+	dblclick("transition:radial")
+	if got := notice(); got != "Not available: this server's FFmpeg lacks this transition" || history() != steps {
+		t.Errorf("double-click on an unavailable transition: notice %q, undo steps +%d", got, history()-steps)
+	}
+	page.MustEval(`() => { window.VideoStudioEffects.adopt(window.VideoStudioEffects.registry(), {effects: [], transitions: [], blend_modes: [], anim_presets: []}); window.VideoStudioParts.renderEffectsLibrary(` + app + `); }`)
+
+	// The 2c effect drop still copies an effect onto the clip under the pointer.
+	if mark := drag("color", "tx1", 0.5, true); mark != "effect" {
+		t.Errorf("an effect drag over tx1 marked %q, want the clip", mark)
+	}
+	if got := page.MustEval(`() => JSON.stringify((window.VideoStudioTimeline.clipFor(` + app + `.project, 'tx1').clip.effects || []).map(entry => entry.id))`).Str(); got != `["color"]` {
+		t.Errorf("tx1 effects after the colour drop: %s", got)
+	}
+
+	// Screenshots with a cut mark on an unselected clip: the tab where the effects end and the transitions begin, and
+	// the wipes below. dragend clears the mark.
+	page.MustEval(`() => { window.VideoStudioParts.setSelection(` + app + `, ['tx3'], 'tx3'); window.VideoStudioParts.renderTimeline(` + app + `); }`)
+	clearNotice()
+	if mark := drag("transition:slideleft", "tx1", 0.9, false); mark != "after" {
+		t.Errorf("screenshot drag marked %q", mark)
+	}
+	page.MustEval(`() => document.querySelector('[data-effects-library] h3[id$="-key"]').scrollIntoView({ block: 'start' })`)
+	page.MustScreenshot(filepath.Join(shots, "transition-library-1280x900.png"))
+	page.MustEval(`() => document.querySelector('[data-effects-library] h3[id$="-tx-wipe"]').scrollIntoView({ block: 'start' })`)
+	page.MustScreenshot(filepath.Join(shots, "transition-library-wipes-1280x900.png"))
+	page.MustEval(`() => window.dispatchEvent(new DragEvent('dragend'))`)
+	if page.MustHas(`.vs-clip.is-cut-drop-before, .vs-clip.is-cut-drop-after`) {
+		t.Error("dragend left a cut mark")
+	}
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors in the library part: %s", errs)
 	}
 }
