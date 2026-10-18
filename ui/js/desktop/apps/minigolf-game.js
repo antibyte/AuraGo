@@ -1,5 +1,5 @@
 import { createScene } from './minigolf-scene.js';
-import { createPhysics } from './minigolf-physics.js';
+import { createPhysics, strengthToPower, MAX_ROLL } from './minigolf-physics.js';
 import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, scoreTotal } from './minigolf-model.js';
 import { createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
@@ -19,7 +19,9 @@ export function mountGame(host, context = {}) {
     let best = {}, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', previousPanel = 'menu', track = null, tracks = [];
-    let angle = 0, power = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
+    let angle = 0, strength = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
+    // strength is the UI value (drag, slider, keys); physics power = strengthToPower(strength).
+    let previewAt = 0, previewKey = '';
     let lastSurface = 'grass', soundTime = 0, noticeUntil = 0, reduced = false;
     const held = { left: false, right: false, up: false, down: false, fine: false };
     const fetchController = new AbortController(), events = [], cleanup = [];
@@ -69,11 +71,25 @@ export function mountGame(host, context = {}) {
         return [dx * cos - dz * sin, dx * sin + dz * cos];
     }
     function allowAim() { return !!round && !round.completed && !busy && !loading && panelKind === '' && !round.players.every(p => p.done); }
+    function showStrength() { view.power(strength, strengthToPower(strength) * MAX_ROLL); }
     function updateAim() {
         const enabled = allowAim();
-        scene?.setAim(direction(), power, enabled); view.power(power);
+        scene?.setAim(direction(), strength, enabled); showStrength();
+        if (!enabled) { scene?.setPreview?.(null); previewKey = ''; }
         root.querySelector('[data-action="shoot"]').disabled = !enabled;
         root.querySelector('[data-power]').disabled = !enabled;
+    }
+    // Recompute at most every 66 ms while the aim changes, every 150 ms on
+    // courses with moving obstacles, and never for an unchanged static aim.
+    function refreshPreview() {
+        if (!scene?.setPreview || !physics || cameraMode || !allowAim()) return;
+        const dir = snapTowardCup(direction()), ball = physics.getBall();
+        const key = [dir[0], dir[1], strength, ball[0], ball[2]].map(value => value.toFixed(3)).join(',');
+        const interval = key !== previewKey ? 66 : course?.obstacles?.length ? 150 : Infinity;
+        const now = performance.now();
+        if (now - previewAt < interval) return;
+        previewAt = now; previewKey = key;
+        scene.setPreview(physics.predict(dir, strengthToPower(strength)));
     }
     function setTurn() {
         if (!round || round.completed || !course) return;
@@ -82,7 +98,7 @@ export function mountGame(host, context = {}) {
         scene?.setBall(player.position, [0, 0, 0, 1], round.turnIndex);
         scene?.setGhosts(round.players, round.turnIndex);
         angle = Math.atan2(course.cup[0] - player.position[0], -(course.cup[2] - player.position[2]));
-        power = .35; cameraMode = false; scene?.setCameraMode(false);
+        strength = .35; cameraMode = false; scene?.setCameraMode(false);
         root.querySelector('[data-action="camera"]').setAttribute('aria-pressed', 'false');
         root.querySelector('[data-action="camera"]').textContent = tr('camera');
         view.hud(round, course, busy); updateAim();
@@ -108,11 +124,11 @@ export function mountGame(host, context = {}) {
     function message(key, seconds = 3) { view.notice(key); noticeUntil = performance.now() + seconds * 1000; }
     async function loadCourse(next, preview = false) {
         const version = ++generation; loading = true; busy = false; events.length = 0;
-        physics?.dispose(); physics = null; course = next;
+        physics?.dispose(); physics = null; course = next; previewKey = '';
         updateAim(); view.notice('loading');
         try {
             if (!scene) scene = createScene(view.canvasHost, { assetURL, quality: settings.quality, reducedMotion: effectiveReduced(), label: tr('title'),
-                onShot: shoot, onAim(dir, amount) { angle = Math.atan2(dir[0], -dir[1]); power = amount; view.power(power); },
+                onShot: shoot, onAim(dir, amount) { angle = Math.atan2(dir[0], -dir[1]); strength = amount; showStrength(); },
                 onError() { setPanel('error'); view.error('webgl_error'); }, onQuality() { message('quality_changed'); }
             });
             if (!await scene.load(next) || disposed || version !== generation) return;
@@ -153,12 +169,12 @@ export function mountGame(host, context = {}) {
         await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex]));
         if (!disposed && round.players.every(p => p.done)) showScore();
     }
-    function shoot(dir = direction(), amount = power) {
+    function shoot(dir = direction(), amount = strength) {
         if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
         dir = snapTowardCup(dir);
-        if (!physics.shoot(dir, amount)) return;
+        if (!physics.shoot(dir, strengthToPower(amount))) return;
         if (!beginShot(round)) { physics.setBall(round.players[round.turnIndex].position); return; }
-        angle = Math.atan2(dir[0], -dir[1]); power = amount; busy = true; clearHeld();
+        angle = Math.atan2(dir[0], -dir[1]); strength = amount; busy = true; clearHeld();
         const ballPosition = physics.getBall();
         audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
         scene.burst('strike', ballPosition, amount * 2);
@@ -233,7 +249,7 @@ export function mountGame(host, context = {}) {
     }
     function input(event) {
         const element = event.target;
-        if (element.matches('[data-power]')) { power = Number(element.value) / 100; updateAim(); }
+        if (element.matches('[data-power]')) { strength = Number(element.value) / 100; updateAim(); }
         else if (element.matches('[data-music]')) { settings.music = Number(element.value) / 100; audio.setMusicVolume(settings.music); write(SETTINGS_KEY, settings); }
         else if (element.matches('[data-effects]')) { settings.effects = Number(element.value) / 100; audio.setEffectsVolume(settings.effects); write(SETTINGS_KEY, settings); }
     }
@@ -255,6 +271,7 @@ export function mountGame(host, context = {}) {
         if (name && event.type === 'keyup') { held[name] = false; return; }
         if (event.key === 'Escape') {
             if (event.type !== 'keydown') return;
+            if (scene?.cancelDrag?.()) { event.preventDefault(); return; }
             event.preventDefault();
             if (!['menu', 'loading', 'error'].includes(panelKind)) panelKind ? closePanel() : actions.pause();
             return;
@@ -275,8 +292,8 @@ export function mountGame(host, context = {}) {
         const fine = event.shiftKey;
         if (name === 'left') angle -= fine ? .008 : .035;
         if (name === 'right') angle += fine ? .008 : .035;
-        if (name === 'up') power = Math.min(1, power + (fine ? .005 : .02));
-        if (name === 'down') power = Math.max(.02, power - (fine ? .005 : .02));
+        if (name === 'up') strength = Math.min(1, strength + (fine ? .005 : .02));
+        if (name === 'down') strength = Math.max(.02, strength - (fine ? .005 : .02));
         updateAim();
     }
     function gesture() { void audio.unlock().then(syncAudio).catch(() => { if (!disposed) view.notice('audio_error'); }); }
@@ -305,9 +322,10 @@ export function mountGame(host, context = {}) {
             const rotate = (held.right ? 1 : 0) - (held.left ? 1 : 0);
             const lift = (held.up ? 1 : 0) - (held.down ? 1 : 0);
             if (rotate) angle += rotate * (fine ? .35 : 1.15) * dt;
-            if (lift) power = Math.max(.02, Math.min(1, power + lift * .55 * dt));
+            if (lift) strength = Math.max(.02, Math.min(1, strength + lift * .55 * dt));
             if (rotate || lift) updateAim();
         }
+        if (!busy && !panelKind && !loading) refreshPreview();
         if (round && course && !panelKind && snapshot) {
             view.mapBalls?.(round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), round.turnIndex);
         }

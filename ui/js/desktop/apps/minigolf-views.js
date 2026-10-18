@@ -115,7 +115,12 @@ export function createView(host, tr) {
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         pause() { showPanel(`<h2>${esc(tr('paused'))}</h2><p>${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', 'continue', true)}${button('menu', 'menu')}</div>`, 'pause'); },
         error(key) { showPanel(`<h2>${esc(tr(key))}</h2>${button('retry', 'retry', true)}`, key); },
-        power(value) { root.querySelector('[data-power]').value = Math.round(value * 100); root.querySelector('[data-power-value]').textContent = Math.round(value * 100) + '%'; },
+        power(value, meters) {
+            const percent = Math.round(value * 100);
+            root.querySelector('[data-power]').value = percent;
+            const distance = Number.isFinite(meters) ? (meters < 10 ? Math.round(meters * 2) / 2 : Math.round(meters)) : null;
+            root.querySelector('[data-power-value]').textContent = percent + '%' + (distance === null ? '' : ' · ≈' + distance.toLocaleString(document.documentElement.lang || undefined) + ' m');
+        },
         track(value) { const el = root.querySelector('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
         credits(tracks) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul>${tracks.map(t => `<li>${esc(t.title)} · ${esc(t.author)} · CC0</li>`).join('')}</ul>${button('close', 'close', true)}`, 'credits'); }
     };
