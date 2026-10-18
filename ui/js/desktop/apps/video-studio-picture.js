@@ -447,5 +447,108 @@
         return { u_maskCentre: [f.cx, f.cy], u_maskRadii: [f.rx, f.ry], u_maskRot: [f.cos, f.sin], u_maskRamp: f.ramp, u_maskShape: f.shape === 'ellipse' ? 1 : 0, u_maskInvert: f.invert ? 1 : 0 };
     }
 
-    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill, boxRect, maskUniforms };
+    // ---- Plan 2e Task 2: transition parameters (D1, index §4.4a, §4.24). ----
+    // The per-frame numbers of every transition at overlap frame index of duration D. They are the same float32 values as
+    // Go transitionFrameAt (transition_math.go; parity topic xfade, exact).
+    // - f32 rounds to float32 after every operation. Double arithmetic on float32 operands rounds to the same float32 for
+    //   +, −, ×, ÷ and sqrt, so this reproduces xfade's C float code.
+    // - The GL shaders and both painters get only these numbers (transitionUniforms) and do the per-pixel arithmetic.
+    //   Nothing recomputes an edge or a weight from progress (index risk 30).
+    const f32 = Math.fround;
+    // xfade's smoothstep in float32 (Go smoothstep32): t = clip(f(f(x − e0)/f(e1 − e0)), 0, 1), f(f(t·t)·f(3 − f(2t))).
+    // The edges are float32 constants, like the C code's 0.2f and 0.8f.
+    function smoothstep32(e0, e1, x) {
+        const a = f32(e0), b = f32(e1);
+        const t = f32(Math.min(1, Math.max(0, f32(f32(x - a) / f32(b - a)))));
+        return f32(f32(t * t) * f32(3 - f32(2 * t)));
+    }
+    // The overlap frame clamped as in Go: D ≥ 1, i in 0..D−1. P = f(1 − f(i/D)) is 1 at frame 0, 1/D at the last frame
+    // and never 0; Q = f(1 − P).
+    function transitionProgress(index, duration) {
+        const D = Math.max(1, Math.floor(Number(duration)) || 1);
+        const i = Math.min(D - 1, Math.max(0, Math.floor(Number(index)) || 0));
+        const P = f32(1 - f32(i / D));
+        return { P, Q: f32(1 - P) };
+    }
+    // {P, Q, …} for a registry transition type, or null for an unknown one. The extra keys follow the type's xfade name
+    // (§4.24):
+    // - z: the edge of the four wipes;
+    // - s: the push offset;
+    // - cx, cy, R: circles, radial and rectcrop (rectcrop without R);
+    // - c: circleopen/close, smooth and diag;
+    // - r: circlecrop; zw, zh: rectcrop; k: radial (float64);
+    // - u, v: fadeblack, fadewhite and fadegrays;
+    // - sq: pixelize; zf, w: zoomin.
+    // The user's wipeleft is xfade wiperight, the user's wiperight is xfade wipeleft.
+    function transitionParams(type, index, duration, width, height) {
+        const registry = window.VideoStudioEffects && window.VideoStudioEffects.registry();
+        const spec = registry ? registry.transitions.find(item => item.id === type) : null;
+        if (!spec) return null;
+        const { P, Q } = transitionProgress(index, duration), out = { P, Q };
+        const W = Math.max(1, Math.floor(Number(width)) || 1), H = Math.max(1, Math.floor(Number(height)) || 1);
+        const cx = W >> 1, cy = H >> 1, R = f32(Math.sqrt(cx * cx + cy * cy));
+        switch (spec.xfade) {
+            case 'fadeblack': case 'fadewhite': case 'fadegrays':
+                out.u = smoothstep32(0.8, 1, P); out.v = smoothstep32(0.2, 1, P); break;
+            case 'wipeleft': out.z = Math.trunc(f32(W * P)); break;
+            case 'wiperight': out.z = Math.trunc(f32(W * Q)); break;
+            case 'wipeup': out.z = Math.trunc(f32(H * P)); break;
+            case 'wipedown': out.z = Math.trunc(f32(H * Q)); break;
+            case 'slideleft': case 'slideright': out.s = Math.trunc(f32(P * W)); break;
+            case 'slideup': case 'slidedown': out.s = Math.trunc(f32(P * H)); break;
+            case 'circleopen': Object.assign(out, { cx, cy, R, c: f32(f32(P - 0.5) * 3) }); break;
+            case 'circleclose': Object.assign(out, { cx, cy, R, c: f32(f32(0.5 - P) * 3) }); break;
+            case 'circlecrop': {
+                // t·t is exact in double, so the cube rounds once and then to float32, like Go's float64 t·t·t.
+                const t = f32(2 * Math.abs(f32(P - 0.5)));
+                Object.assign(out, { cx, cy, R, r: f32(f32(t * t * t) * R) }); break;
+            }
+            case 'rectcrop': {
+                const e = f32(Math.abs(f32(P - 0.5)));
+                Object.assign(out, { cx, cy, zw: Math.trunc(f32(e * W)), zh: Math.trunc(f32(e * H)) }); break;
+            }
+            case 'radial': Object.assign(out, { cx, cy, R, k: f32(P - 0.5) * (Math.PI * 2.5) }); break;
+            case 'smoothleft': case 'smoothright': case 'diagtl': case 'diagbr': out.c = f32(P * 2); break;
+            case 'pixelize': {
+                const d = Math.min(P, Q), dist = f32(Math.ceil(f32(d * 50)) / 50);
+                out.sq = f32(f32(f32(2 * dist) * Math.min(W, H)) / 20); break;
+            }
+            case 'zoomin': out.zf = smoothstep32(0.5, 1, P); out.w = smoothstep32(0, 0.5, P); break;
+        }
+        return out;
+    }
+    // The GL uniforms of a transition (index §4.7) from transitionParams; size is the target {width, height}. Both
+    // painters use them.
+    // - all: u_P, and u_progress = Q, the dissolve's incoming weight. A type without its own shader draws as a dissolve,
+    //   and so does an unknown type, which gets only these two.
+    // - black: u_weights = (P·u, Q·(1 − v), rest), fadeBlackWeights(i/D) within float32 rounding.
+    // - the 2a wipes: u_edge = (left, reveal) of VideoStudioEffects.wipeEdge; the 2e wipes: u_edge = z.
+    // - pushes: u_shift; circles and radial: u_centre, u_R and u_c (c, or k for radial); circlecrop: u_r; rectcrop:
+    //   u_centre and u_rect (zw, zh); smooth and diag: u_c; fadewhite and fadegrays: u_uv (u, v); pixelize: u_sq;
+    //   zoomin: u_zoom (zf, w).
+    function transitionUniforms(type, index, duration, size) {
+        const width = Math.max(1, Math.floor(Number(size && size.width)) || 1), height = Math.max(1, Math.floor(Number(size && size.height)) || 1);
+        const t = transitionParams(type, index, duration, width, height) || transitionProgress(index, duration);
+        const out = { u_P: t.P, u_progress: t.Q };
+        if (type === 'black') {
+            const a = f32(t.P * t.u), b = f32(t.Q * f32(1 - t.v));
+            out.u_weights = [a, b, Math.max(0, f32(1 - f32(a + b)))];
+        } else if (t.u !== undefined) out.u_uv = [t.u, t.v];
+        if (type === 'wipeleft' || type === 'wiperight') {
+            const edge = window.VideoStudioEffects.wipeEdge(type, index, duration, width);
+            if (edge) out.u_edge = [edge.left, edge.reveal];
+        } else if (t.z !== undefined) out.u_edge = t.z;
+        if (t.s !== undefined) out.u_shift = t.s;
+        if (t.cx !== undefined) out.u_centre = [t.cx, t.cy];
+        if (t.R !== undefined) out.u_R = t.R;
+        if (t.c !== undefined) out.u_c = t.c;
+        if (t.k !== undefined) out.u_c = t.k;
+        if (t.r !== undefined) out.u_r = t.r;
+        if (t.zw !== undefined) out.u_rect = [t.zw, t.zh];
+        if (t.sq !== undefined) out.u_sq = t.sq;
+        if (t.zf !== undefined) out.u_zoom = [t.zf, t.w];
+        return out;
+    }
+
+    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill, boxRect, maskUniforms, transitionParams, transitionUniforms };
 })();

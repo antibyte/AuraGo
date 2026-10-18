@@ -658,13 +658,20 @@
         const out = (1 - t) * (1 - fadeEase(t, 0, 0.2)), inc = t * fadeEase(t, 0, 0.8);
         return { out, inc, black: 1 - out - inc };
     }
-    // Wipes reveal the incoming layer across the full frame: the incoming layer shows in [left, left + reveal).
-    // "wipeleft" reveals from the left edge (export xfade wiperight), "wiperight" from the right edge (xfade wipeleft).
+    // The 2a wipes at overlap frame index of duration D on a frame width px wide (Go wipeEdge, index §4.24 D3). The
+    // incoming layer shows in [left, left + reveal), whole px. z is VideoStudioPicture.transitionParams' integer edge,
+    // read at call time:
+    // - "wipeleft" (export xfade wiperight) shows B on [0, z + 1), so frame 0 already shows column 0;
+    // - "wiperight" (xfade wipeleft) shows B on [z + 1, W).
     // Any other type has no edge (null).
-    function wipeEdge(type, p, width) {
+    function wipeEdge(type, index, duration, width) {
         if (type !== 'wipeleft' && type !== 'wiperight') return null;
-        const w = Math.max(0, Number(width) || 0), reveal = w * Math.max(0, Math.min(1, Number(p) || 0));
-        return { left: type === 'wipeleft' ? 0 : w - reveal, reveal };
+        const w = Math.max(0, Math.floor(Number(width)) || 0);
+        const params = window.VideoStudioPicture && window.VideoStudioPicture.transitionParams(type, index, duration, w, 1);
+        if (!params) return null;
+        if (type === 'wipeleft') return { left: 0, reveal: Math.min(w, params.z + 1) };
+        const left = Math.min(w, params.z + 1);
+        return { left, reveal: w - left };
     }
 
     // ---- Plan 2b Task 9: head edits, still requests and rate changes of ramped clips (index §4.18). ----

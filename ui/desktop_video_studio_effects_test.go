@@ -179,12 +179,15 @@ const videoStudioParityRunners = `{
     const project = {width: input.canvas.width, height: input.canvas.height};
     return E.placement(E.clipState(input.clip, 0, project), project, project, null).box;
   }},
-  // Fade-through-black weights and wipe edges (phase 2 index §4.13, topic "transitions"); numbers within 1e-6.
+  // Fade-through-black weights and the 2a wipe bands (phase 2 index §4.13, topic "transitions"); numbers within 1e-6.
+  // The wipe rows carry the overlap frame since 2e: wipeEdge(type, index, duration, width), index §4.24 D3.
   transitions: {exact: false, run(input) {
     if (input.kind === 'fade_black') { const w = E.fadeBlackWeights(input.p); return {out: w.out, inc: w.inc, black: w.black}; }
-    if (input.kind === 'wipe') return E.wipeEdge(input.type, input.p, input.width);
+    if (input.kind === 'wipe') return E.wipeEdge(input.type, input.index, input.duration, input.width);
     throw new Error('unknown transitions input kind ' + input.kind);
   }},
+  // The shared float32 transition parameters (plan 2e D1, topic "xfade", Go transitionFrameAt); exact.
+  xfade: {exact: true, run(input) { return window.VideoStudioPicture.transitionParams(input.type, input.index, input.duration, input.width, input.height); }},
   // Easing curves and keyframe sampling (phase 2 index §4.13, topics "easing" and "keyframes"); numbers within 1e-6.
   easing: {exact: false, run(input) { return {v: E.ease(input.easing, input.t)}; }},
   keyframes: {exact: false, run(input) {
@@ -593,4 +596,47 @@ func TestVideoStudioTransitionAnimLocales(t *testing.T) {
 			}
 		}
 	}
+}
+
+// The 2a dissolve and fade through black read their GL and 2D uniforms from the shared float32 parameters (plan 2e
+// Task 2, index §4.7, §4.24 D1) and keep their curves within float32 rounding:
+//   - u_progress = Q ≈ i/D;
+//   - black's weights (P·u, Q·(1 − v), rest) ≈ fadeBlackWeights(i/D);
+//   - the 2a wipes get u_edge = wipeEdge;
+//   - every other type gets the uniform names of index §4.7, which Task 11's shaders read.
+func TestVideoStudioTransitionUniformsKeep2aCurves(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+const V = window.VideoStudioPicture, size = {width: 1280, height: 720};
+for (const D of [8, 20, 25]) for (let i = 0; i < D; i++) {
+  const p = i / D, dissolve = V.transitionUniforms('dissolve', i, D, size), black = V.transitionUniforms('black', i, D, size);
+  assert(Math.abs(dissolve.u_progress - p) < 1e-6, 'dissolve u_progress at ' + i + '/' + D);
+  assert.equal(dissolve.u_P, V.transitionParams('dissolve', i, D, 1280, 720).P);
+  const w = E.fadeBlackWeights(p);
+  [w.out, w.inc, w.black].forEach((value, k) => assert(Math.abs(black.u_weights[k] - value) < 1e-5, 'black weight ' + k + ' at ' + i + '/' + D + ': ' + black.u_weights[k] + ' vs ' + value));
+}
+assert.deepEqual(V.transitionUniforms('wipeleft', 0, 20, size).u_edge, [0, 1], 'frame 0 of wipeleft already shows column 0 (D3)');
+assert.deepEqual(V.transitionUniforms('wipeleft', 5, 20, size).u_edge, [0, 321]);
+assert.deepEqual(V.transitionUniforms('wiperight', 5, 20, size).u_edge, [961, 319]);
+assert.deepEqual(V.transitionUniforms('wiperight', 0, 20, size).u_edge, [1280, 0], 'frame 0 of wiperight shows no incoming column');
+const shape = type => Object.keys(V.transitionUniforms(type, 3, 10, size)).sort().join(',');
+assert.equal(shape('black'), 'u_P,u_progress,u_weights');
+assert.equal(shape('fadegrays'), 'u_P,u_progress,u_uv');
+assert.equal(shape('pixelize'), 'u_P,u_progress,u_sq');
+assert.equal(shape('wipeup'), 'u_P,u_edge,u_progress');
+assert.equal(shape('smoothleft'), 'u_P,u_c,u_progress');
+assert.equal(shape('radial'), 'u_P,u_R,u_c,u_centre,u_progress');
+assert.equal(shape('slideleft'), 'u_P,u_progress,u_shift');
+assert.equal(shape('squeezeh'), 'u_P,u_progress');
+assert.equal(shape('zoomin'), 'u_P,u_progress,u_zoom');
+assert.equal(shape('circleopen'), 'u_P,u_R,u_c,u_centre,u_progress');
+assert.equal(shape('circlecrop'), 'u_P,u_R,u_centre,u_progress,u_r');
+assert.equal(shape('rectcrop'), 'u_P,u_centre,u_progress,u_rect');
+assert.equal(V.transitionParams('not-a-transition', 0, 10, 64, 36), null);
+assert.equal(shape('not-a-transition'), 'u_P,u_progress', 'a type without parameters draws as a dissolve');
+// Index and duration are clamped like Go transitionFrameAt: D below 1 is 1, i lies in 0..D-1; P never reaches 0.
+assert.deepEqual(V.transitionParams('dissolve', 99, 4, 64, 36), V.transitionParams('dissolve', 3, 4, 64, 36));
+assert.deepEqual(V.transitionParams('dissolve', -2, 0, 64, 36), {P: 1, Q: 0});
+assert(V.transitionParams('dissolve', 89, 90, 64, 36).P > 0);
+console.log('ok');
+`)
 }

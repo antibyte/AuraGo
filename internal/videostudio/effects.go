@@ -497,22 +497,21 @@ func fadeEase(x, edge0, edge1 float64) float64 {
 	return t * t * (3 - 2*t)
 }
 
-// wipeEdge is the export's wipe geometry: at progress p the incoming layer shows in [left, left+reveal) of a frame
-// width pixels wide. The user's "wipeleft" reveals from the left edge (xfade wiperight), "wiperight" from the right
-// edge (xfade wipeleft). ok is false for every other transition.
-func wipeEdge(kind TransitionType, p, width float64) (left, reveal float64, ok bool) {
+// wipeEdge is the 2a wipes' band at overlap frame i of D, in whole px on a frame width px wide: the incoming layer
+// shows in [left, left+reveal). z is transitionFrameAt's integer edge (index §4.24, D3):
+//   - The user's "wipeleft" (xfade wiperight, x > z shows A) shows B on [0, z+1), so frame 0 already shows column 0.
+//   - The user's "wiperight" (xfade wipeleft, x > z shows B) shows B on [z+1, width).
+//
+// ok is false for every other transition. JS: VideoStudioEffects.wipeEdge (parity topic transitions).
+func wipeEdge(kind TransitionType, i, D, width int) (left, reveal int, ok bool) {
 	if kind != TransitionWipeLeft && kind != TransitionWipeRight {
 		return 0, 0, false
 	}
-	if !(p > 0) {
-		p = 0
-	} else if p > 1 {
-		p = 1
-	}
-	width = math.Max(0, width)
-	reveal = width * p
+	width = max(0, width)
+	z := transitionFrameAt(kind, i, D, width, 1).Edge
 	if kind == TransitionWipeLeft {
-		return 0, reveal, true
+		return 0, min(width, z+1), true
 	}
-	return width - reveal, reveal, true
+	left = min(width, z+1)
+	return left, width - left, true
 }

@@ -299,15 +299,12 @@
         // (transitionMode, index §4.22):
         // - normal draws the mix straight into the target;
         // - a shared non-normal mode draws it into a scratch track layer, which blendLayer composites like stage 4.
-        // An id without a shader draws as a dissolve; a shader that does not compile draws a hard cut at p >= 0.5.
+        // An id without a shader draws as a dissolve; a shader that does not compile draws a hard cut at p >= 0.5. Every
+        // uniform comes from VideoStudioPicture.transitionUniforms(type, index, duration, size): the float32 parameters
+        // of the export's xfade at the overlap frame (plan 2e D1, index §4.24), never recomputed from p.
         function transitionProgram(type) {
             const id = S().transition(type) ? type : 'dissolve';
             return ctx.program('transition:' + id, S().QUAD_VERTEX, S().transition(id));
-        }
-        function transitionUniforms(type, p, width) {
-            if (type === 'black') { const w = E().fadeBlackWeights(p); return { u_weights: [w.out, w.inc, w.black] }; }
-            if (type === 'wipeleft' || type === 'wiperight') { const edge = E().wipeEdge(type, p, width); return { u_edge: [edge.left, edge.reveal] }; }
-            return {};
         }
         // The overlap of P → N takes blend(P) when blend(N) is the same, else normal (VideoStudioPicture.overlapBlend).
         function transitionMode(transition) {
@@ -330,7 +327,8 @@
                 const into = mixed || target;
                 if (mixed) ctx.clear(mixed, [0, 0, 0, 0]);
                 const program = transitionProgram(transition.type);
-                if (program) ctx.draw(program, into, Object.assign({ u_progress: p, u_size: [width, height] }, transitionUniforms(transition.type, p, width)), { u_from: from, u_to: to }, { blend: 'normal' });
+                const uniforms = Pic().transitionUniforms(transition.type, transition.index, transition.duration, { width, height });
+                if (program) ctx.draw(program, into, Object.assign({ u_size: [width, height] }, uniforms), { u_from: from, u_to: to }, { blend: 'normal' });
                 else {
                     // The shader did not compile: a hard cut at p >= 0.5, and the stage shows a notice.
                     reportFailure('transition', transition.type);

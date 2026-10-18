@@ -31,7 +31,10 @@
             const clip = clips[i], next = clips[i + 1], transition = clip.transition;
             if (!transition || !activeAt(clip, at) || !activeAt(next, at)) continue;
             const duration = Number(transition.duration || 0);
-            if (duration > 0 && clip.start + clip.duration - next.start === duration) return { out: clip, inc: next, type: transition.type, progress: clamp((at - next.start) / duration, 0, 1) };
+            // index is the overlap frame i = at − inc.start (whole frames, 0..D−1) and duration is D. The painters derive every
+            // transition parameter from them (plan 2e D1); progress = i/D stays for the hard-cut fallback.
+            const index = clamp(Math.floor(at - next.start), 0, duration - 1);
+            if (duration > 0 && clip.start + clip.duration - next.start === duration) return { out: clip, inc: next, type: transition.type, progress: clamp((at - next.start) / duration, 0, 1), index, duration };
         }
         return null;
     }
@@ -318,7 +321,7 @@
                 (track.clips || []).slice().sort((a, b) => a.start - b.start).forEach(clip => {
                     if (activeAt(clip, at) && !(pair && (clip === pair.out || clip === pair.inc))) items.push(describeItem(project, clip, at));
                 });
-                const transition = pair ? { type: pair.type, progress: pair.progress, out: describeItem(project, pair.out, at), inc: describeItem(project, pair.inc, at) } : null;
+                const transition = pair ? { type: pair.type, progress: pair.progress, index: pair.index, duration: pair.duration, out: describeItem(project, pair.out, at), inc: describeItem(project, pair.inc, at) } : null;
                 scene.layers.push({ trackId: track.id, items, transition });
             });
             return scene;

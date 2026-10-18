@@ -68,8 +68,10 @@ func TestFadeBlackMatchesFFmpeg(t *testing.T) {
 	t.Logf("fade through black matches FFmpeg:\n%s", table.String())
 }
 
-// TestTransitionParityWipesMatchFFmpeg checks the wipe mapping against the export: at p = 0.25 the incoming layer
-// shows inside wipeEdge's band and the outgoing layer outside it.
+// TestTransitionParityWipesMatchFFmpeg checks the 2a wipe bands against the export (plan 2e D3):
+//   - at overlap frames 0 and 5 of 20, the incoming layer shows exactly inside wipeEdge's band;
+//   - the columns on both sides of each edge are checked;
+//   - at frame 0 the user's wipeleft (xfade wiperight) already shows column 0 of the incoming layer.
 func TestTransitionParityWipesMatchFFmpeg(t *testing.T) {
 	ffmpeg := requireFFmpeg(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -82,38 +84,70 @@ func TestTransitionParityWipesMatchFFmpeg(t *testing.T) {
 	full := func(id string, start int, transition *Transition) Clip {
 		return Clip{ID: id, AssetID: id, Start: start, Duration: 40, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, Transition: transition}
 	}
+	incoming := func(c color.NRGBA) bool { return c.B >= 200 && c.R <= 50 }
+	outgoing := func(c color.NRGBA) bool { return c.R >= 200 && c.B <= 50 }
 	for _, kind := range []TransitionType{TransitionWipeLeft, TransitionWipeRight} {
 		project := Project{Version: CurrentVersion, Name: "Wipe", Width: 1280, Height: 720, FPS: 25, Assets: assets,
 			Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
 				full("red", 0, &Transition{Type: kind, Duration: 20}), full("blue", 20, nil)}}}}
-		// Frame 25 is transition-local frame 5 of 20: p = 0.25.
-		img := renderFrameImage(t, ctx, FrameOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: paths, Frame: 25, Output: filepath.Join(root, string(kind)+".png")})
-		left, reveal, ok := wipeEdge(kind, 0.25, 1280)
-		if !ok {
-			t.Fatalf("wipeEdge(%s) reported no edge", kind)
-		}
-		inside, outside := int(left+reveal/2), int(left/2)
-		if left == 0 {
-			outside = int((reveal + 1280) / 2)
-		}
-		in, out := framePixel(img, inside, 360), framePixel(img, outside, 360)
-		if in.B < 200 || in.R > 50 || out.R < 200 || out.B > 50 {
-			t.Fatalf("%s at p=0.25: x=%d shows %v (want the incoming blue), x=%d shows %v (want the outgoing red)", kind, inside, in, outside, out)
+		for _, i := range []int{0, 5} {
+			// Frame 20 + i is overlap frame i of 20.
+			img := renderFrameImage(t, ctx, FrameOptions{FFmpegPath: ffmpeg, Project: project, AssetPaths: paths, Frame: 20 + i,
+				Output: filepath.Join(root, fmt.Sprintf("%s-%d.png", kind, i))})
+			left, reveal, ok := wipeEdge(kind, i, 20, 1280)
+			if !ok {
+				t.Fatalf("wipeEdge(%s) reported no edge", kind)
+			}
+			check := func(x int, wantIncoming bool) {
+				pixel := framePixel(img, x, 360)
+				if wantIncoming && !incoming(pixel) || !wantIncoming && !outgoing(pixel) {
+					t.Errorf("%s at overlap frame %d: x=%d shows %v, want the %s layer (band [%d, %d))", kind, i, x, pixel,
+						map[bool]string{true: "incoming blue", false: "outgoing red"}[wantIncoming], left, left+reveal)
+				}
+			}
+			if reveal > 0 {
+				check(left, true)
+				check(left+reveal-1, true)
+			}
+			if left > 0 {
+				check(left-1, false)
+			}
+			if left+reveal < 1280 {
+				check(left+reveal, false)
+			}
 		}
 	}
 }
 
+// transitionParityInput decodes both row forms of the fixture: fade_black rows carry p = i/D. Since 2e (Task 2), the
+// wipe rows carry the overlap frame (index §4.13).
 type transitionParityInput struct {
-	Kind  string  `json:"kind"` // "fade_black" or "wipe"
-	P     float64 `json:"p"`
-	Type  string  `json:"type,omitempty"`
-	Width float64 `json:"width,omitempty"`
+	Kind     string  `json:"kind"` // "fade_black" or "wipe"
+	P        float64 `json:"p"`
+	Type     string  `json:"type,omitempty"`
+	Index    int     `json:"index"`
+	Duration int     `json:"duration"`
+	Width    int     `json:"width,omitempty"`
+}
+
+// fadeBlackParityInput and wipeParityInput are the row forms writeTransitionParity writes.
+type fadeBlackParityInput struct {
+	Kind string  `json:"kind"`
+	P    float64 `json:"p"`
+}
+
+type wipeParityInput struct {
+	Kind     string `json:"kind"`
+	Type     string `json:"type"`
+	Index    int    `json:"index"`
+	Duration int    `json:"duration"`
+	Width    int    `json:"width"`
 }
 
 type transitionParityCase struct {
-	Name  string                `json:"name"`
-	Input transitionParityInput `json:"input"`
-	Want  json.RawMessage       `json:"want"`
+	Name  string          `json:"name"`
+	Input any             `json:"input"`
+	Want  json.RawMessage `json:"want"`
 }
 
 type fadeBlackWant struct {
@@ -123,20 +157,31 @@ type fadeBlackWant struct {
 }
 
 type wipeEdgeWant struct {
-	Left   float64 `json:"left"`
-	Reveal float64 `json:"reveal"`
+	Left   int `json:"left"`
+	Reveal int `json:"reveal"`
 }
 
 // The samples include both ease edges of the fitted curve (0.2 and 0.8) and a point inside the outgoing fade (0.1).
 var transitionParityFadeSamples = []float64{0, 0.1, 0.125, 0.2, 0.25, 0.375, 0.5, 0.625, 0.75, 0.8, 0.875, 1, 1.5, -0.5}
 
-var transitionParityWipeSamples = []transitionParityInput{
-	{Kind: "wipe", P: 0.25, Type: "wipeleft", Width: 1280},
-	{Kind: "wipe", P: 0.25, Type: "wiperight", Width: 1280},
-	{Kind: "wipe", P: 0.5, Type: "wipeleft", Width: 640},
-	{Kind: "wipe", P: 1, Type: "wiperight", Width: 640},
-	{Kind: "wipe", P: 0.5, Type: "dissolve", Width: 1280},
-	{Kind: "wipe", P: 0.5, Type: "black", Width: 1280},
+// The wipe rows include these cases (D3):
+//   - frame 0, where wipeleft already shows column 0 and wiperight shows nothing;
+//   - mid and last frames;
+//   - the snap-audit frames at 180 px, where the float32 edge is 1 px below the rational one;
+//   - an odd width;
+//   - two types without an edge.
+var transitionParityWipeSamples = []wipeParityInput{
+	{Kind: "wipe", Type: "wipeleft", Index: 0, Duration: 20, Width: 1280},
+	{Kind: "wipe", Type: "wipeleft", Index: 5, Duration: 20, Width: 1280},
+	{Kind: "wipe", Type: "wiperight", Index: 0, Duration: 20, Width: 1280},
+	{Kind: "wipe", Type: "wiperight", Index: 5, Duration: 20, Width: 1280},
+	{Kind: "wipe", Type: "wipeleft", Index: 19, Duration: 20, Width: 640},
+	{Kind: "wipe", Type: "wiperight", Index: 19, Duration: 20, Width: 640},
+	{Kind: "wipe", Type: "wipeleft", Index: 1, Duration: 5, Width: 180},
+	{Kind: "wipe", Type: "wiperight", Index: 3, Duration: 5, Width: 180},
+	{Kind: "wipe", Type: "wipeleft", Index: 3, Duration: 7, Width: 201},
+	{Kind: "wipe", Type: "dissolve", Index: 10, Duration: 20, Width: 1280},
+	{Kind: "wipe", Type: "black", Index: 10, Duration: 20, Width: 1280},
 }
 
 // TestParityTransitions runs the shared fixture (phase 2 index §4.13) through Task 6's readParityCases; the JS side
@@ -181,11 +226,11 @@ func transitionParityResult(input transitionParityInput) (map[string]float64, bo
 		out, inc, black := fadeBlackWeights(input.P)
 		return map[string]float64{"out": out, "inc": inc, "black": black}, true
 	case "wipe":
-		left, reveal, ok := wipeEdge(TransitionType(input.Type), input.P, input.Width)
+		left, reveal, ok := wipeEdge(TransitionType(input.Type), input.Index, input.Duration, input.Width)
 		if !ok {
 			return nil, true
 		}
-		return map[string]float64{"left": left, "reveal": reveal}, true
+		return map[string]float64{"left": float64(left), "reveal": float64(reveal)}, true
 	}
 	return nil, false
 }
@@ -194,7 +239,7 @@ func transitionParityResult(input transitionParityInput) (map[string]float64, bo
 func writeTransitionParity(t *testing.T, path string) {
 	t.Helper()
 	var cases []transitionParityCase
-	add := func(name string, input transitionParityInput, want any) {
+	add := func(name string, input, want any) {
 		raw, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -203,14 +248,14 @@ func writeTransitionParity(t *testing.T, path string) {
 	}
 	for _, p := range transitionParityFadeSamples {
 		out, inc, black := fadeBlackWeights(p)
-		add(fmt.Sprintf("fade_black p=%g", p), transitionParityInput{Kind: "fade_black", P: p}, fadeBlackWant{out, inc, black})
+		add(fmt.Sprintf("fade_black p=%g", p), fadeBlackParityInput{Kind: "fade_black", P: p}, fadeBlackWant{out, inc, black})
 	}
 	for _, input := range transitionParityWipeSamples {
 		var want any
-		if left, reveal, ok := wipeEdge(TransitionType(input.Type), input.P, input.Width); ok {
+		if left, reveal, ok := wipeEdge(TransitionType(input.Type), input.Index, input.Duration, input.Width); ok {
 			want = wipeEdgeWant{left, reveal}
 		}
-		add(fmt.Sprintf("wipe %s p=%g w=%g", input.Type, input.P, input.Width), input, want)
+		add(fmt.Sprintf("wipe %s i=%d D=%d w=%d", input.Type, input.Index, input.Duration, input.Width), input, want)
 	}
 	var buf bytes.Buffer
 	buf.WriteString("{\n  \"cases\": [\n")

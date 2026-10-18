@@ -14,11 +14,16 @@
     {"name":"fade_black p=1","input":{"kind":"fade_black","p":1},"want":{"out":0,"inc":1,"black":0}},
     {"name":"fade_black p=1.5","input":{"kind":"fade_black","p":1.5},"want":{"out":0,"inc":1,"black":0}},
     {"name":"fade_black p=-0.5","input":{"kind":"fade_black","p":-0.5},"want":{"out":1,"inc":0,"black":0}},
-    {"name":"wipe wipeleft p=0.25 w=1280","input":{"kind":"wipe","p":0.25,"type":"wipeleft","width":1280},"want":{"left":0,"reveal":320}},
-    {"name":"wipe wiperight p=0.25 w=1280","input":{"kind":"wipe","p":0.25,"type":"wiperight","width":1280},"want":{"left":960,"reveal":320}},
-    {"name":"wipe wipeleft p=0.5 w=640","input":{"kind":"wipe","p":0.5,"type":"wipeleft","width":640},"want":{"left":0,"reveal":320}},
-    {"name":"wipe wiperight p=1 w=640","input":{"kind":"wipe","p":1,"type":"wiperight","width":640},"want":{"left":0,"reveal":640}},
-    {"name":"wipe dissolve p=0.5 w=1280","input":{"kind":"wipe","p":0.5,"type":"dissolve","width":1280},"want":null},
-    {"name":"wipe black p=0.5 w=1280","input":{"kind":"wipe","p":0.5,"type":"black","width":1280},"want":null}
+    {"name":"wipe wipeleft i=0 D=20 w=1280","input":{"kind":"wipe","type":"wipeleft","index":0,"duration":20,"width":1280},"want":{"left":0,"reveal":1}},
+    {"name":"wipe wipeleft i=5 D=20 w=1280","input":{"kind":"wipe","type":"wipeleft","index":5,"duration":20,"width":1280},"want":{"left":0,"reveal":321}},
+    {"name":"wipe wiperight i=0 D=20 w=1280","input":{"kind":"wipe","type":"wiperight","index":0,"duration":20,"width":1280},"want":{"left":1280,"reveal":0}},
+    {"name":"wipe wiperight i=5 D=20 w=1280","input":{"kind":"wipe","type":"wiperight","index":5,"duration":20,"width":1280},"want":{"left":961,"reveal":319}},
+    {"name":"wipe wipeleft i=19 D=20 w=640","input":{"kind":"wipe","type":"wipeleft","index":19,"duration":20,"width":640},"want":{"left":0,"reveal":609}},
+    {"name":"wipe wiperight i=19 D=20 w=640","input":{"kind":"wipe","type":"wiperight","index":19,"duration":20,"width":640},"want":{"left":33,"reveal":607}},
+    {"name":"wipe wipeleft i=1 D=5 w=180","input":{"kind":"wipe","type":"wipeleft","index":1,"duration":5,"width":180},"want":{"left":0,"reveal":36}},
+    {"name":"wipe wiperight i=3 D=5 w=180","input":{"kind":"wipe","type":"wiperight","index":3,"duration":5,"width":180},"want":{"left":72,"reveal":108}},
+    {"name":"wipe wipeleft i=3 D=7 w=201","input":{"kind":"wipe","type":"wipeleft","index":3,"duration":7,"width":201},"want":{"left":0,"reveal":87}},
+    {"name":"wipe dissolve i=10 D=20 w=1280","input":{"kind":"wipe","type":"dissolve","index":10,"duration":20,"width":1280},"want":null},
+    {"name":"wipe black i=10 D=20 w=1280","input":{"kind":"wipe","type":"black","index":10,"duration":20,"width":1280},"want":null}
   ]
 }

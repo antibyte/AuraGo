@@ -62,19 +62,22 @@
         }
 
         // Composes a transition pair in the track layer like the export's xfade on the premultiplied layers, then draws
-        // the layer onto the canvas.
+        // the layer onto the canvas. Every weight and edge comes from the overlap frame (index, duration) through
+        // VideoStudioPicture.transitionUniforms and VideoStudioEffects.wipeEdge, the float32 numbers of the export (plan
+        // 2e D1).
         function drawTransition(transition) {
-            const ctx = trackLayer(), W = canvas.width, H = canvas.height, p = clamp(Number(transition.progress) || 0, 0, 1);
-            const effects = window.VideoStudioEffects, wipe = effects.wipeEdge(transition.type, p, W);
+            const ctx = trackLayer(), W = canvas.width, H = canvas.height;
+            const uniforms = window.VideoStudioPicture.transitionUniforms(transition.type, transition.index, transition.duration, { width: W, height: H });
+            const wipe = window.VideoStudioEffects.wipeEdge(transition.type, transition.index, transition.duration, W);
             ctx.globalCompositeOperation = 'source-over';
             if (transition.type === 'black') {
-                // out*w.out + in*w.inc + opaque black*w.black: 'lighter' adds premultiplied colour and alpha, so black adds
+                // out·wOut + in·wInc + opaque black·wBlack: 'lighter' adds premultiplied colour and alpha, so black adds
                 // only coverage and darkens the tracks below exactly like fadeblack's opaque black.
-                const weights = effects.fadeBlackWeights(p);
-                if (weights.out > 0) drawItem(ctx, transition.out, weights.out);
+                const [wOut, wInc, wBlack] = uniforms.u_weights;
+                if (wOut > 0) drawItem(ctx, transition.out, wOut);
                 ctx.globalCompositeOperation = 'lighter';
-                if (weights.inc > 0) drawItem(ctx, transition.inc, weights.inc);
-                if (weights.black > 0) { ctx.save(); ctx.globalAlpha = weights.black; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+                if (wInc > 0) drawItem(ctx, transition.inc, wInc);
+                if (wBlack > 0) { ctx.save(); ctx.globalAlpha = wBlack; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
             } else if (wipe) {
                 drawItem(ctx, transition.out, 1);
                 ctx.clearRect(wipe.left, 0, wipe.reveal, H);
@@ -82,11 +85,10 @@
                 drawItem(ctx, transition.inc, 1);
                 ctx.restore();
             } else {
-                // Dissolve, and any transition without a 2D implementation: the outgoing layer fades out while the
-                // incoming one adds in.
-                drawItem(ctx, transition.out, 1 - p);
+                // Dissolve (P·out + Q·in), and every transition without a 2D implementation (all 2e types).
+                drawItem(ctx, transition.out, uniforms.u_P);
                 ctx.globalCompositeOperation = 'lighter';
-                drawItem(ctx, transition.inc, p);
+                drawItem(ctx, transition.inc, uniforms.u_progress);
             }
             ctx.globalCompositeOperation = 'source-over';
             context.globalAlpha = 1; context.globalCompositeOperation = 'source-over';

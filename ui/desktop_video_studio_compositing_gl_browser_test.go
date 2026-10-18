@@ -275,7 +275,7 @@ out.letterboxPixel = pixel(painter, 4, 36);
 // A masked clip dissolving into an unmasked blue one at p = 0.5. The pair mixes premultiplied, so the capture over
 // black is (0.5 m, 0.5 m, 0.5 m + 0.5).
 const outItem = itemOf(project, clipOf({ duration: 20, mask: ellipse }), white, 15), incItem = itemOf(project, clipOf({ start: 10, duration: 20 }), blue, 15);
-painter.frame(sceneOf(project, [{ transition: { type: 'dissolve', progress: 0.5, out: outItem, inc: incItem } }], 15));
+painter.frame(sceneOf(project, [{ transition: { type: 'dissolve', progress: 0.5, index: 5, duration: 10, out: outItem, inc: incItem } }], 15));
 const pairMask = P.maskFrame(outItem.state.mask, { width: W, height: H });
 out.transition = compare((x, y) => { const m = P.maskAt(pairMask, x, y); return [0.5 * m, 0.5 * m, 0.5 * m + 0.5]; });
 out.failures = failures.slice();
@@ -374,7 +374,7 @@ out.halfWant = bytes(P.compositeRGB('multiply', a0, b0, 1)); out.belowPixel = by
 const transitionFrame = (outMode, incMode) => {
   const outClip = clipOf(Object.assign({ duration: 20 }, outMode === 'normal' ? {} : { blend: outMode }));
   const incClip = clipOf(Object.assign({ start: 10, duration: 20 }, incMode === 'normal' ? {} : { blend: incMode }));
-  painter.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), below, 15)] }, { transition: { type: 'dissolve', progress: 0.5, out: itemOf(project, outClip, layer, 15), inc: itemOf(project, incClip, layer, 15) } }], 15));
+  painter.frame(sceneOf(project, [{ items: [itemOf(project, clipOf(), below, 15)] }, { transition: { type: 'dissolve', progress: 0.5, index: 5, duration: 10, out: itemOf(project, outClip, layer, 15), inc: itemOf(project, incClip, layer, 15) } }], 15));
   return pixel(painter, 32, 18);
 };
 out.sharedGot = transitionFrame('multiply', 'multiply'); out.sharedWant = bytes(P.compositeRGB('multiply', a0, b0, 1));

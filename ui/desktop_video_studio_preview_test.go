@@ -144,6 +144,23 @@ const corner=black.capture({x:10,y:20,width:4,height:2});
 assert.deepEqual([corner.width,corner.height],[4,2],'capture reads a rectangle');
 black.dispose();
 
+// The 2a wipes take their band from wipeEdge(type, index, duration, width) (plan 2e D3), with z = trunc(f(W·Q)) for
+// wipeleft and trunc(f(W·P)) for wiperight:
+// - wipeleft draws the incoming clip into [0, z + 1), so overlap frame 0 already shows column 0;
+// - wiperight draws it into [z + 1, W).
+const wipeRects=[];
+layerDrawing.rect=(x,y,w,h)=>wipeRects.push([x,y,w,h]);
+const wipeProject={version:3,name:'Wipe',width:1280,height:720,fps:30,assets:[red,blue],tracks:[{id:'video',kind:'video',clips:[clip('wipe-out','red',0,80,{type:'wipeleft',duration:20}),clip('wipe-in','blue',60,60)]}]};
+assert(T.validTimeline(wipeProject),'a wipe overlaps like the others');
+for (const [type,at,want] of [['wipeleft',60,[0,0,1,720]],['wipeleft',65,[0,0,321,720]],['wiperight',65,[961,0,319,720]],['wiperight',60,[1280,0,0,720]]]) {
+  wipeProject.tracks[0].clips[0].transition.type=type;
+  wipeRects.length=0;
+  const wipe=Preview.mount(canvas,()=>wipeProject,()=>at,()=>{},()=>{});
+  assert.deepEqual(wipeRects.at(-1),want,type+' at overlap frame '+(at-60)+' clips the incoming clip to its band');
+  wipe.dispose();
+}
+delete layerDrawing.rect;
+
 const imageAsset={...shared,id:'image',kind:'image',has_audio:false,media_url:'/media/image.png'};
 const imageProject={...longProject,assets:[imageAsset],tracks:[{id:'overlay',kind:'overlay',clips:[clip('image-clip','image',0,30)]}]};
 const imagePreview=Preview.mount(canvas,()=>imageProject,()=>0,()=>{},()=>{});

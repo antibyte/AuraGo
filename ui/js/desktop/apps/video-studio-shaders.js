@@ -4,7 +4,9 @@
     // GLSL ES 3.00 sources for the Video Studio GL compositor (index §4.7). Fragment shaders output premultiplied colour,
     // except the clip-local passes (PICTURE, the 2c effects and 2d's KEY), which read and write straight alpha.
     // Targets hold images top-down (row 0 is the top row, like uploaded textures); QUAD_VERTEX flips v only when it
-    // presents to the canvas (u_flipY = 1). u_progress is p = i / D for transition-local frame i, the same as xfade.
+    // presents to the canvas (u_flipY = 1). Transition uniforms come from VideoStudioPicture.transitionUniforms (plan 2e
+    // D1). u_P is xfade's float32 progress P = f(1 − f(i/D)) of overlap frame i, and u_progress is Q = f(1 − P), the
+    // incoming weight of the dissolve.
     const QUAD_VERTEX = `#version 300 es
 layout(location = 0) in vec2 a_pos;
 uniform float u_flipY;
@@ -116,16 +118,19 @@ uniform vec2 u_size;
 }
 `;
 
-    // xfade "fadeblack": u_weights is VideoStudioEffects.fadeBlackWeights(p) as (out, inc, black), mixed with opaque
-    // black, so the tracks below darken too (Task 8 measured the curve; the compositor passes the numbers).
+    // xfade "fadeblack": u_weights is (P·u, Q·(1 − v), rest) from transitionUniforms (index §4.24), equal to
+    // VideoStudioEffects.fadeBlackWeights(i/D) within float32 rounding. It is mixed with opaque black, so the tracks
+    // below darken too.
     const BLACK = TRANSITION_HEAD + `uniform vec3 u_weights;
 void main() {
     outColor = texture(u_from, v_uv) * u_weights.x + texture(u_to, v_uv) * u_weights.y + vec4(0.0, 0.0, 0.0, u_weights.z);
 }
 `;
 
-    // Wipes: u_edge is VideoStudioEffects.wipeEdge(type, p, width) as (left, reveal) in target pixels; the incoming
-    // layer shows inside [left, left + reveal). "wipeleft" reveals from the left edge, "wiperight" from the right.
+    // Wipes: u_edge is VideoStudioEffects.wipeEdge(type, index, duration, width) as (left, reveal) in target pixels.
+    // The incoming layer shows inside [left, left + reveal), which follows the integer edge z of index §4.24:
+    // - "wipeleft" covers [0, z + 1), so column 0 already shows at frame 0 (D3);
+    // - "wiperight" covers [z + 1, W).
     const WIPE = TRANSITION_HEAD + `uniform vec2 u_edge;
 void main() {
     float x = v_uv.x * u_size.x;
