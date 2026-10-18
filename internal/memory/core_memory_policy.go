@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -24,6 +26,9 @@ func ValidateCoreMemoryFact(fact string) error {
 	normalized := strings.Join(strings.Fields(strings.TrimSpace(fact)), " ")
 	if normalized == "" {
 		return fmt.Errorf("core memory fact is empty")
+	}
+	if HasDurableCredential(fact) {
+		return fmt.Errorf("credentials belong in the Vault, not core memory")
 	}
 	lower := strings.ToLower(normalized)
 
@@ -80,24 +85,12 @@ var transientCoreMemoryMediaMarkers = []string{
 	"resets at ",
 	"reset scheduled",
 	"self-portrait",
-	"music_",
-	".mp3",
-	".wav",
-	".jpeg",
-	".jpg",
-	".png",
-	"duration:",
-	"dauer:",
 }
 
 var transientCoreMemoryTaskMarkers = []string{
 	"app_id:",
 	"widget_id:",
-	"local:",
-	"lokal:",
-	"created \"",
 	"created ai ",
-	"erstellt \"",
 	"previously existed",
 	"rebuilt from scratch",
 	"was rebuilt",
@@ -105,7 +98,6 @@ var transientCoreMemoryTaskMarkers = []string{
 	"context deadline exceeded",
 	"context canceled",
 	"no such file or directory",
-	"not found",
 }
 
 var coreMemoryInstructionMarkers = []string{
@@ -247,8 +239,21 @@ var transientCoreMemoryNetworkDiscoveryContextMarkers = []string{
 
 func hasAnyCoreMemoryMarker(text string, markers []string) bool {
 	for _, marker := range markers {
-		if strings.Contains(text, marker) {
-			return true
+		for offset := 0; offset < len(text); {
+			i := strings.Index(text[offset:], marker)
+			if i < 0 {
+				break
+			}
+			i += offset
+			end := i + len(marker)
+			first, _ := utf8.DecodeRuneInString(marker)
+			last, _ := utf8.DecodeLastRuneInString(marker)
+			before, _ := utf8.DecodeLastRuneInString(text[:i])
+			after, _ := utf8.DecodeRuneInString(text[end:])
+			if (!unicode.IsLetter(first) || i == 0 || !unicode.IsLetter(before)) && (!unicode.IsLetter(last) || end == len(text) || !unicode.IsLetter(after)) {
+				return true
+			}
+			offset = end
 		}
 	}
 	return false
@@ -295,8 +300,7 @@ func isCoreMemoryNetworkDiscovery(text string) bool {
 }
 
 func isCoreMemoryToolStateClaim(text string) bool {
-	hasToolSubject := strings.Contains(text, "tool") ||
-		strings.Contains(text, "integration") ||
+	hasToolSubject := hasAnyCoreMemoryMarker(text, []string{"tool", "tools", "integration", "integrations"}) ||
 		strings.Contains(text, "virtual_desktop") ||
 		strings.Contains(text, "native function") ||
 		strings.Contains(text, "provider-invalid") ||
@@ -308,6 +312,9 @@ func isCoreMemoryToolStateClaim(text string) bool {
 		strings.Contains(text, "rocketchat") ||
 		strings.Contains(text, "ddg_search")
 	if !hasToolSubject {
+		return false
+	}
+	if hasAnyCoreMemoryMarker(text, []string{"prefers", "bevorzugt"}) && !hasAnyCoreMemoryMarker(text, []string{"broken", "kaputt", "failed", "fehlgeschlagen", "unavailable", "nicht verfügbar"}) {
 		return false
 	}
 	stateTerms := []string{

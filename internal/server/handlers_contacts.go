@@ -105,7 +105,23 @@ func handleContactByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 		case http.MethodDelete:
-			if err := contacts.Delete(s.ContactsDB, id); err != nil {
+			deleteMemories := r.URL.Query().Get("delete_memories") == "true"
+			deletedGraph, retainedGraph := 0, 0
+			previouslyDeleted := false
+			if s.KG != nil {
+				var err error
+				previouslyDeleted, err = s.KG.IsContactSourceDeleted(r.Context(), "contact_"+id)
+				if err != nil {
+					jsonError(w, "Contact deletion state unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				err = s.KG.FenceContactSource(r.Context(), "contact_"+id)
+				if err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, i18n.T(desktopUILanguage(s), "backend.contacts_delete_failed"), "Failed to delete contact graph source", err)
+					return
+				}
+			}
+			if err := contacts.Delete(s.ContactsDB, id); err != nil && !(previouslyDeleted && strings.Contains(err.Error(), "not found")) {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -117,8 +133,22 @@ func handleContactByID(s *Server) http.HandlerFunc {
 				}
 				return
 			}
+			status, responseCode := "deleted", http.StatusOK
+			if s.KG != nil {
+				var err error
+				if deleteMemories {
+					deletedGraph, retainedGraph, err = s.KG.DeleteContactSource(r.Context(), "contact_"+id)
+				} else {
+					retainedGraph, err = s.KG.CountContactSource(r.Context(), "contact_"+id)
+				}
+				if err != nil {
+					s.Logger.Error("Contact removed but knowledge cleanup incomplete", "error", err)
+					status, responseCode = "partial", http.StatusMultiStatus
+				}
+			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+			w.WriteHeader(responseCode)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": status, "contact_deleted": true, "deleted_graph_items": deletedGraph, "retained_graph_items": retainedGraph})
 
 		default:
 			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)

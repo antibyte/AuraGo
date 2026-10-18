@@ -748,7 +748,7 @@ func Load(path string) (*Config, error) {
 
 	// Consolidation defaults: nightly STM→LTM consolidation enabled by default.
 	cfg.Consolidation.Enabled = true
-	cfg.Consolidation.AutoOptimize = true
+	cfg.Consolidation.AutoOptimize = false
 	cfg.Consolidation.ArchiveRetainDays = 30
 	cfg.Consolidation.MaxBatchMessages = 200
 	cfg.Consolidation.OptimizeThreshold = 1

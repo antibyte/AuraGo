@@ -13,8 +13,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/memory/kgquery"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -2018,17 +2020,34 @@ func compactMemoryForPrompt(text string, maxLen int) string {
 	if maxLen <= 0 || len(text) <= maxLen {
 		return text
 	}
-	runes := []rune(text)
-	maxRunes := 0
-	for byteLen, idx := 0, 0; idx < len(runes); idx++ {
-		nextLen := byteLen + len(string(runes[idx]))
-		if nextLen > maxLen {
-			break
-		}
-		byteLen = nextLen
-		maxRunes = idx + 1
+	const marker = "…"
+	if maxLen < len(marker) {
+		return ""
 	}
-	return strings.TrimSpace(string(runes[:maxRunes])) + "…"
+	end := maxLen - len(marker)
+	for end > 0 && !utf8.RuneStart(text[end]) {
+		end--
+	}
+	return strings.TrimSpace(text[:end]) + marker
+}
+
+func compactKnowledgeContextForPrompt(text string, maxBytes int) string {
+	entries := strings.Split(sanitizeMemoryForPrompt(text), "\n- [")
+	for i := 1; i < len(entries); i++ {
+		entries[i] = "- [" + entries[i]
+	}
+	return kgquery.FitEntries(entries, "\n", maxBytes)
+}
+
+func completeMemoryForPrompt(text, docID string, maxBytes int) string {
+	text = sanitizeMemoryForPrompt(text)
+	if len(text) <= maxBytes {
+		return text
+	}
+	if docID != "" {
+		return kgquery.FitEntries([]string{"[memory:" + docID + "] (content omitted; use recall_memory)"}, "", maxBytes)
+	}
+	return kgquery.FitEntries([]string{text}, "", maxBytes)
 }
 
 const (
@@ -2060,13 +2079,13 @@ func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails boo
 		if full, err := getFull(top.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
 			return []promptMemoryEntry{{
 				docID: top.docID,
-				text:  "[Detailed Memory]\n" + compactMemoryForPrompt(full, aggressiveDetailedRAGMemoryChars),
+				text:  "[Detailed Memory]\n" + completeMemoryForPrompt(full, top.docID, aggressiveDetailedRAGMemoryChars-len("[Detailed Memory]\n")),
 			}}
 		}
 	}
 	return []promptMemoryEntry{{
 		docID: top.docID,
-		text:  compactMemoryForPrompt(top.text, aggressiveAutoRAGMemoryChars),
+		text:  completeMemoryForPrompt(top.text, top.docID, aggressiveAutoRAGMemoryChars),
 	}}
 }
 
@@ -2095,44 +2114,19 @@ func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDema
 }
 
 func buildAvailableMemoryIndex(available []rankedMemory, maxChars int) string {
-	if len(available) == 0 || maxChars <= 0 {
-		return ""
-	}
-	var sb strings.Builder
+	lines := make([]string, 0, len(available))
 	for _, item := range available {
 		if strings.TrimSpace(item.docID) == "" || strings.TrimSpace(item.text) == "" {
 			continue
 		}
 		teaser := compactMemoryForPrompt(item.text, 96)
-		line := "- [memory:" + item.docID + "] source=ltm score=" + formatScore(item.score) + " - " + teaser
-		nextLen := len([]rune(line))
-		if sb.Len() > 0 {
-			nextLen += 1
-		}
-		if len([]rune(sb.String()))+nextLen > maxChars {
-			if sb.Len() == 0 {
-				return compactMemoryForPrompt(line, maxChars)
-			}
-			break
-		}
-		if sb.Len() > 0 {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(line)
+		lines = append(lines, "- [memory:"+item.docID+"] source=ltm score="+formatScore(item.score)+" - "+teaser)
 	}
-	return sb.String()
+	return kgquery.FitEntries(lines, "\n", maxChars)
 }
 
-func appendAvailableContextIndex(existing string, addition string, maxChars int) string {
-	existing = strings.TrimSpace(existing)
-	addition = strings.TrimSpace(addition)
-	if addition == "" {
-		return existing
-	}
-	if existing == "" {
-		return compactMemoryForPrompt(addition, maxChars)
-	}
-	return compactMemoryForPrompt(existing+"\n"+addition, maxChars)
+func appendAvailableContextIndex(existing, addition string, maxChars int) string {
+	return kgquery.FitEntries(strings.Split(strings.TrimSpace(existing+"\n"+addition), "\n"), "\n", maxChars)
 }
 
 func formatScore(score float64) string {
@@ -2205,12 +2199,12 @@ func applyAggressivePromptContextBudgets(flags *prompts.ContextFlags) {
 	if flags == nil {
 		return
 	}
-	flags.RetrievedMemories = compactMemoryForPrompt(flags.RetrievedMemories, aggressiveRetrievedMemoriesChars)
-	flags.AvailableMemoryContextIndex = compactMemoryForPrompt(flags.AvailableMemoryContextIndex, aggressiveAvailableContextChars)
-	flags.AvailableKnowledgeContextIndex = compactMemoryForPrompt(flags.AvailableKnowledgeContextIndex, aggressiveAvailableContextChars)
+	flags.RetrievedMemories = kgquery.FitEntries(strings.Split(sanitizeMemoryForPrompt(flags.RetrievedMemories), "\n---\n"), "\n---\n", aggressiveRetrievedMemoriesChars)
+	flags.AvailableMemoryContextIndex = kgquery.FitEntries(strings.Split(sanitizeMemoryForPrompt(flags.AvailableMemoryContextIndex), "\n"), "\n", aggressiveAvailableContextChars)
+	flags.AvailableKnowledgeContextIndex = kgquery.FitEntries(strings.Split(sanitizeMemoryForPrompt(flags.AvailableKnowledgeContextIndex), "\n"), "\n", aggressiveAvailableContextChars)
 	flags.PredictedMemories = compactMemoryForPrompt(flags.PredictedMemories, aggressivePredictedMemoriesChars)
 	flags.RecentActivityOverview = compactMemoryForPrompt(flags.RecentActivityOverview, aggressiveRecentOverviewChars)
-	flags.KnowledgeContext = compactMemoryForPrompt(flags.KnowledgeContext, aggressiveKnowledgeContextChars)
+	flags.KnowledgeContext = compactKnowledgeContextForPrompt(flags.KnowledgeContext, aggressiveKnowledgeContextChars)
 	flags.ErrorPatternContext = compactMemoryForPrompt(flags.ErrorPatternContext, aggressiveErrorPatternChars)
 	flags.LearnedRulesContext = compactMemoryForPrompt(flags.LearnedRulesContext, aggressiveLearnedRulesChars)
 	flags.ReuseContext = compactMemoryForPrompt(flags.ReuseContext, aggressiveReuseContextChars)

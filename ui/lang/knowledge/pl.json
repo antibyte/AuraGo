@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Usuń również powiązane wspomnienia",
+  "knowledge.contacts_delete_backups": "Kopie zapasowe mogą zawierać usunięte dane do czasu planowego czyszczenia.",
+  "knowledge.contacts_delete_report": "Usunięte elementy wiedzy: {deleted}. Zachowane: {retained}.",
+  "knowledge.contacts_delete_partial": "Kontakt usunięty; czyszczenie wiedzy jest niepełne. Usunięto: {deleted}. Zachowano: {retained}. Odśwież przed ponowną próbą.",
   "knowledge.appointments_add": "Nowe spotkanie",
   "knowledge.appointments_agent_wake": "Przebudzenie agenta",
   "knowledge.appointments_cancel": "Anuluj spotkanie",

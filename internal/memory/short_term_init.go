@@ -23,6 +23,11 @@ type SQLiteMemory struct {
 	// ponytail: serialize automatic vector ownership and rollback within one
 	// store; use per-document coordination only if extraction throughput requires it.
 	automaticMemoryMu sync.Mutex
+	sessionWriteMu    sync.Mutex
+	sessionRuntimeMu  sync.Mutex
+	sessionRuns       map[string]map[uint64]context.CancelFunc
+	closingSessions   map[string]int
+	nextSessionRun    uint64
 	correctionMu      sync.Mutex
 
 	auditNotifierMu sync.RWMutex
@@ -47,8 +52,12 @@ type SQLiteMemory struct {
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
 	previous, _ := os.Stat(dbPath)
 	backupLearnings := previous != nil && previous.Size() > 0
-	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger))
+	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger), dbutil.WithImmediateTransactions())
 	if err != nil {
+		return nil, err
+	}
+	if err := protectMemoryDatabase(db); err != nil {
+		db.Close()
 		return nil, err
 	}
 
@@ -673,11 +682,11 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 		logger.Warn("Failed to reset stale in_progress consolidation rows", "error", err)
 		errs = append(errs, err)
 	}
-	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status pending rows", "consolidation_status = 'pending'", "consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done'))"); err != nil {
+	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status pending rows", "consolidation_status = 'pending'", "consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done', 'excluded'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
 		errs = append(errs, err)
 	}
-	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status done rows", "consolidation_status = 'done'", "consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status != 'done')"); err != nil {
+	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status done rows", "consolidation_status = 'done'", "consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('done', 'excluded'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status done rows", "error", err)
 		errs = append(errs, err)
 	}

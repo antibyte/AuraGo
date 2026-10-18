@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"aurago/internal/config"
 	"aurago/internal/dbutil"
 	"aurago/internal/memory"
 )
@@ -34,7 +33,7 @@ func TestAuditQueuedAnalysisPreservesExtractionConfidence(t *testing.T) {
 				result.Corrections = []extractedFact{fact}
 			}
 			vdb := &fakeVectorDB{storeErr: errors.New("provider unavailable")}
-			applyMemoryAnalysisResult(&config.Config{}, logger, stm, vdb, "synthetic-session", result)
+			applyMemoryAnalysisResult(enabledMemoryTestConfig(), logger, stm, vdb, "synthetic-session", result)
 			if count, err := stm.CountPendingMemoryWrites(); err != nil || count != 1 {
 				t.Fatalf("queue count=%d err=%v", count, err)
 			}
@@ -46,15 +45,16 @@ func TestAuditQueuedAnalysisPreservesExtractionConfidence(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer stm.Close()
+			queued, err := stm.GetDuePendingMemoryWrites(time.Now().UTC().Add(time.Minute), 10)
+			if err != nil || len(queued) != 1 || queued[0].Metadata == nil || queued[0].Metadata.SourceRole != "user_and_assistant" || queued[0].Metadata.SourceSessionID != "synthetic-session" {
+				t.Fatalf("source provenance lost after restart: %+v %v", queued, err)
+			}
 			vdb.storeErr = nil
 			if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb); succeeded != 1 || failed != 0 {
 				t.Fatalf("retry %d successful, %d failed", succeeded, failed)
 			}
 			meta, err := stm.GetMemoryMeta("stored-doc")
-			wantReliability := .85
-			if kind == "correction" {
-				wantReliability = .90
-			}
+			wantReliability := .6 // Assistant context must never imply human confirmation.
 			if err != nil || meta.ExtractionConfidence != .99 || meta.SourceReliability != wantReliability || meta.SourceType != "memory_analysis" || meta.VerificationStatus != "unverified" {
 				t.Fatalf("retry metadata=%+v err=%v", meta, err)
 			}

@@ -4,6 +4,7 @@ import (
 	"aurago/internal/dbutil"
 	"aurago/internal/kgquality"
 	"aurago/internal/memory/kgquery"
+	"aurago/internal/security"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -58,60 +59,37 @@ func (r KnowledgeGraphContextResult) FormatContext(maxChars int) string {
 		}
 	}
 
-	var sb strings.Builder
+	entries := make([]string, 0, len(order))
 	for _, nodeID := range order {
 		node, ok := nodeByID[nodeID]
 		if !ok {
 			continue
 		}
+		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("- [%s] %s", node.ID, node.Label))
 		kgquery.AppendContextProperties(&sb, node.Properties, isSensitiveKnowledgeGraphPropertyKey)
 		sb.WriteString("\n")
-
 		for _, edge := range r.EdgesByNodeID[node.ID] {
 			if edge.Relation == "co_mentioned_with" && edge.Properties["source"] != "activity_turn" {
 				continue
 			}
-			sb.WriteString("  - ")
-			sb.WriteString(formatReadableContextEdge(edge, nodeByID))
-			sb.WriteString("\n")
+			sb.WriteString("  - " + formatReadableContextEdge(edge, nodeByID) + "\n")
 		}
-
-		if sb.Len() > maxChars {
-			break
-		}
+		entries = append(entries, security.Scrub(sb.String()))
 	}
-	return kgquery.FinalizeContextResult(sb, maxChars)
+	return kgquery.FitEntries(entries, "\n", maxChars)
 }
 
 func (r KnowledgeGraphContextResult) AvailableIndex(maxChars int) string {
-	if maxChars <= 0 || len(r.Nodes) == 0 {
-		return ""
-	}
-	var sb strings.Builder
+	lines := make([]string, 0, len(r.Nodes))
 	for _, node := range r.Nodes {
 		nodeType := strings.TrimSpace(node.Properties["type"])
 		if nodeType == "" {
 			nodeType = "entity"
 		}
-		score := r.nodeScores[node.ID]
-		line := fmt.Sprintf("- [kg:%s] type=%s score=%.2f - %s", node.ID, nodeType, score, node.Label)
-		nextLen := len([]rune(line))
-		if sb.Len() > 0 {
-			nextLen++
-		}
-		if len([]rune(sb.String()))+nextLen > maxChars {
-			if sb.Len() == 0 {
-				return kgquery.TruncateUTF8Safe(line, maxChars)
-			}
-			break
-		}
-		if sb.Len() > 0 {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(line)
+		lines = append(lines, security.Scrub(fmt.Sprintf("- [kg:%s] type=%s score=%.2f - %s", node.ID, nodeType, r.nodeScores[node.ID], node.Label)))
 	}
-	return sb.String()
+	return kgquery.FitEntries(lines, "\n", maxChars)
 }
 
 func (r KnowledgeGraphContextResult) LimitNodes(offset int, limit int) KnowledgeGraphContextResult {
@@ -309,24 +287,44 @@ func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options Knowledg
 }
 
 func (kg *KnowledgeGraph) searchNodesFTS(tx *sql.Tx, query string) ([]Node, error) {
-	rows, err := tx.Query(`
-		SELECT id, label, properties, protected FROM kg_nodes
-		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
-		LIMIT ?
-	`, kgquery.EscapeFTS5(query), knowledgeGraphSearchLimit)
+	rows, err := tx.Query(`SELECT n.id, n.label, n.properties, n.protected FROM kg_nodes_fts f
+ JOIN kg_nodes n ON n.rowid=f.rowid WHERE kg_nodes_fts MATCH ? ORDER BY rank LIMIT ?`, kgquery.EscapeFTS5(query), knowledgeGraphSearchLimit)
 	if err != nil {
 		return nil, err
 	}
 	return kg.scanSearchNodes(rows)
 }
 
+func lexicalLikeScore(query string, columns ...string) (string, []interface{}) {
+	terms := strings.Fields(strings.ToLower(query))
+	if strings.HasPrefix(query, `"`) && strings.HasSuffix(query, `"`) {
+		terms = []string{strings.Trim(query, `"`)}
+	}
+	scores := make([]string, 0, len(terms))
+	var args []interface{}
+	seen := make(map[string]bool)
+	for _, term := range terms {
+		if seen[term] {
+			continue
+		}
+		seen[term] = true
+		matches := make([]string, 0, len(columns))
+		for _, column := range columns {
+			matches = append(matches, "LOWER("+column+`) LIKE ? ESCAPE '\'`)
+			args = append(args, "%"+dbutil.EscapeLike(term)+"%")
+		}
+		scores = append(scores, "CASE WHEN ("+strings.Join(matches, " OR ")+") THEN 1 ELSE 0 END")
+	}
+	if len(scores) == 0 {
+		return "0", nil
+	}
+	return "(" + strings.Join(scores, " + ") + ")", args
+}
+
 func (kg *KnowledgeGraph) searchNodesLike(tx *sql.Tx, query string) ([]Node, error) {
-	likePattern := "%" + dbutil.EscapeLike(query) + "%"
-	rows, err := tx.Query(`
-		SELECT id, label, properties, protected FROM kg_nodes
-		WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
-		LIMIT ?
-	`, likePattern, likePattern, likePattern, knowledgeGraphSearchLimit)
+	score, args := lexicalLikeScore(query, "id", "label", "properties")
+	args = append(args, knowledgeGraphSearchLimit)
+	rows, err := tx.Query(`SELECT id,label,properties,protected FROM (SELECT *, `+score+` AS match_score FROM kg_nodes) WHERE match_score>0 ORDER BY match_score DESC, id LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -369,13 +367,9 @@ func (kg *KnowledgeGraph) searchEdgesFTS(tx *sql.Tx, query string) ([]Edge, erro
 }
 
 func (kg *KnowledgeGraph) searchEdgesLike(tx *sql.Tx, query string) ([]Edge, error) {
-	likeQ := "%" + dbutil.EscapeLike(strings.ToLower(query)) + "%"
-	rows, err := tx.Query(`
-		SELECT source, target, relation, properties FROM kg_edges
-		WHERE `+activeKGEdgePredicate("")+`
-		  AND (LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\')
-		LIMIT ?
-	`, likeQ, likeQ, likeQ, likeQ, knowledgeGraphSearchLimit)
+	score, args := lexicalLikeScore(query, "source", "target", "relation", "properties")
+	args = append(args, knowledgeGraphSearchLimit)
+	rows, err := tx.Query(`SELECT source,target,relation,properties FROM (SELECT *, `+score+` AS match_score FROM kg_edges) WHERE `+activeKGEdgePredicate("")+` AND match_score>0 ORDER BY match_score DESC,id LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -576,6 +570,24 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	return result.FormatContext(maxChars)
 }
 
+// Apply exclusions in SQL before a lexical candidate can consume the limit.
+func (kg *KnowledgeGraph) contextNodeTypeFilter(alias string) (string, []interface{}) {
+	kg.excludedNodeTypesMu.RLock()
+	types := make([]string, 0, len(kg.excludedNodeTypes))
+	for value, excluded := range kg.excludedNodeTypes {
+		if excluded {
+			types = append(types, value)
+		}
+	}
+	kg.excludedNodeTypesMu.RUnlock()
+	if len(types) == 0 {
+		return "1=1", nil
+	}
+	sort.Strings(types)
+	encoded, _ := json.Marshal(types)
+	return "LOWER(TRIM(COALESCE(json_extract(CASE WHEN json_valid(" + alias + ".properties) THEN " + alias + ".properties ELSE '{}' END, '$.type'), ''))) NOT IN (SELECT value FROM json_each(?))", []interface{}{string(encoded)}
+}
+
 func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int, maxChars int) KnowledgeGraphContextResult {
 	if query == "" || maxNodes <= 0 {
 		return KnowledgeGraphContextResult{}
@@ -628,13 +640,16 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 	}
 
 	ftsQuery := kgquery.EscapeFTS5(query)
+	typeFilter, typeArgs := kg.contextNodeTypeFilter("n")
+	ftsArgs := append([]interface{}{ftsQuery}, typeArgs...)
+	ftsArgs = append(ftsArgs, maxNodes)
 	rows, err := tx.Query(`
 		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
-		WHERE kg_nodes_fts MATCH ?
+		WHERE kg_nodes_fts MATCH ? AND `+typeFilter+`
 		ORDER BY rank
 		LIMIT ?
-	`, ftsQuery, maxNodes)
+	`, ftsArgs...)
 
 	count := 0
 	if err != nil {
@@ -668,13 +683,10 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 	}
 
 	if count == 0 {
-		likeQ := "%" + dbutil.EscapeLike(query) + "%"
-		likeRows, err := tx.Query(`
-			SELECT id, access_count FROM kg_nodes
-			WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
-			ORDER BY updated_at DESC, access_count DESC
-			LIMIT ?
-		`, likeQ, likeQ, likeQ, maxNodes)
+		score, likeArgs := lexicalLikeScore(query, "id", "label", "properties")
+		likeArgs = append(likeArgs, typeArgs...)
+		likeArgs = append(likeArgs, maxNodes)
+		likeRows, err := tx.Query(`SELECT id,access_count FROM (SELECT *, `+score+` AS match_score FROM kg_nodes) n WHERE match_score>0 AND `+typeFilter+` ORDER BY match_score DESC, updated_at DESC, access_count DESC LIMIT ?`, likeArgs...)
 		if err != nil {
 			kg.logger.Warn("SearchForContext: LIKE fallback query failed", "error", err)
 		} else {

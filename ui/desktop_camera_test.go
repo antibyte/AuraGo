@@ -90,6 +90,10 @@ func TestVirtualDesktopCameraAppKeepsContracts(t *testing.T) {
 		"window.CameraApp = { render: render, dispose: dispose }",
 		"MediaRecorder",
 		"/api/desktop/upload",
+		"If-None-Match",
+		"unique",
+		"forceNew: true",
+		"importPath",
 		"data-rec-time",
 		"devicechange",
 	} {

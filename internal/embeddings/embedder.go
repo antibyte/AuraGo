@@ -59,6 +59,9 @@ type Status struct {
 	Benchmark           []BenchmarkResult `json:"benchmark,omitempty"`
 	FallbackReason      string            `json:"fallback_reason,omitempty"`
 	Error               string            `json:"error,omitempty"`
+	IndexPending        int               `json:"index_pending,omitempty"`
+	IndexBlocked        int               `json:"index_blocked,omitempty"`
+	IndexError          string            `json:"index_error,omitempty"`
 	RestartRequired     bool              `json:"restart_required"`
 	Fingerprint         string            `json:"fingerprint,omitempty"`
 	HardwareFingerprint string            `json:"hardware_fingerprint,omitempty"`

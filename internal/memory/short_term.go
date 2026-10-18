@@ -95,6 +95,27 @@ func (s *SQLiteMemory) GetRecentMessagesAcrossSessions(limit int) ([]openai.Chat
 	return s.queryRecentMessages(query, limit)
 }
 
+// GetRecentExtractionMessages preserves source sessions and omits internal/tool records.
+func (s *SQLiteMemory) GetRecentExtractionMessages(limit int) ([]openai.ChatCompletionMessage, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.Query(`SELECT role,content,session_id FROM (SELECT role,content,session_id,timestamp,id FROM messages WHERE COALESCE(is_internal,0)=0 AND role IN ('user','assistant') ORDER BY timestamp DESC,id DESC LIMIT ?) ORDER BY timestamp,id`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("read extraction sources: %w", err)
+	}
+	defer rows.Close()
+	var messages []openai.ChatCompletionMessage
+	for rows.Next() {
+		var message openai.ChatCompletionMessage
+		if err := rows.Scan(&message.Role, &message.Content, &message.Name); err != nil {
+			return nil, fmt.Errorf("scan extraction source: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	return messages, rows.Err()
+}
+
 // GetRecentMessagesGroupedBySession returns recent messages grouped by session,
 // with the newest sessions appearing first. Within each session, messages are
 // in chronological order. This provides a more intuitive cross-session recall
@@ -505,6 +526,15 @@ func (s *SQLiteMemory) MarkConsolidationSuccess(ids []int64) error {
 
 // MarkConsolidationFailure records a failed consolidation attempt and schedules retry.
 func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) error {
+	return s.markConsolidationFailure(ids, reason, true)
+}
+
+// DeferConsolidationClaims backs off unavailable infrastructure without exhausting extraction retries.
+func (s *SQLiteMemory) DeferConsolidationClaims(ids []int64) error {
+	return s.markConsolidationFailure(ids, "infrastructure_unavailable", false)
+}
+
+func (s *SQLiteMemory) markConsolidationFailure(ids []int64, reason string, consumeRetry bool) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -512,15 +542,19 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 		reason = reason[:300]
 	}
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, 0, len(ids)+1)
-	args = append(args, reason)
+	args := make([]interface{}, 0, len(ids)+2)
+	increment := 0
+	if consumeRetry {
+		increment = 1
+	}
+	args = append(args, increment, reason)
 	for i, id := range ids {
 		placeholders[i] = "?"
 		args = append(args, id)
 	}
 	query := fmt.Sprintf(`UPDATE archived_messages
 		SET consolidation_status = 'failed',
-		    consolidation_retries = consolidation_retries + 1,
+		    consolidation_retries = consolidation_retries + ?,
 		    consolidation_last_error = ?,
 		    consolidation_claimed_at = NULL,
 		    next_retry_at = datetime('now', '+' || (CASE
@@ -758,6 +792,8 @@ type MemoryMeta struct {
 
 // MemoryMetaUpdate allows callers to enrich a memory_meta row with quality and provenance signals.
 type MemoryMetaUpdate struct {
+	SourceSessionID      string
+	SourceRole           string
 	ExtractionConfidence float64
 	VerificationStatus   string
 	SourceType           string

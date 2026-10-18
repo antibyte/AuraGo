@@ -10,7 +10,7 @@
 /**
  * Translate a key using the page's I18N dictionary.
  * Pages expose translations through js/shared/template-data.js before loading shared.js.
- * Supports {{placeholder}} interpolation.
+ * Supports {{placeholder}} interpolation. Values are inserted literally.
  * @param {string} k - The translation key
  * @param {Object} [p] - Optional placeholder map
  * @returns {string}
@@ -18,9 +18,10 @@
 function t(k, p) {
     const dict = typeof I18N !== 'undefined' ? I18N : null;
     let s = (dict && dict[k]) || k;
+    // A replacer function inserts the value literally; a replacement string would expand $&, $1 and $$.
     if (p) Object.entries(p).forEach(([a, b]) => {
-        s = s.replaceAll('{{' + a + '}}', b);
-        s = s.replaceAll('{' + a + '}', b);
+        s = s.replaceAll('{{' + a + '}}', () => b);
+        s = s.replaceAll('{' + a + '}', () => b);
     });
     return s;
 }
@@ -40,8 +41,8 @@ function tOr(k, fallback, p) {
     }
     let s = dict[k];
     if (p) Object.entries(p).forEach(([a, b]) => {
-        s = s.replaceAll('{{' + a + '}}', b);
-        s = s.replaceAll('{' + a + '}', b);
+        s = s.replaceAll('{{' + a + '}}', () => b);
+        s = s.replaceAll('{' + a + '}', () => b);
     });
     return s;
 }

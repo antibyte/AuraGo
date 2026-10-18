@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// Runs the dashboard widgets in Node on a stub DOM and checks that cron jobs owned by EasyDrag (a flow's schedule)
-// render read-only in both renderers: the Cronjobs tab (renderCronjobs, managed_by "easydrag") and the activity
-// widget (renderActivity, source "flow"). The server refuses edit, toggle and delete of those jobs with 409.
+// Runs the automations and tools section modules (ui/js/dashboard/sections/) in Node on a stub DOM and checks that
+// cron jobs owned by EasyDrag (a flow's schedule) render read-only in both renderers: the cron job card
+// (renderCronjobs, managed_by "easydrag") and the activity widget (renderActivity, source "flow"). The server refuses
+// edit, toggle and delete of those jobs with 409.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const file = path.join(here, '..', 'ui', 'js', 'dashboard', 'dashboard-widgets.js');
+const dashboard = path.join(here, '..', 'ui', 'js', 'dashboard');
 
 class El {
     constructor(tag) { this.tagName = String(tag || 'div').toUpperCase(); this.children = []; this.innerHTML = ''; this.textContent = ''; this.style = {}; this.className = ''; this.dataset = {}; }
@@ -25,12 +26,22 @@ const document = {
 };
 const t = (key, params) => key + (params ? ' ' + JSON.stringify(params) : '');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// shared-core.js's escAttr is esc plus quotes; this stub esc already escapes them.
+const escAttr = esc;
 const truncate = (s, max) => (String(s || '').length > max ? String(s).slice(0, max) + '…' : String(s || ''));
 
-const sandbox = { window: {}, document, console, t, esc, truncate, LANG: 'en', setTimeout, clearTimeout, URLSearchParams, AbortController };
+const sandbox = { window: {}, document, console, t, esc, escAttr, truncate, LANG: 'en', setTimeout, clearTimeout, URLSearchParams, AbortController, DashSections: { register() {} } };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+// main.js boots the page at load time (DOM, Chart.js), so only its two shared helpers are taken: function declarations
+// are hoisted, and a wrapper that returns them before the body never runs the body.
+const mainFile = path.join(dashboard, 'main.js');
+const mainSource = fs.readFileSync(mainFile, 'utf8');
+Object.assign(sandbox, vm.runInContext(`(function () {\nreturn { createLatestRequestGate, cronjobManagedLabel };\n${mainSource}\n})`, sandbox, { filename: mainFile })());
+for (const id of ['automations', 'tools']) {
+    const file = path.join(dashboard, 'sections', id + '.js');
+    vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+}
 
 let failures = 0;
 function check(name, cond, detail) {

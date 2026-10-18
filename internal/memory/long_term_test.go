@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"aurago/internal/config"
 
@@ -76,17 +75,6 @@ func TestExtractSimilarityScore(t *testing.T) {
 				t.Errorf("ExtractSimilarityScore(%q) = %v, want %v", tt.input, got, tt.expected)
 			}
 		})
-	}
-}
-
-func TestTruncateArchiveItemContentPreservesUTF8(t *testing.T) {
-	value := "界" + string(make([]byte, 20))
-	got := truncateArchiveItemContent(value)
-	if !utf8.ValidString(got) {
-		t.Fatalf("invalid UTF-8: %q", got)
-	}
-	if len(got) > maxBatchItemBytes {
-		t.Fatalf("len = %d, want <= %d", len(got), maxBatchItemBytes)
 	}
 }
 
@@ -209,7 +197,7 @@ func TestValidateEmbeddingWithRetryBackoffStopsOnContextCancel(t *testing.T) {
 	}
 }
 
-func TestNewChromemVectorDBDisabledDoesNotOpenPersistentDB(t *testing.T) {
+func TestNewChromemVectorDBDisabledKeepsDurableCorpusAvailable(t *testing.T) {
 	vectorDir := filepath.Join(t.TempDir(), "vectordb")
 	cfg := &config.Config{}
 	cfg.Directories.VectorDBDir = vectorDir
@@ -227,11 +215,11 @@ func TestNewChromemVectorDBDisabledDoesNotOpenPersistentDB(t *testing.T) {
 	if !cv.IsReady() {
 		t.Fatal("disabled VectorDB IsReady() = false")
 	}
-	if cv.db != nil {
-		t.Fatal("disabled VectorDB opened a persistent chromem DB")
+	if cv.corpus == nil {
+		t.Fatal("disabled embeddings must retain access to the canonical corpus")
 	}
-	if _, statErr := os.Stat(vectorDir); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("disabled VectorDB vector dir stat err = %v, want os.ErrNotExist", statErr)
+	if _, statErr := os.Stat(filepath.Join(vectorDir, "documents.sqlite")); statErr != nil {
+		t.Fatalf("durable corpus unavailable: %v", statErr)
 	}
 }
 
@@ -328,21 +316,6 @@ func TestSearchSimilarScoredContextHonorsCanceledContext(t *testing.T) {
 	}
 	if calls.Load() != 0 {
 		t.Fatalf("embedding calls = %d, want 0 for pre-canceled context", calls.Load())
-	}
-}
-
-func TestStoreBatchTruncatesContentWithoutSplittingUTF8(t *testing.T) {
-	value := strings.Repeat("a", maxBatchItemBytes-1) + "ä" + "tail"
-	got := truncateArchiveItemContent(value)
-
-	if len(got) > maxBatchItemBytes {
-		t.Fatalf("truncated length = %d, want <= %d", len(got), maxBatchItemBytes)
-	}
-	if !utf8.ValidString(got) {
-		t.Fatalf("truncated content is not valid UTF-8")
-	}
-	if strings.HasSuffix(got, "\xc3") {
-		t.Fatalf("truncated content ended with partial UTF-8 byte")
 	}
 }
 

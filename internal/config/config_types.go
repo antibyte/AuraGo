@@ -1475,7 +1475,7 @@ type Config struct {
 	} `yaml:"journal"`
 	Consolidation struct {
 		Enabled              bool   `yaml:"enabled"`                // enable nightly STM→LTM consolidation (default true)
-		AutoOptimize         bool   `yaml:"auto_optimize"`          // run optimize_memory after consolidation (default true)
+		AutoOptimize         bool   `yaml:"auto_optimize"`          // run optimize_memory after consolidation (default false)
 		ArchiveRetainDays    int    `yaml:"archive_retain_days"`    // keep archived messages for N days (default 30)
 		MaxBatchMessages     int    `yaml:"max_batch_messages"`     // max messages per consolidation batch (default 200)
 		CatchupMinutes       int    `yaml:"catchup_minutes"`        // optional daily post-maintenance consolidation budget (0 = disabled, max 60)

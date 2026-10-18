@@ -10,6 +10,7 @@ Own the installation's personal daily publication, durable editions and delivery
 - `store.go` owns the versioned SQLite state under the configured data directory.
 - `types.go` validates profiles, source-backed drafts and immutable edition hashes.
 - `render.go` renders the saved edition for email and PDF.
+- `pdf_fonts.go` selects a complete regular/bold pair for PDF download and Telegram. Keep local Go fonts for covered editions and the bundled Noto Sans SC fallback for mixed Chinese text, including source metadata. Preserve explicit rejection of unsupported glyphs/shaping and the Telegram text fallback. Font provenance, license, regeneration and visual checks live in `fonts/README.md`.
 - `skills/aurago-newspaper/SKILL.md` is the bundled editorial policy, registered through the Agent Skill Manager.
 
 ## Local Contracts

@@ -41,6 +41,8 @@ func TestMaintenanceErrorCodesAreSanitized(t *testing.T) {
 
 func TestMorningBriefingUsesOnlyCurrentStructuredResults(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Server.UILanguage = "de"
 	results := memory.MaintenancePhaseResults{
 		Processed:             7,

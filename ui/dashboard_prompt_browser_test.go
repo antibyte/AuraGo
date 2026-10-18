@@ -33,8 +33,7 @@ func TestDashboardPromptLocales(t *testing.T) {
 			}
 		}
 	}
-	main := string(mustReadUIFile(t, "js/dashboard/main.js"))
-	if !strings.Contains(main, "createPromptSavingsChart('prompt-savings-chart', promptStats.recent_fits)") {
+	if !strings.Contains(readDashboardJS(t), "createPromptSavingsChart('prompt-savings-chart', promptStats.recent_fits)") {
 		t.Fatal("budget chart must use request fits")
 	}
 }
@@ -58,9 +57,10 @@ window.esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>
 window.t = k => window.translations?.[k] || k;
 window.cv = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '#778899';
 window.dashSetHidden = (el, hidden) => el.classList.toggle('is-hidden', hidden);
+window.DashSections = { register() {} };
 window.charts = [];
 </script><script src="/chart.min.js"></script>
-<script src="/js/dashboard/dashboard-widgets.js"></script><script src="/js/dashboard/dashboard-charts.js"></script>
+<script src="/js/dashboard/main.js"></script><script src="/js/dashboard/sections/prompts.js"></script><script src="/js/dashboard/dashboard-charts.js"></script>
 <script>
 Chart.defaults.animation=false; Chart.defaults.maintainAspectRatio=false;
 window.paint = data => {

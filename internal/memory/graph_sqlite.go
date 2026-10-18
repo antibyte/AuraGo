@@ -160,9 +160,13 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	if strings.TrimSpace(dbPath) == ":memory:" {
 		maxOpenConns = 1
 	}
-	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(maxOpenConns))
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(maxOpenConns), dbutil.WithImmediateTransactions())
 	if err != nil {
 		return nil, fmt.Errorf("open knowledge graph db: %w", err)
+	}
+	if err := protectMemoryDatabase(db); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	kg := &KnowledgeGraph{

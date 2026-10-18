@@ -193,7 +193,7 @@ func newMaintenanceController(ctx context.Context, cfg *config.Config, deps Main
 		claimDay:   opts.claimDay,
 		dayClaimed: opts.dayClaimed,
 	}
-	inner.pendingDone = startPendingMemoryWriteRetryLoop(controllerCtx, deps.Logger, deps.ShortTermMem, deps.LongTermMem)
+	inner.pendingDone = startPendingMemoryWriteRetryLoop(controllerCtx, deps.Logger, deps.ShortTermMem, deps.LongTermMem, func() *config.Config { inner.mu.RLock(); defer inner.mu.RUnlock(); return inner.cfg })
 	inner.loopWG.Add(1)
 	go inner.loop()
 	return &MaintenanceController{inner: inner}
@@ -445,11 +445,22 @@ func (c *maintenanceController) startRun(cfg *config.Config) bool {
 	go func() {
 		defer close(runDone)
 		defer cancel()
+		defer func() {
+			c.mu.Lock()
+			c.running = false
+			c.runCancel = nil
+			c.mu.Unlock()
+		}()
+		defer func() {
+			if recover() != nil {
+				c.logger.Error("maintenance controller run panicked")
+				ledger := newMaintenanceRunLedger()
+				ledger.addError("maintenance_panic")
+				ledger.markFailed()
+				completeMaintenanceRun(cfg, c.logger, c.deps.ShortTermMem, c.deps.PlannerDB, startedAt, ledger)
+			}
+		}()
 		c.run(runCtx, cfg)
-		c.mu.Lock()
-		c.running = false
-		c.runCancel = nil
-		c.mu.Unlock()
 	}()
 	return true
 }

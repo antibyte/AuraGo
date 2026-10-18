@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/security"
 )
 
 const pendingMemoryWriteMaxAttempts = 6
@@ -58,7 +60,7 @@ func (s *SQLiteMemory) InitPendingMemoryWritesTable() error {
 		return fmt.Errorf("inspect pending memory metadata migration: %w", err)
 	}
 	if hasMetadata {
-		return nil
+		return s.normalizeLegacyPendingMemoryWrites()
 	}
 	var populated bool
 	if err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM pending_memory_writes) OR EXISTS(SELECT 1 FROM memory_meta) OR EXISTS(SELECT 1 FROM messages)`).Scan(&populated); err != nil {
@@ -79,16 +81,37 @@ func (s *SQLiteMemory) InitPendingMemoryWritesTable() error {
 			}
 		}
 	}
-	return dbutil.MigrateAddColumn(s.db, "pending_memory_writes", "metadata_json", "TEXT", s.logger)
+	if err := dbutil.MigrateAddColumn(s.db, "pending_memory_writes", "metadata_json", "TEXT", s.logger); err != nil {
+		return err
+	}
+	return s.normalizeLegacyPendingMemoryWrites()
 }
 
 func (s *SQLiteMemory) EnqueuePendingMemoryWrite(write PendingMemoryWrite, cause error) error {
+	if session, ok := MemoryAnalysisSession(write.Content); ok && session != "" && (write.Metadata == nil || write.Metadata.SourceSessionID == "") {
+		details := MemoryMetaUpdate{SourceType: "memory_analysis", SourceRole: "unknown"}
+		if write.Metadata != nil {
+			details = *write.Metadata
+		}
+		details.SourceSessionID = session
+		write.Metadata = &details
+	}
+	if write.Metadata != nil && write.Metadata.SourceSessionID != "" {
+		s.sessionWriteMu.Lock()
+		defer s.sessionWriteMu.Unlock()
+		if err := s.checkSessionWritable(context.Background(), write.Metadata.SourceSessionID); err != nil {
+			return err
+		}
+	}
+	if HasDurableCredential(write.Concept + "\n" + write.Content) {
+		return fmt.Errorf("%w: credentials cannot enter pending memory", ErrAutomaticMemorySkipped)
+	}
 	if write.Concept == "" || write.Content == "" {
 		return fmt.Errorf("pending memory write requires concept and content")
 	}
 	lastError := ""
 	if cause != nil {
-		lastError = cause.Error()
+		lastError = security.RedactSensitiveInfo(security.Scrub(cause.Error()))
 	}
 	var metadata any
 	if write.Metadata != nil {
@@ -152,7 +175,7 @@ func (s *SQLiteMemory) GetDuePendingMemoryWrites(now time.Time, limit int) ([]Pe
 func (s *SQLiteMemory) MarkPendingMemoryWriteFailed(id int64, cause error, now time.Time) error {
 	lastError := ""
 	if cause != nil {
-		lastError = cause.Error()
+		lastError = security.RedactSensitiveInfo(security.Scrub(cause.Error()))
 	}
 	var attempts int
 	if err := s.db.QueryRow(`SELECT attempts + 1 FROM pending_memory_writes WHERE id = ?`, id).Scan(&attempts); err != nil {
@@ -173,6 +196,15 @@ func (s *SQLiteMemory) MarkPendingMemoryWriteFailed(id int64, cause error, now t
 	`, attempts, now.UTC().Add(delay), lastError, status, id)
 	if err != nil {
 		return fmt.Errorf("mark pending memory write failed: %w", err)
+	}
+	return nil
+}
+
+// DeferPendingMemoryWrite retains the validation retry budget during provider outages.
+func (s *SQLiteMemory) DeferPendingMemoryWrite(id int64, now time.Time) error {
+	_, err := s.db.Exec(`UPDATE pending_memory_writes SET next_attempt_at=?, last_error='infrastructure_unavailable', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'`, now.UTC().Add(5*time.Minute), id)
+	if err != nil {
+		return fmt.Errorf("defer pending memory write: %w", err)
 	}
 	return nil
 }

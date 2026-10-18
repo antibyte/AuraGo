@@ -356,6 +356,14 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
 		sessionID := speechLabSessionID
+		if sessionID == "default" && lastUserMsg.Role == openai.ChatMessageRoleUser && !requestMessageIsInternal(isFollowUp, missionID) && s.ShortTermMem != nil {
+			var err error
+			sessionID, err = s.ShortTermMem.ResolveUserSession(r.Context(), sessionID)
+			if err != nil {
+				jsonError(w, "Unable to open conversation", http.StatusConflict)
+				return
+			}
+		}
 		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
 			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, chatCompletionQuestionAnswerSource(isFollowUp, missionID), s.Logger) {
 			return

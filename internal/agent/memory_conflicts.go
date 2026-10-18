@@ -31,11 +31,10 @@ var conflictSignalPatterns = []struct {
 	re        *regexp.Regexp
 }{
 	{predicate: "preference", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:prefers?|preferred)\s+(.+)$`)},
-	{predicate: "usage", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:uses?|used|switched to|switches to)\s+(.+)$`)},
-	{predicate: "platform", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:runs on|run on|hosted on|is on)\s+(.+)$`)},
-	{predicate: "location", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:located in|lives in|moved to|is in)\s+(.+)$`)},
-	{predicate: "language", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:language is|responds in|speaks?)\s+(.+)$`)},
-	{predicate: "port", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:runs on port|listens on port|port is|port)\s+([0-9]{2,5})\b`)},
+	{predicate: "primary_platform", re: regexp.MustCompile(`(?i)^(.+?)\s+primary platform is\s+(.+)$`)},
+	{predicate: "primary_location", re: regexp.MustCompile(`(?i)^(.+?)\s+primary (?:location|residence) is\s+(.+)$`)},
+	{predicate: "language", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:default language is|response language is)\s+(.+)$`)},
+	{predicate: "default_port", re: regexp.MustCompile(`(?i)^(.+?)\s+default port is\s+([0-9]{1,5})$`)},
 }
 
 func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
@@ -124,7 +123,14 @@ func deriveConflictSignals(text string, format conflictTextFormat) []conflictSig
 		if subject == "" || value == "" {
 			continue
 		}
-		signal := conflictSignal{Key: subject + "|" + pattern.predicate, Value: value}
+		predicate := pattern.predicate
+		if predicate == "preference" {
+			predicate = singletonPreferenceType(value)
+			if predicate == "" {
+				continue
+			}
+		}
+		signal := conflictSignal{Key: subject + "|" + predicate, Value: value}
 		if _, ok := seen[signal.Key+"|"+signal.Value]; ok {
 			continue
 		}
@@ -132,6 +138,19 @@ func deriveConflictSignals(text string, format conflictTextFormat) []conflictSig
 		out = append(out, signal)
 	}
 	return out
+}
+
+// Only known single-choice preferences provide evidence of mutual exclusion.
+func singletonPreferenceType(value string) string {
+	switch value {
+	case "german", "english", "french", "spanish", "italian", "japanese", "chinese", "dutch", "polish", "portuguese", "swedish", "danish", "norwegian", "czech", "greek", "hindi":
+		return "language"
+	case "dark theme", "light theme", "system theme":
+		return "theme"
+	case "vim", "emacs", "vscode", "vs code", "neovim":
+		return "editor"
+	}
+	return ""
 }
 
 func normalizeConflictText(text string, format conflictTextFormat) string {

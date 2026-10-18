@@ -34,6 +34,8 @@ func TestRunPostConsolidationMemoryMaintenanceCuratesWithoutNewFacts(t *testing.
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Consolidation.AutoOptimize = true
 	cfg.MemoryAnalysis.AutoConfirm = 0.92
 
@@ -74,6 +76,8 @@ func TestRunMaintenanceCompressedOutputCleanupRemovesExpiredOutputs(t *testing.T
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Agent.OutputCompression.Reversible.Enabled = true
 	cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
 
@@ -99,6 +103,8 @@ func TestRunMaintenanceTaskDoesNotSetGlobalMaintenanceLock(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 1
 	cfg.Directories.PromptsDir = filepath.Join(t.TempDir(), "missing-prompts")
 	cfg.LLM.Model = "test-model"
@@ -122,6 +128,8 @@ func TestConsolidateSTMtoLTMReturnsZeroWhenNoArchivedMessages(t *testing.T) {
 	t.Cleanup(func() { _ = stm.Close() })
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	cfg.Consolidation.MaxBatchMessages = 200
 	cfg.Consolidation.ArchiveRetainDays = 30

@@ -9,6 +9,8 @@ import (
 
 func TestComputeNextMaintenanceRunCalendarDisabledAndInvalid(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	if got := computeNextMaintenanceRunCalendar(cfg, time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)); !got.IsZero() {
 		t.Fatalf("disabled schedule = %v, want zero", got)
 	}
@@ -27,6 +29,8 @@ func TestComputeNextMaintenanceRunCalendarUsesCalendarDays(t *testing.T) {
 		t.Skipf("timezone unavailable: %v", err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "04:00"
 	now := time.Date(2026, 3, 28, 5, 0, 0, 0, location)
@@ -49,6 +53,8 @@ func TestComputeNextMaintenanceRunCalendarUsesFirstValidSpringMinute(t *testing.
 		t.Skipf("timezone unavailable: %v", err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "02:30"
 	now := time.Date(2026, 3, 28, 5, 0, 0, 0, location)
@@ -65,6 +71,8 @@ func TestComputeNextMaintenanceRunCalendarUsesFirstValidNewYorkSpringMinute(t *t
 		t.Skipf("timezone unavailable: %v", err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "02:30"
 	now := time.Date(2026, 3, 7, 5, 0, 0, 0, location)
@@ -81,6 +89,8 @@ func TestComputeNextMaintenanceRunCalendarChoosesDSTFoldFirstOccurrence(t *testi
 		t.Skipf("timezone unavailable: %v", err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "02:30"
 	now := time.Date(2026, 10, 24, 5, 0, 0, 0, location)

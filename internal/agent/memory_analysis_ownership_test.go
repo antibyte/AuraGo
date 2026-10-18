@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -82,7 +81,7 @@ func TestMemoryAnalysisPreservesHumanCuration(t *testing.T) {
 					case "correction":
 						result.Corrections = fact
 					}
-					applyMemoryAnalysisResult(&config.Config{}, logger, stm, vdb, "default", result)
+					applyMemoryAnalysisResult(enabledMemoryTestConfig(), logger, stm, vdb, "default", result)
 					after, err := stm.GetMemoryMeta("existing")
 					if err != nil || !reflect.DeepEqual(before, after) {
 						t.Fatalf("curation changed: before=%+v after=%+v err=%v", before, after, err)

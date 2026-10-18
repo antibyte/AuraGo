@@ -217,7 +217,8 @@ func (s *Server) sweepCYDCreatorAgentSessions(service *cydcreator.Service) {
 		return
 	}
 	for _, id := range ids {
-		job, err := service.GetJob(context.Background(), strings.TrimPrefix(id, cydCreatorAgentSessionPrefix))
+		jobID, _, _ := strings.Cut(strings.TrimPrefix(id, cydCreatorAgentSessionPrefix), ":")
+		job, err := service.GetJob(context.Background(), jobID)
 		if err == nil && (job.Status == cydcreator.JobQueued || job.Status == cydcreator.JobRunning) {
 			continue
 		}

@@ -18,6 +18,12 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+Newspaper PDF download and Telegram share Noto Sans SC 2.004 regular/bold
+fallback fonts in the verified external resource set (SIL OFL 1.1). They remain
+outside the executable's embed budget. See
+[`internal/newspaper/fonts/README.md`](../internal/newspaper/fonts/README.md)
+for the pinned source, hashes, fontTools 4.62.1 regeneration commands and checks.
+
 AuraGolf pins `@dimforge/rapier3d-compat` 0.21.0 (Apache-2.0) alongside the
 existing Three.js 0.186.1 (MIT). Its isolated bundle includes the physics WASM;
 the Desktop CSP's existing `wasm-unsafe-eval` is sufficient. Build with

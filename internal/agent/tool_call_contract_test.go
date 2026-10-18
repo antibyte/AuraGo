@@ -60,7 +60,9 @@ func TestInvokeCoAgentPolicyParity(t *testing.T) {
 		dc.ExecutionHooks = hooks
 		for _, call := range []ToolCall{
 			{Action: "manage_notes", Operation: "add", Title: "fixture"},
+			{Action: "manage_notes", Params: map[string]interface{}{"operation": " ADD ", "title": "fixture"}},
 			{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": "manage_notes", "arguments": map[string]interface{}{"operation": "add", "title": "fixture"}}},
+			{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": "manage_notes", "operation": " ADD ", "title": "fixture"}},
 		} {
 			result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
 			if !result.IsError || !strings.Contains(result.Output, "Co-Agents cannot modify notes") {

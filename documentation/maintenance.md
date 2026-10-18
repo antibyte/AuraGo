@@ -23,8 +23,27 @@ Before metadata commit, rollback affects only new artifacts. After commit, the
 replacement survives an old-vector deletion or reference-cleanup failure. An
 uncertain commit preserves replacement artifacts for recovery. There is no
 cross-store transaction; interruption may leave extra copies, never justify
-deleting the replacement. Low-priority optimization archives through the
-policy-aware metadata operation and retains the original vector.
+deleting the replacement. Automatic archiving uses the shared curation plan:
+it requires at least fourteen days without access and retains confirmed,
+protected and keep-forever memories. Low priority alone cannot archive a fact.
+Post-consolidation optimization defaults off (`consolidation.auto_optimize`).
+
+Conversation consolidation includes source session, role and continuation headers.
+Oversized messages are extracted in complete bounded parts and finalized only
+after every part succeeds. Realtime extraction and shared helper-turn retries likewise retain the complete
+human and assistant source. Oversize realtime inputs defer to full transcript
+consolidation without publishing a clipped extraction. Helper retries retain the
+same source. Provider and
+embedding outages back off without spending the malformed-result retry budget;
+cancellation releases genuine `in_progress` claims. A panic fails the run,
+releases claims and skips catch-up. Corrected or filtered facts are skipped
+without rolling back healthy facts in the same extraction.
+
+Automatic runtime writers share current target enablement/read-only checks.
+Session deletion fences delayed vector and graph publication. Mixed human and
+assistant extraction is explicitly unverified with reduced source reliability;
+source roles survive queue retries and document storage. Credentials are
+rejected at durable fact ingress, while legitimate personal facts remain allowed.
 
 Canonical repair scans at most 100 metadata rows using the existing keyset
 query. Its cursor survives restart in `memory_maintenance_meta`; individual
@@ -54,6 +73,32 @@ Only that format's known wrappers are removed; every raw paragraph and unknown
 bracket text survives. Queue and immediate checks use the same fact and cancellation
 context. Archive retention removes consolidated terminal
 `done` and `excluded` rows; pending, processing and failed work survives.
+
+Automatic conflict detection compares only matching typed single-choice properties.
+A language preference does not conflict with a theme or editor preference. Generic
+usage, spoken languages and host listening ports can coexist; an explicit named
+endpoint default port can be compared. Dashboard **Both facts are valid** dismisses
+the review while retaining both memories. Other open conflicts remain active.
+The existing administrative conflict-resolution endpoint accepts `action: "dismiss"`
+without a winning document. Repeated scans keep unchanged reviewed pair values
+dismissed; changed values may reopen the review.
+
+Knowledge-graph lexical search matches individually escaped terms with OR and
+orders by relevance. Excluded node types do not consume context result limits;
+semantic retrieval uses the full query and backfills past excluded candidates.
+Memory recency accepts SQLite and RFC3339 timestamps without extra future-date
+boosts. Prompt budgets preserve complete facts or intact recall teasers and mark
+omitted entries, so a clipped identifier never becomes an unusable recall target.
+
+Plan dependencies must be non-null JSON arrays of task IDs. An empty array `[]`
+is a valid independent task; null, other JSON shapes, malformed/empty values,
+missing references and cycles visibly block legacy plans rather than starting
+unknown work. Splitting refuses unreadable dependencies. Repair the dependency
+data before clearing the blocker; activation validates the graph again.
+
+Native oversize chunking prepares Unicode runes once and advances positions,
+retaining boundary preferences and overlap without repeatedly copying the suffix.
+`BenchmarkRecursiveOversize` covers 1 MiB and 8 MiB inputs to check scaling.
 
 Core-memory synchronization uses context-bound `UpdateNodeIndexed` and
 `AddNodeIndexed`; the existing public node writers remain best effort. Strict writes
@@ -148,7 +193,32 @@ verify the reviewed running build and a later persisted maintenance run separate
 
 ## Offline analysis duplicate merge
 
-`cmd/memory-repair` uses the existing SQLite, Chromem and application-lock dependencies.
+`cmd/memory-repair` reads the verified canonical document corpus at
+`directories.vectordb_dir/documents.sqlite`; installations not yet migrated retain
+the legacy Chromem reader. The command never initializes embedding providers or
+migrates source stores. Backups and rehearsals use a consistent SQLite snapshot
+of the canonical corpus. Unfinished merge journals exclude their involved IDs
+from new previews; journals without recoverable ownership block new groups.
+Always resume their original saved plan.
+
+Automatic pre-maintenance memory snapshots are stored under
+`data_dir/memory_backups` with owner-only access. Retention applies only to
+checksum-verified, completed automatic snapshot manifests: keep the last 30 days
+and at least three complete snapshots. Manual backups, corruption quarantines,
+legacy migration backups and incomplete artifacts are outside this pruning
+policy. The maintenance controller creates a consistent STM, KG and document
+corpus snapshot before starting its phases.
+
+The canonical corpus retains complete source documents and raw IDs independently
+of the derived in-memory semantic index. A model change or reset preserves
+sources, human curation, archive state, extraction observations and file pointers.
+Reindexing retries durable pending work after restart and never queries vectors
+from an unknown or incompatible model/dimension. Available multimodal files are
+re-embedded through the existing authorized file indexer under their original IDs
+when source content/chunks are unchanged. Missing sources remain readable with
+`index_pending`, `index_blocked` and `index_error` status; restore the source or
+review the blocked record. Legacy vector originals and verified migration backups
+remain available for separately reviewed recovery.
 It performs no embedding or network requests and does not migrate schemas. Complete
 the backed-up source-table migration with the upgraded agent first, then stop the
 agent for both preview and application. Set `--install-dir` to the actual directory
@@ -306,3 +376,26 @@ replace existing summaries, including concurrent writes. Catch-up dates only
 generate summaries; current KG extraction executes once. The activity rollup
 targets yesterday. Input bounds and the protected tail time reserve still apply;
 unprocessed eligible days remain visible as deferred work.
+# Privacy deletion and retained backups
+
+Deleting a chat permanently removes its conversation, archived copies and session plans, tasks and events. Automatic rotation still archives conversations. The optional **Also delete associated memories** checkbox is off by default. Selecting it removes only memories whose exclusive automatic source can be proven. Shared, protected, manually curated or unclear records remain; the result reports removed and retained items. Raw conversation copies in session-bound graph evidence are cleared even when derived knowledge is retained.
+
+Deleting a contact follows the same default: keep derived knowledge. The People app and Knowledge Center offer an unchecked option to remove exclusively proven contact knowledge. Native address-book deletion keeps knowledge. A deleted source cannot be restored by a delayed synchronization or background run. Partial results identify the completed deletion and incomplete knowledge cleanup; refresh before deciding on another explicit attempt.
+
+Dashboard memory notes expose **Protected** and **Keep forever**. Unlock a protected note before editing or deleting it. Keep forever excludes a note from automatic cleanup. Both flags are rechecked when curation or retention applies a change.
+
+Deletion applies to live stores. Backups can retain deleted data until their normal cleanup. Maintenance retains completed managed memory snapshots for 30 days and preserves at least three complete snapshots. Quarantined files, open migration/repair backups and unknown backups are excluded from that automatic removal. Snapshot storage uses owner-only access; separately retained repair or migration backups require their own reviewed cleanup.
+
+
+Personality V2 mood analysis and combined mood/emotion narration use the same
+provider-aware output limits and the `personality` budget category. Shared turn
+batches containing personality output use the same gate and book their whole
+physical request once to `personality`, including retries. Batches without
+personality output use `helper_turn`. Invalid,
+truncated and failed responses with reported usage still count. Missing or
+exhausted budget trackers skip generation. If no helper or dedicated V2 endpoint
+is configured, the log explicitly records a main-model fallback limited to one
+request and twenty seconds; dedicated/helper analysis is capped at sixty seconds.
+There is no independent emotion-generation request. Local affect and the shared
+persistent emotion state continue to work without an LLM call. Session deletion
+and shutdown cancel pending analysis and prevent late personality writes.

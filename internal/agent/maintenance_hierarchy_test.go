@@ -81,6 +81,8 @@ func TestConsolidateSTMtoLTMDoesNotClaimWhenNoLLMAvailable(t *testing.T) {
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Consolidation.Enabled = true
 	cfg.Consolidation.MaxBatchMessages = 10
 

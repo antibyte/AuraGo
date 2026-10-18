@@ -669,6 +669,10 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 			continue
 		}
 		results = append(results, recalledMemory{ID: id, Content: security.Scrub(content)})
+		if shortTermMem != nil {
+			_ = shortTermMem.UpdateMemoryAccess(id)
+			_ = shortTermMem.RecordMemoryUsage(id, "ltm_recalled", sessionID, 1, false)
+		}
 	}
 	response := map[string]interface{}{
 		"status":  "success",

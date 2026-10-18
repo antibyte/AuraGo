@@ -32,7 +32,7 @@
                 .slice(0, 6)
                 .map(([type, count]) => {
                     const color = knowledgeGraphTypeColor(type);
-                    return `<span class="knowledge-type-badge" data-badge-color="${esc(color)}">${esc(type)} (${count})</span>`;
+                    return `<span class="knowledge-type-badge" data-badge-color="${escAttr(color)}">${esc(type)} (${count})</span>`;
                 }).join('');
 
             grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
@@ -96,7 +96,7 @@
                 return;
             }
             container.innerHTML = rows.map(row => `
-                <div class="kg-health-row" data-consistency-key="${esc(row.key)}">
+                <div class="kg-health-row" data-consistency-key="${escAttr(row.key)}">
                     <span>${esc(row.lbl)}</span>
                     <strong>${esc(String(row.val))}</strong>
                 </div>
@@ -123,17 +123,17 @@
                     rawIDs.sort((left, right) => Number(right === recommendedTargetID) - Number(left === recommendedTargetID));
                 }
                 const idLinks = rawIDs.map(id =>
-                    `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
+                    `<span class="kg-cell-link" data-kg-open-node="${escAttr(id)}">${esc(id)}</span>`
                 ).join(', ');
                 const mergeButtons = allowMerge ? rawIDs.flatMap(targetID =>
                     rawIDs.filter(sourceID => sourceID !== targetID).map(sourceID => {
                         const direction = `${sourceID} → ${targetID}`;
                         return `
                             <button type="button" class="btn btn-secondary btn-sm"
-                                data-kg-merge-source="${esc(sourceID)}"
-                                data-kg-merge-target="${esc(targetID)}"
-                                data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}"
-                                title="${esc(t('dashboard.knowledge_quality_merge_btn'))}: ${esc(direction)}">
+                                data-kg-merge-source="${escAttr(sourceID)}"
+                                data-kg-merge-target="${escAttr(targetID)}"
+                                data-kg-merge-label="${escAttr(candidate.label || candidate.normalized_label || 'Node')}"
+                                title="${escAttr(t('dashboard.knowledge_quality_merge_btn'))}: ${escAttr(direction)}">
                                 ${esc(direction)}
                             </button>`;
                     })
@@ -199,7 +199,7 @@
                 '</tr></thead><tbody>';
             nodes.forEach(node => {
                 html += `<tr>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
                     <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
                 </tr>`;
@@ -230,12 +230,12 @@
             nodes.forEach(node => {
                 const typeColor = node?.properties?.type ? knowledgeGraphTypeColor(node.properties.type) : '';
                 const typeCell = typeColor
-                    ? `<td><span class="kg-type-badge" data-badge-color="${esc(typeColor)}">${esc(node.properties.type)}</span></td>`
+                    ? `<td><span class="kg-type-badge" data-badge-color="${escAttr(typeColor)}">${esc(node.properties.type)}</span></td>`
                     : '<td class="text-secondary">—</td>';
                 const score = typeof node.importance_score === 'number' ? node.importance_score : '—';
                 const flags = node.protected ? '<span class="kg-flag-protected" title="Protected">🔒</span>' : '';
                 html += `<tr>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     ${typeCell}
                     <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
                     <td class="text-secondary">${esc(node?.properties?.source || '—')}</td>
@@ -262,8 +262,8 @@
             edges.forEach(edge => {
                 html += `<tr>
                     <td class="kg-cell-link">${esc(edge.relation || '')}</td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.source || '')}">${esc(edge.source || '')}</td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.target || '')}">${esc(edge.target || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(edge.source || '')}">${esc(edge.source || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(edge.target || '')}">${esc(edge.target || '')}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -311,7 +311,7 @@
             nodes.forEach(node => {
                 html += `<tr>
                     <td><span class="kg-kind-badge">${t('dashboard.knowledge_nodes')}</span></td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     <td class="text-secondary">${esc(node.id || '')}</td>
                     <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
                 </tr>`;
@@ -444,8 +444,8 @@
                 <div class="knowledge-detail-row knowledge-edge-row">
                     <div><strong>${escapeHtml(edge.relation || '')}</strong>: ${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn btn-danger btn-sm" data-kg-action="delete-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_edge_delete')}</button>
                     </div>
                 </div>
             `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
@@ -461,9 +461,9 @@
                         </div>
                         <div class="knowledge-detail-actions">
                             ${isProtected ? `<span class="knowledge-item-badge knowledge-item-badge-protected">${t('dashboard.knowledge_detail_protected')}</span>` : ''}
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-node" data-kg-node="${escAttr(node.id || '')}">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-kg-action="protect-node" data-kg-node="${escAttr(node.id || '')}" data-kg-protect="${isProtected ? 'false' : 'true'}">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
+                            <button type="button" class="btn btn-danger btn-sm" data-kg-action="delete-node" data-kg-node="${escAttr(node.id || '')}" data-kg-label="${escAttr(node.label || node.id || 'Node')}">${t('dashboard.knowledge_action_delete')}</button>
                         </div>
                     </div>
                     ${renderKnowledgeGraphNodeEditor(node, isEditing)}
@@ -522,8 +522,8 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphNodeEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" data-kg-action="save-node" data-kg-node="${escAttr(node.id || '')}">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-node" data-kg-node="${escAttr(node.id || '')}">${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
@@ -547,11 +547,33 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphEdgeEdit('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" data-kg-action="save-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-kg-action="edit-edge" ${knowledgeGraphEdgeDataAttrs(edge)}>${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
+        }
+
+        // The detail panel's buttons name their node or edge in data-kg-* attributes, not in inline onclick code, where
+        // a quote in an agent-written id or relation could end the attribute. main.js's delegated click listener hands
+        // every [data-kg-action] button to runKnowledgeGraphAction.
+        function knowledgeGraphEdgeDataAttrs(edge) {
+            return `data-kg-source="${escAttr(edge.source || '')}" data-kg-target="${escAttr(edge.target || '')}" data-kg-relation="${escAttr(edge.relation || '')}"`;
+        }
+
+        function runKnowledgeGraphAction(button) {
+            const data = button.dataset;
+            const nodeID = data.kgNode || '';
+            const edge = { source: data.kgSource || '', target: data.kgTarget || '', relation: data.kgRelation || '' };
+            switch (data.kgAction) {
+                case 'edit-node': return toggleKnowledgeGraphEdit(nodeID);
+                case 'protect-node': return toggleKnowledgeGraphProtection(nodeID, data.kgProtect === 'true');
+                case 'delete-node': return deleteKnowledgeGraphNode(nodeID, data.kgLabel || '');
+                case 'save-node': return saveKnowledgeGraphNodeEdit(nodeID);
+                case 'edit-edge': return toggleKnowledgeGraphEdgeEdit(knowledgeGraphEdgeIdentity(edge));
+                case 'delete-edge': return deleteKnowledgeGraphEdge(edge.source, edge.target, edge.relation);
+                case 'save-edge': return saveKnowledgeGraphEdgeEdit(edge.source, edge.target, edge.relation);
+            }
         }
 
         function toggleKnowledgeGraphEdit(nodeID) {
@@ -1736,7 +1758,7 @@
             const entries = Array.from(typesInGraph).sort().map(type => {
                 const color = knowledgeGraphTypeColor(type);
                 const count = allNodes.filter(n => n?.properties?.type === type).length;
-                return `<span class="kg-legend-entry"><span class="kg-legend-dot" data-dot-color="${esc(color)}"></span>${esc(type)} (${count})</span>`;
+                return `<span class="kg-legend-entry"><span class="kg-legend-dot" data-dot-color="${escAttr(color)}"></span>${esc(type)} (${count})</span>`;
             }).join('');
 
             legend.innerHTML = `<div class="kg-legend-row">${entries}</div>`;

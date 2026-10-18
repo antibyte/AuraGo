@@ -42,7 +42,7 @@ func TestDashboardPersonalityIncludesAffectPanel(t *testing.T) {
 			t.Fatalf("dashboard personality card must include affect timeline marker %q", marker)
 		}
 	}
-	js := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	js := readDashboardJS(t)
 	if !strings.Contains(js, "function renderAffectPanel") {
 		t.Fatal("dashboard widgets must render the affect panel")
 	}

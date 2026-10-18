@@ -1,5 +1,13 @@
 # Desktop App Modules - Child DOX Contract
 
+## Camera
+
+- A photo or video handoff reuses the desktop upload. The request sends `unique=1` and `If-None-Match: *`, then keeps the returned `Pictures/` or `Videos/` path. The same capture is not uploaded again. A closed window drops a late result.
+- Photo opens Pixel with `forceNew: true`. Video passes `importPath` and `importToken` once. Those fields are not stored on the window session context, so a restored window does not import again.
+- Video Studio asks for an existing project, a new project, or cancel before import. Cancel leaves the file in `Videos`. Import uses one `Idempotency-Key`, the media library only, and the existing dirty-save guards. A second handoff does not replace an open choice or unrelated dialog. Escape follows the same cancellation path as the dialog buttons.
+- While Video Studio loads, the window record retains one transient offer outside its session context; rendering consumes it once.
+- Verify `TestDesktopCameraHandoffBrowser`, `TestDesktopVideoStudioCameraImportBrowser`, `TestDesktopCameraHandoffIntegrationBrowser` and `TestDesktopVideoStudioStartMenuBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
+
 ## Infra
 
 - Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
@@ -46,7 +54,18 @@
 - Scene, fixed-step Rapier physics, round model, views and audio have separate
   modules. Visible obstacles use physics poses. Keep one active ball, transparent
   non-colliding opponents, true cup openings and collision geometry from the
-  exported Blender scene. Authoring sources live in `assets/minigolf/`.
+  exported Blender scene. Authoring sources live in `assets/minigolf/`;
+  regeneration (`blender --background --python assets/minigolf/generate.py`) is
+  deterministic — on Windows rerun it until it reports `Wrote 18 courses` after
+  transient export locks, then validate with `node scripts/test-minigolf-assets.mjs`.
+- Controls cover keyboard, mouse and touch: held arrow keys scale with frame time
+  (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
+  optional persisted settings add a four-degree aim assist, per-turn camera
+  framing behind the ball and roll following — all still usable under reduced
+  motion. Visuals add a gradient sky dome with night stars and moon, a
+  blob-shadow fallback on the low tier, water foam rings, a dashed aim line with
+  a color-graded power ring, penalty rest markers, name tags on ghost balls, a
+  hole map, and scorecard grade badges.
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
@@ -58,10 +77,20 @@
   preset catalog may load after AuraGolf has initialized the shared voice engine.
   Keep the CC0 MIDI originals and provenance, deterministic conversion, local
   playback and persisted zero volumes. Audio unlock requires a user gesture.
+  `minigolf-audio.js` exposes `setAmbient(world)` for sparse play-only world
+  ambience, sustains one rolling note that `rolling(0, ...)` releases, allows
+  `drums` entries plus per-call `pan`/`params` in the effect tables, and ducks
+  music under the win fanfare. `strike` stays at exactly two scheduled notes —
+  `scripts/test-minigolf-audio.mjs` pins that count.
 - Validate `npm run test:minigolf`, both asset build `--check` commands,
   `TestDesktopMinigolf*`, Synth Studio audio regressions and desktop bundle checks.
   Browser/GPU measurements and human listening remain separate acceptance steps.
-  Keep `minigolf.*` in all sixteen Desktop locales. See `documentation/minigolf.md`.
+  Keep `minigolf.*` in all sixteen Desktop locales, including the
+  `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings
+  persist `follow`/`aimCamera`/`magnet` additively. New scene helpers
+  (`frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`) stay
+  optional-callable because the browser fixture fake scene keeps the original
+  surface, and `inspect()` remains an additive contract. See `documentation/minigolf.md`.
 
 ## Newspaper
 
@@ -3662,11 +3691,12 @@ registration lives in `internal/desktop/types.go`.
   preview and clip preview stack absolutely inside the viewport (never in-flow
   flex siblings — that squeezed each into one half); the `[hidden]` guard in
   `camera.css` must keep beating author display rules. Photo previews offer
-  retake/save (`Pictures`)/download/clipboard-copy/send-to-agent; clip previews
-  offer retake/save (`Videos`)/download. A session-only recents strip (max 12,
-  data-URL thumbnails) re-opens captures. Network access is limited to
-  `/api/desktop/upload` and `/api/desktop/chat/stream`; nothing is persisted
-  across windows. `dispose()` must stop tracks, cancel countdown/record clocks,
+  retake/save (`Pictures`)/download/clipboard-copy/send-to-agent and opening in
+  Pixel; clip previews offer retake/save (`Videos`)/download and Video Studio
+  handoff (see Camera above). Narrow action rows wrap controls and labels while
+  retaining 44px targets. A session-only recents strip (max 12, data-URL thumbnails)
+  re-opens captures. Camera network access is limited to `/api/desktop/upload`
+  and `/api/desktop/chat/stream`; preview state does not persist across windows. `dispose()` must stop tracks, cancel countdown/record clocks,
   stop the recorder (discarding the clip), revoke the clip object URL and
   detach `devicechange`. Loaded lazily by `module-loader.js` and exposes
   `window.CameraApp { render, dispose }`. Visible strings use

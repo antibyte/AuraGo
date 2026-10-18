@@ -1,4 +1,9 @@
 {
+  "chat.sessions_delete_hint": "Slett denne samtalen permanent, inkludert planer og arkivert historikk.",
+  "chat.sessions_delete_memories": "Slett også tilknyttede minner",
+  "chat.sessions_delete_backups": "Sikkerhetskopier kan beholde slettede data frem til planlagt opprydding.",
+  "chat.sessions_delete_failed": "Samtalen kunne ikke slettes fullstendig. Oppdater visningen før du prøver igjen.",
+  "chat.sessions_delete_report": "Slettet: {deleted}. Beholdt på grunn av delt, beskyttet eller ukjent opprinnelse: {retained}.",
   "chat.speech_lab_auth_required": "AuraGo-innlogging kreves for å åpne Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Konfigurer Speech Lab-nettleser-URL under Medier → Speech Lab.",
   "chat.vault_secret_title": "Lagre hemmeligheten sikkert",

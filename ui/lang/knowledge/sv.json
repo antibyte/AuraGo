@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Radera även tillhörande minnen",
+  "knowledge.contacts_delete_backups": "Säkerhetskopior kan behålla raderade data tills den planerade rensningen.",
+  "knowledge.contacts_delete_report": "Raderade kunskapsobjekt: {deleted}. Behållna: {retained}.",
+  "knowledge.contacts_delete_partial": "Kontakten har raderats; kunskapsrensningen är ofullständig. Raderade: {deleted}. Behållna: {retained}. Uppdatera innan du försöker igen.",
   "knowledge.appointments_add": "Nytt möte",
   "knowledge.appointments_agent_wake": "Agentuppvaknande",
   "knowledge.appointments_cancel": "Avboka möte",

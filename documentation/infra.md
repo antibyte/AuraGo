@@ -36,6 +36,14 @@ VMs, containers, services, groups and network segments do not create registry
 devices. A VM or container can be explicitly linked to an existing registry
 device to select its Quick Connect target.
 
+Discovered Registry and FRITZ!Box devices with blank/default names or only a
+hexadecimal identifier, UUID or MAC address are hidden from the candidate list.
+Give them a recognizable name in their source to make them available. This
+filter also hides untouched, unplaced imports with these names. Registry data
+and saved nodes remain stored; edited, placed, grouped and connected entries
+remain visible. When the source resolves a friendly name for a hidden import,
+Infra shows that name without rewriting the saved node.
+
 Create sites, rooms and racks to organize the map. The side list treats sites,
 rooms, racks and groups as containers. On the atlas and topology, a container
 with at least one placed child draws a frame around those saved positions.
@@ -109,9 +117,11 @@ changes routing, not identity. Names and addresses do not merge identities.
 
 Only bounded, typed projections reach the graph. Credentials, raw provider
 responses and Docker environment variables are excluded. Management links must
-be HTTP(S) addresses without embedded credentials. Infra does not run network
-scans or background monitoring: visible windows request cached refreshes about
-every 30 seconds; hidden or closed windows stop their requests.
+be HTTP(S) addresses without embedded credentials. Opening Infra immediately
+loads the saved map while one bounded background refresh updates configured
+sources. Visible windows pick up these observations about every 30 seconds;
+**Refresh** waits for fresh source results. Hidden or closed windows stop
+requesting refreshes. Infra does not run network scans or continuous monitoring.
 
 ## Local assets and development
 

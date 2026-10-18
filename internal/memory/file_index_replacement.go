@@ -82,6 +82,9 @@ func (cv *ChromemVectorDB) ReplaceIndexedFile(ctx context.Context, stm *SQLiteMe
 			meta[k] = v
 		}
 		meta["source_path"], meta["collection"], meta["source_type"] = path, collection, "file_indexer"
+		if embedding != nil {
+			meta["multimodal"] = "true"
+		}
 		meta["concept"], meta["timestamp"] = concept, fmt.Sprint(time.Now().Unix())
 		meta["chunk_index"], meta["chunk_total"], meta["chunker"] = fmt.Sprint(c.Index+1), fmt.Sprint(c.Total), options.Strategy
 		body := buildContentString(concept, c.Text)
@@ -130,10 +133,13 @@ func (cv *ChromemVectorDB) replaceIndexedDocuments(ctx context.Context, stm *SQL
 	if err != nil {
 		return nil, err
 	}
+	if ids, reindexed, err := cv.reindexUnchangedFileDocuments(ctx, stm, col, path, collection, before, state, oldIDs, docs); reindexed || err != nil {
+		return ids, err
+	}
 	key := fileReplacementPrefix + contentSHA256(collection) + "." + rand.Text()
 	record := fileReplacement{Version: 1, Path: path, Collection: collection}
 	for _, id := range oldIDs {
-		doc, e := col.GetByID(ctx, id)
+		doc, e := cv.readCollectionDocument(ctx, col, id)
 		if e != nil {
 			continue
 		} // chromem's GetByID has no I/O: absent means absent.
@@ -156,7 +162,7 @@ func (cv *ChromemVectorDB) replaceIndexedDocuments(ctx context.Context, stm *SQL
 	}
 	if len(docs) > 0 {
 		writeCtx, cancel := context.WithTimeout(ctx, calculateBatchTimeout(len(docs)))
-		writeErr := col.AddDocuments(writeCtx, docs, 1)
+		writeErr := cv.addDocumentsWithPrecomputedEmbeddings(writeCtx, col, docs)
 		cancel()
 		if err := writeErr; err != nil {
 			return ids, errors.Join(fmt.Errorf("stage file generation: %w", err), cv.finishFileReplacement(ctx, stm, col, key, record))
@@ -251,7 +257,7 @@ func (cv *ChromemVectorDB) finishFileReplacement(ctx context.Context, stm *SQLit
 		if referenced {
 			continue
 		}
-		doc, getErr := col.GetByID(ctx, r.ID)
+		doc, getErr := cv.readCollectionDocument(ctx, col, r.ID)
 		if getErr != nil {
 			if r.DeleteFailed {
 				return fmt.Errorf("retain failed vector deletion receipt %s", r.ID)
@@ -267,7 +273,7 @@ func (cv *ChromemVectorDB) finishFileReplacement(ctx context.Context, stm *SQLit
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := col.Delete(ctx, nil, nil, r.ID); err != nil {
+		if err := cv.deleteDocumentsWithCorpus(ctx, col, nil, r.ID); err != nil {
 			r.DeleteFailed = true
 			value, _ := json.Marshal(record)
 			if _, e := tx.ExecContext(context.WithoutCancel(ctx), `UPDATE memory_maintenance_meta SET value=? WHERE key=?`, string(value), key); e != nil {
@@ -382,13 +388,19 @@ func (cv *ChromemVectorDB) queryVisibleCollection(ctx context.Context, col *chro
 		var visibilityErr error
 		for _, r := range results {
 			active, err := cv.indexedDocumentVisible(ctx, r.ID, r.Metadata)
+			if active && err == nil && col.Name == "aurago_memories" {
+				active, err = cv.memoryRetrievalEligible(ctx, r.ID)
+			}
+			if active && err == nil && cv.corpus != nil {
+				active, err = cv.corpusIndexEligible(ctx, col.Name, r)
+			}
 			visibilityErr = errors.Join(visibilityErr, err)
 			if active && err == nil {
 				visible = append(visible, r)
 			}
 		}
 		if visibilityErr != nil || len(visible) >= topK || k == count {
-			return visible, visibilityErr
+			return visible[:min(topK, len(visible))], visibilityErr
 		}
 		k = min(count, k*2)
 	}

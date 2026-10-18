@@ -1965,6 +1965,7 @@ function renderEmbeddingsRuntimeBlock() {
             <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
         </div>
     </section>
+    <div id="emb-index-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div class="pw-u-inline-actions emb-runtime-actions">
         <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
         <span id="embedding-runtime-action-result" class="pw-u-muted" aria-live="polite"></span>
@@ -2021,7 +2022,7 @@ async function refreshEmbeddingsRuntimeStatus() {
         if (!response.ok) throw new Error(await response.text());
         const status = await response.json();
         renderEmbeddingsRuntimeStatus(status);
-        if (status.state === 'setting_up' || status.state === 'benchmarking') {
+        if (status.state === 'setting_up' || status.state === 'benchmarking' || (Number(status.index_pending) > 0 && !Number(status.index_blocked) && !status.index_error)) {
             embeddingsRuntimeRefreshTimer = window.setTimeout(refreshEmbeddingsRuntimeStatus, 1000);
         }
     } catch (error) {
@@ -2033,6 +2034,15 @@ async function refreshEmbeddingsRuntimeStatus() {
 }
 
 function renderEmbeddingsRuntimeStatus(status) {
+    const indexStatus = document.getElementById('emb-index-status');
+    if (indexStatus) {
+        const messages = [];
+        if (Number(status.index_pending) > 0) messages.push(t('config.embeddings.index_pending').replace('{count}', String(Number(status.index_pending))));
+        if (Number(status.index_blocked) > 0) messages.push(t('config.embeddings.index_blocked').replace('{count}', String(Number(status.index_blocked))));
+        if (status.index_error && !Number(status.index_blocked)) messages.push(t('config.embeddings.index_error'));
+        indexStatus.textContent = messages.join(' ');
+        indexStatus.classList.toggle('is-error', !!status.index_error || Number(status.index_blocked) > 0);
+    }
     const localRuntime = status.provider === 'local-granite';
     const providerElement = document.querySelector('[data-path="embeddings.provider"]');
     const localSelected = providerElement

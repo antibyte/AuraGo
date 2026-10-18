@@ -167,7 +167,7 @@ func TestExtractKGFromText_Success(t *testing.T) {
 	}
 }
 
-func TestExtractKGFromText_RetriesTruncatedResponseWithCompactRequest(t *testing.T) {
+func TestExtractKGFromText_RetriesFullSourceWithReducedOutput(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.Model = "test-model"
 	client := &mockChatClient{responses: []openai.ChatCompletionResponse{
@@ -191,11 +191,11 @@ func TestExtractKGFromText_RetriesTruncatedResponseWithCompactRequest(t *testing
 	if !strings.Contains(firstPrompt, "Maximum 15 nodes and 20 edges") || !strings.Contains(firstPrompt, "TAIL_MARKER") {
 		t.Fatalf("first request was changed: %q", firstPrompt)
 	}
-	if !strings.Contains(secondPrompt, "Maximum 6 nodes and 8 edges") || strings.Contains(secondPrompt, "TAIL_MARKER") {
-		t.Fatalf("second request is not compact: %q", secondPrompt)
+	if !strings.Contains(secondPrompt, "Maximum 6 nodes and 8 edges") || !strings.Contains(secondPrompt, "TAIL_MARKER") {
+		t.Fatal("retry lost full source or failed to reduce output cardinality")
 	}
-	if got := strings.Count(secondPrompt, "§"); got != 4000 {
-		t.Fatalf("second input length = %d, want 4000", got)
+	if got := strings.Count(secondPrompt, "§"); got != 10000 {
+		t.Fatalf("second input length = %d, want 10000", got)
 	}
 	for i, req := range client.requests {
 		if req.MaxTokens != 1500 {

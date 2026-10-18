@@ -37,6 +37,13 @@
             sending: false,
             saving: false,
             copying: false,
+            handoffBusy: false,
+            finalizing: false,
+            mediaToken: 0,
+            storedToken: 0,
+            storedPath: '',
+            storePromise: null,
+            uploadXhr: null,
             recents: [],
             disposed: false
         };
@@ -110,6 +117,16 @@
                         '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
                         '<span>' + esc(t('desktop.camera_send_agent')) + '</span>' +
                     '</button>' +
+                    '<button class="camera-btn camera-btn-action" type="button" data-action="open-pixel" hidden>' +
+                        iconMarkup('image', 'P', 'camera-btn-icon', 16) +
+                        '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
+                        '<span>' + esc(t('desktop.camera_open_pixel')) + '</span>' +
+                    '</button>' +
+                    '<button class="camera-btn camera-btn-action" type="button" data-action="open-studio" hidden>' +
+                        iconMarkup('film', 'V', 'camera-btn-icon', 16) +
+                        '<span class="camera-btn-spinner" aria-hidden="true"></span>' +
+                        '<span>' + esc(t('desktop.camera_open_studio')) + '</span>' +
+                    '</button>' +
                 '</div>' +
                 '<div class="camera-toolbar-hint" data-hint aria-hidden="true"></div>' +
             '</div>' +
@@ -143,6 +160,8 @@
         var downloadBtn = host.querySelector('[data-action="download"]');
         var copyBtn = host.querySelector('[data-action="copy"]');
         var sendBtn = host.querySelector('[data-action="send"]');
+        var pixelBtn = host.querySelector('[data-action="open-pixel"]');
+        var studioBtn = host.querySelector('[data-action="open-studio"]');
         var appRoot = host.querySelector('.camera-app');
         var flashEl = host.querySelector('[data-flash]');
         var hintEl = host.querySelector('[data-hint]');
@@ -172,10 +191,12 @@
                     id: 'file',
                     labelKey: 'desktop.menu_file',
                     items: [
-                        { id: 'save', labelKey: 'desktop.camera_save', icon: 'save', disabled: !anyPreview || state.saving, action: function () { saveBtn.click(); } },
-                        { id: 'download', labelKey: 'desktop.camera_download', icon: 'download', disabled: !anyPreview, action: function () { downloadBtn.click(); } },
-                        { id: 'copy', labelKey: 'desktop.camera_copy', icon: 'copy', disabled: !photo || state.copying, action: function () { copyBtn.click(); } },
-                        { id: 'send', labelKey: 'desktop.camera_send_agent', icon: 'chat', disabled: !photo || state.sending, action: function () { sendBtn.click(); } }
+                        { id: 'save', labelKey: 'desktop.camera_save', icon: 'save', disabled: !anyPreview || state.saving || state.handoffBusy || state.finalizing, action: function () { saveBtn.click(); } },
+                        { id: 'download', labelKey: 'desktop.camera_download', icon: 'download', disabled: !anyPreview || state.saving || state.handoffBusy || state.finalizing, action: function () { downloadBtn.click(); } },
+                        { id: 'copy', labelKey: 'desktop.camera_copy', icon: 'copy', disabled: !photo || state.copying || state.handoffBusy || state.finalizing, action: function () { copyBtn.click(); } },
+                        { id: 'send', labelKey: 'desktop.camera_send_agent', icon: 'chat', disabled: !photo || state.sending || state.handoffBusy || state.finalizing, action: function () { sendBtn.click(); } },
+                        { id: 'pixel', labelKey: 'desktop.camera_open_pixel', icon: 'image', disabled: !photo || state.handoffBusy || state.saving || state.finalizing, action: function () { pixelBtn.click(); } },
+                        { id: 'studio', labelKey: 'desktop.camera_open_studio', icon: 'film', disabled: !isClipPreview() || state.handoffBusy || state.saving || state.finalizing, action: function () { studioBtn.click(); } }
                     ]
                 },
                 {
@@ -231,6 +252,17 @@
             actions.hidden = !previewActive;
             copyBtn.hidden = clipActive;
             sendBtn.hidden = clipActive;
+            pixelBtn.hidden = !previewActive || clipActive;
+            studioBtn.hidden = !clipActive;
+            var locked = state.saving || state.handoffBusy || state.sending || state.copying || state.finalizing;
+            retakeBtn.disabled = locked;
+            saveBtn.disabled = locked;
+            downloadBtn.disabled = locked;
+            copyBtn.disabled = locked;
+            sendBtn.disabled = locked;
+            pixelBtn.disabled = locked;
+            studioBtn.disabled = locked;
+            captureBtn.disabled = !state.recording && (state.finalizing || state.handoffBusy || state.saving);
 
             modeBtns.forEach(function (btn) {
                 btn.classList.toggle('is-active', btn.dataset.mode === state.mode);
@@ -404,6 +436,8 @@
                 ctx2.scale(-1, 1);
             }
             ctx2.drawImage(video, 0, 0);
+            clearClip();
+            forgetCaptureStore();
             state.capturedDataURL = canvas.toDataURL('image/jpeg', 0.9);
             addRecent(state.capturedDataURL);
             stopStream();
@@ -411,6 +445,7 @@
         }
 
         function beginCapture() {
+            if (state.finalizing || state.handoffBusy || state.saving) return;
             if (state.recording) { stopRecording(false); return; }
             if (state.mode === 'video') { startRecording(); return; }
             if (state.countdownLeft > 0) { cancelCountdown(); return; }
@@ -448,7 +483,8 @@
         }
 
         function startRecording() {
-            if (state.recording || !state.stream) return;
+            if (state.recording || state.finalizing || state.handoffBusy || state.saving || !state.stream) return;
+            forgetCaptureStore();
             if (typeof window.MediaRecorder !== 'function') {
                 notify(t('desktop.camera_recording_unsupported'));
                 return;
@@ -471,10 +507,13 @@
                 if (event.data && event.data.size) state.recordChunks.push(event.data);
             });
             recorder.addEventListener('stop', function () {
-                var type = recorder.mimeType || mime || 'video/webm';
+                var file = videoFileType(recorder.mimeType || mime || '');
                 state.recorder = null;
-                if (!state.discardClip && state.recordChunks.length) {
-                    state.videoBlob = new Blob(state.recordChunks, { type: type });
+                state.finalizing = false;
+                if (!state.disposed && !state.discardClip && state.recordChunks.length) {
+                    forgetCaptureStore();
+                    state.capturedDataURL = null;
+                    state.videoBlob = new Blob(state.recordChunks, { type: file.type });
                     state.videoURL = URL.createObjectURL(state.videoBlob);
                     stopStream();
                 }
@@ -501,10 +540,11 @@
         function stopRecording(discard) {
             if (!state.recording || !state.recorder) return;
             state.discardClip = !!discard;
+            state.finalizing = !discard;
             state.recording = false;
             if (state.recordClock) clearInterval(state.recordClock);
             state.recordClock = null;
-            try { state.recorder.stop(); } catch (err) { state.recorder = null; }
+            try { state.recorder.stop(); } catch (err) { state.recorder = null; state.finalizing = false; }
             updateUI();
         }
 
@@ -516,9 +556,39 @@
         }
 
         function retake() {
+            if (state.saving || state.handoffBusy || state.finalizing || state.sending || state.copying) return;
+            forgetCaptureStore();
             state.capturedDataURL = null;
             clearClip();
             startCamera();
+        }
+
+        function forgetCaptureStore() {
+            state.mediaToken += 1;
+            state.storedPath = '';
+            state.storedToken = 0;
+            state.storePromise = null;
+            if (state.uploadXhr) {
+                try { state.uploadXhr.abort(); } catch (err) { /* already finished */ }
+                state.uploadXhr = null;
+            }
+        }
+
+        function desktopFolderPath(path, folder) {
+            if (typeof path !== 'string' || path.length > 512) return '';
+            if (/[\u0000-\u001f\\]/.test(path) || path.indexOf('..') !== -1 || path.indexOf('://') !== -1 || path.indexOf('blob:') === 0) return '';
+            var prefix = folder + '/';
+            if (path.indexOf(prefix) !== 0) return '';
+            var name = path.slice(prefix.length);
+            if (!name || name.indexOf('/') !== -1) return '';
+            return path;
+        }
+
+        function videoFileType(mime) {
+            var base = String(mime || '').split(';')[0].trim().toLowerCase();
+            if (base === 'video/mp4') return { type: 'video/mp4', ext: '.mp4' };
+            if (base === 'video/quicktime') return { type: 'video/quicktime', ext: '.mov' };
+            return { type: 'video/webm', ext: '.webm' };
         }
 
         function timestampName(prefix, ext) {
@@ -531,39 +601,123 @@
                 String(ts.getSeconds()).padStart(2, '0') + ext;
         }
 
-        function uploadBlob(blob, filename, folder, btn, doneKey, failKey) {
-            var form = new FormData();
-            form.append('file', blob, filename);
-            form.append('path', folder);
+        function uploadBlob(blob, filename, folder) {
+            var token = state.mediaToken;
+            return new Promise(function (resolve, reject) {
+                var form = new FormData();
+                form.append('file', blob, filename);
+                form.append('path', folder);
+                form.append('unique', '1');
+                var xhr = new XMLHttpRequest();
+                state.uploadXhr = xhr;
+                xhr.open('POST', '/api/desktop/upload');
+                // unique=1 picks a free name. The header is still required or the upload is refused.
+                xhr.setRequestHeader('If-None-Match', '*');
+                xhr.onload = function () {
+                    if (state.uploadXhr === xhr) state.uploadXhr = null;
+                    if (state.disposed || token !== state.mediaToken) { reject(new Error('stale')); return; }
+                    var path = '';
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try { path = desktopFolderPath(JSON.parse(xhr.responseText || '{}').path, folder); } catch (err) { path = ''; }
+                    }
+                    if (!path) { reject(new Error('upload')); return; }
+                    resolve(path);
+                };
+                xhr.onerror = function () {
+                    if (state.uploadXhr === xhr) state.uploadXhr = null;
+                    reject(new Error(state.disposed || token !== state.mediaToken ? 'stale' : 'upload'));
+                };
+                xhr.onabort = function () { reject(new Error('stale')); };
+                xhr.send(form);
+            });
+        }
 
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/desktop/upload');
-            xhr.onload = function () {
-                setLoading(btn, false);
-                state.saving = false;
-                notify(t(xhr.status >= 200 && xhr.status < 300 ? doneKey : failKey));
-            };
-            xhr.onerror = function () {
-                setLoading(btn, false);
-                state.saving = false;
-                notify(t(failKey));
-            };
-            xhr.send(form);
+        function ensureStored() {
+            var kind = state.videoBlob ? 'video' : (state.capturedDataURL ? 'photo' : '');
+            if (!kind) return Promise.reject(new Error('empty'));
+            if (state.storedPath && state.storedToken === state.mediaToken) return Promise.resolve(state.storedPath);
+            if (state.storePromise && state.storedToken === state.mediaToken) return state.storePromise;
+            var token = state.mediaToken;
+            var blob;
+            var filename;
+            var folder;
+            if (kind === 'video') {
+                var file = videoFileType(state.videoBlob.type);
+                blob = state.videoBlob.type === file.type ? state.videoBlob : new Blob([state.videoBlob], { type: file.type });
+                filename = timestampName('video', file.ext);
+                folder = 'Videos';
+            } else {
+                blob = dataURLtoBlob(state.capturedDataURL);
+                if (!blob || blob.type !== 'image/jpeg') return Promise.reject(new Error('upload'));
+                filename = timestampName('photo', '.jpg');
+                folder = 'Pictures';
+            }
+            state.storedToken = token;
+            state.storePromise = uploadBlob(blob, filename, folder).then(function (path) {
+                if (state.disposed || token !== state.mediaToken) throw new Error('stale');
+                state.storedPath = path;
+                return path;
+            }).finally(function () {
+                if (state.storedToken === token) state.storePromise = null;
+            });
+            return state.storePromise;
         }
 
         function saveCapture() {
-            if (state.saving) return;
-            if (isClipPreview()) {
-                if (!state.videoBlob) return;
-                state.saving = true;
-                setLoading(saveBtn, true);
-                uploadBlob(state.videoBlob, timestampName('video', '.webm'), 'Videos', saveBtn, 'desktop.camera_video_saved', 'desktop.camera_video_save_error');
-                return;
-            }
-            if (!state.capturedDataURL) return;
+            if (state.saving || state.handoffBusy || state.finalizing || !isPreview()) return;
+            var token = state.mediaToken;
+            var clip = isClipPreview();
             state.saving = true;
             setLoading(saveBtn, true);
-            uploadBlob(dataURLtoBlob(state.capturedDataURL), timestampName('photo', '.jpg'), 'Pictures', saveBtn, 'desktop.camera_saved', 'desktop.camera_save_error');
+            updateUI();
+            ensureStored().then(function () {
+                if (state.disposed || token !== state.mediaToken) return;
+                notify(t(clip ? 'desktop.camera_video_saved' : 'desktop.camera_saved'));
+            }).catch(function (err) {
+                if (state.disposed || token !== state.mediaToken || (err && err.message === 'stale')) return;
+                notify(t(clip ? 'desktop.camera_video_save_error' : 'desktop.camera_save_error'));
+            }).finally(function () {
+                if (state.disposed || token !== state.mediaToken) return;
+                state.saving = false;
+                setLoading(saveBtn, false);
+                updateUI();
+            });
+        }
+
+        function handoffCapture(kind) {
+            if (state.saving || state.handoffBusy || state.finalizing || state.sending) return;
+            if (kind === 'pixel' && (!state.capturedDataURL || isClipPreview())) return;
+            if (kind === 'studio' && !isClipPreview()) return;
+            if (typeof ctx.openApp !== 'function') {
+                notify(t(kind === 'pixel' ? 'desktop.camera_open_error' : 'desktop.camera_studio_error'));
+                return;
+            }
+            var token = state.mediaToken;
+            var btn = kind === 'pixel' ? pixelBtn : studioBtn;
+            state.handoffBusy = true;
+            setLoading(btn, true);
+            updateUI();
+            ensureStored().then(function (path) {
+                if (state.disposed || token !== state.mediaToken) return;
+                if (kind === 'pixel') {
+                    ctx.openApp('pixel', { path: path, forceNew: true });
+                    notify(t('desktop.camera_opened_pixel'));
+                    return;
+                }
+                var importToken = (window.crypto && typeof crypto.randomUUID === 'function')
+                    ? crypto.randomUUID()
+                    : (String(token) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+                ctx.openApp('video-studio', { importPath: path, importToken: importToken });
+                notify(t('desktop.camera_choose_project'));
+            }).catch(function (err) {
+                if (state.disposed || token !== state.mediaToken || (err && err.message === 'stale')) return;
+                notify(t(kind === 'pixel' ? 'desktop.camera_open_error' : 'desktop.camera_studio_error'));
+            }).finally(function () {
+                if (state.disposed || token !== state.mediaToken) return;
+                state.handoffBusy = false;
+                setLoading(btn, false);
+                updateUI();
+            });
         }
 
         function downloadCapture() {
@@ -571,7 +725,7 @@
             if (isClipPreview()) {
                 if (!state.videoURL) return;
                 link.href = state.videoURL;
-                link.download = timestampName('video', '.webm');
+                link.download = timestampName('video', videoFileType(state.videoBlob.type).ext);
             } else {
                 if (!state.capturedDataURL) return;
                 link.href = state.capturedDataURL;
@@ -746,8 +900,10 @@
                 { type: 'separator' },
                 { labelKey: 'desktop.camera_save', icon: 'save', disabled: captured || state.saving, action: function () { saveBtn.click(); } },
                 { labelKey: 'desktop.camera_download', icon: 'download', disabled: captured, action: function () { downloadBtn.click(); } },
-                { labelKey: 'desktop.camera_copy', icon: 'copy', disabled: !photo || state.copying, action: function () { copyBtn.click(); } },
-                { labelKey: 'desktop.camera_send_agent', icon: 'chat', disabled: !photo || state.sending, action: function () { sendBtn.click(); } },
+                { labelKey: 'desktop.camera_copy', icon: 'copy', disabled: !photo || state.copying || state.handoffBusy || state.finalizing, action: function () { copyBtn.click(); } },
+                { labelKey: 'desktop.camera_send_agent', icon: 'chat', disabled: !photo || state.sending || state.handoffBusy || state.finalizing, action: function () { sendBtn.click(); } },
+                { labelKey: 'desktop.camera_open_pixel', icon: 'image', disabled: !photo || state.handoffBusy || state.saving || state.finalizing, action: function () { pixelBtn.click(); } },
+                { labelKey: 'desktop.camera_open_studio', icon: 'film', disabled: !state.videoURL || state.handoffBusy || state.saving || state.finalizing, action: function () { studioBtn.click(); } },
                 { type: 'separator' },
                 { labelKey: 'desktop.camera_switch', icon: 'refresh', disabled: !captured || state.recording, action: function () { switchCamera(); } },
                 { labelKey: 'desktop.camera_mirror', icon: 'columns', disabled: !captured, action: function () { toggleMirror(); } },
@@ -771,16 +927,19 @@
         });
         retakeBtn.addEventListener('click', retake);
         saveBtn.addEventListener('click', saveCapture);
+        pixelBtn.addEventListener('click', function () { handoffCapture('pixel'); });
+        studioBtn.addEventListener('click', function () { handoffCapture('studio'); });
         downloadBtn.addEventListener('click', downloadCapture);
         copyBtn.addEventListener('click', copyCapture);
         sendBtn.addEventListener('click', sendToAgent);
         countdownEl.addEventListener('click', cancelCountdown);
         recentsEl.addEventListener('click', function (event) {
             var button = event.target.closest('button[data-recent]');
-            if (!button || state.recording) return;
+            if (!button || state.recording || state.saving || state.handoffBusy || state.finalizing) return;
             var item = state.recents.find(function (entry) { return entry.id === button.dataset.recent; });
             if (!item) return;
             cancelCountdown();
+            forgetCaptureStore();
             clearClip();
             state.capturedDataURL = item.dataURL;
             stopStream();
@@ -794,6 +953,11 @@
 
         disposers.set(windowId, function () {
             state.disposed = true;
+            state.mediaToken += 1;
+            if (state.uploadXhr) {
+                try { state.uploadXhr.abort(); } catch (err) { /* already finished */ }
+                state.uploadXhr = null;
+            }
             cancelCountdown();
             if (state.recording) stopRecording(true);
             stopStream();

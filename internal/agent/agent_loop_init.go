@@ -67,7 +67,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	cfg := s.runCfg.Config
 	logger := s.runCfg.Logger
 
-	client := s.runCfg.LLMClient
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
 	longTermMem := s.runCfg.LongTermMem
@@ -314,11 +313,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	// Emotion Synthesizer (requires Personality Engine V2)
 	var emotionSynthesizer *memory.EmotionSynthesizer
 	if cfg.Personality.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Personality.EngineV2 {
-		// Reuse V2 client setup — prefer resolved provider fields, fall back to legacy inline fields
-		esClient := resolvePersonalityAnalyzerClient(cfg, client)
+		// Restore state without constructing an unused LLM client. V2 analysis owns generation.
 		esModel := resolvePersonalityModel(cfg)
 		emotionSynthesizer = memory.NewEmotionSynthesizer(
-			&emotionCompletionClient{client: esClient, cfg: cfg},
+			nil,
 			esModel,
 			cfg.Personality.EmotionSynthesizer.MinIntervalSecs,
 			cfg.Personality.EmotionSynthesizer.MaxHistoryEntries,

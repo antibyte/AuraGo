@@ -3,6 +3,9 @@
     const GC = window.GalaxaCore = window.GalaxaCore || {};
 
     GC.createEnemyMotion = function (ctx) {
+        // A trail segment longer than this is a teleport, never real motion.
+        const TRAIL_JUMP = 70;
+
         function trailCap() {
             const p = ctx.settings.particles || 'high';
             if (p === 'low') return 3;
@@ -101,12 +104,18 @@
 
             if (e.st !== 'SMOLDER') updateEnemyHeading(e, dtMs);
 
+            if (e.st === 'DEAD' || e.st === 'SMOLDER') {
+                e.trail = null; e.trailAcc = 0; e.trailFade = 0;
+                return;
+            }
+
             if (fx.diveTrail && (e.st === 'DIVING' || e.st === 'FEINT')) {
                 e.trailAcc = (e.trailAcc || 0) + dtMs;
                 const interval = e.type === 'kamikaze' ? 16 : e.type === 'hunter' ? 22 : 30;
                 if (e.trailAcc >= interval) {
                     e.trailAcc -= interval;
                     if (!e.trail) e.trail = [];
+                    else if (e.trail.length && Math.hypot(e.trail[0].x - e.x, e.trail[0].y - e.y) > TRAIL_JUMP) e.trail = [];
                     e.trail.unshift({ x: e.x, y: e.y, rot: e.rot || 0 });
                     while (e.trail.length > trailCap()) e.trail.pop();
                 }
@@ -124,7 +133,14 @@
         }
 
         function drawEnemyMotionTrail(c, e, sp, cols, off) {
+            if (e.st === 'DEAD' || e.st === 'SMOLDER') return;
             if (!e.trail || !e.trail.length) return;
+            // Stop at the first jump so a stale point can never draw a line across the screen.
+            let n = 0, px = e.x, py = e.y;
+            while (n < e.trail.length && Math.hypot(e.trail[n].x - px, e.trail[n].y - py) <= TRAIL_JUMP) {
+                px = e.trail[n].x; py = e.trail[n].y; n++;
+            }
+            if (!n) return;
             const baseA = e.mAlpha != null ? e.mAlpha : 1;
             const tint = trailTint(e, cols);
             const ghostCols = { 1: tint, 2: tint, 3: tint, 4: tint, 5: tint, 6: tint, 7: tint, a: tint };
@@ -135,17 +151,17 @@
             c.lineWidth = 2;
             c.beginPath();
             c.moveTo(e.x, e.y);
-            for (let i = 0; i < e.trail.length; i++) {
+            for (let i = 0; i < n; i++) {
                 const t = e.trail[i];
-                c.globalAlpha = (1 - i / e.trail.length) * 0.85 * baseA;
+                c.globalAlpha = (1 - i / n) * 0.85 * baseA;
                 c.lineTo(t.x, t.y);
             }
             c.stroke();
             c.restore();
 
-            for (let i = 0; i < e.trail.length; i++) {
+            for (let i = 0; i < n; i++) {
                 const t = e.trail[i];
-                const fade = 1 - i / e.trail.length;
+                const fade = 1 - i / n;
                 c.globalAlpha = fade * 0.72 * baseA;
                 c.save();
                 c.translate(t.x, t.y);

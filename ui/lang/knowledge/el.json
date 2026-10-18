@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Διαγραφή και των σχετικών αναμνήσεων",
+  "knowledge.contacts_delete_backups": "Τα αντίγραφα ασφαλείας μπορεί να διατηρούν διαγραμμένα δεδομένα μέχρι τον προγραμματισμένο καθαρισμό.",
+  "knowledge.contacts_delete_report": "Διαγράφηκαν στοιχεία γνώσης: {deleted}. Διατηρήθηκαν: {retained}.",
+  "knowledge.contacts_delete_partial": "Η επαφή διαγράφηκε· ο καθαρισμός γνώσης δεν ολοκληρώθηκε. Διαγράφηκαν: {deleted}. Διατηρήθηκαν: {retained}. Ανανέωσε πριν δοκιμάσεις ξανά.",
   "knowledge.appointments_add": "Νέο ραντεβού",
   "knowledge.appointments_agent_wake": "Αφύπνιση πράκτορα",
   "knowledge.appointments_cancel": "Ακύρωση ραντεβού",

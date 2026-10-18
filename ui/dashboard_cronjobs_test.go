@@ -25,18 +25,10 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 		}
 	}
 
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
+	dashJS := readDashboardJS(t)
 	for _, marker := range []string{
 		"loadTabCronjobs()",
 		"setupCronjobsControls()",
-	} {
-		if !strings.Contains(mainJS, marker) {
-			t.Fatalf("dashboard main JS missing cronjobs marker %q", marker)
-		}
-	}
-
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
-	for _, marker := range []string{
 		"function renderCronjobs",
 		"/api/dashboard/cronjobs",
 		"showConfirm(",
@@ -44,11 +36,11 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 		"dashboard.cronjobs_status_error",
 		"last_error",
 	} {
-		if !strings.Contains(widgetsJS, marker) {
-			t.Fatalf("dashboard widgets JS missing cronjobs marker %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Fatalf("dashboard JS missing cronjobs marker %q", marker)
 		}
 	}
-	if strings.Contains(mainJS+widgetsJS, "alert(") {
+	if strings.Contains(dashJS, "alert(") {
 		t.Fatal("dashboard cronjobs UI must use modals/toasts instead of alert()")
 	}
 }
@@ -59,7 +51,7 @@ func TestDashboardCronjobsTabContract(t *testing.T) {
 func TestDashboardCronjobsFlowJobsAreReadOnly(t *testing.T) {
 	t.Parallel()
 
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	widgetsJS := readDashboardJS(t)
 	for _, marker := range []string{
 		"function cronjobManagedLabel()",
 		"job.managed_by === 'easydrag' ? cronjobManagedLabel() :",
@@ -69,7 +61,7 @@ func TestDashboardCronjobsFlowJobsAreReadOnly(t *testing.T) {
 		`<span class="cronjobs-managed" title="${hint}" aria-hidden="true">${label}</span><span class="visually-hidden">${label} ${hint}</span>`,
 	} {
 		if !strings.Contains(widgetsJS, marker) {
-			t.Errorf("dashboard widgets JS misses %q", marker)
+			t.Errorf("dashboard JS misses %q", marker)
 		}
 	}
 	html := readDashboardMarkup(t)

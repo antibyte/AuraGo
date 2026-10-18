@@ -7,34 +7,56 @@
     </div>
     <div class="dash-section-meta">
       <span class="dash-section-updated" data-section-updated="overview"></span>
+      <button type="button" class="dash-section-action" data-action="overview-show-all" hidden><span data-i18n="dashboard.overview.show_all"></span></button>
+      <button type="button" class="dash-section-action" data-action="overview-customize" aria-pressed="false"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span data-i18n="dashboard.overview.customize"></span></button>
       <button type="button" class="dash-section-refresh" data-section-refresh="overview" data-i18n-title="dashboard.section.refresh" data-i18n-aria-label="dashboard.section.refresh"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
     </div>
   </header>
   <div class="dash-grid">
-    <div class="dash-card span-12" id="card-agent-banner">
-      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.5" fill="currentColor" stroke="none"/><path d="M12 4v4M9 2h6"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.agent_banner_title"></h3> <button type="button" class="collapse-toggle" data-card="card-agent-banner" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+    <div class="dash-card dash-tile span-12" id="ov-status" data-tile="ov-status">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.status_title"></h3> <span class="ov-pill" id="ov-overall" data-overall=""></span></div>
       <div class="dash-card-body">
-        <div class="agent-banner" id="agent-banner">
-          <div class="agent-banner-item"><span class="status-dot gray" id="ab-status-dot" role="img" data-i18n-aria-label="dashboard.status_label"></span> <strong id="ab-model">—</strong></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 11l2 2-2 2M16 11l-2 2 2 2" stroke-linecap="round"/><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/></svg> <strong id="ab-personality">—</strong></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item context-gauge"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="6" x2="4" y2="10"/><line x1="4" y1="14" x2="4" y2="18"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="20" y1="6" x2="20" y2="12"/><line x1="20" y1="16" x2="20" y2="18"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></svg> <span data-i18n="dashboard.agent_banner_context"></span> <div class="context-gauge-bar"><div class="context-gauge-fill" id="ab-ctx-fill"></div></div> <span id="ab-ctx-pct">—</span></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-integrations"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4" stroke-linecap="round"/></svg> <strong>—</strong> <span data-i18n="dashboard.agent_banner_integrations"></span></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-last-activity"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> <span>—</span></div>
-          <div class="agent-banner-sep"></div>
-          <div class="agent-banner-item" id="ab-maintenance"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 7l3-3 3 3-3 3z"/><path d="M5 12l3-3 4 4-3 3zM14 7l3 3" stroke-linecap="round"/></svg> <span>—</span></div>
-        </div>
+        <ul class="ov-status-line" id="ov-status-line"></ul>
       </div>
     </div>
 
-    <div class="dash-card span-12" id="card-quickstatus">
-      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.quickstatus_title"></h3> <button type="button" class="collapse-toggle" data-card="card-quickstatus" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+    <div class="dash-card dash-tile span-12" id="ov-attention" data-tile="ov-attention">
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 9v5M12 18h.01"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.attention_title"></h3></div>
       <div class="dash-card-body">
-        <div class="qs-grid" id="qs-grid"></div>
+        <ul class="ov-attention-list" id="ov-attention-list"></ul>
       </div>
+    </div>
+
+    <div class="dash-card dash-tile span-3" id="ov-system" data-tile="ov-system" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_system"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-system" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body"><a class="ov-tile-link" href="#system" id="ov-system-body"></a></div>
+    </div>
+
+    <div class="dash-card dash-tile span-3" id="ov-budget" data-tile="ov-budget" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2M12 16v2"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_budget"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-budget" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body"><a class="ov-tile-link" href="#llm" id="ov-budget-body"></a></div>
+    </div>
+
+    <div class="dash-card dash-tile span-3" id="ov-automations" data-tile="ov-automations" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_automations"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-automations" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body"><a class="ov-tile-link" href="#automations" id="ov-automations-body"></a></div>
+    </div>
+
+    <div class="dash-card dash-tile span-3" id="ov-knowledge" data-tile="ov-knowledge" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><circle cx="5" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/><line x1="6.5" y1="6.5" x2="10.5" y2="10.5"/><line x1="13.5" y1="10.5" x2="17.5" y2="6.5"/><line x1="6.5" y1="17.5" x2="10.5" y2="13.5"/><line x1="13.5" y1="13.5" x2="17.5" y2="17.5"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_knowledge"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-knowledge" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body"><a class="ov-tile-link" href="#knowledge" id="ov-knowledge-body"></a></div>
+    </div>
+
+    <div class="dash-card dash-tile span-8" id="ov-activity" data-tile="ov-activity" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_activity"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-activity" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body">
+        <ul class="ov-activity-list" id="ov-activity-list"></ul>
+      </div>
+    </div>
+
+    <div class="dash-card dash-tile span-4" id="ov-agent-state" data-tile="ov-agent-state" data-tile-hideable>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.overview.tile_agent_state"></h3> <button type="button" class="ov-tile-toggle" data-tile-toggle="ov-agent-state" aria-pressed="true" hidden><span class="ov-tile-toggle-track" aria-hidden="true"></span></button></div>
+      <div class="dash-card-body"><a class="ov-tile-link" href="#personality" id="ov-agent-state-body"></a></div>
     </div>
   </div>
 </section>

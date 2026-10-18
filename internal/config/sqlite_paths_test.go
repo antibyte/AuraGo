@@ -18,17 +18,19 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 	cfg.SQLite.VirtualDesktopPath = filepath.Join(dataDir, "virtual_desktop.db")
 	cfg.SQLite.NetworkSharesPath = filepath.Join(dataDir, "network_shares.db")
 	cfg.SQLite.LongTermPath = filepath.Join(dataDir, "long_term.db")
+	cfg.Directories.VectorDBDir = filepath.Join(root, "custom-vectors")
 
 	got := SQLiteDatabasePaths(cfg)
 	want := map[string]bool{
-		cfg.SQLite.ShortTermPath:                       true,
-		cfg.SQLite.LaunchpadPath:                       true,
-		cfg.SQLite.VirtualDesktopPath:                  true,
-		cfg.SQLite.NetworkSharesPath:                   true,
-		filepath.Join(dataDir, SystemTasksDBFilename):  true,
-		filepath.Join(dataDir, GalaxaDBFilename):       true,
-		filepath.Join(dataDir, DesktopStoreDBFilename): true,
-		filepath.Join(dataDir, TresorDBFilename):       true,
+		filepath.Join(root, "custom-vectors", "documents.sqlite"): true,
+		cfg.SQLite.ShortTermPath:                                  true,
+		cfg.SQLite.LaunchpadPath:                                  true,
+		cfg.SQLite.VirtualDesktopPath:                             true,
+		cfg.SQLite.NetworkSharesPath:                              true,
+		filepath.Join(dataDir, SystemTasksDBFilename):             true,
+		filepath.Join(dataDir, GalaxaDBFilename):                  true,
+		filepath.Join(dataDir, DesktopStoreDBFilename):            true,
+		filepath.Join(dataDir, TresorDBFilename):                  true,
 		// Retro Games keeps favorites, plays and broken markers in its index.
 		filepath.Join(dataDir, "retrogames", "retrogames.db"): true,
 	}

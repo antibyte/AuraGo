@@ -21,6 +21,8 @@ func TestRunMaintenanceTaskPersistsLedgerOnPromptFailure(t *testing.T) {
 	t.Cleanup(func() { _ = stm.Close() })
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 1
 	cfg.Directories.PromptsDir = filepath.Join(t.TempDir(), "missing-prompts")
 	cfg.LLM.Model = "test-model"
@@ -60,6 +62,8 @@ func TestMaintenanceRunLedgerStatus(t *testing.T) {
 
 func TestComputeNextMaintenanceRun(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "04:00"
 	now := time.Date(2026, 6, 10, 5, 0, 0, 0, time.Local)
@@ -93,6 +97,8 @@ func TestRunMaintenanceCompressedOutputCleanupReturnsDeletedCount(t *testing.T) 
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Agent.OutputCompression.Reversible.Enabled = true
 	cfg.Agent.OutputCompression.Reversible.MaxAgeHours = 24
 

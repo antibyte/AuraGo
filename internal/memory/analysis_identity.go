@@ -13,6 +13,14 @@ const MemoryAnalysisSourceMarker = "source:memory_analysis"
 // Arbitrary source-looking text remains factual content.
 func MemoryAnalysisSession(content string) (string, bool) {
 	content = normalizeMemoryDocumentPart(content)
+	if before, role, found := strings.Cut(content, " role:"); found {
+		switch role {
+		case "user", "assistant", "user_and_assistant", "unknown":
+			content = before
+		default:
+			return "", false
+		}
+	}
 	if content == MemoryAnalysisSourceMarker {
 		return "", true
 	}

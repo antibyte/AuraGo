@@ -1,12 +1,12 @@
 package kgsemantic
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sort"
 	"strings"
-	"context"
 )
 
 // NodeContent carries the fields needed to build semantic node documents.
@@ -34,7 +34,7 @@ func BuildNodeContent(node NodeContent) string {
 	keys := make([]string, 0, len(node.Properties))
 	for key := range node.Properties {
 		switch key {
-		case "source", "extracted_at", "last_seen", "session_id", "date", "channel", "protected":
+		case "source", "extracted_at", "last_seen", "session_id", "source_sessions", "date", "channel", "protected":
 			continue
 		default:
 			keys = append(keys, key)
@@ -65,7 +65,7 @@ func BuildEdgeContent(edge EdgeContent) string {
 	keys := make([]string, 0, len(edge.Properties))
 	for key := range edge.Properties {
 		switch key {
-		case "source", "extracted_at", "last_seen", "session_id", "date", "channel", "protected":
+		case "source", "extracted_at", "last_seen", "session_id", "source_sessions", "date", "channel", "protected":
 			continue
 		default:
 			keys = append(keys, key)

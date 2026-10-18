@@ -85,9 +85,11 @@
                 if (_sseReconnectTimer) { clearTimeout(_sseReconnectTimer); _sseReconnectTimer = null; }
                 if (_sseReconnectTimeout) { clearTimeout(_sseReconnectTimeout); _sseReconnectTimeout = null; }
                 hideSSEBanner();
+                DashSummary.setLive('on');
             });
             window.AuraSSE.on('_error', function () {
-                // Don't show banner immediately — wait 3 seconds of sustained disconnection
+                // The sidebar's live dot flips at once; the banner waits for 3 s of sustained disconnection.
+                DashSummary.setLive('off');
                 if (_sseReconnectTimer) return; // Already pending
                 _sseReconnectTimer = setTimeout(function () {
                     _sseReconnectTimer = null;
@@ -106,6 +108,8 @@
             window.AuraSSE.on('system_metrics', function (sys) {
                 // The live values are newer than a cached /api/dashboard/system answer.
                 DashAPI.invalidate('/api/dashboard/system');
+                // The overview's system tile updates in place (no summary refetch).
+                DashOverview.updateHealth(sys);
                 updateGauge(Charts.cpu, 'cpu-val', (sys.cpu && sys.cpu.usage_percent) || 0);
                 updateGauge(Charts.ram, 'ram-val', (sys.memory && sys.memory.used_percent) || 0);
                 updateGauge(Charts.disk, 'disk-val', (sys.disk && sys.disk.used_percent) || 0);
@@ -113,6 +117,7 @@
             });
             window.AuraSSE.on('memory_update', function (mem) {
                 DashAPI.invalidate('/api/dashboard/memory');
+                DashSummary.scheduleRefresh();
                 if (mem && Charts.memory) {
                     Charts.memory.data.datasets[0].data = [
                         mem.core_memory_facts || 0,
@@ -129,6 +134,7 @@
                 DashAPI.invalidate('/api/personality/');
                 DashAPI.invalidate('/api/dashboard/mood-history');
                 DashAPI.invalidate('/api/dashboard/emotion-history');
+                DashSummary.scheduleRefresh();
                 renderMoodBadge(personality);
                 if (DashRouter.current() === 'personality') {
                     API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours).then(data => renderEmotionHistory(data, personality));
@@ -136,12 +142,14 @@
             });
             window.AuraSSE.on('daemon_update', function () {
                 DashAPI.invalidate('/api/daemons');
+                DashSummary.scheduleRefresh();
                 if (DashRouter.current() === 'automations') {
                     loadDaemonsCard();
                 }
             });
             window.AuraSSE.on('audit_update', function () {
                 DashAPI.invalidate('/api/dashboard/audit');
+                DashSummary.scheduleRefresh();
                 if (typeof scheduleAuditRefresh === 'function') {
                     scheduleAuditRefresh();
                 }
@@ -151,6 +159,7 @@
                     const data = JSON.parse(event.data);
                     if (typeof data.event === 'string' && data.event.startsWith('budget_')) {
                         DashAPI.invalidate('/api/budget');
+                        DashSummary.scheduleRefresh();
                     }
                     if (data.event === 'budget_update') {
                         if (data.spent_usd != null) {

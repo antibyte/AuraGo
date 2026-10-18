@@ -106,7 +106,7 @@ func TestMaintenanceBaselineSkipsMemoryArchivedDuringCuration(t *testing.T) {
 		t.Fatal(err)
 	}
 	ltm := &baselineConflictVectorDB{}
-	if err := runNightlyMemoryBaselineWithContext(context.Background(), &config.Config{}, logger, stm, ltm); err != nil {
+	if err := runNightlyMemoryBaselineWithContext(context.Background(), enabledMemoryTestConfig(), logger, stm, ltm); err != nil {
 		t.Fatal(err)
 	}
 	meta, err := stm.GetMemoryMeta("stale")

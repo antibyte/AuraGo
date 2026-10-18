@@ -1,4 +1,9 @@
 {
+  "chat.sessions_delete_hint": "Eliminar permanentemente este chat, incluidos sus planes y el historial archivado.",
+  "chat.sessions_delete_memories": "Eliminar también los recuerdos asociados",
+  "chat.sessions_delete_backups": "Las copias de seguridad pueden conservar datos eliminados hasta su limpieza programada.",
+  "chat.sessions_delete_failed": "No se pudo eliminar el chat por completo. Actualiza la vista antes de reintentarlo.",
+  "chat.sessions_delete_report": "Eliminados: {deleted}. Conservados por tener origen compartido, protegido o desconocido: {retained}.",
   "chat.speech_lab_auth_required": "Es necesario iniciar sesión en AuraGo para abrir Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Configura la URL de Speech Lab para el navegador en Medios → Speech Lab.",
   "chat.vault_secret_title": "Guardar secreto de forma segura",

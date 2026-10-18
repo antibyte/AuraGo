@@ -239,22 +239,34 @@ function testAuraSSEResumesWhenVisibleAfterFrozenConnection() {
   assert.match(sources[1].url, /session_id=s1/);
 }
 
+function gameMakerOutcomeCard(context, state) {
+  let card;
+  const conversation = { querySelector: () => null, appendChild(value) { card = value; } };
+  context.scrollConversation = () => {};
+  context.renderOutcomeCard({ ...state, container: {
+    querySelector: selector => selector === '[data-gm-conversation]' ? conversation : null
+  } });
+  return card;
+}
+
 async function testGameMakerEventConnectionLifecycle() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
-  const sources = [], statuses = [], cards = [], phases = {};
+  const sources = [], statuses = [], phases = {};
   const context = {
     EventSource: class { constructor() { sources.push(this); } addEventListener() {} close() { this.closed = true; } },
+    document: { createElement: () => ({ setAttribute() {} }) },
     eventTypes: ['job_status'], terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
     updateStatus(_state, status) { statuses.push(status); }, syncJobControls() {}, finalizeStreaming() {}, stopElapsed() {},
     phaseMarkup(_state, status) { return status; }, renderProjects() {},
-    async reloadProjectRecord() {}, appendResultCard(_state, kind, message) { cards.push({ kind, message }); }
+    async reloadProjectRecord() {}, refreshWorkspaceDrift() {}
   };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   for (const [start, end] of [['function connectEvents(', 'function parseEvent('], ['function closeEvents(', 'function dispose('], ['function handleJobStatus(', 'function finalizeStreaming(']]) {
     vm.runInContext(sourceBetween(app, start, end), context);
   }
   const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building' },
-    api: { eventURL: () => '/events' }, container: { querySelector: () => phases }, context: { t: key => key } };
+    api: { eventURL: () => '/events' }, container: { querySelector: selector => selector === '[data-gm-phases]' ? phases : null }, context: { t: key => key, esc: String } };
   context.connectEvents(state);
   const first = sources[0];
   first.onerror();
@@ -265,8 +277,11 @@ async function testGameMakerEventConnectionLifecycle() {
   context.handleJobStatus(state, { status: 'cancelled', error: 'Game creation exceeded its time limit.' });
   await Promise.resolve();
   assert.equal(phases.innerHTML, 'cancelled', 'terminal jobs leave the active building phase');
-  assert.equal(cards[0].kind, 'cancelled');
-  assert.equal(cards[0].message, 'Game creation exceeded its time limit.');
+  assert.equal(state.latestJob.status, 'cancelled');
+  assert.equal(state.latestJob.error, 'Game creation exceeded its time limit.');
+  const card = gameMakerOutcomeCard(context, state);
+  assert.equal(card.className, 'gm-result-card is-cancelled');
+  assert.ok(card.innerHTML.includes(state.latestJob.error), 'the result card retains the cancellation reason');
   for (const status of ['cancelled', 'failed', 'ready']) {
     state.job.status = status;
     first.onerror(); first.onopen();
@@ -286,6 +301,8 @@ async function testGameMakerEventConnectionLifecycle() {
   // A project refresh must retain the terminal job badge and ignore old responses.
   context.setButton = () => {};
   state.disposed = false; state.capabilities = {}; state.job.status = 'cancelled';
+  const meta = new Map([['[data-gm-title]', {}], ['[data-gm-engine]', {}]]);
+  state.container.querySelector = selector => meta.get(selector) || null;
   vm.runInContext(sourceBetween(app, 'function renderProjectMeta(', 'function renderConversation('), context);
   context.renderProjectMeta(state);
   assert.equal(statuses.at(-1), 'cancelled', 'draft project metadata must not overwrite cancelled job');
@@ -301,23 +318,25 @@ async function testGameMakerEventConnectionLifecycle() {
 
 async function testGameMakerJobEventOwnership() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
-  const listeners = new Map(), cards = [], phases = {};
+  const listeners = new Map(), phases = {};
   const context = {
     EventSource: class { addEventListener(type, fn) { listeners.set(type, fn); } },
+    document: { createElement: () => ({ setAttribute() {} }) },
     eventTypes: ['job_status', 'phase', 'preview_reload', 'validation_reset', 'stream_ready'],
     terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
     updateStatus(state, status) { state.displayStatus = status; },
     finalizeStreaming() {}, stopElapsed() {}, phaseMarkup: (_state, phase) => phase,
     renderProjects() {}, async reloadProjectRecord() {},
-    appendResultCard(_state, kind) { cards.push(kind); },
+    refreshWorkspaceDrift() {},
     refreshPreview(state) { state.reloads = (state.reloads || 0) + 1; }, window: {}
   };
   context.syncJobControls = state => { state.jobActive = !context.terminalStatuses.has(state.job.status); };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   vm.runInContext(sourceBetween(app, 'function connectEvents(', 'function finalizeStreaming('), context);
   const job = { id: 'new', status: 'building', created_at: '2026-01-02T00:00:00Z' };
   const state = { project: { id: 'project' }, job: { ...job }, activeJob: { job_id: 'new' }, jobActive: true,
-    api: { eventURL: () => '/events' }, container: { querySelector: () => phases }, context: { t: String } };
+    api: { eventURL: () => '/events' }, container: { querySelector: selector => selector === '[data-gm-phases]' ? phases : null }, context: { t: String, esc: String } };
   const emit = (type, id, payload) => listeners.get(type)({ data: JSON.stringify({ type, job_id: id, payload }) });
   context.connectEvents(state);
   for (const replay of [true, false]) {
@@ -332,7 +351,7 @@ async function testGameMakerJobEventOwnership() {
     assert.equal(state.jobActive, true);
     assert.equal(state.activeJob.job_id, 'new');
     assert.equal(state.reloads, undefined);
-    assert.equal(cards.length, 0);
+    assert.equal(state.latestJob, undefined);
   }
   // A job started in another Studio window still advances this window.
   emit('job_status', 'next', { status: 'queued', job: { id: 'next', status: 'queued', created_at: '2026-01-03T00:00:00Z' } });
@@ -347,7 +366,9 @@ async function testGameMakerJobEventOwnership() {
   await Promise.resolve();
   assert.equal(state.activeJob, null);
   assert.equal(state.jobActive, false);
-  assert.deepEqual(cards, ['success']);
+  assert.equal(state.latestJob.status, 'ready');
+  assert.equal(state.latestJob.id, 'next');
+  assert.equal(gameMakerOutcomeCard(context, state).className, 'gm-result-card is-success');
   // An active job from capabilities has no timestamp until its own replayed start.
   state.job = { id: 'active', status: 'building' };
   context.connectEvents(state);
@@ -440,6 +461,7 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
   state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
   vm.runInNewContext(sourceBetween(app, 'async function submitChange(', 'async function stopJob('), context);
+  vm.runInNewContext(sourceBetween(app, 'function postedSelection(', 'function showCreateModal('), context);
   const data = { source: 'aurago-game', channel: 'channel', type: 'runtime_error',
     message: 'Uncaught TypeError: this.scale.setSize is not a function' };
   const event = { source: state.frame.contentWindow, data };
@@ -460,7 +482,7 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const input = { value: 'Fix the snake', disabled: false };
   const button = {};
   const form = { querySelector(selector) { return selector.includes('button') ? button : input; } };
-  state.container = { querySelector() { return form; } };
+  state.container = { querySelector: selector => selector === '[data-gm-change-form]' ? form : null };
   await context.submitChange(state);
   assert.equal(submitted.preview_diagnostics[0].message, data.message);
   assert.equal(submitted.prompt, 'Fix the snake');
@@ -468,6 +490,62 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   state.project = { id: 'other-project' };
   context.handlePreviewMessage(state, { ...event, data: { ...data, message: 'late old error' } });
   assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
+}
+
+async function testGameMakerAssetSelectionReachesCreateAndEdit() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  for (const packs of [[], ['space-shooter', 'platformer']]) {
+    const submitted = [];
+    let create;
+    const input = { value: 'Change the game' }, button = {};
+    const fieldsBySelector = new Map([
+      ['textarea', input], ['button[type="submit"]', button],
+      ['select[name="provider_id"]', { addEventListener() {} }]
+    ]);
+    const form = {
+      querySelector: selector => fieldsBySelector.get(selector) || null,
+      addEventListener(type, handler) { if (type === 'submit') create = handler; }
+    };
+    const layer = { querySelector: selector => selector === '[data-gm-create]' ? form : null, querySelectorAll: () => [] };
+    const project = { id: 'new-game', dimension: '2d' };
+    const state = {
+      capabilities: {}, context: { esc: String, t: String }, projects: [], messages: [],
+      selectedAssetPackIDs: [...packs],
+      container: { querySelector: selector => selector === '[data-gm-change-form]' ? form : null },
+      api: {
+        async createProject() { return project; },
+        async startJob(id, body) { submitted.push({ id, body }); return { id: 'job', status: 'queued' }; }
+      }
+    };
+    const fields = { name: 'New game', description: 'Create the game', dimension: '2d' };
+    const context = {
+      window: {}, FormData: class { get(key) { return fields[key] || ''; } },
+      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '',
+      showModal(_state, _html, mount) { mount(layer); }, closeModal() {}, setModalBusy() {},
+      modalError(_layer, message) { assert.fail(message); }, fail(_state, error) { throw error; },
+      async openProject(current) { current.project = project; },
+      syncJobControls() {}, autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}
+    };
+    vm.createContext(context);
+    vm.runInContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
+    vm.runInContext(sourceBetween(app, 'function postedSelection(', 'async function stopJob('), context);
+    context.showCreateModal(state);
+    await create({ preventDefault() {} });
+    assert.equal(submitted.length, 1, 'create starts exactly one job');
+    assert.equal(submitted[0].id, project.id);
+    assert.deepEqual(Array.from(submitted[0].body.asset_pack_ids), packs, 'create sends selected packs');
+    assert.equal(submitted[0].body.prompt, fields.description);
+
+    await context.submitChange(state);
+    assert.equal(submitted.length, 2, 'edit starts exactly one job');
+    assert.deepEqual(Array.from(submitted[1].body.asset_pack_ids), packs, 'edit sends selected packs');
+    assert.equal(submitted[1].body.prompt, 'Change the game');
+    assert.equal(submitted[1].body.resume, false);
+    state.selectedAssetPackIDs.push('later-selection');
+    for (const { body } of submitted) {
+      assert.deepEqual(Array.from(body.asset_pack_ids), packs, 'submitted selection is detached from later edits');
+    }
+  }
 }
 
 async function testGameMakerSpriteBrowserOwnsSelectionAndCleanup() {
@@ -527,13 +605,13 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
     remove() { panel.hasErrors = false; }
   } };
   nodes.set('[data-gm-diagnostics]', panel);
+  nodes.set('[data-gm-preview]', { replaceChildren() {}, querySelector: () => null });
+  nodes.set('[data-gm-diagnostic-list]', {});
+  nodes.set('[data-gm-diagnostic-count]', {});
   const state = {
     project: { id: 'snake' }, diagnostics: [],
     context: { esc: String, t: String },
-    container: { querySelector(selector) {
-      if (!nodes.has(selector)) nodes.set(selector, { replaceChildren() {}, setAttribute() {}, querySelectorAll: () => [] });
-      return nodes.get(selector);
-    } },
+    container: { querySelector: selector => nodes.get(selector) || null },
     api: { async previewGrant() { return { url: '/preview', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() }; } }
   };
   let nextChannel = 0;
@@ -1809,6 +1887,7 @@ function testRemoteEmbeddingStatusNeverRendersGraniteCPUState() {
   const context = {
     configData: { embeddings: { provider: 'openrouter-embeddings' } },
     document: {
+      getElementById() { return null; },
       querySelector() {
         return { value: 'openrouter-embeddings' };
       }
@@ -1837,7 +1916,7 @@ function testNetworkCamerasDesktopContracts() {
   const routing = read('ui/js/desktop/core/menus-and-routing.js');
   const foundation = read('ui/js/desktop/core/desktop-foundation.js');
   const windowRuntime = read('ui/js/desktop/core/window-shell-runtime.js');
-  const dashboard = read('ui/js/dashboard/dashboard-widgets.js');
+  const dashboard = read('ui/js/dashboard/sections/system.js');
 
   assert.match(loader, /'network-cameras'[\s\S]*desktop-app-network-cameras\.css[\s\S]*network-cameras\.js/);
   assert.match(routing, /appId === 'network-cameras'[\s\S]*NetworkCamerasApp/);
@@ -2777,10 +2856,9 @@ async function testQuickConnectSFTPNavigatorIgnoresStaleListings() {
   assert.match(panel, /activeSFTPNav\.dispose\(\)/);
 }
 
-function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
-  const source = read('ui/js/dashboard/dashboard-widgets.js');
-  const gateSource = sourceBetween(source, 'function createLatestRequestGate()', '// ═══ Cronjobs');
-  const blockSource = sourceBetween(source, blockStart, blockEnd);
+function loadDashboardCardRuntime(file, blockStart, blockEnd, extra) {
+  const gateSource = sourceBetween(read('ui/js/dashboard/main.js'), 'function createLatestRequestGate()', 'function cronjobManagedLabel()');
+  const blockSource = sourceBetween(read(file), blockStart, blockEnd);
   const pending = [];
   const cardEvents = [];
   const context = {
@@ -2810,7 +2888,7 @@ function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
 const dashboardJSON = body => ({ ok: true, json: async () => body });
 
 async function testDashboardAuditIgnoresLateResponses() {
-  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Audit Log', '// ═══ Mission History', {});
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('ui/js/dashboard/sections/audit.js', '// ═══ Audit Log', 'DashSections.register(', {});
   const rendered = [];
   context.renderAuditEvents = page => rendered.push(page.tag);
 
@@ -2835,7 +2913,7 @@ async function testDashboardAuditIgnoresLateResponses() {
 
 async function testDashboardCronjobsIgnoreLateResponses() {
   const rendered = [];
-  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Cronjobs', 'function renderMemoryCurationPreview(plan)', {
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('ui/js/dashboard/sections/automations.js', '// ═══ Cronjobs', 'function setupCronjobsControls()', {
     cronjobsQueryParams: () => new URLSearchParams(),
     renderCronjobs: data => rendered.push(data.tag)
   });
@@ -4355,6 +4433,7 @@ const tests = [
   ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],
   ['Game Maker renews manual review grants without replacing the game', testGameMakerVisualGrantRenewal],
   ['Voxel keeps held inputs isolated by source', testVoxelInputOwnership],
+  ['Game Maker asset selection reaches create and edit', testGameMakerAssetSelectionReachesCreateAndEdit],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],

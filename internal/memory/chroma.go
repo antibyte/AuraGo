@@ -124,7 +124,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	}
 
 	cv.logger.Info("Indexing tool guides...", "total", len(docs), "concurrency", concurrency)
-	if err := collection.AddDocuments(ctx, docs, concurrency); err != nil {
+	if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, docs); err != nil {
 		return fmt.Errorf("failed to batch index tool guides: %w", err)
 	}
 
@@ -133,7 +133,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		if _, ok := newDocIDs[oldID]; ok {
 			continue
 		}
-		if err := collection.Delete(ctx, nil, nil, oldID); err != nil {
+		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, oldID); err != nil {
 			cv.logger.Warn("Failed to delete stale tool guide document", "doc_id", oldID, "error", err)
 		}
 	}
@@ -141,7 +141,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		if _, ok := newDocIDs[staleID]; ok {
 			continue
 		}
-		if err := collection.Delete(ctx, nil, nil, staleID); err != nil {
+		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, staleID); err != nil {
 			cv.logger.Warn("Failed to delete legacy tool guide document", "doc_id", staleID, "error", err)
 		}
 	}
@@ -334,6 +334,24 @@ type vectorDocDeleter interface {
 // markdownVectorDeleter returns the deleter IndexDirectory uses for stale vectors; tests replace it.
 var markdownVectorDeleter = func(col *chromem.Collection) vectorDocDeleter { return col }
 
+type corpusVectorDeleter struct {
+	cv       *ChromemVectorDB
+	col      *chromem.Collection
+	delegate vectorDocDeleter
+}
+
+func (d corpusVectorDeleter) Delete(ctx context.Context, where, whereDocument map[string]string, ids ...string) error {
+	if len(whereDocument) > 0 {
+		return fmt.Errorf("unsupported corpus document-content deletion filter")
+	}
+	d.cv.mu.Lock()
+	defer d.cv.mu.Unlock()
+	if err := d.delegate.Delete(ctx, where, whereDocument, ids...); err != nil {
+		return err
+	}
+	return d.cv.deleteCorpusDocuments(ctx, d.col, where, ids...)
+}
+
 // deleteRemovedMarkdownVectors deletes every vector of a removed file: by tracked
 // doc ID, or by source name when no IDs were tracked. It returns all delete errors
 // so the caller keeps the tracking row until the vectors are really gone.
@@ -510,7 +528,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		if listErr != nil {
 			return fmt.Errorf("list indexed files for %s: %w", collectionName, listErr)
 		}
-		deleter := markdownVectorDeleter(collection)
+		deleter := corpusVectorDeleter{cv, collection, markdownVectorDeleter(collection)}
 		for _, trackedPath := range trackedPaths {
 			if !isPathWithinDirectory(trackedPath, dir) {
 				continue
@@ -549,7 +567,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			state := FileIndexState{LastModified: f.modTime, ContentHash: f.contentHash, IndexFingerprint: f.indexFingerprint}
 			_, err := cv.replaceIndexedDocuments(ctx, stm, collection, f.path, collectionName, state, f.docs)
 			updateErr = errors.Join(updateErr, err)
-		} else if err := collection.AddDocuments(ctx, f.docs, 1); err != nil {
+		} else if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, f.docs); err != nil {
 			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
 		}
 	}

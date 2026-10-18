@@ -1,13 +1,17 @@
 const MUSIC_PATH = '/3d/minigolf/music/';
 const MAX_EFFECT_VOICES = 24;
+const ROLLING_ID = 'minigolf-rolling-loop';
+const ROLL_REFRESH_MS = 560;
+const ROLL_LIFETIME_MS = 950;
+const AMBIENT_GAP = [4500, 14000];
 const EFFECTS = {
-  strike: [[115, 76, 0.7, 130], [10, 92, 0.26, 260]],
+  strike: [[115, 76, 0.7, 130], [10, 92, 0.3, 320]],
   impact: {
-    grass: [[115, 62, 0.42, 100]],
-    sand: [[116, 49, 0.52, 190]],
-    wood: [[115, 72, 0.58, 140]],
-    stone: [[14, 58, 0.42, 200]],
-    water: [[99, 84, 0.44, 260], [10, 96, 0.22, 360]]
+    grass: [[115, 62, 0.42, 110]],
+    sand: [['drums', 41, 0.5, 300], [116, 47, 0.3, 180, 30]],
+    wood: [[115, 72, 0.58, 140], ['drums', 47, 0.24, 110, 20]],
+    stone: [['drums', 41, 0.62, 280], [14, 55, 0.36, 320, 40]],
+    water: [[99, 84, 0.44, 260], [10, 96, 0.26, 420, 70]]
   },
   rolling: {
     grass: [[115, 53, 0.25, 155]],
@@ -16,15 +20,44 @@ const EFFECTS = {
     stone: [[14, 52, 0.2, 165]],
     water: [[99, 74, 0.22, 200]]
   },
-  splash: [[99, 79, 0.48, 320], [10, 94, 0.2, 420]],
-  cup: [[14, 79, 0.55, 380], [10, 91, 0.26, 500]],
-  win: [[10, 72, 0.42, 600], [10, 76, 0.38, 600, 90], [11, 79, 0.34, 700, 180], [10, 84, 0.3, 850, 270]]
+  splash: [[99, 79, 0.48, 320], [10, 94, 0.24, 420, 70], [99, 72, 0.2, 750, 280]],
+  cup: [[14, 79, 0.55, 380], [10, 91, 0.3, 500, 150], [112, 84, 0.22, 900, 330]],
+  win: [[10, 72, 0.42, 600], [10, 76, 0.4, 600, 90], [11, 79, 0.36, 700, 180], [10, 84, 0.32, 850, 270], ['drums', 49, 0.5, 1400, 0]]
+};
+const FX_PARAMS = {
+  strike: { tone: 0.62, drive: 0.16 },
+  impact_stone: { tone: 0.5, drive: 0.3 },
+  impact_wood: { drive: 0.22 },
+  impact_sand: { tone: 0.42 },
+  rolling: { tone: 0.5 },
+  splash: { reverb: 0.35 },
+  cup: { reverb: 0.45, tone: 0.55 },
+  win: { reverb: 0.3, delay: 0.12 },
+  ambient: { reverb: 0.3 }
+};
+const AMBIENT = {
+  garden: [
+    [[123, 92, 0.2, 220]],
+    [[123, 88, 0.16, 200], [123, 93, 0.18, 240, 220]],
+    [[123, 95, 0.14, 180], [123, 91, 0.16, 220, 190], [123, 87, 0.13, 260, 400]]
+  ],
+  coast: [
+    [[122, 55, 0.12, 2600]],
+    [[123, 78, 0.15, 260], [123, 74, 0.13, 300, 320]],
+    [[122, 50, 0.1, 3000], [123, 76, 0.1, 240, 1500]]
+  ],
+  night: [
+    [[123, 100, 0.09, 90], [123, 100, 0.09, 90, 150], [123, 101, 0.08, 90, 300]],
+    [[123, 97, 0.07, 120], [123, 97, 0.07, 120, 170], [123, 96, 0.06, 140, 340]]
+  ]
 };
 
 const clamp = (value, min, max, fallback) => {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 };
+
+const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
 
 export function createAudio({ assetURL = value => value, onTrack, onError } = {}) {
   const engine = globalThis.SynthStudioAudio;
@@ -44,8 +77,10 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
   let savedTick = 0;
   let generation = 0;
   let playlist = [];
-  let lastRollAt = -Infinity;
   let lastRollSpeed = 0;
+  let ambientWorld = null;
+  let ambientTimer = 0;
+  let duckTimer = 0;
   const effectNotes = new Map();
   const timers = new Set();
 
@@ -148,6 +183,38 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     return playSelected(0);
   }
 
+  function restoreMusicVolume() {
+    if (duckTimer) { clearTimeout(duckTimer); duckTimer = 0; }
+    music?.setVolume?.(musicVolume);
+  }
+
+  function duckMusic(milliseconds) {
+    if (!music || duckTimer || musicVolume <= 0) return;
+    music.setVolume?.(clamp(musicVolume * 0.3, 0, 1, musicVolume));
+    duckTimer = setTimeout(() => {
+      duckTimer = 0;
+      if (!disposed) music?.setVolume?.(musicVolume);
+    }, milliseconds);
+  }
+
+  function stopAmbient() {
+    if (ambientTimer) { clearTimeout(ambientTimer); ambientTimer = 0; }
+  }
+
+  function scheduleAmbient() {
+    stopAmbient();
+    if (disposed || paused || !unlocked || !ambientWorld || effectsVolume <= 0) return;
+    const gap = AMBIENT_GAP[0] + Math.random() * (AMBIENT_GAP[1] - AMBIENT_GAP[0]);
+    ambientTimer = setTimeout(() => {
+      ambientTimer = 0;
+      if (disposed || paused || !ambientWorld) return;
+      const events = AMBIENT[ambientWorld];
+      const notes = events && events[Math.floor(Math.random() * events.length)];
+      if (notes) playNotes(notes, { kind: 'ambient', pan: (Math.random() - 0.5) * 1.2, reserve: true });
+      scheduleAmbient();
+    }, gap);
+  }
+
   async function unlock() {
     if (disposed) return false;
     if (unlockPromise) return unlockPromise;
@@ -168,6 +235,7 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
         trackIndex = 0;
         playSelected(0);
       }
+      scheduleAmbient();
       return true;
     })().finally(() => {
       if (disposed) unlockPromise = null;
@@ -177,14 +245,25 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
 
   function setMusicVolume(value) {
     musicVolume = clamp(value, 0, 1, musicVolume);
-    music?.setVolume?.(musicVolume);
+    restoreMusicVolume();
     return musicVolume;
   }
 
   function setEffectsVolume(value) {
+    const wasAudible = effectsVolume > 0;
     effectsVolume = clamp(value, 0, 1, effectsVolume);
     effects?.setVolume?.(effectsVolume);
+    if (!wasAudible && effectsVolume > 0) scheduleAmbient();
+    else if (effectsVolume <= 0) stopAmbient();
     return effectsVolume;
+  }
+
+  function setAmbient(world) {
+    const next = AMBIENT[world] ? world : null;
+    if (next === ambientWorld) return ambientWorld;
+    ambientWorld = next;
+    scheduleAmbient();
+    return ambientWorld;
   }
 
   function releaseEffect(id, note) {
@@ -204,27 +283,48 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     return EFFECTS[type];
   }
 
-  function playEffect(type, options = {}) {
-    if (disposed || paused || !effects || effectsVolume <= 0) return false;
-    const notes = soundNotes(type, options);
-    if (!notes) return false;
+  function paramsFor(type, options) {
+    const surface = String(options.surface || '').toLowerCase();
+    const params = (type === 'impact' && surface ? FX_PARAMS[`${type}_${surface}`] : null) || FX_PARAMS[type] || null;
+    return options.params ? { ...(params || {}), ...options.params } : params;
+  }
+
+  function noteInstrument(program) {
+    return program === 'drums' ? 'gm-drums' : `gm-${program}`;
+  }
+
+  function speedPitch(program, basePitch, speed) {
+    if (program === 'drums') return basePitch;
+    return Math.round(clamp(basePitch + speed * 0.35, 0, 127, basePitch));
+  }
+
+  function playNotes(notes, options = {}) {
     const speed = clamp(options.speed, 0, 18, 0);
     const pan = clamp(options.pan, -1, 1, 0);
+    const kind = options.kind || 'effect';
+    const scale = kind === 'strike' || kind === 'impact'
+      ? 0.7 + Math.min(1, speed / 14) * 0.35
+      : 1;
+    const params = paramsFor(kind, options);
     const defaultParams = globalThis.SynthStudioVoices?.DEFAULT_PARAMS || {};
     for (const [index, [program, basePitch, velocity, duration, delay = 0]] of notes.entries()) {
       schedule(() => {
-        if (disposed || paused || effectNotes.size >= MAX_EFFECT_VOICES) {
+        if (disposed || paused || !effects) return;
+        if (effectNotes.size >= MAX_EFFECT_VOICES) {
+          if (options.reserve) return;
           const oldest = effectNotes.entries().next().value;
           if (oldest) releaseEffect(...oldest);
           if (disposed || paused) return;
         }
-        const id = `${type}-${generation}-${Date.now()}-${index}-${effectNotes.size}`;
+        const id = `${kind}-${generation}-${Date.now()}-${index}-${effectNotes.size}`;
         const track = {
-          id: `minigolf-sfx-${program}`, name: 'Minigolf effect', instrument: `gm-${program}`,
-          volume: 0.8, pan, mute: false, solo: false, params: { ...defaultParams }, clips: []
+          id: `minigolf-sfx-${kind}`, name: 'Minigolf effect', instrument: noteInstrument(program),
+          volume: 0.8, pan, mute: false, solo: false, params: { ...defaultParams, ...(params || {}) }, clips: []
         };
         try {
-          const release = effects.noteOn(track, Math.round(clamp(basePitch + speed * 0.35, 0, 127, basePitch)), velocity);
+          const pitched = speedPitch(program, basePitch, speed);
+          const loudness = clamp(velocity * scale, 0.03, 1, velocity);
+          const release = effects.noteOn(track, pitched, loudness);
           if (typeof release !== 'function') return;
           const note = { release, timer: null };
           note.timer = schedule(() => releaseEffect(id, note), duration);
@@ -233,6 +333,14 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
       }, delay);
     }
     return true;
+  }
+
+  function playEffect(type, options = {}) {
+    if (disposed || paused || !effects || effectsVolume <= 0) return false;
+    const notes = soundNotes(type, options);
+    if (!notes) return false;
+    if (type === 'win') duckMusic(2400);
+    return playNotes(notes, { ...options, kind: type });
   }
 
   function effect(type, options = {}) {
@@ -244,15 +352,53 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     return playEffect(type, options);
   }
 
-  function rolling(speedValue, surface = 'grass') {
+  function rollingPitch(surface, speed) {
+    const entry = (EFFECTS.rolling[surface] || EFFECTS.rolling.grass)[0];
+    const [program, basePitch] = entry;
+    return program === 'drums' ? basePitch : Math.round(clamp(basePitch + Math.min(10, speed * 0.7), 0, 127, basePitch));
+  }
+
+  function startRollingNote(surface, speed, pan) {
+    if (disposed || paused || !effects || effectsVolume <= 0) return false;
+    const entry = EFFECTS.rolling[surface] || EFFECTS.rolling.grass;
+    const [program, basePitch, velocity] = entry;
+    const existing = effectNotes.get(ROLLING_ID);
+    if (existing) releaseEffect(ROLLING_ID, existing);
+    if (effectNotes.size >= MAX_EFFECT_VOICES) {
+      const oldest = effectNotes.entries().next().value;
+      if (oldest) releaseEffect(...oldest);
+    }
+    const params = { ...(globalThis.SynthStudioVoices?.DEFAULT_PARAMS || {}), ...(FX_PARAMS.rolling || {}) };
+    const track = {
+      id: 'minigolf-sfx-rolling', name: 'Minigolf rolling', instrument: noteInstrument(program),
+      volume: 0.8, pan: clamp(pan, -1, 1, 0), mute: false, solo: false, params, clips: []
+    };
+    try {
+      const loudness = clamp(velocity * (0.55 + Math.min(1, speed / 14) * 0.5), 0.04, 1, velocity);
+      const release = effects.noteOn(track, rollingPitch(surface, speed), loudness);
+      if (typeof release !== 'function') return false;
+      const note = { release, timer: null, surface, pitch: rollingPitch(surface, speed), startedAt: nowMs() };
+      note.timer = schedule(() => releaseEffect(ROLLING_ID, note), ROLL_LIFETIME_MS);
+      effectNotes.set(ROLLING_ID, note);
+      return true;
+    } catch (error) { report(error); return false; }
+  }
+
+  function rolling(speedValue, surface = 'grass', pan = 0) {
     if (disposed || paused) return false;
     const speed = clamp(speedValue, 0, 18, 0);
     lastRollSpeed = speed;
-    if (speed < 0.15) return false;
-    const now = globalThis.performance?.now?.() ?? Date.now();
-    if (now - lastRollAt < 120) return false;
-    lastRollAt = now;
-    return effect('rolling', { speed, surface });
+    if (speed < 0.15) {
+      const note = effectNotes.get(ROLLING_ID);
+      if (note) releaseEffect(ROLLING_ID, note);
+      return false;
+    }
+    const key = String(surface).toLowerCase();
+    const note = effectNotes.get(ROLLING_ID);
+    const desired = rollingPitch(key, speed);
+    const at = nowMs();
+    if (note && note.surface === key && note.pitch === desired && at - note.startedAt < ROLL_REFRESH_MS) return true;
+    return startRollingNote(key, speed, pan);
   }
 
   function releaseEffects() {
@@ -265,6 +411,8 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     if (disposed || paused) return savedTick;
     paused = true;
     savedTick = stopMusic();
+    stopAmbient();
+    restoreMusicVolume();
     releaseEffects();
     lastRollSpeed = 0;
     return savedTick;
@@ -279,6 +427,7 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     if (!paused) return playing;
     paused = false;
     if (trackIndex < 0 && playlist.length) trackIndex = 0;
+    scheduleAmbient();
     return playSelected(savedTick);
   }
 
@@ -293,6 +442,8 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
     disposed = true;
     generation++;
     paused = true;
+    stopAmbient();
+    if (duckTimer) { clearTimeout(duckTimer); duckTimer = 0; }
     releaseEffects();
     try { music?.stop(); } catch (_) {}
     try { music?.dispose(); } catch (_) {}
@@ -307,9 +458,9 @@ export function createAudio({ assetURL = value => value, onTrack, onError } = {}
       unlocked, playing, paused, disposed, trackIndex,
       track: trackIndex >= 0 ? playlist[trackIndex]?.title || null : null,
       tick: currentTick(), musicVolume, effectsVolume, activeEffects: effectNotes.size,
-      rollingSpeed: lastRollSpeed
+      rollingSpeed: lastRollSpeed, ambient: ambientWorld
     };
   }
 
-  return { unlock, setMusicVolume, setEffectsVolume, nextTrack, pause, resume, effect, rolling, dispose, getState };
+  return { unlock, setMusicVolume, setEffectsVolume, setAmbient, nextTrack, pause, resume, effect, rolling, dispose, getState };
 }

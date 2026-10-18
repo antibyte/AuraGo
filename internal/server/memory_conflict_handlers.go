@@ -21,18 +21,29 @@ func handleMemoryConflictResolve(s *Server) http.HandlerFunc {
 			ConflictID   int64  `json:"conflict_id"`
 			WinningDocID string `json:"winning_doc_id"`
 			Reason       string `json:"reason"`
+			Action       string `json:"action"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 		req.WinningDocID = strings.TrimSpace(req.WinningDocID)
-		if req.ConflictID <= 0 || req.WinningDocID == "" {
+		if req.Action != "" && req.Action != "resolve" && req.Action != "dismiss" {
+			jsonError(w, "Invalid conflict action", http.StatusBadRequest)
+			return
+		}
+		if req.ConflictID <= 0 || (req.Action != "dismiss" && req.WinningDocID == "") || (req.Action == "dismiss" && req.WinningDocID != "") {
 			jsonError(w, "conflict_id and winning_doc_id are required", http.StatusBadRequest)
 			return
 		}
 
-		if err := s.ShortTermMem.ResolveMemoryConflict(req.ConflictID, req.WinningDocID, req.Reason); err != nil {
+		var actionErr error
+		if req.Action == "dismiss" {
+			actionErr = s.ShortTermMem.DismissMemoryConflict(req.ConflictID, req.Reason)
+		} else {
+			actionErr = s.ShortTermMem.ResolveMemoryConflict(req.ConflictID, req.WinningDocID, req.Reason)
+		}
+		if err := actionErr; err != nil {
 			status := http.StatusInternalServerError
 			errText := err.Error()
 			if strings.Contains(errText, "does not belong") {

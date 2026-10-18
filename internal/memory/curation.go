@@ -174,7 +174,7 @@ func shouldConfirmMemory(meta MemoryMeta, usage MemoryUsageAggregate, status str
 }
 
 func shouldArchiveMemory(meta MemoryMeta, status string, daysSinceAccess int) bool {
-	if status == MemoryVerificationConfirmed || status == MemoryVerificationContradicted {
+	if meta.Protected || meta.KeepForever || IsMemoryArchived(meta) || status == MemoryVerificationConfirmed || status == MemoryVerificationContradicted || daysSinceAccess < 14 {
 		return false
 	}
 	confidence := normalizedConfidence(meta.ExtractionConfidence)
@@ -301,6 +301,9 @@ func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, ac
 		}
 		if normalizedAction != MemoryCurationActionConfirm && normalizedAction != MemoryCurationActionArchive {
 			return false, fmt.Errorf("unsupported automatic curation action %q", action.Action)
+		}
+		if normalizedAction == MemoryCurationActionArchive && !shouldArchiveMemory(current, normalizeMemoryVerificationStatus(current.VerificationStatus), memoryCurationActionBase(current, time.Now().UTC()).DaysSinceAccess) {
+			return false, nil
 		}
 	}
 	previousStatus := normalizeMemoryVerificationStatus(current.VerificationStatus)

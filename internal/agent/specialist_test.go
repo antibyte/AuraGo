@@ -237,7 +237,7 @@ func TestDispatchInnerBlocksA2ASessionSensitiveTools(t *testing.T) {
 }
 
 func TestCoAgentMissionReadOperationPolicy(t *testing.T) {
-	allowed := []string{"", "list", "get", "status"}
+	allowed := []string{"list", "get", "status"}
 	for _, op := range allowed {
 		t.Run("allows_"+op, func(t *testing.T) {
 			if !isCoAgentMissionReadOperation(op) {
@@ -246,7 +246,7 @@ func TestCoAgentMissionReadOperationPolicy(t *testing.T) {
 		})
 	}
 
-	blocked := []string{"create", "add", "update", "delete", "remove", "run", "run_now", "enable", "disable"}
+	blocked := []string{"", "create", "add", "update", "delete", "remove", "run", "run_now", "enable", "disable"}
 	for _, op := range blocked {
 		t.Run("blocks_"+op, func(t *testing.T) {
 			if isCoAgentMissionReadOperation(op) {

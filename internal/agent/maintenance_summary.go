@@ -17,7 +17,7 @@ type maintenanceSummaryKGResult struct {
 	KGErr         error
 }
 
-func persistMaintenanceSummaryAndKG(stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger, date string, entries []memory.JournalEntry, result helperMaintenanceBatchResult, contentLength int) maintenanceSummaryKGResult {
+func persistMaintenanceSummaryAndKG(stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger, date string, entries []memory.JournalEntry, result helperMaintenanceBatchResult, contentLength int, sessions ...string) maintenanceSummaryKGResult {
 	var outcome maintenanceSummaryKGResult
 	if strings.TrimSpace(result.DailySummary) == "" {
 		outcome.SummaryErr = fmt.Errorf("maintenance batch summary missing")
@@ -27,7 +27,7 @@ func persistMaintenanceSummaryAndKG(stm *memory.SQLiteMemory, kg *memory.Knowled
 	if !result.KGValid || kg == nil {
 		outcome.KGErr = fmt.Errorf("maintenance batch KG extraction missing or invalid")
 	} else {
-		outcome.KGErr = storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges, contentLength)
+		outcome.KGErr = storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges, contentLength, sessions...)
 		outcome.KGStored = outcome.KGErr == nil
 	}
 	return outcome

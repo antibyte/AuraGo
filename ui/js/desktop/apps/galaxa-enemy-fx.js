@@ -311,6 +311,7 @@
             e.smolderIgnitedAir = !!(prep && prep.ignitedAir);
             e.rot = 0; e.rotTarget = 0; e.rotTimer = 0; e.rotDuration = 0;
             e.divePending = false; e.shotPending = false; e.shotReady = false;
+            e.shotWarning = 0; e.attackAnim = 0;
             e.rageMode = 0; e.rageSpeedMult = 1;
             e.invulnerable = false;
             e.hitF = 90;

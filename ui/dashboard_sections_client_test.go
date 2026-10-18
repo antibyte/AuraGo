@@ -5,21 +5,25 @@ import (
 	"testing"
 )
 
-// TestDashboardSectionLoadersReplaceTheTabSystem pins the P2 client contract: one loader per sidebar
-// section, DashRouter boot, DashAPI delegation, the section refresh button, the removal of the tab system
-// and of the duplicate overview/logs/tool-stats fetches, and the router/api scripts loading before main.js.
+// TestDashboardSectionLoadersReplaceTheTabSystem pins the client contract: every sidebar section has a module that
+// registers its loader with DashSections, loadSectionContent runs the registered loader (a false result keeps the
+// last "Updated" stamp), DashRouter boot, DashAPI delegation, the section refresh button, the removal of the tab
+// system and of the duplicate overview/logs/tool-stats fetches, and the router/api scripts loading before main.js.
 func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 	t.Parallel()
 
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
-	for _, id := range []string{"overview", "personality", "memory", "user", "knowledge", "filesync", "problems", "automations", "system", "audit", "logs", "llm", "prompts", "tools"} {
-		if !strings.Contains(mainJS, "'"+id+"': ") {
-			t.Errorf("SECTION_LOADERS has no entry for section %q", id)
+	for _, id := range dashboardSectionIDs {
+		module := readDesktopAssetText(t, "js/dashboard/sections/"+id+".js")
+		if !strings.Contains(module, "DashSections.register({ id: '"+id+"', load: ") {
+			t.Errorf("sections/%s.js does not register its loader with DashSections", id)
 		}
 	}
+	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
-		"const SECTION_LOADERS = {",
 		"async function loadSectionContent(id, { force = false } = {})",
+		"const section = DashSections.get(id);",
+		"const outcome = await section.load({ force });",
+		"if (outcome === false) return;",
 		"t('dashboard.section.updated').replace('{{time}}', new Date().toLocaleTimeString())",
 		"const SectionState = { loaded: {} };",
 		"DashRouter.init({ onShow: id => loadSectionContent(id) });",
@@ -32,42 +36,44 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 			t.Errorf("main.js misses %q", marker)
 		}
 	}
-	for _, gone := range []string{"VALID_TABS", "TabState", "showTab(", "initTabKeyboardNav", "loadTabContent", "fetchAll", "loadAgentBanner", "aurago-dash-tab", "loadTabOverview", "loadTabAgent", "loadTabUser", "loadTabSystem", "dashTabs"} {
+	for _, gone := range []string{"SECTION_LOADERS", "VALID_TABS", "TabState", "showTab(", "initTabKeyboardNav", "loadTabContent", "fetchAll", "loadAgentBanner", "aurago-dash-tab", "loadTabOverview", "loadTabAgent", "loadTabUser", "loadTabSystem", "dashTabs"} {
 		if strings.Contains(mainJS, gone) {
 			t.Errorf("main.js still contains %q", gone)
 		}
 	}
+	// Counted and searched across every dashboard script: the section modules may hold any of them.
+	dashJS := readDashboardJS(t)
 	for url, want := range map[string]int{
-		"'/api/dashboard/overview'":       2, // overview + system loaders share one cached answer
+		"'/api/dashboard/overview'":       1, // system loader (card-operations); the overview reads the summary feed
 		"'/api/dashboard/logs?lines=100'": 1,
 		"'/api/dashboard/tool-stats'":     1,
 	} {
-		if got := strings.Count(mainJS, url); got != want {
-			t.Errorf("main.js requests %s %d times, want %d", url, got, want)
+		if got := strings.Count(dashJS, url); got != want {
+			t.Errorf("the dashboard scripts request %s %d times, want %d", url, got, want)
 		}
 	}
-
-	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	for _, marker := range []string{
 		"await loadSectionContent('memory', { force: true });",
 		"loadSectionContent('user', { force: true });",
 		"DashRouter.current() !== 'audit'",
 	} {
-		if !strings.Contains(widgets, marker) {
-			t.Errorf("dashboard-widgets.js misses %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Errorf("the dashboard scripts miss %q", marker)
 		}
 	}
+
 	// A narrative toggle changes /api/personality/state without a personality_update SSE, so the
 	// cached state must be dropped by the mutation itself.
-	if at := strings.Index(widgets, "async function characterNoteAction("); at < 0 {
-		t.Error("dashboard-widgets.js misses characterNoteAction")
-	} else if end := strings.Index(widgets[at:], "function renderCharacterNotes("); end < 0 ||
-		!strings.Contains(widgets[at:at+end], "DashAPI.invalidate('/api/personality/');") {
+	personalityJS := readDesktopAssetText(t, "js/dashboard/sections/personality.js")
+	if at := strings.Index(personalityJS, "async function characterNoteAction("); at < 0 {
+		t.Error("sections/personality.js misses characterNoteAction")
+	} else if end := strings.Index(personalityJS[at:], "function renderCharacterNotes("); end < 0 ||
+		!strings.Contains(personalityJS[at:at+end], "DashAPI.invalidate('/api/personality/');") {
 		t.Error("characterNoteAction must call DashAPI.invalidate('/api/personality/') after a successful POST")
 	}
 	for _, gone := range []string{"TabState", "loadTabAgent", "loadTabUser", "function loadErrorPatterns"} {
-		if strings.Contains(widgets, gone) {
-			t.Errorf("dashboard-widgets.js still contains %q", gone)
+		if strings.Contains(dashJS, gone) {
+			t.Errorf("the dashboard scripts still contain %q", gone)
 		}
 	}
 

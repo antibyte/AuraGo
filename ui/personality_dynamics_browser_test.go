@@ -91,8 +91,8 @@ func TestPersonalityDynamicsBrowser(t *testing.T) {
 
 	// Exercise the Dashboard consumer against its actual card markup and source.
 	card := dashboardCardMarkup(t, readDashboardSection(t, "personality"), "card-personality")
-	page.MustEval(`(html)=>{document.getElementById('content').innerHTML=html;window.dashSetHidden=(el,hide)=>{if(el)el.classList.toggle('is-hidden',hide)}}`, card)
-	if err := page.AddScriptTag("", string(mustReadUIFile(t, "js/dashboard/dashboard-widgets.js"))); err != nil {
+	page.MustEval(`(html)=>{document.getElementById('content').innerHTML=html;window.dashSetHidden=(el,hide)=>{if(el)el.classList.toggle('is-hidden',hide)};window.DashSections={register(){}}}`, card)
+	if err := page.AddScriptTag("", string(mustReadUIFile(t, "js/dashboard/sections/personality.js"))); err != nil {
 		t.Fatal(err)
 	}
 	page.MustEval(`()=>renderMoodBadge({...dynamicsFixture,dynamics:{...dynamicsFixture.dynamics,revision:45}})`)

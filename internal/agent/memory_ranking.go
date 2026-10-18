@@ -195,14 +195,14 @@ func calculateMemoryRankingScore(similarity float64, meta memory.MemoryMeta, reu
 func memoryRecencyBonus(meta memory.MemoryMeta, now time.Time) float64 {
 	recencyBonus := 0.0
 
-	if eventTime, err := time.Parse("2006-01-02 15:04:05", meta.LastEventAt); err == nil {
-		daysSince := now.Sub(eventTime).Hours() / 24
+	if eventTime, err := parseMemoryTimestamp(meta.LastEventAt); err == nil {
+		daysSince := max(0.0, now.Sub(eventTime).Hours()/24)
 		if daysSince < 30 {
 			recencyBonus += 0.35 * (1.0 - daysSince/30.0)
 		}
 	}
-	if lastAccessed, err := time.Parse("2006-01-02 15:04:05", meta.LastAccessed); err == nil {
-		daysSince := now.Sub(lastAccessed).Hours() / 24
+	if lastAccessed, err := parseMemoryTimestamp(meta.LastAccessed); err == nil {
+		daysSince := max(0.0, now.Sub(lastAccessed).Hours()/24)
 		if daysSince < 30 {
 			recencyBonus += 0.15 * (1.0 - daysSince/30.0)
 		}

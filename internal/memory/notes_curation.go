@@ -37,6 +37,7 @@ type NoteCurationAction struct {
 	CurrentArchived    bool   `json:"current_archived"`
 	CurrentProtected   bool   `json:"current_protected"`
 	CurrentKeepForever bool   `json:"current_keep_forever"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 type NotesCurationPlan struct {
@@ -92,6 +93,7 @@ func (s *SQLiteMemory) BuildNotesCurationPlan(opts NotesCurationOptions) (NotesC
 			CurrentArchived:    note.Archived,
 			CurrentProtected:   note.Protected,
 			CurrentKeepForever: note.KeepForever,
+			UpdatedAt:          note.UpdatedAt,
 		}
 
 		staleOpen := note.DueDate == "" && time.Duration(daysSinceUpdate)*24*time.Hour >= defaultNotesStaleOpenAge
@@ -148,7 +150,14 @@ func (s *SQLiteMemory) ApplyNoteCurationAction(action NoteCurationAction, actor 
 	if strings.TrimSpace(actor) != "" {
 		reason = reason + " (" + strings.TrimSpace(actor) + ")"
 	}
-	return s.ArchiveNote(action.NoteID, reason)
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.Exec(`UPDATE notes SET archived=1, archived_at=?, archived_reason=?, last_reviewed_at=?, updated_at=?
+	 WHERE id=? AND COALESCE(protected,0)=0 AND COALESCE(keep_forever,0)=0 AND archived=0 AND done=0
+	 AND updated_at=? AND priority=? AND title=? AND category=?`, now, reason, now, now, action.NoteID, action.UpdatedAt, action.Priority, action.Title, action.Category)
+	if err != nil {
+		return fmt.Errorf("apply note curation: %w", err)
+	}
+	return nil
 }
 
 func noteDaysOverdue(dueDate string, now time.Time) int {

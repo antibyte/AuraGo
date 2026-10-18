@@ -13,11 +13,10 @@ const (
 )
 
 const (
-	DefaultStrategy          = StrategyRecursive
-	DefaultMaxChars          = 3500
-	DefaultOverlapChars      = 200
-	DefaultMaxChunks         = 200
-	defaultOversizeSplitStep = 32
+	DefaultStrategy     = StrategyRecursive
+	DefaultMaxChars     = 3500
+	DefaultOverlapChars = 200
+	DefaultMaxChunks    = 200
 )
 
 type Chunk struct {
@@ -264,7 +263,11 @@ func isMarkdownHeading(line string) bool {
 		}
 		hashes++
 	}
-	return hashes > 0 && hashes <= 6 && len([]rune(line)) > hashes && unicode.IsSpace([]rune(line)[hashes])
+	if hashes == 0 || hashes > 6 || len(line) <= hashes {
+		return false
+	}
+	next, _ := utf8.DecodeRuneInString(line[hashes:])
+	return unicode.IsSpace(next)
 }
 
 func isMarkdownListStart(line string) bool {
@@ -288,21 +291,23 @@ func isMarkdownTableLine(line string) bool {
 }
 
 func splitOversizeBlock(text string, maxChars int) []string {
-	if runeLen(text) <= maxChars {
-		return []string{text}
-	}
+	runes := []rune(strings.TrimSpace(text))
 	var out []string
-	remaining := strings.TrimSpace(text)
-	for runeLen(remaining) > maxChars {
-		head, tail := splitAtBestBoundary(remaining, maxChars)
-		if strings.TrimSpace(head) == "" {
+	for start := 0; start < len(runes); {
+		for start < len(runes) && unicode.IsSpace(runes[start]) {
+			start++
+		}
+		if start == len(runes) {
 			break
 		}
-		out = append(out, strings.TrimSpace(head))
-		remaining = strings.TrimSpace(tail)
-	}
-	if remaining != "" {
-		out = append(out, remaining)
+		end := len(runes)
+		if end-start > maxChars {
+			end = start + bestBoundary(runes[start:start+maxChars], maxChars)
+		}
+		if chunk := strings.TrimSpace(string(runes[start:end])); chunk != "" {
+			out = append(out, chunk)
+		}
+		start = end
 	}
 	return out
 }
@@ -312,7 +317,12 @@ func splitAtBestBoundary(text string, maxChars int) (string, string) {
 	if len(runes) <= maxChars {
 		return text, ""
 	}
-	window := string(runes[:maxChars])
+	split := bestBoundary(runes[:maxChars], maxChars)
+	return string(runes[:split]), string(runes[split:])
+}
+
+func bestBoundary(runes []rune, maxChars int) int {
+	window := string(runes)
 	minSplit := maxChars / 2
 	for _, sep := range []string{"\n\n", "\n", ". ", "! ", "? ", "; ", ", ", " "} {
 		idx := strings.LastIndex(window, sep)
@@ -321,13 +331,10 @@ func splitAtBestBoundary(text string, maxChars int) (string, string) {
 		}
 		splitRunes := utf8.RuneCountInString(window[:idx+len(sep)])
 		if splitRunes >= minSplit {
-			return string(runes[:splitRunes]), string(runes[splitRunes:])
+			return splitRunes
 		}
 	}
-	if maxChars > defaultOversizeSplitStep {
-		return string(runes[:maxChars]), string(runes[maxChars:])
-	}
-	return string(runes[:maxChars]), string(runes[maxChars:])
+	return maxChars
 }
 
 func applyOverlap(chunks []string, overlap, maxChars int) []string {

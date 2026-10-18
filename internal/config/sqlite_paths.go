@@ -33,15 +33,15 @@ func FlowsDBPath(cfg *Config) string {
 }
 
 // SQLiteDatabasePaths returns absolute SQLite database paths that should be
-// included in backups. Long-term memory lives in directories.vectordb_dir
-// (chromem); sqlite.long_term_path is legacy-only and included only when the
-// file still exists on disk.
+// included in backups. The canonical document corpus always participates;
+// sqlite.long_term_path is legacy-only and included only while it exists.
 func SQLiteDatabasePaths(cfg *Config) []string {
 	if cfg == nil {
 		return nil
 	}
 
 	paths := []string{
+		DocumentCorpusPath(cfg),
 		cfg.SQLite.ShortTermPath,
 		cfg.SQLite.InventoryPath,
 		cfg.SQLite.InvasionPath,
@@ -85,6 +85,14 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 	}
 
 	return dedupeNonEmptyPaths(paths)
+}
+
+// DocumentCorpusPath locates durable long-term content independently of its index.
+func DocumentCorpusPath(cfg *Config) string {
+	if cfg == nil || strings.TrimSpace(cfg.Directories.VectorDBDir) == "" {
+		return ""
+	}
+	return filepath.Join(cfg.Directories.VectorDBDir, "documents.sqlite")
 }
 
 // IsBestEffortSQLiteBackup reports whether path (one of SQLiteDatabasePaths)

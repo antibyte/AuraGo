@@ -731,6 +731,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				webhookPath = "/api/telnyx/webhook"
 			}
 			telnyxHandler := telnyx.NewWebhookHandler(s.Cfg, s.Logger, func(from, text string, mediaURLs []string) {
+				sessionID, err := s.ShortTermMem.ResolveUserSession(serverCtx, "default")
+				if err != nil {
+					s.Logger.Error("Resolve incoming SMS conversation", "error", err)
+					return
+				}
 				quarantined := false
 				if scan, quarantine := scanIncomingSMS(s.Guardian, from, text, mediaURLs); quarantine {
 					if s.Logger != nil {
@@ -740,10 +745,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					mediaURLs = nil
 					quarantined = true
 				}
-				if !quarantined && tools.HasPendingQuestion("default") {
-					if response, ok := tools.ResolveQuestionReply("default", text); ok {
+				if !quarantined && tools.HasPendingQuestion(sessionID) {
+					if response, ok := tools.ResolveQuestionReply(sessionID, text); ok {
 						response.Source = tools.QuestionSourceTelnyx
-						tools.CompleteQuestion("default", response)
+						tools.CompleteQuestion(sessionID, response)
 						return
 					}
 					telnyx.NewSMSBroker(s.Cfg, from, s.Logger).Send("question_user", "Please reply with one of the listed numbers.")
@@ -789,6 +794,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					IsMaintenance:      tools.IsBusy(),
 					MessageSource:      "sms",
 				}
+				runCfg.SessionID = sessionID
 				runCfg.TrustedPromptAddenda = quarantineAddenda
 				s.configureRunKnowledge(&runCfg)
 				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))

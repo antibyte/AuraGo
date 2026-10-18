@@ -1624,7 +1624,10 @@
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
         }
         if (appId === 'video-studio' && window.VideoStudioApp && typeof window.VideoStudioApp.render === 'function') {
-            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+            const win = state.windows.get(id);
+            const launch = Object.assign({}, context || {}, win?.pendingCameraImport || {});
+            if (win) delete win.pendingCameraImport;
+            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
@@ -1757,7 +1760,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
         }
         if (appId === 'network-cameras') {
             if (!window.NetworkCamerasApp) {

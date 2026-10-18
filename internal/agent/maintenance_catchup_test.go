@@ -22,6 +22,8 @@ func TestRunConsolidationCatchupIsOptInAndHonorsMessageCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	cfg.Consolidation.Enabled = true
 	cfg.Consolidation.MaxBatchMessages = 2
@@ -56,6 +58,8 @@ func TestRunConsolidationCatchupDeadlineReleasesClaims(t *testing.T) {
 			t.Fatal(err)
 		}
 		cfg := &config.Config{}
+		cfg.Tools.Memory.Enabled = true
+		cfg.Tools.KnowledgeGraph.Enabled = true
 		cfg.LLM.Model = "test-model"
 		cfg.Consolidation.Enabled = true
 		cfg.Consolidation.CatchupMinutes = 1

@@ -82,6 +82,21 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	taskCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	defer func() {
+		panicked := recover() != nil
+		// Catch-up executes inside this defer and needs its own run boundary.
+		defer func() {
+			if recover() != nil {
+				ledger.addError("maintenance_panic")
+				ledger.markFailed()
+				logger.Error("[Maintenance] Final phase aborted after panic")
+			}
+			completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
+		}()
+		if panicked {
+			ledger.addError("maintenance_panic")
+			ledger.markFailed()
+			logger.Error("[Maintenance] Run aborted after panic")
+		}
 		if ledger.currentPhase != "" {
 			ledger.addError("phase_interrupted")
 			ledger.finishPhase(ledger.currentPhase, true)
@@ -89,11 +104,19 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		ledger.recordNamedError("entity_extraction", "batched_kg", maintenanceBatch.KGErr)
 		cancel()
 		// Catch-up has its own deadline, but still belongs to this controller run.
-		runConsolidationCatchup(ctx, cfg, logger, client, shortTermMem, longTermMem, kg, ledger)
-		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
+		if !panicked {
+			runConsolidationCatchup(ctx, cfg, logger, client, shortTermMem, longTermMem, kg, ledger)
+		}
 	}()
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
+	if err := memory.CreateAutomaticSnapshot(taskCtx, cfg, startedAt); err != nil {
+		ledger.recordError("automatic_backup_failed", err)
+		logger.Warn("[Maintenance] Automatic memory snapshot failed", "error", err)
+	}
+	if maintenanceContextDone(taskCtx, ledger, logger, "automatic_backup") {
+		return
+	}
 	retention := resolveMaintenanceRetention(cfg)
 
 	ledger.recordError("stm_retention", RunSTMPRetentionMaintenance(cfg, logger, shortTermMem))
@@ -251,7 +274,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
 			ledger.addDeferred("consolidation", deferred)
 		}
-		if consolidationCtx.Err() == nil {
+		if consolidationCtx.Err() == nil && runtimeMemoryWriteAllowed(cfg, "memory", "") {
 			ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(consolidationCtx, logger, shortTermMem, longTermMem, kg))
 		}
 	}
@@ -679,7 +702,7 @@ Focus on: what was accomplished, key decisions, and notable events.
 Output ONLY the summary text, no JSON or formatting.
 
 Activity log:
-%s`, today, journalInput)
+%s`, today, isolateAgentPromptExternalData(journalInput))
 
 	summaryClient, summaryModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if summaryClient == nil || summaryModel == "" {
@@ -711,8 +734,10 @@ Activity log:
 	if resp.Choices[0].FinishReason == openai.FinishReasonLength {
 		return fmt.Errorf("daily summary completion truncated")
 	}
-	_, err = storeDailySummaryText(stm, logger, today, entries, resp.Choices[0].Message.Content)
-	return err
+	return stm.WithSessionWrites(ctx, extractionSessionIDs(nil, entries, nil), func() error {
+		_, err := storeDailySummaryText(stm, logger, today, entries, resp.Choices[0].Message.Content)
+		return err
+	})
 }
 
 func uniqueTopics(in []string) []string {
@@ -761,14 +786,14 @@ func buildKGActivityInput(turns []memory.ActivityTurn) string {
 func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string {
 	var sb strings.Builder
 	for _, m := range messages {
-		if m.Role == "system" || strings.TrimSpace(m.Content) == "" {
+		if (m.Role != "user" && m.Role != "assistant") || len(m.ToolCalls) > 0 || strings.TrimSpace(m.Content) == "" {
 			continue
 		}
 		content := m.Content
 		if len(content) > 500 {
 			content = truncateUTF8ToLimit(content, 503, "...")
 		}
-		sb.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, content))
+		sb.WriteString(fmt.Sprintf("[role=%q session=%q]: %s\n", m.Role, m.Name, content))
 		if sb.Len() > 8000 {
 			break
 		}
@@ -840,10 +865,30 @@ func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today 
 	return true, nil
 }
 
-func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge, contentLength int) error {
+func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge, contentLength int, sourceSessions ...string) error {
 	if kg == nil {
 		return nil
 	}
+	rejected := map[string]bool{}
+	safeNodes := make([]memory.Node, 0, len(nodes))
+	for _, node := range nodes {
+		raw, _ := json.Marshal(node)
+		if memory.HasDurableCredential(string(raw)) {
+			rejected[node.ID] = true
+			continue
+		}
+		safeNodes = append(safeNodes, node)
+	}
+	nodes = safeNodes
+	safeEdges := make([]memory.Edge, 0, len(edges))
+	for _, edge := range edges {
+		raw, _ := json.Marshal(edge)
+		if rejected[edge.Source] || rejected[edge.Target] || memory.HasDurableCredential(string(raw)) {
+			continue
+		}
+		safeEdges = append(safeEdges, edge)
+	}
+	edges = safeEdges
 	if len(nodes) == 0 && len(edges) == 0 {
 		logger.Debug("[KG] No entities extracted")
 		return nil
@@ -857,6 +902,7 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		EdgeCount:     len(edges),
 	})
 	confidenceStr := kgextraction.FormatConfidence(confidenceScore)
+	encodedSessions, _ := json.Marshal(sourceSessions)
 
 	for i := range nodes {
 		if nodes[i].Properties == nil {
@@ -865,6 +911,11 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		nodes[i].Properties["source"] = "auto_extraction"
 		nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
 		nodes[i].Properties["confidence"] = confidenceStr
+		nodes[i].Properties["source_sessions"] = string(encodedSessions)
+		nodes[i].Properties["source_role"] = "user_and_assistant"
+		if len(sourceSessions) == 1 {
+			nodes[i].Properties["session_id"] = sourceSessions[0]
+		}
 	}
 	for i := range edges {
 		if edges[i].Properties == nil {
@@ -873,6 +924,11 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		edges[i].Properties["source"] = "auto_extraction"
 		edges[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
 		edges[i].Properties["confidence"] = confidenceStr
+		edges[i].Properties["source_sessions"] = string(encodedSessions)
+		edges[i].Properties["source_role"] = "user_and_assistant"
+		if len(sourceSessions) == 1 {
+			edges[i].Properties["session_id"] = sourceSessions[0]
+		}
 	}
 
 	if err := kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
@@ -886,6 +942,9 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 
 func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, today string) maintenanceSummaryKGResult {
 	var outcome maintenanceSummaryKGResult
+	if !runtimeMemoryWriteAllowed(cfg, "graph", "") {
+		return outcome
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -911,7 +970,7 @@ func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, 
 		outcome.SummaryErr = err
 		return outcome
 	}
-	messages, err := stm.GetRecentMessagesAcrossSessions(100)
+	messages, err := stm.GetRecentExtractionMessages(100)
 	if err != nil || len(messages) == 0 {
 		outcome.KGErr = err
 		return outcome
@@ -950,13 +1009,26 @@ func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, 
 		outcome.SummaryErr, outcome.KGErr = err, err
 		return outcome
 	}
-	return persistMaintenanceSummaryAndKG(stm, kg, logger, today, entries, result, len(conversationInput))
+	sessions := extractionSessionIDs(messages, entries, turns)
+	if err := stm.WithSessionWrites(ctx, sessions, func() error {
+		if !runtimeMemoryWriteAllowed(cfg, "graph", "") {
+			return fmt.Errorf("memory policy changed")
+		}
+		outcome = persistMaintenanceSummaryAndKG(stm, kg, logger, today, entries, result, len(conversationInput), sessions...)
+		return nil
+	}); err != nil {
+		outcome.SummaryErr, outcome.KGErr = err, err
+	}
+	return outcome
 }
 
 // extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
 // Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
 // This is a conversation-specific adapter around ExtractKGFromText.
 func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) error {
+	if !runtimeMemoryWriteAllowed(cfg, "graph", "") {
+		return nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -967,7 +1039,7 @@ func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Log
 	today := time.Now().Format("2006-01-02")
 
 	// Collect recent messages across all sessions.
-	messages, err := stm.GetRecentMessagesAcrossSessions(100)
+	messages, err := stm.GetRecentExtractionMessages(100)
 	if err != nil {
 		return err
 	}
@@ -1007,7 +1079,13 @@ func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Log
 		return err
 	}
 
-	return storeKGExtraction(logger, kg, nodes, edges, len(conversationExcerpt))
+	sessions := extractionSessionIDs(messages, entries, turns)
+	return stm.WithSessionWrites(ctx, sessions, func() error {
+		if !runtimeMemoryWriteAllowed(cfg, "graph", "") {
+			return fmt.Errorf("memory policy changed")
+		}
+		return storeKGExtraction(logger, kg, nodes, edges, len(conversationExcerpt), sessions...)
+	})
 }
 
 const helperConsolidationBatchSize = 2
@@ -1017,20 +1095,21 @@ type consolidationWorkItem struct {
 	messages     []memory.ArchivedMessage
 	messageIDs   []int64
 	conversation string
+	parts        []string
 }
 
 func buildConsolidationWorkItem(index int, batch []memory.ArchivedMessage) consolidationWorkItem {
-	var sb strings.Builder
 	messageIDs := make([]int64, 0, len(batch))
 	for _, msg := range batch {
-		sb.WriteString(fmt.Sprintf("[%s] %s: %s\n", msg.Timestamp, msg.Role, msg.Content))
 		messageIDs = append(messageIDs, msg.ID)
 	}
+	parts := serializeConsolidationSources(batch)
 	return consolidationWorkItem{
 		batchID:      fmt.Sprintf("batch_%d", index+1),
 		messages:     batch,
 		messageIDs:   messageIDs,
-		conversation: strings.TrimSpace(sb.String()),
+		conversation: strings.Join(parts, "\n"),
+		parts:        parts,
 	}
 }
 
@@ -1059,7 +1138,7 @@ Rules:
 - If no meaningful facts exist, return {"facts": []}
 
 Conversation:
-%s`, conversation)
+%s`, security.IsolateExternalData(conversation))
 
 	extractCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
@@ -1131,7 +1210,7 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 	return storeConsolidationFactsWithContext(context.Background(), logger, stm, ltm, facts)
 }
 
-func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
+func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact, sources ...memory.MemoryMetaUpdate) (stored int, skipped int, err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1146,11 +1225,30 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 		if concept == "" || content == "" {
 			continue
 		}
-		owned, storeErr := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+		if !shouldStoreExtractedMemory(content, "") {
+			skipped++
+			continue
+		}
+		details := memory.MemoryMetaUpdate{
 			ExtractionConfidence: 0.82, VerificationStatus: "unverified", SourceType: "consolidation", SourceReliability: 0.82,
-		})
+		}
+		if len(sources) > 0 {
+			details.SourceSessionID, details.SourceRole = sources[0].SourceSessionID, sources[0].SourceRole
+		}
+		if details.SourceRole != "user" {
+			details.SourceReliability = .6
+		}
+		storedContent := content
+		if details.SourceSessionID != "" {
+			storedContent = fmt.Sprintf("source:consolidation session:%q role:%q\n\n%s", details.SourceSessionID, details.SourceRole, content)
+		}
+		owned, storeErr := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, storedContent, details)
 		createdWrites = append(createdWrites, owned.Writes...)
 		if storeErr != nil {
+			if errors.Is(storeErr, memory.ErrAutomaticMemorySkipped) {
+				skipped++
+				continue
+			}
 			storeErrors = append(storeErrors, storeErr)
 			continue
 		}
@@ -1501,6 +1599,9 @@ type consolidationRunResult struct {
 }
 
 func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (result consolidationRunResult) {
+	if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
+		return result
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1566,6 +1667,15 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		logger.Debug("[Consolidation] No unconsolidated archived messages")
 		return result
 	}
+	defer func() {
+		ids := make([]int64, 0, len(archived))
+		for _, msg := range archived {
+			ids = append(ids, msg.ID)
+		}
+		if err := stm.ReleaseConsolidationClaims(ids); err != nil {
+			result.Errors = append(result.Errors, err)
+		}
+	}()
 	budget.remaining -= len(archived)
 	result.MessagesClaimed += len(archived)
 
@@ -1578,8 +1688,8 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 	currentLen := 0
 
 	for _, msg := range archived {
-		msgLen := len(msg.Content)
-		if currentLen+msgLen > maxBatchChars && len(currentBatch) > 0 {
+		msgLen := len(msg.Content) + len(msg.SessionID) + len(msg.Role) + len(msg.Timestamp) + 100
+		if len(currentBatch) > 0 && (currentLen+msgLen > maxBatchChars || msg.SessionID != currentBatch[0].SessionID || msg.Role != currentBatch[0].Role) {
 			batches = append(batches, currentBatch)
 			currentBatch = nil
 			currentLen = 0
@@ -1599,18 +1709,17 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 
 	persistWorkItem := func(item consolidationWorkItem, batchIndex int, facts []helperConsolidationFact) {
 		started := time.Now()
-		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
+		if !runtimeMemoryWriteAllowed(cfg, "memory", item.messages[0].SessionID) {
+			_ = stm.ReleaseConsolidationClaims(item.messageIDs)
+			return
+		}
+		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts, memory.MemoryMetaUpdate{SourceSessionID: item.messages[0].SessionID, SourceRole: item.messages[0].Role})
 		logger.Info("[Consolidation] Batch storage finished", "batch", batchIndex, "messages", len(item.messageIDs),
 			"facts", len(facts), "stored", stored, "skipped", skipped, "duration_ms", time.Since(started).Milliseconds(), "failed", storeErr != nil)
 		if storeErr != nil {
 			result.Errors = append(result.Errors, storeErr)
 			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
-			var claimErr error
-			if ctx.Err() != nil {
-				claimErr = stm.ReleaseConsolidationClaims(item.messageIDs)
-			} else {
-				claimErr = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
-			}
+			claimErr := finishConsolidationError(ctx, stm, item.messageIDs, storeErr)
 			if claimErr != nil {
 				result.Errors = append(result.Errors, claimErr)
 			}
@@ -1636,7 +1745,16 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			return
 		}
 		started := time.Now()
-		facts, err := extractConsolidationFactsWithLLM(ctx, cfg, logger, consolidationClient, consolidationModel, item.conversation)
+		facts := make([]helperConsolidationFact, 0)
+		var err error
+		for _, part := range item.parts {
+			var extracted []helperConsolidationFact
+			extracted, err = extractConsolidationFactsWithLLM(ctx, cfg, logger, consolidationClient, consolidationModel, part)
+			if err != nil {
+				break
+			}
+			facts = append(facts, extracted...)
+		}
 		logger.Info("[Consolidation] Batch extraction finished", "batch", batchIndex,
 			"duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
 		if err != nil {
@@ -1648,7 +1766,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 				}
 				return
 			}
-			if markErr := stm.MarkConsolidationFailure(item.messageIDs, err.Error()); markErr != nil {
+			if markErr := finishConsolidationError(ctx, stm, item.messageIDs, err); markErr != nil {
 				result.Errors = append(result.Errors, markErr)
 			}
 			return
@@ -1667,7 +1785,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			}
 			break
 		}
-		if helperManager == nil {
+		if helperManager == nil || len(workItems[i].parts) > 1 {
 			processWorkItem(workItems[i], i+1)
 			i++
 			continue
@@ -1676,6 +1794,12 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		end := i + helperConsolidationBatchSize
 		if end > len(workItems) {
 			end = len(workItems)
+		}
+		for next := i + 1; next < end; next++ {
+			if len(workItems[next].parts) > 1 {
+				end = next
+				break
+			}
 		}
 
 		inputs := make([]helperConsolidationBatchInput, 0, end-i)
@@ -1717,7 +1841,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 						}
 						continue
 					}
-					if markErr := stm.MarkConsolidationFailure(item.messageIDs, singleErr.Error()); markErr != nil {
+					if markErr := finishConsolidationError(ctx, stm, item.messageIDs, singleErr); markErr != nil {
 						result.Errors = append(result.Errors, markErr)
 					}
 					continue
@@ -1849,6 +1973,14 @@ func consolidateEpisodicHierarchy(ctx context.Context, logger *slog.Logger, stm 
 	if len(episodes) < 2 {
 		return
 	}
+	var sourceSessions []string
+	for _, episode := range episodes {
+		sourceSessions = append(sourceSessions, episode.SessionID)
+	}
+	return stm.WithSessionWrites(ctx, sourceSessions, func() error { return consolidateEpisodicHierarchyWritable(ctx, logger, stm, ltm, kg, episodes) })
+}
+
+func consolidateEpisodicHierarchyWritable(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, episodes []memory.EpisodicMemory) (resultErr error) {
 	groups := make(map[string][]memory.EpisodicMemory)
 	for _, episode := range episodes {
 		if episode.ActionStatus == "pending" {
@@ -1876,7 +2008,7 @@ func consolidateEpisodicHierarchy(ctx context.Context, logger *slog.Logger, stm 
 		}
 		concept := "Hierarchical memory synthesis " + groupKey
 		owned, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, summary, memory.MemoryMetaUpdate{
-			ExtractionConfidence: 0.88, VerificationStatus: "unverified", SourceType: "hierarchical_consolidation", SourceReliability: 0.9,
+			ExtractionConfidence: 0.88, VerificationStatus: "unverified", SourceType: "hierarchical_consolidation", SourceReliability: 0.6, SourceSessionID: group[0].SessionID, SourceRole: "unknown",
 		})
 		ids := append(append(append([]string{}, owned.CreatedIDs...), owned.ReusedIDs...), owned.UnknownIDs...)
 		if err != nil {
@@ -2068,6 +2200,9 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 }
 
 func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) (result autoOptimizeMemoryResult) {
+	if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
+		return result
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2089,34 +2224,18 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	var lowDocs []memory.MemoryMeta
 	var mediumDocs []string
 	for _, meta := range metas {
-		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) {
+		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) || meta.VerificationStatus == memory.MemoryVerificationConfirmed || meta.VerificationStatus == memory.MemoryVerificationContradicted {
 			continue
 		}
 		priority := adjustedMemoryPriority(meta, time.Now())
-		if priority < threshold {
-			lowDocs = append(lowDocs, meta)
-		} else if priority < threshold+2 {
+		if priority >= threshold && priority < threshold+2 {
 			mediumDocs = append(mediumDocs, meta.DocID)
 		}
 	}
 
-	// Low priority alone never requires physical destruction. Archive through
-	// the policy-aware metadata path and retain the vector for recovery.
-	for _, meta := range lowDocs {
-		docID := meta.DocID
-		if err := ctx.Err(); err != nil {
-			result.Errors = append(result.Errors, err)
-			return result
-		}
-		if _, err := stm.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
-			DocID: docID, Action: memory.MemoryCurationActionArchive, Reason: "auto-optimize low priority", ExpectedMeta: &meta,
-		}); err != nil {
-			result.Errors = append(result.Errors, err)
-		}
-	}
+	// Automatic archiving belongs to the shared curation plan, including its grace period.
 
 	// Compress medium-priority documents
 	optimizeClient, optimizeModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
@@ -2180,7 +2299,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 				Model: optimizeModel,
 				Messages: []openai.ChatCompletionMessage{
 					{Role: openai.ChatMessageRoleSystem, Content: "Compress this memory into a dense bullet-point list of core facts. Output ONLY the compressed text."},
-					{Role: openai.ChatMessageRoleUser, Content: item.content},
+					{Role: openai.ChatMessageRoleUser, Content: isolateAgentPromptExternalData(item.content)},
 				},
 				MaxTokens: 500,
 			},
@@ -2201,6 +2320,10 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 		if err := ctx.Err(); err != nil {
 			result.Errors = append(result.Errors, err)
+			return
+		}
+		if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
+			result.Errors = append(result.Errors, fmt.Errorf("memory policy changed"))
 			return
 		}
 		if _, err := stm.ReplaceMemoryDocument(ltm, item.docID, item.concept, item.content, compressed, item.meta, "auto-optimize compressed into replacement memory", "system"); err != nil {
@@ -2262,6 +2385,10 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 				result.Errors = append(result.Errors, err)
 				break
 			}
+			if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
+				result.Errors = append(result.Errors, fmt.Errorf("memory policy changed"))
+				break
+			}
 			if _, err := stm.ReplaceMemoryDocument(ltm, item.docID, item.concept, item.content, compressed, item.meta, "auto-optimize compressed into replacement memory", "system"); err != nil {
 				result.Errors = append(result.Errors, err)
 			}
@@ -2285,9 +2412,8 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	if len(lowDocs) > 0 || len(mediumDocs) > 0 || graphRemoved > 0 {
+	if len(mediumDocs) > 0 || graphRemoved > 0 {
 		logger.Info("[AutoOptimize] Memory optimization complete",
-			"low_removed", len(lowDocs),
 			"medium_compressed", len(mediumDocs),
 			"graph_nodes_removed", graphRemoved)
 	}
@@ -2295,6 +2421,9 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 }
 
 func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) (resultErr error) {
+	if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
+		return nil
+	}
 	if cfg == nil || stm == nil {
 		return
 	}

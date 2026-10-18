@@ -15,6 +15,8 @@ import (
 
 func newTestConfig(enabled, queryExpansion, llmReranking bool) *config.Config {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.MemoryAnalysis.Enabled = enabled
 	cfg.MemoryAnalysis.QueryExpansion = queryExpansion
 	cfg.MemoryAnalysis.LLMReranking = llmReranking
@@ -113,6 +115,8 @@ func TestRerankWithLLM_EmptyCandidates(t *testing.T) {
 
 func TestResolveMemoryAnalysisLLMConfigPrefersHelperLLM(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.HelperEnabled = true
 	cfg.LLM.HelperProvider = "helper"
 	cfg.LLM.HelperProviderType = "openrouter"
@@ -174,6 +178,8 @@ func TestApplyMemoryAnalysisResultQueuesFailedVectorWrite(t *testing.T) {
 	t.Cleanup(func() { _ = stm.Close() })
 	vdb := &fakeVectorDB{storeErr: errors.New("embedding timeout")}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 
 	stored := applyMemoryAnalysisResult(cfg, logger, stm, vdb, "session-1", memoryAnalysisResult{
 		Facts: []extractedFact{{Content: "The build failed", Category: "fact", Confidence: 1}},
@@ -220,6 +226,8 @@ func TestRetryPendingMemoryWritesCompletesRecoveredWrite(t *testing.T) {
 
 func TestResolveMemoryAnalysisLLMConfigFallsBackToLegacyMemoryAnalysis(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.MemoryAnalysis.ProviderType = "openai"
 	cfg.MemoryAnalysis.BaseURL = "https://legacy.example/v1"
 	cfg.MemoryAnalysis.APIKey = "legacy-key"
@@ -253,6 +261,8 @@ func TestApplyMemoryAnalysisResultStoresPendingActionsWithoutCorrections(t *test
 	t.Cleanup(func() { _ = stm.Close() })
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	result := memoryAnalysisResult{
 		PendingActions: []pendingAction{
 			{
@@ -582,9 +592,9 @@ func TestShouldUseRAGForMessage(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "short even if not ambiguous disabled",
+			name: "short factual query enabled",
 			msg:  "docker status",
-			want: false,
+			want: true,
 		},
 		{
 			name: "exactly twenty chars enabled",

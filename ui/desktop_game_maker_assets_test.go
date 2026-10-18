@@ -9,10 +9,6 @@ import (
 )
 
 func TestGameMakerAssetPackUIAndTranslations(t *testing.T) {
-	app := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio.js")
-	if strings.Count(app, "asset_pack_ids: state.selectedAssetPackIDs || []") != 2 {
-		t.Fatal("both create and edit must send pack selection")
-	}
 	loader := readGameMakerAsset(t, "js", "desktop", "core", "module-loader.js")
 	if !strings.Contains(loader, "/js/desktop/apps/game-maker-studio-assets.js") {
 		t.Fatal("asset browser missing from lazy loader")

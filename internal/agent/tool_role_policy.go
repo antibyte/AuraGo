@@ -2,6 +2,8 @@ package agent
 
 // roleToolRestriction is shared by dispatch and discovery.
 func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
+	// Discovery also calls this before transport preparation.
+	tc.Operation = toolCallSnapshotOperation(tc)
 	sessionID := dc.SessionID
 	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.
@@ -11,13 +13,13 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 		case "correct_memory", "remember_learning":
 			return `Tool Output: {"status":"policy_denied","message":"Only the main agent can correct memory."}`
 		case "manage_memory", "core_memory":
-			if tc.Operation != "read" && tc.Operation != "query" && tc.Operation != "" {
+			if !oneOf(tc.Operation, "read", "query", "list", "get", "view_profile") {
 				return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot modify memory. Only read/query operations are allowed."}`
 			}
 		case "remember":
 			return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot store new facts or memories."}`
 		case "manage_knowledge", "knowledge_graph":
-			if tc.Operation != "query" && tc.Operation != "search" && tc.Operation != "get" && tc.Operation != "get_node" && tc.Operation != "get_neighbors" && tc.Operation != "subgraph" && tc.Operation != "" {
+			if !oneOf(tc.Operation, "query", "search", "get", "get_node", "get_neighbors", "subgraph") {
 				return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot modify the knowledge graph. Only read operations are allowed."}`
 			}
 		case "get_secret", "secrets_vault":

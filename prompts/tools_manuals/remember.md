@@ -42,6 +42,10 @@ Core Memory writes are agent-only. `remember` may route to Core Memory only when
 
 ## Notes
 
+- Each target obeys its own enabled/read-only setting. Co-agents and A2A tasks cannot write memory. Deleted sessions cannot publish delayed results.
+- Store passwords, tokens and API keys through the Vault. Personal facts, including birthdays, are allowed when the target policy permits them.
+- Agent-generated relationship claims remain agent claims; an assistant assertion is not human confirmation.
+
 - **When to use**: Use when you want to store something useful but don't want to choose the target system
 - **Core memory gate**: If it probably will not matter in 6 months, it must not go to Core Memory
 - **Operational gate**: Build/deploy results, mission last-run summaries, health checks, article counts, Site IDs, discovered IPs/ports, and temporary failures must not be forced into Core Memory with `category=fact`

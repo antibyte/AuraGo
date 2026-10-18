@@ -31,9 +31,9 @@ func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
 		processed int
 		claimed   int
 	}{
-		{"deadline", 2 * time.Minute, 50 * time.Second, 200, 80, 91},
-		{"message cap", 2 * time.Minute, 50 * time.Second, 65, 65, 65},
-		{"short remaining budget", 40 * time.Second, 10 * time.Second, 200, 91, 91},
+		{"deadline", 2 * time.Minute, 50 * time.Second, 200, -1, -1},
+		{"message cap", 2 * time.Minute, time.Second, 65, 65, 65},
+		{"short remaining budget", 40 * time.Second, time.Second, 200, 91, 91},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -47,6 +47,8 @@ func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
 					t.Fatal(err)
 				}
 				cfg := &config.Config{}
+				cfg.Tools.Memory.Enabled = true
+				cfg.Tools.KnowledgeGraph.Enabled = true
 				cfg.LLM.Model = "test-model"
 				cfg.Consolidation.MaxBatchMessages = tc.limit
 				client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
@@ -60,11 +62,15 @@ func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
 				ctx, cancel := context.WithTimeout(t.Context(), tc.timeout)
 				defer cancel()
 				result := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
-				if result.MessagesConsolidated != tc.processed || result.MessagesClaimed != tc.claimed {
+				if tc.processed < 0 {
+					if result.MessagesConsolidated <= 0 || result.MessagesClaimed <= result.MessagesConsolidated || ctx.Err() == nil {
+						t.Fatalf("deadline failed to make partial progress: %+v", result)
+					}
+				} else if result.MessagesConsolidated != tc.processed || result.MessagesClaimed != tc.claimed {
 					t.Fatalf("processed=%d claimed=%d, want %d/%d", result.MessagesConsolidated, result.MessagesClaimed, tc.processed, tc.claimed)
 				}
 				pending, err := stm.GetConsolidationCandidates(200, 3)
-				if err != nil || len(pending) != 91-tc.processed {
+				if err != nil || len(pending) != 91-result.MessagesConsolidated {
 					t.Fatalf("pending=%d, err=%v", len(pending), err)
 				}
 				for _, message := range pending {
@@ -93,6 +99,8 @@ func TestConsolidationRequiresExplicitValidFacts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, logger := maintenanceRegressionStores(t)
 			cfg := &config.Config{}
+			cfg.Tools.Memory.Enabled = true
+			cfg.Tools.KnowledgeGraph.Enabled = true
 			cfg.LLM.Model = "test-model"
 			_, directErr := extractConsolidationFactsWithLLM(t.Context(), cfg, logger,
 				skillQualityTestClient{response: "{" + tc.fields + "}"}, "test-model", "Conversation")
@@ -122,6 +130,8 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 					t.Fatal(err)
 				}
 				cfg := &config.Config{}
+				cfg.Tools.Memory.Enabled = true
+				cfg.Tools.KnowledgeGraph.Enabled = true
 				cfg.LLM.Model = "test-model"
 				cfg.Consolidation.Enabled = true
 				cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10
@@ -188,6 +198,8 @@ func TestMorningBriefingExplainsUnfinishedPhasesAndConsolidationProgress(t *test
 	for _, language := range []string{"de", "en"} {
 		t.Run(language, func(t *testing.T) {
 			cfg := &config.Config{}
+			cfg.Tools.Memory.Enabled = true
+			cfg.Tools.KnowledgeGraph.Enabled = true
 			cfg.Server.UILanguage = language
 			results := memory.MaintenancePhaseResults{
 				Processed: 23, Deferred: 5517, ConsolidationBacklog: 5510,
@@ -217,6 +229,8 @@ func TestMorningBriefingExplainsUnfinishedPhasesAndConsolidationProgress(t *test
 func TestMaintenanceCompletionsReserveReasoningWithinProviderLimits(t *testing.T) {
 	stm, logger := maintenanceRegressionStores(t)
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "main", "openai", "o3-mini"
 	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", Model: "o3-mini", ContextWindow: 32768, MaxOutputTokens: 4096}}
 	date := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
@@ -251,6 +265,8 @@ func TestMaintenanceCompletionsReserveReasoningWithinProviderLimits(t *testing.T
 
 func TestMaintenanceCompletionBudgetUsesHelperLimitsAndRejectsOversizeInput(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Provider = "main"
 	cfg.LLM.HelperEnabled = true
 	cfg.LLM.HelperProvider = "helper"

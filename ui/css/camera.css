@@ -784,10 +784,16 @@
     }
 
     .camera-btn-action {
-        flex: 1 1 0;
+        flex: 1 1 96px;
         min-width: 0;
+        min-height: 44px;
         padding: 8px 6px;
         font-size: 0.7rem;
+    }
+
+    .camera-btn-action span {
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     .camera-toolbar-hint {

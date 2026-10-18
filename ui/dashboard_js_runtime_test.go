@@ -27,3 +27,23 @@ func TestDashboardAPICachesAndSharesRequests(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-api.cjs")
 }
+
+func TestDashboardSummaryFeedSchedulesRefreshes(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-summary.cjs")
+}
+
+func TestDashboardOverviewHelpers(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-overview.cjs")
+}
+
+func TestDashboardSectionRegistry(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-sections.cjs")
+}
+
+func TestDashboardEscapeHtmlComesFromMainJS(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-page-scripts.cjs")
+}

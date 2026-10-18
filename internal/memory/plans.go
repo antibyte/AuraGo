@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -275,6 +276,7 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 	for i := range inputs {
 		taskIDs[i] = fmt.Sprintf("%s_task_%02d", planID, i+1)
 	}
+	dependencies := make(map[string][]string, len(inputs))
 
 	for i, input := range inputs {
 		if strings.TrimSpace(input.Title) == "" {
@@ -296,15 +298,18 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 			if dep == "" {
 				continue
 			}
-			if strings.HasPrefix(dep, "task_") || strings.HasPrefix(dep, planID+"_task_") {
+			if strings.HasPrefix(dep, planID+"_task_") {
 				resolvedDeps = append(resolvedDeps, dep)
 				continue
 			}
-			var depIndex int
-			if _, convErr := fmt.Sscanf(dep, "%d", &depIndex); convErr == nil && depIndex >= 1 && depIndex <= len(taskIDs) {
+			depIndex, convErr := strconv.Atoi(strings.TrimPrefix(dep, "task_"))
+			if convErr == nil && depIndex >= 1 && depIndex <= len(taskIDs) {
 				resolvedDeps = append(resolvedDeps, taskIDs[depIndex-1])
+			} else {
+				return nil, fmt.Errorf("task %d dependency %q does not exist", i+1, dep)
 			}
 		}
+		dependencies[taskIDs[i]] = resolvedDeps
 		depsJSON, _ := json.Marshal(resolvedDeps)
 
 		if _, err := tx.Exec(
@@ -314,6 +319,9 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 		); err != nil {
 			return nil, fmt.Errorf("insert task %d: %w", i+1, err)
 		}
+	}
+	if taskID, err := invalidPlanDependencies(dependencies); err != nil {
+		return nil, fmt.Errorf("task %s: %w", taskID, err)
 	}
 
 	if _, err := tx.Exec(
@@ -789,10 +797,11 @@ func (s *SQLiteMemory) SplitPlanTask(planID, taskID string, inputs []PlanTaskInp
 	}
 
 	var originalDeps []string
-	if strings.TrimSpace(depsJSON) != "" {
-		if err := json.Unmarshal([]byte(depsJSON), &originalDeps); err != nil {
-			return nil, fmt.Errorf("task dependencies are unreadable; repair them before splitting: %w", err)
-		}
+	if err := json.Unmarshal([]byte(depsJSON), &originalDeps); err != nil {
+		return nil, fmt.Errorf("task dependencies are unreadable; repair them before splitting: %w", err)
+	}
+	if originalDeps == nil {
+		return nil, fmt.Errorf("task dependencies are unreadable; a non-null JSON array is required before splitting")
 	}
 
 	if _, err := tx.Exec(`UPDATE plan_tasks SET task_order = task_order + ? WHERE plan_id = ? AND task_order > ?`, len(inputs), planID, taskOrder); err != nil {
@@ -1200,6 +1209,11 @@ func (s *SQLiteMemory) promoteNextPlanTaskTx(tx *sql.Tx, planID, now string) err
 	if activeStatus != PlanStatusActive {
 		return nil
 	}
+	if taskID, err := invalidPlanDependenciesTx(tx, planID); err != nil {
+		return err
+	} else if taskID != "" {
+		return blockPlanTaskForUnreadableDependenciesTx(tx, planID, taskID, now)
+	}
 
 	var inProgressCount int
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM plan_tasks WHERE plan_id = ? AND status = ?`, planID, PlanTaskInProgress).Scan(&inProgressCount); err != nil {
@@ -1271,7 +1285,7 @@ func (s *SQLiteMemory) promoteNextPlanTaskTx(tx *sql.Tx, planID, now string) err
 }
 
 // planTaskDependencyBlocker explains why a task with unreadable dependency data stopped.
-const planTaskDependencyBlocker = "Task dependency data is unreadable; repair or skip the task."
+const planTaskDependencyBlocker = "Task dependency data is unreadable or invalid; repair or skip the task."
 
 // blockPlanTaskForUnreadableDependenciesTx blocks the task and its plan the same way
 // SetPlanTaskBlocker does, so ClearPlanTaskBlocker resumes it after a repair.

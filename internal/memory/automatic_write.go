@@ -76,19 +76,41 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 	if err := ctx.Err(); err != nil {
 		return result, err
 	}
+	if HasDurableCredential(concept + "\n" + content) {
+		return result, fmt.Errorf("%w: credentials cannot enter durable memory", ErrAutomaticMemorySkipped)
+	}
+	session := strings.TrimSpace(details.SourceSessionID)
+	if session == "" {
+		session, _ = MemoryAnalysisSession(content)
+	}
+	if session == "" {
+		session = "default"
+	}
 	if s != nil {
+		deleted, err := s.IsSessionDeleted(session)
+		if err != nil {
+			return result, fmt.Errorf("check memory source session: %w", err)
+		}
+		if deleted {
+			return result, fmt.Errorf("%w: source session deleted", ErrAutomaticMemorySkipped)
+		}
 		blocked, err := s.IsCorrectedMemoryFact(CorrectionFactText(buildContentString(concept, content)))
 		if err != nil {
 			return result, fmt.Errorf("check memory correction history: %w", err)
 		}
 		if blocked {
-			return result, fmt.Errorf("fact was corrected; automatic extraction cannot restore it")
+			return result, fmt.Errorf("%w: fact was corrected; automatic extraction cannot restore it", ErrAutomaticMemorySkipped)
 		}
 	}
-	session := "default"
 	if _, ok := AnalysisMemoryIdentity(concept, content, ""); ok && details.SourceType == "memory_analysis" {
-		session, _ = MemoryAnalysisSession(content)
 		content = MemoryAnalysisSourceMarker
+		if details.SourceRole != "" {
+			role := details.SourceRole
+			if role != "user" && role != "assistant" && role != "user_and_assistant" {
+				role = "unknown"
+			}
+			content += " role:" + role
+		}
 	}
 	stored, storeErr := store(ltm, concept, content)
 	result.VectorStoreResult = stored

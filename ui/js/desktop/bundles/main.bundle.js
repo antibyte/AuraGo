@@ -6715,6 +6715,11 @@
                 updateWindowContext(existing.id, context);
                 window.NetworkCamerasApp?.open?.(existing.id, context);
             }
+            if (appId === 'video-studio' && context && !context.sessionRestore && typeof context.importPath === 'string' && context.importToken) {
+                const offer = { importPath: context.importPath, importToken: context.importToken };
+                if (window.VideoStudioApp?.instances?.has(existing.id)) window.VideoStudioApp.receiveImport(existing.id, offer);
+                else if (!existing.pendingCameraImport) existing.pendingCameraImport = offer;
+            }
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
@@ -6815,6 +6820,11 @@
         ${isResizable ? resizeHandleMarkup() : ''}`;
         $('vd-window-layer').appendChild(win);
         const windowContext = Object.assign({}, context || {});
+        const cameraImport = appId === 'video-studio' && !windowContext.sessionRestore && windowContext.importPath
+            ? { importPath: windowContext.importPath, importToken: windowContext.importToken }
+            : null;
+        delete windowContext.importPath;
+        delete windowContext.importToken;
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
@@ -6830,6 +6840,7 @@
             if (state.activeWindowId === id) state.activeWindowId = '';
         }
         applySpaceVisibility();
+        if (cameraImport) state.windows.get(id).pendingCameraImport = cameraImport;
         renderAppContent(id, appId, windowContext);
         if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);
         renderTaskbar();
@@ -17748,7 +17759,10 @@ function updateTaskbarSystemButtonsForMobile() {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
         }
         if (appId === 'video-studio' && window.VideoStudioApp && typeof window.VideoStudioApp.render === 'function') {
-            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+            const win = state.windows.get(id);
+            const launch = Object.assign({}, context || {}, win?.pendingCameraImport || {});
+            if (win) delete win.pendingCameraImport;
+            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
@@ -17881,7 +17895,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary}));
         }
         if (appId === 'network-cameras') {
             if (!window.NetworkCamerasApp) {

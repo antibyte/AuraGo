@@ -69,7 +69,7 @@ func TestDashboardMissionHistoryContrast(t *testing.T) {
 func TestDashboardMissionHistoryClearsLoadingState(t *testing.T) {
 	t.Parallel()
 
-	js := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	js := readDashboardJS(t)
 	for _, marker := range []string{
 		"window.CardState.setLoaded('card-mission-history')",
 		"window.CardState.setError('card-mission-history', () => loadMissionHistory(false), { status: resp.status })",

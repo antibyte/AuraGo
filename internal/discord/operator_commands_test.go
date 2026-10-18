@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -17,6 +18,11 @@ import (
 // needed (the reply goes nowhere without one).
 func TestDiscordOperatorCommandsRunOnlyInDirectMessages(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(filepath.Join(t.TempDir(), "operator.db"), logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
 	for _, tc := range []struct {
 		name    string
 		guildID string
@@ -48,7 +54,7 @@ func TestDiscordOperatorCommandsRunOnlyInDirectMessages(t *testing.T) {
 			ChannelID: "channel-1",
 			Content:   "/personality operatorcheck",
 		}}
-		handleMessage(nil, msg, cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		handleMessage(nil, msg, cfg, logger, nil, stm, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		if cfg.Personality.CorePersonality != tc.want {
 			t.Fatalf("%s: core personality = %q, want %q", tc.name, cfg.Personality.CorePersonality, tc.want)

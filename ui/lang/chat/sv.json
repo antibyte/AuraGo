@@ -1,4 +1,9 @@
 {
+  "chat.sessions_delete_hint": "Radera den här chatten permanent, inklusive planer och arkiverad konversation.",
+  "chat.sessions_delete_memories": "Radera även tillhörande minnen",
+  "chat.sessions_delete_backups": "Säkerhetskopior kan behålla raderade data tills den planerade rensningen.",
+  "chat.sessions_delete_failed": "Chatten kunde inte raderas helt. Uppdatera vyn innan du försöker igen.",
+  "chat.sessions_delete_report": "Raderade: {deleted}. Behållna på grund av delat, skyddat eller okänt ursprung: {retained}.",
   "chat.speech_lab_auth_required": "Du måste logga in i AuraGo för att öppna Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Konfigurera Speech Lab-webbläsar-URL under Media → Speech Lab.",
   "chat.vault_secret_title": "Spara hemligheten säkert",

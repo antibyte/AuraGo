@@ -30,7 +30,7 @@ func helperRecoveryResponse(text string, reason openai.FinishReason) openai.Chat
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: text}, FinishReason: reason}}}
 }
 
-func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
+func TestHelperRecoveryPreservesRequiredSources(t *testing.T) {
 	source := strings.Repeat("Überprüfung 🔧 Quelle. ", 300)
 	for _, tc := range []struct {
 		name, response, preserved string
@@ -40,8 +40,8 @@ func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
 			_, err := m.GenerateCheatsheetAbstract(context.Background(), "sheet-identifier", source)
 			return err
 		}},
-		{"turn", `{"memory_analysis":{},"activity_digest":{},"personality_analysis":{}}`, "query_memory", func(m *helperLLMManager) error {
-			_, err := m.AnalyzeTurn(context.Background(), source, source, []string{"query_memory"}, []string{source}, &helperTurnPersonalityInput{CurrentUserMessage: source, RecentHistory: source})
+		{"turn", `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{},"personality_analysis":{}}`, "query_memory", func(m *helperLLMManager) error {
+			_, err := m.AnalyzeTurn(context.Background(), source, source, []string{"query_memory"}, []string{source}, &helperTurnPersonalityInput{CurrentUserMessage: source, RecentHistory: source}, newHelperTurnBudget(t))
 			return err
 		}},
 		{"maintenance", `{"daily_summary":"A useful summary","kg_extraction":{"nodes":[],"edges":[]}}`, "node-identifier", func(m *helperLLMManager) error {
@@ -72,7 +72,7 @@ func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			client := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(`{"truncated":`, openai.FinishReasonLength), helperRecoveryResponse(tc.response, openai.FinishReasonStop)}}
-			manager := &helperLLMManager{client: client, model: "helper-model", responseCache: make(map[string]string)}
+			manager := &helperLLMManager{client: client, model: "helper-model", contextWindow: 64000, responseCache: make(map[string]string)}
 			if err := tc.run(manager); err != nil {
 				t.Fatal(err)
 			}
@@ -80,8 +80,12 @@ func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
 				t.Fatalf("calls = %d", len(client.requests))
 			}
 			first, second := client.requests[0], client.requests[1]
-			if len(second.Messages[1].Content) >= len(first.Messages[1].Content) {
-				t.Fatal("retry did not reduce source budget")
+			if tc.name == "compression" || tc.name == "consolidation" || tc.name == "turn" {
+				if second.Messages[1].Content != first.Messages[1].Content || !strings.Contains(second.Messages[1].Content, "Quelle.") {
+					t.Fatal("durable replacement/completion retried a truncated source")
+				}
+			} else if len(second.Messages[1].Content) >= len(first.Messages[1].Content) {
+				t.Fatal("bounded retry did not reduce optional source context")
 			}
 			if first.Messages[0].Content != second.Messages[0].Content || !strings.Contains(second.Messages[1].Content, tc.preserved) {
 				t.Fatal("retry lost required structure")
@@ -108,7 +112,7 @@ func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
 
 func TestHelperMissingIDsHaveOneRetryAndNeverPopulateCache(t *testing.T) {
 	client := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(`{"summaries":[{"batch_id":"first","summary":"partial"}]}`, openai.FinishReasonStop)}}
-	manager := &helperLLMManager{client: client, model: "helper-model", responseCache: make(map[string]string)}
+	manager := &helperLLMManager{client: client, model: "helper-model", contextWindow: 64000, responseCache: make(map[string]string)}
 	items := []helperContentSummaryBatchInput{{BatchID: "first", SourceName: "web", SearchQuery: "query", Content: strings.Repeat("source ", 100)}, {BatchID: "second", SourceName: "web", SearchQuery: "query", Content: strings.Repeat("other ", 100)}}
 	if result, err := manager.SummarizeContentBatches(context.Background(), items); err == nil || len(result.Summaries) != 0 {
 		t.Fatalf("accepted partial result: %#v, %v", result, err)
@@ -125,7 +129,7 @@ func TestHelperMissingIDsHaveOneRetryAndNeverPopulateCache(t *testing.T) {
 
 func TestHelperRejectsInvalidStructureBeforeCacheAndStopsUnshrinkableRetry(t *testing.T) {
 	client := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(`{}`, openai.FinishReasonStop)}}
-	manager := &helperLLMManager{client: client, model: "helper-model", responseCache: make(map[string]string)}
+	manager := &helperLLMManager{client: client, model: "helper-model", contextWindow: 64000, responseCache: make(map[string]string)}
 	_, err := manager.GenerateCheatsheetAbstract(context.Background(), "sheet-identifier", "")
 	if err == nil || len(client.requests) != 1 || len(manager.responseCache) != 0 {
 		t.Fatalf("err/calls/cache = %v/%d/%d", err, len(client.requests), len(manager.responseCache))
@@ -134,7 +138,7 @@ func TestHelperRejectsInvalidStructureBeforeCacheAndStopsUnshrinkableRetry(t *te
 
 func TestHelperCharacterCacheTracksReflectionInput(t *testing.T) {
 	client := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(`{"notes":[]}`, openai.FinishReasonStop)}}
-	manager := &helperLLMManager{client: client, model: "helper-model", responseCache: make(map[string]string)}
+	manager := &helperLLMManager{client: client, model: "helper-model", contextWindow: 64000, responseCache: make(map[string]string)}
 	input := memory.CharacterReflectionInput{CorePersonality: "neutral", Milestones: []string{"First milestone"}}
 	for i := 0; i < 2; i++ {
 		if _, err := manager.ProposeCharacterNotes(context.Background(), input); err != nil {

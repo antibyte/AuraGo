@@ -46,6 +46,8 @@ func TestMaintenanceDisabledPhasesPrecedeBudgetAndBacklog(t *testing.T) {
 	defer db.Close()
 	reconcileMaintenancePhaseIssues(db, []memory.MaintenancePhaseResult{{Name: "entity_extraction", Status: "partial"}}, time.Now(), logger)
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 1
 	cfg.Directories.PromptsDir = t.TempDir()
 	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, db, nil, nil, nil, nil, nil)
@@ -85,6 +87,8 @@ func TestMaintenanceCheatsheetAndRetentionErrorsAreReported(t *testing.T) {
 	}
 	_ = closed.Close()
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 	runMaintenanceTask(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, stm, nil, nil, nil, nil, nil, closed, nil, nil, nil, nil)
 	run, err := stm.GetLatestMaintenanceRun()
@@ -141,6 +145,8 @@ func TestMaintenanceSummaryUsesCompletedDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	client := &countingMaintenanceLLMClient{}
 	if err := generateDailySummary(t.Context(), cfg, logger, client, stm); err != nil {
@@ -198,6 +204,8 @@ func TestMaintenanceLedgerPersistenceFailureRecordsOriginalFailures(t *testing.T
 func TestMaintenanceBriefingRemainsBoundToPersistedRunAndIdempotent(t *testing.T) {
 	stm, logger := maintenanceRegressionStores(t)
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	startedAt := time.Date(2026, 9, 22, 4, 0, 0, 123, time.UTC)
 	for range 2 {
 		ledger := newMaintenanceRunLedger()

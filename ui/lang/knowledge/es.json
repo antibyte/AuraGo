@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Eliminar también los recuerdos asociados",
+  "knowledge.contacts_delete_backups": "Las copias de seguridad pueden conservar datos eliminados hasta su limpieza programada.",
+  "knowledge.contacts_delete_report": "Elementos de conocimiento eliminados: {deleted}. Conservados: {retained}.",
+  "knowledge.contacts_delete_partial": "Contacto eliminado; la limpieza del conocimiento está incompleta. Eliminados: {deleted}. Conservados: {retained}. Actualiza antes de reintentarlo.",
   "knowledge.appointments_add": "Nueva cita",
   "knowledge.appointments_agent_wake": "Despertar agente",
   "knowledge.appointments_cancel": "Cancelar cita",

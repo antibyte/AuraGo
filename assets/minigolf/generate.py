@@ -326,6 +326,108 @@ def add_lantern(scene, coll, x, y, z, mats):
     cone(scene,coll,"lantern-cap",(x,y,z+1.53),.20,.18,mats["wood"])
 
 
+def island_top_height(x, y, segments=14):
+    # Barycentric height of the island turf fan triangle under (x, y). The cup
+    # interior must sit above this surface or the fan hides the dark bottom.
+    ring = []
+    for i in range(segments):
+        a = 2 * math.pi * i / segments
+        w = 1 + .045 * math.sin(i * 2.3)
+        ring.append((4.95 * w * math.cos(a), 4.95 * w * math.sin(a), -.04 + .08 * math.sin(i * 1.6)))
+    for i in range(segments):
+        j = (i + 1) % segments
+        ax, ay, az = ring[i]
+        bx, by, bz = ring[j]
+        det = ax * by - ay * bx
+        if abs(det) < 1e-9:
+            continue
+        u = (x * by - y * bx) / det
+        v = (ax * y - ay * x) / det
+        if u >= -1e-6 and v >= -1e-6 and u + v <= 1 + 1e-6:
+            return -.04 * (1 - u - v) + az * u + bz * v
+    return -.04
+
+
+def cup_lining(scene, coll, cup, mat, bottom_z):
+    # Tapered inner wall between the turf cut and the dark cup bottom. It is
+    # scenery only: physics keeps the authored open cup with no floor.
+    cx, cy, cz = cup
+    seg = 18
+    verts = []
+    for zz, rr in ((bottom_z, CUP_RADIUS + .02), (cz + .004, CUP_RADIUS + .12)):
+        verts.extend((cx + rr * math.cos(i * math.tau / seg), cy + rr * math.sin(i * math.tau / seg), zz) for i in range(seg))
+    faces = [(i, seg + i, seg + (i + 1) % seg, (i + 1) % seg) for i in range(seg)]
+    mesh_object(scene, coll, "cup-lining", verts, faces, mat, "decoration")
+
+
+HOLE_DIGITS = {
+    "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
+    "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg"
+}
+
+
+def hole_number(scene, coll, cup, number, mat):
+    # Raised seven-segment hole number on the flag pole, readable without text.
+    digits = str(number)
+    fx = cup[0] + .43
+    fy = cup[1]
+    z = cup[2] + .40
+    dw, dh, t = .09, .15, .03
+    step = dw + .05
+    width = len(digits) * dw + (len(digits) - 1) * .05
+    for index, char in enumerate(digits):
+        cx = fx + .20 - width / 2 + dw / 2 + index * step
+        for segment in HOLE_DIGITS.get(char, ""):
+            if segment in "agd":
+                zz = z + dh / 2 if segment == "a" else (z - dh / 2 if segment == "d" else z)
+                box_mesh(scene, coll, "hole-digit-segment", (cx, fy, zz), (dw + t, .05, t), mat, "decoration")
+            else:
+                xx = cx + dw / 2 if segment in "bc" else cx - dw / 2
+                zz = z + dh / 4 if segment in "bf" else z - dh / 4
+                box_mesh(scene, coll, "hole-digit-segment", (xx, fy, zz), (t, .05, dh / 2), mat, "decoration")
+
+
+def add_fence(scene, coll, x, y, z, mats, length=1.7, along="y"):
+    half = length / 2
+    for s in (-1, 1):
+        px, py = (x, y + s * half) if along == "y" else (x + s * half, y)
+        box_mesh(scene, coll, "deco-fence-post", (px, py, z + .34), (.10, .10, .68), mats["wood"])
+    for lift in (.24, .52):
+        size = (.055, length, .075) if along == "y" else (length, .055, .075)
+        box_mesh(scene, coll, "deco-fence-rail", (x, y, z + lift), size, mats["wood"])
+
+
+def add_bench(scene, coll, x, y, z, mats):
+    box_mesh(scene, coll, "deco-bench-seat", (x, y, z + .30), (1.05, .34, .07), mats["wood"])
+    box_mesh(scene, coll, "deco-bench-back", (x, y + .15, z + .52), (1.05, .06, .34), mats["wood"])
+    for s in (-1, 1):
+        box_mesh(scene, coll, "deco-bench-leg", (x + s * .44, y, z + .14), (.09, .28, .28), mats["stone"])
+
+
+def add_driftwood(scene, coll, x, y, z, mats, angle=0.0):
+    for i, (length, tilt) in enumerate(((1.0, .0), (.72, .35))):
+        log = cylinder(scene, coll, "deco-driftwood", (0, 0, 0), .07, length, mats["wood"], 6)
+        log.location = (x + i * .18, y + (i - 1) * .22, z + .09 + i * .10)
+        log.rotation_euler = (0, math.pi / 2 + tilt, angle + i * .9)
+
+
+def add_buoy(scene, coll, x, y, z, mats):
+    ico_sphere(scene, coll, "deco-buoy", (x, y, z), .17, mats["accent"])
+    cone(scene, coll, "deco-buoy-cap", (x, y, z + .24), .09, .20, mats["light"], 6)
+    cylinder(scene, coll, "deco-buoy-post", (x, y, z + .40), .03, .30, mats["wood"], 5)
+
+
+def add_pebble_cluster(scene, coll, x, y, z, mats, phase=0.0):
+    for i in range(4):
+        a = phase + i * math.tau / 4
+        r = .16 + .06 * ((i + int(phase * 10)) % 3)
+        ico_sphere(scene, coll, "deco-pebble", (x + math.cos(a) * r, y + math.sin(a) * r, z + .04 + .03 * (i % 2)), .10 + .04 * (i % 3), mats["rock"])
+
+
+def add_shard(scene, coll, x, y, z, mat, height=.55):
+    cylinder(scene, coll, "deco-shard", (x, y, z + height / 2), .13, height, mat, 5, top_radius=.02)
+
+
 def add_obstacle(scene, coll, spec, path, mats):
     if not spec:
         return []
@@ -435,6 +537,23 @@ def add_decor(scene, coll, course, mats, seed):
         for x,y in ((-4.85,-.1),(4.85,2.6)):
             for j in range(3):
                 ico_sphere(scene,coll,"shore-rock",(x+(j-1)*.2,y+j*.22,-.04),.26,mats["rock"])
+    # Pebble clusters fill the odd slots of the proven flower ring.
+    for i in (1, 5, 9, 13):
+        a = i * math.tau / 14
+        add_pebble_cluster(scene, coll, 3.65 * math.cos(a), 3.65 * math.sin(a), -.04, mats, a)
+    if world == "garden":
+        add_fence(scene, coll, -4.32, -2.35, -.04, mats, 1.7, "y")
+        add_fence(scene, coll, 4.3, 2.1, -.04, mats, 1.5, "y")
+        add_bench(scene, coll, -4.35, -.05, -.04, mats)
+    elif world == "coast":
+        add_driftwood(scene, coll, -4.5, -.05, -.04, mats, .4)
+        add_driftwood(scene, coll, 4.45, -.05, -.04, mats, 2.1)
+        for a in (.8, 2.4, 4.0, 5.5):
+            add_buoy(scene, coll, 5.45 * math.cos(a), 5.45 * math.sin(a), -1.02, mats)
+    else:
+        shard_mat = material("deco-shard-glow-" + world, tuple(mats["accent"].diffuse_color), roughness=.3, emission=.9)
+        for x, y, height in ((-4.4, -1.6, .48), (4.4, 1.3, .60), (-1.0, -4.5, .54)):
+            add_shard(scene, coll, x, y, -.04, shard_mat, height)
 
 
 def add_templates(scene, coll, mats, tee):
@@ -604,7 +723,10 @@ def build_course(number, course):
     ring(scene,model,"tee-ring",tee,.10,.18,tee[2]+.012,mats["light"],12)
     ring(scene,model,"cup-rim",cup,CUP_RADIUS,CUP_RADIUS+.075,cup[2]-.005,mats["stone"],20)
     cup_dark=material("cup-interior-"+course["world"],(.035,.045,.055,1),roughness=.22,metallic=.2)
-    cylinder(scene,model,"cup-bottom",(cup[0],cup[1],cup[2]-.38),CUP_RADIUS-.035,.025,cup_dark,16)
+    floor_z = min(cup[2] - .02, max(cup[2] - .30, island_top_height(cup[0], cup[1]) + .022))
+    cylinder(scene,model,"cup-bottom",(cup[0],cup[1],floor_z+.014),CUP_RADIUS-.035,.025,cup_dark,16)
+    cup_wall_mat=material("cup-lining-"+course["world"],(.13,.15,.17,1),roughness=.36,metallic=.1)
+    cup_lining(scene,model,cup,cup_wall_mat,floor_z)
     # A slim flag stands beside, rather than inside, the opening.
     fx=cup[0]+.43; fy=cup[1]
     pole_mat=material("flag-pole",(.83,.84,.79,1),metallic=.45,roughness=.28)
@@ -612,6 +734,8 @@ def build_course(number, course):
     flagmat=material("flag-cloth-"+course["world"],palette["accent"],roughness=.82)
     flag_verts=[(fx,fy,cup[2]+.82),(fx,fy,cup[2]+.55),(fx+.39,fy,cup[2]+.67)]
     flag=mesh_object(scene,model,"flag",flag_verts,[(0,1,2)],flagmat,"marker")
+    digit_mat=material("hole-number-"+course["world"],(1.0,.87,.46,1),roughness=.42,emission=1.2)
+    hole_number(scene,model,cup,number,digit_mat)
     add_studio(scene,studio,palette)
     bpy.context.window.scene=scene
     bpy.ops.object.select_all(action="DESELECT")

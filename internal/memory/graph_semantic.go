@@ -87,6 +87,12 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 	if err != nil {
 		return fmt.Errorf("get/create semantic collection: %w", err)
 	}
+	if collection.Count() == 0 {
+		// The shared index is now in memory; SQL facts remain authoritative.
+		if err := kg.ResetSemanticIndex(); err != nil {
+			return err
+		}
+	}
 
 	index := &kgsemantic.Index{
 		Collection:    collection,
@@ -871,7 +877,6 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 	if idx == nil || maxNodes <= 0 || kgsemantic.ShouldSkipQuery(query) {
 		return nil
 	}
-
 	embedding, err := kg.getSemanticQueryEmbedding(query)
 	if err != nil {
 		if idx.Logger != nil {
@@ -879,56 +884,39 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 		}
 		return nil
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	count := idx.Collection.Count()
 	if count == 0 {
 		return nil
 	}
-	if maxNodes > count {
-		maxNodes = count
-	}
-	results, err := idx.Collection.QueryEmbedding(ctx, embedding, maxNodes, nil, nil)
-	if err != nil {
-		if idx.Logger != nil {
-			idx.Logger.Debug("KG semantic search failed", "error", err)
-		}
-		return nil
-	}
-
 	minSim := kg.getMinSemanticSimilarity()
-	type candidateHit struct {
-		id         string
-		similarity float32
-	}
-	var candidates []candidateHit
-	for _, result := range results {
-		if result.Similarity < minSim {
-			continue
+	// Expand only when excluded nodes or edges consumed the candidate budget.
+	for limit := min(maxNodes, count); ; limit = min(count, limit*2) {
+		results, err := idx.Collection.QueryEmbedding(ctx, embedding, limit, nil, nil)
+		if err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Debug("KG semantic search failed", "error", err)
+			}
+			return nil
 		}
-		if !strings.HasPrefix(result.ID, "edge://") {
-			candidates = append(candidates, candidateHit{id: result.ID, similarity: result.Similarity})
+		ids := make([]string, 0, len(results))
+		for _, result := range results {
+			if result.Similarity >= minSim && !strings.HasPrefix(result.ID, "edge://") {
+				ids = append(ids, result.ID)
+			}
 		}
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	candidateIDs := make([]string, len(candidates))
-	for i, c := range candidates {
-		candidateIDs[i] = c.id
-	}
-	allowed := kg.filterExcludedKnowledgeGraphNodeTypes(candidateIDs)
-
-	out := make(map[string]float32, len(allowed))
-	for _, c := range candidates {
-		if _, ok := allowed[c.id]; ok {
-			out[c.id] = c.similarity
+		allowed := kg.filterExcludedKnowledgeGraphNodeTypes(ids)
+		out := make(map[string]float32, min(len(allowed), maxNodes))
+		for _, result := range results {
+			if _, ok := allowed[result.ID]; ok && len(out) < maxNodes {
+				out[result.ID] = result.Similarity
+			}
+		}
+		if len(out) >= maxNodes || limit == count || (len(results) > 0 && results[len(results)-1].Similarity < minSim) {
+			return out
 		}
 	}
-	return out
 }
 
 func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []string {
@@ -1031,41 +1019,36 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 // filterExcludedKnowledgeGraphNodeTypes returns the subset of ids whose node_type
 // is not considered low-signal noise (e.g. activity_entity, unknown).
 func (kg *KnowledgeGraph) filterExcludedKnowledgeGraphNodeTypes(ids []string) map[string]struct{} {
-	if len(ids) == 0 {
-		return nil
-	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
-	}
-	query := fmt.Sprintf(
-		"SELECT id, json_extract(properties, '$.type') FROM kg_nodes WHERE id IN (%s)",
-		strings.Join(placeholders, ","),
-	)
-	rows, err := kg.db.Query(query, args...)
-	if err != nil {
-		if idx := kg.semanticIndex(); idx != nil && idx.Logger != nil {
-			idx.Logger.Warn("filterExcludedKnowledgeGraphNodeTypes: query failed", "error", err)
-		}
-		return nil
-	}
-	defer rows.Close()
-
 	allowed := make(map[string]struct{}, len(ids))
-	for rows.Next() {
-		var id, nodeType string
-		if err := rows.Scan(&id, &nodeType); err != nil {
-			continue
+	for start := 0; start < len(ids); start += 500 {
+		end := min(start+500, len(ids))
+		placeholders := make([]string, end-start)
+		args := make([]interface{}, end-start)
+		for i, id := range ids[start:end] {
+			placeholders[i] = "?"
+			args[i] = id
 		}
-		if !kg.isExcludedNodeType(nodeType) {
-			allowed[id] = struct{}{}
+		rows, err := kg.db.Query("SELECT id, COALESCE(json_extract(properties, '$.type'), '') FROM kg_nodes WHERE id IN ("+strings.Join(placeholders, ",")+")", args...)
+		if err != nil {
+			if idx := kg.semanticIndex(); idx != nil && idx.Logger != nil {
+				idx.Logger.Warn("filterExcludedKnowledgeGraphNodeTypes: query failed", "error", err)
+			}
+			return nil
 		}
-	}
-	if err := rows.Err(); err != nil {
-		if idx := kg.semanticIndex(); idx != nil && idx.Logger != nil {
-			idx.Logger.Warn("filterExcludedKnowledgeGraphNodeTypes: row iteration failed", "error", err)
+		for rows.Next() {
+			var id, nodeType string
+			if err = rows.Scan(&id, &nodeType); err != nil {
+				rows.Close()
+				return nil
+			}
+			if !kg.isExcludedNodeType(nodeType) {
+				allowed[id] = struct{}{}
+			}
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil
 		}
 	}
 	return allowed

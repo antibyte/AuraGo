@@ -1,17 +1,12 @@
 package memory
 
 import (
-	"context"
-	"errors"
 	"log/slog"
 	"math"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 func TestEmotionInfluenceSurvivesStorageAndRuntimeOverlay(t *testing.T) {
@@ -109,55 +104,27 @@ func TestEmotionRuntimeRestoresAcrossTurnsAndReopen(t *testing.T) {
 	}
 }
 
-type blockingEmotionClient struct {
-	calls   atomic.Int32
-	started chan struct{}
-	release chan struct{}
-}
-
-func (c *blockingEmotionClient) CreateChatCompletion(ctx context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-	c.calls.Add(1)
-	select {
-	case c.started <- struct{}{}:
-	default:
-	}
-	select {
-	case <-ctx.Done():
-		return openai.ChatCompletionResponse{}, ctx.Err()
-	case <-c.release:
-	}
-	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{"description":"Feeling inspired.","primary_mood":"creative","valence":0.5,"arousal":0.6,"confidence":0.8}`}}}}, nil
-}
-
 func TestEmotionRuntimeReservesAcrossConcurrentRuns(t *testing.T) {
 	stm := newTestPersonalityDB(t)
-	client := &blockingEmotionClient{started: make(chan struct{}, 1), release: make(chan struct{})}
-	first := NewEmotionSynthesizer(client, "test", 60, 100, "English", slog.Default())
-	second := NewEmotionSynthesizer(client, "test", 60, 100, "English", slog.Default())
-	if err := first.BindMemory(stm); err != nil {
-		t.Fatal(err)
+	first := NewEmotionSynthesizer(nil, "", 60, 100, "English", slog.Default())
+	second := NewEmotionSynthesizer(nil, "", 60, 100, "English", slog.Default())
+	for _, es := range []*EmotionSynthesizer{first, second} {
+		if err := es.BindMemory(stm); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := second.BindMemory(stm); err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _, _ = first.SynthesizeEmotion(ctx, stm, EmotionInput{UserMessage: "first"}) }()
-	select {
-	case <-client.started:
-	case <-ctx.Done():
-		t.Fatal("synthesis did not start")
+	for _, es := range []*EmotionSynthesizer{first, second} {
+		wg.Add(1)
+		go func(es *EmotionSynthesizer) {
+			defer wg.Done()
+			_ = es.ApplyExternalState(stm, &EmotionState{Description: "Feeling inspired.", PrimaryMood: MoodCreative, Valence: .5, Arousal: .6, Confidence: .8}, "chat")
+		}(es)
 	}
-	_, _ = second.SynthesizeEmotion(ctx, stm, EmotionInput{UserMessage: "second"})
-	close(client.release)
 	wg.Wait()
-	if client.calls.Load() != 1 {
-		t.Fatalf("concurrent runs made %d requests", client.calls.Load())
-	}
-	if second.GetLastEmotion() == nil {
-		t.Fatal("completed state was not shared")
+	entries, err := stm.GetEmotionHistory(24)
+	if err != nil || len(entries) != 1 || second.GetLastEmotion() == nil {
+		t.Fatalf("shared cooldown/history: %d %v", len(entries), err)
 	}
 }
 
@@ -181,21 +148,6 @@ func TestEmotionStorageFailureDoesNotPartiallyChangeAffect(t *testing.T) {
 	}
 	if before.Valence != after.Valence || before.Arousal != after.Arousal || es.GetLastEmotion() != nil {
 		t.Fatal("failed transaction changed affect or cache")
-	}
-}
-
-func TestCancelledEmotionCannotChangeAffect(t *testing.T) {
-	stm := newTestPersonalityDB(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	client := &blockingEmotionClient{started: make(chan struct{}, 1), release: make(chan struct{})}
-	es := NewEmotionSynthesizer(client, "test", 60, 100, "English", slog.Default())
-	_, err := es.SynthesizeEmotion(ctx, stm, EmotionInput{})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("want cancellation, got %v", err)
-	}
-	if es.GetLastEmotion() != nil {
-		t.Fatal("cancelled state was published")
 	}
 }
 

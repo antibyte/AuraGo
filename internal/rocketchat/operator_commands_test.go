@@ -15,12 +15,18 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/memory"
 	"aurago/ui"
 )
 
 // The shared room refuses operator commands unless
 // rocketchat.allow_operator_commands opts in.
 func TestRocketChatOperatorCommandsFollowAllowOperatorCommands(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(filepath.Join(t.TempDir(), "operator.db"), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
 	i18n.Load(ui.Content, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	var mu sync.Mutex
@@ -68,7 +74,7 @@ func TestRocketChatOperatorCommandsFollowAllowOperatorCommands(t *testing.T) {
 		mu.Lock()
 		replies = nil
 		mu.Unlock()
-		processMessage(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, nil, nil, nil, nil, nil, nil, nil, "room-1", msg, nil, nil, nil, nil, nil)
+		processMessage(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, stm, nil, nil, nil, nil, nil, nil, nil, "room-1", msg, nil, nil, nil, nil, nil)
 
 		mu.Lock()
 		got := strings.Join(replies, "\n")

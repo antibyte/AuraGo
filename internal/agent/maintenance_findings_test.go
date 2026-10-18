@@ -67,6 +67,8 @@ func TestGenerateDailySummarySkipsCanceledMaintenanceContext(t *testing.T) {
 	cancel()
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	client := &countingMaintenanceLLMClient{}
 
@@ -98,6 +100,8 @@ func TestConsolidateSTMtoLTMSkipsCanceledMaintenanceContext(t *testing.T) {
 	cancel()
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	cfg.Consolidation.MaxBatchMessages = 10
 	cfg.Consolidation.ArchiveRetainDays = 30

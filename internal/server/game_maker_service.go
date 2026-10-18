@@ -17,6 +17,7 @@ import (
 	"aurago/internal/gamemaker"
 	"aurago/internal/llm"
 	"aurago/internal/tools"
+	"aurago/internal/uid"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -611,7 +612,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 			contextData["catalog"] = compactGameMakerCatalog(packs)
 		}
 	}
-	sessionID := "game-maker-" + run.Job.ID
+	sessionID := "game-maker-" + run.Job.ID + ":" + uid.New()
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "game_maker")
 	if cfg.Learnings.Enabled || cfg.CodeGraph.Enabled {
 		root, err := r.service.JobDirectory(run.Job.ID)

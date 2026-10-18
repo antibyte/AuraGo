@@ -59,6 +59,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		return tc
 	}
 	tc = normalizeDirectToolCall(tc, dc)
+	tc.Operation = toolCallSnapshotOperation(tc)
 	if tc.Action != "invoke_tool" {
 		return tc
 	}
@@ -118,6 +119,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	routed.NativeCallID, routed.RawJSON = tc.NativeCallID, tc.RawJSON
 	routed.NativeArgsMalformed, routed.NativeArgsError, routed.NativeArgsRaw = tc.NativeArgsMalformed, tc.NativeArgsError, tc.NativeArgsRaw
 	routed.IsTool, routed.Todo = tc.IsTool, tc.Todo
+	routed.Operation = toolCallSnapshotOperation(routed)
 	return routed
 }
 

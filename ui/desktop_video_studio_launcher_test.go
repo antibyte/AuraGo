@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"github.com/go-rod/rod/lib/input"
 )
 
 func TestDesktopVideoStudioStartMenuBrowser(t *testing.T) {
@@ -33,7 +34,7 @@ func TestDesktopVideoStudioStartMenuBrowser(t *testing.T) {
 window.fixtureErrors=[];addEventListener('error',e=>fixtureErrors.push(e.message));addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 state.bootstrap={enabled:true,readonly:false,builtin_apps:` + string(apps) + `,apps:[],widgets:[],shortcuts:[],desktop_files:[],settings:{'windows.restore_session':false}};
 document.getElementById('vd-disabled').hidden=true;document.body.dataset.animations='false';
-window.launcherFixture={state,openStartMenu,selectStartCategory};
+window.launcherFixture={state,openStartMenu,selectStartCategory,openApp};
 window.launcherReady=(async()=>{const words=await(await fetch('/lang/desktop/en.json')).json();window.t=key=>words[key]||key;window.i18n={t:window.t};await loadIconManifest();})();})();`
 	var gatedRequests atomic.Int32
 	var studioEnabled atomic.Bool
@@ -107,4 +108,43 @@ window.launcherReady=(async()=>{const words=await(await fetch('/lang/desktop/en.
 			}
 		}
 	}
+	t.Run("camera-offer-during-lazy-load", func(t *testing.T) {
+		studioEnabled.Store(true)
+		page.MustSetViewport(1200, 800, 1, false)
+		page.MustNavigate(server.URL + "/fixture").MustWaitLoad()
+		page.MustEval(`async () => {
+			await launcherReady;
+			const modules = window.AuraDesktopModules;
+			const load = modules.loadAppAssets.bind(modules);
+			modules.loadAppAssets = (app, ...args) => app === 'video-studio'
+				? new Promise(resolve => { window.releaseStudio = () => resolve(load(app, ...args)); })
+				: load(app, ...args);
+			launcherFixture.openApp('video-studio', {});
+			launcherFixture.openApp('video-studio', { importPath: 'Videos/first.webm', importToken: '11111111-1111-4111-8111-111111111111' });
+			launcherFixture.openApp('video-studio', { importPath: 'Videos/second.webm', importToken: '22222222-2222-4222-8222-222222222222' });
+		}`)
+		if !page.MustEval(`() => {
+			const win = [...launcherFixture.state.windows.values()].find(w => w.appId === 'video-studio');
+			return win.pendingCameraImport?.importPath === 'Videos/first.webm' && !win.context.importPath && !win.context.importToken;
+		}`).Bool() {
+			t.Fatal("lazy handoff was dropped, replaced, or persisted")
+		}
+		page.MustEval(`() => releaseStudio()`)
+		waitForJSBool(t, page, `() => !!document.querySelector('[data-camera-import]')`)
+		if !page.MustEval(`() => {
+			const win = [...launcherFixture.state.windows.values()].find(w => w.appId === 'video-studio');
+			return !win.pendingCameraImport && !win.context.importPath && VideoStudioApp.instances.get(win.id).importOffer.path === 'Videos/first.webm';
+		}`).Bool() {
+			t.Fatal("lazy handoff was not consumed exactly once")
+		}
+		page.MustElement(`[data-camera-new]`).MustClick()
+		waitForJSBool(t, page, `() => !!document.querySelector('[data-new-project-form]')`)
+		page.Keyboard.MustType(input.Escape)
+		waitForJSBool(t, page, `() => !!document.querySelector('[data-camera-import]')`)
+		page.Keyboard.MustType(input.Escape)
+		waitForJSBool(t, page, `() => !document.querySelector('[data-camera-import]')`)
+		if !page.MustEval(`() => [...VideoStudioApp.instances.values()].every(s => !s.importOffer && !s.cameraImportAwaitCreate) && fixtureErrors.length === 0`).Bool() {
+			t.Fatal("Escape without a project retained the import offer")
+		}
+	})
 }

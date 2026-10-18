@@ -32,8 +32,8 @@ func TestNativeBatchStopsBetweenCallsAndClosesEveryResult(t *testing.T) {
 			s.runCfg.IsCoAgent = true
 			s.runCfg.CoAgentTokenLimit = 10
 			s.loopStartedAt = time.Now()
-			primary := ToolCall{Action: "core_memory", NativeCallID: "first"}
-			s.pendingTCs = []ToolCall{{Action: "core_memory", NativeCallID: "second"}, {Action: "core_memory", NativeCallID: "third"}}
+			primary := ToolCall{Action: "core_memory", Operation: "list", NativeCallID: "first"}
+			s.pendingTCs = []ToolCall{{Action: "core_memory", Operation: "list", NativeCallID: "second"}, {Action: "core_memory", Operation: "list", NativeCallID: "third"}}
 			msg := nativeAssistantForCalls(primary, s.pendingTCs[0], s.pendingTCs[1])
 			executeAgentToolTurn(s, ctx, primary, openai.ChatCompletionResponse{}, "", true, msg, "test", "", false)
 			if calls != 1 {

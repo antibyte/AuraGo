@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "संबंधित यादें भी मिटाएँ",
+  "knowledge.contacts_delete_backups": "तय सफ़ाई होने तक बैकअप में मिटाया गया डेटा रह सकता है।",
+  "knowledge.contacts_delete_report": "मिटाई गई जानकारी: {deleted}। रखी गई: {retained}।",
+  "knowledge.contacts_delete_partial": "संपर्क मिट गया; जानकारी की सफ़ाई अधूरी है। मिटाई गई: {deleted}। रखी गई: {retained}। फिर कोशिश करने से पहले रीफ़्रेश करें।",
   "knowledge.appointments_add": "नई अपॉइंटमेंट",
   "knowledge.appointments_agent_wake": "एजेंट जागना",
   "knowledge.appointments_cancel": "अपॉइंटमेंट रद्द करें",

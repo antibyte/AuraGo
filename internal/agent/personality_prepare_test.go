@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -92,10 +94,16 @@ func TestEmotionCompletionClientHonorsHelperLimitsAndRejectsTruncation(t *testin
 			FinishReason: openai.FinishReasonLength,
 		}}}, nil
 	}}
-	adapter := &emotionCompletionClient{client: client, cfg: cfg}
+	cfg.Budget.Enabled = true
+	tracker := budget.NewTracker(cfg, slog.Default(), t.TempDir())
+	defer tracker.Flush()
+	adapter := &emotionCompletionClient{client: client, cfg: cfg, tracker: tracker}
 	_, err := adapter.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{Model: "gpt-4o-mini", Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Return JSON emotion."}}})
 	if !errors.Is(err, llm.ErrJSONCompletionTruncated) {
 		t.Fatalf("accepted truncated completion: %v", err)
+	}
+	if tracker.GetStatus().Models["gpt-4o-mini"].Calls != 1 {
+		t.Fatal("truncated physical call was not billed")
 	}
 	if client.request.MaxTokens != 320 {
 		t.Fatalf("wrong route output budget: %d", client.request.MaxTokens)
@@ -158,5 +166,133 @@ func TestPersonalityReachesActualChatRequestAcrossToolRounds(t *testing.T) {
 	}
 	if conversationEvents != 1 {
 		t.Fatalf("user stimulus applied %d times in one turn", conversationEvents)
+	}
+}
+
+func TestPersonalityBothAnalysisPathsUseBoundedBilledRequests(t *testing.T) {
+	for _, combined := range []bool{false, true} {
+		t.Run(map[bool]string{false: "mood", true: "mood_and_emotion"}[combined], func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Budget.Enabled = true
+			cfg.LLM.Provider = "main"
+			cfg.LLM.ProviderType = "openai"
+			cfg.Providers = []config.ProviderEntry{{ID: "main", ContextWindow: 128000, MaxOutputTokens: 400}}
+			tracker := budget.NewTracker(cfg, slog.Default(), t.TempDir())
+			defer tracker.Flush()
+			client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
+				return openai.ChatCompletionResponse{Usage: openai.Usage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{}`}, FinishReason: openai.FinishReasonLength}}}, nil
+			}}
+			adapter := &emotionCompletionClient{client: client, cfg: cfg, tracker: tracker}
+			stm := newTestPersonalityRuntimeMemory(t)
+			var err error
+			if combined {
+				_, _, _, _, _, _, _, _, err = stm.AnalyzeMoodV2WithEmotion(t.Context(), adapter, "gpt-4o-mini", "user: hello", "hello", memory.DefaultPersonalityMeta(), false, memory.EmotionInput{}, "English")
+			} else {
+				_, _, _, _, err = stm.AnalyzeMoodV2(t.Context(), adapter, "gpt-4o-mini", "user: hello", "hello", memory.DefaultPersonalityMeta(), false)
+			}
+			usage := tracker.GetStatus().Models["gpt-4o-mini"]
+			if !errors.Is(err, llm.ErrJSONCompletionTruncated) || client.calls != 1 || client.request.MaxTokens != 400 || usage.InputTokens != 100 || usage.OutputTokens != 20 || usage.Calls != 1 {
+				t.Fatalf("unbounded/unbilled request: calls=%d cap=%d usage=%+v err=%v", client.calls, client.request.MaxTokens, usage, err)
+			}
+		})
+	}
+}
+
+func TestPersonalityBudgetCancellationAndSingleMainFallback(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Budget.Enabled = true
+	tracker := budget.NewTracker(cfg, slog.Default(), t.TempDir())
+	defer tracker.Flush()
+	client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{Usage: openai.Usage{PromptTokens: 12, CompletionTokens: 3}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{}`}}}}, errors.New("provider failure with usage")
+	}}
+	request := openai.ChatCompletionRequest{Model: "test-model", Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "test"}}}
+	absent := &emotionCompletionClient{cfg: cfg, client: client}
+	if _, err := absent.CreateChatCompletion(t.Context(), request); err == nil || client.calls != 0 {
+		t.Fatal("untracked request sent")
+	}
+	adapter := &emotionCompletionClient{cfg: cfg, client: client, tracker: tracker, mainFallback: true}
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := adapter.CreateChatCompletion(cancelled, request); !errors.Is(err, context.Canceled) || client.calls != 0 {
+		t.Fatal("cancelled request sent")
+	}
+	_, _ = adapter.CreateChatCompletion(t.Context(), request)
+	if _, err := adapter.CreateChatCompletion(t.Context(), request); err == nil || client.calls != 1 || tracker.GetStatus().Models["test-model"].Calls != 1 {
+		t.Fatal("main fallback retried or provider usage lost")
+	}
+	cfg.Budget.DailyLimitUSD = 0.000001
+	cfg.Budget.Enforcement = "full"
+	tracker.RecordCostForCategory("personality", 1)
+	blocked := &emotionCompletionClient{cfg: cfg, client: client, tracker: tracker}
+	if _, err := blocked.CreateChatCompletion(t.Context(), request); err == nil || client.calls != 1 {
+		t.Fatal("exhausted budget generated a response")
+	}
+}
+
+func TestPersonalityRuntimeMainFallbackIsVisibleBoundedAndSingle(t *testing.T) {
+	oldFailures, oldPause := v2FailCount.Swap(0), v2PausedUntil.Swap(0)
+	defer func() { v2FailCount.Store(oldFailures); v2PausedUntil.Store(oldPause) }()
+	stm := newTestPersonalityRuntimeMemory(t)
+	cfg := &config.Config{}
+	cfg.Budget.Enabled = true
+	cfg.LLM.Model = "test-model"
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	tracker := budget.NewTracker(cfg, logger, t.TempDir())
+	defer tracker.Flush()
+	group := NewAsyncTaskGroup(t.Context())
+	defer group.Shutdown(time.Second)
+	called := make(chan time.Duration, 1)
+	client := &turnEmotionClient{complete: func(ctx context.Context) (openai.ChatCompletionResponse, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			called <- time.Hour
+		} else {
+			called <- time.Until(deadline)
+		}
+		return openai.ChatCompletionResponse{}, errors.New("synthetic provider unavailable")
+	}}
+	synth := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
+	launchAsyncPersonalityV2Analysis("fallback-session", cfg, logger, client, RunConfig{BudgetTracker: tracker, SideEffects: group}, stm, synth, nil, "hello", memory.EmotionTriggerConversation, "", 0, "assistant", "hello", memory.DefaultPersonalityMeta(), false, 0, 0, 0, false, false)
+	select {
+	case duration := <-called:
+		if duration <= 0 || duration > 20*time.Second {
+			t.Fatalf("fallback timeout %s", duration)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("fallback did not start")
+	}
+	if err := group.Shutdown(time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if client.calls != 1 || !strings.Contains(logs.String(), "Using bounded main-model fallback") {
+		t.Fatalf("fallback hidden or repeated: calls=%d", client.calls)
+	}
+}
+
+func TestPersonalityAndHelperReasoningRequestsUseSupportedOutputField(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "openai"
+	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", ContextWindow: 32768, MaxOutputTokens: 2048}}
+	client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
+		return helperRecoveryResponse(`{}`, openai.FinishReasonStop), nil
+	}}
+	adapter := &emotionCompletionClient{cfg: cfg, tracker: newHelperTurnBudget(t), client: client}
+	if _, err := adapter.CreateChatCompletion(t.Context(), openai.ChatCompletionRequest{Model: "o3-mini", MaxTokens: 1200, Temperature: .1, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Return JSON."}}}); err != nil {
+		t.Fatal(err)
+	}
+	if client.request.MaxTokens != 0 || client.request.MaxCompletionTokens != 2048 || client.request.Temperature != 0 {
+		t.Fatal("personality reasoning request uses unsupported parameters")
+	}
+	helperClient := &mockChatClient{response: `{}`}
+	manager := &helperLLMManager{client: helperClient, model: "o3-mini", route: llm.ModelRoute{Model: "o3-mini", ProviderType: "openai", ContextWindowOverride: 32768, MaxOutputTokensOverride: 2048}}
+	if _, err := manager.requestJSONResponse(t.Context(), "reasoning", "fixture", "Return JSON.", "Source.", 1200); err != nil {
+		t.Fatal(err)
+	}
+	if helperClient.lastReq.MaxTokens != 0 || helperClient.lastReq.MaxCompletionTokens != 2048 || helperClient.lastReq.Temperature != 0 {
+		t.Fatal("helper reasoning request uses unsupported parameters")
 	}
 }

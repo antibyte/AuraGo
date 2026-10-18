@@ -3,18 +3,25 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
 	"github.com/sashabaranov/go-openai"
 )
 
+var errHelperBudgetUnavailable = errors.New("helper budget unavailable or exhausted")
+
 type helperJSONPolicy struct {
-	retryPrompt func() string
-	validate    func(string) error
+	retryPrompt    func() string
+	validate       func(string) error
+	keepSource     bool
+	tracker        *budget.Tracker
+	budgetCategory string
 }
 
 // helperSourceText reduces source fields before rendering their structural wrappers.
@@ -114,15 +121,34 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		inputTokens := prompts.CountTokensForModel(systemPrompt, m.model) + prompts.CountTokensForModel(userPrompt, m.model) + 32
 		outputTokens, err := llm.JSONCompletionOutputBudget(limits, maxTokens, inputTokens)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("%w: %w", errHelperBudgetUnavailable, err)
+		}
+		if policy.tracker != nil && policy.tracker.IsBlocked(policy.budgetCategory) {
+			return "", errHelperBudgetUnavailable
 		}
 		attempts++
 		m.observeStat(operation, func(stat *HelperLLMOperationStats) { stat.LLMCalls++; stat.LastDetail = "llm_call" })
-		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		request := openai.ChatCompletionRequest{
 			Model: m.model, Temperature: 0.1, MaxTokens: outputTokens,
 			Messages:       []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: systemPrompt}, {Role: openai.ChatMessageRoleUser, Content: userPrompt}},
 			ResponseFormat: llm.JSONResponseFormat(structured),
-		})
+		}
+		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
+			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, outputTokens, 0
+		}
+		resp, err := m.client.CreateChatCompletion(ctx, request)
+		if policy.tracker != nil {
+			var input, output int
+			var account bool
+			resp, input, output, _, _, _, account = normalizeResponseUsage(request, resp)
+			if account {
+				model := resp.Model
+				if model == "" {
+					model = request.Model
+				}
+				policy.tracker.RecordForCategory(policy.budgetCategory, model, input, output)
+			}
+		}
 		if err != nil {
 			lastErr = err
 			if !isTransientHelperError(err) || ctx.Err() != nil {
@@ -143,7 +169,7 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 			break
 		}
 		reduced := policy.retryPrompt()
-		if strings.TrimSpace(reduced) == "" || len(reduced) >= len(userPrompt) {
+		if strings.TrimSpace(reduced) == "" || (!policy.keepSource && len(reduced) >= len(userPrompt)) {
 			break
 		}
 		userPrompt = reduced
