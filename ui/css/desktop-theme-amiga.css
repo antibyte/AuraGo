@@ -1,47 +1,49 @@
-/* desktop-theme-amiga.css - Amiga desktop theme. Placeholder tokens copied from Standard; the Wave-2 skin replaces them. */
+/* desktop-theme-amiga.css - Amiga Workbench 3.1 desktop skin (theme id "amiga").
+   Four pens: grey 0 #aaaaaa, black 1 #000000, white 2 #ffffff, blue 3 #6688bb. Square, opaque, bevelled, no motion.
+   Every rule is rooted at .desktop-body[data-theme="amiga"]; ui/desktop_theme_css_contract_test.go enforces the contract. */
 
 .desktop-body[data-theme="amiga"] {
     color-scheme: light;
 
     /* Core */
-    --vd-bg: #0c1016;
-    --vd-surface: #171d26;
-    --vd-surface-strong: #1d2530;
-    --vd-border: rgba(255, 255, 255, 0.12);
-    --vd-border-bright: rgba(255, 255, 255, 0.18);
-    --vd-text: #edf1f7;
-    --vd-muted: #aeb7c6;
-    --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
-    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--vd-accent) 8%, transparent);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --vd-window-radius: 12px;
+    --vd-bg: #aaaaaa;
+    --vd-surface: #aaaaaa;
+    --vd-surface-strong: #aaaaaa;
+    --vd-border: #000000;
+    --vd-border-bright: #ffffff;
+    --vd-text: #000000;
+    --vd-muted: #333333;
+    --vd-shadow: none;
+    --vd-shadow-window: none;
+    --vd-inner-glow: none;
+    --vd-window-radius: 0;
     --vd-font-ui: 'Geist', system-ui, sans-serif;
 
-    /* Fixed accent */
-    --vd-accent: #27C7A6;
-    --vd-accent-r: 39;
-    --vd-accent-g: 199;
-    --vd-accent-b: 166;
-    --vd-accent-glow: rgba(39, 199, 166, 0.12);
+    /* Fixed accent: Workbench blue */
+    --vd-accent: #6688bb;
+    --vd-accent-r: 102;
+    --vd-accent-g: 136;
+    --vd-accent-b: 187;
+    --vd-accent-glow: rgba(102, 136, 187, 0);
 
     /* Theme bridge */
-    --vd-theme-app-bg: #11151c;
-    --vd-theme-panel-bg: #191f28;
-    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
-    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
-    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
-    --vd-theme-border: rgba(191, 210, 235, 0.14);
-    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
-    --vd-theme-muted: #aeb7c6;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
-    --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
-    --vd-theme-radius-panel: 10px;
-    --vd-theme-radius-modal: 14px;
-    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
-    --vd-theme-blur: blur(24px) saturate(1.15);
+    --vd-theme-app-bg: #aaaaaa;
+    --vd-theme-panel-bg: #aaaaaa;
+    --vd-theme-panel-bg-strong: #ffffff;
+    --vd-theme-chrome-bg: #aaaaaa;
+    --vd-theme-overlay-bg: rgba(0, 0, 0, 0.3);
+    --vd-theme-control-bg: #aaaaaa;
+    --vd-theme-control-hover: #bbbbbb;
+    --vd-theme-border: #000000;
+    --vd-theme-border-strong: #000000;
+    --vd-theme-muted: #333333;
+    --vd-theme-accent-soft: #6688bb;
+    --vd-theme-accent-border: #000000;
+    --vd-theme-radius-panel: 0;
+    --vd-theme-radius-modal: 0;
+    --vd-theme-shadow-panel: none;
+    --vd-theme-shadow-modal: none;
+    --vd-theme-blur: none;
 
     /* Chrome */
     --vd-chrome-highlight: 0 0 0 transparent;
@@ -49,32 +51,593 @@
     --vd-chrome-hairline: none;
 
     /* Design system */
-    --ds-color-fg-primary: #edf1f7;
-    --ds-color-fg-secondary: #d0d0d0;
-    --ds-color-fg-muted: #aeb7c6;
-    --ds-color-fg-disabled: #6b6b6b;
-    --ds-color-bg-canvas: #0c1016;
-    --ds-color-bg-raised: #171d26;
-    --ds-color-bg-overlay: #1d2530;
-    --ds-color-bg-modal: #222c39;
-    --ds-color-surface-0: #11151c;
-    --ds-color-surface-1: #171d26;
-    --ds-color-surface-2: #1d2530;
-    --ds-color-surface-3: #222c39;
-    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
-    --ds-color-border-default: rgba(255, 255, 255, 0.18);
-    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
-    --ds-color-border-focus: #E95420;
-    --ds-color-accent-500: #E95420;
-    --ds-color-accent-600: #c7431a;
-    --ds-color-accent-glow: rgba(233, 84, 32, 0.08);
-    --ds-color-control-active: rgba(255, 255, 255, 0.14);
-    --ds-color-inner-highlight: rgba(255, 255, 255, 0.04);
-    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.28);
-    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.34);
-    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.42);
-    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.52);
-    --ds-elevation-5: 0 32px 96px rgba(0, 0, 0, 0.6);
-    --ds-blur-fine: blur(22px) saturate(1.3);
-    --ds-blur-coarse: blur(8px) saturate(1.1);
+    --ds-color-fg-primary: #000000;
+    --ds-color-fg-secondary: #333333;
+    --ds-color-fg-muted: #333333;
+    --ds-color-fg-disabled: #444444;
+    --ds-color-bg-canvas: #aaaaaa;
+    --ds-color-bg-raised: #aaaaaa;
+    --ds-color-bg-overlay: #ffffff;
+    --ds-color-bg-modal: #aaaaaa;
+    --ds-color-surface-0: #aaaaaa;
+    --ds-color-surface-1: #aaaaaa;
+    --ds-color-surface-2: #aaaaaa;
+    --ds-color-surface-3: #aaaaaa;
+    --ds-color-border-subtle: #000000;
+    --ds-color-border-default: #000000;
+    --ds-color-border-strong: #000000;
+    --ds-color-border-focus: #6688bb;
+    --ds-color-accent-500: #6688bb;
+    --ds-color-accent-600: #5577aa;
+    --ds-color-accent-glow: rgba(102, 136, 187, 0);
+    --ds-color-control-active: #999999;
+    --ds-color-inner-highlight: #ffffff;
+    --ds-elevation-1: none;
+    --ds-elevation-2: none;
+    --ds-elevation-3: none;
+    --ds-elevation-4: none;
+    --ds-elevation-5: none;
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+
+    /* Square corners and no easing in every component that reads the shared scales */
+    --ds-radius-xs: 0;
+    --ds-radius-sm: 0;
+    --ds-radius-md: 0;
+    --ds-radius-lg: 0;
+    --ds-radius-xl: 0;
+    --ds-radius-full: 0;
+    --ds-motion-duration-fast: 0ms;
+    --ds-motion-duration-base: 0ms;
+    --ds-motion-duration-slow: 0ms;
+    --vd-shell-radius-panel: 0;
+    --vd-shell-radius-window: 0;
+
+    /* Geometry: 30px window list, 22px screen bar, 22px titlebars and gadgets */
+    --vd-taskbar-height: 30px;
+    --vd-start-button-size: calc(var(--vd-taskbar-height) - 6px);
+    --vd-global-bar-height: 22px;
+    --vd-global-menu-titlebar-height: 22px;
+    --vd-menu-row-height: 22px;
+
+    /* Amiga helpers: titlebar and gadget size, bevels, pixel font */
+    --vd-theme-amiga-bar: var(--vd-global-menu-titlebar-height);
+    --vd-theme-amiga-raised: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #000000;
+    --vd-theme-amiga-sunken: inset 1px 1px 0 #000000, inset -1px -1px 0 #ffffff;
+    --vd-theme-amiga-vga: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+}
+
+/* Px437 IBM VGA 8x16 by VileR (int10h.org), CC BY-SA 4.0, see /fonts/Px437-LICENSE.txt. */
+@font-face {
+    font-family: "Desktop Theme VGA";
+    src: url('/fonts/Px437_IBM_VGA_8x16.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ---- Flat screen, pixel text, inverted selection, dashed focus ---- */
+.desktop-body[data-theme="amiga"]::before,
+.desktop-body[data-theme="amiga"]::after { display: none; }
+
+.desktop-body[data-theme="amiga"] :is(
+    .vd-global-bar, .vd-global-brand, .vd-global-appname, .vd-clock, .vd-space-pager-btn, .vd-window-title,
+    .vd-window-subtitle, .vd-window-menu-button, .vd-window-menu-item, .vd-context-item, .vd-context-shortcut,
+    .vd-task-button, .vd-start-button, .vd-start-glyph, .vd-start-search input, .vd-start-category,
+    .vd-start-category-count, .vd-start-item, .vd-start-pane-title, .vd-start-pane-count, .vd-start-recent-label,
+    .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-button, .vd-modal-title, .vd-modal-copy,
+    .vd-modal-input, .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open
+) {
+    font-family: var(--vd-theme-amiga-vga);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    -webkit-font-smoothing: none;
+}
+
+.desktop-body[data-theme="amiga"] ::selection { background: #000000; color: #ffffff; }
+
+/* !important: blue on grey is only 1.6:1, and several base focus rules say outline: none or use the accent. */
+.desktop-body[data-theme="amiga"] :focus-visible { outline: 2px dashed #000000 !important; outline-offset: 1px; }
+.desktop-body[data-theme="amiga"] :is(.vd-task-button, .vd-taskbar-pin, .vd-start-item, .vd-start-category):focus-visible { outline-offset: -4px; }
+.desktop-body[data-theme="amiga"] .vd-window-button:focus-visible { outline-offset: -5px; }
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] :focus-visible { outline-color: #ffffff !important; }
+
+/* ---- Gadgets: grey, raised bevel; hover lighter; pressed or selected inverts the bevel ---- */
+.desktop-body[data-theme="amiga"] :is(
+    .vd-global-brand, .vd-task-button, .vd-taskbar-pin, .vd-start-button, .vd-start-category, .vd-start-item,
+    .vd-window-titlebar .vd-window-button, .vd-button, .vd-file-dialog-close, .vd-shortcuts-close, .vd-toast-close,
+    .vd-notification-clear, .vd-clock-popup-open
+) {
+    border: 0;
+    border-radius: 0;
+    background: #aaaaaa;
+    color: #000000;
+    box-shadow: var(--vd-theme-amiga-raised);
+    transform: none;
+    filter: none;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] :is(
+    .vd-global-brand, .vd-task-button, .vd-taskbar-pin, .vd-start-button, .vd-start-category, .vd-start-item,
+    .vd-window-titlebar .vd-window-button, .vd-button, .vd-file-dialog-close, .vd-shortcuts-close, .vd-toast-close,
+    .vd-notification-clear, .vd-clock-popup-open
+):hover { background: #bbbbbb; color: #000000; }
+
+/* The pressed button is blue; its label stays black because white on #6688bb is only 3.6:1. */
+.desktop-body[data-theme="amiga"] :is(
+    .vd-global-brand, .vd-task-button, .vd-taskbar-pin, .vd-start-button, .vd-start-category, .vd-start-item,
+    .vd-window-titlebar .vd-window-button, .vd-button, .vd-file-dialog-close, .vd-shortcuts-close, .vd-toast-close,
+    .vd-notification-clear, .vd-clock-popup-open
+):is(.active, [aria-selected="true"], [data-active="true"]) { background: #6688bb; box-shadow: var(--vd-theme-amiga-sunken); }
+
+.desktop-body[data-theme="amiga"] :is(
+    .vd-global-brand, .vd-task-button, .vd-taskbar-pin, .vd-start-button, .vd-start-category, .vd-start-item,
+    .vd-window-titlebar .vd-window-button, .vd-button, .vd-file-dialog-close, .vd-shortcuts-close, .vd-toast-close,
+    .vd-notification-clear, .vd-clock-popup-open
+):active { background: #999999; box-shadow: var(--vd-theme-amiga-sunken); transform: none; }
+
+.desktop-body[data-theme="amiga"] .vd-button.vd-button-primary:not(:active) { background: #6688bb; }
+.desktop-body[data-theme="amiga"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open) { min-height: 26px; }
+
+/* ---- Screen bar (global menu bar): white, black line, bevelled A gadget ---- */
+.desktop-body[data-theme="amiga"] .vd-global-bar {
+    gap: 4px;
+    padding: env(safe-area-inset-top, 0px) 4px 0 2px;
+    background: #ffffff;
+    border-bottom: 1px solid #000000;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-global-brand { justify-content: center; width: 22px; height: 20px; padding: 0; }
+.desktop-body[data-theme="amiga"] .vd-global-brand span { display: none; }
+.desktop-body[data-theme="amiga"] .vd-global-appname { max-width: 240px; }
+.desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menubar { height: 100%; gap: 0; background: transparent; }
+.desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menu-button { min-height: 0; height: 20px; padding: 0 8px; }
+
+/* ---- Tray (global bar when wide, window list when compact): flat buttons, inverted on hover ---- */
+.desktop-body[data-theme="amiga"] .vd-taskbar-system {
+    --vd-theme-amiga-tray: calc(var(--vd-global-bar-height) - 2px);
+    align-items: center;
+    gap: 2px;
+    padding: 0;
+}
+
+.desktop-body[data-theme="amiga"] .vd-global-bar .vd-taskbar-system { height: 100%; }
+.desktop-body[data-theme="amiga"] .vd-taskbar .vd-taskbar-system { --vd-theme-amiga-tray: calc(var(--vd-taskbar-height) - 6px); }
+
+.desktop-body[data-theme="amiga"] .vd-taskbar-system :is(
+    .vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button,
+    .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn
+) {
+    justify-content: center;
+    width: var(--vd-theme-amiga-tray);
+    height: var(--vd-theme-amiga-tray);
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #000000;
+    font-size: 16px;
+    line-height: 1;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-taskbar-system :is(
+    .vd-fullscreen-button:enabled, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button,
+    .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn
+):hover { background: #000000; color: #ffffff; }
+
+.desktop-body[data-theme="amiga"] .vd-taskbar-system :is(.vd-space-pager-btn.active, .vd-space-pager-btn[aria-pressed="true"]) { background: #6688bb; box-shadow: var(--vd-theme-amiga-sunken); color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-space-pager { gap: 2px; margin: 0; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-fullscreen-button svg,
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-show-desktop-btn::before { width: 14px; height: 14px; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-notification-icon { font-size: 14px; filter: brightness(0); }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-notification-button:hover .vd-notification-icon { filter: brightness(0) invert(1); }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-clock { height: auto; padding: 0 6px; color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-live-speech-button:hover i { background: #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-live-speech-button::after,
+.desktop-body[data-theme="amiga"] .vd-live-speech-button i { border-radius: 0; animation: none; }
+
+.desktop-body[data-theme="amiga"] .vd-notification-badge {
+    top: -2px;
+    right: -2px;
+    min-width: 12px;
+    height: 12px;
+    padding: 0 2px;
+    border-radius: 0;
+    background: #000000;
+    color: #ffffff;
+    font: 700 10px/12px 'Geist', system-ui, sans-serif;
+}
+
+.desktop-body[data-theme="amiga"] :is(.vd-agent-dot, .vd-status-dot) {
+    width: 8px;
+    height: 8px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: none;
+    animation: none;
+}
+
+.desktop-body[data-theme="amiga"] :is(.vd-agent-dot, .vd-status-dot[data-state="online"]) { background: #6688bb; }
+.desktop-body[data-theme="amiga"] .vd-status-dot[data-state="reconnecting"] { background: #ff2222; }
+
+/* ---- Window list (bottom): grey bar, white line over a black line, bevelled buttons, pressed blue ---- */
+.desktop-body[data-theme="amiga"] .vd-taskbar {
+    gap: 4px;
+    padding: 2px 4px 3px;
+    border: 0;
+    border-top: 1px solid #000000;
+    border-radius: 0;
+    background: #aaaaaa;
+    box-shadow: inset 0 1px 0 #ffffff;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-taskbar::before { display: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-taskbar-apps, .vd-taskbar-pins) { gap: 4px; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-pins { margin-right: 0; padding-right: 4px; border-right: 1px solid #000000; }
+
+.desktop-body[data-theme="amiga"] :is(.vd-task-button, .vd-taskbar-pin, .vd-start-button) { height: calc(var(--vd-taskbar-height) - 6px); min-width: 0; margin: 0; animation: none; }
+.desktop-body[data-theme="amiga"] .vd-task-button { max-width: 180px; padding: 0 8px; gap: 6px; }
+.desktop-body[data-theme="amiga"] .vd-taskbar-pin { width: calc(var(--vd-taskbar-height) - 6px); padding: 0; }
+.desktop-body[data-theme="amiga"] .vd-start-button { width: var(--vd-start-button-size); min-width: var(--vd-start-button-size); padding: 0; }
+
+/* !important: the base rule sizes the start glyph with !important. */
+.desktop-body[data-theme="amiga"] .vd-start-button :is(.vd-sprite-start, .vd-papirus-icon, .vd-start-glyph) {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    filter: none;
+}
+
+/* ---- Windows: grey (inactive) or blue (active) frame, 22px titlebar, bevelled gadgets ---- */
+.desktop-body[data-theme="amiga"] .vd-window {
+    padding: 0 3px 3px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: #aaaaaa;
+    box-shadow: var(--vd-theme-amiga-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-window.active { border-color: #000000; background: #6688bb; box-shadow: var(--vd-theme-amiga-raised); }
+.desktop-body[data-theme="amiga"] .vd-window:not(.no-titlebar) { grid-template-rows: var(--vd-theme-amiga-bar) minmax(0, 1fr); }
+.desktop-body[data-theme="amiga"] .vd-window.has-window-menu:not(.has-global-menu, .no-titlebar) { grid-template-rows: calc(var(--vd-theme-amiga-bar) * 2) minmax(0, 1fr); }
+.desktop-body[data-theme="amiga"] .vd-window.no-titlebar { padding: 3px; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-window.vd-window-file-drop-target { outline: 2px dashed #ffffff; outline-offset: -4px; }
+.desktop-body[data-theme="amiga"] .vd-window.vd-window-file-drop-reject { outline: 2px dashed #ff2222; outline-offset: -4px; }
+
+/* !important: the base drag rule sets the box-shadow with !important and would drop the bevel. */
+.desktop-body[data-theme="amiga"] .vd-window:is(.dragging, .resizing) { box-shadow: var(--vd-theme-amiga-raised) !important; }
+
+.desktop-body[data-theme="amiga"] .vd-window:not(.no-titlebar) > .vd-window-titlebar {
+    display: grid;
+    grid-template-columns: var(--vd-theme-amiga-bar) minmax(0, 1fr) auto auto auto;
+    grid-template-rows: var(--vd-theme-amiga-bar);
+    align-items: center;
+    gap: 0;
+    height: var(--vd-theme-amiga-bar);
+    min-height: var(--vd-theme-amiga-bar);
+    margin: 0 -3px;
+    padding: 0;
+    border-bottom: 1px solid #000000;
+    border-radius: 0;
+    background: #aaaaaa;
+    color: #000000;
+    box-shadow: inset 1px 1px 0 #ffffff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    cursor: default;
+    opacity: 1;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-window.active:not(.no-titlebar) > .vd-window-titlebar { background: #6688bb; }
+
+.desktop-body[data-theme="amiga"] .vd-window.has-window-menu:not(.has-global-menu, .no-titlebar) > .vd-window-titlebar {
+    grid-template-rows: var(--vd-theme-amiga-bar) var(--vd-theme-amiga-bar);
+    height: calc(var(--vd-theme-amiga-bar) * 2);
+    min-height: calc(var(--vd-theme-amiga-bar) * 2);
+}
+
+.desktop-body[data-theme="amiga"] .vd-window .vd-window-title-group { grid-column: 2; grid-row: 1; gap: 6px; padding: 0 6px; }
+.desktop-body[data-theme="amiga"] .vd-window .vd-window-header-icon-wrap { display: none; }
+.desktop-body[data-theme="amiga"] .vd-window :is(.vd-window-title, .vd-window-subtitle) { color: #000000; opacity: 1; line-height: 1; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-actions { display: contents; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button { grid-row: 1; width: var(--vd-theme-amiga-bar); height: var(--vd-theme-amiga-bar); margin: 0; padding: 0; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="close"] { grid-column: 1; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="ai-context"] { grid-column: 3; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="minimize"] { grid-column: 4; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="maximize"] { grid-column: 5; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar :is(.vd-window-control-icon, .vd-window-ai-button-icon) { display: none; }
+
+/* Gadget glyphs, centred in the gadget: close = small square, depth = two overlapping boxes (front white), zoom = box in box. */
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button::before,
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    display: block;
+    box-sizing: border-box;
+    margin: 0;
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: transparent;
+    opacity: 1;
+    transform: none;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="close"]::before { width: 8px; height: 8px; margin: -4px 0 0 -4px; border-width: 2px; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button:is([data-action="close"], [data-action="ai-context"])::after { display: none; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="minimize"]::before { width: 9px; height: 8px; margin: -6px 0 0 -6px; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="minimize"]::after { width: 8px; height: 8px; margin: -2px 0 0 -2px; background: #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="maximize"]::before { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="maximize"]::after { width: 6px; height: 6px; margin: -6px 0 0 -6px; background: #ffffff; }
+
+.desktop-body[data-theme="amiga"] .vd-window-titlebar .vd-window-button[data-action="ai-context"]::before {
+    content: "AI";
+    position: static;
+    width: auto;
+    height: auto;
+    border: 0;
+    color: #000000;
+    font: 16px/16px var(--vd-theme-amiga-vga);
+    -webkit-font-smoothing: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-window > .vd-window-content { border: 1px solid #000000; border-top: 0; border-radius: 0; background: var(--vd-theme-app-bg); }
+
+/* Menu bar inside the titlebar (compact layout, where the global menu is off) */
+.desktop-body[data-theme="amiga"] .vd-window-menubar { min-height: var(--vd-theme-amiga-bar); padding: 0 2px; border-top: 1px solid #000000; background: #ffffff; box-shadow: none; }
+.desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menubar { min-height: 0; padding: 0; border-top: 0; background: transparent; }
+
+/* Sizing gadget: bevel square with diagonal lines, hanging off the corner so it never covers app controls */
+.desktop-body[data-theme="amiga"] .vd-resize-handle:hover { background: transparent; }
+
+.desktop-body[data-theme="amiga"] .vd-resize-se {
+    right: -6px;
+    bottom: -6px;
+    width: 12px;
+    height: 12px;
+    background: repeating-linear-gradient(135deg, #aaaaaa 0 2px, #000000 2px 3px) #aaaaaa;
+    box-shadow: var(--vd-theme-amiga-raised);
+}
+
+.desktop-body[data-theme="amiga"] .vd-resize-se:hover { background-color: #bbbbbb; }
+
+/* Scrollbars as prop gadgets: grey track, bevelled thumb. The base sets scrollbar-color, which makes Chrome ignore these. */
+.desktop-body[data-theme="amiga"] .vd-window-content,
+.desktop-body[data-theme="amiga"] .vd-window-content * { scrollbar-width: auto; scrollbar-color: auto; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar { width: 16px; height: 16px; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-corner { background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-track { border-radius: 0; background: #aaaaaa; box-shadow: inset 1px 1px 0 #000000, inset -1px -1px 0 #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-thumb { min-height: 24px; border: 0; border-radius: 0; background: #aaaaaa; box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #000000; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-thumb:hover { background: #bbbbbb; }
+.desktop-body[data-theme="amiga"] :is(.vd-scroll, .vd-start-apps) { scrollbar-width: auto; scrollbar-color: #000000 #aaaaaa; }
+
+/* ---- Menus: white panels, black outline, inverted hover row, dotted separators ---- */
+.desktop-body[data-theme="amiga"] :is(.vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover) {
+    padding: 2px;
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item) { min-height: var(--vd-menu-row-height); padding: 0 6px; gap: 6px; border-radius: 0; color: #000000; transition: none; }
+
+.desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) { background: #000000; color: #ffffff; border-radius: 0; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) :is(kbd, .vd-context-shortcut, .vd-context-arrow, .vd-context-icon, .vd-window-menu-arrow) { color: #ffffff; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):disabled { color: #333333; opacity: 0.6; }
+.desktop-body[data-theme="amiga"] .vd-window-menu-item.checked { color: #000000; }
+.desktop-body[data-theme="amiga"] :is(kbd, .vd-context-shortcut, .vd-window-menu-arrow) { color: #333333; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-separator, .vd-window-menu-separator) { height: 0; margin: 3px 4px; border-top: 1px dotted #000000; background: none; opacity: 1; }
+.desktop-body[data-theme="amiga"] .vd-window-menu-button { height: 20px; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: #000000; }
+
+.desktop-body[data-theme="amiga"] .vd-window-menu.open > .vd-window-menu-button,
+.desktop-body[data-theme="amiga"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="amiga"] .vd-window-menu-button:focus-visible { border: 0; background: #000000; color: #ffffff; }
+
+/* ---- Start menu: a drawer window with a blue title strip, grey body, bevelled items, recessed search ---- */
+.desktop-body[data-theme="amiga"] .vd-start-menu {
+    left: 4px;
+    bottom: calc(var(--vd-taskbar-height) + 4px);
+    width: min(620px, calc(100vw - 8px));
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: #aaaaaa;
+    box-shadow: var(--vd-theme-amiga-raised);
+    animation: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-start-menu::before {
+    content: "AuraGo";
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    height: var(--vd-theme-amiga-bar);
+    padding: 0 8px;
+    border-bottom: 1px solid #000000;
+    background: #6688bb;
+    color: #000000;
+    font: 16px/21px var(--vd-theme-amiga-vga);
+    box-shadow: inset 1px 1px 0 #ffffff;
+    -webkit-font-smoothing: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-start-search { padding: 6px; border-bottom: 1px solid #000000; }
+
+.desktop-body[data-theme="amiga"] :is(.vd-start-search input, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input) {
+    height: 26px;
+    min-height: 0;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 0;
+    background: #aaaaaa;
+    color: #000000;
+    box-shadow: var(--vd-theme-amiga-sunken);
+}
+
+.desktop-body[data-theme="amiga"] .vd-start-search input:is(:hover, :focus) { background: #bbbbbb; }
+.desktop-body[data-theme="amiga"] .vd-start-search input::placeholder { color: #333333; opacity: 1; }
+.desktop-body[data-theme="amiga"] .vd-start-rail { gap: 4px; padding: 6px; border-right: 1px solid #000000; background: #aaaaaa; transition: none; }
+.desktop-body[data-theme="amiga"] .vd-start-menu.vd-start-searching .vd-start-rail { opacity: 1; }
+.desktop-body[data-theme="amiga"] .vd-start-rail-indicator { display: none; }
+.desktop-body[data-theme="amiga"] .vd-start-rail-separator { margin: 2px 0; background: #000000; }
+.desktop-body[data-theme="amiga"] .vd-start-pane-head { padding: 8px 10px 4px; }
+.desktop-body[data-theme="amiga"] .vd-start-apps { padding: 4px 6px 8px; }
+.desktop-body[data-theme="amiga"] .vd-start-grid { gap: 4px; }
+.desktop-body[data-theme="amiga"] :is(.vd-start-category, .vd-start-item) { min-height: 28px; padding: 4px 8px; animation: none; }
+.desktop-body[data-theme="amiga"] .vd-start-item { grid-template-columns: 30px 1fr; gap: 8px; min-height: 36px; }
+.desktop-body[data-theme="amiga"] .vd-start-recent-item { border-left: 0; }
+.desktop-body[data-theme="amiga"] .vd-start-category-count { border-radius: 0; background: transparent; color: #000000; opacity: 1; }
+.desktop-body[data-theme="amiga"] .vd-start-category-icon { opacity: 1; transform: none; transition: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-start-recent-label, .vd-start-pane-count) { opacity: 1; color: #333333; }
+.desktop-body[data-theme="amiga"] .vd-start-menu-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; transition: none; }
+
+/* ---- Desktop icons: Papirus in four pens (SVG filter in desktop.html), grey label plates ---- */
+.desktop-body[data-theme="amiga"] :is(.vd-icon, .vd-icon:hover, .vd-icon.selected, .vd-icon:active, .vd-icon:focus-visible) {
+    border-color: transparent;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+    animation: none;
+}
+
+/* On the dark desktop the focus ring turns white over a black band, so it reads on any wallpaper. */
+.desktop-body[data-theme="amiga"] .vd-icon:focus-visible { outline-color: #ffffff !important; box-shadow: 0 0 0 4px #000000; }
+
+.desktop-body[data-theme="amiga"] .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    filter: url(#vd-theme-amiga-wb4) drop-shadow(1px 1px 0 #000000);
+    image-rendering: pixelated;
+    transition: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-icon.selected > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { filter: url(#vd-theme-amiga-wb4) invert(1) drop-shadow(1px 1px 0 #000000); }
+
+.desktop-body[data-theme="amiga"] .vd-icon-label {
+    padding: 0 4px;
+    border-radius: 0;
+    background: #aaaaaa;
+    color: #000000;
+    line-height: 16px;
+    text-shadow: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="amiga"] .vd-icon:is(.selected, :focus-visible) .vd-icon-label { background: #000000; color: #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-mini-icon { image-rendering: pixelated; }
+.desktop-body[data-theme="amiga"] .vd-desktop-selection-marquee { border: 1px dashed #ffffff; border-radius: 0; background: transparent; box-shadow: 0 0 0 1px #000000; animation: none; }
+
+/* ---- Toasts and requesters ---- */
+.desktop-body[data-theme="amiga"][data-global-menus="true"] .vd-toast-container { top: calc(var(--vd-global-bar-height) + 8px); }
+.desktop-body[data-theme="amiga"] .vd-toast { padding: 8px 10px; border: 1px solid #000000; background: #ffffff; color: #000000; box-shadow: none; animation: none; transition: none; }
+.desktop-body[data-theme="amiga"] .vd-toast::after { display: none; }
+.desktop-body[data-theme="amiga"] .vd-toast-message { color: #333333; }
+
+/* Guru Meditation: black, red text, red 3px border that blinks three times at 1 Hz. */
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] { padding: 11px 14px; border: 0; background: #000000; color: #ff2222; }
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] :is(.vd-toast-title, .vd-toast-message) { color: #ff2222; }
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] .vd-toast-close { border: 1px solid #ff2222; background: #000000; color: #ff2222; box-shadow: none; }
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] .vd-toast-close:hover { background: #ff2222; color: #000000; }
+
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 3px solid #ff2222;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="amiga"]:not([data-animations="false"]) .vd-toast[data-type="error"]::before { animation: vd-theme-amiga-guru 1s step-end 3; }
+
+@keyframes vd-theme-amiga-guru {
+    50% { opacity: 0; }
+}
+
+.desktop-body[data-theme="amiga"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-disabled-panel) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); animation: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: rgba(0, 0, 0, 0.3); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
+
+/* ---- Motion: none, like Workbench. The Guru blink above is the only animation. ---- */
+.desktop-body[data-theme="amiga"] :is(
+    .vd-window-opening, .vd-window-closing, .vd-window-minimizing, .vd-window-restoring,
+    .vd-context-menu-opening, .vd-context-menu-closing, .vd-start-menu-opening, .vd-start-menu-closing,
+    .vd-window-menu-popover-closing, .vd-context-menu-opening .vd-context-item,
+    .vd-context-submenu:hover > .vd-context-submenu-popover, .vd-context-submenu:focus-within > .vd-context-submenu-popover,
+    .vd-start-menu-just-opened .vd-start-category, .vd-start-pane-switching :is(.vd-start-pane-title, .vd-start-pane-count, .vd-start-section-label, .vd-start-empty, .vd-start-item),
+    .vd-window-switcher, .vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail,
+    .vd-notification-button .vd-notification-icon, .vd-notification-button .vd-notification-badge
+) { animation: none; }
+
+/* The base pops task buttons in from a selector with :not([data-animations]); match its weight. */
+.desktop-body[data-theme="amiga"]:not([data-animations="false"]) .vd-task-button { animation: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-window.vd-window-bounds-animated, .vd-window-menu-popover, .vd-context-menu, .vd-start-menu, .vd-global-bar) { transition: none; }
+
+/* ---- Compact layout (global bar off): the tray lives in the window list ---- */
+@media (max-width: 820px) {
+    .desktop-body[data-theme="amiga"] { --vd-maximized-window-reserve: var(--vd-taskbar-height); }
+    .desktop-body[data-theme="amiga"] .vd-taskbar { min-height: 0; padding: 2px 4px 3px; gap: 4px; }
+    .desktop-body[data-theme="amiga"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin) { min-width: calc(var(--vd-taskbar-height) - 6px); height: calc(var(--vd-taskbar-height) - 6px); padding: 0 4px; }
+    .desktop-body[data-theme="amiga"] .vd-taskbar .vd-task-icon { width: 16px; height: 16px; }
+    .desktop-body[data-theme="amiga"] .vd-taskbar-system .vd-clock { padding: 0 4px; }
+}
+
+/* Phones: the window buttons matter more than the pinned launchers, which the start menu also offers. */
+@media (max-width: 560px) {
+    .desktop-body[data-theme="amiga"] .vd-taskbar-pins { display: none; }
+    .desktop-body[data-theme="amiga"] .vd-start-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Touch phones: the base floats the bar as a pill; dock it as a full-width bar instead. */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="amiga"] { --vd-mobile-taskbar-reserve: calc(var(--vd-taskbar-height) + env(safe-area-inset-bottom, 0px)); }
+
+    .desktop-body[data-theme="amiga"] .vd-taskbar {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        max-width: none;
+        min-height: 0;
+        padding: 2px 4px calc(3px + env(safe-area-inset-bottom, 0px));
+        border: 0;
+        border-top: 1px solid #000000;
+        border-radius: 0;
+        background: #aaaaaa;
+        box-shadow: inset 0 1px 0 #ffffff;
+        transform: none;
+    }
+}
+
+/* Touch targets: bigger bar, menu rows and gadgets for coarse pointers */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="amiga"] { --vd-taskbar-height: 44px; --vd-global-menu-titlebar-height: 36px; --vd-menu-row-height: 40px; }
+
+    /* The base blurs these backdrops here, with !important. */
+    .desktop-body[data-theme="amiga"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
 }
