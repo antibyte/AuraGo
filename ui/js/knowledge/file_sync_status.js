@@ -92,13 +92,13 @@ async function loadFileSyncStatus() {
                 <span class="kc-sync-stat-label">📂 ${t('knowledge.filesync_directories')}</span>
             </div>`;
             idx.directories.forEach(dir => {
-                html += `<div class="kc-sync-dir-item"><span class="kc-sync-dir-path">${escapeHtml(dir)}</span></div>`;
+                html += `<div class="kc-sync-dir-item"><span class="kc-sync-dir-path">${fsEscapeHtml(dir)}</span></div>`;
             });
         }
         if (idx.errors && idx.errors.length > 0) {
             html += `<div class="kc-sync-errors">
                 <span class="kc-sync-errors-title">⚠️ ${idx.errors.length} ${t('knowledge.filesync_errors')}</span>
-                <ul class="kc-sync-errors-list">${idx.errors.map(e => `<li>${escapeHtml(String(e))}</li>`).join('')}</ul>
+                <ul class="kc-sync-errors-list">${idx.errors.map(e => `<li>${fsEscapeHtml(String(e))}</li>`).join('')}</ul>
             </div>`;
         }
         indexerBody.innerHTML = html;
@@ -123,7 +123,7 @@ async function loadFileSyncStatus() {
             </div>`;
             html += '<div class="kc-sync-chip-row">';
             for (const [etype, count] of Object.entries(kg.by_entity_type)) {
-                html += `<span class="kc-sync-chip">${escapeHtml(etype)} <strong>${count}</strong></span>`;
+                html += `<span class="kc-sync-chip">${fsEscapeHtml(etype)} <strong>${count}</strong></span>`;
             }
             html += '</div>';
         }
@@ -134,7 +134,7 @@ async function loadFileSyncStatus() {
             </div>`;
             html += '<div class="kc-sync-chip-row">';
             for (const [coll, count] of Object.entries(kg.by_collection)) {
-                html += `<span class="kc-sync-chip kc-sync-chip-coll">${escapeHtml(coll)} <strong>${count}</strong></span>`;
+                html += `<span class="kc-sync-chip kc-sync-chip-coll">${fsEscapeHtml(coll)} <strong>${count}</strong></span>`;
             }
             html += '</div>';
         }
@@ -154,7 +154,7 @@ async function loadFileSyncStatus() {
         html += '</tr></thead><tbody>';
         status.collections.forEach(c => {
             html += `<tr>
-                <td class="kc-name">${escapeHtml(c.collection || '—')}</td>
+                <td class="kc-name">${fsEscapeHtml(c.collection || '—')}</td>
                 <td>${c.file_count ?? '—'}</td>
                 <td>${c.node_count ?? '—'}</td>
                 <td>${c.edge_count ?? '—'}</td>
@@ -212,9 +212,10 @@ async function triggerFileSyncRescan() {
 }
 
 /**
- * Simple HTML escaping utility.
+ * HTML escaping for this file's text-content markup. Deliberately not named escapeHtml: this script loads last on the
+ * dashboard, and a global escapeHtml here would replace main.js's quote-escaping helper for every dashboard script.
  */
-function escapeHtml(str) {
+function fsEscapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
     div.textContent = str;

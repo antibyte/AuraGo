@@ -42,3 +42,8 @@ func TestDashboardSectionRegistry(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-sections.cjs")
 }
+
+func TestDashboardEscapeHtmlComesFromMainJS(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-page-scripts.cjs")
+}
