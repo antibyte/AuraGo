@@ -2118,7 +2118,11 @@ buttons and menu popovers remain excluded from those gestures.
   mission payload. The editor re-validates live after the first failed save.
 - `.vd-mc [hidden]` forces `display: none` because module display rules
   otherwise beat the UA hidden default; keep the stylesheet theme-native
-  (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals.
+  (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals. The button
+  reset is `.vd-mc :where(button)` at (0,1,0) so single-class button colours
+  (link, back, tab, quick action, danger) apply; accent and danger text on
+  buttons and links uses `--mc-accent-ink` / `--mc-danger-ink`, never the raw
+  accent or `#e5484d`.
 - Verify with `go test ./ui -run 'MissionControl|RelTime'`,
   `npm run test:mission-control` (schedule, plus flow missions on a stub DOM in
   `scripts/test-mission-control-flows.mjs`), `npm run test:dashboard-cron` and
@@ -2133,6 +2137,13 @@ buttons and menu popovers remain excluded from those gestures.
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
   launcher, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows.
+- Fixed accents: an app that paints text on the raw accent exposes a root
+  token that a fixed-accent skin overrides in an App tokens rule of its
+  skin file (`.vs-app` `--vs-accent-strong`/`--vs-accent-hover`,
+  `.code-studio` `--cs-accent-contrast`, dark by default); Mission Control
+  mixes `--mc-accent-ink` (30 % accent) and `--mc-danger-ink` (60 % danger,
+  45 % under `[data-scheme="light"]`) with `--vd-text` instead and needs no
+  skin rule.
 - Apps read the colour scheme from `document.body.dataset.scheme` (`light` or `dark`), never the theme id, and observe `data-scheme` together with `data-theme` and `data-fruity-mode` to re-theme live (Code Studio editor, CYD Creator code, Layerling, Leafy). The Fruity check (`dataset.theme === 'fruity'` with `fruityMode`) is only a fallback for harnesses that set `data-theme` directly. Verify `TestDesktopThemeRegistryShellUsesCapabilities`.
 - Calculator programmer display (`.vd-calc-prog-display`) and history chrome
   use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
