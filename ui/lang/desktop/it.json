@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Ponte lunare",
   "minigolf.course_16": "Cancello girevole",
   "minigolf.course_17": "Salto tra le ninfee",
-  "minigolf.course_18": "Finale stellato"
+  "minigolf.course_18": "Finale stellato",
+  "minigolf.follow_ball": "Segui la palla mentre rotola",
+  "minigolf.aim_camera": "Camera dietro la palla ad ogni colpo",
+  "minigolf.magnet": "Aiuto morbido di mira verso la buca",
+  "minigolf.hole_map": "Mappa del buco",
+  "minigolf.eagle": "Aquila",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Doppio bogey o peggio"
 }

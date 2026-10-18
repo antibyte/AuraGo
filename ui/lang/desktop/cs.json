@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Měsíční most",
   "minigolf.course_16": "Otočná brána",
   "minigolf.course_17": "Skok přes lekníny",
-  "minigolf.course_18": "Finále za svitu hvězd"
+  "minigolf.course_18": "Finále za svitu hvězd",
+  "minigolf.follow_ball": "Sleduj míček při kutálení",
+  "minigolf.aim_camera": "Kamera za míčkem při každém úderu",
+  "minigolf.magnet": "Jemná pomoc se zaměřením na jamku",
+  "minigolf.hole_map": "Mapa jamky",
+  "minigolf.eagle": "Eagle",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Double bogey nebo hůř"
 }

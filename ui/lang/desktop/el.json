@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Γέφυρα του φεγγαριού",
   "minigolf.course_16": "Περιστρεφόμενη πύλη",
   "minigolf.course_17": "Άλμα στα νούφαρα",
-  "minigolf.course_18": "Φινάλε στο φως των αστεριών"
+  "minigolf.course_18": "Φινάλε στο φως των αστεριών",
+  "minigolf.follow_ball": "Ακολούθησε την μπάλα όταν κυλά",
+  "minigolf.aim_camera": "Η κάμερα πίσω από την μπάλα σε κάθε χτύπημα",
+  "minigolf.magnet": "Διάκριτη βοήθεια στοχεύματος προς την τρύπα",
+  "minigolf.hole_map": "Χάρτης τρύπας",
+  "minigolf.eagle": "Αετός",
+  "minigolf.birdie": "Μπέρντι",
+  "minigolf.bogey": "Μπόγκι",
+  "minigolf.over": "Διπλό μπόγκι ή χειρότερο"
 }

@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Maanbrug",
   "minigolf.course_16": "Draaipoort",
   "minigolf.course_17": "Lelieblad-sprong",
-  "minigolf.course_18": "Finale in sterrenlicht"
+  "minigolf.course_18": "Finale in sterrenlicht",
+  "minigolf.follow_ball": "Volg de bal terwijl hij rolt",
+  "minigolf.aim_camera": "Camera achter de bal bij elke slag",
+  "minigolf.magnet": "Zachte richtingshulp naar de hole",
+  "minigolf.hole_map": "Kaart van de hole",
+  "minigolf.eagle": "Adelaar",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Double bogey of erger"
 }

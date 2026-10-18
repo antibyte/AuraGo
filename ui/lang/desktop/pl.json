@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Księżycowy most",
   "minigolf.course_16": "Obrotowa brama",
   "minigolf.course_17": "Skok po liliach",
-  "minigolf.course_18": "Finał w blasku gwiazd"
+  "minigolf.course_18": "Finał w blasku gwiazd",
+  "minigolf.follow_ball": "Podążaj za piłką podczas toczenia",
+  "minigolf.aim_camera": "Kamera za piłką przy każdym uderzeniu",
+  "minigolf.magnet": "Delikatna pomoc w celowaniu do dołka",
+  "minigolf.hole_map": "Mapa dołka",
+  "minigolf.eagle": "Eagle",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Podwójny bogey lub gorszy"
 }

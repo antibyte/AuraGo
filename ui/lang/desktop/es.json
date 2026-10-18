@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Puente lunar",
   "minigolf.course_16": "Puerta giratoria",
   "minigolf.course_17": "Salto entre nenúfares",
-  "minigolf.course_18": "Final a la luz de las estrellas"
+  "minigolf.course_18": "Final a la luz de las estrellas",
+  "minigolf.follow_ball": "Sigue la bola mientras rueda",
+  "minigolf.aim_camera": "Cámara detrás de la bola en cada golpe",
+  "minigolf.magnet": "Asistencia suave de puntería al hoyo",
+  "minigolf.hole_map": "Mapa del hoyo",
+  "minigolf.eagle": "Águila",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Doble bogey o peor"
 }

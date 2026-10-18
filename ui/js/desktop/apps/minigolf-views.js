@@ -4,7 +4,7 @@ export const PLAYER_COLORS = ['#fff0c5', '#f6a378', '#89c9ef', '#c8a6ed'];
 export function createView(host, tr) {
     const root = document.createElement('div'); root.className = 'mg-app';
     root.innerHTML = `<header class="mg-topbar"><div class="mg-brand"><img src="${esc(host.dataset.golfIcon)}" alt="" width="34" height="34"><strong>AuraGolf</strong></div><div class="mg-course-heading"><span data-world></span><strong data-course>${esc(tr('round_ready'))}</strong></div><nav><button data-action="scorecard">${esc(tr('scorecard'))}</button><button data-action="settings">${esc(tr('settings'))}</button><button data-action="pause">${esc(tr('pause'))}</button></nav></header>
-        <div class="mg-stage"><div class="mg-canvas"></div><div class="mg-hole-badge"><span data-hole>${esc(tr('hole'))} 1</span><span data-par>${esc(tr('par'))} 2</span></div><div class="mg-turn" aria-live="polite"><span data-turn></span><strong data-strokes></strong></div><div class="mg-overlay" hidden></div><div class="mg-status" role="status" aria-live="polite"></div></div>
+        <div class="mg-stage"><div class="mg-canvas"></div><div class="mg-hole-badge"><span data-hole>${esc(tr('hole'))} 1</span><span data-par>${esc(tr('par'))} 2</span></div><div class="mg-minimap" data-minimap hidden aria-label="${esc(tr('hole_map'))}"></div><div class="mg-turn" aria-live="polite"><span data-turn></span><strong data-strokes></strong></div><div class="mg-overlay" hidden></div><div class="mg-status" role="status" aria-live="polite"></div></div>
         <footer class="mg-controls"><div class="mg-player-strip"></div><div class="mg-power"><label for="mg-power-${createView.serial = (createView.serial || 0) + 1}">${esc(tr('power'))} <output data-power-value>35%</output></label><input id="mg-power-${createView.serial}" data-power type="range" min="2" max="100" value="35"></div><button class="mg-primary" data-action="shoot">${esc(tr('shoot'))}</button><button data-action="focus">${esc(tr('focus'))}</button><button data-action="camera" aria-pressed="false">${esc(tr('camera'))}</button><button data-action="help">?</button></footer>`;
     root.querySelector('[data-action="help"]').setAttribute('aria-label', tr('help'));
     host.replaceChildren(root);
@@ -36,7 +36,7 @@ export function createView(host, tr) {
     function settings(settings, track) {
         showPanel(`<h2>${esc(tr('settings'))}</h2><label>${esc(tr('music'))}<input data-music type="range" min="0" max="100" value="${Math.round(settings.music * 100)}"></label><div class="mg-track"><span data-track>${esc(track?.title || '♪')}</span>${button('next-track', 'next_track')}${button('mute', settings.music === 0 ? 'unmute' : 'mute')}</div>
             <label>${esc(tr('effects'))}<input data-effects type="range" min="0" max="100" value="${Math.round(settings.effects * 100)}"></label><label>${esc(tr('quality'))}<select data-quality>${['auto', 'low', 'medium', 'high'].map(q => `<option value="${q}"${settings.quality === q ? ' selected' : ''}>${esc(tr(q))}</option>`).join('')}</select></label>
-            <label class="mg-check"><input data-motion type="checkbox" ${settings.reducedMotion ? 'checked' : ''}>${esc(tr('motion'))}</label><div class="mg-panel-actions">${button('credits', 'credits')}${button('close', 'close', true)}</div>`, 'settings');
+            <label class="mg-check"><input data-motion type="checkbox" ${settings.reducedMotion ? 'checked' : ''}>${esc(tr('motion'))}</label><label class="mg-check"><input data-follow type="checkbox" ${settings.follow !== false ? 'checked' : ''}>${esc(tr('follow_ball'))}</label><label class="mg-check"><input data-aim-camera type="checkbox" ${settings.aimCamera ? 'checked' : ''}>${esc(tr('aim_camera'))}</label><label class="mg-check"><input data-magnet type="checkbox" ${settings.magnet !== false ? 'checked' : ''}>${esc(tr('magnet'))}</label><div class="mg-panel-actions">${button('credits', 'credits')}${button('close', 'close', true)}</div>`, 'settings');
     }
     function help(tutorial = false) {
         showPanel(`<div class="mg-eyebrow">${esc(tr(tutorial ? 'tutorial' : 'help'))}</div><h2>${esc(tr('aim_hint'))}</h2><p>${esc(tr('tutorial_body'))}</p><p>${esc(tr('keyboard_hint'))}</p><p>${esc(tr('touch_hint'))}</p><p class="mg-fine">${esc(tr('score_hint'))}</p>${button('close', tutorial ? 'got_it' : 'close', true)}`, 'help');
@@ -44,10 +44,11 @@ export function createView(host, tr) {
     function scorecard(round, courses, complete, best) {
         const allDone = round.players.every(p => p.done);
         const columns = round.courseIds.map(id => courses.find(c => c.id === id));
-        showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map((p, index) => `<tr><th><i style="background:${PLAYER_COLORS[index]}"></i>${esc(p.name)}</th>${columns.map((_, i) => `<td>${p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : '–')}</td>`).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
+        showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map((p, index) => `<tr><th><i style="background:${PLAYER_COLORS[index]}"></i>${esc(p.name)}</th>${columns.map((c, i) => { const value = p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : null); if (value == null) return '<td>–</td>'; const rel = value - c.par; const grade = rel <= -2 ? 'mg-eagle' : rel === -1 ? 'mg-birdie' : rel === 0 ? 'mg-par' : rel === 1 ? 'mg-bogey' : 'mg-over'; const term = rel <= -2 ? tr('eagle') : rel === -1 ? tr('birdie') : rel === 0 ? tr('par') : rel === 1 ? tr('bogey') : tr('over'); return `<td class="${grade}" title="${esc(term)}">${value}</td>`; }).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
             ${best ? `<p>${esc(tr('best'))}: <strong>${best}</strong></p>` : ''}<div class="mg-panel-actions">${complete ? button('menu', 'play_again', true) : allDone ? button('next-hole', 'next_hole', true) : button('close', 'close', true)}</div>`, 'scorecard');
     }
     function hud(round, course, busy) {
+        holePlan(course);
         root.dataset.course = course.id; root.dataset.turn = round.turnIndex; root.dataset.playing = String(busy);
         root.querySelector('[data-world]').textContent = tr(course.world);
         root.querySelector('[data-course]').textContent = tr('course_' + course.number);
@@ -67,8 +68,49 @@ export function createView(host, tr) {
         if (event.shiftKey && document.activeElement === first) { last.focus(); event.preventDefault(); }
         else if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
     });
+    let mapKey = null, mapProject = null, mapDots = [];
+    function holePlan(course) {
+        const holder = root.querySelector('[data-minimap]');
+        if (!holder) return;
+        if (!course || !Array.isArray(course.bounds) || course.bounds.length < 2) {
+            holder.hidden = true; mapKey = null; mapProject = null; mapDots = [];
+            return;
+        }
+        if (mapKey === course.id) { holder.hidden = false; return; }
+        mapKey = course.id; holder.hidden = false; mapDots = [];
+        const xs = [course.bounds[0][0], course.bounds[1][0]].sort((a, b) => a - b);
+        const zs = [course.bounds[0][2], course.bounds[1][2]].sort((a, b) => a - b);
+        const span = Math.max(xs[1] - xs[0], zs[1] - zs[0]) || 1;
+        const pad = 8, box = 84;
+        const px = value => pad + (value - xs[0]) / span * box;
+        const pz = value => pad + (value - zs[0]) / span * box;
+        mapProject = { px, pz };
+        const water = (course.water || []).map(volume => {
+            const x1 = px(Math.min(volume[0][0], volume[1][0])), x2 = px(Math.max(volume[0][0], volume[1][0]));
+            const z1 = pz(Math.min(volume[0][2], volume[1][2])), z2 = pz(Math.max(volume[0][2], volume[1][2]));
+            return `<rect class="map-water" x="${x1.toFixed(2)}" y="${z1.toFixed(2)}" width="${Math.max(3, x2 - x1).toFixed(2)}" height="${Math.max(3, z2 - z1).toFixed(2)}" rx="2"></rect>`;
+        }).join('');
+        const field = `<rect class="map-field" x="${px(xs[0]).toFixed(2)}" y="${pz(zs[0]).toFixed(2)}" width="${((xs[1] - xs[0]) / span * box).toFixed(2)}" height="${((zs[1] - zs[0]) / span * box).toFixed(2)}" rx="8"></rect>`;
+        const tee = course.tee || [0, 0, 0], cup = course.cup || [0, 0, 0];
+        holder.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">${field}${water}<line class="map-path" x1="${px(tee[0]).toFixed(2)}" y1="${pz(tee[2]).toFixed(2)}" x2="${px(cup[0]).toFixed(2)}" y2="${pz(cup[2]).toFixed(2)}"></line><circle class="map-tee" cx="${px(tee[0]).toFixed(2)}" cy="${pz(tee[2]).toFixed(2)}" r="2.4"></circle><circle class="map-cup" cx="${px(cup[0]).toFixed(2)}" cy="${pz(cup[2]).toFixed(2)}" r="3"></circle><g data-map-balls></g></svg>`;
+    }
+    function mapBalls(positions, active) {
+        const holder = root.querySelector('[data-map-balls]');
+        if (!holder || !mapProject || !positions?.length) return;
+        const list = positions.filter(position => position && position.length >= 3);
+        if (mapDots.length !== list.length) {
+            holder.innerHTML = list.map((_, index) => `<circle r="3.6" fill="${PLAYER_COLORS[index % PLAYER_COLORS.length]}" stroke="#0b1612" stroke-width="1"></circle>`).join('');
+            mapDots = Array.from(holder.children);
+        }
+        list.forEach((position, index) => {
+            const dot = mapDots[index]; if (!dot) return;
+            dot.setAttribute('cx', mapProject.px(position[0]).toFixed(2));
+            dot.setAttribute('cy', mapProject.pz(position[2]).toFixed(2));
+            dot.setAttribute('r', index === active ? '4.6' : '3.6');
+        });
+    }
     return {
-        root, canvasHost: root.querySelector('.mg-canvas'), panel, menu, playerNames, settings, help, scorecard, hud, showPanel,
+        root, canvasHost: root.querySelector('.mg-canvas'), panel, menu, playerNames, settings, help, scorecard, hud, showPanel, mapBalls,
         notice(key) { status.textContent = key ? tr(key) : ''; },
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         pause() { showPanel(`<h2>${esc(tr('paused'))}</h2><p>${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', 'continue', true)}${button('menu', 'menu')}</div>`, 'pause'); },

@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Mondbrücke",
   "minigolf.course_16": "Drehtor",
   "minigolf.course_17": "Seerosensprung",
-  "minigolf.course_18": "Finale im Sternenlicht"
+  "minigolf.course_18": "Finale im Sternenlicht",
+  "minigolf.follow_ball": "Folge dem Ball beim Rollen",
+  "minigolf.aim_camera": "Kamera bei jedem Schlag hinter dem Ball",
+  "minigolf.magnet": "Sanfte Zielführung zum Loch",
+  "minigolf.hole_map": "Lochkarte",
+  "minigolf.eagle": "Adler",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Doppel-Bogey oder schlechter"
 }

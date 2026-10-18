@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "月亮桥",
   "minigolf.course_16": "旋转门",
   "minigolf.course_17": "睡莲飞跃",
-  "minigolf.course_18": "星光终章"
+  "minigolf.course_18": "星光终章",
+  "minigolf.follow_ball": "球滚动时跟随镜头",
+  "minigolf.aim_camera": "每次击球时镜头移到球后",
+  "minigolf.magnet": "朝球洞的柔和瞄准辅助",
+  "minigolf.hole_map": "球洞地图",
+  "minigolf.eagle": "老鹰球",
+  "minigolf.birdie": "小鸟球",
+  "minigolf.bogey": "柏忌",
+  "minigolf.over": "双柏忌或更差"
 }

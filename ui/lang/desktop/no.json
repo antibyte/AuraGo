@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Månebroen",
   "minigolf.course_16": "Svingporten",
   "minigolf.course_17": "Åkandehoppet",
-  "minigolf.course_18": "Stjernefinale"
+  "minigolf.course_18": "Stjernefinale",
+  "minigolf.follow_ball": "Følg ballen når den ruller",
+  "minigolf.aim_camera": "Kamera bak ballen på hvert slag",
+  "minigolf.magnet": "Skånsom sikt mot hullet",
+  "minigolf.hole_map": "Kart over hullet",
+  "minigolf.eagle": "Ørn",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Dobbelt bogey eller verre"
 }

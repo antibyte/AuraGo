@@ -9,15 +9,24 @@ not an installation or server dependency.
 
 Choose all eighteen holes, a six-hole world, or a single practice hole. All
 worlds are available immediately. One to four players share the same device
-and take turns after every shot. Other players' translucent ball markers never
-block the active ball. Pull back from the ball and release to putt. Arrow keys
-adjust aim and strength (Shift gives finer aim); Space putts and Escape pauses.
-Right-drag rotates the view, the wheel zooms, and **To the ball** restores focus.
-Touch users can switch between Camera and Aim; two fingers zoom/pan.
+and take turns after every shot. Other players' translucent ball markers show
+their names and never block the active ball. Pull back from the ball and
+release to putt; a dashed guide line, a color-graded power ring at the ball
+and the strength slider show the shot. Arrow keys adjust aim and strength
+while held (Shift gives finer steps); Space putts and Escape pauses. A gentle
+aim assist snaps shots within four degrees toward the cup, and after a
+penalty the rest position gets a marker ring. Right-drag rotates the view,
+the wheel zooms, and **To the ball** restores focus. Optional settings move
+the camera behind the ball on each turn and follow the rolling ball; reduced
+motion keeps both functional without smooth transitions. Touch users can
+switch between Camera and Aim; in Aim a one-finger drag from anywhere putts,
+and two fingers zoom/pan.
 
-Water and out-of-bounds cost one penalty stroke and return the ball to its
-previous shot position. Twelve unsuccessful putts finish the hole with 13.
-The scorecard appears when everyone finishes a hole; lowest total wins.
+The stage shows a hole map with course bounds, water, tee, cup and every
+ball. Water and out-of-bounds cost one penalty stroke and return the ball to
+its previous shot position. Twelve unsuccessful putts finish the hole with 13.
+The scorecard appears when everyone finishes a hole, colors
+Eagle/Birdie/Par/Bogey results and picks the lowest total.
 
 Progress is saved after completed shots in namespaced browser localStorage.
 Reopening resumes the last settled position, without counting an interrupted
@@ -36,6 +45,13 @@ There is no MIDI device permission request, SoundFont download or external strea
 AuraGolf queues 750 ms of music ahead to bridge short rendering stalls. Synth
 Studio retains its existing 120 ms scheduling reserve for editor playback.
 
+All effects stay local and synthesized: material-specific impacts (drum
+voices for stone and sand), a sustained rolling voice whose pitch follows ball
+speed, stereo panning from the ball's screen position, layered cup drop,
+splash and win fanfare (with a brief music duck), and per-world ambient
+events during play — garden birds, coast gulls and surf, night crickets —
+that follow the effects volume and stop while paused or a panel is open.
+
 Minimizing or hiding the browser tab pauses simulation and audio. Pause also
 freezes the current shot. Closing releases rendering, physics and audio
 resources. Reduced motion follows the OS/Desktop preference or the game's
@@ -49,9 +65,14 @@ Blender 5.2.2 LTS generates the original scenes, models and collision metadata
 from `assets/minigolf/`. Runtime resources are GLBs and JSON under
 `ui/3d/minigolf/`; authoring scenes are not included in the web resource archive.
 All models use metres, Y up, and a 0.16 m sphere collider. Course collision
-meshes include real cup openings and stay independent of visual effects.
+meshes include real cup openings and stay independent of visual effects. Each
+course adds world-specific perimeter decor (fences and a bench, driftwood and
+buoys, glowing shards), pebble clusters, a dark cup lining whose floor sits
+above the island turf fan, and a seven-segment hole number on the flag pole.
 The isolated renderer uses Three.js 0.186.1 and Rapier 0.21.0 with 120 Hz fixed
 physics updates, continuous collision detection and bounded catch-up work.
+Course generation is deterministic; on Windows a transient file lock can
+abort one export — rerun it until it reports `Wrote 18 courses`.
 
 ```
 npm run build:minigolf

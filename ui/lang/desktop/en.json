@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Moon Bridge",
   "minigolf.course_16": "Turning Gate",
   "minigolf.course_17": "Lily Leap",
-  "minigolf.course_18": "Starlight Finale"
+  "minigolf.course_18": "Starlight Finale",
+  "minigolf.follow_ball": "Follow the ball while it rolls",
+  "minigolf.aim_camera": "Camera behind the ball on every shot",
+  "minigolf.magnet": "Gentle aim assist toward the cup",
+  "minigolf.hole_map": "Hole map",
+  "minigolf.eagle": "Eagle",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Double bogey or worse"
 }

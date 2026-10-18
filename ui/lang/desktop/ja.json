@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "月の橋",
   "minigolf.course_16": "回転ゲート",
   "minigolf.course_17": "睡蓮ジャンプ",
-  "minigolf.course_18": "星明かりのフィナーレ"
+  "minigolf.course_18": "星明かりのフィナーレ",
+  "minigolf.follow_ball": "ボールが転がる間は追従する",
+  "minigolf.aim_camera": "各ショットでボールの後ろにカメラ",
+  "minigolf.magnet": "カップ方向へのやさしいエイムアシスト",
+  "minigolf.hole_map": "ホールマップ",
+  "minigolf.eagle": "イーグル",
+  "minigolf.birdie": "バーディ",
+  "minigolf.bogey": "ボギー",
+  "minigolf.over": "ダブルボギー以上"
 }

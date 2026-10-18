@@ -15,12 +15,13 @@ export function mountGame(host, context = {}) {
     host.dataset.golfIcon = assetURL('/img/desktop-icons/minigolf.svg');
     const view = createView(host, tr), root = view.root;
     const media = matchMedia('(prefers-reduced-motion: reduce)');
-    let storageFailed = false, settings = { music: .2, effects: .65, quality: 'auto', reducedMotion: false, tutorialDone: false };
+    let storageFailed = false, settings = { music: .2, effects: .65, quality: 'auto', reducedMotion: false, tutorialDone: false, follow: true, aimCamera: false, magnet: true };
     let best = {}, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', previousPanel = 'menu', track = null, tracks = [];
     let angle = 0, power = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
     let lastSurface = 'grass', soundTime = 0, noticeUntil = 0, reduced = false;
+    const held = { left: false, right: false, up: false, down: false, fine: false };
     const fetchController = new AbortController(), events = [], cleanup = [];
     const windowElement = root.closest('.vd-window');
     function read(key) { try { const data = localStorage.getItem(key); return data && data.length < 65536 ? JSON.parse(data) : null; } catch (_) { return null; } }
@@ -32,7 +33,8 @@ export function mountGame(host, context = {}) {
     if (stored && typeof stored === 'object') settings = {
         music: finiteUnit(stored.music, .2), effects: finiteUnit(stored.effects, .65),
         quality: ['auto', 'low', 'medium', 'high'].includes(stored.quality) ? stored.quality : 'auto',
-        reducedMotion: stored.reducedMotion === true, tutorialDone: stored.tutorialDone === true
+        reducedMotion: stored.reducedMotion === true, tutorialDone: stored.tutorialDone === true,
+        follow: stored.follow !== false, aimCamera: stored.aimCamera === true, magnet: stored.magnet !== false
     };
     const storedBest = read(BEST_KEY);
     if (storedBest && typeof storedBest === 'object') for (const key of ['full', 'garden', 'coast', 'night']) {
@@ -45,6 +47,27 @@ export function mountGame(host, context = {}) {
     function effectiveReduced() { return settings.reducedMotion || media.matches || document.body.dataset.animations === 'false'; }
     function updateMotion() { reduced = effectiveReduced(); scene?.setReducedMotion(reduced); }
     function direction() { return [Math.sin(angle), -Math.cos(angle)]; }
+    function clearHeld() { held.left = held.right = held.up = held.down = false; held.fine = false; }
+    function syncAmbient() {
+        const world = !loading && course && round && !round.completed && !panelKind ? course.world : null;
+        audio.setAmbient(world);
+    }
+    function snapTowardCup(dir) {
+        if (!settings.magnet || !course?.cup || !round) return dir;
+        const player = round.players[round.turnIndex];
+        if (!player || player.holed || player.finished || !physics) return dir;
+        const position = physics.getBall();
+        if (!position) return dir;
+        const wx = course.cup[0] - position[0], wz = course.cup[2] - position[2];
+        const dLength = Math.hypot(dir[0], dir[1]), wLength = Math.hypot(wx, wz);
+        if (!(dLength > 0) || !(wLength > .4)) return dir;
+        const dx = dir[0] / dLength, dz = dir[1] / dLength, ox = wx / wLength, oz = wz / wLength;
+        const delta = Math.atan2(dx * oz - dz * ox, dx * ox + dz * oz);
+        const limit = 4 * Math.PI / 180, step = Math.sign(delta) * Math.min(Math.abs(delta), 3 * Math.PI / 180);
+        if (Math.abs(delta) > limit) return dir;
+        const cos = Math.cos(step), sin = Math.sin(step);
+        return [dx * cos - dz * sin, dx * sin + dz * cos];
+    }
     function allowAim() { return !!round && !round.completed && !busy && !loading && panelKind === '' && !round.players.every(p => p.done); }
     function updateAim() {
         const enabled = allowAim();
@@ -63,10 +86,13 @@ export function mountGame(host, context = {}) {
         root.querySelector('[data-action="camera"]').setAttribute('aria-pressed', 'false');
         root.querySelector('[data-action="camera"]').textContent = tr('camera');
         view.hud(round, course, busy); updateAim();
+        scene?.frameTurn?.(angle, player.position);
     }
     function setPanel(kind) {
+        clearHeld();
         panelKind = kind; updateAim(); syncAudio();
         root.dataset.panel = kind;
+        syncAmbient();
     }
     function syncAudio() {
         if (!visible || panelKind === 'pause' || panelKind === 'error') audio.pause();
@@ -93,6 +119,8 @@ export function mountGame(host, context = {}) {
             const nextPhysics = await createPhysics(next, { onEvent: event => events.push(event) });
             if (disposed || version !== generation) { nextPhysics.dispose(); return; }
             physics = nextPhysics; loading = false;
+            scene.setFollow?.(settings.follow); scene.setAimCamera?.(settings.aimCamera);
+            syncAmbient();
             if (!preview && round) setTurn();
             else scene.setBall(next.tee);
             view.notice(storageFailed ? 'storage_error' : '');
@@ -127,10 +155,14 @@ export function mountGame(host, context = {}) {
     }
     function shoot(dir = direction(), amount = power) {
         if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
+        dir = snapTowardCup(dir);
         if (!physics.shoot(dir, amount)) return;
         if (!beginShot(round)) { physics.setBall(round.players[round.turnIndex].position); return; }
-        angle = Math.atan2(dir[0], -dir[1]); power = amount; busy = true;
-        audio.effect('strike', { speed: amount * 12 }); scene.burst('strike', physics.getBall(), amount * 2);
+        angle = Math.atan2(dir[0], -dir[1]); power = amount; busy = true; clearHeld();
+        const ballPosition = physics.getBall();
+        audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
+        scene.burst('strike', ballPosition, amount * 2);
+        scene.setRestMark?.(null);
         view.notice('rolling'); view.hud(round, course, busy); updateAim();
     }
     function handleEvents() {
@@ -138,16 +170,23 @@ export function mountGame(host, context = {}) {
             if (event.type === 'impact') {
                 lastSurface = event.surface || 'grass';
                 if (busy && event.speed > .25 && performance.now() - soundTime > 65) {
-                    soundTime = performance.now(); audio.effect('impact', { speed: event.speed, surface: lastSurface }); scene.burst('impact', event.position, event.speed * .25);
+                    soundTime = performance.now();
+                    audio.effect('impact', { speed: event.speed, surface: lastSurface, pan: scene?.panAt?.(event.position) ?? 0 });
+                    scene.burst('impact', event.position, event.speed * .25);
                 }
                 continue;
             }
             const finishingPlayer = round?.players[round.turnIndex];
             if (!busy || !round || !resolveShot(round, event, course)) continue;
             busy = false; audio.rolling(0, lastSurface);
-            if (event.type === 'water' || event.type === 'out') { audio.effect('splash', { speed: 1 }); scene.burst('water', event.position); message(event.type); }
-            else if (event.type === 'cup') { audio.effect('cup', { speed: 1 }); scene.burst('cup', course.cup); message('sunk'); }
-            else message('aim_hint');
+            if (event.type === 'water' || event.type === 'out') {
+                audio.effect('splash', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
+                scene.burst('water', event.position); message(event.type);
+                scene?.setRestMark?.(round.players[round.turnIndex].position);
+            } else if (event.type === 'cup') {
+                audio.effect('cup', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
+                scene.burst('cup', course.cup); message('sunk');
+            } else message('aim_hint');
             if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit', 6);
             persist();
             if (round.players.every(p => p.done)) { view.hud(round, course, false); showScore(); }
@@ -204,25 +243,48 @@ export function mountGame(host, context = {}) {
         if (element.matches('[data-mode]')) root.querySelector('[data-hole-select]').hidden = element.value !== 'practice';
         if (element.matches('[data-quality]')) { settings.quality = element.value; scene?.setQuality(settings.quality); write(SETTINGS_KEY, settings); }
         if (element.matches('[data-motion]')) { settings.reducedMotion = element.checked; updateMotion(); write(SETTINGS_KEY, settings); }
+        if (element.matches('[data-follow]')) { settings.follow = element.checked; scene?.setFollow?.(settings.follow); write(SETTINGS_KEY, settings); }
+        if (element.matches('[data-aim-camera]')) { settings.aimCamera = element.checked; scene?.setAimCamera?.(settings.aimCamera); write(SETTINGS_KEY, settings); }
+        if (element.matches('[data-magnet]')) { settings.magnet = element.checked; write(SETTINGS_KEY, settings); }
     }
+    const heldMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
     function key(event) {
         if (context.isActive?.() === false || event.ctrlKey || event.metaKey || event.altKey) return;
-        if (event.key === 'Escape') { event.preventDefault(); if (!['menu', 'loading', 'error'].includes(panelKind)) panelKind ? closePanel() : actions.pause(); return; }
-        if (event.target.closest('input,select,textarea,button') || !allowAim()) return;
-        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(event.key)) return;
+        const name = heldMap[event.key];
+        if (event.key === 'Shift') { held.fine = event.type === 'keydown'; return; }
+        if (name && event.type === 'keyup') { held[name] = false; return; }
+        if (event.key === 'Escape') {
+            if (event.type !== 'keydown') return;
+            event.preventDefault();
+            if (!['menu', 'loading', 'error'].includes(panelKind)) panelKind ? closePanel() : actions.pause();
+            return;
+        }
+        if (event.type !== 'keydown') return;
+        const typing = event.target.closest('input,select,textarea,button');
+        if (event.key === ' ') {
+            if (typing || !allowAim()) return;
+            event.preventDefault();
+            if (!event.repeat) shoot();
+            return;
+        }
+        if (!name || typing || !allowAim()) return;
         event.preventDefault();
-        if (event.key === ' ') { if (!event.repeat) shoot(); return; }
-        if (event.key === 'ArrowLeft') angle -= event.shiftKey ? .008 : .035;
-        if (event.key === 'ArrowRight') angle += event.shiftKey ? .008 : .035;
-        if (event.key === 'ArrowUp') power = Math.min(1, power + .02);
-        if (event.key === 'ArrowDown') power = Math.max(.02, power - .02);
+        held.fine = event.shiftKey;
+        if (event.repeat) return;
+        held[name] = true;
+        const fine = event.shiftKey;
+        if (name === 'left') angle -= fine ? .008 : .035;
+        if (name === 'right') angle += fine ? .008 : .035;
+        if (name === 'up') power = Math.min(1, power + (fine ? .005 : .02));
+        if (name === 'down') power = Math.max(.02, power - (fine ? .005 : .02));
         updateAim();
     }
     function gesture() { void audio.unlock().then(syncAudio).catch(() => { if (!disposed) view.notice('audio_error'); }); }
     root.addEventListener('click', click); root.addEventListener('input', input); root.addEventListener('change', change);
-    root.addEventListener('keydown', key); root.addEventListener('pointerdown', gesture); root.addEventListener('keydown', gesture);
+    root.addEventListener('keydown', key); root.addEventListener('keyup', key); window.addEventListener('blur', clearHeld);
+    root.addEventListener('pointerdown', gesture); root.addEventListener('keydown', gesture);
     document.addEventListener('visibilitychange', syncVisibility); media.addEventListener('change', updateMotion);
-    cleanup.push(() => { root.removeEventListener('click', click); root.removeEventListener('input', input); root.removeEventListener('change', change); root.removeEventListener('keydown', key); root.removeEventListener('pointerdown', gesture); root.removeEventListener('keydown', gesture); document.removeEventListener('visibilitychange', syncVisibility); media.removeEventListener('change', updateMotion); });
+    cleanup.push(() => { root.removeEventListener('click', click); root.removeEventListener('input', input); root.removeEventListener('change', change); root.removeEventListener('keydown', key); root.removeEventListener('keyup', key); window.removeEventListener('blur', clearHeld); root.removeEventListener('pointerdown', gesture); root.removeEventListener('keydown', gesture); document.removeEventListener('visibilitychange', syncVisibility); media.removeEventListener('change', updateMotion); });
     const visibilityObserver = new MutationObserver(syncVisibility);
     if (windowElement) visibilityObserver.observe(windowElement, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
     const motionObserver = new MutationObserver(updateMotion); motionObserver.observe(document.body, { attributes: true, attributeFilter: ['data-animations'] });
@@ -237,7 +299,18 @@ export function mountGame(host, context = {}) {
             snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.turnIndex || 0 };
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
         }
-        if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface);
+        if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface, scene?.panAt?.(snapshot.position) ?? 0);
+        if ((held.left || held.right || held.up || held.down) && !panelKind && allowAim() && dt) {
+            const fine = held.fine;
+            const rotate = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+            const lift = (held.up ? 1 : 0) - (held.down ? 1 : 0);
+            if (rotate) angle += rotate * (fine ? .35 : 1.15) * dt;
+            if (lift) power = Math.max(.02, Math.min(1, power + lift * .55 * dt));
+            if (rotate || lift) updateAim();
+        }
+        if (round && course && !panelKind && snapshot) {
+            view.mapBalls?.(round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), round.turnIndex);
+        }
         if (noticeUntil && time > noticeUntil) { noticeUntil = 0; view.notice(storageFailed ? 'storage_error' : busy ? 'rolling' : round && !panelKind ? 'aim_hint' : ''); }
         raf = requestAnimationFrame(frame);
     }

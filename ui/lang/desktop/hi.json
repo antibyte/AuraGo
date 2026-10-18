@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "चाँदनी पुल",
   "minigolf.course_16": "घूमता द्वार",
   "minigolf.course_17": "कमल-पत्रों पर छलांग",
-  "minigolf.course_18": "तारों की रोशनी में समापन"
+  "minigolf.course_18": "तारों की रोशनी में समापन",
+  "minigolf.follow_ball": "गेंद के लुढ़कने पर उसका पीछा करो",
+  "minigolf.aim_camera": "हर शॉट पर गेंद के पीछे कैमरा",
+  "minigolf.magnet": "छेद की ओर हल्की निशाना-सहायता",
+  "minigolf.hole_map": "छेद का नक्शा",
+  "minigolf.eagle": "ईगल",
+  "minigolf.birdie": "बर्डी",
+  "minigolf.bogey": "बॉगी",
+  "minigolf.over": "डबल बॉगी या उससे खराब"
 }

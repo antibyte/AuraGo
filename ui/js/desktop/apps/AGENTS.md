@@ -54,7 +54,18 @@
 - Scene, fixed-step Rapier physics, round model, views and audio have separate
   modules. Visible obstacles use physics poses. Keep one active ball, transparent
   non-colliding opponents, true cup openings and collision geometry from the
-  exported Blender scene. Authoring sources live in `assets/minigolf/`.
+  exported Blender scene. Authoring sources live in `assets/minigolf/`;
+  regeneration (`blender --background --python assets/minigolf/generate.py`) is
+  deterministic — on Windows rerun it until it reports `Wrote 18 courses` after
+  transient export locks, then validate with `node scripts/test-minigolf-assets.mjs`.
+- Controls cover keyboard, mouse and touch: held arrow keys scale with frame time
+  (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
+  optional persisted settings add a four-degree aim assist, per-turn camera
+  framing behind the ball and roll following — all still usable under reduced
+  motion. Visuals add a gradient sky dome with night stars and moon, a
+  blob-shadow fallback on the low tier, water foam rings, a dashed aim line with
+  a color-graded power ring, penalty rest markers, name tags on ghost balls, a
+  hole map, and scorecard grade badges.
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
@@ -66,10 +77,20 @@
   preset catalog may load after AuraGolf has initialized the shared voice engine.
   Keep the CC0 MIDI originals and provenance, deterministic conversion, local
   playback and persisted zero volumes. Audio unlock requires a user gesture.
+  `minigolf-audio.js` exposes `setAmbient(world)` for sparse play-only world
+  ambience, sustains one rolling note that `rolling(0, ...)` releases, allows
+  `drums` entries plus per-call `pan`/`params` in the effect tables, and ducks
+  music under the win fanfare. `strike` stays at exactly two scheduled notes —
+  `scripts/test-minigolf-audio.mjs` pins that count.
 - Validate `npm run test:minigolf`, both asset build `--check` commands,
   `TestDesktopMinigolf*`, Synth Studio audio regressions and desktop bundle checks.
   Browser/GPU measurements and human listening remain separate acceptance steps.
-  Keep `minigolf.*` in all sixteen Desktop locales. See `documentation/minigolf.md`.
+  Keep `minigolf.*` in all sixteen Desktop locales, including the
+  `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings
+  persist `follow`/`aimCamera`/`magnet` additively. New scene helpers
+  (`frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`) stay
+  optional-callable because the browser fixture fake scene keeps the original
+  surface, and `inspect()` remains an additive contract. See `documentation/minigolf.md`.
 
 ## Newspaper
 

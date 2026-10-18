@@ -7799,5 +7799,13 @@
   "minigolf.course_15": "Månbron",
   "minigolf.course_16": "Vridporten",
   "minigolf.course_17": "Näckrosbladshoppet",
-  "minigolf.course_18": "Final i stjärnljus"
+  "minigolf.course_18": "Final i stjärnljus",
+  "minigolf.follow_ball": "Följ bollen när den rullar",
+  "minigolf.aim_camera": "Kameran bakom bollen vid varje slag",
+  "minigolf.magnet": "Mjuk sikhjälp mot hålet",
+  "minigolf.hole_map": "Hålskarta",
+  "minigolf.eagle": "Örn",
+  "minigolf.birdie": "Birdie",
+  "minigolf.bogey": "Bogey",
+  "minigolf.over": "Dubbelt bogey eller sämre"
 }
