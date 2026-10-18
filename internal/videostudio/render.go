@@ -499,8 +499,11 @@ var (
 // 0o600 (index §4.11). Each LUT file is one distinct table (lutNames), written once however many lut3d filters read it;
 // a process stages at most MaxSegmentLUTInstances of them.
 //
-// FFmpeg runs with that directory as its working directory (runFFmpegIn), so the graph names files by bare name and no
-// host path reaches filter-graph escaping. The caller removes workDir; on error nothing is left behind.
+// The graph names the command and LUT files bare, and runFFmpegIn runs FFmpeg in workDir, while workDir fits a Windows
+// working directory (ffmpegWorkDir, at most maxWorkDirUnits UTF-16 units). A longer workDir cannot be a working
+// directory: the graph then names each file by its escaped absolute path (absoluteStagedGraph, filterPath) and FFmpeg
+// runs in the volume root. Both decisions come from the same rule on the same path. The caller removes workDir; on error
+// nothing is left behind.
 func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, graphPath string, err error) {
 	created, err := os.MkdirTemp(dir, "vsg-")
 	if err != nil {
@@ -512,10 +515,6 @@ func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, g
 	}
 	if workDir, err = filepath.Abs(created); err != nil {
 		return fail(fmt.Errorf("resolve FFmpeg graph directory: %w", err))
-	}
-	graphPath = filepath.Join(workDir, "graph.txt")
-	if err := os.WriteFile(graphPath, []byte(graph), 0o600); err != nil {
-		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
 	}
 	if len(files.luts) > MaxSegmentLUTInstances {
 		return fail(fmt.Errorf("%w: %d LUT tables for one FFmpeg process, at most %d", ErrTooManyLUTs, len(files.luts), MaxSegmentLUTInstances))
@@ -538,6 +537,15 @@ func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, g
 		if err := writeStagedLUT(filepath.Join(workDir, file.name), file.lut); err != nil {
 			return fail(err)
 		}
+	}
+	if _, bare := ffmpegWorkDir(workDir); !bare {
+		if graph, err = absoluteStagedGraph(graph, workDir, files); err != nil {
+			return fail(fmt.Errorf("stage FFmpeg filter graph: %w", err))
+		}
+	}
+	graphPath = filepath.Join(workDir, "graph.txt")
+	if err := os.WriteFile(graphPath, []byte(graph), 0o600); err != nil {
+		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
 	}
 	return workDir, graphPath, nil
 }
@@ -575,13 +583,17 @@ func runFFmpeg(ctx context.Context, ffmpeg string, args []string, seconds float6
 // runFFmpegIn runs FFmpeg with dir as its working directory ("" keeps the current one), reports progress from
 // -progress pipe:1 and removes output on failure. Video processes run in their vsg-* staging directory, where the
 // graph names command files by bare name; every path in args and the binary must then be absolute (resolveBinary
-// returns absolute paths).
+// returns absolute paths). A dir too long for a Windows working directory runs in its volume root instead
+// (ffmpegWorkDir): stageVideoGraph applies the same rule to the same path, so the graph names its files by absolute
+// path exactly when the working directory is not dir.
 func runFFmpegIn(ctx context.Context, dir, ffmpeg string, args []string, seconds float64, progress func(float64), inputs []string, output string) error {
 	if dir != "" && !filepath.IsAbs(ffmpeg) {
 		return fmt.Errorf("FFmpeg binary %q must be an absolute path when it runs in a staging directory", ffmpeg)
 	}
 	cmd := exec.CommandContext(ctx, ffmpeg, args...)
-	cmd.Dir = dir
+	if dir != "" {
+		cmd.Dir, _ = ffmpegWorkDir(dir)
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("open FFmpeg progress stream: %w", err)

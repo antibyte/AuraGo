@@ -267,9 +267,18 @@ The 2f export benchmark `TestEffectsExportBenchmarkOptIn` is described in the 2f
 - Staging: every video FFmpeg process (`renderVideoSegment`, `RenderFrame`) calls `stageVideoGraph(dir, graph, rate,
   commands)`.
   - `os.MkdirTemp(dir, "vsg-")` holds `graph.txt` and the command files.
-  - `runFFmpegIn(ctx, workDir, …)` runs FFmpeg with that working directory. Inputs, output, graph path and binary are
-    absolute. The graph names command files bare, so no Windows path reaches filter escaping.
+  - `runFFmpegIn(ctx, workDir, …)` runs FFmpeg in the directory `ffmpegWorkDir` picks (`stage_paths.go`). Inputs, output,
+    graph path and binary are absolute.
+  - Path rule: while the staging directory is at most `maxWorkDirUnits` (258) UTF-16 units (the Windows CreateProcess
+    working-directory limit: MAX_PATH minus separator and NUL; `\\?\`, `LongPathsEnabled` and a manifest do not lift it),
+    FFmpeg runs in it and the graph names command and LUT files bare. A longer one runs FFmpeg in its volume root
+    (`C:\`, `/`), and `stageVideoGraph` writes `absoluteStagedGraph`: every `sendcmd=f=<name>` and `lut3d=file=<name>` becomes
+    the absolute path escaped twice by `filterPath` (option level `\ : '`, graph level `\ ' [ ] , ;`; control characters
+    are refused). A bare `=vs_cmd_` or `=vs_lut_` left over is an error. The rule is the same on every platform, so
+    Linux runs and tests the long form. Builders keep emitting bare names.
   - The directory is removed with `defer`. `runFFmpeg` is `runFFmpegIn` with `dir = ""`.
+  - Tests: `go test ./internal/videostudio -run 'FilterPath|WorkDir|AbsoluteStagedGraph|StageVideoGraph|DeepStaging|RunFFmpegIn' -count=1`
+    (`TestRenderFrameDeepStagingDirectory` and `TestRenderSegmentsDeepStagingDirectory` fail on Windows without the rule).
 - Export of ramps: `retime()` uses `rampResample`, the integer snapping of phase 1 (`setpts` with `ceil` of a balanced
   tree of piece inverses on `ld(0)`).
   - Output frame n therefore shows `floor(offset + S(n))`, exactly, on 5.1 and 8.1. The snapping reproduces that on
@@ -345,7 +354,9 @@ The 2f export benchmark `TestEffectsExportBenchmarkOptIn` is described in the 2f
   `vs_lut_<n>.cube` (0o600, `WriteCube` of the table resampled onto the unit domain, `writeStagedLUT`). Each distinct
   table of a process is written once: `lutNames` numbers the files from 0 in order of first use (keyed by the `*LUT3D`
   identity, so one look or asset used by several effects is one file), `graphFiles.addLUTs` keeps each name once, and
-  `stageVideoGraph` refuses more than `MaxSegmentLUTInstances` (64) LUT files.
+  `stageVideoGraph` refuses more than `MaxSegmentLUTInstances` (64) LUT files. It validates and writes the command and
+  LUT files first and `graph.txt` last; beyond `maxWorkDirUnits` the graph names those files by escaped absolute path
+  (Export of commands, Staging).
   `collectRenderSources` parses the referenced LUT assets with `LoadLUTFile` and takes the decoded (autorotated) size
   from `probeVideo`. The model's `Asset` gains only `LUTSize`; the render side wraps each asset in `renderSource`.
 - Capabilities: an `on` effect of an enabled visual clip needs its `Filters` (`effect:<id>`, job error
