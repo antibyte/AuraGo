@@ -106,17 +106,28 @@
         return [ports, speed].filter(Boolean).join(' · ');
     };
     const overlaps = (left, right) => Math.abs(Number(left.x) - Number(right.x)) < 160 && Math.abs(Number(left.y) - Number(right.y)) < 110;
+    // Grid cells make the placement search linear: generated positions are exact
+    // grid points, so a Set replaces the per-attempt array scan.
+    const gridKey = (x, y) => `${Math.round((Number(x) - 110) / 220)},${Math.round((Number(y) - 100) / 155)}`;
+    const blockedGrid = obstacles => {
+        const blocked = new Set();
+        for (const pos of obstacles || []) blocked.add(gridKey(pos.x, pos.y));
+        return blocked;
+    };
     const gridPositions = (nodes, obstacles, count) => {
         const changes = new Map();
         const columns = Math.max(3, Math.ceil(Math.sqrt(Math.max(1, count) * 1.45)));
         const occupied = obstacles || [];
+        const blocked = blockedGrid(occupied);
         let index = 0;
         for (const node of nodes) {
             let position;
             for (let attempts = 0; attempts < 20000 && !position; attempts += 1, index += 1) {
                 const candidate = { x: 110 + (index % columns) * 220, y: 100 + Math.floor(index / columns) * 155 };
-                const blocked = [...occupied, ...changes.values()].some(pos => overlaps(pos, candidate));
-                if (!blocked) position = { ...candidate, pinned: false };
+                const key = gridKey(candidate.x, candidate.y);
+                if (blocked.has(key) || occupied.some(pos => overlaps(pos, candidate))) continue;
+                position = { ...candidate, pinned: false };
+                blocked.add(key);
             }
             if (position) changes.set(node.id, position);
         }
@@ -131,6 +142,7 @@
         }
         const changes = new Map();
         const occupied = obstacles || [];
+        const blocked = blockedGrid(occupied);
         layers.forEach((layerNodes, layer) => {
             const ordered = [...layerNodes].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
             let column = 0;
@@ -139,8 +151,10 @@
                 for (let guard = 0; guard < 20000 && !position; guard += 1) {
                     const candidate = { x: 110 + column * 220, y: 100 + layer * 180 };
                     column += 1;
-                    const blocked = [...occupied, ...changes.values()].some(pos => overlaps(pos, candidate));
-                    if (!blocked) position = { ...candidate, pinned: false };
+                    const key = gridKey(candidate.x, candidate.y);
+                    if (blocked.has(key) || occupied.some(pos => overlaps(pos, candidate))) continue;
+                    position = { ...candidate, pinned: false };
+                    blocked.add(key);
                 }
                 if (position) changes.set(node.id, position);
             }
@@ -148,6 +162,20 @@
         return changes;
     };
     const sourceStamp = source => [source?.kind || '', source?.instance || '', source?.key || '', source?.state || '', source?.observed?.power || ''].join('\u001f');
+    // The layout endpoint answers with the nodes it changed. Only an explicit
+    // snapshot replaces the atlas; a bare node list is a patch.
+    const layoutSnapshot = result => (result && result.snapshot && Array.isArray(result.snapshot.nodes)) ? result.snapshot : null;
+    const applyLayoutPatch = (nodes, patches, view) => {
+        const byId = new Map((nodes || []).map(node => [node.id, node]));
+        for (const row of patches || []) {
+            const node = byId.get(row?.id);
+            if (!node) continue;
+            node.version = row.version ?? node.version;
+            node.placements = node.placements || {};
+            node.placements[view] = row.placements?.[view] || { x: row.x, y: row.y, pinned: !!row.pinned };
+        }
+        return nodes;
+    };
     const snapshotStamp = (nodes, edges, sources, caps) => {
         const nodePart = (nodes || []).map(node => [node.id, node.version, node.kind, node.name, node.parent_id || '', node.power || '', JSON.stringify(node.placements || {}), (node.sources || []).map(sourceStamp).join('\u001f')].join('\u001f')).join('\u001e');
         const edgePart = (edges || []).map(edge => [edge.id, edge.version, edge.from, edge.to, edge.kind].join('\u001f')).join('\u001e');
@@ -161,5 +189,6 @@
         visibleByCollapsed, isPlaced, atlasDimensions, sceneDimensions, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
         containerFrame, edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
+        layoutSnapshot, applyLayoutPatch,
     };
 })();

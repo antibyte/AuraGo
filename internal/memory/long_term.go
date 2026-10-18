@@ -1112,6 +1112,9 @@ func (cv *ChromemVectorDB) addExistingDocumentsWithPrecomputedEmbeddings(ctx con
 	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
 		return err
 	}
+	if err := startMemoryPublication(ctx); err != nil {
+		return err
+	}
 	for i := range docs {
 		docs[i].Metadata = cv.addEmbeddingMetadata(docs[i].Metadata)
 	}

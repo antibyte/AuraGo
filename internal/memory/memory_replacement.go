@@ -342,7 +342,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 	return s.ReplaceMemoryDocumentContext(context.Background(), ltm, oldID, concept, expectedContent, replacement, expected, reason, actor)
 }
 
-func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm VectorDB, oldID, concept, expectedContent, replacement string, expected MemoryMeta, reason, actor string) ([]string, error) {
+func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm VectorDB, oldID, concept, expectedContent, replacement string, expected MemoryMeta, reason, actor string) (ids []string, resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -383,22 +383,53 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		return nil, fmt.Errorf("memory replacement source %s metadata changed before staging", oldID)
 	}
 
+	ctx, publication := prepareMemoryPublication(ctx, s, func() error {
+		current, err := s.GetMemoryMeta(oldID)
+		if err != nil {
+			return err
+		}
+		if current.Protected || current.KeepForever || IsMemoryArchived(current) || !memoryMetaEqual(current, expected) {
+			return fmt.Errorf("memory replacement source changed during preparation")
+		}
+		body, err := ltm.GetByID(oldID)
+		if err != nil {
+			return err
+		}
+		if body != expectedContent {
+			return fmt.Errorf("memory replacement content changed during preparation")
+		}
+		return nil
+	})
+	complete := false
+	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()
+	if _, native := ltm.(*ChromemVectorDB); !native {
+		if err := startMemoryPublication(ctx); err != nil {
+			return nil, err
+		}
+	}
 	var stored VectorStoreResult
 	if cancellable, ok := owned.(ContextOwnershipAwareVectorDB); ok {
 		stored, err = cancellable.StoreDocumentOwnedContext(ctx, concept, replacement, VectorStoreForceCreate)
 	} else {
 		stored, err = owned.StoreDocumentOwned(concept, replacement, VectorStoreForceCreate)
 	}
+	rollback := func() error {
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		if rollbackErr == nil && len(stored.UnknownIDs)+len(stored.ReusedIDs) == 0 {
+			publication.rolledBack = true
+		}
+		return rollbackErr
+	}
 	err = errors.Join(err, ctx.Err())
 	if err != nil {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		if rollbackErr != nil {
 			return nil, errors.Join(fmt.Errorf("store memory replacement %s: %w", oldID, err), rollbackErr)
 		}
 		return nil, fmt.Errorf("store memory replacement %s: %w", oldID, err)
 	}
 	if len(stored.ReusedIDs) != 0 || len(stored.UnknownIDs) != 0 || len(stored.CreatedIDs) == 0 {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		base := fmt.Errorf("replacement store returned reused, unknown, or no IDs for %s", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -411,7 +442,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		if err == nil {
 			err = fmt.Errorf("source content changed before replacement commit")
 		}
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		if rollbackErr != nil {
 			return nil, errors.Join(fmt.Errorf("memory replacement source %s changed: %w", oldID, err), rollbackErr)
 		}
@@ -419,14 +450,14 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 	}
 	latestMeta, err := s.GetMemoryMeta(oldID)
 	if err != nil {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		if rollbackErr != nil {
 			return nil, errors.Join(err, rollbackErr)
 		}
 		return nil, err
 	}
 	if latestMeta.Protected || latestMeta.KeepForever {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		base := fmt.Errorf("memory replacement source %s is protected or keep-forever before commit", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -434,7 +465,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		return nil, base
 	}
 	if IsMemoryArchived(latestMeta) || !memoryMetaEqual(latestMeta, expected) {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		base := fmt.Errorf("memory replacement source %s metadata changed before commit", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -446,7 +477,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		if errors.As(err, &commitErr) {
 			return stored.CreatedIDs, err
 		}
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
+		rollbackErr := rollback()
 		if rollbackErr != nil {
 			return nil, errors.Join(err, rollbackErr)
 		}
@@ -463,5 +494,6 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 	if err := s.CleanupDeletedVectorDocumentReferences(oldID); err != nil {
 		return stored.CreatedIDs, fmt.Errorf("cleanup old vector doc references %s: %w", oldID, err)
 	}
+	complete = true
 	return stored.CreatedIDs, nil
 }

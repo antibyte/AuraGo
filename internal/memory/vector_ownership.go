@@ -107,6 +107,9 @@ func (cv *ChromemVectorDB) storeMemoryDocumentLocked(ctx context.Context, concep
 			return result, fmt.Errorf("prepare memory embedding: %w", err)
 		}
 		embedding = docs[0].Embedding
+		if err := startMemoryPublication(ctx); err != nil {
+			return result, err
+		}
 		if mode == VectorStoreDeduplicate {
 			docID, err := cv.findIdenticalMemory(ctx, concept, content, domain, embedding)
 			if err != nil {

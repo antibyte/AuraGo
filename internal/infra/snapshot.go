@@ -41,8 +41,10 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 	if err := rows.Close(); err != nil {
 		return Snapshot{}, fmt.Errorf("close infra node list: %w", err)
 	}
+	// Unlinked removed observations are retained only for the retention window and
+	// carry no graph information; they stay out of the editor snapshot.
 	rows, err = s.db.QueryContext(ctx, `SELECT node_id, kind, instance, source_key, name, state, fetched_at, removed_at, observed_json
-		FROM infra_sources ORDER BY kind, instance, source_key`)
+		FROM infra_sources WHERE node_id IS NOT NULL OR state<>'removed' ORDER BY kind, instance, source_key`)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("list infra sources: %w", err)
 	}

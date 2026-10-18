@@ -761,14 +761,12 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 				return
 			}
 
-			storedIDs, err := s.LongTermMem.StoreBatch(items)
-			if err != nil {
-				s.Logger.Error("Failed to archive batch", "error", err)
-				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
-				return
-			}
-			for _, id := range storedIDs {
-				_ = s.ShortTermMem.UpsertMemoryMeta(id)
+			for _, item := range items {
+				if _, err := memory.StoreAdministrativeMemoryDocument(r.Context(), s.ShortTermMem, s.LongTermMem, item.Concept, item.Content); err != nil {
+					s.Logger.Error("Failed to archive batch", "error", err)
+					jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
+					return
+				}
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -786,14 +784,11 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 				return
 			}
 
-			storedIDs, err := s.LongTermMem.StoreDocument(req.Concept, req.Content)
+			_, err := memory.StoreAdministrativeMemoryDocument(r.Context(), s.ShortTermMem, s.LongTermMem, req.Concept, req.Content)
 			if err != nil {
 				s.Logger.Error("Failed to archive memory", "error", err)
 				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
 				return
-			}
-			for _, id := range storedIDs {
-				_ = s.ShortTermMem.UpsertMemoryMeta(id)
 			}
 
 			w.Header().Set("Content-Type", "application/json")

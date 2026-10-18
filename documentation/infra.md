@@ -82,6 +82,15 @@ confirmed conversation. Opening these targets does not dispatch power actions.
 | Proxmox | QEMU name / LXC hostname, description, tags | Start, graceful shutdown, reboot |
 | FRITZ!Box | Supported host / friendly name | Wake-on-LAN |
 
+Two gates apply on top of the table. Proxmox graceful shutdown and reboot also
+require `proxmox.allow_destructive`; without it they are reported as blocked by
+source policy. Docker stop/restart and Proxmox shutdown/reboot require the
+explicit confirmation of the action dialog, and the API refuses them without
+`confirmed: true` (400 `confirmation_required`). A managed container
+(go2rtc, RuView, Security Proxy, Decisions, local LLM, ACE-Step, Garage,
+Homepage, CYD Creator and AuraGo itself) is shown as protected and answers an
+action with `status: "failed"` and `reason: "managed_container"`.
+
 Source forms expose only supported fields. Docker labels are not changed by
 recreating a container. Protected and AuraGo-managed containers retain their
 existing restrictions, including the rename prohibition. LXC hostname changes
@@ -122,6 +131,41 @@ loads the saved map while one bounded background refresh updates configured
 sources. Visible windows pick up these observations about every 30 seconds;
 **Refresh** waits for fresh source results. Hidden or closed windows stop
 requesting refreshes. Infra does not run network scans or continuous monitoring.
+
+The store is initialized when the server starts, so its additive migration and
+the one-time database backup never run inside a request. A provider that cannot
+be read is reported as a sanitized code (`provider_unreachable`,
+`auth_failed`, `observation_limit`) in the snapshot's `source_errors` map and
+the affected sources stay stale; provider error text is never forwarded.
+
+## API overview
+
+All routes require a Desktop administrator session or an admin bearer token and
+answer `no-store` JSON. Writes additionally require the Desktop write
+permission and a configuration that is enabled and not read-only.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/desktop/infra/snapshot` | Stored graph plus `capabilities` and optional `source_errors`; `?refresh=1` waits for providers |
+| `GET /api/desktop/infra/candidates` | Import preview for configured sources |
+| `GET /api/desktop/infra/targets` | Selectable app targets (camera, Store app, MeshCore conversation) |
+| `POST /api/desktop/infra/nodes` | Create a node (manual devices also create a `protocol: none` registry row) |
+| `PUT`/`DELETE /api/desktop/infra/nodes/{id}` | Update (version CAS) or delete a node; `?version=` required for delete |
+| `GET`/`PUT /api/desktop/infra/nodes/{id}/source-edit` | Read or write the source's own metadata |
+| `POST /api/desktop/infra/nodes/{id}/actions` | Reserved power action with `request_id` and optional `confirmed` |
+| `POST /api/desktop/infra/import` | Import a candidate or link it to `node_id` |
+| `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only) |
+| `PUT /api/desktop/infra/layout` | Atomic layout batch; answers the changed nodes only |
+
+Stable error codes include `infra_disabled`, `infra_readonly`,
+`infra_policy_changed`, `invalid_request`, `request_too_large` (413),
+`not_found`, `conflict`, `has_children`, `source_unavailable`,
+`source_readonly`, `source_edit_disabled`, `confirmation_required`,
+`request_id_conflict`, `action_disabled` and `provider_unavailable`.
+
+Infra is an operator surface: the agent has no tool that reads or writes the
+atlas. The registry it links to stays reachable through the existing inventory
+tools.
 
 ## Local assets and development
 

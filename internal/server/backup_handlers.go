@@ -31,6 +31,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
+	"aurago/internal/memory"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 
@@ -58,12 +59,13 @@ const currentDBSchemaVersion = 1
 
 // agoManifest is written as manifest.json at the ZIP root.
 type agoManifest struct {
-	Version         string   `json:"version"`
-	CreatedAt       string   `json:"created_at"`
-	Hostname        string   `json:"hostname"`
-	Contents        []string `json:"contents"`
-	VaultIncluded   bool     `json:"vault_included,omitempty"`
-	DBSchemaVersion int      `json:"db_schema_version,omitempty"`
+	MemoryConsistency string   `json:"memory_consistency,omitempty"`
+	Version           string   `json:"version"`
+	CreatedAt         string   `json:"created_at"`
+	Hostname          string   `json:"hostname"`
+	Contents          []string `json:"contents"`
+	VaultIncluded     bool     `json:"vault_included,omitempty"`
+	DBSchemaVersion   int      `json:"db_schema_version,omitempty"`
 }
 
 type agoImportEntry struct {
@@ -659,6 +661,28 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			return
 		}
 
+		memoryCopies := map[string]string{}
+		memoryConsistency := ""
+		// A configured memory group must be captured together. Minimal/offline
+		// exports without a configured group retain their legacy, uncertified format.
+		if s.Cfg.SQLite.ShortTermPath != "" && s.Cfg.SQLite.KnowledgeGraphPath != "" && config.DocumentCorpusPath(s.Cfg) != "" {
+			destinations := map[string]string{}
+			for name, source := range map[string]string{"short_term.sqlite": s.Cfg.SQLite.ShortTermPath, "knowledge_graph.sqlite": s.Cfg.SQLite.KnowledgeGraphPath, "documents.sqlite": config.DocumentCorpusPath(s.Cfg)} {
+				destinations[name] = filepath.Join(sqliteStagingDir, "memory-"+name)
+				absSource, pathErr := filepath.Abs(source)
+				if pathErr != nil {
+					jsonError(w, "Invalid memory database path", http.StatusInternalServerError)
+					return
+				}
+				memoryCopies[absSource] = destinations[name]
+			}
+			if err := memory.CaptureMemorySnapshots(r.Context(), s.Cfg, destinations); err != nil {
+				s.Logger.Warn("[Backup] Memory snapshot is incomplete", "error", err)
+				jsonError(w, "Failed to create a coordinated memory backup", http.StatusInternalServerError)
+				return
+			}
+			memoryConsistency = "coordinated-three-db-read-snapshot-v1"
+		}
 		sqliteAdded := 0
 		var sqliteSkipped []string
 		for _, dbPath := range sqlitePaths {
@@ -678,7 +702,11 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				continue
 			}
 			before := len(seenZipPaths)
-			snapshotPath, snapshotErr := agoCreateSQLiteSnapshot(absDB, sqliteStagingDir)
+			snapshotPath := memoryCopies[absDB]
+			var snapshotErr error
+			if snapshotPath == "" {
+				snapshotPath, snapshotErr = agoCreateSQLiteSnapshot(absDB, sqliteStagingDir)
+			}
 			if snapshotErr != nil {
 				if os.IsNotExist(snapshotErr) {
 					continue
@@ -801,12 +829,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// 10. Write manifest
 		hostname, _ := os.Hostname()
 		manifest := agoManifest{
-			Version:         "1",
-			CreatedAt:       time.Now().UTC().Format(time.RFC3339),
-			Hostname:        hostname,
-			Contents:        contents,
-			VaultIncluded:   vaultIncluded,
-			DBSchemaVersion: currentDBSchemaVersion,
+			MemoryConsistency: memoryConsistency,
+			Version:           "1",
+			CreatedAt:         time.Now().UTC().Format(time.RFC3339),
+			Hostname:          hostname,
+			Contents:          contents,
+			VaultIncluded:     vaultIncluded,
+			DBSchemaVersion:   currentDBSchemaVersion,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			if err := json.NewEncoder(mw).Encode(manifest); err != nil {
