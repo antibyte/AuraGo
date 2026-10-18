@@ -904,6 +904,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.AvailableKnowledgeContextIndex = ""
 			flags.RecentActivityOverview = ""
 			var topMemories []string
+			var topRankedMemories []rankedMemory
 			failedMemorySearch := false
 			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshTurnMemory(memorySnapshotWasDirty, lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 				ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
@@ -1021,6 +1022,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					})
 					for _, entry := range ragEntries {
 						topMemories = append(topMemories, entry.text)
+						fusionMemory := rankedMemory{text: entry.text, docID: entry.docID}
+						for _, ranked := range servedRanked {
+							if ranked.docID == entry.docID {
+								fusionMemory = ranked
+								break
+							}
+						}
+						topRankedMemories = append(topRankedMemories, fusionMemory)
 						if entry.docID != "" {
 							turnMemoryCandidates[entry.docID] = entry.text
 						}
@@ -1256,27 +1265,35 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
 				flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
 				longTermMem != nil && kg != nil {
-				fusionResult := applyRetrievalFusion(ctx, topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
-				if fusionResult.EnrichedMemories != "" {
+				fusionBudget := fusionCharBudget
+				if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
+					fusionBudget = fusionOnDemandCharBudget
+				}
+				fusionResult := applyRetrievalFusionWithBudget(ctx, topRankedMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger, fusionBudget)
+				if len(fusionResult.EnrichedMemories) > 0 {
 					if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
 						flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
 							flags.AvailableMemoryContextIndex,
-							"- [fusion:memory] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedMemories, 260),
+							buildAvailableMemoryIndex(fusionResult.EnrichedMemories, fusionBudget),
 							cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
 						)
 					} else {
-						flags.RetrievedMemories += "\n---\n" + compactMemoryForPrompt(fusionResult.EnrichedMemories, 400)
+						if enriched := formatFusionMemoriesForPrompt(fusionResult.EnrichedMemories, fusionBudget); enriched != "" {
+							flags.RetrievedMemories += "\n---\n" + enriched
+						}
 					}
 				}
-				if fusionResult.EnrichedKGContext != "" {
+				if len(fusionResult.EnrichedKGContexts) > 0 {
 					if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
 						flags.AvailableKnowledgeContextIndex = appendAvailableContextIndex(
 							flags.AvailableKnowledgeContextIndex,
-							"- [fusion:kg] source=retrieval_fusion - "+compactMemoryForPrompt(fusionResult.EnrichedKGContext, 260),
+							formatFusionKGIndexes(fusionResult.EnrichedKGContexts, fusionBudget),
 							cfg.Tools.Memory.OnDemandRetrieval.MaxAvailableChars,
 						)
 					} else {
-						flags.KnowledgeContext += "\n" + compactMemoryForPrompt(fusionResult.EnrichedKGContext, 400)
+						if enriched := formatFusionKGContextsForPrompt(fusionResult.EnrichedKGContexts, fusionBudget); enriched != "" {
+							flags.KnowledgeContext += "\n" + enriched
+						}
 					}
 				}
 			}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -503,75 +504,293 @@ func shouldUseRAGForMessage(msg string) bool {
 // For these queries, RAG retrieval is skipped entirely: the source of truth is the
 // live tool schema injected into the context, not historical memory.
 func isCapabilityQuery(msg string) bool {
-	lower := strings.ToLower(strings.TrimSpace(msg))
-
-	// Explicit capability-question patterns across all 15 supported languages.
-	capPatterns := []string{
-		// German
-		"hast du", "kannst du", "habe ich zugang", "gibt es ein tool", "gibt es eine",
-		"steht dir", "steht zur verfügung", "ist verfügbar", "ist aktiviert",
-		"ist eingeschaltet", "welche tools", "welche werkzeuge", "welche fähigkeiten",
-		"was kannst du", "was für tools", "kannst du mit",
-		// English
-		"do you have", "can you", "are you able", "is it available", "is the tool",
-		"which tools", "what tools", "what can you", "what capabilities", "do you support",
-		"tool available", "tool enabled", "integration available", "integration enabled",
-		"have you got", "do you have access",
-		// Spanish
-		"tienes", "puedes", "está disponible", "qué herramientas", "cuáles herramientas",
-		"tienes acceso",
-		// French
-		"avez-vous", "pouvez-vous", "est disponible", "quels outils", "outil disponible",
-		// Italian
-		"hai", "puoi", "è disponibile", "quali strumenti",
-		// Portuguese
-		"você tem", "pode", "está disponível", "quais ferramentas",
-		// Dutch
-		"heb je", "kun je", "is beschikbaar", "welke tools",
-		// Swedish/Norwegian/Danish
-		"har du", "kan du", "är tillgänglig", "er tilgjengelig",
-		// Polish
-		"czy masz", "czy możesz",
-		// Czech
-		"máš", "můžeš",
+	words := intentWords(strings.ToLower(strings.TrimSpace(msg)))
+	if len(words) == 0 {
+		return false
 	}
-	for _, p := range capPatterns {
-		if strings.Contains(lower, p) {
+	if hasMemoryRetrievalIntent(words) {
+		return false
+	}
+	return exactCapabilityQuery(words)
+}
+
+var capabilityExactPhrases = splitIntentPhrases([]string{
+	"what can you do", "what tools", "which tools", "what capabilities", "which integrations",
+	"was kannst du tun", "welche tools", "welche werkzeuge", "welche fähigkeiten", "welche integrationen",
+	"qué herramientas", "cuáles herramientas", "quels outils", "quali strumenti", "quais ferramentas",
+	"welke tools", "vilka verktyg", "hvilke verktøy", "hvilke værktøjer",
+	"czy możesz używać narzędzi", "jakie narzędzia", "jakie integracje",
+})
+
+var capabilitySubjectPhrases = []string{
+	"tool", "tools", "integration", "integrations", "capability", "capabilities", "function", "feature",
+	"werkzeug", "werkzeuge", "integrationen", "fähigkeit", "fähigkeiten", "funktion",
+	"chromecast", "docker", "proxmox", "telegram", "discord", "mqtt", "home assistant", "homeassistant",
+	"tailscale", "truenas", "frigate", "google cast", "cast", "tts", "stt", "speech",
+	"herramienta", "herramientas", "integración", "integraciones", "outil", "outils", "intégration",
+	"strumento", "strumenti", "integrazione", "integrazioni", "ferramenta", "ferramentas",
+	"hulpmiddel", "hulpmiddelen", "integratie", "verktyg", "verktøy", "værktøj", "værktøjer",
+	"narzędzie", "narzędzia", "nástroj", "nástroje",
+}
+
+var capabilityAvailabilityPhrases = []string{
+	"available", "enabled", "configured", "supported", "active", "installed",
+	"verfügbar", "aktiviert", "konfiguriert", "unterstützt", "vorhanden",
+	"disponible", "activé", "configuré", "disponível", "ativado", "configurado",
+	"disponibile", "attivo", "configurato", "beschikbaar", "actief", "tillgänglig", "tilgjengelig",
+	"tilgjengelig", "tilgængelig", "dostępny", "dostępne", "dostępna", "dostupný", "dostupné",
+}
+
+var (
+	capabilitySubjects     = newIntentPhraseTrie(capabilitySubjectPhrases)
+	capabilityAvailability = newIntentPhraseTrie(capabilityAvailabilityPhrases)
+	capabilityArticles     = newIntentWordSet([]string{
+		"the", "a", "an", "der", "die", "das", "ein", "eine", "einen", "el", "la", "los", "las", "le", "les", "un", "une", "il", "lo", "i", "o", "os", "as", "het", "de",
+	})
+	capabilityQuestionPrefixes = splitIntentPhrases([]string{
+		"is", "are", "ist", "sind", "está", "están", "est", "sont", "è", "sono", "é", "são", "zijn", "är", "er", "czy jest", "jest", "je",
+	})
+	capabilityPossessionPrefixes = splitIntentPhrases([]string{
+		"do you have", "have you got", "do you have access to", "hast du", "tienes", "tienes acceso a", "avez vous", "hai", "heb je", "har du", "czy masz", "máš",
+	})
+	memoryRetrievalIntents = newIntentPhraseTrie([]string{
+		"remember", "recall", "memory", "memories", "history", "previous", "earlier", "last time", "last week", "last month", "last year", "told me", "tell me", "discussed", "what did we", "what did you", "what have we",
+		"erinnern", "erinnerung", "erinnerungen", "vorher", "früher", "frueher", "letztes mal", "letzte mal", "letzte woche", "vorhin", "besprochen", "gesagt", "erwähnt", "erwaehnt", "gespeichert", "erzähl mir", "erzaehl mir", "sag mir",
+		"recordar", "recuerdo", "antes", "ultima vez", "la vez pasada", "la semana pasada", "dijiste", "hablamos", "cuentame",
+		"souviens", "souvenir", "rappeler", "auparavant", "la derniere fois", "la semaine derniere", "dit", "discute", "raconte moi",
+		"ricordare", "ricordi", "prima", "l ultima volta", "la settimana scorsa", "detto", "discusso", "dimmi",
+		"lembrar", "memoria", "memorias", "anteriormente", "ultima vez", "lembra",
+		"herinneren", "herinnering", "eerder", "vorige keer", "gezegd", "besproken",
+		"pamiętasz", "pamietasz", "wcześniej", "wczesniej", "ostatnio", "powiedziałeś", "powiedziales",
+	})
+)
+
+type capabilityActionOrder uint8
+
+const (
+	capabilitySubjectOnly capabilityActionOrder = iota
+	capabilitySubjectThenAction
+	capabilityActionThenSubject
+)
+
+type capabilityActionForm struct {
+	prefix []string
+	order  capabilityActionOrder
+	action *intentPhraseTrie
+}
+
+var capabilityActionForms = []capabilityActionForm{
+	{prefix: intentWords("are you able to use"), order: capabilitySubjectOnly},
+	{prefix: intentWords("do you support"), order: capabilitySubjectOnly},
+	{prefix: intentWords("kannst du"), order: capabilitySubjectThenAction, action: newIntentPhraseTrie([]string{"bedienen", "verwenden", "nutzen", "steuern"})},
+	{prefix: intentWords("can you"), order: capabilityActionThenSubject, action: newIntentPhraseTrie([]string{"use", "operate"})},
+	{prefix: intentWords("puedes"), order: capabilityActionThenSubject, action: newIntentPhraseTrie([]string{"usar"})},
+	{prefix: intentWords("puoi"), order: capabilityActionThenSubject, action: newIntentPhraseTrie([]string{"usare"})},
+	{prefix: intentWords("kun je"), order: capabilitySubjectThenAction, action: newIntentPhraseTrie([]string{"gebruiken"})},
+	{prefix: intentWords("kan du"), order: capabilityActionThenSubject, action: newIntentPhraseTrie([]string{"använda", "bruka"})},
+}
+
+// exactCapabilityQuery recognizes only complete, unambiguous questions about
+// available tools. It parses the actual token sequence through prebuilt phrase
+// tries, avoiding per-message candidate generation and Cartesian matching.
+func exactCapabilityQuery(words []string) bool {
+	for _, phrase := range capabilityExactPhrases {
+		if equalIntentWords(words, phrase) {
 			return true
 		}
 	}
 
-	// Combo check: message contains BOTH a capability subject (tool name or generic term)
-	// AND an availability keyword. This catches "ist chromecast konfiguriert?" or
-	// "chromecast disponibile?" even without an explicit pattern above.
-	availabilityWords := []string{
-		"available", "enabled", "configured", "supported", "active", "installed",
-		"verfügbar", "aktiviert", "konfiguriert", "unterstützt", "vorhanden",
-		"disponible", "activé", "configuré",
-		"disponível", "ativado", "configurado",
-		"disponibile", "attivo", "configurato",
-		"beschikbaar", "actief",
-		"tillgänglig", "tilgjengelig",
-	}
-	capabilitySubjects := []string{
-		"tool", "tools", "integration", "capability", "capabilities", "function", "feature",
-		"werkzeug", "werkzeuge", "fähigkeit", "funktion",
-		"chromecast", "docker", "proxmox", "telegram", "discord", "mqtt",
-		"home assistant", "homeassistant", "tailscale", "truenas", "frigate",
-		"google cast", "cast", "tts", "stt", "speech",
-	}
-	hasSubject := false
-	for _, s := range capabilitySubjects {
-		if strings.Contains(lower, s) {
-			hasSubject = true
-			break
+	for _, prefix := range capabilityQuestionPrefixes {
+		if !intentPhraseMatchesAt(words, 0, prefix) {
+			continue
+		}
+		position := len(prefix)
+		if position < len(words) {
+			if _, ok := capabilityArticles[words[position]]; ok {
+				position++
+			}
+		}
+		if capabilitySubjects.matchesWithSuffix(words, position, capabilityAvailability, false) {
+			return true
 		}
 	}
-	if !hasSubject {
+
+	// Possession/access questions must name a known integration, optionally
+	// followed by one availability state. Exact suffix matching keeps mixed
+	// recall/action questions on the RAG path.
+	for _, prefix := range capabilityPossessionPrefixes {
+		if !intentPhraseMatchesAt(words, 0, prefix) {
+			continue
+		}
+		if capabilitySubjects.matchesWithSuffix(words, len(prefix), capabilityAvailability, true) {
+			return true
+		}
+	}
+
+	for _, form := range capabilityActionForms {
+		if !intentPhraseMatchesAt(words, 0, form.prefix) {
+			continue
+		}
+		position := len(form.prefix)
+		switch form.order {
+		case capabilitySubjectOnly:
+			if capabilitySubjects.matchesExact(words, position) {
+				return true
+			}
+		case capabilitySubjectThenAction:
+			if capabilitySubjects.matchesWithSuffix(words, position, form.action, false) {
+				return true
+			}
+		case capabilityActionThenSubject:
+			if form.action.matchesWithSuffix(words, position, capabilitySubjects, false) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func equalIntentWords(left, right []string) bool {
+	if len(left) != len(right) {
 		return false
 	}
-	for _, a := range availabilityWords {
-		if strings.Contains(lower, a) {
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func splitIntentPhrases(phrases []string) [][]string {
+	result := make([][]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		result = append(result, intentWords(strings.ToLower(phrase)))
+	}
+	return result
+}
+
+func newIntentWordSet(words []string) map[string]struct{} {
+	result := make(map[string]struct{}, len(words))
+	for _, word := range words {
+		result[word] = struct{}{}
+	}
+	return result
+}
+
+type intentPhraseTrie struct {
+	children map[string]*intentPhraseTrie
+	terminal bool
+}
+
+func newIntentPhraseTrie(phrases []string) *intentPhraseTrie {
+	root := &intentPhraseTrie{children: make(map[string]*intentPhraseTrie)}
+	for _, phrase := range phrases {
+		words := intentWords(strings.ToLower(phrase))
+		current := root
+		for _, word := range words {
+			if current.children[word] == nil {
+				current.children[word] = &intentPhraseTrie{children: make(map[string]*intentPhraseTrie)}
+			}
+			current = current.children[word]
+		}
+		current.terminal = true
+	}
+	return root
+}
+
+func (trie *intentPhraseTrie) matchesExact(words []string, start int) bool {
+	if trie == nil || start >= len(words) {
+		return false
+	}
+	current := trie
+	for _, word := range words[start:] {
+		current = current.children[word]
+		if current == nil {
+			return false
+		}
+	}
+	return current.terminal
+}
+
+func (trie *intentPhraseTrie) matchesAnyStartingAt(words []string, start int) bool {
+	if trie == nil || start >= len(words) {
+		return false
+	}
+	current := trie
+	for _, word := range words[start:] {
+		current = current.children[word]
+		if current == nil {
+			return false
+		}
+		if current.terminal {
+			return true
+		}
+	}
+	return false
+}
+
+func (trie *intentPhraseTrie) matchesWithSuffix(words []string, start int, suffix *intentPhraseTrie, allowEmptySuffix bool) bool {
+	if trie == nil || start >= len(words) {
+		return false
+	}
+	current := trie
+	for position := start; position < len(words); position++ {
+		current = current.children[words[position]]
+		if current == nil {
+			return false
+		}
+		if !current.terminal {
+			continue
+		}
+		end := position + 1
+		if allowEmptySuffix && end == len(words) {
+			return true
+		}
+		if suffix.matchesExact(words, end) {
+			return true
+		}
+	}
+	return false
+}
+
+func intentPhraseMatchesAt(words []string, start int, phrase []string) bool {
+	if start+len(phrase) > len(words) {
+		return false
+	}
+	for i, word := range phrase {
+		if words[start+i] != word {
+			return false
+		}
+	}
+	return true
+}
+
+func intentWords(text string) []string {
+	var words []string
+	var current strings.Builder
+	flush := func() {
+		if current.Len() == 0 {
+			return
+		}
+		words = append(words, current.String())
+		current.Reset()
+	}
+	for _, r := range text {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) {
+			current.WriteRune(r)
+		} else {
+			flush()
+		}
+	}
+	flush()
+	return words
+}
+
+func hasMemoryRetrievalIntent(words []string) bool {
+	for start := range words {
+		if memoryRetrievalIntents.matchesAnyStartingAt(words, start) {
 			return true
 		}
 	}

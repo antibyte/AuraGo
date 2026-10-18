@@ -8,15 +8,16 @@ import (
 	"time"
 
 	"aurago/internal/memory"
+	"aurago/internal/memory/kgquery"
 )
 
 // retrievalFusionResult holds enriched context from cross-referencing RAG (VectorDB)
 // and KG (Knowledge Graph) retrieval results.
 type retrievalFusionResult struct {
 	// EnrichedMemories contains additional LTM memories discovered via KG entity labels.
-	EnrichedMemories string
+	EnrichedMemories []rankedMemory
 	// EnrichedKGContext contains additional KG entities discovered via RAG memory text.
-	EnrichedKGContext string
+	EnrichedKGContexts []memory.KnowledgeGraphContextResult
 }
 
 // Fusion budget constants — strict limits to prevent context explosion.
@@ -27,10 +28,13 @@ const (
 	fusionMaxRAGQueries = 2
 	// fusionCharBudget is the strict character budget per direction.
 	fusionCharBudget = 400
+	// fusionOnDemandCharBudget preserves the smaller historical on-demand fusion cap.
+	fusionOnDemandCharBudget = 260
 )
 
 // entityLinePattern matches KG context lines like "- [entity_id] label | prop: val".
 var entityLinePattern = regexp.MustCompile(`^-\s+\[([^\]]+)\]\s*(.*)`)
+var knowledgeEdgeLinePattern = regexp.MustCompile(`^\s+- \[([^\]]+)\] .* -\[([^\]]+)\]-> \[([^\]]+)\]`)
 var memorySimilarityPrefixPattern = regexp.MustCompile(`(?i)^\s*\[similarity:\s*[0-9.]+\]\s*`)
 var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]+|tool_guides|documentation|file_index)\]\s*`)
 
@@ -44,16 +48,32 @@ var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]
 // cancelled turn stops searching instead of finishing every entity query.
 func applyRetrievalFusion(
 	ctx context.Context,
-	topMemories []string,
+	topMemories []rankedMemory,
 	kgContext string,
 	longTermMem memory.VectorDB,
 	stm *memory.SQLiteMemory,
 	kg *memory.KnowledgeGraph,
 	logger *slog.Logger,
 ) retrievalFusionResult {
+	return applyRetrievalFusionWithBudget(ctx, topMemories, kgContext, longTermMem, stm, kg, logger, fusionCharBudget)
+}
+
+func applyRetrievalFusionWithBudget(
+	ctx context.Context,
+	topMemories []rankedMemory,
+	kgContext string,
+	longTermMem memory.VectorDB,
+	stm *memory.SQLiteMemory,
+	kg *memory.KnowledgeGraph,
+	logger *slog.Logger,
+	maxChars int,
+) retrievalFusionResult {
 	result := retrievalFusionResult{}
+	if maxChars <= 0 {
+		maxChars = fusionCharBudget
+	}
 	hasRAG := len(topMemories) > 0
-	hasKG := kgContext != ""
+	hasKG := strings.TrimSpace(kgContext) != ""
 
 	if !hasRAG && !hasKG {
 		return result
@@ -64,7 +84,7 @@ func applyRetrievalFusion(
 	if hasKG && longTermMem != nil && !longTermMem.IsDisabled() {
 		labels := extractKGEntityLabels(kgContext, fusionMaxEntities)
 		if len(labels) > 0 {
-			var extraMemories []string
+			var extraMemories []rankedMemory
 			for _, label := range labels {
 				ranked, err := searchRankedMemoriesOnly(ctx, longTermMem, stm, label, 1, nil, time.Now())
 				if ctx.Err() != nil {
@@ -76,80 +96,174 @@ func applyRetrievalFusion(
 				if len(ranked) == 0 {
 					continue
 				}
+				if strings.TrimSpace(ranked[0].docID) == "" {
+					continue
+				}
 				// Deduplicate against existing top memories and already-found extras.
-				if containsEquivalentMemory(topMemories, ranked[0].text) || containsEquivalentMemory(extraMemories, ranked[0].text) {
+				if containsEquivalentRankedMemory(topMemories, ranked[0]) || containsEquivalentRankedMemory(extraMemories, ranked[0]) {
 					continue
 				}
-				compacted := compactMemoryForPrompt(ranked[0].text, 200)
-				if compacted == "" {
+				if strings.TrimSpace(ranked[0].text) == "" {
 					continue
 				}
-				extraMemories = append(extraMemories, compacted)
+				extraMemories = append(extraMemories, ranked[0])
 				if len(extraMemories) >= fusionMaxEntities {
 					break
 				}
 			}
-			if len(extraMemories) > 0 {
-				fusionText := "[Related Memories via Knowledge Graph]\n" + strings.Join(extraMemories, "\n---\n")
-				if len(fusionText) > fusionCharBudget {
-					fusionText = truncateUTF8SafeAgent(fusionText, fusionCharBudget)
-				}
-				result.EnrichedMemories = fusionText
-			}
+			result.EnrichedMemories = extraMemories
 		}
 	}
 
 	// Direction 2: RAG→KG — use top RAG memories as queries for additional KG context.
 	// This discovers knowledge graph entities that are semantically related to retrieved memories.
 	if hasRAG && kg != nil {
-		var extraKGParts []string
+		var extraKGResults []memory.KnowledgeGraphContextResult
 		limit := len(topMemories)
 		if limit > fusionMaxRAGQueries {
 			limit = fusionMaxRAGQueries
 		}
 		for i := 0; i < limit; i++ {
-			// Use first 120 chars of memory as KG query to keep it focused.
-			query := topMemories[i]
-			if len(query) > 120 {
-				query = query[:120]
-			}
-			query = strings.TrimSpace(query)
+			// Search with the complete retrieved memory. Do not byte-slice a fact or
+			// turn it into an arbitrary substring that can change its meaning.
+			query := strings.TrimSpace(sanitizeMemoryForPrompt(topMemories[i].text))
 			if query == "" {
 				continue
 			}
-			kgResult := kg.SearchForContext(query, 2, 200)
-			if kgResult == "" {
+			kgResult := kg.SearchForContextStructured(query, 2, maxChars)
+			if ctx.Err() != nil {
+				break
+			}
+			if len(kgResult.Nodes) == 0 {
 				continue
 			}
-			// Skip if this result is already contained in the existing KG context.
-			if strings.Contains(kgContext, kgResult) {
-				continue
-			}
-			// Skip if we already added this exact result.
-			if containsString(extraKGParts, kgResult) {
-				continue
-			}
-			extraKGParts = append(extraKGParts, kgResult)
+			extraKGResults = append(extraKGResults, kgResult)
 		}
-		if len(extraKGParts) > 0 {
-			fusionText := strings.Join(extraKGParts, "\n")
-			if len(fusionText) > fusionCharBudget {
-				fusionText = truncateUTF8SafeAgent(fusionText, fusionCharBudget)
-			}
-			result.EnrichedKGContext = fusionText
-		}
+		result.EnrichedKGContexts = dedupeKGContextResults(kgContext, extraKGResults)
 	}
 
-	if logger != nil && (result.EnrichedMemories != "" || result.EnrichedKGContext != "") {
+	if logger != nil && (len(result.EnrichedMemories) > 0 || len(result.EnrichedKGContexts) > 0) {
 		logger.Debug("[RetrievalFusion] Enriched context",
-			"ltm_via_kg", result.EnrichedMemories != "",
-			"kg_via_ltm", result.EnrichedKGContext != "",
-			"mem_chars", len(result.EnrichedMemories),
-			"kg_chars", len(result.EnrichedKGContext),
+			"ltm_via_kg", len(result.EnrichedMemories) > 0,
+			"kg_via_ltm", len(result.EnrichedKGContexts) > 0,
+			"memories", len(result.EnrichedMemories),
+			"kg_results", len(result.EnrichedKGContexts),
 		)
 	}
 
 	return result
+}
+
+func dedupeKGContextResults(baseContext string, results []memory.KnowledgeGraphContextResult) []memory.KnowledgeGraphContextResult {
+	seenNodes := knowledgeContextIDs(baseContext)
+	seenEdges := knowledgeContextEdgeIDs(baseContext)
+	var deduped []memory.KnowledgeGraphContextResult
+	for _, result := range results {
+		for index, node := range result.Nodes {
+			if strings.TrimSpace(node.ID) == "" {
+				continue
+			}
+			if _, exists := seenNodes[node.ID]; exists {
+				continue
+			}
+			single := result.LimitNodes(index, 1)
+			filteredEdges := make([]memory.Edge, 0, len(result.EdgesByNodeID[node.ID]))
+			for _, edge := range result.EdgesByNodeID[node.ID] {
+				key := knowledgeEdgeIdentity(edge)
+				if _, exists := seenEdges[key]; exists {
+					continue
+				}
+				seenEdges[key] = struct{}{}
+				filteredEdges = append(filteredEdges, edge)
+			}
+			single.EdgesByNodeID = map[string][]memory.Edge{node.ID: filteredEdges}
+			deduped = append(deduped, single)
+			seenNodes[node.ID] = struct{}{}
+		}
+	}
+	return deduped
+}
+
+func knowledgeContextEdgeIDs(context string) map[string]struct{} {
+	ids := make(map[string]struct{})
+	for _, line := range strings.Split(context, "\n") {
+		matches := knowledgeEdgeLinePattern.FindStringSubmatch(line)
+		if len(matches) == 4 {
+			ids[matches[1]+"\x00"+matches[2]+"\x00"+matches[3]] = struct{}{}
+		}
+	}
+	return ids
+}
+
+func knowledgeEdgeIdentity(edge memory.Edge) string {
+	return edge.Source + "\x00" + edge.Relation + "\x00" + edge.Target
+}
+
+func formatFusionMemoriesForPrompt(memories []rankedMemory, maxBytes int) string {
+	entries := make([]string, 0, len(memories))
+	unreferenceableOmitted := false
+	for _, item := range memories {
+		text := sanitizeMemoryForPrompt(item.text)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		if len(text) > maxBytes {
+			if strings.TrimSpace(item.docID) == "" {
+				unreferenceableOmitted = true
+				continue
+			}
+			text = "[memory:" + item.docID + "] (content omitted; use recall_memory)"
+		}
+		entries = append(entries, text)
+	}
+	if unreferenceableOmitted {
+		entries = append(entries, "[memory omitted: no stable recall ID]")
+	}
+	return kgquery.FitEntries(entries, "\n---\n", maxBytes)
+}
+
+func formatFusionKGContextsForPrompt(results []memory.KnowledgeGraphContextResult, maxChars int) string {
+	entries := make([]string, 0, len(results))
+	for _, result := range results {
+		if formatted := result.FormatContext(maxChars); formatted != "" {
+			entries = append(entries, formatted)
+		}
+	}
+	return kgquery.FitEntries(entries, "\n", maxChars)
+}
+
+func formatFusionKGIndexes(results []memory.KnowledgeGraphContextResult, maxChars int) string {
+	var entries []string
+	for _, result := range results {
+		index := result.AvailableIndex(maxChars)
+		if strings.TrimSpace(index) != "" {
+			entries = append(entries, strings.Split(index, "\n")...)
+		}
+	}
+	return kgquery.FitEntries(entries, "\n", maxChars)
+}
+
+func knowledgeContextIDs(context string) map[string]struct{} {
+	ids := make(map[string]struct{})
+	for _, line := range strings.Split(context, "\n") {
+		matches := entityLinePattern.FindStringSubmatch(line)
+		if len(matches) == 3 && !strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "\t") {
+			ids[matches[1]] = struct{}{}
+		}
+	}
+	return ids
+}
+
+func containsEquivalentRankedMemory(memories []rankedMemory, candidate rankedMemory) bool {
+	for _, item := range memories {
+		if candidate.docID != "" && item.docID == candidate.docID {
+			return true
+		}
+		if retrievalMemoryDedupKey(candidate.text) != "" && retrievalMemoryDedupKey(candidate.text) == retrievalMemoryDedupKey(item.text) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractKGEntityLabels parses entity labels from the formatted KG context string.

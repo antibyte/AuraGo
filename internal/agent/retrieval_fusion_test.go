@@ -2,8 +2,10 @@ package agent
 
 import (
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -223,21 +225,21 @@ func TestExtractKGEntityLabels_TabIndentedSkipped(t *testing.T) {
 func TestApplyRetrievalFusion_NoInputs(t *testing.T) {
 	logger := slog.Default()
 	result := applyRetrievalFusion(context.Background(), nil, "", nil, nil, nil, logger)
-	if result.EnrichedMemories != "" || result.EnrichedKGContext != "" {
+	if len(result.EnrichedMemories) != 0 || len(result.EnrichedKGContexts) != 0 {
 		t.Error("expected empty result when no inputs provided")
 	}
 }
 
 func TestApplyRetrievalFusion_RAGOnly_NoKG(t *testing.T) {
 	logger := slog.Default()
-	topMemories := []string{"memory one about servers", "memory two about networking"}
+	topMemories := []rankedMemory{{text: "memory one about servers", docID: "mem-1"}, {text: "memory two about networking", docID: "mem-2"}}
 	result := applyRetrievalFusion(context.Background(), topMemories, "", nil, nil, nil, logger)
 	// Without KG, Direction 1 (KG→RAG) is skipped.
 	// Without kg, Direction 2 (RAG→KG) is also skipped.
-	if result.EnrichedMemories != "" {
+	if len(result.EnrichedMemories) != 0 {
 		t.Error("expected no enriched memories without KG context")
 	}
-	if result.EnrichedKGContext != "" {
+	if len(result.EnrichedKGContexts) != 0 {
 		t.Error("expected no enriched KG context without KnowledgeGraph")
 	}
 }
@@ -248,46 +250,46 @@ func TestApplyRetrievalFusion_KGOnly_NoVectorDB(t *testing.T) {
 	result := applyRetrievalFusion(context.Background(), nil, kgContext, nil, nil, nil, logger)
 	// Without VectorDB, Direction 1 (KG→RAG) is skipped.
 	// Without RAG, Direction 2 (RAG→KG) is skipped.
-	if result.EnrichedMemories != "" {
+	if len(result.EnrichedMemories) != 0 {
 		t.Error("expected no enriched memories without VectorDB")
 	}
-	if result.EnrichedKGContext != "" {
+	if len(result.EnrichedKGContexts) != 0 {
 		t.Error("expected no enriched KG context without RAG memories")
 	}
 }
 
 func TestApplyRetrievalFusion_WithBoth_NoImplementations(t *testing.T) {
 	logger := slog.Default()
-	topMemories := []string{"memory about something important"}
+	topMemories := []rankedMemory{{text: "memory about something important", docID: "mem-1"}}
 	kgContext := "- [truenas] TrueNAS Server | type: device\n"
 	// Both subsystems report having data, but nil implementations mean
 	// the actual lookups are skipped gracefully.
 	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, nil, nil, nil, logger)
 	// Direction 1 skipped: longTermMem is nil
 	// Direction 2 skipped: kg is nil
-	if result.EnrichedMemories != "" {
+	if len(result.EnrichedMemories) != 0 {
 		t.Error("expected no enriched memories with nil VectorDB")
 	}
-	if result.EnrichedKGContext != "" {
+	if len(result.EnrichedKGContexts) != 0 {
 		t.Error("expected no enriched KG context with nil KnowledgeGraph")
 	}
 }
 
 func TestApplyRetrievalFusion_DisabledVectorDB(t *testing.T) {
 	logger := slog.Default()
-	topMemories := []string{"memory text"}
+	topMemories := []rankedMemory{{text: "memory text", docID: "mem-1"}}
 	kgContext := "- [truenas] TrueNAS Server | type: device\n"
 	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, &disabledVectorDB{}, nil, nil, logger)
 	// Direction 1 skipped: VectorDB is disabled
-	if result.EnrichedMemories != "" {
+	if len(result.EnrichedMemories) != 0 {
 		t.Error("expected no enriched memories with disabled VectorDB")
 	}
 }
 
 func TestApplyRetrievalFusionDeduplicatesCanonicalMemoryText(t *testing.T) {
 	logger := slog.Default()
-	topMemories := []string{
-		"[Similarity: 0.88] Docker backup policy should keep seven daily snapshots and verify restores weekly.",
+	topMemories := []rankedMemory{
+		{text: "[Similarity: 0.88] Docker backup policy should keep seven daily snapshots and verify restores weekly.", docID: "doc-base"},
 	}
 	kgContext := "- [docker] Docker | type: software\n"
 	vdb := &fusionVectorDB{
@@ -298,8 +300,161 @@ func TestApplyRetrievalFusionDeduplicatesCanonicalMemoryText(t *testing.T) {
 	}
 
 	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, vdb, nil, nil, logger)
-	if result.EnrichedMemories != "" {
-		t.Fatalf("EnrichedMemories = %q, want duplicate to be suppressed", result.EnrichedMemories)
+	if len(result.EnrichedMemories) != 0 {
+		t.Fatalf("EnrichedMemories = %+v, want duplicate to be suppressed", result.EnrichedMemories)
+	}
+}
+
+func TestApplyRetrievalFusionPreservesMemoryIDsAndStructuredKGIDs(t *testing.T) {
+	t.Run("KG to RAG keeps stable memory ID", func(t *testing.T) {
+		run, _, cleanup := newPromptPipelineTestRunConfig(t, t.Name(), "web_chat")
+		defer cleanup()
+		vdb := &fusionVectorDB{
+			memories: []string{"NAS backup policy keeps seven daily snapshots."},
+			docIDs:   []string{"ltm-real-id"},
+		}
+		result := applyRetrievalFusion(context.Background(), nil, "- [nas] NAS | type: device", vdb, run.ShortTermMem, nil, slog.Default())
+		if len(result.EnrichedMemories) != 1 || result.EnrichedMemories[0].docID != "ltm-real-id" {
+			t.Fatalf("fusion memory result = %+v, want stable LTM ID", result.EnrichedMemories)
+		}
+		formatted := formatFusionMemoriesForPrompt(result.EnrichedMemories, fusionCharBudget)
+		if !strings.Contains(formatted, "NAS backup policy keeps seven daily snapshots") || strings.Contains(formatted, "[fusion:") {
+			t.Fatalf("formatted fusion memory lost fact or invented an ID: %q", formatted)
+		}
+	})
+
+	t.Run("RAG to KG searches the complete fact and keeps node IDs", func(t *testing.T) {
+		kg, err := memory.NewKnowledgeGraph(":memory:", "", slog.Default())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer kg.Close()
+		if err := kg.AddNode("tailmarker-id", "TailMarker", map[string]string{"type": "software"}); err != nil {
+			t.Fatal(err)
+		}
+		fullFact := strings.Repeat("ordinary backup details ", 12) + "TailMarker"
+		result := applyRetrievalFusion(context.Background(), []rankedMemory{{text: fullFact, docID: "memory-input"}}, "- [base-node] Existing", nil, nil, kg, slog.Default())
+		if len(result.EnrichedKGContexts) == 0 {
+			t.Fatalf("fusion did not find node referenced after the former 120-byte cut: %+v", result)
+		}
+		foundID := false
+		for _, contextResult := range result.EnrichedKGContexts {
+			for _, node := range contextResult.Nodes {
+				if node.ID == "tailmarker-id" {
+					foundID = true
+				}
+			}
+		}
+		if !foundID {
+			t.Fatalf("structured fusion result lost the KG node ID: %+v", result.EnrichedKGContexts)
+		}
+		formatted := formatFusionKGContextsForPrompt(result.EnrichedKGContexts, fusionCharBudget)
+		if !strings.Contains(formatted, "[tailmarker-id]") || strings.Contains(formatted, "[fusion:") {
+			t.Fatalf("formatted KG context lost the real ID or invented one: %q", formatted)
+		}
+	})
+}
+
+func TestDeduplicateFusionKGNodesAndEdgesAgainstBaseContext(t *testing.T) {
+	edge := memory.Edge{Source: "base", Target: "new", Relation: "links"}
+	base := "- [base] Base\n  - [base] Base -[links]-> [new] New"
+	result := memory.KnowledgeGraphContextResult{
+		Nodes: []memory.Node{
+			{ID: "base", Label: "Base"},
+			{ID: "new", Label: "New"},
+		},
+		EdgesByNodeID: map[string][]memory.Edge{
+			"base": {edge},
+			"new":  {edge},
+		},
+	}
+
+	got := dedupeKGContextResults(base, []memory.KnowledgeGraphContextResult{result, result})
+	if len(got) != 1 || len(got[0].Nodes) != 1 || got[0].Nodes[0].ID != "new" {
+		t.Fatalf("deduped results = %+v, want only new node", got)
+	}
+	if len(got[0].EdgesByNodeID["new"]) != 0 {
+		t.Fatalf("duplicate edge survived dedupe: %+v", got[0].EdgesByNodeID)
+	}
+	formatted := formatFusionKGContextsForPrompt(got, fusionCharBudget)
+	if strings.Count(formatted, "[new]") != 1 || strings.Contains(formatted, "-[links]->") {
+		t.Fatalf("formatted fusion context duplicated base content: %q", formatted)
+	}
+}
+
+func TestFormatFusionMemoryBudgetKeepsRecallRefsAndShowsUnreferenceableOmissions(t *testing.T) {
+	got := formatFusionMemoriesForPrompt([]rankedMemory{
+		{text: strings.Repeat("oversized fact ", 60), docID: "memory-long"},
+		{text: strings.Repeat("oversized fact ", 60)},
+	}, fusionCharBudget)
+	if !strings.Contains(got, "[memory:memory-long] (content omitted; use recall_memory)") {
+		t.Fatalf("oversized memory lost its recall reference: %q", got)
+	}
+	if !strings.Contains(got, "[memory omitted: no stable recall ID]") {
+		t.Fatalf("oversized memory without ID was silently omitted: %q", got)
+	}
+	if len(got) > fusionCharBudget {
+		t.Fatalf("fusion memory output length %d exceeds %d bytes", len(got), fusionCharBudget)
+	}
+}
+
+func TestFusionPromptEntriesKeepRealIDsAndWholeFacts(t *testing.T) {
+	longFact := "NAS backup policy: " + strings.Repeat("retain a verified daily snapshot; ", 20)
+	memories := []rankedMemory{
+		{text: "Keep seven verified backup snapshots.", docID: "memory-real-1"},
+		{text: longFact, docID: "memory-real-2"},
+	}
+	kgResults := []memory.KnowledgeGraphContextResult{{Nodes: []memory.Node{{ID: "kg-real-1", Label: "NAS Backup"}}}}
+	flags := prompts.ContextFlags{
+		Tier:                           "full",
+		TokenBudget:                    12000,
+		RetrievedMemories:              formatFusionMemoriesForPrompt(memories, fusionCharBudget),
+		KnowledgeContext:               formatFusionKGContextsForPrompt(kgResults, fusionCharBudget),
+		AvailableMemoryContextIndex:    buildAvailableMemoryIndex(memories, fusionCharBudget),
+		AvailableKnowledgeContextIndex: formatFusionKGIndexes(kgResults, fusionCharBudget),
+	}
+	prompt, _ := prompts.BuildSystemPrompt(t.TempDir(), &flags, "", slog.Default())
+	for _, want := range []string{"Keep seven verified backup snapshots.", "[memory:memory-real-2] (content omitted; use recall_memory)", "[kg-real-1] NAS Backup", "[memory:memory-real-1]", "[kg:kg-real-1]"} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("actual system prompt missing %q:\n%s", want, prompt)
+		}
+	}
+	if strings.Contains(prompt, "[fusion:") {
+		t.Fatalf("actual system prompt contains synthetic fusion IDs:\n%s", prompt)
+	}
+}
+
+func TestFusionPromptSmallBudgetKeepsUnicodeAndWholeIDs(t *testing.T) {
+	const budget = 120
+	longID := "memory-" + strings.Repeat("長い識別子", 30)
+	memories := []rankedMemory{
+		{text: "Das NAS nutzt ein privates VLAN. 🌐", docID: "memory-漢"},
+		{text: strings.Repeat("oversized fact ", 40), docID: longID},
+	}
+	kgResults := []memory.KnowledgeGraphContextResult{{Nodes: []memory.Node{{ID: "kg-" + strings.Repeat("長い識別子", 30), Label: "NAS"}}}}
+	flags := prompts.ContextFlags{
+		Tier:                           "full",
+		TokenBudget:                    12000,
+		RetrievedMemories:              formatFusionMemoriesForPrompt(memories, budget),
+		KnowledgeContext:               formatFusionKGContextsForPrompt(kgResults, budget),
+		AvailableMemoryContextIndex:    buildAvailableMemoryIndex(memories, budget),
+		AvailableKnowledgeContextIndex: formatFusionKGIndexes(kgResults, budget),
+	}
+	prompt, _ := prompts.BuildSystemPrompt(t.TempDir(), &flags, "", slog.Default())
+	if !strings.Contains(prompt, "Das NAS nutzt ein privates VLAN. 🌐") || !strings.Contains(prompt, "[memory:memory-漢]") || !strings.Contains(prompt, "[additional entries omitted]") {
+		t.Fatalf("small-budget prompt lost Unicode fact or visible omission marker:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "memory-長") || strings.Contains(prompt, "kg-長") {
+		t.Fatalf("small-budget prompt contains a partial/unreferenceable long ID:\n%s", prompt)
+	}
+	if got := len(formatFusionMemoriesForPrompt(memories, budget)); got > budget {
+		t.Fatalf("memory fusion output uses %d bytes, exceeds budget %d", got, budget)
+	}
+	if got := len(formatFusionKGContextsForPrompt(kgResults, budget)); got > budget {
+		t.Fatalf("KG fusion output uses %d bytes, exceeds budget %d", got, budget)
+	}
+	if strings.Contains(prompt, longID) {
+		t.Fatalf("prompt contains the full over-budget memory ID:\n%s", prompt)
 	}
 }
 

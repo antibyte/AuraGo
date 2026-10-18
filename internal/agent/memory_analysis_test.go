@@ -623,6 +623,55 @@ func TestShouldUseRAGForMessage(t *testing.T) {
 	}
 }
 
+func TestCapabilityClassifierUsesUnicodeWordBoundariesAndKeepsMixedQueries(t *testing.T) {
+	tests := []struct {
+		name       string
+		message    string
+		capability bool
+		useRAG     bool
+	}{
+		{name: "German tool capability", message: "Kannst du Docker bedienen?", capability: true, useRAG: false},
+		{name: "English verb before subject", message: "Can you use Docker?", capability: true, useRAG: false},
+		{name: "English alternate capability verb", message: "Can you operate Docker?", capability: true, useRAG: false},
+		{name: "English invalid subject before verb", message: "Can you Docker use?", capability: false, useRAG: true},
+		{name: "Spanish verb before subject", message: "¿Puedes usar Docker?", capability: true, useRAG: false},
+		{name: "Spanish invalid subject before verb", message: "¿Puedes Docker usar?", capability: false, useRAG: true},
+		{name: "Italian verb before subject", message: "Puoi usare Docker?", capability: true, useRAG: false},
+		{name: "Italian invalid subject before verb", message: "Puoi Docker usare?", capability: false, useRAG: true},
+		{name: "English exact tool availability", message: "Do you have Docker available?", capability: true, useRAG: false},
+		{name: "English exact tool possession", message: "Do you have Docker?", capability: true, useRAG: false},
+		{name: "Italian tool capability", message: "Hai Docker disponibile?", capability: true, useRAG: false},
+		{name: "hai inside Thailand is not a capability cue", message: "Thailand hat letzte Woche neue Backups gespeichert.", capability: false, useRAG: true},
+		{name: "tool and active inside larger words are not capability cues", message: "The inactive toolchain failed while we reviewed the backup policy.", capability: false, useRAG: true},
+		{name: "mixed capability and memory query retains RAG", message: "Can you use Docker, and what backup policy did we discuss last time?", capability: false, useRAG: true},
+		{name: "accented availability phrase", message: "Ist Chromecast verfügbar?", capability: true, useRAG: false},
+		{name: "NAS backup is not a tool availability check", message: "Gibt es eine Sicherung meines NAS?", capability: false, useRAG: true},
+		{name: "can you with me is an action request", message: "Kannst du mit mir meine NAS-Konfiguration durchgehen?", capability: false, useRAG: true},
+		{name: "tool mention in a normal question is not availability", message: "Is the tool I mentioned yesterday appropriate?", capability: false, useRAG: true},
+		{name: "configure request keeps RAG", message: "Can you configure Docker with my preferred network?", capability: false, useRAG: true},
+		{name: "mixed availability and recall keeps RAG", message: "Is Docker available and which NAS did I buy?", capability: false, useRAG: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isCapabilityQuery(tt.message); got != tt.capability {
+				t.Errorf("isCapabilityQuery(%q) = %v, want %v", tt.message, got, tt.capability)
+			}
+			if got := shouldUseRAGForMessage(tt.message); got != tt.useRAG {
+				t.Errorf("shouldUseRAGForMessage(%q) = %v, want %v", tt.message, got, tt.useRAG)
+			}
+		})
+	}
+}
+
+func BenchmarkIsCapabilityQueryUnknownMessage(b *testing.B) {
+	message := "Can you configure Docker with my preferred network?"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = isCapabilityQuery(message)
+	}
+}
+
 func TestShouldRefreshRAG(t *testing.T) {
 	tests := []struct {
 		name           string
