@@ -10,7 +10,9 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   one file per distinct table of a process, written once); uploaded `.cube` text never reaches a filter graph. Blend
   mode names reach `blend` only from the registry (`BlendModeByID`), the chroma key colour is written by Go as
   `0xRRGGBB` from the validated hex, and mask `geq` expressions hold only Go-formatted numbers and the fixed variables
-  `X`, `Y` and `T`.
+  `X`, `Y` and `T`. xfade names reach the graph only from the registry (`TransitionByID`). The reveal `geq`, the `enable`
+  expressions and the blur mask commands hold only Go numbers and the T-baked frame. The fadegrays self-test renders
+  fixed Go-written lavfi patterns.
 - Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
   24/30/60 with a 1001 denominator). Convert with `Rate` methods only. `Upgrade` steps version 1 (fixed 30 fps) → 2 → 3
   without modifying its input; `Validate` accepts version 3 only. Projects are limited to sixty minutes and the sizes in
@@ -150,8 +152,9 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   keyframes, ramp, crop, flip_h, flip_v, blend, mask, effects, anim_in, anim_out` (Go struct = JSON = JS
   `canonicalProject`); the reflection guard in `ui/desktop_video_studio_canonical_test.go` checks it.
 - Registry (`effects.go`): `EffectRegistry()` (deep copy in menu order, never-nil slices), `TransitionByID`,
-  `EffectByID`, `BaseParam`, `Registry.Unavailable`, `RegistryVersion = 1`. The four transitions map to xfade `fade`,
-  `fadeblack`, `wiperight` (for `wipeleft`) and `wipeleft` (for `wiperight`); `validateClip` and `appendTransition`
+  `EffectByID`, `BaseParam`, `Registry.Unavailable`, `RegistryVersion = 1`. The 2a transitions map to xfade `fade`,
+  `fadeblack`, `wiperight` (for `wipeleft`) and `wipeleft` (for `wiperight`); the 20 transitions of 2e use their xfade
+  names as ids; `validateClip` and `appendTransition`
   read the table, so a new transition is one row. The status endpoint serves `registry` and `unavailable`;
   `video-studio-effects.js` mirrors it (`TestVideoStudioEffectsRegistryMatchesGo`). `fadeBlackWeights` holds the
   fade-through-black curve measured from FFmpeg. The curve is not linear: `out = (1−p)·(1−S(p; 0, 0.2))`,
@@ -165,8 +168,8 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   (`hasRequiredRenderFilters`) is unchanged. The `-filters` flag column has three characters on FFmpeg 5.1 (`TSC`) and
   two on 8.x (`TS`); the parser accepts both. The captured `-h filter=xfade` outputs are
   `testdata/xfade-help-5.1.txt` and `testdata/xfade-help-8.txt`.
-- Per-clip chain (`clip_chain.go`): `clipChain` stages `retime`, `window`, `picture`, `effects`, the animated crop, `fit`,
-  `mask`, `orient` (`transform` is `fit` + `orient`), `opacity` and `place` own one clip's filters and its geometry (`clipBox`, `evenPixels`, `evenPosition`);
+- Per-clip chain (`clip_chain.go`): `clipChain` stages `retime`, `window`, `picture`, `effects`, `animBlur` (2e), the animated crop, `fit`,
+  `mask`, `animReveal` (2e), `orient` (`transform` is `fit` + `orient`), `opacity` and `place` own one clip's filters and its geometry (`clipBox`, `evenPixels`, `evenPosition`);
   `segment_graph.go` keeps segment, layer, gap, transition and audio assembly. The 2a chain is byte-identical to the
   former `buildVisualClipFilter` (snapshot test). Later slices extend a stage, never the assembly.
   `buildVideoSegmentWith(…, videoTail)` takes the output tail; `videoTail{rgb: true}` ends in `format=rgb24`.
@@ -177,7 +180,7 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   their own `cases_2x.go`. `MakeMedia` sets the BT.709 tags with `setparams` in the filter chain as well as the encoder
   flags: on FFmpeg 8 the encoder flags alone left primaries and transfer unknown. The browser side is
   `TestDesktopVideoStudioGoldenFrames` (`ui`).
-- Shared math fixtures: `testdata/parity/<topic>.json` (2a: `geometry`, `transitions`). Go reads them with
+- Shared math fixtures: `testdata/parity/<topic>.json` (2a: `geometry`, `transitions`; 2e: `anim`, `xfade`). Go reads them with
   `readParityCases` (`parity_fixture_test.go`) in `TestParity<Topic>`; the JS side is one `{exact, run(input)}` entry
   per topic in `videoStudioParityRunners` (`ui/desktop_video_studio_effects_test.go`). A new topic adds the file, both
   implementations and the runner entry in one task.
@@ -438,3 +441,75 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     `TestRenderMaskMatchesFormula`, `TestRenderMaskFollowsKeyframedBox`, `TestRenderBlendModesMatchFormula`,
     `TestRenderBlendTransitionModes` and `TestSegmentedRenderCompositing`.
   - `TestCompositingCostRecordOptIn` records the 2d costs (`AURAGO_VIDEO_STUDIO_BENCHMARK=1`) and asserts nothing.
+
+## Transitions and animation (2e)
+
+- Model (`model.go`): `Clip.AnimIn` and `Clip.AnimOut` (`*ClipAnim{preset, duration}`) follow `effects`.
+  - The duration is in timeline frames within `AnimFrameRange(rate)`: 0.2 to 3 s, default 0.5 s, rounded half away
+    from zero.
+  - It is never checked against the clip length. The render clamps each span to floor(duration/2) (`animSpans`).
+- Validation (`validate_picture.go`): `validateAnim(track, clip, rate)` returns `*FieldError` with these paths:
+  - `clips/<id>/anim_in` (the animation sits on an audio clip);
+  - `…/anim_in/preset` (empty or unknown; an unavailable preset validates);
+  - `…/anim_in/duration`.
+- Registry (`effects.go`):
+  - 24 transitions in the categories `basic`, `wipe`, `motion` and `shape`;
+  - 8 `AnimPresets` with `Filters`, and `AnimPresetByID`;
+  - `Registry.Unavailable` greys a preset when one of its `Filters` is missing. `RegistryVersion` stays 1.
+- Shared transition parameters (D1, `transition_math.go`):
+  - `transitionFrameAt(kind, i, D, width, height)` is the only source of per-frame transition numbers. They are
+    float32, with every operation wrapped in `float32(...)` so that no fused multiply-add changes a value.
+  - JS mirrors it in `VideoStudioPicture.transitionParams` (parity topic `xfade`, exact), and `wipeEdge` derives the 2a
+    wipes from it.
+  - The xfade probe fixture `testdata/xfade/probes.json` (`xfade_probe_test.go`) records xfade itself on 8.1.1.
+- fadegrays gate (`capabilities.go`, `fadegraysSelfTest`): when `-h filter=xfade` lists fadegrays, the probe renders a
+  fixed Go-written pattern pair twice with 4 filter threads and compares both runs with `fadegraysModel`. A mismatch,
+  a difference between the runs or any other failed self-test render adds `xfade:fadegrays` to missing; the result is
+  memoized with the probe. The gate passes on FFmpeg 8.1.1 and fails on 5.1.9. The patterns are 64×36 with D = 5 (0.2 s
+  at 25 fps; output 34 560 bytes).
+  - A probe context that ends (timeout, cancel) is a probe error and is not memoized. The probe then fails closed for
+    fadegrays only: a render with an effective fadegrays transition is refused with a `CapabilityError` that wraps the
+    probe error, and `CheckRuntime` reports `xfade:fadegrays` missing and `RuntimeStatus.ProbeError`
+    (`probe_error`). Other capabilities keep leaving their check to FFmpeg when the probe fails.
+  - Accepted caveat: `videoStudioJobFailure` checks context errors first, so a probe that hits its own 10 s timeout, or
+    a cancel, reports a timeout or cancelled job, not `feature_unavailable`.
+- Animation math (`anim.go`, mirrored by `video-studio-anim.js`; parity topic `anim`):
+  - `animAt`, `animBox`, `animRevealPx`, `animBlurMasks`, `animKindsOf`, `animExprs` and `animSpanExpr`;
+  - `clipOpacityAt` (`keyframes.go`) multiplies the keyed opacity by the animation's.
+- Export:
+  - Slides and pop: `clipAnimation` ORs `animKindsOf`, so the whole clip takes the 2b animated-geometry path. `boxExprs`
+    applies the animation's scale and offset after the even clamp (registers 7 and 8; register 4 inside `easeExpr`). A
+    clip without an effective animation gets the 2d chain byte for byte.
+  - Opacity: the `colorchannelmixer@vs_opacity` commands carry keyed × animation opacity per frame.
+  - Wipe: `animReveal()` (`clip_anim.go`) is a two-input stage after `mask`: a one-row `geq`, a neighbour upscale and
+    `blend c3_mode=multiply`. The merge is gated by `enable` and runs only inside the wipe spans. The one-row `geq` and
+    the neighbour scale run for the whole clip. Outside the spans the frames match the clip without a wipe
+    (`TestRenderAnimWipeEdges`). On a refusal, `animRevealGated = false` keeps the pixels exact.
+  - blur_in: `animBlur()` runs after the effects. It is the {S, S/4, sharp} `maskedmerge` cascade:
+    - constant mask branches are built in Go, with `colorchannelmixer@vs_animk_L_C_<n>` driven by sendcmd from their
+      own files `vs_cmd_<L>_<C>_m<n>.txt` (carried in `chainStage.files`);
+    - the `gblur`s and an alpha layer's `premultiply`/`unpremultiply` carry `enable` for the blur_in spans; the
+      `maskedmerge`s carry it only while `animMergeGated` is true (the fallback `false` gives the same pixels, with
+      the merges running on every frame);
+    - alpha layers use the premultiplied two-merge recipe. Its alpha mask gives m+1 for m in 128..254 on FFmpeg 8.1.1
+      (accepted; the colour is exact); `format=gbrap` before `alphamerge` is the follow-up (index §4.25).
+  - Every value comes from absolute frames (T baked into the expressions and `enable`), so every segmentation renders
+    the same frames (`TestSegmentedRenderAnim`).
+- Capabilities: an enabled visual clip with an effective animation needs its preset's `Filters` (`anim:<preset>`, job
+  error `feature_unavailable`). Transitions keep `xfade:<name>`.
+- Costs: index §4.24 (spike) and §4.25 (measured in Task 9 and in the S4-basis run). Slides and pop put the whole clip
+  on the animated-geometry path; blur_in and the reveal's merge cost only during their spans.
+- Goldens (`goldenframe/cases_2e.go`, `transitionAnimCases`):
+  - one case per new transition and per preset, plus combined cases; every case has a Delta;
+  - the shared runner skips a case that the local FFmpeg cannot export (`CheckProjectCapabilities` against the probe;
+    fadegrays on 5.1).
+- Tests:
+  - `go test ./internal/videostudio -run 'Anim|Transition|XFade|Xfade|Fadegrays|Parity|ClipChain|SegmentGraph|Segmented|Validate|Capabilit|Registry|SendCmd|Expr|KeyframeExpr|StageVideoGraph' -count=1`
+  - `go test ./internal/videostudio/goldenframe -run 'TransitionAnimCases|Delta' -count=1`
+  - `go test ./internal/server -run 'VideoStudio(ProjectAnim|Status)' -count=1`
+  - The FFmpeg 5.1 container check (plan index §6) runs the gated 2e tests: `TestXfadeProbesMatchFixture`,
+    `TestXfadeModelMatchesFixture`, `TestRenderRevealBlendEnableGate`, `TestFadegraysSelfTestOnInstalledFFmpeg`,
+    `TestProbeCapabilitiesLocalFFmpegMissesNothing` (exactly `xfade:fadegrays` missing on 5.1.9),
+    `TestRenderAnimBoxFollowsReference`, `TestRenderAnimOpacityFollowsReference`, `TestRenderAnimWipeEdges`,
+    `TestRenderAnimBlurMatchesCascade` and `TestSegmentedRenderAnim`.
+  - `TestAnimCostRecordOptIn` records the 2e costs (`AURAGO_VIDEO_STUDIO_BENCHMARK=1`) and asserts nothing.

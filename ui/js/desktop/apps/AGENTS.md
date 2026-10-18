@@ -1821,6 +1821,70 @@ buttons and menu popovers remain excluded from those gestures.
     - The 2D painter draws none of them; mask mode still shows the outline, because the overlay is DOM.
   - Node checks: `go test ./ui -run 'TestVideoStudio(Compositing|MaskHandles|Effects|Picture|Canonical|EffectStack|EffectsLibrary|KeyframeStrip|NavigationLoadOrder)' -count=1`.
     Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioCompositing(GL)?Browser$' -count=1 -timeout 30m`.
+- Transitions and animation (phase 2e), DOM-free part:
+  - `VideoStudioAnim` (`video-studio-anim.js`, directly after `-picture.js`) holds the in/out animation math of Go
+    `anim.go` (parity topic `anim`):
+    - constants: `SECONDS`, `SLIDE`, `POP`, `BLUR_RADIUS` and `BLUR_NODE`;
+    - functions: `frameRange`, `spans`, `at`, `blurMasks`, `box`, `revealPx`, `valid` (Go `validateAnim`), `rescale` and
+      `blurUniforms`.
+
+    `time.js` calls `rescale` on a frame-rate change.
+  - `VideoStudioEffects` mirrors the 24 transitions and the 8 animation presets. It adds:
+    - `animPresets()`, `animAvailable(id)` and `transitionGroups()`;
+    - `clipState().anim` (null at rest);
+    - the optional 5th `placement` argument. The GL compositor passes it; the 2D painter applies `state.anim` itself, and
+      the transform, crop and mask overlays keep the keyed box;
+    - `wipeEdge(type, index, duration, width)`, which takes the overlap frame and returns null for every type but the
+      two 2a wipes.
+  - D1 rule: no transition parameter is computed outside `VideoStudioPicture.transitionParams`.
+    - It is float32 through `Math.fround` and equals Go `transitionFrameAt`; the parity topic `xfade` is exact.
+    - GL gets the parameters only through `transitionUniforms(type, index, duration, {width, height})`.
+    - The scene's `transition` carries `index` and `duration` (`VideoStudioPreview.rules.transitionPair`), and painters
+      never derive a parameter from `progress`.
+  - Edits:
+    - `VideoStudioKeyframeEdit.setAnim(project, clipId, side, values)` and `pasteAnim(project, source, clip)`.
+    - `VideoStudioEdit.ATTRIBUTE_GROUPS.animation` is `anim_in` and `anim_out`.
+    - `piece()` keeps `anim_in` only on the piece that keeps the clip's start, and `anim_out` only on the one that keeps
+      its end. Freeze frame gives the still none; detach gives the audio clip none.
+- Transitions and animation (phase 2e), UI part:
+  - Animation section (`video-studio-inspector.js`, every visual clip; the speed ramp part stays video-only):
+    - `select[data-anim-preset="in|out"]`;
+    - `input[type="range"][data-anim-duration="in|out"]` (frames, with the output in seconds);
+    - the clamp hint `[data-anim-clamped="in|out"]`.
+
+    The edits are `P.animChange` and `P.liveAnimDuration` in `video-studio-inspector-effects.js`, one undo step per
+    commit.
+  - Transition picker (`transitionSection`):
+    - the summary `[data-action="transition-picker"]` (aria-expanded) and the inline panel `[data-tx-picker]`, with
+      `none` and one `role="group"` per `transitionGroups()` category;
+    - buttons `button[data-transition][aria-pressed]`; unavailable ones are disabled with `transitionUnavailable`, but
+      the current one stays enabled;
+    - the open state is view state `s.transitionPickerOpen` (`P.setTransitionPicker` in `video-studio.js`). A choice
+      and `Esc` close it and return focus to the summary; Esc is handled before the narrow drawer. It also closes when
+      another clip is shown;
+    - `VideoStudioInspector.transitionLength(project, clip, next)` gives the slider's step, its maximum and the default
+      length.
+  - Icons and timeline:
+    - `VideoStudioIcons.transition(id, size)` is a 30×18 SVG per registry id: outgoing #4f5fd6, incoming #c66f31, the
+      through colours, and white direction strokes. It has no gradients, ids or references, and unknown ids get the A|B
+      split.
+    - The timeline's transition tooltip reads the registry `label_key`.
+  - Effects library:
+    - The transition groups follow the effect groups: items `transition:<id>`, drag MIME
+      `application/x-aurago-vs-transition`.
+    - Dragging over a clip marks its nearer cut (`is-cut-drop-before`, `is-cut-drop-after`) when the neighbour touches
+      or overlaps (`VideoStudioEffectsLibrary.cutAt`). A drop elsewhere shows `effectsLibraryDropOnCut`.
+    - Drops, double-clicks and Enter/Space go through `P.addTransitionTo(s, clipId, type)`. It calls
+      `P.applyTransition(s, type, frames, clipId)`, whose 4th parameter is the outgoing clip, which the edit selects.
+  - Preview:
+    - `video-studio-shaders.js` holds the 20 new transition programs.
+    - PLACE and PLACE_MASKED read `v_box` and `u_reveal`, and `placeClip` always sets both.
+    - The blur_in cascade (`blurPasses`, `blurCascade`) runs after the effects: two BLUR pairs at S and S/4, then two
+      `ANIM_MIX` passes. It reports `('effect', 'anim:blur_in')` when the cascade fails.
+    - The 2D painter draws offset, scale, opacity and the wipe, but no blur. It draws Dissolve, Through black and the two
+      2a wipes as in the export, and the 20 transitions of 2e as a dissolve.
+  - Node checks: `go test ./ui -run 'TestVideoStudio(Anim|Transition|Effects|EffectsLibrary|Canonical|Picture|Shaders|Painter|Preview|NavigationLoadOrder)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudio(TransitionsGL|AnimGL|Anim)Browser$' -count=1 -timeout 30m`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/effects/AI;

@@ -142,10 +142,9 @@ appears in the tasks list. Export frame as PNG saves the clip's original source 
 crop, flips, effects or LUT. Exporting the graded frame is not offered yet. If the clip changes while the job runs (for example it is slipped so another frame sits at the
 playhead), the edit is not applied and the new media stays in the library. Video tracks take still images as well as videos.
 
-Transitions include dissolve, fade through black, and wipes in both directions.
-A transition belongs to the outgoing clip. Adjacent clips overlap by exactly
-the transition duration; arbitrary overlap on the same track is rejected.
-Place simultaneous elements on separate tracks.
+Transitions (24 types, see Transitions and animation) belong to the outgoing clip. Adjacent clips overlap by exactly
+the transition duration; arbitrary overlap on the same track is rejected. Place simultaneous elements on separate
+tracks.
 
 Project saves use strong ETags. A second window cannot silently overwrite a
 newer save. The editor retains a small local timeline draft for recovery; copied
@@ -343,6 +342,7 @@ it asks first, removes those effects in the same undo step, and then deletes the
 **Effects library.** The library's **Effects** tab lists the effects and the built-in looks by category: **Color**,
 **Detail** and **Stylize** (the looks are listed under Color). Drag one onto a clip in the timeline, or double-click it,
 or press `Enter` or `Space`, to add it to the selected clip. Effects that the server's FFmpeg lacks are greyed out.
+The transitions follow in their own groups (see Transitions and animation).
 
 **Paste attributes** has two more groups: **Crop, flip, blend mode and mask** (the crop, the flips, the blend mode and
 the mask; mask values that the target animates get a keyframe at the playhead, and a source without a mask removes the
@@ -434,11 +434,125 @@ without its mask, and a notice says so; the export is not affected.
 opaque in the export, because FFmpeg's built-in VP9 decoder drops the alpha. The browser preview may still show the
 transparency. This also applies when such a clip is keyed.
 
+## Transitions and animation
+
+**Transitions.** A transition joins a clip to the clip after it on the same video or overlay track. It belongs to the
+outgoing clip, and the two clips overlap by its length. In the inspector, the **Transition to next clip** section has a
+button that shows the current type; its tooltip says **Choose a transition**. Press it to open the list. It starts with
+**None**, then four groups. Choosing a type applies it and closes the list. `Esc` closes the list without a change and
+returns the focus to the button. `Tab`, `Enter` and `Space` work in the list.
+
+**Length** sets the overlap. It moves in steps of about a tenth of a second, goes up to three seconds, and stays shorter
+than both clips. It is off while the clip has no transition. Choosing a type from **None** gives the transition half a
+second; if either clip is half a second or shorter, the change is refused with a notice.
+- **Basic transitions:**
+  - **Dissolve** is a cross-fade.
+  - **Through black** and **Through white** pass through that colour.
+  - **Through grayscale** turns the outgoing picture grey, then brings the incoming one in from grey.
+  - **Pixelate** cross-fades through square blocks that are largest in the middle.
+- **Wipes:**
+  - **Wipe from left**, **Wipe from right**, **Wipe from bottom** and **Wipe from top** move a hard edge across the
+    picture; the name says where the incoming clip enters.
+  - **Soft wipe from right** and **Soft wipe from left** use a soft edge.
+  - **Diagonal from bottom right** and **Diagonal from top left** start in that corner and sweep a soft edge diagonally
+    across the picture.
+  - **Clock wipe** sweeps clockwise from 12 o'clock.
+- **Push and zoom:**
+  - **Push from right**, **Push from left**, **Push from bottom** and **Push from top** slide the incoming clip in and
+    push the outgoing one out.
+  - **Squeeze vertically** squeezes the outgoing picture into a band across the middle of the frame, with the incoming
+    picture showing above and below it.
+  - **Zoom in** magnifies the outgoing picture about its centre until the frame shows only its centre, then cross-fades
+    to the incoming clip.
+- **Shapes:**
+  - **Circle opens** opens the incoming clip from the centre, with a soft edge.
+  - **Circle closes** shrinks the outgoing picture into a circle at the centre, while the incoming clip fills the frame
+    from the corners.
+  - **Circle through black** and **Rectangle through black**: the outgoing picture shrinks into black, then the incoming
+    one grows out of it.
+
+Every type has a small picture in the list. Blue is the outgoing clip, orange the incoming one, and white arrows show
+the direction.
+- **Through black**, **Through white**, **Circle through black** and **Rectangle through black** are opaque. On an
+  overlay track their colour covers the tracks below, as in FFmpeg.
+- **Through grayscale** needs an FFmpeg that computes it correctly. When Video Studio checks the server's FFmpeg, it
+  renders a tiny test of this transition. FFmpeg 5.1 (as in Debian 12) fails the test, so the type is greyed out there
+  and **Check Video Studio** lists it as missing. A clip that already uses it keeps it, but its export stops with a
+  message. FFmpeg 8.1 passes the test. If the test cannot finish (it times out or the check is cancelled), the type is
+  greyed out too, and an export that uses it stops with a message.
+- A type that the server's FFmpeg lacks is greyed out in the list and in the library. A clip that already uses one
+  keeps it.
+
+**Transitions in the effects library.** The **Effects** tab lists the transitions after the effects, in the same four
+groups.
+- Drag one onto the cut between two clips that touch or overlap on one track. The half of the clip under the pointer
+  decides which cut, and that cut is marked while you drag. Dropping anywhere else changes nothing, and a notice
+  explains where to drop.
+- Double-click a transition, or press `Enter` or `Space` on it, to set it between the selected clip and the clip after
+  it. The selected clip must be on a video or overlay track. As in the inspector, the later clips on the track move so
+  that the two clips overlap by the transition's length.
+- A new transition is half a second long, or shorter when the clips are short. A transition that is already there
+  keeps its length. Each drop or double-click is one undo step and selects the outgoing clip.
+
+**In and out animations.** Every picture, title and sticker has an **Animation** section with **In animation** and
+**Out animation**. Each has a preset and a **Length** from 0.2 to 3 seconds; a new animation is half a second long. The
+in animation plays at the clip's start and the out animation at its end. The presets:
+- **Fade** fades the clip in or out.
+- **Slide up**, **Slide down**, **Slide left** and **Slide right** move the clip in that direction. The in animation
+  arrives from 15 % of the frame's width (left and right) or height (up and down) away, and slows down as it lands. The
+  out animation leaves the same way. Both fade at the same time.
+- **Pop** grows the clip from 60 % to a little over its size (108 %) and settles it back to 100 %. It fades in over the
+  first 30 % of the animation. As an out animation, the clip grows to 108 % over its first 30 %, shrinks to 60 %, and
+  fades out over its last 30 %.
+- **Wipe** reveals the clip's box from left to right; as an out animation it hides the box from left to right.
+- **Blur** starts strongly blurred and fades in while it sharpens; as an out animation it blurs while it fades out.
+
+Timing and composition:
+- The length counts timeline frames from the clip's edge, so speed changes and speed ramps do not change it. The first
+  frame of an in animation and the last frame of an out animation are fully hidden.
+- On a short clip, each animation plays over at most half of the clip, and the inspector says how long it really plays.
+  The stored length stays, so the animation gets its full length again when the clip grows.
+- Animations add to keyframes. Opacity multiplies, slides move the box that the keyframes give, and Pop scales it about
+  its centre; the keyframe values themselves never change. A slide or pop may take the clip partly outside the frame.
+- A mask moves and scales with the animated box. The wipe works on the clip's box after the mask.
+- Blend modes see the animated opacity. Inside a transition, each clip plays its own animation, and the transition
+  mixes the two.
+
+**Editing.**
+- Splitting a clip (also with the blade) and clearing a range keep each animation only on the piece that keeps the
+  matching edge of the clip: the in animation on the piece that starts the clip, the out animation on the piece that ends
+  it.
+- Trims, slips, slides and speed changes keep both.
+- Duplicating, copying, pasting and **Reverse** keep both; Reverse does not swap them.
+- **Freeze frame** gives the still no animation, and **Detach audio** gives the sound clip none.
+- A frame-rate change keeps each length in seconds as closely as the new rate allows.
+- **Paste attributes** has an **In and out animations** group. A side that the source lacks is removed from the target.
+
+**Preview and export.** The WebGL2 preview draws every transition and every animation with the export's numbers. Golden
+tests compare both with FFmpeg's frames, and each case also checks that the preview changes the picture as much as the
+export does. The simpler 2D drawing shows Dissolve, Through black and the left and right wipes as in the export, and all
+other transitions as a dissolve. It shows Fade, the slides, Pop and Wipe, but no blur: Blur only fades there.
+- Costs at 1080p with four filter threads (the export's setting), in milliseconds per frame, as FFmpeg 8.1 / FFmpeg 5.1.
+  The figures are the fastest of three runs and carry about 10 ms of noise on 8.1. A transition's figure is the extra
+  time per overlap frame over the same two clips cut without it. An animation's figure is the extra time per frame over
+  the same clip without the animation.
+  - **Transitions:** Dissolve 20 / 24; Circle opens 46 / 27; Clock wipe 45 / 38; Pixelate 38 / 30; Push from right 25 /
+    29; Zoom in 33 / 33. The other types were not timed.
+  - **Fade:** about 6 / 8 during the animation; outside it, within the noise.
+  - **Slide:** about 2 to 7 / 7 to 9 during the slide. Slides and Pop move the whole clip onto the moving-picture path,
+    which adds about 0 to 14 / 4 to 6 for every frame of the clip (one run measured 35 for Slide left outside its span).
+  - **Pop:** about 21 / 12 during the animation, and about 7 / 6 for every frame of the clip outside it. A masked clip
+    with a slide or pop also computes its mask for every frame.
+  - **Wipe:** about 1 / 5 during the animation; outside it, within the noise.
+  - **Blur:** about 36 / 47 during the animation. On a still, 56 / 76 during the animation and 15 / 19 outside it. On
+    video, the figure outside the animation (9 / 11) is about the noise level.
+
 ## Preview engine, proxies and range check
 
 **Preview engine.** The timeline preview draws with WebGL2 when the browser offers it. It shows what the export
-renders for position, size, rotation, opacity, contain / cover and the four transitions; fade through black darkens
-the tracks below as well, like the export. When WebGL2 is missing, fails to start, or the browser loses the graphics
+renders for position, size, rotation, opacity, contain / cover, every transition and the in and out animations; the
+opaque transitions (through black or white, and the circle and rectangle through black) cover the tracks below as well,
+like the export. When WebGL2 is missing, fails to start, or the browser loses the graphics
 context three times within a minute, the preview switches to a simpler 2D drawing and shows a notice in the preview
 area; editing and exporting are not affected. A single lost context is restored without a notice. The source monitor
 always uses the 2D drawing because it shows the media unchanged.
