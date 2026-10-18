@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"html/template"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -101,6 +102,7 @@ func dashboardOverviewRemoteText(o *proto.RuntimeRemoteObject) string {
 //   - an SSE-triggered summary refresh;
 //   - a failing first load and a failing refresh (500): error state and retry on all eight tiles, no new Updated stamp;
 //   - hiding a tile through Customize (kept after a reload, reset by "Show all");
+//   - three visible KPI tiles staying in one row at a 700-1099 px section width (one tile hidden);
 //   - the drawer at 700 px: section navigation, and the status block leading back to the overview.
 func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
@@ -326,6 +328,31 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	p.MustElement(`[data-action="overview-show-all"]`).MustClick()
 	p.MustElement(`[data-action="overview-customize"]`).MustClick()
 	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display !== 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '[]' && document.getElementById('ov-system').classList.contains('span-3')`)
+
+	// Medium section width (container 700-1099 px): with ov-budget hidden DashOverview.tileSpans gives the three remaining
+	// KPI tiles span-4, and they must stay three in a row instead of the grid remap laying them out 6/6/6 with the third
+	// alone next to an empty half row.
+	p.MustEval(`() => localStorage.setItem('aurago-dash-hidden-tiles', '["ov-budget"]')`)
+	open(1100)
+	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && ['ov-system', 'ov-automations', 'ov-knowledge'].every(id => document.getElementById(id).classList.contains('span-4'))`)
+	band := p.MustEval(`() => {
+		const box = id => document.getElementById(id).getBoundingClientRect();
+		const ids = ['ov-system', 'ov-automations', 'ov-knowledge'];
+		return { section: document.getElementById('sec-overview').getBoundingClientRect().width, tops: ids.map(id => box(id).top), widths: ids.map(id => box(id).width) };
+	}`)
+	sectionWidth := band.Get("section").Num()
+	if sectionWidth < 700 || sectionWidth > 1099 {
+		t.Fatalf("the medium-band step must run with a section width of 700-1099 px, measured %.1f px", sectionWidth)
+	}
+	tops, widths := band.Get("tops").Arr(), band.Get("widths").Arr()
+	for i := 1; i < len(tops); i++ {
+		if math.Abs(tops[i].Num()-tops[0].Num()) > 2 || math.Abs(widths[i].Num()-widths[0].Num()) > 3 {
+			t.Errorf("three visible KPI tiles at a %.0f px section: want one row of equal widths, got %s", sectionWidth, band.JSON("", ""))
+			break
+		}
+	}
+	t.Logf("medium band: section %.0f px, KPI tiles %s", sectionWidth, band.JSON("", ""))
+	p.MustEval(`() => localStorage.setItem('aurago-dash-hidden-tiles', '[]')`)
 
 	// 700 px: drawer with the status block; a section link closes it; the status block returns to the overview.
 	open(700)

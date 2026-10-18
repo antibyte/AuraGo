@@ -342,6 +342,16 @@
     }
 }
 
+/* Three visible KPI tiles (DashOverview.tileSpans gives each span-4 when one is hidden) stay three in a row here, so the hidden tile leaves no gap */
+@container (min-width: 700px) and (max-width: 1099px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > #ov-system.span-4,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > #ov-budget.span-4,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > #ov-automations.span-4,
+    .pw-page[data-workspace-page="dashboard"] .dash-grid > #ov-knowledge.span-4 {
+        grid-column: span 4;
+    }
+}
+
 /* Section width below 700px: one card per row */
 @container (max-width: 699px) {
     .pw-page[data-workspace-page="dashboard"] .dash-grid > .span-3,
