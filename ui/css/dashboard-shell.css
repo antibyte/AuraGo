@@ -493,6 +493,12 @@
     background: var(--pw-warning);
 }
 
+/* Light theme: the light canvas on the dark amber is 4.4:1; the surface (white) is 4.9:1 */
+.pw-page[data-workspace-page="dashboard"][data-theme="light"] .dash-nav-badge.is-warning,
+.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-nav-badge.is-warning {
+    color: var(--pw-surface);
+}
+
 /* Section header actions ("Show all", "Customize") next to the refresh button */
 .pw-page[data-workspace-page="dashboard"] .dash-section-action {
     display: inline-flex;
@@ -557,17 +563,21 @@
     outline-offset: 3px;
 }
 
-.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-tile.ov-tile-off {
+/* A switched-off tile dims its content, not its switch: the off-state track must keep 3:1 against the header */
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-tile.ov-tile-off > .dash-card-body,
+.pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-tile.ov-tile-off > .dash-card-header > :not(.ov-tile-toggle) {
     opacity: 0.55;
 }
 
-/* Tile visibility switch (Customize mode only) */
+/* Tile visibility switch (Customize mode only): a 44 px target; the negative block margin keeps the header
+   height of the 20 px track so the header does not grow when the mode opens */
 .pw-page[data-workspace-page="dashboard"] .ov-tile-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 44px;
-    height: 32px;
+    height: 44px;
+    margin-block: -12px;
     padding: 0;
     border: 0;
     border-radius: 999px;
@@ -589,7 +599,7 @@
     width: 36px;
     height: 20px;
     border-radius: 999px;
-    background: var(--pw-line-strong);
+    background: var(--pw-subtle);
     transition: background var(--pw-duration-fast) var(--pw-ease);
 }
 
