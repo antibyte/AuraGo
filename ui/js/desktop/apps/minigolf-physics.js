@@ -145,6 +145,8 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     let quietSteps = 0;
     let resolvedShots = 0;
     let disposed = false;
+    let ghost = null;
+    const cupOpening = Number.isFinite(course.cupRadius) ? course.cupRadius : 0.32;
     const activeSurfaceContacts = new Map();
 
     const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68 };
@@ -347,12 +349,76 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             body.setNextKinematicRotation(pose.rotation);
         }
     }
+    // Simulates the aimed shot in a lazily cloned world with the same rolling
+    // code. The live world, time and events stay untouched.
+    function predict(direction, power) {
+        if (disposed || activeShot || shotLocked || !validShot(direction, power)) return null;
+        if (!ghost) {
+            const copy = RAPIER.World.restoreSnapshot(world.takeSnapshot());
+            copy.timestep = FIXED_STEP;
+            ghost = {
+                world: copy, events: new RAPIER.EventQueue(true),
+                ball: copy.getRigidBody(ballBody.handle), collider: copy.getCollider(ballCollider.handle),
+                obstacles: obstacleBodies.map(({ spec, body }) => ({ spec, body: copy.getRigidBody(body.handle) }))
+            };
+        }
+        const { world: copy, events: queue, ball, collider, obstacles } = ghost;
+        let atTime = time;
+        for (const { spec, body } of obstacles) {
+            const pose = obstaclePose(spec, atTime);
+            body.setTranslation(vec3(pose.position), true);
+            body.setRotation(pose.rotation, true);
+        }
+        const start = getBall();
+        ball.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+        ball.setTranslation(vec3(start), true);
+        ball.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+        launch(ball, direction, power);
+        const limit = Math.max(1.5, 0.45 * power * MAX_ROLL);
+        const points = [start];
+        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, quiet = 0;
+        for (let stepIndex = 0; stepIndex < 360; stepIndex++) {
+            atTime += FIXED_STEP;
+            for (const { spec, body } of obstacles) {
+                const pose = obstaclePose(spec, atTime);
+                body.setNextKinematicTranslation(vec3(pose.position));
+                body.setNextKinematicRotation(pose.rotation);
+            }
+            copy.step(queue);
+            let touchedWall = false;
+            queue.drainCollisionEvents((first, second, started) => {
+                const other = first === collider.handle ? second : second === collider.handle ? first : null;
+                if (started && other !== null && !FLOOR_SURFACES.has(surfaces.get(other))) touchedWall = true;
+            });
+            applyRolling(copy, ball, collider, handle => surfaces.get(handle));
+            const position = array3(ball.translation());
+            travelled += Math.hypot(position[0] - last[0], position[1] - last[1], position[2] - last[2]);
+            last = position;
+            const previous = points[points.length - 1];
+            if (touchedWall && contactAt < 0) {
+                contactAt = travelled;
+                points.push(position);
+                contactIndex = points.length - 1;
+            } else if (Math.hypot(position[0] - previous[0], position[2] - previous[2]) >= 0.08) points.push(position);
+            if ((course.water || []).some(volume => contains(volume, position))) { hazard = 'water'; break; }
+            if (!contains(course.bounds, position)) { hazard = 'out'; break; }
+            if (Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]) < cupOpening) break;
+            if ((contactAt >= 0 && travelled - contactAt >= 0.9) || travelled >= limit) break;
+            quiet = speed(ball.linvel()) < 0.075 ? quiet + 1 : 0;
+            if (quiet >= 30) break;
+        }
+        if (points[points.length - 1] !== last) points.push(last);
+        ball.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+        return { points, contactIndex, hazard };
+    }
+
     function dispose() {
         if (disposed) return;
         disposed = true;
+        if (ghost) { ghost.events.free(); ghost.world.free(); ghost = null; }
         events.free();
         world.free();
     }
 
-    return { step, shoot, setBall, getBall, getSnapshot, getObstacles, resetTime, dispose };
+    return { step, shoot, predict, setBall, getBall, getSnapshot, getObstacles, resetTime, dispose };
 }

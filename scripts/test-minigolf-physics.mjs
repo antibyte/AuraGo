@@ -273,4 +273,40 @@ const grassRoll = await rollOut(wide(), [1, 0], 0.5);
 const sandRoll = await rollOut(wide({ colliders: [wideFloor('sand')] }), [1, 0], 0.5);
 assert.ok(sandRoll.distance < grassRoll.distance * 0.65, `sand materially shortens rolling distance (${sandRoll.distance.toFixed(2)} m vs ${grassRoll.distance.toFixed(2)} m)`);
 
+// --- Trajectory preview -----------------------------------------------------
+const pathLength = (points, from = 0) => points.slice(from + 1).reduce((sum, point, index) => sum + Math.hypot(point[0] - points[from + index][0], point[2] - points[from + index][2]), 0);
+const wallAhead = () => wide({ colliders: [wideFloor(), { type: 'box', position: [3, 0.3, 0], halfExtents: [0.1, 0.3, 3], surface: 'wood' }] });
+
+const predictEvents = [];
+const predicting = await createPhysics(wallAhead(), { onEvent: event => predictEvents.push(event) });
+const ballBefore = predicting.getBall(), timeBefore = predicting.getSnapshot().time;
+const preview = predicting.predict([1, 0], 0.5);
+assert.ok(preview && preview.points.length >= 2, 'preview returns a path');
+assert.ok(preview.contactIndex >= 0, 'preview marks the first wall contact');
+assert.ok(pathLength(preview.points, preview.contactIndex) <= 1.05, `preview ends ≤ 1 m after the wall (${pathLength(preview.points, preview.contactIndex).toFixed(2)} m)`);
+assert.equal(preview.hazard, null);
+assert.deepEqual(predicting.getBall(), ballBefore, 'preview leaves the live ball in place');
+assert.equal(predicting.getSnapshot().time, timeBefore, 'preview leaves live time untouched');
+assert.equal(predictEvents.length, 0, 'preview emits no live events');
+
+async function restAfterShot(physics, events, checkPreview = false) {
+    assert.equal(physics.shoot([1, 0], 0.5), true);
+    if (checkPreview) assert.equal(physics.predict([1, 0], 0.5), null, 'no preview while a shot is resolving');
+    for (let i = 0; i < 2400 && !events.some(event => event.type !== 'impact'); i++) physics.step(fixedStep);
+    return physics.getBall();
+}
+const predictedRest = await restAfterShot(predicting, predictEvents, true);
+const freshEvents = [];
+const fresh = await createPhysics(wallAhead(), { onEvent: event => freshEvents.push(event) });
+const freshRest = await restAfterShot(fresh, freshEvents);
+freshRest.forEach((value, axis) => close(value, predictedRest[axis], 1e-9, 'a preview does not change the following live shot'));
+predicting.dispose();
+fresh.dispose();
+
+const openField = await createPhysics(wide());
+const longPreview = openField.predict([1, 0], 1);
+assert.equal(longPreview.contactIndex, -1, 'open field has no wall contact');
+assert.ok(pathLength(longPreview.points) <= 0.45 * MAX_ROLL + 0.2, `long preview stops at 45 % of the roll (${pathLength(longPreview.points).toFixed(2)} m)`);
+openField.dispose();
+
 console.log('minigolf physics: all checks passed');
