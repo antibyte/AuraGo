@@ -12,7 +12,7 @@
             item.element.style.setProperty('--vd-minimize-dy', delta.dy + 'px');
         }
         renderTaskbar();
-        animateThen(item.element, 'vd-window-minimizing', isFruityTheme() ? 200 : 170, () => {
+        animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
             item.element.style.display = 'none';
             item.minimizing = false;
             scheduleFruityDockOcclusionCheck();
@@ -26,7 +26,7 @@
         const host = $('vd-taskbar-apps');
         if (!item || !host) return null;
         let target = null;
-        if (isFruityTheme()) {
+        if (shellLayout() === 'dock') {
             target = host.querySelector('.vd-dock-button[data-app-id="' + cssSel(item.appId) + '"]');
         } else {
             target = host.querySelector('[data-window-id="' + cssSel(id) + '"]');
@@ -164,7 +164,7 @@ function wireWindow(win, id) {
                 if (drag !== activeDrag) return;
                 const maxLeft = window.innerWidth - 80;
                 const taskbar = document.querySelector('.vd-taskbar');
-                const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+                const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
                 const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
@@ -383,7 +383,7 @@ function wireWindow(win, id) {
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
         let height = (layer && layer.clientHeight) || window.innerHeight;
-        if (!isFruityTheme() && taskbar) {
+        if (shellLayout() === 'taskbar' && taskbar) {
             height = Math.max(1, height - taskbar.offsetHeight);
         } else if (isCompactViewport() && window.visualViewport) {
             height = Math.min(height, Math.max(1, window.visualViewport.height - ((taskbar && taskbar.offsetHeight) || 0)));
@@ -555,7 +555,7 @@ function wireWindow(win, id) {
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
         if (wasHidden) {
-            animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
+            animateThen(win.element, 'vd-window-restoring', themeMotionMs('restore'));
             desktopSound('window.restore');
         }
         renderTaskbar();
@@ -585,7 +585,7 @@ function wireWindow(win, id) {
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
-        animateThen(win.element, 'vd-window-closing', isFruityTheme() ? 180 : 130, () => {
+        animateThen(win.element, 'vd-window-closing', themeMotionMs('close'), () => {
             disposeAppWindow(win);
             win.element.remove();
             state.windows.delete(id);
@@ -602,7 +602,7 @@ function wireWindow(win, id) {
             if (immediate || menu.classList.contains('vd-context-menu-closing')) {
                 menu.remove();
             } else {
-                animateThen(menu, 'vd-context-menu-closing', isFruityTheme() ? 150 : 100, () => menu.remove());
+                animateThen(menu, 'vd-context-menu-closing', themeMotionMs('menuClose'), () => menu.remove());
             }
         }
         if (state.contextMenuKeydown) {

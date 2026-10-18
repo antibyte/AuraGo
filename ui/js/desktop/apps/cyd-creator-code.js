@@ -35,7 +35,8 @@
     function usesLightEditorTheme() {
         const body = document.body;
         if (!body) return false;
-        if (body.dataset.theme === 'fruity') return body.dataset.fruityMode !== 'dark';
+        if (body.dataset.scheme) return body.dataset.scheme === 'light';
+        if (body.dataset.theme === 'fruity') return body.dataset.fruityMode !== 'dark'; // harnesses that set data-theme directly
         return body.dataset.theme === 'light';
     }
 
@@ -741,7 +742,7 @@
         b.add(() => { if (state.markerFrame) cancelAnimationFrame(state.markerFrame); });
         if (typeof MutationObserver === 'function' && document.body) {
             const themeObserver = new MutationObserver(syncTheme);
-            themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-fruity-mode'] });
+            themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-fruity-mode', 'data-scheme'] });
             b.add(() => themeObserver.disconnect());
         }
         editorHost.hidden = true;

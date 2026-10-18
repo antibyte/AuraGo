@@ -131,7 +131,7 @@
             if(!visible()||!renderer){stopMotion();return;}
             if(drag)return;
             const p=plant()||{seed:731,age_hours:0,moisture:0,nutrients:0,vitality:100,branches:[]};
-            const light=document.body.dataset.theme==='fruity'&&document.body.dataset.fruityMode!=='dark';
+            const bodyData=document.body.dataset,light=bodyData.scheme?bodyData.scheme==='light':bodyData.theme==='fruity'&&bodyData.fruityMode!=='dark';
             const key=JSON.stringify([p,bounds.width,bounds.height,anchor,light,devicePixelRatio]);
             if(key!==renderKey){renderer.update(p,bounds.width,bounds.height,anchor,light);renderKey=key;if(selection)renderer.select(selection);}
             scheduleBreeze();
@@ -293,7 +293,7 @@
         listen(document,'aurago:plant-change',refresh);listen(window,'online',refresh);
         listen(motion,'change',()=>{renderKey='';draw();});
         const observer=new MutationObserver(()=>{draw();drawPanel();});
-        observer.observe(document.body,{attributes:true,attributeFilter:['data-theme','data-fruity-mode','data-animations','data-widgets','data-density']});
+        observer.observe(document.body,{attributes:true,attributeFilter:['data-theme','data-fruity-mode','data-scheme','data-animations','data-widgets','data-density']});
         current={
             dispose(){
                 if(dead)return;dead=true;endDrag();lifecycle.abort();observer.disconnect();stopMotion();clearFall();

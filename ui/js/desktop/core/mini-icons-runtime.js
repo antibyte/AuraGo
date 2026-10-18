@@ -41,6 +41,6 @@
     function refreshMiniIconTheme() {
         const manifest = state.miniIconManifest;
         if (!manifest || !manifest.images) return;
-        const path = manifest.images[isFruityTheme() ? 'fruity' : 'standard'];
+        const path = manifest.images[themeIconFamily()];
         if (path) document.body.style.setProperty('--vd-mini-sheet', iconUrlStyle(path));
     }

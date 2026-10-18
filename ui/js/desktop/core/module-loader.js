@@ -10,7 +10,8 @@
         main: '/js/desktop/bundles/main.bundle.js',
         'file-manager': '/js/desktop/bundles/file-manager.bundle.js',
         'code-studio': '/js/desktop/bundles/code-studio.bundle.js',
-        'desktop-sounds': '/js/desktop/bundles/desktop-sounds.bundle.js'
+        'desktop-sounds': '/js/desktop/bundles/desktop-sounds.bundle.js',
+        'desktop-theme-fx': '/js/desktop/bundles/desktop-theme-fx.bundle.js'
     };
     const commonAppStyles = ['/css/desktop-app-common.css', '/css/desktop-gog.css'];
 

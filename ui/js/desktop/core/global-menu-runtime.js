@@ -7,7 +7,7 @@
         return global && global.dataset.ownerWindow === windowId ? global : null;
     }
     function syncDesktopMenuBar() {
-        const enabled = isFruityTheme() && !isCompactViewport();
+        const enabled = themeUsesGlobalMenu() && !isCompactViewport();
         let top = document.getElementById('vd-global-bar');
         const taskbar = document.querySelector('.vd-taskbar');
         if (!taskbar) return;

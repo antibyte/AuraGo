@@ -1,0 +1,80 @@
+/* desktop-theme-lollipop.css - Lollipop desktop theme. Placeholder tokens copied from Standard; the Wave-2 skin replaces them. */
+
+.desktop-body[data-theme="lollipop"] {
+    color-scheme: light;
+
+    /* Core */
+    --vd-bg: #0c1016;
+    --vd-surface: #171d26;
+    --vd-surface-strong: #1d2530;
+    --vd-border: rgba(255, 255, 255, 0.12);
+    --vd-border-bright: rgba(255, 255, 255, 0.18);
+    --vd-text: #edf1f7;
+    --vd-muted: #aeb7c6;
+    --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
+    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--vd-accent) 8%, transparent);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --vd-window-radius: 12px;
+    --vd-font-ui: 'Geist', system-ui, sans-serif;
+
+    /* Fixed accent */
+    --vd-accent: #27C7A6;
+    --vd-accent-r: 39;
+    --vd-accent-g: 199;
+    --vd-accent-b: 166;
+    --vd-accent-glow: rgba(39, 199, 166, 0.12);
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #11151c;
+    --vd-theme-panel-bg: #191f28;
+    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
+    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
+    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
+    --vd-theme-border: rgba(191, 210, 235, 0.14);
+    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
+    --vd-theme-muted: #aeb7c6;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
+    --vd-theme-radius-panel: 10px;
+    --vd-theme-radius-modal: 14px;
+    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
+    --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
+    --vd-theme-blur: blur(24px) saturate(1.15);
+
+    /* Chrome */
+    --vd-chrome-highlight: 0 0 0 transparent;
+    --vd-chrome-ring: 0 0 0 transparent;
+    --vd-chrome-hairline: none;
+
+    /* Design system */
+    --ds-color-fg-primary: #edf1f7;
+    --ds-color-fg-secondary: #d0d0d0;
+    --ds-color-fg-muted: #aeb7c6;
+    --ds-color-fg-disabled: #6b6b6b;
+    --ds-color-bg-canvas: #0c1016;
+    --ds-color-bg-raised: #171d26;
+    --ds-color-bg-overlay: #1d2530;
+    --ds-color-bg-modal: #222c39;
+    --ds-color-surface-0: #11151c;
+    --ds-color-surface-1: #171d26;
+    --ds-color-surface-2: #1d2530;
+    --ds-color-surface-3: #222c39;
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
+    --ds-color-border-default: rgba(255, 255, 255, 0.18);
+    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
+    --ds-color-border-focus: #E95420;
+    --ds-color-accent-500: #E95420;
+    --ds-color-accent-600: #c7431a;
+    --ds-color-accent-glow: rgba(233, 84, 32, 0.08);
+    --ds-color-control-active: rgba(255, 255, 255, 0.14);
+    --ds-color-inner-highlight: rgba(255, 255, 255, 0.04);
+    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.34);
+    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.42);
+    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.52);
+    --ds-elevation-5: 0 32px 96px rgba(0, 0, 0, 0.6);
+    --ds-blur-fine: blur(22px) saturate(1.3);
+    --ds-blur-coarse: blur(8px) saturate(1.1);
+}

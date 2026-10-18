@@ -8,6 +8,7 @@ const checkOnly = process.argv.includes('--check');
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/theme-runtime.js',
   'ui/js/desktop/core/sound-runtime.js',
   'ui/js/desktop/core/screensaver-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
@@ -133,6 +134,13 @@ const jsBundles = [
     ]
   },
   {
+    out: 'ui/js/desktop/bundles/desktop-theme-fx.bundle.js',
+    parts: [
+      'ui/js/desktop/theme-fx/fx-core.js',
+      'ui/js/desktop/theme-fx/crazy.js'
+    ]
+  },
+  {
     out: 'ui/js/desktop/bundles/code-studio.bundle.js',
     parts: [
       'ui/js/desktop/apps/code-studio/core.js',
@@ -183,6 +191,11 @@ const cssBundles = [
       'ui/css/desktop-sip-phone-shell.css',
       'ui/css/desktop-chrome.css',
       'ui/css/desktop-wallpaper-live.css',
+      'ui/css/desktop-theme-amiga.css',
+      'ui/css/desktop-theme-cyberpunk.css',
+      'ui/css/desktop-theme-black-gloss.css',
+      'ui/css/desktop-theme-crazy.css',
+      'ui/css/desktop-theme-lollipop.css',
       'ui/css/desktop-polish.css'
     ]
   },

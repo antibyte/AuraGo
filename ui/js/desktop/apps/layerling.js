@@ -167,7 +167,7 @@
             if(op==='export_model') return exportModel(p.path,p.format,false);
             const value=await s.request(op,p);if(!readOperations.has(op))s.changed();return value;
         };
-        const appearance = () => ({language:document.documentElement.lang || window.SYSTEM_LANG || 'en',theme:document.body.dataset.theme==='fruity' && document.body.dataset.fruityMode!=='dark' ? 'light':'dark'});
+        const appearance = () => { const bodyData=document.body.dataset;return {language:document.documentElement.lang || window.SYSTEM_LANG || 'en',theme:(bodyData.scheme ? bodyData.scheme==='light' : bodyData.theme==='fruity' && bodyData.fruityMode!=='dark') ? 'light':'dark'}; };
         s.start = async () => {
             if(s.started) return;s.started=true;
             const policy=await ctx.api(API+'state',{signal});s.readonly=!!policy.readonly;
@@ -229,7 +229,7 @@
             if(s.readonly)s.show(t('readonly'));
         },{signal});
         const observer=new MutationObserver(()=>{if(s.started&&s.port)s.request('init',appearance()).catch(()=>{});});
-        observer.observe(document.body,{attributes:true,attributeFilter:['data-theme','data-fruity-mode']});
+        observer.observe(document.body,{attributes:true,attributeFilter:['data-theme','data-fruity-mode','data-scheme']});
         observer.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
         signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
         ctx.setWindowBeforeClose?.(id,async()=>{await s.jobs;try{return await guard();}catch(error){s.show(error.message,true);return false;}});

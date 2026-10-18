@@ -452,7 +452,7 @@
         const rect = menu.getBoundingClientRect();
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
         menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';
-        animateThen(menu, 'vd-context-menu-opening', isFruityTheme() ? 150 : 100);
+        animateThen(menu, 'vd-context-menu-opening', themeMotionMs('menuOpen'));
         desktopSound('menu.open');
         menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1593,7 +1593,7 @@
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }

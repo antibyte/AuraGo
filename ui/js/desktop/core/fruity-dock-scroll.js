@@ -92,7 +92,7 @@ function ensureMobileTaskbarSwipe() {
 
     wireMobileTaskbarSwipe();
 
-    if (isFruityTheme()) {
+    if (shellLayout() === 'dock') {
         const dockHost = $('vd-taskbar-apps');
         const scrollRegion = dockHost && dockHost.querySelector('[data-fruity-dock-scroll-region]');
         if (scrollRegion && !scrollRegion._mobileSwipeWired) wireMobileDockSwipe(scrollRegion);
@@ -154,7 +154,7 @@ function scheduleFruityDockOcclusionCheck() {
 function updateFruityDockOcclusion() {
     const body = document.body;
     const host = $('vd-taskbar-apps');
-    if (!body || !host || !isFruityTheme()) {
+    if (!body || !host || shellLayout() !== 'dock') {
         if (body) body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
         return;

@@ -17,6 +17,7 @@
     }
 
     function trackPointerLight(event) {
+        if (document.body && document.body.dataset.polish === 'off') return;
         if (event.pointerType && event.pointerType !== 'mouse') return;
         const item = event.target instanceof Element ? event.target.closest(POINTER_LIGHT_TARGETS) : null;
         pointerLightItem = item;

@@ -1039,8 +1039,8 @@
         syncDesktopMenuBar();
         const host = $('vd-taskbar-apps');
         if (!host) return;
-        host.classList.toggle('vd-dock', isFruityTheme());
-        if (isFruityTheme()) {
+        host.classList.toggle('vd-dock', shellLayout() === 'dock');
+        if (shellLayout() === 'dock') {
             renderFruityDock();
             scheduleFruityDockOcclusionCheck();
             return;
@@ -1324,7 +1324,7 @@
         const workspaceRect = workspace.getBoundingClientRect();
         const margin = 16;
         const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+        const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
         return {
             width: Math.min(size.width, Math.max(1, workspaceRect.width - margin * 2)),
             height: Math.min(size.height, Math.max(1, workspaceRect.height - taskbarReserve - margin * 2))
@@ -1339,7 +1339,7 @@
         const stepX = 28;
         const stepY = 24;
         const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+        const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
         const maxLeft = Math.max(margin, workspaceRect.width - size.width - margin);
         const maxTop = Math.max(margin, workspaceRect.height - taskbarReserve - size.height - margin);
         const slotsX = Math.max(1, Math.floor((maxLeft - margin) / stepX) + 1);
@@ -1472,7 +1472,7 @@
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
         state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '', spaceId: win.dataset.spaceId });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', 240);
+        animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         focusWindow(id);
         applySpaceVisibility();
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
@@ -1657,7 +1657,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', 240);
+        animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
