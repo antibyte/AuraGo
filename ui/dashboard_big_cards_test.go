@@ -191,3 +191,30 @@ func TestDashboardPromptCardPutsKPIsFirst(t *testing.T) {
 		},
 	})
 }
+
+// TestDashboardToolingCardPutsKPIsFirst (decision 4): format errors, recoveries, policy signals and failing tools on
+// top; the nine-item summary strip and the eight sections in closed disclosures (the failures one counted). The card
+// still starts hidden until telemetry exists.
+func TestDashboardToolingCardPutsKPIsFirst(t *testing.T) {
+	t.Parallel()
+	d := func(key, label, id string, counted bool) dashboardDisclosure {
+		return dashboardDisclosure{key: key, label: label, holds: []string{`id="` + id + `"`}, counted: counted}
+	}
+	assertDashboardBigCard(t, dashboardBigCard{
+		section: "tools", card: "card-tooling-telemetry", kpi: "tooling-telemetry-kpis",
+		disclosures: []dashboardDisclosure{
+			d("summary", "dashboard.tooling_telemetry_all_counters", "tooling-telemetry-summary", false),
+			d("parse", "dashboard.tooling_telemetry_parse_sources", "tooling-telemetry-parse", false),
+			d("recovery", "dashboard.tooling_telemetry_recovery_events", "tooling-telemetry-recovery", false),
+			d("policy", "dashboard.tooling_telemetry_policy_events", "tooling-telemetry-policy", false),
+			d("retrieval", "dashboard.tooling_telemetry_retrieval_events", "tooling-telemetry-retrieval", false),
+			d("failures", "dashboard.tooling_telemetry_failure_tools", "tooling-telemetry-failures", true),
+			d("families", "dashboard.tooling_telemetry_tool_families", "tooling-telemetry-families", false),
+			d("scopes", "dashboard.tooling_telemetry_scopes", "tooling-telemetry-scopes", false),
+			d("comparison", "dashboard.tooling_telemetry_model_comparison", "tooling-telemetry-comparison", false),
+		},
+	})
+	if !strings.Contains(readDashboardSection(t, "tools"), `<div class="dash-card span-12 is-hidden" id="card-tooling-telemetry">`) {
+		t.Error("card-tooling-telemetry must still start hidden until it has telemetry")
+	}
+}

@@ -641,6 +641,23 @@
             }, 6) + '</div>';
         }
 
+        // Headline counters of the tooling telemetry card (P5 KPI row). Format errors are the classifier_format_error_*
+        // and classifier_schema_error_* recovery events: model output that failed to parse and was recovered. Counts
+        // below 1 and non-numbers are skipped, as in the lists; failing tools have at least one failed call.
+        function toolingTelemetryKpis(data) {
+            const telemetry = data?.agent_telemetry || {};
+            const sum = (events, keep) => Object.entries(events || {}).reduce((total, [key, count]) => {
+                const value = Number(count);
+                return value > 0 && keep(key) ? total + value : total;
+            }, 0);
+            return {
+                formatErrors: sum(telemetry.recovery_events, key => key.startsWith('classifier_format_error_') || key.startsWith('classifier_schema_error_')),
+                recoveries: sum(telemetry.recovery_events, () => true),
+                policySignals: sum(telemetry.policy_events, () => true),
+                failingTools: Object.values(data?.by_tool || {}).filter(stats => Number(stats?.failure_count || 0) > 0).length,
+            };
+        }
+
         function renderToolingTelemetry(data) {
             const card = document.getElementById('card-tooling-telemetry');
             const telemetry = data?.agent_telemetry || {};
@@ -667,6 +684,15 @@
             parseSources.sort((a, b) => Number(b[1]) - Number(a[1]));
             recoveryEvents.sort((a, b) => Number(b[1]) - Number(a[1]));
             policyEvents.sort((a, b) => Number(b[1]) - Number(a[1]));
+
+            const kpis = toolingTelemetryKpis(data);
+            renderDashKpiRow(document.getElementById('tooling-telemetry-kpis'), [
+                { label: t('dashboard.tooling_telemetry_format_errors'), value: kpis.formatErrors },
+                { label: t('dashboard.tooling_telemetry_recoveries_total'), value: kpis.recoveries },
+                { label: t('dashboard.tooling_telemetry_policy_events'), value: kpis.policySignals },
+                { label: t('dashboard.tooling_telemetry_tools_with_failures'), value: kpis.failingTools },
+            ]);
+            window.DashDisclosures?.setCount('card-tooling-telemetry:failures', kpis.failingTools);
 
             renderToolingSummary(document.getElementById('tooling-telemetry-summary'), parseSources, recoveryEvents, policyEvents, retrievalSummary, failingTools);
             renderTelemetryGroup(document.getElementById('tooling-telemetry-parse'), parseSources, toolingTelemetryParseLabel);

@@ -30,40 +30,62 @@
     <div class="dash-card span-12 is-hidden" id="card-tooling-telemetry">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a5 5 0 0 0 10 0V3" stroke-linecap="round"/><circle cx="19" cy="14" r="3"/><path d="M9 14v3a4 4 0 0 0 4 4" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.tooling_telemetry_title"></h3> <button type="button" class="collapse-toggle" data-card="card-tooling-telemetry" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
-        <div id="tooling-telemetry-summary" class="mb-sm"></div>
-        <div class="tooling-telemetry-grid">
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_parse_sources"></h4>
-            <div id="tooling-telemetry-parse"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_recovery_events"></h4>
-            <div id="tooling-telemetry-recovery"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_policy_events"></h4>
-            <div id="tooling-telemetry-policy"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_retrieval_events"></h4>
-            <div id="tooling-telemetry-retrieval"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_failure_tools"></h4>
-            <div id="tooling-telemetry-failures"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_tool_families"></h4>
-            <div id="tooling-telemetry-families"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_scopes"></h4>
-            <div id="tooling-telemetry-scopes"></div>
-          </div>
-          <div class="tooling-telemetry-section">
-            <h4 class="dash-subheading" data-i18n="dashboard.tooling_telemetry_model_comparison"></h4>
-            <div id="tooling-telemetry-comparison"></div>
-          </div>
+        <div class="dash-kpi-row" id="tooling-telemetry-kpis" role="list"></div>
+        <div class="dash-disclosure-group">
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:summary">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_all_counters"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-summary"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:parse">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_parse_sources"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-parse"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:recovery">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_recovery_events"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-recovery"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:policy">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_policy_events"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-policy"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:retrieval">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_retrieval_events"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-retrieval"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:failures">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_failure_tools"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-failures"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:families">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_tool_families"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-families"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:scopes">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_scopes"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-scopes"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-tooling-telemetry:comparison">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.tooling_telemetry_model_comparison"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="tooling-telemetry-comparison"></div>
+            </div>
+          </details>
         </div>
       </div>
     </div>

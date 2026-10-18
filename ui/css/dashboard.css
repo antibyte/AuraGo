@@ -2616,22 +2616,10 @@ gray = hollow circle */
     font-size: var(--text-xs);
     text-align: right;
 }
-.pw-page[data-workspace-page="dashboard"] .tooling-telemetry-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-}
 .pw-page[data-workspace-page="dashboard"] .tooling-telemetry-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.75rem;
-}
-.pw-page[data-workspace-page="dashboard"] .tooling-telemetry-section {
-    padding: 0.85rem 0.95rem;
-    border: 1px solid var(--pw-line);
-    border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--pw-surface-elevated) 82%, transparent);
-    overflow: hidden;
 }
 .pw-page[data-workspace-page="dashboard"] .tooling-telemetry-summary-item {
     padding: 0.75rem 0.85rem;
