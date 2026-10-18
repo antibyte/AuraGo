@@ -46,7 +46,10 @@ type clipBuild struct {
 //   - filter: its filters without the separating comma ("" adds nothing);
 //   - tracks: the runtime commands for the single-input filters in it;
 //   - luts: the LUT tables it reads by bare name (vs_lut_<n>.cube, one per distinct table of the process);
-//   - twoInput: the stage ends in a two-input filter (blend, alphamerge; 2d's mask merge and chroma-key alpha wrapper).
+//   - files: command files the stage reads itself (2e: the blur_in mask branches, vs_cmd_<L>_<C>_m<n>.txt, each with its
+//     own sendcmd inside the stage). assembleStages lists them with the clip's commands but places no sendcmd for them;
+//   - twoInput: the stage ends in a two-input filter: blend or alphamerge; 2d's mask merge and chroma-key alpha
+//     wrapper; 2e's blur cascade and reveal.
 //
 // The tracks of every later stage go to the next command group, because commands must not cross a framesync. A
 // stage's own tracks belong to the group in front of it. A target inside a two-input stage therefore sits in a
@@ -56,6 +59,7 @@ type chainStage struct {
 	filter   string
 	tracks   []SendCmdTrack
 	luts     []lutFile
+	files    []sendCmdFile
 	twoInput bool
 }
 
@@ -77,18 +81,21 @@ func (c clipChain) build(output string) clipBuild {
 func (c clipChain) filter(output string) string { return c.build(output).filter }
 
 // stages lists the stages after window in the preview's pipeline order (index §4.10): picture, the effect entries, the
-// animated crop, fit, mask, the wipe's reveal (2e), orient and opacity.
+// blur_in cascade (2e), the animated crop, fit, mask, the wipe's reveal (2e), orient and opacity.
+//   - The blur_in cascade works on the processed picture right after the effects, so it is a two-input stage whose mask
+//     branches carry their own command files.
 //   - The animated crop (plan 2c) is its own stage right in front of the fit, so its commands join the group of the last
 //     two-input stage before it.
 //   - fit leaves the picture in box space: the box, or the pad canvas of keyframed or animated geometry. The mask (2d)
 //     and the wipe's reveal (2e) apply there, in that order.
 //   - orient converts the picture to RGBA and rotates it.
 //
-// Without a mask or a wipe, the joined filters equal the 2c transform byte for byte.
+// Without blur_in, a mask or a wipe, the joined filters equal the 2c transform byte for byte.
 func (c clipChain) stages() []chainStage {
 	stages := []chainStage{{filter: c.picture()}}
 	stages = append(stages, c.effects()...)
 	return append(stages,
+		c.animBlur(),
 		chainStage{filter: c.animatedCrop(), tracks: c.pictureTracks()},
 		chainStage{filter: c.fit(), tracks: c.transformTracks()},
 		c.mask(),
@@ -105,6 +112,7 @@ func (c clipChain) stages() []chainStage {
 //     timestamps.
 //   - Between a sendcmd and its targets lie single-input filters only, so no command overtakes its frame.
 //   - Empty groups get neither a file nor a sendcmd.
+//   - Stage-owned command files (chainStage.files, 2e) follow in stage order; their sendcmd sits inside the stage.
 //
 // The LUT files are listed in stage order.
 func assembleStages(id string, stages []chainStage) (filters []string, commands []sendCmdFile, luts []lutFile) {
@@ -134,6 +142,7 @@ func assembleStages(id string, stages []chainStage) (filters []string, commands 
 			filters = append(filters, stage.filter)
 		}
 		luts = append(luts, stage.luts...)
+		commands = append(commands, stage.files...)
 		if stage.twoInput {
 			group++
 			reader(group)
@@ -339,6 +348,10 @@ func (c clipChain) entryInput(index int, spec EffectSpec) effectInput {
 	return effectInput{id: fmt.Sprintf("%d_%d", c.track, c.index), index: index, spec: spec, whole: c.item.whole, at: c.item.at,
 		frames: c.item.clip.Duration, pieces: c.item.pieces, rate: c.rate, image: c.item.image, width: width, height: height, lut: c.item.luts[index], lutNames: names}
 }
+
+// animBlur is the blur_in cascade right after the effect stack (index §4.10, §4.24). animBlurStage builds it, and it is {}
+// without an effective blur_in span. It is a two-input stage, so the commands of later stages read the next group.
+func (c clipChain) animBlur() chainStage { return animBlurStage(c) }
 
 // processedSize is the picture the effects process, in decoded pixels (index §4.20, resolution rule): the static crop
 // rectangle, or the whole decoded picture when the crop is keyframed or absent.

@@ -1,6 +1,9 @@
 package videostudio
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // The wipe's timeline expression (index §4.11, §4.24). It is 1 exactly on the absolute frames of the clip's effective spans
 // whose preset is listed, for windows that start at the clip, inside the in span and inside the out span, at 25 and
@@ -144,6 +147,55 @@ func TestRevealExprMatchesAnimReveal(t *testing.T) {
 			}
 			if hidden == 0 || shown == 0 {
 				t.Fatalf("%s, window at %d: the spans hid %d and showed %d columns; the case does not test the edges", tc.name, at, hidden, shown)
+			}
+		}
+	}
+}
+
+// The blur_in mask files (index §4.24). Node n's file vs_cmd_<L>_<C>_m<n>.txt sets rr, gg and bb of
+// colorchannelmixer@vs_animk_<L>_<C>_<n> to m/255 on every window frame. m comes from animAt at the absolute frame: m1 or
+// m2 inside a blur_in span, 255 elsewhere. A window that starts inside the in span reads the same absolute frames, and
+// every file is a valid sendcmd script.
+func TestAnimBlurMaskFiles(t *testing.T) {
+	rate := Rate{Num: 25, Den: 1}
+	clip := Clip{ID: "b", AssetID: "a", Start: 10, Duration: 30, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain,
+		AnimIn: &ClipAnim{Preset: "blur_in", Duration: 12}, AnimOut: &ClipAnim{Preset: "blur_in", Duration: 8}}
+	// D_in = 12: frames [10, 22); D_out = 8: frames [32, 40); frames 22–31 are at rest.
+	for _, at := range []int{10, 17} {
+		local := clip
+		local.Start, local.Duration = 0, clip.Start+clip.Duration-at
+		c := clipChain{track: 1, index: 2, item: layerClip{clip: local, whole: clip, at: at, pictureWidth: 320, pictureHeight: 180}, canvasWidth: 320, canvasHeight: 180, rate: rate}
+		stage := c.animBlur()
+		if !stage.twoInput || stage.tracks != nil || len(stage.files) != 2 {
+			t.Fatalf("window at %d: blur stage %+v", at, stage)
+		}
+		for i, file := range stage.files {
+			n := i + 1
+			target := fmt.Sprintf("colorchannelmixer@vs_animk_1_2_%d", n)
+			if file.name != fmt.Sprintf("vs_cmd_1_2_m%d.txt", n) || !sendCmdFileName.MatchString(file.name) || len(file.tracks) != 3 {
+				t.Fatalf("window at %d: mask file %d is %q with %d tracks", at, n, file.name, len(file.tracks))
+			}
+			for j, option := range []string{"rr", "gg", "bb"} {
+				track := file.tracks[j]
+				if track.Target != target || track.Option != option || len(track.Values) != local.Duration {
+					t.Fatalf("window at %d: mask %d track %d is %s %s with %d values", at, n, j, track.Target, track.Option, len(track.Values))
+				}
+				for k, value := range track.Values {
+					a := animAt(clip, at+k)
+					want := 255
+					if a.Blur {
+						want = a.M1
+						if n == 2 {
+							want = a.M2
+						}
+					}
+					if level := animMaskLevel(clip, at+k, n); level != want || value != float64(want)/255 {
+						t.Fatalf("window at %d: mask %d at frame %d is %v (level %d), want %d/255", at, n, at+k, value, level, want)
+					}
+				}
+			}
+			if _, err := sendCmdScript(rate, file.tracks); err != nil {
+				t.Fatalf("window at %d: mask %d script: %v", at, n, err)
 			}
 		}
 	}

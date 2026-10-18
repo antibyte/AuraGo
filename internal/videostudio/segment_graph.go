@@ -215,7 +215,7 @@ func segmentLayers(project Project, window Segment, sources map[string]renderSou
 				item.sourceAspect = float64(width) / float64(height)
 			}
 			if pictureSizeNeeded(clip) && (item.pictureWidth <= 0 || item.pictureHeight <= 0) {
-				return nil, nil, fmt.Errorf("decoded picture size of asset %q is unknown; clip %q needs it for its crop or effects", clip.AssetID, clip.ID)
+				return nil, nil, fmt.Errorf("decoded picture size of asset %q is unknown; clip %q needs it for its crop, effects or blur animation", clip.AssetID, clip.ID)
 			}
 			input := segmentInput{path: source.path, image: item.image}
 			if !input.image {
@@ -503,10 +503,13 @@ func gapLabel(trackIndex, sequence int) string {
 	return fmt.Sprintf("vs_gap_%d_%d", trackIndex, sequence)
 }
 
-// pictureSizeNeeded reports a clip whose export works in decoded pixels: crop keyframes (crop@vs_picture commands) or an
-// effect that is on (the resolution rule, index §4.20).
+// pictureSizeNeeded reports a clip whose export works in decoded pixels:
+//   - crop keyframes (crop@vs_picture commands);
+//   - an effect that is on (the resolution rule, index §4.20);
+//   - a blur_in animation that plays (2e): its sigma and its masks have the processed picture's size, and maskedmerge
+//     refuses a mask of another size.
 func pictureSizeNeeded(clip Clip) bool {
-	if cropAnimated(clip) {
+	if cropAnimated(clip) || animKindsOf(clip).blur {
 		return true
 	}
 	for _, entry := range clip.Effects {

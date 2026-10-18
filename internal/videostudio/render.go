@@ -480,9 +480,11 @@ func (f *graphFiles) addLUTs(luts []lutFile) {
 	}
 }
 
-// sendCmdFileName and lutFileName are the only names a staged command or LUT file may have.
+// sendCmdFileName and lutFileName are the only names a staged command or LUT file may have. A command file is a clip's
+// group file (vs_cmd_<L>_<C>.txt, vs_cmd_<L>_<C>_<g>.txt) or one of its blur_in mask files (vs_cmd_<L>_<C>_m1.txt and
+// _m2.txt, 2e).
 var (
-	sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+(_[0-9]+)?\.txt$`)
+	sendCmdFileName = regexp.MustCompile(`^vs_cmd_[0-9]+_[0-9]+(_[0-9]+|_m[1-2])?\.txt$`)
 	lutFileName     = regexp.MustCompile(`^vs_lut_[0-9]+\.cube$`)
 )
 

@@ -834,3 +834,151 @@ func TestClipChainRevealSnapshots(t *testing.T) {
 		t.Fatalf("mask then reveal: command files %+v, want the opacity in group 2", built.commands)
 	}
 }
+
+// TestClipChainBlurSnapshots pins the blur_in cascade after the effect stack (index §4.10, §4.24):
+//   - no stage without an effective blur_in span;
+//   - video: the whole chain of the opaque recipe, its two mask files, and the opacity commands in group 1 behind it;
+//   - a still: the premultiplied two-merge recipe with the alpha mask branches;
+//   - after a LUT blend: the cascade follows the blend, and the opacity reads group 2;
+//   - with crop keyframes: the cascade works on the whole decoded picture, and crop@vs_picture reads group 1 behind it;
+//   - video with a chroma key takes the alpha recipe.
+//
+// sendcmd appears only in the mask branches, and nothing commands a two-input filter.
+func TestClipChainBlurSnapshots(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	chain := func(index int, clip Clip, image bool, width, height int) clipChain {
+		return clipChain{track: 0, index: index, item: layerClip{clip: clip, whole: clip, at: clip.Start, input: index, image: image, pictureWidth: width, pictureHeight: height, sourceAspect: float64(width) / float64(height)}, canvasWidth: 320, canvasHeight: 180, rate: pal}
+	}
+	head := func(input, duration int) string {
+		return fmt.Sprintf("[%d:V:0]setpts='if(eq(N,0),min(PTS,floor(0.000000000/TB)),PTS)',fps=25,setpts='max(PTS-0,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,", input, duration, duration*2, duration)
+	}
+	tail := func(index, duration int) string {
+		return fmt.Sprintf("[vs_layer_0_%[1]d];color=c=black@0:s=320x180:r=25:d=%[2]s,trim=end_frame=%[3]d,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_%[1]d];[vs_clip_bg_0_%[1]d][vs_layer_0_%[1]d]overlay=x=0:y=0:format=auto:shortest=1[vs_clip_0_%[1]d]", index, pal.SecondsArg(duration), duration)
+	}
+	clip := func(edit func(*Clip)) Clip {
+		c := Clip{ID: "b", AssetID: "a", Duration: 20, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain, AnimIn: &ClipAnim{Preset: "blur_in", Duration: 6}}
+		edit(&c)
+		return c
+	}
+	merge := func(enable, planes string) string {
+		switch {
+		case animMergeGated && planes != "":
+			return "maskedmerge=" + planes + ":enable='" + enable + "'"
+		case animMergeGated:
+			return "maskedmerge=enable='" + enable + "'"
+		case planes != "":
+			return "maskedmerge=" + planes
+		}
+		return "maskedmerge"
+	}
+	names := func(files []sendCmdFile) []string {
+		var out []string
+		for _, file := range files {
+			out = append(out, file.name)
+		}
+		return out
+	}
+	commanded := regexp.MustCompile(`(maskedmerge|gblur|blend|premultiply|unpremultiply|alphamerge|extractplanes)@`)
+
+	for name, c := range map[string]Clip{
+		"no animation":     clip(func(c *Clip) { c.AnimIn = nil }),
+		"another preset":   clip(func(c *Clip) { c.AnimIn = &ClipAnim{Preset: "fade", Duration: 6} }),
+		"a one-frame clip": clip(func(c *Clip) { c.Duration = 1 }),
+	} {
+		if got := chain(0, c, false, 320, 180).animBlur(); !reflect.DeepEqual(got, chainStage{}) {
+			t.Fatalf("%s: blur stage %+v, want none", name, got)
+		}
+	}
+
+	// Video, 320x180: S = 0.02·180 = 3.6, S/4 = 0.9; the in span is frames [0, 6), so both masks start at 0.
+	video := chain(0, clip(func(*Clip) {}), false, 320, 180)
+	enable := animSpanExpr(video.item.whole, 0, pal, "blur_in").String()
+	if enable != "(st(0,(0+round(((max(t,0)*25)/1))));(gte(ld(0),0)*lt(ld(0),6)))" {
+		t.Fatalf("blur_in enable %s", enable)
+	}
+	mask := func(n int) string {
+		return fmt.Sprintf("color=c=white:s=4x4:r=25:d=0.800000,trim=end_frame=20,setpts=PTS-STARTPTS,format=gbrp,sendcmd=f=vs_cmd_0_0_m%[1]d.txt,colorchannelmixer@vs_animk_0_0_%[1]d=rr=0:gg=0:bb=0,scale=w=320:h=180:flags=neighbor,format=gbrp[vs_an_0_0_m%[1]d]", n)
+	}
+	stage := "format=gbrp,split=3[vs_an_0_0_s][vs_an_0_0_b1][vs_an_0_0_b2];" +
+		"[vs_an_0_0_b1]gblur=sigma=3.6:steps=4:enable='" + enable + "'[vs_an_0_0_g1];" +
+		"[vs_an_0_0_b2]gblur=sigma=0.9:steps=4:enable='" + enable + "'[vs_an_0_0_g2];" +
+		mask(1) + ";" + mask(2) + ";" +
+		"[vs_an_0_0_g1][vs_an_0_0_g2][vs_an_0_0_m1]" + merge(enable, "") + "[vs_an_0_0_x];" +
+		"[vs_an_0_0_x][vs_an_0_0_s][vs_an_0_0_m2]" + merge(enable, "")
+	if got := video.animBlur(); got.filter != stage || !got.twoInput || got.tracks != nil || len(got.files) != 2 {
+		t.Fatalf("video blur stage:\n got %+v\nwant filter %s", got, stage)
+	}
+	containFit := "scale=w=320:h=180:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=320:h=180:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0"
+	built := video.build("vs_clip_0_0")
+	if want := head(0, 20) + stage + ",sendcmd=f=vs_cmd_0_0_1.txt," + containFit + ",format=rgba," + video.opacity() + tail(0, 20); built.filter != want {
+		t.Fatalf("video with blur_in:\n got %s\nwant %s", built.filter, want)
+	}
+	if got := names(built.commands); !reflect.DeepEqual(got, []string{"vs_cmd_0_0_m1.txt", "vs_cmd_0_0_m2.txt", "vs_cmd_0_0_1.txt"}) {
+		t.Fatalf("video command files %v", got)
+	}
+	for n, file := range built.commands[:2] {
+		for j, option := range []string{"rr", "gg", "bb"} {
+			if track := file.tracks[j]; track.Target != fmt.Sprintf("colorchannelmixer@vs_animk_0_0_%d", n+1) || track.Option != option || len(track.Values) != 20 {
+				t.Fatalf("mask file %s track %d: %s %s, %d values", file.name, j, track.Target, track.Option, len(track.Values))
+			}
+		}
+	}
+	if built.commands[2].tracks[0].Target != "colorchannelmixer@vs_opacity_0_0" {
+		t.Fatalf("group 1 holds %+v, want the opacity", built.commands[2].tracks)
+	}
+	if strings.Count(built.filter, "sendcmd=f=") != 3 || commanded.MatchString(built.filter) {
+		t.Fatalf("video with blur_in: sendcmd outside the mask branches and group 1, or a commanded two-input filter:\n%s", built.filter)
+	}
+
+	// A still: premultiplied, two merges per node, alpha masks from alphamerge.
+	still := chain(1, clip(func(*Clip) {}), true, 320, 180)
+	p := "vs_an_0_1_"
+	alphaMask := func(n int) string {
+		return fmt.Sprintf("color=c=white:s=4x4:r=25:d=0.800000,trim=end_frame=20,setpts=PTS-STARTPTS,format=gbrp,sendcmd=f=vs_cmd_0_1_m%[1]d.txt,colorchannelmixer@vs_animk_0_1_%[1]d=rr=0:gg=0:bb=0,split=3[%[2]skc%[1]d][%[2]ska%[1]d][%[2]skg%[1]d];[%[2]skc%[1]d]scale=w=320:h=180:flags=neighbor,format=gbrp[%[2]sc%[1]d];[%[2]skg%[1]d]extractplanes=g[%[2]skp%[1]d];[%[2]ska%[1]d][%[2]skp%[1]d]alphamerge,scale=w=320:h=180:flags=neighbor,format=gbrap[%[2]sa%[1]d]", n, p)
+	}
+	wantStill := "format=gbrap,premultiply=inplace=1:enable='" + enable + "',split=4[" + p + "s1][" + p + "s2][" + p + "b1][" + p + "b2];" +
+		"[" + p + "b1]gblur=sigma=3.6:steps=4:enable='" + enable + "'[" + p + "g1];" +
+		"[" + p + "b2]gblur=sigma=0.9:steps=4:enable='" + enable + "',split=2[" + p + "g2a][" + p + "g2b];" +
+		alphaMask(1) + ";" + alphaMask(2) + ";" +
+		"[" + p + "g1][" + p + "g2a][" + p + "c1]" + merge(enable, "planes=7") + "[" + p + "x1];" +
+		"[" + p + "x1][" + p + "g2b][" + p + "a1]" + merge(enable, "planes=8") + "[" + p + "y1];" +
+		"[" + p + "y1][" + p + "s1][" + p + "c2]" + merge(enable, "planes=7") + "[" + p + "x2];" +
+		"[" + p + "x2][" + p + "s2][" + p + "a2]" + merge(enable, "planes=8") +
+		",unpremultiply=inplace=1:enable='" + enable + "'"
+	if got := still.animBlur().filter; got != wantStill {
+		t.Fatalf("still blur stage:\n got %s\nwant %s", got, wantStill)
+	}
+	if !animBlurAlpha(still) || animBlurAlpha(video) {
+		t.Fatalf("animBlurAlpha: still %v, video %v", animBlurAlpha(still), animBlurAlpha(video))
+	}
+	keyed := chain(4, clip(func(c *Clip) { c.Effects = []EffectInstance{{ID: "chroma_key", On: true, Params: map[string]any{}}} }), false, 320, 180)
+	if !animBlurAlpha(keyed) || !strings.HasPrefix(keyed.animBlur().filter, "format=gbrap,premultiply=inplace=1:") {
+		t.Fatalf("a keyed video must take the alpha recipe: %s", keyed.animBlur().filter)
+	}
+
+	// After a LUT blend (a two-input effect stage): the cascade follows it, and the opacity reads group 2.
+	table := &LUT3D{Size: 2, DomainMax: [3]float64{1, 1, 1}, Data: make([]float32, 24)}
+	graded := chain(2, clip(func(c *Clip) {
+		c.Effects = []EffectInstance{{ID: "lut", On: true, Params: map[string]any{"lut": "builtin:warm", "intensity": 0.6}}}
+	}), false, 320, 180)
+	graded.item.luts = map[int]*LUT3D{0: table}
+	built = graded.build("vs_clip_0_2")
+	if !strings.Contains(built.filter, "blend=all_mode=normal:all_opacity=0.6,format=gbrp,split=3[vs_an_0_2_s]") ||
+		!strings.Contains(built.filter, "[vs_an_0_2_x][vs_an_0_2_s][vs_an_0_2_m2]"+merge(enable, "")+",sendcmd=f=vs_cmd_0_2_2.txt,") {
+		t.Fatalf("blur_in after a LUT blend:\n%s", built.filter)
+	}
+	if got := names(built.commands); !reflect.DeepEqual(got, []string{"vs_cmd_0_2_m1.txt", "vs_cmd_0_2_m2.txt", "vs_cmd_0_2_2.txt"}) {
+		t.Fatalf("blur_in after a LUT blend: command files %v", got)
+	}
+
+	// Crop keyframes: the cascade sees the whole decoded 1920x1080 picture (S = 21.6), and the crop reads group 1.
+	cropped := chain(3, clip(func(c *Clip) { c.Keyframes = map[string][]Keyframe{"crop.l": linearKeys(0, 0.2, 19)} }), false, 1920, 1080)
+	built = cropped.build("vs_clip_0_3")
+	if !strings.Contains(built.filter, "gblur=sigma=21.6:steps=4:") || !strings.Contains(built.filter, "scale=w=1920:h=1080:flags=neighbor") ||
+		!strings.Contains(built.filter, "[vs_an_0_3_x][vs_an_0_3_s][vs_an_0_3_m2]"+merge(enable, "")+",sendcmd=f=vs_cmd_0_3_1.txt,crop@vs_picture_0_3=") {
+		t.Fatalf("blur_in with crop keyframes:\n%s", built.filter)
+	}
+	if got := names(built.commands); !reflect.DeepEqual(got, []string{"vs_cmd_0_3_m1.txt", "vs_cmd_0_3_m2.txt", "vs_cmd_0_3_1.txt"}) || built.commands[2].tracks[0].Target != "crop@vs_picture_0_3" {
+		t.Fatalf("blur_in with crop keyframes: command files %v", got)
+	}
+}
