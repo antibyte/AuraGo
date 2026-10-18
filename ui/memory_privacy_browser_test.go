@@ -37,7 +37,7 @@ func TestMemoryPrivacyControlsBrowser(t *testing.T) {
 			result := page.MustEval(`async(theme)=>{
  document.documentElement.dataset.theme=theme;
  const drawerSource=await(await fetch('/js/chat/modules/session-drawer.js')).text();
- const widgetsSource=await(await fetch('/js/dashboard/dashboard-widgets.js')).text();
+ const widgetsSource=await(await fetch('/js/dashboard/sections/memory.js')).text();
  const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,10))}throw Error('condition timed out')};
  const deleted=[],patches=[],reports=[];
  window.I18N={'chat.sessions_delete_report':'deleted {deleted}; retained {retained}'};
@@ -64,6 +64,7 @@ func TestMemoryPrivacyControlsBrowser(t *testing.T) {
  dialog=document.querySelector('dialog');dialog.querySelector('input').checked=true;dialog.querySelector('button[value=delete]').click();
  await until(()=>deleted.length===2&&reports.length===1);
  if(!deleted[1].endsWith('delete_memories=true')||!reports[0].includes('retained 1'))throw Error('missing explicit scope/report');
+ window.DashSections={register(){}};
  (0,eval)(widgetsSource);await renderManagedNoteProtection();
  const flags=document.querySelectorAll('#memory-note-protection input');
  if(flags.length!==2||!flags[0].checked||flags[1].checked)throw Error('persisted note flags not displayed');

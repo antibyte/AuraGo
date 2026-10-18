@@ -35,10 +35,11 @@ func TestMemoryConflictDismissBrowser(t *testing.T) {
 			page.MustWaitLoad()
 			result := page.MustEval(`async(theme)=>{
  document.documentElement.dataset.theme=theme;
- const source=await(await fetch('/js/dashboard/dashboard-widgets.js')).text();
+ const source=await(await fetch('/js/dashboard/sections/memory.js')).text();
  const locale=await(await fetch('/lang/dashboard/de.json')).json();
  window.t=k=>locale[k]||k;window.esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  window.renderCollapsibleList=(items,fn)=>items.map(fn).join('');
+ window.DashSections={register(){}};
  (0,eval)(source);
  renderMemoryHealth({memory_conflicts:[{id:7,left_value:'<German>',right_value:'dark theme',reason:'review'}]});
  const row=document.querySelector('.memory-conflict-pair').parentElement;
