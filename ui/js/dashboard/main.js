@@ -324,6 +324,13 @@
             return `<span class="cronjobs-managed" title="${hint}" aria-hidden="true">${label}</span><span class="visually-hidden">${label} ${hint}</span>`;
         }
 
+        function formatPromptNumber(value, percent = false) {
+            if (!Number.isFinite(value)) return '—';
+            const locale = document.documentElement.lang || 'en';
+            if (percent && value > 0 && value < 0.1) return '< ' + (0.1).toLocaleString(locale) + ' %';
+            return value.toLocaleString(locale, { maximumFractionDigits: 1 }) + (percent ? ' %' : '');
+        }
+
         function initDashboard() {
             // Log viewer listeners (the elements exist while the logs section is hidden)
             const logFilter = document.getElementById('log-filter');

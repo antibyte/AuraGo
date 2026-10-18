@@ -1916,7 +1916,7 @@ function testNetworkCamerasDesktopContracts() {
   const routing = read('ui/js/desktop/core/menus-and-routing.js');
   const foundation = read('ui/js/desktop/core/desktop-foundation.js');
   const windowRuntime = read('ui/js/desktop/core/window-shell-runtime.js');
-  const dashboard = read('ui/js/dashboard/dashboard-widgets.js');
+  const dashboard = read('ui/js/dashboard/sections/system.js');
 
   assert.match(loader, /'network-cameras'[\s\S]*desktop-app-network-cameras\.css[\s\S]*network-cameras\.js/);
   assert.match(routing, /appId === 'network-cameras'[\s\S]*NetworkCamerasApp/);
