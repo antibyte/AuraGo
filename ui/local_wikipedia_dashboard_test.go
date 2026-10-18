@@ -9,11 +9,7 @@ import (
 )
 
 func TestDashboardLocalWikipediaBadgeIsWired(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("js", "dashboard", "dashboard-widgets.js"))
-	if err != nil {
-		t.Fatalf("read dashboard-widgets.js: %v", err)
-	}
-	js := string(raw)
+	js := readDashboardJS(t)
 	for _, want := range []string{
 		"local_wikipedia: dashIcon('book')",
 		"local_wikipedia: t('dashboard.integration_local_wikipedia')",
@@ -23,7 +19,7 @@ func TestDashboardLocalWikipediaBadgeIsWired(t *testing.T) {
 		`href="/config#local_wikipedia"`,
 	} {
 		if !strings.Contains(js, want) {
-			t.Fatalf("dashboard-widgets.js is missing %q", want)
+			t.Fatalf("the dashboard scripts miss %q", want)
 		}
 	}
 }

@@ -50,7 +50,7 @@ func TestConfigBluetoothSectionIsWiredAndSafe(t *testing.T) {
 		}
 	}
 
-	dashboard := readBluetoothUIFile(t, "js/dashboard/dashboard-widgets.js")
+	dashboard := readDashboardJS(t)
 	if !strings.Contains(dashboard, "dashboard.integration_bluetooth") {
 		t.Fatal("dashboard integration mapping does not include Bluetooth")
 	}

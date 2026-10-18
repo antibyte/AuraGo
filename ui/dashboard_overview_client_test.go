@@ -45,10 +45,10 @@ func TestDashboardOverviewLoadsFromTheSummaryFeed(t *testing.T) {
 		t.Errorf("initDashboard order = summary:%d overview:%d router:%d, want DashSummary.init, DashOverview.init, DashRouter.init", summaryInit, overviewInit, routerInit)
 	}
 
-	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	dashJS := readDashboardJS(t)
 	for _, gone := range []string{"function renderAgentBanner(", "function renderQuickStatus(", "function formatDashboardTimestamp(", "qs-grid", "ab-model"} {
-		if strings.Contains(widgets, gone) {
-			t.Errorf("dashboard-widgets.js still contains %q", gone)
+		if strings.Contains(dashJS, gone) {
+			t.Errorf("the dashboard scripts still contain %q", gone)
 		}
 	}
 

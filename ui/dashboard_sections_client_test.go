@@ -37,26 +37,28 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 			t.Errorf("main.js still contains %q", gone)
 		}
 	}
+	// Counted and searched across every dashboard script: the section modules may hold any of them.
+	dashJS := readDashboardJS(t)
 	for url, want := range map[string]int{
 		"'/api/dashboard/overview'":       1, // system loader (card-operations); the overview reads the summary feed
 		"'/api/dashboard/logs?lines=100'": 1,
 		"'/api/dashboard/tool-stats'":     1,
 	} {
-		if got := strings.Count(mainJS, url); got != want {
-			t.Errorf("main.js requests %s %d times, want %d", url, got, want)
+		if got := strings.Count(dashJS, url); got != want {
+			t.Errorf("the dashboard scripts request %s %d times, want %d", url, got, want)
 		}
 	}
-
-	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	for _, marker := range []string{
 		"await loadSectionContent('memory', { force: true });",
 		"loadSectionContent('user', { force: true });",
 		"DashRouter.current() !== 'audit'",
 	} {
-		if !strings.Contains(widgets, marker) {
-			t.Errorf("dashboard-widgets.js misses %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Errorf("the dashboard scripts miss %q", marker)
 		}
 	}
+
+	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	// A narrative toggle changes /api/personality/state without a personality_update SSE, so the
 	// cached state must be dropped by the mutation itself.
 	if at := strings.Index(widgets, "async function characterNoteAction("); at < 0 {
@@ -66,8 +68,8 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 		t.Error("characterNoteAction must call DashAPI.invalidate('/api/personality/') after a successful POST")
 	}
 	for _, gone := range []string{"TabState", "loadTabAgent", "loadTabUser", "function loadErrorPatterns"} {
-		if strings.Contains(widgets, gone) {
-			t.Errorf("dashboard-widgets.js still contains %q", gone)
+		if strings.Contains(dashJS, gone) {
+			t.Errorf("the dashboard scripts still contain %q", gone)
 		}
 	}
 

@@ -21,7 +21,7 @@ func TestDashboardMemoryCurationContract(t *testing.T) {
 		}
 	}
 
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	widgetsJS := readDashboardJS(t)
 	for _, marker := range []string{
 		"/api/dashboard/memory/curation/dry-run",
 		"/api/dashboard/memory/curation/apply",
@@ -45,7 +45,7 @@ func TestDashboardMemoryCurationContract(t *testing.T) {
 		"dashboard.memory_reflection_running",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
-			t.Fatalf("dashboard widgets JS missing memory curation marker %q", marker)
+			t.Fatalf("dashboard JS missing memory curation marker %q", marker)
 		}
 	}
 	if strings.Contains(widgetsJS, "alert(") {

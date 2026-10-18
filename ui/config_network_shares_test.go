@@ -52,7 +52,7 @@ func TestConfigNetworkSharesSectionIsWiredAndSafe(t *testing.T) {
 		}
 	}
 
-	dashboard := readNetworkSharesUIFile(t, "js/dashboard/dashboard-widgets.js")
+	dashboard := readDashboardJS(t)
 	for _, wanted := range []string{"dashboard.integration_network_shares", "network_shares: dashIcon('folder')"} {
 		if !strings.Contains(dashboard, wanted) {
 			t.Fatalf("dashboard integration mapping missing %q", wanted)

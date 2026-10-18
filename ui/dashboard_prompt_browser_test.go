@@ -33,8 +33,7 @@ func TestDashboardPromptLocales(t *testing.T) {
 			}
 		}
 	}
-	main := string(mustReadUIFile(t, "js/dashboard/main.js"))
-	if !strings.Contains(main, "createPromptSavingsChart('prompt-savings-chart', promptStats.recent_fits)") {
+	if !strings.Contains(readDashboardJS(t), "createPromptSavingsChart('prompt-savings-chart', promptStats.recent_fits)") {
 		t.Fatal("budget chart must use request fits")
 	}
 }

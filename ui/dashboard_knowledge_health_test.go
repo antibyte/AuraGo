@@ -9,9 +9,10 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	t.Parallel()
 
 	html := readDashboardMarkup(t)
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
+	// The knowledge loader and the memory health card may live in any dashboard script; the knowledge graph
+	// renderers stay in widgets-knowledge.js.
+	dashJS := readDashboardJS(t)
 	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
-	coreJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	css := readDesktopAssetText(t, "css/dashboard.css")
 
 	for _, marker := range []string{
@@ -37,8 +38,8 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		"markKnowledgeCard('card-knowledge-graph-quality', qualityR.ok, qualityR.status);",
 		"markKnowledgeCard('card-knowledge-graph-summary', importantR.ok && statsR.ok, firstKnowledgeStatus(importantR, statsR));",
 	} {
-		if !strings.Contains(mainJS, marker) {
-			t.Fatalf("dashboard main JS missing health marker %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Fatalf("dashboard JS missing health marker %q", marker)
 		}
 	}
 	for _, marker := range []string{
@@ -66,8 +67,8 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	for _, marker := range []string{
 		"memory_graph_dirty_hint",
 	} {
-		if !strings.Contains(coreJS, marker) {
-			t.Fatalf("dashboard core widgets JS missing health marker %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Fatalf("dashboard JS missing health marker %q", marker)
 		}
 	}
 	if !strings.Contains(css, ".knowledge-health-status") {

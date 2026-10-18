@@ -13,7 +13,6 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 
 	mainPath := filepath.Join("js", "config", "main.js")
 	modulePath := filepath.Join("cfg", "dograh.js")
-	dashboardPath := filepath.Join("js", "dashboard", "dashboard-widgets.js")
 
 	mainContent, err := os.ReadFile(mainPath)
 	if err != nil {
@@ -22,10 +21,6 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 	moduleContent, err := os.ReadFile(modulePath)
 	if err != nil {
 		t.Fatalf("read %s: %v", modulePath, err)
-	}
-	dashboardContent, err := os.ReadFile(dashboardPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", dashboardPath, err)
 	}
 
 	mainJS := string(mainContent)
@@ -62,9 +57,9 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 	if strings.Contains(moduleJS, "alert(") {
 		t.Fatal("Dograh config module must not introduce alert()")
 	}
-	dashboardJS := string(dashboardContent)
+	dashboardJS := readDashboardJS(t)
 	if !strings.Contains(dashboardJS, "dograh:") || !strings.Contains(dashboardJS, "dashboard.integration_dograh") {
-		t.Fatalf("%s missing Dograh dashboard integration markers", dashboardPath)
+		t.Fatal("the dashboard scripts miss the Dograh integration markers")
 	}
 
 	configKeys := []string{

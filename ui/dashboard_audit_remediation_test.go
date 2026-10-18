@@ -61,7 +61,6 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		"el.children.length > 0",
 		":scope > [data-i18n-text], :scope > .i18n-text",
 		"nodeType === Node.TEXT_NODE",
-		"CardState.setLoading(id)",
 		"onShow: id => loadSectionContent(id)",
 		"SectionState.loaded[id] = true",
 	} {
@@ -70,8 +69,9 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		}
 	}
 
-	widgets := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	dashJS := readDashboardJS(t)
 	for _, marker := range []string{
+		"CardState.setLoading(id)",
 		"esc(String(s.val))",
 		"esc(s.lbl)",
 		"esc(s.sub)",
@@ -87,8 +87,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		"t('dashboard.operations_buffered'",
 		"data-bar-width",
 	} {
-		if !strings.Contains(widgets, marker) {
-			t.Fatalf("dashboard widgets missing remediation marker %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Fatalf("dashboard scripts missing remediation marker %q", marker)
 		}
 	}
 

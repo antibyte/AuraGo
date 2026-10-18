@@ -27,19 +27,11 @@ func TestDashboardAuditTabContract(t *testing.T) {
 		}
 	}
 
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
+	dashJS := readDashboardJS(t)
 	for _, marker := range []string{
 		"'audit'",
 		"loadTabAudit()",
 		"setupAuditControls()",
-	} {
-		if !strings.Contains(mainJS, marker) {
-			t.Fatalf("dashboard main JS missing audit marker %q", marker)
-		}
-	}
-
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
-	for _, marker := range []string{
 		"function renderAuditEvents",
 		"DELETE_AUDIT_EVENTS",
 		"/api/dashboard/audit",
@@ -48,8 +40,8 @@ func TestDashboardAuditTabContract(t *testing.T) {
 		"audit-cell-actions",
 		"scheduleAuditRefresh",
 	} {
-		if !strings.Contains(widgetsJS, marker) {
-			t.Fatalf("dashboard widgets JS missing audit marker %q", marker)
+		if !strings.Contains(dashJS, marker) {
+			t.Fatalf("dashboard JS missing audit marker %q", marker)
 		}
 	}
 	eventsJS := readDesktopAssetText(t, "js/dashboard/dashboard-events.js")
@@ -74,7 +66,7 @@ func TestDashboardAuditTabContract(t *testing.T) {
 			t.Fatalf("dashboard audit CSS missing readability marker %q", marker)
 		}
 	}
-	if strings.Contains(mainJS+widgetsJS, "alert(") {
+	if strings.Contains(dashJS, "alert(") {
 		t.Fatal("dashboard audit UI must use modals/toasts instead of alert()")
 	}
 
