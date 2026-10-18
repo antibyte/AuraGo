@@ -80,7 +80,7 @@
             const heading = 'vs-fxlib-' + s.id + '-' + group.category;
             const items = group.items.map(entry => {
                 const name = tr(s, entry.label_key, entry.key), disabled = off || !entry.available;
-                const glyph = entry.effect === 'lut' ? 'lut' : entry.effect === 'color' ? 'sliders' : 'effects';
+                const glyph = entry.effect === 'lut' ? 'lut' : entry.effect === 'color' ? 'sliders' : entry.effect === 'chroma_key' ? 'key' : 'effects';
                 return `<li><button type="button" class="vs-fxlib-item" data-effect-item="${esc(s, entry.key)}" draggable="${!disabled}" aria-disabled="${disabled}" title="${esc(s, entry.available ? name : name + ' (' + unavailable + ')')}">${icon(glyph, 16)}<span>${esc(s, name)}</span></button></li>`;
             }).join('');
             return `<section class="vs-fxlib-group" aria-labelledby="${esc(s, heading)}"><h3 id="${esc(s, heading)}">${esc(s, tr(s, group.label_key, group.category))}</h3><ul class="vs-fxlib-list">${items}</ul></section>`;
@@ -97,8 +97,8 @@
         const found = s.project && clipId ? T().clipFor(s.project, clipId) : null;
         return found && found.track.kind !== 'audio' && !found.track.locked ? found : null;
     }
-    // Adds one effect entry to a visual clip in one undo step (VideoStudioKeyframeEdit.addEffect: complete params with
-    // the item's values on top) and selects the clip, so the inspector shows the new entry.
+    // Adds one effect entry to a visual clip in one undo step (VideoStudioInspectorEffects.addEntry: complete params with
+    // the item's values on top) and selects the clip, so the inspector shows the new entry. A chroma_key entry goes to stack index 0.
     function addEffectTo(s, clipId, effectId, params) {
         if (!s.project) return false;
         if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return false; }
@@ -106,7 +106,7 @@
         if (!found || found.track.kind === 'audio') { showNotice(s, NEEDS_CLIP[0], NEEDS_CLIP[1], false); return false; }
         const limit = (FX().LIMITS && FX().LIMITS.effectsPerClip) || 8;
         if ((found.clip.effects || []).length >= limit) { showNotice(s, 'effectsLibraryFull', 'This clip already has 8 effects. Remove one first.', false); return false; }
-        const ok = P.applyEdit(s, 'add effect', project => window.VideoStudioKeyframeEdit.addEffect(project, found.clip.id, effectId, Object.assign({}, params || {})), () => [found.clip.id]);
+        const ok = P.applyEdit(s, 'add effect', project => window.VideoStudioInspectorEffects.addEntry(project, found.clip.id, effectId, Object.assign({}, params || {})), () => [found.clip.id]);
         if (ok && s.app && s.app.getBoundingClientRect().width <= 920 && P.setInspectorOpen) P.setInspectorOpen(s, true, false);
         return ok;
     }

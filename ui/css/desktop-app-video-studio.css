@@ -1067,6 +1067,21 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fx-flips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .vs-app .vs-fx-flip[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-text); }
 .vs-fx-menu-heading { padding: 6px 12px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--vs-muted); }
+/* Compositing (2d Task 14): the Picture section's blend list and mask block, and a chroma_key entry's key colour with
+   its green and blue screen presets. */
+.vs-blend-field { display: grid; gap: 6px; }
+.vs-blend-field select { width: 100%; min-width: 0; }
+.vs-blend-hint { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; }
+.vs-mask-set { display: flex; margin-top: 6px; }
+.vs-mask-fields { margin-top: 6px; }
+.vs-mask-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.vs-app .vs-mask-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-key-color { display: grid; gap: 6px; margin-top: 6px; }
+.vs-key-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.vs-key-swatch { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
+.vs-key-preset[data-fx-key-preset="green"] .vs-key-swatch { background: #00b140; }
+.vs-key-preset[data-fx-key-preset="blue"] .vs-key-swatch { background: #0047bb; }
+.vs-app .vs-key-preset[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 @media (prefers-reduced-motion: reduce) { .vs-fx-switch span, .vs-fx-toggle .vs-icon { transition: none; } }
 
 /* Colour wheels (2c Task 15, video-studio-colorwheel.js) and the color entry's panel. The temperature track runs blue

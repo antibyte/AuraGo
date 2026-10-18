@@ -11,7 +11,9 @@
     // - The crop fields and flip toggles sit in the Picture section (video-studio-inspector.js); their edits run here.
     // - Every project change is a VideoStudioKeyframeEdit operation inside P.applyEdit: one undo step, and a refusal
     //   explains itself in a toast. A slider drag changes the project live and records one step when it ends.
-    // menuModel, entryName, dropIndex, formatValue and section are DOM-free and Node-tested.
+    // - 2d: the Picture section's blend list and mask block (markup in video-studio-inspector.js) and a chroma_key
+    //   entry's key colour commit here (compositingChange, effectCommand); addEntry puts a new chroma_key at index 0.
+    // menuModel, entryName, dropIndex, formatValue, section and addEntry are DOM-free and Node-tested.
     const P = window.VideoStudioParts;
     const Fx = () => window.VideoStudioEffects;
     const K = () => window.VideoStudioKeyframeEdit;
@@ -65,6 +67,16 @@
         const own = luts.map(lut => option(lut.id, lut.name)).join('');
         return `<div class="vs-fx-lut"><label class="vs-field vs-field-wide"><span>${v.esc(label)}</span><select data-fx-param="lut">${option('', v.tr('lutNone', 'None (no change)'))}<optgroup label="${v.esc(v.tr('lutLooks', 'Built-in looks'))}">${looks}</optgroup>${own ? `<optgroup label="${v.esc(v.tr('lutProject', 'Project LUTs'))}">${own}</optgroup>` : ''}</select></label><button type="button" class="vs-chip-button" data-fx-action="lut-upload">${v.icon('upload', 14)}<span>${v.esc(v.tr('lutUpload', 'Upload .cube'))}</span></button></div>`;
     }
+    // The chroma_key key colour (2d): a colour input plus the green and blue screen presets, one undo step per change.
+    // The key colour is not keyframable.
+    const KEY_PRESETS = Object.freeze({ green: '#00b140', blue: '#0047bb' });
+    const KEY_PRESET_TEXT = { green: ['keyPresetGreen', 'Green screen'], blue: ['keyPresetBlue', 'Blue screen'] };
+    const HEX = /^#[0-9a-f]{6}$/;
+    function colorRow(v, entry, param, label) {
+        const raw = String((entry.params && entry.params[param.id]) || param.default || '').toLowerCase(), value = HEX.test(raw) ? raw : KEY_PRESETS.green;
+        const presets = Object.keys(KEY_PRESETS).map(id => `<button type="button" class="vs-chip-button vs-key-preset" data-fx-key-preset="${id}" aria-pressed="${value === KEY_PRESETS[id]}"><span class="vs-key-swatch" aria-hidden="true"></span><span>${v.esc(v.tr(KEY_PRESET_TEXT[id][0], KEY_PRESET_TEXT[id][1]))}</span></button>`).join('');
+        return `<div class="vs-key-color"><label class="vs-color"><span>${v.esc(label)}</span><input type="color" data-fx-param="${v.esc(param.id)}" value="${value}"></label><div class="vs-key-presets" role="group" aria-label="${v.esc(label)}">${presets}</div></div>`;
+    }
     // One param control: a slider, or the picker for a LUT param.
     // - A keyframable slider gets keyframe tools.
     // - It freezes while the playhead is outside the clip and the param is animated.
@@ -73,6 +85,7 @@
         if (!param) return '';
         const label = v.tr(param.label_key, param.id);
         if (param.type === 'lut') return lutPicker(v, entry, label);
+        if (param.type === 'color') return colorRow(v, entry, param, label);
         if (param.type !== 'number') return '';
         const path = 'effects.' + index + '.' + param.id, kf = v.keyframes, control = kf ? kf.controls[path] : null;
         const stored = entry.params ? entry.params[param.id] : undefined;
@@ -169,13 +182,25 @@
         const collapsed = s.fxCollapsed || (s.fxCollapsed = new WeakSet());
         return { failed, luts, collapsed: entry => collapsed.has(entry) };
     }
+    // Adds an effect entry to a clip in one edit (DOM-free; "+ Effect" and the effects library). A chroma_key entry goes
+    // to stack index 0, so the key sees the camera picture before any other effect (plan 2d). Every other entry goes
+    // last. Returns true or a VideoStudioEdit reason.
+    function addEntry(project, clipId, effectId, params) {
+        const found = T().clipFor(project, clipId), before = found && Array.isArray(found.clip.effects) ? found.clip.effects.slice() : [];
+        const result = K().addEffect(project, clipId, effectId, params);
+        if (result !== true || effectId !== 'chroma_key') return result;
+        const index = T().clipFor(project, clipId).clip.effects.findIndex(entry => !before.includes(entry));
+        return index > 0 ? K().moveEffect(project, clipId, index, 0) : true;
+    }
+    // The stack index of the entry addEntry has just added.
+    function addedIndex(clip, effectId) { return effectId === 'chroma_key' ? 0 : Math.max(0, ((clip && clip.effects) || []).length - 1); }
     // Adds a registry effect to a clip in one undo step: the "+ Effect" menu, and plan 2c Task 17's library (look items
     // pass params {lut}). When the clip is the selected one, the new entry's header takes focus.
     function addEffect(s, clipId, effectId, params) {
         if (!s.project || s.readonly) return false;
-        const ok = P.applyEdit(s, 'add effect', project => K().addEffect(project, clipId, effectId, params));
+        const ok = P.applyEdit(s, 'add effect', project => addEntry(project, clipId, effectId, params));
         const found = ok ? T().clipFor(s.project, clipId) : null;
-        if (found && clipId === s.selectedClipId) refocus(s, `[data-fx-entry="${found.clip.effects.length - 1}"] [data-fx-head]`);
+        if (found && clipId === s.selectedClipId) refocus(s, `[data-fx-entry="${addedIndex(found.clip, effectId)}"] [data-fx-head]`);
         return ok;
     }
     // "+ Effect": P.openMenu with the menu model.
@@ -222,13 +247,33 @@
         if (from < 0 || from >= list.length || to < 0 || to >= list.length || to === from) return false;
         return stackEdit(s, 'move effect', (project, id) => K().moveEffect(project, id, from, to), ok => `[data-fx-entry="${ok ? to : from}"] [data-fx-head]`);
     }
-    // Clicks in the Effects section and on the Picture section's flip toggles; true when the click was one of them.
+    // Clicks in the Effects section, on the Picture section's flip toggles and (2d) on the mask shape buttons, the mask's
+    // Invert and a chroma_key entry's key colour presets; true when the click was one of them.
     function effectCommand(s, event) {
         const target = event.target && typeof event.target.closest === 'function' ? event.target : null;
         if (!target || !s.project) return false;
         const flip = target.closest('[data-inspector] [data-flip]');
         if (flip) {
             if (!flip.disabled) stackEdit(s, 'flip', (project, id) => K().setFlip(project, id, flip.dataset.flip, flip.getAttribute('aria-pressed') !== 'true'), `[data-flip="${flip.dataset.flip}"]`);
+            return true;
+        }
+        // None removes the mask with its keys; Rectangle and Ellipse set the shape (a clip without a mask first gets the
+        // registry's default mask). The pressed shape changes nothing.
+        const maskSet = target.closest('[data-inspector] [data-mask-set]');
+        if (maskSet) {
+            const shape = maskSet.dataset.maskSet;
+            if (!maskSet.disabled && maskSet.getAttribute('aria-pressed') !== 'true') stackEdit(s, shape === 'none' ? 'remove mask' : 'mask', (project, id) => (shape === 'none' ? K().removeMask(project, id) : K().setMask(project, id, { shape }, s.frame)), `[data-mask-set="${shape}"]`);
+            return true;
+        }
+        const invert = target.closest('[data-inspector] [data-mask-invert]');
+        if (invert) {
+            if (!invert.disabled) stackEdit(s, 'mask', (project, id) => K().setMask(project, id, { invert: invert.getAttribute('aria-pressed') !== 'true' }, s.frame), '[data-mask-invert]');
+            return true;
+        }
+        const preset = target.closest('[data-inspector] [data-fx-key-preset]');
+        if (preset) {
+            const index = entryIndex(preset), id = preset.dataset.fxKeyPreset, color = Object.prototype.hasOwnProperty.call(KEY_PRESETS, id) ? KEY_PRESETS[id] : '';
+            if (!preset.disabled && color && index >= 0) stackEdit(s, 'key color', (project, clipId) => K().setEffectParams(project, clipId, index, { color }, s.frame), `[data-fx-entry="${index}"] [data-fx-key-preset="${id}"]`);
             return true;
         }
         const head = target.closest('[data-inspector] [data-fx-head]');
@@ -319,6 +364,24 @@
         const value = Number(input.value) / 100, side = input.dataset.crop;
         if (!Number.isFinite(value) || !stackEdit(s, 'crop', (project, id) => K().setCrop(project, id, { [side]: Math.max(0, Math.min(0.95, value)) }, s.frame), `[data-crop="${side}"]`)) P.renderInspector(s);
     }
+    // The Picture section's blend list and mask fields and a chroma_key entry's colour input (2d): one undo step each,
+    // and true when the input was one of them. A mask field takes percent of the box (rotation in degrees) and is
+    // clamped to the registry range; a refused or empty field shows the stored value again.
+    function compositingChange(s, input) {
+        if (input.matches('select[data-blend]')) { stackEdit(s, 'blend', (project, id) => K().setBlend(project, id, input.value), '[data-blend]'); return true; }
+        if (input.matches('input[data-mask-field]')) {
+            const field = input.dataset.maskField, spec = I().MASK_FIELDS.find(item => item[0] === field), value = spec ? Number(input.value) / spec[4] : NaN;
+            const ok = input.value !== '' && Number.isFinite(value) && stackEdit(s, 'mask', (project, id) => K().setMask(project, id, { [field]: Math.max(spec[2] / spec[4], Math.min(spec[3] / spec[4], value)) }, s.frame), `[data-mask-field="${field}"]`);
+            if (!ok) P.renderInspector(s);
+            return true;
+        }
+        if (input.matches('input[type="color"][data-fx-param]')) {
+            const target = paramTarget(s, input);
+            if (target) stackEdit(s, 'key color', (project, id) => K().setEffectParams(project, id, target.index, { [input.dataset.fxParam]: input.value }, s.frame), paramSelector(input));
+            return true;
+        }
+        return false;
+    }
     // "Upload .cube" (spec §5.7, §9). The file goes through the media import (P.uploadFile); the server parses it before
     // anything is written (Task 5). The new LUT asset then becomes the entry's look in one undo step. Nothing changes when
     // the entry is gone or is no LUT entry any more.
@@ -388,6 +451,7 @@
             if (input.matches('input[type="range"][data-fx-param]')) commitParam(s, input);
             else if (input.matches('select[data-fx-param]')) selectParam(s, input);
             else if (input.matches('[data-crop]')) commitCrop(s, input);
+            else if (compositingChange(s, input)) return;
             else if (input.matches('[data-fx-lut-file]')) {
                 const file = input.files && input.files[0], target = s.fxUpload;
                 input.value = '';
@@ -460,6 +524,20 @@
             input.title = frozen ? outside : '';
             if (input !== active) input.value = String(Math.round(Number(c.value) * 1e8) / 1e6);
         });
+        // The mask fields (2d) follow the playhead like the crop fields; Edit mask in the preview needs the playhead inside.
+        host.querySelectorAll('[data-mask-field]').forEach(input => {
+            const spec = I().MASK_FIELDS.find(item => item[0] === input.dataset.maskField), c = spec ? view.controls['mask.' + spec[0]] : null;
+            if (!c) return;
+            const frozen = !view.inside && c.animated;
+            input.disabled = view.locked || frozen;
+            input.title = frozen ? outside : '';
+            if (input !== active) input.value = String(Math.round(Number(c.value) * spec[4] * 1e6) / 1e6);
+        });
+        const maskMode = host.querySelector('[data-action="mask-mode"]');
+        if (maskMode) {
+            maskMode.disabled = view.locked || !view.inside || !clip.mask;
+            maskMode.title = !view.inside && clip.mask ? P.tr(s, 'maskModeOutside', 'Move the playhead into the selected clip to edit its mask in the preview.') : P.tr(s, 'maskMode', 'Edit mask in the preview');
+        }
         // Animated wheels follow the playhead too, and freeze outside the clip.
         if (window.VideoStudioColorWheel) host.querySelectorAll('[data-fx-entry] [data-wheel]').forEach(el => {
             const base = 'effects.' + entryIndex(el) + '.' + el.dataset.wheel, cx = view.controls[base + '_x'], cy = view.controls[base + '_y'];
@@ -471,6 +549,6 @@
         });
     }
 
-    window.VideoStudioInspectorEffects = { section, menuModel, entryName, dropIndex, formatValue };
-    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls });
+    window.VideoStudioInspectorEffects = { section, menuModel, entryName, dropIndex, formatValue, addEntry, KEY_PRESETS };
+    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls, compositingChange });
 })();

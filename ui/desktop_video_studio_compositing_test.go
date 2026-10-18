@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // clipState in 2d (index §4.4): blend is the clip's mode or 'normal'; mask is null, or the mask at the frame with its
 // numbers through valueAt (keys at the source position, else the field) and the static shape and invert. The registry
@@ -351,4 +354,179 @@ assert.deepEqual(at(p,'d').keyframes, {x: [kf(310, 0.2)]});
 assert.equal('mask' in at(p,'d'), false);
 valid(p);
 `)
+}
+
+// The compositing controls of the inspector (Task 14):
+//   - Picture: the blend list in registry order with the clip's mode selected; unavailable modes are disabled with a
+//     title, but the current one stays selectable; the transition hint appears when a transition joins two modes. The
+//     mask block per state: no mask; a mask with values at the playhead in percent, keyframe tools, animated fields
+//     frozen outside the clip, and the mask-mode button. Titles take blend and mask but no crop.
+//   - A chroma_key entry: the colour input and the presets; addEntry puts chroma_key at stack index 0.
+//   - Every commit is one undo step: blend, mask shape, field, invert, removal, key colour, preset and "+ Effect". An
+//     animated mask path gets a key at the playhead; audio clips and locked tracks change nothing.
+func TestVideoStudioCompositingInspector(t *testing.T) {
+	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
+P.renderUI = () => {}; P.renderToolbar = () => {}; P.resyncArtwork = () => {}; P.renderInspector = () => {};
+const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';');
+const between = (text, start, end) => { const from = text.indexOf(start); assert(from >= 0, 'missing ' + start); return text.slice(from, text.indexOf(end, from)); };
+const MASK = {shape: 'ellipse', x: 0.1, y: 0.2, w: 0.5, h: 0.4, rotation: 15, feather: 0.04, invert: false};
+const p = project([
+  track('v1','video',[clip('c',V,0,100,{offset:100, blend: 'multiply', transition: {type: 'dissolve', duration: 10}}), clip('d',V,90,100,{offset:100})]),
+  track('o1','overlay',[clip('t',I,0,60,{mask: JSON.parse(JSON.stringify(MASK)), keyframes: {'mask.x': [kf(0, 0.1), kf(40, 0.3)]}})]),
+  track('a1','audio',[clip('m',A,0,100)])
+]);
+valid(p);
+const render = (clipId, frame, extra) => {
+  const host = {innerHTML: ''}, selected = T.clipFor(p, clipId);
+  IN.render(host, Object.assign({selected, asset: selected.track.kind === 'overlay' ? I : V, project: p, locale: 'en', caps: {}, transitionInfo: {next: null}, esc,
+    icon: name => '<i data-icon="' + name + '"></i>', tr: key => '[' + key + ']', keyframes: P.keyframeView({project: p, selectedClipId: clipId, frame, readonly: false}), fineOpen: false, effects: null}, extra || {}));
+  return host.innerHTML;
+};
+
+// The blend list follows the registry with the clip's mode selected. A transition into a clip of another mode shows
+// the hint on both clips of the pair.
+let html = render('c', 20);
+const list = between(html, '<select data-blend>', '</select>');
+assert.deepEqual(Array.from(list.matchAll(/<option value="([a-z]+)"/g), m => m[1]), FX.blendModes().map(mode => mode.id));
+assert.equal(FX.blendModes().length, 14);
+assert(list.includes('<option value="multiply" selected>[blend_multiply]</option>'), 'the clip mode is selected');
+assert(html.includes('data-blend-hint') && html.includes('[blendTransitionHint]'), 'multiply into normal explains the overlap');
+assert(render('d', 95).includes('data-blend-hint'), 'the incoming clip shows the hint too');
+at(p, 'd').blend = 'multiply';
+assert(!render('c', 20).includes('data-blend-hint'), 'a shared mode blends the overlap: no hint');
+delete at(p, 'd').blend;
+assert(!render('t', 20).includes('data-blend-hint'), 'no transition, no hint');
+// Unavailable modes are disabled with a title; the clip's own mode stays selectable.
+FX.adopt(FX.BUILTIN, {effects: [], transitions: [], blend_modes: ['multiply', 'screen'], anim_presets: []});
+html = render('c', 20);
+assert(html.includes('<option value="multiply" selected title="[blendUnavailable]">'), 'the current unavailable mode stays enabled');
+assert(html.includes('<option value="screen" disabled title="[blendUnavailable]">'), 'another unavailable mode is disabled');
+assert(html.includes('<option value="overlay">'), 'available modes carry no title');
+FX.adopt(null, null);
+
+// No mask: None is pressed, there are no fields, and Edit mask in the preview is disabled.
+html = render('c', 20);
+assert(html.includes('<button type="button" data-mask-set="none" aria-pressed="true">[mask_none]</button>'));
+assert(!html.includes('data-mask-field') && !html.includes('data-mask-invert'));
+assert(/<button[^>]*data-action="mask-mode"[^>]*disabled/.test(html), 'no mask: no mask mode');
+// A mask shows its values at the playhead (mask.x is keyed 0.1 at 0 and 0.3 at 40, so 0.2 at frame 20), with keyframe
+// tools, Invert and mask mode.
+html = render('t', 20);
+assert(html.includes('data-mask-set="ellipse" aria-pressed="true"'));
+for (const [field, value] of [['x', 20], ['y', 20], ['w', 50], ['h', 40], ['rotation', 15], ['feather', 4]]) {
+  assert(new RegExp('<input type="number" data-mask-field="' + field + '"[^>]*value="' + value + '">').test(html), field + ' shows ' + value + ': ' + html.match(new RegExp('<input type="number" data-mask-field="' + field + '"[^>]*>')));
+}
+assert(html.includes('data-kf-path="mask.x"') && html.includes('data-kf-path="mask.feather"'), 'mask values carry keyframe tools');
+assert(html.includes('data-mask-invert aria-pressed="false"'));
+assert(/<button type="button" class="vs-chip-button vs-mask-mode" data-action="mask-mode" aria-pressed="false" title="\[maskMode\]">/.test(html), 'mask mode is available inside the clip');
+assert(render('t', 20, {maskMode: true}).includes('data-action="mask-mode" aria-pressed="true"'));
+// Outside the clip (t ends at frame 60) the animated mask.x freezes at its last key, and static values stay editable.
+// Mask mode needs the playhead inside.
+html = render('t', 80);
+assert(/<input type="number" data-mask-field="x"[^>]*value="30" disabled title="\[keyframeOutside\]">/.test(html), 'an animated mask value freezes outside the clip');
+assert(/<input type="number" data-mask-field="y"[^>]*value="20">/.test(html), 'a static mask value stays editable');
+assert(/<button[^>]*data-action="mask-mode"[^>]*title="\[maskModeOutside\]" disabled>/.test(html));
+// A title takes blend and mask, but no crop.
+const title = Object.assign(JSON.parse(JSON.stringify(at(p, 't'))), {text: 'Hello'});
+html = render('t', 20, {selected: {clip: title, track: p.tracks[1]}, keyframes: null});
+assert(html.includes('<select data-blend>') && html.includes('data-mask-set="ellipse" aria-pressed="true"') && !html.includes('data-crop='), 'titles take blend and mask, not crop');
+assert(/<input type="number" data-mask-field="x"[^>]*value="10">/.test(html), 'without a keyframe view the stored values show');
+
+// addEntry puts chroma_key at stack index 0 (a second key too) and every other effect last.
+assert.equal(FXI.addEntry(p, 'c', 'color'), true);
+assert.equal(FXI.addEntry(p, 'c', 'chroma_key'), true);
+assert.equal(FXI.addEntry(p, 'c', 'blur'), true);
+const firstKey = at(p, 'c').effects[0];
+assert.equal(FXI.addEntry(p, 'c', 'chroma_key'), true);
+assert.deepEqual(at(p, 'c').effects.map(entry => entry.id), ['chroma_key', 'chroma_key', 'color', 'blur']);
+assert.equal(at(p, 'c').effects[1], firstKey, 'the older key moves down by one');
+assert.equal(at(p, 'c').effects[0].params.color, '#00b140');
+valid(p);
+html = render('c', 20);
+const key = between(html, 'data-fx-entry="0"', 'data-fx-entry="1"');
+assert(key.includes('<input type="color" data-fx-param="color" value="#00b140">'), 'the key colour is a colour input');
+assert(key.includes('data-fx-key-preset="green" aria-pressed="true"') && key.includes('data-fx-key-preset="blue" aria-pressed="false"'));
+assert(key.includes('[keyPresetGreen]') && key.includes('[keyPresetBlue]'));
+assert(key.includes('data-kf-path="effects.0.similarity"') && key.includes('data-kf-path="effects.0.smoothness"'), 'similarity and smoothness have keyframe tools');
+assert(!key.includes('data-kf-path="effects.0.color"'), 'the key colour has none');
+
+// Commits: one undo step each, through VideoStudioKeyframeEdit.
+const q = project([track('v1','video',[clip('c',V,0,100,{offset:100})]), track('a1','audio',[clip('m',A,0,100)])]);
+const s = {project: q, projectId: '', readonly: false, conflict: true, history: [], redo: [], frame: 20, dirty: false, revision: 0, selectedClipId: 'c', selectionRevision: 0,
+  selectionSet: new Set(['c']), selectionPrimary: 'c', ctx: {}, q: () => null, preview: {seek() {}}};
+const c = () => at(s.project, 'c'), steps = () => s.history.length;
+// A stand-in element. matches holds the selectors it matches. closest finds the element itself for a selector that
+// names one of its attributes, and the entry it sits in for [data-fx-entry].
+const fake = (attrs, entry) => { const el = {dataset: attrs.dataset || {}, value: attrs.value, disabled: false,
+  getAttribute: name => (attrs.attributes && name in attrs.attributes ? String(attrs.attributes[name]) : null),
+  matches: selector => (attrs.matches || []).includes(selector),
+  closest: selector => (selector === '[data-fx-entry]' ? (entry == null ? null : {dataset: {fxEntry: String(entry)}}) : (attrs.closest || []).some(name => selector.includes(name)) ? el : null)}; return el; };
+const click = (name, dataset, attributes, entry) => P.effectCommand(s, {target: fake({closest: [name], dataset, attributes}, entry)});
+const change = (selector, dataset, value, entry) => P.compositingChange(s, fake({matches: [selector], dataset, value}, entry));
+const field = (name, value) => change('input[data-mask-field]', {maskField: name}, value);
+
+assert.equal(change('select[data-blend]', {}, 'screen'), true);
+assert.equal(c().blend, 'screen'); assert.equal(steps(), 1);
+change('select[data-blend]', {}, 'normal');
+assert.equal('blend' in c(), false, 'Normal deletes the field'); assert.equal(steps(), 2);
+assert.equal(click('data-mask-set', {maskSet: 'rect'}, {'aria-pressed': 'false'}), true);
+assert.deepEqual(c().mask, {shape: 'rect', x: 0.25, y: 0.25, w: 0.5, h: 0.5, rotation: 0, feather: 0, invert: false}, 'Rectangle adds the registry default mask');
+assert.equal(steps(), 3);
+click('data-mask-set', {maskSet: 'rect'}, {'aria-pressed': 'true'});
+assert.equal(steps(), 3, 'the pressed shape changes nothing');
+click('data-mask-set', {maskSet: 'ellipse'}, {'aria-pressed': 'false'});
+assert.equal(c().mask.shape, 'ellipse'); assert.equal(c().mask.x, 0.25, 'a new shape keeps the values'); assert.equal(steps(), 4);
+field('x', '10'); near(c().mask.x, 0.1, 'x in percent of the box'); assert.equal(steps(), 5);
+field('rotation', '500'); field('feather', '80'); field('w', '0');
+assert.deepEqual([c().mask.rotation, c().mask.feather, c().mask.w], [360, 0.5, 0.01], 'typed values clamp to the registry ranges');
+assert.equal(steps(), 8);
+assert.equal(K.setAnimated(s.project, 'c', 'mask.y', true, 20), true);
+s.frame = 50;
+field('y', '40');
+assert.deepEqual(c().keyframes['mask.y'].map(item => [item.f, item.v]), [[120, 0.25], [150, 0.4]], 'an animated mask value keys the playhead');
+assert.equal(steps(), 9);
+click('data-mask-invert', {}, {'aria-pressed': 'false'});
+assert.equal(c().mask.invert, true); assert.equal(steps(), 10);
+click('data-mask-set', {maskSet: 'none'}, {'aria-pressed': 'false'});
+assert.equal('mask' in c(), false, 'None removes the mask');
+assert.equal((c().keyframes || {})['mask.y'], undefined, 'with its keys');
+assert.equal(steps(), 11);
+assert.equal(FXI.addEntry(s.project, 'c', 'color'), true);
+assert.equal(P.addEffect(s, 'c', 'chroma_key'), true, '"+ Effect" adds through addEntry');
+assert.deepEqual(c().effects.map(entry => entry.id), ['chroma_key', 'color']); assert.equal(steps(), 12);
+change('input[type="color"][data-fx-param]', {fxParam: 'color'}, '#0047BB', 0);
+assert.equal(c().effects[0].params.color, '#0047bb', 'the colour input lowercases'); assert.equal(steps(), 13);
+click('data-fx-key-preset', {fxKeyPreset: 'green'}, {}, 0);
+assert.equal(c().effects[0].params.color, '#00b140'); assert.equal(steps(), 14);
+// Refusals change nothing: an audio clip has no blend mode, a locked track takes no edit.
+s.selectedClipId = 'm';
+change('select[data-blend]', {}, 'screen');
+assert.equal(steps(), 14, 'an audio clip takes no blend mode');
+s.selectedClipId = 'c'; s.project.tracks[0].locked = true;
+change('select[data-blend]', {}, 'screen'); field('x', '30');
+assert.equal(steps(), 14, 'a locked track changes nothing'); assert.equal('blend' in c(), false);
+`)
+}
+
+// Every desktop locale carries the compositing inspector strings (Task 14), and the sentences are translated.
+// videoStudio.attrBasePicture got its 2d text in Task 13 (TestVideoStudioCompositingEdits pins it).
+func TestVideoStudioCompositingInspectorLocales(t *testing.T) {
+	keys := []string{"mask", "mask_none", "mask_rect", "mask_ellipse", "maskFieldsHint", "maskMode", "maskModeOutside", "blendUnavailable", "blendTransitionHint", "keyPresetGreen", "keyPresetBlue"}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		if lang == "en" {
+			continue
+		}
+		for _, key := range []string{"maskFieldsHint", "maskModeOutside", "blendUnavailable", "blendTransitionHint"} {
+			if values["videoStudio."+key] == english["videoStudio."+key] {
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
 }
