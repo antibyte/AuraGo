@@ -264,7 +264,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: HASwitchboardSetting, Default: EmptyHASwitchboard},
 		{Key: "appearance.wallpaper", Default: "groupshoot", Values: desktopWallpaperValues()},
 		{Key: "appearance.wallpaper_by_space", Default: "{}"},
-		{Key: "appearance.theme", Default: "standard", Values: []string{"standard", "fruity"}},
+		{Key: "appearance.theme", Default: DefaultDesktopTheme, Values: DesktopThemeIDs()},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
 		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur"}},
