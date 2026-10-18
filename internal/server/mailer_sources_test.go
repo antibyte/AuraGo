@@ -113,6 +113,8 @@ func (a *mailerBlockingAdapter) Read(ctx context.Context, _, _ string) (mailer.M
 func TestMailerSourceRevocationCancelsActiveProtocolRead(t *testing.T) {
 	s := newDesktopOfficeTestServer(t)
 	s.Cfg.EmailAccounts = []config.EmailAccount{{ID: "main", Username: "mail@example.test"}}
+	s.initConfigSnapshot()
+	previous := s.ConfigSnapshot()
 	account, err := s.mailerSource(context.Background(), "email:main")
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +130,11 @@ func TestMailerSourceRevocationCancelsActiveProtocolRead(t *testing.T) {
 	next := s.Cfg.Clone()
 	next.EmailAccounts[0].Disabled = true
 	s.Cfg = next
+	s.replaceConfigSnapshot(next)
 	s.CfgMu.Unlock()
+	if previous.EmailAccounts[0].Disabled || s.ConfigSnapshot() != next {
+		t.Fatal("revocation must publish a detached config snapshot")
+	}
 	select {
 	case err := <-done:
 		if !errors.Is(err, context.Canceled) {
