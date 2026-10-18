@@ -283,11 +283,13 @@ const ballBefore = predicting.getBall(), timeBefore = predicting.getSnapshot().t
 const preview = predicting.predict([1, 0], 0.5);
 assert.ok(preview && preview.points.length >= 2, 'preview returns a path');
 assert.ok(preview.contactIndex >= 0, 'preview marks the first wall contact');
-assert.ok(pathLength(preview.points, preview.contactIndex) <= 1.05, `preview ends ≤ 1 m after the wall (${pathLength(preview.points, preview.contactIndex).toFixed(2)} m)`);
+assert.ok(pathLength(preview.points, preview.contactIndex) <= 1.0, `preview ends ≤ 1 m after the wall (${pathLength(preview.points, preview.contactIndex).toFixed(2)} m)`);
 assert.equal(preview.hazard, null);
 assert.deepEqual(predicting.getBall(), ballBefore, 'preview leaves the live ball in place');
 assert.equal(predicting.getSnapshot().time, timeBefore, 'preview leaves live time untouched');
 assert.equal(predictEvents.length, 0, 'preview emits no live events');
+const strongPreview = predicting.predict([1, 0], 1);
+assert.ok(strongPreview.contactIndex >= 0 && pathLength(strongPreview.points, strongPreview.contactIndex) <= 1.0 + 1e-6, `full-power preview ends ≤ 1 m after the wall (${pathLength(strongPreview.points, strongPreview.contactIndex).toFixed(3)} m)`);
 
 async function restAfterShot(physics, events, checkPreview = false) {
     assert.equal(physics.shoot([1, 0], 0.5), true);
@@ -308,5 +310,18 @@ const longPreview = openField.predict([1, 0], 1);
 assert.equal(longPreview.contactIndex, -1, 'open field has no wall contact');
 assert.ok(pathLength(longPreview.points) <= 0.45 * MAX_ROLL + 0.2, `long preview stops at 45 % of the roll (${pathLength(longPreview.points).toFixed(2)} m)`);
 openField.dispose();
+
+// The preview follows the live shot, including a moving gate.
+const gateCourse = () => wide({ obstacles: [{ id: 'slider', kind: 'slide', position: [2.5, 0.3, 0], halfExtents: [0.1, 0.3, 0.5], axis: [0, 0, 1], amplitude: 0.3, speed: 1, phase: 0 }] });
+const gated = await createPhysics(gateCourse());
+for (let i = 0; i < 37; i++) gated.step(fixedStep);
+const gatePreview = gated.predict([1, 0], 0.3);
+assert.ok(gatePreview.contactIndex >= 0, 'the gate preview reaches the moving gate');
+const livePath = [gated.getBall()];
+assert.equal(gated.shoot([1, 0], 0.3), true);
+for (let i = 0; i < 360; i++) { gated.step(fixedStep); livePath.push(gated.getBall()); }
+const offPath = Math.max(...gatePreview.points.map(point => Math.min(...livePath.map(live => Math.hypot(live[0] - point[0], live[2] - point[2])))));
+assert.ok(offPath <= 0.03, `preview follows the live shot past a moving gate (max ${(offPath * 100).toFixed(1)} cm off)`);
+gated.dispose();
 
 console.log('minigolf physics: all checks passed');

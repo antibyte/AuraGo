@@ -80,7 +80,7 @@ function rotationAt(obstacle, time) {
     if (obstacle.kind !== 'rotate') return base;
     const axis = obstacle.axis || [0, 1, 0];
     const length = Math.hypot(...axis) || 1;
-    const angle = Math.sin(time * obstacle.speed + obstacle.phase) * obstacle.amplitude;
+    const angle = Math.sin(time * obstacle.speed + (obstacle.phase || 0)) * obstacle.amplitude;
     const half = angle / 2;
     return multiplyQuaternion({ x: axis[0] / length * Math.sin(half), y: axis[1] / length * Math.sin(half), z: axis[2] / length * Math.sin(half), w: Math.cos(half) }, base);
 }
@@ -97,7 +97,7 @@ const validShot = (direction, power) => finiteVec3([direction?.[0], 0, direction
 // Rolling without slipping on the floor under the ball. Rapier contact
 // friction is disabled on the ball, so this is the only tangential force.
 function applyRolling(world, body, collider, surfaceOf) {
-    const hit = world.castRayAndGetNormal(new RAPIER.Ray(body.translation(), DOWN), GROUND_PROBE, true, undefined, undefined, collider);
+    const hit = world.castRayAndGetNormal(new RAPIER.Ray(body.translation(), DOWN), GROUND_PROBE, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, undefined, collider);
     if (!hit || hit.normal.y < 0.55) return;
     const n = hit.normal;
     const { a, k } = ROLLING[surfaceOf(hit.collider.handle)] || ROLLING.grass;
@@ -235,7 +235,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         }
     }
     function obstaclePose(spec, atTime) {
-            const phase = atTime * spec.speed + spec.phase;
+            const phase = atTime * spec.speed + (spec.phase || 0);
             const offset = Math.sin(phase) * spec.amplitude;
             const axis = spec.axis || [0, 1, 0];
             const length = Math.hypot(...axis) || 1;
@@ -364,8 +364,10 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         }
         const { world: copy, events: queue, ball, collider, obstacles } = ghost;
         let atTime = time;
+        // Mirror the live step order: after a step the obstacles sit at pose(t - dt),
+        // and each step moves them to pose(t) before t advances.
         for (const { spec, body } of obstacles) {
-            const pose = obstaclePose(spec, atTime);
+            const pose = obstaclePose(spec, atTime - FIXED_STEP);
             body.setTranslation(vec3(pose.position), true);
             body.setRotation(pose.rotation, true);
         }
@@ -378,13 +380,13 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         const points = [start];
         let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, quiet = 0;
         for (let stepIndex = 0; stepIndex < 360; stepIndex++) {
-            atTime += FIXED_STEP;
             for (const { spec, body } of obstacles) {
                 const pose = obstaclePose(spec, atTime);
                 body.setNextKinematicTranslation(vec3(pose.position));
                 body.setNextKinematicRotation(pose.rotation);
             }
             copy.step(queue);
+            atTime += FIXED_STEP;
             let touchedWall = false;
             queue.drainCollisionEvents((first, second, started) => {
                 const other = first === collider.handle ? second : second === collider.handle ? first : null;
@@ -392,18 +394,25 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             });
             applyRolling(copy, ball, collider, handle => surfaces.get(handle));
             const position = array3(ball.translation());
-            travelled += Math.hypot(position[0] - last[0], position[1] - last[1], position[2] - last[2]);
-            last = position;
+            const stepLength = Math.hypot(position[0] - last[0], position[1] - last[1], position[2] - last[2]);
+            if (contactAt >= 0 && travelled + stepLength - contactAt >= 0.9) {
+                // End exactly 0.9 m after the first wall contact.
+                const keep = stepLength > 0 ? (contactAt + 0.9 - travelled) / stepLength : 0;
+                last = last.map((value, axis) => value + (position[axis] - value) * keep);
+                break;
+            }
+            travelled += stepLength;
             const previous = points[points.length - 1];
             if (touchedWall && contactAt < 0) {
                 contactAt = travelled;
                 points.push(position);
                 contactIndex = points.length - 1;
             } else if (Math.hypot(position[0] - previous[0], position[2] - previous[2]) >= 0.08) points.push(position);
+            last = position;
             if ((course.water || []).some(volume => contains(volume, position))) { hazard = 'water'; break; }
             if (!contains(course.bounds, position)) { hazard = 'out'; break; }
             if (Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]) < cupOpening) break;
-            if ((contactAt >= 0 && travelled - contactAt >= 0.9) || travelled >= limit) break;
+            if (travelled >= limit) break;
             quiet = speed(ball.linvel()) < 0.075 ? quiet + 1 : 0;
             if (quiet >= 30) break;
         }
