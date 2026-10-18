@@ -31,6 +31,33 @@
             return biome || '#88ccff';
         }
 
+        function wrapAngle(a) { return ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; }
+
+        function updateEnemyHeading(e, dtMs) {
+            const dt = dtMs / 1000;
+            if (dt <= 0) return;
+            const cfg = GC.ENEMY_HEADING[e.type] || GC.ENEMY_HEADING.default;
+            const vx = e.pmx == null ? 0 : (e.x - e.pmx) / dt, vy = e.pmy == null ? 0 : (e.y - e.pmy) / dt;
+            e.pmx = e.x; e.pmy = e.y;
+            if (e.rot == null) e.rot = 0;
+            if (cfg.spin) { e.rot = wrapAngle(e.rot + cfg.spin * dt * (e.st === 'FORM' ? 1 : 1.6)); return; }
+            const speed = Math.hypot(vx, vy);
+            let target = 0, full = false;
+            if (e.st === 'FORM') {
+                // Idle: gentle breathing roll plus a hint of bank from the formation drift.
+                if (e.rotPhase == null) e.rotPhase = Math.random() * Math.PI * 2;
+                e.rotPhase += dt * cfg.swaySpeed;
+                target = Math.sin(e.rotPhase) * cfg.sway + Math.max(-1, Math.min(1, vx / 160)) * cfg.bank * 0.5;
+            } else if (speed > 12) {
+                if (cfg.face && e.st !== 'ENTER') { target = Math.atan2(vx, -vy); full = true; }
+                else target = Math.max(-1, Math.min(1, vx / Math.max(60, speed))) * cfg.bank;
+            } else target = e.rot;
+            let delta = target - e.rot;
+            if (full) delta = wrapAngle(delta);
+            e.rot += delta * Math.min(1, dt * cfg.rate);
+            if (full) e.rot = wrapAngle(e.rot);
+        }
+
         function updateEnemyMotionFx(e, dtMs) {
             if (e.st === 'DEAD') return;
             const fx = fxDef(e);
@@ -71,6 +98,8 @@
             e.mScale = scale;
             e.mAlpha = alpha;
             e.mSkipDraw = alpha < 0.06 && e.st !== 'DIVING';
+
+            if (e.st !== 'SMOLDER') updateEnemyHeading(e, dtMs);
 
             if (fx.diveTrail && (e.st === 'DIVING' || e.st === 'FEINT')) {
                 e.trailAcc = (e.trailAcc || 0) + dtMs;

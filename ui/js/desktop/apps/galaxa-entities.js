@@ -12,9 +12,14 @@
         const WEAPON_EVOS = {
             vulcan: { name: 'VULCAN', desc: 'Ultra-fast stream', col: '#ff8844', fireRate: 0.6, spread: 0, dmgMult: 1 },
             cannon: { name: 'CANNON', desc: 'Slow massive shots', col: '#ff4444', fireRate: 2.5, spread: 0, dmgMult: 4 },
-            beam: { name: 'BEAM', desc: 'Continuous laser', col: '#88ccff', fireRate: 0, spread: 0, dmgMult: 0, isBeam: true }
+            beam: { name: 'BEAM', desc: 'Continuous laser', col: '#88ccff', fireRate: 0, spread: 0, dmgMult: 0, isBeam: true },
+            wave: { name: 'WAVE', desc: 'Twin oscillating bolts', col: '#55ffd6', fireRate: 1.15, spread: 0, dmgMult: 1, mode: 'wave' },
+            flak: { name: 'FLAK', desc: 'Bursting shells', col: '#ffaa33', fireRate: 1.7, spread: 0, dmgMult: 1, mode: 'flak' },
+            rail: { name: 'RAIL', desc: 'Piercing rail lance', col: '#bfe6ff', fireRate: 3.4, spread: 0, dmgMult: 3, mode: 'rail' }
         };
         ctx.WEAPON_EVOS = WEAPON_EVOS;
+        const WEAPON_EVO_IDS = ['vulcan', 'cannon', 'beam', 'wave', 'flak', 'rail'];
+        ctx.WEAPON_EVO_IDS = WEAPON_EVO_IDS;
 
         let evoSel = 0;
         function updateEvoChoice() {
@@ -22,9 +27,9 @@
             const d = ctx.G.inp.d && !ctx.G.inp.dp;
             const f = ctx.G.inp.f && !ctx.G.inp.fp;
             if (u) evoSel = Math.max(0, evoSel - 1);
-            if (d) evoSel = Math.min(2, evoSel + 1);
+            if (d) evoSel = Math.min(WEAPON_EVO_IDS.length - 1, evoSel + 1);
             if (f) {
-                const evos = ['vulcan', 'cannon', 'beam'];
+                const evos = WEAPON_EVO_IDS;
                 ctx.G.weaponEvo = evos[evoSel];
                 ctx.G.evoChoiceOpen = false;
                 ctx.SFX.puUpgrade(ctx.W / 2);
@@ -33,6 +38,6 @@
         }
         ctx.updateEvoChoice = updateEvoChoice;
         ctx.evoSel = function () { return evoSel; };
-        ctx.selectEvolution = index => { evoSel = Math.max(0, Math.min(2, index)); ctx.G.inp.f = true; ctx.G.inp.fp = false; updateEvoChoice(); ctx.G.inp.f = false; };
+        ctx.selectEvolution = index => { evoSel = Math.max(0, Math.min(WEAPON_EVO_IDS.length - 1, index)); ctx.G.inp.f = true; ctx.G.inp.fp = false; updateEvoChoice(); ctx.G.inp.f = false; };
     };
 })();

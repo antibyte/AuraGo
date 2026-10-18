@@ -66,7 +66,7 @@
             const end = ctx.G.bul.length;
             for (let i = fromIdx; i < end; i++) {
                 const b = ctx.G.bul[i]; if (b._mirror) continue;
-                ctx.G.bul.push({ ...b, x: ctx.W - b.x, vx: -(b.vx || 0),
+                ctx.G.bul.push({ ...b, baseX: b.baseX !== undefined ? ctx.W - b.baseX : undefined, x: ctx.W - b.x, vx: -(b.vx || 0),
                     hitTargets: b.hitTargets ? new Set(b.hitTargets) : undefined, _mirror: true, _ghost: !!permanent });
             }
             if (permanent && ctx.fxMirrorRefract) ctx.fxMirrorRefract();
@@ -118,7 +118,79 @@
             }
             mines.length = write;
         }
+        function fireEvoWeapon(id, def, spreadLevel, pierce) {
+            const G = ctx.G, p = G.p, origins = p.dual ? [p.x, p.x + 36] : [p.x];
+            for (const ox of origins) {
+                if (id === 'wave') {
+                    // Twin bolts snake around the launch column in opposite phase; a spread powerup adds outer lanes.
+                    const n = 2 + spreadLevel * 2;
+                    for (let i = 0; i < n; i++) {
+                        const lane = Math.floor(i / 2);
+                        G.bul.push({ x: ox, y: p.y - 8, w: 4, h: 8, vx: 0, vy: -ctx.PB_SPEED * 0.92, wave: true, baseX: ox, waveAmp: 18 + lane * 12,
+                            waveFreq: 0.0135, wavePhase: i % 2 ? Math.PI : 0, age: 0, dmg: 1, pierce: !!pierce });
+                    }
+                } else if (id === 'flak') {
+                    const n = 1 + spreadLevel * 2;
+                    for (let i = 0; i < n; i++) {
+                        const a = (i - (n - 1) / 2) * 0.21;
+                        G.bul.push({ x: ox, y: p.y - 10, w: 6, h: 10, vx: Math.sin(a) * ctx.PB_SPEED * 0.72, vy: -Math.cos(a) * ctx.PB_SPEED * 0.72, flak: true, fuse: 620, age: 0, dmg: 1, pierce: !!pierce });
+                    }
+                } else if (id === 'rail') {
+                    const permanent = ctx.modesIsMirrorPermanent && ctx.modesIsMirrorPermanent(), mirrored = G.mirrorActive || permanent;
+                    for (const dx of spreadLevel ? [-26, 0, 26] : [0]) {
+                        fireRailLance(ox + dx, p.y - 6, def.dmgMult, null);
+                        if (mirrored) fireRailLance(ctx.W - (ox + dx), p.y - 6, def.dmgMult, { _mirror: true, _ghost: !!permanent });
+                    }
+                }
+            }
+        }
+        function fireRailLance(x, y0, dmg, flags) {
+            // Instant hit along the whole column above the muzzle; the beam only lingers as a visual.
+            const G = ctx.G, hits = [];
+            for (const e of G.enemies.slice()) {
+                if (!ctx.isSeekerTarget(e) || e.y > y0) continue;
+                const half = e.sectorBoss ? 41 : (e.type === 'boss' || e.type === 'miniboss') ? 19 : 12;
+                if (Math.abs(e.x - x) <= half + 3) hits.push(e);
+            }
+            for (const e of hits) {
+                const apply = !flags || shouldApplyPlayerHit(flags);
+                if (!apply) continue;
+                ctx.damageEnemy(e, dmg);
+                G.stageAccuracyHits = (G.stageAccuracyHits || 0) + 1;
+                if (e.hp <= 0 && !e.sectorBoss) ctx.finishEnemyKill(e, { x, y: e.y, vx: 0, vy: -ctx.PB_SPEED, noSmolder: true });
+                else { e.hitF = 100; ctx.bulletImpact(x, e.y, '#bfe6ff', 0, -1); if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); }
+            }
+            const beams = G.railBeams || (G.railBeams = []);
+            while (beams.length >= 6) beams.shift();
+            beams.push({ x, y0, y1: -10, t: 0, dur: 240, hits: hits.length });
+            if (hits.length) G.hitstopT = Math.max(G.hitstopT || 0, 20);
+            G.shkT = Math.max(G.shkT || 0, 90); G.shkM = Math.max(G.shkM || 0, 1.5);
+        }
+        function updateRailBeams(dtMs) {
+            const beams = ctx.G.railBeams; if (!beams || !beams.length) return;
+            let w = 0; for (const r of beams) { r.t += dtMs; if (r.t < r.dur) beams[w++] = r; } beams.length = w;
+        }
+        function flakShouldBurst(b, dtMs) {
+            b.fuse -= dtMs;
+            if (b.fuse <= 0 || b.y < 90) return true;
+            const near = findNearestEnemy(b.x, b.y);
+            if (!ctx.settings.reducedMotion && ctx.G.trails.length < 100 && Math.random() < 0.5) ctx.G.trails.push({ x: b.x + (Math.random() - 0.5) * 3, y: b.y + 6, vx: 0, vy: 18, life: 240, t: 0, col: 'rgba(255,170,60,0.55)', size: 2 });
+            return !!near && Math.hypot(near.x - b.x, near.y - b.y) < 30;
+        }
+        function flakBurst(b) {
+            const G = ctx.G, n = 8;
+            areaDamage(b.x, b.y, 26, 1, null, { x: b.x, y: b.y, noSmolder: true });
+            for (let i = 0; i < n; i++) {
+                // Shards fan forward over ~220 degrees so the burst keeps hitting the formation ahead.
+                const a = -Math.PI / 2 + (i - (n - 1) / 2) * (Math.PI * 1.22 / (n - 1));
+                G.bul.push({ x: b.x, y: b.y, w: 3, h: 3, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, dmg: 1, life: 380, age: 0, flakShard: true, pierce: !!b.pierce });
+            }
+            expansionEffect('metal-sparks', b.x, b.y, 44);
+            G.plasmaRings.push({ x: b.x, y: b.y, r: 0, maxR: 30, t: 0, dur: 200, col: '#ffb347' });
+            if (ctx.SFX.flakBurst) ctx.SFX.flakBurst(b.x);
+        }
         Object.assign(ctx, { isSeekerTarget, findNearestEnemy, shouldApplyPlayerHit, expansionEffect, areaDamage,
-            fireRocketSalvo, rocketImpact, mirrorDuplicateBullets, pushPlayerMine, dropPlayerMines, updatePlayerMines });
+            fireRocketSalvo, rocketImpact, mirrorDuplicateBullets, pushPlayerMine, dropPlayerMines, updatePlayerMines,
+            fireEvoWeapon, fireRailLance, flakShouldBurst, flakBurst, updateRailBeams });
     };
 })();

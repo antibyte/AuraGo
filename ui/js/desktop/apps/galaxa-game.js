@@ -685,7 +685,7 @@
             const rect = ctx.canvas.getBoundingClientRect(), x = (event.clientX - rect.left) * ctx.W / rect.width, y = (event.clientY - rect.top) * ctx.H / rect.height;
             const G = ctx.G;
             function confirm(fn) { G.inp.f = true; G.inp.fp = false; fn(); G.inp.f = false; }
-            if (G.evoChoiceOpen && y >= 239 && y < 467) { ctx.selectEvolution(Math.floor((y - 239) / 76)); return; }
+            if (G.evoChoiceOpen && y >= 239 && y < 239 + ctx.WEAPON_EVO_IDS.length * 46) { ctx.selectEvolution(Math.floor((y - 239) / 46)); return; }
             if (G.st === 'TITLE') {
                 if (y >= 180 && y < 302 && x >= 30 && x < 518) {
                     ctx.settings.ship = Object.keys(ctx.SHIP_TYPES)[Math.min(3, Math.floor((x - 30) / 122))]; ctx.saveSettings();

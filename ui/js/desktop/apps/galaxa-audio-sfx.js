@@ -31,6 +31,46 @@
                     beep('sine', 1900 * _p, 620 * _p, 0.025, 0.08 * _v, panX);
                     return;
                 }
+                if (kind === 'vulcan') {
+                    beep('square', 1500 * _p, 1100 * _p, 0.03, 0.14 * _v, panX, { q: 2.2 });
+                    beep('sine', 2400 * _p, 1600 * _p, 0.02, 0.06 * _v, panX);
+                    return;
+                }
+                if (kind === 'cannon') {
+                    ctx.fm(260 * _p, 48 * _p, 0.14, 0.3 * _v, panX, 2.2, { reverb: 0.16 });
+                    noise(0.07, 0.16 * _v, 1400, panX, { q: 1.6, cut0: 2800, cut1: 300 });
+                    beep('square', 140 * _p, 60 * _p, 0.1, 0.12 * _v, panX);
+                    return;
+                }
+                if (kind === 'wave') {
+                    beep('sine', 620 * _p, 980 * _p, 0.09, 0.2 * _v, panX, { detune: 9, reverb: 0.12 });
+                    beep('sine', 640 * _p, 940 * _p, 0.09, 0.14 * _v, panX, { detune: -9 });
+                    ctx.fm(880 * _p, 1240 * _p, 0.07, 0.1 * _v, panX, 0.8);
+                    return;
+                }
+                if (kind === 'flak') {
+                    beep('square', 330 * _p, 120 * _p, 0.07, 0.2 * _v, panX, { q: 1.8, cut0: 2400, cut1: 500 });
+                    noise(0.05, 0.14 * _v, 1800, panX, { filterType: 'bandpass', q: 1.4 });
+                    ctx.fm(180 * _p, 70 * _p, 0.09, 0.14 * _v, panX, 1.8);
+                    return;
+                }
+                if (kind === 'rail') {
+                    ctx.fm(420 * _p, 2600 * _p, 0.09, 0.22 * _v, panX, 3.0, { q: 2.5 });
+                    beep('sawtooth', 1800 * _p, 3400 * _p, 0.07, 0.12 * _v, panX, { q: 2.2 });
+                    noise(0.06, 0.18 * _v, 7200, panX, { filterType: 'highpass' });
+                    ctx.scheduleSfx(() => beep('sine', 2900 * _p, 900 * _p, 0.11, 0.1 * _v, panX, { reverb: 0.22 }), 40);
+                    return;
+                }
+                if (kind === 'pierce' || kind === 'mega_pierce') {
+                    beep('sawtooth', 1700 * _p, 2300 * _p, 0.05, 0.14 * _v, panX, { q: 2.4, cut0: 7000, cut1: 2500 });
+                    beep('sine', 980 * _p, 1300 * _p, 0.05, 0.1 * _v, panX);
+                    return;
+                }
+                if (kind === 'ricochet' || kind === 'mega_ricochet') {
+                    beep('triangle', 1480 * _p, 1720 * _p, 0.06, 0.16 * _v, panX, { q: 2.0, reverb: 0.14 });
+                    beep('sine', 2960 * _p, 2400 * _p, 0.04, 0.07 * _v, panX);
+                    return;
+                }
                 beep('sine', 920 * _p, 1340 * _p, 0.065, 0.25 * _v, panX, { q: 1.8 });
                 beep('square', 480 * _p, 180 * _p, 0.045, 0.09 * _v, panX, { cut0: 3200, cut1: 600 });
                 noise(0.022, 0.04 * _v, 5200, panX);
@@ -141,6 +181,16 @@
             hunterShot(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 740 * _p, 320 * _p, 0.095, 0.21 * _v, panX, { q: 2.0 }); beep('square', 520 * _p, 190 * _p, 0.06, 0.13 * _v, panX); },
             spinnerShot(panX) { const _p = pv(), _v = vv(); ctx.fm(1400 * _p, 2250 * _p, 0.07, 0.19 * _v, panX, 1.5); beep('triangle', 920 * _p, 1520 * _p, 0.05, 0.11 * _v, panX); },
             bomberDrop(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 310 * _p, 78 * _p, 0.12, 0.2 * _v, panX, { q: 1.8 }); noise(0.08, 0.12 * _v, 850, panX); },
+            lobShot(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('triangle', 420 * _p, 160 * _p, 0.1, 0.18 * _v, panX, { q: 1.6 });
+                noise(0.05, 0.08 * _v, 600, panX);
+            },
+            pincerShot(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('square', 980 * _p, 640 * _p, 0.06, 0.16 * _v, panX, { q: 2.0 });
+                ctx.scheduleSfx(() => beep('square', 1040 * _p, 700 * _p, 0.06, 0.14 * _v, panX, { q: 2.0 }), 30);
+            },
             lasherShot(panX) { const _p = pv(), _v = vv(); beep('sine', 620 * _p, 1850 * _p, 0.13, 0.21 * _v, panX, { q: 2.2 }); beep('triangle', 420 * _p, 1240 * _p, 0.08, 0.14 * _v, panX); },
             sniperShot(panX) { const _p = pv(), _v = vv(); ctx.fm(1900 * _p, 540 * _p, 0.085, 0.24 * _v, panX, 2.0, { reverb: 0.14 }); beep('square', 1250 * _p, 380 * _p, 0.05, 0.12 * _v, panX); },
             comboMilestone(n, panX) { [880, 1109, 1319, 1760, 2217].forEach((f, i) => { ctx.scheduleSfx(() => beep('sine', f, f, 0.085, 0.2 + n * 0.025, panX, { reverb: 0.22 }), i * 38); }); },
@@ -322,6 +372,12 @@
             rocketLaunch(panX) { if (ctx.G.muted) return; beep('sawtooth', 190, 560, 0.11, 0.23 * vv(), panX, { q: 2.0 }); noise(0.08, 0.13 * vv(), 460, panX, { filterType: 'bandpass', q: 1.8 }); },
             rocketHit(panX) { if (ctx.G.muted) return; ctx.fm(135, 48, 0.14, 0.28 * vv(), panX, 2.0); noise(0.16, 0.22 * vv(), 560, panX); },
             mineDrop(panX) { if (ctx.G.muted) return; beep('square', 250, 110, 0.06, 0.16 * vv(), panX); },
+            flakBurst(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(150 * _p, 46 * _p, 0.11, 0.24 * _v, panX, 2.0);
+                noise(0.09, 0.2 * _v, 1200, panX, { q: 1.5, cut0: 3400, cut1: 400 });
+                noise(0.03, 0.1 * _v, 6000, panX);
+            },
             mineExplode(panX) { if (ctx.G.muted) return; ctx.fm(105, 38, 0.16, 0.26 * vv(), panX, 2.1); noise(0.2, 0.22 * vv(), 650, panX); },
             megabomb(panX) { if (ctx.G.muted) return; noise(0.72, 0.72 * vv(), 1400, panX, { q: 2.0, cut0: 3600, cut1: 120, reverb: 0.32 }); ctx.fm(90, 24, 0.55, 0.52 * vv(), panX, 2.4, { reverb: 0.26 }); ctx.scheduleSfx(() => beep('sine', 44, 20, 0.42, 0.35 * vv(), panX), 115); },
             weatherCrack() { if (ctx.G.muted) return; noise(0.06, 0.14 * vv(), 7200, undefined, { reverb: 0.2 }); beep('sawtooth', 1280, 280, 0.045, 0.12 * vv()); },

@@ -6,13 +6,16 @@
         GC.createEntitiesWeapons(ctx);
         GC.createEnemyRewards(ctx);
         let lastFireT = -1000, fireGeneration = -1;
+        const PU_SOUND_KINDS = /^(rapid|ultra_rapid|spread|mega_spread|pierce|mega_pierce|ricochet|mega_ricochet|laser|mega_laser)$/;
 
-        function playFireJuice(kind) {
+        function playFireJuice(kind, col) {
             if (ctx.SFX.shootTyped) ctx.SFX.shootTyped(kind, ctx.G.p.x);
             else if (kind === 'laser' || kind === 'mega_laser') ctx.SFX.laserShoot(ctx.G.p.x);
             else ctx.SFX.shoot(ctx.G.p.x);
             ctx.G.muzzleT = 160;
-            if (ctx.fxMuzzleSparks) ctx.fxMuzzleSparks(ctx.G.p.x, ctx.G.p.y, '#ffee88');
+            if (kind === 'cannon') { ctx.G.shkT = Math.max(ctx.G.shkT, 70); ctx.G.shkM = Math.max(ctx.G.shkM, 1.2); }
+            if (kind === 'rail') ctx.G.muzzleT = 220;
+            if (ctx.fxMuzzleSparks) ctx.fxMuzzleSparks(ctx.G.p.x, ctx.G.p.y, col || '#ffee88');
         }
 
                 function fire(now) {
@@ -51,6 +54,20 @@
             }
             const isUltraRapid = ctx.G.activePU && ctx.G.activePU.type === 'ultra_rapid';
             const isRapid = ctx.G.activePU && ctx.G.activePU.type === 'rapid';
+            // Weapon evolutions with their own fire mode (wave / flak / rail). A laser
+            // or rocket powerup still overrides them above; homing shots keep priority.
+            if (evoProf && evoProf.mode && !(ctx.G.activePU && ctx.G.activePU.type === 'homing' && ctx.G.activePU.shots > 0)) {
+                const evoCd = Math.round(250 * evoProf.fireRate * (isUltraRapid ? 0.45 : isRapid ? 0.6 : 1));
+                if (now - lastFireT < evoCd) return;
+                lastFireT = now;
+                const evoBefore = ctx.G.bul.length, puType = ctx.G.activePU && ctx.G.activePU.type;
+                ctx.fireEvoWeapon(ctx.G.weaponEvo, evoProf, puType === 'mega_spread' ? 2 : puType === 'spread' ? 1 : 0, puType === 'pierce' || puType === 'mega_pierce');
+                const sfxKind = puType && PU_SOUND_KINDS.test(puType) ? puType : ctx.G.weaponEvo;
+                playFireJuice(sfxKind, evoProf.col);
+                ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
+                ctx.mirrorDuplicateBullets(evoBefore);
+                return;
+            }
             let cd = isUltraRapid ? 80 : isRapid ? 120 : 250;
             if (evoProf && evoProf.fireRate && !evoProf.isBeam) cd = Math.round(cd * evoProf.fireRate);
             if (now - lastFireT < cd) return;
@@ -104,8 +121,10 @@
                     ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 2, h: 6, vx: Math.sin(0.2) * ctx.PB_SPEED * 0.2, vy: -ctx.PB_SPEED, pierce: isPierce });
                 }
             }
-            const kind = (ctx.G.activePU && ctx.G.activePU.type) || 'normal';
-            playFireJuice(kind);
+            if (ctx.G.weaponEvo === 'cannon' || ctx.G.weaponEvo === 'vulcan') for (let i = bulBefore; i < ctx.G.bul.length; i++) ctx.G.bul[i].evo = ctx.G.weaponEvo;
+            const puKind = ctx.G.activePU && ctx.G.activePU.type;
+            const kind = puKind && PU_SOUND_KINDS.test(puKind) ? puKind : (ctx.G.weaponEvo || 'normal');
+            playFireJuice(kind, evoProf && evoProf.col);
             ctx.G.stageAccuracyShots = (ctx.G.stageAccuracyShots || 0) + 1;
             ctx.mirrorDuplicateBullets(bulBefore);
         }
@@ -506,10 +525,12 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             const baseSpd = ctx.getShipSpeed();
             const spd = ctx.G.activePU && (ctx.G.activePU.type === 'speed' || ctx.G.activePU.type === 'hyper_speed') ? baseSpd * (ctx.G.activePU.type === 'hyper_speed' ? 2.2 : 1.8) : baseSpd;
             const vspd = spd * ctx.PLAYER_VERTICAL_SPEED_MULT;
+            const _ppx = ctx.G.p.x, _ppy = ctx.G.p.y;
             if (inp.l) ctx.G.p.x -= spd * dt; if (inp.r) ctx.G.p.x += spd * dt;
             if (inp.u) ctx.G.p.y -= vspd * dt; if (inp.d) ctx.G.p.y += vspd * dt;
             ctx.G.p.x = Math.max(24, Math.min(ctx.W - (ctx.G.p.dual ? 60 : 24), ctx.G.p.x));
             ctx.G.p.y = Math.max(ctx.PLAYER_Y_MIN, Math.min(ctx.PLAYER_Y_MAX, ctx.G.p.y));
+            if (dt > 0) { ctx.G.p.vx = (ctx.G.p.x - _ppx) / dt; ctx.G.p.vy = (ctx.G.p.y - _ppy) / dt; }
             if (ctx.G.p.inv > 0) ctx.G.p.inv -= dt * 1000;
             if (inp.f && ctx.G.st === 'PLAYING') ctx.fire(now);
             if (ctx.G.beam && ctx.G.beam.active && ctx.G.p.x > ctx.G.beam.x - 20 && ctx.G.p.x < ctx.G.beam.x + 20 && ctx.G.p.y > ctx.G.beam.y && ctx.G.p.y < ctx.G.beam.y + ctx.G.beam.h) {
@@ -737,6 +758,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             const dtMs = dt * 1000;
             const hitSfxNow = ctx.G.simTime;
             ctx.updatePlayerMines(dtMs, dt);
+            if (ctx.updateRailBeams) ctx.updateRailBeams(dtMs);
             const hasRicochet = ctx.G.activePU && (ctx.G.activePU.type === 'ricochet' || ctx.G.activePU.type === 'mega_ricochet');
             const maxBounces = ctx.G.activePU && ctx.G.activePU.type === 'mega_ricochet' ? 4 : 2;
             let bw = 0;
@@ -764,6 +786,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     }
                     b.x += b.vx * dt; b.y += b.vy * dt;
                 } else if (b.vx !== undefined && b.vy !== undefined) { b.x += b.vx * dt; b.y += b.vy * dt; } else b.y -= (b.laser ? ctx.PB_SPEED * 1.5 : ctx.PB_SPEED) * dt;
+                if (b.wave) b.x = b.baseX + Math.sin(b.age * b.waveFreq + b.wavePhase) * b.waveAmp;
+                if (b.flak && ctx.flakShouldBurst(b, dtMs)) { ctx.flakBurst(b); continue; }
                 if (b.y < -10 || b.y > ctx.H + 10) continue;
                 if (b.x < 0 || b.x > ctx.W) {
                     if (hasRicochet && (b.bounces || 0) < maxBounces) {
@@ -881,6 +905,8 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 const b = ctx.G.ebul[i];
                 b.prevX = b.x; b.prevY = b.y;
                 b.t = (b.t || 0) + dtMs;
+                if (b.ay) b.vy = (b.vy || 0) + b.ay * eDt;
+                if (b.steerX !== undefined) { b.vx = (b.vx || 0) + (b.steerX - b.x) * b.steer * eDt; b.vx *= Math.max(0, 1 - 1.5 * eDt); }
                 if (b.orbitT > 0) {
                     b.orbitT -= eDt * 1000; b.orbitAngle += eDt * 1.5;
                     const radius = 45 + (650 - b.orbitT) * 0.04;
