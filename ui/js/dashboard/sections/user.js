@@ -53,7 +53,7 @@
             };
             let html = '';
             for (const [cat, entries] of Object.entries(data.categories)) {
-                html += `<div class="profile-category" data-cat="${esc(cat)}">
+                html += `<div class="profile-category" data-cat="${escAttr(cat)}">
             <div class="profile-cat-header" onclick="toggleCategory(this)">
                 <span class="profile-cat-toggle">▶</span>
                 ${catIcons[cat] || '📦'} ${catNameMap[cat] || esc(cat)} (${entries.length})
@@ -64,16 +64,16 @@
                     const firstSeen = e.first_seen ? e.first_seen.replace('T', ' ').slice(0, 16) : '';
                     const updatedAt = e.updated_at ? e.updated_at.replace('T', ' ').slice(0, 16) : '';
                     const tip = (firstSeen ? t('dashboard.profile_tooltip_created') + ' ' + firstSeen + '\n' : '') + (updatedAt ? t('dashboard.profile_tooltip_updated') + ' ' + updatedAt : '');
-                    html += `<div class="profile-entry" data-search="${esc(e.key + ' ' + e.value)}" title="${esc(tip)}">
+                    html += `<div class="profile-entry" data-search="${escAttr(e.key + ' ' + e.value)}" title="${escAttr(tip)}">
                 <span class="profile-key">${esc(e.key)}</span>
                 <span class="profile-val">${esc(e.value)}</span>
                 <span class="confidence-badge ${confClass}" title="${t('dashboard.profile_confidence')} ${e.confidence}">${e.confidence}</span>
                 <span class="profile-actions">
-                    <button type="button" class="profile-btn-edit" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.btn_edit')}">${t('dashboard.btn_edit')}</button>
-                    <button type="button" class="profile-btn-delete" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.btn_delete')}">${t('dashboard.btn_delete')}</button>
+                    <button type="button" class="profile-btn-edit" data-cat="${escAttr(cat)}" data-key="${escAttr(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.btn_edit')}">${t('dashboard.btn_edit')}</button>
+                    <button type="button" class="profile-btn-delete" data-cat="${escAttr(cat)}" data-key="${escAttr(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.btn_delete')}">${t('dashboard.btn_delete')}</button>
                 </span>
                 <span class="profile-edit-form is-hidden">
-                    <input type="text" class="profile-edit-input" value="${esc(e.value)}">
+                    <input type="text" class="profile-edit-input" value="${escAttr(e.value)}">
                     <button class="profile-btn-save" onclick="saveProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✓</button>
                     <button class="profile-btn-cancel" onclick="cancelProfileEdit(this)" title="${t('dashboard.profile_edit_cancel')}">✗</button>
                 </span>
@@ -206,7 +206,7 @@
                 if (withSentiment.length > 0) {
                     dashSetHidden(sentimentWrap, false);
                     sentimentRow.innerHTML = withSentiment.map(s =>
-                        `<span class="sentiment-day-badge ${esc(s.sentiment)}">${sentimentEmoji[s.sentiment] || '•'} ${esc(s.date)}</span>`
+                        `<span class="sentiment-day-badge ${escAttr(s.sentiment)}">${sentimentEmoji[s.sentiment] || '•'} ${esc(s.date)}</span>`
                     ).join('');
                 } else {
                     dashSetHidden(sentimentWrap, true);

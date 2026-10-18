@@ -96,7 +96,7 @@
                 const updated = r.updated_at ? `<span>🕐 ${new Date(r.updated_at).toLocaleDateString()}</span>` : '';
                 const desc = r.description ? `<div class="gh-repo-desc">${esc(r.description)}</div>` : '';
                 return `<div class="gh-repo">
-                    <a href="${esc(r.html_url)}" target="_blank" rel="noopener" class="gh-repo-name">
+                    <a href="${escAttr(r.html_url)}" target="_blank" rel="noopener" class="gh-repo-name">
                         📦 ${esc(r.name)} ${vis} ${tracked}
                     </a>
                     ${desc}

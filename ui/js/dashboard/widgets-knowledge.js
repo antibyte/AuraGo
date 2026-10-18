@@ -32,7 +32,7 @@
                 .slice(0, 6)
                 .map(([type, count]) => {
                     const color = knowledgeGraphTypeColor(type);
-                    return `<span class="knowledge-type-badge" data-badge-color="${esc(color)}">${esc(type)} (${count})</span>`;
+                    return `<span class="knowledge-type-badge" data-badge-color="${escAttr(color)}">${esc(type)} (${count})</span>`;
                 }).join('');
 
             grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
@@ -96,7 +96,7 @@
                 return;
             }
             container.innerHTML = rows.map(row => `
-                <div class="kg-health-row" data-consistency-key="${esc(row.key)}">
+                <div class="kg-health-row" data-consistency-key="${escAttr(row.key)}">
                     <span>${esc(row.lbl)}</span>
                     <strong>${esc(String(row.val))}</strong>
                 </div>
@@ -123,17 +123,17 @@
                     rawIDs.sort((left, right) => Number(right === recommendedTargetID) - Number(left === recommendedTargetID));
                 }
                 const idLinks = rawIDs.map(id =>
-                    `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
+                    `<span class="kg-cell-link" data-kg-open-node="${escAttr(id)}">${esc(id)}</span>`
                 ).join(', ');
                 const mergeButtons = allowMerge ? rawIDs.flatMap(targetID =>
                     rawIDs.filter(sourceID => sourceID !== targetID).map(sourceID => {
                         const direction = `${sourceID} → ${targetID}`;
                         return `
                             <button type="button" class="btn btn-secondary btn-sm"
-                                data-kg-merge-source="${esc(sourceID)}"
-                                data-kg-merge-target="${esc(targetID)}"
-                                data-kg-merge-label="${esc(candidate.label || candidate.normalized_label || 'Node')}"
-                                title="${esc(t('dashboard.knowledge_quality_merge_btn'))}: ${esc(direction)}">
+                                data-kg-merge-source="${escAttr(sourceID)}"
+                                data-kg-merge-target="${escAttr(targetID)}"
+                                data-kg-merge-label="${escAttr(candidate.label || candidate.normalized_label || 'Node')}"
+                                title="${escAttr(t('dashboard.knowledge_quality_merge_btn'))}: ${escAttr(direction)}">
                                 ${esc(direction)}
                             </button>`;
                     })
@@ -199,7 +199,7 @@
                 '</tr></thead><tbody>';
             nodes.forEach(node => {
                 html += `<tr>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
                     <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
                 </tr>`;
@@ -230,12 +230,12 @@
             nodes.forEach(node => {
                 const typeColor = node?.properties?.type ? knowledgeGraphTypeColor(node.properties.type) : '';
                 const typeCell = typeColor
-                    ? `<td><span class="kg-type-badge" data-badge-color="${esc(typeColor)}">${esc(node.properties.type)}</span></td>`
+                    ? `<td><span class="kg-type-badge" data-badge-color="${escAttr(typeColor)}">${esc(node.properties.type)}</span></td>`
                     : '<td class="text-secondary">—</td>';
                 const score = typeof node.importance_score === 'number' ? node.importance_score : '—';
                 const flags = node.protected ? '<span class="kg-flag-protected" title="Protected">🔒</span>' : '';
                 html += `<tr>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     ${typeCell}
                     <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
                     <td class="text-secondary">${esc(node?.properties?.source || '—')}</td>
@@ -262,8 +262,8 @@
             edges.forEach(edge => {
                 html += `<tr>
                     <td class="kg-cell-link">${esc(edge.relation || '')}</td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.source || '')}">${esc(edge.source || '')}</td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.target || '')}">${esc(edge.target || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(edge.source || '')}">${esc(edge.source || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(edge.target || '')}">${esc(edge.target || '')}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -311,7 +311,7 @@
             nodes.forEach(node => {
                 html += `<tr>
                     <td><span class="kg-kind-badge">${t('dashboard.knowledge_nodes')}</span></td>
-                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     <td class="text-secondary">${esc(node.id || '')}</td>
                     <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
                 </tr>`;
@@ -1736,7 +1736,7 @@
             const entries = Array.from(typesInGraph).sort().map(type => {
                 const color = knowledgeGraphTypeColor(type);
                 const count = allNodes.filter(n => n?.properties?.type === type).length;
-                return `<span class="kg-legend-entry"><span class="kg-legend-dot" data-dot-color="${esc(color)}"></span>${esc(type)} (${count})</span>`;
+                return `<span class="kg-legend-entry"><span class="kg-legend-dot" data-dot-color="${escAttr(color)}"></span>${esc(type)} (${count})</span>`;
             }).join('');
 
             legend.innerHTML = `<div class="kg-legend-row">${entries}</div>`;

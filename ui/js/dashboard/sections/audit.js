@@ -149,14 +149,14 @@
                 const operation = metadata?.operation ? `${t('dashboard.audit_col_type')}: ${metadata.operation}` : '';
                 const detail = [event.summary || '', event.detail || '', stateHistory ? `State: ${stateHistory}` : '', operation].filter(Boolean).join('\n\n');
                 tr.innerHTML = `
-                    <td class="audit-cell-time" data-label="${esc(t('dashboard.audit_col_time'))}">${esc(timeLabel)}</td>
-                    <td class="audit-cell-source" data-label="${esc(t('dashboard.audit_col_source'))}"><span class="audit-source audit-source-${esc(event.source || 'system')}">${esc(auditSourceLabel(event.source))}</span></td>
-                    <td class="audit-cell-type" data-label="${esc(t('dashboard.audit_col_type'))}">${esc(auditTypeLabel(event.event_type))}</td>
-                    <td class="audit-cell-target" data-label="${esc(t('dashboard.audit_col_target'))}" title="${esc(event.target_id || '')}">${esc(event.target_name || event.target_id || '—')}</td>
-                    <td class="audit-cell-status" data-label="${esc(t('dashboard.audit_col_status'))}"><span class="audit-status audit-status-${esc(status)}">${esc(auditStatusLabel(status))}</span></td>
-                    <td class="audit-cell-summary" data-label="${esc(t('dashboard.audit_col_summary'))}" title="${esc(detail)}"><span class="audit-summary-text">${esc(event.summary || '—')}</span></td>
-                    <td class="audit-cell-duration" data-label="${esc(t('dashboard.audit_col_duration'))}">${esc(duration)}</td>
-                    <td class="audit-cell-actions" data-label="${esc(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${esc(t('dashboard.audit_delete'))}">${esc(t('dashboard.btn_delete'))}</button></td>`;
+                    <td class="audit-cell-time" data-label="${escAttr(t('dashboard.audit_col_time'))}">${esc(timeLabel)}</td>
+                    <td class="audit-cell-source" data-label="${escAttr(t('dashboard.audit_col_source'))}"><span class="audit-source audit-source-${escAttr(event.source || 'system')}">${esc(auditSourceLabel(event.source))}</span></td>
+                    <td class="audit-cell-type" data-label="${escAttr(t('dashboard.audit_col_type'))}">${esc(auditTypeLabel(event.event_type))}</td>
+                    <td class="audit-cell-target" data-label="${escAttr(t('dashboard.audit_col_target'))}" title="${escAttr(event.target_id || '')}">${esc(event.target_name || event.target_id || '—')}</td>
+                    <td class="audit-cell-status" data-label="${escAttr(t('dashboard.audit_col_status'))}"><span class="audit-status audit-status-${escAttr(status)}">${esc(auditStatusLabel(status))}</span></td>
+                    <td class="audit-cell-summary" data-label="${escAttr(t('dashboard.audit_col_summary'))}" title="${escAttr(detail)}"><span class="audit-summary-text">${esc(event.summary || '—')}</span></td>
+                    <td class="audit-cell-duration" data-label="${escAttr(t('dashboard.audit_col_duration'))}">${esc(duration)}</td>
+                    <td class="audit-cell-actions" data-label="${escAttr(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${escAttr(t('dashboard.audit_delete'))}">${esc(t('dashboard.btn_delete'))}</button></td>`;
                 tbody.appendChild(tr);
             });
             const end = Math.min(auditOffset + entries.length, auditTotal);

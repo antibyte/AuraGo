@@ -126,25 +126,25 @@
                 const statusTitle = lastError || cronjobStatusLabel(status);
                 // A flow's schedule is managed in EasyDrag: the server refuses edit, toggle and delete (409).
                 const actions = job.managed_by === 'easydrag' ? cronjobManagedLabel() : `<button type="button" class="cronjobs-row-btn"
-                            data-cron-id="${esc(job.id || '')}"
-                            data-cron-expr="${esc(job.cron_expr || '')}"
-                            data-cron-prompt="${esc(job.task_prompt || '')}"
-                            data-cron-source="${esc(job.source || 'agent')}"
+                            data-cron-id="${escAttr(job.id || '')}"
+                            data-cron-expr="${escAttr(job.cron_expr || '')}"
+                            data-cron-prompt="${escAttr(job.task_prompt || '')}"
+                            data-cron-source="${escAttr(job.source || 'agent')}"
                             data-cron-disabled="${disabled ? 'true' : 'false'}"
                             onclick="openCronEditModal(this)"
-                            title="${esc(t('dashboard.cron_edit_title'))}">${esc(t('dashboard.btn_edit'))}</button>
+                            title="${escAttr(t('dashboard.cron_edit_title'))}">${esc(t('dashboard.btn_edit'))}</button>
                         <button type="button" class="cronjobs-row-btn danger"
-                            data-cron-id="${esc(job.id || '')}"
+                            data-cron-id="${escAttr(job.id || '')}"
                             onclick="deleteCronJob(this.dataset.cronId)"
-                            title="${esc(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>`;
+                            title="${escAttr(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>`;
                 tr.innerHTML = `
-                    <td data-label="${esc(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${esc(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${esc(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${escAttr(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${escAttr(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_prompt'))}" title="${escAttr(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
+                    <td data-label="${escAttr(t('dashboard.cronjobs_col_actions'))}">
                         <div class="cronjobs-row-actions">
                         ${actions}
                         </div>
@@ -238,7 +238,7 @@
                 const dur = e.duration_ms > 0 ? (e.duration_ms >= 60000 ? `${(e.duration_ms / 60000).toFixed(1)}m` : `${(e.duration_ms / 1000).toFixed(1)}s`) : '—';
                 const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 tr.innerHTML = `
-                    <td title="${esc(e.mission_id)}">${esc(e.mission_name || e.mission_id)}</td>
+                    <td title="${escAttr(e.mission_id)}">${esc(e.mission_name || e.mission_id)}</td>
                     <td><span class="mh-status ${statusCls}">${icon} ${tOr('dashboard.mh_status_' + e.status, esc(e.status))}</span></td>
                     <td><span class="mh-trigger">${trigIcon} ${esc(e.trigger_type || '—')}</span></td>
                     <td>${started}</td>
@@ -350,7 +350,7 @@
 
                 // Error detail
                 const errHtml = d.last_error
-                    ? `<div class="daemon-meta daemon-meta-error"><span title="${esc(d.last_error)}">⚠ ${esc(d.last_error.length > 60 ? d.last_error.substring(0, 60) + '…' : d.last_error)}</span></div>`
+                    ? `<div class="daemon-meta daemon-meta-error"><span title="${escAttr(d.last_error)}">⚠ ${esc(d.last_error.length > 60 ? d.last_error.substring(0, 60) + '…' : d.last_error)}</span></div>`
                     : '';
 
                 return `<div class="daemon-row${d.auto_disabled ? ' daemon-row-disabled' : ''}">

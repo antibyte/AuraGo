@@ -26,9 +26,11 @@ const document = {
 };
 const t = (key, params) => key + (params ? ' ' + JSON.stringify(params) : '');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// shared-core.js's escAttr is esc plus quotes; this stub esc already escapes them.
+const escAttr = esc;
 const truncate = (s, max) => (String(s || '').length > max ? String(s).slice(0, max) + '…' : String(s || ''));
 
-const sandbox = { window: {}, document, console, t, esc, truncate, LANG: 'en', setTimeout, clearTimeout, URLSearchParams, AbortController, DashSections: { register() {} } };
+const sandbox = { window: {}, document, console, t, esc, escAttr, truncate, LANG: 'en', setTimeout, clearTimeout, URLSearchParams, AbortController, DashSections: { register() {} } };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 // main.js boots the page at load time (DOM, Chart.js), so only its two shared helpers are taken: function declarations

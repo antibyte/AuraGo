@@ -320,7 +320,7 @@
         // label and hint instead, once.
         function cronjobManagedLabel() {
             const label = esc(t('dashboard.cronjobs_managed_easydrag'));
-            const hint = esc(t('dashboard.cronjobs_managed_easydrag_hint'));
+            const hint = escAttr(t('dashboard.cronjobs_managed_easydrag_hint'));
             return `<span class="cronjobs-managed" title="${hint}" aria-hidden="true">${label}</span><span class="visually-hidden">${label} ${hint}</span>`;
         }
 

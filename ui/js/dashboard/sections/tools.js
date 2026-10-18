@@ -56,22 +56,22 @@
             if (cronCount > 0) {
                 details += '<div class="activity-section"><div class="activity-section-title">⏰ ' + t('dashboard.activity_scheduled_tasks') + '</div>';
                 for (const job of data.cron_jobs) {
+                    // Text positions take esc, the data-cron-* attributes escAttr (a prompt may contain quotes).
                     const safeId     = esc(job.id || 'unknown');
                     const safeExpr   = esc(job.cron_expr || '');
-                    const safePrompt = esc(job.task_prompt || '');
-                    const safeSource = esc(job.source || 'agent');
+                    const attrId     = escAttr(job.id || 'unknown');
                     const safeDisabled = job.disabled ? 'true' : 'false';
                     // A flow's schedule (source "flow") is managed in EasyDrag; the server refuses edits.
                     const actions = job.source === 'flow' ? cronjobManagedLabel() : `<button class="cf-fact-btn"
-                            data-cron-id="${safeId}"
-                            data-cron-expr="${safeExpr}"
-                            data-cron-prompt="${safePrompt}"
-                            data-cron-source="${safeSource}"
+                            data-cron-id="${attrId}"
+                            data-cron-expr="${escAttr(job.cron_expr || '')}"
+                            data-cron-prompt="${escAttr(job.task_prompt || '')}"
+                            data-cron-source="${escAttr(job.source || 'agent')}"
                             data-cron-disabled="${safeDisabled}"
                             onclick="openCronEditModal(this)"
                             title="${t('dashboard.cron_edit_title')}">${t('dashboard.btn_edit')}</button>
                         <button class="cf-fact-btn danger"
-                            data-cron-id="${safeId}"
+                            data-cron-id="${attrId}"
                             onclick="deleteCronJob(this.dataset.cronId)"
                             title="${t('dashboard.cron_btn_delete')}">${t('dashboard.btn_delete')}</button>`;
                     details += `<div class="activity-item">
@@ -117,7 +117,7 @@
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
                     const specIcons = { researcher: '\uD83D\uDD0D', coder: '\uD83D\uDCBB', designer: '\uD83C\uDFA8', security: '\uD83D\uDEE1\uFE0F', writer: '\u270D\uFE0F' };
-                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span class="ca-spec-icon" title="' + esc(ca.specialist) + '">' + specIcons[ca.specialist] + '</span>' : '';
+                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span class="ca-spec-icon" title="' + escAttr(ca.specialist) + '">' + specIcons[ca.specialist] + '</span>' : '';
                     const extra = [];
                     if (ca.queue_position) extra.push('Q' + esc(String(ca.queue_position)));
                     if (ca.retry_count) extra.push('R' + esc(String(ca.retry_count)));
@@ -216,7 +216,7 @@
                             const tokens = Number(s.rough_tokens || 0);
                             const pct = Math.max(1, Math.round((tokens / maxSchemaTokens) * 100));
                             return `<div class="adaptive-tool-row">
-                                <span class="adaptive-tool-name" title="${esc(s.name)}">${esc(s.name)}</span>
+                                <span class="adaptive-tool-name" title="${escAttr(s.name)}">${esc(s.name)}</span>
                                 <div class="adaptive-tool-bar-bg">
                                     <div class="adaptive-tool-bar-fill w-pct-${pct}"></div>
                                 </div>
@@ -229,7 +229,7 @@
                         const pct = maxScore > 0 ? Math.round((s.score / maxScore) * 100) : 0;
                         const isActive = maxTools <= 0 || i < maxTools;
                         return `<div class="adaptive-tool-row ${isActive ? '' : 'adaptive-tool-row-inactive'}">
-                            <span class="adaptive-tool-name" title="${esc(s.tool)}">${esc(s.tool)}</span>
+                            <span class="adaptive-tool-name" title="${escAttr(s.tool)}">${esc(s.tool)}</span>
                             <div class="adaptive-tool-bar-bg">
                                 <div class="adaptive-tool-bar-fill w-pct-${pct}"></div>
                             </div>

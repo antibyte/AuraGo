@@ -38,7 +38,7 @@
                 return `<div class="error-pattern-item">
                     <div class="error-pattern-header">
                         <span class="error-pattern-tool">${esc(p.tool_name || '?')}</span>
-                        <span class="error-pattern-msg" title="${esc(p.error_message)}">${esc((p.error_message || '').substring(0, 60))}${(p.error_message || '').length > 60 ? '…' : ''}</span>
+                        <span class="error-pattern-msg" title="${escAttr(p.error_message)}">${esc((p.error_message || '').substring(0, 60))}${(p.error_message || '').length > 60 ? '…' : ''}</span>
                         ${p.occurrence_count > 1 ? `<span class="error-pattern-count">${p.occurrence_count}×</span>` : ''}
                     </div>
                     ${resolved}
