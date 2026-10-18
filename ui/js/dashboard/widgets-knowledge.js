@@ -118,7 +118,9 @@
                 { key: 'index_orphans', val: Number(consistency?.index_orphans || 0), lbl: t('dashboard.knowledge_health_consistency_index_orphans') },
             ].filter(row => row.val > 0);
             if (!rows.length) {
-                container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_health_consistency_ok')}</div>`;
+                // No report at all (semantic index off) is not "consistent": same predicate as the health KPI.
+                const noReport = knowledgeGraphConsistencyIssues(consistency) === null;
+                container.innerHTML = `<div class="empty-state">${noReport ? t('dashboard.knowledge_health_consistency_unavailable') : t('dashboard.knowledge_health_consistency_ok')}</div>`;
                 return;
             }
             container.innerHTML = rows.map(row => `
