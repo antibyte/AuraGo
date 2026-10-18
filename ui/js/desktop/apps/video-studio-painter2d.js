@@ -3,6 +3,11 @@
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const NO_CROP = Object.freeze({ l: 0, t: 0, r: 0, b: 0 });
+    // A share in 0..1, or fallback when value is not a number.
+    const unitOr = (value, fallback) => (Number.isFinite(Number(value)) ? clamp(Number(value), 0, 1) : fallback);
+    // The wipe's visible part of the box in box fractions [x0, x1] (index §4.24: in shows [0, p), out [1 − p, 1)). The
+    // 2D painter clips to the fraction; the GL painter uses VideoStudioAnim.revealPx's whole box columns.
+    const revealRange = wipe => { const p = unitOr(wipe.p, 0); return wipe.side === 'out' ? [1 - p, 1] : [0, p]; };
 
     // The 2D painter (phase 2 index §4.5, §4.8): the preview's previous drawing behind the painter interface. It keeps
     // the phase 0/1 geometry (no even rounding) and draws transform, opacity, contain/cover and the four transitions
@@ -35,9 +40,15 @@
         // - Flips mirror about the box centre with a negative scale. Crop fractions refer to the unflipped source, so
         //   the source rectangle does not change.
         // - Effects are never drawn here.
+        // - 2e (index §4.8), with item.state.anim:
+        //   - the box moves by (dx·W, dy·H) of the canvas and scales about its centre;
+        //   - globalAlpha is multiplied by anim.opacity;
+        //   - a wipe clips to its box fractions (revealRange) in rotated box space, before the flips.
+        //   blur_in draws no blur: its fade still plays, and the 2D notice already says effects are not shown.
         function drawItem(ctx, item, alphaScale) {
             if (!item || !item.ready || !item.el) return;
             const el = item.el, asset = item.asset || {}, state = item.state || {}, picture = window.VideoStudioPicture;
+            const anim = state.anim || null;
             const iw = Number(el.videoWidth || el.naturalWidth || asset.width || 0);
             const ih = Number(el.videoHeight || el.naturalHeight || asset.height || 0);
             if (!iw || !ih) return;
@@ -46,16 +57,23 @@
             const sx = rect.x * iw / decoded.width, sy = rect.y * ih / decoded.height;
             const sw = rect.w * iw / decoded.width, sh = rect.h * ih / decoded.height;
             const cw = canvas.width, ch = canvas.height;
-            const x = Number(state.x || 0) * cw, y = Number(state.y || 0) * ch;
-            const w = Number(state.width || 1) * cw, h = Number(state.height || 1) * ch;
+            let x = Number(state.x || 0) * cw, y = Number(state.y || 0) * ch;
+            let w = Number(state.width || 1) * cw, h = Number(state.height || 1) * ch;
+            if (anim) {
+                const s = Number.isFinite(Number(anim.scale)) ? Number(anim.scale) : 1;
+                const cx = x + w / 2 + (Number(anim.dx) || 0) * cw, cy = y + h / 2 + (Number(anim.dy) || 0) * ch;
+                w *= s; h *= s; x = cx - w / 2; y = cy - h / 2;
+            }
             const cover = state.fit === 'cover';
             const scale = cover ? Math.max(w / sw, h / sh) : Math.min(w / sw, h / sh);
             const dw = sw * scale, dh = sh * scale;
+            const reveal = anim && anim.wipe ? revealRange(anim.wipe) : null;
             ctx.save();
-            ctx.globalAlpha = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1) * (alphaScale == null ? 1 : alphaScale);
+            ctx.globalAlpha = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1) * (alphaScale == null ? 1 : alphaScale) * (anim ? unitOr(anim.opacity, 1) : 1);
             ctx.translate(x + w / 2, y + h / 2);
             ctx.rotate(Number(state.rotation || 0) * Math.PI / 180);
             if (cover) { ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip(); }
+            if (reveal) { ctx.beginPath(); ctx.rect(-w / 2 + reveal[0] * w, -h / 2, (reveal[1] - reveal[0]) * w, h); ctx.clip(); }
             if (state.flipH || state.flipV) ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
             ctx.drawImage(el, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
             ctx.restore();

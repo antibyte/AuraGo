@@ -121,9 +121,10 @@ const state = E.clipState(clip, 0, box);
 assert.deepEqual(P.boxRect(E.placement(state, box, box, {width: 360, height: 360})), [140 / 640, 0, 360 / 640, 1], 'contain: the fitted picture, centred');
 assert.deepEqual(P.boxRect(E.placement(Object.assign({}, state, {fit: 'cover'}), box, box, {width: 360, height: 360})), [0, 0, 1, 1], 'cover: the box');
 assert.deepEqual(P.boxRect(null), [0, 0, 1, 1], 'no placement: the box');
-// The sources: PLACE_VERTEX gives v_box, PLACE ignores it, PLACE_MASKED inlines MASK and declares every uniform.
+// The sources: PLACE_VERTEX gives v_box, PLACE reads it for the wipe reveal (2e), PLACE_MASKED inlines MASK and declares
+// every uniform.
 assert(S.PLACE_VERTEX.includes('uniform vec4 u_boxRect;') && S.PLACE_VERTEX.includes('out vec2 v_box;'), 'PLACE_VERTEX gives v_box');
-assert(!S.PLACE.includes('v_box'), 'PLACE ignores the box');
+assert(S.PLACE.includes('in vec2 v_box;') && S.PLACE.includes('uniform vec4 u_reveal;'), 'PLACE reads the box for the wipe reveal (2e)');
 assert(S.MASK.includes('float vsMask(vec2 p)'), 'MASK defines vsMask');
 assert(S.PLACE_MASKED.startsWith('#version 300 es') && S.PLACE_MASKED.includes(S.MASK) && S.PLACE_MASKED.includes('in vec2 v_box;'), 'PLACE_MASKED inlines MASK');
 declares(S.PLACE_MASKED, Object.assign({u_boxSize: [640, 360], u_opacity: 1}, u), 'PLACE_MASKED');

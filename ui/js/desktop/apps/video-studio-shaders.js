@@ -20,7 +20,8 @@ void main() {
     // A placed quad: u_matrix maps the unit quad (0,0 = top left of the drawn rectangle) into clip space of a top-down
     // target; u_uvRect is the part of the source the quad shows (x, y, width, height in texture coordinates).
     // u_boxRect (2d) is the drawn rectangle in fractions of the clip box (VideoStudioPicture.boxRect: the fitted picture
-    // for contain, [0, 0, 1, 1] for cover), so v_box is the fragment's box-local position. Only PLACE_MASKED reads it.
+    // for contain, [0, 0, 1, 1] for cover), so v_box is the fragment's box-local position. PLACE reads it for the wipe
+    // reveal (2e) and PLACE_MASKED for the mask and the reveal; placeClip sets u_boxRect for every clip.
     const PLACE_VERTEX = `#version 300 es
 layout(location = 0) in vec2 a_pos;
 uniform mat3 u_matrix;
@@ -42,12 +43,23 @@ in vec2 v_uv;
 out vec4 outColor;
 `;
 
+    // ---- 2e wipe reveal (index §4.7). ----
+    // u_reveal is the visible part of the clip box as (x0, y0, x1, y1) box fractions: VideoStudioEffects.placement's
+    // reveal, which is VideoStudioAnim.revealPx in whole box columns, or [0, 0, 1, 1] without a wipe.
+    // - Alpha is 0 outside it. The reveal is in box space, so it turns with the box and ignores crop, flips and effects.
+    // - placeClip always sets u_reveal and u_boxRect: an unset vec4 is 0 and would hide the clip (risk 31).
+    const REVEAL = `in vec2 v_box;
+uniform vec4 u_reveal;
+float vsReveal(vec2 b) { return b.x >= u_reveal.x && b.x < u_reveal.z && b.y >= u_reveal.y && b.y < u_reveal.w ? 1.0 : 0.0; }
+`;
+
     // The source is straight alpha (uploads never premultiply); opacity scales alpha and the output is premultiplied.
-    const PLACE = FRAGMENT_HEAD + `uniform sampler2D u_source;
+    // 2e: alpha is also 0 outside the wipe reveal.
+    const PLACE = FRAGMENT_HEAD + REVEAL + `uniform sampler2D u_source;
 uniform float u_opacity;
 void main() {
     vec4 colour = texture(u_source, v_uv);
-    float alpha = colour.a * u_opacity;
+    float alpha = colour.a * u_opacity * vsReveal(v_box);
     outColor = vec4(colour.rgb * alpha, alpha);
 }
 `;
@@ -87,14 +99,13 @@ float vsMask(vec2 p) {
 
     // PLACE with a mask (2d, index §4.7): alpha x vsMask at the fragment's box px (v_box x u_boxSize), applied before
     // the premultiplication. The mask therefore follows the box, its rotation and the fit; crop, flips and effects
-    // never move it.
-    const PLACE_MASKED = FRAGMENT_HEAD + `in vec2 v_box;
-uniform sampler2D u_source;
+    // never move it. 2e: the wipe reveal multiplies after the mask, and with animation the box is the animated one.
+    const PLACE_MASKED = FRAGMENT_HEAD + REVEAL + `uniform sampler2D u_source;
 uniform float u_opacity;
 uniform vec2 u_boxSize;
 ` + MASK + `void main() {
     vec4 colour = texture(u_source, v_uv);
-    float alpha = colour.a * u_opacity * vsMask(v_box * u_boxSize);
+    float alpha = colour.a * u_opacity * vsMask(v_box * u_boxSize) * vsReveal(v_box);
     outColor = vec4(colour.rgb * alpha, alpha);
 }
 `;
@@ -401,6 +412,19 @@ void main() {
     // Pass sources per registry effect id, in pass order (blur: horizontal, then vertical; chroma_key: one KEY pass).
     const EFFECTS = { color: [COLOR], lut: [LUT], blur: [BLUR, BLUR], sharpen: [SHARPEN], vignette: [VIGNETTE], chroma_key: [KEY] };
 
+    // ---- 2e blur_in mix (index §4.7, §4.24). ----
+    // A clip-local pass with straight alpha in and out (QUAD_VERTEX, u_flipY 0). u_source is the overlay o, u_base the
+    // base b, and u_mix = m/255 (VideoStudioAnim.blurUniforms). It mixes premultiplied, pm(b) + (pm(o) − pm(b))·m,
+    // alpha included: the GL form of maskedmerge's MM(b, o, m). The result is written straight.
+    const ANIM_MIX = PASS_HEAD + `uniform sampler2D u_base;
+uniform float u_mix;
+void main() {
+    vec4 over = texture(u_source, v_uv), base = texture(u_base, v_uv);
+    vec4 mixed = mix(vec4(base.rgb * base.a, base.a), vec4(over.rgb * over.a, over.a), u_mix);
+    outColor = mixed.a > 0.0 ? vec4(mixed.rgb / mixed.a, mixed.a) : vec4(0.0);
+}
+`;
+
     // ---- 2d blend modes (index §4.7, §4.22). ----
     // blend(id) draws QUAD_VERTEX (u_flipY 0) into a canvas-size scratch target without blending. It reads u_dst, the
     // opaque composite below, and u_src, the placed layer (premultiplied), and writes
@@ -441,7 +465,7 @@ void main() {
     };
 
     window.VideoStudioShaders = {
-        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED,
+        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED, ANIM_MIX,
         // Fragment source for a registry transition id (all 24 since 2e, index §4.7), or null.
         transition(id) { return Object.prototype.hasOwnProperty.call(TRANSITIONS, id) ? TRANSITIONS[id] : null; },
         // {passes: [fragmentSource, ...]} for a registry effect id, or null (index §4.7).

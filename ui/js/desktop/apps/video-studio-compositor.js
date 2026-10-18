@@ -180,6 +180,47 @@
             return passes;
         }
 
+        // The blur_in passes of state.anim (2e, index §4.8 stage 2): {blur, mix, sets} for blurCascade, or null outside a
+        // blur_in span.
+        // - The cascade reuses the 2c BLUR program and adds ANIM_MIX.
+        // - When one of them does not compile, the clip draws sharp and the failure is reported once as
+        //   ('effect', 'anim:blur_in').
+        // - A lost context compiles nothing and reports nothing.
+        function blurPasses(anim, size) {
+            const sets = anim && anim.blur && window.VideoStudioAnim ? window.VideoStudioAnim.blurUniforms(anim, size) : [];
+            if (!Array.isArray(sets) || sets.length !== 6) return null;
+            const source = S().effect('blur');
+            const blur = source ? ctx.program('effect:blur:0', S().QUAD_VERTEX, source.passes[0]) : null;
+            const mix = ctx.program('anim-mix', S().QUAD_VERTEX, S().ANIM_MIX);
+            if (blur && mix) return { blur, mix, sets };
+            if (ctx.failed('effect:blur:0') || ctx.failed('anim-mix')) reportFailure('effect', 'anim:blur_in');
+            return null;
+        }
+        // The cascade on the sharp picture in input (index §4.24 blur_in), in order:
+        // - g(S) into wide, through one;
+        // - g(S/4) into narrow, through one;
+        // - ANIM_MIX(g(S), g(S/4), m1) into one;
+        // - ANIM_MIX(that, sharp, m2) into wide.
+        // It takes up to three extra targets (spare serves as one) and returns {out, spare}: out holds the result, and
+        // every other target goes back to the pool. Without the targets the clip stays sharp.
+        function blurCascade(blur, input, spare, size) {
+            const w = size.width, h = size.height;
+            const one = spare || ctx.target(w, h), wide = ctx.target(w, h), narrow = ctx.target(w, h);
+            if (!one || !wide || !narrow) { ctx.release(wide); ctx.release(narrow); return { out: input, spare: one }; }
+            const draw = (program, into, set, inputs) => ctx.draw(program, into, Object.assign({ u_flipY: 0, u_size: [w, h] }, set.uniforms), inputs);
+            const [wideH, wideV, narrowH, narrowV, first, second] = blur.sets;
+            draw(blur.blur, one, wideH, { u_source: input });
+            draw(blur.blur, wide, wideV, { u_source: one });
+            draw(blur.blur, one, narrowH, { u_source: input });
+            draw(blur.blur, narrow, narrowV, { u_source: one });
+            draw(blur.mix, one, first, { u_source: narrow, u_base: wide });
+            draw(blur.mix, wide, second, { u_source: input, u_base: one });
+            ctx.release(narrow);
+            ctx.release(one);
+            ctx.release(input);
+            return { out: wide, spare: null };
+        }
+
         // Stage 2 (2c, index §4.8): crop, flip and the effect stack from item.state. It sets item.picture =
         // {width, height, uv}:
         // - width x height is the frame's crop rect in decoded pixels (VideoStudioPicture.decodedSize), the size fit uses;
@@ -190,6 +231,8 @@
         //   ping-pong in that size, and uv is the whole target.
         // - Crop keyframes: PICTURE flips the whole picture and the effects run on all of it. uv is the frame's crop rect
         //   mirrored for the flips (mirroredCrop), so the crop follows the effects as in the export.
+        // 2e: while state.anim.blur is set, the blur_in cascade runs after the effects (blurPasses, blurCascade). It
+        // forces the PICTURE pass when the clip has no effects or flips.
         // The returned target stays the clip's (entry.out) until its next passes or release(clipId).
         function clipPasses(item, texture) {
             const state = item.state || {}, entry = clips.get(item.clip.id);
@@ -202,8 +245,8 @@
             const animated = !!E().cropAnimated(item.clip);
             const source = animated ? [0, 0, 1, 1] : cropUV;
             const size = Pic().capSize(texture.width * source[2], texture.height * source[3], canvasSize());
-            const passes = effectPasses(state.effects, size);
-            if (!passes.length && !flipH && !flipV) return texture;
+            const passes = effectPasses(state.effects, size), blur = blurPasses(state.anim, size);
+            if (!passes.length && !flipH && !flipV && !blur) return texture;
             let input = ctx.target(size.width, size.height), spare = null;
             if (!input) return texture;
             ctx.draw(pictureProgram(), input, { u_flipY: 0, u_uvRect: source, u_flip: [flipH ? 1 : 0, flipV ? 1 : 0] }, { u_source: texture });
@@ -215,13 +258,14 @@
                 spare = input;
                 input = done;
             }
+            if (blur) ({ out: input, spare } = blurCascade(blur, input, spare, size));
             ctx.release(spare);
             if (entry) entry.out = input;
             item.picture.uv = animated ? uvRect(Pic().cropRect(Pic().mirroredCrop(crop, flipH, flipV), decoded.width, decoded.height), decoded) : [0, 0, 1, 1];
             return input;
         }
 
-        // Stage 3: transform, opacity and mask from item.state.
+        // Stage 3: transform, opacity, mask and in/out animation from item.state.
         // - The box uses the export's even rounding (VideoStudioEffects.placement) and fits item.picture, the crop rect in
         //   decoded pixels set by clipPasses.
         // - Contain draws the fitted picture centred in the box. Cover draws the box and samples the matching part. Both
@@ -230,12 +274,18 @@
         // - With item.state.mask (2d, index §4.8) it draws PLACE_MASKED: law L per fragment in box px (placement.box in
         //   target px, F = max(feather·box height, 1 px)). The mask follows the box, its rotation and the fit, but not
         //   the crop, flips or effects.
+        // - 2e (index §4.8 stage 3) with state.anim:
+        //   - the placement is the animated box (placement's 5th argument), so a mask follows pop and slides;
+        //   - u_opacity is the keyed opacity × anim.opacity;
+        //   - u_reveal hides the box columns a wipe has not reached.
+        //   u_boxRect and u_reveal are set for every clip.
         function placeClip(item, texture, target) {
-            const state = item.state || {};
-            const opacity = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1);
+            const state = item.state || {}, anim = state.anim || null;
+            const animOpacity = anim && Number.isFinite(Number(anim.opacity)) ? clamp(Number(anim.opacity), 0, 1) : 1;
+            const opacity = clamp(Number(state.opacity == null ? 1 : state.opacity), 0, 1) * animOpacity;
             const project = (current && current.project) || {};
             const picture = item.picture || { width: texture.width, height: texture.height, uv: [0, 0, 1, 1] };
-            const place = E().placement(state, { width: target.width, height: target.height }, { width: Number(project.width) || target.width, height: Number(project.height) || target.height }, { width: picture.width, height: picture.height });
+            const place = E().placement(state, { width: target.width, height: target.height }, { width: Number(project.width) || target.width, height: Number(project.height) || target.height }, { width: picture.width, height: picture.height }, anim);
             if (opacity <= 0 || !place || !place.box || !place.draw) return;
             const box = place.box, draw = place.draw, cover = !!place.clip;
             const w = cover ? box.w : draw.w, h = cover ? box.h : draw.h;
@@ -245,9 +295,10 @@
             const uv = [base[0] + local[0] * base[2], base[1] + local[1] * base[3], local[2] * base[2], local[3] * base[3]];
             const angle = (Number(state.rotation) || 0) * Math.PI / 180;
             const matrix = placeMatrix(box.x + box.w / 2, box.y + box.h / 2, w, h, angle, target.width, target.height);
-            const uniforms = { u_matrix: matrix, u_uvRect: uv, u_opacity: opacity };
+            const reveal = place.reveal && place.reveal.length === 4 ? Array.from(place.reveal) : [0, 0, 1, 1];
+            const uniforms = { u_matrix: matrix, u_uvRect: uv, u_opacity: opacity, u_boxRect: Pic().boxRect(place), u_reveal: reveal };
             const masked = state.mask ? maskedProgram() : null;
-            if (masked) Object.assign(uniforms, { u_boxRect: Pic().boxRect(place), u_boxSize: [box.w, box.h] }, Pic().maskUniforms(state.mask, { width: box.w, height: box.h }));
+            if (masked) Object.assign(uniforms, { u_boxSize: [box.w, box.h] }, Pic().maskUniforms(state.mask, { width: box.w, height: box.h }));
             ctx.draw(masked || placeProgram(), target, uniforms, { u_source: texture }, { blend: 'normal' });
         }
 
@@ -406,7 +457,7 @@
         // The preview switches to the 2D painter in onFallback and disposes this painter.
         function giveUp(reason) { if (!disposed && typeof hooks.onFallback === 'function') hooks.onFallback(reason); }
         // A program that failed to compile is reported once per kind and id ('transition' since 2a, 'effect' since 2c;
-        // 2d adds the effect ids 'mask' and 'blend:<mode>').
+        // 2d adds the effect ids 'mask' and 'blend:<mode>', 2e 'anim:blur_in').
         function reportFailure(kind, id) {
             const key = kind + ':' + id;
             if (reported.has(key)) return;

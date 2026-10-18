@@ -124,5 +124,24 @@
         return { preset: anim.preset, duration: Math.max(range.min, Math.min(range.max, roundHalfAway((Number(anim.duration) || 0) * ratio))) };
     }
 
-    window.VideoStudioAnim = { SECONDS, SLIDE, POP, BLUR_RADIUS, BLUR_NODE, frameRange, spans, at, blurMasks, box, revealPx, valid, rescale };
+    // ---- Plan 2e Task 12: the GL passes of blur_in (index §4.4b, §4.8 stage 2). ----
+    // The passes clipPasses runs after the effect stack while anim.blur is set, as {kind, uniforms}. size is the
+    // clip-local target {width, height}.
+    // - Four 'blur' passes: the 2c BLUR pair (horizontal, vertical) at σ = S, then at σ = S/4. S = BLUR_RADIUS · the
+    //   target height (VideoStudioPicture.passUniforms('blur'), the export's blurSigma rule).
+    // - Two 'mix' passes for ANIM_MIX: u_mix = m1/255 (base g(S), overlay g(S/4)), then m2/255 (base the first mix,
+    //   overlay the sharp picture). Together: MM(MM(g(S), g(S/4), m1), sharp, m2).
+    // [] without blur: at rest, for the other presets, or when the target is too small for a kernel.
+    function blurUniforms(anim, size) {
+        const blur = anim && anim.blur, picture = window.VideoStudioPicture, api = window.VideoStudioAnim;
+        if (!blur || !picture || !api) return [];
+        const radius = api.BLUR_RADIUS;
+        const wide = picture.passUniforms('blur', { radius }, size), narrow = picture.passUniforms('blur', { radius: radius / 4 }, size);
+        if (wide.length !== 2 || narrow.length !== 2) return [];
+        const share = value => Math.max(0, Math.min(255, Math.round(Number(value) || 0))) / 255;
+        return wide.concat(narrow).map(uniforms => ({ kind: 'blur', uniforms }))
+            .concat([{ kind: 'mix', uniforms: { u_mix: share(blur.m1) } }, { kind: 'mix', uniforms: { u_mix: share(blur.m2) } }]);
+    }
+
+    window.VideoStudioAnim = { SECONDS, SLIDE, POP, BLUR_RADIUS, BLUR_NODE, frameRange, spans, at, blurMasks, box, revealPx, valid, rescale, blurUniforms };
 })();
