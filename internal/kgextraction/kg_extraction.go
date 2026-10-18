@@ -18,6 +18,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -72,7 +73,7 @@ JSON:
 }
 
 Inputs:
-%s%s`, maxNodes, maxEdges, existingNodesString, text)
+%s\n%s`, maxNodes, maxEdges, security.IsolateExternalData(existingNodesString), security.IsolateExternalData(text))
 	}
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
@@ -104,9 +105,6 @@ Inputs:
 		attemptInput := inputText
 		maxNodes, maxEdges := 15, 20
 		if attempt == 1 {
-			runes := []rune(attemptInput)
-			retryLen := min(4000, len(runes)/2)
-			attemptInput = string(runes[:retryLen])
 			maxNodes, maxEdges = 6, 8
 		}
 		messages := []openai.ChatCompletionMessage{
@@ -139,7 +137,7 @@ Inputs:
 			break
 		}
 		if logger != nil {
-			logger.Warn("[KGExtraction] Invalid JSON completion; retrying smaller batch", "attempt", attempt+1, "error_code", maintenanceJSONErrorCode(lastErr))
+			logger.Warn("[KGExtraction] Invalid JSON completion; retrying with fewer output items", "attempt", attempt+1, "error_code", maintenanceJSONErrorCode(lastErr))
 		}
 	}
 	if lastErr != nil {

@@ -28,6 +28,23 @@ it requires at least fourteen days without access and retains confirmed,
 protected and keep-forever memories. Low priority alone cannot archive a fact.
 Post-consolidation optimization defaults off (`consolidation.auto_optimize`).
 
+Conversation consolidation includes source session, role and continuation headers.
+Oversized messages are extracted in complete bounded parts and finalized only
+after every part succeeds. Realtime extraction and shared helper-turn retries likewise retain the complete
+human and assistant source. Oversize realtime inputs defer to full transcript
+consolidation without publishing a clipped extraction. Helper retries retain the
+same source. Provider and
+embedding outages back off without spending the malformed-result retry budget;
+cancellation releases genuine `in_progress` claims. A panic fails the run,
+releases claims and skips catch-up. Corrected or filtered facts are skipped
+without rolling back healthy facts in the same extraction.
+
+Automatic runtime writers share current target enablement/read-only checks.
+Session deletion fences delayed vector and graph publication. Mixed human and
+assistant extraction is explicitly unverified with reduced source reliability;
+source roles survive queue retries and document storage. Credentials are
+rejected at durable fact ingress, while legitimate personal facts remain allowed.
+
 Canonical repair scans at most 100 metadata rows using the existing keyset
 query. Its cursor survives restart in `memory_maintenance_meta`; individual
 document failures are reported and do not prevent scan progress. A completed

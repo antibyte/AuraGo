@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,21 @@ import (
 func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph,
 	sessionID string) string {
+	if shortTermMem == nil {
+		return `Tool Output: {"status":"error","message":"Memory storage not available"}`
+	}
+	var output string
+	err := shortTermMem.WithSessionWrite(context.Background(), sessionID, func() error {
+		output = handleRememberWritable(tc, cfg, logger, shortTermMem, kg, sessionID)
+		return nil
+	})
+	if err != nil {
+		return `Tool Output: {"status":"policy_denied","message":"Memory source session is unavailable."}`
+	}
+	return output
+}
+
+func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID string) string {
 
 	content := tc.Content
 	if content == "" {
@@ -34,6 +50,17 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	target := normalizeRememberCategory(tc.Category)
 	if target == "" {
 		target = classifyMemoryTarget(tc, content)
+	}
+	if target == "task" || target == "todo" || target == "note" {
+		if err := requireRememberNotesWritePermission(cfg); err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+		}
+	}
+	if !runtimeMemoryWriteAllowed(cfg, target, sessionID) || !memorySourceSessionActive(shortTermMem, sessionID) {
+		return `Tool Output: {"status":"policy_denied","message":"This memory target is disabled, read-only, or unavailable for this session."}`
+	}
+	if memory.HasDurableCredential(content) {
+		return `Tool Output: {"status":"policy_denied","message":"Credentials must be stored in the Vault."}`
 	}
 
 	logger.Info("remember tool routing", "target", target, "content_len", len(content))
@@ -284,12 +311,12 @@ func rememberAsGraphEdge(content string, tc ToolCall, kg *memory.KnowledgeGraph,
 			EvidenceType:    "remember",
 			SessionID:       sessionID,
 			Channel:         "agent",
-			Actor:           "user",
+			Actor:           "agent",
 			RawText:         content,
 			AssertedInGraph: "remember",
 			Confidence:      0.90,
-			ConfidenceLabel: "user_provided",
-			SourceKind:      "user",
+			ConfidenceLabel: "agent_extracted",
+			SourceKind:      "agent",
 			PrivacyClass:    "standard",
 			RetentionPolicy: "default",
 		})

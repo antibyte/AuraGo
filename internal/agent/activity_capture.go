@@ -14,6 +14,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -81,20 +82,13 @@ func compactActivityToolResult(action, result string) string {
 	case strings.Contains(lower, "warning"), strings.Contains(lower, "failed"):
 		status = "warning"
 	}
-	clean := strings.TrimSpace(result)
-	clean = strings.TrimPrefix(clean, "Tool Output: ")
-	clean = strings.TrimPrefix(clean, "[Tool Output]\n")
-	clean = strings.Join(strings.Fields(clean), " ")
-	if len(clean) > 180 {
-		clean = strings.TrimSpace(clean[:179]) + "…"
-	}
-	if clean == "" {
-		return action + ": " + status
-	}
-	return action + ": " + status + " - " + clean
+	return action + ": " + status
 }
 
 func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest, assistantReply string, toolNames, toolSummaries []string, isAutonomous, userRelevant bool) {
+	if !runtimeMemoryWriteAllowed(cfg, "graph", sessionID) {
+		kg = nil
+	}
 	if shortTermMem == nil {
 		return
 	}
@@ -129,6 +123,26 @@ func captureActivityTurnWithDigest(shortTermMem *memory.SQLiteMemory, kg *memory
 func persistActivityTurn(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
 	if shortTermMem == nil {
 		return
+	}
+	err := shortTermMem.WithSessionWrite(context.Background(), sessionID, func() error {
+		persistActivityTurnWritable(shortTermMem, kg, logger, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+		return nil
+	})
+	if err != nil && logger != nil {
+		logger.Debug("[Activity] Source session unavailable")
+	}
+}
+
+func persistActivityTurnWritable(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+	if shortTermMem == nil {
+		return
+	}
+	userRequest = security.RedactSensitiveInfo(security.Scrub(userRequest))
+	if encoded, err := json.Marshal(digest); err == nil {
+		var scrubbed memory.ActivityDigest
+		if json.Unmarshal([]byte(security.RedactSensitiveInfo(security.Scrub(string(encoded)))), &scrubbed) == nil {
+			digest = scrubbed
+		}
 	}
 	today := time.Now().Format("2006-01-02")
 	linkedJournalIDs := make([]int64, 0, 6)
@@ -278,10 +292,10 @@ func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, mode
 	}
 	prompt := fmt.Sprintf(
 		activityDigestPrompt,
-		truncateActivityDigestInput(userRequest, 1600),
-		truncateActivityDigestInput(assistantReply, 1800),
-		strings.Join(uniqueActivityStrings(toolNames, 12), ", "),
-		strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n"),
+		isolateAgentPromptExternalData(truncateActivityDigestInput(userRequest, 1600)),
+		isolateAgentPromptExternalData(truncateActivityDigestInput(assistantReply, 1800)),
+		isolateAgentPromptExternalData(strings.Join(uniqueActivityStrings(toolNames, 12), ", ")),
+		isolateAgentPromptExternalData(strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n")),
 	)
 	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: model,

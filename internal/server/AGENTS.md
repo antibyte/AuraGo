@@ -544,7 +544,7 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   `cyd-creator-<job>` short-term-memory sessions (`sweepCYDCreatorAgentSessions` via `memory.TransientSessionIDs`,
   keeping those of queued or running jobs) and installs the runner (`SetRunner`) before it publishes the default
   service. `cydCreatorAgentRunner` (`cyd_creator_runner.go`) runs each phase like Game Maker's runner:
-  `agent.ExecuteAgentLoop` under `beginDesktopRun` in session `cyd-creator-<job>` (purged after every phase) with the
+  `agent.ExecuteAgentLoop` under `beginDesktopRun` in fresh session `cyd-creator-<job>:<run>` (permanently purged after each phase) with the
   prepared profile `cyd-creator/v1/{planning,layout,coding}` (repairing uses coding; `cyd_creator_prompt_profile.go`:
   shared ground rules, every workflow reads API reference topic overview first), `AllowedTools` exactly
   `agent.CYDCreatorPhaseToolSchemas(phase)`, tool budget `gameMakerToolCallLimit`, Game Maker's `StreamThroughput`,

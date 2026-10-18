@@ -460,6 +460,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested knowledge graph operation", "op", req.Operation)
+			if shortTermMem != nil && oneOf(req.Operation, "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "resolve_conflict", "supersede_edge", "retract_edge", "optimize", "optimize_graph") {
+				release, err := shortTermMem.LockSessionWrite(ctx, dc.SessionID)
+				if err != nil {
+					return toolErrorf("knowledge graph session is unavailable: %v", err)
+				}
+				defer release()
+			}
+			if oneOf(req.Operation, "add_node", "add_edge", "update_node", "update_edge", "merge_nodes", "supersede_edge") {
+				payload, _ := json.Marshal(req)
+				if memory.HasDurableCredential(string(payload)) {
+					return `Tool Output: {"status":"policy_denied","message":"Credentials must be stored in the Vault."}`
+				}
+			}
 			switch req.Operation {
 			case "add_node":
 				if strings.TrimSpace(req.ID) == "" || strings.TrimSpace(req.Label) == "" {
@@ -888,7 +901,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 
-			logger.Info("LLM requested core memory management", "op", req.Operation, "fact", fact)
+			logger.Info("LLM requested core memory management", "op", req.Operation, "content_len", len(fact))
+			if memory.HasDurableCredential(fact) {
+				return `Tool Output: {"status":"policy_denied","message":"Credentials must be stored in the Vault."}`
+			}
 			if req.Operation == "" {
 				return `Tool Output: {"status": "error", "message": "'operation' is required for manage_memory"}`
 			}

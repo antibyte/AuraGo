@@ -57,6 +57,8 @@ func (c *maintenanceControllerTestClock) fireLatest() bool {
 
 func maintenanceControllerTestConfig(enabled bool) *config.Config {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Enabled = enabled
 	cfg.Maintenance.Time = "04:00"
 	return cfg

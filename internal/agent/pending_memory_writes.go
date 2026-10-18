@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -16,7 +17,7 @@ const pendingMemoryWriteRetryInterval = 5 * time.Minute
 // startPendingMemoryWriteRetryLoop starts the retry worker and returns a
 // completion signal for lifecycle owners that must wait before closing STM or
 // LTM. The signal is already closed when either dependency is unavailable.
-func startPendingMemoryWriteRetryLoop(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) <-chan struct{} {
+func startPendingMemoryWriteRetryLoop(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, configSnapshot func() *config.Config) <-chan struct{} {
 	done := make(chan struct{})
 	if stm == nil || ltm == nil {
 		close(done)
@@ -27,7 +28,7 @@ func startPendingMemoryWriteRetryLoop(ctx context.Context, logger *slog.Logger, 
 		ticker := time.NewTicker(pendingMemoryWriteRetryInterval)
 		defer ticker.Stop()
 		for {
-			retryPendingMemoryWrites(ctx, logger, stm, ltm)
+			retryPendingMemoryWrites(ctx, logger, stm, ltm, configSnapshot())
 			select {
 			case <-ctx.Done():
 				return
@@ -38,7 +39,7 @@ func startPendingMemoryWriteRetryLoop(ctx context.Context, logger *slog.Logger, 
 	return done
 }
 
-func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) (succeeded, failed int) {
+func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, configs ...*config.Config) (succeeded, failed int) {
 	if stm == nil || ltm == nil {
 		return 0, 0
 	}
@@ -74,13 +75,36 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if write.Metadata != nil {
 			details = *write.Metadata
 		}
-		stored, err := memory.StoreAutomaticMemoryDocument(stm, ltm, write.Concept, write.Content, details)
+		if details.SourceSessionID == "" {
+			details.SourceSessionID, _ = memory.MemoryAnalysisSession(write.Content)
+		}
+		if !shouldStoreExtractedMemory(write.Concept, "") {
+			_ = stm.CompletePendingMemoryWrite(write.ID)
+			continue
+		}
+		if len(configs) > 0 && !runtimeMemoryWriteAllowed(configs[0], "memory", details.SourceSessionID) {
+			continue
+		}
+		stored, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, write.Concept, write.Content, details)
 		if err != nil {
+			if errors.Is(err, memory.ErrAutomaticMemorySkipped) {
+				_ = stm.CompletePendingMemoryWrite(write.ID)
+				continue
+			}
 			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes); rollbackErr != nil {
 				err = errors.Join(err, rollbackErr)
 			}
 			failed++
-			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC()); markErr != nil && logger != nil {
+			if ctx.Err() != nil {
+				break
+			}
+			var markErr error
+			if isTransientHelperError(err) {
+				markErr = stm.DeferPendingMemoryWrite(write.ID, time.Now().UTC())
+			} else {
+				markErr = stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC())
+			}
+			if markErr != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to update pending write", "id", write.ID, "error", markErr)
 			}
 			continue

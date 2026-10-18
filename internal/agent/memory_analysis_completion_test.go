@@ -31,6 +31,7 @@ type realtimeExtractionCase struct {
 	wantWrites   int
 	cancelBefore bool
 	cancelDuring bool
+	longSource   bool
 }
 
 func TestAuditMemoryAnalysisRejectsTruncatedCompletion(t *testing.T) {
@@ -40,6 +41,8 @@ func TestAuditMemoryAnalysisRejectsTruncatedCompletion(t *testing.T) {
 func TestRealtimeMemoryAnalysisCompletionBoundaries(t *testing.T) {
 	for _, test := range []realtimeExtractionCase{
 		{name: "valid", content: validRealtimeExtraction, wantCalls: 1, wantWrites: 1},
+		{name: "complete long source retry", content: validRealtimeExtraction, finish: openai.FinishReasonLength, recover: true, longSource: true, wantCalls: 2, wantWrites: 1},
+		{name: "complete oversize source deferred", content: validRealtimeExtraction, longSource: true, contextLimit: 512, wantCalls: 0},
 		{name: "empty arrays", content: emptyRealtimeExtraction, wantCalls: 1},
 		{name: "empty content", content: "", wantCalls: 2},
 		{name: "malformed", content: "{broken", wantCalls: 2},
@@ -102,6 +105,8 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 		outputLimit = 4096
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.MemoryAnalysis.Enabled, cfg.MemoryAnalysis.RealTime = true, true
 	cfg.MemoryAnalysis.Provider, cfg.MemoryAnalysis.ProviderType = "analysis", "openai"
 	cfg.MemoryAnalysis.BaseURL, cfg.MemoryAnalysis.ResolvedModel = server.URL+"/v1", model
@@ -111,17 +116,31 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 	if test.cancelBefore {
 		cancel()
 	}
-	runMemoryAnalysis(ctx, cfg, logger, stm, nil, vdb, "The NAS uses XFS for the daily backup volume.", "Assistant source marker", "synthetic-extraction")
+	userSource, assistantSource := "The NAS uses XFS for the daily backup volume.", "Assistant source marker"
+	if test.longSource {
+		userSource = strings.Repeat("Full user source <& 生日. ", 300) + "FINAL_REALTIME_USER"
+		assistantSource = strings.Repeat("Full assistant source. ", 300) + "FINAL_REALTIME_ASSISTANT Assistant source marker"
+	}
+	runMemoryAnalysis(ctx, cfg, logger, stm, nil, vdb, userSource, assistantSource, "synthetic-extraction")
 	if int(calls.Load()) != test.wantCalls || len(vdb.storedConcepts) != test.wantWrites {
 		t.Fatalf("calls=%d writes=%d want=%d/%d logs=%s", calls.Load(), len(vdb.storedConcepts), test.wantCalls, test.wantWrites, extractionLog.String())
 	}
 	if count, err := stm.CountPendingMemoryWrites(); err != nil || count != 0 {
 		t.Fatalf("unusable extraction queued work: count=%d err=%v", count, err)
 	}
+	var firstPrompt string
 	for i := 0; i < test.wantCalls; i++ {
 		req := <-requests
-		if i > 0 && (strings.Contains(req.Messages[0].Content, "Assistant source marker") || !strings.Contains(req.Messages[0].Content, "at most one item")) {
-			t.Fatal("retry did not reduce the extraction unit")
+		if i == 0 {
+			firstPrompt = req.Messages[0].Content
+		} else if req.Messages[0].Content != firstPrompt {
+			t.Fatal("retry changed extraction source")
+		}
+		if test.longSource && (!strings.Contains(req.Messages[0].Content, "FINAL_REALTIME_USER") || !strings.Contains(req.Messages[0].Content, "FINAL_REALTIME_ASSISTANT")) {
+			t.Fatal("source clipped before route budget check")
+		}
+		if !strings.Contains(req.Messages[0].Content, "Assistant source marker") {
+			t.Fatal("retry dropped source provenance")
 		}
 		if test.model == "o3-mini" && max(req.MaxTokens, req.MaxCompletionTokens) != 4096 {
 			t.Fatalf("reasoning budget=%d/%d", req.MaxTokens, req.MaxCompletionTokens)

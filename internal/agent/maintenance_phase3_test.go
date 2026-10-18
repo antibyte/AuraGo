@@ -68,6 +68,8 @@ func TestResolveMaintenanceRetentionDefaults(t *testing.T) {
 
 func TestResolveMaintenanceRetentionUsesConfig(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Maintenance.Retention.PatternsDays = 14
 	cfg.Maintenance.Retention.DoneNotesDays = 3
 
@@ -120,6 +122,8 @@ func TestRunNightlyMemoryMaintenanceDoesNotReactivateBudgetArchivedMemory(t *tes
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Consolidation.MemoryMetaBudget = 1
 	cfg.Consolidation.AutoOptimize = false
 	cfg.MemoryAnalysis.AutoConfirm = 0.90
@@ -171,6 +175,8 @@ func TestRunNightlyMemoryMaintenanceUsesPrefetchedMetasForCuration(t *testing.T)
 	}
 
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.Consolidation.AutoOptimize = true
 	cfg.MemoryAnalysis.AutoConfirm = 0.92
 

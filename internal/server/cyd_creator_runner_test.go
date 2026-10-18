@@ -294,6 +294,9 @@ func TestCYDCreatorRunnerBuildsAnAppThroughTheAgentLoop(t *testing.T) {
 			t.Fatalf("session %s kept %d messages (%v)", session, len(msgs), err)
 		}
 	}
+	if sessions, err := f.s.ShortTermMem.TransientSessionIDs(cydCreatorAgentSessionPrefix + job.ID); err != nil || len(sessions) != 0 {
+		t.Fatalf("phase sessions retained private content: %v %v", sessions, err)
+	}
 }
 
 // cyd_creator.model names a provider: the job talks to that provider's
@@ -585,7 +588,7 @@ func TestCYDCreatorStartupSweepPurgesLeftoverAgentSessions(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the agent never called the model")
 	}
-	running, leftover := cydCreatorAgentSessionPrefix+job.ID, cydCreatorAgentSessionPrefix+"ccj_gone"
+	running, leftover := cydCreatorAgentSessionPrefix+job.ID+":phase-run", cydCreatorAgentSessionPrefix+"ccj_gone:phase-run"
 	for _, id := range []string{running, leftover, "default"} {
 		if _, err := f.s.ShortTermMem.InsertMessage(id, openai.ChatMessageRoleUser, "private", false, false); err != nil {
 			t.Fatal(err)

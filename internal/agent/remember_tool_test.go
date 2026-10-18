@@ -101,7 +101,7 @@ func TestRememberAmbiguousContentUsesJournal(t *testing.T) {
 
 	out := handleRemember(
 		ToolCall{Content: "Koofr upload returned a zero-byte image during mission test run"},
-		nil,
+		enabledMemoryTestConfig(),
 		logger,
 		stm,
 		nil,
@@ -123,7 +123,7 @@ func TestRememberStableUserLocationUsesCoreMemory(t *testing.T) {
 
 	out := handleRemember(
 		ToolCall{Content: "Andi wohnt in Pforzheim."},
-		&config.Config{},
+		enabledMemoryTestConfig(),
 		logger,
 		stm,
 		nil,
@@ -151,7 +151,7 @@ func TestRememberExplicitCoreRejectsTransientFacts(t *testing.T) {
 			Content:  `2026-05-08: Created "Chaos Symphony XIII", uploaded to Koofr /aurago/music. Media Registry ID: 2320.`,
 			Category: "core",
 		},
-		&config.Config{},
+		enabledMemoryTestConfig(),
 		logger,
 		stm,
 		nil,
@@ -183,7 +183,7 @@ func TestRememberTaskUsesExplicitTitleForNote(t *testing.T) {
 
 	out := handleRemember(
 		ToolCall{Content: "Check the backup retention policy tomorrow", Title: "Review backup retention", Category: "task"},
-		nil,
+		enabledMemoryTestConfig(),
 		logger,
 		stm,
 		nil,
@@ -210,6 +210,11 @@ func TestRememberTaskUsesExplicitTitleForNote(t *testing.T) {
 
 func TestRememberRelationshipStoresProvenanceClaim(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
 	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
 	if err != nil {
 		t.Fatalf("NewKnowledgeGraph: %v", err)
@@ -225,9 +230,9 @@ func TestRememberRelationshipStoresProvenanceClaim(t *testing.T) {
 			Target:   "portainer",
 			Relation: "uses",
 		},
-		nil,
+		enabledMemoryTestConfig(),
 		logger,
-		nil,
+		stm,
 		kg,
 		"session-test",
 	)
@@ -243,7 +248,7 @@ func TestRememberRelationshipStoresProvenanceClaim(t *testing.T) {
 		t.Fatalf("claims len = %d, want 1", len(claims))
 	}
 	claim := claims[0]
-	if claim.SourceKind != "user" || claim.SessionID != "session-test" || claim.ConfidenceLabel != "user_provided" {
+	if claim.SourceKind != "agent" || claim.SessionID != "session-test" || claim.ConfidenceLabel != "agent_extracted" {
 		t.Fatalf("unexpected claim provenance: %+v", claim)
 	}
 	if claim.Evidence == nil {

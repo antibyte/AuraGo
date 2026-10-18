@@ -8,6 +8,8 @@ import (
 
 func TestResolveConsolidationModelPrefersOverride(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "main-model"
 	cfg.Consolidation.Model = "cheap-model"
 
@@ -18,6 +20,8 @@ func TestResolveConsolidationModelPrefersOverride(t *testing.T) {
 
 func TestResolveConsolidationModelPrefersHelperLLM(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "main-model"
 	cfg.Consolidation.Model = "cheap-model"
 	cfg.LLM.HelperEnabled = true
@@ -31,6 +35,8 @@ func TestResolveConsolidationModelPrefersHelperLLM(t *testing.T) {
 
 func TestResolveConsolidationModelFallsBackToMainModel(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "main-model"
 
 	if got := resolveConsolidationModel(cfg); got != "main-model" {
@@ -40,6 +46,8 @@ func TestResolveConsolidationModelFallsBackToMainModel(t *testing.T) {
 
 func TestResolveHelperBackedLLMFallsBackToProvidedClient(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	fallback := &fakeActivityDigestClient{}
 
 	gotClient, gotModel := resolveHelperBackedLLM(cfg, fallback, "fallback-model")
@@ -53,6 +61,8 @@ func TestResolveHelperBackedLLMFallsBackToProvidedClient(t *testing.T) {
 
 func TestResolveHelperBackedLLMPrefersHelperLLM(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.HelperEnabled = true
 	cfg.LLM.HelperProviderType = "custom"
 	cfg.LLM.HelperBaseURL = "https://example.com/v1"

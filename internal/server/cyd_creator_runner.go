@@ -15,6 +15,7 @@ import (
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/security"
+	"aurago/internal/uid"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -260,7 +261,8 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 	if err != nil {
 		return err
 	}
-	sessionID := cydCreatorAgentSessionPrefix + run.Job.ID
+	// Each phase is permanently purged; later phases must never reuse its identity.
+	sessionID := cydCreatorAgentSessionPrefix + run.Job.ID + ":" + uid.New()
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "cyd_creator")
 	if cfg.Learnings.Enabled || cfg.CodeGraph.Enabled {
 		cleanup, err := s.configureCYDKnowledge(&runCfg, r.service, run.Project.ID, run.Job.ID)

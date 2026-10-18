@@ -90,6 +90,8 @@ func TestMaintenanceCompressionForceCreatesBeforeRetirement(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	cfg.Consolidation.OptimizeThreshold = adjustedMemoryPriority(meta, time.Now()) - 1
 	vdb := &maintenanceOwnedVector{hierarchyVectorDB: hierarchyVectorDB{stored: map[string]string{"original": "original\n\n" + strings.Repeat("Long original memory. ", 30)}}}
@@ -118,6 +120,8 @@ func TestManualMemoryOptimizationLegacyReplacementIsPartialAndPreservesOriginal(
 	original := "original\n\n" + strings.Repeat("Long original memory. ", 30)
 	vdb := &hierarchyVectorDB{stored: map[string]string{"original": original}}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	raw := runMemoryOrchestrator(memoryOrchestratorArgs{ThresholdLow: -100, ThresholdMedium: 100}, cfg, logger, &countingMaintenanceLLMClient{}, vdb, stm, nil)
 	var result struct {

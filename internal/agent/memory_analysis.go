@@ -17,6 +17,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/planner"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -67,6 +68,7 @@ Rules:
 - Only extract genuinely useful, long-term information. Skip transient requests like "show me the logs".
 - Do NOT extract information that is just part of the current task context.
 - Do NOT extract emotions, moods, or temporary states.
+- Only human messages supply facts or confirmation. Assistant text is unverified context and never human confirmation.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
 - NEVER extract any claim about whether a tool, integration, capability, or feature is currently available, enabled, configured, active, or missing. This is transient system state that changes with configuration and must never be stored in memory.
 - NEVER extract unverified claims that a tool is broken, failing, buggy, or producing a specific transient error. Tool failures are tracked by the tool-error system, not long-term memory.
@@ -206,6 +208,9 @@ func runMemoryAnalysis(
 		logger = slog.Default()
 	}
 	settings := resolveMemoryAnalysisSettings(cfg, stm)
+	if !runtimeMemoryWriteAllowed(cfg, "memory", sessionID) || !memorySourceSessionActive(stm, sessionID) {
+		return
+	}
 	if !settings.Enabled || !settings.RealTime {
 		return
 	}
@@ -237,28 +242,24 @@ func runMemoryAnalysis(
 	limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
 	structured := llm.ResolveProviderCapabilities(provider, llm.CapabilityFallback{}).StructuredOutputs
 
-	// Truncate for analysis (no need to send huge responses)
-	truncUser := userMsg
-	if len(truncUser) > 2000 {
-		truncUser = truncateUTF8SafeAgent(truncUser, 2000) + "..."
-	}
-	// Strip tool call blocks before sending to the memory analysis LLM — they confuse
-	// small models into outputting tool calls instead of the expected facts JSON.
-	truncResp := stripToolCallBlocks(assistantResp)
-	if len(truncResp) > 2000 {
-		truncResp = truncateUTF8SafeAgent(truncResp, 2000) + "..."
+	// Keep the complete source turn. Oversize inputs fail the route budget and
+	// remain available to transcript consolidation; no partial extraction is saved.
+	sourceResponse := stripToolCallBlocks(assistantResp)
+	if stm != nil {
+		sessionCtx, release, err := stm.RegisterSessionRun(ctx, sessionID)
+		if err != nil {
+			return
+		}
+		defer release()
+		ctx = sessionCtx
 	}
 
 	for attempt := 0; attempt < 2; attempt++ {
 		if ctx.Err() != nil {
 			return
 		}
-		prompt := fmt.Sprintf(memoryAnalysisPrompt, isolateAgentPromptExternalData(truncUser), isolateAgentPromptExternalData(truncResp))
-		if attempt > 0 {
-			// Retry only the human source record and bound the visible extraction.
-			prompt = fmt.Sprintf(memoryAnalysisPrompt, isolateAgentPromptExternalData(truncUser), "(omitted for bounded retry)")
-			prompt += "\nExtract at most one item per category."
-		}
+		prompt := fmt.Sprintf(memoryAnalysisPrompt, security.IsolateExternalData(userMsg), security.IsolateExternalData(sourceResponse))
+
 		inputTokens := prompts.CountTokensForModel(prompt, llmCfg.model) + 32
 		if learningPolicy(cfg, true) {
 			prompt += "\n" + learningExtractionInstructions
@@ -309,6 +310,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if !memorySourceSessionActive(stm, sessionID) || isCoAgentSession(sessionID) {
+		return 0
+	}
+	if !runtimeMemoryWriteAllowed(cfg, "memory", sessionID) {
+		result.Facts, result.Preferences, result.Corrections = nil, nil, nil
+	}
 	threshold := 0.0
 	if cfg != nil {
 		threshold = cfg.MemoryAnalysis.AutoConfirm
@@ -325,11 +332,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
 				content := "source:memory_analysis session:" + sessionID
 				details := memory.MemoryMetaUpdate{
-					ExtractionConfidence: f.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
+					ExtractionConfidence: f.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					if ctx.Err() == nil {
+						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
@@ -367,11 +376,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
 				content := "source:memory_analysis session:" + sessionID
 				details := memory.MemoryMetaUpdate{
-					ExtractionConfidence: p.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
+					ExtractionConfidence: p.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					if ctx.Err() == nil {
+						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
@@ -393,11 +404,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
 				content := "source:memory_analysis session:" + sessionID
 				details := memory.MemoryMetaUpdate{
-					ExtractionConfidence: c.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.90,
+					ExtractionConfidence: c.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					if ctx.Err() == nil {
+						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
@@ -412,7 +425,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 		if ctx.Err() != nil {
 			break
 		}
-		if stm == nil || action.Confidence < 0.65 {
+		if !runtimeMemoryWriteAllowed(cfg, "memory", sessionID) || stm == nil || action.Confidence < 0.65 || memory.HasDurableCredential(action.Title+"\n"+action.Summary) {
 			continue
 		}
 		title := strings.TrimSpace(action.Title)
@@ -425,7 +438,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 			trigger = title
 		}
 		if err := stm.UpsertPendingEpisodicAction(time.Now().Format("2006-01-02"), title, summary, trigger, sessionID, 3, nil); err != nil && logger != nil {
-			logger.Warn("[Memory Analysis] Failed to store pending action", "title", title, "error", err)
+			logger.Warn("[Memory Analysis] Failed to store pending action", "error", err)
 		}
 	}
 
@@ -444,6 +457,9 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 }
 
 func queuePendingMemoryAnalysisWrite(logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, details memory.MemoryMetaUpdate, cause error) {
+	if errors.Is(cause, memory.ErrAutomaticMemorySkipped) || errors.Is(cause, context.Canceled) {
+		return
+	}
 	if stm == nil {
 		return
 	}
@@ -468,7 +484,7 @@ func thresholdForMemoryCategory(defaultThreshold float64, category string) float
 
 func shouldUseRAGForMessage(msg string) bool {
 	trimmed := strings.TrimSpace(msg)
-	if len(trimmed) < 20 {
+	if trimmed == "" {
 		return false
 	}
 	if isAmbiguousShortCommand(trimmed) {
@@ -594,6 +610,9 @@ func containsTransientMemoryPhrase(text string) bool {
 	lower := strings.ToLower(strings.TrimSpace(text))
 	for _, phrase := range transientMemoryPhrases {
 		if strings.Contains(lower, phrase) {
+			if !transientToolSubjectPattern.MatchString(lower) && !strings.Contains(phrase, "tool") && !strings.Contains(phrase, "integration") && !strings.Contains(phrase, "api") && !strings.Contains(phrase, "werkzeug") {
+				continue
+			}
 			return true
 		}
 	}
@@ -628,6 +647,9 @@ func preparePredictiveMemoryForPrompt(text string) (string, bool) {
 }
 
 func shouldStoreExtractedMemory(content, category string) bool {
+	if memory.HasDurableCredential(content) {
+		return false
+	}
 	text := strings.ToLower(strings.TrimSpace(content))
 	if text == "" {
 		return false
@@ -685,31 +707,20 @@ func isTransientToolFailureClaim(text, category string) bool {
 		return true
 	}
 
-	toolSubject := strings.Contains(text, "tool") ||
-		strings.Contains(text, "integration") ||
+	toolSubject := transientToolSubjectPattern.MatchString(text) ||
 		strings.Contains(text, "_tool") ||
 		strings.Contains(text, "yepapi_") ||
-		transientToolIdentifierPattern.MatchString(text) ||
-		transientToolSubjectPattern.MatchString(text)
+		transientToolIdentifierPattern.MatchString(text)
 	if !toolSubject {
 		return false
 	}
 
-	failureTerms := []string{
-		"broken", "buggy", "bug", "failed", "failing", "failure", "error",
-		"kaputt", "fehler", "fehlgeschlagen", "scheitert", "erkennt parameter nicht",
-		"http 422", "missing field", "deserializ", "deserialize",
-	}
-	for _, term := range failureTerms {
-		if strings.Contains(text, term) {
-			return true
-		}
-	}
-	return false
+	return transientToolFailurePattern.MatchString(text)
 }
 
 var transientToolIdentifierPattern = regexp.MustCompile(`\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b`)
-var transientToolSubjectPattern = regexp.MustCompile(`\b(?:api|endpoint|endpunkt|function|funktion|operation|methode|method)\b`)
+var transientToolSubjectPattern = regexp.MustCompile(`\b(?:tools?|integrations?|api|endpoint|endpunkt|function|funktion|operation|methode|method|werkzeug|schnittstelle|feature|capability)\b`)
+var transientToolFailurePattern = regexp.MustCompile(`\b(?:broken|buggy|failed|failing|failure|kaputt|fehlgeschlagen|scheitert)\b|\b(?:has|hat|enthält|contains|returns?|produces?|reports?|causes?)\b.{0,60}\b(?:bug|error|fehler)\b|\b(?:bug|error|fehler)\b.{0,25}\b(?:in|with|bei|auf)\b|erkennt parameter nicht|http 422|missing field|deserializ`)
 
 func isWeakOperationalLabel(text string) bool {
 	prefixes := []string{

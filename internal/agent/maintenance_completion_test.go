@@ -31,6 +31,8 @@ func TestMaintenanceBriefingWaitsForCatchupAndKeepsMainDeadlineIndependent(t *te
 			t.Fatal(err)
 		}
 		cfg := &config.Config{}
+		cfg.Tools.Memory.Enabled = true
+		cfg.Tools.KnowledgeGraph.Enabled = true
 		cfg.LLM.Model = "test-model"
 		cfg.Server.UILanguage = "de"
 		cfg.Consolidation.Enabled = true
@@ -84,6 +86,8 @@ func TestMaintenanceCatchupCountsFactsAndOutstandingWorkOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
 	cfg.LLM.Model = "test-model"
 	cfg.Consolidation.Enabled = true
 	cfg.Consolidation.CatchupMinutes = 15
@@ -162,6 +166,8 @@ func TestMaintenanceSummaryAndKGRecoverIndependently(t *testing.T) {
 				t.Fatal(err)
 			}
 			cfg := &config.Config{}
+			cfg.Tools.Memory.Enabled = true
+			cfg.Tools.KnowledgeGraph.Enabled = true
 			cfg.LLM.Model = "test-model"
 			cfg.LLM.HelperEnabled = true
 			cfg.LLM.HelperProviderType = "openai"
@@ -213,6 +219,8 @@ func TestMaintenanceReservesEntityTimeBeforeGraphWork(t *testing.T) {
 			t.Fatal(err)
 		}
 		cfg := &config.Config{}
+		cfg.Tools.Memory.Enabled = true
+		cfg.Tools.KnowledgeGraph.Enabled = true
 		cfg.LLM.Model = "test-model"
 		cfg.Tools.Journal.Enabled, cfg.Journal.DailySummary = true, true
 		cfg.Tools.KnowledgeGraph.Enabled, cfg.Tools.KnowledgeGraph.AutoExtraction = true, true

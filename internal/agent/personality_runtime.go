@@ -72,7 +72,7 @@ func buildPersonalityHistories(recentMsgs []openai.ChatCompletionMessage, extraL
 	var historyBuilder strings.Builder
 	var userHistoryBuilder strings.Builder
 	for _, m := range recentMsgs {
-		if m.Role == openai.ChatMessageRoleSystem {
+		if (m.Role != openai.ChatMessageRoleUser && m.Role != openai.ChatMessageRoleAssistant) || len(m.ToolCalls) > 0 || m.FunctionCall != nil {
 			continue
 		}
 		historyBuilder.WriteString(fmt.Sprintf("%s: %s\n", m.Role, m.Content))
@@ -158,11 +158,11 @@ func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logge
 			break
 		}
 		trimVal := strings.TrimSpace(pu.Value)
-		if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" &&
+		if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" && !memory.HasDurableCredential(pu.Key+"="+pu.Value) &&
 			!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
 			!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
 			if err := stm.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
-				logger.Warn("[User Profiling] Failed to upsert profile entry", "key", pu.Key, "error", err)
+				logger.Warn("[User Profiling] Failed to upsert profile entry", "error", err)
 			}
 			count++
 		}
@@ -212,60 +212,69 @@ func applyPersonalityV2AnalysisResult(
 	errorCount int,
 	successCount int,
 	result personalityV2AnalysisResult,
+	contexts ...context.Context,
 ) {
 	if stm == nil || cfg == nil {
 		return
 	}
-	if cfg.AuthorizationSnapshots != nil {
-		_, current := cfg.AuthorizationSnapshots()
-		if current == nil || !current.Personality.Engine || !current.Personality.EngineV2 || personalityContextID(current.Personality.CorePersonality) != personalityContextID(cfg.Personality.CorePersonality) {
-			return
-		}
+	ctx := context.Background()
+	if len(contexts) > 0 {
+		ctx = contexts[0]
 	}
-	// Runtime callers capture the snapshot before dispatching any background
-	// work. The fallback is for immediate, synchronous callers only.
-	basis := result.Basis
-	if basis == nil {
-		snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+	apply := func() {
+		if cfg.AuthorizationSnapshots != nil {
+			_, current := cfg.AuthorizationSnapshots()
+			if current == nil || !current.Personality.Engine || !current.Personality.EngineV2 || personalityContextID(current.Personality.CorePersonality) != personalityContextID(cfg.Personality.CorePersonality) {
+				return
+			}
+		}
+		// Runtime callers capture the snapshot before dispatching any background
+		// work. The fallback is for immediate, synchronous callers only.
+		basis := result.Basis
+		if basis == nil {
+			snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+			if err != nil {
+				return
+			}
+			basis = &snapshot
+		}
+		observation := memory.PersonalityObservation{
+			ID: result.ObservationID, Source: "helper", Target: "task", At: time.Now(),
+			Basis: basis, Semantic: true, Human: result.Basis != nil,
+			Mood: result.Mood, TraitDeltas: result.TraitDeltas,
+		}
+		if appraisal := result.Appraisal; appraisal != nil && appraisal.Reference == "current_user_message" {
+			observation.Signal, observation.Target, observation.Confidence = appraisal.Signal, appraisal.Target, appraisal.Confidence
+			observation.AffinityDelta = result.AffinityDelta
+		}
+		moodChanged := previousEmotion == nil || previousEmotion.PrimaryMood != result.Mood
+		if cfg.Personality.EmotionSynthesizer.Enabled && (cfg.Personality.EmotionSynthesizer.TriggerAlways ||
+			(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) || previousEmotion == nil) {
+			observation.Emotion = result.SynthesizedEmotion
+		}
+		var acceptedThought, acceptedCategory string
+		var acceptedConfidence float64
+		if cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
+			thought, category, confidence, accepted, _ := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
+			if accepted {
+				acceptedThought, acceptedCategory, acceptedConfidence = thought, category, confidence
+				observation.InnerThought, observation.NudgeCategory = thought, category
+			}
+		}
+		_, _, err := emotionSynthesizer.ApplyObservation(stm, observation)
 		if err != nil {
+			logger.Debug("[Personality V2] Observation not applied", "error", err)
 			return
 		}
-		basis = &snapshot
-	}
-	observation := memory.PersonalityObservation{
-		ID: result.ObservationID, Source: "helper", Target: "task", At: time.Now(),
-		Basis: basis, Semantic: true, Human: result.Basis != nil,
-		Mood: result.Mood, TraitDeltas: result.TraitDeltas,
-	}
-	if appraisal := result.Appraisal; appraisal != nil && appraisal.Reference == "current_user_message" {
-		observation.Signal, observation.Target, observation.Confidence = appraisal.Signal, appraisal.Target, appraisal.Confidence
-		observation.AffinityDelta = result.AffinityDelta
-	}
-	moodChanged := previousEmotion == nil || previousEmotion.PrimaryMood != result.Mood
-	if cfg.Personality.EmotionSynthesizer.Enabled && (cfg.Personality.EmotionSynthesizer.TriggerAlways ||
-		(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) || previousEmotion == nil) {
-		observation.Emotion = result.SynthesizedEmotion
-	}
-	var acceptedThought, acceptedCategory string
-	var acceptedConfidence float64
-	if cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
-		thought, category, confidence, accepted, _ := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
-		if accepted {
-			acceptedThought, acceptedCategory, acceptedConfidence = thought, category, confidence
-			observation.InnerThought, observation.NudgeCategory = thought, category
+		if profilingEnabled {
+			applyPersonalityProfileUpdates(stm, logger, result.ProfileUpdates)
+		}
+		if acceptedThought != "" {
+			applyInnerVoiceResult(sessionID, acceptedThought, acceptedCategory, acceptedConfidence)
 		}
 	}
-	_, _, err := emotionSynthesizer.ApplyObservation(stm, observation)
-	if err != nil {
-		logger.Debug("[Personality V2] Observation not applied", "error", err)
-		return
-	}
-	if profilingEnabled {
-		applyPersonalityProfileUpdates(stm, logger, result.ProfileUpdates)
-	}
-	if acceptedThought != "" {
-		applyInnerVoiceResult(sessionID, acceptedThought, acceptedCategory, acceptedConfidence)
-	}
+	_ = stm.WithSessionWrite(ctx, sessionID, func() error { apply(); return nil })
+
 }
 
 func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, meta memory.PersonalityMeta) (personalityV2AnalysisResult, bool) {

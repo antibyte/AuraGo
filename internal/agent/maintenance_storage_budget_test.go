@@ -40,6 +40,8 @@ func TestConsolidationStorageDeadlineReleasesClaims(t *testing.T) {
 					t.Fatal(err)
 				}
 				cfg := &config.Config{}
+				cfg.Tools.Memory.Enabled = true
+				cfg.Tools.KnowledgeGraph.Enabled = true
 				cfg.LLM.Model = "test-model"
 				vdb := &consolidationDeadlineVector{}
 				const facts = `"facts":[{"concept":"Backup","content":"The backup target is the NAS."}]`

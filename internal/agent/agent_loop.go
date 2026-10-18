@@ -297,6 +297,15 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
+	if runCfg.ShortTermMem != nil {
+		var release func()
+		var err error
+		ctx, release, err = runCfg.ShortTermMem.RegisterSessionRun(ctx, runCfg.SessionID)
+		if err != nil {
+			return response, err
+		}
+		defer release()
+	}
 	configureKnowledgeRuntime(&runCfg)
 	if err := PrepareTaskRouting(ctx, &req, &runCfg); err != nil {
 		return response, err
@@ -2447,11 +2456,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sid := sessionID
 			recentMsgs := append([]openai.ChatCompletionMessage(nil), req.Messages...)
 			_ = sideEffects.Go(func(taskCtx context.Context) {
+				if shortTermMem != nil {
+					sessionCtx, release, err := shortTermMem.RegisterSessionRun(taskCtx, sid)
+					if err != nil {
+						return
+					}
+					defer release()
+					taskCtx = sessionCtx
+				}
 				analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 				defer cancel()
 
-				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, learningPolicy(cfg, true))
+				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, runCfg.BudgetTracker, learningPolicy(cfg, true))
 				if err != nil {
+					if analysisCtx.Err() != nil || errors.Is(err, errHelperBudgetUnavailable) {
+						s.currentLogger.Debug("[HelperLLM] Turn analysis skipped by cancellation or budget")
+						return
+					}
 					helperManager.ObserveFallback("analyze_turn", err.Error())
 					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
 					if useBatchedTurnPersonality {
@@ -2518,7 +2539,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
 							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
-							personalityResult,
+							personalityResult, analysisCtx,
 						)
 					} else {
 						helperManager.ObserveFallback("analyze_turn_personality", "personality_payload_invalid")
@@ -2547,9 +2568,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						)
 					}
 				}
+				activityKG := kg
+				if !runtimeMemoryWriteAllowed(cfg, "graph", sid) {
+					activityKG = nil
+				}
 				captureActivityTurnWithDigest(
 					shortTermMem,
-					kg,
+					activityKG,
 					sid,
 					runCfg.MessageSource,
 					userMsg,
