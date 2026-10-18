@@ -9,6 +9,9 @@
     --cs-text: var(--vd-text);
     --cs-muted: var(--vd-theme-muted);
     --cs-accent: var(--vd-accent);
+    /* Ink on the raw accent: dark on the user accents (7:1 or more on the shell defaults); the fixed-accent skins set it to
+       their --vd-accent-contrast in an app-token rule (Lollipop's plum-pink needs white: 5.8:1 against 3.1:1). */
+    --cs-accent-contrast: #061b1a;
     --cs-accent-soft: var(--vd-theme-accent-soft);
     --cs-accent-glow: var(--vd-accent-glow);
     --cs-accent-border: var(--vd-theme-accent-border, var(--vd-accent-glow));
@@ -365,7 +368,7 @@
 }
 
 .cs-button.primary {
-    color: #061b1a;
+    color: var(--cs-accent-contrast);
     background: var(--cs-accent);
     border-color: var(--cs-accent);
 }
@@ -377,7 +380,7 @@
 }
 
 .cs-icon-button.primary {
-    color: #061b1a;
+    color: var(--cs-accent-contrast);
     background: var(--cs-accent);
     border-color: var(--cs-accent);
 }
@@ -1011,7 +1014,7 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-agent-message.user {
     align-self: flex-end;
-    color: #061b1a;
+    color: var(--cs-accent-contrast);
     background: var(--cs-accent);
     border-color: var(--cs-accent);
 }
@@ -1886,7 +1889,7 @@ button.cs-sidebar-crumb:focus-visible {
     padding: 0 4px;
     border-radius: 999px;
     background: var(--cs-accent);
-    color: #061b1a;
+    color: var(--cs-accent-contrast);
     font: 10px/16px var(--cs-ui-font);
     font-weight: 700;
     text-align: center;

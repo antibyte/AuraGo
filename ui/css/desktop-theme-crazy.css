@@ -512,6 +512,9 @@
 .desktop-body[data-theme="crazy"] .vd-fx-c4 { background: #7A5CFF; }
 .desktop-body[data-theme="crazy"] .vd-fx-c5 { background: #FF7A00; }
 
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="crazy"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
+
 /* ---- Motion --------------------------------------------------------------------------------------- */
 
 /* One-shot motion; each duration is 20 ms under the JS fallback timer of the theme registry. Roomy

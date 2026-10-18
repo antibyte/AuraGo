@@ -480,6 +480,7 @@
    --vs-accent-hover (primary and play hover). Its shared mixes of the yellow accent are only 2.4:1 (74 %) and 1.9:1 (84 %)
    under white; #706A00 is 5.6:1 and the hover #7A7400 is 4.9:1. Code Studio paints --cs-accent-contrast on the raw accent. === */
 .desktop-body[data-theme="cyberpunk"] .vs-app { --vs-accent-strong: #706A00; --vs-accent-hover: #7A7400; }
+.desktop-body[data-theme="cyberpunk"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
 
 /* === Keyboard focus: a yellow ring everywhere in the shell chrome (the per-component outline: none rules lose) === */
 .desktop-body[data-theme="cyberpunk"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-titlebar, .vd-window-menu-popover, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-toast, .vd-icons) :is(a, button, input, select, textarea, [tabindex]):focus-visible {

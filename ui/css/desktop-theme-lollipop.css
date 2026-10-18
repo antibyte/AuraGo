@@ -555,6 +555,9 @@
 /* The help panel closes with a text button; the shared rule sizes it like an icon button and clips the label. */
 .desktop-body[data-theme="lollipop"] .vd-shortcuts-panel .vd-shortcuts-close { width: auto; padding: 0 16px; }
 
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="lollipop"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
+
 /* ---- Motion: durations stay 20 ms under the fallback timers of the theme registry. ---- */
 .desktop-body[data-theme="lollipop"]:not([data-animations="false"]) .vd-workspace::before { will-change: transform; animation: vd-theme-lollipop-drift 24s ease-in-out infinite; }
 

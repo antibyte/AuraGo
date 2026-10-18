@@ -602,6 +602,9 @@
 .desktop-body[data-theme="amiga"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-disabled-panel) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); animation: none; }
 .desktop-body[data-theme="amiga"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: rgba(0, 0, 0, 0.3); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
 
+/* ---- App tokens: Code Studio paints --cs-accent-contrast on the raw accent; this skin's contrast colour applies. ---- */
+.desktop-body[data-theme="amiga"] .code-studio { --cs-accent-contrast: var(--vd-accent-contrast); }
+
 /* ---- Motion: none, like Workbench. The Guru blink above is the only animation. ---- */
 .desktop-body[data-theme="amiga"] :is(
     .vd-window-opening, .vd-window-closing, .vd-window-minimizing, .vd-window-restoring,
