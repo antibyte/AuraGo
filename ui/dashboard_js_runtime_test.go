@@ -52,3 +52,8 @@ func TestDashboardDisclosureState(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-disclosures.cjs")
 }
+
+func TestDashboardKPIHelpers(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-kpis.cjs")
+}

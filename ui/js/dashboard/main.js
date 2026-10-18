@@ -325,6 +325,27 @@
             return value.toLocaleString(locale, { maximumFractionDigits: 1 }) + (percent ? ' %' : '');
         }
 
+        // KPI row of a big card (P5): items [{ label, value, title?, action? }] become the cells of the container (a
+        // <div class="dash-kpi-row" role="list">). Numbers use the page locale; null, undefined, '' and NaN show "—"
+        // (format other values before, e.g. formatPromptNumber). title adds a tooltip; action makes the cell one button
+        // with data-action for the delegated listener in dashboard-events.js (no inline handlers). Text goes through
+        // esc(), attribute values through escAttr().
+        function renderDashKpiRow(container, items) {
+            if (!container) return;
+            const locale = document.documentElement.lang || undefined;
+            container.innerHTML = (Array.isArray(items) ? items : []).map(item => {
+                const raw = item.value;
+                const text = typeof raw === 'number' ? (Number.isFinite(raw) ? raw.toLocaleString(locale) : '') : (raw == null ? '' : String(raw));
+                const value = `<span class="dash-kpi-value">${esc(text || '—')}</span>`;
+                const label = `<span class="dash-kpi-label">${esc(String(item.label || ''))}</span>`;
+                const title = item.title ? ` title="${escAttr(String(item.title))}"` : '';
+                if (item.action) {
+                    return `<div class="dash-kpi" role="listitem"><button type="button" class="dash-kpi-button" data-action="${escAttr(String(item.action))}"${title}>${value}${label}</button></div>`;
+                }
+                return `<div class="dash-kpi" role="listitem"${title}>${value}${label}</div>`;
+            }).join('');
+        }
+
         function initDashboard() {
             // Log viewer listeners (the elements exist while the logs section is hidden)
             const logFilter = document.getElementById('log-filter');

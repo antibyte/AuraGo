@@ -873,6 +873,176 @@
     }
 }
 
+/* Big cards (P5): a KPI row on top (renderDashKpiRow in main.js) and the details in <details class="dash-disclosure">
+   blocks below it (state: dash-disclosures.js). The value opens every KPI cell, so the values of one row line up
+   when a label wraps. */
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--pw-space-3);
+    margin: 0 0 var(--pw-space-4);
+    padding: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
+    gap: 2px;
+    min-width: 0;
+    padding: var(--pw-space-3);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+}
+
+/* A KPI with an action (memory core facts) is one button over the whole cell */
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-button {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
+    gap: 2px;
+    margin: calc(var(--pw-space-3) * -1);
+    padding: var(--pw-space-3);
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-button:hover .dash-kpi-label {
+    color: var(--pw-accent);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-button:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-value {
+    color: var(--pw-text);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-label {
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-kpi-button .dash-kpi-label {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+/* Disclosures: closed by default; the chevron points right when closed and down when open */
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-group {
+    display: grid;
+    gap: var(--pw-space-2);
+    min-width: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure {
+    min-width: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--pw-space-2);
+    min-height: 44px;
+    padding: var(--pw-space-2) var(--pw-space-3);
+    border-radius: inherit;
+    color: var(--pw-text);
+    font-size: var(--pw-label-size);
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary::-webkit-details-marker {
+    display: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-inline: 0.15rem 0.2rem;
+    border-right: 2px solid var(--pw-muted);
+    border-bottom: 2px solid var(--pw-muted);
+    transform: rotate(-45deg);
+    transition: transform var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure[open] > .dash-disclosure-summary::before {
+    transform: rotate(45deg);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary:hover {
+    background: var(--pw-surface-elevated);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-count {
+    margin-left: auto;
+    min-width: 1.5rem;
+    padding: 0 var(--pw-space-2);
+    border-radius: 999px;
+    background: var(--pw-surface-soft);
+    color: var(--pw-text);
+    font-size: var(--pw-meta-size);
+    font-weight: 650;
+    line-height: 1.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-count[hidden] {
+    display: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-body {
+    min-width: 0;
+    padding: var(--pw-space-1) var(--pw-space-3) var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-body > :first-child {
+    margin-top: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-body > :last-child {
+    margin-bottom: 0;
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-disclosure-summary {
+    min-height: 36px;
+    padding-block: var(--pw-space-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary::before {
+        transition: none;
+    }
+}
+
 /* Phones: tighter frame, full-width section meta and 44px touch targets (compact sidebar links, header actions).
    The only 640px block, at the end of the file: its rules must follow the base rules they override. */
 @media (max-width: 640px) {
@@ -891,6 +1061,9 @@
         min-height: 44px;
     }
     .pw-page[data-workspace-page="dashboard"] .dash-section-action {
+        min-height: 44px;
+    }
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-disclosure-summary {
         min-height: 44px;
     }
 }
