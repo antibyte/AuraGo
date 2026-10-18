@@ -24,7 +24,9 @@ func TestDashboardOverviewLoadsFromTheSummaryFeed(t *testing.T) {
 	for _, marker := range []string{
 		"const result = await DashSummary.refresh({ force });",
 		"const summary = DashSummary.latest();",
-		"CardState.setError('ov-status', retry, { status: result.status });",
+		"if (!result.ok || !summary) {",
+		"OVERVIEW_TILE_IDS.forEach(id => CardState.setError(id, retry, { status: result.status }));",
+		"return false;",
 		"DashOverview.render(summary);",
 	} {
 		if !strings.Contains(loader, marker) {

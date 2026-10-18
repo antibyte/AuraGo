@@ -9,6 +9,7 @@
 
     const STORAGE_KEY = 'aurago-dash-hidden-tiles';
     const HIDEABLE_TILES = Object.freeze(['ov-system', 'ov-budget', 'ov-automations', 'ov-knowledge', 'ov-activity', 'ov-agent-state']);
+    const ALL_TILES = Object.freeze(['ov-status', 'ov-attention'].concat(HIDEABLE_TILES));
     // Summary sources (summary.unavailable) a tile depends on. Health is never listed: a null health only means
     // "not sampled yet", so ov-system waits for the first sample instead.
     const TILE_SOURCES = Object.freeze({
@@ -491,10 +492,9 @@
     // and the update listener may both hand over the same object).
     function render(summary) {
         if (!summary || typeof summary !== 'object') return;
-        if (window.CardState) {
-            window.CardState.setLoaded('ov-status');
-            window.CardState.setLoaded('ov-attention');
-        }
+        // Clear loading and error states of every tile first (a failed load puts all eight into the error
+        // state; a retry or a background summary update brings them back). Before the identity check below.
+        if (window.CardState) ALL_TILES.forEach(id => window.CardState.setLoaded(id));
         if (summary === lastRendered) return;
         lastRendered = summary;
         renderStatus(summary);

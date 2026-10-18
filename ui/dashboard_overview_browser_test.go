@@ -99,6 +99,7 @@ func dashboardOverviewRemoteText(o *proto.RuntimeRemoteObject) string {
 //   - attention rows, the overall pill and the sidebar badges;
 //   - the waiting system tile, then the in-place system_metrics update;
 //   - an SSE-triggered summary refresh;
+//   - a failing first load and a failing refresh (500): error state and retry on all eight tiles, no new Updated stamp;
 //   - hiding a tile through Customize (kept after a reload, reset by "Show all");
 //   - the drawer at 700 px: section navigation, and the status block leading back to the overview.
 func TestDashboardOverviewBrowserSmoke(t *testing.T) {
@@ -110,7 +111,7 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	page := renderDashboardForBrowser(t)
 
 	var stateMu sync.Mutex
-	withHealth, attentionMore := false, 0
+	withHealth, attentionMore, summaryFails := false, 0, false
 	events := make(chan string, 4)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -123,7 +124,12 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 		case r.URL.Path == "/api/dashboard/summary":
 			stateMu.Lock()
 			body := dashboardOverviewSummaryFixture(withHealth, attentionMore)
+			failing := summaryFails
 			stateMu.Unlock()
+			if failing {
+				http.Error(w, "summary unavailable", http.StatusInternalServerError)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(body)
 		case r.URL.Path == "/events":
@@ -211,6 +217,30 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 		wait(`() => document.querySelectorAll('#ov-attention-list a.ov-attention-row').length > 0 && document.getElementById('ov-agent-state-body').textContent.trim() !== ''`)
 	}
 
+	// The eight tiles all show the CardState error state with a retry control (failed) or none of them does (ok).
+	const tiles = `['ov-status', 'ov-attention', 'ov-system', 'ov-budget', 'ov-automations', 'ov-knowledge', 'ov-activity', 'ov-agent-state']`
+	const allFailed = `() => ` + tiles + `.every(id => { const tile = document.getElementById(id); return tile.dataset.state === 'error' && !!tile.querySelector('.dash-error-state .dash-error-retry'); })`
+	const allRecovered = `() => ` + tiles + `.every(id => { const tile = document.getElementById(id); return tile.dataset.state === 'loaded' && !tile.querySelector('.dash-error-state'); })`
+
+	// The first summary load fails (500): no tile may stay empty, and one retry restores them all.
+	stateMu.Lock()
+	summaryFails = true
+	stateMu.Unlock()
+	navs++
+	p.MustSetViewport(1440, 1000, 1, false)
+	p.Timeout(30 * time.Second).MustNavigate(server.URL + "/dashboard?nav=" + strconv.Itoa(navs) + "#overview").MustWaitLoad()
+	wait(`() => !!window.DashRouter && DashRouter.current() === 'overview'`)
+	wait(allFailed)
+	if got := p.MustEval(`() => ({ latest: DashSummary.latest() === null, stamp: document.querySelector('[data-section-updated="overview"]').textContent })`); !got.Get("latest").Bool() || got.Get("stamp").Str() != "" {
+		t.Fatalf("a failed first load must leave no summary and no Updated stamp: %s", got.JSON("", ""))
+	}
+	stateMu.Lock()
+	summaryFails = false
+	stateMu.Unlock()
+	p.MustElement(`#ov-knowledge .dash-error-retry`).MustClick()
+	wait(allRecovered)
+	wait(`() => document.querySelectorAll('#ov-attention-list a.ov-attention-row').length > 0 && document.querySelector('[data-section-updated="overview"]').textContent !== ''`)
+
 	// 1440 px: rows, pill, badges, tiles; the SSE stream is open (live dot green).
 	open(1440)
 	wait(`() => document.querySelector('[data-sidebar-live]').classList.contains('green')`)
@@ -258,6 +288,24 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	stateMu.Unlock()
 	events <- `{"type":"audit_update","payload":{}}`
 	wait(`() => !!document.querySelector('#ov-attention-list a.ov-attention-more[href="#problems"]')`)
+
+	// A refresh fails (500) while a good summary is on screen: the stale data gives way to the error state on all
+	// eight tiles, the Updated stamp is not renewed, and a retry brings the tiles back with the Updated stamp.
+	p.MustEval(`() => { document.querySelector('[data-section-updated="overview"]').textContent = 'stamp-before'; }`)
+	stateMu.Lock()
+	summaryFails = true
+	stateMu.Unlock()
+	p.MustElement(`[data-section-refresh="overview"]`).MustClick()
+	wait(allFailed)
+	if stamp := p.MustEval(`() => document.querySelector('[data-section-updated="overview"]').textContent`).Str(); stamp != "stamp-before" {
+		t.Fatalf("a failed refresh must not renew the Updated stamp, got %q", stamp)
+	}
+	stateMu.Lock()
+	summaryFails = false
+	stateMu.Unlock()
+	p.MustElement(`#ov-system .dash-error-retry`).MustClick()
+	wait(allRecovered)
+	wait(`() => !!document.querySelector('#ov-attention-list a.ov-attention-more[href="#problems"]') && document.querySelectorAll('#ov-system-body .ov-meter').length === 3 && document.querySelector('[data-section-updated="overview"]').textContent !== 'stamp-before'`)
 
 	// Customize: hide ov-budget, leave the mode, reload, then "Show all".
 	p.MustElement(`[data-action="overview-customize"]`).MustClick()
