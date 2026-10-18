@@ -34,6 +34,7 @@
     --vd-accent-g: 230;
     --vd-accent-b: 0;
     --vd-accent-glow: rgba(243, 230, 0, 0.16);
+    --vd-accent-contrast: #000000; /* text on the accent: black on yellow, 16:1 */
 
     /* Theme bridge */
     --vd-theme-app-bg: #070B18;

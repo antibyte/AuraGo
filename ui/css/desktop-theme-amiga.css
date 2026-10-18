@@ -25,6 +25,7 @@
     --vd-accent-g: 136;
     --vd-accent-b: 187;
     --vd-accent-glow: rgba(102, 136, 187, 0);
+    --vd-accent-contrast: #000000; /* text on the accent: black on Workbench blue, 5.8:1 */
 
     /* Theme bridge */
     --vd-theme-app-bg: #aaaaaa;

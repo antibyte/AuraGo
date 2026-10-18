@@ -326,7 +326,7 @@
 .vd-mc-check { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-radius: var(--mc-radius-sm); cursor: pointer; }
 .vd-mc-check:hover { background: var(--vd-theme-control-hover, var(--vd-control-hover)); }
 .vd-mc-check input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.vd-mc-check-box { display: grid; place-items: center; flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1px solid var(--vd-theme-border); border-radius: 5px; background: var(--vd-theme-panel-bg); color: #fff; }
+.vd-mc-check-box { display: grid; place-items: center; flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1px solid var(--vd-theme-border); border-radius: 5px; background: var(--vd-theme-panel-bg); color: var(--vd-accent-contrast, #fff); }
 .vd-mc-check-box svg { width: 12px; height: 12px; opacity: 0; }
 .vd-mc-check input:checked + .vd-mc-check-box { background: var(--mc-accent); border-color: transparent; }
 .vd-mc-check input:checked + .vd-mc-check-box svg { opacity: 1; }

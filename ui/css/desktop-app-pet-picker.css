@@ -104,7 +104,7 @@
 
 .vd-pet-picker-select:hover {
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     border-color: var(--vd-accent);
 }
 
@@ -155,6 +155,6 @@
 
 .vd-pet-picker-actions .vd-btn-primary {
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     border-color: var(--vd-accent);
 }

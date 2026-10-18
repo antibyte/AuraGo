@@ -367,7 +367,7 @@
     border: 0;
     border-radius: 9px;
     background: linear-gradient(135deg, color-mix(in srgb, var(--vd-accent) 80%, #000), var(--vd-accent));
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     font-weight: 700;
     cursor: pointer;
 }

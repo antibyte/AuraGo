@@ -86,7 +86,7 @@
 .vc-icon-btn { display: inline-grid; place-items: center; min-width: 44px; padding: 0; }
 .vc-text-button { min-height: 32px; padding: 0 8px; border-color: transparent; background: transparent; color: var(--vc-accent); }
 .vc-btn:hover, .vc-icon-btn:hover, .vc-link:hover, .vc-text-button:hover, .vc-vnc-tool:hover, .vc-terminal-tool:hover { border-color: color-mix(in srgb, var(--vc-accent) 50%, var(--vd-theme-border)); background: color-mix(in srgb, var(--vc-accent) 10%, var(--vd-theme-control-bg)); }
-.vc-primary { border-color: color-mix(in srgb, var(--vc-accent) 70%, transparent); color: var(--ds-color-accent-50); background: var(--vc-accent); }
+.vc-primary { border-color: color-mix(in srgb, var(--vc-accent) 70%, transparent); color: var(--vd-accent-contrast, var(--ds-color-accent-50)); background: var(--vc-accent); }
 .vc-primary:hover { background: color-mix(in srgb, var(--vc-accent) 88%, #000); }
 .vc-icon-btn.danger { color: var(--vc-danger); }
 .vc-btn.danger { border-color: color-mix(in srgb, var(--vc-danger) 38%, var(--vd-theme-border)); color: var(--vc-danger); background: color-mix(in srgb, var(--vc-danger) 8%, var(--vd-theme-control-bg)); }

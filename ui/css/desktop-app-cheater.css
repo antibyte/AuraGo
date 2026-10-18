@@ -13,7 +13,7 @@
     --cheater-input: var(--vd-theme-control-bg);
     --cheater-border: var(--vd-theme-border);
     --cheater-accent: var(--vd-accent, var(--ds-color-accent-500, #27c7a6));
-    --cheater-accent-fg: #ffffff;
+    --cheater-accent-fg: var(--vd-accent-contrast, #ffffff);
     --cheater-hover: var(--vd-theme-control-hover);
     --cheater-pill-bg: var(--vd-theme-accent-soft);
     --cheater-selected-bg: var(--vd-theme-accent-soft);

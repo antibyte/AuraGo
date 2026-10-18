@@ -33,8 +33,10 @@ var desktopThemeKeyframeProperties = map[string]bool{
 var desktopThemeBuiltInShellThemes = map[string]bool{"standard": true, "fruity": true}
 
 // ---------------------------------------------------------------------------------------------------
-// A small CSS walker: brace matching with string and comment awareness, at-rule nesting for @media and
-// @supports, plus @keyframes and @font-face blocks. It is only as strict as the theme contract needs.
+// A small CSS walker: brace matching with string and comment awareness. Every block at-rule that holds rules
+// (@media, @supports, @layer, @container, @scope, @starting-style, and any at-rule it has never heard of) is
+// walked like the top level; @keyframes and @font-face get their own handling. It is only as strict as the
+// theme contract needs.
 
 type cssDeclaration struct {
 	Property string
@@ -69,7 +71,7 @@ type cssSheet struct {
 	Rules     []cssStyleRule
 	Keyframes []cssKeyframes
 	FontFaces []cssFontFace
-	Other     []string // block at-rules the contract does not look into (@property, @page, ...)
+	Other     []string // declaration-only block at-rules, which hold no rule to scope (@property, @page, ...)
 	Problems  []string // structural problems: unbalanced braces, rules nested in rules
 }
 
@@ -225,8 +227,6 @@ func (s *cssSheet) block(prelude string, from, to int, context []string, line in
 		name = strings.ToLower(match[1])
 	}
 	switch {
-	case name == "media" || name == "supports" || name == "layer" || name == "container" || name == "scope":
-		s.walk(from, to, append(append([]string(nil), context...), prelude))
 	case strings.HasSuffix(name, "keyframes"):
 		keyframes := cssKeyframes{Name: strings.Trim(strings.TrimSpace(prelude[len(name)+1:]), `"'`), Line: line}
 		for pos := from; pos < to; {
@@ -251,6 +251,9 @@ func (s *cssSheet) block(prelude string, from, to int, context []string, line in
 		s.Keyframes = append(s.Keyframes, keyframes)
 	case name == "font-face":
 		s.FontFaces = append(s.FontFaces, cssFontFace{Decls: parseCSSDeclarations(body), Line: line})
+	case cssBodyHasBlock(body):
+		// A body with nested blocks holds rules (or more at-rules): they are scoped like the top-level ones.
+		s.walk(from, to, append(append([]string(nil), context...), prelude))
 	default:
 		s.Other = append(s.Other, prelude)
 	}
@@ -353,6 +356,32 @@ func canonicalCSSSelector(selector string) string {
 	})
 }
 
+// firstCSSCompound returns the leading compound of a selector: the text before the first descendant, child or
+// sibling combinator that sits outside parentheses, brackets and strings.
+func firstCSSCompound(selector string) string {
+	selector = strings.TrimSpace(selector)
+	depth := 0
+	for i := 0; i < len(selector); i++ {
+		switch selector[i] {
+		case '"', '\'':
+			i = skipCSSString(selector, i) - 1
+		case '\\':
+			i++
+		case '(', '[':
+			depth++
+		case ')', ']':
+			if depth > 0 {
+				depth--
+			}
+		case ' ', '\t', '\r', '\n', '\f', '>', '+', '~':
+			if depth == 0 {
+				return selector[:i]
+			}
+		}
+	}
+	return selector
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Colour maths for the contrast contract.
 
@@ -398,12 +427,15 @@ func cssContrastRatio(a, b [3]float64) float64 {
 // ---------------------------------------------------------------------------------------------------
 // The contract.
 
-// desktopThemeRequiredTokens must all be declared on the root rule of every skin.
+// desktopThemeRequiredTokens must all be declared on the root rule of every skin. --vd-accent-contrast, the text
+// colour that sits on the accent, belongs to every skin: a user-accent skin sets the shared white, a fixed-accent
+// skin a colour that reads on its accent.
 func desktopThemeRequiredTokens() []string {
 	tokens := []string{
 		"color-scheme",
 		"--vd-bg", "--vd-surface", "--vd-surface-strong", "--vd-border", "--vd-border-bright", "--vd-text", "--vd-muted",
 		"--vd-shadow", "--vd-shadow-window", "--vd-inner-glow", "--vd-window-radius", "--vd-font-ui",
+		"--vd-accent-contrast",
 		"--vd-theme-app-bg", "--vd-theme-panel-bg", "--vd-theme-panel-bg-strong", "--vd-theme-chrome-bg",
 		"--vd-theme-overlay-bg", "--vd-theme-control-bg", "--vd-theme-control-hover", "--vd-theme-border",
 		"--vd-theme-border-strong", "--vd-theme-muted", "--vd-theme-accent-soft", "--vd-theme-accent-border",
@@ -429,6 +461,13 @@ func desktopThemeRequiredTokens() []string {
 // desktopThemeAccentTokens are declared by themes with a fixed accent and by no other theme.
 var desktopThemeAccentTokens = []string{"--vd-accent", "--vd-accent-r", "--vd-accent-g", "--vd-accent-b", "--vd-accent-glow"}
 
+// desktopThemeRootOnlyTokens are the tokens the contract measures (contrast, scheme); a skin sets them on the plain
+// root rule and nowhere else.
+var desktopThemeRootOnlyTokens = map[string]bool{
+	"color-scheme": true, "--vd-theme-app-bg": true, "--vd-theme-panel-bg": true, "--vd-text": true,
+	"--vd-theme-muted": true, "--vd-accent": true, "--vd-accent-contrast": true,
+}
+
 func desktopThemeSkinPath(theme desktopThemeDescriptor) string {
 	return "css/desktop-theme-" + strings.ReplaceAll(theme.ID, "_", "-") + ".css"
 }
@@ -449,7 +488,9 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 		add("the file has %d lines, the limit is %d", lines, desktopThemeCSSMaxLines)
 	}
 
-	// Scope: nothing outside the theme root.
+	// Scope: nothing outside the theme root. The motion gate must sit on the root compound itself
+	// (.desktop-body[data-theme="<id>"]:not([data-animations="false"]) .el), where it also covers every descendant;
+	// a gate on a later compound (".el:not(...)") leaves the element's own ancestors free to animate.
 	scope := regexp.MustCompile(`^\.desktop-body\[data-theme="` + regexp.QuoteMeta(theme.ID) + `"\]`)
 	const noAnimations = `:not([data-animations="false"])`
 	for _, rule := range sheet.Rules {
@@ -467,8 +508,8 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 				continue
 			}
 			for _, selector := range selectors {
-				if !strings.Contains(canonicalCSSSelector(selector), noAnimations) {
-					add("line %d: %s on %.80q must sit behind %s", rule.Line, decl.Property, selector, noAnimations)
+				if !strings.Contains(firstCSSCompound(canonicalCSSSelector(selector)), noAnimations) {
+					add("line %d: %s on %.80q must sit behind %s on the root compound", rule.Line, decl.Property, selector, noAnimations)
 				}
 			}
 		}
@@ -507,18 +548,34 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 		}
 	}
 
-	// Token contract of the root rule.
+	// Token contract. The contract reads the plain root rules (selector equal to the root, outside every at-rule),
+	// so the tokens it measures may not be set anywhere else: a deeper selector or an at-rule would change what
+	// the skin renders without changing what this test measured.
 	if len(sheet.Rules) == 0 {
 		add("the file has no style rule")
 		return violations
 	}
-	root := sheet.Rules[0]
-	if want := `.desktop-body[data-theme="` + theme.ID + `"]`; canonicalCSSSelector(root.Selector) != want || len(root.Context) != 0 {
-		add("the first rule must be the plain root rule %s, got %.80q", want, root.Selector)
+	rootSelector := `.desktop-body[data-theme="` + theme.ID + `"]`
+	if first := sheet.Rules[0]; canonicalCSSSelector(first.Selector) != rootSelector || len(first.Context) != 0 {
+		add("the first rule must be the plain root rule %s, got %.80q", rootSelector, first.Selector)
 	}
 	tokens := map[string]string{}
-	for _, decl := range root.Decls {
-		tokens[decl.Property] = cssDeclarationValue(decl.Value)
+	for _, rule := range sheet.Rules {
+		if len(rule.Context) == 0 && canonicalCSSSelector(rule.Selector) == rootSelector {
+			for _, decl := range rule.Decls { // a later declaration wins, as in the cascade
+				tokens[decl.Property] = cssDeclarationValue(decl.Value)
+			}
+			continue
+		}
+		inside := ""
+		if len(rule.Context) != 0 {
+			inside = " inside " + strings.Join(rule.Context, " > ")
+		}
+		for _, decl := range rule.Decls {
+			if desktopThemeRootOnlyTokens[decl.Property] {
+				add("line %d: %.80q%s sets %s; the contract reads only the plain root rule %s, so set it there", rule.Line, rule.Selector, inside, decl.Property, rootSelector)
+			}
+		}
 	}
 	for _, token := range desktopThemeRequiredTokens() {
 		if tokens[token] == "" {
@@ -537,23 +594,23 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 		}
 	}
 
-	colour := func(token string, opaque bool) ([3]float64, bool) {
-		value, present := tokens[token]
-		if !present {
-			return [3]float64{}, false // already reported as missing
+	// The measured colours are plain hex: #rgb is expanded, a value with an alpha channel (#rgba, #rrggbbaa) is not opaque.
+	colour := func(token string) ([3]float64, bool) {
+		value := tokens[token]
+		if value == "" {
+			return [3]float64{}, false // missing, reported above
 		}
 		rgb, ok := parseCSSHexColor(value)
 		if !ok {
-			add("%s is %q, want a hex colour", token, value)
-		} else if opaque && len(strings.TrimPrefix(value, "#")) != 6 {
-			add("%s is %q, want an opaque #rrggbb", token, value)
+			add("%s is %q, want an opaque hex colour (#rgb or #rrggbb)", token, value)
 		}
 		return rgb, ok
 	}
-	appBg, appBgOK := colour("--vd-theme-app-bg", true)
-	panelBg, panelBgOK := colour("--vd-theme-panel-bg", true)
-	text, textOK := colour("--vd-text", false)
-	muted, mutedOK := colour("--vd-theme-muted", false)
+	appBg, appBgOK := colour("--vd-theme-app-bg")
+	panelBg, panelBgOK := colour("--vd-theme-panel-bg")
+	text, textOK := colour("--vd-text")
+	muted, mutedOK := colour("--vd-theme-muted")
+	accentContrast, accentContrastOK := colour("--vd-accent-contrast")
 	ratio := func(foreground, background [3]float64, foregroundName, backgroundName string) {
 		if got := cssContrastRatio(foreground, background); got < 4.5 {
 			add("contrast of %s on %s is %.2f:1, want at least 4.5:1", foregroundName, backgroundName, got)
@@ -567,6 +624,25 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 	}
 	if mutedOK && appBgOK {
 		ratio(muted, appBg, "--vd-theme-muted", "--vd-theme-app-bg")
+	}
+
+	// The registry scheme has to match the palette. Compare the two luminances instead of testing the background
+	// against a threshold: a mid-grey skin with black text (Amiga) is a light theme.
+	if appBgOK && textOK {
+		background, foreground := cssRelativeLuminance(appBg), cssRelativeLuminance(text)
+		switch {
+		case theme.Scheme == "light" && !(background > foreground):
+			add("the registry scheme is light, but --vd-theme-app-bg (luminance %.3f) is not lighter than --vd-text (%.3f)", background, foreground)
+		case theme.Scheme == "dark" && !(background < foreground):
+			add("the registry scheme is dark, but --vd-theme-app-bg (luminance %.3f) is not darker than --vd-text (%.3f)", background, foreground)
+		}
+	}
+
+	// Text that sits on the accent: a fixed accent must be readable under it; a user accent only carries the token.
+	if theme.Accent == "fixed" {
+		if accent, accentOK := colour("--vd-accent"); accentOK && accentContrastOK {
+			ratio(accentContrast, accent, "--vd-accent-contrast", "--vd-accent")
+		}
 	}
 	return violations
 }
@@ -730,5 +806,137 @@ func TestDesktopThemeCSSWalkerAndChecker(t *testing.T) {
 	}
 	if violations := desktopThemeThumbnailViolations(`<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>`); len(violations) != 1 {
 		t.Errorf("thumbnail checker reported %v, want only the remote reference", violations)
+	}
+}
+
+// desktopThemeProbeSkin renders a skin of the theme "probe" that satisfies the whole contract, so a test can break
+// exactly one thing. The palette is dark (near-black background, near-white text) or, for a light theme, the reverse;
+// a fixed accent is a dark blue with white text. An override replaces a token on the root rule; an empty override
+// removes it. rest is appended after the root rule.
+func desktopThemeProbeSkin(theme desktopThemeDescriptor, overrides map[string]string, rest string) string {
+	values := map[string]string{"color-scheme": theme.Scheme, "--vd-accent-contrast": "#ffffff"}
+	if theme.Scheme == "light" {
+		values["--vd-theme-app-bg"], values["--vd-theme-panel-bg"], values["--vd-text"], values["--vd-theme-muted"] = "#ffffff", "#f2f2f2", "#111111", "#444444"
+	} else {
+		values["--vd-theme-app-bg"], values["--vd-theme-panel-bg"], values["--vd-text"], values["--vd-theme-muted"] = "#101010", "#181818", "#f5f5f5", "#bbbbbb"
+	}
+	order := desktopThemeRequiredTokens()
+	if theme.Accent == "fixed" {
+		values["--vd-accent"], values["--vd-accent-r"], values["--vd-accent-g"], values["--vd-accent-b"], values["--vd-accent-glow"] = "#0b5cad", "11", "92", "173", "none"
+		order = append(order, desktopThemeAccentTokens...)
+	}
+	for _, token := range order {
+		if _, ok := values[token]; !ok {
+			values[token] = "none"
+		}
+	}
+	for token, value := range overrides {
+		values[token] = value
+	}
+	var skin strings.Builder
+	skin.WriteString(`.desktop-body[data-theme="` + theme.ID + `"] {` + "\n")
+	for _, token := range order {
+		if value := values[token]; value != "" {
+			fmt.Fprintf(&skin, "  %s: %s;\n", token, value)
+		}
+	}
+	skin.WriteString("}\n" + rest)
+	return skin.String()
+}
+
+func TestDesktopThemeCSSCheckerStrictness(t *testing.T) {
+	t.Parallel()
+	const root = `.desktop-body[data-theme="probe"]`
+	dark := desktopThemeDescriptor{ID: "probe", Scheme: "dark", Accent: "user"}
+	light := desktopThemeDescriptor{ID: "probe", Scheme: "light", Accent: "user"}
+	fixed := desktopThemeDescriptor{ID: "probe", Scheme: "dark", Accent: "fixed"}
+	lightPalette := map[string]string{"--vd-theme-app-bg": "#ffffff", "--vd-theme-panel-bg": "#f2f2f2", "--vd-text": "#111111", "--vd-theme-muted": "#444444"}
+	darkPalette := map[string]string{"--vd-theme-app-bg": "#101010", "--vd-theme-panel-bg": "#181818", "--vd-text": "#f5f5f5", "--vd-theme-muted": "#bbbbbb"}
+	amigaPalette := map[string]string{"--vd-theme-app-bg": "#aaaaaa", "--vd-theme-panel-bg": "#aaaaaa", "--vd-text": "#000000", "--vd-theme-muted": "#333333"}
+
+	cases := []struct {
+		name      string
+		theme     desktopThemeDescriptor
+		overrides map[string]string
+		rest      string
+		want      string // a substring of one violation; empty means the skin must be clean
+	}{
+		{name: "the probe skin itself is clean", theme: dark},
+		{name: "the light probe skin is clean", theme: light},
+		{name: "the fixed-accent probe skin is clean", theme: fixed},
+
+		// The motion gate belongs on the root compound.
+		{name: "gate on the root compound", theme: dark, rest: root + `:not([data-animations="false"]) .el { animation: vd-theme-probe-spin 1s }`},
+		{name: "gate on the root compound, other spelling and child combinator", theme: dark, rest: root + `:not([data-animations='false']) > .el { animation-name: vd-theme-probe-spin }`},
+		{name: "no gate needed for animation none", theme: dark, rest: root + ` .el { animation: none }`},
+		{name: "no gate at all", theme: dark, rest: root + ` .el { animation: vd-theme-probe-spin 1s }`, want: "must sit behind"},
+		{name: "gate on a later compound", theme: dark, rest: root + ` .el:not([data-animations="false"]) { animation: vd-theme-probe-spin 1s }`, want: "must sit behind"},
+		{name: "gate behind a child combinator", theme: dark, rest: root + ` > .el:not([data-animations="false"]) { animation-name: vd-theme-probe-spin }`, want: "must sit behind"},
+		{name: "gate behind a sibling combinator", theme: dark, rest: root + ` ~ .el:not([data-animations="false"]) { animation: vd-theme-probe-spin 1s }`, want: "must sit behind"},
+
+		// Every block at-rule is walked for scoping.
+		{name: "unscoped rule in @starting-style", theme: dark, rest: `@starting-style { .vd-window { opacity: 0 } }`, want: `selector ".vd-window" must start with`},
+		{name: "unscoped rule in @container", theme: dark, rest: `@container (min-width: 1px) { .vd-window { color: red } }`, want: `selector ".vd-window" must start with`},
+		{name: "unscoped rule in an unknown at-rule", theme: dark, rest: `@made-up-rule { .vd-window { color: red } }`, want: `selector ".vd-window" must start with`},
+		{name: "unscoped rule in nested at-rules", theme: dark, rest: `@media (min-width: 1px) { @scope (.a) { .vd-window { color: red } } }`, want: `selector ".vd-window" must start with`},
+		{name: "ungated animation in an unknown at-rule", theme: dark, rest: `@made-up-rule { ` + root + ` .el { animation: vd-theme-probe-spin 1s } }`, want: "must sit behind"},
+		{name: "scoped rule in an unknown at-rule", theme: dark, rest: `@made-up-rule { ` + root + ` .el { color: red } }`},
+		{name: "declaration-only at-rule", theme: dark, rest: `@property --vd-probe-size { syntax: "<length>"; inherits: false; initial-value: 0px }`},
+
+		// The measured tokens live on the plain root rule(s) only.
+		{name: "deeper rule sets --vd-text", theme: dark, rest: root + ` .app { --vd-text: #000000; }`, want: "sets --vd-text"},
+		{name: "deeper rule sets color-scheme", theme: dark, rest: root + ` .app { color-scheme: light; }`, want: "sets color-scheme"},
+		{name: "deeper rule sets --vd-theme-muted", theme: dark, rest: root + ` .app { --vd-theme-muted: #000000; }`, want: "sets --vd-theme-muted"},
+		{name: "root rule with a qualifier sets --vd-accent-contrast", theme: dark, rest: root + `[data-scheme="dark"] { --vd-accent-contrast: #000000; }`, want: "sets --vd-accent-contrast"},
+		{name: "root selector inside @media sets --vd-theme-app-bg", theme: dark, rest: `@media (min-width: 1px) { ` + root + ` { --vd-theme-app-bg: #ffffff } }`, want: "inside @media (min-width: 1px) sets --vd-theme-app-bg"},
+		{name: "deeper rule sets --vd-accent", theme: fixed, rest: root + ` .app { --vd-accent: #ff0000; }`, want: "sets --vd-accent"},
+		{name: "other tokens may live in deeper rules", theme: dark, rest: root + ` .app { --vd-border: red; --vd-probe-bar: 48px } @media (max-width: 1px) { ` + root + ` { --vd-probe-bar: 52px } }`},
+		{name: "a second plain root rule supplies tokens", theme: dark, overrides: map[string]string{"--vd-font-ui": ""}, rest: root + ` { --vd-font-ui: system-ui }`},
+		{name: "a later root rule wins", theme: dark, rest: root + ` { --vd-text: #101010 }`, want: "contrast of --vd-text on --vd-theme-app-bg"},
+
+		// The registry scheme matches the palette (by luminance, not by a threshold).
+		{name: "light scheme with a dark palette", theme: light, overrides: darkPalette, want: "the registry scheme is light"},
+		{name: "dark scheme with a light palette", theme: dark, overrides: lightPalette, want: "the registry scheme is dark"},
+		{name: "mid-grey with black text is a light scheme", theme: light, overrides: amigaPalette},
+		{name: "mid-grey with black text is not a dark scheme", theme: dark, overrides: amigaPalette, want: "the registry scheme is dark"},
+
+		// Opaque hex: #rgb is expanded, an alpha channel is rejected.
+		{name: "three-digit hex backgrounds", theme: light, overrides: map[string]string{"--vd-theme-app-bg": "#fff", "--vd-theme-panel-bg": "#fff", "--vd-text": "#111", "--vd-theme-muted": "#444"}},
+		{name: "eight-digit hex background", theme: light, overrides: map[string]string{"--vd-theme-app-bg": "#ffffff80"}, want: `--vd-theme-app-bg is "#ffffff80", want an opaque hex colour`},
+		{name: "four-digit hex text", theme: dark, overrides: map[string]string{"--vd-text": "#fff8"}, want: `--vd-text is "#fff8", want an opaque hex colour`},
+
+		// Text on the accent.
+		{name: "the accent contrast is required", theme: dark, overrides: map[string]string{"--vd-accent-contrast": ""}, want: "the root rule does not define --vd-accent-contrast"},
+		{name: "the accent contrast must be hex", theme: dark, overrides: map[string]string{"--vd-accent-contrast": "var(--x)"}, want: `--vd-accent-contrast is "var(--x)", want an opaque hex colour`},
+		{name: "a user accent needs only the token", theme: dark, overrides: map[string]string{"--vd-accent-contrast": "#101010"}},
+		{name: "white on yellow is unreadable", theme: fixed, overrides: map[string]string{"--vd-accent": "#f3e600"}, want: "contrast of --vd-accent-contrast on --vd-accent"},
+		{name: "black on yellow reads", theme: fixed, overrides: map[string]string{"--vd-accent": "#f3e600", "--vd-accent-contrast": "#000000"}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			violations := desktopThemeCSSViolations(tc.theme, desktopThemeProbeSkin(tc.theme, tc.overrides, tc.rest))
+			joined := strings.Join(violations, "\n")
+			switch {
+			case tc.want == "" && len(violations) != 0:
+				t.Errorf("want a clean skin, reported:\n%s", joined)
+			case tc.want != "" && !strings.Contains(joined, tc.want):
+				t.Errorf("the checker did not report %q; reported:\n%s", tc.want, joined)
+			}
+		})
+	}
+
+	for selector, want := range map[string]string{
+		`.a:not(.b .c) > .d`:    `.a:not(.b .c)`,
+		`.a[title="x y"] .b`:    `.a[title="x y"]`,
+		`  .a:is(.b, .c)~.d`:    `.a:is(.b, .c)`,
+		`.a:nth-child(2n + 1)`:  `.a:nth-child(2n + 1)`,
+		`.a+.b`:                 `.a`,
+		`.desktop-body .a > .b`: `.desktop-body`,
+	} {
+		if got := firstCSSCompound(selector); got != want {
+			t.Errorf("firstCSSCompound(%q) = %q, want %q", selector, got, want)
+		}
 	}
 }

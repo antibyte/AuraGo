@@ -69,7 +69,7 @@
 .vd-people-semantic-toggle:hover { border-color: var(--vd-accent); color: var(--vd-accent); }
 .vd-people-semantic-toggle.active {
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     border-color: var(--vd-accent);
 }
 
@@ -94,14 +94,14 @@
     transition: all 0.15s;
 }
 .vd-people-view-btn:hover { color: var(--vd-text); }
-.vd-people-view-btn.active { background: var(--vd-accent); color: #fff; }
+.vd-people-view-btn.active { background: var(--vd-accent); color: var(--vd-accent-contrast, #fff); }
 
 .vd-people-add-btn {
     padding: 6px 14px;
     border: 1px solid var(--vd-accent);
     border-radius: var(--ds-radius-md);
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -162,7 +162,7 @@
 .vd-people-sidebar-item:hover { background: var(--vd-theme-control-hover); }
 .vd-people-sidebar-item.active {
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
 }
 .vd-people-sidebar-empty {
     font-size: 11px;
@@ -265,7 +265,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -279,7 +279,7 @@
     background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     font-size: 10px;
     font-weight: 700;
     margin-right: 8px;
@@ -294,7 +294,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     font-size: 24px;
     font-weight: 700;
     margin: 0 auto 8px;
@@ -603,7 +603,7 @@
 .vd-people-modal-cancel:hover { background: var(--vd-theme-control-hover); }
 .vd-people-modal-save {
     background: var(--vd-accent);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     border-color: var(--vd-accent);
 }
 .vd-people-modal-save:hover { opacity: 0.85; }

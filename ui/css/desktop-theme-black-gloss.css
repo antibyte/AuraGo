@@ -22,6 +22,9 @@
     --vd-window-radius: 10px;
     --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
 
+    /* Text on the user's accent (the accent itself stays the user's; white is the shared default) */
+    --vd-accent-contrast: #fff;
+
     /* Theme bridge */
     --vd-theme-app-bg: #0c0c0e;
     --vd-theme-panel-bg: #121214;

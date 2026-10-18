@@ -27,6 +27,7 @@
     --vd-accent-g: 24;
     --vd-accent-b: 107;
     --vd-accent-glow: rgba(194, 24, 107, 0.14);
+    --vd-accent-contrast: #FFFFFF; /* text on the accent: white on plum-pink, 5.8:1 */
 
     /* Theme bridge */
     --vd-theme-app-bg: #FFFAFD;

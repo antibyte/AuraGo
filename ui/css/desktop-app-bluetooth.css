@@ -18,7 +18,7 @@
 .bt-app button:hover:not(:disabled) { border-color: var(--vd-accent); }
 .bt-app button:disabled { cursor: default; opacity: .5; }
 .bt-app button:focus-visible, .bt-app input:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 1px; }
-.bt-app .bt-primary { border-color: var(--vd-accent); background: var(--vd-accent); color: #fff; }
+.bt-app .bt-primary { border-color: var(--vd-accent); background: var(--vd-accent); color: var(--vd-accent-contrast, #fff); }
 .bt-app .bt-danger { color: var(--bt-danger); }
 .bt-app .bt-link, .bt-app .bt-unnamed { padding: 0; border: 0; background: none; color: inherit; text-decoration: underline; }
 .bt-app .bt-unnamed { margin: 6px 14px; color: var(--vd-theme-muted); }

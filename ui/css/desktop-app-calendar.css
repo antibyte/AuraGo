@@ -11,7 +11,7 @@
 .vd-calendar-shell {
     --cal-accent-rgb: var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166);
     --cal-accent: var(--vd-accent, rgb(var(--cal-accent-rgb)));
-    --cal-on-accent: #fff;
+    --cal-on-accent: var(--vd-accent-contrast, #fff);
     --cal-text: var(--vd-text);
     --cal-muted: var(--vd-theme-muted, var(--vd-muted));
     --cal-border: var(--vd-theme-border, var(--vd-border));
@@ -1588,7 +1588,7 @@
 .vd-calendar-editor {
     --cal-accent-rgb: var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166);
     --cal-accent: var(--vd-accent, rgb(var(--cal-accent-rgb)));
-    --cal-on-accent: #fff;
+    --cal-on-accent: var(--vd-accent-contrast, #fff);
     --cal-text: var(--vd-text);
     --cal-muted: var(--vd-theme-muted, var(--vd-muted));
     --cal-border: var(--vd-theme-border, var(--vd-border));

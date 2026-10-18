@@ -417,17 +417,185 @@ func TestDesktopThemeRegistryShellUsesCapabilities(t *testing.T) {
 		t.Errorf("the desktop shell mentions isFruityTheme( %d times, want exactly 1 (the definition)", count)
 	}
 
-	// Apps read the published colour scheme of the body, never the theme id. Layerling and Leafy alias
-	// document.body.dataset to a local name first, hence the second spelling.
-	schemeRead := regexp.MustCompile(`\b(?:dataset|bodyData)\.scheme\b`)
+	// Apps read the published colour scheme of the body, never the theme id, and follow it live.
 	for _, path := range []string{
 		"js/desktop/apps/code-studio/editor.js",
 		"js/desktop/apps/cyd-creator-code.js",
 		"js/desktop/apps/layerling.js",
 		"js/desktop/leafy/runtime.js",
 	} {
-		if !schemeRead.MatchString(readDesktopThemeSource(t, path)) {
-			t.Errorf("%s does not read the body data-scheme (dataset.scheme)", path)
+		for _, violation := range desktopThemeSchemeAppViolations(readDesktopThemeSource(t, path)) {
+			t.Errorf("%s %s", path, violation)
+		}
+	}
+}
+
+var (
+	// Layerling and Leafy alias document.body.dataset to a local name first, hence the second spelling.
+	desktopThemeSchemeRead     = regexp.MustCompile(`\b(?:dataset|bodyData)\.scheme\b`)
+	desktopThemeObserverNew    = regexp.MustCompile(`\bnew\s+MutationObserver\s*\(`)
+	desktopThemeSchemeObserved = regexp.MustCompile(`attributeFilter\s*:\s*\[[^\]]*['"]data-scheme['"][^\]]*\]`)
+)
+
+// desktopThemeSchemeAppViolations lists what a desktop app lacks to follow the colour scheme the shell publishes on
+// the body: a dataset.scheme read and a MutationObserver whose attributeFilter array holds 'data-scheme'. Comments
+// do not count.
+func desktopThemeSchemeAppViolations(source string) []string {
+	code := stripJSComments(source)
+	var violations []string
+	if !desktopThemeSchemeRead.MatchString(code) {
+		violations = append(violations, "does not read the body data-scheme (dataset.scheme)")
+	}
+	if !desktopThemeObserverNew.MatchString(code) || !desktopThemeSchemeObserved.MatchString(code) {
+		violations = append(violations, "does not observe the body data-scheme: want a MutationObserver whose attributeFilter array contains 'data-scheme'")
+	}
+	return violations
+}
+
+// stripJSComments blanks the // and /* */ comments of a JavaScript source, keeps its line structure, and leaves
+// string, template and regular-expression literals alone, so a pattern found in the result is code and not prose.
+func stripJSComments(source string) string {
+	var out strings.Builder
+	var previous byte // the last non-space byte outside comments: after an operator or a bracket a / opens a regular expression
+	for i := 0; i < len(source); {
+		c := source[i]
+		switch {
+		case c == '\'' || c == '"' || c == '`':
+			end := skipJSString(source, i)
+			out.WriteString(source[i:end])
+			previous, i = c, end
+		case c == '/' && i+1 < len(source) && source[i+1] == '/':
+			for i < len(source) && source[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < len(source) && source[i+1] == '*':
+			end := len(source)
+			if closeAt := strings.Index(source[i+2:], "*/"); closeAt >= 0 {
+				end = i + 2 + closeAt + 2
+			}
+			out.WriteByte(' ')
+			out.WriteString(strings.Repeat("\n", strings.Count(source[i:end], "\n")))
+			i = end
+		case c == '/' && (previous == 0 || strings.IndexByte("(,=:[!&|?{};+-*%<>~^", previous) >= 0):
+			end := skipJSRegex(source, i)
+			out.WriteString(source[i:end])
+			previous, i = '/', end
+		default:
+			out.WriteByte(c)
+			if c > ' ' {
+				previous = c
+			}
+			i++
+		}
+	}
+	return out.String()
+}
+
+// skipJSString returns the index after the string or template literal that opens at source[i]. The ${...}
+// expressions of a template literal are skipped as code, so a nested literal cannot end it early.
+func skipJSString(source string, i int) int {
+	quote := source[i]
+	for i++; i < len(source); i++ {
+		switch source[i] {
+		case '\\':
+			i++
+		case quote:
+			return i + 1
+		case '\n':
+			if quote != '`' {
+				return i // an unterminated string ends with its line
+			}
+		case '$':
+			if quote == '`' && i+1 < len(source) && source[i+1] == '{' {
+				i = skipJSBraces(source, i+1) - 1
+			}
+		}
+	}
+	return len(source)
+}
+
+// skipJSBraces returns the index after the } that closes the { at source[i].
+func skipJSBraces(source string, i int) int {
+	depth := 0
+	for ; i < len(source); i++ {
+		switch source[i] {
+		case '\'', '"', '`':
+			i = skipJSString(source, i) - 1
+		case '{':
+			depth++
+		case '}':
+			if depth--; depth == 0 {
+				return i + 1
+			}
+		}
+	}
+	return len(source)
+}
+
+// skipJSRegex returns the index after the regular-expression literal that opens at source[i], or i+1 when the
+// slash turns out not to open one.
+func skipJSRegex(source string, i int) int {
+	inClass := false
+	for j := i + 1; j < len(source); j++ {
+		switch source[j] {
+		case '\\':
+			j++
+		case '[':
+			inClass = true
+		case ']':
+			inClass = false
+		case '/':
+			if !inClass {
+				return j + 1
+			}
+		case '\n':
+			return i + 1
+		}
+	}
+	return i + 1
+}
+
+func TestDesktopThemeSchemeAppChecker(t *testing.T) {
+	t.Parallel()
+	const observed = "new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-scheme'] });"
+	strips := []struct{ name, source, keep, drop string }{
+		{"line comment", "// body.dataset.scheme\nrun();", "run();", "dataset.scheme"},
+		{"block comment over several lines", "/* a\n dataset.scheme\n*/ run();", "run();", "dataset.scheme"},
+		{"comment markers inside strings", "const u = 'http://x'; const p = \"/* y */\"; /* gone */ const s = dataset.scheme;", "'http://x'; const p = \"/* y */\";", "gone"},
+		{"quote inside a regular expression", "const q = /['\"]/g; // gone\nconst s = dataset.scheme;", "const s = dataset.scheme;", "gone"},
+		{"slash in a class of a regular expression", "const q = /[/]x/; // gone\nconst s = dataset.scheme;", "const s = dataset.scheme;", "gone"},
+		{"division is not a regular expression", "const r = a / b; // gone\nconst s = dataset.scheme;", "const r = a / b;", "gone"},
+		{"nested template literal", "const t = `a ${ `b // c` } // d`; // gone\nconst s = dataset.scheme;", "`a ${ `b // c` } // d`;", "gone"},
+	}
+	for _, tc := range strips {
+		got := stripJSComments(tc.source)
+		if !strings.Contains(got, tc.keep) || strings.Contains(got, tc.drop) || strings.Count(got, "\n") != strings.Count(tc.source, "\n") {
+			t.Errorf("%s: stripJSComments(%q) = %q, want it to keep %q, drop %q and keep every line break", tc.name, tc.source, got, tc.keep, tc.drop)
+		}
+	}
+
+	apps := []struct {
+		name, source string
+		want         []string // substrings of the violations, in order; none means the app follows the scheme
+	}{
+		{"read and observed", "const light = document.body.dataset.scheme === 'light';\n" + observed, nil},
+		{"read through an alias, observed with double quotes", "const bodyData = document.body.dataset; const light = bodyData.scheme === 'light'; new MutationObserver(f).observe(b, { attributeFilter: [\"data-scheme\"] });", nil},
+		{"read only in comments", "// dataset.scheme\n/* bodyData.scheme */\n" + observed, []string{"does not read"}},
+		{"observer only in comments", "const light = dataset.scheme === 'light';\n// " + observed + "\n/* " + observed + " */", []string{"does not observe"}},
+		{"observer without data-scheme", "const light = dataset.scheme === 'light'; new MutationObserver(f).observe(b, { attributeFilter: ['data-theme', 'data-fruity-mode'] });", []string{"does not observe"}},
+		{"data-scheme outside an attributeFilter", "const light = dataset.scheme === 'light'; new MutationObserver(f).observe(b, { attributes: true }); const name = 'data-scheme';", []string{"does not observe"}},
+		{"neither", "run();", []string{"does not read", "does not observe"}},
+	}
+	for _, tc := range apps {
+		got := desktopThemeSchemeAppViolations(tc.source)
+		if len(got) != len(tc.want) {
+			t.Errorf("%s: reported %q, want %d violation(s) matching %q", tc.name, got, len(tc.want), tc.want)
+			continue
+		}
+		for i, want := range tc.want {
+			if !strings.Contains(got[i], want) {
+				t.Errorf("%s: violation %d is %q, want it to contain %q", tc.name, i, got[i], want)
+			}
 		}
 	}
 }

@@ -2093,6 +2093,11 @@
     --vd-accent-b: 151;
 }
 
+/* Text colour that sits on the accent: white by default (Standard, Fruity and the user accents); fixed-accent skins override it. */
+.desktop-body {
+    --vd-accent-contrast: #fff;
+}
+
 .desktop-body[data-density="compact"] .vd-topbar,
 .desktop-body[data-density="compact"] .vd-taskbar {
     padding-block: 7px;

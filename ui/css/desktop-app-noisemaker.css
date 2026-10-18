@@ -67,7 +67,7 @@
 .nm-btn svg { flex: 0 0 auto; height: 15px; width: 15px; }
 .nm-btn:hover:not(:disabled) { background: var(--nm-control-hover); border-color: var(--nm-border-strong); }
 .nm-btn:active:not(:disabled) { transform: scale(.98); }
-.nm-btn--primary { background: var(--nm-gradient); border-color: transparent; color: #fff; }
+.nm-btn--primary { background: var(--nm-gradient); border-color: transparent; color: var(--vd-accent-contrast, #fff); }
 .nm-btn--primary:hover:not(:disabled) { background: var(--nm-gradient); filter: brightness(1.08); }
 .nm-btn--danger { color: #f87171; }
 .nm-btn--danger:hover:not(:disabled) { background: color-mix(in srgb, #ef4444 14%, transparent); border-color: color-mix(in srgb, #ef4444 40%, transparent); }
@@ -182,7 +182,7 @@
     align-items: center;
     background: var(--nm-gradient);
     border-radius: 10px;
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     display: inline-flex;
     flex: 0 0 auto;
     font-size: 16px;
@@ -374,7 +374,7 @@
     background: var(--nm-gradient);
     border: 0;
     border-radius: var(--nm-radius);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     cursor: pointer;
     display: inline-flex;
     font-size: 15.5px;
@@ -503,7 +503,7 @@
     border-radius: 50%;
     bottom: 8px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
-    color: #fff;
+    color: var(--vd-accent-contrast, #fff);
     cursor: pointer;
     display: inline-flex;
     height: 40px;
@@ -559,7 +559,7 @@
 .nm-card-check svg { height: 14px; width: 14px; }
 .nm-library.is-select-mode .nm-card-check, .nm-card.is-selected .nm-card-check { display: inline-flex; }
 .nm-library.is-select-mode .nm-card-fav { display: none; }
-.nm-card-check[aria-pressed="true"] { background: var(--nm-accent); border-color: var(--nm-accent); color: #fff; }
+.nm-card-check[aria-pressed="true"] { background: var(--nm-accent); border-color: var(--nm-accent); color: var(--vd-accent-contrast, #fff); }
 .nm-card-body { display: grid; gap: 3px; min-width: 0; }
 .nm-card-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm-card-style { color: var(--nm-muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -646,14 +646,14 @@
 .nm-player-meta { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm-player-center { display: grid; gap: 4px; min-width: 0; }
 .nm-player-controls { align-items: center; display: flex; gap: 4px; justify-content: center; }
-.nm-player-play { align-items: center; background: var(--nm-gradient); border: 0; border-radius: 50%; color: #fff; cursor: pointer; display: inline-flex; height: 38px; justify-content: center; margin: 0 4px; transition: filter .15s ease, transform .1s ease; width: 38px; }
+.nm-player-play { align-items: center; background: var(--nm-gradient); border: 0; border-radius: 50%; color: var(--vd-accent-contrast, #fff); cursor: pointer; display: inline-flex; height: 38px; justify-content: center; margin: 0 4px; transition: filter .15s ease, transform .1s ease; width: 38px; }
 .nm-player-play svg { height: 18px; width: 18px; }
 .nm-player-play:hover { filter: brightness(1.1); }
 .nm-player-play:active { transform: scale(.96); }
 .nm-player-mode { color: var(--nm-muted); height: 30px; width: 30px; position: relative; }
 .nm-player-mode svg { height: 16px; width: 16px; }
 .nm-player-mode[aria-pressed="true"], .nm-player-mode[data-repeat="all"], .nm-player-mode[data-repeat="one"] { background: transparent; color: var(--nm-accent); }
-.nm-repeat-one { background: var(--nm-accent); border-radius: 999px; color: #fff; display: none; font-size: 8px; font-weight: 700; line-height: 1; padding: 1px 3px; position: absolute; right: 2px; top: 2px; }
+.nm-repeat-one { background: var(--nm-accent); border-radius: 999px; color: var(--vd-accent-contrast, #fff); display: none; font-size: 8px; font-weight: 700; line-height: 1; padding: 1px 3px; position: absolute; right: 2px; top: 2px; }
 .nm-player-mode[data-repeat="one"] .nm-repeat-one { display: block; }
 .nm-player-track { align-items: center; display: flex; gap: 8px; }
 .nm-player-time { color: var(--nm-muted); font-size: 10.5px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: center; }
@@ -713,7 +713,7 @@
 /* ---------- onboarding ---------- */
 .nm-onboarding { align-items: center; display: flex; flex: 1; justify-content: center; padding: 24px; }
 .nm-onboarding-card { background: var(--nm-panel); border: 1px solid var(--nm-border); border-radius: 18px; display: grid; gap: 10px; justify-items: center; max-width: 380px; padding: 28px; text-align: center; }
-.nm-onboarding-icon { align-items: center; background: var(--nm-gradient); border-radius: 50%; color: #fff; display: inline-flex; font-size: 26px; height: 56px; justify-content: center; width: 56px; }
+.nm-onboarding-icon { align-items: center; background: var(--nm-gradient); border-radius: 50%; color: var(--vd-accent-contrast, #fff); display: inline-flex; font-size: 26px; height: 56px; justify-content: center; width: 56px; }
 .nm-onboarding-card h2 { font-size: 16px; margin: 4px 0 0; }
 .nm-onboarding-card p { color: var(--nm-muted); font-size: 12.5px; margin: 0; }
 .nm-onboarding-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
