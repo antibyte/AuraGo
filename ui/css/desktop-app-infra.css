@@ -80,6 +80,7 @@
 .infra-search > span { font-size: 19px; line-height: 1; transform: rotate(-20deg); }
 .infra-search input { width: 100%; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--infra-ink); padding: 0 7px; }
 .infra-search input:focus-visible { outline: 0; }
+.infra-search:focus-within { border-color: var(--infra-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--infra-accent) 35%, transparent); }
 .infra-select-label { display: flex; align-items: center; gap: 7px; color: var(--infra-muted); font-size: 14px; white-space: nowrap; }
 .infra-select-label select { height: 36px; max-width: 180px; padding: 0 26px 0 8px; border: 1px solid var(--infra-line); border-radius: 5px; background: var(--infra-app); color: var(--infra-ink); }
 .infra-live-status { margin-left: auto; min-width: 100px; display: flex; align-items: center; justify-content: flex-end; gap: 7px; color: var(--infra-muted); font-size: 14px; text-align: right; }

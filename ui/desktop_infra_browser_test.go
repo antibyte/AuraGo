@@ -301,6 +301,7 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
 			return
 		}
+		patched := make([]map[string]any, 0, len(payload.Nodes))
 		for _, change := range payload.Nodes {
 			for _, node := range f.nodes {
 				if node["id"] != change["id"] {
@@ -313,9 +314,11 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 				}
 				placements[payload.View] = map[string]any{"x": change["x"], "y": change["y"], "pinned": change["pinned"]}
 				node["version"] = float64(2)
+				patched = append(patched, node)
 			}
 		}
-		write(http.StatusOK, f.snapshot())
+		// Mirror the server: only the nodes this request changed are returned.
+		write(http.StatusOK, map[string]any{"nodes": patched})
 	default:
 		write(http.StatusNotFound, map[string]string{"error": "not_found", "path": r.URL.Path})
 	}

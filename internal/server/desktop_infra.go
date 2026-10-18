@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,7 +54,7 @@ func registerDesktopInfraRoutes(mux *http.ServeMux, s *Server) {
 
 func handleDesktopInfra(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		setDesktopInfraHeaders(w)
+		desktopInfraHeaders(w)
 		path, ok := desktopInfraRoutePath(r.URL.Path)
 		if !ok {
 			desktopInfraError(w, http.StatusNotFound, "not_found", "Infra route not found")
@@ -143,6 +144,20 @@ func desktopInfraAccess(s *Server, w http.ResponseWriter, r *http.Request, write
 	ctx, finish := runtime.beginOperation(r.Context(), desktopInfraRuntimeConfigKey(s, cfg), cfg)
 	if ctx.Err() != nil || !s.desktopInfraConfigAdmitted(cfg) {
 		finish()
+		// A config publication stores the admission fence before the new snapshot
+		// becomes visible. Retry once with the newly published snapshot instead of
+		// reporting a spurious policy change.
+		if next := s.ConfigSnapshot(); next != nil && next != cfg && s.desktopInfraConfigAdmitted(next) &&
+			next.VirtualDesktop.Enabled && next.VirtualDesktop.Infra.Enabled &&
+			!next.VirtualDesktop.ReadOnly && !next.VirtualDesktop.Infra.ReadOnly {
+			cfg = next
+			ctx, finish = runtime.beginOperation(r.Context(), desktopInfraRuntimeConfigKey(s, cfg), cfg)
+			if ctx.Err() == nil && s.desktopInfraConfigAdmitted(cfg) {
+				*r = *r.WithContext(ctx)
+				return cfg, runtime.store, runtime, finish, true
+			}
+			finish()
+		}
 		desktopInfraError(w, http.StatusForbidden, "infra_policy_changed", "Infra access changed; reload and try again")
 		return nil, nil, nil, nil, false
 	}
@@ -173,6 +188,9 @@ func (r *desktopInfraRuntime) beginOperation(parent context.Context, configKey s
 	if r.configKey != "" && r.configKey != configKey {
 		operations = r.operations
 		r.operations = make(map[uint64]context.CancelFunc)
+		// Provider identities are part of the config key; cached freshness for the
+		// previous configuration never applies to the new one.
+		r.cache = make(map[string]*desktopInfraProviderCache)
 	}
 	r.configKey = configKey
 	r.configSnapshot = snapshot
@@ -201,6 +219,7 @@ func (r *desktopInfraRuntime) cancelOperations(configKey string, snapshot *confi
 	r.mu.Lock()
 	operations := r.operations
 	r.operations = make(map[uint64]context.CancelFunc)
+	r.cache = make(map[string]*desktopInfraProviderCache)
 	r.configKey = configKey
 	r.configSnapshot = snapshot
 	r.mu.Unlock()
@@ -243,12 +262,18 @@ func (s *Server) desktopInfraRuntime() (*desktopInfraRuntime, error) {
 	if s.infraRuntime != nil {
 		return s.infraRuntime, nil
 	}
+	if s.infraRuntimeErr != nil {
+		return nil, s.infraRuntimeErr
+	}
 	if s.InventoryDB == nil {
 		return nil, errors.New("infra inventory database is unavailable")
 	}
 	store, err := infra.New(s.InventoryDB)
 	if err != nil {
-		return nil, fmt.Errorf("initialize infra store: %w", err)
+		// Cache the failure: a retry would repeat the migration and its backup on
+		// every request without a chance to succeed.
+		s.infraRuntimeErr = fmt.Errorf("initialize infra store: %w", err)
+		return nil, s.infraRuntimeErr
 	}
 	s.infraRuntime = &desktopInfraRuntime{
 		store: store,
@@ -257,9 +282,27 @@ func (s *Server) desktopInfraRuntime() (*desktopInfraRuntime, error) {
 	return s.infraRuntime, nil
 }
 
+// startDesktopInfraStore initializes the store during server startup so a schema
+// migration and its database backup never run inside a request.
+func (s *Server) startDesktopInfraStore() {
+	if s == nil {
+		return
+	}
+	if _, err := s.desktopInfraRuntime(); err != nil {
+		logger := s.Logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("Infra storage is unavailable", "error", err)
+	}
+}
+
 func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
 	if r.URL.Query().Get("refresh") == "1" {
-		desktopInfraRefreshConfigured(r.Context(), s, cfg, store, runtime, true)
+		if ctx, finish, ok := desktopInfraRefreshContext(s, r, cfg, runtime); ok {
+			desktopInfraRefreshConfigured(ctx, s, cfg, store, runtime, true)
+			finish()
+		}
 	} else {
 		desktopInfraScheduleRefreshConfigured(s, cfg, store, runtime)
 	}
@@ -270,7 +313,33 @@ func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg
 	}
 	snapshot.Capabilities = desktopInfraCapabilities(cfg)
 	desktopInfraDecorateSnapshot(r.Context(), s, cfg, &snapshot)
-	desktopInfraJSON(w, http.StatusOK, snapshot)
+	desktopInfraJSON(w, http.StatusOK, desktopInfraSnapshotResponse(snapshot, runtime))
+}
+
+// desktopInfraRefreshContext registers a read-triggered provider refresh with the
+// same revocation fence as a write. It reports false when policy already changed,
+// so the caller serves the stored snapshot without provider I/O.
+func desktopInfraRefreshContext(s *Server, r *http.Request, cfg *config.Config, runtime *desktopInfraRuntime) (context.Context, func(), bool) {
+	if runtime == nil || s == nil {
+		return nil, func() {}, false
+	}
+	ctx, finish := runtime.beginOperation(r.Context(), desktopInfraRuntimeConfigKey(s, cfg), cfg)
+	if ctx.Err() != nil || !s.desktopInfraConfigAdmitted(cfg) {
+		finish()
+		return nil, func() {}, false
+	}
+	return ctx, finish, true
+}
+
+func desktopInfraSnapshotResponse(snapshot infra.Snapshot, runtime *desktopInfraRuntime) map[string]any {
+	response := map[string]any{
+		"nodes": snapshot.Nodes, "edges": snapshot.Edges, "sources": snapshot.Sources,
+		"capabilities": snapshot.Capabilities,
+	}
+	if sourceErrors := runtime.sourceErrors(); len(sourceErrors) > 0 {
+		response["source_errors"] = sourceErrors
+	}
+	return response
 }
 
 func desktopInfraScheduleRefreshConfigured(s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
@@ -336,7 +405,10 @@ func (s *Server) drainDesktopInfraRefresh() {
 }
 
 func desktopInfraCandidates(w http.ResponseWriter, r *http.Request, s *Server, cfg *config.Config, store *infra.Store, runtime *desktopInfraRuntime) {
-	desktopInfraRefreshConfigured(r.Context(), s, cfg, store, runtime, r.URL.Query().Get("refresh") == "1")
+	if ctx, finish, ok := desktopInfraRefreshContext(s, r, cfg, runtime); ok {
+		desktopInfraRefreshConfigured(ctx, s, cfg, store, runtime, r.URL.Query().Get("refresh") == "1")
+		finish()
+	}
 	sources, err := desktopInfraConfiguredSources(r.Context(), s, cfg, store)
 	if err != nil {
 		desktopInfraStoreError(w, err)
@@ -597,6 +669,11 @@ func desktopInfraDecode(w http.ResponseWriter, r *http.Request, target any) bool
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			desktopInfraError(w, http.StatusRequestEntityTooLarge, "request_too_large", "Request body is too large")
+			return false
+		}
 		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Request body is invalid")
 		return false
 	}
@@ -656,8 +733,6 @@ func desktopInfraHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 }
-
-func setDesktopInfraHeaders(w http.ResponseWriter) { desktopInfraHeaders(w) }
 
 func desktopInfraJSON(w http.ResponseWriter, status int, value any) {
 	desktopInfraHeaders(w)

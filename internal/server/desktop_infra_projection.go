@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -164,7 +165,7 @@ func desktopInfraCheckAppBindings(w http.ResponseWriter, r *http.Request, s *Ser
 	ctx, cancel := desktopInfraContext(r.Context())
 	defer cancel()
 	if err := desktopInfraValidateAppBindings(ctx, s, cfg, bindings, existing); err != nil {
-		if err == infra.ErrValidation {
+		if errors.Is(err, infra.ErrValidation) {
 			desktopInfraError(w, 400, "invalid_app_binding", "An app target is invalid or unavailable")
 		} else {
 			desktopInfraError(w, 503, "app_targets_unavailable", "App targets could not be verified")

@@ -166,6 +166,7 @@ type Server struct {
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	infraMu         sync.Mutex
 	infraRuntime    *desktopInfraRuntime
+	infraRuntimeErr error
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 

@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -635,5 +637,186 @@ func TestActionLedgerV1UpgradePreservesResultsAndMakesPendingUnknown(t *testing.
 	backups, err := filepath.Glob(path + ".infra-v2-*.bak")
 	if err != nil || len(backups) != 2 {
 		t.Fatalf("backups after fresh init and schema upgrade = %v, %v; want both pre-migration copies", backups, err)
+	}
+}
+
+func TestSingleSourceUpsertKeepsSiblingObservationsCurrent(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	first := SourceObservation{Identity: SourceIdentity{Kind: "registry", Instance: "inventory", Key: "registry-1"}, Name: "alpha", Observed: SourceObserved{Kind: NodeDevice, Name: "alpha", Icon: "generic-device"}}
+	second := SourceObservation{Identity: SourceIdentity{Kind: "registry", Instance: "inventory", Key: "registry-2"}, Name: "beta", Observed: SourceObserved{Kind: NodeDevice, Name: "beta", Icon: "generic-device"}}
+	if err := store.ObserveSources(ctx, "registry", "inventory", []SourceObservation{first, second}, true); err != nil {
+		t.Fatal(err)
+	}
+	renamed := first
+	renamed.Observed.Name = "alpha renamed"
+	renamed.Name = "alpha renamed"
+	if err := store.UpsertObservation(ctx, renamed); err != nil {
+		t.Fatal(err)
+	}
+	for _, identity := range []SourceIdentity{first.Identity, second.Identity} {
+		source, err := store.GetSource(ctx, identity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if source.State != SourceCurrent {
+			t.Fatalf("source %q state = %q after a single-item upsert; want current", identity.Key, source.State)
+		}
+	}
+	updated, err := store.GetSource(ctx, first.Identity)
+	if err != nil || updated.Observed.Name != "alpha renamed" {
+		t.Fatalf("upserted observation = %#v, %v", updated.Observed, err)
+	}
+}
+
+func TestUpdateNodeRefusesANonContainerKindWithChildren(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	container, err := store.CreateNode(ctx, testNode(NodeGroup, "Rack area", "group"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	child := testNode(NodeDevice, "Access switch", "switch")
+	child.ParentID = container.ID
+	if _, err := store.CreateNode(ctx, child); err != nil {
+		t.Fatal(err)
+	}
+	container.Kind = NodeDevice
+	if _, err := store.UpdateNode(ctx, container); !errors.Is(err, ErrHasChildren) {
+		t.Fatalf("kind change of a parent node error = %v; want ErrHasChildren", err)
+	}
+	empty, err := store.CreateNode(ctx, testNode(NodeGroup, "Empty area", "group"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty.Kind = NodeDevice
+	if _, err := store.UpdateNode(ctx, empty); err != nil {
+		t.Fatalf("kind change of a childless group was refused: %v", err)
+	}
+}
+
+func TestSnapshotOmitsUnlinkedRemovedSources(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	linked := SourceObservation{Identity: SourceIdentity{Kind: "docker", Instance: "host-a", Key: "sha256:linked"}, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"}}
+	orphan := SourceObservation{Identity: SourceIdentity{Kind: "docker", Instance: "host-a", Key: "sha256:orphan"}, Name: "old", Observed: SourceObserved{Kind: NodeContainer, Name: "old", Icon: "container"}}
+	if err := store.ObserveSources(ctx, "docker", "host-a", []SourceObservation{linked, orphan}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateImportedNode(ctx, Node{
+		Kind: NodeContainer, Name: "web", Icon: "container",
+		Profile: Profile{Tags: []string{}, Interfaces: []NetworkInterface{}, Links: []Link{}, AppBindings: []AppLink{}, Custom: map[string]string{}},
+	}, linked.Identity); err != nil {
+		t.Fatal(err)
+	}
+	// Both observations disappear from the source: the linked one stays visible as
+	// removed, the unlinked one is retained only for the retention sweep.
+	if err := store.ObserveSources(ctx, "docker", "host-a", []SourceObservation{
+		{Identity: SourceIdentity{Kind: "docker", Instance: "host-a", Key: "sha256:new"}, Name: "new", Observed: SourceObserved{Kind: NodeContainer, Name: "new", Icon: "container"}},
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := make(map[string]SourceState, len(snapshot.Sources))
+	for _, source := range snapshot.Sources {
+		keys[source.Key] = source.State
+	}
+	if state, ok := keys["sha256:orphan"]; ok {
+		t.Fatalf("unlinked removed source reached the snapshot with state %q", state)
+	}
+	if state := keys["sha256:linked"]; state != SourceRemoved {
+		t.Fatalf("linked removed source state = %q; want removed", state)
+	}
+	retained, err := store.ListSources(ctx, "docker", "host-a")
+	if err != nil || len(retained) != 3 {
+		t.Fatalf("retained source rows = %d, %v; want the orphan kept for retention", len(retained), err)
+	}
+}
+
+func TestActionReplayHealsAnInterruptedRunningRow(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	request := ActionRequest{RequestID: "heal-1", Fingerprint: strings.Repeat("a", 64), Action: "start"}
+	if _, fresh, err := store.ReserveAction(ctx, request); err != nil || !fresh {
+		t.Fatalf("reservation = %v, %v; want a fresh reservation", fresh, err)
+	}
+	stale := formatTime(time.Now().UTC().Add(-actionRunningTimeout - time.Minute))
+	if _, err := db.Exec(`UPDATE infra_action_requests SET updated_at=? WHERE request_id=?`, stale, request.RequestID); err != nil {
+		t.Fatal(err)
+	}
+	record, err := store.GetAction(ctx, request.RequestID)
+	if err != nil || record.Status != ActionUnknown {
+		t.Fatalf("abandoned action read = %#v, %v; want unknown", record, err)
+	}
+	replay, fresh, err := store.ReserveAction(ctx, request)
+	if err != nil || fresh || replay.Status != ActionUnknown {
+		t.Fatalf("replayed abandoned action = %#v fresh=%v err=%v; want a terminal unknown replay", replay, fresh, err)
+	}
+}
+
+func TestLinkSourceRejectsARegistryDeviceClaimedByAnotherNode(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	registryID, err := inventory.CreateDevice(db, "alpha", "server", inventory.ProtocolSSH, "192.0.2.10", 22, "operator", "vault", "", "note", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := SourceIdentity{Kind: "registry", Instance: "inventory", Key: registryID}
+	observation := SourceObservation{Identity: identity, Name: "alpha", Observed: SourceObserved{Kind: NodeDevice, Name: "alpha", Icon: "server"}}
+	if err := store.ObserveSources(ctx, "registry", "inventory", []SourceObservation{observation}, true); err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.CreateNode(ctx, testNode(NodeDevice, "first", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.LinkSource(ctx, first.ID, identity); err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.CreateNode(ctx, testNode(NodeDevice, "second", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate an inconsistent row: the source link is gone while the first node
+	// still owns the registry device. The unique index must surface as a conflict.
+	if _, err := db.Exec(`DELETE FROM infra_sources WHERE kind='registry' AND source_key=?`, registryID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ObserveSources(ctx, "registry", "inventory", []SourceObservation{observation}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.LinkSource(ctx, second.ID, identity); !errors.Is(err, ErrSourceLinked) {
+		t.Fatalf("second registry link error = %v; want ErrSourceLinked", err)
+	}
+}
+
+func TestMigrationBackupRetentionKeepsTheNewestCopies(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inventory.db")
+	now := time.Now()
+	for index := 0; index < 5; index++ {
+		backup := fmt.Sprintf("%s.infra-v2-backup%d.bak", path, index)
+		if err := os.WriteFile(backup, []byte("copy"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		stamp := now.Add(-time.Duration(index) * time.Minute)
+		if err := os.Chtimes(backup, stamp, stamp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pruneMigrationBackups(path)
+	matches, err := filepath.Glob(path + ".infra-v*.bak")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != migrationBackupRetention {
+		t.Fatalf("retained backups = %d (%v); want %d", len(matches), matches, migrationBackupRetention)
+	}
+	for _, removed := range []string{path + ".infra-v2-backup3.bak", path + ".infra-v2-backup4.bak"} {
+		if _, err := os.Stat(removed); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("old backup %s was not pruned: %v", removed, err)
+		}
 	}
 }

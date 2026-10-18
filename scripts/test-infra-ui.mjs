@@ -152,4 +152,17 @@ const powered = model.snapshotStamp([{ ...base.nodes[0], power: 'stopped' }], ba
 assert.notEqual(same, moved);
 assert.notEqual(same, powered);
 
+// PUT /layout answers with the nodes it changed; that is a patch, never a snapshot.
+assert.equal(model.layoutSnapshot({ nodes: [{ id: 'a', placements: {} }] }), null);
+assert.equal(model.layoutSnapshot({ snapshot: { nodes: [] } }).nodes.length, 0);
+const patchedNodes = [{ id: 'a', version: 1, placements: {} }, { id: 'b', version: 1, placements: {} }];
+model.applyLayoutPatch(patchedNodes, [{ id: 'a', version: 2, x: 10, y: 20, pinned: true }], 'atlas');
+assert.equal(patchedNodes.length, 2);
+assert.equal(patchedNodes[0].version, 2);
+assert.equal(patchedNodes[0].placements.atlas.x, 10);
+assert.equal(patchedNodes[0].placements.atlas.y, 20);
+assert.equal(patchedNodes[0].placements.atlas.pinned, true);
+assert.equal(patchedNodes[1].version, 1);
+assert.equal(patchedNodes[1].placements.atlas, undefined);
+
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

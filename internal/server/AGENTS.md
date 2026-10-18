@@ -138,6 +138,46 @@ Server-owned HTTP and cross-component integration contracts.
   live in `internal/retronet/AGENTS.md`; operator docs in
   `documentation/retro-net.md`.
 
+### Infra atlas (`desktop_infra*.go`)
+
+- `/api/desktop/infra` (and the trailing-slash subtree) is registered through
+  `registerDesktopInfraRoutes`; `handleDesktopInfra` owns the route table:
+  `GET snapshot`, `GET candidates`, `GET targets`, `POST nodes`,
+  `PUT|DELETE nodes/{id}`, `GET|PUT nodes/{id}/source-edit`,
+  `POST nodes/{id}/actions`, `POST import`, `POST edges`,
+  `PUT|DELETE edges/{id}`, `PUT layout`. Every route requires the Desktop
+  administrator scope; non-GET requests additionally pass
+  `checkDesktopOperation(desktopWrite)` and the Desktop/Infra read-only gates
+  (`infra_readonly`, `infra_policy_changed`).
+- `Server.startDesktopInfraStore` initializes the store during startup and
+  `desktopInfraRuntime` caches a failed initialization, so the schema migration
+  and its database backup never run inside a request. `drainDesktopInfraRefresh`
+  runs after the HTTP drain and before the shared inventory database closes.
+- Provider refresh is scheduled at most once per provider instance and shared
+  through `runtime.cache` (30 s success TTL, 5 s error TTL, 45 s for FRITZ!Box
+  Hosts). Read paths that refresh (`?refresh=1`, candidates, import) register
+  through `desktopInfraRefreshContext`, so config revocation cancels them like a
+  write. The observation write phase uses `context.WithoutCancel` with a 5 s
+  budget: a client disconnect must not mark a healthy source stale.
+- `Snapshot` and `Candidates` never expose provider payloads. `source_errors`
+  maps `kind|instance` to one bounded code (`provider_unreachable`,
+  `auth_failed`, `observation_limit`); a failing provider is logged once per
+  failure streak and its recovery once. Never return provider error text.
+- Actions reserve in `infra_action_requests` before dispatch, revalidate the
+  current configuration and source link, and finish with `completed`, `failed`,
+  `unknown`, or `accepted`. The Docker protection list is
+  `containerProtectedOwners` for both the observation (`Protected`) and the
+  dispatch (`managed_container` reason). Proxmox and FRITZ!Box writes run under
+  `desktopInfraContext` and report `unknown` when that budget expired.
+- `PUT /layout` answers `{"nodes": [<changed nodes>]}`; it is never a snapshot.
+  Clients merge the patch and only an explicit `snapshot` field replaces the
+  atlas. `desktopInfraNodeRoute` maps `ErrHasChildren` to 409 `has_children`;
+  `desktopInfraStoreError`/`desktopInfraProviderError` own the error mapping.
+- Verify `go test ./internal/server -run 'Infra' -count=1`, the Infra package
+  tests, `node scripts/test-infra-ui.mjs` and the opt-in
+  `TestDesktopInfraBrowser*`. Store contracts live in `internal/infra/AGENTS.md`,
+  operator docs in `documentation/infra.md`.
+
 ### HTTP trust and shutdown boundaries
 
 - Desktop agent chat, its stream and log APIs require administrative Desktop access. Log tail/search/stream/download scrub registered secrets and credential fields. Passive media proxies reject active HTML/SVG/XML; every inline Knowledge document uses sandbox CSP. Garage HTTP and WebSocket proxies remove local cookies and authorization headers before forwarding.

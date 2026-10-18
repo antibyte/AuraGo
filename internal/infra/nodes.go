@@ -187,6 +187,9 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	if previous.RegistryID != "" && !registryLinkableKind(node.Kind) {
 		return Node{}, fmt.Errorf("%w: registry-backed nodes must remain devices, VMs, or containers", ErrValidation)
 	}
+	if err := validateChildKind(ctx, tx, node.ID, previous.Kind, node.Kind); err != nil {
+		return Node{}, err
+	}
 	if err := validateParent(ctx, tx, node.ID, node.ParentID); err != nil {
 		return Node{}, err
 	}
@@ -358,6 +361,27 @@ func nullIfEmpty(value string) any {
 	return value
 }
 
+// containerKind reports whether nodes of this kind may contain other nodes.
+func containerKind(kind NodeKind) bool {
+	return kind == NodeSite || kind == NodeRoom || kind == NodeRack || kind == NodeGroup
+}
+
+// validateChildKind protects the container hierarchy in both directions: a node
+// that still has children may not become a kind that cannot contain nodes.
+func validateChildKind(ctx context.Context, tx *sql.Tx, nodeID string, previous, next NodeKind) error {
+	if previous == next || containerKind(next) {
+		return nil
+	}
+	var children bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM infra_nodes WHERE parent_id=?)`, nodeID).Scan(&children); err != nil {
+		return fmt.Errorf("check infra node children for a kind change: %w", err)
+	}
+	if children {
+		return ErrHasChildren
+	}
+	return nil
+}
+
 func validateParent(ctx context.Context, tx *sql.Tx, nodeID, parentID string) error {
 	if parentID == "" {
 		return nil
@@ -378,7 +402,7 @@ func validateParent(ctx context.Context, tx *sql.Tx, nodeID, parentID string) er
 		} else if err != nil {
 			return fmt.Errorf("read infra parent chain: %w", err)
 		}
-		if current == parentID && kind != NodeSite && kind != NodeRoom && kind != NodeRack && kind != NodeGroup {
+		if current == parentID && !containerKind(kind) {
 			return fmt.Errorf("%w: only sites, rooms, racks, and groups can contain nodes", ErrValidation)
 		}
 		current = ""
