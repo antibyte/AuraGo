@@ -48,9 +48,9 @@ func pictureClipEdit(id string, edit func(*videostudio.Clip)) func(*videostudio.
 	}
 }
 
-// validTimeline refuses what Go's Validate refuses for crop, flips, effects (plan 2c) and for blend modes, masks and
+// validTimeline refuses what Go's Validate refuses for crop, flips, effects (plan 2c), for blend modes, masks and
 // the chroma_key entry (plan 2d, the rows of TestValidateCompositing without its non-finite numbers, which JSON
-// cannot carry; index §4.4). Go validates
+// cannot carry; index §4.4) and for in/out animations (plan 2e: validateAnim, ranges at 25, 29.97 and 30 fps). Go validates
 // every case first; then the same JSON goes through VideoStudioTimeline.validTimeline, and so through
 // VideoStudioEffects.validPicture and validAnimation. The projects reach Node through a file: together they exceed
 // the Windows command-line limit of node -e.
@@ -135,6 +135,15 @@ func TestVideoStudioPictureValidationMatchesGo(t *testing.T) {
 		return stack(videostudio.EffectInstance{ID: "chroma_key", On: true, Params: params, Keyframes: keys})
 	}
 	keyDefaults := defaults("chroma_key")
+	animOn := func(id string, in, out *videostudio.ClipAnim) func(*videostudio.Project) {
+		return pictureClipEdit(id, func(c *videostudio.Clip) { c.AnimIn, c.AnimOut = in, out })
+	}
+	anim := func(preset string, frames int) *videostudio.ClipAnim {
+		return &videostudio.ClipAnim{Preset: preset, Duration: frames}
+	}
+	atRate := func(fps int, ntsc bool, edit func(*videostudio.Project)) func(*videostudio.Project) {
+		return func(p *videostudio.Project) { p.FPS, p.NTSC = fps, ntsc; edit(p) }
+	}
 	cases := []struct {
 		name  string
 		edit  func(*videostudio.Project)
@@ -214,6 +223,20 @@ func TestVideoStudioPictureValidationMatchesGo(t *testing.T) {
 		{"a key colour that is not #rrggbb", keyEntry(with(keyDefaults, "color", "green"), nil), false},
 		{"similarity below 0.01", keyEntry(with(keyDefaults, "similarity", 0.0), nil), false},
 		{"keyframes on the key colour", keyEntry(keyDefaults, map[string][]videostudio.Keyframe{"color": {key(0, 0)}}), false},
+		{"pop in and fade out on the video clip", animOn("v", anim("pop", 13), anim("fade", 10)), true},
+		{"slide_left in on the overlay image", animOn("o", anim("slide_left", 20), nil), true},
+		{"blur_in and wipe at the 30 fps range ends", animOn("v", anim("blur_in", 6), anim("wipe", 90)), true},
+		{"animations longer than the 60-frame clip", animOn("v", anim("slide_up", 90), anim("slide_down", 90)), true},
+		{"25 fps: 5 frames is the minimum", atRate(25, false, animOn("v", anim("fade", 5), nil)), true},
+		{"29.97 fps: 90 frames is the maximum", atRate(30, true, animOn("v", nil, anim("pop", 90))), true},
+		{"an animation on the audio clip", animOn("a", anim("fade", 10), nil), false},
+		{"an empty preset", animOn("v", anim("", 10), nil), false},
+		{"an unknown preset", animOn("v", nil, anim("spin", 10)), false},
+		{"a zero duration", animOn("v", anim("wipe", 0), nil), false},
+		{"a duration one below the 30 fps range", animOn("v", anim("fade", 5), nil), false},
+		{"a duration one above the 30 fps range", animOn("v", nil, anim("fade", 91)), false},
+		{"25 fps: 4 frames is below the range", atRate(25, false, animOn("v", anim("fade", 4), nil)), false},
+		{"29.97 fps: 91 frames is above the range", atRate(30, true, animOn("v", anim("pop", 91), nil)), false},
 	}
 	projects := make([]videostudio.Project, len(cases))
 	for i, c := range cases {

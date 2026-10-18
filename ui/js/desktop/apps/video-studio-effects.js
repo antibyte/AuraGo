@@ -214,6 +214,22 @@
     function blendMode(id) { return current.blend_modes.find(spec => spec.id === id) || null; }
     function blendModes() { return current.blend_modes.map(spec => Object.assign({}, spec, { available: !missing.blend_modes.has(spec.id) })); }
     function blendAvailable(id) { return !!blendMode(id) && !missing.blend_modes.has(id); }
+    // In/out animation presets (2e) in menu order, [{id, label_key, filters, available}]. available is false when the
+    // server's FFmpeg cannot export the preset; the preview still plays it. animAvailable(id) is false for unknown ids too.
+    function animPreset(id) { return current.anim_presets.find(spec => spec.id === id) || null; }
+    function animPresets() { return current.anim_presets.map(spec => Object.assign({}, spec, { available: !missing.anim_presets.has(spec.id) })); }
+    function animAvailable(id) { return !!animPreset(id) && !missing.anim_presets.has(id); }
+    // The transitions grouped by category in order of first appearance (2e: the picker and the effects library):
+    // [{category, label_key: 'transitionCategory_<category>', items: [transitions() entries]}].
+    function transitionGroups() {
+        const groups = [];
+        transitions().forEach(spec => {
+            let group = groups.find(item => item.category === spec.category);
+            if (!group) groups.push(group = { category: spec.category, label_key: 'transitionCategory_' + spec.category, items: [] });
+            group.items.push(spec);
+        });
+        return groups;
+    }
 
     // Mirror of Go validateKeyframes and validateRamp (index §4.18).
     // Keyframes:
@@ -310,6 +326,7 @@
     //    whose values have the registry type and range. LUT refs name a built-in look or a lut asset of the project.
     //  - entry keyframes sit on keyframable number parameters only (not the blur radius).
     //  - base and entry keys together stay within 512 per clip.
+    //  - anim_in and anim_out (2e): VideoStudioAnim.valid, the mirror of Go validateAnim.
     function validPicture(clip, track, project) {
         if (!clip) return false;
         const crop = clip.crop, stack = clip.effects, audio = !track || track.kind === 'audio';
@@ -322,6 +339,9 @@
             if (crop.l + crop.r > CROP_MAX + 1e-9 || crop.t + crop.b > CROP_MAX + 1e-9 || sides.every(side => side === 0)) return false;
         }
         if (!validCompositing(clip, audio)) return false;
+        // In/out animations (2e) through VideoStudioAnim.valid, read at call time: anim.js loads after this file, and a
+        // Node check that loads only effects.js leaves them unchecked.
+        if (window.VideoStudioAnim && !window.VideoStudioAnim.valid(clip, track, project)) return false;
         if (stack == null) return true;
         if (!Array.isArray(stack)) return false;
         if (!stack.length) return true;
@@ -581,19 +601,20 @@
             x: at('mask.x'), y: at('mask.y'), w: at('mask.w'), h: at('mask.h'), rotation: at('mask.rotation'), feather: at('mask.feather')
         };
     }
-    // The resolved state of a clip at a frame, which both painters draw from (index §4.4). The shape stays fixed; later
-    // slices change how values are evaluated (2b keyframes, 2c crop/flip/effects, 2d blend/mask, 2e animation). The crop
-    // is evaluated like any base path (keyframes, else the field, else 0); blend is the clip's mode (available or not)
-    // or 'normal'.
+    // The resolved state of a clip at a frame, which both painters draw from (index §4.4). The crop is evaluated like
+    // any base path (keyframes, else the field, else 0); blend is the clip's mode (available or not) or 'normal'.
+    // anim (2e, §4.4b) is the in/out animation at the frame, or null at rest (VideoStudioAnim.at, read at call time).
+    // Every other field stays the keyed value. Only the painters apply anim; the inspector, freeze, the stage gestures
+    // and the overlays ignore it.
     function clipState(clip, frame, project) {
-        const at = path => valueAt(clip, path, frame, project);
+        const at = path => valueAt(clip, path, frame, project), A = window.VideoStudioAnim;
         return {
             x: at('x'), y: at('y'), width: at('width'), height: at('height'), rotation: at('rotation'),
             opacity: clamp01(at('opacity')), fit: clip && clip.fit === 'cover' ? 'cover' : 'contain',
             crop: { l: at('crop.l'), t: at('crop.t'), r: at('crop.r'), b: at('crop.b') },
             flipH: !!(clip && clip.flip_h === true), flipV: !!(clip && clip.flip_v === true),
             blend: clip && typeof clip.blend === 'string' && clip.blend ? clip.blend : 'normal', mask: maskState(clip, frame, project),
-            effects: effectStates(clip, frame, project)
+            effects: effectStates(clip, frame, project), anim: A ? A.at(clip, frame, project) : null
         };
     }
 
@@ -631,19 +652,25 @@
     // around the box centre. state comes from clipState; canvas and project are {width, height}; source is the picture's
     // intrinsic {width, height} or null. For 4:2:0 video the export's centred crop may land one pixel off (chroma
     // alignment); SSIM absorbs that.
-    function placement(state, canvas, project, source) {
+    // anim (2e, optional: state.anim or null) moves and scales the box exactly as the export does, before the fit
+    // (VideoStudioAnim.box, index §4.24). The result then gains reveal: [x0, y0, x1, y1], the visible part of the box in
+    // box fractions ([0, 0, 1, 1] without a wipe). Without anim the result is the keyed placement of 2a–2d.
+    function placement(state, canvas, project, source, anim) {
         const pw = Number(project && project.width) || 1280, ph = Number(project && project.height) || 720;
         const kx = (Number(canvas && canvas.width) || pw) / pw, ky = (Number(canvas && canvas.height) || ph) / ph;
-        const box = clipBox(state, pw, ph), cover = state.fit === 'cover', size = fittedSize(box, source, cover);
+        const A = anim ? window.VideoStudioAnim : null, keyed = clipBox(state, pw, ph);
+        const box = A ? A.box(keyed, anim, { width: pw, height: ph }) : keyed, cover = state.fit === 'cover', size = fittedSize(box, source, cover);
         // Centred like the export's pad ((ow-iw)/2) and crop defaults; box and picture sizes are even, so the offsets
         // are whole project pixels.
         const dx = box.x + (box.w - size.w) / 2, dy = box.y + (box.h - size.h) / 2;
-        return {
+        const place = {
             box: { x: box.x * kx, y: box.y * ky, w: box.w * kx, h: box.h * ky },
             draw: { x: dx * kx, y: dy * ky, w: size.w * kx, h: size.h * ky },
             clip: cover,
             angle: (Number(state.rotation) || 0) * Math.PI / 180
         };
+        if (A) { const r = A.revealPx(anim, box.w); place.reveal = [r[0] / box.w, 0, r[1] / box.w, 1]; }
+        return place;
     }
 
     // Fade through black (export: xfade fadeblack on the premultiplied track layers). Weights of the outgoing layer,
@@ -778,5 +805,5 @@
         return mapEffects(source && source.effects, keyframes => remapKeyframes(keyframes, f => Math.round(sourceAt(target, to + timelineAt(source, f) - from))));
     }
 
-    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, MASK_PATHS, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, blendModes, blendAvailable, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, maskAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, mirrorEffects, rescaleEffects, reanchorEffects, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
+    window.VideoStudioEffects = { BUILTIN, EASINGS, LIMITS, MIN_BOX_SIZE, MASK_PATHS, adopt, registry, transitions, transition, isTransition, base, effect, effects, effectAvailable, looks, blendModes, blendAvailable, animPresets, animAvailable, transitionGroups, defaults, validAnimation, validPicture, ease, sample, keyframable, cropAnimated, maskAnimated, animatablePaths, paramSpec, hasRamp, rampPieces, rampSource, rampInverse, rampSpeed, clipSource, sourceAt, timelineAt, speedAt, sourceExtent, maxDurationFor, headroom, headShift, meanSpeed, rescaleAnimation, mirrorKeyframes, reanchorKeyframes, mirrorEffects, rescaleEffects, reanchorEffects, valueAt, clipState, placement, fadeBlackWeights, wipeEdge };
 })();

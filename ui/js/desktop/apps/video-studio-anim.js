@@ -104,6 +104,25 @@
         const r = roundHalfAway((Number(wipe.p) || 0) * w);
         return wipe.side === 'out' ? [w - r, w] : [0, r];
     }
+    // Mirror of Go validateAnim (index §4.1). anim_in and anim_out are absent or null, or objects with:
+    //  - a registry preset (an unavailable one validates; only the export refuses it);
+    //  - a whole duration inside frameRange(project).
+    // Audio clips (and a clip without a track) have none. The duration is never checked against the clip's length.
+    function valid(clip, track, project) {
+        const sides = clip ? [clip.anim_in, clip.anim_out].filter(side => side != null) : [];
+        if (!sides.length) return !!clip;
+        if (!track || track.kind === 'audio') return false;
+        const presets = window.VideoStudioEffects.registry().anim_presets, range = frameRange(project);
+        return sides.every(side => isObject(side) && typeof side.preset === 'string' && presets.some(spec => spec.id === side.preset) &&
+            Number.isSafeInteger(side.duration) && side.duration >= range.min && side.duration <= range.max);
+    }
+    // Frame-rate change (VideoStudioTime.rescaleProject): the animation at ratio = new rate / old rate. The duration
+    // becomes round(duration·ratio), halves away from zero, clamped into frameRange(project) of the new rate; the preset
+    // stays.
+    function rescale(anim, ratio, project) {
+        const range = frameRange(project);
+        return { preset: anim.preset, duration: Math.max(range.min, Math.min(range.max, roundHalfAway((Number(anim.duration) || 0) * ratio))) };
+    }
 
-    window.VideoStudioAnim = { SECONDS, SLIDE, POP, BLUR_RADIUS, BLUR_NODE, frameRange, spans, at, blurMasks, box, revealPx };
+    window.VideoStudioAnim = { SECONDS, SLIDE, POP, BLUR_RADIUS, BLUR_NODE, frameRange, spans, at, blurMasks, box, revealPx, valid, rescale };
 })();

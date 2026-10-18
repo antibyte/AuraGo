@@ -113,7 +113,7 @@ assert.equal(E.valueAt({}, 'mask.feather', 0, {fps: 30}), 0, 'without a mask, a 
 assert.equal(E.valueAt({}, 'mask.x', 0, {fps: 30}), 0.25);
 assert.equal(E.valueAt({mask: {shape: 'rect', feather: 0.1}}, 'mask.feather', 0, {fps: 30}), 0.1);
 // clipState: the resolved per-frame state both painters draw from, with neutral 2a defaults.
-const neutral = {crop: {l: 0, t: 0, r: 0, b: 0}, flipH: false, flipV: false, blend: 'normal', mask: null, effects: []};
+const neutral = {crop: {l: 0, t: 0, r: 0, b: 0}, flipH: false, flipV: false, blend: 'normal', mask: null, effects: [], anim: null};
 assert.deepEqual(E.clipState({x: 0.1, y: 0.2, width: 0.5, height: 0.4, rotation: 15, opacity: 0.5, fit: 'cover'}, 0, {fps: 30}),
   Object.assign({x: 0.1, y: 0.2, width: 0.5, height: 0.4, rotation: 15, opacity: 0.5, fit: 'cover'}, neutral));
 assert.deepEqual(E.clipState({}, 0, {fps: 30}), Object.assign({x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain'}, neutral), 'missing values take the base defaults');

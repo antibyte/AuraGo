@@ -102,6 +102,9 @@
                 if (anim.keyframes) clip.keyframes = anim.keyframes; else delete clip.keyframes;
                 if (Array.isArray(clip.effects) && clip.effects.length) clip.effects = FX.rescaleEffects(clip.effects, ratio);
             }
+            // In and out animations (2e) keep their length in seconds: round(duration·ratio), clamped into the new range.
+            const AN = window.VideoStudioAnim;
+            if (AN) ['anim_in', 'anim_out'].forEach(side => { if (clip[side]) clip[side] = AN.rescale(clip[side], ratio, target); });
             if (asset && asset.kind !== 'image') {
                 // Source extent rule: offset + clipSource(duration - 1) <= duration_frames - 1 (a ramp: maxDurationFor).
                 const speed = clip.speed > 0 ? Number(clip.speed) : 1;
