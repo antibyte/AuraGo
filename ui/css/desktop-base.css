@@ -1427,9 +1427,12 @@
 .desktop-body[data-shell="dock"] .vd-dock-scroll {
     min-width: 0;
     max-width: 100%;
-    /* Leave room for the lifted icon and its label inside the scroll clip. */
+    /* Leave room inside the scroll clip for the lifted icon and its label above, and for the running/active
+       dot below (.vd-dock-button::after sits 7 px under the button); the buttons themselves do not move. */
     margin-top: -64px;
     padding-top: 64px;
+    margin-bottom: -10px;
+    padding-bottom: 10px;
     overflow: auto hidden;
     scrollbar-width: none;
     scroll-behavior: smooth;

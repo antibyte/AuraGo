@@ -290,8 +290,8 @@
 .desktop-body[data-theme="lollipop"] :is(.vd-dock-button:hover, .vd-dock-button:focus-visible) { filter: drop-shadow(0 10px 14px rgba(194, 24, 107, 0.3)); }
 .desktop-body[data-theme="lollipop"] .vd-dock-button:focus-visible { outline: 2px solid #4A1F3D; outline-offset: 2px; box-shadow: none; }
 
-/* The scroll region clips at the bottom of the buttons, so the dot sits inside the button, not below it. */
-.desktop-body[data-theme="lollipop"] .vd-dock-button::after { bottom: 2px; background: #69CFA8; box-shadow: 0 0 0 1.5px #fff; }
+/* Mint running dot below the icon (the shared position), pink when active. */
+.desktop-body[data-theme="lollipop"] .vd-dock-button::after { background: #69CFA8; box-shadow: 0 0 0 1.5px #fff; }
 .desktop-body[data-theme="lollipop"] .vd-dock-button:is(.running, .active)::after { opacity: 1; }
 .desktop-body[data-theme="lollipop"] .vd-dock-button.active::after { background: #E65CA5; }
 .desktop-body[data-theme="lollipop"] .vd-dock-icon { filter: drop-shadow(0 6px 8px rgba(194, 24, 107, 0.24)); }
