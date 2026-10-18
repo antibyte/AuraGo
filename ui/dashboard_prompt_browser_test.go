@@ -48,21 +48,22 @@ func TestDashboardPromptStagesBrowser(t *testing.T) {
 	html := `<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-utilities.css">
 <link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/tokens.css">
-<link rel="stylesheet" href="/css/dashboard.css"><link rel="stylesheet" href="/css/precision-workspace.css">
+<link rel="stylesheet" href="/css/dashboard.css"><link rel="stylesheet" href="/css/dashboard-shell.css"><link rel="stylesheet" href="/css/precision-workspace.css">
 <link rel="stylesheet" href="/css/precision-pages.css">
 </head><body class="pw-page" data-workspace-page="dashboard" data-density="comfortable">` + card + `
 <script>
 window.__errors=[]; addEventListener('error', e => __errors.push(e.message));
 window.esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+window.escAttr = window.esc;
 window.t = k => window.translations?.[k] || k;
 window.cv = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || '#778899';
 window.dashSetHidden = (el, hidden) => el.classList.toggle('is-hidden', hidden);
 window.DashSections = { register() {} };
 window.charts = [];
 </script><script src="/chart.min.js"></script>
-<script src="/js/dashboard/main.js"></script><script src="/js/dashboard/sections/prompts.js"></script><script src="/js/dashboard/dashboard-charts.js"></script>
+<script src="/js/dashboard/dash-disclosures.js"></script><script src="/js/dashboard/main.js"></script><script src="/js/dashboard/sections/prompts.js"></script><script src="/js/dashboard/dashboard-charts.js"></script>
 <script>
-Chart.defaults.animation=false; Chart.defaults.maintainAspectRatio=false;
+Chart.defaults.animation=false; Chart.defaults.maintainAspectRatio=false; DashDisclosures.init(document);
 window.paint = data => {
  charts.forEach(c => c?.destroy()); renderPromptStats(data);
  charts=[createPromptSizeChart('prompt-size-chart',data.recent),createPromptSavingsChart('prompt-savings-chart',data.recent_fits),createPromptTierChart('prompt-tier-chart',data.tier_distribution),createPromptSectionDistChart('prompt-section-dist-chart',data.avg_section_sizes)];
@@ -96,14 +97,15 @@ window.paint = data => {
 					p.MustSetViewport(width, 1000, 1, false)
 					p.MustEval(`async (lang, theme) => { document.documentElement.lang=lang; document.documentElement.dataset.theme=theme; window.translations=await (await fetch('/lang/dashboard/'+lang+'.json')).json(); document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n)); }`, lang, theme)
 					p.MustEval(`() => {
- window.fixture={total_builds:8,fit_count:2,measured_fit_count:2,avg_raw_len:15821,avg_optimized_len:15814,avg_optimization_pct:7/15821*100,total_format_savings:56,avg_modules_loaded:12,avg_modules_used:3,avg_modules_filtered:9,avg_module_filter_rate_pct:75,avg_filter_savings:24000,avg_fit_input_tokens:1000,avg_fit_output_tokens:800,avg_fit_saved_tokens:200,avg_fit_input_guides:2,avg_fit_output_guides:1,budget_shed_count:1,budget_exceeded_count:0,shed_rate_pct:50,request_count:300,cache_hit_count:250,cache_hit_rate_pct:250/3,shed_section_counts:{'# TOOL GUIDES':1},tier_distribution:{full:8},avg_section_sizes:{modules:12000,context:3821},recent:[{raw_len:15821,optimized_len:15814}],recent_fits:[{input_tokens:1200,output_tokens:800},{input_tokens:800,output_tokens:800}]}; paint(fixture);
+ window.fixture={total_builds:8,avg_tokens:3955,fit_count:2,measured_fit_count:2,avg_raw_len:15821,avg_optimized_len:15814,avg_optimization_pct:7/15821*100,total_format_savings:56,avg_modules_loaded:12,avg_modules_used:3,avg_modules_filtered:9,avg_module_filter_rate_pct:75,avg_filter_savings:24000,avg_fit_input_tokens:1000,avg_fit_output_tokens:800,avg_fit_saved_tokens:200,avg_fit_input_guides:2,avg_fit_output_guides:1,budget_shed_count:1,budget_exceeded_count:0,shed_rate_pct:50,request_count:300,cache_hit_count:250,cache_hit_rate_pct:250/3,shed_section_counts:{'# TOOL GUIDES':1},tier_distribution:{full:8},avg_section_sizes:{modules:12000,context:3821},recent:[{raw_len:15821,optimized_len:15814}],recent_fits:[{input_tokens:1200,output_tokens:800},{input_tokens:800,output_tokens:800}]}; paint(fixture);
  }`)
 					result := p.MustEval(`() => {
  const expectedSmall=document.documentElement.lang==='de'?'< 0,1 %':'< 0.1 %';
- const clipped=[...document.querySelectorAll('#card-prompt canvas, #card-prompt .prompt-kpi')].some(el=>{const r=el.getBoundingClientRect();return r.right>innerWidth+1 || r.left<0;});
- return {small:document.getElementById('prompt-kpis').textContent.includes(expectedSmall),zero:formatPromptNumber(0,true)==='0 %',missing:formatPromptNumber(undefined)==='—',before:charts[1].data.datasets[0].data.join(','),after:charts[1].data.datasets[1].data.join(','),overflow:clipped||document.documentElement.scrollWidth>innerWidth+1,errors:__errors};
+ const clipped=[...document.querySelectorAll('#card-prompt canvas, #card-prompt .prompt-kpi, #card-prompt .dash-kpi')].some(el=>{const r=el.getBoundingClientRect();return r.right>innerWidth+1 || r.left<0;});
+ const headline=document.getElementById('prompt-headline-kpis');
+ return {headline:headline.querySelectorAll('.dash-kpi').length===4&&headline.textContent.includes(formatPromptNumber(3955))&&headline.textContent.includes(expectedSmall)&&!headline.textContent.includes('—'),small:document.getElementById('prompt-kpis').textContent.includes(expectedSmall),zero:formatPromptNumber(0,true)==='0 %',missing:formatPromptNumber(undefined)==='—',before:charts[1].data.datasets[0].data.join(','),after:charts[1].data.datasets[1].data.join(','),overflow:clipped||document.documentElement.scrollWidth>innerWidth+1,errors:__errors};
  }`)
-					if !result.Get("small").Bool() || !result.Get("zero").Bool() || !result.Get("missing").Bool() || result.Get("before").Str() != "1200,800" || result.Get("after").Str() != "800,800" || result.Get("overflow").Bool() || len(result.Get("errors").Arr()) != 0 {
+					if !result.Get("headline").Bool() || !result.Get("small").Bool() || !result.Get("zero").Bool() || !result.Get("missing").Bool() || result.Get("before").Str() != "1200,800" || result.Get("after").Str() != "800,800" || result.Get("overflow").Bool() || len(result.Get("errors").Arr()) != 0 {
 						t.Fatalf("dashboard failure: %s", result.JSON("", ""))
 					}
 					if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
@@ -119,8 +121,8 @@ window.paint = data => {
 						}
 					}
 					ok := p.MustEval(`() => {
- const older={...fixture}; delete older.avg_modules_filtered; delete older.avg_fit_input_tokens; paint(older);
- const unknown=document.getElementById('prompt-module-kpis').textContent.includes('—') && document.getElementById('prompt-fit-kpis').textContent.includes('—');
+ const older={...fixture}; delete older.avg_modules_filtered; delete older.avg_fit_input_tokens; delete older.avg_tokens; paint(older);
+ const unknown=document.getElementById('prompt-module-kpis').textContent.includes('—') && document.getElementById('prompt-fit-kpis').textContent.includes('—') && document.getElementById('prompt-headline-kpis').textContent.includes('—');
  paint({...fixture,avg_section_sizes:{modules:10000,guides:1}});
  const tinySection=document.getElementById('prompt-section-legend').textContent.includes(formatPromptNumber(0.01,true)) && charts[3].options.plugins.tooltip.callbacks.label({label:'Guide',parsed:1}).includes(formatPromptNumber(0.01,true));
  paint({...fixture,total_builds:0,recent:[],tier_distribution:{},avg_section_sizes:{}});
@@ -135,4 +137,19 @@ window.paint = data => {
 			}
 		}
 	}
+
+	// Decision 3: a chart created while its disclosure was closed gets its size when the disclosure opens.
+	t.Run("disclosure_base_chart", func(t *testing.T) {
+		p.MustSetViewport(1360, 1000, 1, false)
+		// Chrome renders closed <details> content as content-visibility:hidden, so layout queries still measure the
+		// canvas; visibility, not geometry, is the closed-state signal.
+		if !p.MustEval(`() => { paint(fixture); return [...document.querySelectorAll('#card-prompt details[data-disclosure]')].every(d => !d.open) && !document.getElementById('prompt-size-chart').checkVisibility(); }`).Bool() {
+			t.Fatal("every prompt disclosure must start closed, hiding its charts")
+		}
+		p.MustEval(`() => document.querySelector('[data-disclosure="card-prompt:base"] > summary').click()`)
+		p.Timeout(10 * time.Second).MustWait(`() => {
+ const canvas = document.getElementById('prompt-size-chart'), box = canvas.getBoundingClientRect(), chart = Chart.getChart(canvas);
+ return box.width > 0 && box.height > 0 && !!chart && chart.width > 0 && chart.height > 0 && localStorage.getItem('dash-disclosures') === '{"card-prompt:base":true}';
+ }`)
+	})
 }

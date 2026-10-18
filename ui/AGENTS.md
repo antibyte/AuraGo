@@ -85,6 +85,19 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   0.1 display `< 0.1 %` in the active locale. Verify `TestDashboardPromptLocales`
   and `TestDashboardPromptStagesBrowser` in both dashboard themes and widths.
 
+- Dashboard big cards (prompt, tooling telemetry, KG health and quality, memory)
+  show a KPI row first (`renderDashKpiRow` in `js/dashboard/main.js`: page-locale
+  numbers, an em dash for missing values, `data-action` buttons) and keep every
+  detail block in `<details class="dash-disclosure" data-disclosure="<card-id>:<key>">`,
+  closed in the markup. `js/dashboard/dash-disclosures.js` stores open blocks in
+  localStorage `dash-disclosures`, re-opens them at boot and after each section
+  load, resizes charts on open and fills summary counts (`setCount`). CardState
+  error/restore replaces card bodies, so listeners must be delegated. A new block
+  needs a key, a `dashboard.*` summary label in 16 locales and an entry in its
+  `assertDashboardBigCard` test. Verify `TestDashboardDisclosureState`,
+  `TestDashboardKPIHelpers`, the `*PutsKPIsFirst` tests and
+  `TestDashboardDisclosuresBrowser`.
+
 - Google Workspace exposes separate Gmail read, send and label-change grants. Revocation applies after saving; enabling additional OAuth scopes may require reconnecting. Label changes default off and readonly overrides them. Verify TestGmailLabelPermissionBrowser and all sixteen locale bundles.
 
 - LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.
