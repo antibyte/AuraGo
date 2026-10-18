@@ -55,22 +55,6 @@
     display: none;
 }
 
-.vd-window-switcher {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    gap: 8px;
-    padding: 12px;
-    border: 1px solid var(--vd-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
-    backdrop-filter: blur(24px);
-    z-index: var(--vd-z-modal);
-}
-
 .vd-switcher-item {
     display: flex;
     align-items: center;
@@ -101,13 +85,14 @@
     white-space: nowrap;
 }
 
+/* The overlay itself (full screen, items centred) lives in desktop-chrome.css; only the fade-in stays here. */
 .desktop-body:not([data-animations="false"]) .vd-window-switcher {
     animation: vd-switcher-in 150ms var(--ds-motion-ease-emphasized) both;
 }
 
 @keyframes vd-switcher-in {
-    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
-    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .desktop-body[data-theme] .vd-window-switcher {

@@ -834,10 +834,6 @@
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.desktop-body[data-theme] .vd-window-switcher {
-    box-shadow: var(--vd-theme-shadow-panel), var(--vd-chrome-highlight);
-}
-
 .desktop-body[data-theme] .vd-switcher-item {
     border-radius: 10px;
 }
