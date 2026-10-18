@@ -474,18 +474,18 @@
     background: var(--vd-coral);
 }
 
-.desktop-body:not([data-theme="fruity"]):not([data-animations="false"]) .vd-task-button {
+.desktop-body:not([data-shell="dock"]):not([data-animations="false"]) .vd-task-button {
     animation: vd-task-pop-standard 120ms ease-out backwards;
     animation-delay: calc(var(--dock-index, 0) * 10ms);
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button {
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-dock-button {
     animation: vd-dock-pop-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1) backwards;
     animation-delay: calc(var(--dock-index, 0) * 18ms);
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button.running .vd-dock-icon,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-dock-button.active .vd-dock-icon {
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-dock-button.running .vd-dock-icon,
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-dock-button.active .vd-dock-icon {
     animation: vd-dock-icon-pulse-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1);
 }
 
@@ -565,7 +565,7 @@
 
 /* Compact touch taskbar; Fruity keeps its separate dock layout. */
 @media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
-    .desktop-body:not([data-theme="fruity"]) .vd-taskbar {
+    .desktop-body:not([data-shell="dock"]) .vd-taskbar {
         position: fixed;
         left: 50%;
         right: auto;

@@ -79,7 +79,7 @@
     -webkit-backdrop-filter: var(--vd-shell-context-menu-blur);
 }
 
-.desktop-body[data-theme="fruity"] .vd-start-menu {
+.desktop-body[data-shell="dock"] .vd-start-menu {
     left: 50%;
     bottom: calc(var(--vd-fruity-dock-reserve, 97px) + env(safe-area-inset-bottom, 0px));
     width: min(860px, calc(100vw - 64px));
@@ -566,14 +566,14 @@
     animation: vd-menu-close-standard 90ms ease-in both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-context-menu-opening,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu-opening {
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-context-menu-opening,
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-start-menu-opening {
     animation: vd-menu-open-fruity 140ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-context-menu-closing,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu-closing,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-menu-popover-closing {
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-context-menu-closing,
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-start-menu-closing,
+.desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-window-menu-popover-closing {
     animation: vd-menu-close-fruity 130ms ease-in both;
 }
 
@@ -691,7 +691,7 @@
         animation: vd-start-sheet-out 200ms cubic-bezier(0.3, 0, 0, 1) both;
     }
 
-    .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu-closing {
+    .desktop-body[data-shell="dock"]:not([data-animations="false"]) .vd-start-menu-closing {
         animation: vd-start-sheet-out 220ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
     }
 }

@@ -722,11 +722,16 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-toolbar-padding: 4px 10px;
     --vd-app-inset: 12px;
 }
+/* Global menu bar sizing: themes override these two tokens to resize the bar and its window titlebars. */
+.desktop-body {
+    --vd-global-bar-height: 34px;
+    --vd-global-menu-titlebar-height: 42px;
+}
 .vd-global-bar[hidden] { display: none; }
 .vd-global-bar {
     position: fixed;
     inset: 0 0 auto;
-    height: calc(34px + env(safe-area-inset-top, 0px));
+    height: calc(var(--vd-global-bar-height) + env(safe-area-inset-top, 0px));
     padding: env(safe-area-inset-top, 0px) 12px 0;
     display: flex;
     align-items: center;
@@ -781,18 +786,18 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 .vd-global-bar .vd-window-menu-popover { top: calc(100% + 4px); min-width: 230px; }
 .desktop-body[data-global-menus="true"] .vd-shell {
-    padding-top: calc(34px + env(safe-area-inset-top, 0px));
+    padding-top: calc(var(--vd-global-bar-height) + env(safe-area-inset-top, 0px));
 }
 .desktop-body[data-global-menus="true"] .vd-window.has-global-menu {
-    grid-template-rows: 42px minmax(0, 1fr) !important;
+    grid-template-rows: var(--vd-global-menu-titlebar-height) minmax(0, 1fr) !important;
 }
 .desktop-body[data-global-menus="true"] .vd-window.has-global-menu > .vd-window-titlebar {
-    min-height: 42px;
-    height: 42px;
-    grid-template-rows: 42px !important;
+    min-height: var(--vd-global-menu-titlebar-height);
+    height: var(--vd-global-menu-titlebar-height);
+    grid-template-rows: var(--vd-global-menu-titlebar-height) !important;
 }
 .desktop-body[data-global-menus="true"] .vd-window.has-global-menu > .vd-window-titlebar > .vd-window-actions {
-    top: 21px !important;
+    top: calc(var(--vd-global-menu-titlebar-height) / 2) !important;
 }
 .desktop-body[data-global-menus="true"] .vd-window > .vd-window-titlebar > .vd-window-actions {
     gap: 8px;
@@ -838,7 +843,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     background: linear-gradient(180deg, #ffffff24, transparent 45%);
     box-shadow: inset 0 0 0 1px var(--vd-border);
 }
-.desktop-body[data-theme="fruity"] .vd-dock-button:hover { transform: translateY(-4px) scale(1.12); }
+.desktop-body[data-shell="dock"] .vd-dock-button:hover { transform: translateY(-4px) scale(1.12); }
 .desktop-body .vd-window-menu-item:focus-visible,
 .desktop-body .vd-global-brand:focus-visible {
     outline: 2px solid var(--vd-accent);

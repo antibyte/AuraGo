@@ -197,80 +197,7 @@
     background: var(--vd-theme-control-hover) !important;
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .camera-app,
-    .code-studio,
-    .network-cameras-app,
-    .noisemaker-app,
-    .vd-hp-studio,
-    .gm-studio,
-    .openscad-app,
-    .vd-chess,
-    .sysworld
-) {
-    --cam-glass: var(--vd-theme-panel-bg) !important;
-    --cam-glass-strong: var(--vd-theme-panel-bg-strong) !important;
-    --cam-line: var(--vd-theme-border) !important;
-    --cam-text-muted: var(--vd-theme-muted) !important;
-    --cs-bg: var(--vd-theme-app-bg) !important;
-    --cs-panel: var(--vd-theme-panel-bg) !important;
-    --cs-panel-soft: var(--vd-theme-chrome-bg) !important;
-    --cs-panel-glass: var(--vd-theme-panel-bg) !important;
-    --cs-panel-elevated: var(--vd-theme-panel-bg-strong) !important;
-    --cs-border: var(--vd-theme-border) !important;
-    --cs-border-subtle: var(--vd-theme-border) !important;
-    --cs-text: var(--vd-text) !important;
-    --cs-muted: var(--vd-theme-muted) !important;
-    --cs-accent: var(--vd-accent) !important;
-    --cs-accent-soft: var(--vd-theme-accent-soft) !important;
-    --cs-accent-glow: var(--vd-accent-glow) !important;
-    --nc-bg: var(--vd-theme-app-bg) !important;
-    --nc-panel: var(--vd-theme-panel-bg) !important;
-    --nc-border: var(--vd-theme-border) !important;
-    --nc-muted: var(--vd-theme-muted) !important;
-    --nm-bg: var(--vd-theme-app-bg) !important;
-    --nm-panel: var(--vd-theme-panel-bg) !important;
-    --nm-border: var(--vd-theme-border) !important;
-    --nm-muted: var(--vd-theme-muted) !important;
-    --nm-text: var(--vd-text) !important;
-    --hp-bg: var(--vd-theme-app-bg) !important;
-    --hp-surface: var(--vd-theme-panel-bg) !important;
-    --hp-surface-strong: var(--vd-theme-panel-bg-strong) !important;
-    --hp-border: var(--vd-theme-border) !important;
-    --hp-text: var(--vd-text) !important;
-    --hp-muted: var(--vd-theme-muted) !important;
-    --hp-glass: var(--vd-theme-chrome-bg) !important;
-    --hp-glass-border: var(--vd-theme-border) !important;
-    --gm-bg: var(--vd-theme-app-bg) !important;
-    --gm-panel: var(--vd-theme-panel-bg) !important;
-    --gm-panel-2: var(--vd-theme-panel-bg-strong) !important;
-    --gm-line: var(--vd-theme-border) !important;
-    --gm-text: var(--vd-text) !important;
-    --gm-muted: var(--vd-theme-muted) !important;
-    --oscad-bg: var(--vd-theme-app-bg) !important;
-    --oscad-surface: var(--vd-theme-panel-bg) !important;
-    --oscad-surface-strong: var(--vd-theme-panel-bg-strong) !important;
-    --oscad-border: var(--vd-theme-border) !important;
-    --oscad-text: var(--vd-text) !important;
-    --oscad-muted: var(--vd-theme-muted) !important;
-    --oscad-glass: var(--vd-theme-chrome-bg) !important;
-    --oscad-glass-border: var(--vd-theme-border) !important;
-    --chess-ink: var(--vd-text) !important;
-    --chess-muted: var(--vd-theme-muted) !important;
-    --chess-panel: var(--vd-theme-panel-bg) !important;
-    --chess-panel-strong: var(--vd-theme-panel-bg-strong) !important;
-    --chess-line: var(--vd-theme-border) !important;
-    --sw-panel: var(--vd-theme-panel-bg) !important;
-    --sw-panel-strong: var(--vd-theme-panel-bg-strong) !important;
-    --sw-border: var(--vd-theme-border) !important;
-    --sw-text: var(--vd-text) !important;
-    --sw-muted: var(--vd-theme-muted) !important;
-    --sw-shadow: var(--vd-theme-shadow-panel) !important;
-    --sw-control: var(--vd-theme-control-bg) !important;
-    --sw-control-hover: var(--vd-theme-control-hover) !important;
-}
-
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .camera-app,
     .code-studio,
     .network-cameras-app,
@@ -652,11 +579,7 @@
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
-.desktop-body[data-theme="standard"] .vd-settings-app {
-    background: var(--vd-theme-app-bg);
-}
-
-.desktop-body[data-theme="fruity"] .vd-settings-app {
+.desktop-body[data-theme] .vd-settings-app {
     background: var(--vd-theme-app-bg);
 }
 
@@ -664,27 +587,7 @@
     background: var(--vd-theme-app-bg);
 }
 
-.desktop-body[data-theme="standard"] :where(
-    .vd-chat,
-    .file-manager,
-    .vd-quick-connect,
-    .vd-mc,
-    .vd-store,
-    .vd-gallery,
-    .vd-notes-app,
-    .vd-viewer,
-    .vd-looper,
-    .cheater-app,
-    .vd-people,
-    .vd-launchpad,
-    .zipper-app,
-    .pixel-app,
-    .vd-pet-picker
-) {
-    background: var(--vd-theme-app-bg);
-}
-
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .vd-chat,
     .file-manager,
     .vd-quick-connect,
@@ -760,47 +663,7 @@
 
 
 
-.desktop-body[data-theme="standard"] :where(
-    .vd-todo-card,
-    .vd-calendar-shell,
-    .vd-calendar-modal,
-    .office-writer,
-    .office-app,
-    .vd-calc,
-    .vd-calc-prog-display,
-    .vd-calc-history,
-    .sw-stats,
-    .sw-legend,
-    .sw-events,
-    .sw-tooltip,
-    .sw-info,
-    .sw-fallback,
-    .vd-store-card,
-    .vd-gallery-card,
-    .vd-mc .vd-mc-card,
-    .vd-mc .vd-mc-list-item,
-    .vd-looper-step-btn,
-    .vd-viewer-sheet-tab,
-    .vd-people-card,
-    .vd-launchpad-tile,
-    .vd-pet-picker-card,
-    .vd-sysinfo-hero,
-    .vd-sysinfo-gauge,
-    .vd-sysinfo-history,
-    .vd-sysinfo-detail,
-    .nc-card,
-    .nc-detail,
-    .nm-card,
-    .vd-live-speech-lab,
-    .gm-project-card,
-    .vd-webamp-status,
-    .oscad-file
-) {
-    border-color: var(--vd-theme-border);
-    color: var(--vd-text);
-}
-
-.desktop-body[data-theme="fruity"] :where(
+.desktop-body[data-theme] :where(
     .vd-todo-card,
     .vd-calendar-shell,
     .vd-calendar-modal,

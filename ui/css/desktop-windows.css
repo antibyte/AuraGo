@@ -110,8 +110,7 @@
     to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-.desktop-body[data-theme="standard"] .vd-window-switcher,
-.desktop-body[data-theme="fruity"] .vd-window-switcher {
+.desktop-body[data-theme] .vd-window-switcher {
     border-color: var(--vd-theme-border);
     border-radius: var(--vd-theme-radius-panel);
     background: var(--vd-theme-panel-bg-strong);
@@ -211,7 +210,7 @@
     --vd-maximized-window-reserve: var(--vd-taskbar-height, 54px);
 }
 
-.desktop-body[data-theme="fruity"] {
+.desktop-body[data-shell="dock"] {
     --vd-maximized-window-reserve: var(--vd-fruity-dock-reserve, 97px);
 }
 
@@ -223,7 +222,7 @@
         --vd-maximized-window-reserve: max(var(--vd-taskbar-height, 54px), 52px);
     }
 
-    .desktop-body[data-theme="fruity"] {
+    .desktop-body[data-shell="dock"] {
         --vd-maximized-window-reserve: 116px;
     }
 }
@@ -1408,7 +1407,7 @@
         /* Keep in sync with the actual mobile taskbar height (floating island: ~10px gap + ~52px bar) */
         --vd-mobile-taskbar-reserve: calc(64px + env(safe-area-inset-bottom, 0px));
     }
-    .desktop-body[data-theme="fruity"] {
+    .desktop-body[data-shell="dock"] {
         --vd-mobile-taskbar-reserve: calc(116px + env(safe-area-inset-bottom, 0px));
     }
 

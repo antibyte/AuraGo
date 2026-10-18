@@ -133,11 +133,7 @@
     color: var(--vd-text);
 }
 
-.desktop-body[data-theme="standard"] .vd-window-content {
-    background: var(--vd-theme-app-bg);
-}
-
-.desktop-body[data-theme="fruity"] .vd-window-content {
+.desktop-body[data-theme] .vd-window-content {
     background: var(--vd-theme-app-bg);
 }
 
@@ -511,7 +507,7 @@
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38));
 }
 
-.desktop-body[data-theme="fruity"] .vd-taskbar-apps::after {
+.desktop-body[data-shell="dock"] .vd-taskbar-apps::after {
     content: "";
     position: absolute;
     left: 10%;
@@ -528,7 +524,7 @@
     background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.38), transparent 74%);
 }
 
-.desktop-body[data-theme="fruity"] .vd-taskbar-system::after {
+.desktop-body[data-shell="dock"] .vd-taskbar-system::after {
     content: "";
     position: absolute;
     inset: 0;

@@ -28,10 +28,10 @@ func TestFruityDockShowsScrollButtonsWhenAppsOverflow(t *testing.T) {
 
 	css := readAllDesktopCSS(t)
 	for _, want := range []string{
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-scroll",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-track",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-scroll-button",
-		".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-scroll-button",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-scroll",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-track",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-scroll-button",
+		".desktop-body[data-shell=\"dock\"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-scroll-button",
 		"max-width: calc(100vw - 300px);",
 	} {
 		if !strings.Contains(css, want) {

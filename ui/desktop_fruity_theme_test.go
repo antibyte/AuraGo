@@ -62,24 +62,24 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"maximize\"]",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button::after",
 		"--fruity-window-close",
-		".desktop-body[data-theme=\"fruity\"] .vd-shell",
+		".desktop-body[data-shell=\"dock\"] .vd-shell",
 		"grid-template-rows: minmax(0, 1fr);",
-		".desktop-body[data-theme=\"fruity\"] .vd-resize-nw",
-		".desktop-body[data-theme=\"fruity\"] .vd-taskbar > *",
-		".desktop-body[data-theme=\"fruity\"] .vd-taskbar",
-		".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps",
-		".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps::before",
-		".desktop-body[data-theme=\"fruity\"] .vd-agent-button",
-		".desktop-body[data-theme=\"fruity\"] .radial-backdrop.open",
-		".desktop-body[data-theme=\"fruity\"] .vd-radial-anchor .radial-menu",
-		".desktop-body[data-theme=\"fruity\"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within)",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-orb",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-button",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-button:hover",
+		".desktop-body[data-shell=\"dock\"] .vd-resize-nw",
+		".desktop-body[data-shell=\"dock\"] .vd-taskbar > *",
+		".desktop-body[data-shell=\"dock\"] .vd-taskbar",
+		".desktop-body[data-shell=\"dock\"] .vd-taskbar-apps",
+		".desktop-body[data-shell=\"dock\"] .vd-taskbar-apps::before",
+		".desktop-body[data-shell=\"dock\"] .vd-agent-button",
+		".desktop-body[data-shell=\"dock\"] .radial-backdrop.open",
+		".desktop-body[data-shell=\"dock\"] .vd-radial-anchor .radial-menu",
+		".desktop-body[data-shell=\"dock\"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within)",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-orb",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-button",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-button:hover",
 		".desktop-body[data-theme=\"fruity\"] .vd-dock-button.running::after",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-button.active::after",
-		".desktop-body[data-theme=\"fruity\"] .vd-dock-icon",
-		".desktop-body[data-theme=\"fruity\"] .vd-radial-anchor",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-button.active::after",
+		".desktop-body[data-shell=\"dock\"] .vd-dock-icon",
+		".desktop-body[data-shell=\"dock\"] .vd-radial-anchor",
 		"top: calc(3px + env(safe-area-inset-top));",
 		"z-index: calc(var(--vd-z-dock) + 3);",
 		"backdrop-filter: blur(40px) saturate(1.42) contrast(1.04);",
@@ -261,7 +261,7 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 	t.Parallel()
 
 	cssText := readAllDesktopCSS(t)
-	dockBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps")
+	dockBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-apps")
 	if !strings.Contains(dockBody, "max-width: calc(100vw - 300px);") {
 		t.Fatalf("fruity dock must reserve horizontal space for the system card: %q", dockBody)
 	}
@@ -272,7 +272,7 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 		t.Fatal("fruity mobile desktop must suppress vertical page scrolling")
 	}
 
-	systemBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system")
+	systemBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-system")
 	for _, want := range []string{
 		"position: fixed;",
 		"top: calc(3px + env(safe-area-inset-top));",
@@ -290,7 +290,7 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 		}
 	}
 
-	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-show-desktop-btn")
+	controlsBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-system .vd-taskbar-widget-btn,\n.desktop-body[data-shell=\"dock\"] .vd-taskbar-system .vd-show-desktop-btn")
 	for _, want := range []string{
 		"width: 22px;",
 		"height: 22px;",
@@ -304,7 +304,7 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 		}
 	}
 
-	showDesktopBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system > .vd-show-desktop-btn")
+	showDesktopBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-system > .vd-show-desktop-btn")
 	for _, want := range []string{
 		"margin-right: 0;",
 		"font-size: 0;",
@@ -317,7 +317,7 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 		}
 	}
 
-	showDesktopIconBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system > .vd-show-desktop-btn::before")
+	showDesktopIconBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-system > .vd-show-desktop-btn::before")
 	for _, want := range []string{
 		"content: \"\";",
 		"width: 14px;",
@@ -331,14 +331,14 @@ func TestDesktopFruitySystemControlsSitInTopbarStatusArea(t *testing.T) {
 		}
 	}
 
-	radialAnchorBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-taskbar-system .vd-radial-anchor")
+	radialAnchorBody := cssRuleBodyInFruityThemeTest(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-taskbar-system .vd-radial-anchor")
 	for _, want := range []string{"width: 22px;", "height: 22px;", "flex-basis: 22px;"} {
 		if !strings.Contains(radialAnchorBody, want) {
 			t.Fatalf("fruity radial anchor must align with the system card controls, missing %q in body %q", want, radialAnchorBody)
 		}
 	}
 
-	radialMenuBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-theme=\"fruity\"] .vd-radial-anchor .radial-menu")
+	radialMenuBody := desktopExactCSSRuleBody(t, cssText, ".desktop-body[data-shell=\"dock\"] .vd-radial-anchor .radial-menu")
 	for _, want := range []string{"position: static;", "inset: auto;", "width: 22px;", "height: 22px;"} {
 		if !strings.Contains(radialMenuBody, want) {
 			t.Fatalf("fruity radial menu must stay inside the system card flow, missing %q in body %q", want, radialMenuBody)
