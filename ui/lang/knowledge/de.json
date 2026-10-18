@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Zugehörige Erinnerungen ebenfalls löschen",
+  "knowledge.contacts_delete_backups": "Sicherungen können gelöschte Daten bis zur geplanten Bereinigung enthalten.",
+  "knowledge.contacts_delete_report": "Gelöschte Wissenseinträge: {deleted}. Behalten: {retained}.",
+  "knowledge.contacts_delete_partial": "Kontakt gelöscht; Wissensbereinigung unvollständig. Gelöscht: {deleted}. Behalten: {retained}. Aktualisiere die Ansicht vor einem erneuten Versuch.",
   "knowledge.appointments_add": "Neuer Termin",
   "knowledge.appointments_agent_wake": "Agent-Aufwecken",
   "knowledge.appointments_cancel": "Termin stornieren",

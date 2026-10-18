@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Verwijder ook bijbehorende herinneringen",
+  "desktop.people_delete_backups": "Back-ups kunnen verwijderde gegevens bewaren tot de geplande opschoning.",
+  "desktop.people_delete_report": "Verwijderde kennisitems: {deleted}. Behouden: {retained}.",
+  "desktop.people_delete_partial": "Contact verwijderd; kennisopschoning is onvolledig. Verwijderd: {deleted}. Behouden: {retained}. Vernieuw voordat je opnieuw probeert.",
   "desktop.detective_auto_title": "Automatische update",
   "desktop.detective_auto_enabled": "Automatisch naar nieuwe informatie zoeken",
   "desktop.detective_auto_interval": "Elke",

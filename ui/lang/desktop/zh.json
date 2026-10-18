@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "同时删除相关记忆",
+  "desktop.people_delete_backups": "在计划清理之前，备份中可能仍保留已删除的数据。",
+  "desktop.people_delete_report": "已删除的知识条目：{deleted}。保留：{retained}。",
+  "desktop.people_delete_partial": "联系人已删除，但知识清理尚未完成。已删除：{deleted}。保留：{retained}。请刷新后重试。",
   "desktop.detective_auto_title": "自动更新",
   "desktop.detective_auto_enabled": "自动查找新信息",
   "desktop.detective_auto_interval": "每隔",

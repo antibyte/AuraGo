@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Radera även tillhörande minnen",
+  "desktop.people_delete_backups": "Säkerhetskopior kan behålla raderade data tills den planerade rensningen.",
+  "desktop.people_delete_report": "Raderade kunskapsobjekt: {deleted}. Behållna: {retained}.",
+  "desktop.people_delete_partial": "Kontakten har raderats; kunskapsrensningen är ofullständig. Raderade: {deleted}. Behållna: {retained}. Uppdatera innan du försöker igen.",
   "desktop.detective_auto_title": "Automatisk uppdatering",
   "desktop.detective_auto_enabled": "Sök automatiskt efter ny information",
   "desktop.detective_auto_interval": "Varje",

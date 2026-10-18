@@ -509,30 +509,37 @@
     }
 
     async function deleteContact(inst, contact) {
-        if (!contact || contact._kg) return;
+        if (!contact || contact._kg || inst.deleteBusy) return;
         const name = contact.name || contact.id;
         const confirmed = await showConfirmModal(inst, t(inst.context, 'desktop.people_delete'), t(inst.context, 'desktop.people_delete_confirm', { name }));
-        if (!confirmed) return;
+        if (confirmed === null) return;
+        inst.deleteBusy = true;
         try {
-            await fetchAPI('/api/desktop/integrations/contacts/' + contact.id, { method: 'DELETE' });
+            const result = await fetchAPI('/api/desktop/integrations/contacts/' + encodeURIComponent(contact.id) + '?delete_memories=' + confirmed, { method: 'DELETE' });
+            if (inst.context && typeof inst.context.notify === 'function') {
+                const message = t(inst.context, result.status === 'partial' ? 'desktop.people_delete_partial' : 'desktop.people_delete_report', { deleted: result.deleted_graph_items || 0, retained: result.retained_graph_items || 0 });
+                inst.context.notify({ title: t(inst.context, 'desktop.people_delete'), message });
+            }
             closeDetail(inst);
             loadData(inst);
         } catch (err) {
             if (inst.context && typeof inst.context.notify === 'function') {
                 inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: t(inst.context, 'desktop.request_failed') });
             }
-        }
+        } finally { inst.deleteBusy = false; }
     }
 
     function showConfirmModal(inst, title, message) {
         return new Promise(resolve => {
             const backdrop = inst.host.querySelector('.vd-people-modal-backdrop');
             const modal = inst.host.querySelector('.vd-people-modal');
-            if (!backdrop || !modal) { resolve(false); return; }
+            if (!backdrop || !modal) { resolve(null); return; }
             modal.innerHTML = `
                 <div class="vd-people-modal-form">
                     <div class="vd-people-modal-title">${esc(title)}</div>
                     <div style="font-size:13px;color:var(--vd-muted);margin-bottom:18px">${esc(message)}</div>
+                    <label><input type="checkbox" class="vd-people-delete-memories"> ${esc(t(inst.context, 'desktop.people_delete_memories'))}</label>
+                    <p>${esc(t(inst.context, 'desktop.people_delete_backups'))}</p>
                     <div class="vd-people-modal-actions">
                         <button type="button" class="vd-people-modal-cancel">${esc(t(inst.context, 'desktop.cancel'))}</button>
                         <button type="button" class="vd-people-modal-save vd-people-modal-danger">${esc(t(inst.context, 'desktop.people_delete'))}</button>
@@ -542,12 +549,13 @@
             inst.modalOpen = true;
             const cancelBtn = modal.querySelector('.vd-people-modal-cancel');
             const confirmBtn = modal.querySelector('.vd-people-modal-save');
-            const finish = value => { closeModal(inst); resolve(value); };
-            cancelBtn.addEventListener('click', () => finish(false));
-            confirmBtn.addEventListener('click', () => finish(true));
-            backdrop.addEventListener('click', function handler(event) {
-                if (event.target === backdrop) { backdrop.removeEventListener('click', handler); finish(false); }
-            });
+            const finish = value => { closeModal(inst); backdrop.removeEventListener('click', onBackdrop); document.removeEventListener('keydown', onKey); resolve(value); };
+            const onKey = event => { if (event.key === 'Escape') { event.preventDefault(); finish(null); } };
+            const onBackdrop = event => { if (event.target === backdrop) finish(null); };
+            document.addEventListener('keydown', onKey);
+            backdrop.addEventListener('click', onBackdrop);
+            cancelBtn.addEventListener('click', () => finish(null));
+            confirmBtn.addEventListener('click', () => finish(modal.querySelector('.vd-people-delete-memories').checked));
         });
     }
 

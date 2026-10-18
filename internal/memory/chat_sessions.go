@@ -352,7 +352,7 @@ func (s *SQLiteMemory) ClearSession(sessionID string) error {
 
 // DeleteChatSession removes a session and all its messages.
 func (s *SQLiteMemory) DeleteChatSession(sessionID string) error {
-	if err := s.archiveAndDeleteChatSession(sessionID); err != nil {
+	if err := s.PurgeChatSession(sessionID); err != nil {
 		return err
 	}
 	s.logger.Info("Deleted chat session", "session_id", sessionID)
@@ -393,9 +393,17 @@ func (s *SQLiteMemory) EnsureDefaultSession() error {
 	}
 
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
-	_, err := s.db.Exec(
+	id := "default"
+	deleted, err := s.IsSessionDeleted(id)
+	if err != nil {
+		return fmt.Errorf("check default session deletion: %w", err)
+	}
+	if deleted {
+		id = "sess-" + uid.New()
+	}
+	_, err = s.db.Exec(
 		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES (?, '', ?, ?, 0)`,
-		"default", now, now,
+		id, now, now,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create default chat session: %w", err)

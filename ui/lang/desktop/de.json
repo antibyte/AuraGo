@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Zugehörige Erinnerungen ebenfalls löschen",
+  "desktop.people_delete_backups": "Sicherungen können gelöschte Daten bis zur geplanten Bereinigung enthalten.",
+  "desktop.people_delete_report": "Gelöschte Wissenseinträge: {deleted}. Behalten: {retained}.",
+  "desktop.people_delete_partial": "Kontakt gelöscht; Wissensbereinigung unvollständig. Gelöscht: {deleted}. Behalten: {retained}. Aktualisiere die Ansicht vor einem erneuten Versuch.",
   "desktop.detective_auto_title": "Automatisches Update",
   "desktop.detective_auto_enabled": "Automatisch nachrecherchieren",
   "desktop.detective_auto_interval": "Alle",

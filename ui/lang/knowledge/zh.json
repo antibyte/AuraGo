@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "同时删除相关记忆",
+  "knowledge.contacts_delete_backups": "在计划清理之前，备份中可能仍保留已删除的数据。",
+  "knowledge.contacts_delete_report": "已删除的知识条目：{deleted}。保留：{retained}。",
+  "knowledge.contacts_delete_partial": "联系人已删除，但知识清理尚未完成。已删除：{deleted}。保留：{retained}。请刷新后重试。",
   "knowledge.appointments_add": "新建预约",
   "knowledge.appointments_agent_wake": "代理唤醒",
   "knowledge.appointments_cancel": "取消预约",

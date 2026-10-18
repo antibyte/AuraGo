@@ -277,7 +277,7 @@ func (s *SQLiteMemory) UpdateNote(id int64, title, content, category string, pri
 	args = append(args, now)
 	args = append(args, id)
 
-	query := fmt.Sprintf("UPDATE notes SET %s WHERE id = ?", strings.Join(sets, ", "))
+	query := fmt.Sprintf("UPDATE notes SET %s WHERE id = ? AND COALESCE(protected,0)=0", strings.Join(sets, ", "))
 	res, err := s.db.Exec(query, args...)
 	if err != nil {
 		return fmt.Errorf("update note: %w", err)
@@ -296,7 +296,7 @@ func (s *SQLiteMemory) UpdateNote(id int64, title, content, category string, pri
 func (s *SQLiteMemory) ToggleNoteDone(id int64) (bool, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
-		`UPDATE notes SET done = NOT done, updated_at = ? WHERE id = ?`, now, id,
+		`UPDATE notes SET done = NOT done, updated_at = ? WHERE id = ? AND COALESCE(protected,0)=0`, now, id,
 	)
 	if err != nil {
 		return false, fmt.Errorf("toggle note: %w", err)
@@ -319,7 +319,7 @@ func (s *SQLiteMemory) ToggleNoteDone(id int64) (bool, error) {
 
 // DeleteNote removes a note by ID.
 func (s *SQLiteMemory) DeleteNote(id int64) error {
-	res, err := s.db.Exec(`DELETE FROM notes WHERE id = ?`, id)
+	res, err := s.db.Exec(`DELETE FROM notes WHERE id = ? AND COALESCE(protected,0)=0`, id)
 	if err != nil {
 		return fmt.Errorf("delete note: %w", err)
 	}
@@ -363,7 +363,7 @@ func (s *SQLiteMemory) GetHighPriorityOpenNotes(limit int) ([]Note, error) {
 // Returns the number of deleted notes.
 func (s *SQLiteMemory) DeleteOldDoneNotes(daysOld int) (int64, error) {
 	cutoff := time.Now().UTC().AddDate(0, 0, -daysOld).Format(time.RFC3339)
-	res, err := s.db.Exec(`DELETE FROM notes WHERE done = 1 AND updated_at < ?`, cutoff)
+	res, err := s.db.Exec(`DELETE FROM notes WHERE done = 1 AND updated_at < ? AND COALESCE(protected,0)=0 AND COALESCE(keep_forever,0)=0`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("delete old done notes: %w", err)
 	}
@@ -380,7 +380,7 @@ func (s *SQLiteMemory) ArchiveNote(id int64, reason string) error {
 	res, err := s.db.Exec(
 		`UPDATE notes
 		 SET archived = 1, archived_at = ?, archived_reason = ?, last_reviewed_at = ?, updated_at = ?
-		 WHERE id = ?`,
+		 WHERE id = ? AND COALESCE(protected,0)=0`,
 		now, reason, now, now, id,
 	)
 	if err != nil {
@@ -402,7 +402,7 @@ func (s *SQLiteMemory) RestoreNote(id int64) error {
 	res, err := s.db.Exec(
 		`UPDATE notes
 		 SET archived = 0, archived_at = '', archived_reason = '', last_reviewed_at = ?, updated_at = ?
-		 WHERE id = ?`,
+		 WHERE id = ? AND COALESCE(protected,0)=0`,
 		now, now, id,
 	)
 	if err != nil {

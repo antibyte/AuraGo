@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Ξεκλείδωσε μια προστατευμένη σημείωση πριν την αλλάξεις ή τη διαγράψεις. Η μόνιμη διατήρηση αποτρέπει τον αυτόματο καθαρισμό.",
+  "dashboard.notes_protected": "Προστατευμένη",
+  "dashboard.notes_keep_forever": "Διατήρηση για πάντα",
+  "dashboard.notes_protection_saving": "Αποθήκευση…",
+  "dashboard.notes_protection_saved": "Αποθηκεύτηκε",
+  "dashboard.notes_protection_failed": "Η προστασία δεν αποθηκεύτηκε.",
   "dashboard.prompt_chart_raw_bytes": "Bytes πριν τη μορφοποίηση",
   "dashboard.prompt_chart_opt_bytes": "Bytes μετά τη μορφοποίηση",
   "dashboard.prompt_chart_input_tokens": "Token πριν τον έλεγχο",

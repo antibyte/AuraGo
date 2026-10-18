@@ -1969,6 +1969,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
 				}
+				if kg != nil {
+					if err := kg.FenceContactSource(ctx, "contact_"+req.ID); err != nil {
+						return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+					}
+				}
 				if err := contacts.Delete(contactsDB, req.ID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}

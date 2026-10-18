@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Smazat také související vzpomínky",
+  "desktop.people_delete_backups": "Zálohy mohou obsahovat smazaná data až do plánovaného vyčištění.",
+  "desktop.people_delete_report": "Smazané znalosti: {deleted}. Zachováno: {retained}.",
+  "desktop.people_delete_partial": "Kontakt byl smazán; čištění znalostí není dokončeno. Smazáno: {deleted}. Zachováno: {retained}. Před dalším pokusem obnov zobrazení.",
   "desktop.detective_auto_title": "Automatická aktualizace",
   "desktop.detective_auto_enabled": "Automaticky hledat nové informace",
   "desktop.detective_auto_interval": "Každých",

@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Slet også tilknyttede minder",
+  "desktop.people_delete_backups": "Sikkerhedskopier kan indeholde slettede data indtil den planlagte oprydning.",
+  "desktop.people_delete_report": "Slettede videnselementer: {deleted}. Beholdt: {retained}.",
+  "desktop.people_delete_partial": "Kontakten er slettet; oprydningen i viden er ufuldstændig. Slettet: {deleted}. Beholdt: {retained}. Opdater før et nyt forsøg.",
   "desktop.detective_auto_title": "Automatisk opdatering",
   "desktop.detective_auto_enabled": "Søg automatisk efter nye oplysninger",
   "desktop.detective_auto_interval": "Hver",

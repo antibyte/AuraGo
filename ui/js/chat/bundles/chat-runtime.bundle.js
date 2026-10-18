@@ -4122,11 +4122,61 @@ window.SessionDrawer = (function () {
     }
 
     async function deleteSession(id) {
+        const choice = await chooseDeletion();
+        if (choice === null) return;
         try {
-            await fetch('/api/chat/sessions/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' });
+            const response = await fetch('/api/chat/sessions/' + encodeURIComponent(id) + '?delete_memories=' + choice, { method: 'DELETE', credentials: 'same-origin' });
+            if (!response.ok) throw new Error(t('chat.sessions_delete_failed'));
+            const data = await response.json();
+            if ((choice || data.status === 'partial') && typeof showAlert === 'function') {
+                const report = data.deletion || {};
+                const message = t('chat.sessions_delete_report').replace('{deleted}', String((report.deleted_memories || 0) + (report.deleted_graph_items || 0))).replace('{retained}', String((report.retained_memories || 0) + (report.retained_graph_items || 0)));
+                await showAlert(t('chat.sessions_delete'), (data.status === 'partial' ? t('chat.sessions_delete_failed') + '\n' : '') + message);
+            }
         } catch (err) {
             console.error('Failed to delete session:', err);
+            if (typeof showAlert === 'function') await showAlert(t('common.error'), t('chat.sessions_delete_failed'));
         }
+    }
+
+    function chooseDeletion() {
+        return new Promise(resolve => {
+            const previousFocus = document.activeElement;
+            const dialog = document.createElement('dialog');
+            dialog.className = 'modal-card session-delete-dialog';
+            const title = document.createElement('h2');
+            title.id = 'session-delete-title';
+            title.textContent = t('chat.sessions_delete');
+            dialog.setAttribute('aria-labelledby', title.id);
+            const hint = document.createElement('p');
+            hint.textContent = t('chat.sessions_delete_hint');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = false;
+            const label = document.createElement('label');
+            label.append(checkbox, document.createTextNode(t('chat.sessions_delete_memories')));
+            const backup = document.createElement('p');
+            backup.textContent = t('chat.sessions_delete_backups');
+            const form = document.createElement('form');
+            form.method = 'dialog';
+            form.className = 'modal-actions';
+            for (const [value, key] of [['cancel', 'common.btn_cancel'], ['delete', 'common.btn_delete']]) {
+                const button = document.createElement('button');
+                button.value = value;
+                button.textContent = t(key);
+                button.className = 'modal-btn ' + (value === 'delete' ? 'confirm' : 'cancel');
+                form.append(button);
+            }
+            dialog.append(title, hint, label, backup, form);
+            dialog.addEventListener('close', () => {
+                const result = dialog.returnValue === 'delete' ? checkbox.checked : null;
+                dialog.remove();
+                previousFocus?.focus();
+                resolve(result);
+            }, { once: true });
+            document.body.append(dialog);
+            dialog.showModal();
+        });
     }
 
     // ── Rendering ──
@@ -4234,19 +4284,18 @@ window.SessionDrawer = (function () {
     // Validate that the stored session ID still exists on the server.
     // If it was rotated or deleted, fall back to "default".
     async function validateStoredSession() {
-        if (activeSessionId === 'default') return;
         try {
             const res = await fetch('/api/chat/sessions/' + encodeURIComponent(activeSessionId), { credentials: 'same-origin' });
             if (!res.ok) {
                 // Session no longer exists – fall back
-                activeSessionId = 'default';
-                localStorage.setItem('aurago-session-id', 'default');
+                const replacement = await createSession();
+                if (replacement) { activeSessionId = replacement.id; localStorage.setItem('aurago-session-id', replacement.id); }
                 return;
             }
             const data = await res.json();
             if (!data.session) {
-                activeSessionId = 'default';
-                localStorage.setItem('aurago-session-id', 'default');
+                const replacement = await createSession();
+                if (replacement) { activeSessionId = replacement.id; localStorage.setItem('aurago-session-id', replacement.id); }
             }
         } catch (_) {
             // Network error – keep current, don't block init

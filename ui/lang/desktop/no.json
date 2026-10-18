@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Slett også tilknyttede minner",
+  "desktop.people_delete_backups": "Sikkerhetskopier kan beholde slettede data frem til planlagt opprydding.",
+  "desktop.people_delete_report": "Slettede kunnskapselementer: {deleted}. Beholdt: {retained}.",
+  "desktop.people_delete_partial": "Kontakten er slettet; kunnskapsoppryddingen er ufullstendig. Slettet: {deleted}. Beholdt: {retained}. Oppdater før du prøver igjen.",
   "desktop.detective_auto_title": "Automatisk oppdatering",
   "desktop.detective_auto_enabled": "Søk automatisk etter ny informasjon",
   "desktop.detective_auto_interval": "Hver",

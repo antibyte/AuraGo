@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Elimina anche i ricordi associati",
+  "desktop.people_delete_backups": "I backup possono conservare dati eliminati fino alla pulizia programmata.",
+  "desktop.people_delete_report": "Elementi di conoscenza eliminati: {deleted}. Conservati: {retained}.",
+  "desktop.people_delete_partial": "Contatto eliminato; la pulizia delle conoscenze è incompleta. Eliminati: {deleted}. Conservati: {retained}. Aggiorna prima di riprovare.",
   "desktop.detective_auto_title": "Aggiornamento automatico",
   "desktop.detective_auto_enabled": "Cerca automaticamente nuove informazioni",
   "desktop.detective_auto_interval": "Ogni",

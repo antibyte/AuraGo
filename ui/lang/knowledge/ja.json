@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "関連する記憶も削除する",
+  "knowledge.contacts_delete_backups": "バックアップには、予定されたクリーンアップまで削除済みデータが残る場合があります。",
+  "knowledge.contacts_delete_report": "削除した知識: {deleted}。保持した知識: {retained}。",
+  "knowledge.contacts_delete_partial": "連絡先は削除されましたが、知識の整理は未完了です。削除: {deleted}。保持: {retained}。再試行する前に表示を更新してください。",
   "knowledge.appointments_add": "新しい予定",
   "knowledge.appointments_agent_wake": "エージェント起床",
   "knowledge.appointments_cancel": "予定をキャンセル",

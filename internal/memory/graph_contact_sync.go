@@ -25,10 +25,23 @@ func (kg *KnowledgeGraph) SyncContact(ctx context.Context, id, label string, fie
 		return fmt.Errorf("begin contact sync: %w", err)
 	}
 	defer tx.Rollback()
+	var fenceExists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='deleted_contact_sources')`).Scan(&fenceExists); err != nil {
+		return fmt.Errorf("inspect contact deletion fence: %w", err)
+	}
+	if fenceExists {
+		var deleted bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM deleted_contact_sources WHERE contact_id=?)`, id).Scan(&deleted); err != nil {
+			return fmt.Errorf("read contact deletion fence: %w", err)
+		}
+		if deleted {
+			return fmt.Errorf("contact source was deleted")
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE kg_nodes SET id=id WHERE id=?`, id); err != nil {
 		return fmt.Errorf("lock contact sync: %w", err)
 	}
-	_, properties, protected, _, err := loadKnowledgeGraphNode(tx, id)
+	_, properties, protected, found, err := loadKnowledgeGraphNode(tx, id)
 	if err != nil {
 		return fmt.Errorf("load contact node: %w", err)
 	}
@@ -42,6 +55,10 @@ func (kg *KnowledgeGraph) SyncContact(ctx context.Context, id, label string, fie
 		}
 	}
 	properties["type"] = "person"
+	properties["contact_sync_id"] = id
+	if !found {
+		properties["source"] = contactSyncSource
+	}
 	properties = validateNodeSchema(properties)
 	encoded, err := json.Marshal(properties)
 	if err != nil {

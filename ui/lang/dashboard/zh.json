@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "修改或删除受保护的笔记前，请先解除保护。永久保留可防止自动清理。",
+  "dashboard.notes_protected": "受保护",
+  "dashboard.notes_keep_forever": "永久保留",
+  "dashboard.notes_protection_saving": "正在保存…",
+  "dashboard.notes_protection_saved": "已保存",
+  "dashboard.notes_protection_failed": "无法保存保护设置。",
   "dashboard.prompt_chart_raw_bytes": "格式整理前字节数",
   "dashboard.prompt_chart_opt_bytes": "格式整理后字节数",
   "dashboard.prompt_chart_input_tokens": "检查前令牌数",

@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Supprimer aussi les souvenirs associés",
+  "desktop.people_delete_backups": "Les sauvegardes peuvent conserver les données supprimées jusqu'au nettoyage prévu.",
+  "desktop.people_delete_report": "Éléments de connaissance supprimés : {deleted}. Conservés : {retained}.",
+  "desktop.people_delete_partial": "Contact supprimé ; le nettoyage des connaissances est incomplet. Supprimés : {deleted}. Conservés : {retained}. Actualise avant de réessayer.",
   "desktop.detective_auto_title": "Mise à jour automatique",
   "desktop.detective_auto_enabled": "Rechercher automatiquement des nouveautés",
   "desktop.detective_auto_interval": "Toutes les",

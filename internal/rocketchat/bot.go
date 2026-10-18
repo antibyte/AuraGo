@@ -172,7 +172,16 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		logger.Warn("[RocketChat] Ignoring message without sender id or username")
 		return
 	}
-	sessionID := rocketChatSessionID(channelID, sender)
+	sessionID, err := shortTermMem.ResolveUserSession(ctx, rocketChatSessionID(channelID, sender))
+	if err != nil {
+		logger.Error("[RocketChat] Resolve conversation", "error", err)
+		return
+	}
+	ctx, releaseSession, err := shortTermMem.RegisterSessionRun(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseSession()
 
 	// Command interception
 	if strings.HasPrefix(inputText, "/") {

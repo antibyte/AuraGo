@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Usuń również powiązane wspomnienia",
+  "desktop.people_delete_backups": "Kopie zapasowe mogą zawierać usunięte dane do czasu planowego czyszczenia.",
+  "desktop.people_delete_report": "Usunięte elementy wiedzy: {deleted}. Zachowane: {retained}.",
+  "desktop.people_delete_partial": "Kontakt usunięty; czyszczenie wiedzy jest niepełne. Usunięto: {deleted}. Zachowano: {retained}. Odśwież przed ponowną próbą.",
   "desktop.detective_auto_title": "Automatyczna aktualizacja",
   "desktop.detective_auto_enabled": "Automatycznie szukaj nowych informacji",
   "desktop.detective_auto_interval": "Co",

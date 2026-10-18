@@ -232,3 +232,13 @@
         width: 85vw;
     }
 }
+.session-delete-dialog {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: min(90vw, 440px);
+}
+.session-delete-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+.session-delete-dialog label { display: flex; gap: 8px; align-items: center; }

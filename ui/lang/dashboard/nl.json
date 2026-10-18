@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Ontgrendel een beschermde notitie voordat je die wijzigt of verwijdert. Altijd bewaren voorkomt automatische opschoning.",
+  "dashboard.notes_protected": "Beschermd",
+  "dashboard.notes_keep_forever": "Altijd bewaren",
+  "dashboard.notes_protection_saving": "Opslaan…",
+  "dashboard.notes_protection_saved": "Opgeslagen",
+  "dashboard.notes_protection_failed": "De bescherming kon niet worden opgeslagen.",
   "dashboard.prompt_chart_raw_bytes": "Bytes vóór opmaak",
   "dashboard.prompt_chart_opt_bytes": "Bytes na opmaak",
   "dashboard.prompt_chart_input_tokens": "Tokens vóór controle",

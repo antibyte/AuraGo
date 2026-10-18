@@ -407,6 +407,30 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 // Query params: ?category=xxx&done=0|1|-1 (default: all)
 func handleDashboardNotes(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if s.ShortTermMem == nil {
+					jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+					return
+				}
+				var request struct {
+					ID          int64 `json:"id"`
+					Protected   *bool `json:"protected"`
+					KeepForever *bool `json:"keep_forever"`
+				}
+				if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&request); err != nil || request.ID <= 0 || request.Protected == nil || request.KeepForever == nil {
+					jsonError(w, "ID, protected and keep_forever are required", http.StatusBadRequest)
+					return
+				}
+				if err := s.ShortTermMem.SetNoteProtection(request.ID, *request.Protected, *request.KeepForever); err != nil {
+					jsonError(w, "Note protection could not be changed", http.StatusConflict)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			})).ServeHTTP(w, r)
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return

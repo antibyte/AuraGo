@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "सुरक्षित नोट को बदलने या मिटाने से पहले अनलॉक करें। हमेशा रखने से अपने आप सफ़ाई नहीं होती।",
+  "dashboard.notes_protected": "सुरक्षित",
+  "dashboard.notes_keep_forever": "हमेशा रखें",
+  "dashboard.notes_protection_saving": "सहेजा जा रहा है…",
+  "dashboard.notes_protection_saved": "सहेजा गया",
+  "dashboard.notes_protection_failed": "सुरक्षा सहेजी नहीं जा सकी।",
   "dashboard.prompt_chart_raw_bytes": "स्वरूपण से पहले बाइट",
   "dashboard.prompt_chart_opt_bytes": "स्वरूपण के बाद बाइट",
   "dashboard.prompt_chart_input_tokens": "जाँच से पहले टोकन",

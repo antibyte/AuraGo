@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Slet også tilknyttede minder",
+  "knowledge.contacts_delete_backups": "Sikkerhedskopier kan indeholde slettede data indtil den planlagte oprydning.",
+  "knowledge.contacts_delete_report": "Slettede videnselementer: {deleted}. Beholdt: {retained}.",
+  "knowledge.contacts_delete_partial": "Kontakten er slettet; oprydningen i viden er ufuldstændig. Slettet: {deleted}. Beholdt: {retained}. Opdater før et nyt forsøg.",
   "knowledge.appointments_add": "Ny aftale",
   "knowledge.appointments_agent_wake": "Agentopvågning",
   "knowledge.appointments_cancel": "Annuller aftale",

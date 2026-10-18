@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Verwijder ook bijbehorende herinneringen",
+  "knowledge.contacts_delete_backups": "Back-ups kunnen verwijderde gegevens bewaren tot de geplande opschoning.",
+  "knowledge.contacts_delete_report": "Verwijderde kennisitems: {deleted}. Behouden: {retained}.",
+  "knowledge.contacts_delete_partial": "Contact verwijderd; kennisopschoning is onvolledig. Verwijderd: {deleted}. Behouden: {retained}. Vernieuw voordat je opnieuw probeert.",
   "knowledge.appointments_add": "Nieuwe afspraak",
   "knowledge.appointments_agent_wake": "Agent wekken",
   "knowledge.appointments_cancel": "Afspraak annuleren",

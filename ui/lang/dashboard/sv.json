@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Lås upp en skyddad anteckning innan du ändrar eller raderar den. Behåll för alltid förhindrar automatisk rensning.",
+  "dashboard.notes_protected": "Skyddad",
+  "dashboard.notes_keep_forever": "Behåll för alltid",
+  "dashboard.notes_protection_saving": "Sparar…",
+  "dashboard.notes_protection_saved": "Sparat",
+  "dashboard.notes_protection_failed": "Kunde inte spara skyddet.",
   "dashboard.prompt_chart_raw_bytes": "Byte före formatering",
   "dashboard.prompt_chart_opt_bytes": "Byte efter formatering",
   "dashboard.prompt_chart_input_tokens": "Token före kontroll",

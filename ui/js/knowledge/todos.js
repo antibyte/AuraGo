@@ -447,6 +447,7 @@ async function patchTodo(id, payload) {
 }
 
 function askDeleteTodo(id, title) {
+    document.getElementById('contact-delete-scope').hidden = true;
     document.getElementById('delete-target-id').value = id;
     document.getElementById('delete-target-type').value = 'todo';
     document.getElementById('delete-confirm-text').textContent =

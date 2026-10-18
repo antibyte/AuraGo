@@ -214,6 +214,7 @@ async function updateAppointmentStatus(id, status) {
 }
 
 function askDeleteAppointment(id, title) {
+    document.getElementById('contact-delete-scope').hidden = true;
     document.getElementById('delete-target-id').value = id;
     document.getElementById('delete-target-type').value = 'appointment';
     document.getElementById('delete-confirm-text').textContent =

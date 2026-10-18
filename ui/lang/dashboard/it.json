@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Sblocca una nota protetta prima di modificarla o eliminarla. La conservazione permanente impedisce la pulizia automatica.",
+  "dashboard.notes_protected": "Protetta",
+  "dashboard.notes_keep_forever": "Conserva per sempre",
+  "dashboard.notes_protection_saving": "Salvataggio…",
+  "dashboard.notes_protection_saved": "Salvato",
+  "dashboard.notes_protection_failed": "Impossibile salvare la protezione.",
   "dashboard.prompt_chart_raw_bytes": "Byte prima della formattazione",
   "dashboard.prompt_chart_opt_bytes": "Byte dopo la formattazione",
   "dashboard.prompt_chart_input_tokens": "Token prima del controllo",

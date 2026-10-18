@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "संबंधित यादें भी मिटाएँ",
+  "desktop.people_delete_backups": "तय सफ़ाई होने तक बैकअप में मिटाया गया डेटा रह सकता है।",
+  "desktop.people_delete_report": "मिटाई गई जानकारी: {deleted}। रखी गई: {retained}।",
+  "desktop.people_delete_partial": "संपर्क मिट गया; जानकारी की सफ़ाई अधूरी है। मिटाई गई: {deleted}। रखी गई: {retained}। फिर कोशिश करने से पहले रीफ़्रेश करें।",
   "desktop.detective_auto_title": "स्वचालित अपडेट",
   "desktop.detective_auto_enabled": "नई जानकारी अपने आप खोजें",
   "desktop.detective_auto_interval": "हर",

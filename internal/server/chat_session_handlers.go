@@ -151,14 +151,19 @@ func handleDeleteChatSession(s *Server) http.HandlerFunc {
 			jsonError(w, "Missing session ID", http.StatusBadRequest)
 			return
 		}
-		if err := s.ShortTermMem.DeleteChatSession(sessionID); err != nil {
+		deleteMemories := r.URL.Query().Get("delete_memories") == "true"
+		report, err := s.ShortTermMem.DeleteChatSessionWithMemories(r.Context(), sessionID, s.LongTermMem, s.KG, deleteMemories)
+		if err != nil {
 			s.Logger.Error("Failed to delete chat session", "error", err)
-			jsonError(w, "Internal server error", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMultiStatus)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "partial", "code": "deletion_incomplete", "deletion": report})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
+			"status":   "ok",
+			"deletion": report,
 		})
 	}
 }

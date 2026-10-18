@@ -509,6 +509,11 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}
 
 	inputText := m.Content
+	sessionID, err := shortTermMem.ResolveUserSession(context.Background(), discordConversationID(m))
+	if err != nil {
+		logger.Error("[Discord] Resolve conversation", "error", err)
+		return
+	}
 	hasAttachments := len(m.Attachments) > 0
 	if inputText == "" && !hasAttachments {
 		return
@@ -531,7 +536,6 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	sessionID := discordConversationID(m)
 	if tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			response.Source = tools.QuestionSourceDiscord
@@ -601,7 +605,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if budgetTrackerSnapshot != nil {
 		budgetTracker = budgetTrackerSnapshot()
 	}
-	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker, webhookManager, routingDecisions...)
+	processDiscordMessage(sessionID, s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker, webhookManager, routingDecisions...)
 	stopTyping()
 }
 
@@ -697,9 +701,8 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	return fileNote
 }
 
-func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	sessionID := discordConversationID(m)
 
 	// Add message to history
 	_, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)

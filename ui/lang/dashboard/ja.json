@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "保護されたメモを変更・削除する前に保護を解除してください。永久保存を選ぶと自動整理の対象外になります。",
+  "dashboard.notes_protected": "保護する",
+  "dashboard.notes_keep_forever": "永久保存",
+  "dashboard.notes_protection_saving": "保存中…",
+  "dashboard.notes_protection_saved": "保存しました",
+  "dashboard.notes_protection_failed": "保護設定を保存できませんでした。",
   "dashboard.prompt_chart_raw_bytes": "整理前のバイト数",
   "dashboard.prompt_chart_opt_bytes": "整理後のバイト数",
   "dashboard.prompt_chart_input_tokens": "チェック前のトークン数",

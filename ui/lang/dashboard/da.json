@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Lås en beskyttet note op før ændring eller sletning. Behold for altid forhindrer automatisk oprydning.",
+  "dashboard.notes_protected": "Beskyttet",
+  "dashboard.notes_keep_forever": "Behold for altid",
+  "dashboard.notes_protection_saving": "Gemmer…",
+  "dashboard.notes_protection_saved": "Gemt",
+  "dashboard.notes_protection_failed": "Beskyttelsen kunne ikke gemmes.",
   "dashboard.prompt_chart_raw_bytes": "Bytes før formatering",
   "dashboard.prompt_chart_opt_bytes": "Bytes efter formatering",
   "dashboard.prompt_chart_input_tokens": "Tokens før kontrol",

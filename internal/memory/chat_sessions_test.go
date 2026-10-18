@@ -476,7 +476,7 @@ func TestRotateChatSessionsArchivesBeforeDelete(t *testing.T) {
 	}
 }
 
-func TestDeleteChatSessionArchivesBeforeDelete(t *testing.T) {
+func TestDeleteChatSessionPermanentlyDeletesArchive(t *testing.T) {
 	stm := newTestSTM(t)
 
 	sess, _ := stm.CreateChatSession()
@@ -490,8 +490,8 @@ func TestDeleteChatSessionArchivesBeforeDelete(t *testing.T) {
 	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE session_id = ?`, sess.ID).Scan(&archived); err != nil {
 		t.Fatalf("count archived: %v", err)
 	}
-	if archived != 2 {
-		t.Fatalf("archived messages = %d, want 2", archived)
+	if archived != 0 {
+		t.Fatalf("archived messages = %d, want 0", archived)
 	}
 }
 

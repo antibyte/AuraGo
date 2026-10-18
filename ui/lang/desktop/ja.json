@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "関連する記憶も削除する",
+  "desktop.people_delete_backups": "バックアップには、予定されたクリーンアップまで削除済みデータが残る場合があります。",
+  "desktop.people_delete_report": "削除した知識: {deleted}。保持した知識: {retained}。",
+  "desktop.people_delete_partial": "連絡先は削除されましたが、知識の整理は未完了です。削除: {deleted}。保持: {retained}。再試行する前に表示を更新してください。",
   "desktop.detective_auto_title": "自動更新",
   "desktop.detective_auto_enabled": "新しい情報を自動で調査",
   "desktop.detective_auto_interval": "間隔",

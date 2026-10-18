@@ -1,4 +1,8 @@
 {
+  "desktop.people_delete_memories": "Also delete associated memories",
+  "desktop.people_delete_backups": "Backups may retain deleted data until their scheduled cleanup.",
+  "desktop.people_delete_report": "Knowledge items removed: {deleted}. Retained: {retained}.",
+  "desktop.people_delete_partial": "Contact deleted; knowledge cleanup incomplete. Removed: {deleted}. Retained: {retained}. Refresh before retrying.",
   "desktop.detective_auto_title": "Automatic update",
   "desktop.detective_auto_enabled": "Research updates automatically",
   "desktop.detective_auto_interval": "Every",

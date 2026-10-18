@@ -200,6 +200,19 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 	msg := update.Message
+	sessionID, err := shortTermMem.ResolveUserSession(ctx, "default")
+	if err != nil {
+		logger.Error("Resolve Telegram conversation", "error", err)
+		return
+	}
+	ctx, releaseSession, err := shortTermMem.RegisterSessionRun(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseSession()
+	if sessionID != "default" {
+		historyManager = nil
+	}
 	logger.Info("Received authorized Telegram message", "id", msg.From.ID, "hasText", msg.Text != "", "hasVoice", msg.Voice != nil, "hasPhoto", len(msg.Photo) > 0)
 
 	inputText := msg.Text
@@ -382,7 +395,6 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 
-	sessionID := "default"
 	if tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			response.Source = tools.QuestionSourceTelegram
@@ -398,6 +410,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	if strings.HasPrefix(msg.Text, "/") {
 		cmdCtx := commands.Context{
 			STM:           shortTermMem,
+			SessionID:     sessionID,
 			HM:            historyManager,
 			Vault:         vault,
 			InventoryDB:   inventoryDB,
@@ -477,6 +490,18 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// 2. Assemble final messages for LLM
 	finalMessages := buildTelegramAgentMessages(historyManager)
+	if historyManager == nil {
+		recent, err := shortTermMem.GetRecentMessages(sessionID, 60)
+		if err != nil {
+			logger.Error("Load Telegram conversation", "error", err)
+			return
+		}
+		for _, message := range recent {
+			if message.Role == openai.ChatMessageRoleUser || message.Role == openai.ChatMessageRoleAssistant {
+				finalMessages = append(finalMessages, message)
+			}
+		}
+	}
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,

@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Odblokuj chronioną notatkę przed zmianą lub usunięciem. Zachowaj na zawsze zapobiega automatycznemu czyszczeniu.",
+  "dashboard.notes_protected": "Chroniona",
+  "dashboard.notes_keep_forever": "Zachowaj na zawsze",
+  "dashboard.notes_protection_saving": "Zapisywanie…",
+  "dashboard.notes_protection_saved": "Zapisano",
+  "dashboard.notes_protection_failed": "Nie udało się zapisać ochrony.",
   "dashboard.prompt_chart_raw_bytes": "Bajty przed formatowaniem",
   "dashboard.prompt_chart_opt_bytes": "Bajty po formatowaniu",
   "dashboard.prompt_chart_input_tokens": "Tokeny przed kontrolą",

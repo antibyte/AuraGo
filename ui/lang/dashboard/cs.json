@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Před změnou nebo smazáním chráněnou poznámku odemkni. Trvalé uchování brání automatickému čištění.",
+  "dashboard.notes_protected": "Chráněno",
+  "dashboard.notes_keep_forever": "Uchovat navždy",
+  "dashboard.notes_protection_saving": "Ukládání…",
+  "dashboard.notes_protection_saved": "Uloženo",
+  "dashboard.notes_protection_failed": "Ochranu se nepodařilo uložit.",
   "dashboard.prompt_chart_raw_bytes": "Bajty před formátováním",
   "dashboard.prompt_chart_opt_bytes": "Bajty po formátování",
   "dashboard.prompt_chart_input_tokens": "Tokeny před kontrolou",

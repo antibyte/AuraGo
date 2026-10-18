@@ -80,6 +80,14 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.
 
 ## Child DOX Index
+### Privacy deletion and note protection
+
+- Explicit chat deletion physically removes transcripts, archives and its plans/tasks/events. Rotation remains archival. Source-free deletion fences reject delayed writers across restart; fresh human input alone advances fixed-channel generations. New `default` generations remain discoverable through chat history; internal channels never gain visibility from generation advancement.
+- Contact deletion retains derived knowledge by default, including native `address_book` deletion. Only the administrative `delete_memories=true` option may remove exclusively proven contact provenance. Protected, shared, legacy and ambiguous graph records remain and are reported; `contact_sync_id` never authorizes deleting arbitrary merged properties. A source-only contact fence prevents later sync from restoring a deleted contact.
+- Chat transcript deletion clears session-bound KG evidence text and identifying source references while retaining derived claims when optional memory deletion is off. Partial deletion responses report actual outcomes rather than implying rollback across stores.
+- Protected notes require an explicit administrative unlock before modification or deletion. Automatic curation and retention recheck protection/keep-forever flags atomically with their mutation; previews alone never authorize writes.
+- Verify `TestContactDeleteKeepsKnowledgeUnlessExplicitlySelected`, `TestNativeContactDeleteRetainsDerivedKnowledge`, `TestChatDeleteScrubsRawGraphTranscriptWithoutRemovingKnowledge`, `TestFreshUserIngressAdvancesDeletedFixedSessionAcrossRestart`, `TestPrivacy*`, `TestNoteProtectionRecheckedDuringCurationAndRetention` and `TestMemoryPrivacyControlsBrowser`.
+
 
 None.
 # Structured insights

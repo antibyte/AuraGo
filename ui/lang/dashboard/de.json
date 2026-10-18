@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Entsperre geschützte Notizen vor Änderungen oder dem Löschen. Dauerhaft behalten verhindert automatische Bereinigung.",
+  "dashboard.notes_protected": "Geschützt",
+  "dashboard.notes_keep_forever": "Dauerhaft behalten",
+  "dashboard.notes_protection_saving": "Wird gespeichert…",
+  "dashboard.notes_protection_saved": "Gespeichert",
+  "dashboard.notes_protection_failed": "Der Schutz konnte nicht gespeichert werden.",
   "dashboard.prompt_chart_raw_bytes": "Bytes vor Formatierung",
   "dashboard.prompt_chart_opt_bytes": "Bytes nach Formatierung",
   "dashboard.prompt_chart_input_tokens": "Tokens vor Prüfung",

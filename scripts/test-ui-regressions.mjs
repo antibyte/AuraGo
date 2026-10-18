@@ -1887,6 +1887,7 @@ function testRemoteEmbeddingStatusNeverRendersGraniteCPUState() {
   const context = {
     configData: { embeddings: { provider: 'openrouter-embeddings' } },
     document: {
+      getElementById() { return null; },
       querySelector() {
         return { value: 'openrouter-embeddings' };
       }

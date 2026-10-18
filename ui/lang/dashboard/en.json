@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Unlock a protected note before changing or deleting it. Keep forever prevents automatic cleanup.",
+  "dashboard.notes_protected": "Protected",
+  "dashboard.notes_keep_forever": "Keep forever",
+  "dashboard.notes_protection_saving": "Saving…",
+  "dashboard.notes_protection_saved": "Saved",
+  "dashboard.notes_protection_failed": "Could not save protection.",
   "dashboard.prompt_chart_raw_bytes": "Bytes before formatting",
   "dashboard.prompt_chart_opt_bytes": "Bytes after formatting",
   "dashboard.prompt_chart_input_tokens": "Tokens before check",

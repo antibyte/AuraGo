@@ -350,3 +350,13 @@ replace existing summaries, including concurrent writes. Catch-up dates only
 generate summaries; current KG extraction executes once. The activity rollup
 targets yesterday. Input bounds and the protected tail time reserve still apply;
 unprocessed eligible days remain visible as deferred work.
+
+# Privacy deletion and retained backups
+
+Deleting a chat permanently removes its conversation, archived copies and session plans, tasks and events. Automatic rotation still archives conversations. The optional **Also delete associated memories** checkbox is off by default. Selecting it removes only memories whose exclusive automatic source can be proven. Shared, protected, manually curated or unclear records remain; the result reports removed and retained items. Raw conversation copies in session-bound graph evidence are cleared even when derived knowledge is retained.
+
+Deleting a contact follows the same default: keep derived knowledge. The People app and Knowledge Center offer an unchecked option to remove exclusively proven contact knowledge. Native address-book deletion keeps knowledge. A deleted source cannot be restored by a delayed synchronization or background run. Partial results identify the completed deletion and incomplete knowledge cleanup; refresh before deciding on another explicit attempt.
+
+Dashboard memory notes expose **Protected** and **Keep forever**. Unlock a protected note before editing or deleting it. Keep forever excludes a note from automatic cleanup. Both flags are rechecked when curation or retention applies a change.
+
+Deletion applies to live stores. Backups can retain deleted data until their normal cleanup. Maintenance retains completed managed memory snapshots for 30 days and preserves at least three complete snapshots. Quarantined files, open migration/repair backups and unknown backups are excluded from that automatic removal. Snapshot storage uses owner-only access; separately retained repair or migration backups require their own reviewed cleanup.

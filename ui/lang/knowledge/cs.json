@@ -1,4 +1,8 @@
 {
+  "knowledge.contacts_delete_memories": "Smazat také související vzpomínky",
+  "knowledge.contacts_delete_backups": "Zálohy mohou obsahovat smazaná data až do plánovaného vyčištění.",
+  "knowledge.contacts_delete_report": "Smazané znalosti: {deleted}. Zachováno: {retained}.",
+  "knowledge.contacts_delete_partial": "Kontakt byl smazán; čištění znalostí není dokončeno. Smazáno: {deleted}. Zachováno: {retained}. Před dalším pokusem obnov zobrazení.",
   "knowledge.appointments_add": "Nová schůzka",
   "knowledge.appointments_agent_wake": "Probuzení agenta",
   "knowledge.appointments_cancel": "Zrušit schůzku",

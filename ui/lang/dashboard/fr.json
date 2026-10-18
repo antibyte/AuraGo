@@ -1,4 +1,10 @@
 {
+  "dashboard.notes_protection_hint": "Déverrouille une note protégée avant de la modifier ou de la supprimer. La conservation permanente empêche le nettoyage automatique.",
+  "dashboard.notes_protected": "Protégée",
+  "dashboard.notes_keep_forever": "Conserver indéfiniment",
+  "dashboard.notes_protection_saving": "Enregistrement…",
+  "dashboard.notes_protection_saved": "Enregistré",
+  "dashboard.notes_protection_failed": "Impossible d'enregistrer la protection.",
   "dashboard.prompt_chart_raw_bytes": "Octets avant formatage",
   "dashboard.prompt_chart_opt_bytes": "Octets après formatage",
   "dashboard.prompt_chart_input_tokens": "Tokens avant vérification",

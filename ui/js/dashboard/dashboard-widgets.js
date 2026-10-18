@@ -338,6 +338,7 @@
 
         function renderMemoryStats(data) {
             if (!data) return;
+            renderManagedNoteProtection();
             const container = document.getElementById('memory-stats');
             const kg = data.knowledge_graph || {};
             const gn = kg.nodes || 0;
@@ -366,6 +367,57 @@
             container.innerHTML = stats.map(s =>
                 `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="' + t('dashboard.memory_show_core_facts') + '"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
             ).join('');
+        }
+
+        let noteProtectionRequest = 0;
+        async function renderManagedNoteProtection() {
+            const container = document.getElementById('memory-note-protection');
+            if (!container) return;
+            const request = ++noteProtectionRequest;
+            try {
+                const response = await fetch('/api/dashboard/notes', { credentials: 'same-origin' });
+                if (!response.ok) throw new Error(t('dashboard.notes_protection_failed'));
+                const data = await response.json();
+                if (request !== noteProtectionRequest || !container.isConnected) return;
+                container.replaceChildren();
+                for (const note of data.notes || []) {
+                    const row = document.createElement('div');
+                    row.className = 'mt-sm';
+                    const title = document.createElement('strong');
+                    title.textContent = note.title;
+                    row.append(title);
+                    const controls = [];
+                    for (const [field, key] of [['protected', 'dashboard.notes_protected'], ['keep_forever', 'dashboard.notes_keep_forever']]) {
+                        const label = document.createElement('label');
+                        const input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.checked = !!note[field];
+                        controls.push(input);
+                        label.append(input, document.createTextNode(t(key)));
+                        row.append(label);
+                        input.addEventListener('change', async () => {
+                            controls.forEach(control => { control.disabled = true; });
+                            status.textContent = t('dashboard.notes_protection_saving');
+                            const proposed = { id: note.id, protected: controls[0].checked, keep_forever: controls[1].checked };
+                            try {
+                                const result = await fetch('/api/dashboard/notes', { method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proposed) });
+                                if (!result.ok) throw new Error(t('dashboard.notes_protection_failed'));
+                                note.protected = proposed.protected;
+                                note.keep_forever = proposed.keep_forever;
+                                status.textContent = t('dashboard.notes_protection_saved');
+                            } catch (_) {
+                                controls[0].checked = !!note.protected;
+                                controls[1].checked = !!note.keep_forever;
+                                status.textContent = t('dashboard.notes_protection_failed');
+                            } finally { controls.forEach(control => { control.disabled = false; }); }
+                        });
+                    }
+                    const status = document.createElement('span');
+                    status.setAttribute('role', 'status');
+                    row.append(status);
+                    container.append(row);
+                }
+            } catch (_) { if (request === noteProtectionRequest) container.textContent = t('dashboard.notes_protection_failed'); }
         }
 
         function renderMemoryHealth(data) {

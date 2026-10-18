@@ -27,17 +27,25 @@ func TestBuildNodeContentSkipsOperationalProperties(t *testing.T) {
 		ID:    "node-1",
 		Label: "Router",
 		Properties: map[string]string{
-			"type":         "device",
-			"source":       "inventory",
-			"extracted_at": "2026-01-01",
-			"ip":           "192.168.0.1",
+			"type":            "device",
+			"source":          "inventory",
+			"extracted_at":    "2026-01-01",
+			"ip":              "192.168.0.1",
+			"source_sessions": `["private-source"]`,
 		},
 	})
 	if content == "" {
 		t.Fatal("expected non-empty semantic content")
 	}
-	if contains(content, "source:") || contains(content, "extracted_at:") {
+	if contains(content, "source:") || contains(content, "extracted_at:") || contains(content, "private-source") {
 		t.Fatalf("operational properties leaked into content: %q", content)
+	}
+}
+
+func TestBuildEdgeContentSkipsSourceSessions(t *testing.T) {
+	content := BuildEdgeContent(EdgeContent{Source: "app", Target: "host", Relation: "runs_on", Properties: map[string]string{"source_sessions": `["private-source"]`, "fact": "keep"}})
+	if contains(content, "private-source") || !contains(content, "keep") {
+		t.Fatalf("incorrect provenance filtering: %s", content)
 	}
 }
 

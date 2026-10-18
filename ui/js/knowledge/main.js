@@ -333,6 +333,9 @@ async function saveContact() {
 }
 
 function askDeleteContact(id, name) {
+    if (knowledgeDeleteInFlight) return;
+    document.getElementById('contact-delete-memories').checked = false;
+    document.getElementById('contact-delete-scope').hidden = false;
     document.getElementById('delete-target-id').value = id;
     document.getElementById('delete-target-type').value = 'contact';
     document.getElementById('delete-confirm-text').textContent =
@@ -669,6 +672,7 @@ async function uploadFile(input) {
 }
 
 function askDeleteFile(name) {
+    document.getElementById('contact-delete-scope').hidden = true;
     document.getElementById('delete-target-id').value = name;
     document.getElementById('delete-target-type').value = 'file';
     document.getElementById('delete-confirm-text').textContent =
@@ -825,6 +829,7 @@ async function saveDevice() {
 }
 
 function askDeleteDevice(id, name) {
+    document.getElementById('contact-delete-scope').hidden = true;
     document.getElementById('delete-target-id').value = id;
     document.getElementById('delete-target-type').value = 'device';
     document.getElementById('delete-confirm-text').textContent =
@@ -1060,6 +1065,7 @@ async function saveCredential() {
 }
 
 function askDeleteCredential(id, name) {
+    document.getElementById('contact-delete-scope').hidden = true;
     document.getElementById('delete-target-id').value = id;
     document.getElementById('delete-target-type').value = 'credential';
     document.getElementById('delete-confirm-text').textContent =
@@ -1083,7 +1089,8 @@ async function confirmDelete() {
     try {
         let resp;
         if (type === 'contact') {
-            resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            const deleteMemories = document.getElementById('contact-delete-memories').checked;
+            resp = await fetch('/api/contacts/' + encodeURIComponent(id) + '?delete_memories=' + deleteMemories, { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'device') {
             resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'credential') {
@@ -1100,7 +1107,11 @@ async function confirmDelete() {
             throw new Error(err);
         }
         closeModal('delete-modal');
-        showToast(t('common.success'), 'success');
+        if (type === 'contact') {
+            const result = await resp.json();
+            const message = t(result.status === 'partial' ? 'knowledge.contacts_delete_partial' : 'knowledge.contacts_delete_report').replace('{deleted}', String(result.deleted_graph_items || 0)).replace('{retained}', String(result.retained_graph_items || 0));
+            showToast(message, result.status === 'partial' ? 'error' : 'success');
+        } else showToast(t('common.success'), 'success');
         if (type === 'contact') loadContacts();
         else if (type === 'device') loadDevices();
         else if (type === 'credential') loadCredentials();
@@ -1118,6 +1129,8 @@ async function confirmDelete() {
 }
 
 function setKnowledgeDeleteBusy(busy) {
+    const memoryOption = document.getElementById('contact-delete-memories');
+    if (memoryOption) memoryOption.disabled = busy;
     const confirmBtn = document.getElementById('knowledge-delete-confirm-btn');
     if (confirmBtn) {
         confirmBtn.disabled = busy;
