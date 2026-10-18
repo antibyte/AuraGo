@@ -3032,14 +3032,6 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] .kg-health-row strong {
     color: var(--pw-accent);
 }
-.pw-page[data-workspace-page="dashboard"] .knowledge-quality-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-}
-.pw-page[data-workspace-page="dashboard"] .knowledge-quality-section {
-    min-width: 0;
-}
 .pw-page[data-workspace-page="dashboard"] .knowledge-search-row {
     display: flex;
     flex-wrap: wrap;
@@ -5044,7 +5036,6 @@ so no override needed */
 .pw-page[data-workspace-page="dashboard"] .ops-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-.pw-page[data-workspace-page="dashboard"] .knowledge-quality-grid,
 .pw-page[data-workspace-page="dashboard"] .knowledge-grid {
         grid-template-columns: 1fr;
     }

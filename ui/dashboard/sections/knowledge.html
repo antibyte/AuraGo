@@ -76,13 +76,23 @@
     <div class="dash-card span-6" id="card-knowledge-graph-health">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a5 5 0 0 0 10 0V3" stroke-linecap="round"/><circle cx="19" cy="14" r="3"/><path d="M9 14v3a4 4 0 0 0 4 4" stroke-linecap="round"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.knowledge_health_title"></h3> <button type="button" class="collapse-toggle" data-card="card-knowledge-graph-health" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
-        <div id="knowledge-health-metrics" class="knowledge-quality-metrics"></div>
+        <div class="dash-kpi-row" id="knowledge-health-kpis" role="list"></div>
         <div id="knowledge-health-status" class="knowledge-health-status"></div>
-        <div class="knowledge-quality-section">
-          <h4 class="card-section-title" data-i18n="dashboard.knowledge_health_consistency_title"></h4>
-          <div id="knowledge-health-consistency" class="knowledge-list">
-            <div class="empty-state" data-i18n="dashboard.knowledge_health_consistency_ok"></div>
-          </div>
+        <div class="dash-disclosure-group">
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-health:metrics">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_all_metrics"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-health-metrics" class="knowledge-quality-metrics"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-health:consistency">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_health_consistency_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-health-consistency" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_health_consistency_ok"></div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </div>
@@ -90,38 +100,54 @@
     <div class="dash-card span-6" id="card-knowledge-graph-quality">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.knowledge_quality_title"></h3> <button type="button" class="collapse-toggle" data-card="card-knowledge-graph-quality" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
-        <div id="knowledge-quality-metrics" class="knowledge-quality-metrics"></div>
-        <div id="knowledge-quality-grid" class="knowledge-quality-grid">
-          <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_isolated_title"></h4>
-            <div id="knowledge-quality-isolated" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_isolated"></div>
+        <div class="dash-kpi-row" id="knowledge-quality-kpis" role="list"></div>
+        <div id="knowledge-quality-grid" class="dash-disclosure-group">
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:metrics">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_all_metrics"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-metrics" class="knowledge-quality-metrics"></div>
             </div>
-          </div>
-          <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_untyped_title"></h4>
-            <div id="knowledge-quality-untyped" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_untyped"></div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:isolated">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_quality_isolated_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-isolated" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_isolated"></div>
+              </div>
             </div>
-          </div>
-          <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_generic_title"></h4>
-            <div id="knowledge-quality-generic" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_generic"></div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:untyped">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_quality_untyped_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-untyped" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_untyped"></div>
+              </div>
             </div>
-          </div>
-          <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_label_duplicates_title"></h4>
-            <div id="knowledge-quality-duplicates" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_duplicates"></div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:generic">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_quality_generic_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-generic" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_generic"></div>
+              </div>
             </div>
-          </div>
-          <div class="knowledge-quality-section">
-            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_id_duplicates_title"></h4>
-            <div id="knowledge-quality-id-duplicates" class="knowledge-list">
-              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_id_duplicates"></div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:label-duplicates">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_quality_label_duplicates_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-duplicates" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_duplicates"></div>
+              </div>
             </div>
-          </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-knowledge-graph-quality:id-duplicates">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.knowledge_quality_id_duplicates_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="knowledge-quality-id-duplicates" class="knowledge-list">
+                <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_id_duplicates"></div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </div>

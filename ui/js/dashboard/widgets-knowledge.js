@@ -39,11 +39,37 @@
             applyDynamicSurfaceVars(grid);
         }
 
+        // Index-consistency problems for the health KPI row (P5): the sum of the four rows renderKnowledgeGraphConsistency
+        // lists. null when the report has no consistency check (it runs only while the semantic index is enabled).
+        function knowledgeGraphConsistencyIssues(consistency) {
+            if (!consistency || typeof consistency !== 'object') return null;
+            return ['nodes_missing_from_index', 'edges_missing_from_index', 'stale_nodes', 'index_orphans'].reduce((sum, key) => {
+                const value = Number(consistency[key] || 0);
+                return value > 0 ? sum + value : sum;
+            }, 0);
+        }
+
+        // Duplicate candidates of the quality report: same-label groups plus ID-variant groups.
+        function knowledgeGraphDuplicateGroups(report) {
+            return Number(report?.duplicate_groups || 0) + Number(report?.id_duplicate_groups || 0);
+        }
+
         function renderKnowledgeGraphHealth(health) {
             const metrics = document.getElementById('knowledge-health-metrics');
             const status = document.getElementById('knowledge-health-status');
             const consistency = document.getElementById('knowledge-health-consistency');
             if (!metrics || !status || !consistency) return;
+
+            // Headline KPIs (P5); without a consistency check (semantic index off) the issue count is unknown.
+            const consistencyIssues = knowledgeGraphConsistencyIssues(health?.consistency);
+            renderDashKpiRow(document.getElementById('knowledge-health-kpis'), [
+                consistencyIssues === null
+                    ? { label: t('dashboard.knowledge_health_consistency_issues'), value: null, title: t('dashboard.knowledge_health_consistency_unavailable') }
+                    : { label: t('dashboard.knowledge_health_consistency_issues'), value: consistencyIssues },
+                { label: t('dashboard.knowledge_health_dirty_nodes'), value: Number(health?.dirty_nodes || 0) },
+                { label: t('dashboard.knowledge_health_open_conflicts'), value: Number(health?.open_conflicts || 0) },
+            ]);
+            window.DashDisclosures?.setCount('card-knowledge-graph-health:consistency', consistencyIssues);
 
             const semanticEnabled = !!health?.semantic_enabled;
             const stats = [
@@ -158,6 +184,20 @@
             const idDuplicates = document.getElementById('knowledge-quality-id-duplicates');
             if (!metrics || !isolated || !untyped || !generic || !duplicates || !idDuplicates) return;
 
+            // Headline KPIs (P5), and the totals behind the five lists (each list shows a sample) as summary counts.
+            renderDashKpiRow(document.getElementById('knowledge-quality-kpis'), [
+                { label: t('dashboard.knowledge_quality_protected'), value: Number(report?.protected_nodes || 0) },
+                { label: t('dashboard.knowledge_quality_isolated'), value: Number(report?.isolated_nodes || 0) },
+                { label: t('dashboard.knowledge_quality_untyped'), value: Number(report?.untyped_nodes || 0) },
+                { label: t('dashboard.knowledge_quality_duplicate_suggestions'), value: knowledgeGraphDuplicateGroups(report) },
+            ]);
+            const counts = window.DashDisclosures;
+            counts?.setCount('card-knowledge-graph-quality:isolated', report?.isolated_nodes);
+            counts?.setCount('card-knowledge-graph-quality:untyped', report?.untyped_nodes);
+            counts?.setCount('card-knowledge-graph-quality:generic', report?.generic_nodes);
+            counts?.setCount('card-knowledge-graph-quality:label-duplicates', report?.duplicate_groups);
+            counts?.setCount('card-knowledge-graph-quality:id-duplicates', report?.id_duplicate_groups);
+
             const stats = [
                 { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
                 { val: Number(report?.pending_edges || 0), lbl: t('dashboard.knowledge_quality_pending_edges') },
@@ -166,7 +206,7 @@
                 { val: Number(report?.co_mention_edges || 0), lbl: t('dashboard.knowledge_quality_co_mentions') },
                 { val: Number(report?.semantic_edges || 0), lbl: t('dashboard.knowledge_quality_semantic_edges') },
                 { val: Number(report?.generic_nodes || 0), lbl: t('dashboard.knowledge_quality_generic_nodes') },
-                { val: Number(report?.duplicate_groups || 0) + Number(report?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_duplicate_suggestions') },
+                { val: knowledgeGraphDuplicateGroups(report), lbl: t('dashboard.knowledge_quality_duplicate_suggestions') },
                 { val: Number(report?.isolated_nodes || 0), lbl: t('dashboard.knowledge_quality_isolated') },
                 { val: Number(report?.untyped_nodes || 0), lbl: t('dashboard.knowledge_quality_untyped') },
                 { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_label_duplicates') },

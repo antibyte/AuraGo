@@ -218,3 +218,33 @@ func TestDashboardToolingCardPutsKPIsFirst(t *testing.T) {
 		t.Error("card-tooling-telemetry must still start hidden until it has telemetry")
 	}
 }
+
+// TestDashboardKnowledgeCardsPutKPIsFirst (decision 5): health shows consistency issues, pending nodes and open
+// conflicts, keeps its status pills visible and puts its metrics and the consistency list (counted) into disclosures;
+// quality shows protected, isolated, untyped and duplicate candidates and puts its metrics and its five lists
+// (counted) into disclosures.
+func TestDashboardKnowledgeCardsPutKPIsFirst(t *testing.T) {
+	t.Parallel()
+	assertDashboardBigCard(t, dashboardBigCard{
+		section: "knowledge", card: "card-knowledge-graph-health", kpi: "knowledge-health-kpis",
+		outside: []string{`id="knowledge-health-status"`},
+		disclosures: []dashboardDisclosure{
+			{key: "metrics", label: "dashboard.knowledge_all_metrics", holds: []string{`id="knowledge-health-metrics"`}},
+			{key: "consistency", label: "dashboard.knowledge_health_consistency_title", holds: []string{`id="knowledge-health-consistency"`}, counted: true},
+		},
+	})
+	list := func(key, label, id string) dashboardDisclosure {
+		return dashboardDisclosure{key: key, label: label, holds: []string{`id="` + id + `"`}, counted: true}
+	}
+	assertDashboardBigCard(t, dashboardBigCard{
+		section: "knowledge", card: "card-knowledge-graph-quality", kpi: "knowledge-quality-kpis",
+		disclosures: []dashboardDisclosure{
+			{key: "metrics", label: "dashboard.knowledge_all_metrics", holds: []string{`id="knowledge-quality-metrics"`}},
+			list("isolated", "dashboard.knowledge_quality_isolated_title", "knowledge-quality-isolated"),
+			list("untyped", "dashboard.knowledge_quality_untyped_title", "knowledge-quality-untyped"),
+			list("generic", "dashboard.knowledge_quality_generic_title", "knowledge-quality-generic"),
+			list("label-duplicates", "dashboard.knowledge_quality_label_duplicates_title", "knowledge-quality-duplicates"),
+			list("id-duplicates", "dashboard.knowledge_quality_id_duplicates_title", "knowledge-quality-id-duplicates"),
+		},
+	})
+}

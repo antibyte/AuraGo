@@ -62,4 +62,20 @@ function take(file, names) {
     assert.equal(json(toolingTelemetryKpis(null)), json({ formatErrors: 0, recoveries: 0, policySignals: 0, failingTools: 0 }));
 }
 
+// knowledgeGraphConsistencyIssues / knowledgeGraphDuplicateGroups (widgets-knowledge.js): the sum of the four rows
+// renderKnowledgeGraphConsistency lists (null without a consistency report: the semantic index is off), and label plus
+// ID duplicate groups (the "Duplicate suggestions" tile).
+{
+    const { knowledgeGraphConsistencyIssues, knowledgeGraphDuplicateGroups } = take('widgets-knowledge.js', ['knowledgeGraphConsistencyIssues', 'knowledgeGraphDuplicateGroups']);
+    assert.equal(knowledgeGraphConsistencyIssues({ nodes_missing_from_index: 2, edges_missing_from_index: 1, stale_nodes: 3, index_orphans: 4, dirty_nodes: 50, total_nodes: 900 }), 10, 'the four listed rows, nothing else');
+    assert.equal(knowledgeGraphConsistencyIssues({}), 0, 'a clean index has no issues');
+    assert.equal(knowledgeGraphConsistencyIssues({ stale_nodes: 'x', index_orphans: -1, nodes_missing_from_index: 1 }), 1, 'non-positive and non-numeric rows are not listed');
+    for (const absent of [undefined, null, 0, 'x']) {
+        assert.equal(knowledgeGraphConsistencyIssues(absent), null, 'no consistency report: ' + String(absent));
+    }
+    assert.equal(knowledgeGraphDuplicateGroups({ duplicate_groups: 3, id_duplicate_groups: 2 }), 5);
+    assert.equal(knowledgeGraphDuplicateGroups({ duplicate_groups: 3 }), 3);
+    assert.equal(knowledgeGraphDuplicateGroups(null), 0);
+}
+
 console.log('dashboard KPI helpers pass.');
