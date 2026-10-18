@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -143,6 +144,110 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-action="close"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+	type cameraSnapshot struct {
+		Position      [3]float64 `json:"position"`
+		Target        [3]float64 `json:"target"`
+		Ball          [3]float64 `json:"ball"`
+		ProjectedBall [3]float64 `json:"projectedBall"`
+		Distance      float64    `json:"distance"`
+	}
+	cameraState := func() cameraSnapshot {
+		var state cameraSnapshot
+		if err := json.Unmarshal([]byte(page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics.camera)`).Str()), &state); err != nil {
+			t.Fatalf("parse live camera state: %v", err)
+		}
+		return state
+	}
+	centered := func(state cameraSnapshot) bool {
+		return math.Abs(state.ProjectedBall[0]) < .08 && math.Abs(state.ProjectedBall[1]) < .08
+	}
+	vectorLength := func(a, b [3]float64) float64 {
+		return math.Sqrt(math.Pow(a[0]-b[0], 2) + math.Pow(a[1]-b[1], 2) + math.Pow(a[2]-b[2], 2))
+	}
+	orientation := func(state cameraSnapshot) [3]float64 {
+		return [3]float64{(state.Position[0] - state.Target[0]) / state.Distance, (state.Position[1] - state.Target[1]) / state.Distance, (state.Position[2] - state.Target[2]) / state.Distance}
+	}
+	cameraCentered := `()=>{const c=golfFixture.inspect().graphics.camera;return !!c&&c.distance<=8.001&&Math.abs(c.projectedBall[0])<.08&&Math.abs(c.projectedBall[1])<.08}`
+	overview := cameraState()
+	if overview.Distance <= 8 {
+		t.Fatalf("camera test did not start from the overview: %+v", overview)
+	}
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.Timeout(5 * time.Second).MustWait(cameraCentered)
+	focused := cameraState()
+	if !centered(focused) || focused.Distance > 8.001 {
+		t.Fatalf("explicit focus did not center the current ball within 8m: overview=%+v focused=%+v", overview, focused)
+	}
+	cameraPoint := page.MustEval(`()=>{const r=document.querySelector('.mg-canvas canvas').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}`)
+	cameraX, cameraY := cameraPoint.Get("x").Num(), cameraPoint.Get("y").Num()
+	shiftPan := func(x, y, endX, endY float64) {
+		if err := page.Keyboard.Press(input.ShiftLeft); err != nil {
+			t.Fatal(err)
+		}
+		page.Mouse.MustMoveTo(x, y).MustDown(proto.InputMouseButtonRight).MustMoveTo(endX, endY).MustUp(proto.InputMouseButtonRight)
+		if err := page.Keyboard.Release(input.ShiftLeft); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.Mouse.MustMoveTo(cameraX, cameraY).MustScroll(0, -120)
+	page.Timeout(3*time.Second).MustWait(`distance=>golfFixture.inspect().graphics.camera.distance<distance-.1`, focused.Distance)
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,120))`)
+	zoomed := cameraState()
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.Timeout(5 * time.Second).MustWait(cameraCentered)
+	afterZoomFocus := cameraState()
+	beforeDirection, afterDirection := orientation(zoomed), orientation(afterZoomFocus)
+	if math.Abs(afterZoomFocus.Distance-zoomed.Distance) > .2 || !centered(afterZoomFocus) {
+		t.Fatalf("focus did not preserve the closer zoom: before=%+v after=%+v", zoomed, afterZoomFocus)
+	}
+	for axis := range beforeDirection {
+		if math.Abs(beforeDirection[axis]-afterDirection[axis]) > .04 {
+			t.Fatalf("focus changed the current camera orientation: before=%+v after=%+v", beforeDirection, afterDirection)
+		}
+	}
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,160))`)
+	repeatedFocus := cameraState()
+	if repeatedFocus.Distance > afterZoomFocus.Distance+.1 {
+		t.Fatalf("repeated focus zoomed back out: before=%+v after=%+v", afterZoomFocus, repeatedFocus)
+	}
+	page.Mouse.MustMoveTo(cameraX, cameraY).MustDown(proto.InputMouseButtonRight).MustMoveTo(cameraX+120, cameraY+35).MustUp(proto.InputMouseButtonRight)
+	rotated := cameraState()
+	if vectorLength(orientation(rotated), orientation(repeatedFocus)) < .02 {
+		t.Fatal("right-drag did not rotate the camera for the damping regression")
+	}
+	shiftPan(cameraX+120, cameraY+35, cameraX+210, cameraY+75)
+	panned := cameraState()
+	if vectorLength(panned.Target, rotated.Target) < .05 {
+		t.Fatal("Shift+right-drag did not pan the camera for the damping regression")
+	}
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.Timeout(5 * time.Second).MustWait(cameraCentered)
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,450))`)
+	settledFocus := cameraState()
+	if !centered(settledFocus) || math.Abs(settledFocus.Distance-panned.Distance) > .2 {
+		t.Fatalf("pending rotate/pan damping moved the focused camera: before=%+v after=%+v", panned, settledFocus)
+	}
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+	page.MustEval(`()=>{const motion=document.querySelector('[data-motion]');motion.checked=true;motion.dispatchEvent(new Event('change',{bubbles:true}))}`)
+	page.MustElement(`[data-action="close"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+	shiftPan(cameraX, cameraY, cameraX+90, cameraY+40)
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.Timeout(5 * time.Second).MustWait(cameraCentered)
+	reducedMotionFocus := cameraState()
+	if !centered(reducedMotionFocus) || reducedMotionFocus.Distance > 8.001 {
+		t.Fatalf("explicit focus failed with reduced motion enabled: %+v", reducedMotionFocus)
+	}
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+	page.MustEval(`()=>{const motion=document.querySelector('[data-motion]');motion.checked=false;motion.dispatchEvent(new Event('change',{bubbles:true}))}`)
+	page.MustElement(`[data-action="close"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+	if artifactDir != "" {
+		page.MustScreenshot(filepath.Join(artifactDir, "minigolf-ball-focus.png"))
+	}
 	page.MustElement(`[data-action="pause"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel==='pause'&&golfFixture.inspect().audio.paused&&!golfFixture.inspect().audio.playing`)
 	pausedMusicTick := page.MustEval(`()=>golfFixture.inspect().audio.tick`).Num()

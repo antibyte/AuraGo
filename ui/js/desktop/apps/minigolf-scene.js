@@ -8,8 +8,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const COLORS = [0xfff6df, 0xf6a378, 0x89c9ef, 0xc8a6ed];
 const LOOKS = {
-    garden: { sky: 0xc9e2d6, fog: 0xc9e2d6, sun: 0xffe4b6, ground: 0x6e9968 },
-    coast: { sky: 0xbcdfe4, fog: 0xbcdfe4, sun: 0xffeed1, ground: 0x6baeb4 },
+    garden: { sky: 0x88aa9e, fog: 0x88aa9e, sun: 0xffe4b6, ground: 0x6e9968 },
+    coast: { sky: 0x86acb8, fog: 0x86acb8, sun: 0xffeed1, ground: 0x6baeb4 },
     night: { sky: 0x182e43, fog: 0x283c50, sun: 0xabbfee, ground: 0x283e49 }
 };
 
@@ -32,7 +32,7 @@ export function createScene(host, options) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
+    renderer.toneMappingExposure = .9;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const canvas = renderer.domElement;
@@ -52,8 +52,8 @@ export function createScene(host, options) {
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
     controls.touches.ONE = null;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-    const ambient = new THREE.HemisphereLight(0xffffff, 0x60846e, 2.5);
-    const sun = new THREE.DirectionalLight(0xffe4b6, 3);
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x60846e, 1.1);
+    const sun = new THREE.DirectionalLight(0xffe4b6, 1.8);
     sun.position.set(-9, 18, 8);
     sun.castShadow = true;
     sun.shadow.bias = -.0003;
@@ -123,10 +123,16 @@ export function createScene(host, options) {
         updateAim();
     }
     function focusBall(overview = false) {
+        // Flush pending orbit/pan damping before moving the camera and its target together.
+        const damping = controls.enableDamping;
+        controls.enableDamping = false; controls.update();
+        const offset = overview ? new THREE.Vector3(10, 13, 14)
+            : camera.position.clone().sub(controls.target).clampLength(controls.minDistance, 8);
         const target = overview && course ? new THREE.Vector3(...course.cup).add(new THREE.Vector3(...course.tee)).multiplyScalar(.5) : ball.position.clone();
         controls.target.copy(target);
-        camera.position.copy(target).add(overview ? new THREE.Vector3(10, 13, 14) : new THREE.Vector3(6, 8, 10));
+        camera.position.copy(target).add(offset);
         controls.update();
+        controls.enableDamping = damping;
     }
     function setBall(position, rotation, color = 0) {
         ball.position.fromArray(position);
@@ -159,8 +165,8 @@ export function createScene(host, options) {
         const look = LOOKS[next.world] || LOOKS.garden;
         scene.background = new THREE.Color(look.sky);
         scene.fog = new THREE.FogExp2(look.fog, next.world === 'night' ? .022 : .013);
-        sun.color.setHex(look.sun); sun.intensity = next.world === 'night' ? 1.1 : 3;
-        ambient.intensity = next.world === 'night' ? 1.5 : 2.5;
+        sun.color.setHex(look.sun); sun.intensity = next.world === 'night' ? .8 : 1.8;
+        ambient.intensity = next.world === 'night' ? .9 : 1.1;
         ambient.groundColor.setHex(look.ground);
         bloom.strength = next.world === 'night' ? .32 : .15;
         courseRoot.traverse(node => {
@@ -293,7 +299,8 @@ export function createScene(host, options) {
         canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality,
         setReducedMotion(value) { reduced = !!value; if (reduced) particleData.length = 0; },
         setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : null; updateAim(); },
-        stats() { return { fps: measuredFPS, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, geometries: renderer.info.memory.geometries }; },
+        stats() { return { fps: measuredFPS, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, geometries: renderer.info.memory.geometries,
+            camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
             canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
