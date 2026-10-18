@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -70,6 +71,53 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 		return "", fmt.Errorf("read password file: %w", err)
 	}
 	return strings.TrimRight(string(raw), "\r\n"), nil
+}
+
+// errInitialPasswordMasterKey reports a missing or malformed vault master key.
+var errInitialPasswordMasterKey = errors.New("AURAGO_MASTER_KEY missing or invalid to set initial password")
+
+// applyInitialPassword stores the -password hash and a session secret in the
+// vault and enables login in config.yaml.
+func applyInitialPassword(cfg *config.Config, configFile, password, masterKey string) error {
+	if len(masterKey) != 64 {
+		return errInitialPasswordMasterKey
+	}
+	// A fresh install has no data directory yet; runtime directory setup in main
+	// runs later and uses the same mode.
+	if dir := cfg.Directories.DataDir; dir != "" {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return fmt.Errorf("create data directory: %w", err)
+		}
+	}
+	vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
+	v, err := security.NewVault(masterKey, vaultPath)
+	if err != nil {
+		return fmt.Errorf("open vault for password setup: %w", err)
+	}
+	hash, err := server.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("hash initial password: %w", err)
+	}
+	if err := v.WriteSecret("auth_password_hash", hash); err != nil {
+		return fmt.Errorf("store password hash in vault: %w", err)
+	}
+
+	// Setup session secret if not exists
+	if sec, _ := v.ReadSecret("auth_session_secret"); sec == "" {
+		if newSec, e := server.GenerateRandomHex(32); e == nil {
+			if err := v.WriteSecret("auth_session_secret", newSec); err != nil {
+				return fmt.Errorf("store session secret in vault: %w", err)
+			}
+		}
+	}
+
+	if !cfg.Auth.Enabled {
+		cfg.Auth.Enabled = true
+		if err := cfg.Save(configFile); err != nil {
+			return fmt.Errorf("enable auth in config.yaml: %w", err)
+		}
+	}
+	return nil
 }
 
 // runIsolatedWorker dispatches the native-runtime worker modes. Each runs as
@@ -284,48 +332,15 @@ func main() {
 
 	// -- Apply initial password --------------------------------------------
 	if initialPassword != "" && cfg != nil {
-		masterKey := os.Getenv("AURAGO_MASTER_KEY")
-		if masterKey != "" && len(masterKey) == 64 {
-			vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
-			if v, err := security.NewVault(masterKey, vaultPath); err == nil {
-				hash, err := server.HashPassword(initialPassword)
-				if err == nil {
-					if err := v.WriteSecret("auth_password_hash", hash); err != nil {
-						appLog.Error("Failed to store password hash in vault", "error", err)
-						os.Exit(1)
-					} else {
-						appLog.Info("Initial password hash stored in vault")
-					}
-
-					// Setup session secret if not exists
-					if sec, _ := v.ReadSecret("auth_session_secret"); sec == "" {
-						if newSec, e := server.GenerateRandomHex(32); e == nil {
-							if err := v.WriteSecret("auth_session_secret", newSec); err != nil {
-								appLog.Error("Failed to store session secret in vault", "error", err)
-								os.Exit(1)
-							}
-						}
-					}
-
-					if !cfg.Auth.Enabled {
-						cfg.Auth.Enabled = true
-						if err := cfg.Save(configFile); err != nil {
-							appLog.Error("Failed to enable auth in config.yaml", "error", err)
-							os.Exit(1)
-						}
-					}
-				} else {
-					appLog.Error("Failed to hash initial password", "error", err)
-					os.Exit(1)
-				}
+		if err := applyInitialPassword(cfg, configFile, initialPassword, os.Getenv("AURAGO_MASTER_KEY")); err != nil {
+			if errors.Is(err, errInitialPasswordMasterKey) {
+				appLog.Warn("AURAGO_MASTER_KEY missing or invalid to set initial password")
 			} else {
-				appLog.Error("Failed to open vault for password setup", "error", err)
-				os.Exit(1)
+				appLog.Error("Failed to apply initial password", "error", err)
 			}
-		} else {
-			appLog.Warn("AURAGO_MASTER_KEY missing or invalid to set initial password")
 			os.Exit(1)
 		}
+		appLog.Info("Initial password hash stored in vault")
 	}
 
 	// -- Init-only mode: apply flags and exit without starting the server --
