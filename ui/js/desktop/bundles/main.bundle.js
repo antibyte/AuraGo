@@ -910,9 +910,7 @@
 
     function animationsEnabled() { return !(document.body && document.body.dataset.animations === 'false') && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
     function animateThen(element, className, fallbackMs, done) { if (!element || !className || !animationsEnabled()) { if (typeof done === 'function') done(); return; } let finished = false, timer = 0; const finish = () => { if (finished) return; finished = true; element.removeEventListener('animationend', onEnd); element.removeEventListener('transitionend', onEnd); element.classList.remove(className); if (timer) window.clearTimeout(timer); if (typeof done === 'function') done(); }; const onEnd = event => { if (event.target === element) finish(); }; element.classList.remove(className); void element.offsetWidth; element.classList.add(className); element.addEventListener('animationend', onEnd); element.addEventListener('transitionend', onEnd); timer = window.setTimeout(finish, Math.max(20, Number(fallbackMs) || 160)); }
-    function closeWindowMenu() { document.querySelectorAll('.vd-window-menu.open').forEach(menu => { const popover = menu.querySelector(':scope > .vd-window-menu-popover'); if (!animationsEnabled() || !popover) { menu.classList.remove('open', 'closing'); return; } menu.classList.add('closing'); animateThen(popover, 'vd-window-menu-popover-closing', isFruityTheme() ? 150 : 100, () => { menu.classList.remove('open', 'closing'); }); }); state.openWindowMenu = null; }
-
-    function isFruityTheme() { return settingValue('appearance.theme') === 'fruity'; }
+    function closeWindowMenu() { document.querySelectorAll('.vd-window-menu.open').forEach(menu => { const popover = menu.querySelector(':scope > .vd-window-menu-popover'); if (!animationsEnabled() || !popover) { menu.classList.remove('open', 'closing'); return; } menu.classList.add('closing'); animateThen(popover, 'vd-window-menu-popover-closing', themeMotionMs('menuClose'), () => { menu.classList.remove('open', 'closing'); }); }); state.openWindowMenu = null; }
 
     function applyDesktopSettings() {
         const body = document.body;
@@ -920,6 +918,7 @@
             ? wallpaperForActiveSpace()
             : settingValue('appearance.wallpaper');
         body.dataset.theme = settingValue('appearance.theme');
+        applyDesktopThemeAttributes(body);
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
@@ -935,6 +934,7 @@
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.sync === 'function') window.SipPhoneGadget.sync();
         renderTaskbar();
+        syncDesktopThemeFx();
     }
 
     function iconGlyphPixels() {
@@ -1520,7 +1520,7 @@
         renderStartApps();
         menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
         positionStartRailIndicator({ instant: true });
-        runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
+        runStartMenuMotion(menu, 'vd-start-menu-opening', themeMotionMs('startOpen'));
         menu.classList.add('vd-start-menu-just-opened');
         window.clearTimeout(menu._justOpenedTimer);
         menu._justOpenedTimer = window.setTimeout(() => menu.classList.remove('vd-start-menu-just-opened'), 900);
@@ -1538,7 +1538,7 @@
         menu.classList.remove('vd-start-menu-just-opened');
         const bd = document.querySelector('.vd-start-menu-backdrop'); if (bd) bd.classList.remove('active');
         desktopSound('menu.close');
-        runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; });
+        runStartMenuMotion(menu, 'vd-start-menu-closing', themeMotionMs('startClose'), () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; });
     }
 
     function wireStartMenuDrag() {
@@ -1989,6 +1989,136 @@
         if (typeof injectRadialMenu === 'function') injectRadialMenu();
         if (typeof initRadialMenu === 'function') initRadialMenu();
         return anchor;
+    }
+
+;
+/* ui/js/desktop/core/theme-runtime.js */
+    // Desktop theme registry and capability queries. The shell asks "what does this theme provide"
+    // (layout, scheme, global menu, motion, icon family) and never "which theme is this".
+    // Parsed by ui/desktop_theme_registry_test.go: one descriptor per line, single quotes, keys in this order.
+    // Ids and order must equal desktop.DesktopThemeIDs() in internal/desktop/themes.go.
+    const DESKTOP_THEMES = Object.freeze([
+        Object.freeze({ id: 'standard', labelKey: 'desktop.settings_theme_standard', descKey: 'desktop.settings_theme_standard_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/standard.svg', motion: Object.freeze({ open: 240, close: 130, minimize: 170, restore: 180, menuOpen: 100, menuClose: 100, startOpen: 130, startClose: 120 }) }),
+        Object.freeze({ id: 'fruity', labelKey: 'desktop.settings_theme_fruity', descKey: 'desktop.settings_theme_fruity_desc', scheme: 'light', schemeSetting: 'appearance.fruity_mode', shell: 'dock', globalMenu: true, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/fruity.svg', motion: Object.freeze({ open: 240, close: 180, minimize: 200, restore: 230, menuOpen: 150, menuClose: 150, startOpen: 190, startClose: 170 }) }),
+        Object.freeze({ id: 'amiga', labelKey: 'desktop.settings_theme_amiga', descKey: 'desktop.settings_theme_amiga_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'slate', thumb: '/img/themes/amiga.svg', motion: Object.freeze({ open: 20, close: 20, minimize: 20, restore: 20, menuOpen: 20, menuClose: 20, startOpen: 20, startClose: 20 }) }),
+        Object.freeze({ id: 'cyberpunk', labelKey: 'desktop.settings_theme_cyberpunk', descKey: 'desktop.settings_theme_cyberpunk_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'city_rain', thumb: '/img/themes/cyberpunk.svg', motion: Object.freeze({ open: 200, close: 150, minimize: 190, restore: 190, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) }),
+        Object.freeze({ id: 'black_gloss', labelKey: 'desktop.settings_theme_black_gloss', descKey: 'desktop.settings_theme_black_gloss_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'midnight', thumb: '/img/themes/black_gloss.svg', motion: Object.freeze({ open: 260, close: 180, minimize: 230, restore: 240, menuOpen: 150, menuClose: 130, startOpen: 200, startClose: 160 }) }),
+        Object.freeze({ id: 'crazy', labelKey: 'desktop.settings_theme_crazy', descKey: 'desktop.settings_theme_crazy_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: true, wallpaper: 'fractal_trip', thumb: '/img/themes/crazy.svg', motion: Object.freeze({ open: 520, close: 380, minimize: 440, restore: 440, menuOpen: 240, menuClose: 180, startOpen: 340, startClose: 220 }) }),
+        Object.freeze({ id: 'lollipop', labelKey: 'desktop.settings_theme_lollipop', descKey: 'desktop.settings_theme_lollipop_desc', scheme: 'light', schemeSetting: '', shell: 'dock', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'paper_waves', thumb: '/img/themes/lollipop.svg', motion: Object.freeze({ open: 300, close: 200, minimize: 260, restore: 280, menuOpen: 180, menuClose: 140, startOpen: 240, startClose: 180 }) })
+    ]);
+
+    // Load token of the lazy effects bundle: a newer sync invalidates an older pending load.
+    let themeFxLoadToken = 0;
+    let themeFxMotionListenerBound = false;
+
+    function desktopThemes() { return DESKTOP_THEMES; }
+
+    function desktopThemeById(id) {
+        return DESKTOP_THEMES.find(theme => theme.id === id) || null;
+    }
+
+    // An unknown stored id falls back to the first registry entry (Standard).
+    function currentDesktopTheme() {
+        return desktopThemeById(settingValue('appearance.theme')) || DESKTOP_THEMES[0];
+    }
+
+    // Identity alias kept for the test markers; shell code asks the capability queries below instead.
+    function isFruityTheme() { return currentDesktopTheme().id === 'fruity'; }
+
+    function shellLayout() { return currentDesktopTheme().shell; }
+
+    function themeUsesGlobalMenu() { return currentDesktopTheme().globalMenu === true; }
+
+    function themeScheme(theme) {
+        if (theme.schemeSetting) return settingValue(theme.schemeSetting) === 'dark' ? 'dark' : 'light';
+        return theme.scheme;
+    }
+
+    // JS fallback timer for animateThen; an unknown kind gets a neutral 160 ms.
+    function themeMotionMs(kind) {
+        const ms = currentDesktopTheme().motion[kind];
+        return typeof ms === 'number' ? ms : 160;
+    }
+
+    function themeIconFamily() { return currentDesktopTheme().iconFamily; }
+
+    function applyDesktopThemeAttributes(body) {
+        const theme = currentDesktopTheme();
+        if (body.dataset.theme !== theme.id) body.dataset.theme = theme.id;
+        body.dataset.shell = theme.shell;
+        body.dataset.scheme = themeScheme(theme);
+        body.dataset.polish = theme.glassPolish ? 'on' : 'off';
+    }
+
+    function bindThemeFxMotionListener() {
+        if (themeFxMotionListenerBound || typeof window.matchMedia !== 'function') return;
+        themeFxMotionListenerBound = true;
+        const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (query && typeof query.addEventListener === 'function') query.addEventListener('change', () => syncDesktopThemeFx());
+        else if (query && typeof query.addListener === 'function') query.addListener(() => syncDesktopThemeFx());
+    }
+
+    // Starts the lazily loaded effects of an fx theme and stops them for every other case
+    // (other theme, animations off, reduced motion, mobile desktop mode).
+    function syncDesktopThemeFx() {
+        bindThemeFxMotionListener();
+        const theme = currentDesktopTheme();
+        const wants = !!theme.fx && animationsEnabled() && !useMobileDesktopMode();
+        if (!wants) {
+            if (window.AuraDesktopThemeFx) window.AuraDesktopThemeFx.stop();
+            return;
+        }
+        if (window.AuraDesktopThemeFx && window.AuraDesktopThemeFx.activeId() === theme.id) return;
+        const loadBundle = window.AuraDesktopModules && window.AuraDesktopModules.loadBundle;
+        if (typeof loadBundle !== 'function') return;
+        const token = ++themeFxLoadToken;
+        loadBundle('desktop-theme-fx').then(() => {
+            if (token !== themeFxLoadToken) return;
+            const latest = currentDesktopTheme();
+            const fx = window.AuraDesktopThemeFx;
+            if (!fx || !latest.fx || !animationsEnabled() || useMobileDesktopMode()) return;
+            if (fx.activeId() !== latest.id) {
+                fx.stop();
+                fx.start(latest.id, {});
+            }
+        }).catch(err => console.warn('Theme effects failed to load', err));
+    }
+
+    // The wallpaper follows a theme change only while the previous theme "owns" it: every space
+    // shows the previous theme's suggestion or the factory default. A wallpaper the user picked
+    // is never touched. Resolves true when it switched; errors propagate to the caller.
+    async function followThemeWallpaper(previousId, nextId) {
+        const factory = 'groupshoot';
+        const prev = desktopThemeById(previousId);
+        const next = desktopThemeById(nextId);
+        const previousWallpaper = prev ? prev.wallpaper : factory;
+        if (!next || next.wallpaper === previousWallpaper) return false;
+        let bySpace = {};
+        try {
+            const parsed = JSON.parse(settingValue('appearance.wallpaper_by_space') || '{}');
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) bySpace = parsed;
+        } catch (err) {
+            bySpace = {};
+        }
+        const fallback = settingValue('appearance.wallpaper');
+        const owned = SPACE_IDS.every(id => {
+            const effective = bySpace[id] || fallback;
+            return effective === previousWallpaper || effective === factory;
+        });
+        if (!owned) return false;
+        const written = { 'appearance.wallpaper': next.wallpaper, 'appearance.wallpaper_by_space': '{}' };
+        let last = null;
+        for (const key of Object.keys(written)) {
+            last = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value: written[key] })
+            });
+        }
+        if (!state.bootstrap) state.bootstrap = {};
+        const remote = last && last.settings && typeof last.settings === 'object' ? last.settings : {};
+        state.bootstrap.settings = Object.assign({}, desktopSettings(), remote, written);
+        return true;
     }
 
 ;
@@ -2693,7 +2823,7 @@
     function refreshMiniIconTheme() {
         const manifest = state.miniIconManifest;
         if (!manifest || !manifest.images) return;
-        const path = manifest.images[isFruityTheme() ? 'fruity' : 'standard'];
+        const path = manifest.images[themeIconFamily()];
         if (path) document.body.style.setProperty('--vd-mini-sheet', iconUrlStyle(path));
     }
 
@@ -2708,7 +2838,7 @@
         return global && global.dataset.ownerWindow === windowId ? global : null;
     }
     function syncDesktopMenuBar() {
-        const enabled = isFruityTheme() && !isCompactViewport();
+        const enabled = themeUsesGlobalMenu() && !isCompactViewport();
         let top = document.getElementById('vd-global-bar');
         const taskbar = document.querySelector('.vd-taskbar');
         if (!taskbar) return;
@@ -6211,8 +6341,8 @@
         syncDesktopMenuBar();
         const host = $('vd-taskbar-apps');
         if (!host) return;
-        host.classList.toggle('vd-dock', isFruityTheme());
-        if (isFruityTheme()) {
+        host.classList.toggle('vd-dock', shellLayout() === 'dock');
+        if (shellLayout() === 'dock') {
             renderFruityDock();
             scheduleFruityDockOcclusionCheck();
             return;
@@ -6496,7 +6626,7 @@
         const workspaceRect = workspace.getBoundingClientRect();
         const margin = 16;
         const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+        const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
         return {
             width: Math.min(size.width, Math.max(1, workspaceRect.width - margin * 2)),
             height: Math.min(size.height, Math.max(1, workspaceRect.height - taskbarReserve - margin * 2))
@@ -6511,7 +6641,7 @@
         const stepX = 28;
         const stepY = 24;
         const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+        const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
         const maxLeft = Math.max(margin, workspaceRect.width - size.width - margin);
         const maxTop = Math.max(margin, workspaceRect.height - taskbarReserve - size.height - margin);
         const slotsX = Math.max(1, Math.floor((maxLeft - margin) / stepX) + 1);
@@ -6644,7 +6774,7 @@
         const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
         state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '', spaceId: win.dataset.spaceId });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', 240);
+        animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         focusWindow(id);
         applySpaceVisibility();
         renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
@@ -6829,7 +6959,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
-        animateThen(win, 'vd-window-opening', 240);
+        animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
@@ -7141,7 +7271,7 @@ function ensureMobileTaskbarSwipe() {
 
     wireMobileTaskbarSwipe();
 
-    if (isFruityTheme()) {
+    if (shellLayout() === 'dock') {
         const dockHost = $('vd-taskbar-apps');
         const scrollRegion = dockHost && dockHost.querySelector('[data-fruity-dock-scroll-region]');
         if (scrollRegion && !scrollRegion._mobileSwipeWired) wireMobileDockSwipe(scrollRegion);
@@ -7203,7 +7333,7 @@ function scheduleFruityDockOcclusionCheck() {
 function updateFruityDockOcclusion() {
     const body = document.body;
     const host = $('vd-taskbar-apps');
-    if (!body || !host || !isFruityTheme()) {
+    if (!body || !host || shellLayout() !== 'dock') {
         if (body) body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
         return;
@@ -7271,7 +7401,7 @@ function windowOverlapsFruityDock(win, dockRect) {
             item.element.style.setProperty('--vd-minimize-dy', delta.dy + 'px');
         }
         renderTaskbar();
-        animateThen(item.element, 'vd-window-minimizing', isFruityTheme() ? 200 : 170, () => {
+        animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
             item.element.style.display = 'none';
             item.minimizing = false;
             scheduleFruityDockOcclusionCheck();
@@ -7285,7 +7415,7 @@ function windowOverlapsFruityDock(win, dockRect) {
         const host = $('vd-taskbar-apps');
         if (!item || !host) return null;
         let target = null;
-        if (isFruityTheme()) {
+        if (shellLayout() === 'dock') {
             target = host.querySelector('.vd-dock-button[data-app-id="' + cssSel(item.appId) + '"]');
         } else {
             target = host.querySelector('[data-window-id="' + cssSel(id) + '"]');
@@ -7423,7 +7553,7 @@ function wireWindow(win, id) {
                 if (drag !== activeDrag) return;
                 const maxLeft = window.innerWidth - 80;
                 const taskbar = document.querySelector('.vd-taskbar');
-                const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
+                const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
                 const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
@@ -7642,7 +7772,7 @@ function wireWindow(win, id) {
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
         let height = (layer && layer.clientHeight) || window.innerHeight;
-        if (!isFruityTheme() && taskbar) {
+        if (shellLayout() === 'taskbar' && taskbar) {
             height = Math.max(1, height - taskbar.offsetHeight);
         } else if (isCompactViewport() && window.visualViewport) {
             height = Math.min(height, Math.max(1, window.visualViewport.height - ((taskbar && taskbar.offsetHeight) || 0)));
@@ -7814,7 +7944,7 @@ function wireWindow(win, id) {
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
         if (wasHidden) {
-            animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
+            animateThen(win.element, 'vd-window-restoring', themeMotionMs('restore'));
             desktopSound('window.restore');
         }
         renderTaskbar();
@@ -7844,7 +7974,7 @@ function wireWindow(win, id) {
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
-        animateThen(win.element, 'vd-window-closing', isFruityTheme() ? 180 : 130, () => {
+        animateThen(win.element, 'vd-window-closing', themeMotionMs('close'), () => {
             disposeAppWindow(win);
             win.element.remove();
             state.windows.delete(id);
@@ -7861,7 +7991,7 @@ function wireWindow(win, id) {
             if (immediate || menu.classList.contains('vd-context-menu-closing')) {
                 menu.remove();
             } else {
-                animateThen(menu, 'vd-context-menu-closing', isFruityTheme() ? 150 : 100, () => menu.remove());
+                animateThen(menu, 'vd-context-menu-closing', themeMotionMs('menuClose'), () => menu.remove());
             }
         }
         if (state.contextMenuKeydown) {
@@ -10056,6 +10186,7 @@ function wireWindow(win, id) {
     }
 
     function trackPointerLight(event) {
+        if (document.body && document.body.dataset.polish === 'off') return;
         if (event.pointerType && event.pointerType !== 'mouse') return;
         const item = event.target instanceof Element ? event.target.closest(POINTER_LIGHT_TARGETS) : null;
         pointerLightItem = item;
@@ -16587,7 +16718,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const rect = menu.getBoundingClientRect();
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
         menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';
-        animateThen(menu, 'vd-context-menu-opening', isFruityTheme() ? 150 : 100);
+        animateThen(menu, 'vd-context-menu-opening', themeMotionMs('menuOpen'));
         desktopSound('menu.open');
         menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -17728,7 +17859,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }

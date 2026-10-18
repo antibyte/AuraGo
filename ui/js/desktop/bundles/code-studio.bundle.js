@@ -2411,7 +2411,8 @@
     function usesLightEditorTheme() {
         const body = document.body;
         if (!body) return false;
-        if (body.dataset.theme === 'fruity') return body.dataset.fruityMode !== 'dark';
+        if (body.dataset.scheme) return body.dataset.scheme === 'light';
+        if (body.dataset.theme === 'fruity') return body.dataset.fruityMode !== 'dark'; // harnesses that set data-theme directly
         return body.dataset.theme === 'light';
     }
 
