@@ -102,6 +102,32 @@ function disposeTree(tree) {
     for (const geometry of geometries) geometry.dispose();
 }
 
+const PREVIEW_POINTS = 400;
+const DRAG_DEAD_ZONE = 14;
+
+function dashedLine(opacity) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PREVIEW_POINTS * 3), 3));
+    geometry.setDrawRange(0, 0);
+    const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color: 0xdf914f, transparent: true, opacity, dashSize: .26, gapSize: .18, depthWrite: false }));
+    line.visible = false;
+    line.frustumCulled = false;
+    return line;
+}
+
+function fillLine(line, points, from, to) {
+    const positions = line.geometry.attributes.position;
+    const count = Math.max(0, Math.min(PREVIEW_POINTS, to - from));
+    for (let i = 0; i < count; i++) {
+        const point = points[from + i];
+        positions.setXYZ(i, point[0], point[1] - .145, point[2]);
+    }
+    positions.needsUpdate = true;
+    line.geometry.setDrawRange(0, count);
+    line.computeLineDistances();
+    return count >= 2;
+}
+
 export function createScene(host, options) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -141,14 +167,11 @@ export function createScene(host, options) {
     const bloom = new UnrealBloomPass(new THREE.Vector2(640, 360), .22, .5, 1.1);
     const output = new OutputPass();
     composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(output);
-    const aim = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(), 2, 0xffedb3, .3, .17);
-    aim.visible = false;
-    scene.add(aim);
-    const aimLineGeometry = new THREE.BufferGeometry();
-    aimLineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-    const aimLine = new THREE.Line(aimLineGeometry, new THREE.LineDashedMaterial({ color: 0xdf914f, transparent: true, opacity: .7, dashSize: .3, gapSize: .22 }));
-    aimLine.visible = false;
-    aimLine.frustumCulled = false;
+    const previewLine = dashedLine(.9), previewTail = dashedLine(.45);
+    const previewEnd = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffedb3, transparent: true, opacity: .9, depthWrite: false }));
+    previewEnd.visible = false;
+    let preview = null, previewDirty = false, lastPreviewPower = -1;
+    const forward = new THREE.Vector3();
     const powerRing = new THREE.Mesh(new THREE.RingGeometry(.56, .7, 48), new THREE.MeshBasicMaterial({ color: 0xdf914f, transparent: true, opacity: .85, side: THREE.DoubleSide, depthWrite: false }));
     powerRing.rotation.x = -Math.PI / 2;
     powerRing.visible = false;
@@ -158,7 +181,7 @@ export function createScene(host, options) {
     const blob = new THREE.Mesh(new THREE.CircleGeometry(.24, 24), new THREE.MeshBasicMaterial({ color: 0x07130e, transparent: true, opacity: .26, depthWrite: false }));
     blob.rotation.x = -Math.PI / 2;
     blob.visible = false;
-    scene.add(aimLine, powerRing, restMark, blob);
+    scene.add(previewLine, previewTail, previewEnd, powerRing, restMark, blob);
     const ball = new THREE.Group();
     scene.add(ball);
     const ghosts = new THREE.Group();
@@ -211,19 +234,26 @@ export function createScene(host, options) {
     }
     function updateAim() {
         const aiming = canAim && !cameraMode;
-        aim.visible = aiming;
-        aimLine.visible = aiming;
         powerRing.visible = aiming;
-        aim.position.copy(ball.position); aim.position.y += .02;
-        aim.setDirection(new THREE.Vector3(aimDirection[0], 0, aimDirection[1]));
-        aim.setLength(.5 + 2 * aimPower, .25, .14);
+        const points = aiming && preview?.points?.length >= 2 ? preview.points : null;
+        if (points && (previewDirty || lastPreviewPower !== aimPower)) {
+            const split = preview.contactIndex >= 0 ? preview.contactIndex + 1 : points.length;
+            const tint = powerColor(aimPower);
+            previewLine.userData.ready = fillLine(previewLine, points, 0, split);
+            previewTail.userData.ready = fillLine(previewTail, points, Math.max(0, split - 1), points.length);
+            previewLine.material.color.copy(tint);
+            previewTail.material.color.copy(tint);
+            const end = points[points.length - 1];
+            previewEnd.position.set(end[0], end[1] - .1, end[2]);
+            previewEnd.material.color.setHex(preview.hazard ? 0xff6b5e : 0xffedb3);
+            previewDirty = false;
+            lastPreviewPower = aimPower;
+        }
+        previewLine.visible = !!points && !!previewLine.userData.ready;
+        previewTail.visible = !!points && !!previewTail.userData.ready;
+        previewEnd.visible = !!points;
         if (aiming) {
-            const length = .5 + 2 * aimPower, ground = ball.position.y - .155;
-            const positions = aimLine.geometry.attributes.position;
-            positions.setXYZ(0, ball.position.x, ground, ball.position.z);
-            positions.setXYZ(1, ball.position.x + aimDirection[0] * length, ground, ball.position.z + aimDirection[1] * length);
-            positions.needsUpdate = true;
-            aimLine.computeLineDistances();
+            const ground = ball.position.y - .155;
             powerRing.position.set(ball.position.x, ground + .012, ball.position.z);
             powerRing.scale.setScalar(.4 + 1.05 * aimPower);
             powerRing.material.color.copy(powerColor(aimPower));
@@ -233,6 +263,11 @@ export function createScene(host, options) {
             putter.position.copy(ball.position).add(new THREE.Vector3(-aimDirection[0] * (.38 + swing * .25), -.13, -aimDirection[1] * (.38 + swing * .25)));
             putter.rotation.y = Math.atan2(aimDirection[0], aimDirection[1]);
         }
+    }
+    function setPreview(result) {
+        preview = result && Array.isArray(result.points) ? result : null;
+        previewDirty = true;
+        updateAim();
     }
     function setAim(direction, power, enabled = true) {
         aimDirection = direction; aimPower = power; canAim = enabled;
@@ -397,27 +432,57 @@ export function createScene(host, options) {
         ray.setFromCamera(pointer, camera); floor.constant = -ball.position.y;
         return ray.ray.intersectPlane(floor, hit);
     }
+    function ballScreen() {
+        const rect = canvas.getBoundingClientRect(), projected = ball.position.clone().project(camera);
+        return { x: rect.left + (projected.x + 1) * rect.width / 2, y: rect.top + (1 - projected.y) * rect.height / 2, width: rect.width, height: rect.height };
+    }
+    function dragDirection(event, screen) {
+        if (pointAt(event)) {
+            const x = ball.position.x - hit.x, z = ball.position.z - hit.z, length = Math.hypot(x, z);
+            if (length > 1e-4) return [x / length, z / length];
+        }
+        // Ground ray missed: map the screen pull-back through the camera yaw.
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        if (forward.lengthSq() < 1e-8) return null;
+        forward.normalize();
+        const sx = screen.x - event.clientX, sy = screen.y - event.clientY;
+        const x = sx * -forward.z - sy * forward.x, z = sx * forward.x - sy * forward.z, length = Math.hypot(x, z);
+        return length > 1e-6 ? [x / length, z / length] : null;
+    }
+    function cancelDrag() {
+        if (pointerId === null) return false;
+        if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+        pointerId = null;
+        dragged = false;
+        return true;
+    }
     function down(event) {
-        if (event.button !== 0 || !canAim || cameraMode || !pointAt(event)) return;
+        if (event.button !== 0 || !canAim || cameraMode) return;
         if (event.pointerType !== 'touch') {
-            const screen = ball.position.clone().project(camera), rect = canvas.getBoundingClientRect();
-            const distance = Math.hypot(event.clientX - rect.left - (screen.x + 1) * rect.width / 2, event.clientY - rect.top - (1 - screen.y) * rect.height / 2);
-            if (distance > 46) return;
+            const screen = ballScreen();
+            if (Math.hypot(event.clientX - screen.x, event.clientY - screen.y) > 46) return;
         }
         pointerId = event.pointerId; dragged = false; canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
     }
     function move(event) {
-        if (pointerId !== event.pointerId || !pointAt(event)) return;
-        const x = ball.position.x - hit.x, z = ball.position.z - hit.z, length = Math.hypot(x, z);
-        dragged = length > .06;
-        if (length > .03) { setAim([x / length, z / length], Math.min(1, length / 3), true); options.onAim?.(aimDirection, aimPower); }
+        if (pointerId !== event.pointerId) return;
+        if (event.pointerType === 'mouse' && (event.buttons & 2)) { cancelDrag(); return; }
+        const screen = ballScreen();
+        const pixels = Math.hypot(event.clientX - screen.x, event.clientY - screen.y);
+        dragged = pixels >= DRAG_DEAD_ZONE;
+        if (!dragged) return;
+        const span = Math.max(140, Math.min(320, .3 * Math.min(screen.width, screen.height)));
+        const direction = dragDirection(event, screen);
+        if (!direction) return;
+        setAim(direction, Math.min(1, (pixels - DRAG_DEAD_ZONE) / (span - DRAG_DEAD_ZONE)), true);
+        options.onAim?.(aimDirection, aimPower);
     }
     function up(event) {
         if (pointerId !== event.pointerId) return;
-        pointerId = null;
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-        if (event.type === 'pointerup' && dragged && aimPower > .02 && canAim) options.onShot?.(aimDirection, aimPower);
-        dragged = false;
+        const shot = event.type === 'pointerup' && dragged && aimPower > 0 && canAim;
+        cancelDrag();
+        if (shot) options.onShot?.(aimDirection, aimPower);
     }
     const lost = event => { event.preventDefault(); options.onError?.('webgl_error'); };
     canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move);
@@ -479,12 +544,12 @@ export function createScene(host, options) {
         }
     }
     return {
-        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt,
+        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag,
         setFollow(value) { followEnabled = !!value; },
         setAimCamera(value) { aimCamEnabled = !!value; if (!value) camTween = null; },
         setReducedMotion(value) { reduced = !!value; if (reduced) particleData.length = 0; },
         setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : null; updateAim(); },
-        stats() { return { fps: measuredFPS, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, geometries: renderer.info.memory.geometries,
+        stats() { return { fps: measuredFPS, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
