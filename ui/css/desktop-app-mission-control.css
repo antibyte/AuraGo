@@ -55,6 +55,9 @@
 /* white text on the raw accent falls below 4.5:1 for the light desktop accents (blue: about 2.5:1); a darkened accent keeps it readable on all */
 .vd-mc-btn--primary { background: color-mix(in srgb, var(--mc-accent) 55%, black); border-color: transparent; color: #fff; }
 .vd-mc-btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--mc-accent) 55%, black); filter: brightness(1.12); border-color: transparent; }
+/* The .vd-mc button reset (0,1,1) outranks the single-class rule above, so the label would fall back to --vd-text (plum on Lollipop, 1.1:1).
+   The label stays white because the background is the darkened accent: --vd-accent-contrast is made for the raw accent (black on Amiga, Crazy and Cyberpunk) and would read at 2.4:1 on Amiga and 2.5:1 on Crazy here. */
+.vd-mc .vd-mc-btn--primary, .vd-mc .vd-mc-btn--primary:hover { color: #fff; }
 .vd-mc-btn--danger { color: var(--mc-danger); border-color: rgba(229, 72, 77, 0.45); }
 .vd-mc-btn--danger:hover:not(:disabled) { background: rgba(229, 72, 77, 0.12); }
 .vd-mc-btn--icon { width: 32px; padding: 0; }

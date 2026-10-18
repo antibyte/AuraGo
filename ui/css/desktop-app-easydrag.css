@@ -252,7 +252,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-home-brand h1 { margin: 0; font-size: 24px; letter-spacing: -0.02em; }
 .ed-home-brand p { margin: 2px 0 0; color: var(--ed-muted); }
 .ed-logo {
-    display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--vd-accent-contrast, #fff);
+    display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--vd-accent-contrast);
     background: linear-gradient(135deg, var(--ed-accent), var(--ed-cat-ai));
     box-shadow: 0 10px 28px color-mix(in srgb, var(--ed-accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
@@ -535,7 +535,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-port-add .ed-icon { width: 13px; height: 13px; }
 .ed-node:hover .ed-port-add, .ed-node.is-selected .ed-port-add { opacity: 1; transform: scale(1); }
-.ed-port-add:hover { color: var(--vd-accent-contrast, #fff); background: var(--ed-accent); border-color: var(--ed-accent); }
+.ed-port-add:hover { color: var(--vd-accent-contrast); background: var(--ed-accent); border-color: var(--ed-accent); }
 .ed-node.is-readonly .ed-port-add { display: none; }
 
 /* node toolbar: on the left, so it never covers the status and warning badges at the top right */
@@ -579,7 +579,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-pill text { fill: var(--ed-text); font: 700 11px/1 var(--ds-font-sans, system-ui, sans-serif); }
 .ed-wire-actions { position: absolute; left: 0; top: 0; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow); backdrop-filter: blur(10px); transform-origin: 0 0; z-index: 2; }
 .ed-wire-btn { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-text); cursor: pointer; }
-.ed-wire-btn:hover { background: var(--ed-accent); color: var(--vd-accent-contrast, #fff); }
+.ed-wire-btn:hover { background: var(--ed-accent); color: var(--vd-accent-contrast); }
 .ed-wire-btn--danger:hover { background: var(--ed-danger); }
 .ed-wire-btn .ed-icon { width: 14px; height: 14px; }
 
