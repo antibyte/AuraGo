@@ -479,15 +479,23 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-kf-button:hover:not(:disabled) { background: var(--vs-control-hover); color: var(--vs-text); }
 .vs-app .vs-kf-button[aria-pressed="true"] { color: var(--vs-accent); }
 .vs-app .vs-kf-stopwatch[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
-.vs-transition-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-.vs-transition-grid button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 2px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); font-size: 10.5px; color: var(--vs-muted); }
-.vs-transition-grid button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vs-transition-grid button[aria-pressed="true"] { border-color: var(--vs-accent); background: var(--vs-accent-soft); color: var(--vs-text); }
-.vs-transition-grid i { width: 30px; height: 18px; border-radius: 3px; background: linear-gradient(90deg, #4f5fd6 50%, #c66f31 50%); }
-.vs-transition-grid .vs-tx-none { background: transparent; border: 1px dashed var(--vs-border-strong); }
-.vs-transition-grid .vs-tx-dissolve { background: linear-gradient(90deg, #4f5fd6, #c66f31); }
-.vs-transition-grid .vs-tx-black { background: linear-gradient(90deg, #4f5fd6, #000 50%, #c66f31); }
-.vs-transition-grid .vs-tx-wipeleft { background: linear-gradient(90deg, #c66f31 40%, #4f5fd6 40%); }
+/* Transition picker (2e, plan index §4.9): the summary shows the current type and opens the inline panel with None and
+   one group per registry category. The icons are generated SVG (VideoStudioIcons.transition, .vs-tx-icon). */
+.vs-tx { display: grid; gap: 8px; }
+.vs-app .vs-tx-summary { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; }
+.vs-app .vs-tx-summary > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-app .vs-tx-summary:hover:not(:disabled) { border-color: var(--vs-accent-border); }
+.vs-app .vs-tx-summary[aria-expanded="true"] { border-color: var(--vs-accent); background: var(--vs-accent-soft); }
+.vs-app .vs-tx-summary[aria-expanded="true"] > .vs-icon { transform: rotate(180deg); }
+.vs-tx-icon { flex: none; display: block; border-radius: 3px; }
+.vs-tx-picker { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: color-mix(in srgb, var(--vs-control) 55%, transparent); }
+.vs-tx-group h4 { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
+.vs-tx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
+.vs-app .vs-tx-list button { display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 6px 3px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); font-size: 10.5px; line-height: 1.25; color: var(--vs-muted); text-align: center; }
+.vs-app .vs-tx-list button span { max-width: 100%; overflow-wrap: anywhere; }
+.vs-app .vs-tx-list button:hover:not(:disabled) { border-color: var(--vs-accent-border); color: var(--vs-text); }
+.vs-app .vs-tx-list button[aria-pressed="true"] { border-color: var(--vs-accent); background: var(--vs-accent-soft); color: var(--vs-text); }
+.vs-app .vs-tx-list button:disabled { opacity: .5; cursor: default; }
 .vs-text-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--vs-muted); }
 .vs-text-status.is-error { color: color-mix(in srgb, var(--vs-danger) 80%, var(--vs-text)); }
 .vs-insp-empty .vs-facts { margin: 0; }

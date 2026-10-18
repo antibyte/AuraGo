@@ -88,10 +88,59 @@
         list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'
     };
 
+    // Transition icons (2e, plan index §4.9): one 30×18 picture per registry transition, built from what the viewer sees
+    // (index §4.2, measured). #4f5fd6 is the outgoing clip (A) and #c66f31 the incoming one (B). #000, #fff and the
+    // greys are the colours a fade passes through, and #8b6784 (and the band mixes) are the soft edges. White strokes
+    // give the measured direction: an edge line and an arrow for wipes, double chevrons for pushes, arrows for squeeze,
+    // zoom and circles. Plain shapes only: no gradients, ids or references. An id without a picture (a newer server's
+    // type) gets the plain A|B split.
+    const TA = '#4f5fd6', TB = '#c66f31', MIX = '#8b6784';
+    const box = (x, y, w, h, fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`;
+    const poly = (points, fill) => `<polygon points="${points}" fill="${fill}"/>`;
+    const disc = (cx, cy, r, fill) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"/>`;
+    const stroke = (d, color, width) => `<path d="${d}" fill="none" stroke="${color || '#fff'}" stroke-width="${width || 1.6}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const bands = list => { let x = 0; return list.map(([w, fill]) => { const out = box(x, 0, w, 18, fill); x += w; return out; }).join(''); };
+    const edge = d => stroke(d, '#fff', 1), seam = d => stroke(d, '#000', 1);
+    const TRANSITION_ICONS = {
+        none: '<rect x=".5" y=".5" width="29" height="17" rx="2" fill="none" stroke="currentColor" stroke-dasharray="2 2"/>',
+        dissolve: bands([[6, TA], [6, '#6d63ad'], [6, MIX], [6, '#a86b5a'], [6, TB]]),
+        black: bands([[10, TA], [10, '#000'], [10, TB]]),
+        fadewhite: bands([[10, TA], [10, '#fff'], [10, TB]]),
+        fadegrays: bands([[7.5, TA], [7.5, '#818181'], [7.5, '#777777'], [7.5, TB]]),
+        pixelize: box(0, 0, 15, 18, TA) + box(15, 0, 15, 18, TB) + box(9, 0, 6, 6, TB) + box(9, 12, 6, 6, TB) + box(15, 0, 6, 6, TA) + box(15, 12, 6, 6, TA),
+        wipeleft: box(0, 0, 12, 18, TB) + box(12, 0, 18, 18, TA) + edge('M12 0v18') + stroke('M15 9h7M19.5 6.5 22 9l-2.5 2.5'),
+        wiperight: box(0, 0, 18, 18, TA) + box(18, 0, 12, 18, TB) + edge('M18 0v18') + stroke('M15 9H8M10.5 6.5 8 9l2.5 2.5'),
+        wipeup: box(0, 0, 30, 11, TA) + box(0, 11, 30, 7, TB) + edge('M0 11h30') + stroke('M15 9V3M12.5 5.5 15 3l2.5 2.5'),
+        wipedown: box(0, 0, 30, 7, TB) + box(0, 7, 30, 11, TA) + edge('M0 7h30') + stroke('M15 9v6M12.5 12.5 15 15l2.5-2.5'),
+        smoothleft: box(0, 0, 15, 18, TA) + box(15, 0, 4, 18, MIX) + box(19, 0, 11, 18, TB) + stroke('M13 9H6M8.5 6.5 6 9l2.5 2.5'),
+        smoothright: box(0, 0, 11, 18, TB) + box(11, 0, 4, 18, MIX) + box(15, 0, 15, 18, TA) + stroke('M17 9h7M21.5 6.5 24 9l-2.5 2.5'),
+        diagtl: box(0, 0, 30, 18, TA) + poly('30,3 30,18 10,18', MIX) + poly('30,9 30,18 18,18', TB) + stroke('M14 11 8 5M8 9V5h4'),
+        diagbr: box(0, 0, 30, 18, TA) + poly('0,0 20,0 0,15', MIX) + poly('0,0 12,0 0,9', TB) + stroke('M16 7l6 6M22 9v4h-4'),
+        radial: box(0, 0, 30, 18, TA) + `<path d="M15 9V-9A18 18 0 0 1 30.6 18Z" fill="${TB}"/>` + stroke('M15 3.5A5.5 5.5 0 0 1 20.5 9M18.5 7l2 2 2-2'),
+        slideleft: box(0, 0, 17, 18, TA) + box(17, 0, 13, 18, TB) + seam('M17 0v18') + stroke('M11 5.5 7.5 9l3.5 3.5M15.5 5.5 12 9l3.5 3.5'),
+        slideright: box(0, 0, 13, 18, TB) + box(13, 0, 17, 18, TA) + seam('M13 0v18') + stroke('M15 5.5l3.5 3.5L15 12.5M19.5 5.5 23 9l-3.5 3.5'),
+        slideup: box(0, 0, 30, 10, TA) + box(0, 10, 30, 8, TB) + seam('M0 10h30') + stroke('M11.5 5 15 1.5 18.5 5M11.5 8.5 15 5l3.5 3.5'),
+        slidedown: box(0, 0, 30, 8, TB) + box(0, 8, 30, 10, TA) + seam('M0 8h30') + stroke('M11.5 10 15 13.5 18.5 10M11.5 13.5 15 17l3.5-3.5'),
+        squeezeh: box(0, 0, 30, 18, TB) + box(0, 6, 30, 6, TA) + stroke('M15 1v3.5M13 2.5 15 4.5l2-2M15 17v-3.5M13 15.5l2-2 2 2'),
+        zoomin: box(0, 0, 30, 18, TA) + box(7, 4, 16, 10, MIX) + box(10, 6, 10, 6, TB) + stroke('M10 6.5 4.5 2.5M4.5 5.5v-3h3M20 11.5l5.5 4M25.5 12.5v3h-3'),
+        circleopen: box(0, 0, 30, 18, TA) + disc(15, 9, 7, MIX) + disc(15, 9, 5, TB) + stroke('M23 9h4.5M25.5 7l2 2-2 2M7 9H2.5M4.5 7l-2 2 2 2'),
+        circleclose: box(0, 0, 30, 18, TB) + disc(15, 9, 8, MIX) + disc(15, 9, 6.5, TA) + stroke('M28.5 9H24M26 7l-2 2 2 2M1.5 9H6M4 7l2 2-2 2'),
+        circlecrop: box(0, 0, 30, 18, '#000') + disc(8.5, 9, 5.5, TA) + disc(21.5, 9, 5.5, TB),
+        rectcrop: box(0, 0, 30, 18, '#000') + box(2.5, 4, 9, 10, TA) + box(18.5, 4, 9, 10, TB)
+    };
+    const TRANSITION_FALLBACK = box(0, 0, 15, 18, TA) + box(15, 0, 15, 18, TB);
+    // The icon of one transition id ('none' included) as inline SVG, size px wide (default 30) and 0.6 of that high.
+    function transition(id, size) {
+        const px = Number(size) || 30, key = String(id == null ? '' : id);
+        const body = Object.prototype.hasOwnProperty.call(TRANSITION_ICONS, key) ? TRANSITION_ICONS[key] : TRANSITION_FALLBACK;
+        const frame = key === 'none' ? '' : '<rect x=".5" y=".5" width="29" height="17" fill="none" stroke="#000" stroke-opacity=".35"/>';
+        return `<svg class="vs-tx-icon" width="${px}" height="${Math.round(px * 0.6)}" viewBox="0 0 30 18" aria-hidden="true" focusable="false">${body}${frame}</svg>`;
+    }
+
     function svg(name, size, cls) {
         const px = Number(size) || 16;
         return `<svg class="${cls || 'vs-icon'}" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${PATHS[name] || PATHS.info}</svg>`;
     }
 
-    window.VideoStudioIcons = { svg, names: Object.keys(PATHS) };
+    window.VideoStudioIcons = { svg, transition, names: Object.keys(PATHS) };
 })();

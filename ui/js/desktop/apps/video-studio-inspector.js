@@ -258,26 +258,43 @@
         return `<section class="vs-insp-section"><h3>${v.icon('speaker', 14)}${v.esc(v.tr('sound', 'Sound'))}</h3>${slider(v, 'volume', v.tr('volume', 'Volume'), 0, 200, 1, volume, volume + ' %')}${slider(v, 'fade_in', v.tr('fadeInSound', 'Fade in'), 0, maxFade, step, Math.min(maxFade, clip.fade_in || 0), formatSeconds(clip.fade_in || 0, v.locale, v.project) + ' s')}${slider(v, 'fade_out', v.tr('fadeOutSound', 'Fade out'), 0, maxFade, step, Math.min(maxFade, clip.fade_out || 0), formatSeconds(clip.fade_out || 0, v.locale, v.project) + ' s')}${muted ? rampNotice(v) : ''}</section>`;
     }
 
-    // 'none' plus the registry's transitions in menu order (VideoStudioEffects, read at call time). A transition the
-    // server's FFmpeg lacks is disabled with a title; the clip's current one stays enabled and pressed even then, so it is
-    // still shown and can be replaced. Labels come from each entry's label_key; the icon class stays vs-tx-<id>.
-    function transitionButtons(v, current, disabled) {
-        const unavailable = v.tr('transitionUnavailable', "Not available: this server's FFmpeg lacks this transition");
-        return [{ id: 'none', label_key: 'none', available: true }].concat(Effects().transitions()).map(spec => {
-            const off = disabled || (!spec.available && spec.id !== current) ? ' disabled' : '';
-            const title = spec.available ? '' : ` title="${v.esc(unavailable)}"`;
-            return `<button type="button" data-transition="${v.esc(spec.id)}" aria-pressed="${current === spec.id}"${title}${off}><i class="vs-tx-${v.esc(spec.id)}"></i><span>${v.esc(v.tr(spec.label_key, spec.id))}</span></button>`;
-        }).join('');
+    // Transition length (index §4.9): the slider's step, its largest value for the pair, and the length a new transition
+    // gets (half a second within that largest value; an existing transition keeps its own). The effects library uses
+    // the same numbers (P.addTransitionTo, video-studio-effects-library.js).
+    function transitionLength(project, clip, next) {
+        const rate = Time().rate(project), step = Math.max(1, Math.round(rate / 10)), longest = Math.round(rate * 3);
+        const max = next ? Math.max(step, Math.min(longest, Math.min(clip.duration, next.duration) - 1)) : longest;
+        return { step, max, value: clip.transition && clip.transition.duration || Math.min(Math.round(rate / 2), max) };
+    }
+
+    // The transition picker (index §4.9):
+    // - A summary button shows the current type's icon and label. It opens an inline panel (v.transitionPickerOpen, view
+    //   state of video-studio.js) with 'none' and one group per registry category (VideoStudioEffects.transitionGroups,
+    //   read at call time).
+    // - A type the server's FFmpeg lacks is disabled with a title. The clip's current one stays enabled and pressed, so
+    //   it still shows and can be replaced.
+    // - Labels come from label_key, icons from VideoStudioIcons.transition. Without a following clip the summary is
+    //   disabled.
+    const NO_TRANSITION = Object.freeze({ id: 'none', label_key: 'none', available: true });
+    function transitionIcon(id) { const Icons = window.VideoStudioIcons; return Icons && Icons.transition ? Icons.transition(id, 30) : ''; }
+    function transitionChoice(v, spec, current) {
+        const off = !spec.available && spec.id !== current ? ' disabled' : '';
+        const title = spec.available ? '' : ` title="${v.esc(v.tr('transitionUnavailable', "Not available: this server's FFmpeg lacks this transition"))}"`;
+        return `<button type="button" data-transition="${v.esc(spec.id)}" aria-pressed="${current === spec.id}"${title}${off}>${transitionIcon(spec.id)}<span>${v.esc(v.tr(spec.label_key, spec.id))}</span></button>`;
+    }
+    function transitionPicker(v, current, disabled) {
+        const spec = current === 'none' ? NO_TRANSITION : Effects().transition(current) || { id: current, label_key: current };
+        const name = v.tr('transitionPicker', 'Choose a transition'), label = v.tr(spec.label_key, spec.id), open = !!v.transitionPickerOpen && !disabled;
+        const summary = `<button type="button" class="vs-tx-summary" data-action="transition-picker" aria-expanded="${open}" aria-label="${v.esc(name)}: ${v.esc(label)}" title="${v.esc(name)}"${disabled ? ' disabled' : ''}>${transitionIcon(spec.id)}<span>${v.esc(label)}</span>${v.icon('chevronDown', 14)}</button>`;
+        if (!open) return summary;
+        const groups = Effects().transitionGroups().map(group => { const heading = v.tr(group.label_key, group.category); return `<div class="vs-tx-group" role="group" aria-label="${v.esc(heading)}"><h4>${v.esc(heading)}</h4><div class="vs-tx-list">${group.items.map(item => transitionChoice(v, item, current)).join('')}</div></div>`; }).join('');
+        return `${summary}<div class="vs-tx-picker" data-tx-picker><div class="vs-tx-list">${transitionChoice(v, NO_TRANSITION, current)}</div>${groups}</div>`;
     }
 
     function transitionSection(v, clip, info) {
         const current = clip.transition && clip.transition.type || 'none';
-        const next = info && info.next;
-        const rate = Time().rate(v.project), step = Math.max(1, Math.round(rate / 10)), longest = Math.round(rate * 3);
-        const maxFrames = next ? Math.max(step, Math.min(longest, Math.min(clip.duration, next.duration) - 1)) : longest;
-        const duration = clip.transition && clip.transition.duration || Math.min(Math.round(rate / 2), maxFrames);
-        const disabled = next ? '' : 'disabled';
-        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${transitionButtons(v, current, disabled)}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${step}" max="${maxFrames}" step="1" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
+        const next = info && info.next, length = transitionLength(v.project, clip, next);
+        return `<section class="vs-insp-section vs-tx-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-tx" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${transitionPicker(v, current, !next)}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="${length.step}" max="${length.max}" step="1" value="${Math.min(length.value, length.max)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(length.value, v.locale, v.project))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
     }
 
     function textSection(v, clip) {
@@ -335,5 +352,5 @@
         host.innerHTML = `<div class="vs-insp-head"><span class="vs-insp-thumb vs-kind-${v.esc(kind)}"${thumb}>${thumb ? '' : v.icon(icon, 18)}</span><div class="vs-insp-title"><strong title="${v.esc(title)} · ${v.esc(track.name)}">${v.esc(title)}</strong><span class="vs-insp-meta"><small title="${v.esc(track.name)}">${v.esc(formatTime(clip.start, v.project))} – ${v.esc(formatTime(clip.start + clip.duration, v.project))}</small><span class="vs-insp-actions"><button type="button" class="vs-icon-button" data-action="clip-split" title="${v.esc(v.tr('splitHintShort', 'Split at the playhead (S)'))}" aria-label="${v.esc(v.tr('split', 'Split'))}">${v.icon('scissors', 16)}</button><button type="button" class="vs-icon-button" data-action="clip-duplicate" title="${v.esc(v.tr('duplicate', 'Duplicate'))}" aria-label="${v.esc(v.tr('duplicate', 'Duplicate'))}">${v.icon('copy', 16)}</button><button type="button" class="vs-icon-button vs-danger" data-action="clip-delete" title="${v.esc(v.tr('deleteHint', 'Delete (Del)'))}" aria-label="${v.esc(v.tr('delete', 'Delete'))}">${v.icon('trash', 16)}</button></span></span></div></div>${lock}${clip.text ? textSection(v, clip) : ''}${timeSection(v, clip, asset)}${clip.text ? '' : clipSection(v, clip, asset, track)}${visual ? pictureSection(v, clip) : ''}${visual && window.VideoStudioInspectorEffects ? window.VideoStudioInspectorEffects.section(v, clip, track) : ''}${animationSection(v, clip, asset, track, rampMuted)}${audioCapable ? soundSection(v, clip, rampMuted) : ''}${visual ? transitionSection(v, clip, v.transitionInfo) : ''}`;
     }
 
-    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins, animClampText };
+    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins, animClampText, transitionLength };
 })();

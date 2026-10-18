@@ -546,13 +546,15 @@
         // Typing in a title field or dragging a slider must not lose the control under the pointer or caret.
         const active = document.activeElement;
         if (selected && s.inspectorClipId === selected.clip.id && host.contains(active) && (active.matches('[data-text-field],[data-text-style]') || active._vsBefore)) { P.updateTextStatus(s); return; }
+        // The transition picker closes when another clip (or none) is shown (index §4.9).
+        if (s.inspectorClipId !== (selected ? selected.clip.id : '')) s.transitionPickerOpen = false;
         s.inspectorClipId = selected ? selected.clip.id : '';
         const focus = focusKey(s);
         const keyframes = P.keyframeView ? P.keyframeView(s) : null;
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
             locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: s.fineOpen == null ? !!(keyframes && keyframes.boxAnimated) : !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
-            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes, effects: P.effectView ? P.effectView(s) : null, cropMode: !!s.cropMode, maskMode: !!s.maskMode
+            summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }, libraryAsset: P.libraryAssetInfo(s), markers: s.project.markers || [], inOut: P.inOut(s), caps: P.clipCapabilities(s), keyframes, effects: P.effectView ? P.effectView(s) : null, cropMode: !!s.cropMode, maskMode: !!s.maskMode, transitionPickerOpen: !!s.transitionPickerOpen
         });
         restoreFocus(s, focus);
         P.updateTextStatus(s);
@@ -562,6 +564,14 @@
         if (s.readonly || selected && selected.track.locked) {
             s.q('[data-inspector]').querySelectorAll('input,select,textarea,button:not([data-marker-jump])').forEach(control => { control.disabled = true; });
         }
+    }
+    // The transition picker's open state is view state (s.transitionPickerOpen; no undo step). Opening moves focus to the
+    // pressed type; closing (a choice, Esc or the summary) returns it to the summary (index §4.9).
+    function setTransitionPicker(s, open) {
+        s.transitionPickerOpen = !!open;
+        renderInspector(s); syncInspectorLock(s);
+        const target = s.q(open ? '[data-tx-picker] [data-transition][aria-pressed="true"]' : '[data-inspector] [data-action="transition-picker"]');
+        if (target && !target.disabled) target.focus({ preventScroll: true });
     }
     function timelineOptions(s) {
         return {
@@ -720,7 +730,7 @@
         const fit = event.target.closest('[data-fit]');
         if (fit) { mutateSelected(s, 'fit', clip => { clip.fit = fit.dataset.fit === 'cover' ? 'cover' : 'contain'; }); return; }
         const transition = event.target.closest('[data-transition]');
-        if (transition) { const range = s.q('[data-transition-duration]'); applyTransition(s, transition.dataset.transition, range && !range.disabled ? Number(range.value) : Math.round(rateOf(s) / 2)); return; }
+        if (transition) { const range = s.q('[data-transition-duration]'), frames = range && !range.disabled ? Number(range.value) : Math.round(rateOf(s) / 2); applyTransition(s, transition.dataset.transition, frames); setTransitionPicker(s, false); return; }
         const align = event.target.closest('[data-text-align]');
         if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) P.markTextStale(s, s.selectedClipId); return; }
         const toggle = event.target.closest('[data-text-toggle]');
@@ -762,6 +772,7 @@
         else if (action === 'toggle-fine') { s.fineOpen = button.getAttribute('aria-expanded') !== 'true'; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
         else if (action === 'crop-mode') P.setCropMode(s, !s.cropMode);
         else if (action === 'mask-mode') P.setMaskMode(s, !s.maskMode);
+        else if (action === 'transition-picker') setTransitionPicker(s, !s.transitionPickerOpen);
         else if (action === 'fill-frame') { if (s.selectedClipId) P.applyEdit(s, 'fill', project => window.VideoStudioKeyframeEdit.setValues(project, s.selectedClipId, { x: 0, y: 0, width: 1, height: 1 }, s.frame)); }
         else if (action === 'clip-split' || action === 'clip-duplicate' || action === 'clip-delete') { if (s.selectedClipId) timelineAction(s, action.slice(5), s.selectedClipId); }
         else if (action.startsWith('clip-')) P.clipCommand(s, action.slice(5), button.dataset.value);
@@ -780,6 +791,8 @@
             if (s.markerPop && s.markerPop.el.isConnected) { P.closeMarkerPopover(s, true); event.preventDefault(); return; }
             if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
         }
+        // Escape in the open transition picker closes it before the narrow drawer (index §4.9).
+        if (event.key === 'Escape' && s.transitionPickerOpen && target.closest('[data-inspector]')) { setTransitionPicker(s, false); event.preventDefault(); return; }
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         // The range comparison: Escape closes it; plain keys on its own controls stay with them (video-studio-rangerender.js).
         if (P.handleRangeKeys && P.handleRangeKeys(s, event)) return;
@@ -829,7 +842,7 @@
         else if (event.key === '?') { event.preventDefault(); togglePopover(s, 'shortcuts'); }
     }
 
-    Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, previewScale, renderUI, renderInspector, syncInspectorLock, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
+    Object.assign(P, { dispose, layoutMarkup, appRender, initialize, disableWriteControls, loadProjects, loadProject, ensureTracks, createProject, createProjectPrompt, switchProject, renderEmptyProject, populateCanvas, renderToolbar, previewScale, renderUI, renderInspector, syncInspectorLock, setTransitionPicker, timelineOptions, addAssetToTrack, timelineAction, trackAction, addTrack, reorderTrack, handleInput, handleChange, handleClick, handleKeys });
 
     // The stage preview's current frame ({width, height, data}: top-down RGBA of rect in backing pixels) for smokes;
     // it reads only the app's own preview painter. null without a preview.

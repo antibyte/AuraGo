@@ -219,7 +219,7 @@
         const media = options.clipMedia && asset ? options.clipMedia(asset, clip, track, pps / fps, width) : '';
         const fadeIn = clip.fade_in ? `<span class="vs-fade vs-fade-in" style="width:${Math.max(2, clip.fade_in / fps * pps)}px"></span>` : '';
         const fadeOut = clip.fade_out ? `<span class="vs-fade vs-fade-out" style="width:${Math.max(2, clip.fade_out / fps * pps)}px"></span>` : '';
-        const transition = clip.transition && clip.transition.duration ? `<span class="vs-transition" style="width:${Math.max(4, clip.transition.duration / fps * pps)}px" title="${esc(label(options, clip.transition.type, clip.transition.type))}">${icon(options, 'transition', 12)}</span>` : '';
+        const transition = clip.transition && clip.transition.duration ? `<span class="vs-transition" style="width:${Math.max(4, clip.transition.duration / fps * pps)}px" title="${esc(label(options, (window.VideoStudioEffects.transition(clip.transition.type) || { label_key: clip.transition.type }).label_key, clip.transition.type))}">${icon(options, 'transition', 12)}</span>` : '';
         const kindIcon = kind === 'text' ? 'text' : kind === 'audio' ? 'audio' : kind === 'overlay' ? 'image' : 'video';
         const range = `${shortClock(clip.start, project)}–${shortClock(clip.start + clip.duration, project)}`;
         const speed = Number(clip.speed) > 0 ? Number(clip.speed) : 1;

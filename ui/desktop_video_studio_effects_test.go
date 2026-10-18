@@ -147,27 +147,17 @@ const server = JSON.parse(JSON.stringify(E.BUILTIN));
 server.transitions.push({id: 'swirl', xfade: 'swirl', category: 'shape', label_key: 'transition_swirl'});
 E.adopt(server, null);
 assert.equal(T.validTimeline(pair('swirl')), true, 'an adopted transition is accepted');
-// The inspector lists 'none' plus the registry; unavailable transitions are disabled with a title, except the current one.
+// The inspector shows the transition picker (2e, plan index §4.9): a collapsed summary with the current type. The open
+// panel, its groups, the unavailable rule and the icons are pinned by TestVideoStudioTransitionPicker
+// (desktop_video_studio_transitions_test.go).
+E.adopt(E.BUILTIN, {effects: [], transitions: [], blend_modes: [], anim_presets: []});
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
-const view = (current, unavailable, registry) => {
-  E.adopt(registry || E.BUILTIN, {effects: [], transitions: unavailable, blend_modes: [], anim_presets: []});
-  const project = pair(current), track = project.tracks[0], host = {innerHTML: ''};
-  I.render(host, {selected: {clip: track.clips[0], track}, asset: project.assets[0], project, locale: 'en', caps: {},
-    transitionInfo: {next: track.clips[1]}, esc, icon: () => '', tr: (key, fallback) => key === 'transitionUnavailable' ? 'UNAVAILABLE' : '[' + key + ']'});
-  return host.innerHTML;
-};
-const button = (html, id) => (html.match(new RegExp('<button[^>]*data-transition="' + id + '"[^>]*>')) || [''])[0];
-let html = view('dissolve', ['black']);
-assert.deepEqual(Array.from(html.matchAll(/data-transition="([a-z]+)"/g), m => m[1]), ['none'].concat(E.BUILTIN.transitions.map(spec => spec.id)), 'none plus the registry in menu order');
-assert(/ disabled/.test(button(html, 'black')) && button(html, 'black').includes('title="UNAVAILABLE"'), 'an unavailable transition is disabled with a title');
-assert(!/ disabled/.test(button(html, 'dissolve')) && button(html, 'dissolve').includes('aria-pressed="true"'));
-assert(!button(html, 'wipeleft').includes('title='), 'available transitions carry no title');
-assert(html.includes('<i class="vs-tx-wipeleft"></i><span>[wipeleft]</span>'), 'labels come from label_key, icons stay vs-tx-<id>');
-html = view('black', ['black']);
-assert(!/ disabled/.test(button(html, 'black')) && button(html, 'black').includes('aria-pressed="true"'), 'the current transition stays selectable even when unavailable');
-assert(button(html, 'black').includes('title="UNAVAILABLE"'));
-html = view('dissolve', [], server);
-assert(html.includes('<span>[transition_swirl]</span>'), 'a registry transition is labelled by its label_key');
+const shown = pair('wipeleft'), lane = shown.tracks[0], host = {innerHTML: ''};
+I.render(host, {selected: {clip: lane.clips[0], track: lane}, asset: shown.assets[0], project: shown, locale: 'en', caps: {},
+  transitionInfo: {next: lane.clips[1]}, esc, icon: () => '', tr: key => '[' + key + ']'});
+assert(/<button type="button" class="vs-tx-summary" data-action="transition-picker" aria-expanded="false"[^>]*>/.test(host.innerHTML), 'a collapsed picker summary');
+assert(host.innerHTML.includes('<span>[wipeleft]</span>'), 'the summary names the current type by its label_key');
+assert(!host.innerHTML.includes('data-transition="') && !host.innerHTML.includes('vs-transition-grid') && !host.innerHTML.includes('<i class="vs-tx-'), 'no 2a button grid and no CSS icons');
 console.log('ok');
 `)
 }
