@@ -1,8 +1,6 @@
 /* Density and light-theme adapters */
 .pw-page[data-workspace-page="dashboard"][data-theme="light"] .dash-card,
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-card,
-.pw-page[data-workspace-page="dashboard"][data-theme="light"] #card-agent-banner,
-.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) #card-agent-banner {
+.pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .dash-card {
     border-color: var(--pw-line-strong);
     background: var(--pw-surface);
     box-shadow: none;
@@ -11,29 +9,6 @@
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-card-body {
     padding: var(--pw-space-3);
 }
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] #card-agent-banner .dash-card-header,
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] #card-agent-banner .dash-card-body {
-    padding: var(--pw-space-2) var(--pw-space-3);
-}
-.pw-page[data-workspace-page="dashboard"] #card-agent-banner .dash-card-body {
-    padding: var(--pw-space-3) var(--pw-space-4);
-}
-.pw-page[data-workspace-page="dashboard"] #card-agent-banner .dash-card-header {
-    padding: var(--pw-space-2) var(--pw-space-4);
-    background: var(--pw-surface-elevated);
-    background-image: none;
-    color: var(--pw-muted);
-    font-size: var(--pw-meta-size);
-}
-.pw-page[data-workspace-page="dashboard"] #card-agent-banner {
-    min-height: 0;
-    border: 1px solid var(--pw-line);
-    border-radius: 14px;
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
-}
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .agent-banner,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .stats-grid,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .ops-grid,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .prompt-kpi-grid {
@@ -125,8 +100,6 @@
 to { transform: rotate(360deg); }
 
 }
-/* D-14/D-15: Unified breakpoint — 600px → 640px */
-
 /* ── Dashboard Layout ────────────────────────────────── */
 .pw-page[data-workspace-page="dashboard"] .dash-card {
     overflow: hidden;
@@ -957,8 +930,6 @@ to { transform: rotate(360deg); }
     gap: 0.6rem;
     flex-wrap: wrap;
 }
-/* D-14/D-15: Unified breakpoint — 900px → 1024px */
-
 /* ── Profile Table ───────────────────────────────────── */
 
 .pw-page[data-workspace-page="dashboard"] input:focus,
@@ -1241,8 +1212,7 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .ops-stat,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .prompt-kpi,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .activity-stat,
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .mem-stat,
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .qs-item {
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .mem-stat {
     padding: var(--pw-space-2);
 }
 .pw-page[data-workspace-page="dashboard"] .stat-item:hover,
@@ -1250,7 +1220,6 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"] .prompt-kpi:hover,
 .pw-page[data-workspace-page="dashboard"] .activity-stat:hover,
 .pw-page[data-workspace-page="dashboard"] .mem-stat:hover,
-.pw-page[data-workspace-page="dashboard"] .qs-item:hover,
 .pw-page[data-workspace-page="dashboard"] .budget-badge:hover,
 .pw-page[data-workspace-page="dashboard"] .tier-badge:hover,
 .pw-page[data-workspace-page="dashboard"] .profile-entry:hover,
@@ -1270,7 +1239,6 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"] .prompt-kpi,
 .pw-page[data-workspace-page="dashboard"] .activity-stat,
 .pw-page[data-workspace-page="dashboard"] .mem-stat,
-.pw-page[data-workspace-page="dashboard"] .qs-item,
 .pw-page[data-workspace-page="dashboard"] .budget-badge,
 .pw-page[data-workspace-page="dashboard"] .tier-badge,
 .pw-page[data-workspace-page="dashboard"] .profile-entry,
@@ -1575,12 +1543,6 @@ to { opacity: 1; }
 .pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-chart-wrap {
     height: 240px;
 }
-@media (max-width: 700px) {
-    .pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-details-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
 .pw-page[data-workspace-page="dashboard"] .prompt-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1874,10 +1836,6 @@ to { opacity: 1; }
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
-/* ── Responsive ──────────────────────────────────────── */
-
-/* D-14/D-15: Unified breakpoint — 900px → 1024px */
-
 /* ── Core-Facts Modal ───────────────────────────────── */
 
 .pw-page[data-workspace-page="dashboard"] .cf-overlay {
@@ -1995,8 +1953,6 @@ to { opacity: 1; }
     grid-template-columns: 1fr 1fr;
     gap: 0.6rem;
 }
-/* D-14/D-15: Unified breakpoint — 900px → 1024px */
-
 .pw-page[data-workspace-page="dashboard"] .gh-repo {
     padding: 0.7rem 0.9rem;
     transition: all 0.2s;
@@ -2175,15 +2131,6 @@ to { opacity: 1; }
     color: var(--pw-text);
     transform: translateY(-1px);
 }
-/* ── Agent Status Banner ─────────────────────────────── */
-
-.pw-page[data-workspace-page="dashboard"] .agent-banner {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--pw-space-3);
-    padding: 0;
-}
 .pw-page[data-workspace-page="dashboard"] .header-actions {
     display: inline-flex;
     align-items: center;
@@ -2197,34 +2144,6 @@ to { opacity: 1; }
 .pw-page[data-workspace-page="dashboard"] button.is-busy {
     opacity: 0.65;
     pointer-events: none;
-}
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    max-width: 100%;
-    white-space: nowrap;
-    transition: color 0.2s ease;
-    gap: var(--pw-space-2);
-    color: var(--pw-muted);
-    font-size: var(--pw-meta-size);
-}
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item strong,
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item > span:not(.status-dot):not(.dash-ic) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item strong {
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--pw-text);
-}
-.pw-page[data-workspace-page="dashboard"] .agent-banner-sep {
-    width: 1px;
-    flex-shrink: 0;
-    height: 1rem;
-    background: var(--pw-line);
 }
 .pw-page[data-workspace-page="dashboard"] .status-dot {
     width: 8px;
@@ -2295,8 +2214,6 @@ gray = hollow circle */
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.6rem;
 }
-/* D-14/D-15: Unified breakpoint — 900px → 1024px */
-
 .pw-page[data-workspace-page="dashboard"] .ops-stat {
     padding: 0.65rem 0.75rem;
     text-align: center;
@@ -2363,76 +2280,6 @@ gray = hollow circle */
     background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
     border-color: color-mix(in srgb, var(--pw-warning) 28%, transparent);
     color: var(--pw-warning);
-}
-/* ── Quick Status Card ───────────────────────────────── */
-
-.pw-page[data-workspace-page="dashboard"] .qs-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.55rem;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 0.6rem 0.85rem;
-    min-width: 76px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: default;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-icon {
-    font-size: 1.15rem;
-    line-height: 1;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-label {
-    font-size: 0.62rem;
-    color: var(--pw-muted);
-    margin-top: 0.15rem;
-    font-weight: 500;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-val {
-    font-size: var(--text-sm);
-    font-weight: 700;
-    margin-top: 0.15rem;
-    letter-spacing: -0.01em;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-info {
-    font-size: 0.6rem;
-    color: var(--pw-muted);
-    margin-top: 0.1rem;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.ok {
-    background: color-mix(in srgb, var(--pw-success) 10%, transparent);
-    border-color: color-mix(in srgb, var(--pw-success) 25%, transparent);
-    color: var(--pw-success);
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.ok .qs-label {
-    color: color-mix(in srgb, var(--pw-success) 70%, var(--pw-muted));
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.warning {
-    background: color-mix(in srgb, var(--pw-warning) 10%, transparent);
-    border-color: color-mix(in srgb, var(--pw-warning) 25%, transparent);
-    color: var(--pw-warning);
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.warning .qs-label {
-    color: color-mix(in srgb, var(--pw-warning) 70%, var(--pw-muted));
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.offline {
-    background: color-mix(in srgb, var(--pw-danger) 10%, transparent);
-    border-color: color-mix(in srgb, var(--pw-danger) 25%, transparent);
-    color: var(--pw-danger);
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.offline .qs-label {
-    color: color-mix(in srgb, var(--pw-danger) 70%, var(--pw-muted));
-}
-.pw-page[data-workspace-page="dashboard"] .qs-item.neutral {
-    background: color-mix(in srgb, var(--pw-muted) 6%, transparent);
-    color: var(--pw-text);
 }
 /* ── Collapsible Cards ───────────────────────────────── */
 
@@ -4474,8 +4321,6 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] #audit-empty {
     padding: 1rem 0;
 }
-/* D-14/D-15: Unified breakpoint — 1100px → 1024px */
-
 .pw-page[data-workspace-page="dashboard"] .w-pct-52 {
     width: 52%;
 }
@@ -5105,13 +4950,6 @@ gray = hollow circle */
     width: 1.2rem;
     height: 1.2rem;
 }
-/* Banner items — inline with text */
-
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item .dash-ic {
-    width: 1rem;
-    height: 1rem;
-    opacity: 0.8;
-}
 /* Empty state / error state icons */
 
 .pw-page[data-workspace-page="dashboard"] .dash-error-icon.dash-ic,
@@ -5128,10 +4966,6 @@ gray = hollow circle */
 /* Stat/ops grid icons */
 
 .pw-page[data-workspace-page="dashboard"] .ops-stat-icon .dash-ic {
-    width: 1.15rem;
-    height: 1.15rem;
-}
-.pw-page[data-workspace-page="dashboard"] .qs-icon .dash-ic {
     width: 1.15rem;
     height: 1.15rem;
 }
@@ -5234,24 +5068,6 @@ so no override needed */
 @media (max-width: 640px) {
 .pw-page[data-workspace-page="dashboard"] .pw-density-toggle span {
         display: none;
-    }
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item {
-        white-space: normal;
-        flex: 1 1 min(100%, 12rem);
-        min-width: 0;
-        overflow-wrap: anywhere;
-        min-height: 32px;
-        padding-inline: var(--pw-space-2);
-        border-right: 1px solid var(--pw-line);
-    }
-.pw-page[data-workspace-page="dashboard"] .agent-banner {
-        justify-content: flex-start;
-        gap: var(--pw-space-2);
-    }
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item strong,
-.pw-page[data-workspace-page="dashboard"] .agent-banner-item span {
-        min-width: 0;
-        overflow-wrap: anywhere;
     }
 .pw-page[data-workspace-page="dashboard"] .mood-trigger-text {
         white-space: normal;
@@ -5362,9 +5178,6 @@ so no override needed */
 .pw-page[data-workspace-page="dashboard"] .dash-card-body {
         padding: var(--pw-space-4);
     }
-.pw-page[data-workspace-page="dashboard"] .agent-banner-sep {
-        display: none;
-    }
 .pw-page[data-workspace-page="dashboard"] input,
 .pw-page[data-workspace-page="dashboard"] select,
 .pw-page[data-workspace-page="dashboard"] textarea,
@@ -5446,7 +5259,6 @@ so no override needed */
 .pw-page[data-workspace-page="dashboard"] .mood-badge,
 .pw-page[data-workspace-page="dashboard"] .mood-btn,
 .pw-page[data-workspace-page="dashboard"] .int-badge,
-.pw-page[data-workspace-page="dashboard"] .qs-item,
 .pw-page[data-workspace-page="dashboard"] .budget-badge,
 .pw-page[data-workspace-page="dashboard"] .tier-badge,
 .pw-page[data-workspace-page="dashboard"] .profile-entry,
@@ -5467,7 +5279,6 @@ so no override needed */
 .pw-page[data-workspace-page="dashboard"] .mood-badge:hover,
 .pw-page[data-workspace-page="dashboard"] .mood-btn:hover,
 .pw-page[data-workspace-page="dashboard"] .int-badge:hover,
-.pw-page[data-workspace-page="dashboard"] .qs-item:hover,
 .pw-page[data-workspace-page="dashboard"] .budget-badge:hover,
 .pw-page[data-workspace-page="dashboard"] .tier-badge:hover,
 .pw-page[data-workspace-page="dashboard"] .profile-entry:hover,
@@ -5680,6 +5491,9 @@ so no override needed */
 
 
 @media (max-width: 700px) {
+    .pw-page[data-workspace-page="dashboard"] #card-prompt .prompt-details-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 .pw-page[data-workspace-page="dashboard"] .fs-dash-grid {
         grid-template-columns: 1fr;
     }

@@ -323,28 +323,6 @@ html {
    DASHBOARD-EFFEKTE
    ══════════════════════════════════════════════════════════════ */
 
-/* Tab Active Glow */
-[data-theme="dark"] .dash-tab.active {
-    box-shadow: 
-        0 0 15px rgba(45, 212, 191, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="light"] .dash-tab.active {
-    box-shadow: 
-        0 0 15px rgba(13, 148, 136, 0.25);
-}
-
-/* Tab Panel Fade In */
-.dash-tab-panel {
-    animation: panelFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes panelFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 /* Stat Item Hover */
 .stat-item,
 .mem-stat,

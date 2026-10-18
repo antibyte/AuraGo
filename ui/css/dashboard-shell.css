@@ -391,24 +391,6 @@
     }
 }
 
-/* Phones: tighter frame, full-width section meta, 44px touch targets in compact density */
-@media (max-width: 640px) {
-    .pw-page[data-workspace-page="dashboard"] .dash-content {
-        padding: var(--pw-space-4) var(--pw-space-3) var(--pw-space-8);
-    }
-    .pw-page[data-workspace-page="dashboard"] .dash-section-meta {
-        width: 100%;
-        justify-content: space-between;
-    }
-    .pw-page[data-workspace-page="dashboard"] .dash-section-refresh {
-        width: 44px;
-        height: 44px;
-    }
-    .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-nav-link {
-        min-height: 44px;
-    }
-}
-
 /* ── P3: sidebar status block, badges, overview ("Lagebild") tiles and Customize ─────────────────────────── */
 
 /* Sidebar status block (every section): overall pill, agent busy/idle and SSE live dots; links to #overview */
@@ -879,8 +861,23 @@
     }
 }
 
-/* Phones: 44px touch targets for the header actions (the pinned 640px block above stays untouched) */
+/* Phones: tighter frame, full-width section meta and 44px touch targets (compact sidebar links, header actions).
+   The only 640px block, at the end of the file: its rules must follow the base rules they override. */
 @media (max-width: 640px) {
+    .pw-page[data-workspace-page="dashboard"] .dash-content {
+        padding: var(--pw-space-4) var(--pw-space-3) var(--pw-space-8);
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-section-meta {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-section-refresh {
+        width: 44px;
+        height: 44px;
+    }
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-nav-link {
+        min-height: 44px;
+    }
     .pw-page[data-workspace-page="dashboard"] .dash-section-action {
         min-height: 44px;
     }
