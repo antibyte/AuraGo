@@ -15,6 +15,8 @@
     --vs-accent-soft: var(--vd-theme-accent-soft, rgba(139, 124, 246, .16));
     --vs-accent-border: var(--vd-theme-accent-border, rgba(139, 124, 246, .4));
     --vs-accent-strong: color-mix(in srgb, var(--vs-accent) 74%, #000);
+    /* Hover fill of .vs-primary and .vs-play; a skin with a pale fixed accent overrides it (cyberpunk). */
+    --vs-accent-hover: color-mix(in srgb, var(--vs-accent) 84%, #000);
     --vs-shadow: var(--vd-theme-shadow-modal, 0 24px 70px rgba(0, 0, 0, .5));
     --vs-radius: var(--vd-theme-radius-panel, 10px);
     --vs-stage: #0b0d11;
@@ -83,7 +85,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     background: var(--vs-accent-strong); color: #fff; font-weight: 650;
     box-shadow: 0 1px 0 rgba(255, 255, 255, .14) inset, 0 4px 14px color-mix(in srgb, var(--vs-accent) 30%, transparent);
 }
-.vs-app .vs-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--vs-accent) 84%, #000); }
+.vs-app .vs-primary:hover:not(:disabled) { background: var(--vs-accent-hover); }
 .vs-icon-button, .vs-app .vs-transport button, .vs-import button, .vs-edit-tools button, .vs-timeline-tools button, .vs-modal-actions button, .vs-insp-actions button, .vs-chip-button, .vs-inline-field button, .vs-format, .vs-jobs-button, .vs-inspector-toggle, .vs-inspector-close {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     min-height: 32px; border: 1px solid var(--vs-border); border-radius: 8px;
@@ -362,7 +364,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-transport button { width: 36px; height: 36px; min-height: 0; padding: 0; border-color: transparent; background: transparent; }
 .vs-app .vs-transport button:hover { background: var(--vs-control-hover); }
 .vs-app .vs-transport .vs-play { width: 44px; height: 44px; margin: 0 6px; border-radius: 50%; background: var(--vs-accent-strong); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--vs-accent) 35%, transparent); }
-.vs-app .vs-transport .vs-play:hover { background: color-mix(in srgb, var(--vs-accent) 84%, #000); }
+.vs-app .vs-transport .vs-play:hover { background: var(--vs-accent-hover); }
 .vs-time { grid-column: 1; grid-row: 1; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; min-width: 0; overflow: hidden; font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
 .vs-time-current { font-size: 15px; font-weight: 650; color: var(--vs-text); }
 .vs-timecode { font-size: 12.5px; color: var(--vs-muted); }

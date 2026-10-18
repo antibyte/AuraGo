@@ -476,10 +476,10 @@
 .desktop-body[data-theme="cyberpunk"] .vd-icon.selected .vd-icon-label { border-color: var(--vd-accent); background: #000; color: var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-desktop-selection-marquee { border-color: rgba(0, 240, 255, 0.8); border-radius: 0; background: rgba(0, 240, 255, 0.12); box-shadow: none; }
 
-/* === App tokens: Video Studio paints white text on --vs-accent-strong (primary, play, toast action, range switch). Its
-   shared 74% mix of the yellow accent is only 2.4:1 under white; this 46% mix (#706A00) is 5.6:1. The hover fill of the
-   primary and play buttons mixes --vs-accent itself (app CSS) and stays pale. === */
-.desktop-body[data-theme="cyberpunk"] .vs-app { --vs-accent-strong: #706A00; }
+/* === App tokens: Video Studio paints white text on --vs-accent-strong (primary, play, toast action, range switch) and on
+   --vs-accent-hover (primary and play hover). Its shared mixes of the yellow accent are only 2.4:1 (74 %) and 1.9:1 (84 %)
+   under white; #706A00 is 5.6:1 and the hover #7A7400 is 4.9:1. Code Studio paints --cs-accent-contrast on the raw accent. === */
+.desktop-body[data-theme="cyberpunk"] .vs-app { --vs-accent-strong: #706A00; --vs-accent-hover: #7A7400; }
 
 /* === Keyboard focus: a yellow ring everywhere in the shell chrome (the per-component outline: none rules lose) === */
 .desktop-body[data-theme="cyberpunk"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-titlebar, .vd-window-menu-popover, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-toast, .vd-icons) :is(a, button, input, select, textarea, [tabindex]):focus-visible {
