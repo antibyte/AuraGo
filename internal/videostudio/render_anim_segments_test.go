@@ -115,8 +115,9 @@ func TestSegmentedRenderAnim(t *testing.T) {
 
 // Run with AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio -run '^TestAnimCostRecordOptIn$' -count=1 -v -timeout 45m.
 //
-// TestAnimCostRecordOptIn records what 2e animation and transitions add per 1080p frame (plan 2e Task 9, index §4.24).
-// It asserts nothing.
+// TestAnimCostRecordOptIn records what 2e animation and transitions add per 1080p frame (plan 2e Task 9, index §4.24),
+// and checks the transitions and blur_in against the spike's absolute figures (2e review I-1, recordS4Basis).
+// Everything except that last check is a record; the over-baseline figures below are not comparable with the spike.
 //   - Animations: one 50-frame 1920x1080 clip on a second video track over a full-frame video.
 //   - "inside" puts the preset's 25-frame in span on the measured frames 0–24.
 //   - "outside" puts its 25-frame out span on frames 25–49, so the measured frames are at rest but the chain carries
@@ -128,8 +129,9 @@ func TestSegmentedRenderAnim(t *testing.T) {
 //   - Each run is the fastest of three, at FFmpeg's default filter threads and at the export's threadLimit (4, as the
 //     spike measured).
 //
-// The verdict line compares blur_in inside its span at threadLimit with three times the spike's cascade: 28.1 ms per
-// frame on FFmpeg 6 and later (measured on 8.1.1), or 37.8 ms on 5.1.9.
+// The verdict line compares blur_in inside its span at threadLimit, over the no-animation render, with three times the
+// spike's cascade: 28.1 ms per frame on FFmpeg 6 and later (measured on 8.1.1), or 37.8 ms on 5.1.9. It is a log line.
+// The spike's figures are absolute, so the bound that counts is recordS4Basis (below), which fails the test.
 func TestAnimCostRecordOptIn(t *testing.T) {
 	if os.Getenv("AURAGO_VIDEO_STUDIO_BENCHMARK") != "1" {
 		t.Skip("set AURAGO_VIDEO_STUDIO_BENCHMARK=1 to record the 2e animation and transition costs")
@@ -235,5 +237,102 @@ func TestAnimCostRecordOptIn(t *testing.T) {
 		t.Logf("ABOVE THE BOUND: blur_in inside its span costs %.1f ms per frame at %d threads, more than 3 x %.1f ms = %.1f ms; stop and report", blurInside, threadLimit, spike, bound)
 	} else {
 		t.Logf("within the bound: blur_in inside its span costs %.1f ms per frame at %d threads (bound 3 x %.1f ms = %.1f ms)", blurInside, threadLimit, spike, bound)
+	}
+	recordS4Basis(t, ctx, ffmpeg, root, major)
+}
+
+// s4Spike are the spike's S4 and S5 figures (scratchpad p2espike sec_S4.sh and sec_S5.sh): wall ms per 1080p frame,
+// 100 frames, 4 filter threads, fastest of 3, process start and the lavfi sources included, FFmpeg 8.1.1 | 5.1.9. The
+// transitions ran as xfade on gbrap with every frame inside the transition (duration 4 s); blur_in is the cascade of two
+// maskedmerge stages and two gblurs (S5, only during the animation). The spike's baseline for the transitions was
+// 4.0 | 8.7 ms (a plain blend of the two sources).
+var s4Spike = []struct {
+	name        string
+	spike       [2]float64 // FFmpeg 6 and later (measured on 8.1.1), 5.1.9
+	transition  TransitionType
+	spikeFilter string // what the spike timed
+}{
+	{"dissolve", [2]float64{4.1, 10.4}, TransitionDissolve, "xfade fade"},
+	{"circleopen", [2]float64{13.1, 15.7}, "circleopen", "xfade circleopen"},
+	{"radial", [2]float64{14.8, 23.6}, "radial", "xfade radial"},
+	{"pixelize", [2]float64{10.0, 17.4}, "pixelize", "xfade pixelize"},
+	{"slideleft", [2]float64{6.9, 15.7}, "slideleft", "xfade slideleft"},
+	{"zoomin", [2]float64{10.1, 18.8}, "zoomin", "xfade zoomin"},
+	{"blur_in", [2]float64{28.1, 37.8}, "", "blur_in cascade"},
+}
+
+// recordS4Basis measures the six transitions of 2e that the spike timed (dissolve, circleopen, radial, pixelize,
+// slideleft, zoomin) and blur_in on the spike's own basis (2e review I-1; index §4.24 "within 3x the spike figures"), and
+// fails when an entry costs more than three times its spike figure.
+//   - Basis: absolute wall milliseconds per output frame, 1920x1080, 4 filter threads (the export's threadLimit), the
+//     fastest of five runs, process start included, over the frames of the transition or animation alone. This is the
+//     spike's S4 basis; the 25-frame over-baseline figures above are not.
+//   - A transition entry is one video track with two 150-frame clips overlapping by 100 frames (4 s, as the spike's
+//     xfade duration), timed over exactly those 100 frames. blur_in is one 150-frame clip with a 75-frame in-animation (the
+//     longest, 3 s), timed over those 75 frames.
+//   - The export path decodes its H.264 sources and composes through RGBA, which the spike's lavfi graphs do not: the
+//     "floor" is the same frames of one clip at rest on that path, logged beside each entry so the share of the pipeline
+//     is visible. The bound applies to the entry, not to its excess over the floor.
+func recordS4Basis(t *testing.T, ctx context.Context, ffmpeg, root string, major int) {
+	t.Helper()
+	const clipFrames, transitionFrames, animFrames, runs = 150, 100, 75, 5
+	column := 0
+	if major > 0 && major < 6 {
+		column = 1
+	}
+	paths := map[string]string{"s4a": filepath.Join(root, "s4a.mp4"), "s4b": filepath.Join(root, "s4b.mp4")}
+	makeLavfiVideoFixture(t, ctx, ffmpeg, paths["s4a"], "testsrc2=s=1920x1080:r=25:d=6")
+	makeLavfiVideoFixture(t, ctx, ffmpeg, paths["s4b"], "rgbtestsrc=s=1920x1080:r=25:d=6")
+	base := Project{Version: CurrentVersion, Name: "S4 basis", Width: 1920, Height: 1080, FPS: 25}
+	rate := ProjectRate(base)
+	for _, id := range []string{"s4a", "s4b"} {
+		asset, err := Probe(ctx, ffmpeg, paths[id])
+		if err != nil {
+			t.Fatalf("Probe(%s): %v", id, err)
+		}
+		asset.ID = id
+		base.Assets = append(base.Assets, AssetAtRate(asset, rate))
+	}
+	clip := func(id, asset string, start int) Clip {
+		return Clip{ID: id, AssetID: asset, Start: start, Duration: clipFrames, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}
+	}
+	build := func(name string, clips ...Clip) Project {
+		p := base
+		p.Name = name
+		p.Tracks = []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: clips}}
+		if err := Validate(p); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return p
+	}
+	cost := func(p Project, seg Segment) float64 {
+		return float64(segmentCost(t, ctx, ffmpeg, p, paths, seg, threadLimit, runs)) / float64(time.Millisecond) / float64(seg.End-seg.Start)
+	}
+	// One clip at rest: the export path's floor, over the same number of frames.
+	rest := build("S4 floor", clip("a", "s4a", 0))
+	transitionFloor := cost(rest, Segment{Start: clipFrames - transitionFrames, End: clipFrames})
+	animFloor := cost(rest, Segment{Start: 0, End: animFrames})
+	for _, entry := range s4Spike {
+		var value, floor float64
+		var frames int
+		if entry.transition != "" {
+			// a plays [0, 150) and b [50, 200); the transition covers [50, 150).
+			a, b := clip("a", "s4a", 0), clip("b", "s4b", clipFrames-transitionFrames)
+			a.Transition = &Transition{Type: entry.transition, Duration: transitionFrames}
+			frames, floor = transitionFrames, transitionFloor
+			value = cost(build("S4 "+entry.name, a, b), Segment{Start: clipFrames - transitionFrames, End: clipFrames})
+		} else {
+			a := clip("a", "s4a", 0)
+			a.AnimIn = &ClipAnim{Preset: entry.name, Duration: animFrames}
+			frames, floor = animFrames, animFloor
+			value = cost(build("S4 "+entry.name, a), Segment{Start: 0, End: animFrames})
+		}
+		spike := entry.spike[column]
+		ratio := value / spike
+		t.Logf("FFmpeg %d, S4 basis (absolute wall ms per output frame, 1920x1080, %d filter threads, fastest of %d, over %d frames): %s %.1f ms; spike %s %.1f ms; ratio %.2f (bound 3); floor, one clip at rest over the same frames, %.1f ms",
+			major, threadLimit, runs, frames, entry.name, value, entry.spikeFilter, spike, ratio, floor)
+		if ratio > 3 {
+			t.Errorf("S4 basis: %s costs %.1f ms per frame, %.2f x the spike's %.1f ms (%s) on FFmpeg %d; the bound is 3 x", entry.name, value, ratio, spike, entry.spikeFilter, major)
+		}
 	}
 }

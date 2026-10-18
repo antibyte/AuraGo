@@ -19,8 +19,11 @@ type RuntimeStatus struct {
 	FFprobePath string `json:"ffprobe_path,omitempty"`
 	Version     string `json:"version,omitempty"`
 	Error       string `json:"error,omitempty"`
-	// Missing lists the optional phase 2 capabilities a ready binary lacks (ProbeCapabilities entries).
+	// Missing lists the optional phase 2 capabilities a ready binary lacks (ProbeCapabilities entries). When the probe
+	// failed it holds "xfade:fadegrays" alone (see ProbeError).
 	Missing []string `json:"missing,omitempty"`
+	// ProbeError is the error of a capability probe that did not finish (a ready binary only); empty when it did.
+	ProbeError string `json:"probe_error,omitempty"`
 }
 
 // CheckRuntime resolves FFmpeg and its adjacent FFprobe binary and checks that
@@ -70,8 +73,15 @@ func CheckRuntime(ctx context.Context, path string) RuntimeStatus {
 	}
 	status.Ready = true
 	// Phase 2 filters are optional: a missing one makes the features that need it unavailable, not the runtime. A
-	// probe that fails leaves Missing empty; renders then report FFmpeg's own error.
-	if missing, err := ProbeCapabilities(ctx, ffmpeg); err == nil && len(missing) > 0 {
+	// probe that fails (a context that ends inside the fadegrays self-test, a listing that does not run) is kept in
+	// ProbeError and reports only what FFmpeg would get wrong without an error as missing: an unverifiable fadegrays
+	// stays greyed. Renders report FFmpeg's own error for everything else.
+	missing, err := ProbeCapabilities(ctx, ffmpeg)
+	if err != nil {
+		status.ProbeError = err.Error()
+		missing = unverifiedMissing()
+	}
+	if len(missing) > 0 {
 		status.Missing = missing
 	}
 	return status

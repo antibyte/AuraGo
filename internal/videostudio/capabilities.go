@@ -133,6 +133,27 @@ func ProbeCapabilities(ctx context.Context, ffmpegPath string) ([]string, error)
 	return slices.Clone(missing), nil
 }
 
+// unverifiedCapabilities are the entries a probe that did not finish cannot vouch for (index §4.3, fadegrays gate). Only
+// the fadegrays self-test qualifies: FFmpeg 5.1 renders fadegrays wrongly without any error, so nothing downstream would
+// catch it. Every other capability fails loudly inside FFmpeg, and a failed probe keeps leaving those to FFmpeg itself.
+var unverifiedCapabilities = []string{"xfade:fadegrays"}
+
+// unverifiedMissing returns unverifiedCapabilities as a probe result: what CheckRuntime reports as missing, and what
+// the status greys out, when the probe failed.
+func unverifiedMissing() []string { return slices.Clone(unverifiedCapabilities) }
+
+// checkProjectUnverified fails closed for a project that needs an unverifiedCapabilities entry when probeErr stopped
+// the probe (fail closed for that item only; every other project keeps today's behaviour). The error wraps probeErr and
+// the *CapabilityError, so errors.Is(err, context.Canceled), ErrFeatureUnavailable and errors.As(*CapabilityError)
+// all hold. It is nil when the project plays no such feature (hidden track, disabled clip, no transition).
+func checkProjectUnverified(project Project, probeErr error) error {
+	capability := CheckProjectCapabilities(project, unverifiedCapabilities)
+	if capability == nil {
+		return nil
+	}
+	return fmt.Errorf("FFmpeg's capability probe did not finish, so the project's feature cannot be verified: %w; %w", probeErr, capability)
+}
+
 // capabilityFilters lists phase2Filters, then every filter an EffectSpec needs, then (2e) every filter an AnimPresetSpec
 // needs, each once.
 func capabilityFilters() []string {

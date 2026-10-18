@@ -179,12 +179,20 @@ func TestSegmentedRenderCompositing(t *testing.T) {
 // measured; threadLimit is the export's setting.
 func compositingCost(t *testing.T, ctx context.Context, ffmpeg string, project Project, paths map[string]string, frames, threads int) time.Duration {
 	t.Helper()
+	return segmentCost(t, ctx, ffmpeg, project, paths, Segment{Start: 0, End: frames}, threads, 3)
+}
+
+// segmentCost is compositingCost for any segment and number of runs: it returns the fastest of runs wall times of
+// seg.End-seg.Start frames (process start included, as the spike's S4 timings do).
+func segmentCost(t *testing.T, ctx context.Context, ffmpeg string, project Project, paths map[string]string, seg Segment, threads, runs int) time.Duration {
+	t.Helper()
+	frames := seg.End - seg.Start
 	sources, err := collectRenderSources(ctx, ffmpeg, project, paths)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rate := ProjectRate(project)
-	inputs, graph, files, err := buildVideoSegmentWith(project, Segment{Start: 0, End: frames}, sources, rate, videoTail{width: project.Width, height: project.Height, rgb: true})
+	inputs, graph, files, err := buildVideoSegmentWith(project, seg, sources, rate, videoTail{width: project.Width, height: project.Height, rgb: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +209,7 @@ func compositingCost(t *testing.T, ctx context.Context, ffmpeg string, project P
 	}
 	args = append(args, "-filter_complex_script", graphPath, "-map", "[vs_video_out]", "-frames:v", strconv.Itoa(frames), "-f", "null", "-")
 	best := time.Duration(math.MaxInt64)
-	for range 3 {
+	for range runs {
 		started := time.Now()
 		if err := runFFmpegIn(ctx, workDir, ffmpeg, args, rate.Seconds(frames), nil, inputPaths(inputs), filepath.Join(root, "null-output")); err != nil {
 			t.Fatalf("cost run of %q: %v", project.Name, err)

@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"math"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // spikePair is the spike's structured pair SA/SB (p2espike head.sh) as gbrp frames, plane order g, b, r:
@@ -207,5 +209,138 @@ func TestFadegraysSelfTestOnInstalledFFmpeg(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(missing, ","), "xfade:fadegrays") && !ok {
 		t.Fatal("a failed self-test must report xfade:fadegrays")
+	}
+}
+
+// fadegraysRenderOptions is a render of capabilityTestProject(kind) that never reaches a real source: the asset path
+// does not exist.
+func fadegraysRenderOptions(t *testing.T, ffmpeg string, project Project) RenderOptions {
+	t.Helper()
+	return RenderOptions{
+		FFmpegPath: ffmpeg,
+		Project:    project,
+		AssetPaths: map[string]string{"video": filepath.Join(t.TempDir(), "never-read.mp4")},
+		Output:     filepath.Join(t.TempDir(), "out.mp4"),
+	}
+}
+
+// The fadegrays gate must not fail open (2e review I-2, index §4.3). FFmpeg 5.1 renders fadegrays wrongly without an
+// error, so a probe that ends before the self-test finishes (a loaded host, a short render deadline) cannot let the
+// export through:
+//   - a render deadline that ends inside the self-test refuses a project with an effective fadegrays transition with an
+//     error that wraps the probe error and is a *CapabilityError (ErrFeatureUnavailable);
+//   - a probe that fails for another reason does the same, with a live context;
+//   - every other project keeps today's behaviour: a dissolve project, and fadegrays that does not play (disabled
+//     incoming clip, hidden track), go on past the gate.
+func TestRenderFadegraysFailsClosedWhenTheProbeEnds(t *testing.T) {
+	fadegrays := TransitionType("fadegrays")
+	notPlaying := map[string]func(*Project){
+		"a disabled incoming clip": func(p *Project) { p.Tracks[0].Clips[1].Disabled = true },
+		"a hidden track":           func(p *Project) { p.Tracks[0].Hidden = true },
+	}
+	probeFailure := errors.New("ffmpeg crashed while listing filters")
+	scenarios := []struct {
+		name string
+		// live is true when the render context is still alive after the probe failed, so a project that passes the gate
+		// goes on to its sources.
+		live bool
+		// setup installs the fake FFmpeg and returns it with the render context and the probe error to find.
+		setup func(t *testing.T) (ffmpeg string, ctx context.Context, probe error)
+	}{
+		{"the self-test outlasts the render deadline", false, func(t *testing.T) (string, context.Context, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			t.Cleanup(cancel)
+			path, _ := fakeFadegraysRenders(t, func(int) ([]byte, error) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			})
+			return path, ctx, context.DeadlineExceeded
+		}},
+		{"the filter listing fails", true, func(t *testing.T) (string, context.Context, error) {
+			path, _ := fakeFadegraysRenders(t, func(int) ([]byte, error) {
+				_, _, want := fadegraysSelfTestCase()
+				return want, nil
+			})
+			fake := capabilityCommand
+			capabilityCommand = func(ctx context.Context, ffmpeg string, args ...string) ([]byte, error) {
+				if slices.Contains(args, "-filters") {
+					return nil, probeFailure
+				}
+				return fake(ctx, ffmpeg, args...)
+			}
+			t.Cleanup(func() { capabilityCommand = fake })
+			return path, context.Background(), probeFailure
+		}},
+	}
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			ffmpeg, ctx, probe := scenario.setup(t)
+			err := RenderWithOptions(ctx, fadegraysRenderOptions(t, ffmpeg, capabilityTestProject(fadegrays)))
+			var capability *CapabilityError
+			if err == nil || !errors.Is(err, probe) || !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) ||
+				capability.Feature != "transition:fadegrays" || capability.Missing != "xfade:fadegrays" {
+				t.Fatalf("a fadegrays render with a failed probe = %v; want the probe error %v wrapped in a transition:fadegrays CapabilityError", err, probe)
+			}
+
+			// The same failed probe does not touch any other project.
+			others := map[string]Project{"a dissolve project": capabilityTestProject(TransitionDissolve)}
+			for name, edit := range notPlaying {
+				project := capabilityTestProject(fadegrays)
+				edit(&project)
+				others["fadegrays that does not play: "+name] = project
+			}
+			for name, project := range others {
+				err := RenderWithOptions(ctx, fadegraysRenderOptions(t, ffmpeg, project))
+				if errors.Is(err, ErrFeatureUnavailable) {
+					t.Fatalf("%s: refused by the capability gate: %v", name, err)
+				}
+				// Past the gate the fake binary and the missing source are what fail: the staging check, or the first
+				// segment (a hidden track renders black without a source).
+				if scenario.live && (err == nil || errors.Is(err, probe) ||
+					!strings.Contains(err.Error(), "not a private staged file") && !strings.Contains(err.Error(), "start FFmpeg")) {
+					t.Fatalf("%s: = %v; want it to go on past the gate and fail on the fake binary or the missing source", name, err)
+				}
+			}
+		})
+	}
+}
+
+// CheckRuntime reports an unverifiable fadegrays as missing (2e review I-2): a probe context that ends inside the
+// self-test keeps the runtime ready, greys exactly fadegrays through Registry.Unavailable, and does not hide the probe
+// error. The next status with a live context reports the real result (the failed probe is not memoized). FFmpeg-gated.
+func TestCheckRuntimeReportsFadegraysMissingWhenTheProbeEnds(t *testing.T) {
+	ffmpeg := requireFFmpeg(t)
+	resetCapabilityMemo()
+	t.Cleanup(resetCapabilityMemo)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	real := capabilityCommand
+	capabilityCommand = func(ctx context.Context, binary string, args ...string) ([]byte, error) {
+		if slices.Contains(args, fadegraysSelfTestFilter) {
+			cancel()
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return real(ctx, binary, args...)
+	}
+	t.Cleanup(func() { capabilityCommand = real })
+
+	status := CheckRuntime(ctx, ffmpeg)
+	if !status.Ready || !slices.Equal(status.Missing, []string{"xfade:fadegrays"}) || !strings.Contains(status.ProbeError, "fadegrays self-test") ||
+		!strings.Contains(status.ProbeError, context.Canceled.Error()) {
+		t.Fatalf("CheckRuntime() with an ending probe = %+v; want a ready runtime, Missing [xfade:fadegrays] and the probe error", status)
+	}
+	if set := EffectRegistry().Unavailable(status.Missing); !slices.Equal(set.Transitions, []string{"fadegrays"}) ||
+		len(set.Effects)+len(set.BlendModes)+len(set.AnimPresets) != 0 {
+		t.Fatalf("Unavailable(%v) = %+v; want exactly the fadegrays transition", status.Missing, set)
+	}
+
+	capabilityCommand = real
+	want, err := ProbeCapabilities(context.Background(), ffmpeg)
+	if err != nil {
+		t.Fatalf("ProbeCapabilities: %v", err)
+	}
+	if again := CheckRuntime(context.Background(), ffmpeg); again.ProbeError != "" || !again.Ready || !slices.Equal(again.Missing, want) {
+		t.Fatalf("CheckRuntime() after the ended probe = %+v; want Missing %v and no probe error", again, want)
 	}
 }

@@ -118,11 +118,14 @@ func renderOnce(ctx context.Context, opts RenderOptions) error {
 		return err
 	}
 	// A project that needs a filter or xfade transition this FFmpeg lacks fails here, before any staging. A probe that
-	// cannot run leaves the check to FFmpeg itself.
+	// cannot run leaves the check to FFmpeg itself, except for a feature FFmpeg gets wrong without an error: a fadegrays
+	// transition is refused then, because its self-test could not run (index §4.3).
 	if missing, probeErr := ProbeCapabilities(ctx, ffmpeg); probeErr == nil {
 		if err := CheckProjectCapabilities(project, missing); err != nil {
 			return err
 		}
+	} else if err := checkProjectUnverified(project, probeErr); err != nil {
+		return err
 	}
 	outputPath, err := validateRenderOutput(opts.Output)
 	if err != nil {
