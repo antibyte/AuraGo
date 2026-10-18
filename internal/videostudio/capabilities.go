@@ -62,8 +62,13 @@ var capabilityCommand = func(ctx context.Context, ffmpeg string, args ...string)
 }
 
 // ProbeCapabilities lists what the binary lacks: "filter:<name>" for phase 2 filters missing from `-filters`, and
-// "xfade:<name>" for registry transitions missing from `-h filter=xfade`. The result is memoized per resolved binary
-// path, size and modification time. Entries follow capabilityFilters order, then registry transition order.
+// "xfade:<name>" for registry transitions missing from `-h filter=xfade`.
+//
+// A listed fadegrays must also pass fadegraysSelfTest (plan 2e D2): FFmpeg 5.1's fadegrays is wrong and
+// thread-dependent, so a failed self-test reports "xfade:fadegrays" too.
+//
+// The result is memoized per resolved binary path, size and modification time, the self-test with it (two tiny
+// renders per binary). Entries follow capabilityFilters order, then registry transition order.
 func ProbeCapabilities(ctx context.Context, ffmpegPath string) ([]string, error) {
 	ffmpeg, err := resolveBinary(ffmpegPath, "ffmpeg")
 	if err != nil {
@@ -101,6 +106,15 @@ func ProbeCapabilities(ctx context.Context, ffmpegPath string) ([]string, error)
 			return nil, fmt.Errorf("read FFmpeg xfade help: %w", err)
 		}
 		transitions = xfadeTransitionNames(string(help))
+		if transitions["fadegrays"] {
+			ok, err := fadegraysSelfTest(probeCtx, ffmpeg)
+			if err != nil {
+				return nil, fmt.Errorf("run the fadegrays self-test: %w", err)
+			}
+			if !ok {
+				delete(transitions, "fadegrays")
+			}
+		}
 	}
 	reported := map[string]bool{}
 	for _, spec := range registryTransitions {

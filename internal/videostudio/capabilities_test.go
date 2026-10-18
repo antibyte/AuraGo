@@ -56,7 +56,9 @@ func registryXFadeNames(except string) []string {
 }
 
 // fakeCapabilityFFmpeg replaces the FFmpeg queries of ProbeCapabilities with fixed outputs and counts them. The
-// returned path is a regular file, which is all resolveBinary and the memo key need; it is never run.
+// returned path is a regular file, which is all resolveBinary and the memo key need; it is never run. The fadegrays
+// self-test (plan 2e D2) renders exactly what fadegraysModel predicts, so a listed fadegrays stays available and a probe
+// that lists it costs two more commands.
 func fakeCapabilityFFmpeg(t *testing.T, filters, help string) (string, *int) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "ffmpeg")
@@ -75,6 +77,10 @@ func fakeCapabilityFFmpeg(t *testing.T, filters, help string) (string, *int) {
 			return []byte(filters), nil
 		case "-hide_banner -h filter=xfade":
 			return []byte(help), nil
+		}
+		if slices.Contains(args, fadegraysSelfTestFilter) {
+			_, _, want := fadegraysSelfTestCase()
+			return want, nil
 		}
 		return nil, fmt.Errorf("unexpected arguments %q", args)
 	}
@@ -193,6 +199,15 @@ func TestRegistryUnavailableMapsMissingFeatures(t *testing.T) {
 	if !slices.Equal(set.BlendModes, wantModes) || set.AnimPresets == nil {
 		t.Fatalf("unavailable blend modes = %v (want %v), animation presets = %v", set.BlendModes, wantModes, set.AnimPresets)
 	}
+	// A failed fadegrays self-test (plan 2e D2) greys out exactly that type; the export refuses it by the transition rule.
+	if got := registry.Unavailable([]string{"xfade:fadegrays"}).Transitions; !slices.Equal(got, []string{"fadegrays"}) {
+		t.Fatalf("xfade:fadegrays greys out %v, want [fadegrays]", got)
+	}
+	err = CheckProjectCapabilities(capabilityTestProject("fadegrays"), []string{"xfade:fadegrays"})
+	var capability *CapabilityError
+	if !errors.As(err, &capability) || capability.Feature != "transition:fadegrays" || capability.Missing != "xfade:fadegrays" {
+		t.Fatalf("a fadegrays transition without xfade:fadegrays = %v", err)
+	}
 }
 
 func TestCheckProjectCapabilitiesRefusesMissingTransition(t *testing.T) {
@@ -223,20 +238,21 @@ func TestCheckProjectCapabilitiesRefusesMissingTransition(t *testing.T) {
 func TestProbeCapabilitiesMemoizedPerBinary(t *testing.T) {
 	ctx := context.Background()
 	path, calls := fakeCapabilityFFmpeg(t, filterListing(append(capabilityFilters(), "xfade")...), xfadeHelp(registryXFadeNames("fadeblack")...))
+	// -filters, -h filter=xfade and the two fadegrays self-test renders (plan 2e D2).
 	missing, err := ProbeCapabilities(ctx, path)
-	if err != nil || !slices.Equal(missing, []string{"xfade:fadeblack"}) || *calls != 2 {
+	if err != nil || !slices.Equal(missing, []string{"xfade:fadeblack"}) || *calls != 4 {
 		t.Fatalf("first probe = %v, %v after %d commands", missing, err, *calls)
 	}
 	missing[0] = "changed by the caller"
 	again, err := ProbeCapabilities(ctx, path)
-	if err != nil || !slices.Equal(again, []string{"xfade:fadeblack"}) || *calls != 2 {
+	if err != nil || !slices.Equal(again, []string{"xfade:fadeblack"}) || *calls != 4 {
 		t.Fatalf("second probe = %v, %v after %d commands; want the memoized result", again, err, *calls)
 	}
-	// A replaced binary (another size) is probed again.
+	// A replaced binary (another size) is probed again, the self-test included.
 	if err := os.WriteFile(path, []byte("a newer fake ffmpeg"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ProbeCapabilities(ctx, path); err != nil || *calls != 4 {
+	if _, err := ProbeCapabilities(ctx, path); err != nil || *calls != 8 {
 		t.Fatalf("probe after the binary changed: %v after %d commands", err, *calls)
 	}
 }
@@ -278,15 +294,29 @@ func TestRenderRefusesMissingCapabilityBeforeStaging(t *testing.T) {
 	}
 }
 
+// The installed FFmpeg lacks nothing phase 2 needs. Exception: where the fadegrays self-test fails (FFmpeg 5.1, plan 2e
+// D2), exactly xfade:fadegrays is missing.
 func TestProbeCapabilitiesLocalFFmpegMissesNothing(t *testing.T) {
 	ffmpeg := requireFFmpeg(t)
 	resetCapabilityMemo()
-	missing, err := ProbeCapabilities(context.Background(), ffmpeg)
-	if err != nil || len(missing) != 0 {
-		t.Fatalf("ProbeCapabilities(%s) = %v, %v; want nothing missing", ffmpeg, missing, err)
+	ctx := context.Background()
+	missing, err := ProbeCapabilities(ctx, ffmpeg)
+	if err != nil {
+		t.Fatalf("ProbeCapabilities(%s): %v", ffmpeg, err)
 	}
-	if status := CheckRuntime(context.Background(), ffmpeg); !status.Ready || len(status.Missing) != 0 {
-		t.Fatalf("CheckRuntime() = %+v", status)
+	fadegrays, err := fadegraysSelfTest(ctx, ffmpeg)
+	if err != nil {
+		t.Fatalf("fadegraysSelfTest(%s): %v", ffmpeg, err)
+	}
+	want := []string{}
+	if !fadegrays {
+		want = []string{"xfade:fadegrays"}
+	}
+	if !slices.Equal(missing, want) {
+		t.Fatalf("ProbeCapabilities(%s) = %v; want %v (the fadegrays self-test passed: %t)", ffmpeg, missing, want, fadegrays)
+	}
+	if status := CheckRuntime(ctx, ffmpeg); !status.Ready || !slices.Equal(status.Missing, want) {
+		t.Fatalf("CheckRuntime() = %+v, want Missing %v", status, want)
 	}
 }
 

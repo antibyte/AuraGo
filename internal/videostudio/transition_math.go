@@ -1,6 +1,12 @@
 package videostudio
 
-import "math"
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"math"
+	"strconv"
+)
 
 // Shared per-frame transition parameters (plan 2e decision D1, index §4.24).
 //
@@ -121,4 +127,111 @@ func smoothstep32(edge0, edge1, x float32) float32 {
 // mix32 is xfade's mix(a, b, m) = a·m + b·(1 − m) in float32; m weighs the first input.
 func mix32(a, b, m float32) float32 {
 	return float32(float32(a*m) + float32(b*float32(1-m)))
+}
+
+// The fadegrays self-test (plan 2e D2, index §4.3).
+//   - Size: 64×36.
+//   - D = 5 overlap frames at 25 fps (0.2 s).
+//   - Every P of D = 5 gives the same v = ss(0.2, 1, P) whether FFmpeg subtracts the edge as 0.2f or as the double 0.2,
+//     so the gate does not depend on that rounding.
+//   - Output: 5 × 3 × 64 × 36 = 34 560 bytes.
+const (
+	fadegraysProbeWidth  = 64
+	fadegraysProbeHeight = 36
+	fadegraysProbeFrames = 5
+	// fadegraysSelfTestFilter is the self-test graph. Its duration is fadegraysProbeFrames at 25 fps.
+	fadegraysSelfTestFilter = "[0:v][1:v]xfade=transition=fadegrays:duration=0.2:offset=0"
+)
+
+// fadegraysProbePlanes are the self-test inputs: per picture the g, b and r planes as (ax·x + ay·y + a0) mod 256.
+// geq evaluates these integer expressions exactly, so Go knows every input byte.
+var fadegraysProbePlanes = [2][3][3]int{
+	{{3, 5, 0}, {7, 13, 40}, {11, 2, 90}},   // outgoing
+	{{5, 3, 128}, {13, 7, 7}, {2, 11, 200}}, // incoming
+}
+
+// fadegraysModel renders xfade fadegrays between two gbrp frames a and b at every overlap frame of D. Each frame holds
+// 3·width·height bytes in the planes g, b, r. The result is float32-exact (index §4.24; spike 2026-10-18: bit-exact
+// against FFmpeg 8.1.1). Per plane:
+//
+//	out = trunc(mix(mix(A, gA, u), mix(gB, B, v), P))
+//
+// gA = trunc((G + B + R)/3) of the outgoing pixel, and gB the same of the incoming one. P, u and v come from
+// transitionFrameAt. The result is D frames, or nil for a malformed input. The export's alpha plane, where the grey is
+// the pixel's own alpha, is not modelled here.
+func fadegraysModel(a, b []byte, width, height, D int) [][]byte {
+	n := width * height
+	if width <= 0 || height <= 0 || D <= 0 || len(a) != 3*n || len(b) != 3*n {
+		return nil
+	}
+	grayA, grayB := make([]float32, n), make([]float32, n)
+	for i := 0; i < n; i++ {
+		grayA[i] = float32((int(a[i]) + int(a[n+i]) + int(a[2*n+i])) / 3)
+		grayB[i] = float32((int(b[i]) + int(b[n+i]) + int(b[2*n+i])) / 3)
+	}
+	frames := make([][]byte, D)
+	for k := range frames {
+		f := transitionFrameAt("fadegrays", k, D, width, height)
+		out := make([]byte, 3*n)
+		for p := 0; p < 3; p++ {
+			for i := 0; i < n; i++ {
+				inner1 := mix32(float32(a[p*n+i]), grayA[i], f.U)
+				inner2 := mix32(grayB[i], float32(b[p*n+i]), f.V)
+				out[p*n+i] = uint8(min(255, int(mix32(inner1, inner2, f.P))))
+			}
+		}
+		frames[k] = out
+	}
+	return frames
+}
+
+// fadegraysSelfTestCase returns the self-test's two lavfi sources and the bytes FFmpeg must write for them: the D
+// frames of fadegraysModel, concatenated. The sources hold only Go-written integers.
+func fadegraysSelfTestCase() (sourceA, sourceB string, want []byte) {
+	w, h := fadegraysProbeWidth, fadegraysProbeHeight
+	var frames [2][]byte
+	var sources [2]string
+	for n, planes := range fadegraysProbePlanes {
+		frame := make([]byte, 3*w*h)
+		var exprs [3]string
+		for p, c := range planes {
+			exprs[p] = fmt.Sprintf("mod(%d*X+%d*Y+%d,256)", c[0], c[1], c[2])
+			for y := 0; y < h; y++ {
+				for x := 0; x < w; x++ {
+					frame[p*w*h+y*w+x] = byte((c[0]*x + c[1]*y + c[2]) % 256)
+				}
+			}
+		}
+		frames[n] = frame
+		sources[n] = fmt.Sprintf("nullsrc=s=%dx%d:r=25:d=0.2,format=gbrp,geq=g='%s':b='%s':r='%s'", w, h, exprs[0], exprs[1], exprs[2])
+	}
+	return sources[0], sources[1], bytes.Join(fadegraysModel(frames[0], frames[1], w, h, fadegraysProbeFrames), nil)
+}
+
+// fadegraysSelfTest renders the self-test case twice through capabilityCommand, with 4 filter threads, and compares
+// both runs with fadegraysModel (plan 2e D2). The spike of 2026-10-18 measured FFmpeg 5.1.9's fadegrays as wrong and
+// thread-dependent, and 8.1.1's as bit-exact. The output is bounded by commandOutputLimit.
+//
+// ok is false in three cases:
+//   - a run differs from the model;
+//   - the two runs differ from each other;
+//   - FFmpeg cannot run the test at all (a build without lavfi, nullsrc or geq): an unverifiable fadegrays stays
+//     unavailable.
+//
+// err is set only when ctx ends, so ProbeCapabilities does not memoize a probe that did not finish.
+func fadegraysSelfTest(ctx context.Context, ffmpeg string) (bool, error) {
+	sourceA, sourceB, want := fadegraysSelfTestCase()
+	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-filter_threads", "4", "-filter_complex_threads", "4",
+		"-f", "lavfi", "-i", sourceA, "-f", "lavfi", "-i", sourceB, "-filter_complex", fadegraysSelfTestFilter,
+		"-frames:v", strconv.Itoa(fadegraysProbeFrames), "-f", "rawvideo", "-pix_fmt", "gbrp", "-"}
+	for run := 0; run < 2; run++ {
+		got, err := capabilityCommand(ctx, ffmpeg, args...)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return false, ctxErr
+		}
+		if err != nil || !bytes.Equal(got, want) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
