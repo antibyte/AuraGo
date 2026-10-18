@@ -386,15 +386,21 @@
     justify-content: center;
 }
 
-/* === Screensaver scene picker === */
-.vd-screensaver-grid {
+/* === Screensaver scene picker and desktop theme picker === */
+.vd-screensaver-grid,
+.vd-theme-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 12px;
     width: 100%;
 }
 
-.vd-screensaver-card {
+.vd-theme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+
+.vd-screensaver-card,
+.vd-theme-card {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--vd-theme-border);
@@ -405,21 +411,29 @@
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
+.vd-theme-card {
+    border-radius: var(--vd-theme-radius-panel, 12px);
+}
+
 .vd-screensaver-card:hover,
-.vd-screensaver-card:focus-visible {
+.vd-screensaver-card:focus-visible,
+.vd-theme-card:hover,
+.vd-theme-card:focus-visible {
     border-color: var(--vd-accent);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-accent) 35%, transparent);
     outline: none;
     transform: translateY(-1px);
 }
 
-.vd-screensaver-card.active {
+.vd-screensaver-card.active,
+.vd-theme-card.active {
     border-color: var(--vd-accent);
     background: color-mix(in srgb, var(--vd-theme-accent-soft, var(--vd-accent)) 18%, var(--vd-theme-control-bg));
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--vd-accent) 55%, transparent);
 }
 
-.vd-screensaver-thumb {
+.vd-screensaver-thumb,
+.vd-theme-thumb {
     position: relative;
     aspect-ratio: 16 / 9;
     margin-bottom: 8px;
@@ -428,7 +442,14 @@
     background: radial-gradient(ellipse at 50% 30%, #0c2438, #02060c 70%);
 }
 
-.vd-screensaver-thumb img {
+.vd-theme-thumb {
+    aspect-ratio: 16 / 10;
+    border-radius: var(--ds-radius-sm, 8px);
+    background: var(--vd-theme-panel-bg-strong, var(--vd-theme-control-bg));
+}
+
+.vd-screensaver-thumb img,
+.vd-theme-thumb img {
     display: block;
     width: 100%;
     height: 100%;
@@ -442,14 +463,16 @@
     gap: 2px;
 }
 
-.vd-screensaver-title {
+.vd-screensaver-title,
+.vd-theme-title {
     padding: 0 4px;
     font-weight: 600;
     font-size: 0.92rem;
     margin-bottom: 4px;
 }
 
-.vd-screensaver-desc {
+.vd-screensaver-desc,
+.vd-theme-desc {
     flex: 1;
     padding: 0 4px;
     font-size: 0.78rem;
@@ -459,18 +482,25 @@
     min-height: 2.4em;
 }
 
+.vd-theme-desc {
+    margin-bottom: 2px;
+}
+
 .vd-screensaver-preview {
     width: 100%;
     justify-content: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vd-screensaver-card {
+    .vd-screensaver-card,
+    .vd-theme-card {
         transition: none;
     }
 
     .vd-screensaver-card:hover,
-    .vd-screensaver-card:focus-visible {
+    .vd-screensaver-card:focus-visible,
+    .vd-theme-card:hover,
+    .vd-theme-card:focus-visible {
         transform: none;
     }
 }

@@ -3,9 +3,18 @@
 
     let host, ctx;
 
+    // The active theme descriptor from the registry; null when the host context predates it.
+    function activeThemeInfo() {
+        return typeof ctx.currentDesktopTheme === 'function' ? ctx.currentDesktopTheme() : null;
+    }
+
     function settingsSections() {
         const boot = (ctx.state && ctx.state.bootstrap) || {};
         const workspace = boot.workspace || {};
+        const activeTheme = activeThemeInfo();
+        // The light/dark choice belongs to themes that carry one; the accent only to themes that follow it.
+        const showSchemeMode = !activeTheme || !!activeTheme.schemeSetting;
+        const showAccent = !activeTheme || activeTheme.accent === 'user';
         return [
             {
                 id: 'appearance', icon: 'settings-symbolic', fallback: 'A', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
@@ -17,22 +26,20 @@
                         ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
                         ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
                     ]),
-                    settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
-                        ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
-                    ]),
-                    settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                    settingDesktopThemes(),
+                    showSchemeMode ? settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
                         ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
-                    ]),
-                    settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
+                    ]) : null,
+                    showAccent ? settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
-                    ]),
+                    ]) : null,
                     settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
                     ]),
                     settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
                         ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur']
                     ])
-                ]
+                ].filter(Boolean)
             },
             {
                 id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
@@ -141,6 +148,10 @@
         };
     }
 
+    function settingDesktopThemes() {
+        return { type: 'desktop_theme' };
+    }
+
     function settingScreensaverThemes() {
         return {
             type: 'screensaver_theme',
@@ -173,6 +184,36 @@
                 <div class="vd-screensaver-title">${esc(t(theme.label))}</div>
                 <div class="vd-screensaver-desc">${esc(t(theme.desc))}</div>
                 <button type="button" class="vd-button vd-screensaver-preview" data-screensaver-preview="${esc(theme.id)}">${esc(t('desktop.settings_screensaver_preview'))}</button>
+            </div>`).join('')}</div>
+        </article>`;
+    }
+
+    function themeThumb(theme) {
+        const src = theme.thumb || '/img/themes/' + theme.id + '.svg';
+        return window.AuraLazyAssets && typeof window.AuraLazyAssets.versionedURL === 'function' ? window.AuraLazyAssets.versionedURL(src) : src;
+    }
+
+    // The card of the stored theme is active; an id the registry does not know shows as Standard,
+    // exactly like the shell does.
+    function activeThemeId(themes) {
+        const stored = ctx.settingValue('appearance.theme') || 'standard';
+        return themes.some(theme => theme.id === stored) ? stored : 'standard';
+    }
+
+    function renderDesktopThemes(item) {
+        const { esc, t } = ctx;
+        const themes = typeof ctx.desktopThemes === 'function' ? ctx.desktopThemes() : [];
+        if (!themes.length) return '';
+        const active = activeThemeId(themes);
+        return `<article class="vd-setting-row vd-setting-row-stack">
+            <div>
+                <div class="vd-setting-label">${esc(t('desktop.settings_theme'))}</div>
+                <div class="vd-setting-help">${esc(t('desktop.settings_theme_desc'))}</div>
+            </div>
+            <div class="vd-theme-grid" role="group" aria-label="${esc(t('desktop.settings_theme_picker_label'))}">${themes.map(theme => `<div class="vd-theme-card${active === theme.id ? ' active' : ''}" data-desktop-theme="${esc(theme.id)}" tabindex="0" role="button" aria-pressed="${active === theme.id ? 'true' : 'false'}">
+                <div class="vd-theme-thumb"><img src="${esc(themeThumb(theme))}" alt="" loading="lazy" decoding="async"></div>
+                <div class="vd-theme-title">${esc(t(theme.labelKey))}</div>
+                <div class="vd-theme-desc">${esc(t(theme.descKey))}</div>
             </div>`).join('')}</div>
         </article>`;
     }
@@ -317,6 +358,7 @@
                 if (typeof ctx.previewDesktopScreensaver === 'function') ctx.previewDesktopScreensaver(btn.dataset.screensaverPreview);
             });
         });
+        wireDesktopThemes();
         host.querySelectorAll('[data-sound-preview]').forEach(btn => {
             btn.addEventListener('click', async event => {
                 event.preventDefault();
@@ -327,6 +369,39 @@
                 }
             });
         });
+    }
+
+    // Click, Enter and Space pick a theme card. A pick is ignored while the previous one is still being
+    // saved, and focus returns to the active card afterwards because the re-render replaces every node.
+    function wireDesktopThemes() {
+        const owner = host;
+        owner.querySelectorAll('[data-desktop-theme]').forEach(card => {
+            const choose = async () => {
+                const id = card.dataset.desktopTheme;
+                if (!id || owner.dataset.themeSaving === 'true') return;
+                const focused = document.activeElement;
+                const hadFocus = !!focused && owner.contains(focused) && !!focused.closest('[data-desktop-theme]');
+                owner.dataset.themeSaving = 'true';
+                try {
+                    await saveDesktopSetting('appearance.theme', id);
+                } finally {
+                    delete owner.dataset.themeSaving;
+                    if (hadFocus) focusActiveThemeCard(owner);
+                }
+            };
+            card.addEventListener('click', choose);
+            card.addEventListener('keydown', event => {
+                if (event.target !== card || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                choose();
+            });
+        });
+    }
+
+    function focusActiveThemeCard(owner) {
+        if (host !== owner || !owner.isConnected) return;
+        const card = owner.querySelector('[data-desktop-theme][aria-pressed="true"]');
+        if (card) card.focus({ preventScroll: true });
     }
 
     function wireSearch(sections) {
@@ -410,6 +485,9 @@
         if (item.type === 'screensaver_theme') {
             return renderScreensaverThemes(item);
         }
+        if (item.type === 'desktop_theme') {
+            return renderDesktopThemes(item);
+        }
         if (item.type === 'range') {
             const currentValue = parseFloat(settingValue(item.key) || '0.6');
             const safe = isFinite(currentValue) ? Math.min(item.max, Math.max(item.min, currentValue)) : 0.6;
@@ -454,8 +532,11 @@
     async function saveDesktopSetting(key, value) {
         try {
             const updates = [{ key, value }];
-            if (key === 'appearance.theme') {
-                const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';
+            const themeChange = key === 'appearance.theme';
+            const previousTheme = themeChange ? ctx.settingValue('appearance.theme') : '';
+            if (themeChange) {
+                const nextTheme = typeof ctx.desktopThemeById === 'function' ? ctx.desktopThemeById(value) : null;
+                const pairedIconTheme = nextTheme ? nextTheme.iconTheme : '';
                 if (pairedIconTheme && ctx.settingValue('appearance.icon_theme') !== pairedIconTheme) {
                     updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
                 }
@@ -472,6 +553,14 @@
             ctx.state.bootstrap.settings = last.settings || Object.assign(ctx.desktopSettings(), { [key]: value });
             if (updates.length > 1) {
                 for (const u of updates) ctx.state.bootstrap.settings[u.key] = u.value;
+            }
+            if (themeChange && typeof ctx.followThemeWallpaper === 'function') {
+                // A failed wallpaper hand-over must not keep the already saved theme from being applied.
+                try {
+                    await ctx.followThemeWallpaper(previousTheme, value);
+                } catch (err) {
+                    ctx.showDesktopNotification({ title: ctx.t('desktop.notification'), message: err.message });
+                }
             }
             if (key === 'windows.restore_session' && value === 'true' && ctx.persistSessionSnapshot) {
                 await ctx.persistSessionSnapshot();

@@ -29,7 +29,7 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"desktop.settings_icon_theme_papirus",
 		"desktop.settings_icon_theme_whitesur",
 		"settingSelect('appearance.icon_theme'",
-		"const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';",
+		"const pairedIconTheme = nextTheme ? nextTheme.iconTheme : '';",
 		"updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });",
 	} {
 		if !strings.Contains(settingsText, want) {

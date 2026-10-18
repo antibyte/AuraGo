@@ -38,14 +38,15 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 			t.Fatalf("desktop shell is missing Fruity theme setting marker %q", want)
 		}
 	}
-	if !strings.Contains(settingsText, "desktop.settings_theme_standard") {
-		t.Fatalf("settings app is missing theme translation key %q", "desktop.settings_theme_standard")
+	for _, want := range []string{"'desktop.settings_theme_standard'", "'desktop.settings_theme_fruity'"} {
+		if !strings.Contains(shellText, want) {
+			t.Fatalf("theme registry is missing translation key %s", want)
+		}
 	}
-	if !strings.Contains(settingsText, "desktop.settings_theme_fruity") {
-		t.Fatalf("settings app is missing theme translation key %q", "desktop.settings_theme_fruity")
-	}
-	if !strings.Contains(settingsText, "settingSelect('appearance.theme'") {
-		t.Fatalf("settings app is missing theme setting marker %q", "settingSelect('appearance.theme'")
+	for _, want := range []string{"function settingDesktopThemes()", "type: 'desktop_theme'", "data-desktop-theme=\""} {
+		if !strings.Contains(settingsText, want) {
+			t.Fatalf("settings app is missing theme picker marker %q", want)
+		}
 	}
 
 	cssText := readAllDesktopCSS(t)
