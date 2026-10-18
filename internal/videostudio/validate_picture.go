@@ -18,6 +18,7 @@ const maxCropFraction = 0.95
 // FieldError is a validation error with the path of the field it concerns. Paths look like:
 //   - clips/<id>/crop, clips/<id>/flip_h and clips/<id>/flip_v;
 //   - clips/<id>/blend, clips/<id>/mask and clips/<id>/mask/<field> (2d);
+//   - clips/<id>/anim_in, clips/<id>/anim_in/preset and clips/<id>/anim_in/duration, and anim_out alike (2e);
 //   - clips/<id>/effects (stack limits), clips/<id>/effects/<i>, clips/<id>/effects/<i>/params and
 //     clips/<id>/effects/<i>/params/<param>;
 //   - clips/<id>/effects/<i>/keyframes/<param>;
@@ -128,6 +129,39 @@ func validateMask(track Track, clip Clip) error {
 		if !finite(value) || value < spec.Min || value > spec.Max {
 			name := strings.TrimPrefix(maskPaths[i], "mask.")
 			return fieldError(path+"/"+name, "clip %q mask %s must be between %v and %v", clip.ID, name, spec.Min, spec.Max)
+		}
+	}
+	return nil
+}
+
+// validateAnim checks a clip's in and out animations (2e, plan index §4.1, §4.24):
+//   - visual clips only (clips/<id>/anim_in, clips/<id>/anim_out);
+//   - a registry preset, never empty (…/preset). An unavailable preset validates; only the export refuses it;
+//   - a duration inside AnimFrameRange(rate) (…/duration).
+//
+// The duration is never checked against the clip length: the render clamps each span to half the clip, so trims never
+// make a project invalid. JS: VideoStudioAnim.valid (Task 5).
+func validateAnim(track Track, clip Clip, rate Rate) error {
+	minFrames, maxFrames, _ := AnimFrameRange(rate)
+	for _, side := range []struct {
+		name string
+		anim *ClipAnim
+	}{{"anim_in", clip.AnimIn}, {"anim_out", clip.AnimOut}} {
+		if side.anim == nil {
+			continue
+		}
+		path := "clips/" + clip.ID + "/" + side.name
+		if track.Kind == TrackAudio {
+			return fieldError(path, "clip %q on an audio track cannot have an animation", clip.ID)
+		}
+		if side.anim.Preset == "" {
+			return fieldError(path+"/preset", "clip %q %s needs a preset", clip.ID, side.name)
+		}
+		if _, ok := AnimPresetByID(side.anim.Preset); !ok {
+			return fieldError(path+"/preset", "clip %q %s has an unknown preset %q", clip.ID, side.name, side.anim.Preset)
+		}
+		if side.anim.Duration < minFrames || side.anim.Duration > maxFrames {
+			return fieldError(path+"/duration", "clip %q %s duration must be between %d and %d frames", clip.ID, side.name, minFrames, maxFrames)
 		}
 	}
 	return nil

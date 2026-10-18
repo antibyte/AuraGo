@@ -122,6 +122,8 @@ func canonicalGuardProject() videostudio.Project {
 					"contrast": {{F: 0, V: 1, E: videostudio.EaseLinear}, {F: 12, V: 1.2, E: videostudio.EaseOut}},
 					"exposure": {{F: 0, V: 0, E: videostudio.EaseLinear}, {F: 10, V: 1, E: videostudio.EaseHold}},
 				}}},
+				AnimIn:  &videostudio.ClipAnim{Preset: "pop", Duration: 13},
+				AnimOut: &videostudio.ClipAnim{Preset: "slide_left", Duration: 20},
 			}},
 		}},
 		Markers:  []videostudio.Marker{{ID: "m", Frame: 5}},
@@ -356,6 +358,55 @@ process.stdout.write(JSON.stringify(P.canonicalProject(live)));
 	output, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("canonical compositing: %v\n%s", err, stderr.String())
+	}
+	if string(output) != string(data) {
+		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)
+	}
+}
+
+// In and out animations reach the server in Go's JSON form (plan 2e, index §4.1): {preset, duration} in that order,
+// after effects, each only when set. The guard project's canonical copy stringifies exactly like json.Marshal, even
+// when the live objects hold their keys in another order plus an editor-only key, and a fractional duration rounds.
+// A missing, null or non-object animation is omitted like Go's omitempty.
+func TestVideoStudioCanonicalAnimMatchGo(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js required for Video Studio canonical form checks")
+	}
+	data, err := json.Marshal(canonicalGuardProject())
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `
+const assert = require('node:assert/strict');
+global.window = {};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const P = window.VideoStudioParts;
+const live = ` + string(data) + `;
+const clip = live.tracks[0].clips[0];
+clip.anim_in = {open: true, duration: clip.anim_in.duration - 0.4, preset: clip.anim_in.preset};
+clip.anim_out = {duration: clip.anim_out.duration, preset: clip.anim_out.preset};
+const bare = JSON.parse(JSON.stringify(live)), bareClip = bare.tracks[0].clips[0];
+for (const value of [null, undefined, 'pop', [1]]) {
+  Object.assign(bareClip, {anim_in: value, anim_out: value});
+  const keys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+  assert(!keys.includes('anim_in') && !keys.includes('anim_out'), String(JSON.stringify(value)) + ': no animation is omitted like Go omitempty');
+}
+Object.assign(bareClip, {anim_in: null, anim_out: {preset: 'fade', duration: 10}});
+const keys = Object.keys(P.canonicalProject(bare).tracks[0].clips[0]);
+assert.deepEqual(keys.slice(-2), ['effects', 'anim_out'], 'anim_out alone follows effects');
+assert.equal(JSON.stringify(P.canonicalProject(bare).tracks[0].clips[0].anim_out), '{"preset":"fade","duration":10}');
+process.stdout.write(JSON.stringify(P.canonicalProject(live)));
+`
+	cmd := exec.Command(node, "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("canonical animation: %v\n%s", err, stderr.String())
 	}
 	if string(output) != string(data) {
 		t.Fatalf("canonicalProject differs from Go's JSON:\n JS %s\n Go %s", output, data)

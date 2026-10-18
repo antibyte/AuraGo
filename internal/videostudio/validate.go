@@ -58,6 +58,7 @@ func Validate(project Project) error {
 		return fmt.Errorf("project exceeds %d assets", MaxAssetsPerProject)
 	}
 	maxFrames := MaxDurationFrames(project)
+	rate := ProjectRate(project)
 
 	assets := make(map[string]Asset, len(project.Assets))
 	luts := 0
@@ -119,6 +120,10 @@ func Validate(project Project) error {
 		})
 		for i, clip := range clips {
 			if err := validateClip(track, clip, assets, clipIDs, maxFrames); err != nil {
+				return err
+			}
+			// In/out animations (2e): their duration range follows the project rate.
+			if err := validateAnim(track, clip, rate); err != nil {
 				return err
 			}
 			if clip.Link != "" {

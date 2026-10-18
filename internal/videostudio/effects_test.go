@@ -131,11 +131,26 @@ func TestEffectRegistryInvariants(t *testing.T) {
 	if shape, ok := BaseParam("mask.shape"); !ok || shape.Default != string(MaskRect) || !slices.Equal(shape.Choices, []string{string(MaskRect), string(MaskEllipse)}) {
 		t.Fatalf("base row mask.shape = %+v, %t", shape, ok)
 	}
+	// Animation presets (2e) need these properties:
+	//   - a unique id and the label key anim_<id>;
+	//   - a non-empty filter list (the capability check reads it).
+	// AnimPresetByID returns copies.
 	for _, preset := range registry.AnimPresets {
-		if preset.ID == "" || ids["anim:"+preset.ID] || preset.LabelKey == "" {
-			t.Fatalf("animation preset %+v needs a unique id and a label key", preset)
+		if preset.ID == "" || ids["anim:"+preset.ID] || preset.LabelKey != "anim_"+preset.ID || len(preset.Filters) == 0 {
+			t.Fatalf("animation preset %+v needs a unique id, the label key anim_<id> and its filters", preset)
 		}
 		ids["anim:"+preset.ID] = true
+		if found, ok := AnimPresetByID(preset.ID); !ok || found.ID != preset.ID || found.LabelKey != preset.LabelKey || !slices.Equal(found.Filters, preset.Filters) {
+			t.Fatalf("AnimPresetByID(%q) = %+v, %t", preset.ID, found, ok)
+		}
+	}
+	if len(registry.AnimPresets) != 8 {
+		t.Fatalf("animation presets = %d, want 8", len(registry.AnimPresets))
+	}
+	for _, unknown := range []string{"", "none", "bounce"} {
+		if _, ok := AnimPresetByID(unknown); ok {
+			t.Fatalf("AnimPresetByID(%q) found an unknown id", unknown)
+		}
 	}
 	for _, look := range registry.Looks {
 		if look.ID == "" || ids["look:"+look.ID] || look.LabelKey == "" {
@@ -147,6 +162,10 @@ func TestEffectRegistryInvariants(t *testing.T) {
 	// EffectRegistry returns a deep copy: changing it does not change the tables.
 	registry.Base[0].ID = "changed"
 	registry.Transitions[0].XFade = "changed"
+	registry.AnimPresets[0].Filters[0] = "changed"
+	if again, _ := AnimPresetByID("fade"); again.Filters[0] != "sendcmd" {
+		t.Fatal("EffectRegistry shares preset filters with the caller")
+	}
 	for i := range registry.Base {
 		if len(registry.Base[i].Choices) > 0 {
 			registry.Base[i].Choices[0] = "changed"
@@ -178,6 +197,8 @@ func TestEffectRegistryInvariants(t *testing.T) {
 		`{"id":"opacity","type":"number","min":0,"max":1,"default":1,"step":0.01,"keyframable":true,"label_key":"opacity"}`,
 		`{"id":"fit","type":"choice","min":0,"max":0,"default":"contain","choices":["contain","cover"],"label_key":"fit"}`,
 		`{"id":"dissolve","xfade":"fade","category":"basic","label_key":"dissolve"}`,
+		`{"id":"circleopen","xfade":"circleopen","category":"shape","label_key":"transition_circleopen"}`,
+		`{"id":"fade","label_key":"anim_fade","filters":["sendcmd","colorchannelmixer"]}`,
 	} {
 		if !strings.Contains(string(data), want) {
 			t.Fatalf("registry JSON lacks %s:\n%s", want, data)

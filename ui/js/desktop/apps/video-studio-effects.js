@@ -82,7 +82,27 @@
             { id: 'dissolve', xfade: 'fade', category: 'basic', label_key: 'dissolve' },
             { id: 'black', xfade: 'fadeblack', category: 'basic', label_key: 'black' },
             { id: 'wipeleft', xfade: 'wiperight', category: 'wipe', label_key: 'wipeleft' },
-            { id: 'wiperight', xfade: 'wipeleft', category: 'wipe', label_key: 'wiperight' }
+            { id: 'wiperight', xfade: 'wipeleft', category: 'wipe', label_key: 'wiperight' },
+            { id: 'fadewhite', xfade: 'fadewhite', category: 'basic', label_key: 'transition_fadewhite' },
+            { id: 'fadegrays', xfade: 'fadegrays', category: 'basic', label_key: 'transition_fadegrays' },
+            { id: 'pixelize', xfade: 'pixelize', category: 'basic', label_key: 'transition_pixelize' },
+            { id: 'wipeup', xfade: 'wipeup', category: 'wipe', label_key: 'transition_wipeup' },
+            { id: 'wipedown', xfade: 'wipedown', category: 'wipe', label_key: 'transition_wipedown' },
+            { id: 'smoothleft', xfade: 'smoothleft', category: 'wipe', label_key: 'transition_smoothleft' },
+            { id: 'smoothright', xfade: 'smoothright', category: 'wipe', label_key: 'transition_smoothright' },
+            { id: 'diagtl', xfade: 'diagtl', category: 'wipe', label_key: 'transition_diagtl' },
+            { id: 'diagbr', xfade: 'diagbr', category: 'wipe', label_key: 'transition_diagbr' },
+            { id: 'radial', xfade: 'radial', category: 'wipe', label_key: 'transition_radial' },
+            { id: 'slideleft', xfade: 'slideleft', category: 'motion', label_key: 'transition_slideleft' },
+            { id: 'slideright', xfade: 'slideright', category: 'motion', label_key: 'transition_slideright' },
+            { id: 'slideup', xfade: 'slideup', category: 'motion', label_key: 'transition_slideup' },
+            { id: 'slidedown', xfade: 'slidedown', category: 'motion', label_key: 'transition_slidedown' },
+            { id: 'squeezeh', xfade: 'squeezeh', category: 'motion', label_key: 'transition_squeezeh' },
+            { id: 'zoomin', xfade: 'zoomin', category: 'motion', label_key: 'transition_zoomin' },
+            { id: 'circleopen', xfade: 'circleopen', category: 'shape', label_key: 'transition_circleopen' },
+            { id: 'circleclose', xfade: 'circleclose', category: 'shape', label_key: 'transition_circleclose' },
+            { id: 'circlecrop', xfade: 'circlecrop', category: 'shape', label_key: 'transition_circlecrop' },
+            { id: 'rectcrop', xfade: 'rectcrop', category: 'shape', label_key: 'transition_rectcrop' }
         ],
         blend_modes: [
             { id: 'normal', blend: '', label_key: 'blend_normal' },
@@ -100,7 +120,16 @@
             { id: 'dodge', blend: 'dodge', label_key: 'blend_dodge' },
             { id: 'burn', blend: 'burn', label_key: 'blend_burn' }
         ],
-        anim_presets: [],
+        anim_presets: [
+            { id: 'fade', label_key: 'anim_fade', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'slide_up', label_key: 'anim_slide_up', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'slide_down', label_key: 'anim_slide_down', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'slide_left', label_key: 'anim_slide_left', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'slide_right', label_key: 'anim_slide_right', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'pop', label_key: 'anim_pop', filters: ['sendcmd', 'colorchannelmixer'] },
+            { id: 'wipe', label_key: 'anim_wipe', filters: ['geq', 'blend'] },
+            { id: 'blur_in', label_key: 'anim_blur_in', filters: ['gblur', 'maskedmerge', 'sendcmd', 'colorchannelmixer', 'premultiply', 'unpremultiply', 'extractplanes', 'alphamerge'] }
+        ],
         looks: [
             { id: 'warm', label_key: 'look_warm' },
             { id: 'cool', label_key: 'look_cool' },

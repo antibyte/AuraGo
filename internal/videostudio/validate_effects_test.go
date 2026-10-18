@@ -205,9 +205,10 @@ func TestValueAtCropAndEffectPaths(t *testing.T) {
 	}
 }
 
-// The registry rows of plans 2c and 2d (index §4.2), pinned: the crop, flip, blend and mask base rows after fit, the
-// six effects in menu order with their filters and parameters, the eight looks and the fourteen blend modes.
-// TestVideoStudioEffectsRegistryMatchesGo (ui) keeps the JS mirror equal.
+// The registry rows of plans 2c, 2d and 2e (index §4.2), pinned: the crop, flip, blend and mask base rows after fit,
+// the six effects in menu order with their filters and parameters, the eight looks, the fourteen blend modes, the 24
+// transitions and the eight animation presets with their filters. TestVideoStudioEffectsRegistryMatchesGo (ui) keeps
+// the JS mirror equal.
 func TestEffectRegistryRows(t *testing.T) {
 	number := func(value float64) string { return strconv.FormatFloat(value, 'g', -1, 64) }
 	line := func(p ParamSpec) string {
@@ -336,6 +337,43 @@ func TestEffectRegistryRows(t *testing.T) {
 	}
 	if _, ok := BlendModeByID("glow"); ok {
 		t.Error("BlendModeByID found an unknown mode")
+	}
+	// Transitions (2e): the 2a four keep their ids, mapping and keys. The 20 new rows use their xfade names as ids and
+	// transition_<id> as label keys, grouped basic (5), wipe (9), motion (6) and shape (4) in first-appearance order.
+	var transitions []string
+	for _, spec := range registry.Transitions {
+		transitions = append(transitions, string(spec.ID)+":"+spec.XFade+":"+spec.Category+":"+spec.LabelKey)
+	}
+	wantTransitions := []string{"dissolve:fade:basic:dissolve", "black:fadeblack:basic:black", "wipeleft:wiperight:wipe:wipeleft", "wiperight:wipeleft:wipe:wiperight"}
+	for _, row := range [][2]string{
+		{"fadewhite", "basic"}, {"fadegrays", "basic"}, {"pixelize", "basic"},
+		{"wipeup", "wipe"}, {"wipedown", "wipe"}, {"smoothleft", "wipe"}, {"smoothright", "wipe"}, {"diagtl", "wipe"}, {"diagbr", "wipe"}, {"radial", "wipe"},
+		{"slideleft", "motion"}, {"slideright", "motion"}, {"slideup", "motion"}, {"slidedown", "motion"}, {"squeezeh", "motion"}, {"zoomin", "motion"},
+		{"circleopen", "shape"}, {"circleclose", "shape"}, {"circlecrop", "shape"}, {"rectcrop", "shape"},
+	} {
+		wantTransitions = append(wantTransitions, row[0]+":"+row[0]+":"+row[1]+":transition_"+row[0])
+	}
+	if !slices.Equal(transitions, wantTransitions) {
+		t.Fatalf("transitions:\n%s\nwant:\n%s", strings.Join(transitions, "\n"), strings.Join(wantTransitions, "\n"))
+	}
+	// Animation presets (2e) in menu order, with the filters their export needs (the capability check of Task 9).
+	var presets []string
+	for _, preset := range registry.AnimPresets {
+		presets = append(presets, preset.ID+" "+preset.LabelKey+" "+strings.Join(preset.Filters, ","))
+	}
+	opacity := "sendcmd,colorchannelmixer"
+	wantPresets := []string{
+		"fade anim_fade " + opacity,
+		"slide_up anim_slide_up " + opacity,
+		"slide_down anim_slide_down " + opacity,
+		"slide_left anim_slide_left " + opacity,
+		"slide_right anim_slide_right " + opacity,
+		"pop anim_pop " + opacity,
+		"wipe anim_wipe geq,blend",
+		"blur_in anim_blur_in gblur,maskedmerge,sendcmd,colorchannelmixer,premultiply,unpremultiply,extractplanes,alphamerge",
+	}
+	if !slices.Equal(presets, wantPresets) {
+		t.Fatalf("animation presets:\n%s\nwant:\n%s", strings.Join(presets, "\n"), strings.Join(wantPresets, "\n"))
 	}
 }
 

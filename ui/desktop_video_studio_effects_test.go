@@ -64,10 +64,13 @@ func TestVideoStudioEffectsAdoptAndLookups(t *testing.T) {
 // A server from before 2a sends no registry: the built-in copy stays, and every transition is available.
 assert.equal(E.adopt(undefined, undefined), false);
 assert.equal(E.registry(), E.BUILTIN);
-assert.deepEqual(E.transitions().map(spec => spec.id), ['dissolve', 'black', 'wipeleft', 'wiperight']);
+const builtinIDs = ['dissolve', 'black', 'wipeleft', 'wiperight', 'fadewhite', 'fadegrays', 'pixelize', 'wipeup', 'wipedown', 'smoothleft', 'smoothright', 'diagtl', 'diagbr', 'radial', 'slideleft', 'slideright', 'slideup', 'slidedown', 'squeezeh', 'zoomin', 'circleopen', 'circleclose', 'circlecrop', 'rectcrop'];
+assert.deepEqual(E.transitions().map(spec => spec.id), builtinIDs, 'the 2a four, then the 20 xfade rows of 2e');
 assert(E.transitions().every(spec => spec.available));
 assert.equal(E.transition('wipeleft').xfade, 'wiperight', 'the user-facing wipe maps to the opposite xfade name');
-assert.equal(E.transition('circleopen'), null);
+assert(E.transitions().slice(4).every(spec => spec.xfade === spec.id && spec.label_key === 'transition_' + spec.id), '2e ids are their xfade names');
+assert.equal(E.transition('circleopen').category, 'shape', 'circleopen is built in since 2e');
+assert.equal(E.transition('not-a-transition'), null);
 // Invalid input never replaces the registry.
 const broken = JSON.parse(JSON.stringify(E.BUILTIN));
 broken.transitions = [{id: 'x'}];
@@ -77,16 +80,19 @@ for (const bad of [null, 'registry', {version: 1}, {version: 99, base: [], effec
 }
 // A valid server registry is adopted; the unavailable lists mark what the server's FFmpeg lacks.
 const server = JSON.parse(JSON.stringify(E.BUILTIN));
-server.transitions.push({id: 'circleopen', xfade: 'circleopen', category: 'shape', label_key: 'transition_circleopen'});
-assert.equal(E.adopt(server, {effects: [], transitions: ['circleopen', 42], blend_modes: [], anim_presets: []}), true);
-assert.equal(E.isTransition('circleopen'), true);
-assert.deepEqual(E.transitions().map(spec => [spec.id, spec.available]), [['dissolve', true], ['black', true], ['wipeleft', true], ['wiperight', true], ['circleopen', false]]);
-assert.equal(E.transition('circleopen').label_key, 'transition_circleopen');
+server.transitions.push({id: 'swirl', xfade: 'swirl', category: 'shape', label_key: 'transition_swirl'});
+assert.equal(E.adopt(server, {effects: [], transitions: ['swirl', 42], blend_modes: [], anim_presets: []}), true);
+assert.equal(E.isTransition('swirl'), true);
+assert.deepEqual(E.transitions().map(spec => [spec.id, spec.available]), builtinIDs.map(id => [id, true]).concat([['swirl', false]]));
+assert.equal(E.transition('swirl').label_key, 'transition_swirl');
 server.transitions.pop();
-assert.equal(E.isTransition('circleopen'), true, 'the adopted registry is a copy');
+assert.equal(E.isTransition('swirl'), true, 'the adopted registry is a copy');
 assert.equal(E.adopt(server, 'nope'), true);
 assert(E.transitions().every(spec => spec.available), 'a missing unavailable object marks nothing');
-assert.equal(E.isTransition('circleopen'), false);
+assert.equal(E.isTransition('swirl'), false);
+// The animation presets (2e) in menu order, each with the filters its export needs.
+assert.deepEqual(E.registry().anim_presets.map(preset => preset.id), ['fade', 'slide_up', 'slide_down', 'slide_left', 'slide_right', 'pop', 'wipe', 'blur_in']);
+assert(E.registry().anim_presets.every(preset => preset.label_key === 'anim_' + preset.id && preset.filters.length > 0));
 // Base parameters and defaults.
 assert.equal(E.base('opacity').keyframable, true);
 assert.equal(E.base('fit').default, 'contain');
@@ -134,12 +140,12 @@ const pair = type => ({fps: 30, assets: [{id: 'v', kind: 'video', duration_frame
   Object.assign({id: 'b', asset_id: 'v', start: 50, duration: 60, transition: null}, box)]}]});
 // The timeline check reads the registry at call time.
 E.adopt(undefined, undefined);
-for (const type of ['dissolve', 'black', 'wipeleft', 'wiperight']) assert.equal(T.validTimeline(pair(type)), true, type);
-assert.equal(T.validTimeline(pair('circleopen')), false, 'a transition outside the registry is refused');
+for (const type of E.BUILTIN.transitions.map(spec => spec.id)) assert.equal(T.validTimeline(pair(type)), true, type);
+assert.equal(T.validTimeline(pair('swirl')), false, 'a transition outside the registry is refused');
 const server = JSON.parse(JSON.stringify(E.BUILTIN));
-server.transitions.push({id: 'circleopen', xfade: 'circleopen', category: 'shape', label_key: 'transition_circleopen'});
+server.transitions.push({id: 'swirl', xfade: 'swirl', category: 'shape', label_key: 'transition_swirl'});
 E.adopt(server, null);
-assert.equal(T.validTimeline(pair('circleopen')), true, 'an adopted transition is accepted');
+assert.equal(T.validTimeline(pair('swirl')), true, 'an adopted transition is accepted');
 // The inspector lists 'none' plus the registry; unavailable transitions are disabled with a title, except the current one.
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
 const view = (current, unavailable, registry) => {
@@ -151,7 +157,7 @@ const view = (current, unavailable, registry) => {
 };
 const button = (html, id) => (html.match(new RegExp('<button[^>]*data-transition="' + id + '"[^>]*>')) || [''])[0];
 let html = view('dissolve', ['black']);
-assert.deepEqual(Array.from(html.matchAll(/data-transition="([a-z]+)"/g), m => m[1]), ['none', 'dissolve', 'black', 'wipeleft', 'wiperight'], 'none plus the registry in menu order');
+assert.deepEqual(Array.from(html.matchAll(/data-transition="([a-z]+)"/g), m => m[1]), ['none'].concat(E.BUILTIN.transitions.map(spec => spec.id)), 'none plus the registry in menu order');
 assert(/ disabled/.test(button(html, 'black')) && button(html, 'black').includes('title="UNAVAILABLE"'), 'an unavailable transition is disabled with a title');
 assert(!/ disabled/.test(button(html, 'dissolve')) && button(html, 'dissolve').includes('aria-pressed="true"'));
 assert(!button(html, 'wipeleft').includes('title='), 'available transitions carry no title');
@@ -160,7 +166,7 @@ html = view('black', ['black']);
 assert(!/ disabled/.test(button(html, 'black')) && button(html, 'black').includes('aria-pressed="true"'), 'the current transition stays selectable even when unavailable');
 assert(button(html, 'black').includes('title="UNAVAILABLE"'));
 html = view('dissolve', [], server);
-assert(html.includes('<span>[transition_circleopen]</span>'), 'a registry transition is labelled by its label_key');
+assert(html.includes('<span>[transition_swirl]</span>'), 'a registry transition is labelled by its label_key');
 console.log('ok');
 `)
 }
@@ -522,5 +528,69 @@ process.stdout.write(JSON.stringify({wheelK: V.WHEEL_K, neutralK: V.NEUTRAL_K, t
 	}
 	if p0, p1 := goConst("casPeakP0"), goConst("casPeakP1"); got.CasP0 != p0 || got.CasP1 != p1 {
 		t.Fatalf("VideoStudioPicture CAS_P0, CAS_P1 = %v, %v; want Go casPeakP0, casPeakP1 = %v, %v", got.CasP0, got.CasP1, p0, p1)
+	}
+}
+
+// Every desktop locale names the 24 transitions and the 8 animation presets by their registry label keys (plan 2e
+// Task 1). The labels say what the viewer sees, as measured in the spike (decision D4):
+//   - the user's wipeleft (xfade wiperight) grows from the left;
+//   - wipeup enters from the bottom;
+//   - smoothleft and slideleft enter from the right;
+//   - diagtl enters at the bottom-right corner.
+//
+// English and German are pinned for the direction labels, and no other locale copies them from English.
+func TestVideoStudioTransitionAnimLocales(t *testing.T) {
+	registry := videostudio.EffectRegistry()
+	var keys []string
+	for _, spec := range registry.Transitions {
+		keys = append(keys, spec.LabelKey)
+	}
+	for _, preset := range registry.AnimPresets {
+		keys = append(keys, preset.LabelKey)
+	}
+	if len(keys) != 32 {
+		t.Fatalf("registry label keys = %d, want 24 transitions and 8 presets", len(keys))
+	}
+	pinned := map[string][2]string{
+		"wipeleft":               {"Wipe from left", "Wischen von links"},
+		"wiperight":              {"Wipe from right", "Wischen von rechts"},
+		"transition_wipeup":      {"Wipe from bottom", "Wischen von unten"},
+		"transition_wipedown":    {"Wipe from top", "Wischen von oben"},
+		"transition_smoothleft":  {"Soft wipe from right", "Weiches Wischen von rechts"},
+		"transition_smoothright": {"Soft wipe from left", "Weiches Wischen von links"},
+		"transition_diagtl":      {"Diagonal from bottom right", "Diagonal von rechts unten"},
+		"transition_diagbr":      {"Diagonal from top left", "Diagonal von links oben"},
+		"transition_slideleft":   {"Push from right", "Schieben von rechts"},
+		"transition_slideright":  {"Push from left", "Schieben von links"},
+		"transition_slideup":     {"Push from bottom", "Schieben von unten"},
+		"transition_slidedown":   {"Push from top", "Schieben von oben"},
+		"transition_circlecrop":  {"Circle through black", "Kreis über Schwarz"},
+		"transition_rectcrop":    {"Rectangle through black", "Rechteck über Schwarz"},
+	}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values["videoStudio."+key]) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			}
+		}
+		for key, want := range pinned {
+			got := values["videoStudio."+key]
+			switch lang {
+			case "en":
+				if got != want[0] {
+					t.Errorf("en videoStudio.%s = %q, want %q", key, got, want[0])
+				}
+			case "de":
+				if got != want[1] {
+					t.Errorf("de videoStudio.%s = %q, want %q", key, got, want[1])
+				}
+			default:
+				if got == english["videoStudio."+key] {
+					t.Errorf("%s copies the English videoStudio.%s", lang, key)
+				}
+			}
+		}
 	}
 }

@@ -61,10 +61,12 @@ type BlendModeSpec struct {
 	LabelKey string `json:"label_key"`
 }
 
-// AnimPresetSpec is one in/out animation preset (2e).
+// AnimPresetSpec is one in/out animation preset (2e). Filters are the FFmpeg filters its export needs, for the capability
+// check; the list is never nil.
 type AnimPresetSpec struct {
-	ID       string `json:"id"`
-	LabelKey string `json:"label_key"`
+	ID       string   `json:"id"`
+	LabelKey string   `json:"label_key"`
+	Filters  []string `json:"filters"` // FFmpeg filters the export needs (capability check); never nil (2e)
 }
 
 // LookSpec is one built-in look (2c).
@@ -130,15 +132,55 @@ var registryBase = []ParamSpec{
 
 // registryTransitions keeps the phase 1 ids, export mapping and label keys. A wipe id names the edge the incoming
 // clip enters from: "wipeleft" enters from the left, which is xfade's wiperight (the edge moves right), and
-// "wiperight" is xfade's wipeleft. 2e appends 20 rows whose ids equal their xfade names (label keys transition_<id>).
+// "wiperight" is xfade's wipeleft.
+//
+// 2e appends 20 rows (plan index §4.2):
+//   - ids equal their xfade names and label keys are transition_<id>;
+//   - categories are basic, wipe, motion and shape (menu groups in first-appearance order);
+//   - labels say what the viewer sees, measured in the spike of 2026-10-18 (decision D4). For example, wipeup enters
+//     from the bottom, smoothleft and slideleft from the right, and diagtl at the bottom-right corner.
 var registryTransitions = []TransitionSpec{
 	{ID: TransitionDissolve, XFade: "fade", Category: "basic", LabelKey: "dissolve"},
 	{ID: TransitionBlack, XFade: "fadeblack", Category: "basic", LabelKey: "black"},
 	{ID: TransitionWipeLeft, XFade: "wiperight", Category: "wipe", LabelKey: "wipeleft"},
 	{ID: TransitionWipeRight, XFade: "wipeleft", Category: "wipe", LabelKey: "wiperight"},
+	{ID: "fadewhite", XFade: "fadewhite", Category: "basic", LabelKey: "transition_fadewhite"},
+	{ID: "fadegrays", XFade: "fadegrays", Category: "basic", LabelKey: "transition_fadegrays"},
+	{ID: "pixelize", XFade: "pixelize", Category: "basic", LabelKey: "transition_pixelize"},
+	{ID: "wipeup", XFade: "wipeup", Category: "wipe", LabelKey: "transition_wipeup"},
+	{ID: "wipedown", XFade: "wipedown", Category: "wipe", LabelKey: "transition_wipedown"},
+	{ID: "smoothleft", XFade: "smoothleft", Category: "wipe", LabelKey: "transition_smoothleft"},
+	{ID: "smoothright", XFade: "smoothright", Category: "wipe", LabelKey: "transition_smoothright"},
+	{ID: "diagtl", XFade: "diagtl", Category: "wipe", LabelKey: "transition_diagtl"},
+	{ID: "diagbr", XFade: "diagbr", Category: "wipe", LabelKey: "transition_diagbr"},
+	{ID: "radial", XFade: "radial", Category: "wipe", LabelKey: "transition_radial"},
+	{ID: "slideleft", XFade: "slideleft", Category: "motion", LabelKey: "transition_slideleft"},
+	{ID: "slideright", XFade: "slideright", Category: "motion", LabelKey: "transition_slideright"},
+	{ID: "slideup", XFade: "slideup", Category: "motion", LabelKey: "transition_slideup"},
+	{ID: "slidedown", XFade: "slidedown", Category: "motion", LabelKey: "transition_slidedown"},
+	{ID: "squeezeh", XFade: "squeezeh", Category: "motion", LabelKey: "transition_squeezeh"},
+	{ID: "zoomin", XFade: "zoomin", Category: "motion", LabelKey: "transition_zoomin"},
+	{ID: "circleopen", XFade: "circleopen", Category: "shape", LabelKey: "transition_circleopen"},
+	{ID: "circleclose", XFade: "circleclose", Category: "shape", LabelKey: "transition_circleclose"},
+	{ID: "circlecrop", XFade: "circlecrop", Category: "shape", LabelKey: "transition_circlecrop"},
+	{ID: "rectcrop", XFade: "rectcrop", Category: "shape", LabelKey: "transition_rectcrop"},
 }
 
-var registryAnimPresets = []AnimPresetSpec{} // 2e
+// registryAnimPresets are the in/out animation presets in menu order (2e, plan index §4.2, §4.24). Label keys are
+// anim_<id>. Filters lists the FFmpeg filters each export needs (the capability check of Task 9):
+//   - opacity runs through sendcmd and colorchannelmixer (slides and pop also move the box through expressions);
+//   - the wipe uses a one-row geq and blend;
+//   - blur_in uses the gblur/maskedmerge cascade with Go-built masks and the premultiplied alpha recipe.
+var registryAnimPresets = []AnimPresetSpec{
+	{ID: "fade", LabelKey: "anim_fade", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "slide_up", LabelKey: "anim_slide_up", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "slide_down", LabelKey: "anim_slide_down", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "slide_left", LabelKey: "anim_slide_left", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "slide_right", LabelKey: "anim_slide_right", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "pop", LabelKey: "anim_pop", Filters: []string{"sendcmd", "colorchannelmixer"}},
+	{ID: "wipe", LabelKey: "anim_wipe", Filters: []string{"geq", "blend"}},
+	{ID: "blur_in", LabelKey: "anim_blur_in", Filters: []string{"gblur", "maskedmerge", "sendcmd", "colorchannelmixer", "premultiply", "unpremultiply", "extractplanes", "alphamerge"}},
+}
 
 // registryBlendModes are the clip blend modes in menu order (2d, plan index §4.2 and §4.22). Label keys are
 // blend_<id>. Normal has no FFmpeg name: the export keeps its straight-alpha overlay for it, and it is never
@@ -253,11 +295,14 @@ func EffectRegistry() Registry {
 		Effects:     make([]EffectSpec, len(registryEffects)),
 		Transitions: append([]TransitionSpec{}, registryTransitions...),
 		BlendModes:  append([]BlendModeSpec{}, registryBlendModes...),
-		AnimPresets: append([]AnimPresetSpec{}, registryAnimPresets...),
+		AnimPresets: make([]AnimPresetSpec, len(registryAnimPresets)),
 		Looks:       append([]LookSpec{}, registryLooks...),
 	}
 	for i, param := range registryBase {
 		registry.Base[i] = cloneParam(param)
+	}
+	for i, preset := range registryAnimPresets {
+		registry.AnimPresets[i] = cloneAnimPreset(preset)
 	}
 	for i, effect := range registryEffects {
 		registry.Effects[i] = cloneEffect(effect)
@@ -315,6 +360,16 @@ func BlendModeByID(id string) (BlendModeSpec, bool) {
 	return BlendModeSpec{}, false
 }
 
+// AnimPresetByID returns a copy of an animation preset's registry entry (2e).
+func AnimPresetByID(id string) (AnimPresetSpec, bool) {
+	for _, preset := range registryAnimPresets {
+		if preset.ID == id {
+			return cloneAnimPreset(preset), true
+		}
+	}
+	return AnimPresetSpec{}, false
+}
+
 // effectParamSpec returns one parameter of a registry effect without copying the table. It is for read-only callers:
 // validation and value lookup.
 func effectParamSpec(effectID, param string) (ParamSpec, bool) {
@@ -347,6 +402,12 @@ func cloneEffect(effect EffectSpec) EffectSpec {
 	effect.Params = params
 	effect.Filters = append(make([]string, 0, len(effect.Filters)), effect.Filters...)
 	return effect
+}
+
+// cloneAnimPreset copies a preset with its own Filters slice, never nil.
+func cloneAnimPreset(preset AnimPresetSpec) AnimPresetSpec {
+	preset.Filters = append(make([]string, 0, len(preset.Filters)), preset.Filters...)
+	return preset
 }
 
 // blendModeFilters are the filters that every blend mode with an FFmpeg name composites through (index §4.22): blend

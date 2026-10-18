@@ -127,11 +127,18 @@
             rotation: Number(mask.rotation) || 0, feather: Number(mask.feather) || 0, invert: !!mask.invert
         };
     }
+    // An in or out animation (2e) in Go's JSON form {preset, duration}: both keys, preset first, the duration a whole
+    // number of frames. null without an animation object (the editor deletes the field for "none").
+    function canonicalAnim(anim) {
+        if (!anim || typeof anim !== 'object' || Array.isArray(anim)) return null;
+        return { preset: String(anim.preset || ''), duration: Math.round(Number(anim.duration) || 0) };
+    }
     // Version 2 and 3 clip fields after transition, in Go's order (plan index §4.1):
-    //   speed, link, audio_detached, disabled, label, keyframes, ramp, crop, flip_h, flip_v, blend, mask, effects
+    //   speed, link, audio_detached, disabled, label, keyframes, ramp, crop, flip_h, flip_v, blend, mask, effects,
+    //   anim_in, anim_out
     // Each appears only when set (omitempty). The editor removes speed 1, an empty crop and blend 'normal' (Go refuses
-    // that name), so an enabled, unlinked, labelless clip without keyframes, ramp or picture fields carries none of them.
-    // A ramp is [{f, speed, e}] sorted by f.
+    // that name), so an enabled, unlinked, labelless clip without keyframes, ramp, picture fields or animations carries
+    // none of them. A ramp is [{f, speed, e}] sorted by f.
     function canonicalClipExtras(clip) {
         const out = {};
         if (clip.speed != null && Number(clip.speed) !== 1) out.speed = Number(clip.speed);
@@ -150,6 +157,9 @@
         const mask = canonicalMask(clip.mask);
         if (mask) out.mask = mask;
         if (Array.isArray(clip.effects) && clip.effects.length) out.effects = clip.effects.map(canonicalEffect);
+        const animIn = canonicalAnim(clip.anim_in), animOut = canonicalAnim(clip.anim_out);
+        if (animIn) out.anim_in = animIn;
+        if (animOut) out.anim_out = animOut;
         return out;
     }
     // Markers and the in/out points follow Go's omitempty JSON: markers only when there are some, each field only when

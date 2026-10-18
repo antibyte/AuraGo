@@ -34,8 +34,11 @@ func TestVideoStudioStatusServesRegistry(t *testing.T) {
 					XFade string `json:"xfade"`
 				} `json:"transitions"`
 				BlendModes  []json.RawMessage `json:"blend_modes"`
-				AnimPresets []json.RawMessage `json:"anim_presets"`
-				Looks       []json.RawMessage `json:"looks"`
+				AnimPresets []struct {
+					ID      string   `json:"id"`
+					Filters []string `json:"filters"`
+				} `json:"anim_presets"`
+				Looks []json.RawMessage `json:"looks"`
 			} `json:"registry"`
 			Unavailable map[string]json.RawMessage `json:"unavailable"`
 		}
@@ -55,8 +58,21 @@ func TestVideoStudioStatusServesRegistry(t *testing.T) {
 			ids = append(ids, transition.ID)
 			xfades = append(xfades, transition.XFade)
 		}
-		if strings.Join(ids, ",") != "dissolve,black,wipeleft,wiperight" || strings.Join(xfades, ",") != "fade,fadeblack,wiperight,wipeleft" {
+		// The 2a four keep their mapping; the 20 rows of 2e use their xfade names as ids (plan index §4.2).
+		added := "fadewhite,fadegrays,pixelize,wipeup,wipedown,smoothleft,smoothright,diagtl,diagbr,radial,slideleft,slideright,slideup,slidedown,squeezeh,zoomin,circleopen,circleclose,circlecrop,rectcrop"
+		if strings.Join(ids, ",") != "dissolve,black,wipeleft,wiperight,"+added || strings.Join(xfades, ",") != "fade,fadeblack,wiperight,wipeleft,"+added {
 			t.Fatalf("registry transitions = %v with xfade names %v", ids, xfades)
+		}
+		// 2e serves the eight animation presets, each with the filters its export needs.
+		var presets []string
+		for _, preset := range registry.AnimPresets {
+			if len(preset.Filters) == 0 {
+				t.Fatalf("animation preset %q has no filters", preset.ID)
+			}
+			presets = append(presets, preset.ID)
+		}
+		if strings.Join(presets, ",") != "fade,slide_up,slide_down,slide_left,slide_right,pop,wipe,blur_in" {
+			t.Fatalf("registry animation presets = %v", presets)
 		}
 		keyframableOpacity := false
 		for _, param := range registry.Base {

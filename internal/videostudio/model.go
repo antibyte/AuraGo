@@ -126,6 +126,8 @@ type Clip struct {
 	Blend         string                `json:"blend,omitempty"` // a registry blend mode other than "normal"; absent means normal (2d)
 	Mask          *Mask                 `json:"mask,omitempty"`  // one rectangle or ellipse in box space (2d)
 	Effects       []EffectInstance      `json:"effects,omitempty"`
+	AnimIn        *ClipAnim             `json:"anim_in,omitempty"`  // in animation at the clip's start (2e)
+	AnimOut       *ClipAnim             `json:"anim_out,omitempty"` // out animation at the clip's end (2e)
 }
 
 type TextStyle struct {
@@ -199,6 +201,17 @@ type Mask struct {
 	Rotation float64   `json:"rotation"`
 	Feather  float64   `json:"feather"`
 	Invert   bool      `json:"invert"`
+}
+
+// ClipAnim is an in or out animation of a visual clip (2e, spec §5.6, plan index §4.24).
+//   - Preset names a registry AnimPresets row. There is no "none" preset: the editor deletes the field instead.
+//   - Duration is in timeline frames of the project rate, inside AnimFrameRange(rate).
+//   - The render clamps each span to half the clip, so trims never make a project invalid.
+//
+// The JSON always holds both keys, preset first.
+type ClipAnim struct {
+	Preset   string `json:"preset"`   // a registry AnimPresets id
+	Duration int    `json:"duration"` // timeline frames
 }
 
 const (
