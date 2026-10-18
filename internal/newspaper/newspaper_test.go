@@ -395,7 +395,7 @@ func TestEditionRenderersPreserveSourcesAndRejectUnsupportedPDFGlyphs(t *testing
 	if err != nil || !strings.HasPrefix(string(pdf), "%PDF-") {
 		t.Fatalf("local PDF rendering failed: %v", err)
 	}
-	e.Title = "每日新闻"
+	e.Title = "أخبار"
 	if _, err := PDF(e); err == nil {
 		t.Fatal("unsupported PDF glyphs were rendered without a fallback signal")
 	}

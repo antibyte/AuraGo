@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"io/fs"
 	"sort"
 	"strings"
-	"unicode"
+
+	"aurago/internal/webassets"
 
 	"github.com/phpdave11/gofpdf"
-	"golang.org/x/image/font/gofont/gobold"
-	"golang.org/x/image/font/gofont/goregular"
-	"golang.org/x/image/font/sfnt"
 )
 
 type editionLabels struct {
@@ -136,25 +135,20 @@ func HTML(e Edition) string {
 // PDF renders the saved revision with local Unicode fonts. Unsupported glyphs
 // fail explicitly so Telegram can deliver the complete plain-text alternative.
 func PDF(e Edition) ([]byte, error) {
+	return renderPDF(e, webassets.Default.Namespace("newspaper/fonts"))
+}
+
+func renderPDF(e Edition, fonts fs.FS) ([]byte, error) {
 	l := labels(e)
-	font, err := sfnt.Parse(goregular.TTF)
+	regular, bold, err := pdfFonts(Text(e), fonts)
 	if err != nil {
 		return nil, err
-	}
-	for _, char := range Text(e) {
-		if unicode.IsSpace(char) {
-			continue
-		}
-		glyph, e := font.GlyphIndex(nil, char)
-		if e != nil || glyph == 0 || char > 0xffff || unicode.In(char, unicode.Arabic, unicode.Devanagari, unicode.Hebrew) {
-			return nil, fmt.Errorf("PDF font cannot render U+%04X", char)
-		}
 	}
 	p := gofpdf.New("P", "mm", "A4", "")
 	p.SetMargins(18, 18, 18)
 	p.SetAutoPageBreak(true, 19)
-	p.AddUTF8FontFromBytes("News", "", goregular.TTF)
-	p.AddUTF8FontFromBytes("News", "B", gobold.TTF)
+	p.AddUTF8FontFromBytes("News", "", regular)
+	p.AddUTF8FontFromBytes("News", "B", bold)
 	p.SetTitle(e.Title, true)
 	p.SetAuthor("AuraGo Newspaper", false)
 	p.SetFooterFunc(func() {
