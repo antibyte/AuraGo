@@ -45,6 +45,7 @@
     --vd-theme-shadow-panel: none;
     --vd-theme-shadow-modal: none;
     --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none; /* optional token: the app modal overlays stay flat, like Workbench */
 
     /* Chrome */
     --vd-chrome-highlight: 0 0 0 transparent;
@@ -94,11 +95,11 @@
     --vd-shell-radius-panel: 0;
     --vd-shell-radius-window: 0;
 
-    /* Geometry: 30px window list, 22px screen bar, 22px titlebars and gadgets */
+    /* Geometry: 30px window list, 22px screen bar, 24px titlebars and gadgets (the WCAG 2.5.8 minimum target) */
     --vd-taskbar-height: 30px;
     --vd-start-button-size: calc(var(--vd-taskbar-height) - 6px);
     --vd-global-bar-height: 22px;
-    --vd-global-menu-titlebar-height: 22px;
+    --vd-global-menu-titlebar-height: 24px;
     --vd-menu-row-height: 22px;
 
     /* Amiga helpers: titlebar and gadget size, bevels, pixel font */
@@ -126,9 +127,23 @@
     .vd-window-subtitle, .vd-window-menu-button, .vd-window-menu-item, .vd-context-item, .vd-context-shortcut,
     .vd-task-button, .vd-start-button, .vd-start-glyph, .vd-start-search input, .vd-start-category,
     .vd-start-category-count, .vd-start-item, .vd-start-pane-title, .vd-start-pane-count, .vd-start-recent-label,
-    .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-button, .vd-modal-title, .vd-modal-copy,
-    .vd-modal-input, .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open
+    .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-modal-title, .vd-modal-copy,
+    .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open
 ) {
+    font-family: var(--vd-theme-amiga-vga);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    -webkit-font-smoothing: none;
+}
+
+/* Buttons and fields are shared with the apps: the 16px pixel type (and the 26px minimum height below) applies on the
+   shell surfaces only, so a .vd-button inside an app keeps the metrics of that app. */
+.desktop-body[data-theme="amiga"] :is(
+    .vd-modal, .vd-file-dialog, .vd-shortcuts-overlay, .vd-shortcuts-panel, .vd-shortcuts-modal, .vd-toast, .vd-taskbar,
+    .vd-start-menu, .vd-global-bar, .vd-notification-center, .vd-clock-popup
+) :is(.vd-button, .vd-modal-input) {
     font-family: var(--vd-theme-amiga-vga);
     font-size: 16px;
     font-weight: 400;
@@ -181,7 +196,12 @@
 ):active { background: #999999; box-shadow: var(--vd-theme-amiga-sunken); transform: none; }
 
 .desktop-body[data-theme="amiga"] .vd-button.vd-button-primary:not(:active) { background: #6688bb; }
-.desktop-body[data-theme="amiga"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open) { min-height: 26px; }
+.desktop-body[data-theme="amiga"] :is(.vd-notification-clear, .vd-clock-popup-open) { min-height: 26px; }
+
+.desktop-body[data-theme="amiga"] :is(
+    .vd-modal, .vd-file-dialog, .vd-shortcuts-overlay, .vd-shortcuts-panel, .vd-shortcuts-modal, .vd-toast, .vd-taskbar,
+    .vd-start-menu, .vd-global-bar, .vd-notification-center, .vd-clock-popup
+) .vd-button { min-height: 26px; }
 
 /* ---- Screen bar (global menu bar): white, black line, bevelled A gadget ---- */
 .desktop-body[data-theme="amiga"] .vd-global-bar {
@@ -305,7 +325,7 @@
     filter: none;
 }
 
-/* ---- Windows: grey (inactive) or blue (active) frame, 22px titlebar, bevelled gadgets ---- */
+/* ---- Windows: grey (inactive) or blue (active) frame, 24px titlebar, bevelled gadgets ---- */
 .desktop-body[data-theme="amiga"] .vd-window {
     padding: 0 3px 3px;
     border: 1px solid #000000;
@@ -479,7 +499,8 @@
     border-bottom: 1px solid #000000;
     background: #6688bb;
     color: #000000;
-    font: 16px/21px var(--vd-theme-amiga-vga);
+    font: 16px var(--vd-theme-amiga-vga);
+    line-height: calc(var(--vd-theme-amiga-bar) - 1px);
     box-shadow: inset 1px 1px 0 #ffffff;
     -webkit-font-smoothing: none;
 }
@@ -632,9 +653,12 @@
     }
 }
 
-/* Touch targets: bigger bar, menu rows and gadgets for coarse pointers */
+/* Touch targets: bigger bars (the screen bar carries the tray controls: 44px leaves them 42px), menu rows and gadgets
+   (44px titlebars and gadgets) for coarse pointers */
 @media (pointer: coarse) {
-    .desktop-body[data-theme="amiga"] { --vd-taskbar-height: 44px; --vd-global-menu-titlebar-height: 36px; --vd-menu-row-height: 40px; }
+    .desktop-body[data-theme="amiga"] { --vd-taskbar-height: 44px; --vd-global-bar-height: 44px; --vd-global-menu-titlebar-height: 44px; --vd-menu-row-height: 40px; }
+    .desktop-body[data-theme="amiga"] .vd-global-brand { width: var(--vd-global-bar-height); height: calc(var(--vd-global-bar-height) - 2px); }
+    .desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menu-button { height: calc(var(--vd-global-bar-height) - 2px); }
 
     /* The base blurs these backdrops here, with !important. */
     .desktop-body[data-theme="amiga"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {

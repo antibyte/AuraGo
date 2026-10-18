@@ -94,6 +94,7 @@
     --vd-taskbar-height: 58px;
     --vd-taskbar-gap: calc(var(--vd-taskbar-height, 58px) + var(--vd-taskbar-offset, 0px));
     --vd-start-button-size: 50px;
+    --vd-crazy-title-h: 40px;
 
     /* Skin palette */
     --vd-crazy-pink: #FF2BD6;
@@ -249,12 +250,13 @@
 .desktop-body[data-theme="crazy"] .vd-window:not(.maximized) > .vd-window-content { border-bottom-left-radius: 13px; border-bottom-right-radius: 13px; }
 .desktop-body[data-theme="crazy"] .vd-window.no-titlebar:not(.maximized) > .vd-window-content { border-radius: 13px; }
 
-/* The 40 px titlebar belongs to roomy layouts; the compact layout keeps the base row heights. */
+/* The 40 px titlebar (48 px on touch screens, so the 44 px controls fit) belongs to roomy layouts; the compact layout
+   keeps the base row heights. */
 @media (min-width: 821px) {
-    .desktop-body[data-theme="crazy"] .vd-window:not(.no-titlebar) { grid-template-rows: 40px minmax(0, 1fr); }
-    .desktop-body[data-theme="crazy"] .vd-window.has-window-menu:not(.no-titlebar) { grid-template-rows: 68px minmax(0, 1fr); }
-    .desktop-body[data-theme="crazy"] .vd-window > .vd-window-titlebar { min-height: 40px; }
-    .desktop-body[data-theme="crazy"] .vd-window.has-window-menu > .vd-window-titlebar { grid-template-rows: 40px 28px; }
+    .desktop-body[data-theme="crazy"] .vd-window:not(.no-titlebar) { grid-template-rows: var(--vd-crazy-title-h) minmax(0, 1fr); }
+    .desktop-body[data-theme="crazy"] .vd-window.has-window-menu:not(.no-titlebar) { grid-template-rows: calc(var(--vd-crazy-title-h) + 28px) minmax(0, 1fr); }
+    .desktop-body[data-theme="crazy"] .vd-window > .vd-window-titlebar { min-height: var(--vd-crazy-title-h); }
+    .desktop-body[data-theme="crazy"] .vd-window.has-window-menu > .vd-window-titlebar { grid-template-rows: var(--vd-crazy-title-h) 28px; }
 }
 
 .desktop-body[data-theme="crazy"] .vd-window > .vd-window-titlebar {
@@ -297,33 +299,72 @@
     pointer-events: none;
 }
 
-.desktop-body[data-theme="crazy"] .vd-window-actions { gap: 8px; }
+.desktop-body[data-theme="crazy"] .vd-window-actions { gap: 0; }
 
-/* Candy controls: round, glossy, black glyphs. The base glyph pseudo-elements stay hidden. */
+/* Candy controls: round, glossy, black glyphs. Every button keeps the shell hit size (28 px, 44 px on touch screens);
+   the 18 px candy is its ::before, centred, and the targets sit side by side. The base glyph pseudo-element is replaced
+   by the candy and the hover ripple would glow outside it, so that one stays hidden. */
 .desktop-body[data-theme="crazy"] .vd-window-button {
     --vd-crazy-candy: var(--vd-crazy-yellow);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+    color: #000;
+    outline-offset: -3px; /* the focus ring hugs the candy */
+}
+
+.desktop-body[data-theme="crazy"] .vd-window-button::after { display: none; }
+
+.desktop-body[data-theme="crazy"] .vd-window-button:not(.vd-window-ai-button)::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
     width: 18px;
     height: 18px;
-    padding: 0;
+    margin: auto;
     border: 2px solid var(--vd-bg);
     border-radius: 50%;
     background:
         radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.78) 0 12%, transparent 13%),
         var(--vd-crazy-candy);
     box-shadow: inset 0 -3px 0 rgba(18, 0, 43, 0.24);
-    color: #000;
+    pointer-events: none;
 }
 
 .desktop-body[data-theme="crazy"] .vd-window-button[data-action="minimize"] { --vd-crazy-candy: var(--vd-crazy-yellow); }
 .desktop-body[data-theme="crazy"] .vd-window-button[data-action="maximize"] { --vd-crazy-candy: var(--vd-crazy-cyan); }
 .desktop-body[data-theme="crazy"] .vd-window-button[data-action="close"] { --vd-crazy-candy: var(--vd-crazy-pink); }
-.desktop-body[data-theme="crazy"] .vd-window-ai-button { width: 24px; height: 24px; border-color: var(--vd-crazy-lime); background: rgba(18, 0, 43, 0.6); box-shadow: none; }
+
+/* The chat button is a 24 px dark disc with a lime ring; its glyphs are positioned so they paint above the candy. */
+.desktop-body[data-theme="crazy"] .vd-window-ai-button { outline-offset: 0; }
+
+.desktop-body[data-theme="crazy"] .vd-window-ai-button::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 24px;
+    height: 24px;
+    margin: auto;
+    border: 2px solid var(--vd-crazy-lime);
+    border-radius: 50%;
+    background: rgba(18, 0, 43, 0.6);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="crazy"] .vd-window-button :is(.vd-window-control-icon, .vd-window-ai-button-icon) { position: relative; }
 .desktop-body[data-theme="crazy"] .vd-window-control-icon { width: 10px; height: 10px; }
 
-/* Fingers need room: the candy grows on touch screens. */
+/* Fingers need room: the hit boxes are 44 px and the candy grows on touch screens. */
 @media (pointer: coarse) {
-    .desktop-body[data-theme="crazy"] .vd-window-button { width: 34px; height: 34px; }
-    .desktop-body[data-theme="crazy"] .vd-window-ai-button { width: 38px; height: 38px; }
+    .desktop-body[data-theme="crazy"] { --vd-crazy-title-h: 48px; }
+    .desktop-body[data-theme="crazy"] .vd-window-button:not(.vd-window-ai-button)::before { width: 34px; height: 34px; }
+    .desktop-body[data-theme="crazy"] .vd-window-ai-button { outline-offset: -1px; }
+    .desktop-body[data-theme="crazy"] .vd-window-ai-button::before { width: 38px; height: 38px; }
     .desktop-body[data-theme="crazy"] .vd-window-control-icon { width: 16px; height: 16px; }
 }
 

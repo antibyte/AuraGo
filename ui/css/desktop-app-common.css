@@ -51,8 +51,8 @@
     .gm-modal-layer
 ) {
     background: var(--vd-theme-overlay-bg) !important;
-    -webkit-backdrop-filter: blur(10px) saturate(1.08);
-    backdrop-filter: blur(10px) saturate(1.08);
+    -webkit-backdrop-filter: var(--vd-theme-overlay-blur);
+    backdrop-filter: var(--vd-theme-overlay-blur);
 }
 
 .desktop-body[data-theme] :where(

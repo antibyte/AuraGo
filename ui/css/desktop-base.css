@@ -2096,6 +2096,8 @@
 /* Text colour that sits on the accent: white by default (Standard, Fruity and the user accents); fixed-accent skins override it. */
 .desktop-body {
     --vd-accent-contrast: #fff;
+    /* Backdrop blur of the app modal overlays (desktop-app-common.css); a skin sets none for a flat screen. */
+    --vd-theme-overlay-blur: blur(10px) saturate(1.08);
 }
 
 .desktop-body[data-density="compact"] .vd-topbar,

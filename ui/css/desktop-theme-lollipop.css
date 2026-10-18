@@ -96,6 +96,7 @@
     --ds-radius-lg: 16px;
     --ds-radius-xl: 22px;
     --vd-lollipop-display: "Desktop Theme Montserrat", 'Geist', system-ui, sans-serif;
+    --vd-lollipop-title-h: 40px;
 
     /* Site-wide tokens that shared components read (global focus ring, radial navigation menu) */
     --accent: #C2186B;
@@ -396,34 +397,87 @@
 .desktop-body[data-theme="lollipop"] .vd-window-header-icon-wrap { width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(194, 24, 107, 0.28), inset 0 0 0 1px rgba(194, 24, 107, 0.14); }
 
 @media (min-width: 821px) {
-    .desktop-body[data-theme="lollipop"] .vd-window:not(.has-window-menu):not(.no-titlebar) { grid-template-rows: 40px minmax(0, 1fr); }
-    .desktop-body[data-theme="lollipop"] .vd-window:not(.has-window-menu) > .vd-window-titlebar { min-height: 40px; }
+    .desktop-body[data-theme="lollipop"] .vd-window:not(.has-window-menu):not(.no-titlebar) { grid-template-rows: var(--vd-lollipop-title-h) minmax(0, 1fr); }
+    .desktop-body[data-theme="lollipop"] .vd-window:not(.has-window-menu) > .vd-window-titlebar { min-height: var(--vd-lollipop-title-h); }
 }
 
+/* A wide touch screen: the titlebars grow to 48 px so the 44 px controls fit (the base rows are 42 px). */
+@media (pointer: coarse) and (min-width: 821px) {
+    .desktop-body[data-theme="lollipop"] { --vd-lollipop-title-h: 48px; --vd-global-menu-titlebar-height: 48px; }
+    .desktop-body[data-theme="lollipop"] .vd-window.has-window-menu:not(.no-titlebar) { grid-template-rows: 76px minmax(0, 1fr); }
+    .desktop-body[data-theme="lollipop"] .vd-window.has-window-menu > .vd-window-titlebar { grid-template-rows: 48px 28px; }
+}
+
+/* Jelly beans: every button keeps the shell hit size (28 px, 44 px on touch screens) and draws a 22x14 bean (44x28 on
+   touch) as ::before, with the gloss as ::after, both centred inside it; the targets sit 2 px apart. The focus ring of a
+   bean is a circle that clears its ends. The glyph is positioned: it paints above the bean and below the gloss. */
+.desktop-body[data-theme="lollipop"] .vd-window > .vd-window-titlebar > .vd-window-actions { gap: 2px; }
+
 .desktop-body[data-theme="lollipop"] .vd-window-button {
-    width: 22px;
-    height: 14px;
+    --vd-lollipop-bean-w: 22px;
+    --vd-lollipop-bean-h: 14px;
     padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+    color: var(--vd-text);
+    outline-offset: -1px;
+}
+
+.desktop-body[data-theme="lollipop"] .vd-window-button::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: var(--vd-lollipop-bean-w);
+    height: var(--vd-lollipop-bean-h);
+    margin: auto;
     border: 1px solid rgba(74, 31, 61, 0.22);
     border-radius: 999px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--vd-jelly, #E65CA5) 78%, #fff), var(--vd-jelly, #E65CA5));
-    color: var(--vd-text);
     box-shadow: 0 1px 2px rgba(74, 31, 61, 0.28), inset 0 -2px 3px rgba(74, 31, 61, 0.16);
+    pointer-events: none;
 }
 
 .desktop-body[data-theme="lollipop"] .vd-window-button[data-action="minimize"] { --vd-jelly: #69CFA8; }
 .desktop-body[data-theme="lollipop"] .vd-window-button[data-action="maximize"] { --vd-jelly: #F3B563; }
 .desktop-body[data-theme="lollipop"] .vd-window-button[data-action="close"] { --vd-jelly: #E65CA5; }
-.desktop-body[data-theme="lollipop"] .vd-window-button.vd-window-ai-button { --vd-jelly: #E6DCFF; width: 28px; height: 18px; color: #5B3FB5; }
-.desktop-body[data-theme="lollipop"] .vd-window-button::after { inset: 1px 4px auto; height: 42%; border-radius: 999px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.1)); opacity: 1; transform: none; }
+.desktop-body[data-theme="lollipop"] .vd-window-button.vd-window-ai-button { --vd-jelly: #E6DCFF; --vd-lollipop-bean-w: 28px; --vd-lollipop-bean-h: 18px; color: #5B3FB5; }
+
+/* A circle that clears the 28px-wide chat chip would reach the titlebar hairline, so its focus ring is drawn on the chip
+   itself (the chat button is hidden by the apps that draw their own window buttons, so nothing else loses its ring). */
+.desktop-body[data-theme="lollipop"] .vd-window-button.vd-window-ai-button:focus-visible { outline-color: transparent; }
+.desktop-body[data-theme="lollipop"] .vd-window-button.vd-window-ai-button:focus-visible::before { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+
+.desktop-body[data-theme="lollipop"] .vd-window-button::after {
+    inset: calc(50% - var(--vd-lollipop-bean-h) / 2 + 1px) calc(50% - var(--vd-lollipop-bean-w) / 2 + 4px) auto;
+    height: calc(var(--vd-lollipop-bean-h) * 0.42);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.1));
+    opacity: 1;
+    transform: none;
+}
+
 .desktop-body[data-theme="lollipop"] .vd-window-button:hover { filter: brightness(1.06) saturate(1.1); }
 .desktop-body[data-theme="lollipop"] .vd-window:not(.active) .vd-window-button { filter: saturate(0.6) brightness(1.04); }
+.desktop-body[data-theme="lollipop"] .vd-window-button :is(.vd-window-control-icon, .vd-window-ai-button-icon) { position: relative; }
 .desktop-body[data-theme="lollipop"] .vd-window-control-icon { width: 9px; height: 9px; color: var(--vd-text); opacity: 0; transition: opacity 120ms ease; }
 .desktop-body[data-theme="lollipop"] :is(.vd-window-actions:hover, .vd-window-button:focus-visible) .vd-window-control-icon { opacity: 1; }
 
+/* Fingers: 44 px hit boxes and 44x28 beans (the chat bean keeps its size); the buttons sit 8 px apart, as the shared
+   global-menu rule has them. */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="lollipop"] .vd-window > .vd-window-titlebar > .vd-window-actions { gap: 8px; }
+    .desktop-body[data-theme="lollipop"] .vd-window-button { --vd-lollipop-bean-w: 44px; --vd-lollipop-bean-h: 28px; outline-offset: 2px; }
+    .desktop-body[data-theme="lollipop"] .vd-window-button.vd-window-ai-button { --vd-lollipop-bean-w: 28px; --vd-lollipop-bean-h: 18px; }
+    .desktop-body[data-theme="lollipop"] .vd-window-control-icon { width: 14px; height: 14px; }
+}
+
+/* Without a pointer to hover, the control glyphs stay visible. */
 @media (hover: none), (pointer: coarse) {
-    .desktop-body[data-theme="lollipop"] .vd-window-button { width: 44px; height: 28px; }
-    .desktop-body[data-theme="lollipop"] .vd-window-control-icon { width: 14px; height: 14px; opacity: 1; }
+    .desktop-body[data-theme="lollipop"] .vd-window-control-icon { opacity: 1; }
 }
 
 /* ---- Menus and the start menu: blush panels, pink hover rows, a sprinkled header. ---- */
