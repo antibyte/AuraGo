@@ -638,7 +638,8 @@
     font-size: 1rem;
 }
 
-.vd-shortcuts-close {
+/* Legacy icon button of .vd-shortcuts-modal; the live F1 panel (.vd-shortcuts-panel) styles its text button in desktop-chrome.css. */
+.vd-shortcuts-modal .vd-shortcuts-close {
     width: 32px;
     height: 32px;
     border-radius: 8px;
@@ -652,7 +653,7 @@
     justify-content: center;
 }
 
-.vd-shortcuts-close:hover {
+.vd-shortcuts-modal .vd-shortcuts-close:hover {
     background: var(--ds-color-control-hover);
 }
 
