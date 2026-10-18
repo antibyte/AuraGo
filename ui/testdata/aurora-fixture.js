@@ -75,7 +75,10 @@ window.fixtureReady=(async()=>{
 })();
 window.fixtureTheme=theme=>{
     aurora.closeContextMenu(true);
-    Object.assign(aurora.state.bootstrap.settings,{'appearance.theme':theme.startsWith('fruity')?'fruity':'standard','appearance.fruity_mode':theme.endsWith('dark')?'dark':'light','appearance.icon_theme':theme.startsWith('fruity')?'whitesur':'papirus'});
+    // Accepts a registry id ('amiga', 'crazy', ...) and the legacy 'fruity-light' / 'fruity-dark' spellings.
+    const id=theme.startsWith('fruity')?'fruity':theme;
+    const info=typeof aurora.desktopThemeById==='function'?aurora.desktopThemeById(id):null;
+    Object.assign(aurora.state.bootstrap.settings,{'appearance.theme':id,'appearance.fruity_mode':theme.endsWith('dark')?'dark':'light','appearance.icon_theme':info?info.iconTheme:(id==='fruity'?'whitesur':'papirus')});
     aurora.applyDesktopSettings();aurora.renderIcons();aurora.renderStartButtonIcon();
 };
 window.fixtureOpen=async id=>{
