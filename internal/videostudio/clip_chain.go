@@ -77,13 +77,14 @@ func (c clipChain) build(output string) clipBuild {
 func (c clipChain) filter(output string) string { return c.build(output).filter }
 
 // stages lists the stages after window in the preview's pipeline order (index §4.10): picture, the effect entries, the
-// animated crop, fit, mask, orient and opacity.
+// animated crop, fit, mask, the wipe's reveal (2e), orient and opacity.
 //   - The animated crop (plan 2c) is its own stage right in front of the fit, so its commands join the group of the last
 //     two-input stage before it.
-//   - fit leaves the picture in box space: the box, or the pad canvas of keyframed geometry. The mask applies there (2d).
+//   - fit leaves the picture in box space: the box, or the pad canvas of keyframed or animated geometry. The mask (2d)
+//     and the wipe's reveal (2e) apply there, in that order.
 //   - orient converts the picture to RGBA and rotates it.
 //
-// Without a mask, the joined filters equal the 2c transform byte for byte.
+// Without a mask or a wipe, the joined filters equal the 2c transform byte for byte.
 func (c clipChain) stages() []chainStage {
 	stages := []chainStage{{filter: c.picture()}}
 	stages = append(stages, c.effects()...)
@@ -91,6 +92,7 @@ func (c clipChain) stages() []chainStage {
 		chainStage{filter: c.animatedCrop(), tracks: c.pictureTracks()},
 		chainStage{filter: c.fit(), tracks: c.transformTracks()},
 		c.mask(),
+		c.animReveal(),
 		chainStage{filter: c.orient()},
 		chainStage{filter: c.opacity(), tracks: c.opacityTracks()})
 }
@@ -352,8 +354,12 @@ func (c clipChain) processedSize() (width, height int) {
 // mask. It is a two-input stage, so the opacity commands read the next command group.
 func (c clipChain) mask() chainStage { return maskStage(c) }
 
+// animReveal is the wipe's reveal in box space, right after the mask (index §4.10, §4.24). animRevealStage builds it, and
+// it is {} without an effective wipe span. It is a two-input stage, so the opacity commands read the next command group.
+func (c clipChain) animReveal() chainStage { return animRevealStage(c) }
+
 // transform is fit followed by orient, the whole 2c transform stage. The chain assembles the two as separate stages
-// (the mask goes between them); static_cover_bound_test reads the joined text.
+// (the mask and, 2e, the wipe's reveal go between them); static_cover_bound_test reads the joined text.
 func (c clipChain) transform() string { return c.fit() + "," + c.orient() }
 
 // fit scales the picture into the clip box: contain pads, cover crops. Its output is box space (index §4.22).

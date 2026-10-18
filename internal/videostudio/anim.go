@@ -302,3 +302,55 @@ func animExprs(clip Clip, frame ffExpr) animExpr {
 	}
 	return animExpr{scale: part(1, pop), dx: part(0, slide(0)), dy: part(0, slide(1))}
 }
+
+// ---- Plan 2e Task 7: the span expression of the timeline enables (index §4.11, §4.24) ----
+
+// animWindowFrame is the absolute timeline frame of a window frame from a filter's time variable in seconds:
+// at + round(max(variable, 0)·Num/Den), the frame windowSourceExprVar keeps in register 0 (index §4.11). variable is t
+// for timeline enable expressions and T for geq. max keeps a NaN time on the window's first frame.
+func animWindowFrame(at int, rate Rate, variable string) ffExpr {
+	return exprOp("+", exprNum(float64(at)), exprOp("round", exprOp("/",
+		exprOp("*", exprOp("max", exprVar(variable), exprNum(0)), exprNum(float64(rate.Num))), exprNum(float64(rate.Den)))))
+}
+
+// animSpanExpr is the timeline expression (enable=) that is 1 on the absolute frames of the clip's effective spans
+// (animSpans) whose preset is one of kinds, and 0 elsewhere (index §4.11, §4.24):
+//   - register 0 holds the frame F (animWindowFrame in t; the filter's t counts from the window start);
+//   - the in span is gte(F, start)·lt(F, start + D_in), the out span gte(F, end − D_out)·lt(F, end);
+//   - max joins the two.
+//
+// Without such a span the expression is the constant 0. Only Go-written frame numbers and the rate enter the text, so
+// every segmentation enables the same absolute frames.
+func animSpanExpr(clip Clip, at int, rate Rate, kinds ...string) ffExpr {
+	wanted := func(anim *ClipAnim) bool {
+		if anim == nil {
+			return false
+		}
+		for _, kind := range kinds {
+			if anim.Preset == kind {
+				return true
+			}
+		}
+		return false
+	}
+	spanIn, spanOut := animSpans(clip)
+	frame := exprLd(0)
+	span := func(from, to int) ffExpr {
+		return exprOp("*", exprOp("gte", frame, exprNum(float64(from))), exprOp("lt", frame, exprNum(float64(to))))
+	}
+	var terms []ffExpr
+	if spanIn > 0 && wanted(clip.AnimIn) {
+		terms = append(terms, span(clip.Start, clip.Start+spanIn))
+	}
+	if end := clip.Start + clip.Duration; spanOut > 0 && wanted(clip.AnimOut) {
+		terms = append(terms, span(end-spanOut, end))
+	}
+	if len(terms) == 0 {
+		return exprNum(0)
+	}
+	on := terms[0]
+	if len(terms) == 2 {
+		on = exprOp("max", terms[0], terms[1])
+	}
+	return exprOp(";", exprSt(0, animWindowFrame(at, rate, "t")), on)
+}

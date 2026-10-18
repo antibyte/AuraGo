@@ -419,7 +419,8 @@ func TestCropRectExprMatchesCropRect(t *testing.T) {
 
 // TestClipChainFitOrientSplit checks the 2d split of the transform stage (index §4.10):
 //   - transform() is fit() + "," + orient();
-//   - stages() holds fit (with transformTracks), then the mask stage (empty without a mask), then orient;
+//   - stages() holds fit (with transformTracks), then the mask stage (empty without a mask), then the reveal stage
+//     (empty without a wipe, 2e), then orient;
 //   - fit leaves the picture in box space, with no RGBA conversion and no rotation;
 //   - orient starts with format=rgba;
 //   - the built chain holds fit + "," + orient.
@@ -453,8 +454,8 @@ func TestClipChainFitOrientSplit(t *testing.T) {
 		}
 		stages := c.stages()
 		at := slices.IndexFunc(stages, func(s chainStage) bool { return s.filter == fit })
-		if at < 0 || at+2 >= len(stages) || stages[at+2].filter != orient || stages[at+2].tracks != nil || !reflect.DeepEqual(stages[at].tracks, c.transformTracks()) {
-			t.Fatalf("chain %d: stages %+v do not hold fit, mask and orient in that order", i, stages)
+		if at < 0 || at+3 >= len(stages) || stages[at+3].filter != orient || stages[at+3].tracks != nil || !reflect.DeepEqual(stages[at].tracks, c.transformTracks()) || !reflect.DeepEqual(stages[at+2], chainStage{}) {
+			t.Fatalf("chain %d: stages %+v do not hold fit, mask, reveal (empty) and orient in that order", i, stages)
 		}
 		if !strings.Contains(c.filter("vs_clip_x"), fit+","+orient) {
 			t.Fatalf("chain %d: the built chain lacks %q", i, fit+","+orient)
@@ -731,5 +732,105 @@ func TestClipChainAnimSnapshots(t *testing.T) {
 	animated.AnimIn = &ClipAnim{Preset: "pop", Duration: 10}
 	if got, want := chain(3, animated).filter("vs_clip_0_3"), chain(3, short).filter("vs_clip_0_3"); got != want {
 		t.Fatalf("a pop without an effective span changed the chain:\n got %s\nwant %s", got, want)
+	}
+}
+
+// TestClipChainRevealSnapshots pins the wipe's reveal stage between mask and orient (index §4.10, §4.24):
+//   - no stage without an effective wipe span: no animation, another preset, or a one-frame clip;
+//   - static box: the whole chain, the reveal row's expression and the enable of both spans;
+//   - keyed geometry: the row spans the pad canvas, and its box width is the scale's expression in T;
+//   - a mask: the mask merge first, then the reveal; opacity keyframes read command group 2 behind the reveal.
+//
+// The stage never holds sendcmd or gblur, and nothing commands the blend.
+func TestClipChainRevealSnapshots(t *testing.T) {
+	pal := Rate{Num: 25, Den: 1}
+	chain := func(index int, clip Clip) clipChain {
+		return clipChain{track: 0, index: index, item: layerClip{clip: clip, whole: clip, at: clip.Start, input: index, pictureWidth: 1920, pictureHeight: 1080, sourceAspect: 16.0 / 9}, canvasWidth: 1280, canvasHeight: 720, rate: pal}
+	}
+	head := func(input, duration int) string {
+		return fmt.Sprintf("[%d:V:0]setpts='if(eq(N,0),min(PTS,floor(0.000000000/TB)),PTS)',fps=25,setpts='max(PTS-0,-%d)',tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,", input, duration, duration*2, duration)
+	}
+	tail := func(index, duration int, overlay string) string {
+		return fmt.Sprintf("[vs_layer_0_%[1]d];color=c=black@0:s=1280x720:r=25:d=%[2]s,trim=end_frame=%[3]d,setpts=PTS-STARTPTS,format=rgba[vs_clip_bg_0_%[1]d];[vs_clip_bg_0_%[1]d][vs_layer_0_%[1]d]%[4]s[vs_clip_0_%[1]d]", index, pal.SecondsArg(duration), duration, overlay)
+	}
+	// reveal is the stage text of index §4.24 for chain c.
+	reveal := func(c clipChain) string {
+		plan := maskPlanOf(c)
+		merge := "blend=c0_mode=normal:c1_mode=normal:c2_mode=normal:c3_mode=multiply"
+		if animRevealGated {
+			merge += ":enable='" + animSpanExpr(c.item.whole, c.item.at, c.rate, "wipe").String() + "'"
+		}
+		return fmt.Sprintf("format=gbrap[vs_rv_0_%[1]d_in];nullsrc=s=%[2]dx1:r=25:d=%[3]s,trim=end_frame=%[4]d,setpts=PTS-STARTPTS,format=gbrap,geq=r='0':g='0':b='0':a='%[5]s',scale=w=%[2]d:h=%[6]d:flags=neighbor[vs_rv_0_%[1]d_m];[vs_rv_0_%[1]d_in][vs_rv_0_%[1]d_m]%[7]s",
+			c.index, plan.canvasWidth, pal.SecondsArg(c.item.clip.Duration), c.item.clip.Duration, revealExpr(c, plan).String(), plan.canvasHeight, merge)
+	}
+	containFit := "scale=w=640:h=360:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=w=640:h=360:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0"
+	staticOverlay := "overlay=x=320:y=180:format=auto:shortest=1"
+	clip := func(edit func(*Clip)) Clip {
+		c := Clip{ID: "w", AssetID: "a", Duration: 20, X: 0.25, Y: 0.25, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitContain,
+			AnimIn: &ClipAnim{Preset: "wipe", Duration: 6}, AnimOut: &ClipAnim{Preset: "wipe", Duration: 5}}
+		edit(&c)
+		return c
+	}
+
+	for name, c := range map[string]Clip{
+		"no animation":     clip(func(c *Clip) { c.AnimIn, c.AnimOut = nil, nil }),
+		"another preset":   clip(func(c *Clip) { c.AnimIn, c.AnimOut = &ClipAnim{Preset: "fade", Duration: 6}, nil }),
+		"a one-frame clip": clip(func(c *Clip) { c.Duration = 1 }),
+	} {
+		if got := chain(0, c).animReveal(); !reflect.DeepEqual(got, chainStage{}) {
+			t.Fatalf("%s: reveal stage %+v, want none", name, got)
+		}
+	}
+
+	// Static box: 640x360 at (320, 180) of the 1280x720 canvas; in span [0, 6), out span [15, 20).
+	static := chain(0, clip(func(*Clip) {}))
+	text := revealExpr(static, maskPlanOf(static)).String()
+	parts := []string{
+		"(if(lt(X,0.5),(st(5,640);(st(6,(0+round(((max(T,0)*25)/1))));(st(7,((640-ld(5))/2));if(lt(ld(6),6),",
+		"(st(8,ld(7));st(9,(ld(7)+round((((ld(6)-0)/6)*ld(5))))))",
+		"if(gte(ld(6),15),(st(9,(ld(7)+ld(5)));st(8,(ld(9)-round((((19-ld(6))/5)*ld(5)))))),(st(8,0);st(9,640))",
+	}
+	if !strings.HasPrefix(text, parts[0]) || !strings.Contains(text, parts[1]) || !strings.Contains(text, parts[2]) ||
+		!strings.HasSuffix(text, ",0);(255*(gte(X,ld(8))*lt(X,ld(9)))))") {
+		t.Fatalf("static reveal expression:\n%s\nwant the frame values once per row (%q, %q, %q), then 255 on [ld(8), ld(9))", text, parts[0], parts[1], parts[2])
+	}
+	if got, want := animSpanExpr(static.item.whole, 0, pal, "wipe").String(), "(st(0,(0+round(((max(t,0)*25)/1))));max((gte(ld(0),0)*lt(ld(0),6)),(gte(ld(0),15)*lt(ld(0),20))))"; got != want {
+		t.Fatalf("wipe enable:\n got %s\nwant %s", got, want)
+	}
+	if stage := static.animReveal(); !stage.twoInput || stage.tracks != nil || strings.Contains(stage.filter, "sendcmd") || strings.Contains(stage.filter, "gblur") || strings.Contains(stage.filter, "blend@") {
+		t.Fatalf("reveal stage %+v", stage)
+	}
+	if got, want := static.filter("vs_clip_0_0"), head(0, 20)+containFit+","+reveal(static)+",format=rgba"+tail(0, 20, staticOverlay); got != want {
+		t.Fatalf("static reveal:\n got %s\nwant %s", got, want)
+	}
+	if files := static.commandFiles(); len(files) != 0 {
+		t.Fatalf("a wipe alone needs no commands: %+v", files)
+	}
+
+	// Keyed geometry: the row spans the pad canvas with the box centred, its width the box expression in T.
+	box := chain(1, clip(func(c *Clip) { c.Keyframes = map[string][]Keyframe{"width": linearKeys(0.3, 0.5, 19)} }))
+	g := box.geometry()
+	plan := maskPlanOf(box)
+	if plan.canvasWidth != g.padWidth || plan.canvasHeight != g.padHeight {
+		t.Fatalf("keyed reveal canvas %dx%d, pad %dx%d", plan.canvasWidth, plan.canvasHeight, g.padWidth, g.padHeight)
+	}
+	if text := revealExpr(box, plan).String(); !strings.HasPrefix(text, "(if(lt(X,0.5),(st(5,"+renameExprVar(g.box.w, "t", "T").String()+");") {
+		t.Fatalf("the keyed reveal must read the box width in T:\n%s", text)
+	}
+	if got, want := box.filter("vs_clip_0_1"), head(1, 20)+box.fit()+","+reveal(box)+","+box.orient()+box.place("vs_clip_0_1"); got != want {
+		t.Fatalf("keyed reveal:\n got %s\nwant %s", got, want)
+	}
+
+	// A mask, then the reveal; opacity keyframes read command group 2 behind the reveal.
+	masked := chain(2, clip(func(c *Clip) {
+		c.Mask = &Mask{Shape: MaskEllipse, X: 0.2, Y: 0.2, W: 0.6, H: 0.6, Feather: 0.05}
+		c.Keyframes = map[string][]Keyframe{"opacity": linearKeys(0.2, 1, 19)}
+	}))
+	built := masked.build("vs_clip_0_2")
+	if want := head(2, 20) + containFit + "," + masked.mask().filter + "," + reveal(masked) + ",sendcmd=f=vs_cmd_0_2_2.txt,format=rgba," + masked.opacity() + tail(2, 20, staticOverlay); built.filter != want {
+		t.Fatalf("mask then reveal:\n got %s\nwant %s", built.filter, want)
+	}
+	if len(built.commands) != 1 || built.commands[0].name != "vs_cmd_0_2_2.txt" || built.commands[0].tracks[0].Target != "colorchannelmixer@vs_opacity_0_2" {
+		t.Fatalf("mask then reveal: command files %+v, want the opacity in group 2", built.commands)
 	}
 }
