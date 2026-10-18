@@ -2118,11 +2118,12 @@ buttons and menu popovers remain excluded from those gestures.
   mission payload. The editor re-validates live after the first failed save.
 - `.vd-mc [hidden]` forces `display: none` because module display rules
   otherwise beat the UA hidden default; keep the stylesheet theme-native
-  (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals. The button
-  reset is `.vd-mc :where(button)` at (0,1,0) so single-class button colours
-  (link, back, tab, quick action, danger) apply; accent and danger text on
-  buttons and links uses `--mc-accent-ink` / `--mc-danger-ink`, never the raw
-  accent or `#e5484d`.
+  (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals. The colour
+  reset is `.vd-mc :where(button) { color: inherit }` at (0,1,0) so
+  single-class button colours (link, back, tab, quick action, danger) apply,
+  while `.vd-mc button { font: inherit }` keeps (0,1,1); accent and danger
+  text on buttons and links uses `--mc-accent-ink` / `--mc-danger-ink`, never
+  the raw accent or `#e5484d`.
 - Verify with `go test ./ui -run 'MissionControl|RelTime'`,
   `npm run test:mission-control` (schedule, plus flow missions on a stub DOM in
   `scripts/test-mission-control-flows.mjs`), `npm run test:dashboard-cron` and

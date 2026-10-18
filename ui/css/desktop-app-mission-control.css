@@ -21,7 +21,7 @@
     --mc-danger: #e5484d;
     /* Accent and danger ink: the colour mixed with the text colour. Raw accents fall to 1.3:1 and the raw danger red to
        1.6:1 on light panels; these mixes keep 4.5:1 or more on the panel, control, hover and selected-row backgrounds of
-       every theme and accent (accent 30 %: at least 5.7:1; danger 60 % on dark schemes: at least 5.0:1). */
+       every theme and accent (accent 30 %: at least 5.7:1; danger 60 % on dark schemes: 4.99:1 or more). */
     --mc-accent-ink: color-mix(in srgb, var(--mc-accent) 30%, var(--vd-text));
     --mc-danger-ink: color-mix(in srgb, var(--mc-danger) 60%, var(--vd-text));
     --mc-info: #3b82f6;
@@ -42,8 +42,12 @@
 .vd-mc *, .vd-mc *::before, .vd-mc *::after { box-sizing: border-box; }
 /* The modules toggle visibility through the hidden attribute; it must beat every display rule below. */
 .vd-mc [hidden] { display: none !important; }
-/* :where() keeps the reset at (0,1,0), so the single-class button rules below (link, back, tab, quick, danger) win by order. */
-.vd-mc :where(button) { font: inherit; color: inherit; }
+/* The font reset keeps its (0,1,1) weight on purpose: it also masks the single-class font declarations below, and
+   un-masking them would change every Mission Control button, tab and chip in every theme (a separate decision).
+   Only the colour reset sits at (0,1,0) through :where(), so the single-class button colours (link, back, tab,
+   quick, danger) win by order. */
+.vd-mc button { font: inherit; }
+.vd-mc :where(button) { color: inherit; }
 .vd-mc svg { width: 1em; height: 1em; flex: none; }
 .vd-mc :focus-visible { outline: none; box-shadow: var(--mc-focus); border-radius: var(--mc-radius-sm); }
 .vd-mc-muted { color: var(--vd-muted); font-size: var(--ds-type-size-sm); }
