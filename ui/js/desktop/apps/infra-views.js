@@ -11,7 +11,7 @@
         actionReason, labelForKind, setBusy, loadSnapshot, selectNode, nextPosition,
         placeByChoice, saveKeyboardMove, persistLayout, updateUndoButton, replaceNode, openEdgeDialog,
         deleteNode, loadSourceEdit, reapplySourceDraft, reapplyNodeDraft, reviewSourceEdit, saveSourceEdit,
-        openActionMenu, chooseEdgeEndpoint
+        openActionMenu, chooseEdgeEndpoint, uncertainMutation
     }) {
         const model = window.InfraAppModel;
         const paintToolbar = () => {
@@ -125,11 +125,10 @@
             const row = node => {
                 const powerKey = model.powerLabel(node.power);
                 const power = powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : '—';
-                return `<tr data-row="${esc(node.id)}" class="${state.selected === node.id ? 'is-selected' : ''}" tabindex="0" aria-selected="${state.selected === node.id}"><td><button class="infra-table-name" data-select="${esc(node.id)}">${icon(node.icon)}<span>${esc(node.name)}</span></button></td><td>${esc(labelForKind(node.kind))}</td><td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td><td>${esc((node.sources || []).map(source => t(`desktop.infra_source_${source.kind}`)).join(', ') || t('desktop.infra_manual'))}</td><td><span class="infra-state-pill" data-state="${esc(sourceState(node))}"><i></i>${esc(statusLabel(sourceState(node)))}</span></td><td>${power}</td></tr>`;
+                return `<tr data-row="${esc(node.id)}" class="${state.selected === node.id ? 'is-selected' : ''}"><td><button class="infra-table-name" data-select="${esc(node.id)}" aria-current="${state.selected === node.id ? 'true' : 'false'}">${icon(node.icon)}<span>${esc(node.name)}</span></button></td><td>${esc(labelForKind(node.kind))}</td><td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td><td>${esc((node.sources || []).map(source => t(`desktop.infra_source_${source.kind}`)).join(', ') || t('desktop.infra_manual'))}</td><td><span class="infra-state-pill" data-state="${esc(sourceState(node))}"><i></i>${esc(statusLabel(sourceState(node)))}</span></td><td>${power}</td></tr>`;
             };
             q('[data-table-body]').innerHTML = `<tr class="infra-virtual-spacer"><td colspan="7" style="height:${slice.before}px"></td></tr>${slice.rows.map(row).join('')}<tr class="infra-virtual-spacer"><td colspan="7" style="height:${slice.after}px"></td></tr>`;
             q('[data-table-body]').querySelectorAll('[data-select]').forEach(button => button.addEventListener('click', () => selectNode(button.dataset.select, 'table')));
-            q('[data-table-body]').querySelectorAll('[data-row]').forEach(tr => tr.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectNode(tr.dataset.row); } }));
         };
         const paintTray = () => {
             const items = state.nodes.filter(node => !isPlaced(node, state.view === 'table' ? 'atlas' : state.view) && matchesFilters(node));
@@ -225,7 +224,8 @@
             'software-store': { app_id: link.target_id },
             meshcore: { conversation_id: link.target_id },
         }[link.app] || { target_id: link.target_id });
-        const projectedAppLinks = node => (node.app_links || []).map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(t(`desktop.infra_app_${link.app.replaceAll('-', '_')}`))}<span aria-hidden="true">↗</span></button>`).join('');
+        const APP_LINK_TARGETS = new Set(['quick-connect', 'network-cameras', 'software-store', 'meshcore']);
+        const projectedAppLinks = node => (node.app_links || []).filter(link => APP_LINK_TARGETS.has(link.app)).map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(t(`desktop.infra_app_${link.app.replaceAll('-', '_')}`))}<span aria-hidden="true">↗</span></button>`).join('');
         const sourceFieldMarkup = ([key, value], editable, sourceKind) => {
             const label = esc(t(`desktop.infra_field_${key}`));
             if (key === 'protocol') return `<label class="infra-field"><span>${label}</span><select data-source-field="${esc(key)}" ${editable && canEditSource() ? '' : 'disabled'}>${['none', 'ssh', 'vnc'].map(protocol => `<option value="${protocol}" ${value === protocol ? 'selected' : ''}>${esc(t(`desktop.infra_protocol_${protocol}`))}</option>`).join('')}</select></label>`;
@@ -438,7 +438,15 @@
                 paintAll();
             } catch (error) {
                 if (error.status === 409) {
-                    await loadSnapshot(true);
+                    await loadSnapshot(false);
+                    const latest = nodeById(id);
+                    if (latest) state.nodeReviews.set(id, { latest: clone(latest) });
+                    setNotice(t('desktop.infra_node_conflict_review'), 'error');
+                    paintAll();
+                } else if (uncertainMutation(error)) {
+                    // The write may have landed. Reload the confirmed state and let
+                    // the operator compare it with the retained draft.
+                    await loadSnapshot(false);
                     const latest = nodeById(id);
                     if (latest) state.nodeReviews.set(id, { latest: clone(latest) });
                     setNotice(t('desktop.infra_node_conflict_review'), 'error');

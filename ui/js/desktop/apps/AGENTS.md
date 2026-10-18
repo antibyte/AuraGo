@@ -17,8 +17,16 @@
   outside it. Dragging, panning and keyboard moves defer that paint until the
   gesture ends. All three use the translated Desktop keys without literal
   English fallbacks.
+- `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch, never a
+  snapshot: merge it through `InfraAppModel.applyLayoutPatch` and replace the
+  atlas only for an explicit `snapshot` field (`InfraAppModel.layoutSnapshot`).
+  Keep `node.placements` patches, the search stampede guard (one repaint per
+  animation frame) and the derived children/edge indexes; key them by the
+  current node/edge array so `replaceNode` stays correct. Keyboard placement
+  persists a visible position before it takes focus.
 - Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
-  `TestDesktopInfra*Browser` suites after changes to this boundary.
+  `TestDesktopInfra*Browser` suites after changes to this boundary. The browser
+  fixture answers `/layout` like the server; never return a full snapshot there.
 
 ## Synth Studio
 

@@ -27,7 +27,7 @@
             nodes: [], edges: [], sources: [], candidates: [], appTargets: [], credentials: [], credentialsLoaded: false, credentialsLoading: false, credentialsError: false, selected: '', view: 'atlas', scope: 'all', kindFilter: '', customRows: new Map(), targetsLoaded: false, targetsError: false, nodeReviews: new Map(), sourceReviews: new Map(),
             query: '', collapsed: new Set(), expandedHosts: new Set(), drafts: new Map(), dirty: new Set(), draftRevision: new Map(), sourceDrafts: new Map(), sourceDirty: new Set(), sourceRevision: new Map(), actionBlocks: new Map(),
             importSelection: new Set(), importBindings: new Map(), importDialogOwner: '', dialogGeneration: 0, layoutUndo: null, layoutRedo: null, pendingLayout: new Map(), pendingLayoutView: '', sourceBlocked: new Set(), sourcePending: new Set(),
-            busy: new Set(), notice: '', noticeType: 'info', timer: 0, requests: new Set(), controller: new AbortController(),
+            busy: new Set(), notice: '', noticeType: 'info', timer: 0, requests: new Set(), controller: new AbortController(), searchFrame: 0,
             visible: false, inView: true, filterSource: '', powerFilter: '', refreshAt: 0, manifestLoaded: false, manifestLoading: false, manifestController: null, collapsedInitialized: false, importOpen: false, zoom: 0.9, pollPaused: false, stamp: '', deferredPaint: '', inspectorStale: false,
         };
         INSTANCES.set(windowId, state);
@@ -128,7 +128,10 @@
         const messageFor = error => {
             if (error?.status === 409) return t('desktop.infra_error_conflict');
             const code = String(error?.body?.error || error?.message || 'generic').toLowerCase().replace(/[^a-z0-9_]/g, '_');
-            return t(`desktop.infra_error_${code}`);
+            const key = `desktop.infra_error_${code}`;
+            const text = t(key);
+            // A code without a translation entry must not surface as a raw key.
+            return text === key ? t('desktop.infra_error_infra_error') : text;
         };
         const uncertainMutation = error => error?.name === 'AbortError' || (Number.isFinite(Number(error?.status)) && Number(error.status) >= 500) || (error?.status == null && error?.message !== 'unavailable');
         const isAccessError = error => {
@@ -173,10 +176,44 @@
             }
         }
         const nodeById = id => state.nodes.find(node => node.id === id);
-        const groupChildren = id => state.nodes.filter(node => node.parent_id === id);
-        const hostedServices = hostID => [...new Set(state.edges.filter(edge => edge.kind === 'runs_on' && edge.to === hostID).map(edge => edge.from))].map(nodeById).filter(node => node?.kind === 'service');
-        const hostingHosts = serviceID => state.edges.filter(edge => edge.kind === 'runs_on' && edge.from === serviceID).map(edge => edge.to);
+        // Derived indexes keyed by the current array identity: every snapshot and
+        // every local list mutation replaces the array, so the entry expires with it.
+        const childrenIndexCache = new WeakMap();
+        const childrenIndex = () => {
+            const cached = childrenIndexCache.get(state.nodes);
+            if (cached) return cached;
+            const index = new Map();
+            for (const node of state.nodes) {
+                if (!node.parent_id) continue;
+                const list = index.get(node.parent_id);
+                if (list) list.push(node); else index.set(node.parent_id, [node]);
+            }
+            childrenIndexCache.set(state.nodes, index);
+            return index;
+        };
+        const hostIndexCache = new WeakMap();
+        const hostIndex = () => {
+            const cached = hostIndexCache.get(state.edges);
+            if (cached) return cached;
+            const servicesByHost = new Map(), hostsByService = new Map();
+            for (const edge of state.edges) {
+                if (edge.kind !== 'runs_on') continue;
+                const services = servicesByHost.get(edge.to);
+                if (services) services.push(edge.from); else servicesByHost.set(edge.to, [edge.from]);
+                const hosts = hostsByService.get(edge.from);
+                if (hosts) hosts.push(edge.to); else hostsByService.set(edge.from, [edge.to]);
+            }
+            const index = { servicesByHost, hostsByService };
+            hostIndexCache.set(state.edges, index);
+            return index;
+        };
+        const groupChildren = id => childrenIndex().get(id) || [];
+        const hostedServices = hostID => [...new Set(hostIndex().servicesByHost.get(hostID) || [])].map(nodeById).filter(node => node?.kind === 'service');
+        const hostingHosts = serviceID => hostIndex().hostsByService.get(serviceID) || [];
+        const searchableCache = new WeakMap();
         const searchableText = node => {
+            const cached = searchableCache.get(node);
+            if (cached !== undefined) return cached;
             const parts = [node.name, node.kind, node.power, node.profile?.vendor, node.profile?.model, node.profile?.serial, node.profile?.os, node.profile?.firmware,
                 node.profile?.ip_address, node.profile?.mac_address, node.profile?.cidr, node.profile?.vlan, node.profile?.notes,
                 ...(node.profile?.tags || []), ...(node.profile?.interfaces || []).flatMap(item => Object.values(item || {})),
@@ -193,7 +230,9 @@
                 parts.push(binding.app, binding.target_id, target?.label);
             }
             for (const link of node.app_links || []) parts.push(link.app, link.target_id, state.appTargets.find(item => item.app === link.app && item.target_id === link.target_id)?.label);
-            return parts.filter(value => value != null).join(' ').toLocaleLowerCase();
+            const text = parts.filter(value => value != null).join(' ').toLocaleLowerCase();
+            searchableCache.set(node, text);
+            return text;
         };
         const displayedNodes = (view = state.view) => {
             let nodes = state.nodes.filter(node => {
@@ -346,12 +385,19 @@
             }
             return { x: 110 + columns * 220, y: 100, pinned: false };
         };
-        function placeByChoice(id, choice) {
+        async function placeByChoice(id, choice) {
             ensureMapView();
-            if (choice === 'keyboard') { state.keyboardMove = true; state.selected = id; paintStage(true); setNotice(t('desktop.infra_keyboard_hint'), 'info'); return; }
             const preferred = choice === 'northwest' ? { x: 110, y: 100 } : { x: state.sceneGeometry.originX + state.sceneGeometry.width / 2, y: state.sceneGeometry.originY + state.sceneGeometry.height / 2 };
             const pos = { ...nextPosition(state.view, id, preferred), pinned: true };
-            void persistLayout(new Map([[id, pos]]));
+            // An unplaced node is not rendered, so keyboard placement needs a saved
+            // position first; only then can it take focus and receive arrow keys.
+            if (!await persistLayout(new Map([[id, pos]]))) return;
+            if (choice !== 'keyboard') return;
+            state.keyboardMove = true;
+            state.selected = id;
+            state.keyboardPosition = pos;
+            paintStage(true);
+            setNotice(t('desktop.infra_keyboard_hint'), 'info');
         }
         async function saveKeyboardMove(id) {
             if (!state.keyboardMove) return;
@@ -373,18 +419,16 @@
             setBusy('layout', true); setNotice(t('desktop.infra_saving_layout'), 'busy');
             try {
                 const result = await request('/layout', { method: 'PUT', body: { view, nodes } });
-                const snapshot = result.snapshot || (Array.isArray(result.nodes) && result.nodes.some(node => node.placements) ? result : null);
-                if (snapshot && Array.isArray(snapshot.nodes)) {
+                // The layout endpoint answers with the nodes it changed only; an
+                // explicit snapshot replaces the atlas, a node list is merged.
+                const snapshot = model.layoutSnapshot(result);
+                if (snapshot) {
                     state.nodes = snapshot.nodes.map(node => ({ ...node, icon: iconId(node.icon), profile: { tags: [], interfaces: [], links: [], app_bindings: [], custom: {}, ...(node.profile || {}) }, placements: node.placements || {}, sources: node.sources || [], app_links: node.app_links || [], available_actions: node.available_actions || [] }));
                     state.edges = snapshot.edges || state.edges; state.sources = snapshot.sources || state.sources;
                     if (snapshot.capabilities) state.caps = { write: false, source_edit: false, control: false, ...snapshot.capabilities };
                 } else {
                     const updated = result.nodes || result;
-                    if (Array.isArray(updated)) updated.forEach(row => {
-                        const node = nodeById(row.id); if (!node) return;
-                        node.version = row.version ?? node.version; node.placements ||= {};
-                        node.placements[view] = row.placements?.[view] || { x: row.x, y: row.y, pinned: !!row.pinned };
-                    });
+                    if (Array.isArray(updated)) model.applyLayoutPatch(state.nodes, updated, view);
                 }
                 for (const [id] of changes) state.pendingLayout.delete(id);
                 if (!state.pendingLayout.size) state.pendingLayoutView = '';
@@ -531,8 +575,11 @@
         }
         const replaceNode = node => {
             const normalized = { ...node, icon: iconId(node.icon), profile: { tags: [], interfaces: [], links: [], app_bindings: [], custom: {}, ...(node.profile || {}) }, placements: node.placements || {}, sources: node.sources || [], app_links: node.app_links || [], available_actions: node.available_actions || [] };
-            const index = state.nodes.findIndex(item => item.id === normalized.id);
-            if (index < 0) state.nodes.push(normalized); else state.nodes[index] = normalized;
+            const nodes = state.nodes.slice();
+            const index = nodes.findIndex(item => item.id === normalized.id);
+            if (index < 0) nodes.push(normalized); else nodes[index] = normalized;
+            // Replacing the array invalidates the derived children index.
+            state.nodes = nodes;
         };
         function paintImportDialog() {
             const dialog = q('[data-dialog]');
@@ -877,7 +924,16 @@
                 else if (action === 'node-more') openNodeActions(state.selected);
                 else if (action === 'add-edge') openEdgeDialog('', state.selected);
             });
-            q('[data-search]').addEventListener('input', event => { state.query = event.target.value; paintStage(); paintTable(); paintTray(); });
+            q('[data-search]').addEventListener('input', event => {
+                state.query = event.target.value;
+                // One repaint per animation frame keeps typing responsive on large maps.
+                if (state.searchFrame) return;
+                state.searchFrame = requestAnimationFrame(() => {
+                    state.searchFrame = 0;
+                    if (state.disposed) return;
+                    paintStage(); paintTable(); paintTray();
+                });
+            });
             q('[data-kind-filter]').addEventListener('change', event => { state.kindFilter = event.target.value; paintAll(); });
             q('[data-source-filter]').addEventListener('change', event => { state.filterSource = event.target.value; paintAll(); });
             q('[data-power-filter]').addEventListener('change', event => { state.powerFilter = event.target.value; paintAll(); });
@@ -925,7 +981,7 @@
             actionReason, labelForKind, setBusy, loadSnapshot, selectNode, nextPosition,
             placeByChoice, saveKeyboardMove, persistLayout, updateUndoButton, replaceNode, openEdgeDialog,
             deleteNode, loadSourceEdit, reapplySourceDraft, reapplyNodeDraft, reviewSourceEdit, saveSourceEdit,
-            openActionMenu, chooseEdgeEndpoint
+            openActionMenu, chooseEdgeEndpoint, uncertainMutation
         });
         const inspectorBusy = () => {
             if (!state.selected) return false;
@@ -996,6 +1052,7 @@
         INSTANCES.set(windowId, { ...state, dispose: () => {
             if (state.disposed) return;
             state.disposed = true; clearTimeout(state.timer); abortRequests();
+            if (state.searchFrame) { cancelAnimationFrame(state.searchFrame); state.searchFrame = 0; }
             observer?.disconnect(); windowObserver?.disconnect();
             document.removeEventListener('visibilitychange', visibilityChanged);
             document.removeEventListener('aurago:desktop-policy', onPolicy);

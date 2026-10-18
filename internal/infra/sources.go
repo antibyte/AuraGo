@@ -121,6 +121,8 @@ func (s *Store) ListSources(ctx context.Context, kind, instance string) ([]Sourc
 
 // ObserveSources records one provider enumeration. Incomplete results stale unseen
 // sources but never claim they were removed; complete results confirm removals.
+// A complete enumeration may legitimately be empty (a source with no resources),
+// which removes every previously known source of that instance.
 func (s *Store) ObserveSources(ctx context.Context, kind, instance string, observations []SourceObservation, complete bool) error {
 	if err := validateIdentity(SourceIdentity{Kind: kind, Instance: instance, Key: "validation"}); err != nil {
 		return err
@@ -189,6 +191,33 @@ func (s *Store) ObserveSources(ctx context.Context, kind, instance string, obser
 	return nil
 }
 
+// UpsertObservation records one source observation without invalidating related
+// sources. Use it for single-item updates (for example after a source edit);
+// ObserveSources stays the path for provider enumerations.
+func (s *Store) UpsertObservation(ctx context.Context, observation SourceObservation) error {
+	if err := validateIdentity(observation.Identity); err != nil {
+		return err
+	}
+	if err := validateObserved(observation.Identity.Kind, observation.Observed); err != nil {
+		return fmt.Errorf("source %q: %w", observation.Identity.Key, err)
+	}
+	if err := validateText("source name", observation.Name, 256, false); err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin infra source upsert: %w", err)
+	}
+	defer tx.Rollback()
+	if err := upsertSourceTx(ctx, tx, observation.Identity, observation.Name, observation.Observed, SourceCurrent, time.Now().UTC()); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit infra source upsert: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) MarkSourcesStale(ctx context.Context, kind, instance string) error {
 	if err := validateText("source kind", kind, 32, true); err != nil {
 		return err
@@ -252,6 +281,16 @@ func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceId
 		}
 		if !exists {
 			return Node{}, ErrSourceNotFound
+		}
+		// The unique registry index owns the one-node-per-device rule. Report a
+		// claim by another node as a link conflict instead of a raw SQL error.
+		var claimedBy string
+		switch err := tx.QueryRowContext(ctx, `SELECT id FROM infra_nodes WHERE registry_id=?`, identity.Key).Scan(&claimedBy); {
+		case errors.Is(err, sql.ErrNoRows):
+		case err != nil:
+			return Node{}, fmt.Errorf("check registry link ownership: %w", err)
+		case claimedBy != nodeID:
+			return Node{}, ErrSourceLinked
 		}
 		node.RegistryID = identity.Key
 	}

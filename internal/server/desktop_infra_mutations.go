@@ -98,6 +98,7 @@ type desktopInfraActionResponse struct {
 	Action    string `json:"action"`
 	RequestID string `json:"request_id"`
 	UPID      string `json:"upid,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 var desktopInfraRequestIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
@@ -366,12 +367,15 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 		if !ok {
 			return response, http.StatusForbidden, errors.New("Infra source-edit permission changed")
 		}
-		status, err := tools.ProxmoxInfraEditConfig(ctx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, before, name, description, tags)
+		callCtx, cancel := desktopInfraContext(ctx)
+		status, err := tools.ProxmoxInfraEditConfig(callCtx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, before, name, description, tags)
+		budgetErr := callCtx.Err()
+		cancel()
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 		if status == "conflict" {
 			return response, http.StatusConflict, err
 		}
-		if status == infra.ActionUnknown {
+		if status == infra.ActionUnknown || budgetErr != nil {
 			response.Status = infra.ActionUnknown
 			response.Version = request.Version
 			return response, http.StatusOK, nil
@@ -429,6 +433,12 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 			return response, http.StatusOK, nil
 		}
 		if status != infra.ActionCompleted {
+			if ctx.Err() != nil {
+				desktopInfraInvalidate(runtime, source.Kind, source.Instance)
+				response.Status = infra.ActionUnknown
+				response.Version = request.Version
+				return response, http.StatusOK, nil
+			}
 			return response, http.StatusBadGateway, err
 		}
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
@@ -450,7 +460,7 @@ func desktopInfraWriteSourceEdit(ctx context.Context, s *Server, cfg *config.Con
 
 func desktopInfraUpdateRegistry(ctx context.Context, s *Server, source infra.Source, version string, fields desktopInfraRegistryFields) (inventory.DeviceRecord, error) {
 	if source.Instance != "inventory" || source.Key == "" {
-		return inventory.DeviceRecord{}, errors.New("invalid inventory source")
+		return inventory.DeviceRecord{}, fmt.Errorf("%w: invalid inventory source", infra.ErrValidation)
 	}
 	existing, err := inventory.GetDeviceByID(s.InventoryDB, source.Key)
 	if err != nil {
@@ -473,7 +483,7 @@ func desktopInfraUpdateRegistry(ctx context.Context, s *Server, source infra.Sou
 	}
 	updated.Protocol = normalizeDeviceProtocolForAPI(fields.Protocol)
 	if !isAllowedDeviceProtocol(updated.Protocol) {
-		return inventory.DeviceRecord{}, errors.New("invalid device protocol")
+		return inventory.DeviceRecord{}, fmt.Errorf("%w: invalid device protocol", infra.ErrValidation)
 	}
 	updated.IPAddress, err = desktopInfraInputText(fields.IPAddress, 64, false)
 	if err != nil {
@@ -504,11 +514,11 @@ func desktopInfraUpdateRegistry(ctx context.Context, s *Server, source infra.Sou
 	if updated.Name == "" || len([]rune(updated.Name)) > 200 || len([]rune(updated.Type)) > 128 ||
 		updated.Port < 0 || updated.Port > 65535 || (updated.IPAddress != "" && net.ParseIP(updated.IPAddress) == nil) ||
 		(fields.MACAddress != "" && updated.MACAddress == "") {
-		return inventory.DeviceRecord{}, errors.New("invalid registry fields")
+		return inventory.DeviceRecord{}, fmt.Errorf("%w: invalid registry fields", infra.ErrValidation)
 	}
 	if updated.CredentialID != "" {
 		if _, err := credentials.GetByID(s.InventoryDB, updated.CredentialID); err != nil {
-			return inventory.DeviceRecord{}, errors.New("linked credential not found")
+			return inventory.DeviceRecord{}, fmt.Errorf("%w: linked credential not found", infra.ErrValidation)
 		}
 		updated.Username = ""
 		updated.VaultSecretID = ""
@@ -566,10 +576,11 @@ func sqlReadTagsJSON(ctx context.Context, db *sql.DB, id string) (string, error)
 }
 
 func desktopInfraObserveOneRegistry(ctx context.Context, store *infra.Store, device inventory.DeviceRecord) error {
-	return store.ObserveSources(ctx, "registry", "inventory", []infra.SourceObservation{{
+	// A single-item write must not invalidate the other registry observations.
+	return store.UpsertObservation(ctx, infra.SourceObservation{
 		Identity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: device.ID},
 		Name:     device.Name, Observed: desktopInfraRegistryObserved(device),
-	}}, false)
+	})
 }
 
 func desktopInfraFieldsFromRegistry(device inventory.DeviceRecord) desktopInfraRegistryFields {
@@ -673,11 +684,11 @@ func desktopInfraUnmarshalFields(raw json.RawMessage, target any) error {
 func desktopInfraInputText(value string, maxRunes int, required bool) (string, error) {
 	value = strings.TrimSpace(value)
 	if !utf8.ValidString(value) || utf8.RuneCountInString(value) > maxRunes || (required && value == "") {
-		return "", errors.New("invalid text field")
+		return "", fmt.Errorf("%w: invalid text field", infra.ErrValidation)
 	}
 	for _, r := range value {
 		if unicode.IsControl(r) {
-			return "", errors.New("text field contains control characters")
+			return "", fmt.Errorf("%w: text field contains control characters", infra.ErrValidation)
 		}
 	}
 	return value, nil
@@ -685,7 +696,7 @@ func desktopInfraInputText(value string, maxRunes int, required bool) (string, e
 
 func desktopInfraInputTags(values []string) ([]string, error) {
 	if len(values) > 64 {
-		return nil, errors.New("too many tags")
+		return nil, fmt.Errorf("%w: too many tags", infra.ErrValidation)
 	}
 	result := make([]string, 0, len(values))
 	for _, value := range values {
@@ -698,22 +709,6 @@ func desktopInfraInputTags(values []string) ([]string, error) {
 		}
 	}
 	return result, nil
-}
-
-func desktopInfraFindNodeSource(node infra.Node, kind string) (infra.Source, bool) {
-	var result infra.Source
-	found := false
-	for _, source := range node.Sources {
-		if source.Kind != kind {
-			continue
-		}
-		if found {
-			return infra.Source{}, false
-		}
-		result = source
-		found = true
-	}
-	return result, found
 }
 
 // desktopInfraFindConfiguredNodeSource ignores stale records from previous
@@ -1010,10 +1005,16 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, s
 	switch source.Kind {
 	case "docker":
 		if cfg.Docker.ReadOnly {
+			response.Reason = "source_readonly"
 			return response
 		}
 		inspect, err := desktopInfraInspectDocker(ctx, cfg, source.Key, runtime)
 		if err != nil || desktopInfraDockerProtected(inspect) {
+			// The projection marks managed containers, but a policy change can race
+			// the snapshot; report why the action did not run instead of a bare failure.
+			if err == nil && desktopInfraDockerProtected(inspect) {
+				response.Reason = "managed_container"
+			}
 			return response
 		}
 		currentCfg, ok := desktopInfraCurrentWriteConfig(ctx, s, cfg, store, nodeID, source, providerKey, false, request.Action)
@@ -1047,11 +1048,16 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, s
 		if !ok {
 			return response
 		}
-		status, upid, err := tools.ProxmoxInfraAction(ctx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, request.Action)
+		callCtx, cancel := desktopInfraContext(ctx)
+		status, upid, err := tools.ProxmoxInfraAction(callCtx, desktopInfraProxmoxConfig(currentCfg), resource.Node, resource.Type, resource.VMID, request.Action)
+		budgetErr := callCtx.Err()
+		cancel()
 		desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 		if err != nil {
-			if status == "unknown" {
-				response.Status = "unknown"
+			// An expired or cancelled request budget cannot prove the mutation did
+			// not reach the provider.
+			if status == infra.ActionUnknown || budgetErr != nil {
+				response.Status = infra.ActionUnknown
 			}
 			return response
 		}
@@ -1067,7 +1073,7 @@ func desktopInfraRunAction(ctx context.Context, s *Server, cfg *config.Config, s
 			return response
 		}
 		status, err := client.InfraWakeHost(source.Key)
-		if status == infra.ActionUnknown || err != nil && status != infra.ActionFailed {
+		if status == infra.ActionUnknown || (err != nil && (status != infra.ActionFailed || ctx.Err() != nil)) {
 			desktopInfraInvalidate(runtime, source.Kind, source.Instance)
 			response.Status = "unknown"
 			return response
@@ -1143,10 +1149,15 @@ func desktopInfraInvalidate(runtime *desktopInfraRuntime, kind, instance string)
 }
 
 func desktopInfraSourceEditStatus(err error) int {
-	if errors.Is(err, infra.ErrConflict) {
+	switch {
+	case errors.Is(err, infra.ErrConflict):
 		return http.StatusConflict
+	case errors.Is(err, infra.ErrValidation):
+		return http.StatusBadRequest
+	default:
+		// A storage or lookup failure is not a client input problem.
+		return http.StatusInternalServerError
 	}
-	return http.StatusBadRequest
 }
 
 func nonNilStrings(values []string) []string {

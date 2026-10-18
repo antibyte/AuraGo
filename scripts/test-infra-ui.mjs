@@ -94,6 +94,20 @@ for (const locale of locales) {
     assert.deepEqual(missing, [], `${locale}.json is missing keys: ${missing.join(', ')}`);
 }
 
+// A locale must not be filled with the English source text. Short technical
+// labels may be identical by design; prose (spaces, more than 20 characters)
+// may not.
+const english = JSON.parse(fs.readFileSync(path.join(root, 'ui/lang/desktop/en.json'), 'utf8'));
+for (const locale of locales) {
+    if (locale === 'en') continue;
+    const dictionary = JSON.parse(fs.readFileSync(path.join(root, `ui/lang/desktop/${locale}.json`), 'utf8'));
+    const untranslated = Object.keys(english)
+        .filter(key => key.startsWith('desktop.infra') && typeof english[key] === 'string')
+        .filter(key => dictionary[key] === english[key])
+        .filter(key => /\s/.test(english[key]) && english[key].length > 20);
+    assert.deepEqual(untranslated, [], `${locale}.json keeps English prose for: ${untranslated.join(', ')}`);
+}
+
 assert.equal(model.powerLabel('stopped'), 'desktop.infra_power_stopped');
 assert.equal(model.powerLabel(''), '');
 assert.equal(model.powerLabel('on'), '');
@@ -151,5 +165,18 @@ const moved = model.snapshotStamp([{ ...base.nodes[0], placements: { atlas: { x:
 const powered = model.snapshotStamp([{ ...base.nodes[0], power: 'stopped' }], base.edges, base.sources, base.caps);
 assert.notEqual(same, moved);
 assert.notEqual(same, powered);
+
+// PUT /layout answers with the nodes it changed; that is a patch, never a snapshot.
+assert.equal(model.layoutSnapshot({ nodes: [{ id: 'a', placements: {} }] }), null);
+assert.equal(model.layoutSnapshot({ snapshot: { nodes: [] } }).nodes.length, 0);
+const patchedNodes = [{ id: 'a', version: 1, placements: {} }, { id: 'b', version: 1, placements: {} }];
+model.applyLayoutPatch(patchedNodes, [{ id: 'a', version: 2, x: 10, y: 20, pinned: true }], 'atlas');
+assert.equal(patchedNodes.length, 2);
+assert.equal(patchedNodes[0].version, 2);
+assert.equal(patchedNodes[0].placements.atlas.x, 10);
+assert.equal(patchedNodes[0].placements.atlas.y, 20);
+assert.equal(patchedNodes[0].placements.atlas.pinned, true);
+assert.equal(patchedNodes[1].version, 1);
+assert.equal(patchedNodes[1].placements.atlas, undefined);
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

@@ -15,9 +15,7 @@ import (
 	"time"
 	"unicode"
 
-	"aurago/internal/acestep"
 	"aurago/internal/config"
-	"aurago/internal/dockerutil"
 	"aurago/internal/infra"
 	"aurago/internal/inventory"
 	"aurago/internal/tools"
@@ -114,11 +112,9 @@ func desktopInfraRefreshDocker(ctx context.Context, cfg *config.Config, store *i
 				return nil, fmt.Errorf("Docker observation contains an invalid container identity")
 			}
 			names := desktopInfraStrings(row.Names, 8, 256)
-			owners := tools.DockerContainerOwnersFromMetadata(names, row.Labels,
-				acestep.Owner, dockerutil.AppOwner, dockerutil.HomepageOwner, dockerutil.LocalLLMOwner,
-				dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner,
-				dockerutil.SecurityProxyOwner,
-			)
+			// Share the administrator protection list so a container the infra
+			// actions refuse is never offered as controllable in the atlas.
+			owners := tools.DockerContainerOwnersFromMetadata(names, row.Labels, containerProtectedOwners...)
 			protected := len(owners) != 0
 			name := ""
 			if len(names) > 0 {
@@ -320,7 +316,12 @@ func desktopInfraRefreshOne(ctx context.Context, runtime *desktopInfraRuntime, s
 		observations, err := fetch(callCtx)
 		cancel()
 		if err == nil {
-			err = store.ObserveSources(ctx, kind, instance, observations, true)
+			// The write phase must not inherit a client disconnect: the provider
+			// already answered, and losing the result would mark a healthy source
+			// stale for a whole poll cycle.
+			writeCtx, writeCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			err = store.ObserveSources(writeCtx, kind, instance, observations, true)
+			writeCancel()
 		}
 		if err != nil {
 			markCtx, markCancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -329,6 +330,7 @@ func desktopInfraRefreshOne(ctx context.Context, runtime *desktopInfraRuntime, s
 		}
 
 		runtime.mu.Lock()
+		previousErr := entry.err
 		entry.configKey = configKey
 		entry.err = err
 		if entry.generation != generation {
@@ -343,8 +345,52 @@ func desktopInfraRefreshOne(ctx context.Context, runtime *desktopInfraRuntime, s
 		entry.inflight = nil
 		close(done)
 		runtime.mu.Unlock()
+		switch {
+		case err != nil && previousErr == nil:
+			slog.Warn("Infra source refresh failed", "kind", kind, "instance", instance, "code", desktopInfraRefreshErrorCode(err), "error", err)
+		case err == nil && previousErr != nil:
+			slog.Info("Infra source refresh recovered", "kind", kind, "instance", instance)
+		}
 		return err == nil
 	}
+}
+
+// desktopInfraRefreshErrorCode maps a provider failure to a bounded code safe for
+// the API and the UI. Provider messages may contain URLs and credentials.
+func desktopInfraRefreshErrorCode(err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "exceeds the supported limit"):
+		return "observation_limit"
+	case strings.Contains(message, "HTTP 401"), strings.Contains(message, "HTTP 403"):
+		return "auth_failed"
+	default:
+		return "provider_unreachable"
+	}
+}
+
+// sourceErrors reports the last failure per provider instance for the snapshot.
+func (r *desktopInfraRuntime) sourceErrors() map[string]string {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make(map[string]string)
+	for key, entry := range r.cache {
+		if entry == nil || entry.err == nil {
+			continue
+		}
+		kind, instance, ok := strings.Cut(key, "\x00")
+		if !ok {
+			continue
+		}
+		result[kind+"|"+instance] = desktopInfraRefreshErrorCode(entry.err)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func desktopInfraReconcileProxmoxEdges(ctx context.Context, store *infra.Store, instance string) error {

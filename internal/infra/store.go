@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -213,7 +215,35 @@ func backupExistingDatabase(db *sql.DB, targetVersion int) error {
 	if err := os.Chmod(backup, 0o600); err != nil {
 		return fmt.Errorf("protect inventory database migration backup: %w", err)
 	}
+	pruneMigrationBackups(path)
 	return nil
+}
+
+// migrationBackupRetention bounds the full database copies a failed or repeated
+// migration can leave next to the inventory database.
+const migrationBackupRetention = 3
+
+func pruneMigrationBackups(databasePath string) {
+	matches, err := filepath.Glob(databasePath + ".infra-v*.bak")
+	if err != nil || len(matches) <= migrationBackupRetention {
+		return
+	}
+	type backupFile struct {
+		path    string
+		modTime time.Time
+	}
+	files := make([]backupFile, 0, len(matches))
+	for _, match := range matches {
+		info, statErr := os.Stat(match)
+		if statErr != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		files = append(files, backupFile{path: match, modTime: info.ModTime()})
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].modTime.After(files[j].modTime) })
+	for _, stale := range files[migrationBackupRetention:] {
+		_ = os.Remove(stale.path)
+	}
 }
 
 func (s *Store) PruneSources(ctx context.Context, olderThan time.Time) (int64, error) {
