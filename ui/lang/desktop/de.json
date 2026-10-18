@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Keyframes (gleiches Timing ab Clipbeginn)",
   "videoStudio.attrBasePicture": "Zuschnitt, Spiegeln, Mischmodus und Maske",
   "videoStudio.attrEffects": "Effekte (Keyframes behalten ihr Timing ab Clipbeginn)",
+  "videoStudio.attrAnimation": "Animationen am Anfang und Ende",
   "videoStudio.link": "Verknüpfen",
   "videoStudio.unlink": "Verknüpfung lösen",
   "videoStudio.detachAudio": "Audio lösen",

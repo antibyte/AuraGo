@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Images clés (même minutage depuis le début du clip)",
   "videoStudio.attrBasePicture": "Recadrage, miroir, mode de fusion et masque",
   "videoStudio.attrEffects": "Effets (les images clés gardent leur minutage depuis le début du clip)",
+  "videoStudio.attrAnimation": "Animations d'entrée et de sortie",
   "videoStudio.link": "Lier",
   "videoStudio.unlink": "Dissocier",
   "videoStudio.detachAudio": "Détacher l’audio",

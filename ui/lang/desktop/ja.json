@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "キーフレーム（クリップの先頭から同じタイミング）",
   "videoStudio.attrBasePicture": "クロップ、反転、描画モード、マスク",
   "videoStudio.attrEffects": "エフェクト（キーフレームはクリップの先頭からのタイミングを保持）",
+  "videoStudio.attrAnimation": "開始と終了のアニメーション",
   "videoStudio.link": "リンク",
   "videoStudio.unlink": "リンク解除",
   "videoStudio.detachAudio": "オーディオを分離",

@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Fotogrammi chiave (stessa tempistica dall’inizio della clip)",
   "videoStudio.attrBasePicture": "Ritaglio, capovolgimento, metodo di fusione e maschera",
   "videoStudio.attrEffects": "Effetti (i fotogrammi chiave mantengono la tempistica dall’inizio della clip)",
+  "videoStudio.attrAnimation": "Animazioni di entrata e di uscita",
   "videoStudio.link": "Collega",
   "videoStudio.unlink": "Scollega",
   "videoStudio.detachAudio": "Separa audio",

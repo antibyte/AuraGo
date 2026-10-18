@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Καρέ-κλειδιά (ίδιος συγχρονισμός από την αρχή του κλιπ)",
   "videoStudio.attrBasePicture": "Περικοπή, αναστροφή, λειτουργία ανάμειξης και μάσκα",
   "videoStudio.attrEffects": "Εφέ (τα καρέ-κλειδιά διατηρούν τον συγχρονισμό από την αρχή του κλιπ)",
+  "videoStudio.attrAnimation": "Κινήσεις αρχής και τέλους",
   "videoStudio.link": "Σύνδεση",
   "videoStudio.unlink": "Αποσύνδεση",
   "videoStudio.detachAudio": "Διαχωρισμός ήχου",

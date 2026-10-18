@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Klatki kluczowe (ten sam czas od początku klipu)",
   "videoStudio.attrBasePicture": "Kadrowanie, odbicie, tryb mieszania i maska",
   "videoStudio.attrEffects": "Efekty (klatki kluczowe zachowują czas od początku klipu)",
+  "videoStudio.attrAnimation": "Animacje na początku i na końcu",
   "videoStudio.link": "Połącz",
   "videoStudio.unlink": "Rozłącz",
   "videoStudio.detachAudio": "Odłącz dźwięk",

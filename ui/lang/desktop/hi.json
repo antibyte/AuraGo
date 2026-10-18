@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "कीफ़्रेम (क्लिप की शुरुआत से वही समय)",
   "videoStudio.attrBasePicture": "क्रॉप, फ़्लिप, ब्लेंड मोड और मास्क",
   "videoStudio.attrEffects": "इफ़ेक्ट (कीफ़्रेम क्लिप की शुरुआत से अपना समय बनाए रखते हैं)",
+  "videoStudio.attrAnimation": "शुरुआत और अंत के एनिमेशन",
   "videoStudio.link": "लिंक करें",
   "videoStudio.unlink": "अनलिंक करें",
   "videoStudio.detachAudio": "ऑडियो अलग करें",

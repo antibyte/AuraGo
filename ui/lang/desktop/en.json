@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Keyframes (same timing from the clip start)",
   "videoStudio.attrBasePicture": "Crop, flip, blend mode and mask",
   "videoStudio.attrEffects": "Effects (keyframes keep their timing from the clip start)",
+  "videoStudio.attrAnimation": "In and out animations",
   "videoStudio.link": "Link",
   "videoStudio.unlink": "Unlink",
   "videoStudio.detachAudio": "Detach audio",

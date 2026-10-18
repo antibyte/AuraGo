@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Nyckelbildrutor (samma tidpunkter från klippets början)",
   "videoStudio.attrBasePicture": "Beskärning, spegling, blandningsläge och mask",
   "videoStudio.attrEffects": "Effekter (nyckelbildrutor behåller sina tidpunkter från klippets början)",
+  "videoStudio.attrAnimation": "Animeringar i början och slutet",
   "videoStudio.link": "Länka",
   "videoStudio.unlink": "Ta bort länk",
   "videoStudio.detachAudio": "Koppla loss ljud",

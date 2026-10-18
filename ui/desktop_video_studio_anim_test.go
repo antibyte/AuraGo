@@ -168,3 +168,175 @@ assert.deepEqual([notice.textContent, notice.hidden], ['previewEffectFallback', 
 console.log('ok');
 `)
 }
+
+// Edit semantics of the in and out animations (2e, Task 14; spec §5.6, §8.1; index §4.16, §4.24):
+//   - setAnim: set, change, None, clamping into frameRange, and the refusals (unknown side, preset or value; audio
+//     clips; locked tracks); an unavailable preset is kept.
+//   - Pieces follow the audio-fade rule (split, blade, insert and overwrite): anim_in stays on the piece that keeps the
+//     start, anim_out on the one that keeps the end.
+//   - Duplicate, copy and paste keep both sides; reverse keeps both (no swap); trims and speed changes keep both.
+//   - Freeze: the still has none, and the parts around it keep theirs. Detach: the audio copy has none.
+//   - A rate change rescales both lengths (rescaleProject; TestVideoStudioRescaleAnim pins the clamping itself).
+//   - Paste attributes, group animation: it copies both sides (a source without animation removes the target's), skips
+//     audio targets, and the other groups leave the animations alone.
+//
+// The group's label is binding in en and de; TestVideoStudioEffectEditSemantics covers the other locales.
+func TestVideoStudioAnimEdits(t *testing.T) {
+	for lang, want := range map[string]string{"en": "In and out animations", "de": "Animationen am Anfang und Ende"} {
+		if got := readDesktopLocale(t, lang)["videoStudio.attrAnimation"]; got != want {
+			t.Errorf("%s: videoStudio.attrAnimation = %q, want %q", lang, got, want)
+		}
+	}
+	runVideoStudioKeyframesScript(t, `
+require('./js/desktop/apps/video-studio-picture.js');
+require('./js/desktop/apps/video-studio-anim.js');
+const AN = window.VideoStudioAnim;
+const editing = require('fs').readFileSync('./js/desktop/apps/video-studio-editing.js', 'utf8');
+assert(editing.includes('value="animation"') && editing.includes("label('attrAnimation', 'In and out animations')"), 'the paste attributes dialog offers the animation group');
+assert.deepEqual(AN.frameRange(project([])), {min: 6, max: 90, default: 15}, '30 fps: 0.2 s to 3 s, 0.5 s by default');
+const fresh = () => project([
+  track('v1','video',[clip('c',V,0,100,{offset:100})]),
+  track('o1','overlay',[clip('t',I,0,60)]),
+  track('a1','audio',[clip('m',A,0,100)])
+]);
+let p = fresh();
+const c = () => at(p, 'c');
+
+// setAnim: a new animation takes the default length; a preset change keeps the length; a length is rounded and clamped
+// into the range. A length longer than half the clip is valid (the render clamps).
+assert.equal(K.setAnim(p, 'c', 'in', {preset: 'pop'}), true);
+assert.deepEqual(c().anim_in, {preset: 'pop', duration: 15});
+assert.deepEqual(Object.keys(c().anim_in), ['preset', 'duration'], 'the canonical key order');
+assert.equal(K.setAnim(p, 'c', 'in', {preset: 'fade'}), true);
+assert.deepEqual(c().anim_in, {preset: 'fade', duration: 15});
+assert.equal(K.setAnim(p, 'c', 'in', {duration: 40.4}), true);
+assert.deepEqual(c().anim_in, {preset: 'fade', duration: 40});
+assert.equal(K.setAnim(p, 'c', 'in', {duration: 2}), true);
+assert.equal(c().anim_in.duration, 6, 'below 0.2 s the length is clamped up');
+assert.equal(K.setAnim(p, 'c', 'in', {duration: 500}), true);
+assert.equal(c().anim_in.duration, 90, 'above 3 s the length is clamped down');
+assert.equal(K.setAnim(p, 'c', 'in', {duration: 90}), 'nothing', 'no change');
+assert.equal(K.setAnim(p, 'c', 'out', {preset: 'slide_left', duration: 20}), true);
+assert.deepEqual(c().anim_out, {preset: 'slide_left', duration: 20});
+valid(p);
+const before = JSON.stringify(p);
+for (const [side, values] of [['up', {preset: 'fade'}], ['in', {}], ['in', null], ['in', {preset: 'spin'}], ['in', {preset: ''}], ['in', {duration: 'x'}], ['in', {duration: null}], ['in', {duration: true}]]) {
+  assert.equal(K.setAnim(p, 'c', side, values), 'nothing', 'refuses ' + side + ' ' + JSON.stringify(values));
+}
+assert.equal(JSON.stringify(p), before, 'a refused value changes nothing');
+// A length alone needs an animation; None removes the field, and None again changes nothing; stills take animations.
+assert.equal(K.setAnim(p, 't', 'in', {duration: 20}), 'nothing', 'a length alone needs a preset');
+assert.equal(K.setAnim(p, 't', 'out', {preset: 'wipe', duration: 30}), true, 'stills take animations');
+assert.deepEqual(at(p,'t').anim_out, {preset: 'wipe', duration: 30});
+assert.equal(K.setAnim(p, 't', 'out', {preset: 'none'}), true);
+assert.equal('anim_out' in at(p,'t'), false, 'None removes the field');
+assert.equal(K.setAnim(p, 't', 'out', {preset: 'none'}), 'nothing');
+// Audio clips and locked tracks refuse; an unavailable preset is kept (only the export refuses it).
+assert.equal(K.setAnim(p, 'm', 'in', {preset: 'fade'}), 'kind');
+p.tracks[1].locked = true;
+assert.equal(K.setAnim(p, 't', 'in', {preset: 'fade'}), 'locked');
+p.tracks[1].locked = false;
+FX.adopt(FX.BUILTIN, {effects: [], transitions: [], blend_modes: [], anim_presets: ['blur_in']});
+assert.equal(FX.animAvailable('blur_in'), false);
+assert.equal(K.setAnim(p, 't', 'in', {preset: 'blur_in'}), true, 'an unavailable preset is kept, like an unavailable blend mode');
+FX.adopt(null, null);
+valid(p);
+
+// Pieces (the audio-fade rule): anim_in stays on the piece that keeps the clip's start, anim_out on the one that keeps
+// its end, like the fades.
+const both = () => [{preset: 'pop', duration: 15}, {preset: 'fade', duration: 20}];
+const animated = () => project([track('v1','video',[clip('c',V,0,100,{offset:100, fade_in: 10, fade_out: 12, anim_in: both()[0], anim_out: both()[1]})]), track('a1','audio',[])]);
+const edges = clips => clips.slice().sort((a, b) => a.start - b.start).map(item => [item.start, item.duration, item.anim_in ? item.anim_in.preset : '', item.anim_out ? item.anim_out.preset : '']);
+p = animated();
+valid(p);
+assert.equal(E.blade(p, 40, {clipIds: ['c'], linked: false}, {}), true);
+const right = p.tracks[0].clips.find(item => item.id !== 'c');
+assert.deepEqual(edges(p.tracks[0].clips), [[0, 40, 'pop', ''], [40, 60, '', 'fade']], 'split: the left part keeps anim_in, the right part anim_out');
+assert.deepEqual([at(p,'c').fade_in, at(p,'c').fade_out, right.fade_in, right.fade_out], [10, 0, 0, 12], 'the same rule as the fades');
+valid(p);
+p = animated();
+assert.equal(E.insertGap(p, 40, 10, ['v1']), true);
+assert.deepEqual(edges(p.tracks[0].clips), [[0, 40, 'pop', ''], [50, 60, '', 'fade']], 'an insert splits by the same rule');
+valid(p);
+p = animated();
+assert.equal(E.overwrite(p, [{trackId: 'v1', clips: [clip('n',V,30,20)]}]), true);
+assert.deepEqual(edges(p.tracks[0].clips), [[0, 30, 'pop', ''], [30, 20, '', ''], [50, 50, '', 'fade']], 'an overwrite in the middle');
+valid(p);
+p = animated();
+assert.equal(E.overwrite(p, [{trackId: 'v1', clips: [clip('h',V,0,10), clip('e',V,90,10)]}]), true);
+assert.deepEqual([at(p,'c').start, at(p,'c').duration, 'anim_in' in at(p,'c'), 'anim_out' in at(p,'c')], [10, 80, false, false], 'a piece that keeps neither edge has neither');
+valid(p);
+
+// Duplicate, copy and paste keep both sides; reverse keeps both (no swap); trims and speed changes keep both.
+p = animated();
+const out = {};
+assert.equal(E.duplicateClips(p, ['c'], out), true);
+assert.deepEqual([at(p, out.created[0]).anim_in, at(p, out.created[0]).anim_out], both(), 'a duplicate keeps both');
+const board = E.copyClips(p, ['c']);
+assert.deepEqual([board.entries[0].clip.anim_in, board.entries[0].clip.anim_out], both(), 'the clipboard holds both');
+const pasted = {};
+assert.equal(E.paste(p, board, 300, 'overwrite', {out: pasted}), true);
+assert.deepEqual([at(p, pasted.created[0]).anim_in, at(p, pasted.created[0]).anim_out], both(), 'a pasted copy keeps both');
+valid(p);
+p = animated();
+p.assets.push({id:'r', kind:'video', has_audio:true, duration_frames:100});
+assert.equal(E.reverseClips(p, 'c', {assetId:'r', rangeStart:100, frames:100, sourceAssetId:'v'}), true);
+assert.deepEqual([at(p,'c').anim_in, at(p,'c').anim_out], both(), 'reverse keeps the in and the out animation where they are');
+valid(p);
+p = animated();
+assert.equal(E.rippleTrim(p, ['c'], 'end', -40), true);
+assert.equal(E.setSpeed(p, ['c'], 2, true), true);
+assert.deepEqual([at(p,'c').anim_in, at(p,'c').anim_out], both(), 'trims and speed changes keep both (the render clamps a span to half the clip)');
+valid(p);
+
+// Freeze frame: the still has no animation; the parts around it keep their edges. Detach: the audio copy has none.
+p = animated();
+assert.equal(E.freezeFrame(p, 'c', 50, {asset_id: 'i', clip_id: 'fz', duration: 30}), true);
+const still = at(p, 'fz');
+assert.deepEqual(['anim_in' in still, 'anim_out' in still], [false, false], 'the still has no animation');
+assert.deepEqual(edges(p.tracks[0].clips.filter(item => item.id !== 'fz')), [[0, 50, 'pop', ''], [80, 50, '', 'fade']], 'the parts around the still keep their edges');
+valid(p);
+p = animated();
+assert.equal(E.detachAudio(p, 'c', {clip: 'au', link: 'l1', track: 'a2', trackName: 'Audio 2'}), true);
+assert.deepEqual(['anim_in' in at(p,'au'), 'anim_out' in at(p,'au')], [false, false], 'the audio copy has no animation');
+assert.deepEqual([at(p,'c').anim_in, at(p,'c').anim_out], both(), 'the video clip keeps both');
+valid(p);
+
+// Rate change: round(duration × ratio) inside the new range (Task 5's rescale).
+p = animated();
+window.VideoStudioTime.rescaleProject(p, 24, false);
+assert.deepEqual([at(p,'c').anim_in, at(p,'c').anim_out], [{preset: 'pop', duration: 12}, {preset: 'fade', duration: 16}], '30 to 24 fps');
+valid(p);
+p = project([track('v1','video',[clip('c',V,0,100,{offset:100, anim_in: {preset: 'fade', duration: 90}, anim_out: {preset: 'pop', duration: 6}})])]);
+window.VideoStudioTime.rescaleProject(p, 60, false);
+assert.deepEqual([at(p,'c').anim_in, at(p,'c').anim_out], [{preset: 'fade', duration: 180}, {preset: 'pop', duration: 12}], '30 to 60 fps: the range ends move with the rate');
+valid(p);
+
+// Paste attributes, group animation.
+assert.deepEqual(E.ATTRIBUTE_GROUPS.animation, ['anim_in', 'anim_out']);
+const source = () => at(animated(), 'c');
+const targets = () => project([track('v1','video',[clip('d',V,200,100,{offset:300, anim_out: {preset: 'wipe', duration: 30}})]), track('o1','overlay',[clip('t',I,0,60)]), track('a1','audio',[clip('m',A,0,100)])]);
+p = targets();
+valid(p);
+assert.equal(E.pasteAttributes(p, source(), ['d', 't', 'm'], ['animation'], 250), true);
+for (const id of ['d', 't']) assert.deepEqual([at(p,id).anim_in, at(p,id).anim_out], both(), id + ' takes both sides');
+assert.deepEqual(['anim_in' in at(p,'m'), 'anim_out' in at(p,'m')], [false, false], 'audio clips take no animation');
+valid(p);
+assert.equal(E.pasteAttributes(p, source(), ['m'], ['animation'], 250), 'nothing', 'audio targets alone change nothing');
+const outOnly = source();
+delete outOnly.anim_in;
+assert.equal(E.pasteAttributes(p, outOnly, ['d'], ['animation'], 250), true);
+assert.deepEqual(['anim_in' in at(p,'d'), at(p,'d').anim_out], [false, {preset: 'fade', duration: 20}], 'a side the source lacks is removed');
+const odd = Object.assign(source(), {anim_in: {preset: 'spin', duration: 20}, anim_out: {preset: 'fade', duration: 500}});
+assert.equal(E.pasteAttributes(p, odd, ['d'], ['animation'], 250), true);
+assert.deepEqual(['anim_in' in at(p,'d'), at(p,'d').anim_out], [false, {preset: 'fade', duration: 90}], 'an unknown preset is removed, a length is clamped');
+const plain = at(project([track('v1','video',[clip('s',V,0,100)])]), 's');
+assert.equal(E.pasteAttributes(p, plain, ['d', 't'], ['animation'], 250), true);
+for (const id of ['d', 't']) assert.deepEqual(['anim_in' in at(p,id), 'anim_out' in at(p,id)], [false, false], 'a source without animation clears ' + id);
+valid(p);
+p = project([track('v1','video',[clip('d',V,200,100,{offset:300, anim_in: {preset: 'blur_in', duration: 25}})])]);
+assert.equal(E.pasteAttributes(p, plain, ['d'], ['picture', 'basePicture', 'effects'], 250), true);
+assert.deepEqual(at(p,'d').anim_in, {preset: 'blur_in', duration: 25}, 'the other groups leave the animations alone');
+valid(p);
+`)
+}

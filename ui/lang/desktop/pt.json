@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Quadros-chave (mesmo tempo desde o início do clipe)",
   "videoStudio.attrBasePicture": "Corte, espelhamento, modo de mesclagem e máscara",
   "videoStudio.attrEffects": "Efeitos (os quadros-chave mantêm o tempo desde o início do clipe)",
+  "videoStudio.attrAnimation": "Animações de entrada e saída",
   "videoStudio.link": "Vincular",
   "videoStudio.unlink": "Desvincular",
   "videoStudio.detachAudio": "Separar áudio",

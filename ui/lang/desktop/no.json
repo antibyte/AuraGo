@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Nøkkelbilder (samme timing fra klippets start)",
   "videoStudio.attrBasePicture": "Beskjæring, speiling, blandingsmodus og maske",
   "videoStudio.attrEffects": "Effekter (nøkkelbilder beholder timingen fra klippets start)",
+  "videoStudio.attrAnimation": "Animasjoner ved start og slutt",
   "videoStudio.link": "Koble sammen",
   "videoStudio.unlink": "Fjern kobling",
   "videoStudio.detachAudio": "Skill ut lyd",

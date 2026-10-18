@@ -8,7 +8,8 @@
     // picture content through every timing edit. A key is named {path, f}. Paths are the clip's animatable values
     // (VideoStudioEffects.animatablePaths): base values, crop.l|t|r|b, mask.x|y|w|h|rotation|feather (2d, while the clip
     // has a mask) and effects.<index>.<param>; the path store below knows where their keys and fields live. The speed
-    // ramp operations follow the key operations, then the effect stack operations (2c) and the compositing ones (2d).
+    // ramp operations follow the key operations, then the effect stack operations (2c), the compositing ones (2d) and
+    // the in and out animations (2e).
     const Fx = () => window.VideoStudioEffects;
     const T = () => window.VideoStudioTimeline;
     const REASON = () => window.VideoStudioEdit.REASON;
@@ -643,6 +644,51 @@
         return result;
     }
 
+    // ---- In and out animations (2e; spec §5.6, §8.1; plan index §4.24).
+    //   - anim_in and anim_out are {preset, duration}, in this key order (the canonical form): a registry preset and a
+    //     length in timeline frames inside VideoStudioAnim.frameRange(project), 0.2 to 3 s.
+    //   - There is no "none" preset: the field goes.
+    //   - An unavailable preset is kept, like an unavailable blend mode; the export refuses it
+    //     (VideoStudioEffects.animAvailable).
+    //   - The length is never checked against the clip: the render plays each side over at most half the clip.
+    // Each operation returns true or a REASON: nothing (an unknown side, preset or value, or no change), kind (audio
+    // clip), locked.
+    const knownAnimPreset = id => typeof id === 'string' && Fx().animPresets().some(item => item.id === id);
+    // A length in timeline frames, rounded and clamped into the project's range; null for anything but a finite number.
+    function animFrames(project, raw) {
+        const range = window.VideoStudioAnim.frameRange(project), number = Number(raw);
+        if (raw === null || raw === '' || typeof raw === 'boolean' || !Number.isFinite(number)) return null;
+        return Math.max(range.min, Math.min(range.max, Math.round(number)));
+    }
+    // The Animation section (spec §8.1): values = {preset?, duration?} for side 'in' or 'out'.
+    //   - preset 'none' removes the side's field.
+    //   - A new animation needs a preset, and takes the range's default length unless a duration comes with it.
+    //   - A preset change keeps the length; a duration alone changes the length of an existing animation.
+    function setAnim(project, clipId, side, values) {
+        const found = editTarget(project, clipId), key = side === 'in' ? 'anim_in' : side === 'out' ? 'anim_out' : '', v = values || {};
+        if (typeof found === 'string') return found;
+        if (!key || (v.preset === undefined && v.duration === undefined)) return REASON().nothing;
+        const clip = found.clip, current = clip[key] || null;
+        if (v.preset === 'none') { if (!current) return REASON().nothing; delete clip[key]; return true; }
+        const preset = v.preset === undefined ? current && current.preset : v.preset;
+        if (!knownAnimPreset(preset)) return REASON().nothing;
+        const duration = v.duration !== undefined ? animFrames(project, v.duration) : current ? animFrames(project, current.duration) : window.VideoStudioAnim.frameRange(project).default;
+        if (duration === null) return REASON().nothing;
+        if (current && current.preset === preset && current.duration === duration) return REASON().nothing;
+        clip[key] = { preset, duration };
+        return true;
+    }
+    // Paste attributes, animation group (VideoStudioEdit.pasteAttributes): the source's anim_in and anim_out go onto
+    // `clip`, a clip on an unlocked visual track. project gives the length range. A side the source lacks, or whose
+    // preset this registry does not know, is removed; lengths are clamped into the range.
+    function pasteAnim(project, source, clip) {
+        ['anim_in', 'anim_out'].forEach(key => {
+            const anim = source && source[key], duration = anim && knownAnimPreset(anim.preset) ? animFrames(project, anim.duration) : null;
+            if (duration === null) delete clip[key]; else clip[key] = { preset: anim.preset, duration };
+        });
+        return true;
+    }
+
     // keysOf(clip, path) returns the stored list (read only); keyedPaths(clip) every path holding keys (path store, 2c).
-    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys, keysOf: listOf, keyedPaths, rampPreset, setRamp, applyRampPreset, addRampPoint, moveRampPoint, removeRampPoint, addEffect, removeEffect, moveEffect, setEffectOn, resetEffect, setEffectParams, setCrop, setFlip, setBlend, setMask, removeMask, pasteMask };
+    window.VideoStudioKeyframeEdit = { keyFrame, atPlayhead, setAnimated, toggleKeyframe, setValues, neighbor, moveKeys, removeKeys, setEasing, copyKeys, pasteKeys, keysOf: listOf, keyedPaths, rampPreset, setRamp, applyRampPreset, addRampPoint, moveRampPoint, removeRampPoint, addEffect, removeEffect, moveEffect, setEffectOn, resetEffect, setEffectParams, setCrop, setFlip, setBlend, setMask, removeMask, pasteMask, setAnim, pasteAnim };
 })();

@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Sleutelframes (zelfde timing vanaf het begin van de clip)",
   "videoStudio.attrBasePicture": "Bijsnijden, spiegelen, overvloeimodus en masker",
   "videoStudio.attrEffects": "Effecten (sleutelframes behouden hun timing vanaf het begin van de clip)",
+  "videoStudio.attrAnimation": "Animaties aan begin en eind",
   "videoStudio.link": "Koppelen",
   "videoStudio.unlink": "Ontkoppelen",
   "videoStudio.detachAudio": "Audio losmaken",

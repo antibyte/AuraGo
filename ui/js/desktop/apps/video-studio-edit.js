@@ -9,7 +9,7 @@
     const FX = () => window.VideoStudioEffects;
     const REASON = Object.freeze({ locked: 'locked', media: 'media', bounds: 'bounds', nothing: 'nothing', limit: 'limit', kind: 'kind', transition: 'transition', tracks: 'tracks', link: 'link', room: 'room', ramp: 'ramp' });
     const maxLinkClips = () => T().MAX_LINK_CLIPS;
-    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'], basePicture: ['crop', 'flip_h', 'flip_v', 'blend', 'mask'], effects: ['effects'] };
+    const ATTRIBUTE_GROUPS = { picture: ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'fit'], sound: ['volume', 'fade_in', 'fade_out'], speed: ['speed'], keyframes: ['keyframes'], basePicture: ['crop', 'flip_h', 'flip_v', 'blend', 'mask'], effects: ['effects'], animation: ['anim_in', 'anim_out'] };
     const clone = value => JSON.parse(JSON.stringify(value));
     const endOf = clip => clip.start + clip.duration;
     const sorted = track => track.clips.slice().sort((a, b) => a.start - b.start);
@@ -132,15 +132,16 @@
             clip.start -= cuts.reduce((n, [a, b]) => n + (b <= clip.start ? b - a : 0), 0);
         }));
     }
-    // Copy of `clip` limited to [from, to): the head keeps the fade in, the tail keeps the fade out and the
-    // outgoing transition.
+    // Copy of `clip` limited to [from, to). The head keeps the fade in and the in animation. The tail keeps the fade
+    // out, the out animation and the outgoing transition (2e: the audio-fade rule, index §4.24).
     function piece(project, clip, from, to, id) {
         const copy = clone(clip);
         copy.id = id; copy.start = from; copy.duration = to - from;
         if (!isStill(project, clip)) moveHead(copy, from - clip.start);
         copy.fade_in = from === clip.start ? Math.min(Number(clip.fade_in) || 0, copy.duration) : 0;
         copy.fade_out = to === endOf(clip) ? Math.min(Number(clip.fade_out) || 0, copy.duration) : 0;
-        if (to !== endOf(clip)) copy.transition = null;
+        if (from !== clip.start) delete copy.anim_in;
+        if (to !== endOf(clip)) { copy.transition = null; delete copy.anim_out; }
         return copy;
     }
     // Blade rule for every split (blade, overwrite, insert): the left part keeps id and link; the right parts that one
@@ -165,7 +166,7 @@
             if (clip.start >= frame || endOf(clip) <= frame) return;
             const right = piece(project, clip, frame, endOf(clip), T().newId('clip'));
             noteRight(rights, clip, right);
-            Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
+            delete clip.anim_out; Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
             track.clips.push(right);
         });
     }
@@ -604,7 +605,7 @@
             if (isCutInTransition(track, frame)) { transition = true; return; }
             const right = piece(project, clip, frame, endOf(clip), T().newId('clip'));
             noteRight(rights, clip, right);
-            Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
+            delete clip.anim_out; Object.assign(clip, piece(project, clip, clip.start, frame, clip.id));
             track.clips.push(right);
             created.push(right.id);
         });
@@ -649,7 +650,8 @@
     }
 
     // Copies attribute groups from `source` (a clip object) to the listed clips.
-    // - picture, basePicture, keyframes and effects skip audio clips.
+    // - picture, basePicture, animation, keyframes and effects skip audio clips. animation copies anim_in and anim_out,
+    //   and a side the source lacks is removed (VideoStudioKeyframeEdit.pasteAnim, 2e).
     // - The speed group skips stills and goes through setSpeed for the clips and their link partners, so it follows the
     //   timing rules (ripple by default); a ramped source gives its ramp instead (pasteRamp).
     // - keyframes replaces the clip's keys and effects its effect stack (entry keys included). Both are re-anchored after
@@ -668,7 +670,8 @@
         let changed = false;
         for (const { track, clip } of items) {
             for (const group of wanted) {
-                if ((group === 'picture' || group === 'basePicture') && track.kind === 'audio') continue;
+                if ((group === 'picture' || group === 'basePicture' || group === 'animation') && track.kind === 'audio') continue;
+                if (group === 'animation') { if (KE) { KE.pasteAnim(project, source, clip); changed = true; } continue; }
                 if (group === 'basePicture') {
                     const result = pasteBasePicture(project, source, clip, replaceKeys, frame);
                     if (result !== true) return result;
@@ -802,8 +805,8 @@
         const audio = Object.assign(clone(clip), {
             id: ids.clip, link, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', text: '', text_style: null, transition: null
         });
-        // The audio copy has no picture: no keys, ramp, crop, flips, effects, blend or mask (Validate refuses them on audio tracks).
-        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp; delete audio.crop; delete audio.flip_h; delete audio.flip_v; delete audio.effects; delete audio.blend; delete audio.mask;
+        // The audio copy has no picture: no keys, ramp, crop, flips, effects, blend, mask or animations (Validate refuses them on audio tracks).
+        delete audio.audio_detached; delete audio.keyframes; delete audio.ramp; delete audio.crop; delete audio.flip_h; delete audio.flip_v; delete audio.effects; delete audio.blend; delete audio.mask; delete audio.anim_in; delete audio.anim_out;
         clip.link = link;
         clip.audio_detached = true;
         track.clips.push(audio);
@@ -949,6 +952,7 @@
     // - the crop (made a valid field) and the flips;
     // - the effects drawn at that frame, with their values there (entries that are off are left out);
     // - the blend mode, and the mask with its numbers at that frame (2d; a static mask).
+    // The still has no in or out animation; the parts around it keep theirs (the piece rule, 2e).
     // Insert rules move the later clips.
     // captured = { asset_id, clip_id, duration, source_asset_id, source_frame } (duration in frames). When given, the
     // source fields name the frame the still shows; a clip that shows another frame at the cut (slipped, moved, re-timed

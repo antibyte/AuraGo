@@ -266,7 +266,7 @@ func TestVideoStudioEffectEditSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`value="basePicture"`, `value="effects"`, "label('attrBasePicture'", "label('attrEffects'"} {
+	for _, want := range []string{`value="basePicture"`, `value="effects"`, `value="animation"`, "label('attrBasePicture'", "label('attrEffects'", "label('attrAnimation'"} {
 		if !strings.Contains(string(editing), want) {
 			t.Errorf("the paste attributes dialog lacks %s", want)
 		}
@@ -274,7 +274,7 @@ func TestVideoStudioEffectEditSemantics(t *testing.T) {
 	english := readDesktopLocale(t, "en")
 	for _, lang := range videoStudioLocales {
 		values := readDesktopLocale(t, lang)
-		for _, key := range []string{"attrBasePicture", "attrEffects"} {
+		for _, key := range []string{"attrBasePicture", "attrEffects", "attrAnimation"} {
 			if strings.TrimSpace(values["videoStudio."+key]) == "" {
 				t.Errorf("%s lacks videoStudio.%s", lang, key)
 			}
@@ -284,7 +284,7 @@ func TestVideoStudioEffectEditSemantics(t *testing.T) {
 		}
 	}
 	runVideoStudioKeyframesScript(t, `
-assert.deepEqual([E.ATTRIBUTE_GROUPS.basePicture, E.ATTRIBUTE_GROUPS.effects], [['crop', 'flip_h', 'flip_v', 'blend', 'mask'], ['effects']], 'basePicture holds blend and mask since 2d');
+assert.deepEqual([E.ATTRIBUTE_GROUPS.basePicture, E.ATTRIBUTE_GROUPS.effects, E.ATTRIBUTE_GROUPS.animation], [['crop', 'flip_h', 'flip_v', 'blend', 'mask'], ['effects'], ['anim_in', 'anim_out']], 'basePicture holds blend and mask since 2d; animation is new in 2e');
 const stack = () => [
   {id: 'color', on: true, params: Object.assign(FX.defaults('color'), {contrast: 1.2}), keyframes: {exposure: [kf(110, 0, 'ease_in'), kf(150, 1)]}},
   {id: 'vignette', on: false, params: FX.defaults('vignette')}

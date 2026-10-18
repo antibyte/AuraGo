@@ -6496,6 +6496,7 @@
   "videoStudio.attrKeyframes": "Nøglebilleder (samme timing fra klippets start)",
   "videoStudio.attrBasePicture": "Beskæring, spejling, blandingstilstand og maske",
   "videoStudio.attrEffects": "Effekter (nøglebilleder beholder timingen fra klippets start)",
+  "videoStudio.attrAnimation": "Animationer ved start og slut",
   "videoStudio.link": "Sammenkæd",
   "videoStudio.unlink": "Fjern sammenkædning",
   "videoStudio.detachAudio": "Frakobl lyd",
