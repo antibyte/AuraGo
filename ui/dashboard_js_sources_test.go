@@ -48,7 +48,15 @@ func TestDashboardSectionScriptsLoadInPageOrder(t *testing.T) {
 		order = append(order, "/js/dashboard/sections/"+id+".js")
 	}
 	order = append(order, "/js/dashboard/dashboard-events.js")
-	assertDashboardScriptOrder(t, readDashboardShell(t), order)
+	shell := readDashboardShell(t)
+	assertDashboardScriptOrder(t, shell, order)
+	// Decision 3: the emptied file is deleted, and nothing loads it any more.
+	if strings.Contains(shell, "dashboard-widgets") {
+		t.Error("dashboard.html still loads dashboard-widgets.js")
+	}
+	if _, err := fs.Stat(Content, "js/dashboard/dashboard-widgets.js"); err == nil {
+		t.Error("ui/js/dashboard/dashboard-widgets.js must be gone: its code lives in the section modules")
+	}
 }
 
 // assertDashboardScriptOrder checks that every src has exactly one deferred, cache-busted script tag in the shell
