@@ -32,3 +32,8 @@ func TestDashboardSummaryFeedSchedulesRefreshes(t *testing.T) {
 	t.Parallel()
 	runDashboardNodeCheck(t, "testdata/dash-summary.cjs")
 }
+
+func TestDashboardOverviewHelpers(t *testing.T) {
+	t.Parallel()
+	runDashboardNodeCheck(t, "testdata/dash-overview.cjs")
+}
