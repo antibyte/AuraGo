@@ -140,7 +140,111 @@ void main() {
 }
 `;
 
-    const TRANSITIONS = { dissolve: DISSOLVE, black: BLACK, wipeleft: WIPE, wiperight: WIPE };
+    // ---- 2e transitions (index §4.7, §4.24). ----
+    // Each source is TRANSITION_HEAD, the TX helpers and a body written from §4.24's normative per-pixel rules: the
+    // spike's float32 models in their IDEAL form, the same arithmetic in highp float without FFmpeg's truncating 8-bit
+    // store (at most 1 level off, mean −0.45). No FFmpeg source is copied.
+    // - Every per-frame number is a uniform from VideoStudioPicture.transitionUniforms (D1). u_P is xfade's progress P:
+    //   1 at overlap frame 0, falling to 1/D. No 2e source reads u_progress.
+    // - p is the fragment's pixel, floor(v_uv · u_size): column, and row counted from the top (targets are top-down).
+    // - vsA and vsB read the premultiplied outgoing and incoming layers at an integer position (texelFetch, clamped into
+    //   the target). The pushes, pixelize, zoomin and squeezeh sample by index; a and b are the fragment's own texels.
+    // - vsMix(x, y, m) = x·m + y·(1 − m) is xfade's mix: m weighs the FIRST argument (GLSL mix weighs the second).
+    // - The fills are opaque, so the tracks below vanish where they show (risk 28): premultiplied black (0, 0, 0, 1)
+    //   for circlecrop and rectcrop, white (1, 1, 1, 1) for fadewhite.
+    const TX_HEAD = TRANSITION_HEAD + `precision highp int;
+uniform float u_P;
+ivec2 vsSize() { return ivec2(u_size); }
+ivec2 vsPixel() { return ivec2(floor(v_uv * u_size)); }
+vec4 vsA(ivec2 q) { return texelFetch(u_from, clamp(q, ivec2(0), vsSize() - 1), 0); }
+vec4 vsB(ivec2 q) { return texelFetch(u_to, clamp(q, ivec2(0), vsSize() - 1), 0); }
+vec4 vsMix(vec4 x, vec4 y, float m) { return x * m + y * (1.0 - m); }
+`;
+    const TX_BLACK = 'vec4(0.0, 0.0, 0.0, 1.0)';
+    // A 2e source from its own declarations and the body of main(), which starts with p, a and b.
+    const tx = (declarations, body) => TX_HEAD + declarations + `void main() {
+    ivec2 p = vsPixel();
+    vec4 a = vsA(p), b = vsB(p);
+` + body + `}
+`;
+    const SOFT = 'uniform float u_c;\n';
+    const CIRCLE = 'uniform vec2 u_centre;\nuniform float u_R;\nuniform float u_c;\n';
+    const TRANSITIONS_2E = {
+        // Through white: mix(mix(A, K, u), mix(K, B, v), P), K = white, u_uv = (u, v) = (ss(0.8, 1, P), ss(0.2, 1, P)).
+        fadewhite: tx('uniform vec2 u_uv;\n', `    vec4 k = vec4(1.0);
+    outColor = vsMix(vsMix(a, k, u_uv.x), vsMix(k, b, u_uv.y), u_P);
+`),
+        // Through grey: K is trunc((R8 + G8 + B8) / 3) of the premultiplied texel with its own alpha. The first inner mix
+        // uses A's grey, the second B's.
+        fadegrays: tx(`uniform vec2 u_uv;
+vec4 vsGrey(vec4 c) {
+    ivec3 v = ivec3(round(c.rgb * 255.0));
+    float g = float((v.r + v.g + v.b) / 3) / 255.0;
+    return vec4(g, g, g, c.a);
+}
+`, '    outColor = vsMix(vsMix(a, vsGrey(a), u_uv.x), vsMix(vsGrey(b), b, u_uv.y), u_P);\n'),
+        // Square blocks of u_sq px from the top left; both layers are sampled at the block centre. u_sq = 0 cross-fades.
+        pixelize: tx('uniform float u_sq;\n', `    ivec2 s = u_sq > 0.0 ? min(ivec2((floor(vec2(p) / u_sq) + 0.5) * u_sq), vsSize() - 1) : p;
+    outColor = vsMix(vsA(s), vsB(s), u_P);
+`),
+        // A hard row edge u_edge. wipeup: B enters from the bottom. wipedown: from the top (row 0 shows B at i = 0).
+        wipeup: tx('uniform int u_edge;\n', '    outColor = p.y > u_edge ? b : a;\n'),
+        wipedown: tx('uniform int u_edge;\n', '    outColor = p.y > u_edge ? a : b;\n'),
+        // Soft edges: t = smoothstep(0, 1, 1 + e − u_c) with u_c = 2P, and out = mix(B, A, t). e by type:
+        // - smoothleft: x/W (B enters from the right);
+        // - smoothright: (W − 1 − x)/W (from the left);
+        // - diagtl: (x/W)·y/H (from the bottom right);
+        // - diagbr: the mirrored product (from the top left).
+        smoothleft: tx(SOFT, '    outColor = vsMix(b, a, smoothstep(0.0, 1.0, 1.0 + float(p.x) / u_size.x - u_c));\n'),
+        smoothright: tx(SOFT, '    outColor = vsMix(b, a, smoothstep(0.0, 1.0, 1.0 + float(vsSize().x - 1 - p.x) / u_size.x - u_c));\n'),
+        diagtl: tx(SOFT, '    outColor = vsMix(b, a, smoothstep(0.0, 1.0, 1.0 + float(p.x) / u_size.x * float(p.y) / u_size.y - u_c));\n'),
+        diagbr: tx(SOFT, `    ivec2 q = vsSize() - 1 - p;
+    outColor = vsMix(b, a, smoothstep(0.0, 1.0, 1.0 + float(q.x) / u_size.x * float(q.y) / u_size.y - u_c));
+`),
+        // Clockwise sweep from 12 o'clock: the angle is atan2(dx, dy), 0 pointing down, minus u_c = k. Above the centre
+        // (dx = 0, dy < 0) it is π, as C's atan2(+0, dy) gives; at and below the centre it is 0.
+        radial: tx('uniform vec2 u_centre;\nuniform float u_c;\n', `    ivec2 d = p - ivec2(u_centre);
+    float angle = d.x == 0 ? (d.y < 0 ? 3.14159265358979 : 0.0) : atan(float(d.x), float(d.y));
+    outColor = vsMix(b, a, smoothstep(0.0, 1.0, angle - u_c));
+`),
+        // Pushes: both layers move by u_shift = trunc(P·size) px.
+        // - Left and up: B[z] where z = x − s ≥ 0, else A[z + size].
+        // - Right and down: B[z] where 0 < z = x + s < size, else A[z mod size].
+        slideleft: tx('uniform int u_shift;\n', `    int z = p.x - u_shift;
+    outColor = z >= 0 ? vsB(ivec2(z, p.y)) : vsA(ivec2(z + vsSize().x, p.y));
+`),
+        slideright: tx('uniform int u_shift;\n', `    int n = vsSize().x, z = p.x + u_shift;
+    outColor = z > 0 && z < n ? vsB(ivec2(z, p.y)) : vsA(ivec2(z >= n ? z - n : z, p.y));
+`),
+        slideup: tx('uniform int u_shift;\n', `    int z = p.y - u_shift;
+    outColor = z >= 0 ? vsB(ivec2(p.x, z)) : vsA(ivec2(p.x, z + vsSize().y));
+`),
+        slidedown: tx('uniform int u_shift;\n', `    int n = vsSize().y, z = p.y + u_shift;
+    outColor = z > 0 && z < n ? vsB(ivec2(p.x, z)) : vsA(ivec2(p.x, z >= n ? z - n : z));
+`),
+        // A squeezed vertically about the middle to height P·H, with B static behind it. Hard edges, no blending; the
+        // row index rounds half to even.
+        squeezeh: tx('', `    float z = 0.5 + (float(p.y) / u_size.y - 0.5) / u_P;
+    outColor = z < 0.0 || z > 1.0 ? b : vsA(ivec2(p.x, int(roundEven(z * (u_size.y - 1.0)))));
+`),
+        // A magnified about the centre by u_zoom.x = zf (nearest sample), cross-faded to B with weight u_zoom.y = w.
+        zoomin: tx(`uniform vec2 u_zoom;
+int vsZoom(int i, float n) { return clamp(int(ceil(((float(i) / n - 0.5) * u_zoom.x + 0.5) * (n - 1.0))), 0, int(n) - 1); }
+`, '    outColor = vsMix(vsA(ivec2(vsZoom(p.x, u_size.x), vsZoom(p.y, u_size.y))), b, u_zoom.y);\n'),
+        // Circles: d = |p − u_centre|, t = smoothstep(0, 1, d/u_R + u_c).
+        // - circleopen: mix(A, B, t); B opens from the centre.
+        // - circleclose: mix(B, A, t); B closes in from the corners.
+        circleopen: tx(CIRCLE, '    outColor = vsMix(a, b, smoothstep(0.0, 1.0, length(vec2(p - ivec2(u_centre))) / u_R + u_c));\n'),
+        circleclose: tx(CIRCLE, '    outColor = vsMix(b, a, smoothstep(0.0, 1.0, length(vec2(p - ivec2(u_centre))) / u_R + u_c));\n'),
+        // The disc of radius u_r shows A while P >= 0.5, then B; outside it is opaque black.
+        circlecrop: tx('uniform vec2 u_centre;\nuniform float u_r;\n', '    outColor = u_r < length(vec2(p - ivec2(u_centre))) ? ' + TX_BLACK + ' : (u_P < 0.5 ? b : a);\n'),
+        // The rectangle |x − cx| < zw, |y − cy| < zh shows A, then B; outside it is opaque black. The centre is
+        // (W >> 1, H >> 1) of u_size; u_rect = (zw, zh). At frame 0 this leaves a 1 px black border at the left and top.
+        rectcrop: tx('uniform vec2 u_rect;\n', `    ivec2 d = abs(p - vsSize() / 2), z = ivec2(u_rect);
+    outColor = d.x < z.x && d.y < z.y ? (u_P < 0.5 ? b : a) : ` + TX_BLACK + `;
+`)
+    };
+    const TRANSITIONS = Object.assign({ dissolve: DISSOLVE, black: BLACK, wipeleft: WIPE, wiperight: WIPE }, TRANSITIONS_2E);
 
     // ---- 2c clip-local passes (index §4.7 pass contract, §4.20 formulas). ----
     // PICTURE crops and flips. v_uv covers the clip-local target, u_flip (1 mirrors that axis) flips it, and u_uvRect is
@@ -338,7 +442,7 @@ void main() {
 
     window.VideoStudioShaders = {
         QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED,
-        // Fragment source for a registry transition id, or null (2e adds the other ids).
+        // Fragment source for a registry transition id (all 24 since 2e, index §4.7), or null.
         transition(id) { return Object.prototype.hasOwnProperty.call(TRANSITIONS, id) ? TRANSITIONS[id] : null; },
         // {passes: [fragmentSource, ...]} for a registry effect id, or null (index §4.7).
         effect(id) { return Object.prototype.hasOwnProperty.call(EFFECTS, id) ? { passes: EFFECTS[id].slice() } : null; },
