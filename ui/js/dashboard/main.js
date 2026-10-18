@@ -294,6 +294,36 @@
             return Math.floor(diff / 86400) + 'd';
         }
 
+        // ═══ Latest-request gate (Cronjobs, Audit) ══════════════════════════════════
+        // One gate per card: begin() aborts the previous request, and only the newest
+        // request may render, commit pagination state or show an error.
+        function createLatestRequestGate() {
+            let sequence = 0;
+            let controller = null;
+            return {
+                begin() {
+                    if (controller) controller.abort();
+                    const own = new AbortController();
+                    controller = own;
+                    const id = ++sequence;
+                    return {
+                        signal: own.signal,
+                        isCurrent: () => id === sequence,
+                        finish: () => { if (controller === own) controller = null; }
+                    };
+                }
+            };
+        }
+
+        // cronjobManagedLabel replaces Edit and Delete of a job that EasyDrag owns (a flow's schedule). The visible
+        // label shows the hint as a tooltip and is hidden from screen readers, which read the visually hidden
+        // label and hint instead, once.
+        function cronjobManagedLabel() {
+            const label = esc(t('dashboard.cronjobs_managed_easydrag'));
+            const hint = esc(t('dashboard.cronjobs_managed_easydrag_hint'));
+            return `<span class="cronjobs-managed" title="${hint}" aria-hidden="true">${label}</span><span class="visually-hidden">${label} ${hint}</span>`;
+        }
+
         function initDashboard() {
             // Log viewer listeners (the elements exist while the logs section is hidden)
             const logFilter = document.getElementById('log-filter');

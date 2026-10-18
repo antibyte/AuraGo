@@ -2856,10 +2856,9 @@ async function testQuickConnectSFTPNavigatorIgnoresStaleListings() {
   assert.match(panel, /activeSFTPNav\.dispose\(\)/);
 }
 
-function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
-  const source = read('ui/js/dashboard/dashboard-widgets.js');
-  const gateSource = sourceBetween(source, 'function createLatestRequestGate()', '// ═══ Cronjobs');
-  const blockSource = sourceBetween(source, blockStart, blockEnd);
+function loadDashboardCardRuntime(file, blockStart, blockEnd, extra) {
+  const gateSource = sourceBetween(read('ui/js/dashboard/main.js'), 'function createLatestRequestGate()', 'function cronjobManagedLabel()');
+  const blockSource = sourceBetween(read(file), blockStart, blockEnd);
   const pending = [];
   const cardEvents = [];
   const context = {
@@ -2889,7 +2888,7 @@ function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
 const dashboardJSON = body => ({ ok: true, json: async () => body });
 
 async function testDashboardAuditIgnoresLateResponses() {
-  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Audit Log', '// ═══ Mission History', {});
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('ui/js/dashboard/sections/audit.js', '// ═══ Audit Log', 'DashSections.register(', {});
   const rendered = [];
   context.renderAuditEvents = page => rendered.push(page.tag);
 
@@ -2914,7 +2913,7 @@ async function testDashboardAuditIgnoresLateResponses() {
 
 async function testDashboardCronjobsIgnoreLateResponses() {
   const rendered = [];
-  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Cronjobs', 'function renderMemoryCurationPreview(plan)', {
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('ui/js/dashboard/sections/automations.js', '// ═══ Cronjobs', 'function setupCronjobsControls()', {
     cronjobsQueryParams: () => new URLSearchParams(),
     renderCronjobs: data => rendered.push(data.tag)
   });
