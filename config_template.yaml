@@ -821,7 +821,7 @@ maintenance:
         operational_issues_days: 30
 consolidation:
     enabled: true
-    auto_optimize: true
+    auto_optimize: false
     archive_retain_days: 30
     max_batch_messages: 200
     catchup_minutes: 0                                # optional daily catch-up after the morning briefing (0 = off, max 60)

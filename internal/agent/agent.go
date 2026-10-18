@@ -1368,7 +1368,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 
 func isCoAgentMissionReadOperation(operation string) bool {
 	switch operation {
-	case "", "list", "get", "status":
+	case "list", "get", "status":
 		return true
 	default:
 		return false

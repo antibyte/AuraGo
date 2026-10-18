@@ -193,6 +193,7 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 		if entityID == "" || kgquality.IsGenericEntity(entityID) {
 			continue
 		}
+		entityID = "activity_entity:" + entityID
 		if err := kg.AddNode(entityID, label, map[string]string{
 			"type":       "activity_entity",
 			"source":     "activity_turn",

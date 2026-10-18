@@ -2,20 +2,24 @@ package dbutil
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 // Open opens a SQLite database with standard pragmas and configuration.
 // It applies WAL mode, synchronous=NORMAL, foreign_keys=ON, busy_timeout=5000,
-// and SetMaxOpenConns(1) by default. Options can override defaults.
+// and SetMaxOpenConns(4) by default. Options can override defaults.
 //
 // When WithCorruptionRecovery is enabled and the initial open+configure step
-// fails (e.g. PRAGMA execution on a corrupted file), the function attempts
-// automatic recovery: corrupted files are rotated to .bak and a fresh database
+// proves corruption, the function attempts automatic recovery: original files
+// are moved to a unique restricted quarantine and a fresh database
 // is created. This handles the case where the file header is invalid and
 // PRAGMA statements cannot execute at all.
 //
@@ -29,7 +33,7 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 
 	db, err := openAndConfigure(dbPath, cfg)
 	if err != nil {
-		if !cfg.corruptionRecovery {
+		if !cfg.corruptionRecovery || !isCorruption(err) {
 			return nil, err
 		}
 		// PRAGMA or integrity check failure — attempt recovery.
@@ -85,7 +89,7 @@ func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 
 	if corrupt {
 		db.Close()
-		return nil, fmt.Errorf("database integrity check failed")
+		return nil, errIntegrityCorrupt
 	}
 
 	return db, nil
@@ -133,6 +137,9 @@ func buildDSN(path string, cfg config) string {
 	if path == ":memory:" && !hasCache {
 		params = append(params, "cache=shared")
 	}
+	if cfg.immediateTransactions {
+		params = append(params, "_txlock=immediate")
+	}
 	return base + "?" + strings.Join(params, "&")
 }
 
@@ -169,33 +176,65 @@ func runIntegrityCheck(db *sql.DB) (bool, error) {
 	return result != "ok", nil
 }
 
-// recoverCorruptDB handles database corruption by renaming corrupted files to .bak
+// recoverCorruptDB handles proven corruption by quarantining original files
 // and allowing a fresh database to be created.
+var errIntegrityCorrupt = errors.New("database integrity check failed")
+
+func isCorruption(err error) bool {
+	var sqliteErr interface{ Code() int }
+	return errors.Is(err, errIntegrityCorrupt) || (errors.As(err, &sqliteErr) && sqliteErr.Code()&255 == 11)
+}
+
 func recoverCorruptDB(dbPath string, logger *slog.Logger) error {
 	if logger != nil {
 		logger.Error("SQLite database is corrupted, attempting recovery",
 			"path", dbPath)
 	}
 
-	// Rotate all related files
-	for _, suffix := range []string{"", "-wal", "-shm"} {
+	// Recovery is restricted to literal disk paths; never reinterpret a SQLite URI.
+	if dbPath == ":memory:" || strings.HasPrefix(dbPath, "file:") || strings.Contains(dbPath, "?") {
+		return fmt.Errorf("cannot quarantine a nonliteral database path")
+	}
+	var sources []string
+	for _, suffix := range []string{"-wal", "-shm", "-journal", ""} {
 		src := dbPath + suffix
-		if _, statErr := os.Stat(src); statErr == nil {
-			dst := src + ".bak"
-			if renErr := os.Rename(src, dst); renErr != nil {
-				if logger != nil {
-					logger.Warn("Could not rename corrupted DB file", "src", src, "error", renErr)
-				}
-			} else {
-				if logger != nil {
-					logger.Warn("Renamed corrupted DB file", "src", src, "dst", dst)
-				}
-			}
+		info, err := os.Lstat(src)
+		if errors.Is(err, os.ErrNotExist) && suffix != "" {
+			continue
 		}
+		if err != nil {
+			return fmt.Errorf("inspect recovery source: %w", err)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("recovery source is not a regular file: %s", src)
+		}
+		sources = append(sources, src)
+	}
+	quarantine, err := os.MkdirTemp(filepath.Dir(dbPath), filepath.Base(dbPath)+".corrupt-")
+	if err != nil {
+		return fmt.Errorf("create quarantine: %w", err)
+	}
+	var moved []string
+	for _, src := range sources {
+		if err := fileutil.Rename(src, filepath.Join(quarantine, filepath.Base(src))); err != nil {
+			rollbackErr := error(nil)
+			for i := len(moved) - 1; i >= 0; i-- {
+				rollbackErr = errors.Join(rollbackErr, fileutil.Rename(filepath.Join(quarantine, filepath.Base(moved[i])), moved[i]))
+			}
+			return errors.Join(fmt.Errorf("quarantine database: %w", err), rollbackErr)
+		}
+		moved = append(moved, src)
+	}
+	file, err := os.OpenFile(dbPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("create replacement database: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close replacement database: %w", err)
 	}
 
 	if logger != nil {
-		logger.Info("Created fresh SQLite database after corruption recovery", "path", dbPath)
+		logger.Info("Quarantined corrupted SQLite database", "path", dbPath, "quarantine", quarantine)
 	}
 	return nil
 }

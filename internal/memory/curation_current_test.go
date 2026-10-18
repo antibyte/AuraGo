@@ -83,6 +83,9 @@ func TestAutomaticCurationRequiresSnapshotAndReportsApplied(t *testing.T) {
 	if err := s.EnsureMemoryMeta("doc"); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetMemoryMetaLastAccessed("doc", time.Now().UTC().Add(-60*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 	meta, err := s.GetMemoryMeta("doc")
 	if err != nil {
 		t.Fatal(err)

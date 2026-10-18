@@ -2089,34 +2089,18 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	var lowDocs []memory.MemoryMeta
 	var mediumDocs []string
 	for _, meta := range metas {
-		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) {
+		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) || meta.VerificationStatus == memory.MemoryVerificationConfirmed || meta.VerificationStatus == memory.MemoryVerificationContradicted {
 			continue
 		}
 		priority := adjustedMemoryPriority(meta, time.Now())
-		if priority < threshold {
-			lowDocs = append(lowDocs, meta)
-		} else if priority < threshold+2 {
+		if priority >= threshold && priority < threshold+2 {
 			mediumDocs = append(mediumDocs, meta.DocID)
 		}
 	}
 
-	// Low priority alone never requires physical destruction. Archive through
-	// the policy-aware metadata path and retain the vector for recovery.
-	for _, meta := range lowDocs {
-		docID := meta.DocID
-		if err := ctx.Err(); err != nil {
-			result.Errors = append(result.Errors, err)
-			return result
-		}
-		if _, err := stm.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
-			DocID: docID, Action: memory.MemoryCurationActionArchive, Reason: "auto-optimize low priority", ExpectedMeta: &meta,
-		}); err != nil {
-			result.Errors = append(result.Errors, err)
-		}
-	}
+	// Automatic archiving belongs to the shared curation plan, including its grace period.
 
 	// Compress medium-priority documents
 	optimizeClient, optimizeModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
@@ -2285,9 +2269,8 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	if len(lowDocs) > 0 || len(mediumDocs) > 0 || graphRemoved > 0 {
+	if len(mediumDocs) > 0 || graphRemoved > 0 {
 		logger.Info("[AutoOptimize] Memory optimization complete",
-			"low_removed", len(lowDocs),
 			"medium_compressed", len(mediumDocs),
 			"graph_nodes_removed", graphRemoved)
 	}

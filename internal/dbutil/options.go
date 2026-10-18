@@ -7,11 +7,18 @@ type Option func(*config)
 
 // config holds the configuration for database connections.
 type config struct {
-	maxOpenConns       int
-	busyTimeout        int
-	synchronous        string
-	corruptionRecovery bool
-	recoveryLogger     *slog.Logger
+	maxOpenConns          int
+	busyTimeout           int
+	synchronous           string
+	corruptionRecovery    bool
+	recoveryLogger        *slog.Logger
+	immediateTransactions bool
+}
+
+// WithImmediateTransactions acquires SQLite's write reservation at Begin rather
+// than upgrading a read snapshot after concurrent writers may have committed.
+func WithImmediateTransactions() Option {
+	return func(c *config) { c.immediateTransactions = true }
 }
 
 // defaultConfig returns the default configuration.
@@ -29,7 +36,7 @@ func defaultConfig() config {
 }
 
 // WithMaxOpenConns sets the maximum number of open connections.
-// Default is 1. Must be >= 1.
+// Default is 4. Must be >= 1.
 func WithMaxOpenConns(n int) Option {
 	return func(c *config) {
 		if n >= 1 {
@@ -61,7 +68,7 @@ func WithSynchronous(mode string) Option {
 }
 
 // WithCorruptionRecovery enables automatic corruption recovery.
-// If the database fails integrity check, corrupted files are renamed to .bak
+// If corruption is proven, originals are moved to a unique restricted quarantine
 // and a fresh database is created. Requires a non-nil logger.
 func WithCorruptionRecovery(logger *slog.Logger) Option {
 	return func(c *config) {

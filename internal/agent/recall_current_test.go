@@ -62,3 +62,46 @@ func TestRecallMemoryHonorsCurrentArchiveAndMetadataFailures(t *testing.T) {
 		t.Fatal("closed metadata store allowed recall")
 	}
 }
+
+func TestExplicitRecallCountsOnlySuccessfulAccesses(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	vdb := &fakeVectorDB{documents: map[string]string{"active": "active content", "archived": "old", "empty": ""}}
+	for _, id := range []string{"active", "archived", "empty", "missing"} {
+		if err := stm.EnsureMemoryMeta(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{DocID: "archived", Action: "archive"}, "admin", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executeRecallMemory(ToolCall{IDs: []string{"active", "active", "archived", "empty", "missing"}}, "native-session", stm, vdb); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RecallMemoryForLocalAgent("active", stm, vdb); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"active", "archived", "empty", "missing"} {
+		meta, err := stm.GetMemoryMeta(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 0
+		if id == "active" {
+			want = 2
+		}
+		if meta.AccessCount != want {
+			t.Fatalf("%s access=%d want=%d", id, meta.AccessCount, want)
+		}
+	}
+	stats, err := stm.GetMemoryUsageStats(7, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stats.TopReused) != 1 || stats.TopReused[0].MemoryID != "active" || stats.TopReused[0].Count != 2 {
+		t.Fatalf("usage=%+v", stats)
+	}
+}

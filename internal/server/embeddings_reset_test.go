@@ -7,6 +7,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/services"
 	"context"
+	"database/sql"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -39,7 +40,7 @@ func TestEmbeddingsConfigChangedDetectsRelevantChanges(t *testing.T) {
 	}
 }
 
-func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
+func TestApplyPendingEmbeddingsResetPreservesSourceState(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
@@ -84,6 +85,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	cfg.Directories.DataDir = tmpDir
 	cfg.Directories.VectorDBDir = vectorDir
 
+	createVerifiedResetCorpus(t, vectorDir)
 	if err := WriteEmbeddingsResetMarker(cfg, logger, "test"); err != nil {
 		t.Fatalf("WriteEmbeddingsResetMarker: %v", err)
 	}
@@ -104,7 +106,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if len(entries) != 0 {
+	if len(entries) < 2 {
 		t.Fatalf("expected recreated vector dir to be empty, got %d entries", len(entries))
 	}
 
@@ -112,7 +114,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetFileIndex: %v", err)
 	}
-	if !lastIndexed.IsZero() {
+	if lastIndexed.IsZero() {
 		t.Fatalf("expected file index to be cleared, got %v", lastIndexed)
 	}
 
@@ -120,23 +122,21 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAllMemoryMeta: %v", err)
 	}
-	if len(meta) != 0 {
+	if len(meta) != 1 {
 		t.Fatalf("expected memory meta to be cleared, got %d entries", len(meta))
 	}
 	nodes, err := kg.GetAllNodes(10)
 	if err != nil {
 		t.Fatalf("GetAllNodes: %v", err)
 	}
-	for _, node := range nodes {
-		if node.ID == "file-node" {
-			t.Fatalf("expected file_sync KG node to be removed during embeddings reset")
-		}
+	if len(nodes) != 2 {
+		t.Fatalf("KG facts removed: %d", len(nodes))
 	}
 	edges, err := kg.GetAllEdges(10)
 	if err != nil {
 		t.Fatalf("GetAllEdges: %v", err)
 	}
-	if len(edges) != 0 {
+	if len(edges) != 1 {
 		t.Fatalf("expected file_sync KG edges to be removed during embeddings reset, got %d", len(edges))
 	}
 
@@ -240,6 +240,7 @@ func TestFileKGLifecycleUpdateRenameDeleteReindexReset(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cfg.Directories.VectorDBDir, "stale.vec"), []byte("old"), 0644); err != nil {
 		t.Fatalf("write stale vector: %v", err)
 	}
+	createVerifiedResetCorpus(t, cfg.Directories.VectorDBDir)
 	if err := WriteEmbeddingsResetMarker(cfg, logger, "lifecycle_test"); err != nil {
 		t.Fatalf("WriteEmbeddingsResetMarker: %v", err)
 	}
@@ -250,12 +251,12 @@ func TestFileKGLifecycleUpdateRenameDeleteReindexReset(t *testing.T) {
 	if !applied {
 		t.Fatalf("expected embeddings reset marker to be applied")
 	}
-	assertSourceFileNodes(t, kg, originalPath, nil)
+	assertSourceFileNodes(t, kg, originalPath, []string{"reindexed_service"})
 	paths, err := stm.ListIndexedFiles(services.IndexerCollection)
 	if err != nil {
 		t.Fatalf("ListIndexedFiles after reset: %v", err)
 	}
-	if len(paths) != 0 {
+	if len(paths) != 1 {
 		t.Fatalf("expected file index to be empty after reset, got %v", paths)
 	}
 }
@@ -340,3 +341,46 @@ func (v *lifecycleVectorDB) StoreCheatsheet(string, string, string, ...string) e
 }
 func (v *lifecycleVectorDB) DeleteCheatsheet(string) error { return nil }
 func (v *lifecycleVectorDB) RegisterCollections([]string)  {}
+
+func createVerifiedResetCorpus(t *testing.T, dir string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(dir, "documents.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE corpus_meta(key TEXT PRIMARY KEY,value TEXT); INSERT INTO corpus_meta VALUES('verified','1'); CREATE TABLE documents(pending INTEGER); INSERT INTO documents VALUES(0);`); err != nil {
+		t.Fatal(err)
+	}
+}
+func TestApplyPendingEmbeddingsResetRetainsUnverifiedLegacyStore(t *testing.T) {
+	root := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = root
+	cfg.Directories.VectorDBDir = filepath.Join(root, "vectors")
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(filepath.Join(root, "memory.db"), logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	if err := os.MkdirAll(cfg.Directories.VectorDBDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfg.Directories.VectorDBDir, "legacy.gob")
+	if err := os.WriteFile(path, []byte("original"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteEmbeddingsResetMarker(cfg, logger, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if applied, err := ApplyPendingEmbeddingsReset(cfg, stm, nil, logger); err == nil || applied {
+		t.Fatalf("unsafe reset: %v %v", applied, err)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != "original" {
+		t.Fatalf("legacy changed: %v", err)
+	}
+	if _, err := os.Stat(embeddingsResetMarkerPath(cfg)); err != nil {
+		t.Fatalf("marker removed: %v", err)
+	}
+}

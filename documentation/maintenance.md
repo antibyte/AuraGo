@@ -23,8 +23,10 @@ Before metadata commit, rollback affects only new artifacts. After commit, the
 replacement survives an old-vector deletion or reference-cleanup failure. An
 uncertain commit preserves replacement artifacts for recovery. There is no
 cross-store transaction; interruption may leave extra copies, never justify
-deleting the replacement. Low-priority optimization archives through the
-policy-aware metadata operation and retains the original vector.
+deleting the replacement. Automatic archiving uses the shared curation plan:
+it requires at least fourteen days without access and retains confirmed,
+protected and keep-forever memories. Low priority alone cannot archive a fact.
+Post-consolidation optimization defaults off (`consolidation.auto_optimize`).
 
 Canonical repair scans at most 100 metadata rows using the existing keyset
 query. Its cursor survives restart in `memory_maintenance_meta`; individual

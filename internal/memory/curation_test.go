@@ -31,6 +31,45 @@ func TestArchiveTimestampPreventsAutomaticReactivation(t *testing.T) {
 	}
 }
 
+func TestAutomaticArchiveEnforcesGraceAndConfirmedProtection(t *testing.T) {
+	stm, cleanup := newTestSQLiteMemory(t)
+	defer cleanup()
+	for _, tc := range []struct {
+		id, status string
+		old, apply bool
+	}{
+		{"fresh", MemoryVerificationUnverified, false, false},
+		{"confirmed", MemoryVerificationConfirmed, true, false},
+		{"eligible", MemoryVerificationUnverified, true, true},
+	} {
+		if err := stm.UpsertMemoryMetaWithDetails(tc.id, MemoryMetaUpdate{VerificationStatus: tc.status, ExtractionConfidence: .1}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := stm.db.Exec(`UPDATE memory_meta SET useless_count=3 WHERE doc_id=?`, tc.id); err != nil {
+			t.Fatal(err)
+		}
+		if tc.old {
+			if err := stm.SetMemoryMetaLastAccessed(tc.id, time.Now().UTC().Add(-60*24*time.Hour)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		meta, err := stm.GetMemoryMeta(tc.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if applied, err := stm.ApplyAutomaticMemoryCurationAction(MemoryCurationAction{DocID: tc.id, Action: MemoryCurationActionArchive, ExpectedMeta: &meta}); err != nil || applied != tc.apply {
+			t.Fatalf("%s automatic archive applied=%v want=%v err=%v", tc.id, applied, tc.apply, err)
+		}
+	}
+	meta := MemoryMeta{ExtractionConfidence: .1, UselessCount: 3}
+	if !shouldArchiveMemory(meta, MemoryVerificationUnverified, 14) {
+		t.Fatal("eligible old weak memory should archive")
+	}
+	if shouldArchiveMemory(meta, MemoryVerificationConfirmed, 100) {
+		t.Fatal("confirmed memory cannot automatically archive")
+	}
+}
+
 func TestBuildMemoryCurationPlanAutoConfirmsSafeUnverifiedMemory(t *testing.T) {
 	now := time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC)
 	usage := MemoryUsageStats{
