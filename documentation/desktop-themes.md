@@ -33,6 +33,7 @@ This page covers choosing a theme, accessibility and the developer contract. The
 - **Window animations.** Settings, category **Windows**, *Window animations* turns off every theme animation and the Crazy effects, whether or not the system asks for reduced motion.
 - **Contrast.** Body text on the app and panel backgrounds, and muted text on the app background, are tested to a contrast ratio of at least 4.5:1 for each skinned theme (Amiga, Cyberpunk, Black Gloss, Crazy and Lollipop).
 - **Focus.** Keyboard focus shows a ring in every theme. Amiga draws a dashed black outline and Crazy a cyan ring.
+- **Amiga window gadgets.** The Amiga skin keeps the authentic Workbench gadget layout (close far left, depth and zoom gadgets on the right) purely visually through CSS grid placement, so keyboard Tab order follows the DOM (AI, minimize, maximize, close; AI and maximize are omitted where a window lacks them) rather than the on-screen order, and the dashed black focus ring makes the focused gadget visible.
 
 ## Developer Guide
 
