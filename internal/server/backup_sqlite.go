@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 func agoSQLiteStringLiteral(path string) string {
@@ -36,6 +38,9 @@ func agoCreateSQLiteSnapshot(src, tempDir string) (string, error) {
 	}
 	if _, err := db.Exec("VACUUM INTO " + agoSQLiteStringLiteral(filepath.ToSlash(dst))); err != nil {
 		return "", fmt.Errorf("create sqlite snapshot: %w", err)
+	}
+	if err := fileutil.RestrictToOwner(dst); err != nil {
+		return "", fmt.Errorf("protect sqlite snapshot: %w", err)
 	}
 	if err := agoValidateSQLiteDB(dst); err != nil {
 		return "", fmt.Errorf("validate sqlite snapshot: %w", err)

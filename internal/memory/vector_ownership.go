@@ -25,6 +25,9 @@ type ContextOwnershipAwareVectorDB interface {
 // Force-create is intentionally exposed only through OwnershipAwareVectorDB;
 // this compatibility helper always performs the existing deduplicating write.
 func StoreDocumentWithOwnership(ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+	if err := validateMemoryDocument(concept, content); err != nil {
+		return VectorStoreResult{}, err
+	}
 	if ltm == nil {
 		return VectorStoreResult{}, fmt.Errorf("vector store is required")
 	}
@@ -38,6 +41,9 @@ func StoreDocumentWithOwnership(ltm VectorDB, concept, content string) (VectorSt
 // StoreDocumentWithOwnershipContext prefers cancellable writes. The legacy
 // entry point keeps its original dispatch, including wrapper overrides.
 func StoreDocumentWithOwnershipContext(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+	if err := validateMemoryDocument(concept, content); err != nil {
+		return VectorStoreResult{}, err
+	}
 	if err := ctx.Err(); err != nil {
 		return VectorStoreResult{}, err
 	}
@@ -84,6 +90,9 @@ func (cv *ChromemVectorDB) StoreDocumentOwnedContext(ctx context.Context, concep
 // The caller holds the concept stripe. A small document needs one embedding:
 // use it for both the identity probe and the write, without an extra title query.
 func (cv *ChromemVectorDB) storeMemoryDocumentLocked(ctx context.Context, concept, content, domain string, mode VectorStoreMode) (VectorStoreResult, error) {
+	if err := validateMemoryDocument(concept+"\n"+domain, content); err != nil {
+		return VectorStoreResult{}, err
+	}
 	var result VectorStoreResult
 	if err := ctx.Err(); err != nil {
 		return result, err
@@ -136,8 +145,6 @@ func (cv *ChromemVectorDB) findIdenticalMemory(ctx context.Context, concept, con
 	if len(buildContentString(concept, content)) > 4000 {
 		return "", nil
 	}
-	cv.mu.RLock()
-	defer cv.mu.RUnlock()
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -146,7 +153,7 @@ func (cv *ChromemVectorDB) findIdenticalMemory(ctx context.Context, concept, con
 		return "", nil
 	}
 	// Retrieval age decay is not evidence that identical factual content changed.
-	candidates, err := cv.collection.QueryEmbedding(ctx, embedding, min(count, 8), nil, nil)
+	candidates, err := cv.queryVisibleCollection(ctx, cv.collection, embedding, min(count, 8))
 	if err != nil {
 		return "", fmt.Errorf("find identical memory: %w", err)
 	}
@@ -177,7 +184,7 @@ func normalizeMemoryDocumentPart(text string) string {
 // check and delete share cv.mu, so a concurrent Chromem mutation cannot pass
 // the check and replace the document before deletion.
 func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 string) (bool, error) {
-	id = strings.TrimSpace(id)
+
 	expectedSHA256 = strings.TrimSpace(expectedSHA256)
 	if id == "" || expectedSHA256 == "" {
 		return false, fmt.Errorf("document ID and expected content hash are required")
@@ -187,7 +194,7 @@ func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 str
 		return false, err
 	}
 	defer doneStore()
-	if err := cv.requireReadyForStore(); err != nil {
+	if err := cv.requireReadyForDelete(); err != nil {
 		return false, err
 	}
 
@@ -195,7 +202,16 @@ func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 str
 	defer cv.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	doc, err := cv.collection.GetByID(ctx, id)
+	var doc chromem.Document
+	var readErr error
+	if cv.corpus != nil {
+		doc, readErr = cv.corpusDocument(ctx, "aurago_memories", id)
+	} else if cv.collection != nil {
+		doc, readErr = cv.collection.GetByID(ctx, id)
+	} else {
+		readErr = fmt.Errorf("document collection is unavailable")
+	}
+	err = readErr
 	if err != nil {
 		return false, fmt.Errorf("read document %s before conditional delete: %w", id, err)
 	}
@@ -203,7 +219,7 @@ func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 str
 	if !strings.EqualFold(hex.EncodeToString(actual[:]), expectedSHA256) {
 		return false, nil
 	}
-	if err := cv.collection.Delete(ctx, nil, nil, id); err != nil {
+	if err := cv.deleteStoredDocuments(ctx, "aurago_memories", cv.collection, nil, id); err != nil {
 		return false, fmt.Errorf("delete unchanged document %s: %w", id, err)
 	}
 	return true, nil

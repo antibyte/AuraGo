@@ -477,6 +477,10 @@ func main() {
 	})
 	defer kg.Close()
 
+	if err := memory.PrepareDocumentCorpus(cfg.Directories.VectorDBDir); err != nil {
+		appLog.Error("Failed to prepare durable memory corpus", "error", err)
+		os.Exit(1)
+	}
 	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {
 		appLog.Error("Failed to apply pending embeddings reset", "error", err)
 		os.Exit(1)
@@ -706,6 +710,7 @@ func main() {
 		appLog.Error("Failed to initialize Long-Term memory (VectorDB)", "error", err)
 		os.Exit(1)
 	}
+	longTermMem.BindMemoryMetadata(shortTermMem)
 	defer func() {
 		if err := longTermMem.Close(); err != nil {
 			appLog.Warn("Failed to close Long-Term memory (VectorDB)", "error", err)

@@ -107,7 +107,7 @@ func TestApplyPendingEmbeddingsResetPreservesSourceState(t *testing.T) {
 		t.Fatalf("ReadDir: %v", err)
 	}
 	if len(entries) < 2 {
-		t.Fatalf("expected recreated vector dir to be empty, got %d entries", len(entries))
+		t.Fatalf("expected original vector source files to remain, got %d entries", len(entries))
 	}
 
 	lastIndexed, err := stm.GetFileIndex("knowledge/test.pdf", "file_index")
@@ -115,7 +115,7 @@ func TestApplyPendingEmbeddingsResetPreservesSourceState(t *testing.T) {
 		t.Fatalf("GetFileIndex: %v", err)
 	}
 	if lastIndexed.IsZero() {
-		t.Fatalf("expected file index to be cleared, got %v", lastIndexed)
+		t.Fatalf("expected file index to remain, got %v", lastIndexed)
 	}
 
 	meta, err := stm.GetAllMemoryMeta(100, 0)
@@ -123,7 +123,7 @@ func TestApplyPendingEmbeddingsResetPreservesSourceState(t *testing.T) {
 		t.Fatalf("GetAllMemoryMeta: %v", err)
 	}
 	if len(meta) != 1 {
-		t.Fatalf("expected memory meta to be cleared, got %d entries", len(meta))
+		t.Fatalf("expected memory metadata to remain, got %d entries", len(meta))
 	}
 	nodes, err := kg.GetAllNodes(10)
 	if err != nil {
@@ -137,7 +137,7 @@ func TestApplyPendingEmbeddingsResetPreservesSourceState(t *testing.T) {
 		t.Fatalf("GetAllEdges: %v", err)
 	}
 	if len(edges) != 1 {
-		t.Fatalf("expected file_sync KG edges to be removed during embeddings reset, got %d", len(edges))
+		t.Fatalf("expected file-sync KG edge to remain during embeddings reset, got %d", len(edges))
 	}
 
 	info, err := os.Stat(vectorDir)
@@ -257,7 +257,7 @@ func TestFileKGLifecycleUpdateRenameDeleteReindexReset(t *testing.T) {
 		t.Fatalf("ListIndexedFiles after reset: %v", err)
 	}
 	if len(paths) != 1 {
-		t.Fatalf("expected file index to be empty after reset, got %v", paths)
+		t.Fatalf("expected file index to remain after reset, got %v", paths)
 	}
 }
 
@@ -344,12 +344,15 @@ func (v *lifecycleVectorDB) RegisterCollections([]string)  {}
 
 func createVerifiedResetCorpus(t *testing.T, dir string) {
 	t.Helper()
+	if err := memory.PrepareDocumentCorpus(dir); err != nil {
+		t.Fatal(err)
+	}
 	db, err := sql.Open("sqlite", filepath.Join(dir, "documents.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE corpus_meta(key TEXT PRIMARY KEY,value TEXT); INSERT INTO corpus_meta VALUES('verified','1'); CREATE TABLE documents(pending INTEGER); INSERT INTO documents VALUES(0);`); err != nil {
+	if _, err := db.Exec(`INSERT INTO collections(name) VALUES('aurago_memories'); INSERT INTO documents(collection,id,content,metadata,vector,dimension,fingerprint,pending) VALUES('aurago_memories','source','retained source','{}','[1,0,0]',3,'old',0);`); err != nil {
 		t.Fatal(err)
 	}
 }

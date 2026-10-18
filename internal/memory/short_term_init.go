@@ -47,8 +47,12 @@ type SQLiteMemory struct {
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
 	previous, _ := os.Stat(dbPath)
 	backupLearnings := previous != nil && previous.Size() > 0
-	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger))
+	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger), dbutil.WithImmediateTransactions())
 	if err != nil {
+		return nil, err
+	}
+	if err := protectMemoryDatabase(db); err != nil {
+		db.Close()
 		return nil, err
 	}
 

@@ -87,6 +87,12 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 	if err != nil {
 		return fmt.Errorf("get/create semantic collection: %w", err)
 	}
+	if collection.Count() == 0 {
+		// The shared index is now in memory; SQL facts remain authoritative.
+		if err := kg.ResetSemanticIndex(); err != nil {
+			return err
+		}
+	}
 
 	index := &kgsemantic.Index{
 		Collection:    collection,

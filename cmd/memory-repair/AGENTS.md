@@ -12,7 +12,7 @@ This command owns offline previews, backups, rehearsals and resumable merges.
 
 ## Local Contracts
 
-- Reuse existing SQLite, Chromem, flock and fact-identity implementations. Never
+- Read a verified `documents.sqlite` canonical corpus when present, retaining the legacy Chromem fallback only for installations not yet migrated. Reuse SQLite, Chromem, flock and fact-identity implementations. Never
   request embeddings, initialize stores, migrate schemas or access the network.
 - Preview is the default. `--apply` requires the saved plan and actual application
   lock under `--install-dir`; both modes require a stopped agent.
@@ -21,12 +21,13 @@ This command owns offline previews, backups, rehearsals and resumable merges.
 - Select only complete analysis identities and domains. Missing or conflicting
   evidence, protected-ID conflicts and unknown references stay review-required.
   Preserve canonical provenance, confidence, archive and human curation.
+- Protect reports, snapshots, copied files and rehearsal directories with `fileutil.RestrictToOwner` (owner-only protected Windows DACL; restrictive Unix mode) before writing sensitive content.
 - Back up consistent SQLite and the whole vector tree, then rehearse the complete
   plan and its repeat before mutation. Recheck full snapshots before every group.
 - Transfer references and counters transactionally; retain archived old-ID
   tombstones until conditional on-disk vector deletion is confirmed. Persist
   progress in `memory_maintenance_meta`; resume only with the original plan.
-  Changed evidence stops the group, repeated application never double-counts.
+  Changed evidence stops the group, repeated application never double-counts. New previews exclude IDs in unfinished journals; unknown legacy journal ownership blocks fresh groups until the original saved plan resumes. Canonical corpus backup/rehearsal uses a consistent SQLite snapshot and never copies live WAL/SHM sidecars as source data.
 
 ## Work Guidance
 

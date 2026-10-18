@@ -20,13 +20,14 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 
 	"github.com/gofrs/flock"
 	chromem "github.com/philippgille/chromem-go"
 	_ "modernc.org/sqlite"
 )
 
-func openVectors(path string) (*chromem.Collection, error) {
+func openVectors(path string) (*repairVectors, error) {
 	if info, err := os.Stat(path); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("existing vector directory required: %s", path)
 	}
@@ -41,6 +42,27 @@ func openVectors(path string) (*chromem.Collection, error) {
 	}); err != nil {
 		return nil, err
 	}
+	corpus := filepath.Join(path, "documents.sqlite")
+	if info, err := os.Lstat(corpus); err == nil {
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("canonical corpus must be regular")
+		}
+		db, err := openSQLite(corpus, false)
+		if err != nil {
+			return nil, err
+		}
+		defer db.Close()
+		var verified string
+		if err := db.QueryRow(`SELECT value FROM corpus_meta WHERE key='verified'`).Scan(&verified); err != nil {
+			return nil, err
+		}
+		if verified != "1" {
+			return nil, fmt.Errorf("canonical corpus is not verified")
+		}
+		return &repairVectors{corpus: corpus}, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	db, err := chromem.NewPersistentDB(path, false)
 	if err != nil {
 		return nil, err
@@ -51,7 +73,7 @@ func openVectors(path string) (*chromem.Collection, error) {
 	if collection == nil {
 		return nil, fmt.Errorf("aurago_memories collection is missing")
 	}
-	return collection, nil
+	return &repairVectors{legacy: collection}, nil
 }
 
 func openSQLite(path string, writable bool) (*sql.DB, error) {
@@ -120,8 +142,15 @@ func writeJSON(path string, value any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
+	if err := fileutil.RestrictToOwner(filepath.Dir(path)); err != nil {
+		return err
+	}
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
+		return err
+	}
+	if err := fileutil.RestrictToOwner(path); err != nil {
+		file.Close()
 		return err
 	}
 	_, writeErr := file.Write(append(encoded, '\n'))
@@ -137,6 +166,10 @@ func copyFile(from, to string) error {
 	defer input.Close()
 	output, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
+		return err
+	}
+	if err := fileutil.RestrictToOwner(to); err != nil {
+		output.Close()
 		return err
 	}
 	_, copyErr := io.Copy(output, input)
@@ -161,10 +194,27 @@ func copyTree(ctx context.Context, from, to string) error {
 		}
 		target := filepath.Join(to, rel)
 		if item.IsDir() {
-			return os.MkdirAll(target, 0700)
+			if err := os.MkdirAll(target, 0700); err != nil {
+				return err
+			}
+			return fileutil.RestrictToOwner(target)
 		}
 		if !item.Type().IsRegular() {
 			return fmt.Errorf("backup rejects non-regular files")
+		}
+		if strings.HasSuffix(path, "documents.sqlite-wal") || strings.HasSuffix(path, "documents.sqlite-shm") {
+			return nil
+		}
+		if item.Name() == "documents.sqlite" {
+			db, err := openSQLite(path, false)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			if _, err := db.ExecContext(ctx, `VACUUM main INTO ?`, target); err != nil {
+				return fmt.Errorf("backup canonical corpus: %w", err)
+			}
+			return fileutil.RestrictToOwner(target)
 		}
 		return copyFile(path, target)
 	})
@@ -173,11 +223,14 @@ func backupStores(ctx context.Context, db *sql.DB, vectors, root string) error {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return err
 	}
+	if err := fileutil.RestrictToOwner(root); err != nil {
+		return err
+	}
 	path := filepath.Join(root, "memory.sqlite")
 	if _, err := db.ExecContext(ctx, `VACUUM main INTO ?`, path); err != nil {
 		return fmt.Errorf("consistent SQLite backup: %w", err)
 	}
-	if err := os.Chmod(path, 0600); err != nil {
+	if err := fileutil.RestrictToOwner(path); err != nil {
 		return err
 	}
 	backup, err := openSQLite(path, false)
@@ -277,6 +330,9 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("reports directory must not be a symlink")
 	}
 	if err := os.MkdirAll(reports, 0700); err != nil {
+		return err
+	}
+	if err := fileutil.RestrictToOwner(reports); err != nil {
 		return err
 	}
 	runID := time.Now().UTC().Format("20060102T150405Z") + "-" + rand.Text()

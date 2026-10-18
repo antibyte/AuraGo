@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 
@@ -360,6 +361,12 @@ func agoAtomicCopyFile(src, dest string, perm os.FileMode) error {
 		tmp.Close()
 		return err
 	}
+	if perm.Perm()&0077 == 0 {
+		if err := fileutil.RestrictToOwner(tmpName); err != nil {
+			tmp.Close()
+			return err
+		}
+	}
 	in, err := os.Open(src)
 	if err != nil {
 		tmp.Close()
@@ -381,7 +388,7 @@ func agoAtomicCopyFile(src, dest string, perm os.FileMode) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpName, dest); err != nil {
+	if err := fileutil.Rename(tmpName, dest); err != nil {
 		return err
 	}
 	// Best-effort parent directory fsync for durability. Some platforms/filesystems
@@ -396,12 +403,12 @@ func agoAtomicCopyFile(src, dest string, perm os.FileMode) error {
 
 func agoIsSQLiteDBPath(clean string) bool {
 	name := strings.ToLower(filepath.Base(clean))
-	return strings.HasSuffix(name, ".db") && !strings.HasSuffix(name, ".db-wal") && !strings.HasSuffix(name, ".db-shm")
+	return strings.HasSuffix(name, ".db") || strings.HasSuffix(name, ".sqlite")
 }
 
 func agoIsSQLiteRelatedPath(clean string) bool {
 	name := strings.ToLower(filepath.Base(clean))
-	return strings.HasSuffix(name, ".db") || strings.HasSuffix(name, ".db-wal") || strings.HasSuffix(name, ".db-shm")
+	return agoIsSQLiteDBPath(clean) || strings.HasSuffix(name, ".db-wal") || strings.HasSuffix(name, ".db-shm") || strings.HasSuffix(name, ".sqlite-wal") || strings.HasSuffix(name, ".sqlite-shm")
 }
 
 func agoValidateSQLiteDB(path string) error {
@@ -647,6 +654,10 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			return
 		}
 		defer os.RemoveAll(sqliteStagingDir)
+		if err := fileutil.RestrictToOwner(sqliteStagingDir); err != nil {
+			jsonError(w, "Failed to protect backup staging area", http.StatusInternalServerError)
+			return
+		}
 
 		sqliteAdded := 0
 		var sqliteSkipped []string
@@ -659,6 +670,9 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				continue
 			}
 			zipPath, ok := agoRelZipPath(configRoot, absDB)
+			if corpus, err := filepath.Abs(config.DocumentCorpusPath(s.Cfg)); err == nil && absDB == corpus {
+				zipPath, ok = "data/vectordb/documents.sqlite", true
+			}
 			if !ok {
 				s.Logger.Warn("[Backup] Skipping SQLite path outside config root", "path", absDB)
 				continue
@@ -698,7 +712,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// 5. VectorDB (optional — can be large)
 		if req.IncludeVectorDB {
 			absVDB, _ := filepath.Abs(s.Cfg.Directories.VectorDBDir)
-			added, err := addDir("data/vectordb/", absVDB)
+			added, err := addDir("data/vectordb/", absVDB, "documents.sqlite")
 			if err != nil {
 				s.Logger.Warn("[Backup] Failed to add VectorDB", "path", absVDB, "error", err)
 				jsonError(w, "Failed to add VectorDB files to backup", http.StatusInternalServerError)
@@ -1024,12 +1038,22 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 
 			destPath, err := agoSafeDestination(configRoot, clean)
+			destinationRoot := configRoot
+			if slash := filepath.ToSlash(clean); strings.HasPrefix(slash, "data/vectordb/") && s.Cfg.Directories.VectorDBDir != "" {
+				destinationRoot, err = filepath.Abs(s.Cfg.Directories.VectorDBDir)
+				if err == nil {
+					destPath, err = agoSafeDestination(destinationRoot, strings.TrimPrefix(slash, "data/vectordb/"))
+				}
+				if info, statErr := os.Lstat(destinationRoot); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+					err = fmt.Errorf("vector database root is a symlink")
+				}
+			}
 			if err != nil {
 				s.Logger.Warn("[Backup] Illegal path in archive", "path", f.Name, "error", err)
 				jsonError(w, "Backup archive contains unsafe paths", http.StatusBadRequest)
 				return
 			}
-			if err := agoEnsureSafePath(configRoot, destPath, f.FileInfo().IsDir()); err != nil {
+			if err := agoEnsureSafePath(destinationRoot, destPath, f.FileInfo().IsDir()); err != nil {
 				s.Logger.Warn("[Backup] Unsafe restore destination", "path", f.Name, "error", err)
 				jsonError(w, "Restore target path is unsafe", http.StatusBadRequest)
 				return
@@ -1053,6 +1077,10 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			return
 		}
 		defer os.RemoveAll(stagingRoot)
+		if err := fileutil.RestrictToOwner(stagingRoot); err != nil {
+			jsonError(w, "Failed to protect restore staging area", http.StatusInternalServerError)
+			return
+		}
 
 		for i := range importEntries {
 			entry := &importEntries[i]
@@ -1089,6 +1117,9 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				return
 			}
 			perm := entry.mode
+			if agoIsSQLiteRelatedPath(entry.clean) {
+				perm = 0o600
+			}
 			if perm == 0 {
 				perm = 0o644
 			}
@@ -1120,6 +1151,9 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				continue
 			}
 			perm := entry.mode
+			if agoIsSQLiteRelatedPath(entry.clean) {
+				perm = 0o600
+			}
 			if perm == 0 {
 				perm = 0o644
 			}

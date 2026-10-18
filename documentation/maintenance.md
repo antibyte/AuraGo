@@ -150,7 +150,32 @@ verify the reviewed running build and a later persisted maintenance run separate
 
 ## Offline analysis duplicate merge
 
-`cmd/memory-repair` uses the existing SQLite, Chromem and application-lock dependencies.
+`cmd/memory-repair` reads the verified canonical document corpus at
+`directories.vectordb_dir/documents.sqlite`; installations not yet migrated retain
+the legacy Chromem reader. The command never initializes embedding providers or
+migrates source stores. Backups and rehearsals use a consistent SQLite snapshot
+of the canonical corpus. Unfinished merge journals exclude their involved IDs
+from new previews; journals without recoverable ownership block new groups.
+Always resume their original saved plan.
+
+Automatic pre-maintenance memory snapshots are stored under
+`data_dir/memory_backups` with owner-only access. Retention applies only to
+checksum-verified, completed automatic snapshot manifests: keep the last 30 days
+and at least three complete snapshots. Manual backups, corruption quarantines,
+legacy migration backups and incomplete artifacts are outside this pruning
+policy. The maintenance controller creates a consistent STM, KG and document
+corpus snapshot before starting its phases.
+
+The canonical corpus retains complete source documents and raw IDs independently
+of the derived in-memory semantic index. A model change or reset preserves
+sources, human curation, archive state, extraction observations and file pointers.
+Reindexing retries durable pending work after restart and never queries vectors
+from an unknown or incompatible model/dimension. Available multimodal files are
+re-embedded through the existing authorized file indexer under their original IDs
+when source content/chunks are unchanged. Missing sources remain readable with
+`index_pending`, `index_blocked` and `index_error` status; restore the source or
+review the blocked record. Legacy vector originals and verified migration backups
+remain available for separately reviewed recovery.
 It performs no embedding or network requests and does not migrate schemas. Complete
 the backed-up source-table migration with the upgraded agent first, then stop the
 agent for both preview and application. Set `--install-dir` to the actual directory

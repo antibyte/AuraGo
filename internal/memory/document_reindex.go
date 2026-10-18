@@ -36,11 +36,24 @@ func ScheduleDocumentReindex(vectorDir string) error {
 	if verified != "1" {
 		return fmt.Errorf("document corpus is not verified")
 	}
-	if _, err := tx.Exec(`UPDATE documents SET pending=1`); err != nil {
+	if _, err := tx.Exec(`UPDATE documents SET pending=1 WHERE collection<>'kg_embeddings'`); err != nil {
 		return fmt.Errorf("schedule corpus reindex: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit corpus reindex: %w", err)
+	}
+	return nil
+}
+
+// ScheduleFileSourceReindex invalidates only the derived fingerprint. The
+// existing authorized indexer reopens available sources and atomically publishes
+// a fresh generation while retaining all previous source/tracking evidence.
+func (s *SQLiteMemory) ScheduleFileSourceReindex() error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("file metadata store is unavailable")
+	}
+	if _, err := s.db.Exec(`UPDATE file_indices SET index_fingerprint=''`); err != nil {
+		return fmt.Errorf("schedule file source reindex: %w", err)
 	}
 	return nil
 }

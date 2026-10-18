@@ -449,16 +449,23 @@ func validateReferences(group mergeGroup) error {
 	return nil
 }
 
-func buildPlan(ctx context.Context, db *sql.DB, vectors *chromem.Collection) (mergePlan, error) {
+func buildPlan(ctx context.Context, db *sql.DB, vectors repairDocumentReader) (mergePlan, error) {
 	plan := mergePlan{Version: 1}
 	states, err := rowsFor(ctx, db, `SELECT key,value FROM memory_maintenance_meta WHERE key LIKE ?`, journalPrefix+"%")
 	if err != nil {
 		return plan, err
 	}
+	blocked := map[string]bool{}
 	for _, row := range states {
 		var state mergeJournal
 		if err := json.Unmarshal([]byte(text(row, "value")), &state); err != nil || state.State != "done" {
 			plan.Review = append(plan.Review, reviewItem{Reason: "unfinished merge journal; resume its original saved plan: " + text(row, "key")})
+			if len(state.IDs) == 0 {
+				return plan, nil
+			}
+			for _, id := range state.IDs {
+				blocked[id] = true
+			}
 		}
 	}
 	metas, err := rowsFor(ctx, db, `SELECT * FROM memory_meta`)
@@ -468,6 +475,9 @@ func buildPlan(ctx context.Context, db *sql.DB, vectors *chromem.Collection) (me
 	groups := map[string][]chromem.Document{}
 	for _, meta := range metas {
 		id := text(meta, "doc_id")
+		if blocked[id] {
+			continue
+		}
 		doc, err := vectors.GetByID(ctx, id)
 		if err != nil {
 			plan.Review = append(plan.Review, reviewItem{[]string{id}, "vector content is unavailable"})

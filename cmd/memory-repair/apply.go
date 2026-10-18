@@ -8,14 +8,14 @@ import (
 	"math"
 
 	"aurago/internal/memory"
-	chromem "github.com/philippgille/chromem-go"
 )
 
 type mergeJournal struct {
-	Version   int    `json:"version"`
-	GroupHash string `json:"group_hash"`
-	SQLHash   string `json:"sql_hash"`
-	State     string `json:"state"`
+	Version   int      `json:"version"`
+	GroupHash string   `json:"group_hash"`
+	SQLHash   string   `json:"sql_hash"`
+	State     string   `json:"state"`
+	IDs       []string `json:"ids,omitempty"`
 }
 type checkpoint func(stage string) error
 
@@ -26,7 +26,7 @@ func check(hook checkpoint, stage string) error {
 	return nil
 }
 
-func readVectors(ctx context.Context, group mergeGroup, vectors *chromem.Collection, allowMissing bool) error {
+func readVectors(ctx context.Context, group mergeGroup, vectors repairDocumentReader, allowMissing bool) error {
 	for _, expected := range group.Before.Documents {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -183,7 +183,7 @@ func applyGroup(ctx context.Context, db *sql.DB, vectorPath string, group mergeG
 	if err != nil {
 		return false, err
 	}
-	state := mergeJournal{Version: 1, GroupHash: group.Hash}
+	state := mergeJournal{Version: 1, GroupHash: group.Hash, IDs: append([]string(nil), group.IDs...)}
 	if len(states) > 0 {
 		if err := json.Unmarshal([]byte(text(states[0], "value")), &state); err != nil {
 			return false, err

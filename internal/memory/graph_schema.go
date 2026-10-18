@@ -13,6 +13,25 @@ import (
 
 const kgFTSSchemaVersion = "v1"
 
+const kgEdgesTableSchema = `CREATE TABLE kg_edges (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			source TEXT NOT NULL,
+			target TEXT NOT NULL,
+			relation TEXT NOT NULL,
+			properties TEXT NOT NULL DEFAULT '{}',
+			access_count INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'accepted',
+			status_reason TEXT NOT NULL DEFAULT '',
+			superseded_by_claim_id TEXT NOT NULL DEFAULT '',
+			retracted_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			semantic_indexed_at DATETIME,
+			UNIQUE(source, target, relation),
+			FOREIGN KEY(source) REFERENCES kg_nodes(id) ON DELETE CASCADE,
+			FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
+		)`
+
 func (kg *KnowledgeGraph) initTables() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS kg_nodes (
@@ -103,6 +122,25 @@ func (kg *KnowledgeGraph) initTables() error {
 	if _, err := kg.db.Exec(schema); err != nil {
 		return fmt.Errorf("create kg tables: %w", err)
 	}
+	var hasNodeType bool
+	if err := kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType); err != nil {
+		return fmt.Errorf("KG migration inspect kg_nodes.node_type: %w", err)
+	}
+	hasCascade, err := kg.kgEdgesHaveCascadeFKs()
+	if err != nil {
+		return fmt.Errorf("inspect kg_edges foreign keys: %w", err)
+	}
+	if !hasNodeType || !hasCascade {
+		var populated bool
+		if err := kg.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM kg_nodes) OR EXISTS(SELECT 1 FROM kg_edges)`).Scan(&populated); err != nil {
+			return fmt.Errorf("inspect KG before migration: %w", err)
+		}
+		if populated {
+			if _, err := backupMainDatabase(kg.db, "graph-schema-v2"); err != nil {
+				return fmt.Errorf("back up KG before migration: %w", err)
+			}
+		}
+	}
 
 	type colMigration struct {
 		table, column, def string
@@ -140,13 +178,20 @@ func (kg *KnowledgeGraph) initTables() error {
 		kg.logger.Warn("KG migration: backfill kg_edges.updated_at failed", "error", err)
 	}
 
-	var hasNodeType bool
-	if err := kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType); err != nil {
-		return fmt.Errorf("KG migration inspect kg_nodes.node_type: %w", err)
-	}
 	if !hasNodeType {
 		kg.logger.Info("KG migration: rebuilding kg_nodes to add generated columns")
 		rebuild := []string{
+			`DROP TRIGGER IF EXISTS kg_nodes_ai`,
+			`DROP TRIGGER IF EXISTS kg_nodes_ad`,
+			`DROP TRIGGER IF EXISTS kg_nodes_au`,
+			`DROP TRIGGER IF EXISTS kg_edges_ai`,
+			`DROP TRIGGER IF EXISTS kg_edges_ad`,
+			`DROP TRIGGER IF EXISTS kg_edges_au`,
+			`DROP TABLE IF EXISTS kg_nodes_fts`,
+			`DROP TABLE IF EXISTS kg_edges_fts`,
+			// Remove the child table before rebuilding its parent to avoid cascades.
+			`CREATE TEMP TABLE kg_edges_preserved AS SELECT * FROM kg_edges`,
+			`DROP TABLE kg_edges`,
 			`ALTER TABLE kg_nodes RENAME TO kg_nodes_old`,
 			`CREATE TABLE kg_nodes (
 				rowid INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,6 +210,10 @@ func (kg *KnowledgeGraph) initTables() error {
 				SELECT rowid, id, label, properties, access_count, protected, created_at, updated_at, semantic_indexed_at
 				FROM kg_nodes_old`,
 			`DROP TABLE kg_nodes_old`,
+			kgEdgesTableSchema,
+			`INSERT INTO kg_edges (id, source, target, relation, properties, access_count, status, status_reason, superseded_by_claim_id, retracted_at, created_at, updated_at, semantic_indexed_at) SELECT id, source, target, relation, properties, access_count, status, status_reason, superseded_by_claim_id, retracted_at, created_at, updated_at, semantic_indexed_at FROM kg_edges_preserved`,
+			`DROP TABLE kg_edges_preserved`,
+			`DELETE FROM kg_meta WHERE key = 'fts_schema_version'`,
 		}
 		if err := kg.execKGMigrationTransaction(rebuild); err != nil {
 			return fmt.Errorf("KG migration rebuild kg_nodes: %w", err)
@@ -238,6 +287,19 @@ func (kg *KnowledgeGraph) execKGMigrationTransaction(statements []string) error 
 			return err
 		}
 	}
+	rows, err := tx.Query(`PRAGMA foreign_key_check`)
+	if err != nil {
+		return fmt.Errorf("check KG migration foreign keys: %w", err)
+	}
+	invalid := rows.Next()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return fmt.Errorf("read KG migration foreign keys: %w", err)
+	}
+	if invalid {
+		return fmt.Errorf("KG migration has foreign key violations; original retained")
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit kg migration transaction: %w", err)
 	}
@@ -259,28 +321,8 @@ func (kg *KnowledgeGraph) ensureKGEdgesCascade() error {
 		`DROP TRIGGER IF EXISTS kg_edges_ad`,
 		`DROP TRIGGER IF EXISTS kg_edges_au`,
 		`DROP TABLE IF EXISTS kg_edges_fts`,
-		`DELETE FROM kg_edges
-			WHERE NOT EXISTS (SELECT 1 FROM kg_nodes n WHERE n.id = kg_edges.source)
-			   OR NOT EXISTS (SELECT 1 FROM kg_nodes n WHERE n.id = kg_edges.target)`,
 		`ALTER TABLE kg_edges RENAME TO kg_edges_old`,
-		`CREATE TABLE kg_edges (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			source TEXT NOT NULL,
-			target TEXT NOT NULL,
-			relation TEXT NOT NULL,
-			properties TEXT NOT NULL DEFAULT '{}',
-			access_count INTEGER NOT NULL DEFAULT 0,
-			status TEXT NOT NULL DEFAULT 'accepted',
-			status_reason TEXT NOT NULL DEFAULT '',
-			superseded_by_claim_id TEXT NOT NULL DEFAULT '',
-			retracted_at DATETIME,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			semantic_indexed_at DATETIME,
-			UNIQUE(source, target, relation),
-			FOREIGN KEY(source) REFERENCES kg_nodes(id) ON DELETE CASCADE,
-			FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
-		)`,
+		kgEdgesTableSchema,
 		`INSERT INTO kg_edges (id, source, target, relation, properties, access_count, status, status_reason, superseded_by_claim_id, retracted_at, created_at, updated_at, semantic_indexed_at)
 			SELECT id, source, target, relation, properties, access_count,
 			       COALESCE(status, 'accepted'),

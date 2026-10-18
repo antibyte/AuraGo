@@ -75,6 +75,9 @@ func ApplyPendingEmbeddingsReset(cfg *config.Config, stm *memory.SQLiteMemory, k
 	if err := memory.ScheduleDocumentReindex(vectorDir); err != nil {
 		return false, fmt.Errorf("retain reset until document corpus is verified: %w", err)
 	}
+	if err := stm.ScheduleFileSourceReindex(); err != nil {
+		return false, err
+	}
 
 	if err := resetKGSemanticIndex(cfg, kg, logger); err != nil {
 		return false, fmt.Errorf("reset KG semantic index: %w", err)
