@@ -14,35 +14,72 @@
     <div class="dash-card span-8" id="card-memory">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v3a2 2 0 1 0 0 4v4h-4v-4a2 2 0 1 1 0-4z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.memory_title"></h3> <button type="button" class="collapse-toggle" data-card="card-memory" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
-        <div class="memory-stats-grid" id="memory-stats"></div>
-        <div class="memory-bar-wrap">
-          <canvas id="memory-chart"></canvas>
+        <div class="dash-kpi-row" id="memory-kpis" role="list"></div>
+        <div class="dash-disclosure-group">
+          <details class="dash-disclosure" data-disclosure="card-memory:counters">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_all_counters"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div class="memory-stats-grid" id="memory-stats"></div>
+              <div class="memory-bar-wrap">
+                <canvas id="memory-chart"></canvas>
+              </div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:health">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_health_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="memory-health-summary"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:curation">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_curator_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="memory-curator-wrap">
+                <div id="memory-curator-list"></div>
+              </div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:insights">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_insights_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div data-learnings-memory></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:notes">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_notes"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <p data-i18n="dashboard.notes_protection_hint"></p>
+              <div id="memory-note-protection" aria-live="polite"></div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:privacy">
+            <summary class="dash-disclosure-summary"><span id="memory-privacy-title" data-i18n="dashboard.memory_privacy_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="memory-privacy-deletions" aria-labelledby="memory-privacy-title">
+                <p data-i18n="dashboard.memory_privacy_description"></p>
+                <div class="memory-curator-actionbar">
+                  <button type="button" id="memory-privacy-refresh" class="mh-more-btn" data-action="memory-privacy-refresh" data-i18n="dashboard.memory_privacy_refresh"></button>
+                </div>
+                <div id="memory-privacy-status" role="status" aria-live="polite"></div>
+                <div id="memory-privacy-job-list" class="memory-curator-list"></div>
+              </div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:episodes">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_episodic_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div id="memory-episodic-wrap">
+                <div id="memory-episodic-list"></div>
+              </div>
+            </div>
+          </details>
+          <details class="dash-disclosure" data-disclosure="card-memory:milestones">
+            <summary class="dash-disclosure-summary"><span data-i18n="dashboard.memory_milestones_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+            <div class="dash-disclosure-body">
+              <div class="milestone-list" id="milestone-list"></div>
+            </div>
+          </details>
         </div>
-        <div id="memory-health-summary" class="mt-sm"></div>
-        <div id="memory-curator-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.memory_curator_title"></h4>
-          <div id="memory-curator-list"></div>
-        </div>
-        <div data-learnings-memory class="mt-sm"></div>
-        <div class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.memory_notes"></h4>
-          <p data-i18n="dashboard.notes_protection_hint"></p>
-          <div id="memory-note-protection" aria-live="polite"></div>
-        </div>
-        <div id="memory-privacy-deletions" class="mt-sm" aria-labelledby="memory-privacy-title">
-          <div class="memory-subsection-title" id="memory-privacy-title" data-i18n="dashboard.memory_privacy_title"></div>
-          <p data-i18n="dashboard.memory_privacy_description"></p>
-          <div class="memory-curator-actionbar">
-            <button type="button" id="memory-privacy-refresh" class="mh-more-btn" onclick="loadMemoryPrivacyDeletionJobs()" data-i18n="dashboard.memory_privacy_refresh"></button>
-          </div>
-          <div id="memory-privacy-status" role="status" aria-live="polite"></div>
-          <div id="memory-privacy-job-list" class="memory-curator-list"></div>
-        </div>
-        <div id="memory-episodic-wrap" class="mt-sm">
-          <h4 class="card-section-title" data-i18n="dashboard.memory_episodic_title"></h4>
-          <div id="memory-episodic-list"></div>
-        </div>
-        <div class="milestone-list" id="milestone-list"></div>
       </div>
     </div>
 

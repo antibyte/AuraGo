@@ -213,25 +213,24 @@
         function renderMemoryStats(data) {
             if (!data) return;
             renderManagedNoteProtection();
-            const container = document.getElementById('memory-stats');
             const kg = data.knowledge_graph || {};
-            const gn = kg.nodes || 0;
-            const ge = kg.edges || 0;
-            let graphVal = gn + ' / ' + ge;
+            const embeddingLbl = data.vectordb_disabled ? t('dashboard.memory_embeddings_disabled') : t('dashboard.memory_embeddings');
+            // Headline KPIs (P5); core facts open the core facts modal through the delegated memory-core-facts action.
+            renderDashKpiRow(document.getElementById('memory-kpis'), [
+                { label: t('dashboard.memory_core_facts'), value: Number(data.core_memory_facts || 0), action: 'memory-core-facts', title: t('dashboard.memory_show_core_facts') },
+                { label: t('dashboard.memory_messages'), value: Number(data.chat_messages || 0) },
+                { label: embeddingLbl, value: Number(data.vectordb_entries || 0) },
+                { label: t('dashboard.memory_chart_graph_nodes'), value: Number(kg.nodes || 0) },
+            ]);
+
+            const container = document.getElementById('memory-stats');
+            if (!container) return;
+            let graphVal = (kg.nodes || 0) + ' / ' + (kg.edges || 0);
             if ((kg.dirty_nodes || 0) > 0) {
                 graphVal += ' · ' + t('dashboard.memory_graph_dirty_hint', { count: kg.dirty_nodes });
             }
-
-            let embeddingVal = data.vectordb_entries || 0;
-            let embeddingLbl = t('dashboard.memory_embeddings');
-            if (data.vectordb_disabled) {
-                embeddingLbl = t('dashboard.memory_embeddings_disabled');
-            }
-
+            // The other counters; the graph tile keeps edges and pending nodes next to the KPI row's node count.
             const stats = [
-                { val: data.core_memory_facts || 0, lbl: t('dashboard.memory_core_facts'), clickable: true },
-                { val: data.chat_messages || 0, lbl: t('dashboard.memory_messages') },
-                { val: embeddingVal, lbl: embeddingLbl },
                 { val: graphVal, lbl: t('dashboard.memory_graph_label') },
                 { val: data.journal_entries || 0, lbl: t('dashboard.memory_journal') },
                 { val: data.notes_count || 0, lbl: t('dashboard.memory_notes') },
@@ -239,7 +238,7 @@
                 { val: data.episodic?.total_count || 0, lbl: t('dashboard.memory_episodic') },
             ];
             container.innerHTML = stats.map(s =>
-                `<div class="mem-stat${s.clickable ? ' clickable' : ''}"${s.clickable ? ' onclick="openCoreFactsModal()" title="' + t('dashboard.memory_show_core_facts') + '"' : ''}><div class="mem-stat-val">${s.val}</div><div class="mem-stat-lbl">${s.lbl}${s.clickable ? ' 🔍' : ''}</div></div>`
+                `<div class="mem-stat"><div class="mem-stat-val">${esc(String(s.val))}</div><div class="mem-stat-lbl">${esc(s.lbl)}</div></div>`
             ).join('');
         }
 
@@ -327,6 +326,8 @@
             const latestReflection = data.latest_reflection || null;
             const reflectionActionables = Number(data.reflection_actionable_count || latestReflection?.actionable_count || 0);
             renderWeeklyReflection(latestReflection, reflectionActionables);
+            // The curation disclosure shows how many open conflicts wait inside it (P5).
+            window.DashDisclosures?.setCount('card-memory:curation', conflicts.length, t('dashboard.memory_conflicts_title'));
 
             const summaryEl = document.getElementById('memory-health-summary');
             if (summaryEl) {

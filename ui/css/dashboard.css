@@ -637,6 +637,10 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"] .memory-bar-wrap {
     height: 180px;
 }
+/* The insights disclosure summary already names the learnings view (P5): its own h3 would repeat it */
+.pw-page[data-workspace-page="dashboard"] .dash-disclosure-body > [data-learnings-memory] > h3:first-child {
+    display: none;
+}
 .pw-page[data-workspace-page="dashboard"] .milestone-list {
     margin-top: var(--space-4);
     max-height: 160px;
@@ -1944,12 +1948,6 @@ to { opacity: 1; }
     min-width: 2rem;
     padding-top: 0.1rem;
     font-variant-numeric: tabular-nums;
-}
-.pw-page[data-workspace-page="dashboard"] .mem-stat.clickable {
-    cursor: pointer;
-}
-.pw-page[data-workspace-page="dashboard"] .mem-stat.clickable:hover .mem-stat-lbl {
-    color: var(--pw-accent);
 }
 /* ── GitHub Repos Card ──────────────────────────────── */
 

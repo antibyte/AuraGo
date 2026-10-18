@@ -368,6 +368,8 @@
             'filesync-refresh': () => loadFileSyncStatus(),
             'filesync-rescan': () => triggerFileSyncRescan(),
             'memory-reflection-run': () => runWeeklyReflectionNow(),
+            'memory-core-facts': () => openCoreFactsModal(),
+            'memory-privacy-refresh': () => loadMemoryPrivacyDeletionJobs(),
             'cron-edit-cancel': () => closeCronEditModal(),
             'cron-edit-save': () => saveCronEdit(),
         };
