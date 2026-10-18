@@ -1,48 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
 <defs>
-<linearGradient id="rb" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="160" y2="0"><stop offset="0" stop-color="#ff2bd6"/><stop offset=".25" stop-color="#ffe600"/><stop offset=".5" stop-color="#b6ff00"/><stop offset=".75" stop-color="#00e5ff"/><stop offset="1" stop-color="#7a5cff"/></linearGradient>
-<radialGradient id="bg" cx=".5" cy=".45" r=".7"><stop offset="0" stop-color="#35107c"/><stop offset="1" stop-color="#1d0440"/></radialGradient>
+<linearGradient id="rb" gradientUnits="userSpaceOnUse" x1="24" y1="0" x2="136" y2="0"><stop offset="0" stop-color="#ff2bd6"/><stop offset=".2" stop-color="#ffe600"/><stop offset=".4" stop-color="#b6ff00"/><stop offset=".6" stop-color="#00e5ff"/><stop offset=".8" stop-color="#7a5cff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient>
+<linearGradient id="rs" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="160" y2="0"><stop offset="0" stop-color="#ff2bd6"/><stop offset=".2" stop-color="#ffe600"/><stop offset=".4" stop-color="#b6ff00"/><stop offset=".6" stop-color="#00e5ff"/><stop offset=".8" stop-color="#7a5cff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient>
+<linearGradient id="st" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="5" y2="5" spreadMethod="repeat"><stop offset="0" stop-color="#a21fa8"/><stop offset=".5" stop-color="#a21fa8"/><stop offset=".5" stop-color="#4f2ea8"/><stop offset="1" stop-color="#4f2ea8"/></linearGradient>
+<radialGradient id="bg" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#4a17a8"/><stop offset="1" stop-color="#150034"/></radialGradient>
 </defs>
 <rect width="160" height="100" fill="url(#bg)"/>
-<circle cx="10" cy="14" r="1.6" fill="#ffe600"/>
-<circle cx="15" cy="36" r="1.2" fill="#00e5ff"/>
-<circle cx="8" cy="60" r="1.8" fill="#ff2bd6"/>
-<circle cx="14" cy="77" r="1.2" fill="#b6ff00"/>
-<circle cx="149" cy="10" r="1.5" fill="#b6ff00"/>
-<circle cx="153" cy="33" r="1.8" fill="#ff2bd6"/>
-<circle cx="147" cy="58" r="1.2" fill="#00e5ff"/>
-<circle cx="151" cy="76" r="1.6" fill="#ffe600"/>
-<rect x="46" y="4" width="4" height="1.8" fill="#00e5ff" transform="rotate(35 48 5)"/>
-<rect x="104" y="3" width="4" height="1.8" fill="#ff2bd6" transform="rotate(-30 106 4)"/>
-<rect x="6" y="40" width="3.6" height="1.6" fill="#ffe600" transform="rotate(60 8 41)"/>
-<rect x="150" y="45" width="3.6" height="1.6" fill="#b6ff00" transform="rotate(-50 152 46)"/>
-<polygon points="80,2 81.6,5.4 78.4,5.4" fill="#7a5cff"/>
-<polygon points="26,82 27.6,84.6 24.4,84.6" fill="#ff2bd6"/>
-<polygon points="136,81 137.6,83.6 134.4,83.6" fill="#00e5ff"/>
-<rect x="24" y="13" width="112" height="64" rx="9" fill="#260a56" stroke="url(#rb)" stroke-width="2.4"/>
-<path d="M25.2 22a7.8 7.8 0 0 1 7.8-7.8h94a7.8 7.8 0 0 1 7.8 7.8V27H25.2z" fill="#3b1287"/>
-<rect x="31" y="19.3" width="30" height="2.6" rx="1.3" fill="#ffe600"/>
-<circle cx="113" cy="20.6" r="2.5" fill="#ff2bd6"/>
-<circle cx="121" cy="20.6" r="2.5" fill="#ffe600"/>
-<circle cx="129" cy="20.6" r="2.5" fill="#b6ff00"/>
-<rect x="31" y="32" width="50" height="4" rx="2" fill="#00e5ff"/>
-<rect x="31" y="40" width="64" height="3" rx="1.5" fill="#ff2bd6"/>
-<rect x="31" y="47" width="40" height="3" rx="1.5" fill="#b6ff00"/>
-<polygon points="115,33 117.2,38 122.5,38.3 118.4,41.7 119.8,46.8 115,44 110.2,46.8 111.6,41.7 107.5,38.3 112.8,38" fill="#ffe600"/>
-<rect x="31" y="56" width="98" height="14" rx="6" fill="#7a5cff" opacity=".55"/>
-<circle cx="40" cy="63" r="3" fill="#ff2bd6"/>
-<circle cx="50" cy="63" r="3" fill="#ffe600"/>
-<circle cx="60" cy="63" r="3" fill="#00e5ff"/>
-<rect x="72" y="61.4" width="48" height="3.2" rx="1.6" fill="#ffffff" opacity=".8"/>
-<rect y="88" width="160" height="12" fill="#2c0b66"/>
-<rect y="86.4" width="160" height="2.2" fill="url(#rb)"/>
-<circle cx="9" cy="94.2" r="4" fill="#ff2bd6"/>
-<circle cx="9" cy="94.2" r="1.6" fill="#ffe600"/>
-<rect x="19" y="90.7" width="7" height="7" rx="2.2" fill="#00e5ff"/>
-<rect x="29" y="90.7" width="7" height="7" rx="2.2" fill="#b6ff00"/>
-<rect x="39" y="90.7" width="7" height="7" rx="2.2" fill="#ffe600" stroke="#ffffff" stroke-width=".8"/>
-<rect x="49" y="90.7" width="7" height="7" rx="2.2" fill="#7a5cff"/>
-<circle cx="140" cy="94.2" r="1.6" fill="#ff2bd6"/>
-<circle cx="147" cy="94.2" r="1.6" fill="#00e5ff"/>
-<circle cx="154" cy="94.2" r="1.6" fill="#ffe600"/>
+<circle cx="10" cy="14" r="1.7" fill="#ffe600"/>
+<circle cx="15" cy="38" r="1.3" fill="#00e5ff"/>
+<circle cx="8" cy="61" r="1.9" fill="#ff2bd6"/>
+<circle cx="14" cy="78" r="1.3" fill="#b6ff00"/>
+<circle cx="149" cy="11" r="1.6" fill="#b6ff00"/>
+<circle cx="153" cy="34" r="1.9" fill="#ff2bd6"/>
+<circle cx="147" cy="58" r="1.3" fill="#00e5ff"/>
+<circle cx="151" cy="76" r="1.7" fill="#ffe600"/>
+<rect x="46" y="4" width="4.4" height="2" fill="#00e5ff" transform="rotate(35 48 5)"/>
+<rect x="104" y="3" width="4.4" height="2" fill="#ff2bd6" transform="rotate(-30 106 4)"/>
+<rect x="6" y="42" width="4" height="1.8" fill="#ffe600" transform="rotate(60 8 43)"/>
+<rect x="150" y="46" width="4" height="1.8" fill="#b6ff00" transform="rotate(-50 152 47)"/>
+<polygon points="80,1.5 81.8,5.4 78.2,5.4" fill="#7a5cff"/>
+<rect x="24" y="13" width="112" height="64" rx="9" fill="#1d0440" stroke="url(#rb)" stroke-width="2.4"/>
+<path d="M25.2 23a8 8 0 0 1 8-8h93.6a8 8 0 0 1 8 8v4.5H25.2z" fill="url(#st)"/>
+<rect x="32" y="19.4" width="28" height="3" rx="1.5" fill="#fff6fd"/>
+<circle cx="106" cy="21.2" r="3" fill="#12002b" stroke="#b6ff00" stroke-width="1"/>
+<circle cx="114" cy="21.2" r="2.6" fill="#ffe600" stroke="#12002b" stroke-width=".9"/>
+<circle cx="121.4" cy="21.2" r="2.6" fill="#00e5ff" stroke="#12002b" stroke-width=".9"/>
+<circle cx="128.8" cy="21.2" r="2.6" fill="#ff2bd6" stroke="#12002b" stroke-width=".9"/>
+<rect x="32" y="33" width="50" height="4" rx="2" fill="#00e5ff"/>
+<rect x="32" y="41" width="66" height="3" rx="1.5" fill="#ff2bd6"/>
+<rect x="32" y="48" width="42" height="3" rx="1.5" fill="#b6ff00"/>
+<polygon points="116,34 118.2,39 123.5,39.3 119.4,42.7 120.8,47.8 116,45 111.2,47.8 112.6,42.7 108.5,39.3 113.8,39" fill="#ffe600"/>
+<rect x="32" y="57" width="96" height="13" rx="6" fill="#7a5cff" opacity=".5"/>
+<circle cx="40" cy="63.5" r="3" fill="#ff2bd6"/>
+<circle cx="50" cy="63.5" r="3" fill="#ffe600"/>
+<circle cx="60" cy="63.5" r="3" fill="#00e5ff"/>
+<rect x="72" y="62" width="48" height="3" rx="1.5" fill="#fff6fd" opacity=".8"/>
+<rect y="87" width="160" height="13" fill="#2a0a5c"/>
+<rect y="87" width="160" height="2" fill="url(#rs)"/>
+<circle cx="10" cy="94.4" r="4.6" fill="#ff2bd6" stroke="#ffe600" stroke-width="1.4"/>
+<circle cx="8.6" cy="92.8" r="1.1" fill="#fff6fd"/>
+<rect x="21" y="90.4" width="20" height="8" rx="3" fill="#7a5cff" opacity=".7" transform="rotate(-2 31 94.4)"/>
+<rect x="44" y="90.4" width="26" height="8" rx="3" fill="#ffe600" stroke="#ff2bd6" stroke-width=".9" transform="rotate(2 57 94.4)"/>
+<rect x="110" y="90" width="46" height="8.6" rx="4" fill="#12002b" opacity=".6"/>
+<circle cx="116" cy="94.3" r="1.5" fill="#ff2bd6"/>
+<circle cx="122" cy="94.3" r="1.5" fill="#ffe600"/>
+<rect x="144" y="91.4" width="10" height="5.8" rx="2.9" fill="#00e5ff"/>
 </svg>
