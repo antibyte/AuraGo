@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"aurago/internal/contacts"
 )
 
 const contactSyncSource = "contacts_sync"
@@ -14,6 +16,17 @@ const contactSyncSource = "contacts_sync"
 // SyncContact reconciles only contact-owned fields and explicitly owned edges.
 // The write lock precedes all protection, ownership and provenance checks.
 func (kg *KnowledgeGraph) SyncContact(ctx context.Context, id, label string, fields map[string]string) error {
+	contactID := strings.TrimPrefix(id, "contact_")
+	unlock, err := contacts.LockIDContext(ctx, contactID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return kg.SyncContactLocked(ctx, id, label, fields)
+}
+
+// SyncContactLocked reconciles a contact while the caller holds contacts.LockID.
+func (kg *KnowledgeGraph) SyncContactLocked(ctx context.Context, id, label string, fields map[string]string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}

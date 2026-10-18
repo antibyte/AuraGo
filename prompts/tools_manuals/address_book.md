@@ -44,6 +44,8 @@ Update an existing contact. Only provided fields will be changed.
 ### `delete`
 Delete a contact from the address book.
 - **id** (required): Contact ID to delete.
+- Derived memories are retained. Removing them requires the explicit administrative option in the Web UI.
+- A partial result includes a deletion job ID and status. Do not repeat the delete when its outcome is uncertain: the background job checks whether the contact still exists and never repeats the contact DELETE. Job status is available in the Memory dashboard.
 
 ## Notes
 - Contact data is stored locally in SQLite and never sent to external services.

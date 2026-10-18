@@ -88,6 +88,14 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - Protected notes require an explicit administrative unlock before modification or deletion. Automatic curation and retention recheck protection/keep-forever flags atomically with their mutation; previews alone never authorize writes.
 - Verify `TestContactDeleteKeepsKnowledgeUnlessExplicitlySelected`, `TestNativeContactDeleteRetainsDerivedKnowledge`, `TestChatDeleteScrubsRawGraphTranscriptWithoutRemovingKnowledge`, `TestFreshUserIngressAdvancesDeletedFixedSessionAcrossRestart`, `TestPrivacy*`, `TestNoteProtectionRecheckedDuringCurationAndRetention` and `TestMemoryPrivacyControlsBrowser`.
 
+### Durable privacy deletion jobs
+
+- Persist the exact content-free target manifest and expected semantic fingerprints before scrubbing transcript or source evidence. If candidate discovery or job persistence fails, leave the transcript intact and report the preparation failure.
+- Apply only journaled target IDs. Recheck the saved fingerprint, exclusive provenance, sharing, protection and curation state in the SQLite write transaction immediately before external vector or graph mutation; changed or uncertain targets become `retained_review`. Never expand a prepared job by re-reading post-scrub provenance.
+- Keep per-target progress and header counts transactionally consistent. Automatic chat-memory retries use persisted backoff after restart and a manual retry path; the worker runs independently of `maintenance.enabled`. Clear target IDs, session hashes and contact operation tokens when jobs become terminal; retain only content-free status/counts for 30 days.
+- Contact operations serialize by contact ID and use operation-token-owned fences. On a confirmed failed contact DELETE, compensate only that operation's fence; if the outcome is uncertain, expose `reconcile_pending` and reconcile the current contact row without deleting it automatically. Optional memory deletion is authorized only after the contact DELETE is confirmed. Do not retry contact deletion automatically.
+- Public job status contains IDs/status/counts only, never a contact name, transcript, source text, target manifest or session identity. Verify `TestPrivacy*`, `TestChatSessionDeleteStatusUsesRequestedJobWhenAnotherJobFails` and contact fence reconciliation tests.
+
 ## Child DOX Index
 
 None.

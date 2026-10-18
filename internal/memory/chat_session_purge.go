@@ -68,6 +68,10 @@ func (s *SQLiteMemory) PurgeChatSession(sessionID string) error {
 }
 
 func (s *SQLiteMemory) purgeChatSessionLocked(sessionID string) error {
+	return s.purgeChatSessionWithPrivacyJobLocked(sessionID, "")
+}
+
+func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJobID string) error {
 	if strings.TrimSpace(sessionID) == "" {
 		return fmt.Errorf("a session ID is required")
 	}
@@ -77,11 +81,19 @@ func (s *SQLiteMemory) purgeChatSessionLocked(sessionID string) error {
 	}
 	defer tx.Rollback()
 	// Keep only the opaque identity, never deleted requests or transcript content.
-	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS deleted_chat_sessions (session_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS deleted_chat_sessions (session_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, privacy_job_id TEXT NOT NULL DEFAULT '')`); err != nil {
 		return fmt.Errorf("create chat deletion fence: %w", err)
 	}
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO deleted_chat_sessions(session_id) VALUES (?)`, sessionID); err != nil {
+	if _, err := tx.Exec(`ALTER TABLE deleted_chat_sessions ADD COLUMN privacy_job_id TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		return fmt.Errorf("migrate chat deletion job mapping: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO deleted_chat_sessions(session_id,privacy_job_id) VALUES (?,?)`, sessionID, privacyJobID); err != nil {
 		return fmt.Errorf("record chat deletion fence: %w", err)
+	}
+	if privacyJobID != "" {
+		if _, err := tx.Exec(`UPDATE deleted_chat_sessions SET privacy_job_id=? WHERE session_id=? AND (privacy_job_id='' OR privacy_job_id=?)`, privacyJobID, sessionID, privacyJobID); err != nil {
+			return fmt.Errorf("link chat deletion job: %w", err)
+		}
 	}
 	var pendingMetadata bool
 	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM pragma_table_info('pending_memory_writes') WHERE name='metadata_json')`).Scan(&pendingMetadata); err != nil {
@@ -147,6 +159,19 @@ func (s *SQLiteMemory) purgeChatSessionLocked(sessionID string) error {
 	}
 	if _, err := tx.Exec(`DELETE FROM chat_sessions WHERE id = ?`, sessionID); err != nil {
 		return fmt.Errorf("purge chat session metadata: %w", err)
+	}
+	if privacyJobID != "" {
+		result, err := tx.Exec(`UPDATE privacy_deletion_jobs SET transcript_deleted=1 WHERE deletion_job_id=?`, privacyJobID)
+		if err != nil {
+			return fmt.Errorf("record deleted chat transcript: %w", err)
+		}
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("check deleted chat transcript state: %w", err)
+		}
+		if changed != 1 {
+			return fmt.Errorf("record deleted chat transcript: privacy job is missing")
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit chat session purge: %w", err)

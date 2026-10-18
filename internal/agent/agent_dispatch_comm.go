@@ -1930,7 +1930,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for update operation"}`
 				}
-				existing, err := contacts.GetByID(contactsDB, req.ID)
+				existing, err := contacts.GetByIDContext(ctx, contactsDB, req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
@@ -1961,7 +1961,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.has("reminder") {
 					existing.Reminder = req.Reminder
 				}
-				if err := contacts.Update(contactsDB, *existing); err != nil {
+				if err := contacts.UpdateContext(ctx, contactsDB, *existing); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact updated","id":"%s"}`, req.ID)
@@ -1969,15 +1969,40 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
 				}
-				if kg != nil {
-					if err := kg.FenceContactSource(ctx, "contact_"+req.ID); err != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
-					}
+				if shortTermMem == nil {
+					return "Tool Output: " + contacts.ToJSON(map[string]interface{}{
+						"status": "error", "error_code": "privacy_deletion_unavailable",
+						"message":         "Contact deletion service is unavailable.",
+						"contact_deleted": false, "outcome_known": false,
+						"deletion_job_id": "", "deletion_status": "",
+						"pending_count": 0, "deleted_count": 0, "retained_count": 0,
+					})
 				}
-				if err := contacts.Delete(contactsDB, req.ID); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+				deletion, deleteErr := shortTermMem.DeleteContactWithPrivacy(ctx, contactsDB, kg, req.ID, false)
+				status, code, message := "error", "contact_delete_failed", "Contact was not deleted."
+				switch {
+				case deletion.Job.DeletionJobID == "":
+					status, code, message = "error", "contact_delete_not_accepted", "Contact deletion request was not accepted."
+				case deleteErr == nil && deletion.ContactDeleted:
+					status, code, message = "success", "", "Contact deleted. Derived knowledge was kept."
+				case !deletion.OutcomeKnown || deletion.Job.DeletionStatus == memory.PrivacyDeletionReconcilePending:
+					status, code, message = "partial", "contact_reconciliation_pending", "Contact deletion outcome is being reconciled."
+				case deleteErr != nil && deletion.ContactDeleted:
+					status, code, message = "partial", "contact_cleanup_pending", "Contact was deleted; deletion cleanup is still pending."
+				case deletion.Job.DeletionJobID != "" && deletion.Job.DeletionStatus != memory.PrivacyDeletionAborted:
+					status, code, message = "partial", "contact_cleanup_pending", "Contact deletion cleanup is still pending."
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Contact deleted","id":"%s"}`, req.ID)
+				payload := map[string]interface{}{
+					"status": status, "message": message, "id": req.ID,
+					"contact_deleted": deletion.ContactDeleted, "outcome_known": deletion.OutcomeKnown,
+					"deletion_job_id": deletion.Job.DeletionJobID, "deletion_status": deletion.Job.DeletionStatus,
+					"pending_count": deletion.Job.PendingCount, "deleted_count": deletion.Job.DeletedCount,
+					"retained_count": deletion.Job.RetainedCount,
+				}
+				if code != "" {
+					payload["error_code"] = code
+				}
+				return "Tool Output: " + contacts.ToJSON(payload)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, search, add, update, delete"}`
 			}

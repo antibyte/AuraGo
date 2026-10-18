@@ -1,10 +1,13 @@
 package contacts
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -12,6 +15,59 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+var ErrNotFound = errors.New("contact not found")
+
+type contactLockEntry struct {
+	gate chan struct{}
+	refs int
+}
+
+var contactLocks = struct {
+	sync.Mutex
+	entries map[string]*contactLockEntry
+}{entries: make(map[string]*contactLockEntry)}
+
+// LockID serializes updates, deletion, and graph synchronization for one
+// contact. Callers must re-read the contact after acquiring the lock.
+func LockID(id string) func() {
+	unlock, _ := LockIDContext(context.Background(), id)
+	return unlock
+}
+
+// LockIDContext makes queued contact operations cancellable during shutdown.
+func LockIDContext(ctx context.Context, id string) (func(), error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	contactLocks.Lock()
+	entry := contactLocks.entries[id]
+	if entry == nil {
+		entry = &contactLockEntry{gate: make(chan struct{}, 1)}
+		contactLocks.entries[id] = entry
+	}
+	entry.refs++
+	contactLocks.Unlock()
+	dropReference := func() {
+		contactLocks.Lock()
+		entry.refs--
+		if entry.refs == 0 {
+			delete(contactLocks.entries, id)
+		}
+		contactLocks.Unlock()
+	}
+	select {
+	case entry.gate <- struct{}{}:
+	case <-ctx.Done():
+		dropReference()
+		return nil, ctx.Err()
+	}
+	var once sync.Once
+	return func() { once.Do(func() { <-entry.gate; dropReference() }) }, nil
+}
 
 // Contact represents a single address book entry.
 type Contact struct {
@@ -96,12 +152,30 @@ func Create(db *sql.DB, c Contact) (string, error) {
 
 // Update modifies an existing contact.
 func Update(db *sql.DB, c Contact) error {
+	return UpdateContext(context.Background(), db, c)
+}
+
+func UpdateContext(ctx context.Context, db *sql.DB, c Contact) error {
+	unlock, err := LockIDContext(ctx, c.ID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return updateLockedContext(ctx, db, c)
+}
+
+// UpdateLocked modifies an existing contact while the caller holds LockID.
+func UpdateLocked(db *sql.DB, c Contact) error {
+	return updateLockedContext(context.Background(), db, c)
+}
+
+func updateLockedContext(ctx context.Context, db *sql.DB, c Contact) error {
 	if c.ID == "" {
 		return fmt.Errorf("id is required")
 	}
 	c.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
-	res, err := db.Exec(
+	res, err := db.ExecContext(ctx,
 		`UPDATE contacts SET name=?, email=?, phone=?, mobile=?, address=?, relationship=?, notes=?, birthday=?, reminder=?, updated_at=?
 		 WHERE id=?`,
 		c.Name, c.Email, c.Phone, c.Mobile, c.Address, c.Relationship, c.Notes, c.Birthday, c.Reminder, c.UpdatedAt, c.ID,
@@ -109,33 +183,54 @@ func Update(db *sql.DB, c Contact) error {
 	if err != nil {
 		return fmt.Errorf("failed to update contact: %w", err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to inspect updated contact: %w", err)
+	}
 	if n == 0 {
-		return fmt.Errorf("contact not found: %s", c.ID)
+		return fmt.Errorf("%w: %s", ErrNotFound, c.ID)
 	}
 	return nil
 }
 
 // Delete removes a contact by ID.
 func Delete(db *sql.DB, id string) error {
-	res, err := db.Exec("DELETE FROM contacts WHERE id=?", id)
+	unlock := LockID(id)
+	defer unlock()
+	return DeleteLocked(db, id)
+}
+
+// DeleteLocked removes a contact while the caller holds LockID.
+func DeleteLocked(db *sql.DB, id string) error {
+	return DeleteLockedContext(context.Background(), db, id)
+}
+
+func DeleteLockedContext(ctx context.Context, db *sql.DB, id string) error {
+	res, err := db.ExecContext(ctx, "DELETE FROM contacts WHERE id=?", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete contact: %w", err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to inspect deleted contact: %w", err)
+	}
 	if n == 0 {
-		return fmt.Errorf("contact not found: %s", id)
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
 	return nil
 }
 
 // GetByID returns a single contact.
 func GetByID(db *sql.DB, id string) (*Contact, error) {
-	row := db.QueryRow("SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at FROM contacts WHERE id=?", id)
+	return GetByIDContext(context.Background(), db, id)
+}
+
+func GetByIDContext(ctx context.Context, db *sql.DB, id string) (*Contact, error) {
+	row := db.QueryRowContext(ctx, "SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at FROM contacts WHERE id=?", id)
 	c := &Contact{}
 	if err := row.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.Birthday, &c.Reminder, &c.CreatedAt, &c.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("contact not found: %s", id)
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
 		}
 		return nil, fmt.Errorf("failed to get contact: %w", err)
 	}

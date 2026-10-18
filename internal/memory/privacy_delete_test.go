@@ -313,6 +313,14 @@ func TestGraphTranscriptPurgeAnonymizesExactPropertiesAndSemanticIndex(t *testin
 		t.Fatalf("protection changed: %v %v", protected, err)
 	}
 	for _, id := range []string{"private-node", "edge://private-node\x00other-node\x00knows"} {
+		if _, err := kg.semanticIndex().Collection.GetByID(t.Context(), id); err == nil {
+			t.Fatalf("stale semantic document %q survived the privacy scrub", id)
+		}
+	}
+	if err := kg.RunSemanticReindexContext(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"private-node", "edge://private-node\x00other-node\x00knows"} {
 		doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), id)
 		if err != nil {
 			t.Fatal(err)

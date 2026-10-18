@@ -6,6 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+)
+
+const (
+	ContactFencePending          = "pending"
+	ContactFenceReconcilePending = "reconcile_pending"
+	ContactFenceCommitted        = "committed"
 )
 
 // deleteExclusiveSessionGraph removes only graph records with explicit exclusive provenance.
@@ -23,13 +30,131 @@ func (kg *KnowledgeGraph) DeleteContactSource(ctx context.Context, id string) (i
 
 // FenceContactSource stops delayed synchronization without deleting derived knowledge.
 func (kg *KnowledgeGraph) FenceContactSource(ctx context.Context, id string) error {
-	if _, err := kg.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS deleted_contact_sources(contact_id TEXT PRIMARY KEY,deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
-		return fmt.Errorf("create contact deletion fence: %w", err)
+	if err := kg.ensureContactSourceFence(ctx); err != nil {
+		return err
 	}
-	if _, err := kg.db.ExecContext(ctx, `INSERT OR IGNORE INTO deleted_contact_sources(contact_id) VALUES(?)`, id); err != nil {
+	if _, err := kg.db.ExecContext(ctx, `INSERT OR IGNORE INTO deleted_contact_sources(contact_id,operation_token,state) VALUES(?,'',?)`, id, ContactFenceCommitted); err != nil {
 		return fmt.Errorf("record contact deletion fence: %w", err)
 	}
 	return nil
+}
+
+func (kg *KnowledgeGraph) ensureContactSourceFence(ctx context.Context) error {
+	var migratedColumns int
+	if err := kg.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('deleted_contact_sources') WHERE name IN ('operation_token','state')`).Scan(&migratedColumns); err != nil {
+		return fmt.Errorf("inspect contact fence migration: %w", err)
+	}
+	if migratedColumns != 2 {
+		var populated bool
+		if err := kg.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM kg_nodes) OR EXISTS(SELECT 1 FROM kg_edges) OR EXISTS(SELECT 1 FROM kg_claims)`).Scan(&populated); err != nil {
+			return fmt.Errorf("inspect graph before contact fence migration: %w", err)
+		}
+		if populated {
+			if _, err := backupMainDatabase(kg.db, "contact-fences-v2"); err != nil {
+				return fmt.Errorf("back up graph before contact fence migration: %w", err)
+			}
+		}
+	}
+	if _, err := kg.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS deleted_contact_sources(
+		contact_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		operation_token TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'committed')`); err != nil {
+		return fmt.Errorf("create contact deletion fence: %w", err)
+	}
+	for _, column := range []string{
+		`ALTER TABLE deleted_contact_sources ADD COLUMN operation_token TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE deleted_contact_sources ADD COLUMN state TEXT NOT NULL DEFAULT 'committed'`,
+	} {
+		if _, err := kg.db.ExecContext(ctx, column); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return fmt.Errorf("migrate contact deletion fence: %w", err)
+		}
+	}
+	return nil
+}
+
+// BeginContactSourceDeletion persists a token-owned temporary fence. Existing
+// legacy or committed fences are deliberately never replaced automatically.
+func (kg *KnowledgeGraph) BeginContactSourceDeletion(ctx context.Context, id, token string) error {
+	if strings.TrimSpace(id) == "" || strings.TrimSpace(token) == "" {
+		return fmt.Errorf("contact ID and operation token are required")
+	}
+	if err := kg.ensureContactSourceFence(ctx); err != nil {
+		return err
+	}
+	tx, err := kg.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin contact source fence: %w", err)
+	}
+	defer tx.Rollback()
+	var state string
+	err = tx.QueryRowContext(ctx, `SELECT state FROM deleted_contact_sources WHERE contact_id=?`, id).Scan(&state)
+	if err == nil {
+		return fmt.Errorf("contact source is already fenced: %s", state)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read contact source fence: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO deleted_contact_sources(contact_id,operation_token,state) VALUES(?,?,?)`, id, token, ContactFencePending); err != nil {
+		return fmt.Errorf("record contact source fence: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (kg *KnowledgeGraph) CommitContactSourceDeletion(ctx context.Context, id, token string) error {
+	return kg.updateOwnedContactFence(ctx, id, token, ContactFenceCommitted)
+}
+
+func (kg *KnowledgeGraph) MarkContactSourceReconcilePending(ctx context.Context, id, token string) error {
+	return kg.updateOwnedContactFence(ctx, id, token, ContactFenceReconcilePending)
+}
+
+func (kg *KnowledgeGraph) updateOwnedContactFence(ctx context.Context, id, token, state string) error {
+	if err := kg.ensureContactSourceFence(ctx); err != nil {
+		return err
+	}
+	result, err := kg.db.ExecContext(ctx, `UPDATE deleted_contact_sources SET state=? WHERE contact_id=? AND operation_token=? AND (state IN (?,?) OR state=?)`, state, id, token, ContactFencePending, ContactFenceReconcilePending, state)
+	if err != nil {
+		return fmt.Errorf("update contact source fence: %w", err)
+	}
+	if count, err := result.RowsAffected(); err != nil || count != 1 {
+		if err != nil {
+			return fmt.Errorf("inspect contact source fence update: %w", err)
+		}
+		return fmt.Errorf("contact source fence ownership changed")
+	}
+	return nil
+}
+
+// ReleaseContactSourceDeletion removes only a temporary fence still owned by
+// the failed operation. A committed or legacy fence cannot be compensated.
+func (kg *KnowledgeGraph) ReleaseContactSourceDeletion(ctx context.Context, id, token string) error {
+	if err := kg.ensureContactSourceFence(ctx); err != nil {
+		return err
+	}
+	result, err := kg.db.ExecContext(ctx, `DELETE FROM deleted_contact_sources WHERE contact_id=? AND operation_token=? AND state IN (?,?)`, id, token, ContactFencePending, ContactFenceReconcilePending)
+	if err != nil {
+		return fmt.Errorf("release contact source fence: %w", err)
+	}
+	if count, err := result.RowsAffected(); err != nil || count != 1 {
+		if err != nil {
+			return fmt.Errorf("inspect contact source fence release: %w", err)
+		}
+		return fmt.Errorf("contact source fence ownership changed")
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) ContactSourceFence(ctx context.Context, id string) (token, state string, exists bool, err error) {
+	if err = kg.ensureContactSourceFence(ctx); err != nil {
+		return "", "", false, err
+	}
+	err = kg.db.QueryRowContext(ctx, `SELECT operation_token,state FROM deleted_contact_sources WHERE contact_id=?`, id).Scan(&token, &state)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", false, nil
+	}
+	if err != nil {
+		return "", "", false, fmt.Errorf("read contact source fence: %w", err)
+	}
+	return token, state, true, nil
 }
 
 func (kg *KnowledgeGraph) CountContactSource(ctx context.Context, id string) (int, error) {

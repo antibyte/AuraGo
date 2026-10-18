@@ -157,6 +157,10 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		mux.HandleFunc("/api/contacts", handleContacts(s))
 		mux.HandleFunc("/api/contacts/", handleContactByID(s))
 
+		// ── Privacy deletion jobs (operator visibility and retry) ──
+		mux.Handle("/api/privacy-deletions", requireAdmin(s, handlePrivacyDeletionCollection(s)))
+		mux.Handle("/api/privacy-deletions/", requireAdmin(s, handlePrivacyDeletionItem(s)))
+
 		// ── People (Desktop Address App) API ──
 		mux.HandleFunc("/api/people/lookup", handlePeopleLookup(s))
 		mux.HandleFunc("/api/people/kg-persons", handlePeopleKGPersons(s))

@@ -3,14 +3,19 @@ package memory
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
 // ScrubSessionTranscriptEvidence removes captured conversation copies, preserving derived claims.
 func (kg *KnowledgeGraph) ScrubSessionTranscriptEvidence(ctx context.Context, sessionID string) error {
+	if err := kg.ensureGraphPrivacyScrubReceipts(ctx); err != nil {
+		return err
+	}
 	tx, err := kg.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin graph transcript purge: %w", err)
@@ -25,6 +30,11 @@ func (kg *KnowledgeGraph) ScrubSessionTranscriptEvidence(ctx context.Context, se
 	}
 	var updates []sourceUpdate
 	marker := fmt.Sprintf("deleted:%x", sha256.Sum256([]byte(sessionID)))
+	var nodeIDsJSON, edgeIDsJSON string
+	if receiptErr := tx.QueryRowContext(ctx, `SELECT node_ids,edge_ids FROM privacy_scrub_index_pending WHERE session_marker=?`, marker).Scan(&nodeIDsJSON, &edgeIDsJSON); receiptErr != nil && !errors.Is(receiptErr, sql.ErrNoRows) {
+		return fmt.Errorf("read graph privacy index cleanup receipt: %w", receiptErr)
+	}
+	nodeIDs, edgeIDs := readStringSet(nodeIDsJSON), readStringSet(edgeIDsJSON)
 	for _, table := range []string{"kg_nodes", "kg_edges"} {
 		columns := "rowid,id,label,'',properties,protected"
 		if table == "kg_edges" {
@@ -60,59 +70,87 @@ func (kg *KnowledgeGraph) ScrubSessionTranscriptEvidence(ctx context.Context, se
 	}
 	stamp := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, update := range updates {
+		if update.table == "kg_nodes" {
+			nodeIDs[update.a] = struct{}{}
+		} else {
+			edgeIDs[graphPrivacyEdgeID(update.a, update.b, update.c)] = struct{}{}
+		}
 		if _, err = tx.ExecContext(ctx, `UPDATE `+update.table+` SET properties=?,updated_at=?,semantic_indexed_at=NULL WHERE rowid=?`, update.properties, stamp, update.row); err != nil {
 			return fmt.Errorf("anonymize graph source properties: %w", err)
 		}
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE kg_evidence SET raw_text='',source_message_id='',session_id='',channel='',actor='',source_uri='' WHERE session_id=?`, sessionID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE kg_evidence SET raw_text='',source_message_id='',session_id='',channel='',actor='',source_uri='',content_hash='' WHERE session_id=?`, sessionID); err != nil {
 		return fmt.Errorf("purge graph transcript evidence: %w", err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE kg_claims SET session_id='',source_message_id='' WHERE session_id=?`, sessionID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE kg_claims SET session_id=?,source_message_id='' WHERE session_id=?`, marker, sessionID); err != nil {
 		return fmt.Errorf("anonymize graph claim source: %w", err)
+	}
+	nodeIDsJSON, edgeIDsJSON = encodeStringSet(nodeIDs), encodeStringSet(edgeIDs)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO privacy_scrub_index_pending(session_marker,node_ids,edge_ids,updated_at) VALUES(?,?,?,?)
+		ON CONFLICT(session_marker) DO UPDATE SET node_ids=excluded.node_ids,edge_ids=excluded.edge_ids,updated_at=excluded.updated_at`, marker, nodeIDsJSON, edgeIDsJSON, stamp); err != nil {
+		return fmt.Errorf("persist graph privacy index cleanup receipt: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("commit graph transcript purge: %w", err)
 	}
-	for _, update := range updates {
-		var indexErr error
-		if update.table == "kg_nodes" {
-			indexErr = kg.removeSemanticNodeIndex(update.a)
-			if indexErr == nil {
-				indexErr = kg.upsertSemanticNodeIndexContext(ctx, Node{ID: update.a, Label: update.b, Properties: update.values, Protected: update.protected})
-			}
-		} else {
-			indexErr = kg.removeSemanticEdgeIndex(update.a, update.b, update.c)
-			if indexErr == nil {
-				indexErr = kg.upsertSemanticEdgeIndexContext(ctx, Edge{Source: update.a, Target: update.b, Relation: update.c, Properties: update.values})
-			}
-		}
-		if indexErr == nil && kg.semanticIndex() != nil {
-			query := `UPDATE ` + update.table + ` SET semantic_indexed_at=? WHERE rowid=? AND properties=? AND updated_at=?`
-			args := []any{stamp, update.row, update.properties, stamp}
-			if update.table == "kg_nodes" {
-				query += ` AND label=? AND protected=?`
-				args = append(args, update.b, boolToInt(update.protected))
-			}
-			result, writeErr := kg.db.ExecContext(ctx, query, args...)
-			indexErr = writeErr
-			if indexErr == nil {
-				count, countErr := result.RowsAffected()
-				indexErr = countErr
-				if count != 1 && indexErr == nil {
-					indexErr = fmt.Errorf("graph source changed during privacy reindex")
-				}
-			}
-			if indexErr != nil {
-				if update.table == "kg_nodes" {
-					kg.markSemanticNodeDirty(update.a)
-				} else {
-					kg.markSemanticEdgeDirty(update.a, update.b, update.c)
-				}
-			}
-		}
-		err = errors.Join(err, indexErr)
+	for id := range nodeIDs {
+		err = errors.Join(err, kg.removeSemanticNodeIndex(id))
 	}
+	for encoded := range edgeIDs {
+		var identity []string
+		if json.Unmarshal([]byte(encoded), &identity) != nil || len(identity) != 3 {
+			err = errors.Join(err, fmt.Errorf("invalid graph privacy edge receipt"))
+			continue
+		}
+		err = errors.Join(err, kg.removeSemanticEdgeIndex(identity[0], identity[1], identity[2]))
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := kg.db.ExecContext(ctx, `DELETE FROM privacy_scrub_index_pending WHERE session_marker=?`, marker); err != nil {
+		return fmt.Errorf("clear graph privacy index cleanup receipt: %w", err)
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) ensureGraphPrivacyScrubReceipts(ctx context.Context) error {
+	var exists bool
+	if err := kg.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='privacy_scrub_index_pending')`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		var populated bool
+		if err := kg.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM kg_nodes) OR EXISTS(SELECT 1 FROM kg_edges) OR EXISTS(SELECT 1 FROM kg_claims)`).Scan(&populated); err != nil {
+			return err
+		}
+		if populated {
+			if _, err := backupMainDatabase(kg.db, "privacy-scrub-receipts-v1"); err != nil {
+				return fmt.Errorf("back up graph before privacy scrub receipt migration: %w", err)
+			}
+		}
+	}
+	_, err := kg.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS privacy_scrub_index_pending(session_marker TEXT PRIMARY KEY,node_ids TEXT NOT NULL,edge_ids TEXT NOT NULL,updated_at TEXT NOT NULL)`)
 	return err
+}
+
+func readStringSet(encoded string) map[string]struct{} {
+	var values []string
+	_ = json.Unmarshal([]byte(encoded), &values)
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
+}
+
+func encodeStringSet(values map[string]struct{}) string {
+	ordered := make([]string, 0, len(values))
+	for value := range values {
+		ordered = append(ordered, value)
+	}
+	sort.Strings(ordered)
+	encoded, _ := json.Marshal(ordered)
+	return string(encoded)
 }
 
 func scrubGraphSessionProperties(payload, session, marker string) (string, map[string]string, bool, error) {

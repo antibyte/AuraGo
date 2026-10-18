@@ -4,6 +4,7 @@
 // statement registers the section loader with DashSections (dash-sections.js); main.js#loadSectionContent runs it.
 
         async function loadSectionMemory({ force = false } = {}) {
+            void loadMemoryPrivacyDeletionJobs();
             CardState.setLoading('card-memory');
             const memDataR = await API.getWithStatus('/api/dashboard/memory', sectionFetch(force));
             const memData = memDataR.ok ? memDataR.data : null;
@@ -16,6 +17,197 @@
                 Charts.memory = createMemoryBarChart('memory-chart', memData);
                 renderMilestones(memData.milestones);
             }
+        }
+
+        let memoryPrivacyJobsRequest = 0;
+
+        async function loadMemoryPrivacyDeletionJobs() {
+            const list = document.getElementById('memory-privacy-job-list');
+            const status = document.getElementById('memory-privacy-status');
+            const refresh = document.getElementById('memory-privacy-refresh');
+            if (!list || !status) return false;
+            const request = ++memoryPrivacyJobsRequest;
+            if (refresh) refresh.disabled = true;
+            status.textContent = t('dashboard.memory_privacy_loading');
+            try {
+                const response = await fetch('/api/privacy-deletions', { credentials: 'same-origin' });
+                const data = await response.json();
+                if (!response.ok || data.status === 'error') throw new Error('privacy deletion list unavailable');
+                if (request !== memoryPrivacyJobsRequest || !list.isConnected) return false;
+                const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+                list.replaceChildren();
+                if (!jobs.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state dash-empty-tight';
+                    empty.textContent = t('dashboard.memory_privacy_empty');
+                    list.append(empty);
+                } else {
+                    for (const job of jobs) list.append(renderMemoryPrivacyDeletionJob(job));
+                }
+                status.textContent = '';
+                return true;
+            } catch (_) {
+                if (request === memoryPrivacyJobsRequest && list.isConnected) {
+                    status.textContent = t('dashboard.memory_privacy_load_error');
+                }
+                return false;
+            } finally {
+                if (request === memoryPrivacyJobsRequest && refresh && refresh.isConnected) refresh.disabled = false;
+            }
+        }
+
+        function memoryPrivacyStatusLabel(status) {
+            const normalized = String(status || '').toLowerCase();
+            const keys = {
+                preparing: 'dashboard.memory_privacy_in_progress',
+                awaiting_contact_delete: 'dashboard.memory_privacy_in_progress',
+                pending: 'dashboard.memory_privacy_in_progress',
+                processing: 'dashboard.memory_privacy_in_progress',
+                reconcile_pending: 'dashboard.memory_privacy_reconcile_pending',
+                retry_wait: 'dashboard.memory_privacy_retry_wait',
+                retained_review: 'dashboard.memory_privacy_retained_review',
+                completed: 'dashboard.memory_privacy_completed',
+                aborted: 'dashboard.memory_privacy_aborted',
+            };
+            const key = keys[normalized];
+            return key ? t(key) : (normalized || t('dashboard.memory_privacy_unknown'));
+        }
+
+        function memoryPrivacyCount(value) {
+            if (value === null || value === undefined || value === '') return t('dashboard.memory_privacy_unknown');
+            const count = Number(value);
+            return Number.isSafeInteger(count) && count >= 0 ? count.toLocaleString() : t('dashboard.memory_privacy_unknown');
+        }
+
+        function memoryPrivacyDate(value) {
+            if (!value) return t('dashboard.memory_privacy_unknown');
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? t('dashboard.memory_privacy_unknown') : date.toLocaleString();
+        }
+
+        function memoryPrivacyInfoLine(parent, value) {
+            const line = document.createElement('div');
+            line.className = 'memory-curator-row';
+            line.textContent = value;
+            parent.append(line);
+        }
+
+        function renderMemoryPrivacyDeletionJob(job) {
+            const item = document.createElement('article');
+            item.className = 'memory-episodic-item';
+            item.dataset.memoryPrivacyStatus = String(job.deletion_status || '').toLowerCase();
+            const header = document.createElement('div');
+            header.className = 'memory-episodic-head';
+            const title = document.createElement('span');
+            title.className = 'memory-episodic-title';
+            title.textContent = t('dashboard.memory_privacy_job');
+            const statusChip = document.createElement('span');
+            statusChip.className = 'memory-health-strategy-chip';
+            statusChip.textContent = memoryPrivacyStatusLabel(job.deletion_status);
+            header.append(title, statusChip);
+            item.append(header);
+
+            memoryPrivacyInfoLine(item, t('dashboard.memory_privacy_created', { date: memoryPrivacyDate(job.created_at) }));
+            memoryPrivacyInfoLine(item, t('dashboard.memory_privacy_counts', {
+                pending: memoryPrivacyCount(job.pending_count),
+                deleted: memoryPrivacyCount(job.deleted_count),
+                retained: memoryPrivacyCount(job.retained_count),
+            }));
+            const nextRetry = job.next_retry_at ? memoryPrivacyDate(job.next_retry_at) : t('dashboard.memory_privacy_no_retry_time');
+            memoryPrivacyInfoLine(item, t('dashboard.memory_privacy_attempts_next_retry', {
+                count: memoryPrivacyCount(job.attempt_count),
+                date: nextRetry,
+            }));
+            if (job.error_code) {
+                memoryPrivacyInfoLine(item, t('dashboard.memory_privacy_error_code', { code: String(job.error_code) }));
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'memory-curator-actionbar';
+            const detailsButton = document.createElement('button');
+            detailsButton.type = 'button';
+            detailsButton.className = 'mh-more-btn';
+            detailsButton.textContent = t('dashboard.memory_privacy_details');
+            detailsButton.setAttribute('aria-expanded', 'false');
+            const details = document.createElement('div');
+            details.className = 'memory-curator-preview';
+            details.hidden = true;
+            detailsButton.addEventListener('click', async () => {
+                if (!details.hidden) {
+                    details.hidden = true;
+                    detailsButton.textContent = t('dashboard.memory_privacy_details');
+                    detailsButton.setAttribute('aria-expanded', 'false');
+                    return;
+                }
+                details.hidden = false;
+                detailsButton.disabled = true;
+                detailsButton.textContent = t('dashboard.memory_privacy_loading');
+                detailsButton.setAttribute('aria-expanded', 'true');
+                details.replaceChildren();
+                try {
+                    const jobID = String(job.deletion_job_id || '');
+                    if (!jobID) throw new Error('missing deletion job ID');
+                    const response = await fetch('/api/privacy-deletions/' + encodeURIComponent(jobID), { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (!response.ok || data.status === 'error' || !data.job) throw new Error('privacy deletion details unavailable');
+                    const detail = data.job;
+                    memoryPrivacyInfoLine(details, t('dashboard.memory_privacy_updated', { date: memoryPrivacyDate(detail.updated_at) }));
+                    memoryPrivacyInfoLine(details, t('dashboard.memory_privacy_attempts_next_retry', {
+                        count: memoryPrivacyCount(detail.attempt_count),
+                        date: detail.next_retry_at ? memoryPrivacyDate(detail.next_retry_at) : t('dashboard.memory_privacy_no_retry_time'),
+                    }));
+                    if (detail.error_code) memoryPrivacyInfoLine(details, t('dashboard.memory_privacy_error_code', { code: String(detail.error_code) }));
+                    detailsButton.textContent = t('dashboard.memory_privacy_hide_details');
+                } catch (_) {
+                    details.textContent = t('dashboard.memory_privacy_details_error');
+                    detailsButton.textContent = t('dashboard.memory_privacy_hide_details');
+                } finally {
+                    detailsButton.disabled = false;
+                }
+            });
+            actions.append(detailsButton);
+
+            const jobID = String(job.deletion_job_id || '');
+            const jobStatus = String(job.deletion_status || '').toLowerCase();
+            if (jobID && (jobStatus === 'retry_wait' || jobStatus === 'reconcile_pending')) {
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'mh-more-btn';
+                retryButton.setAttribute('data-memory-privacy-retry', '');
+                retryButton.textContent = t(jobStatus === 'reconcile_pending'
+                    ? 'dashboard.memory_privacy_reconcile_retry'
+                    : 'dashboard.memory_privacy_retry');
+                retryButton.addEventListener('click', async () => {
+                    const status = document.getElementById('memory-privacy-status');
+                    retryButton.disabled = true;
+                    if (status) status.textContent = t('dashboard.memory_privacy_retrying');
+                    let message = 'dashboard.memory_privacy_retry_error';
+                    try {
+                        const response = await fetch('/api/privacy-deletions/' + encodeURIComponent(jobID) + '/retry', {
+                            method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+                        });
+                        const data = await response.json();
+                        if (response.status === 409 && (data.code || data.error) === 'deletion_job_not_retryable') {
+                            message = 'dashboard.memory_privacy_not_retryable';
+                        } else if (!response.ok || data.status === 'error') {
+                            throw new Error('privacy deletion retry failed');
+                        } else {
+                            message = jobStatus === 'reconcile_pending'
+                                ? 'dashboard.memory_privacy_reconcile_queued'
+                                : 'dashboard.memory_privacy_retry_queued';
+                        }
+                    } catch (_) {
+                        message = 'dashboard.memory_privacy_retry_error';
+                    }
+                    const refreshed = await loadMemoryPrivacyDeletionJobs();
+                    if (!refreshed && retryButton.isConnected) retryButton.disabled = false;
+                    const currentStatus = document.getElementById('memory-privacy-status');
+                    if (currentStatus) currentStatus.textContent = t(message);
+                });
+                actions.append(retryButton);
+            }
+            item.append(actions, details);
+            return item;
         }
 
         function renderMemoryStats(data) {

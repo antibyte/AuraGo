@@ -348,6 +348,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 		_ = db.Close()
 		return nil, err
 	}
+	if err := stm.initPrivacyDeletionJobs(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := stm.initLearnings(backupLearnings); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize learnings: %w", err)

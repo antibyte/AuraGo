@@ -24,6 +24,11 @@ func TestContactDeleteKeepsKnowledgeUnlessExplicitlySelected(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer kg.Close()
+			stm, err := memory.NewSQLiteMemory(filepath.Join(t.TempDir(), "stm.db"), slog.Default())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stm.Close()
 			id, err := contacts.Create(db, contacts.Contact{Name: "Private Contact"})
 			if err != nil {
 				t.Fatal(err)
@@ -36,7 +41,7 @@ func TestContactDeleteKeepsKnowledgeUnlessExplicitlySelected(t *testing.T) {
 				url += "?delete_memories=true"
 			}
 			recorder := httptest.NewRecorder()
-			handleContactByID(&Server{ContactsDB: db, KG: kg, Logger: slog.Default()})(recorder, httptest.NewRequest(http.MethodDelete, url, nil))
+			handleContactByID(&Server{ContactsDB: db, KG: kg, ShortTermMem: stm, Logger: slog.Default()})(recorder, httptest.NewRequest(http.MethodDelete, url, nil))
 			if recorder.Code != http.StatusOK {
 				t.Fatalf("delete status %d: %s", recorder.Code, recorder.Body.String())
 			}

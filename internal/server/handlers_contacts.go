@@ -2,12 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	"aurago/internal/contacts"
 	"aurago/internal/i18n"
+	"aurago/internal/memory"
 )
 
 // handleContacts handles GET (list) and POST (create) on /api/contacts.
@@ -89,9 +91,9 @@ func handleContactByID(s *Server) http.HandlerFunc {
 				return
 			}
 			c.ID = id
-			if err := contacts.Update(s.ContactsDB, c); err != nil {
+			if err := contacts.UpdateContext(r.Context(), s.ContactsDB, c); err != nil {
 				status := http.StatusInternalServerError
-				if strings.Contains(err.Error(), "not found") {
+				if errors.Is(err, contacts.ErrNotFound) {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
@@ -106,49 +108,31 @@ func handleContactByID(s *Server) http.HandlerFunc {
 
 		case http.MethodDelete:
 			deleteMemories := r.URL.Query().Get("delete_memories") == "true"
-			deletedGraph, retainedGraph := 0, 0
-			previouslyDeleted := false
-			if s.KG != nil {
-				var err error
-				previouslyDeleted, err = s.KG.IsContactSourceDeleted(r.Context(), "contact_"+id)
-				if err != nil {
-					jsonError(w, "Contact deletion state unavailable", http.StatusServiceUnavailable)
-					return
-				}
-				err = s.KG.FenceContactSource(r.Context(), "contact_"+id)
-				if err != nil {
-					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, i18n.T(desktopUILanguage(s), "backend.contacts_delete_failed"), "Failed to delete contact graph source", err)
-					return
-				}
-			}
-			if err := contacts.Delete(s.ContactsDB, id); err != nil && !(previouslyDeleted && strings.Contains(err.Error(), "not found")) {
-				status := http.StatusInternalServerError
-				if strings.Contains(err.Error(), "not found") {
-					status = http.StatusNotFound
-				}
-				if status == http.StatusNotFound {
-					jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_found"), status)
-				} else {
-					jsonLoggedError(w, s.Logger, status, i18n.T(desktopUILanguage(s), "backend.contacts_delete_failed"), "Failed to delete contact", err, "contact_id", id)
-				}
+			if s.ShortTermMem == nil {
+				writePrivacyJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "error", "error": "privacy_store_unavailable", "contact_deleted": false})
 				return
 			}
-			status, responseCode := "deleted", http.StatusOK
-			if s.KG != nil {
-				var err error
-				if deleteMemories {
-					deletedGraph, retainedGraph, err = s.KG.DeleteContactSource(r.Context(), "contact_"+id)
-				} else {
-					retainedGraph, err = s.KG.CountContactSource(r.Context(), "contact_"+id)
+			result, err := s.ShortTermMem.DeleteContactWithPrivacy(r.Context(), s.ContactsDB, s.KG, id, deleteMemories)
+			job := result.Job
+			status, code := "deleted", http.StatusOK
+			errorCode := ""
+			if err != nil && job.DeletionJobID == "" {
+				status, code, errorCode = "error", http.StatusInternalServerError, "contact_delete_not_accepted"
+				if errors.Is(err, contacts.ErrNotFound) {
+					code, errorCode = http.StatusNotFound, "contact_not_found"
 				}
-				if err != nil {
-					s.Logger.Error("Contact removed but knowledge cleanup incomplete", "error", err)
-					status, responseCode = "partial", http.StatusMultiStatus
-				}
+			} else if job.DeletionStatus == memory.PrivacyDeletionAborted {
+				status, code, errorCode = "error", http.StatusInternalServerError, "contact_delete_aborted"
+			} else if err != nil || job.PendingCount > 0 || !result.OutcomeKnown || job.DeletionStatus != memory.PrivacyDeletionCompleted && job.DeletionStatus != memory.PrivacyDeletionRetainedReview {
+				status, code = "partial", http.StatusMultiStatus
 			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(responseCode)
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": status, "contact_deleted": true, "deleted_graph_items": deletedGraph, "retained_graph_items": retainedGraph})
+			// Never return SQLite errors, names, source IDs, or operation tokens.
+			writePrivacyJSON(w, code, map[string]any{
+				"status": status, "error": errorCode, "contact_deleted": result.ContactDeleted, "contact_outcome_known": result.OutcomeKnown,
+				"deletion_job_id": job.DeletionJobID, "deletion_status": job.DeletionStatus,
+				"pending_count": job.PendingCount, "deleted_count": job.DeletedCount, "retained_count": job.RetainedCount,
+				"deleted_graph_items": job.DeletedCount, "retained_graph_items": job.RetainedCount,
+			})
 
 		default:
 			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)

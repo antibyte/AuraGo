@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/contacts"
 	"aurago/internal/kgextraction"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -2492,7 +2493,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 	logger.Info("[Maintenance] Syncing Contacts to Knowledge Graph")
 
-	rows, err := contactsDB.QueryContext(ctx, "SELECT id, name, email, phone, mobile, relationship, birthday FROM contacts")
+	rows, err := contactsDB.QueryContext(ctx, "SELECT id FROM contacts ORDER BY id")
 	if err != nil {
 		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Maintenance] Failed to query contacts for KG sync", "error", err)
@@ -2500,25 +2501,52 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 	}
 	defer rows.Close()
 
+	var ids []string
 	for rows.Next() {
-		var id, name string
-		var email, phone, mobile, relationship, birthday sql.NullString
-		if err := rows.Scan(&id, &name, &email, &phone, &mobile, &relationship, &birthday); err != nil {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Error("[Maintenance] Failed to scan contact", "error", err)
 			continue
 		}
+		ids = append(ids, id)
+	}
+	resultErr = errors.Join(resultErr, rows.Err())
+	if err := rows.Close(); err != nil {
+		resultErr = errors.Join(resultErr, err)
+	}
+	for _, id := range ids {
 
 		if err := ctx.Err(); err != nil {
 			return errors.Join(resultErr, err)
 		}
-		fields := map[string]string{"email": email.String, "phone": phone.String, "mobile": mobile.String, "relationship": relationship.String, "birthday": birthday.String}
-		if err := kg.SyncContact(ctx, "contact_"+id, name, fields); err != nil {
+		unlock, lockErr := contacts.LockIDContext(ctx, id)
+		if lockErr != nil {
+			resultErr = errors.Join(resultErr, lockErr)
+			if ctx.Err() != nil {
+				return resultErr
+			}
+			continue
+		}
+		contact, readErr := contacts.GetByIDContext(ctx, contactsDB, id)
+		if errors.Is(readErr, contacts.ErrNotFound) {
+			unlock()
+			continue
+		}
+		if readErr != nil {
+			unlock()
+			resultErr = errors.Join(resultErr, readErr)
+			logger.Warn("[Maintenance] Failed to re-read contact for KG sync", "contact_id", id, "error", readErr)
+			continue
+		}
+		fields := map[string]string{"email": contact.Email, "phone": contact.Phone, "mobile": contact.Mobile, "relationship": contact.Relationship, "birthday": contact.Birthday}
+		if err := kg.SyncContactLocked(ctx, "contact_"+id, contact.Name, fields); err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[Maintenance] Contact KG reconciliation incomplete", "contact_id", id, "error", err)
 		}
+		unlock()
 	}
-	return errors.Join(resultErr, rows.Err(), ctx.Err())
+	return errors.Join(resultErr, ctx.Err())
 }
 
 // SyncPlannerToKnowledgeGraph synchronizes appointments and todos to the knowledge graph.

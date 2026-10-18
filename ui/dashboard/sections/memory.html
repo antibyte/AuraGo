@@ -29,6 +29,15 @@
           <p data-i18n="dashboard.notes_protection_hint"></p>
           <div id="memory-note-protection" aria-live="polite"></div>
         </div>
+        <div id="memory-privacy-deletions" class="mt-sm" aria-labelledby="memory-privacy-title">
+          <div class="memory-subsection-title" id="memory-privacy-title" data-i18n="dashboard.memory_privacy_title"></div>
+          <p data-i18n="dashboard.memory_privacy_description"></p>
+          <div class="memory-curator-actionbar">
+            <button type="button" id="memory-privacy-refresh" class="mh-more-btn" onclick="loadMemoryPrivacyDeletionJobs()" data-i18n="dashboard.memory_privacy_refresh"></button>
+          </div>
+          <div id="memory-privacy-status" role="status" aria-live="polite"></div>
+          <div id="memory-privacy-job-list" class="memory-curator-list"></div>
+        </div>
         <div id="memory-episodic-wrap" class="mt-sm">
           <h4 class="card-section-title" data-i18n="dashboard.memory_episodic_title"></h4>
           <div id="memory-episodic-list"></div>

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"aurago/internal/memory"
 )
@@ -152,18 +153,53 @@ func handleDeleteChatSession(s *Server) http.HandlerFunc {
 			return
 		}
 		deleteMemories := r.URL.Query().Get("delete_memories") == "true"
-		report, err := s.ShortTermMem.DeleteChatSessionWithMemories(r.Context(), sessionID, s.LongTermMem, s.KG, deleteMemories)
-		if err != nil {
-			s.Logger.Error("Failed to delete chat session", "error", err)
+		job, prepareErr := s.ShortTermMem.PrepareChatPrivacyDeletion(r.Context(), sessionID, s.LongTermMem, s.KG, deleteMemories)
+		if job.DeletionJobID == "" {
+			status := http.StatusInternalServerError
+			code := "deletion_prepare_failed"
+			if prepareErr != nil && strings.Contains(strings.ToLower(prepareErr.Error()), "lock") {
+				status = http.StatusConflict
+				code = "deletion_in_progress"
+			}
+			if s.Logger != nil {
+				s.Logger.Warn("Failed to prepare privacy deletion", "error_code", code)
+			}
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusMultiStatus)
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "partial", "code": "deletion_incomplete", "deletion": report})
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "error", "code": code,
+				"deletion": memory.SessionDeletionReport{TranscriptDeleted: false},
+			})
 			return
 		}
+		if prepareErr == nil {
+			// The bounded worker may encounter an unrelated older job first. The
+			// response below is derived from this request's persisted job only.
+			_ = s.ShortTermMem.ProcessDuePrivacyDeletionJobs(r.Context(), s.LongTermMem, s.KG, time.Now().UTC(), 1)
+		}
+		if current, err := s.ShortTermMem.GetPrivacyDeletionJob(r.Context(), job.DeletionJobID); err == nil {
+			job = current
+		}
+		report := memory.SessionDeletionReport{
+			TranscriptDeleted: job.TranscriptDeleted,
+			DeletedMemories:   job.DeletedCount, RetainedMemories: job.RetainedCount,
+		}
 		w.Header().Set("Content-Type", "application/json")
+		statusText, statusCode := "ok", http.StatusOK
+		switch job.DeletionStatus {
+		case memory.PrivacyDeletionPreparing, memory.PrivacyDeletionAwaitingContactDelete, memory.PrivacyDeletionPending, memory.PrivacyDeletionProcessing, memory.PrivacyDeletionRetryWait, memory.PrivacyDeletionReconcilePending:
+			statusText, statusCode = "partial", http.StatusMultiStatus
+		}
+		w.WriteHeader(statusCode)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":   "ok",
-			"deletion": report,
+			"status": statusText, "code": func() string {
+				if statusText == "partial" {
+					return "deletion_incomplete"
+				}
+				return ""
+			}(),
+			"deletion": report, "deletion_job_id": job.DeletionJobID, "deletion_status": job.DeletionStatus,
+			"pending_count": job.PendingCount, "deleted_count": job.DeletedCount, "retained_count": job.RetainedCount,
 		})
 	}
 }

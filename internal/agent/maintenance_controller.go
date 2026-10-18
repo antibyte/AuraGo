@@ -196,6 +196,11 @@ func newMaintenanceController(ctx context.Context, cfg *config.Config, deps Main
 	inner.pendingDone = startPendingMemoryWriteRetryLoop(controllerCtx, deps.Logger, deps.ShortTermMem, deps.LongTermMem, func() *config.Config { inner.mu.RLock(); defer inner.mu.RUnlock(); return inner.cfg })
 	inner.loopWG.Add(1)
 	go inner.loop()
+	inner.loopWG.Add(1)
+	go func() {
+		defer inner.loopWG.Done()
+		runPrivacyDeletionWorker(controllerCtx, deps)
+	}()
 	return &MaintenanceController{inner: inner}
 }
 
