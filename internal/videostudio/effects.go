@@ -419,9 +419,10 @@ var blendModeFilters = []string{"blend", "maskedmerge", "alphaextract"}
 // editor greys out:
 //   - an effect when one of its Filters is missing;
 //   - a transition when its xfade transition is missing;
-//   - a blend mode with an FFmpeg blend name when one of blendModeFilters is missing (never normal).
+//   - a blend mode with an FFmpeg blend name when one of blendModeFilters is missing (never normal);
+//   - an animation preset when one of its Filters is missing (2e).
 //
-// Masks have no entry; the export refuses them (CheckProjectCapabilities). Animation presets (2e) add their rule here.
+// Masks have no entry; the export refuses them (CheckProjectCapabilities).
 // Unknown entries are ignored, and no list is nil.
 func (r Registry) Unavailable(missing []string) UnavailableSet {
 	lacking := make(map[string]bool, len(missing))
@@ -449,6 +450,14 @@ func (r Registry) Unavailable(missing []string) UnavailableSet {
 		for _, filter := range blendModeFilters {
 			if lacking["filter:"+filter] {
 				set.BlendModes = append(set.BlendModes, mode.ID)
+				break
+			}
+		}
+	}
+	for _, preset := range r.AnimPresets {
+		for _, filter := range preset.Filters {
+			if lacking["filter:"+filter] {
+				set.AnimPresets = append(set.AnimPresets, preset.ID)
 				break
 			}
 		}

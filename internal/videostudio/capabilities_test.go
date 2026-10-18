@@ -502,3 +502,98 @@ func TestCheckProjectCapabilitiesBlend(t *testing.T) {
 		}
 	}
 }
+
+// An animation preset is unavailable when one of its Filters is missing (index §4.2), and the probe lists every one of them
+// (capabilityFilters). A missing filter greys exactly the presets that list it, in menu order; other features grey none.
+func TestRegistryUnavailableAnimPresets(t *testing.T) {
+	registry := EffectRegistry()
+	if len(registry.AnimPresets) != 8 {
+		t.Fatalf("registry has %d animation presets, want 8", len(registry.AnimPresets))
+	}
+	for _, preset := range registry.AnimPresets {
+		if len(preset.Filters) == 0 {
+			t.Fatalf("preset %s has no filters", preset.ID)
+		}
+		for _, filter := range preset.Filters {
+			if !slices.Contains(capabilityFilters(), filter) {
+				t.Errorf("capabilityFilters() lacks %q of preset %s", filter, preset.ID)
+			}
+			want := []string{}
+			for _, other := range registry.AnimPresets {
+				if slices.Contains(other.Filters, filter) {
+					want = append(want, other.ID)
+				}
+			}
+			if got := registry.Unavailable([]string{"filter:" + filter}).AnimPresets; !slices.Equal(got, want) {
+				t.Errorf("without %s: unavailable presets %v, want %v", filter, got, want)
+			}
+		}
+	}
+	for name, c := range map[string]struct {
+		missing, want []string
+	}{
+		"blend":          {[]string{"filter:blend"}, []string{"wipe"}},
+		"gblur":          {[]string{"filter:gblur"}, []string{"blur_in"}},
+		"sendcmd":        {[]string{"filter:sendcmd"}, []string{"fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop", "blur_in"}},
+		"nothing":        {nil, []string{}},
+		"other features": {[]string{"filter:lut3d", "filter:cas", "xfade:fadegrays", "bogus"}, []string{}},
+	} {
+		if got := registry.Unavailable(c.missing).AnimPresets; !slices.Equal(got, c.want) {
+			t.Errorf("%s: unavailable presets %v, want %v", name, got, c.want)
+		}
+	}
+}
+
+// The export refuses an in or out animation that plays when a filter of its preset is missing (index §4.3). Only an
+// effective span of at least one frame counts, on an enabled clip of a visible visual track. An unavailable preset still
+// validates.
+func TestCheckProjectCapabilitiesAnim(t *testing.T) {
+	animated := func(edit func(*Clip)) Project {
+		project := validProject()
+		clip := &project.Tracks[0].Clips[0]
+		clip.AnimIn = &ClipAnim{Preset: "blur_in", Duration: 10}
+		clip.AnimOut = &ClipAnim{Preset: "wipe", Duration: 8}
+		if edit != nil {
+			edit(clip)
+		}
+		return project
+	}
+	if err := Validate(animated(nil)); err != nil {
+		t.Fatalf("animated project invalid: %v", err)
+	}
+	var capability *CapabilityError
+	for name, c := range map[string]struct {
+		project       Project
+		missing       []string
+		feature, need string
+	}{
+		"blur_in without gblur":       {animated(nil), []string{"filter:gblur"}, "anim:blur_in", "filter:gblur"},
+		"blur_in without premultiply": {animated(nil), []string{"filter:premultiply"}, "anim:blur_in", "filter:premultiply"},
+		"wipe without blend":          {animated(nil), []string{"filter:blend"}, "anim:wipe", "filter:blend"},
+		"fade without sendcmd": {animated(func(c *Clip) { c.AnimIn, c.AnimOut = &ClipAnim{Preset: "fade", Duration: 10}, nil }),
+			[]string{"filter:sendcmd"}, "anim:fade", "filter:sendcmd"},
+		"pop out without colorchannelmixer": {animated(func(c *Clip) { c.AnimIn, c.AnimOut = nil, &ClipAnim{Preset: "pop", Duration: 10} }),
+			[]string{"filter:colorchannelmixer"}, "anim:pop", "filter:colorchannelmixer"},
+	} {
+		err := CheckProjectCapabilities(c.project, c.missing)
+		if !errors.Is(err, ErrFeatureUnavailable) || !errors.As(err, &capability) || capability.Feature != c.feature || capability.Missing != c.need {
+			t.Errorf("%s = %v, want %s needs %s", name, err, c.feature, c.need)
+		}
+	}
+	hidden := animated(nil)
+	hidden.Tracks[0].Hidden = true
+	for name, c := range map[string]struct {
+		project Project
+		missing []string
+	}{
+		"filters present":           {animated(nil), []string{"filter:lut3d", "filter:cas", "xfade:fadegrays"}},
+		"no animation":              {validProject(), []string{"filter:gblur", "filter:blend", "filter:sendcmd"}},
+		"an effective span of zero": {animated(func(c *Clip) { c.Duration = 1 }), []string{"filter:gblur", "filter:blend"}},
+		"disabled clip":             {animated(func(c *Clip) { c.Disabled = true }), []string{"filter:gblur"}},
+		"hidden track":              {hidden, []string{"filter:blend"}},
+	} {
+		if err := CheckProjectCapabilities(c.project, c.missing); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

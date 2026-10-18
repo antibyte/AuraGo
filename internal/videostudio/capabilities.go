@@ -133,7 +133,8 @@ func ProbeCapabilities(ctx context.Context, ffmpegPath string) ([]string, error)
 	return slices.Clone(missing), nil
 }
 
-// capabilityFilters lists phase2Filters followed by every filter an EffectSpec needs, each once.
+// capabilityFilters lists phase2Filters, then every filter an EffectSpec needs, then (2e) every filter an AnimPresetSpec
+// needs, each once.
 func capabilityFilters() []string {
 	seen := map[string]bool{}
 	var names []string
@@ -148,6 +149,11 @@ func capabilityFilters() []string {
 	}
 	for _, effect := range registryEffects {
 		for _, name := range effect.Filters {
+			add(name)
+		}
+	}
+	for _, preset := range registryAnimPresets {
+		for _, name := range preset.Filters {
 			add(name)
 		}
 	}
@@ -220,7 +226,7 @@ func xfadeTransitionNames(output string) map[string]bool {
 // missing (as reported by ProbeCapabilities), or nil. Only what renders counts: transitions on hidden tracks, of
 // disabled clips or before a disabled clip are skipped, as in segmentLayers. 2b adds the keyframes check (sendcmd),
 // which 2c extends to crop and effect keyframes (clipHasKeyframes). 2c also adds the effect checks; 2d adds the mask
-// check (maskFilters) and the blend check.
+// check (maskFilters) and the blend check; 2e adds the animation check (the Filters of every preset that plays).
 func CheckProjectCapabilities(project Project, missing []string) error {
 	if len(missing) == 0 {
 		return nil
@@ -283,6 +289,31 @@ func CheckProjectCapabilities(project Project, missing []string) error {
 			for _, filter := range blendModeFilters {
 				if need := "filter:" + filter; lacking[need] {
 					return &CapabilityError{Feature: "blend:" + mode, Missing: need}
+				}
+			}
+		}
+		// An in or out animation that plays (an effective span of at least one frame, §4.24) needs every filter of its
+		// preset (index §4.3, 2e). Registry.Unavailable greys the preset; the export refuses it here.
+		for _, clip := range track.Clips {
+			if clip.Disabled {
+				continue
+			}
+			spanIn, spanOut := animSpans(clip)
+			for _, side := range []struct {
+				anim *ClipAnim
+				span int
+			}{{clip.AnimIn, spanIn}, {clip.AnimOut, spanOut}} {
+				if side.anim == nil || side.span <= 0 {
+					continue
+				}
+				spec, ok := AnimPresetByID(side.anim.Preset)
+				if !ok {
+					continue // Validate rejects unknown presets.
+				}
+				for _, filter := range spec.Filters {
+					if need := "filter:" + filter; lacking[need] {
+						return &CapabilityError{Feature: "anim:" + spec.ID, Missing: need}
+					}
 				}
 			}
 		}
