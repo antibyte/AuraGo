@@ -7,7 +7,10 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   shell fragments, arbitrary filter expressions, or demuxer names from project data.
   Keyframe and ramp expressions and `sendcmd` scripts are generated in Go from validated numbers only.
   FFmpeg reads LUTs only as Go-written `vs_lut_<n>.cube` copies of parsed tables (`lutFileName`: `^vs_lut_[0-9]+\.cube$`;
-  one file per distinct table of a process, written once); uploaded `.cube` text never reaches a filter graph.
+  one file per distinct table of a process, written once); uploaded `.cube` text never reaches a filter graph. Blend
+  mode names reach `blend` only from the registry (`BlendModeByID`), the chroma key colour is written by Go as
+  `0xRRGGBB` from the validated hex, and mask `geq` expressions hold only Go-formatted numbers and the fixed variables
+  `X`, `Y` and `T`.
 - Keep all clip timing in integer frames of the project rate (`ProjectRate`: 24/25/30/50/60 fps, NTSC
   24/30/60 with a 1001 denominator). Convert with `Rate` methods only. `Upgrade` steps version 1 (fixed 30 fps) → 2 → 3
   without modifying its input; `Validate` accepts version 3 only. Projects are limited to sixty minutes and the sizes in
@@ -162,8 +165,8 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   (`hasRequiredRenderFilters`) is unchanged. The `-filters` flag column has three characters on FFmpeg 5.1 (`TSC`) and
   two on 8.x (`TS`); the parser accepts both. The captured `-h filter=xfade` outputs are
   `testdata/xfade-help-5.1.txt` and `testdata/xfade-help-8.txt`.
-- Per-clip chain (`clip_chain.go`): `clipChain` stages `retime`, `window`, `picture`, `effects`, `mask`, `transform`,
-  `opacity`, `place` own one clip's filters and its geometry (`clipBox`, `evenPixels`, `evenPosition`);
+- Per-clip chain (`clip_chain.go`): `clipChain` stages `retime`, `window`, `picture`, `effects`, the animated crop, `fit`,
+  `mask`, `orient` (`transform` is `fit` + `orient`), `opacity` and `place` own one clip's filters and its geometry (`clipBox`, `evenPixels`, `evenPosition`);
   `segment_graph.go` keeps segment, layer, gap, transition and audio assembly. The 2a chain is byte-identical to the
   former `buildVisualClipFilter` (snapshot test). Later slices extend a stage, never the assembly.
   `buildVideoSegmentWith(…, videoTail)` takes the output tail; `videoTail{rgb: true}` ends in `format=rgb24`.
@@ -216,9 +219,10 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     most 62 pieces inside (`MaxRampPieces` = 64). `S(0) = 0`.
   - The inverse is `t0 + 2(s − s0)/(a + sqrt(a² + 2b(s − s0)))`.
   - The parity fixtures `easing`, `keyframes` and `ramp` share every number with `video-studio-effects.js`.
-- Export of keyframed geometry: when x, y, width, height or rotation has keyframes, `clipChain.transform` writes
-  per-frame expressions in `t`, never `n` (`clipChain.animatedTransform`):
-  - the `scale … :eval=frame` w/h, the `rotate` angle, and the `overlay … :eval=frame` x/y;
+- Export of keyframed geometry: when x, y, width, height or rotation has keyframes, `clipChain.fit` and
+  `clipChain.orient` write per-frame expressions in `t`, never `n` (`clipChain.animatedFit`, which ends at
+  `pad@vs_pad_L_C`, then the rotation in `orient`):
+  - the `scale … :eval=frame` w/h (`fit`), the `rotate` angle (`orient`), and the `overlay … :eval=frame` x/y (`place`);
   - each starts from `T = at + round(max(t,0)*Num/Den)`, with the window's absolute start frame baked in (`max(t,0)`
     only guards overlay's configuration-time evaluation, where t is NaN);
   - `pad@vs_pad_L_C` (`eval=frame`) gives every frame one constant canvas, because format, crop and rotate keep their
@@ -342,3 +346,95 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
   - `go test ./internal/server -run 'VideoStudio(LUT|BuiltinLUT|Media|Status|ProjectEffects|RenderAssetIDs)' -count=1`
   - The FFmpeg 5.1 container check (plan index §6) runs the gated 2c tests, including
     `TestRenderAnimatedCropMatchesStatic` and `TestRenderLUTMaxGrid`.
+
+## Compositing (2d)
+
+- Model (`model.go`): `Clip.Blend` and `Clip.Mask` sit between `flip_v` and `effects`.
+  - `blend` is a registry mode other than `normal`; absent means normal, and Validate refuses `"normal"`, so the
+    canonical form stays unique.
+  - `mask` is `*Mask{shape, x, y, w, h, rotation, feather, invert}`, always with all eight keys. x and y are the top
+    left of the unrotated mask in box fractions (−1..1), w and h are 0.01..2, rotation (−360..360) turns it about its
+    centre, and feather (0..0.5) is the full ramp width F as a fraction of the box height.
+  - Mask keys are the base paths `mask.x|y|w|h|rotation|feather` in `clip.keyframes`. `shape` and `invert` are never
+    keyed.
+  - Both fields apply to visual clips only; `validateBlend` and `validateMask` refuse them on an audio track.
+- Validation (`validate_picture.go`): `validateBlend` and `validateMask` return `*FieldError` with the paths
+  `clips/<id>/blend`, `clips/<id>/mask` and `clips/<id>/mask/<field>`. Mask keys without a mask are refused at
+  `clips/<id>/mask`, and out-of-range mask key values are refused by `validateKeyframes` with plain errors.
+- Registry (`effects.go`):
+  - base rows `blend` (choice, default `normal`), `mask.shape` (rect or ellipse), `mask.x|y|w|h|rotation|feather`
+    (keyframable) and `mask.invert`;
+  - the 14 `registryBlendModes` with `BlendModeByID` (normal has `Blend ""`; unexported `blendSwapped` = dodge, burn);
+  - the effect `chroma_key` (category `key`) with `color` (#00b140, not keyframable), `similarity` (0.25),
+    `smoothness` (0.1) and `spill` (0.5), the last three keyframable. Its `Filters` are `colorkey`, `despill`,
+    `alphaextract`, `alphamerge` and `blend`. The defaults were kept after the greenscreen golden (index §4.23).
+
+  `Registry.Unavailable` marks a blend mode unavailable when one of `blendModeFilters` (`blend`, `maskedmerge`,
+  `alphaextract`) is missing.
+- Shared math (`compositing_math.go`, mirrored by `video-studio-picture.js`; parity topics `blend`, `mask`, `key`):
+  - the exact 8-bit forms `blend8`, `mix8`, `keyAlpha8` and `despill8`; the gated render tests compare exports with them
+    at 0 levels;
+  - the real forms `blendChannel`, `compositeChannel`, `maskFrameOf`/`maskFrameAt`/`maskAt` (law L), `keyAlpha` and
+    `despillRGB`, which the GL preview evaluates. They differ from the 8-bit forms only by truncation: soft light up to
+    4 levels, the other modes up to 2, the key up to 1.
+- Export:
+  - Chroma key (`buildChromaKeyEffect`, `effects_build.go`):
+    - `colorkey=color=0xRRGGBB:similarity=…:blend=…` on rgba, with `despill` only for spill > 0 (type from the key
+      colour, mix 0.5, expand 0, the screen channel's scale −spill).
+    - Keyed similarity and smoothness go through `colorkey@vs_key_L_C_I` (`similarity`, `blend`) by sendcmd. Keyed spill
+      goes through `despill@vs_spill_L_C_I` (`green` or `blue`) by sendcmd; `TestRenderDespillCommands` gates it on
+      FFmpeg 5.1.9 and 8.1.1.
+    - `colorkeyReplacesAlpha` is true (`TestRenderColorkeyAlphaSemantics`): colorkey replaces an input alpha. The key
+      on stills, and a key after an earlier key, therefore runs in the alpha wrapper: `split`, `alphaextract` of the
+      input alpha, the keyed picture split again, `alphaextract` of its key, `blend all_mode=multiply` on gray, and
+      `alphamerge`. The wrapper is a two-input stage (labels `vs_fx_L_C_I_<a|keyed|k0|k1|ka|m>`); later commands go to
+      the next command group, and its `colorkey@vs_key` sits in the split branch and reads the group in front.
+  - Mask (`clip_mask.go`, `clipChain.mask`): a two-input stage in box space, after `fit` and before `orient`. The clip
+    converts to gbrap there (the 2c-tolerated 5.1 alpha step for packed rgba input). The mask stream is gbrap with
+    alpha 255·m, merged by
+    `blend=c0_mode=normal:c1_mode=normal:c2_mode=normal:c3_mode=multiply`. The canvas is BW×BH for static geometry, or
+    the pad canvas PW×PH with the box centred for keyframed geometry.
+    - Static form (no `mask.*` key, static box geometry): one full-resolution `geq` frame of Go numbers, then `loop`,
+      trimmed to the window. It costs 0.36 s (8.1.1) and 0.50 s (5.1.9) at 1080p, once per process.
+    - Keyframed form (a `mask.*` key, or keyframed box geometry): `geq` per frame in `T` on a grid of ceil(canvas/4) per
+      side, then `scale=…:flags=bilinear`. The window start is baked into `T` (`windowSourceExprVar`), so every
+      segmentation evaluates the same absolute frames.
+    - Row cache: the frame quantities depend on `T` alone. Stage A runs once per row, at the row's first pixel:
+      `if(lt(X,0.5), stage A, 0)`. The registers kept for the row are 2 = cx, 5 = cy, 9 = rx, 0 = ry, 1 = cos θ, 7 = sin θ
+      and 8 = F. In the keyed form, stage B uses only registers 3, 4 and 6. The static form has every register except
+      0, 1, 7, 8 and 9 to itself, because its frame quantities are Go numbers. The window source uses registers 0 and 1
+      (2 and 3 with a ramp) in stage A. `maskTerms.kept` selects the layout.
+    - `maskExpr` stays within registers 0–9 (the allocation is documented at the top of `clip_mask.go`). The mask branch
+      never uses sendcmd or gblur; the opacity commands go to the next command group.
+  - Blend (`blend_layers.go`, `buildVideoSegmentWith`):
+    - Each track layer splits into runs of one effective mode (`blendRuns`): a clip's frames take its mode, a transition
+      takes the shared mode or normal (`overlapBlend`), and transparent frames join a neighbouring run.
+    - An all-normal layer keeps the 2c overlay byte for byte (`normalComposite`).
+    - Otherwise each sublayer (`splitBlendLayers`) is padded to the window, and the sublayers composite onto the base in
+      turn: normal first, then the other modes in registry order (`blendComposite`). A mode composite is
+      `blend c0..c2_mode=M` on gbrp (dodge and burn with the inputs swapped), then `maskedmerge=planes=7` with the
+      layer's alpha from `alphaextract`. Labels are `vs_bl_<L>_<n>_<part>`.
+    - No stage takes runtime commands: never sendcmd on `blend`, `overlay` or `maskedmerge`, and `blend`'s
+      `all_opacity` is never used.
+- Capabilities (`capabilities.go`): `blend:<mode>` needs `blend`, `maskedmerge` and `alphaextract`
+  (`blendModeFilters`); `mask` needs `geq`, `blend` and `loop` (`maskFilters`); chroma_key goes through its `Filters`.
+  All of them are in `phase2Filters` too. A missing filter is a `*CapabilityError`, and the job error is
+  `feature_unavailable`.
+- Costs: index §4.22 (spike) and §4.23 (measured in Task 8). A keyed mask is the expensive part, and it is accepted for
+  export.
+- Goldens:
+  - `goldenframe/cases_2d.go`: media `MediaGreen` (`greenscreen`) and `MediaLayer` (`layer`), and the key, mask, blend,
+    blend-transition and combined cases on `gl` (`compositingCases`).
+  - `goldenframe/delta.go`: `Delta`, `DeltaFidelity`, `DeltaBlend`, `DeltaMask` and `DeltaKey`. The bounds are a changed
+    share of at least 0.02, a slope of 0.9 to 1.1, and r of at least 0.98 (blend) or 0.95 (mask, key). Every 2d case
+    carries a Delta, and four 2c cases opt in with `ReportOnly`.
+  - Minima and Delta triples: index §4.23.
+- Tests:
+  - `go test ./internal/videostudio -run 'Blend|Mask|ChromaKey|Colorkey|Despill|Key(8|Alpha|Params)|Composit|Parity|ClipChain|SegmentGraph|Segmented|Validate|Capabilit|Registry|SendCmd|Expr' -count=1`
+  - `go test ./internal/videostudio/goldenframe -run 'Delta|CompositingCases' -count=1`
+  - `go test ./internal/server -run 'VideoStudio(ProjectCompositing|ProjectEffects|Status)' -count=1`
+  - The FFmpeg 5.1 container check (plan index §6) runs the gated 2d tests: `TestRenderChromaKeyMatchesFormula`,
+    `TestRenderColorkeyAlphaSemantics`, `TestRenderDespillCommands`, `TestRenderChromaKeyKeyframes`,
+    `TestRenderMaskMatchesFormula`, `TestRenderMaskFollowsKeyframedBox`, `TestRenderBlendModesMatchFormula`,
+    `TestRenderBlendTransitionModes` and `TestSegmentedRenderCompositing`.
+  - `TestCompositingCostRecordOptIn` records the 2d costs (`AURAGO_VIDEO_STUDIO_BENCHMARK=1`) and asserts nothing.

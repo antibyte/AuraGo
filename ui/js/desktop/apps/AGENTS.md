@@ -1661,7 +1661,7 @@ buttons and menu popovers remain excluded from those gestures.
     `validTimeline`). `clipState` evaluates crop, flips and the `on` entries (`effects: [{index, id, values}]`).
   - `VideoStudioKeyframeEdit` adds the stack operations `addEffect`, `removeEffect`, `moveEffect`, `setEffectOn`,
     `resetEffect`, `setEffectParams`, `setCrop` and `setFlip`; every keyframe operation accepts `crop.*` and
-    `effects.<i>.<param>`. Paste attributes has the groups `basePicture` (crop, flips) and `effects`.
+    `effects.<i>.<param>`. Paste attributes has the groups `basePicture` (crop, flips; 2d adds blend and mask) and `effects`.
 - Colour and picture (phase 2c), UI part:
   - Effects section (`video-studio-inspector-effects.js`, directly after `-keyframes.js`; `VideoStudioInspectorEffects`,
     `P.wireEffectStack`, `P.handleEffectStackKeys`, `P.effectCommand`, `P.addEffect`, `P.uploadLUT`): "Add effect" by
@@ -1701,6 +1701,60 @@ buttons and menu popovers remain excluded from those gestures.
     `previewEffectFallback`. The 2D painter crops and flips only.
   - Node checks: `go test ./ui -run 'TestVideoStudio(EffectStack|ColorWheel|EffectsLibrary|Effects|Picture|Canonical|KeyframeStrip|CropHandle|Painter2D|RemoveLUT)' -count=1`.
     Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopVideoStudioEffects(GL)?Browser' -count=1 -timeout 30m`.
+- Compositing (phase 2d), DOM-free part:
+  - `VideoStudioEffects` mirrors the 2d registry rows (`blend`, `mask.*`, the 14 blend modes, `chroma_key`) and Go's
+    `validateBlend`/`validateMask` (`validPicture`). It adds `blendModes()`, `blendAvailable(id)`, `maskAnimated(clip)`
+    and `MASK_PATHS`.
+  - `clipState` gives `blend` (`'normal'` when absent) and `mask` (`null` or the eight values at the frame).
+    `animatablePaths` lists `mask.*` only while the clip has a mask.
+  - `VideoStudioPicture` holds the real-valued compositing forms of Go `compositing_math.go` (parity topics `blend`,
+    `mask`, `key`): `BLEND_SWAPPED`, `blendChannel`, `compositeRGB`, `maskFrame`, `maskAt`, `keyColor`, `keyAlpha`,
+    `despill`, `overlapBlend`, `passUniforms('chroma_key', …)`, `maskUniforms` and `boxRect`.
+  - `VideoStudioKeyframeEdit` adds `setBlend`, `setMask`, `removeMask` (with its keys) and `pasteMask`. `setMask` takes
+    any subset of the values (`shape`, `invert` and the six numbers, clamped to the registry ranges); animated paths get
+    a key at the playhead, and a clip without a mask starts from the registry defaults. The internal `writeParams` accepts
+    colour params (lowercased `#rrggbb`). `VideoStudioEdit`'s `ATTRIBUTE_GROUPS.basePicture` is crop, flips, blend and
+    mask.
+- Compositing (phase 2d), UI part:
+  - Picture section (`video-studio-inspector.js`):
+    - `select[data-blend]`: unavailable modes are disabled, but the clip's own mode stays selected. `[data-blend-hint]`
+      shows `blendTransitionHint` while a transition joins two modes (`blendJoins`).
+    - The mask block (`.vs-mask`, `maskMarkup`): `[data-mask-set="none|rect|ellipse"]` and
+      `[data-mask-field="x|y|w|h|rotation|feather"]` with keyframe tools (`MASK_FIELDS`: percent of the box for x, y,
+      width and height, degrees, percent of the box height for feather), then `[data-mask-invert]` and
+      `[data-action="mask-mode"]` (`maskModeButton`).
+    - Titles and stickers take both.
+  - Edits (`video-studio-inspector-effects.js`), one undo step each:
+    - `P.compositingChange`: the blend list, the mask fields (clamped to the registry range) and a chroma_key entry's
+      colour input (`input[type="color"][data-fx-param]`);
+    - `P.effectCommand`: the mask shape (`[data-mask-set]`), Invert (`[data-mask-invert]`) and the key presets
+      (`[data-fx-key-preset="green|blue"]`, `KEY_PRESETS`).
+
+    `VideoStudioInspectorEffects.addEntry` puts a new `chroma_key` at stack index 0 for Add effect and the effects
+    library. `P.syncEffectControls` keeps the mask fields and the mask-mode button in step with the playhead.
+  - Mask handles (`video-studio-mask.js`, directly after `-stage.js`):
+    - Parts: `P.setMaskMode`, `P.updateMaskBox` (called by `updateTransform`), `P.wireMaskBox` and `P.handleMaskKeys`
+      (in `handleKeys` after `P.handleCropKeys`). The DOM-free math `P.maskGeometry`, `P.maskDrag`, `P.maskDragDelta`
+      and `P.maskNudge` is Node-tested.
+    - The overlay `[data-mask-box]` is built once in `.vs-preview-mat`. It holds `[data-mask-shape]` (value `rect` or
+      `ellipse`) and the `[data-mask-handle]` buttons `nw`, `n`, `ne`, `e`, `se`, `s`, `sw`, `w`, `rotate` and `feather`.
+    - Mask mode needs a mask, hides the transform box, and ends when the clip, its selection, the playhead, the lock or
+      the mask goes away. It ends crop mode and is ended by it; entering it closes the narrow inspector drawer.
+    - A drag moves only the overlay until pointerup, which commits once through `setMask` with the changed values.
+      Each arrow-key press is one `setMask` (`P.maskNudge`). `Enter` and `Escape` leave; `Delete` and `Backspace` are
+      swallowed in the overlay.
+  - Preview:
+    - `clipPasses` runs the `KEY` pass (the chroma key). `placeClip` draws `PLACE_MASKED` for a clip with a mask (law L
+      per fragment in box px, `maskUniforms` and `boxRect`). `MASK` is the GLSL `vsMask(p)` that `PLACE_MASKED` inlines.
+      The masked program reports `('effect', 'mask')` once when it fails.
+    - Non-normal modes and shared-mode transitions composite through `blendLayer(blendProgram(mode), layer, target)`,
+      which copies back into the target (`BLEND_HEAD`, the mode's body in `BLENDS`, `BLEND_MAIN` in `shaders.js`).
+      `transitionMode` is `overlapBlend`. A blended clip still goes through `placeClip`, so its mask works.
+    - A failed blend program reports `('effect', 'blend:<mode>')` and the clip falls back to Normal. The preview notice
+      for a failed effect is `previewEffectFallback`.
+    - The 2D painter draws none of them; mask mode still shows the outline, because the overlay is DOM.
+  - Node checks: `go test ./ui -run 'TestVideoStudio(Compositing|MaskHandles|Effects|Picture|Canonical|EffectStack|EffectsLibrary|KeyframeStrip|NavigationLoadOrder)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioCompositing(GL)?Browser$' -count=1 -timeout 30m`.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/effects/AI;

@@ -344,8 +344,9 @@ it asks first, removes those effects in the same undo step, and then deletes the
 **Detail** and **Stylize** (the looks are listed under Color). Drag one onto a clip in the timeline, or double-click it,
 or press `Enter` or `Space`, to add it to the selected clip. Effects that the server's FFmpeg lacks are greyed out.
 
-**Paste attributes** has two more groups: **Crop and flip** (the crop and the flips) and **Effects** (the whole stack
-with its keyframes, timed relative to the clip start).
+**Paste attributes** has two more groups: **Crop, flip, blend mode and mask** (the crop, the flips, the blend mode and
+the mask; mask values that the target animates get a keyframe at the playhead, and a source without a mask removes the
+target's mask) and **Effects** (the whole stack with its keyframes, timed relative to the clip start).
 
 **Preview and export.** The WebGL2 preview draws every effect with the same formulas as the export, and golden tests
 compare it with FFmpeg's frames. The 2D drawing shows crop and flip but no effects, and its notice says so. If the
@@ -358,6 +359,80 @@ An export that needs them stops with a message, and **Check Video Studio** lists
   than in the export.
 - A keyframed LUT intensity and a keyframed vignette make that step of the export about 20 and 12 times slower; a
   fixed intensity below 100 % about 4 times. Use them where they matter.
+
+## Compositing
+
+**Blend modes.** The Picture section's **Blend mode** list decides how a visual clip mixes with the tracks below it.
+Titles and stickers have the list too. The modes are **Normal** (the default), **Multiply**, **Screen**, **Overlay**,
+**Soft light**, **Hard light**, **Darken**, **Lighten**, **Difference**, **Exclusion**, **Add**, **Subtract**,
+**Color dodge** and **Color burn**.
+- The clip's opacity, its mask and its transparent areas still count. Where the clip is half transparent, the result
+  lies halfway between the picture below and the blended picture.
+- Gaps and fully transparent parts change nothing in any mode.
+- During a transition between two clips with the same mode, the overlap blends with that mode. When the modes differ,
+  the overlap uses Normal, and the inspector says so.
+- A mode that the server's FFmpeg cannot export is greyed out in the list. A clip that already uses one keeps it, and
+  an export that needs it stops with a message; **Check Video Studio** lists the missing filters.
+
+**Masks.** A mask shows one part of a visual clip and hides the rest. The **Mask** block in the Picture section offers
+**None**, **Rectangle** and **Ellipse**. Choosing a shape adds a mask in the middle of the clip; **None** removes the
+mask with its keyframes. The mask belongs to the clip's box: moving, resizing or rotating the clip carries the mask
+along, while crop, flips and effects change only the picture under it.
+- **Mask X** and **Mask Y** place the top left corner of the unrotated mask, as percentages of the clip box's width and
+  height. **Mask width** and **Mask height** set its size in the same way. **Mask rotation** turns the mask about its
+  centre.
+- **Feather** softens the edge: it is the width of the soft band, centred on the outline, in percent of the clip box
+  height (0 to 50 %).
+- **Invert mask** shows the outside instead of the inside.
+- Position, size, rotation and feather can have keyframes, with the same stopwatch and diamonds as the position.
+
+**Edit mask in the preview** shows the mask on the picture while the playhead is inside the clip:
+- Drag inside the outline to move the mask, or drag a corner or edge handle to resize it while the opposite side stays
+  in place. The round handle above the mask rotates it, and the handle below it softens the edge.
+- With the mask focused, the arrow keys move it by 1 % of the box (`Shift`: 10 %). On a focused size handle they move
+  that edge; on the rotate handle they turn the mask by 1° (`Shift`: 15°); on the feather handle they change the
+  feather by 0.1 % (`Shift`: 1 %).
+- `Enter` or `Esc` ends mask editing; so do selecting another clip and moving the playhead out of the clip. Mask
+  editing and **Crop in the preview** replace each other.
+- Each drag and each key press is one undo step. With a stopwatch on, a drag or key at the playhead sets a keyframe
+  there.
+
+**Chroma key.** The **Chroma key** effect makes a coloured background transparent, for example a green screen. It is
+in the **Key** category of **Add effect** and of the effects library. A new chroma key goes to the top of the effect
+stack, so it sees the camera picture before any colour effect.
+- **Key color** is the background colour. Pick it, or press **Green screen** or **Blue screen**.
+- **Similarity** sets how close a colour must be to the key colour to disappear; raise it until the background is gone.
+- **Smoothness** softens the step between kept and removed colours; 0 makes a hard edge.
+- **Spill suppression** removes the green or blue cast that the background leaves on edges and hair. Other key colours
+  use whichever of green and blue is stronger in them.
+- Similarity and smoothness can have keyframes. The key colour cannot. Spill suppression can have keyframes too.
+
+**Editing.** Splitting, duplicating, copying and pasting a clip keep its blend mode, mask and mask keyframes.
+**Reverse** reverses mask keyframes like the other keyframes. **Freeze frame** keeps the blend mode and the mask as they
+are at that frame, without keyframes. **Detach audio** gives the sound clip neither.
+
+**Preview and export.** The WebGL2 preview draws blend modes, masks and chroma keys with the export's formulas. Golden
+tests compare it with FFmpeg's frames, and each 2d golden case also checks that the change the preview makes follows the
+change the export makes. The 2D drawing shows none of them, and its notice says so; mask editing still works there and
+shows the outline. If the graphics driver cannot draw a blend mode or a mask, the preview shows the clip in Normal or
+without its mask, and a notice says so; the export is not affected.
+- A mask with keyframes is computed for every frame at a quarter of the clip box's resolution and then scaled up. A
+  very hard edge (feather 0) can therefore sit up to about 1.3 pixels away from the preview's edge.
+- Export cost at 1080p, measured with FFmpeg 8.1 and 5.1:
+  - a mask with keyframes adds about 15 ms per frame on FFmpeg 8.1 and about 37 ms on 5.1;
+  - a mask without keyframes on a clip that does not move is computed once per export segment and costs about 0.2 to
+    0.4 seconds (measured: 3.2 ms per frame on FFmpeg 8.1 and 6.9 ms on 5.1 over a 50-frame clip);
+  - each blend mode other than Normal adds about 3 to 8 ms per frame and track; a layer that mixes three modes with
+    Normal adds about 16 to 31 ms per frame;
+  - a chroma key adds about 4 to 6 ms per frame.
+
+  Keyframed masks cost the most, so use them where they matter. Many keyframed masks playing at the same time make an
+  export noticeably slower. If the server's FFmpeg lacks a filter that blend modes or masks need, the export stops with
+  a message, and **Check Video Studio** lists the filter.
+
+**Videos with their own alpha channel.** A video with an alpha channel, such as WebM VP9 with alpha, is treated as
+opaque in the export, because FFmpeg's built-in VP9 decoder drops the alpha. The browser preview may still show the
+transparency. This also applies when such a clip is keyed.
 
 ## Preview engine, proxies and range check
 
