@@ -1,80 +1,551 @@
-/* desktop-theme-cyberpunk.css - Cyberpunk desktop theme. Placeholder tokens copied from Standard; the Wave-2 skin replaces them. */
+/* desktop-theme-cyberpunk.css - Cyberpunk desktop theme skin: black glass, cyan HUD frames, yellow accents.
+   The palette is the one of the chat "cyberwar" theme. Every rule is rooted at .desktop-body[data-theme="cyberpunk"]
+   (ui/desktop_theme_css_contract_test.go); motion sits behind data-animations and moves only transform and opacity. */
+
+/* Share Tech Mono (c) 2012 Carrois Type Design, SIL Open Font License 1.1, see /fonts/ShareTechMono-LICENSE.txt. */
+@font-face {
+    font-family: "Desktop Theme Share Tech";
+    src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
 
 .desktop-body[data-theme="cyberpunk"] {
     color-scheme: dark;
 
     /* Core */
-    --vd-bg: #0c1016;
-    --vd-surface: #171d26;
-    --vd-surface-strong: #1d2530;
-    --vd-border: rgba(255, 255, 255, 0.12);
-    --vd-border-bright: rgba(255, 255, 255, 0.18);
-    --vd-text: #edf1f7;
-    --vd-muted: #aeb7c6;
-    --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
-    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--vd-accent) 8%, transparent);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --vd-window-radius: 12px;
+    --vd-bg: #02050F;
+    --vd-surface: rgba(11, 17, 36, 0.94);
+    --vd-surface-strong: rgba(13, 20, 40, 0.97);
+    --vd-border: rgba(0, 240, 255, 0.22);
+    --vd-border-bright: rgba(0, 240, 255, 0.55);
+    --vd-text: #E8F7FF;
+    --vd-muted: #8FA7C0;
+    --vd-shadow: 0 0 0 1px #000, 0 0 18px rgba(0, 240, 255, 0.12), 0 18px 48px rgba(0, 0, 0, 0.7);
+    --vd-shadow-window: 0 0 0 1px #000, 0 0 24px rgba(0, 240, 255, 0.18), 0 24px 60px rgba(0, 0, 0, 0.7);
+    --vd-inner-glow: inset 0 0 0 1px rgba(0, 240, 255, 0.06);
+    --vd-window-radius: 0px;
     --vd-font-ui: 'Geist', system-ui, sans-serif;
 
     /* Fixed accent */
-    --vd-accent: #27C7A6;
-    --vd-accent-r: 39;
-    --vd-accent-g: 199;
-    --vd-accent-b: 166;
-    --vd-accent-glow: rgba(39, 199, 166, 0.12);
+    --vd-accent: #F3E600;
+    --vd-accent-r: 243;
+    --vd-accent-g: 230;
+    --vd-accent-b: 0;
+    --vd-accent-glow: rgba(243, 230, 0, 0.16);
 
     /* Theme bridge */
-    --vd-theme-app-bg: #11151c;
-    --vd-theme-panel-bg: #191f28;
-    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
-    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
-    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
-    --vd-theme-border: rgba(191, 210, 235, 0.14);
-    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
-    --vd-theme-muted: #aeb7c6;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
-    --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
-    --vd-theme-radius-panel: 10px;
-    --vd-theme-radius-modal: 14px;
-    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
-    --vd-theme-blur: blur(24px) saturate(1.15);
+    --vd-theme-app-bg: #070B18;
+    --vd-theme-panel-bg: #0B1124;
+    --vd-theme-panel-bg-strong: #0D1428F2;
+    --vd-theme-chrome-bg: #060A16F2;
+    --vd-theme-overlay-bg: rgba(1, 3, 10, 0.74);
+    --vd-theme-control-bg: rgba(0, 240, 255, 0.06);
+    --vd-theme-control-hover: rgba(0, 240, 255, 0.14);
+    --vd-theme-border: rgba(0, 240, 255, 0.22);
+    --vd-theme-border-strong: rgba(0, 240, 255, 0.55);
+    --vd-theme-muted: #8FA7C0;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 243), var(--vd-accent-g, 230), var(--vd-accent-b, 0), 0.14);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 243), var(--vd-accent-g, 230), var(--vd-accent-b, 0), 0.5);
+    --vd-theme-radius-panel: 0px;
+    --vd-theme-radius-modal: 0px;
+    --vd-theme-shadow-panel: 0 0 0 1px #000, 0 0 18px rgba(0, 240, 255, 0.14), 0 16px 40px rgba(0, 0, 0, 0.65);
+    --vd-theme-shadow-modal: 0 0 0 1px #000, 0 0 32px rgba(0, 240, 255, 0.2), 0 28px 80px rgba(0, 0, 0, 0.78);
+    --vd-theme-blur: none;
 
     /* Chrome */
     --vd-chrome-highlight: 0 0 0 transparent;
-    --vd-chrome-ring: 0 0 0 transparent;
-    --vd-chrome-hairline: none;
+    --vd-chrome-ring: inset 0 0 0 1px rgba(0, 240, 255, 0.55);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.7) 14%, rgba(0, 240, 255, 0.7) 86%, transparent);
 
     /* Design system */
-    --ds-color-fg-primary: #edf1f7;
-    --ds-color-fg-secondary: #d0d0d0;
-    --ds-color-fg-muted: #aeb7c6;
-    --ds-color-fg-disabled: #6b6b6b;
-    --ds-color-bg-canvas: #0c1016;
-    --ds-color-bg-raised: #171d26;
-    --ds-color-bg-overlay: #1d2530;
-    --ds-color-bg-modal: #222c39;
-    --ds-color-surface-0: #11151c;
-    --ds-color-surface-1: #171d26;
-    --ds-color-surface-2: #1d2530;
-    --ds-color-surface-3: #222c39;
-    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
-    --ds-color-border-default: rgba(255, 255, 255, 0.18);
-    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
-    --ds-color-border-focus: #E95420;
-    --ds-color-accent-500: #E95420;
-    --ds-color-accent-600: #c7431a;
-    --ds-color-accent-glow: rgba(233, 84, 32, 0.08);
-    --ds-color-control-active: rgba(255, 255, 255, 0.14);
-    --ds-color-inner-highlight: rgba(255, 255, 255, 0.04);
-    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.28);
-    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.34);
-    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.42);
-    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.52);
-    --ds-elevation-5: 0 32px 96px rgba(0, 0, 0, 0.6);
-    --ds-blur-fine: blur(22px) saturate(1.3);
-    --ds-blur-coarse: blur(8px) saturate(1.1);
+    --ds-color-fg-primary: #E8F7FF;
+    --ds-color-fg-secondary: #BCD3E6;
+    --ds-color-fg-muted: #8FA7C0;
+    --ds-color-fg-disabled: #6C8199;
+    --ds-color-bg-canvas: #02050F;
+    --ds-color-bg-raised: #070B18;
+    --ds-color-bg-overlay: #0B1124;
+    --ds-color-bg-modal: #0D1428;
+    --ds-color-surface-0: #070B18;
+    --ds-color-surface-1: #0B1124;
+    --ds-color-surface-2: #0D1428;
+    --ds-color-surface-3: #111A33;
+    --ds-color-border-subtle: rgba(0, 240, 255, 0.14);
+    --ds-color-border-default: rgba(0, 240, 255, 0.3);
+    --ds-color-border-strong: rgba(0, 240, 255, 0.55);
+    --ds-color-border-focus: #F3E600;
+    --ds-color-accent-500: #F3E600;
+    --ds-color-accent-600: #C9BF00;
+    --ds-color-accent-glow: rgba(243, 230, 0, 0.14);
+    --ds-color-control-active: rgba(0, 240, 255, 0.24);
+    --ds-color-inner-highlight: rgba(0, 240, 255, 0.06);
+    --ds-color-success-fg: #0DF272;
+    --ds-color-danger-fg: #FF3D7F;
+    --ds-color-info-fg: #00F0FF;
+    --ds-elevation-1: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);
+    --ds-elevation-2: 0 0 0 1px #000, 0 6px 16px rgba(0, 0, 0, 0.6);
+    --ds-elevation-3: 0 0 0 1px #000, 0 0 14px rgba(0, 240, 255, 0.1), 0 12px 32px rgba(0, 0, 0, 0.65);
+    --ds-elevation-4: 0 0 0 1px #000, 0 0 18px rgba(0, 240, 255, 0.14), 0 20px 50px rgba(0, 0, 0, 0.7);
+    --ds-elevation-5: 0 0 0 1px #000, 0 0 24px rgba(0, 240, 255, 0.18), 0 28px 70px rgba(0, 0, 0, 0.75);
+    --ds-blur-fine: blur(10px) saturate(1.2);
+    --ds-blur-coarse: blur(4px);
+
+    /* Geometry and type of this skin */
+    --vd-taskbar-height: 48px;
+    --vd-taskbar-gap: calc(var(--vd-taskbar-height, 48px) + var(--vd-taskbar-offset, 0px));
+    --vd-start-button-size: 32px;
+    --vd-cyber-bar: 36px;
+    --vd-cyber-menubar: 28px;
+    --vd-cyber-control: 24px;
+    --vd-cyber-display: 'Oxanium', 'Geist', system-ui, sans-serif;
+    --vd-cyber-mono: "Desktop Theme Share Tech", 'Geist', system-ui, sans-serif;
+    --vd-cyber-scan: repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.05) 0 1px, transparent 1px 3px);
+}
+
+/* Touch devices get bigger bars and controls; the phone layout matches desktop-windows.css (52px bars). */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="cyberpunk"] { --vd-cyber-bar: 48px; --vd-cyber-control: 44px; }
+}
+
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="cyberpunk"] { --vd-cyber-bar: 52px; --vd-cyber-menubar: 32px; }
+}
+
+/* === Workspace: a static scanline veil over the wallpaper, below icons, widgets and windows === */
+.desktop-body[data-theme="cyberpunk"] .vd-workspace::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0 1px, transparent 1px 3px);
+    opacity: 0.3;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-workspace.vd-desktop-file-drop-target::after { inset: 10px; border-radius: 0; background: none; opacity: 1; }
+
+/* === Taskbar: black glass, cyan top line, yellow underline for the active task, angular start tab === */
+.desktop-body[data-theme="cyberpunk"] .vd-taskbar {
+    border: 0;
+    border-radius: 0;
+    background: #02050FE6;
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
+    backdrop-filter: var(--ds-blur-fine);
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-taskbar::before {
+    left: 0;
+    right: 0;
+    height: 1px;
+    border-radius: 0;
+    background: #00F0FF;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-taskbar-system { padding-left: 10px; border-left: 1px solid rgba(0, 240, 255, 0.22); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-button {
+    width: calc(var(--vd-start-button-size) * 1.7);
+    min-width: calc(var(--vd-start-button-size) * 1.7);
+    height: var(--vd-start-button-size);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    transform: none;
+    filter: drop-shadow(0 0 6px rgba(243, 230, 0, 0.4));
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--vd-accent);
+    clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 11px 100%, 0 calc(100% - 11px));
+    pointer-events: none;
+}
+
+/* The black glyph is a 3x3 grid of 4px squares (one square plus eight shadows); the Papirus launcher disc would
+   turn into a black blob. Both pseudo-elements stay out of hit testing so the button itself gets the clicks. */
+.desktop-body[data-theme="cyberpunk"] .vd-start-button::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: calc(50% - 8px);
+    top: calc(50% - 8px);
+    width: 4px;
+    height: 4px;
+    background: #000;
+    box-shadow: 6px 0 #000, 12px 0 #000, 0 6px #000, 6px 6px #000, 12px 6px #000, 0 12px #000, 6px 12px #000, 12px 12px #000;
+    opacity: 1;
+    transform: none;
+    transition: none;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-button :is(.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon) { display: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-start-button:hover { background: transparent; box-shadow: none; transform: none; filter: drop-shadow(0 0 9px rgba(243, 230, 0, 0.6)); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-button:hover::before { background: #FFF45C; }
+.desktop-body[data-theme="cyberpunk"] .vd-start-button[data-active="true"] { box-shadow: none; transform: none; filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.55)); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-button[data-active="true"]::before { background: #00F0FF; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-task-button {
+    position: relative;
+    border: 1px solid rgba(0, 240, 255, 0.22);
+    border-radius: 0;
+    background: rgba(0, 240, 255, 0.04);
+    color: var(--vd-text);
+    font: 600 11px/1 var(--vd-cyber-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-task-button:hover { border-color: rgba(0, 240, 255, 0.6); background: rgba(0, 240, 255, 0.12); }
+.desktop-body[data-theme="cyberpunk"] .vd-task-button.active { border-color: rgba(0, 240, 255, 0.5); background: rgba(0, 240, 255, 0.1); box-shadow: none; }
+
+/* Every task button is an open window: a short cyan tick; the focused one carries the yellow underline. */
+.desktop-body[data-theme="cyberpunk"] .vd-task-button::after {
+    content: "";
+    position: absolute;
+    left: calc(50% - 5px);
+    right: calc(50% - 5px);
+    bottom: 0;
+    height: 2px;
+    background: rgba(0, 240, 255, 0.55);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-task-button.active::after { left: 6px; right: 6px; background: var(--vd-accent); box-shadow: 0 0 8px rgba(243, 230, 0, 0.55); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-clock { color: #00F0FF; font-family: var(--vd-cyber-mono); font-size: 13px; letter-spacing: 0.1em; text-shadow: 0 0 8px rgba(0, 240, 255, 0.45); }
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-fullscreen-button, .vd-notification-button, .vd-show-desktop-btn, .vd-space-pager-btn, .vd-agent-button, .vd-taskbar-widget-btn) {
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    background: transparent;
+    color: var(--vd-muted);
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-fullscreen-button:enabled, .vd-notification-button, .vd-show-desktop-btn, .vd-live-speech-button, .vd-agent-button, .vd-taskbar-widget-btn):hover {
+    border-color: rgba(0, 240, 255, 0.7);
+    background: rgba(0, 240, 255, 0.14);
+    color: #00F0FF;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-space-pager-btn { font-family: var(--vd-cyber-mono); }
+.desktop-body[data-theme="cyberpunk"] .vd-space-pager-btn:is(.active, [aria-pressed="true"]) { color: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-agent-button { font: 600 11px/1 var(--vd-cyber-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-agent-dot { background: #FF005C; box-shadow: 0 0 6px rgba(255, 0, 92, 0.8); }
+.desktop-body[data-theme="cyberpunk"] .vd-notification-badge { background: var(--vd-accent); color: #000; font-family: var(--vd-cyber-mono); }
+
+/* Squared corners for the small shell controls. */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-fullscreen-button, .vd-notification-button, .vd-show-desktop-btn, .vd-space-pager-btn, .vd-agent-button, .vd-taskbar-widget-btn, .vd-live-speech-button, .vd-taskbar-pin, .vd-agent-dot, .vd-status-dot, .vd-notification-badge, .vd-icon, .vd-start-item, .vd-start-recent-item, .vd-start-category, .vd-context-item, .vd-window-menu-item, .vd-window-menu-button) {
+    border-radius: 0;
+}
+
+/* === Windows: square frames, cyan ring and glow, yellow corner brackets === */
+/* isolation keeps the z-index of the ring and bracket pseudo-elements inside the window's own stacking context. */
+.desktop-body[data-theme="cyberpunk"] .vd-window {
+    isolation: isolate;
+    grid-template-rows: var(--vd-cyber-bar) minmax(0, 1fr);
+    border: 0;
+    border-radius: 0;
+    background: var(--vd-theme-app-bg);
+    box-shadow: 0 0 0 1px #000, 0 12px 32px rgba(0, 0, 0, 0.6);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window.has-window-menu { grid-template-rows: calc(var(--vd-cyber-bar) + var(--vd-cyber-menubar)) minmax(0, 1fr); }
+.desktop-body[data-theme="cyberpunk"] .vd-window.no-titlebar { grid-template-rows: minmax(0, 1fr); }
+.desktop-body[data-theme="cyberpunk"] .vd-window.active { box-shadow: var(--vd-shadow-window); }
+
+/* A file dragged over a window: the frameless window shows it with an outer ring (yellow to accept, magenta to refuse). */
+.desktop-body[data-theme="cyberpunk"] .vd-window.vd-window-file-drop-target { box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--vd-accent), 0 0 24px rgba(243, 230, 0, 0.35); }
+.desktop-body[data-theme="cyberpunk"] .vd-window.vd-window-file-drop-reject { box-shadow: 0 0 0 1px #000, 0 0 0 3px #FF005C, 0 0 24px rgba(255, 0, 92, 0.35); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: var(--vd-chrome-highlight), var(--vd-chrome-ring);
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: 4;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 10px 2px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 2px 10px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 10px 2px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 2px 10px no-repeat;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window:not(.active)::before,
+.desktop-body[data-theme="cyberpunk"] .vd-window:not(.active)::after { opacity: 0.45; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window.maximized::before,
+.desktop-body[data-theme="cyberpunk"] .vd-window.maximized::after { display: none; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-titlebar {
+    min-height: var(--vd-cyber-bar);
+    padding: 0 6px 0 12px;
+    column-gap: 10px;
+    background: #060A16;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.28);
+    font-weight: 600;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window.active .vd-window-titlebar { background: #060A16; border-bottom-color: rgba(0, 240, 255, 0.5); box-shadow: inset 3px 0 0 var(--vd-accent); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-cyber-bar) var(--vd-cyber-menubar); padding: 0 6px 0 12px; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-title {
+    color: var(--vd-muted);
+    font: 600 12px/1.2 var(--vd-cyber-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window.active .vd-window-title { color: var(--vd-accent); text-shadow: 0 0 10px rgba(243, 230, 0, 0.35); }
+.desktop-body[data-theme="cyberpunk"] .vd-window-subtitle { font-family: var(--vd-cyber-mono); font-size: 11px; letter-spacing: 0.08em; }
+.desktop-body[data-theme="cyberpunk"] .vd-window:not(.active) :is(.vd-window-title, .vd-window-subtitle) { opacity: 0.9; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-button {
+    width: var(--vd-cyber-control);
+    height: var(--vd-cyber-control);
+    border: 1px solid rgba(0, 240, 255, 0.5);
+    border-radius: 0;
+    background: transparent;
+    color: #00F0FF;
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-button::after { display: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-window:not(.active) .vd-window-button { border-color: rgba(0, 240, 255, 0.25); color: var(--vd-muted); }
+.desktop-body[data-theme="cyberpunk"] .vd-window-button:hover { border-color: #00F0FF; background: #00F0FF; color: #000; }
+.desktop-body[data-theme="cyberpunk"] .vd-window-button[data-action="close"]:hover { border-color: #FF005C; background: #FF005C; color: #000; }
+.desktop-body[data-theme="cyberpunk"] .vd-window-ai-button { border-color: rgba(243, 230, 0, 0.45); }
+.desktop-body[data-theme="cyberpunk"] .vd-window-ai-button:hover { border-color: var(--vd-accent); background: rgba(243, 230, 0, 0.16); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-menubar { margin: 0 -6px 0 -12px; padding: 0 8px; border-top: 1px solid rgba(0, 240, 255, 0.14); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-menu-button {
+    color: var(--vd-muted);
+    font: 600 11px/1 var(--vd-cyber-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="cyberpunk"] .vd-window-menu-button:focus-visible,
+.desktop-body[data-theme="cyberpunk"] .vd-window-menu.open > .vd-window-menu-button { border-color: rgba(0, 240, 255, 0.4); background: rgba(0, 240, 255, 0.1); color: var(--vd-accent); }
+
+/* Scrollbars of windows and the start menu: square cyan thumbs. */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-window-content, .vd-start-apps) ::-webkit-scrollbar-track { border-radius: 0; background: rgba(0, 240, 255, 0.05); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-window-content, .vd-start-apps) ::-webkit-scrollbar-thumb { border-radius: 0; background: rgba(0, 240, 255, 0.34); background-clip: padding-box; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-window-content, .vd-start-apps) ::-webkit-scrollbar-thumb:hover { background: var(--vd-accent); background-clip: padding-box; }
+
+/* === Panels: menus, popovers, dialogs - #0B1124 with a static scanline texture and a square cyan frame === */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog) {
+    border: 1px solid var(--vd-theme-border-strong);
+    border-radius: 0;
+    background-color: var(--vd-theme-panel-bg);
+    background-image: var(--vd-cyber-scan);
+    box-shadow: var(--vd-theme-shadow-panel);
+}
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-modal, .vd-file-dialog) { box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-menu { left: 6px; bottom: calc(var(--vd-taskbar-height) + 6px); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-menu::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 56px;
+    height: 2px;
+    background: var(--vd-accent);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-search { border-bottom: 1px solid rgba(0, 240, 255, 0.28); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-search input {
+    border: 1px solid rgba(0, 240, 255, 0.35);
+    border-radius: 0;
+    background: #02050F;
+    font-family: var(--vd-cyber-mono);
+    letter-spacing: 0.04em;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-search input:hover { border-color: rgba(0, 240, 255, 0.6); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-search input:focus { border-color: #00F0FF; background: #02050F; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-rail { border-right: 1px solid rgba(0, 240, 255, 0.22); background: rgba(2, 5, 15, 0.55); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator { border-radius: 0; background: rgba(243, 230, 0, 0.08); box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.18); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator::before { top: 0; bottom: 0; border-radius: 0; background: var(--vd-accent); box-shadow: 0 0 8px rgba(243, 230, 0, 0.55); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-category { font: 600 12px/1.2 var(--vd-cyber-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category:hover { background-color: rgba(0, 240, 255, 0.07); box-shadow: inset 3px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category:is(:hover, [aria-selected="true"]) { color: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category-count { border-radius: 0; background: rgba(0, 240, 255, 0.1); color: #00F0FF; font: 400 11px/16px var(--vd-cyber-mono); }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category[aria-selected="true"] .vd-start-category-count { background: rgba(243, 230, 0, 0.16); color: var(--vd-accent); }
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-start-pane-title, .vd-start-recent-label) {
+    color: #00F0FF;
+    font: 600 12px/1.2 var(--vd-cyber-display);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 1;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-start-pane-count { color: var(--vd-muted); font-family: var(--vd-cyber-mono); }
+
+/* Hovered or focused rows: a yellow bar on the left and yellow text. */
+.desktop-body[data-theme="cyberpunk"] .vd-start-item:is(:hover, :focus-visible),
+.desktop-body[data-theme="cyberpunk"] .vd-spotlight-item:is(:hover, .active),
+.desktop-body[data-theme="cyberpunk"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) {
+    border-radius: 0;
+    background: rgba(243, 230, 0, 0.07);
+    color: var(--vd-accent);
+    box-shadow: inset 3px 0 0 var(--vd-accent);
+}
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-context-shortcut, .vd-context-item kbd, .vd-window-menu-item kbd, .vd-shortcuts-list kbd) { border-radius: 0; font-family: var(--vd-cyber-mono); }
+.desktop-body[data-theme="cyberpunk"] .vd-context-separator { background: rgba(0, 240, 255, 0.22); }
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-notification-header, .vd-clock-popup-head, .vd-clock-popup-section, .vd-spotlight-label, .vd-shortcuts-heading, .vd-modal-title, .vd-file-dialog-title, .vd-toast-title) {
+    font-family: var(--vd-cyber-display);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="cyberpunk"] :is(.vd-modal-title, .vd-file-dialog-title) { color: #00F0FF; }
+.desktop-body[data-theme="cyberpunk"] .vd-clock-popup-time { color: #00F0FF; font-family: var(--vd-cyber-mono); }
+
+/* === Dialog controls and toasts === */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-close, .vd-toast-close) { border: 1px solid rgba(0, 240, 255, 0.45); border-radius: 0; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close) { background: rgba(0, 240, 255, 0.06); color: var(--vd-text); box-shadow: none; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close):hover { border-color: #00F0FF; background: rgba(0, 240, 255, 0.16); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-button-primary, .vd-button.primary) { border-color: var(--vd-accent); background: var(--vd-accent); color: #000; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-button-primary, .vd-button.primary):hover { border-color: #FFF45C; background: #FFF45C; }
+
+.desktop-body[data-theme="cyberpunk"] .vd-toast { border: 1px solid rgba(0, 240, 255, 0.5); border-left: 3px solid #00F0FF; }
+.desktop-body[data-theme="cyberpunk"] .vd-toast[data-type="error"] { border-color: rgba(255, 0, 92, 0.55); border-left-color: #FF005C; }
+.desktop-body[data-theme="cyberpunk"] .vd-toast-title { color: #00F0FF; font-size: 12px; }
+.desktop-body[data-theme="cyberpunk"] .vd-toast[data-type="error"] .vd-toast-title { color: #FF3D7F; }
+.desktop-body[data-theme="cyberpunk"] .vd-toast::after { background: linear-gradient(90deg, var(--vd-accent), #00F0FF); }
+.desktop-body[data-theme="cyberpunk"] .vd-toast[data-type="error"]::after { background: #FF005C; }
+
+/* === Desktop icons: glowing Papirus glyphs, square selection frames === */
+.desktop-body[data-theme="cyberpunk"] .vd-icon:hover { border-color: rgba(0, 240, 255, 0.4); background: rgba(0, 240, 255, 0.08); box-shadow: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-icon.selected { border-color: rgba(0, 240, 255, 0.75); background: rgba(0, 240, 255, 0.14); box-shadow: 0 0 12px rgba(0, 240, 255, 0.25); }
+.desktop-body[data-theme="cyberpunk"] .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { filter: drop-shadow(0 0 3px rgba(0, 240, 255, 0.55)); }
+
+.desktop-body[data-theme="cyberpunk"] .vd-icon-label {
+    padding: 1px 5px;
+    border: 1px solid rgba(0, 240, 255, 0.16);
+    border-radius: 0;
+    background: rgba(2, 5, 15, 0.8);
+    color: var(--vd-text);
+    text-shadow: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="cyberpunk"] .vd-icon.selected .vd-icon-label { border-color: var(--vd-accent); background: #000; color: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-desktop-selection-marquee { border-color: rgba(0, 240, 255, 0.8); border-radius: 0; background: rgba(0, 240, 255, 0.12); box-shadow: none; }
+
+/* === Keyboard focus: a yellow ring everywhere in the shell chrome (the per-component outline: none rules lose) === */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-titlebar, .vd-window-menu-popover, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-toast, .vd-icons) :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--vd-accent) !important;
+}
+
+/* The task row clips outlines, so its buttons ring inwards; the yellow start tab gets a cyan ring. */
+.desktop-body[data-theme="cyberpunk"] .vd-taskbar-apps :is(.vd-task-button, .vd-taskbar-pin):focus-visible { outline-offset: -3px; }
+.desktop-body[data-theme="cyberpunk"] .vd-taskbar .vd-start-button:focus-visible { outline: 2px solid #00F0FF !important; outline-offset: 3px; }
+
+/* === Motion: glitch-in and glitch-out, every duration 20 ms below the JS fallback of the registry === */
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window-opening { animation: vd-theme-cyberpunk-open 180ms linear both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window-closing { animation: vd-theme-cyberpunk-close 130ms linear both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window-minimizing { animation: vd-theme-cyberpunk-minimize 170ms ease-in both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window-restoring { animation: vd-theme-cyberpunk-restore 170ms ease-out both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-context-menu-opening { animation: vd-theme-cyberpunk-menu-open 100ms linear both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) :is(.vd-context-menu-closing, .vd-window-menu-popover-closing) { animation: vd-theme-cyberpunk-menu-close 80ms linear both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-start-menu-opening { animation: vd-theme-cyberpunk-menu-open 140ms linear both; }
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-start-menu-closing { animation: vd-theme-cyberpunk-menu-close 100ms linear both; }
+
+/* The menu glitches in as one piece; the staggered row animation would outlast the 120 ms fallback. */
+.desktop-body[data-theme="cyberpunk"] .vd-context-menu-opening .vd-context-item { animation: none; }
+
+/* The only ambient motion: the focused window's title flickers for about 120 ms every 7 s. */
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window.active .vd-window-title { animation: vd-theme-cyberpunk-flicker 7s linear infinite; }
+
+@keyframes vd-theme-cyberpunk-open {
+    0% { opacity: 0; transform: translateX(-6px); animation-timing-function: steps(1, end); }
+    28% { opacity: 0.9; transform: translateX(4px); animation-timing-function: steps(1, end); }
+    46% { opacity: 0.45; transform: translateX(-2px); animation-timing-function: steps(1, end); }
+    64% { opacity: 1; transform: translateX(2px); animation-timing-function: steps(1, end); }
+    82% { opacity: 1; transform: translateX(-1px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vd-theme-cyberpunk-close {
+    0% { opacity: 1; transform: translateX(0); animation-timing-function: steps(1, end); }
+    30% { opacity: 0.55; transform: translateX(5px); animation-timing-function: steps(1, end); }
+    55% { opacity: 0.9; transform: translateX(-3px); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translateX(6px); }
+}
+
+/* Minimize and restore travel along --vd-minimize-dx/dy (set by the runtime) like the other skins. */
+@keyframes vd-theme-cyberpunk-minimize {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    35% { opacity: 0.8; transform: translate(calc(var(--vd-minimize-dx, 0px) * 0.12 + 4px), calc(var(--vd-minimize-dy, 16px) * 0.12)) scale(0.96, 0.9); }
+    100% { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 16px)) scale(0.18, 0.06); }
+}
+
+@keyframes vd-theme-cyberpunk-restore {
+    0% { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 10px)) scale(0.18, 0.06); }
+    65% { opacity: 0.85; transform: translate(calc(var(--vd-minimize-dx, 0px) * 0.12 - 3px), calc(var(--vd-minimize-dy, 10px) * 0.12)) scale(0.97, 0.94); }
+    100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+@keyframes vd-theme-cyberpunk-menu-open {
+    0% { opacity: 0; transform: translateX(-5px); animation-timing-function: steps(1, end); }
+    35% { opacity: 0.85; transform: translateX(3px); animation-timing-function: steps(1, end); }
+    60% { opacity: 0.55; transform: translateX(-2px); animation-timing-function: steps(1, end); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vd-theme-cyberpunk-menu-close {
+    0% { opacity: 1; transform: translateX(0); animation-timing-function: steps(1, end); }
+    40% { opacity: 0.6; transform: translateX(3px); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: translateX(-4px); }
+}
+
+@keyframes vd-theme-cyberpunk-flicker {
+    0%, 96.4%, 100% { opacity: 1; }
+    96.9% { opacity: 0.3; }
+    97.4% { opacity: 1; }
+    97.8% { opacity: 0.5; }
+    98.2% { opacity: 1; }
+}
+
+/* === Floating touch taskbar: the whole outline turns into a cyan frame === */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="cyberpunk"] .vd-taskbar { border: 1px solid rgba(0, 240, 255, 0.55); background: #02050FF2; box-shadow: 0 0 18px rgba(0, 240, 255, 0.2), 0 8px 28px rgba(0, 0, 0, 0.6); }
+    .desktop-body[data-theme="cyberpunk"] .vd-taskbar::before { display: none; }
 }
