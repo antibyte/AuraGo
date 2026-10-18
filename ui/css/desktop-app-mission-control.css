@@ -19,6 +19,11 @@
     --mc-success: #22a06b;
     --mc-warning: #d98c1f;
     --mc-danger: #e5484d;
+    /* Accent and danger ink: the colour mixed with the text colour. Raw accents fall to 1.3:1 and the raw danger red to
+       1.6:1 on light panels; these mixes keep 4.5:1 or more on the panel, control, hover and selected-row backgrounds of
+       every theme and accent (accent 30 %: at least 5.7:1; danger 60 % on dark schemes: at least 5.0:1). */
+    --mc-accent-ink: color-mix(in srgb, var(--mc-accent) 30%, var(--vd-text));
+    --mc-danger-ink: color-mix(in srgb, var(--mc-danger) 60%, var(--vd-text));
     --mc-info: #3b82f6;
     --mc-focus: 0 0 0 2px var(--vd-theme-app-bg), 0 0 0 4px rgba(var(--mc-accent-rgb), 0.6);
     --mc-radius: var(--ds-radius-md);
@@ -30,15 +35,19 @@
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Light schemes need a deeper red: 45 % keeps 4.6:1 on the Amiga grey and 5.9:1 on Lollipop. */
+.desktop-body[data-scheme="light"] .vd-mc { --mc-danger-ink: color-mix(in srgb, var(--mc-danger) 45%, var(--vd-text)); }
+
 .vd-mc--fatal { display: grid; place-items: center; padding: var(--ds-space-6); color: var(--vd-muted); }
 .vd-mc *, .vd-mc *::before, .vd-mc *::after { box-sizing: border-box; }
 /* The modules toggle visibility through the hidden attribute; it must beat every display rule below. */
 .vd-mc [hidden] { display: none !important; }
-.vd-mc button { font: inherit; color: inherit; }
+/* :where() keeps the reset at (0,1,0), so the single-class button rules below (link, back, tab, quick, danger) win by order. */
+.vd-mc :where(button) { font: inherit; color: inherit; }
 .vd-mc svg { width: 1em; height: 1em; flex: none; }
 .vd-mc :focus-visible { outline: none; box-shadow: var(--mc-focus); border-radius: var(--mc-radius-sm); }
 .vd-mc-muted { color: var(--vd-muted); font-size: var(--ds-type-size-sm); }
-.vd-mc-link { border: 0; background: none; padding: 0; color: var(--mc-accent); cursor: pointer; font-size: var(--ds-type-size-sm); text-decoration: underline; text-underline-offset: 2px; }
+.vd-mc-link { border: 0; background: none; padding: 0; color: var(--mc-accent-ink); cursor: pointer; font-size: var(--ds-type-size-sm); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ── Buttons ── */
 .vd-mc-btn {
@@ -55,10 +64,9 @@
 /* white text on the raw accent falls below 4.5:1 for the light desktop accents (blue: about 2.5:1); a darkened accent keeps it readable on all */
 .vd-mc-btn--primary { background: color-mix(in srgb, var(--mc-accent) 55%, black); border-color: transparent; color: #fff; }
 .vd-mc-btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--mc-accent) 55%, black); filter: brightness(1.12); border-color: transparent; }
-/* The .vd-mc button reset (0,1,1) outranks the single-class rule above, so the label would fall back to --vd-text (plum on Lollipop, 1.1:1).
-   The label stays white because the background is the darkened accent: --vd-accent-contrast is made for the raw accent (black on Amiga, Crazy and Cyberpunk) and would read at 2.4:1 on Amiga and 2.5:1 on Crazy here. */
-.vd-mc .vd-mc-btn--primary, .vd-mc .vd-mc-btn--primary:hover { color: #fff; }
-.vd-mc-btn--danger { color: var(--mc-danger); border-color: rgba(229, 72, 77, 0.45); }
+/* The label stays white rather than --vd-accent-contrast: the background is the darkened accent, and the contrast token is
+   made for the raw accent (black on Amiga, Crazy and Cyberpunk) and would read at 2.4:1 on Amiga and 2.5:1 on Crazy here. */
+.vd-mc-btn--danger { color: var(--mc-danger-ink); border-color: rgba(229, 72, 77, 0.45); }
 .vd-mc-btn--danger:hover:not(:disabled) { background: rgba(229, 72, 77, 0.12); }
 .vd-mc-btn--icon { width: 32px; padding: 0; }
 .vd-mc-btn--ghost { border-color: transparent; background: transparent; }
@@ -114,7 +122,7 @@
 .vd-mc.is-compact-detail .vd-mc-main { display: flex; }
 .vd-mc.is-compact .vd-mc-toolbar-select span { display: none; }
 .vd-mc.is-compact [data-mc-list-toggle] { display: none; }
-.vd-mc-back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin: 8px 12px 0; border: 0; background: transparent; color: var(--mc-accent); font-size: var(--ds-type-size-sm); cursor: pointer; padding: 4px 6px; border-radius: var(--mc-radius-sm); }
+.vd-mc-back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin: 8px 12px 0; border: 0; background: transparent; color: var(--mc-accent-ink); font-size: var(--ds-type-size-sm); cursor: pointer; padding: 4px 6px; border-radius: var(--mc-radius-sm); }
 .vd-mc-back:hover { background: var(--mc-accent-soft); }
 
 /* ── Status bar ── */
@@ -145,7 +153,7 @@
 .vd-mc-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-full); background: var(--vd-theme-panel-bg); color: var(--vd-text); font-size: var(--ds-type-size-xs); white-space: nowrap; }
 .vd-mc-chip--button { cursor: pointer; transition: background var(--mc-dur) var(--mc-ease), border-color var(--mc-dur) var(--mc-ease); }
 .vd-mc-chip--button:hover { border-color: var(--vd-theme-border-strong, var(--vd-theme-border)); background: var(--vd-theme-control-hover, var(--vd-control-hover)); }
-.vd-mc-chip--button.is-active { background: var(--mc-accent-soft); border-color: rgba(var(--mc-accent-rgb), 0.6); color: var(--mc-accent); font-weight: 600; }
+.vd-mc-chip--button.is-active { background: var(--mc-accent-soft); border-color: rgba(var(--mc-accent-rgb), 0.6); color: var(--mc-accent-ink); font-weight: 600; }
 .vd-mc-row-state { width: 9px; height: 9px; border-radius: 50%; background: var(--vd-muted); flex: none; }
 .vd-mc-row-state[data-state="running"] { background: var(--mc-accent); animation: vd-mc-pulse 1.6s ease-in-out infinite; }
 .vd-mc-row-state[data-state="queued"] { background: var(--mc-info); }
@@ -181,7 +189,7 @@
 .vd-mc-row-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
 /* Relative times may wrap onto a second line instead of collapsing into an ellipsis. */
 .vd-mc-row-time { font-size: var(--ds-type-size-xs); color: var(--vd-muted); text-align: right; line-height: 1.25; max-width: 12ch; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.vd-mc-row-quick { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: var(--mc-radius-sm); background: transparent; color: var(--mc-accent); cursor: pointer; opacity: 0; transition: opacity var(--mc-dur) var(--mc-ease), background var(--mc-dur) var(--mc-ease); }
+.vd-mc-row-quick { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: var(--mc-radius-sm); background: transparent; color: var(--mc-accent-ink); cursor: pointer; opacity: 0; transition: opacity var(--mc-dur) var(--mc-ease), background var(--mc-dur) var(--mc-ease); }
 .vd-mc-row:hover .vd-mc-row-quick, .vd-mc-row.is-selected .vd-mc-row-quick, .vd-mc-row-quick:focus-visible { opacity: 1; }
 .vd-mc-row-quick:hover:not(:disabled) { background: var(--mc-accent-soft); }
 .vd-mc-row-quick:disabled { visibility: hidden; }
@@ -393,9 +401,8 @@
     .vd-mc-btn { min-height: 38px; }
     .vd-mc-splitter { display: none; }
 }
-/* Accent ink: the accent mixed with the text colour. Raw accents fall to 1.3:1 on light panels; this mix
-   keeps 5.7:1 or more on the row, hover and selected backgrounds for every theme and accent. */
-.vd-mc-row-badge--flow { color: color-mix(in srgb, var(--vd-accent) 30%, var(--vd-text)); border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--vd-theme-border)); }
+/* Accent ink (token on .vd-mc): the badge, link, back button, quick action and active chip share it. */
+.vd-mc-row-badge--flow { color: var(--mc-accent-ink); border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--vd-theme-border)); }
 .vd-mc-card--flow .vd-mc-flow-desc { margin: 0 0 12px; color: var(--vd-theme-muted); line-height: 1.5; }
 .vd-mc-card--flow .vd-mc-flow-hint { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: var(--ds-type-size-sm); color: var(--vd-text); }
 .vd-mc-card--flow .vd-mc-flow-hint svg { color: var(--mc-info); }
