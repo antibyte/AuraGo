@@ -49,6 +49,14 @@
             dashSetHidden(document.getElementById('prompt-no-data'), true);
             dashSetHidden(document.getElementById('prompt-content'), false);
 
+            // Headline KPIs (P5): each from its own population, never summed; "—" where that population is empty.
+            renderDashKpiRow(document.getElementById('prompt-headline-kpis'), [
+                { label: t('dashboard.prompt_kpi_total_builds'), value: formatPromptNumber(data.total_builds) },
+                { label: t('dashboard.prompt_kpi_avg_tokens'), value: data.total_builds > 0 ? formatPromptNumber(data.avg_tokens) : null },
+                { label: t('dashboard.prompt_kpi_budget_cuts'), value: data.fit_count > 0 ? formatPromptNumber(data.budget_shed_count) : null },
+                { label: t('dashboard.prompt_kpi_avg_saving_pct'), value: data.total_builds > 0 ? formatPromptNumber(data.avg_optimization_pct, true) : null },
+            ]);
+
             const render = (id, available, items) => {
                 const el = document.getElementById(id);
                 if (!el) return;

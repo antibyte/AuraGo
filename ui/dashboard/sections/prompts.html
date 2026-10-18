@@ -16,57 +16,78 @@
       <div class="dash-card-body">
         <div id="prompt-no-data" class="empty-state" data-i18n="dashboard.prompt_no_measurements"></div>
         <div id="prompt-content">
-          <h4 class="dash-subheading" data-i18n="dashboard.prompt_modules_title"></h4>
-          <p data-i18n="dashboard.prompt_modules_help"></p>
-          <div class="prompt-kpi-grid" id="prompt-module-kpis"></div>
-          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_base_title"></h4>
-          <p data-i18n="dashboard.prompt_base_help"></p>
-          <div class="prompt-kpi-grid" id="prompt-kpis"></div>
-          <div class="prompt-details-grid">
-            <div>
-              <h4 class="dash-subheading" id="prompt-base-chart-title" data-i18n="dashboard.prompt_history"></h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-size-chart" role="img" aria-labelledby="prompt-base-chart-title" aria-describedby="prompt-kpis"></canvas>
+          <div class="dash-kpi-row" id="prompt-headline-kpis" role="list"></div>
+          <div class="dash-disclosure-group">
+            <details class="dash-disclosure" data-disclosure="card-prompt:modules">
+              <summary class="dash-disclosure-summary"><span data-i18n="dashboard.prompt_modules_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+              <div class="dash-disclosure-body">
+                <p data-i18n="dashboard.prompt_modules_help"></p>
+                <div class="prompt-kpi-grid" id="prompt-module-kpis"></div>
               </div>
-            </div>
-            <div>
-              <h4 class="dash-subheading" id="prompt-tier-chart-title" data-i18n="dashboard.prompt_tier_distribution"></h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-tier-chart" role="img" aria-labelledby="prompt-tier-chart-title"></canvas>
+            </details>
+            <details class="dash-disclosure" data-disclosure="card-prompt:base">
+              <summary class="dash-disclosure-summary"><span data-i18n="dashboard.prompt_base_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+              <div class="dash-disclosure-body">
+                <p data-i18n="dashboard.prompt_base_help"></p>
+                <div class="prompt-kpi-grid" id="prompt-kpis"></div>
+                <div class="prompt-details-grid">
+                  <div>
+                    <h4 class="dash-subheading" id="prompt-base-chart-title" data-i18n="dashboard.prompt_history"></h4>
+                    <div class="prompt-chart-wrap">
+                      <canvas id="prompt-size-chart" role="img" aria-labelledby="prompt-base-chart-title" aria-describedby="prompt-kpis"></canvas>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 class="dash-subheading" id="prompt-tier-chart-title" data-i18n="dashboard.prompt_tier_distribution"></h4>
+                    <div class="prompt-chart-wrap">
+                      <canvas id="prompt-tier-chart" role="img" aria-labelledby="prompt-tier-chart-title"></canvas>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <h4 class="dash-subheading prompt-stage-title" data-i18n="dashboard.prompt_fit_title"></h4>
-          <p data-i18n="dashboard.prompt_fit_help"></p>
-          <div class="prompt-kpi-grid" id="prompt-fit-kpis"></div>
-          <div class="prompt-details-grid mt-sm">
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections"></h4>
-              <div class="shed-list" id="shed-list"></div>
-            </div>
-            <div>
-              <h4 class="dash-subheading" id="prompt-fit-chart-title" data-i18n="dashboard.prompt_fit_history"></h4>
-              <div class="prompt-chart-wrap">
-                <canvas id="prompt-savings-chart" role="img" aria-labelledby="prompt-fit-chart-title" aria-describedby="prompt-fit-kpis"></canvas>
+            </details>
+            <details class="dash-disclosure" data-disclosure="card-prompt:fit">
+              <summary class="dash-disclosure-summary"><span data-i18n="dashboard.prompt_fit_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+              <div class="dash-disclosure-body">
+                <p data-i18n="dashboard.prompt_fit_help"></p>
+                <div class="prompt-kpi-grid" id="prompt-fit-kpis"></div>
+                <div class="prompt-details-grid mt-sm">
+                  <div>
+                    <h4 class="dash-subheading" data-i18n="dashboard.prompt_budget_shed_sections"></h4>
+                    <div class="shed-list" id="shed-list"></div>
+                  </div>
+                  <div>
+                    <h4 class="dash-subheading" id="prompt-fit-chart-title" data-i18n="dashboard.prompt_fit_history"></h4>
+                    <div class="prompt-chart-wrap">
+                      <canvas id="prompt-savings-chart" role="img" aria-labelledby="prompt-fit-chart-title" aria-describedby="prompt-fit-kpis"></canvas>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div class="mt-sm">
-            <p data-i18n="dashboard.prompt_session_help"></p>
-            <div class="prompt-kpi-grid" id="prompt-cache-kpis"></div>
-          </div>
-          <!-- Prompt section distribution -->
-          <div class="prompt-details-grid mt-sm">
-            <div>
-              <h4 class="dash-subheading" id="prompt-section-chart-title" data-i18n="dashboard.prompt_section_dist"></h4>
-              <div class="prompt-chart-wrap prompt-chart-wrap-lg">
-                <canvas id="prompt-section-dist-chart" role="img" aria-labelledby="prompt-section-chart-title" aria-describedby="prompt-section-legend"></canvas>
+            </details>
+            <details class="dash-disclosure" data-disclosure="card-prompt:cache">
+              <summary class="dash-disclosure-summary"><span data-i18n="dashboard.prompt_cache_title"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+              <div class="dash-disclosure-body">
+                <p data-i18n="dashboard.prompt_session_help"></p>
+                <div class="prompt-kpi-grid" id="prompt-cache-kpis"></div>
               </div>
-            </div>
-            <div>
-              <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_bytes_hint"></h4>
-              <div class="prompt-section-legend" id="prompt-section-legend"></div>
-            </div>
+            </details>
+            <details class="dash-disclosure" data-disclosure="card-prompt:sections">
+              <summary class="dash-disclosure-summary"><span id="prompt-section-chart-title" data-i18n="dashboard.prompt_section_dist"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>
+              <div class="dash-disclosure-body">
+                <div class="prompt-details-grid">
+                  <div>
+                    <div class="prompt-chart-wrap prompt-chart-wrap-lg">
+                      <canvas id="prompt-section-dist-chart" role="img" aria-labelledby="prompt-section-chart-title" aria-describedby="prompt-section-legend"></canvas>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 class="dash-subheading" data-i18n="dashboard.prompt_section_bytes_hint"></h4>
+                    <div class="prompt-section-legend" id="prompt-section-legend"></div>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </div>

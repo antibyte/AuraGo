@@ -82,3 +82,112 @@ func TestDashboardBigCardKeysExistInAllLocales(t *testing.T) {
 	t.Parallel()
 	assertLocaleKeys(t, filepath.Join("lang", "dashboard"), dashboardBigCardI18nKeys())
 }
+
+// dashboardDisclosure is one detail block of a big card: its data-disclosure key suffix, the data-i18n key of its
+// summary label, markup fragments its body must hold, and whether a renderer fills its count badge.
+type dashboardDisclosure struct {
+	key, label string
+	holds      []string
+	counted    bool
+}
+
+// dashboardBigCard is one P5 card: its KPI row id, an optional fragment the KPI row must sit inside (it opens before
+// the row), fragments that stay visible outside every disclosure, and the disclosures in DOM order.
+type dashboardBigCard struct {
+	section, card, kpi string
+	kpiInside          string
+	outside            []string
+	disclosures        []dashboardDisclosure
+}
+
+var (
+	dashboardDetailsTag    = regexp.MustCompile(`<details[^>]*>`)
+	dashboardSummaryMarkup = regexp.MustCompile(`^<summary class="dash-disclosure-summary"><span(?: id="[a-z-]+")? data-i18n="(dashboard\.[a-z0-9_.]+)"></span><span class="dash-disclosure-count" data-disclosure-count hidden></span></summary>\s*<div class="dash-disclosure-body">`)
+	dashboardInlineHandler = regexp.MustCompile(`(?i)\son[a-z]+\s*=\s*["']`)
+)
+
+// assertDashboardBigCard checks the P5 anatomy of one card:
+//   - exactly one KPI row, before the first disclosure (and inside kpiInside), filled by a renderDashKpiRow call;
+//   - every disclosure uses the shared, closed-by-default markup with the expected key, summary label and contents;
+//   - counted disclosures get their count from a renderer;
+//   - the outside fragments stay visible;
+//   - the card has no inline handler.
+func assertDashboardBigCard(t *testing.T, spec dashboardBigCard) {
+	t.Helper()
+	card := dashboardCardMarkup(t, readDashboardSection(t, spec.section), spec.card)
+	dashJS := readDashboardJS(t)
+
+	row := `<div class="dash-kpi-row" id="` + spec.kpi + `" role="list"></div>`
+	if strings.Count(card, row) != 1 {
+		t.Fatalf("%s needs exactly one %s", spec.card, row)
+	}
+	rowAt := strings.Index(card, row)
+	if first := strings.Index(card, "<details"); first >= 0 && first < rowAt {
+		t.Errorf("%s: the KPI row must come before the first disclosure", spec.card)
+	}
+	if spec.kpiInside != "" {
+		if at := strings.Index(card, spec.kpiInside); at < 0 || at > rowAt {
+			t.Errorf("%s: the KPI row must sit inside %s", spec.card, spec.kpiInside)
+		}
+	}
+	if !strings.Contains(dashJS, "renderDashKpiRow(document.getElementById('"+spec.kpi+"'), [") {
+		t.Errorf("no renderer fills #%s with renderDashKpiRow", spec.kpi)
+	}
+
+	tags := dashboardDetailsTag.FindAllStringIndex(card, -1)
+	if len(tags) != len(spec.disclosures) {
+		t.Fatalf("%s has %d disclosures, want %d", spec.card, len(tags), len(spec.disclosures))
+	}
+	var inside strings.Builder
+	for i, at := range tags {
+		want := spec.disclosures[i]
+		id := spec.card + ":" + want.key
+		if tag, wantTag := card[at[0]:at[1]], `<details class="dash-disclosure" data-disclosure="`+id+`">`; tag != wantTag {
+			t.Errorf("%s disclosure %d is %s, want %s (closed by default: no open attribute)", spec.card, i+1, tag, wantTag)
+		}
+		end := strings.Index(card[at[1]:], "</details>")
+		if end < 0 {
+			t.Fatalf("%s is not closed", id)
+		}
+		block := card[at[1] : at[1]+end]
+		inside.WriteString(block)
+		if m := dashboardSummaryMarkup.FindStringSubmatch(strings.TrimSpace(block)); m == nil {
+			t.Errorf("%s must start with the shared summary (label span, hidden count badge) and a .dash-disclosure-body", id)
+		} else if m[1] != want.label {
+			t.Errorf("%s summary label = %s, want %s", id, m[1], want.label)
+		}
+		for _, fragment := range want.holds {
+			if !strings.Contains(block, fragment) {
+				t.Errorf("%s must hold %s", id, fragment)
+			}
+		}
+		if want.counted && !strings.Contains(dashJS, "setCount('"+id+"'") {
+			t.Errorf("no renderer fills the count badge of %s (DashDisclosures.setCount)", id)
+		}
+	}
+	for _, fragment := range spec.outside {
+		if !strings.Contains(card, fragment) || strings.Contains(inside.String(), fragment) {
+			t.Errorf("%s must keep %s visible, outside the disclosures", spec.card, fragment)
+		}
+	}
+	if dashboardInlineHandler.MatchString(card) {
+		t.Errorf("%s uses an inline event handler; use data-action and the delegated listener", spec.card)
+	}
+}
+
+// TestDashboardPromptCardPutsKPIsFirst (decision 3): four headline KPIs inside #prompt-content, then the module,
+// base, fit, cache and section-distribution blocks as closed disclosures; #prompt-no-data stays outside.
+func TestDashboardPromptCardPutsKPIsFirst(t *testing.T) {
+	t.Parallel()
+	assertDashboardBigCard(t, dashboardBigCard{
+		section: "prompts", card: "card-prompt", kpi: "prompt-headline-kpis", kpiInside: `id="prompt-content"`,
+		outside: []string{`id="prompt-no-data"`, `id="prompt-content"`},
+		disclosures: []dashboardDisclosure{
+			{key: "modules", label: "dashboard.prompt_modules_title", holds: []string{`id="prompt-module-kpis"`}},
+			{key: "base", label: "dashboard.prompt_base_title", holds: []string{`id="prompt-kpis"`, `id="prompt-size-chart"`, `id="prompt-tier-chart"`}},
+			{key: "fit", label: "dashboard.prompt_fit_title", holds: []string{`id="prompt-fit-kpis"`, `id="shed-list"`, `id="prompt-savings-chart"`}},
+			{key: "cache", label: "dashboard.prompt_cache_title", holds: []string{`id="prompt-cache-kpis"`}},
+			{key: "sections", label: "dashboard.prompt_section_dist", holds: []string{`id="prompt-section-chart-title"`, `id="prompt-section-dist-chart"`, `aria-labelledby="prompt-section-chart-title"`, `id="prompt-section-legend"`}},
+		},
+	})
+}
