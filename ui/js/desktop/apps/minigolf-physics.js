@@ -4,6 +4,39 @@ const BALL_RADIUS = 0.16;
 const FIXED_STEP = 1 / 120;
 const MAX_STEPS = 16;
 const GRAVITY = 9.81;
+const CONTACT_SKIN = 0.005;
+const GROUND_PROBE = BALL_RADIUS + 0.04;
+const DOWN = { x: 0, y: -1, z: 0 };
+// Flat-grass roll distance of a full-power shot; `power` is a fraction of it.
+export const MAX_ROLL = 28;
+// Rolling resistance per floor surface: constant deceleration a (m/s²) plus
+// speed-proportional drag k (1/s). Grass is the distance reference.
+export const ROLLING = Object.freeze({
+    grass: Object.freeze({ a: 0.8, k: 0.45 }),
+    sand: Object.freeze({ a: 2.6, k: 1.3 }),
+    wood: Object.freeze({ a: 0.7, k: 0.42 }),
+    stone: Object.freeze({ a: 0.65, k: 0.4 })
+});
+const FLOOR_SURFACES = new Set(['grass', 'sand']);
+const WALL_RESTITUTION = { wood: 0.78, stone: 0.82 };
+
+export function rollDistance(speed, surface = 'grass') {
+    const { a, k } = ROLLING[surface] || ROLLING.grass;
+    return speed / k - a / (k * k) * Math.log(1 + k * speed / a);
+}
+
+export function launchSpeedFor(power) {
+    const target = Math.max(0, Math.min(1, power)) * MAX_ROLL;
+    let low = 0, high = 60;
+    for (let i = 0; i < 48; i++) {
+        const middle = (low + high) / 2;
+        if (rollDistance(middle) < target) low = middle; else high = middle;
+    }
+    return (low + high) / 2;
+}
+
+// UI strength (drag, slider, keys) to physics power: fine control for short putts.
+export const strengthToPower = strength => Math.max(0, Math.min(1, strength)) ** 1.5;
 let initialized;
 
 const vec3 = value => ({ x: value[0], y: value[1], z: value[2] });
@@ -58,6 +91,36 @@ function contains(bounds, position) {
         && position[2] >= bounds.min[2] && position[2] <= bounds.max[2];
 }
 
+const validShot = (direction, power) => finiteVec3([direction?.[0], 0, direction?.[1]])
+    && Number.isFinite(power) && power > 0 && power <= 1 && Math.hypot(direction[0], direction[1]) >= 1e-6;
+
+// Rolling without slipping on the floor under the ball. Rapier contact
+// friction is disabled on the ball, so this is the only tangential force.
+function applyRolling(world, body, collider, surfaceOf) {
+    const hit = world.castRayAndGetNormal(new RAPIER.Ray(body.translation(), DOWN), GROUND_PROBE, true, undefined, undefined, collider);
+    if (!hit || hit.normal.y < 0.55) return;
+    const n = hit.normal;
+    const { a, k } = ROLLING[surfaceOf(hit.collider.handle)] || ROLLING.grass;
+    const v = body.linvel();
+    const along = v.x * n.x + v.y * n.y + v.z * n.z;
+    const tx = v.x - along * n.x, ty = v.y - along * n.y, tz = v.z - along * n.z;
+    const tangential = Math.hypot(tx, ty, tz);
+    if (tangential <= 1e-9) return;
+    const scale = Math.max(0, tangential - (a * n.y + k * tangential) * FIXED_STEP) / tangential;
+    const rx = tx * scale, ry = ty * scale, rz = tz * scale;
+    body.setLinvel({ x: rx + along * n.x, y: ry + along * n.y, z: rz + along * n.z }, true);
+    body.setAngvel({ x: (n.y * rz - n.z * ry) / BALL_RADIUS, y: (n.z * rx - n.x * rz) / BALL_RADIUS, z: (n.x * ry - n.y * rx) / BALL_RADIUS }, true);
+}
+
+function launch(body, direction, power) {
+    const length = Math.hypot(direction[0], direction[1]);
+    const dx = direction[0] / length, dz = direction[1] / length, velocity = launchSpeedFor(power);
+    body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
+    body.wakeUp();
+    body.setLinvel({ x: dx * velocity, y: 0, z: dz * velocity }, true);
+    body.setAngvel({ x: dz * velocity / BALL_RADIUS, y: 0, z: -dx * velocity / BALL_RADIUS }, true);
+}
+
 export async function createPhysics(course, { onEvent = () => {} } = {}) {
     initialized ||= RAPIER.init();
     await initialized;
@@ -85,12 +148,15 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     const activeSurfaceContacts = new Map();
 
     const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68 };
+    // Floors keep a dead bounce; every other collider (rails, gates) is a wall.
+    const asWall = (desc, surface) => FLOOR_SURFACES.has(surface) ? desc
+        : desc.setRestitution(WALL_RESTITUTION[surface] ?? 0.78).setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Max);
     const addSurface = (collider, surface) => surfaces.set(collider.handle, surface || 'grass');
     const addBox = (position, halfExtents, rotation, surface, body = fixed) => {
         if (!finiteVec3(position) || !finiteVec3(halfExtents) || halfExtents.some(v => v <= 0)) throw new TypeError('Invalid minigolf box collider');
         const desc = RAPIER.ColliderDesc.cuboid(...halfExtents).setTranslation(...position).setFriction(surfaceFriction[surface] ?? 0.75).setRestitution(0.03).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
         if (rotation) desc.setRotation(quat(rotation));
-        const collider = world.createCollider(desc, body);
+        const collider = world.createCollider(asWall(desc, surface || 'grass'), body);
         addSurface(collider, surface);
         return collider;
     };
@@ -100,7 +166,9 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             if (shape.type === 'box') addBox(shape.position, shape.halfExtents, shape.rotation, shape.surface);
             else if (shape.type === 'mesh') {
                 if (!Array.isArray(shape.vertices) || shape.vertices.length < 9 || shape.vertices.length > 3_000_000 || shape.vertices.length % 3 || shape.vertices.some(value => !Number.isFinite(value)) || !Array.isArray(shape.indices) || !shape.indices.length || shape.indices.length % 3 || shape.indices.some(index => !Number.isInteger(index) || index < 0 || index >= shape.vertices.length / 3)) throw new TypeError('Invalid minigolf mesh collider');
-                const collider = world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(shape.vertices), new Uint32Array(shape.indices)).setFriction(surfaceFriction[shape.surface] ?? 0.75).setRestitution(0.02).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), fixed);
+                const desc = RAPIER.ColliderDesc.trimesh(new Float32Array(shape.vertices), new Uint32Array(shape.indices), RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
+                    .setFriction(surfaceFriction[shape.surface] ?? 0.75).setRestitution(0.02).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+                const collider = world.createCollider(asWall(desc, shape.surface || 'grass'), fixed);
                 addSurface(collider, shape.surface);
             } else throw new TypeError('Unsupported minigolf collider');
         }
@@ -125,8 +193,12 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             obstacleBodies.push({ spec: obstacle, body, colliders });
         }
 
-        ballBody = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(...course.tee).setLinearDamping(0.9).setAngularDamping(0.18).setCcdEnabled(true));
-        ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(BALL_RADIUS).setMass(0.22).setFriction(0.75).setRestitution(0.12).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), ballBody);
+        ballBody = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(...course.tee).setLinearDamping(0).setAngularDamping(0).setCcdEnabled(true));
+        // Frictionless ball: rolling resistance and spin come from applyRolling.
+        // The contact skin stops penetration recovery from braking on trimesh seams.
+        ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(BALL_RADIUS).setContactSkin(CONTACT_SKIN).setMass(0.22)
+            .setFriction(0).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(0.12)
+            .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), ballBody);
         ballBody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
         previousPosition = array3(ballBody.translation());
         currentPosition = previousPosition.slice();
@@ -186,7 +258,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             return;
         }
         const angular = ballBody.angvel();
-        if (time > shotStartedAt + 0.15 && speed(velocity) < 0.075 && speed(angular) < 0.45) quietSteps++;
+        if (time > shotStartedAt + 0.15 && speed(velocity) < 0.075 && speed(angular) < 0.075 / BALL_RADIUS + 0.05) quietSteps++;
         else quietSteps = 0;
         if (quietSteps >= 30) emit('rest', position);
     }
@@ -231,13 +303,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
                 activeSurfaceContacts.set(other, surfaces.get(other));
                 emit('impact', getBall(), { speed: speed(ballBody.linvel()), surface: surfaces.get(other) });
             });
-            if (activeShot && [...activeSurfaceContacts.values()].includes('sand')) {
-                // Sand adds rolling resistance while contact is active, without
-                // damping airborne motion or the ball's vertical velocity.
-                const velocity = ballBody.linvel();
-                const damping = Math.exp(-0.85 * FIXED_STEP);
-                ballBody.setLinvel({ x: velocity.x * damping, y: velocity.y, z: velocity.z * damping }, true);
-            }
+            if (activeShot) applyRolling(world, ballBody, ballCollider, handle => surfaces.get(handle));
             resolveConditions();
             if (resolvedShots !== resolvedBeforeStep) {
                 // An event handler may already have positioned or launched the next ball.
@@ -250,14 +316,8 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         return { ...getSnapshot(), obstacles: getObstacles() };
     }
     function shoot(direction, power) {
-        if (disposed || activeShot || shotLocked || !finiteVec3([direction?.[0], 0, direction?.[1]]) || !Number.isFinite(power) || power <= 0 || power > 1) return false;
-        const length = Math.hypot(direction[0], direction[1]);
-        if (length < 1e-6) return false;
-        const launchSpeed = 12 * power;
-        ballBody.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
-        ballBody.wakeUp();
-        ballBody.setLinvel({ x: direction[0] / length * launchSpeed, y: 0, z: direction[1] / length * launchSpeed }, true);
-        ballBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        if (disposed || activeShot || shotLocked || !validShot(direction, power)) return false;
+        launch(ballBody, direction, power);
         activeShot = true;
         quietSteps = 0;
         shotStartedAt = time;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createPhysics } from '../ui/js/desktop/apps/minigolf-physics.js';
+import { createPhysics, MAX_ROLL, launchSpeedFor, rollDistance, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
 
 const bounds = { min: [-20, -5, -20], max: [20, 10, 20] };
 const fixedStep = 1 / 120;
@@ -14,7 +14,7 @@ async function travelledAt(fps) {
     for (let i = 0; i < fps; i++) snapshot = physics.step(1 / fps);
     const actual = physics.getBall();
     assert.ok(snapshot.position[0] <= actual[0] + 1e-9, `${fps} Hz render pose does not lead the authoritative pose`);
-    assert.ok(actual[0] - snapshot.position[0] <= 12 * fixedStep + 1e-4, `${fps} Hz render pose stays within one fixed step`);
+    assert.ok(actual[0] - snapshot.position[0] <= launchSpeedFor(0.5) * fixedStep + 1e-4, `${fps} Hz render pose stays within one fixed step`);
     physics.dispose();
     return actual[0];
 }
@@ -36,7 +36,7 @@ for (let i = 0; i < 24; i++) {
 assert.ok(betweenFixedSteps, '144 Hz render samples interpolate between authoritative fixed-step poses');
 for (let i = 1; i < renderPositions.length; i++) {
     assert.ok(renderPositions[i] >= renderPositions[i - 1] - 1e-6, 'interpolated positions remain continuous and monotonic');
-    assert.ok(renderPositions[i] - renderPositions[i - 1] < 0.055, '144 Hz interpolation avoids fixed-step position jumps');
+    assert.ok(renderPositions[i] - renderPositions[i - 1] < launchSpeedFor(0.5) / 144 + 0.01, '144 Hz interpolation avoids fixed-step position jumps');
 }
 interpolated.dispose();
 
@@ -64,7 +64,7 @@ slope.dispose();
 const flatLaunch = await createPhysics(course());
 assert.equal(flatLaunch.shoot([1, 0], 0.05), true);
 const firstLaunchStep = flatLaunch.step(1 / 120);
-assert.ok(firstLaunchStep.position[1] <= 0.1601, `flat putt launched without a hop: y=${firstLaunchStep.position[1]}`);
+assert.ok(firstLaunchStep.position[1] <= 0.16 + 0.005 + 1e-4, `flat putt launched without a hop beyond the contact skin: y=${firstLaunchStep.position[1]}`);
 flatLaunch.dispose();
 
 const idle = await createPhysics(course({
@@ -176,33 +176,101 @@ assert.equal(lowPowerEvents.filter(event => event.type === 'rest').length, 1, 'a
 assert.ok(lowPower.getSnapshot().time < 5, `gentle putt settles within five seconds (${lowPower.getSnapshot().time.toFixed(2)}s)`);
 lowPower.dispose();
 
-const distanceEvents = [];
-const maximumDistance = await createPhysics(course({
-    cup: [15, 0, 0], colliders: [{ type: 'box', position: [0, -0.1, 0], halfExtents: [19, 0.1, 19], surface: 'grass' }]
-}), { onEvent: event => distanceEvents.push(event) });
-assert.equal(maximumDistance.shoot([1, 0], 1), true);
-for (let i = 0; i < 1200 && !distanceEvents.some(event => event.type === 'rest'); i++) maximumDistance.step(1 / 120);
-assert.equal(distanceEvents.filter(event => event.type === 'rest').length, 1, 'a maximum-power flat shot eventually settles');
-assert.ok(maximumDistance.getBall()[0] > 10, `full-power distance remains playable (${maximumDistance.getBall()[0].toFixed(2)}m)`);
-assert.ok(maximumDistance.getSnapshot().time < 10, `maximum-power shot settles within ten seconds (${maximumDistance.getSnapshot().time.toFixed(2)}s)`);
-maximumDistance.dispose();
+// --- Arcade rolling model (P1) ----------------------------------------------
+const wideBounds = { min: [-60, -5, -60], max: [60, 10, 60] };
+const wideFloor = (surface = 'grass') => ({ type: 'box', position: [0, -0.1, 0], halfExtents: [50, 0.1, 50], surface });
+const wide = (extra = {}) => course({ bounds: wideBounds, cup: [55, 0, 55], colliders: [wideFloor()], ...extra });
 
-async function distanceOn(surface) {
+async function rollOut(definition, direction, power, maxSteps = 2400) {
     const events = [];
-    const physics = await createPhysics(course({
-        tee: [0, 0.16, 0],
-        cup: [15, 0, 0],
-        colliders: [{ type: 'box', position: [0, -0.1, 0], halfExtents: [10, 0.1, 10], surface }]
-    }), { onEvent: event => events.push(event) });
-    assert.equal(physics.shoot([1, 0], 0.5), true);
-    for (let i = 0; i < 1800 && !events.some(event => event.type === 'rest'); i++) physics.step(1 / 120);
-    assert.equal(events.filter(event => event.type === 'rest').length, 1, `${surface} shot settles`);
-    const distance = physics.getBall()[0];
+    const physics = await createPhysics(definition, { onEvent: event => events.push(event) });
+    const start = physics.getBall();
+    assert.equal(physics.shoot(direction, power), true);
+    const launch = Math.hypot(...physics.getSnapshot().velocity);
+    let after100ms = null, maxHop = 0, steps = 0;
+    while (steps < maxSteps && !events.some(event => event.type !== 'impact')) {
+        physics.step(fixedStep);
+        steps++;
+        const velocity = physics.getSnapshot().velocity;
+        if (steps === 12) after100ms = Math.hypot(velocity[0], velocity[2]);
+        maxHop = Math.max(maxHop, Math.abs(physics.getBall()[1] - start[1]));
+    }
+    const end = physics.getBall();
     physics.dispose();
-    return distance;
+    return { launch, after100ms, maxHop, time: steps * fixedStep, distance: Math.hypot(end[0] - start[0], end[2] - start[2]), terminal: events.find(event => event.type !== 'impact')?.type };
 }
-const grassDistance = await distanceOn('grass');
-const sandDistance = await distanceOn('sand');
-assert.ok(sandDistance < grassDistance * 0.65, `sand materially shortens rolling distance (${sandDistance.toFixed(2)}m vs ${grassDistance.toFixed(2)}m)`);
+
+function gridMesh(size = 60, cell = 0.25) {
+    const cells = Math.round(size / cell), vertices = [], indices = [];
+    for (let i = 0; i <= cells; i++) for (let j = 0; j <= cells; j++) vertices.push(-size / 2 + i * cell, 0, -size / 2 + j * cell);
+    for (let i = 0; i < cells; i++) for (let j = 0; j < cells; j++) {
+        const a = i * (cells + 1) + j, b = a + 1, c = a + cells + 1, d = c + 1;
+        if ((i + j) % 2) indices.push(a, b, d, a, d, c); else indices.push(a, b, c, b, d, c);
+    }
+    return { type: 'mesh', vertices, indices, surface: 'grass' };
+}
+
+let previousSpeed = 0;
+for (let i = 1; i <= 20; i++) {
+    const launchSpeed = launchSpeedFor(i / 20);
+    assert.ok(launchSpeed > previousSpeed, `launch speed rises with power ${i / 20}`);
+    previousSpeed = launchSpeed;
+}
+close(launchSpeedFor(1), 16.77, 0.05, 'full-power launch speed');
+close(rollDistance(launchSpeedFor(0.5)), 0.5 * MAX_ROLL, 1e-6, 'launch speed inverts the grass roll distance');
+close(strengthToPower(0.5), 0.5 ** 1.5, 1e-12, 'strength curve');
+assert.equal(strengthToPower(1), 1);
+
+const full = await rollOut(wide(), [1, 0], 1);
+assert.equal(full.terminal, 'rest', 'a full-power flat shot comes to rest');
+assert.ok(Math.abs(full.distance - MAX_ROLL) <= MAX_ROLL * 0.1, `full power rolls 28 m ± 10 % (${full.distance.toFixed(2)} m)`);
+assert.ok(full.time <= 6, `full-power shot rests within 6 s (${full.time.toFixed(2)} s)`);
+assert.ok(full.after100ms >= full.launch * 0.95, `no slide-to-roll loss (${(full.after100ms / full.launch * 100).toFixed(1)} % after 0.1 s)`);
+for (const power of [0.1, 0.25, 0.5]) {
+    const shot = await rollOut(wide(), [1, 0], power);
+    assert.ok(Math.abs(shot.distance - power * MAX_ROLL) <= power * MAX_ROLL * 0.05, `power ${power} rolls ${(power * MAX_ROLL).toFixed(2)} m ± 5 % (${shot.distance.toFixed(2)} m)`);
+}
+const putt = await rollOut(wide(), [1, 0], 0.01);
+assert.ok(putt.distance > 0.1 && putt.distance <= 0.3, `shortest putt rolls 0.1–0.3 m (${putt.distance.toFixed(3)} m)`);
+
+const tessellated = await rollOut(wide({ tee: [-28, 0.16, 0.13], colliders: [gridMesh()] }), [1, 0], 1);
+assert.ok(Math.abs(tessellated.distance - full.distance) <= full.distance * 0.05, `trimesh seams keep the roll distance (${tessellated.distance.toFixed(2)} m vs ${full.distance.toFixed(2)} m)`);
+assert.ok(tessellated.maxHop <= 0.01, `no seam hops above 1 cm (${(tessellated.maxHop * 100).toFixed(2)} cm)`);
+
+const bankRotation = [0, Math.sin(Math.PI / 8), 0, Math.cos(Math.PI / 8)];
+for (const surface of ['wood', 'stone']) {
+    const events = [];
+    const physics = await createPhysics(wide({ colliders: [wideFloor(), { type: 'box', position: [4, 0.3, 0], halfExtents: [0.1, 0.3, 3], rotation: bankRotation, surface }] }), { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], 0.4), true);
+    let before = null, contactStep = -1, after = null;
+    for (let step = 0; step < 600 && after === null; step++) {
+        const velocity = physics.getSnapshot().velocity;
+        physics.step(fixedStep);
+        if (contactStep < 0 && events.some(event => event.type === 'impact' && event.surface === surface)) {
+            before = Math.hypot(velocity[0], velocity[2]);
+            contactStep = step;
+        } else if (contactStep >= 0 && step >= contactStep + 6) {
+            const bounced = physics.getSnapshot().velocity;
+            after = Math.hypot(bounced[0], bounced[2]);
+        }
+    }
+    physics.dispose();
+    assert.ok(before > 0 && after / before >= 0.65, `45° ${surface} bank keeps ≥ 65 % speed (${(after / before * 100).toFixed(0)} %)`);
+}
+
+const gentleEvents = [];
+const gentleSlope = await createPhysics(course({
+    tee: [1, 0.12, 0],
+    colliders: [{ type: 'box', position: [0, -0.05, 0], halfExtents: [5, 0.05, 5], rotation: [0, 0, -Math.sin(0.022), Math.cos(0.022)], surface: 'grass' }]
+}), { onEvent: event => gentleEvents.push(event) });
+assert.equal(gentleSlope.shoot([0, 1], 0.01), true);
+for (let i = 0; i < 360 && !gentleEvents.some(event => event.type === 'rest'); i++) gentleSlope.step(fixedStep);
+assert.ok(gentleEvents.some(event => event.type === 'rest'), 'a ball on a 2.5° slope comes to rest');
+assert.ok(Math.abs(gentleSlope.getBall()[0] - 1) < 0.2, `2.5° slope holds the ball near x=1 (${gentleSlope.getBall()[0].toFixed(3)})`);
+gentleSlope.dispose();
+
+const grassRoll = await rollOut(wide(), [1, 0], 0.5);
+const sandRoll = await rollOut(wide({ colliders: [wideFloor('sand')] }), [1, 0], 0.5);
+assert.ok(sandRoll.distance < grassRoll.distance * 0.65, `sand materially shortens rolling distance (${sandRoll.distance.toFixed(2)} m vs ${grassRoll.distance.toFixed(2)} m)`);
 
 console.log('minigolf physics: all checks passed');
