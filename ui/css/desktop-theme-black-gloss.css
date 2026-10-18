@@ -1,73 +1,472 @@
-/* desktop-theme-black-gloss.css - Black Gloss desktop theme. Placeholder tokens copied from Standard; the Wave-2 skin replaces them. */
+/* desktop-theme-black-gloss.css - Black Gloss desktop theme: minimal piano black with a glossy upper-half highlight,
+ * a centred taskbar and three bead window controls. The accent stays the user's (focus, the active task dot,
+ * selection and switches). Bundled after the shared shell rules and before desktop-polish.css; every rule is rooted
+ * at .desktop-body[data-theme="black_gloss"]. Layout changes are limited to wide viewports: the compact and touch
+ * layouts of the shared files keep their geometry and only get this paint. */
 
 .desktop-body[data-theme="black_gloss"] {
     color-scheme: dark;
+    font-weight: 500;
 
     /* Core */
-    --vd-bg: #0c1016;
-    --vd-surface: #171d26;
-    --vd-surface-strong: #1d2530;
-    --vd-border: rgba(255, 255, 255, 0.12);
-    --vd-border-bright: rgba(255, 255, 255, 0.18);
-    --vd-text: #edf1f7;
-    --vd-muted: #aeb7c6;
-    --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
-    --vd-shadow-window: 0 32px 80px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--vd-accent) 8%, transparent);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --vd-window-radius: 12px;
-    --vd-font-ui: 'Geist', system-ui, sans-serif;
+    --vd-bg: #050506;
+    --vd-surface: #101012;
+    --vd-surface-strong: #151517;
+    --vd-border: rgba(255, 255, 255, 0.08);
+    --vd-border-bright: rgba(255, 255, 255, 0.16);
+    --vd-text: #f2f2f4;
+    --vd-muted: #a3a3ab;
+    --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.62), 0 4px 14px rgba(0, 0, 0, 0.4);
+    --vd-shadow-window: 0 30px 80px rgba(0, 0, 0, 0.72);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    --vd-window-radius: 10px;
+    --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
 
     /* Theme bridge */
-    --vd-theme-app-bg: #11151c;
-    --vd-theme-panel-bg: #191f28;
-    --vd-theme-panel-bg-strong: rgba(24, 30, 39, 0.98);
-    --vd-theme-chrome-bg: rgba(25, 32, 42, 0.94);
-    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.62);
-    --vd-theme-control-bg: rgba(255, 255, 255, 0.055);
-    --vd-theme-control-hover: rgba(255, 255, 255, 0.1);
-    --vd-theme-border: rgba(191, 210, 235, 0.14);
-    --vd-theme-border-strong: rgba(191, 210, 235, 0.28);
-    --vd-theme-muted: #aeb7c6;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.16);
-    --vd-theme-accent-border: rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.38);
-    --vd-theme-radius-panel: 10px;
+    --vd-theme-app-bg: #0c0c0e;
+    --vd-theme-panel-bg: #121214;
+    --vd-theme-panel-bg-strong: #101012f5;
+    --vd-theme-chrome-bg: #0a0a0b;
+    --vd-theme-overlay-bg: rgba(0, 0, 0, 0.68);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.06);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.11);
+    --vd-theme-border: rgba(255, 255, 255, 0.08);
+    --vd-theme-border-strong: rgba(255, 255, 255, 0.16);
+    --vd-theme-muted: #a3a3ab;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5);
+    --vd-theme-radius-panel: 12px;
     --vd-theme-radius-modal: 14px;
-    --vd-theme-shadow-panel: 0 4px 14px #00000014, inset 0 1px 0 var(--vd-border-bright);
-    --vd-theme-shadow-modal: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
-    --vd-theme-blur: blur(24px) saturate(1.15);
+    --vd-theme-shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    --vd-theme-shadow-modal: 0 30px 80px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    --vd-theme-blur: none;
 
     /* Chrome */
-    --vd-chrome-highlight: 0 0 0 transparent;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     --vd-chrome-ring: 0 0 0 transparent;
     --vd-chrome-hairline: none;
 
-    /* Design system */
-    --ds-color-fg-primary: #edf1f7;
-    --ds-color-fg-secondary: #d0d0d0;
-    --ds-color-fg-muted: #aeb7c6;
-    --ds-color-fg-disabled: #6b6b6b;
-    --ds-color-bg-canvas: #0c1016;
-    --ds-color-bg-raised: #171d26;
-    --ds-color-bg-overlay: #1d2530;
-    --ds-color-bg-modal: #222c39;
-    --ds-color-surface-0: #11151c;
-    --ds-color-surface-1: #171d26;
-    --ds-color-surface-2: #1d2530;
-    --ds-color-surface-3: #222c39;
-    --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
-    --ds-color-border-default: rgba(255, 255, 255, 0.18);
-    --ds-color-border-strong: rgba(255, 255, 255, 0.28);
-    --ds-color-border-focus: #E95420;
-    --ds-color-accent-500: #E95420;
-    --ds-color-accent-600: #c7431a;
-    --ds-color-accent-glow: rgba(233, 84, 32, 0.08);
-    --ds-color-control-active: rgba(255, 255, 255, 0.14);
-    --ds-color-inner-highlight: rgba(255, 255, 255, 0.04);
-    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.28);
-    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.34);
-    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.42);
-    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.52);
-    --ds-elevation-5: 0 32px 96px rgba(0, 0, 0, 0.6);
-    --ds-blur-fine: blur(22px) saturate(1.3);
-    --ds-blur-coarse: blur(8px) saturate(1.1);
+    /* Design system: opaque near-black surfaces; focus and accent tokens follow the user's accent */
+    --ds-color-fg-primary: #f2f2f4;
+    --ds-color-fg-secondary: #c9c9cf;
+    --ds-color-fg-muted: #a3a3ab;
+    --ds-color-fg-disabled: #6e6e76;
+    --ds-color-bg-canvas: #050506;
+    --ds-color-bg-raised: #121214;
+    --ds-color-bg-overlay: #151518;
+    --ds-color-bg-modal: #17171a;
+    --ds-color-surface-0: #0c0c0e;
+    --ds-color-surface-1: #101012;
+    --ds-color-surface-2: #141416;
+    --ds-color-surface-3: #18181b;
+    --ds-color-border-subtle: rgba(255, 255, 255, 0.08);
+    --ds-color-border-default: rgba(255, 255, 255, 0.12);
+    --ds-color-border-strong: rgba(255, 255, 255, 0.2);
+    --ds-color-border-focus: var(--vd-accent);
+    --ds-color-accent-500: var(--vd-accent);
+    --ds-color-accent-600: color-mix(in srgb, var(--vd-accent) 78%, #000);
+    --ds-color-accent-glow: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14);
+    --ds-color-control-active: rgba(255, 255, 255, 0.16);
+    --ds-color-inner-highlight: rgba(255, 255, 255, 0.1);
+    --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.55);
+    --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --ds-elevation-4: 0 24px 64px rgba(0, 0, 0, 0.68);
+    --ds-elevation-5: 0 30px 80px rgba(0, 0, 0, 0.72);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: blur(6px);
+
+    /* Skin geometry and the shared gloss pieces: the band lights the upper half and ends crisply at 50%. */
+    --vd-taskbar-height: 48px;
+    --vd-taskbar-gap: calc(var(--vd-taskbar-height) + var(--vd-taskbar-offset, 0px));
+    --vd-start-button-size: 40px;
+    --vd-bgloss-title-h: 38px;
+    --vd-bgloss-menubar-h: 28px;
+    --vd-bgloss-band: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 49%, rgba(255, 255, 255, 0) 50%);
+    --vd-bgloss-edge: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --vd-bgloss-bead: radial-gradient(ellipse 54% 34% at 50% 24%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)), radial-gradient(circle at 50% 28%, #3a3a3e 0%, #0a0a0b 82%);
+}
+
+/* ---- Shell: taskbar ---- */
+.desktop-body[data-theme="black_gloss"] .vd-taskbar {
+    border: 0;
+    background: var(--vd-bgloss-band), #0a0a0b;
+    box-shadow: var(--vd-bgloss-edge), 0 -10px 32px rgba(0, 0, 0, 0.5);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-taskbar::before { content: none; }
+
+/* The start button is a glossy black circle; one light sweep runs per hover (gated under Motion). */
+.desktop-body[data-theme="black_gloss"] .vd-start-button {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: var(--vd-bgloss-bead);
+    box-shadow: var(--vd-bgloss-edge), 0 2px 8px rgba(0, 0, 0, 0.7);
+    transform: none;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-button:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: var(--vd-bgloss-edge), 0 3px 12px rgba(0, 0, 0, 0.75);
+    filter: brightness(1.22);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-button:active { transform: scale(0.94); filter: brightness(0.92); }
+.desktop-body[data-theme="black_gloss"] .vd-start-button[data-active="true"] { box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.22); }
+
+/* The launcher glyph sits small in the bead; the shared rule sizes it with !important, so this must too. */
+.desktop-body[data-theme="black_gloss"] .vd-start-button :is(.vd-sprite-start, .vd-papirus-icon) { width: 22px !important; height: 22px !important; }
+.desktop-body[data-theme="black_gloss"][data-icon-theme="whitesur"] .vd-start-button .vd-sprite-start { filter: invert(1) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+
+.desktop-body[data-theme="black_gloss"] .vd-start-button::after {
+    content: "";
+    display: block;
+    inset: 0 auto 0 0;
+    width: 55%;
+    background: linear-gradient(105deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.42) 50%, rgba(255, 255, 255, 0));
+    opacity: 0;
+    transform: translateX(-130%);
+    transition: none;
+}
+
+/* Pinned launchers and window buttons sit centred. Auto margins on the first and last child centre them while
+ * there is room and collapse when the row overflows and scrolls. */
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-apps { align-self: stretch; align-items: center; gap: 6px; padding: 0 3px; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-apps > :first-child { margin-left: auto; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-apps > :last-child { margin-right: auto; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-windows { flex: 0 1 auto; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pins { gap: 2px; margin-right: 0; padding-right: 8px; border-right-color: rgba(255, 255, 255, 0.1); }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pins:empty { display: none; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pins:has(+ .vd-taskbar-windows:empty) { border-right-color: transparent; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pin { border-radius: 9px; }
+
+/* Task buttons are flat; the active one is marked by a small accent dot below its label, not by a fill. */
+.desktop-body[data-theme="black_gloss"] .vd-task-button {
+    position: relative;
+    border-color: transparent;
+    border-radius: 9px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--vd-muted);
+    font-weight: 500;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-task-button:hover,
+.desktop-body[data-theme="black_gloss"] .vd-task-button.active:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-task-button.active { color: var(--vd-text); }
+
+.desktop-body[data-theme="black_gloss"] .vd-task-button.active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--vd-accent);
+    box-shadow: 0 0 8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.85);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* Tray: flat glyphs that lift to a soft plate on hover. */
+.desktop-body[data-theme="black_gloss"] :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button) {
+    border-color: transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vd-muted);
+}
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-fullscreen-button:enabled, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button):hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-agent-button {
+    border-color: rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #141416;
+    box-shadow: var(--vd-bgloss-edge);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-agent-button:hover { border-color: rgba(255, 255, 255, 0.2); filter: brightness(1.2); }
+.desktop-body[data-theme="black_gloss"] :is(.vd-clock, .vd-clock-popup-time) { font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 500; letter-spacing: 0.02em; }
+.desktop-body[data-theme="black_gloss"] .vd-clock { color: var(--vd-text); }
+
+/* ---- Windows ---- */
+.desktop-body[data-theme="black_gloss"] .vd-window {
+    grid-template-rows: var(--vd-bgloss-title-h) minmax(0, 1fr);
+    border-radius: 10px;
+    border-color: var(--vd-border);
+    background: var(--vd-theme-app-bg);
+    box-shadow: 0 18px 54px rgba(0, 0, 0, 0.55);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-window.has-window-menu { grid-template-rows: calc(var(--vd-bgloss-title-h) + var(--vd-bgloss-menubar-h)) minmax(0, 1fr); }
+.desktop-body[data-theme="black_gloss"] .vd-window.no-titlebar { grid-template-rows: 1fr; }
+.desktop-body[data-theme="black_gloss"] .vd-window.active { border-color: var(--vd-border-bright); box-shadow: var(--vd-shadow-window); }
+.desktop-body[data-theme="black_gloss"] .vd-window.maximized { border-radius: 0; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window.vd-window-file-drop-target {
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.72);
+    box-shadow: var(--vd-shadow-window), 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.25);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-window.vd-window-file-drop-reject {
+    border-color: rgba(248, 113, 113, 0.68);
+    box-shadow: var(--vd-shadow-window), 0 0 0 2px rgba(248, 113, 113, 0.2);
+}
+
+/* Titlebar: the gloss band covers the title row only (menu windows keep their menubar below it). */
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar {
+    min-height: var(--vd-bgloss-title-h);
+    background: var(--vd-bgloss-band) top / 100% var(--vd-bgloss-title-h) no-repeat, #0a0a0b;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    box-shadow: var(--vd-bgloss-edge);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-window:not(.active) .vd-window-titlebar { background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 49%, rgba(255, 255, 255, 0) 50%); }
+.desktop-body[data-theme="black_gloss"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-bgloss-title-h) var(--vd-bgloss-menubar-h); }
+.desktop-body[data-theme="black_gloss"] .vd-window-title { font-weight: 600; letter-spacing: -0.005em; }
+.desktop-body[data-theme="black_gloss"] .vd-window-subtitle { color: var(--vd-muted); font-weight: 500; }
+
+/* Controls: three 14px glossy black beads on the right; their glyphs show while the titlebar is hovered. */
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button:not(.vd-window-ai-button) {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--vd-bgloss-bead);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 2px rgba(0, 0, 0, 0.8);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button:not(.vd-window-ai-button):hover { filter: brightness(1.35); }
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button[data-action="close"]:hover { box-shadow: inset 0 0 0 1px rgba(255, 95, 87, 0.7), 0 0 8px rgba(255, 95, 87, 0.4); }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-control-icon {
+    position: absolute;
+    inset: 0;
+    width: 9px;
+    height: 9px;
+    margin: auto;
+    color: rgba(255, 255, 255, 0.92);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button[data-action="close"] .vd-window-control-icon { color: #ff5f57; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar:hover .vd-window-control-icon,
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button:focus-visible .vd-window-control-icon { opacity: 1; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-ai-button {
+    width: 28px;
+    height: 20px;
+    padding: 0;
+    border-color: rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #141416;
+    box-shadow: var(--vd-bgloss-edge);
+    color: var(--vd-muted);
+}
+
+/* The chat glyph goes monochrome like the rest of the skin; the shared .vd-mini-icon rule pins filter with !important. */
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-ai-button-icon { filter: grayscale(1) brightness(1.15) !important; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-ai-button:hover {
+    border-color: rgba(255, 255, 255, 0.24);
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #1c1c1f;
+    color: var(--vd-text);
+}
+
+/* Menubar of windows that carry one, and its popovers. */
+.desktop-body[data-theme="black_gloss"] .vd-window-menubar { border-top-color: rgba(255, 255, 255, 0.06); }
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-button { border-radius: 6px; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-menu.open > .vd-window-menu-button,
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-button:focus-visible { border-color: transparent; background: #1a1a1d; }
+
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: -2px; }
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-popover { background-color: var(--vd-theme-panel-bg); }
+
+/* ---- Start menu: opaque black panel, gloss band on the search header, accent edge on the hovered row ---- */
+.desktop-body[data-theme="black_gloss"] .vd-start-menu {
+    border-color: var(--vd-border);
+    border-radius: 12px;
+    background-color: var(--vd-theme-panel-bg);
+    box-shadow: var(--vd-shadow-window);
+}
+
+/* desktop-polish.css tints menus with the wallpaper light; on opaque black that reads as a stain. */
+.desktop-body[data-theme="black_gloss"][data-shell="taskbar"][data-polish="on"] :is(.vd-start-menu, .vd-context-menu) { background-image: none; }
+
+.desktop-body[data-theme="black_gloss"] .vd-start-search {
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #0a0a0b;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    box-shadow: var(--vd-bgloss-edge);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-search input {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-search input:hover { background: rgba(0, 0, 0, 0.5); }
+.desktop-body[data-theme="black_gloss"] .vd-start-search input:focus { border-color: rgba(255, 255, 255, 0.22); background: rgba(0, 0, 0, 0.55); }
+.desktop-body[data-theme="black_gloss"] .vd-start-rail { border-right-color: rgba(255, 255, 255, 0.06); background: rgba(0, 0, 0, 0.28); }
+.desktop-body[data-theme="black_gloss"] .vd-start-rail-indicator { border-radius: 8px; background: #1a1a1d; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.desktop-body[data-theme="black_gloss"] .vd-start-rail-indicator::before { top: 8px; bottom: 8px; width: 2px; box-shadow: none; }
+.desktop-body[data-theme="black_gloss"] :is(.vd-start-category, .vd-start-item) { border-radius: 8px; }
+
+.desktop-body[data-theme="black_gloss"] .vd-start-category:hover,
+.desktop-body[data-theme="black_gloss"] .vd-start-item:hover { background-color: #1a1a1d; box-shadow: inset 2px 0 0 var(--vd-accent); }
+
+.desktop-body[data-theme="black_gloss"] .vd-start-category[aria-selected="true"]:hover { background-color: transparent; box-shadow: none; }
+.desktop-body[data-theme="black_gloss"] .vd-start-recent-item { background: rgba(255, 255, 255, 0.03); }
+
+/* ---- Menus, popovers and dialogs ---- */
+.desktop-body[data-theme="black_gloss"] :is(.vd-context-menu, .vd-context-submenu-popover) {
+    border-color: var(--vd-border);
+    border-radius: 12px;
+    background-color: var(--vd-theme-panel-bg);
+    box-shadow: var(--vd-theme-shadow-panel);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-context-item:hover:not(:disabled),
+.desktop-body[data-theme="black_gloss"] .vd-context-item:focus-visible:not(:disabled),
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-item:hover:not(:disabled),
+.desktop-body[data-theme="black_gloss"] .vd-window-menu-item:focus-visible:not(:disabled) { background: #1a1a1d; box-shadow: inset 2px 0 0 var(--vd-accent); }
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: var(--vd-theme-overlay-bg); }
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-file-dialog-header, .vd-notification-header, .vd-clock-popup-head) {
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, var(--vd-theme-chrome-bg);
+    box-shadow: var(--vd-bgloss-edge);
+}
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-notification-header, .vd-clock-popup-head) { border-radius: 11px 11px 0 0; }
+
+/* The clear button has no shared style of its own and would fall back to the browser's grey. */
+.desktop-body[data-theme="black_gloss"] .vd-notification-clear {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-notification-clear:hover { border-color: rgba(255, 255, 255, 0.22); background: var(--vd-theme-control-hover); }
+
+/* ---- Desktop ---- */
+.desktop-body[data-theme="black_gloss"] .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6)); }
+
+/* ---- Motion: every animation is gated; durations sit 20 ms under the registry's fallback timers ---- */
+@keyframes vd-theme-black-gloss-rise {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes vd-theme-black-gloss-sink {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+
+@keyframes vd-theme-black-gloss-minimize {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 16px)) scale(0.2); }
+}
+
+@keyframes vd-theme-black-gloss-restore {
+    from { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 10px)) scale(0.35); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+@keyframes vd-theme-black-gloss-sweep {
+    0% { opacity: 0; transform: translateX(-130%); }
+    20%, 80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(240%); }
+}
+
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) :is(.vd-window-opening, .vd-context-menu-opening) { animation: vd-theme-black-gloss-rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-context-menu-opening { animation-duration: 130ms; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-context-menu-opening .vd-context-item { animation: none; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-window-closing { animation: vd-theme-black-gloss-sink 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-window-minimizing { animation: vd-theme-black-gloss-minimize 210ms cubic-bezier(0.4, 0, 1, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-window-restoring { animation: vd-theme-black-gloss-restore 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) :is(.vd-context-menu-closing, .vd-window-menu-popover-closing) { animation: vd-theme-black-gloss-sink 110ms ease-in both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-start-button:hover::after { animation: vd-theme-black-gloss-sweep 700ms cubic-bezier(0.3, 0.6, 0.2, 1) both; }
+
+/* The compact touch layout opens the start menu as a sheet with its own motion; only the popover is themed. */
+@media (min-width: 821px), (hover: hover) and (pointer: fine) {
+    .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-start-menu-opening { animation: vd-theme-black-gloss-rise 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+    .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-start-menu-closing { animation: vd-theme-black-gloss-sink 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+}
+
+/* ---- Wide viewports: centred window titles, a slimmer tray ---- */
+@media (min-width: 821px) {
+    .desktop-body[data-theme="black_gloss"] .vd-taskbar { gap: 12px; padding: 0 14px 0 12px; }
+    .desktop-body[data-theme="black_gloss"] .vd-taskbar-system { gap: 4px; }
+    .desktop-body[data-theme="black_gloss"] .vd-show-desktop-btn { margin-right: 0; }
+    .desktop-body[data-theme="black_gloss"] .vd-clock { padding: 0 8px; }
+    .desktop-body[data-theme="black_gloss"] .vd-agent-button { height: 30px; }
+
+    .desktop-body[data-theme="black_gloss"] .vd-window:not(.no-titlebar) .vd-window-titlebar {
+        display: grid;
+        grid-template-columns: minmax(100px, 1fr) minmax(0, auto) minmax(100px, 1fr);
+        gap: 0;
+        padding: 0 12px;
+    }
+
+    .desktop-body[data-theme="black_gloss"] .vd-window-title-group { grid-column: 2; grid-row: 1; justify-content: center; }
+    .desktop-body[data-theme="black_gloss"] .vd-window-actions { grid-column: 3; grid-row: 1; justify-self: end; }
+}
+
+/* From here the three-column bar centres the apps on the screen itself; when they would not fit that way they
+ * move left until they meet the tray, and the row still scrolls when it overflows. */
+@media (min-width: 1200px) {
+    .desktop-body[data-theme="black_gloss"] .vd-taskbar { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 32px; }
+    .desktop-body[data-theme="black_gloss"] .vd-start-button { justify-self: start; }
+    .desktop-body[data-theme="black_gloss"] .vd-taskbar-system { justify-self: end; }
+}
+
+/* ---- Compact touch layout: the shared floating taskbar and start sheet keep their geometry ---- */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="black_gloss"] { --vd-bgloss-title-h: 52px; --vd-bgloss-menubar-h: 32px; }
+    .desktop-body[data-theme="black_gloss"] .vd-taskbar { box-shadow: var(--vd-bgloss-edge), 0 12px 32px rgba(0, 0, 0, 0.7); }
+    .desktop-body[data-theme="black_gloss"] .vd-start-menu { border-radius: 18px 18px 0 0; }
+}
+
+/* Without a pointer to hover, the control glyphs stay visible. */
+@media (hover: none), (pointer: coarse) {
+    .desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-control-icon { opacity: 1; }
+}
+
+@media (pointer: coarse) {
+    .desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-button:not(.vd-window-ai-button) { width: 28px; height: 28px; min-width: 28px; }
+    .desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-control-icon { width: 14px; height: 14px; }
+    .desktop-body[data-theme="black_gloss"] .vd-window-titlebar .vd-window-ai-button { width: 36px; height: 28px; border-radius: 14px; }
+    .desktop-body[data-theme="black_gloss"] .vd-window-actions { gap: 12px; }
+
+    /* desktop-shell-overrides.css forces a blur on touch with !important; these surfaces are opaque, so it only
+     * costs GPU time. */
+    .desktop-body[data-theme="black_gloss"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
 }
