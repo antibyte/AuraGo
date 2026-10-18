@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Obě fakta jsou platná",
+  "dashboard.memory_conflict_saving": "Ukládání…",
+  "dashboard.memory_conflict_dismissed": "Zamítnuto; obě fakta zachována.",
+  "dashboard.memory_conflict_failed": "Zamítnutí se nezdařilo. Zkus to znovu.",
   "dashboard.notes_protection_hint": "Před změnou nebo smazáním chráněnou poznámku odemkni. Trvalé uchování brání automatickému čištění.",
   "dashboard.notes_protected": "Chráněno",
   "dashboard.notes_keep_forever": "Uchovat navždy",

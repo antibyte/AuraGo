@@ -343,6 +343,7 @@ func launchAsyncPersonalityV2Analysis(
 	cfg *config.Config,
 	logger *slog.Logger,
 	fallbackClient memory.PersonalityAnalyzerClient,
+	runCfg RunConfig,
 	stm *memory.SQLiteMemory,
 	emotionSynthesizer *memory.EmotionSynthesizer,
 	recentMsgs []openai.ChatCompletionMessage,
@@ -361,7 +362,7 @@ func launchAsyncPersonalityV2Analysis(
 	isCoAgent bool,
 	basisSnapshots ...*memory.PersonalitySnapshot,
 ) {
-	if stm == nil {
+	if stm == nil || cfg == nil || isMission || isCoAgent || runCfg.BudgetTracker == nil || runCfg.BudgetTracker.IsBlocked("personality") {
 		return
 	}
 
@@ -385,16 +386,34 @@ func launchAsyncPersonalityV2Analysis(
 	}
 	contextHistory, userHistory := buildPersonalityHistories(recentMsgs, extraLabel, extraContent)
 	modelName := resolvePersonalityModel(cfg)
-	analyzerClient := resolvePersonalityAnalyzerClient(cfg, fallbackClient)
+	helper := llm.ResolveHelperLLM(cfg)
+	mainFallback := !(helper.Enabled && helper.Model != "") && cfg.Personality.V2ResolvedURL == "" && cfg.Personality.V2URL == ""
+	if mainFallback {
+		modelName = cfg.LLM.Model
+	}
+	analyzerClient := &emotionCompletionClient{client: resolvePersonalityAnalyzerClient(cfg, fallbackClient), cfg: cfg, tracker: runCfg.BudgetTracker, mainFallback: mainFallback}
+	timeout := time.Duration(cfg.Personality.V2TimeoutSecs) * time.Second
+	if timeout <= 0 || timeout > 60*time.Second {
+		timeout = 60 * time.Second
+	}
+	if mainFallback {
+		timeout = min(timeout, 20*time.Second)
+		logger.Warn("[Personality V2] Using bounded main-model fallback", "model", modelName, "max_requests", 1, "max_output_tokens", llm.ReasoningOutputTokens, "timeout", timeout, "budget_category", "personality")
+	}
 	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 
-	go func() {
+	sideEffectsFromRunConfig(runCfg).Go(func(parentCtx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Error("[Personality V2] Panic in async analysis goroutine", "panic", r)
 			}
 		}()
-		v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Personality.V2TimeoutSecs)*time.Second)
+		sessionCtx, release, sessionErr := stm.RegisterSessionRun(parentCtx, sessionID)
+		if sessionErr != nil {
+			return
+		}
+		defer release()
+		v2Ctx, cancel := context.WithTimeout(sessionCtx, timeout)
 		defer cancel()
 
 		var (
@@ -460,7 +479,7 @@ func launchAsyncPersonalityV2Analysis(
 			}
 		}
 
-		if !helperEmotionBatchEligible || err != nil {
+		if !helperEmotionBatchEligible || (err != nil && !mainFallback && v2Ctx.Err() == nil) {
 			result.SynthesizedEmotion = nil
 			observationContext := &memory.MoodAnalysisContext{Snapshot: basis, CurrentUserMessage: triggerInfo}
 			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, err = stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled, observationContext)
@@ -505,7 +524,7 @@ func launchAsyncPersonalityV2Analysis(
 			profilingEnabled,
 			consecutiveErrorCount,
 			successCount,
-			result,
+			result, v2Ctx,
 		)
-	}()
+	})
 }

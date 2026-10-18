@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Και τα δύο στοιχεία ισχύουν",
+  "dashboard.memory_conflict_saving": "Αποθήκευση…",
+  "dashboard.memory_conflict_dismissed": "Απορρίφθηκε· διατηρήθηκαν και τα δύο στοιχεία.",
+  "dashboard.memory_conflict_failed": "Η απόρριψη απέτυχε. Δοκίμασε ξανά.",
   "dashboard.notes_protection_hint": "Ξεκλείδωσε μια προστατευμένη σημείωση πριν την αλλάξεις ή τη διαγράψεις. Η μόνιμη διατήρηση αποτρέπει τον αυτόματο καθαρισμό.",
   "dashboard.notes_protected": "Προστατευμένη",
   "dashboard.notes_keep_forever": "Διατήρηση για πάντα",

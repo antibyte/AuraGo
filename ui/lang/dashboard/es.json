@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Ambos hechos son válidos",
+  "dashboard.memory_conflict_saving": "Guardando…",
+  "dashboard.memory_conflict_dismissed": "Descartado; se conservaron ambos hechos.",
+  "dashboard.memory_conflict_failed": "No se pudo descartar. Inténtalo de nuevo.",
   "dashboard.notes_protection_hint": "Desbloquea una nota protegida antes de modificarla o eliminarla. Conservar para siempre impide la limpieza automática.",
   "dashboard.notes_protected": "Protegida",
   "dashboard.notes_keep_forever": "Conservar para siempre",

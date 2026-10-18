@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Båda fakta är giltiga",
+  "dashboard.memory_conflict_saving": "Sparar…",
+  "dashboard.memory_conflict_dismissed": "Avfärdad; båda fakta har behållits.",
+  "dashboard.memory_conflict_failed": "Kunde inte avfärda. Försök igen.",
   "dashboard.notes_protection_hint": "Lås upp en skyddad anteckning innan du ändrar eller raderar den. Behåll för alltid förhindrar automatisk rensning.",
   "dashboard.notes_protected": "Skyddad",
   "dashboard.notes_keep_forever": "Behåll för alltid",

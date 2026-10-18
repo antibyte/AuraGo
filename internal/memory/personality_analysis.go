@@ -329,6 +329,7 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 			{Role: openai.ChatMessageRoleUser, Content: "Analyze the above data and respond with valid JSON only."},
 		},
 		Temperature: 0.1,
+		MaxTokens:   1200,
 	}
 
 	resp, err := client.CreateChatCompletion(ctx, req)
@@ -336,7 +337,7 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 		return MoodFocused, 0, nil, nil, fmt.Errorf("llm analyze mood: %w", err)
 	}
 
-	if len(resp.Choices) == 0 {
+	if len(resp.Choices) == 0 || resp.Choices[0].FinishReason == openai.FinishReasonLength {
 		return MoodFocused, 0, nil, nil, fmt.Errorf("empty chat completion choices")
 	}
 
@@ -346,14 +347,14 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 
 	jsonStr := extractStrictJSONObject(content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, fmt.Errorf("malformed JSON in response: %q", content)
+		return MoodFocused, 0, nil, nil, fmt.Errorf("malformed JSON in mood response")
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, fmt.Errorf("json unmarshal failed: %w (raw response: %q)", err, content)
+		return MoodFocused, 0, nil, nil, fmt.Errorf("parse mood response: %w", err)
 	}
 	if !validateMoodAnalysisResult(&result) {
-		return MoodFocused, 0, nil, nil, fmt.Errorf("validation of mood analysis result failed: %+v", result)
+		return MoodFocused, 0, nil, nil, fmt.Errorf("validation of mood analysis result failed")
 	}
 
 	mood, ok := normalizeMoodValue(result.AgentMood)
@@ -732,29 +733,30 @@ Rules for inner_voice:
 			{Role: openai.ChatMessageRoleUser, Content: "Analyze the above data and respond with valid JSON only."},
 		},
 		Temperature: 0.1,
+		MaxTokens:   1200,
 	}
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("llm analyze mood+emotion: %w", err)
 	}
-	if len(resp.Choices) == 0 {
+	if len(resp.Choices) == 0 || resp.Choices[0].FinishReason == openai.FinishReasonLength {
 		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("empty chat completion choices")
 	}
 
 	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("malformed JSON in response: %q", resp.Choices[0].Message.Content)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("malformed JSON in mood/emotion response")
 	}
 
 	var result moodEmotionAnalysisResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("json unmarshal failed: %w (raw response: %q)", err, resp.Choices[0].Message.Content)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("parse mood/emotion response: %w", err)
 	}
 
 	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
 	if !ok {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("normalize mood analysis result failed: %+v", result.MoodAnalysis)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("normalize mood analysis result failed")
 	}
 
 	emotionJSON, err := json.Marshal(result.EmotionState)

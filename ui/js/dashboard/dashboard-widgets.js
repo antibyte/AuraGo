@@ -420,6 +420,24 @@
             } catch (_) { if (request === noteProtectionRequest) container.textContent = t('dashboard.notes_protection_failed'); }
         }
 
+        async function dismissMemoryConflict(button, conflictID) {
+            const status = button.parentElement.querySelector('[role="status"]');
+            button.disabled = true;
+            status.textContent = t('dashboard.memory_conflict_saving');
+            try {
+                const response = await fetch('/api/memory/conflicts/resolve', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conflict_id: conflictID, action: 'dismiss' })
+                });
+                if (!response.ok) throw new Error('dismiss failed');
+                status.textContent = t('dashboard.memory_conflict_dismissed');
+                button.remove();
+            } catch (_) {
+                status.textContent = t('dashboard.memory_conflict_failed');
+                button.disabled = false;
+            }
+        }
+
         function renderMemoryHealth(data) {
             if (!data) return;
 
@@ -516,7 +534,7 @@
                     (overused.length ? renderCollapsibleList(overused, item => `<div class="memory-curator-row mono">${esc(item)}</div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
                     '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-subsection-title">' + esc(t('dashboard.memory_conflicts_title')) + '</div><div class="memory-curator-list">' +
-                    (conflictItems.length ? renderCollapsibleList(conflictItems, item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span></div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
+                    (conflictItems.length ? renderCollapsibleList(conflictItems, item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span><button type="button" class="mh-more-btn" onclick="dismissMemoryConflict(this, ${Number(item.id)})">${esc(t('dashboard.memory_conflict_both_valid'))}</button><span role="status"></span></div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
                     '</div></div>' +
                 '</div>';
             }

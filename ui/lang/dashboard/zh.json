@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "两个事实都有效",
+  "dashboard.memory_conflict_saving": "正在保存…",
+  "dashboard.memory_conflict_dismissed": "已忽略；两个事实均已保留。",
+  "dashboard.memory_conflict_failed": "无法忽略，请重试。",
   "dashboard.notes_protection_hint": "修改或删除受保护的笔记前，请先解除保护。永久保留可防止自动清理。",
   "dashboard.notes_protected": "受保护",
   "dashboard.notes_keep_forever": "永久保留",

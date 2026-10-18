@@ -485,6 +485,9 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 		minScore = 0
 	}
 
+	typeFilter, typeArgs := kg.contextNodeTypeFilter("n")
+	args := append([]interface{}{minScore}, typeArgs...)
+	args = append(args, limit)
 	rows, err := kg.db.Query(`
 		SELECT n.id, n.label, n.properties, n.protected,
 			(CASE WHEN n.protected = 1 THEN 50 ELSE 0 END) +
@@ -509,10 +512,10 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 			)
 			GROUP BY node_id
 		) deg ON deg.node_id = n.id
-		WHERE importance_score >= ?
+		WHERE importance_score >= ? AND `+typeFilter+`
 		ORDER BY importance_score DESC
 		LIMIT ?
-	`, minScore, limit)
+	`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query important nodes: %w", err)
 	}

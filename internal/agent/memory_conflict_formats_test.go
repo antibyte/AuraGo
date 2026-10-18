@@ -24,6 +24,7 @@ func TestConflictFormatsPreserveMultilineFact(t *testing.T) {
 			t.Fatalf("raw erased: %q", got)
 		}
 	}
+	raw = "User prefers Emacs"
 	stm, _ := newMemorySafetyStore(t)
 	for _, id := range []string{"old", "new"} {
 		if err := stm.UpsertMemoryMeta(id); err != nil {
@@ -31,7 +32,7 @@ func TestConflictFormatsPreserveMultilineFact(t *testing.T) {
 		}
 	}
 	v := &memorySafetyVector{archiveFilterVectorDB: archiveFilterVectorDB{byQuery: map[string][]memory.SearchResult{
-		"user|preference": {{DocID: "old", Text: "Editor preference\n\nUser prefers Vim", Similarity: .99}},
+		"user|editor": {{DocID: "old", Text: "Editor preference\n\nUser prefers Vim", Similarity: .99}},
 	}}, stored: map[string]string{"new": "[preference:workflow] " + raw + "\n\nsource:memory_analysis"}}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if err := detectMemoryConflictsForDocIDsWithContext(t.Context(), logger, stm, v, []string{"new"}, raw, conflictRawFact); err != nil {

@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "दोनों तथ्य सही हैं",
+  "dashboard.memory_conflict_saving": "सहेजा जा रहा है…",
+  "dashboard.memory_conflict_dismissed": "खारिज किया; दोनों तथ्य सुरक्षित हैं।",
+  "dashboard.memory_conflict_failed": "खारिज नहीं हो सका। फिर कोशिश करो।",
   "dashboard.notes_protection_hint": "सुरक्षित नोट को बदलने या मिटाने से पहले अनलॉक करें। हमेशा रखने से अपने आप सफ़ाई नहीं होती।",
   "dashboard.notes_protected": "सुरक्षित",
   "dashboard.notes_keep_forever": "हमेशा रखें",

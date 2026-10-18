@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Oba fakty są prawidłowe",
+  "dashboard.memory_conflict_saving": "Zapisywanie…",
+  "dashboard.memory_conflict_dismissed": "Odrzucono; oba fakty zachowano.",
+  "dashboard.memory_conflict_failed": "Nie udało się odrzucić. Spróbuj ponownie.",
   "dashboard.notes_protection_hint": "Odblokuj chronioną notatkę przed zmianą lub usunięciem. Zachowaj na zawsze zapobiega automatycznemu czyszczeniu.",
   "dashboard.notes_protected": "Chroniona",
   "dashboard.notes_keep_forever": "Zachowaj na zawsze",

@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Both facts are valid",
+  "dashboard.memory_conflict_saving": "Saving…",
+  "dashboard.memory_conflict_dismissed": "Dismissed; both facts kept.",
+  "dashboard.memory_conflict_failed": "Could not dismiss. Try again.",
   "dashboard.notes_protection_hint": "Unlock a protected note before changing or deleting it. Keep forever prevents automatic cleanup.",
   "dashboard.notes_protected": "Protected",
   "dashboard.notes_keep_forever": "Keep forever",

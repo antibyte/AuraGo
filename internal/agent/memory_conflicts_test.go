@@ -15,7 +15,7 @@ func TestDeriveConflictSignalsDetectsDifferentLanguageClaims(t *testing.T) {
 	if len(signals) != 1 {
 		t.Fatalf("len(signals) = %d, want 1", len(signals))
 	}
-	if signals[0].Key != "user|preference" || signals[0].Value != "german" {
+	if signals[0].Key != "user|language" || signals[0].Value != "german" {
 		t.Fatalf("unexpected signal: %+v", signals[0])
 	}
 }
@@ -53,7 +53,7 @@ func TestConflictSignalsUnderstandStoredFactEnvelopes(t *testing.T) {
 		{"[correction:workflow] User prefers Vim\n\nsource:memory_analysis", conflictStoredDocument},
 	} {
 		signals := deriveConflictSignals(item.text, item.format)
-		if len(signals) != 1 || signals[0].Key != "user|preference" || signals[0].Value != "vim" {
+		if len(signals) != 1 || signals[0].Key != "user|editor" || signals[0].Value != "vim" {
 			t.Fatalf("text=%q signals=%v", item.text, signals)
 		}
 	}
@@ -71,7 +71,7 @@ func TestMemoryConflictsCompareRawAndStoredFacts(t *testing.T) {
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	vdb := &memorySafetyVector{archiveFilterVectorDB: archiveFilterVectorDB{byQuery: map[string][]memory.SearchResult{
-		"user|preference": {{DocID: "old", Text: "Editor preference\n\nUser prefers Vim", Similarity: .99}},
+		"user|editor": {{DocID: "old", Text: "Editor preference\n\nUser prefers Vim", Similarity: .99}},
 	}}, stored: map[string]string{"new": "Editor preference\n\nUser prefers Emacs"}}
 	if err := detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, vdb, []string{"new"}, "User prefers Emacs", conflictRawFact); err != nil {
 		t.Fatal(err)

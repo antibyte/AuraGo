@@ -332,9 +332,9 @@ func TestEscapeFTS5EscapesInternalQuotes(t *testing.T) {
 	}
 }
 
-func TestEscapeFTS5UsesANDForMultipleWords(t *testing.T) {
+func TestEscapeFTS5UsesORForMultipleWords(t *testing.T) {
 	got := kgquery.EscapeFTS5("docker host")
-	want := `"docker" AND "host"`
+	want := `"docker" OR "host"`
 	if got != want {
 		t.Fatalf("escapeFTS5 multi-word = %q, want %q", got, want)
 	}

@@ -32,5 +32,5 @@ func EscapeFTS5(query string) string {
 	if len(escaped) == 1 {
 		return escaped[0]
 	}
-	return strings.Join(escaped, " AND ")
+	return strings.Join(escaped, " OR ")
 }

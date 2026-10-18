@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Begge fakta er gyldige",
+  "dashboard.memory_conflict_saving": "Gemmer…",
+  "dashboard.memory_conflict_dismissed": "Afvist; begge fakta er bevaret.",
+  "dashboard.memory_conflict_failed": "Kunne ikke afvise. Prøv igen.",
   "dashboard.notes_protection_hint": "Lås en beskyttet note op før ændring eller sletning. Behold for altid forhindrer automatisk oprydning.",
   "dashboard.notes_protected": "Beskyttet",
   "dashboard.notes_keep_forever": "Behold for altid",

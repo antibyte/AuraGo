@@ -74,6 +74,32 @@ bracket text survives. Queue and immediate checks use the same fact and cancella
 context. Archive retention removes consolidated terminal
 `done` and `excluded` rows; pending, processing and failed work survives.
 
+Automatic conflict detection compares only matching typed single-choice properties.
+A language preference does not conflict with a theme or editor preference. Generic
+usage, spoken languages and host listening ports can coexist; an explicit named
+endpoint default port can be compared. Dashboard **Both facts are valid** dismisses
+the review while retaining both memories. Other open conflicts remain active.
+The existing administrative conflict-resolution endpoint accepts `action: "dismiss"`
+without a winning document. Repeated scans keep unchanged reviewed pair values
+dismissed; changed values may reopen the review.
+
+Knowledge-graph lexical search matches individually escaped terms with OR and
+orders by relevance. Excluded node types do not consume context result limits;
+semantic retrieval uses the full query and backfills past excluded candidates.
+Memory recency accepts SQLite and RFC3339 timestamps without extra future-date
+boosts. Prompt budgets preserve complete facts or intact recall teasers and mark
+omitted entries, so a clipped identifier never becomes an unusable recall target.
+
+Plan dependencies must be non-null JSON arrays of task IDs. An empty array `[]`
+is a valid independent task; null, other JSON shapes, malformed/empty values,
+missing references and cycles visibly block legacy plans rather than starting
+unknown work. Splitting refuses unreadable dependencies. Repair the dependency
+data before clearing the blocker; activation validates the graph again.
+
+Native oversize chunking prepares Unicode runes once and advances positions,
+retaining boundary preferences and overlap without repeatedly copying the suffix.
+`BenchmarkRecursiveOversize` covers 1 MiB and 8 MiB inputs to check scaling.
+
 Core-memory synchronization uses context-bound `UpdateNodeIndexed` and
 `AddNodeIndexed`; the existing public node writers remain best effort. Strict writes
 commit a pending marker and finish only after successful semantic indexing and an
@@ -350,7 +376,6 @@ replace existing summaries, including concurrent writes. Catch-up dates only
 generate summaries; current KG extraction executes once. The activity rollup
 targets yesterday. Input bounds and the protected tail time reserve still apply;
 unprocessed eligible days remain visible as deferred work.
-
 # Privacy deletion and retained backups
 
 Deleting a chat permanently removes its conversation, archived copies and session plans, tasks and events. Automatic rotation still archives conversations. The optional **Also delete associated memories** checkbox is off by default. Selecting it removes only memories whose exclusive automatic source can be proven. Shared, protected, manually curated or unclear records remain; the result reports removed and retained items. Raw conversation copies in session-bound graph evidence are cleared even when derived knowledge is retained.
@@ -360,3 +385,17 @@ Deleting a contact follows the same default: keep derived knowledge. The People 
 Dashboard memory notes expose **Protected** and **Keep forever**. Unlock a protected note before editing or deleting it. Keep forever excludes a note from automatic cleanup. Both flags are rechecked when curation or retention applies a change.
 
 Deletion applies to live stores. Backups can retain deleted data until their normal cleanup. Maintenance retains completed managed memory snapshots for 30 days and preserves at least three complete snapshots. Quarantined files, open migration/repair backups and unknown backups are excluded from that automatic removal. Snapshot storage uses owner-only access; separately retained repair or migration backups require their own reviewed cleanup.
+
+
+Personality V2 mood analysis and combined mood/emotion narration use the same
+provider-aware output limits and the `personality` budget category. Shared turn
+batches containing personality output use the same gate and book their whole
+physical request once to `personality`, including retries. Batches without
+personality output use `helper_turn`. Invalid,
+truncated and failed responses with reported usage still count. Missing or
+exhausted budget trackers skip generation. If no helper or dedicated V2 endpoint
+is configured, the log explicitly records a main-model fallback limited to one
+request and twenty seconds; dedicated/helper analysis is capped at sixty seconds.
+There is no independent emotion-generation request. Local affect and the shared
+persistent emotion state continue to work without an LLM call. Session deletion
+and shutdown cancel pending analysis and prevent late personality writes.

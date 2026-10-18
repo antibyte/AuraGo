@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Entrambi i fatti sono validi",
+  "dashboard.memory_conflict_saving": "Salvataggio…",
+  "dashboard.memory_conflict_dismissed": "Ignorato; entrambi i fatti sono conservati.",
+  "dashboard.memory_conflict_failed": "Impossibile ignorare. Riprova.",
   "dashboard.notes_protection_hint": "Sblocca una nota protetta prima di modificarla o eliminarla. La conservazione permanente impedisce la pulizia automatica.",
   "dashboard.notes_protected": "Protetta",
   "dashboard.notes_keep_forever": "Conserva per sempre",

@@ -2,10 +2,13 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -103,16 +106,31 @@ func localPersonalityAppraisal(message string) memory.PersonalityAppraisal {
 // emotionCompletionClient gives short emotion requests the same route/output
 // limits and reasoning allowance as the other JSON helper requests.
 type emotionCompletionClient struct {
-	client memory.PersonalityAnalyzerClient
-	cfg    *config.Config
+	client       memory.PersonalityAnalyzerClient
+	cfg          *config.Config
+	tracker      *budget.Tracker
+	mainFallback bool
+	calls        int
 }
 
 func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+	if c.cfg == nil || c.client == nil || c.tracker == nil {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("personality budget tracker or client unavailable")
+	}
+	if c.tracker.IsBlocked("personality") {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("personality budget exhausted")
+	}
+	if c.mainFallback && c.calls >= 1 {
+		return openai.ChatCompletionResponse{}, fmt.Errorf("personality main fallback request limit reached")
+	}
 	helper := llm.ResolveHelperLLM(c.cfg)
 	route := llm.ModelRoute{Model: req.Model, ProviderID: c.cfg.LLM.Provider, ProviderType: c.cfg.LLM.ProviderType, BaseURL: c.cfg.LLM.BaseURL}
 	if helper.Enabled && helper.Model != "" {
 		route.ProviderID, route.ProviderType, route.BaseURL = helper.ProviderID, helper.ProviderType, helper.BaseURL
-	} else if c.cfg.Personality.V2Provider != "" || c.cfg.Personality.V2ResolvedURL != "" || c.cfg.Personality.V2URL != "" {
+	} else if !c.mainFallback && (c.cfg.Personality.V2Provider != "" || c.cfg.Personality.V2ResolvedURL != "" || c.cfg.Personality.V2URL != "") {
 		route.ProviderID, route.ProviderType, route.BaseURL = c.cfg.Personality.V2Provider, c.cfg.Personality.V2ProviderType, c.cfg.Personality.V2ResolvedURL
 		if route.BaseURL == "" {
 			route.BaseURL = c.cfg.Personality.V2URL
@@ -126,15 +144,28 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 		inputTokens += prompts.CountTokensForModel(message.Content, req.Model)
 	}
 	limits := llm.ResolveModelLimitsCached(route, c.cfg.Agent.ContextWindow)
-	outputTokens, err := llm.JSONCompletionOutputBudget(limits, 512, inputTokens)
+	outputTokens, err := llm.JSONCompletionOutputBudget(limits, min(max(req.MaxTokens, 512), 1200), inputTokens)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
 	req.MaxTokens = outputTokens
+	req.MaxCompletionTokens = 0
+	if errors.Is(openai.NewReasoningValidator().Validate(req), openai.ErrReasoningModelMaxTokensDeprecated) {
+		req.MaxTokens, req.MaxCompletionTokens, req.Temperature = 0, outputTokens, 0
+	}
 	if caps, ok := llm.CapabilitiesFromRegistry(route.ProviderType, req.Model); ok {
 		req.ResponseFormat = llm.JSONResponseFormat(caps.StructuredOutputs)
 	}
+	c.calls++
 	response, err := c.client.CreateChatCompletion(ctx, req)
+	response, input, output, _, _, _, account := normalizeResponseUsage(req, response)
+	if account {
+		model := response.Model
+		if model == "" {
+			model = req.Model
+		}
+		c.tracker.RecordForCategory("personality", model, input, output)
+	}
 	if err != nil {
 		return response, err
 	}

@@ -205,8 +205,8 @@ func TestCompactMemoryForPromptPreservesUTF8WhenTruncating(t *testing.T) {
 	if !utf8.ValidString(got) {
 		t.Fatalf("compactMemoryForPrompt returned invalid UTF-8: %q", got)
 	}
-	if got != "abc…" {
-		t.Fatalf("compactMemoryForPrompt() = %q, want %q", got, "abc…")
+	if got != "a…" {
+		t.Fatalf("compactMemoryForPrompt() = %q, want %q", got, "a…")
 	}
 }
 

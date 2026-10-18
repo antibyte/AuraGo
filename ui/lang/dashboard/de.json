@@ -1,4 +1,8 @@
 {
+  "dashboard.memory_conflict_both_valid": "Beide Fakten sind gültig",
+  "dashboard.memory_conflict_saving": "Wird gespeichert…",
+  "dashboard.memory_conflict_dismissed": "Verworfen; beide Fakten bleiben erhalten.",
+  "dashboard.memory_conflict_failed": "Verwerfen fehlgeschlagen. Versuche es erneut.",
   "dashboard.notes_protection_hint": "Entsperre geschützte Notizen vor Änderungen oder dem Löschen. Dauerhaft behalten verhindert automatische Bereinigung.",
   "dashboard.notes_protected": "Geschützt",
   "dashboard.notes_keep_forever": "Dauerhaft behalten",

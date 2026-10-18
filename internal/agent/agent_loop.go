@@ -1112,7 +1112,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							if !ok {
 								continue
 							}
-							servedMemory = compactMemoryForPrompt(servedMemory, aggressivePredictedMemoriesChars)
+							servedMemory = completeMemoryForPrompt(servedMemory, f.docID, aggressivePredictedMemoriesChars)
 							predictedResults = append(predictedResults, servedMemory)
 							retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
 							if f.docID != "" && shortTermMem != nil {
@@ -2369,6 +2369,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						cfg,
 						s.currentLogger,
 						client,
+						s.runCfg,
 						shortTermMem,
 						emotionSynthesizer,
 						req.Messages,
@@ -2481,6 +2482,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg,
 							s.currentLogger,
 							client,
+							s.runCfg,
 							shortTermMem,
 							emotionSynthesizer,
 							recentMsgs,
@@ -2548,6 +2550,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg,
 							s.currentLogger,
 							client,
+							s.runCfg,
 							shortTermMem,
 							emotionSynthesizer,
 							recentMsgs,

@@ -42,7 +42,7 @@ func (s *SQLiteMemory) RegisterMemoryConflict(leftDocID, rightDocID, conflictKey
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	_, err = tx.Exec(`
+	result, err := tx.Exec(`
 		INSERT INTO memory_conflicts (doc_id_left, doc_id_right, conflict_key, left_value, right_value, reason, status, detected_at, resolved_at)
 		VALUES (?, ?, ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, '')
 		ON CONFLICT(doc_id_left, doc_id_right, conflict_key) DO UPDATE SET
@@ -54,12 +54,51 @@ func (s *SQLiteMemory) RegisterMemoryConflict(leftDocID, rightDocID, conflictKey
 			superseded_doc_id = '',
 			detected_at = CURRENT_TIMESTAMP,
 			resolved_at = ''
+		WHERE memory_conflicts.status != 'dismissed'
+		   OR memory_conflicts.left_value != excluded.left_value
+		   OR memory_conflicts.right_value != excluded.right_value
 	`, leftDocID, rightDocID, conflictKey, leftValue, rightValue, reason)
 	if err != nil {
 		return fmt.Errorf("register memory conflict: %w", err)
 	}
+	if changed, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("read registered memory conflict result: %w", err)
+	} else if changed == 0 {
+		return tx.Commit()
+	}
 	if _, err = tx.Exec(`UPDATE memory_meta SET verification_status = 'contradicted', last_event_at = CURRENT_TIMESTAMP WHERE doc_id IN (?, ?)`, leftDocID, rightDocID); err != nil {
 		return fmt.Errorf("mark contradicted memory meta: %w", err)
+	}
+	return tx.Commit()
+}
+
+// DismissMemoryConflict retains both facts and the evidence reviewed by the operator.
+func (s *SQLiteMemory) DismissMemoryConflict(conflictID int64, reason string) error {
+	if s == nil || conflictID <= 0 {
+		return fmt.Errorf("memory store and conflict id are required")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("dismiss memory conflict begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	conflict, err := getMemoryConflictByIDTx(tx, conflictID)
+	if err != nil {
+		return fmt.Errorf("load dismissed memory conflict: %w", err)
+	}
+	if conflict.Status != "open" {
+		return fmt.Errorf("memory conflict %d is not open", conflictID)
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "both facts are valid"
+	}
+	if _, err := tx.Exec(`UPDATE memory_conflicts SET status='dismissed', reason=?, resolved_at=CURRENT_TIMESTAMP WHERE id=?`, reason, conflictID); err != nil {
+		return fmt.Errorf("dismiss memory conflict: %w", err)
+	}
+	for _, docID := range []string{conflict.DocIDLeft, conflict.DocIDRight} {
+		if err := confirmMemoryDocIfNoOpenConflictsTx(tx, docID, reason); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
