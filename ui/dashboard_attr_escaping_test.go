@@ -35,9 +35,10 @@ func escCallsInOpenAttributes(line string) []int {
 
 // TestDashboardAttributeValuesUseEscAttr: no dashboard script puts esc() into an HTML attribute value, and none
 // brings back escapeJsString, whose output in an inline handler ended the attribute at a double quote (ids and other
-// handler arguments go into data attributes). The detector is proven on samples first. It reads one line at a time,
-// so a value assembled in a variable first is not seen; TestDashboardAttributeEscapingBrowser renders the real
-// renderers with hostile values.
+// handler arguments go into data attributes). The detector is proven on samples first. It reads one line at a time
+// and only looks for esc(), so it does not see a value escaped into a variable first, an attribute whose quote opens
+// on an earlier line, a raw ${value} in an attribute, or escAttr() inside an inline handler's JS string (the entity
+// is decoded before the JS runs); TestDashboardAttributeEscapingBrowser renders the real renderers with hostile values.
 func TestDashboardAttributeValuesUseEscAttr(t *testing.T) {
 	for _, line := range []string{
 		"`<span title=\"${esc(x)}\">`",
