@@ -1459,7 +1459,7 @@ buttons and menu popovers remain excluded from those gestures.
   `video-studio-core.js` (constants, requests, model, history, saving,
   conflicts, drafts), `-library.js`, `-effects-library.js` (effects library tab, LUT drops and removal), `-artwork.js` (titles, stickers),
   `-jobs.js` (jobs, refresh, export/AI dialogs), `-stage.js` (popovers,
-  drawer, timeline height, transform box, field edits), `-editing.js`
+  drawer, timeline height, transform box, field edits), `-mask.js` (mask overlay and handles), `-editing.js`
   (selection, clipboard, tools, edit commands and shortcuts), `-keyframes.js`
   (keyframe controls, strip, speed lane and shortcuts), `-inspector-effects.js`
   (Effects section, crop and flip edits, LUT picker, stack keys), `-source.js`
@@ -1471,8 +1471,8 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (38 Video Studio scripts after the two shared
-  sticker scripts, so 40 in all; the same order in `module-loader.js`, both browser fixtures and
+  `-menus.js` (context menus), and `video-studio.js` last (39 Video Studio scripts after the two shared
+  sticker scripts, so 41 in all; the same order in `module-loader.js`, both browser fixtures and
   `TestVideoStudioNavigationLoadOrder`; lists only get insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so

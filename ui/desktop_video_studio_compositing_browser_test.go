@@ -1,11 +1,13 @@
 package ui
 
 import (
+	"encoding/json"
 	"math"
 	"path/filepath"
 	"testing"
 
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // TestDesktopVideoStudioCompositingBrowser drives the 2d compositing UI in the real app on the keyframe fixture with the
@@ -14,6 +16,7 @@ import (
 func TestDesktopVideoStudioCompositingBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	t.Run("inspector", videoStudioCompositingInspectorPart)
+	t.Run("handles", videoStudioMaskHandlesPart)
 }
 
 // videoStudioCompositingInspectorPart (Task 14) works on c1, the 512x288 picture at half size on overlay o1:
@@ -174,5 +177,188 @@ func videoStudioCompositingInspectorPart(t *testing.T) {
 	page.MustSetViewport(1280, 900, 1, false)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the compositing inspector part: %s", errs)
+	}
+}
+
+// videoStudioMaskHandlesPart is the handles subtest of TestDesktopVideoStudioCompositingBrowser (Task 15). It works on c1
+// (the 512x288 picture at half size in the top left corner of overlay o1) with the default rectangle mask:
+//   - Edit mask in the preview swaps the transform box for the mask overlay and focuses the mask; crop mode and mask
+//     mode replace each other.
+//   - A drag of the right handle by a tenth of the clip box widens the mask by 0.1 in one undo step; the left edge stays.
+//   - Keys: 1 % per press on a size handle (Shift 10 %) and on the mask; 1° and 15° on the rotate knob; 0.001 on the
+//     feather knob. Delete leaves the clip and the mask alone; Escape leaves and focuses the button.
+//   - The mode ends when the playhead leaves the clip; with mask.x animated, a nudge keys mask.x at the playhead only.
+//   - A title takes mask mode too.
+func videoStudioMaskHandlesPart(t *testing.T) {
+	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioKeyframesProject()))
+	shots := videoStudioKeyframesShotDir(t)
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	const button = `[data-inspector] [data-action="mask-mode"]`
+	const masking = `() => { const box = document.querySelector('[data-mask-box]'); return !!box && !box.hidden && document.querySelector('[data-transform]').hidden; }`
+	maskOf := func() map[string]float64 {
+		t.Helper()
+		raw := page.MustEval(`() => { const found = window.VideoStudioTimeline.clipFor(` + app + `.project, 'c1'); const m = found && found.clip.mask; return JSON.stringify(m ? {x: m.x, y: m.y, w: m.w, h: m.h, rotation: m.rotation, feather: m.feather} : null); }`).Str()
+		var out map[string]float64
+		if err := json.Unmarshal([]byte(raw), &out); err != nil || out == nil {
+			t.Fatalf("mask of c1: %v (%s)", err, raw)
+		}
+		return out
+	}
+	requireMask := func(step string, want map[string]float64, tolerance float64) {
+		t.Helper()
+		got := maskOf()
+		for key, value := range want {
+			if math.Abs(got[key]-value) > tolerance {
+				t.Fatalf("%s: mask %v, want %s = %.4f", step, got, key, value)
+			}
+		}
+	}
+	history := func() int { t.Helper(); return page.MustEval(`() => ` + app + `.history.length`).Int() }
+	seek := func(f int) {
+		t.Helper()
+		page.MustEval(`f => { const s = `+app+`; s.preview.pause(); s.preview.seek(f); }`, f)
+	}
+	press := func(key input.Key, shift bool) {
+		t.Helper()
+		if shift {
+			page.KeyActions().Press(input.ShiftLeft).Type(key).MustDo()
+			return
+		}
+		page.KeyActions().Type(key).MustDo()
+	}
+	enter := func() {
+		t.Helper()
+		page.MustElement(button).MustClick()
+		waitForJSBool(t, page, masking)
+	}
+
+	page.MustEval(`() => { const s = ` + app + `; s.timelineOptions.onSelect('c1'); s.preview.pause(); s.preview.seek(30); }`)
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'mask', project => window.VideoStudioKeyframeEdit.setMask(project, 'c1', {shape: 'rect'}, 30))`).Bool() {
+		t.Fatal("setMask(rect) was refused")
+	}
+	waitForJSBool(t, page, `() => { const b = document.querySelector('`+button+`'); return !!b && !b.disabled; }`)
+	enter()
+	if !effectsFocused(page, `[data-mask-shape]`) {
+		t.Error("the mask did not take keyboard focus")
+	}
+	if got := page.MustEval(`sel => document.querySelector(sel).getAttribute('aria-pressed')`, button).Str(); got != "true" {
+		t.Errorf("mask-mode aria-pressed = %q", got)
+	}
+
+	// Crop mode replaces mask mode, and mask mode replaces crop mode.
+	page.MustElement(`[data-inspector] [data-action="crop-mode"]`).MustClick()
+	waitForJSBool(t, page, `() => !document.querySelector('[data-crop-box]').hidden && document.querySelector('[data-mask-box]').hidden && !`+app+`.maskMode`)
+	enter()
+	if !page.MustEval(`() => document.querySelector('[data-crop-box]').hidden && !` + app + `.cropMode`).Bool() {
+		t.Fatal("mask mode left crop mode on")
+	}
+
+	// A drag of the right handle by a tenth of the clip box: width 0.6 in one undo step, and the left edge stays.
+	at := page.MustEval(`() => { const h = document.querySelector('[data-mask-handle="e"]').getBoundingClientRect(), b = document.querySelector('[data-mask-box]').getBoundingClientRect(); return {x: h.left + h.width / 2, y: h.top + h.height / 2, w: b.width}; }`)
+	x0, y0, width := at.Get("x").Num(), at.Get("y").Num(), at.Get("w").Num()
+	if width < 100 {
+		t.Fatalf("the clip box is %.1f px wide", width)
+	}
+	steps := history()
+	page.Mouse.MustMoveTo(x0, y0).MustDown(proto.InputMouseButtonLeft).MustMoveTo(x0+width/20, y0).MustMoveTo(x0+width/10, y0).MustUp(proto.InputMouseButtonLeft)
+	requireMask("right handle drag", map[string]float64{"x": 0.25, "y": 0.25, "w": 0.6, "h": 0.5}, 0.006)
+	if got := history(); got != steps+1 {
+		t.Fatalf("the drag left %d undo steps, want 1", got-steps)
+	}
+	if selected := page.MustEval(`() => ` + app + `.selectedClipId`).Str(); selected != "c1" {
+		t.Fatalf("the drag changed the selection to %q", selected)
+	}
+	waitForJSBool(t, page, masking)
+
+	// Keys: the focused right handle moves by 1 % and, with Shift, by 10 % of the box; the mask itself by 1 %.
+	w0 := maskOf()["w"]
+	page.MustElement(`[data-mask-handle="e"]`).MustFocus()
+	press(input.ArrowLeft, false)
+	requireMask("ArrowLeft on the right handle", map[string]float64{"w": w0 - 0.01, "x": 0.25}, 1e-6)
+	press(input.ArrowLeft, true)
+	requireMask("Shift+ArrowLeft on the right handle", map[string]float64{"w": w0 - 0.11, "x": 0.25}, 1e-6)
+	if !effectsFocused(page, `[data-mask-handle="e"]`) {
+		t.Error("the handle lost focus after a nudge")
+	}
+	page.MustElement(`[data-mask-shape]`).MustFocus()
+	press(input.ArrowRight, false)
+	requireMask("ArrowRight on the mask", map[string]float64{"x": 0.26, "w": w0 - 0.11}, 1e-6)
+	page.MustElement(`[data-mask-handle="rotate"]`).MustFocus()
+	press(input.ArrowUp, false)
+	press(input.ArrowUp, true)
+	requireMask("rotate knob", map[string]float64{"rotation": 16}, 1e-9)
+	page.MustElement(`[data-mask-handle="feather"]`).MustFocus()
+	press(input.ArrowUp, false)
+	requireMask("feather knob", map[string]float64{"feather": 0.001}, 1e-9)
+
+	// Delete stays in the overlay: the clip and its mask remain.
+	page.MustElement(`[data-mask-shape]`).MustFocus()
+	press(input.Delete, false)
+	if page.MustEval(`() => !window.VideoStudioTimeline.clipFor(` + app + `.project, 'c1')`).Bool() {
+		t.Fatal("Delete in mask mode deleted the clip")
+	}
+	maskOf()
+	page.MustScreenshot(filepath.Join(shots, "mask-handles-1280x900.png"))
+
+	// Escape leaves: the transform box is back and focus returns to the inspector button.
+	press(input.Escape, false)
+	waitForJSBool(t, page, `() => document.querySelector('[data-mask-box]').hidden && !document.querySelector('[data-transform]').hidden`)
+	if !effectsFocused(page, button) {
+		t.Error("Escape did not return focus to Edit mask in the preview")
+	}
+
+	// The mode ends when the playhead leaves the clip.
+	enter()
+	seek(160)
+	waitForJSBool(t, page, `() => document.querySelector('[data-mask-box]').hidden && !`+app+`.maskMode`)
+	seek(30)
+
+	// With mask.x keyed at frame 30, a nudge at frame 90 keys mask.x there (auto-key) and nothing else; Enter leaves.
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'animate mask', project => window.VideoStudioKeyframeEdit.setAnimated(project, 'c1', 'mask.x', true, 30))`).Bool() {
+		t.Fatal("setAnimated(mask.x) was refused")
+	}
+	x1 := maskOf()["x"]
+	requireVideoStudioKeys(t, "mask.x stopwatch", videoStudioClipKeys(t, page, "c1", "mask.x"), videoStudioKeyframe{30, x1, "linear"})
+	seek(90)
+	enter()
+	page.MustElement(`[data-mask-shape]`).MustFocus()
+	press(input.ArrowRight, false)
+	requireVideoStudioKeys(t, "auto-key at frame 90", videoStudioClipKeys(t, page, "c1", "mask.x"), videoStudioKeyframe{30, x1, "linear"}, videoStudioKeyframe{90, x1 + 0.01, "linear"})
+	if keys := videoStudioClipKeys(t, page, "c1", "mask.y"); keys != nil {
+		t.Errorf("the nudge keyed mask.y: %+v", keys)
+	}
+	press(input.Enter, false)
+	waitForJSBool(t, page, `() => document.querySelector('[data-mask-box]').hidden`)
+
+	// A turned clip with a turned, feathered ellipse mask (screenshot for review): the overlay turns with the clip and
+	// the dashed outline with the mask.
+	seek(30)
+	if !page.MustEval(`() => window.VideoStudioParts.applyEdit(` + app + `, 'turn', project => window.VideoStudioKeyframeEdit.setValues(project, 'c1', {rotation: 20}, 30) === true && window.VideoStudioKeyframeEdit.setMask(project, 'c1', {shape: 'ellipse', rotation: 30, feather: 0.1}, 30) === true)`).Bool() {
+		t.Fatal("turning the clip and the mask was refused")
+	}
+	enter()
+	if got := page.MustEval(`() => document.querySelector('[data-mask-box]').style.transform`).Str(); got == "" {
+		t.Error("the overlay does not turn with the clip")
+	}
+	if got := page.MustEval(`() => document.querySelector('[data-mask-shape]').dataset.maskShape`).Str(); got != "ellipse" {
+		t.Errorf("the overlay outline shows %q, want ellipse", got)
+	}
+	page.MustScreenshot(filepath.Join(shots, "mask-handles-turned-ellipse-1280x900.png"))
+	press(input.Escape, false)
+	waitForJSBool(t, page, `() => document.querySelector('[data-mask-box]').hidden`)
+
+	// A title takes mask mode as well.
+	if !page.MustEval(`() => window.VideoStudioParts.mutate(` + app + `, 'title fixture', project => { const clip = window.VideoStudioTimeline.clipFor(project, 'c1').clip; clip.text = 'Title'; clip.text_style = {font_family: 'Arial', font_size: 72, color: '#ffffff', alignment: 'center'}; })`).Bool() {
+		t.Fatal("the title fixture was refused")
+	}
+	seek(30)
+	enter()
+	top := maskOf()["y"]
+	page.MustElement(`[data-mask-shape]`).MustFocus()
+	press(input.ArrowDown, false)
+	requireMask("ArrowDown on a title's mask", map[string]float64{"y": top + 0.01}, 1e-6)
+	press(input.Escape, false)
+	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
+		t.Fatalf("script errors in the mask handles part: %s", errs)
 	}
 }

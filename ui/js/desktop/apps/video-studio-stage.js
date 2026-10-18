@@ -300,9 +300,10 @@
     function updateTransform(s) {
         const box = s.q('[data-transform]');
         if (!box) return;
-        // Crop mode shows the crop overlay instead of the transform box (2c).
+        // Crop mode (2c) and mask mode (2d, video-studio-mask.js) show their overlay instead of the transform box.
         updateCropBox(s);
-        const found = s.project && !s.q('.vs-no-project') && !s.cropMode ? transformTarget(s) : null;
+        if (P.updateMaskBox) P.updateMaskBox(s);
+        const found = s.project && !s.q('.vs-no-project') && !s.cropMode && !s.maskMode ? transformTarget(s) : null;
         box.hidden = !found;
         if (!found) return;
         // The box at the playhead, keyframes included.
@@ -515,6 +516,8 @@
     function setCropMode(s, on, options) {
         const found = on ? cropTarget(s) : null;
         if (on && !found) { showNotice(s, 'cropModeOutside', 'Move the playhead into the selected clip to crop in the preview.', false); return false; }
+        // Crop mode and mask mode (video-studio-mask.js, 2d) exclude each other.
+        if (found && s.maskMode && P.setMaskMode) P.setMaskMode(s, false);
         // The narrow inspector drawer makes the preview inert; it closes so the crop can take focus.
         if (found && s.app.classList.contains('vs-show-inspector')) setInspectorOpen(s, false, false);
         s.cropMode = found ? { clipId: found.clip.id } : null;

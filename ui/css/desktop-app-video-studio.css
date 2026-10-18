@@ -333,6 +333,28 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-crop-handle[data-crop-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
 .vs-crop-handle[data-crop-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
 .vs-app .vs-crop-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+/* On-canvas mask handles (2d Task 15, video-studio-mask.js). The overlay sits on the clip box and turns with it; the
+   dashed mask outline turns with the mask. Size handles sit on its corners and edges, the round rotate knob above the
+   top edge, and the ring-shaped feather knob below the bottom edge at the outer end of the soft edge. */
+.vs-mask-box { position: absolute; z-index: 4; pointer-events: none; }
+.vs-mask-box[hidden], .vs-no-project .vs-mask-box, .vs-preview-mat:fullscreen .vs-mask-box { display: none !important; }
+.vs-mask-shape { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--vs-accent); box-shadow: 0 0 0 1px rgba(0, 0, 0, .55); cursor: move; pointer-events: auto; touch-action: none; }
+.vs-mask-shape[data-mask-shape="ellipse"] { border-radius: 50%; }
+.vs-mask-shape:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.vs-mask-box.is-dragging .vs-mask-shape { border-color: #fff; }
+.vs-app .vs-mask-handle, .vs-app .vs-mask-knob { position: absolute; width: 12px; height: 12px; min-height: 0; margin: -6px 0 0 -6px; padding: 0; border: 2px solid var(--vs-accent); border-radius: 3px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); touch-action: none; }
+.vs-app .vs-mask-knob { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; }
+.vs-app .vs-mask-handle:focus-visible, .vs-app .vs-mask-knob:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.vs-mask-handle[data-mask-handle="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+.vs-mask-handle[data-mask-handle="n"] { left: 50%; top: 0; cursor: ns-resize; }
+.vs-mask-handle[data-mask-handle="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+.vs-mask-handle[data-mask-handle="e"] { left: 100%; top: 50%; cursor: ew-resize; }
+.vs-mask-handle[data-mask-handle="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+.vs-mask-handle[data-mask-handle="s"] { left: 50%; top: 100%; cursor: ns-resize; }
+.vs-mask-handle[data-mask-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+.vs-mask-handle[data-mask-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
+.vs-mask-knob[data-mask-handle="rotate"] { left: 50%; top: -24px; cursor: grab; }
+.vs-app .vs-mask-knob[data-mask-handle="feather"] { left: 50%; top: calc(100% + 12px); border-width: 3px; background: transparent; cursor: ns-resize; }
 .vs-transport { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; min-height: 54px; padding: 8px 14px; background: var(--vs-panel); border-top: 1px solid var(--vs-border); }
 .vs-transport-buttons { display: flex; align-items: center; gap: 4px; justify-self: center; grid-column: 2; }
 .vs-app .vs-transport button { width: 36px; height: 36px; min-height: 0; padding: 0; border-color: transparent; background: transparent; }
