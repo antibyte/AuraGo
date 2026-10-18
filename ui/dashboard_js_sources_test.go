@@ -37,15 +37,18 @@ func readDashboardJS(t *testing.T) string {
 	return b.String()
 }
 
-// TestDashboardSectionScriptsLoadInPageOrder: the registry loads after dash-overview.js and before main.js, deferred
-// and cache-busted like every dashboard script.
+// TestDashboardSectionScriptsLoadInPageOrder: the registry loads after dash-overview.js and before main.js; the 14
+// section modules load deferred, cache-busted and in sidebar order between widgets-knowledge.js and
+// dashboard-events.js, so main.js's helpers exist when a module runs and every module has registered before
+// dashboard-events.js boots the router on DOMContentLoaded.
 func TestDashboardSectionScriptsLoadInPageOrder(t *testing.T) {
 	t.Parallel()
-	assertDashboardScriptOrder(t, readDashboardShell(t), []string{
-		"/js/dashboard/dash-overview.js",
-		"/js/dashboard/dash-sections.js",
-		"/js/dashboard/main.js",
-	})
+	order := []string{"/js/dashboard/dash-overview.js", "/js/dashboard/dash-sections.js", "/js/dashboard/main.js", "/js/dashboard/widgets-knowledge.js"}
+	for _, id := range dashboardSectionIDs {
+		order = append(order, "/js/dashboard/sections/"+id+".js")
+	}
+	order = append(order, "/js/dashboard/dashboard-events.js")
+	assertDashboardScriptOrder(t, readDashboardShell(t), order)
 }
 
 // assertDashboardScriptOrder checks that every src has exactly one deferred, cache-busted script tag in the shell

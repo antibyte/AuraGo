@@ -14,13 +14,14 @@ import (
 func TestDashboardOverviewLoadsFromTheSummaryFeed(t *testing.T) {
 	t.Parallel()
 
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
-	start := strings.Index(mainJS, "async function loadSectionOverview(")
-	end := strings.Index(mainJS, "async function loadSectionPersonality(")
+	overviewJS := readDesktopAssetText(t, "js/dashboard/sections/overview.js")
+	start := strings.Index(overviewJS, "async function loadSectionOverview(")
+	end := strings.Index(overviewJS, "DashSections.register({ id: 'overview', load: loadSectionOverview });")
 	if start < 0 || end < start {
-		t.Fatal("main.js misses loadSectionOverview before loadSectionPersonality")
+		t.Fatal("sections/overview.js misses loadSectionOverview before its DashSections.register call")
 	}
-	loader := mainJS[start:end]
+	loader := overviewJS[start:end]
+	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
 		"const result = await DashSummary.refresh({ force });",
 		"const summary = DashSummary.latest();",

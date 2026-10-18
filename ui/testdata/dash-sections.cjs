@@ -42,4 +42,20 @@ function run(ctx, file) {
     assert.deepEqual(Array.from(S.ids()), ['logs', 'audit'], 'registration order');
 }
 
-console.log('DashSections: registry checks pass.');
+{
+    // The 14 section modules in page order. main.js boots the page at load time (DOM, Chart.js), so only its function
+    // declarations are taken: they are hoisted, and a wrapper that returns them before the body never runs it.
+    const ctx = { console, AbortController, URLSearchParams };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    run(ctx, path.join(dashboard, 'dash-sections.js'));
+    const mainFile = path.join(dashboard, 'main.js');
+    const mainSource = fs.readFileSync(mainFile, 'utf8');
+    const names = Array.from(mainSource.matchAll(/^ {8}(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm), m => m[1]);
+    Object.assign(ctx, vm.runInContext('(function () {\nreturn { ' + names.join(', ') + ' };\n' + mainSource + '\n})', ctx, { filename: mainFile })());
+    for (const id of SECTION_IDS) run(ctx, path.join(dashboard, 'sections', id + '.js'));
+    assert.deepEqual(Array.from(ctx.DashSections.ids()), SECTION_IDS, 'every module registers its own section, in sidebar order');
+    for (const id of SECTION_IDS) assert.equal(typeof ctx.DashSections.get(id).load, 'function', id);
+}
+
+console.log('DashSections: registry and the 14 section modules pass.');

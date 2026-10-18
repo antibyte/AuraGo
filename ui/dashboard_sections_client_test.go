@@ -5,21 +5,25 @@ import (
 	"testing"
 )
 
-// TestDashboardSectionLoadersReplaceTheTabSystem pins the P2 client contract: one loader per sidebar
-// section, DashRouter boot, DashAPI delegation, the section refresh button, the removal of the tab system
-// and of the duplicate overview/logs/tool-stats fetches, and the router/api scripts loading before main.js.
+// TestDashboardSectionLoadersReplaceTheTabSystem pins the client contract: every sidebar section has a module that
+// registers its loader with DashSections, loadSectionContent runs the registered loader (a false result keeps the
+// last "Updated" stamp), DashRouter boot, DashAPI delegation, the section refresh button, the removal of the tab
+// system and of the duplicate overview/logs/tool-stats fetches, and the router/api scripts loading before main.js.
 func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 	t.Parallel()
 
-	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
-	for _, id := range []string{"overview", "personality", "memory", "user", "knowledge", "filesync", "problems", "automations", "system", "audit", "logs", "llm", "prompts", "tools"} {
-		if !strings.Contains(mainJS, "'"+id+"': ") {
-			t.Errorf("SECTION_LOADERS has no entry for section %q", id)
+	for _, id := range dashboardSectionIDs {
+		module := readDesktopAssetText(t, "js/dashboard/sections/"+id+".js")
+		if !strings.Contains(module, "DashSections.register({ id: '"+id+"', load: ") {
+			t.Errorf("sections/%s.js does not register its loader with DashSections", id)
 		}
 	}
+	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
-		"const SECTION_LOADERS = {",
 		"async function loadSectionContent(id, { force = false } = {})",
+		"const section = DashSections.get(id);",
+		"const outcome = await section.load({ force });",
+		"if (outcome === false) return;",
 		"t('dashboard.section.updated').replace('{{time}}', new Date().toLocaleTimeString())",
 		"const SectionState = { loaded: {} };",
 		"DashRouter.init({ onShow: id => loadSectionContent(id) });",
@@ -32,7 +36,7 @@ func TestDashboardSectionLoadersReplaceTheTabSystem(t *testing.T) {
 			t.Errorf("main.js misses %q", marker)
 		}
 	}
-	for _, gone := range []string{"VALID_TABS", "TabState", "showTab(", "initTabKeyboardNav", "loadTabContent", "fetchAll", "loadAgentBanner", "aurago-dash-tab", "loadTabOverview", "loadTabAgent", "loadTabUser", "loadTabSystem", "dashTabs"} {
+	for _, gone := range []string{"SECTION_LOADERS", "VALID_TABS", "TabState", "showTab(", "initTabKeyboardNav", "loadTabContent", "fetchAll", "loadAgentBanner", "aurago-dash-tab", "loadTabOverview", "loadTabAgent", "loadTabUser", "loadTabSystem", "dashTabs"} {
 		if strings.Contains(mainJS, gone) {
 			t.Errorf("main.js still contains %q", gone)
 		}
