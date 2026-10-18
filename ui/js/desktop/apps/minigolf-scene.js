@@ -482,7 +482,9 @@ export function createScene(host, options) {
     }
     function up(event) {
         if (pointerId !== event.pointerId) return;
-        const shot = event.type === 'pointerup' && event.button === 0 && dragged && aimPower > 0 && canAim;
+        const screen = ballScreen();
+        const outside = Math.hypot(event.clientX - screen.x, event.clientY - screen.y) >= DRAG_DEAD_ZONE;
+        const shot = event.type === 'pointerup' && event.button === 0 && dragged && outside && aimPower > 0 && canAim;
         cancelDrag();
         if (shot) options.onShot?.(aimDirection, aimPower);
     }
