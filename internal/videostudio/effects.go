@@ -171,8 +171,10 @@ var blendSwapped = map[string]bool{"dodge": true, "burn": true}
 //   - Colour parameters follow the index table order.
 //   - The blur radius is not keyframable: gblur takes no reproducible sigma commands (index §7, risk 16).
 //   - The blur filters include premultiply and unpremultiply, which wrap gblur on image clips (plan 2c decision A2).
-//   - chroma_key (2d, category key): the key colour is not keyframable, because a keyframe holds one number. Spill stays
-//     static unless despill takes exact spill commands (plan 2d Task 4). The defaults are provisional (index §4.23).
+//   - chroma_key (2d, category key): the key colour is not keyframable, because a keyframe holds one number. Spill is
+//     keyframable: despill takes exact spill commands (sendcmd despill@vs_spill green|blue, the Task 4 gate on 8.1.1 and
+//     5.1.9). The defaults (#00b140, similarity 0.25, smoothness 0.1, spill 0.5) were measured on the greenscreen golden
+//     in Task 12 and kept (index §4.23).
 //     The filters include alphaextract, alphamerge and blend for the alpha wrapper of stills and second keys (Task 4).
 var registryEffects = []EffectSpec{
 	{ID: "color", Category: "color", LabelKey: "effect.color.name", Filters: []string{"lutrgb", "colorchannelmixer"}, Params: []ParamSpec{
