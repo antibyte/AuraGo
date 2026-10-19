@@ -28,8 +28,8 @@ type Delta struct {
 	MinSlope   float64
 	MaxSlope   float64
 	MinR       float64
-	// ReportOnly logs a failed check instead of failing the case. Plan 2d opts four weak 2c cases in this way: their
-	// failures are reported, and a later slice fixes them.
+	// ReportOnly logs a failed check instead of failing the case. Plan 2f (F2) keeps it only on 2c cases whose remaining
+	// difference is the preview's magnification, not the effect pass; cases_2c.go names them with the measured slopes.
 	ReportOnly bool
 }
 

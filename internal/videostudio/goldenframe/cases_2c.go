@@ -37,11 +37,14 @@ import (
 // videostudio.ValueAt. Keyframes sit on clips that start at frame 0 with offset 0, so a source frame is the timeline
 // frame. Effect params are complete: the registry defaults plus the case's values.
 //
-// Delta opt-ins (plan 2d, Task 12; index §4.12, risk 21): color_temperature_tint, lut_keyframed_intensity,
-// sharpen_static and blur_logo_alpha also carry a report-only Delta. Its baseline is the same case without its
-// effect. Plan 2c measured that SSIM barely separates these cases from a missing effect. A failed check is logged and
-// reported in 2d, not fixed. Colour and LUT take DeltaBlend's bounds (smooth per-pixel changes). Sharpen and blur
-// take DeltaMask's, because their change sits at edges.
+// Delta checks (plan 2d Task 12, plan 2f Task 4; index §4.12, §4.26.9, risk 21). SSIM barely separates these cases from
+// a missing effect (plan 2c), so they also compare the change their effect makes against a baseline without it:
+//   - color_temperature_tint and lut_keyframed_intensity take DeltaBlend's bounds (smooth per-pixel changes);
+//   - sharpen_static and blur_logo_alpha take DeltaMask's, because their change sits at edges. They stay report-only:
+//     the preview magnifies the effect's result bilinearly where the export scales bicubically (F2 outcome B; the
+//     measured slopes are above each case);
+//   - the native guards blur_logo_alpha_native and sharpen_static_native draw the picture 1:1 in four tiles, so they
+//     measure the pass without magnification, with DeltaMask's bounds, never report-only.
 //
 // cases_2c.go sorts between cases_2b.go and cases_foundation.go, so these cases register second. The order has no
 // meaning.
@@ -250,6 +253,31 @@ func pcCase(m Media, name string, frame int, threshold float64, painters []strin
 	return Case{Name: name, Project: m.Project(name, tracks...), Frame: frame, Threshold: threshold, Painters: append([]string(nil), painters...)}
 }
 
+// pcQuadrants are the four 640x360 boxes of the 1280x720 canvas (x, y): a 640x360 picture sits 1:1 in each.
+var pcQuadrants = [4][2]float64{{0, 0}, {0.5, 0}, {0, 0.5}, {0.5, 0.5}}
+
+// pcLogoTiles draws the logo 1:1 in each quadrant, each tile on its own overlay track over the full-frame chart; the
+// edits apply to every tile (plan 2f Task 4). Drawn 1:1 the preview applies an effect pass without magnifying its
+// result, and four tiles change four times the samples of one.
+func pcLogoTiles(edits ...pcEdit) []videostudio.Track {
+	tracks := []videostudio.Track{VideoTrack("v1", pcClip("bg", MediaChart, 0, 40))}
+	for i, q := range pcQuadrants {
+		tile := append([]pcEdit{pcBox(q[0], q[1], 0.5, 0.5)}, edits...)
+		tracks = append(tracks, OverlayTrack(fmt.Sprintf("o%d", i+1), pcClip(fmt.Sprintf("l%d", i+1), MediaLogo, 0, 40, tile...)))
+	}
+	return tracks
+}
+
+// pcDetailTiles draws detail.png 1:1 in each quadrant, each tile on its own video track; the edits apply to every tile.
+func pcDetailTiles(edits ...pcEdit) []videostudio.Track {
+	var tracks []videostudio.Track
+	for i, q := range pcQuadrants {
+		tile := append([]pcEdit{pcBox(q[0], q[1], 0.5, 0.5)}, edits...)
+		tracks = append(tracks, VideoTrack(fmt.Sprintf("v%d", i+1), pcClip(fmt.Sprintf("d%d", i+1), MediaDetail, 0, 40, tile...)))
+	}
+	return tracks
+}
+
 func pictureCases(m Media) []Case {
 	gl, both := []string{PainterGL}, []string{PainterGL, Painter2D}
 	// The full-frame chart and detail clips (640x360 into the 1280x720 project, contained: exactly 2x).
@@ -271,7 +299,7 @@ func pictureCases(m Media) []Case {
 		pcCase(m, "color_exposure_contrast", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"exposure": 0.4, "contrast": 1.25}))),
 		// 8500 K warms (camera convention), tint -0.2 adds green.
 		withDelta(pcCase(m, "color_temperature_tint", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"temperature": 8500.0, "tint": -0.2}))),
-			reportOnly(DeltaBlend), m.Project("color_temperature_tint_baseline", chart())),
+			DeltaBlend, m.Project("color_temperature_tint_baseline", chart())),
 		// saturation 1.5 about BT.709 luma: the colour ramps clip, the grey ramp and the skin patches show the luma weights.
 		pcCase(m, "color_saturation", 5, ThresholdColour, gl, chart(pcEffect("color", map[string]any{"saturation": 1.5}))),
 		// lift (0.5, -0.3) + 0.03, gamma (-0.4, 0.4) x 1.1, gain (0.3, 0.5) x 0.95, as x/y wheels with k = 0.2.
@@ -294,7 +322,7 @@ func pictureCases(m Media) []Case {
 		// intensity keys 0.2 at source frame 0 to 1 at 30: frame 15 is 0.6, the static value of lut_upload_intensity
 		// (export: blend all_expr with T). The static intensity is 1.
 		withDelta(pcCase(m, "lut_keyframed_intensity", 15, ThresholdColour, gl, chart(pcEffect("lut", map[string]any{"lut": MediaCube}),
-			pcEffectKeys(0, "intensity", pcKey(0, 0.2), pcKey(30, 1)))), reportOnly(DeltaBlend), m.Project("lut_keyframed_intensity_baseline", chart())),
+			pcEffectKeys(0, "intensity", pcKey(0, 0.2), pcKey(30, 1)))), DeltaBlend, m.Project("lut_keyframed_intensity_baseline", chart())),
 		// crop 0.1/0.05/0.2/0.15 of 640x360 is the 448x288 rect at (64, 18) (cropRect); contained it is 1120x720 at x 80.
 		pcCase(m, "crop_static_contain", 5, ThresholdGeometry, both, chart(pcCrop(0.1, 0.05, 0.2, 0.15))),
 		// The portrait video (720x1280) cropped t 0.2, b 0.3 to the 720x640 rect at (0, 256), covering the 1024x576 box at
@@ -313,11 +341,29 @@ func pictureCases(m Media) []Case {
 		// radius 0.01 of the 360 px picture: sigma 3.6 px on both sides (export gblur with premultiply on image clips).
 		pcCase(m, "blur_static", 5, ThresholdDetail, gl, detail(pcEffect("blur", map[string]any{"radius": 0.01}))),
 		// The logo's soft alpha edge blurred, radius 0.02 of its 360 px: sigma 7.2 px. The 768x432 box at (256, 144).
+		// Report-only Delta (plan 2f Task 4, F2 outcome B, index §4.26.9): drawn 1:1 the preview blur follows the export
+		// (blur_logo_alpha_native: slope 0.9314; the opaque detail chart at radius 0.01 and 0.02: 1.0255 and 1.0391), magnified
+		// 1.2x it does not (slope 0.8660; 2e 0.8660). The gap is the magnification of the blurred picture, GL bilinear in
+		// PLACE against the export's bicubic scale, not the blur pass. The logo at radius 0.01 (slope 0.7004) is no
+		// evidence: its change reaches 0.0104 of the samples (below MinChanged) and 0.0000 at 8 levels, so
+		// it sits in the export's 1-2 level rounding noise. Bicubic magnification in PLACE is phase 3 backlog.
 		withDelta(pcCase(m, "blur_logo_alpha", 10, ThresholdDetail, gl, logoOver(pcBox(0.2, 0.2, 0.6, 0.6), pcEffect("blur", map[string]any{"radius": 0.02}))...),
 			reportOnly(DeltaMask), m.Project("blur_logo_alpha_baseline", logoOver(pcBox(0.2, 0.2, 0.6, 0.6))...)),
+		// The native blur guard (plan 2f Task 4, index §4.12): the logo 1:1 in the four quadrants over the chart, radius 0.02
+		// on every tile, normal DeltaMask bounds (measured changed 0.0903, slope 0.9314, r 0.9930). Four tiles, because one
+		// 1:1 tile changes barely enough samples for MinChanged (0.0247).
+		cdCase(m, "blur_logo_alpha_native", 10, ThresholdDetail, DeltaMask, pcLogoTiles(pcEffect("blur", map[string]any{"radius": 0.02})), pcLogoTiles()),
 		// CAS at strength 0.8 on the gratings and edges.
+		// Report-only Delta (plan 2f Task 4, F2 outcome B): drawn 1:1 the preview sharpen follows the export
+		// (sharpen_static_native: slope 0.9654), magnified 2x it does not (slope 0.8815; 2e 0.8815). The gap is the
+		// magnification: bilinear interpolation weakens the fine detail CAS adds, the export's bicubic scale keeps more of
+		// it. Strength 0.4 changes too few samples to measure (0.0005). The CAS constants still fit FFmpeg (refit 15.104
+		// and 4.009). Bicubic magnification in PLACE is phase 3 backlog.
 		withDelta(pcCase(m, "sharpen_static", 5, ThresholdDetail, gl, detail(pcEffect("sharpen", map[string]any{"strength": 0.8}))),
 			reportOnly(DeltaMask), m.Project("sharpen_static_baseline", detail())),
+		// The native sharpen guard: detail.png 1:1 in the four quadrants (one video track each), strength 0.8 on every tile,
+		// normal DeltaMask bounds (measured changed 0.0275, slope 0.9654, r 0.9900; one tile: changed 0.0069).
+		cdCase(m, "sharpen_static_native", 5, ThresholdDetail, DeltaMask, pcDetailTiles(pcEffect("sharpen", map[string]any{"strength": 0.8})), pcDetailTiles()),
 		// strength keys 0 at source frame 0 to 1 at 20: frame 15 is 0.75 (the static strength is 0.2; export: cas commands).
 		pcCase(m, "sharpen_keyframed", 15, ThresholdDetail, gl, detail(pcEffect("sharpen", map[string]any{"strength": 0.2}),
 			pcEffectKeys(0, "strength", pcKey(0, 0), pcKey(20, 1)))),

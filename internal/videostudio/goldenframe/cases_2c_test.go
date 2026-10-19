@@ -85,6 +85,7 @@ func TestPictureCasesCoverGroups(t *testing.T) {
 		keyed        []string           // keyframed paths: the static value must differ from the keyed one
 		lut          string             // the lut entry's ref
 		flipH, flipV bool
+		tiles        bool // the native guards (plan 2f Task 4): the media 1:1 in the four quadrants, each tile with values
 	}
 	color := []string{"color"}
 	want := map[string]expect{
@@ -118,9 +119,11 @@ func TestPictureCasesCoverGroups(t *testing.T) {
 		"flip_h": {threshold: ThresholdGeometry, painters: both, flipH: true},
 		"flip_v_crop": {threshold: ThresholdGeometry, painters: both, flipV: true, values: map[string]float64{
 			"crop.l": 0.05, "crop.t": 0.3, "crop.r": 0.25, "crop.b": 0}},
-		"blur_static":     {threshold: ThresholdDetail, painters: gl, effects: []string{"blur"}, values: map[string]float64{"effects.0.radius": 0.01}},
-		"blur_logo_alpha": {threshold: ThresholdDetail, painters: gl, effects: []string{"blur"}, values: map[string]float64{"effects.0.radius": 0.02}},
-		"sharpen_static":  {threshold: ThresholdDetail, painters: gl, effects: []string{"sharpen"}, values: map[string]float64{"effects.0.strength": 0.8}},
+		"blur_static":            {threshold: ThresholdDetail, painters: gl, effects: []string{"blur"}, values: map[string]float64{"effects.0.radius": 0.01}},
+		"blur_logo_alpha":        {threshold: ThresholdDetail, painters: gl, effects: []string{"blur"}, values: map[string]float64{"effects.0.radius": 0.02}},
+		"blur_logo_alpha_native": {threshold: ThresholdDetail, painters: gl, effects: []string{"blur"}, values: map[string]float64{"effects.0.radius": 0.02}, tiles: true},
+		"sharpen_static":         {threshold: ThresholdDetail, painters: gl, effects: []string{"sharpen"}, values: map[string]float64{"effects.0.strength": 0.8}},
+		"sharpen_static_native":  {threshold: ThresholdDetail, painters: gl, effects: []string{"sharpen"}, values: map[string]float64{"effects.0.strength": 0.8}, tiles: true},
 		"sharpen_keyframed": {threshold: ThresholdDetail, painters: gl, effects: []string{"sharpen"},
 			values: map[string]float64{"effects.0.strength": 0.75}, keyed: []string{"effects.0.strength"}},
 		"vignette_static": {threshold: ThresholdDetail, painters: gl, effects: []string{"vignette"},
@@ -194,6 +197,38 @@ func TestPictureCasesCoverGroups(t *testing.T) {
 				t.Errorf("%s: %s at frame %d is %v (ok %v), want %v", c.Name, path, c.Frame, got, ok, value)
 			}
 		}
+		if spec.tiles {
+			// The native guards (plan 2f Task 4): every tile shows its 640x360 media 1:1 in its own quadrant of the 1280x720
+			// canvas and carries the subject's values; each quadrant holds exactly one tile.
+			quadrants := map[[2]float64]int{}
+			for _, track := range c.Project.Tracks {
+				for _, tile := range track.Clips {
+					if len(tile.Effects) == 0 {
+						continue
+					}
+					var asset videostudio.Asset
+					for _, candidate := range c.Project.Assets {
+						if candidate.ID == tile.AssetID {
+							asset = candidate
+						}
+					}
+					if tile.Width*ProjectWidth != float64(asset.Width) || tile.Height*ProjectHeight != float64(asset.Height) || tile.Fit != videostudio.FitContain {
+						t.Errorf("%s: tile %s is %vx%v of the canvas for %dx%d media, want 1:1", c.Name, tile.ID, tile.Width, tile.Height, asset.Width, asset.Height)
+					}
+					quadrants[[2]float64{tile.X, tile.Y}]++
+					for path, value := range spec.values {
+						if got, ok := videostudio.ValueAt(tile, path, c.Frame); !ok || math.Abs(got-value) > 1e-9 {
+							t.Errorf("%s: tile %s %s is %v (ok %v), want %v", c.Name, tile.ID, path, got, ok, value)
+						}
+					}
+				}
+			}
+			for _, q := range pcQuadrants {
+				if quadrants[q] != 1 {
+					t.Errorf("%s: quadrant %v holds %d tiles, want 1 (%v)", c.Name, q, quadrants[q], quadrants)
+				}
+			}
+		}
 		for _, path := range spec.keyed {
 			if len(pcPathKeys(clip, path)) < 2 {
 				t.Errorf("%s: %s has no keyframes", c.Name, path)
@@ -233,7 +268,7 @@ func TestPictureCasesCoverGroups(t *testing.T) {
 			t.Errorf("2c case %q is missing", name)
 		}
 	}
-	for group, count := range map[string]int{"color": 7, "lut": 3, "crop": 3, "flip": 2, "blur": 2, "sharpen": 2, "vignette": 3} {
+	for group, count := range map[string]int{"color": 7, "lut": 3, "crop": 3, "flip": 2, "blur": 3, "sharpen": 3, "vignette": 3} {
 		if groups[group] != count {
 			t.Errorf("group %s has %d cases, want %d", group, groups[group], count)
 		}
