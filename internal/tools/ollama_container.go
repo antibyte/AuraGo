@@ -194,7 +194,9 @@ func ollamaManagedSpecDrift(inspect, desired []byte) bool {
 	if json.Unmarshal(inspect, &got) != nil {
 		return true
 	}
-	if !dockerutil.ManagedBy(got.Config.Labels, dockerutil.OllamaOwner) || got.HostConfig.NetworkMode != want.HostConfig.NetworkMode {
+	networkMatches := got.HostConfig.NetworkMode == want.HostConfig.NetworkMode ||
+		want.HostConfig.NetworkMode == "" && (got.HostConfig.NetworkMode == "default" || got.HostConfig.NetworkMode == "bridge")
+	if !dockerutil.ManagedBy(got.Config.Labels, dockerutil.OllamaOwner) || !networkMatches {
 		return true
 	}
 	if !ollamaImageMatches(got.Config.Image, got.RepoTags, want.Image) {

@@ -84,6 +84,37 @@ func TestOllamaManagedSpecDrift(t *testing.T) {
 	}
 }
 
+func TestOllamaManagedSpecDriftNormalizesNativeNetwork(t *testing.T) {
+	desired, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"", "default", "bridge", "host", "another_app"} {
+		t.Run(mode, func(t *testing.T) {
+			var doc map[string]any
+			if err := json.Unmarshal(inspectFromCreatePayload(t, desired), &doc); err != nil {
+				t.Fatal(err)
+			}
+			doc["HostConfig"].(map[string]any)["NetworkMode"] = mode
+			inspect, err := json.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantDrift := mode == "host" || mode == "another_app"
+			if drift := ollamaManagedSpecDrift(inspect, desired); drift != wantDrift {
+				t.Fatalf("native network %q: drift=%v, want %v", mode, drift, wantDrift)
+			}
+		})
+	}
+	placed, err := ollamaPlacePayload(desired, "app_default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ollamaManagedSpecDrift(inspectFromCreatePayload(t, desired), placed) {
+		t.Fatal("native bridge was treated as the named application bridge")
+	}
+}
+
 func TestOllamaImageForGPUUsesRecordedTag(t *testing.T) {
 	if got := ollamaImageForGPU(GPUInfo{}); got != "ollama/ollama:0.40.3" {
 		t.Fatalf("cpu image = %s", got)
