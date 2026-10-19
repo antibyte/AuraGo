@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestCheckUpdatesBinaryReturnsErrorOnNonOKRelease(t *testing.T) {
@@ -247,6 +248,7 @@ func TestStartInstallPreservesMasterKeyOnlyForTrustedUpdateScript(t *testing.T) 
 	}
 	t.Setenv("AURAGO_MASTER_KEY", strings.Repeat("a", 64))
 	t.Setenv("OPENAI_API_KEY", "must-not-leak")
+	t.Setenv("AURAGO_RELEASE_PUBLIC_KEY", "/trusted/release.pub")
 
 	cfg := &config.Config{}
 	cfg.Agent.AllowSelfUpdate = true
@@ -271,6 +273,9 @@ func TestStartInstallPreservesMasterKeyOnlyForTrustedUpdateScript(t *testing.T) 
 	if envContainsPrefix(gotEnv, "OPENAI_API_KEY=") {
 		t.Fatalf("trusted update script env leaked OPENAI_API_KEY: %#v", gotEnv)
 	}
+	if !envContains(gotEnv, "AURAGO_RELEASE_PUBLIC_KEY=/trusted/release.pub") {
+		t.Fatal("trusted update script lost the operator-pinned verification key")
+	}
 }
 
 func envContains(env []string, want string) bool {
@@ -280,6 +285,18 @@ func envContains(env []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestUpdateEnvPrioritizesRetainedMasterKey(t *testing.T) {
+	previous := security.ProcessMasterKey()
+	t.Cleanup(func() { security.RetainProcessMasterKey(previous) })
+	retained := strings.Repeat("b", 64)
+	security.RetainProcessMasterKey(retained)
+	t.Setenv("AURAGO_MASTER_KEY", strings.Repeat("c", 64))
+	env := updateEnv(nil)
+	if !envContains(env, "AURAGO_MASTER_KEY="+retained) || envContains(env, "AURAGO_MASTER_KEY="+strings.Repeat("c", 64)) {
+		t.Fatal("trusted updater did not prioritize the startup-retained key")
+	}
 }
 
 func envContainsPrefix(env []string, prefix string) bool {

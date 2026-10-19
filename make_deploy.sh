@@ -368,17 +368,10 @@ for asset in "${RELEASE_BIN_ASSETS[@]}"; do
   fi
 done
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ] && command -v cosign >/dev/null 2>&1; then
-  echo "    → signing SHA256SUMS with cosign keyless"
-  (
-    cd "$DEPLOY_DIR"
-    cosign sign-blob --yes \
-      --output-signature SHA256SUMS.sig \
-      --output-certificate SHA256SUMS.pem \
-      SHA256SUMS
-  )
+if [ "$PUBLISH_RELEASE" = false ] && [ -z "${AURAGO_RELEASE_SIGNING_KEY:-}" ] && [ "${GITHUB_ACTIONS:-}" != true ]; then
+  AURAGO_ALLOW_UNSIGNED_RELEASES=1 bash scripts/sign-release-checksums.sh "$DEPLOY_DIR/SHA256SUMS"
 else
-  echo "    → cosign signing skipped (requires GitHub Actions OIDC and cosign)"
+  bash scripts/sign-release-checksums.sh "$DEPLOY_DIR/SHA256SUMS"
 fi
 
 echo "━━━ Done! Artifacts in $DEPLOY_DIR/ ━━━"

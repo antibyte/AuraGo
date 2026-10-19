@@ -314,6 +314,7 @@ $checksumLines = foreach ($file in $checksumFiles) {
 # `sha256sum -c --ignore-missing` then verifies nothing on the user's machine.
 [IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS'), (($checksumLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 Write-Host "    -> deploy\SHA256SUMS" -ForegroundColor Green
+& (Join-Path $scriptDir 'scripts\sign-release-checksums.ps1') -Manifest (Join-Path $scriptDir 'deploy\SHA256SUMS')
 
 # Reset env
 $env:GOOS = "windows"

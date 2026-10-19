@@ -89,6 +89,12 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Run complete Go vet analysis
+        run: go vet ./...
+
+      - name: Verify deterministic UI bundle drift
+        run: node scripts/build-ui-bundles.js --check
+
   go-race:
     name: Go race tests
     runs-on: ubuntu-latest
@@ -106,7 +112,34 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram -timeout=30m
+        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/agent -timeout=30m
+
+  windows-runtime:
+    name: Windows focused runtime contracts
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify replacement, cancellation and runtime protocol fixtures
+        run: go test ./internal/fileutil ./internal/memory ./internal/agent ./internal/llm ./internal/audit -run 'Windows|SessionStop|SessionTurnLock|NativeBatch|NativeBudget|QueuedToolGuard|NativeFallback|SyncCompletion|RuntimePanic|ExplicitUnknown|FirstToken|ReleaseSignature|ReleaseSigner' -timeout=20m
+
+  release-signing:
+    name: Offline Cosign release fixture (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign, verify and reject altered checksums without a provider
+        shell: pwsh
+        env:
+          COSIGN_PASSWORD: fixture-only
+        run: ./scripts/test-release-signing.ps1
 
   go-vulnerabilities:
     name: Go vulnerability scan

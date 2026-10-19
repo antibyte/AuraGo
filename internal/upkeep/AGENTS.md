@@ -33,6 +33,14 @@ The updater owns transaction manifests; this package verifies them before collec
   times; retain mandatory checksums and optional/strict signature policy.
   Required artifact failures after shutdown use `abort_update`, preserving
   rollback and unresolved-transaction safeguards.
+- Supplied release signatures are never optional: invalid or incomplete
+  signature metadata and a missing Cosign verifier fail closed. Keyed offline
+  verification trusts only the operator's `AURAGO_RELEASE_PUBLIC_KEY`, never a
+  key fetched with the release. Builders sign and verify the finished checksum
+  manifest before publication; explicit legacy unsigned publication uses
+  `AURAGO_ALLOW_UNSIGNED_RELEASES=1`. Keep the current unsigned-install default
+  until the Linux/Windows signing fixture and trusted-key distribution are
+  confirmed. See `documentation/release-signatures.md`.
 
 ## Work Guidance
 

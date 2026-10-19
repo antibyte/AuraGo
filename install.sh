@@ -1858,50 +1858,58 @@ verify_release_checksums_signature() {
     [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
     [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
 
-    local sig_file cert_file
+    local sig_file cert_file have_sig=false have_cert=false
     sig_file="$(mktemp "${TMPDIR:-/tmp}/aurago-sha256-sig.XXXXXX")"
     cert_file="$(mktemp "${TMPDIR:-/tmp}/aurago-sha256-cert.XXXXXX")"
     RELEASE_SIGNATURE_FILE="$sig_file"
     RELEASE_CERTIFICATE_FILE="$cert_file"
 
-    if ! _download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" || ! _download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"; then
+    _download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" && have_sig=true
+    if [ -z "${AURAGO_RELEASE_PUBLIC_KEY:-}" ]; then
+        _download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file" && have_cert=true
+    fi
+    if [ "$have_sig" = false ] && [ "$have_cert" = false ]; then
         rm -f "$sig_file" "$cert_file"
         RELEASE_SIGNATURE_FILE=""
         RELEASE_CERTIFICATE_FILE=""
-        if strict_release_verify_enabled; then
+        if strict_release_verify_enabled || [ -n "${AURAGO_RELEASE_PUBLIC_KEY:-}" ]; then
             die "Release signature files are missing and AURAGO_STRICT_RELEASE_VERIFY=1 is set."
         fi
         warn "Release signature files not found; continuing with SHA256 manifest verification only."
         return 0
     fi
 
+    if [ "$have_sig" = false ] || { [ -z "${AURAGO_RELEASE_PUBLIC_KEY:-}" ] && [ "$have_cert" = false ]; }; then
+        rm -f "$sig_file" "$cert_file"
+        die "Release signature metadata is incomplete; refusing an unsigned downgrade."
+    fi
+
     if ! command -v cosign >/dev/null 2>&1; then
         rm -f "$sig_file" "$cert_file"
         RELEASE_SIGNATURE_FILE=""
         RELEASE_CERTIFICATE_FILE=""
-        if strict_release_verify_enabled; then
-            die "cosign is required for strict release signature verification."
-        fi
-        warn "cosign not found; continuing with SHA256 manifest verification only."
-        return 0
+        die "cosign is required to verify the supplied release signature."
     fi
 
-    if cosign verify-blob \
+    local verified=false
+    if [ -n "${AURAGO_RELEASE_PUBLIC_KEY:-}" ]; then
+        cosign verify-blob --key "$AURAGO_RELEASE_PUBLIC_KEY" --insecure-ignore-tlog \
+            --signature "$sig_file" "$RELEASE_CHECKSUMS_FILE" >/dev/null 2>&1 && verified=true
+    elif cosign verify-blob \
         --certificate "$cert_file" \
         --signature "$sig_file" \
         --certificate-identity-regexp "https://github.com/${GITHUB_REPO}/.*" \
         --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
         "$RELEASE_CHECKSUMS_FILE" >/dev/null 2>&1; then
+        verified=true
+    fi
+    if [ "$verified" = true ]; then
         ok "Release checksum signature verified."
     else
         rm -f "$sig_file" "$cert_file"
         RELEASE_SIGNATURE_FILE=""
         RELEASE_CERTIFICATE_FILE=""
-        if strict_release_verify_enabled; then
-            die "Release checksum signature verification failed."
-        fi
-        warn "Release checksum signature verification failed; continuing with SHA256 manifest verification only."
-        return 0
+        die "Release checksum signature verification failed."
     fi
 
     rm -f "$sig_file" "$cert_file"

@@ -284,6 +284,11 @@ if errorlevel 1 (
     echo [ERROR] Failed to generate SHA256SUMS.
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\sign-release-checksums.ps1" -Manifest "%~dp0deploy\SHA256SUMS"
+if errorlevel 1 (
+    echo [ERROR] Release signing or verification failed. Nothing was published.
+    exit /b 1
+)
 set "GOOS=windows" & set "GOARCH=amd64"
 echo.
 

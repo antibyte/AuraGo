@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/sandbox"
+	"aurago/internal/security"
 )
 
 const DefaultGitHubRepo = "antibyte/AuraGo"
@@ -354,8 +355,17 @@ func DefaultStartScript(launch ScriptLaunch) error {
 
 func updateEnv(extra []string) []string {
 	env := sandbox.FilterEnv(os.Environ())
-	if masterKey := os.Getenv("AURAGO_MASTER_KEY"); strings.TrimSpace(masterKey) != "" {
+	masterKey := security.ProcessMasterKey()
+	if strings.TrimSpace(masterKey) == "" {
+		// Direct embedders/tests may not use the application's startup handoff.
+		masterKey = os.Getenv("AURAGO_MASTER_KEY")
+	}
+	if strings.TrimSpace(masterKey) != "" {
 		env = append(env, "AURAGO_MASTER_KEY="+masterKey)
+	}
+	// This is an operator-pinned public verification key, never a signing key.
+	if publicKey := os.Getenv("AURAGO_RELEASE_PUBLIC_KEY"); strings.TrimSpace(publicKey) != "" {
+		env = append(env, "AURAGO_RELEASE_PUBLIC_KEY="+publicKey)
 	}
 	if home, _ := os.UserHomeDir(); home != "" {
 		env = append(env, "HOME="+home)
