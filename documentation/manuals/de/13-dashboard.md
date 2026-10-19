@@ -422,18 +422,18 @@ Aktive Historie wird verlustfrei archiviert: einzelne Warnungen nach sieben Tage
 
 ```yaml
 maintenance:
-	retention:
-		operational_issues_days: 30
+  retention:
+    operational_issues_days: 30
 ```
 
 Mission Control kann auf ein Planner-Issue reagieren, ohne rohe Logtexte zu matchen:
 
 ```yaml
 trigger:
-	type: planner_operational_issue
-	planner_issue_source: maintenance
-	planner_issue_severity: high
-	planner_title_contains: backup
+  type: planner_operational_issue
+  planner_issue_source: maintenance
+  planner_issue_severity: high
+  planner_title_contains: backup
 ```
 
 Quelle, Schweregrad und Titel sind optionale Filter. Verwende diesen Trigger für einen ausdrücklich gewünschten Folgeworkflow, nicht als Ersatz für die direkte Hinweislogik des Supervisors.
@@ -558,7 +558,7 @@ Für programmatischen Zugriff nutze die Dashboard-REST-Endpunkte unten und [Kapi
 | `GET /api/dashboard/audit`, `DELETE /api/dashboard/audit`, `DELETE /api/dashboard/audit/{id}` | Audit | `DELETE` |
 | `GET /api/dashboard/logs` | Live-Log | — |
 
-Die Kartennamen in dieser Spalte sind die deutschen Titel der Oberfläche.
+Karten, Blöcke und Dialoge in dieser Spalte heißen wie in der Oberfläche.
 
 ---
 
