@@ -27,6 +27,8 @@
                         ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
                     ]),
                     settingDesktopThemes(),
+                    settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
+                    activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
                     showSchemeMode ? settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
                         ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
                     ]) : null,
@@ -139,6 +141,10 @@
         return {
             type: 'sound_theme',
             themes: [
+                { id: 'desktop', label: 'desktop.settings_sound_theme_desktop', desc: 'desktop.settings_sound_theme_desktop_desc' },
+                ...(typeof ctx.desktopThemes === 'function' ? ctx.desktopThemes().filter(theme => theme.cursorTheme).map(theme => ({
+                    id: theme.soundTheme, label: theme.labelKey, desc: 'desktop.settings_sound_theme_' + theme.soundTheme + '_desc', art: theme.cursorTheme
+                })) : []),
                 { id: 'crystal', label: 'desktop.settings_sound_theme_crystal', desc: 'desktop.settings_sound_theme_crystal_desc' },
                 { id: 'wood', label: 'desktop.settings_sound_theme_wood', desc: 'desktop.settings_sound_theme_wood_desc' },
                 { id: 'analog', label: 'desktop.settings_sound_theme_analog', desc: 'desktop.settings_sound_theme_analog_desc' },
@@ -332,11 +338,27 @@
             }
         });
         host.querySelectorAll('[data-sound-theme]').forEach(card => {
+            const owner = host;
+            const choose = async () => {
+                if (owner.dataset.soundSaving === 'true') return;
+                const focused = document.activeElement === card;
+                owner.dataset.soundSaving = 'true';
+                card.setAttribute('aria-busy', 'true');
+                try { await saveDesktopSetting('sound.theme', card.dataset.soundTheme); }
+                finally {
+                    delete owner.dataset.soundSaving;
+                    card.removeAttribute('aria-busy');
+                    if (focused && owner.isConnected) owner.querySelector('[data-sound-theme][aria-pressed="true"]')?.focus({ preventScroll: true });
+                }
+            };
             card.addEventListener('click', async event => {
                 if (event.target.closest('[data-sound-preview]')) return;
-                const theme = card.dataset.soundTheme;
-                if (!theme) return;
-                await saveDesktopSetting('sound.theme', theme);
+                await choose();
+            });
+            card.addEventListener('keydown', event => {
+                if (event.target !== card || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                choose();
             });
         });
         host.querySelectorAll('[data-screensaver-theme]').forEach(card => {
@@ -365,7 +387,16 @@
                 event.stopPropagation();
                 const theme = btn.dataset.soundPreview;
                 if (typeof ctx.previewDesktopSound === 'function') {
-                    try { await ctx.previewDesktopSound(theme); } catch (err) { console.warn('Sound preview failed', err); }
+                    btn.disabled = true;
+                    btn.setAttribute('aria-busy', 'true');
+                    btn.textContent = ctx.t('desktop.settings_sound_preview_playing');
+                    try { await ctx.previewDesktopSound(theme); }
+                    catch (err) { ctx.showDesktopNotification({ title: ctx.t('desktop.notification'), message: ctx.t('desktop.settings_sound_preview_failed') }); }
+                    finally {
+                        btn.disabled = false;
+                        btn.removeAttribute('aria-busy');
+                        btn.textContent = ctx.t('desktop.settings_sound_preview');
+                    }
                 }
             });
         });
@@ -462,6 +493,9 @@
 
     function renderSettingItem(item) {
         const { esc, t, settingBool, settingValue } = ctx;
+        if (item.type === 'cursor_preview') {
+            return `<article class="vd-setting-row vd-setting-row-stack"><div class="vd-setting-help">${esc(t('desktop.settings_cursor_preview'))}</div><img class="vd-cursor-preview" src="${esc(soundArtworkURL('/img/cursors/' + item.theme + '/preview.svg'))}" alt="" width="288" height="88"></article>`;
+        }
         if (item.type === 'info') {
             return `<article class="vd-setting-row readonly">
                 <div><div class="vd-setting-label">${esc(t(item.label))}</div></div>
@@ -469,17 +503,20 @@
             </article>`;
         }
         if (item.type === 'sound_theme') {
-            const active = settingValue('sound.theme') || 'crystal';
+            const active = settingValue('sound.theme') || 'desktop';
             return `<article class="vd-setting-row vd-setting-row-stack">
                 <div>
                     <div class="vd-setting-label">${esc(t('desktop.settings_sound_theme'))}</div>
                     <div class="vd-setting-help">${esc(t('desktop.settings_sound_theme_desc'))}</div>
                 </div>
-                <div class="vd-sound-theme-grid">${(item.themes || []).map(theme => `<div class="vd-sound-theme-card${active === theme.id ? ' active' : ''}" data-sound-theme="${esc(theme.id)}" tabindex="0" role="button" aria-pressed="${active === theme.id ? 'true' : 'false'}">
-                    <div class="vd-sound-theme-title">${esc(t(theme.label))}</div>
-                    <div class="vd-sound-theme-desc">${esc(t(theme.desc))}</div>
-                    <button type="button" class="vd-button vd-sound-theme-preview" data-sound-preview="${esc(theme.id)}">${esc(t('desktop.settings_sound_preview'))}</button>
-                </div>`).join('')}</div>
+                <div class="vd-sound-theme-grid">${(item.themes || []).map(theme => `<article class="vd-sound-theme-card${active === theme.id ? ' active' : ''}">
+                    <button type="button" class="vd-sound-theme-select" data-sound-theme="${esc(theme.id)}" aria-pressed="${active === theme.id ? 'true' : 'false'}">
+                        ${soundThemeArtwork(theme)}
+                        <span class="vd-sound-theme-title">${esc(t(theme.label))}</span>
+                        <span class="vd-sound-theme-desc">${esc(t(theme.desc))}</span>
+                    </button>
+                    <button type="button" class="vd-button vd-sound-theme-preview" aria-label="${esc(t('desktop.settings_sound_preview') + ': ' + t(theme.label))}" data-sound-preview="${esc(theme.id)}">${esc(t('desktop.settings_sound_preview'))}</button>
+                </article>`).join('')}</div>
             </article>`;
         }
         if (item.type === 'screensaver_theme') {
@@ -527,6 +564,17 @@
         const value = String((option && option.value) || '');
         const label = option && option.labelKey ? ctx.t(option.labelKey) : String((option && option.label) || value);
         return { value, label };
+    }
+
+    function soundArtworkURL(path) {
+        return window.AuraLazyAssets ? window.AuraLazyAssets.versionedURL(path) : path;
+    }
+
+    function soundThemeArtwork(theme) {
+        const current = activeThemeInfo();
+        const art = theme.art || (theme.id === 'desktop' && current && current.cursorTheme);
+        if (!art) return '';
+        return `<img class="vd-sound-theme-art" src="${ctx.esc(soundArtworkURL('/img/themes/sounds/' + art + '.svg'))}" alt="" width="288" height="88" loading="lazy">`;
     }
 
     async function saveDesktopSetting(key, value) {

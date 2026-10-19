@@ -38,6 +38,46 @@ This page covers choosing a theme, accessibility and the developer contract. The
 
 ## Developer Guide
 
+### Matching cursors and sounds
+
+Amiga, Cyberpunk, Black Gloss, Crazy, Lollipop and Organic include original cursor
+artwork and individual sound sets. In **Settings → Appearance**, **Theme cursors**
+switches between the theme artwork and system cursors. There are twelve cursor
+roles per theme, including text, links, drag, resize and busy states. High-contrast
+mode and touch-only devices retain system cursors. App canvases and remote desktop
+surfaces keep their own tool cursors. Standard and Fruity retain system cursors.
+
+In **Settings → Sound**, enable **UI sounds** to hear the feedback. Sounds remain
+off by default. **Follow desktop theme** automatically picks the matching sound
+set (Crystal for Standard and Fruity); a manually chosen set remains selected
+when changing the desktop theme. Existing saved sound choices are preserved.
+Volume and the window, notification, navigation and file category switches still
+apply. The **Preview** buttons play a short sample without enabling UI sounds.
+
+| Theme | Cursor artwork | Sound character |
+| --- | --- | --- |
+| Amiga | Pixel steps, white outlines, orange inlays | Short square waves and retro arpeggios |
+| Cyberpunk | Angular neon-yellow pointers and cyan circuit details | FM pulses, metallic signals, static transients |
+| Black Gloss | Graphite and silver bevels | Glass partials and restrained reverberation |
+| Crazy | Purple ribbons and mint accents | Rising bubble tones and unexpected intervals |
+| Lollipop | Rounded candy stripes and heart details | Celesta chimes and light pops |
+| Organic | Leaf silhouette with walnut and brass inlays | Wooden harmonics and soft filtered air |
+
+`cursorTheme` and `soundTheme` on each registry descriptor own the pairing.
+`core/cursor-runtime.js` applies versioned, local SVG cursor URLs with native
+hotspots and keyword fallbacks. `css/desktop-cursors.css` preserves semantic
+cursor roles without a pointer-following overlay or animation loop.
+The 72 cursor SVGs, six cursor preview sheets and six sound-set covers are original AuraGo artwork, generated
+by `node scripts/build-desktop-cursors.mjs`; use `--check` to verify reproducibility.
+No third-party cursor artwork or sampled operating-system sounds are included.
+
+`sound/theme-desktop.js` supplies all nineteen shell events for each new theme
+through the existing lazy Web Audio synthesizer. In-flight synthesis is shared;
+mute, theme changes and tab hiding cancel pending playback. Audio unlock remains
+bound to a user gesture. Turning sound off releases the AudioContext immediately.
+Verify `TestDesktopThemeSensoryBrowser`, `TestDesktopSoundBrowser` (all eleven
+sets) and `TestThemeSensorySettingsPersistIndependently`, then rebuild UI bundles.
+
 ### Architecture
 
 1. `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js` describes every theme. `desktop.DesktopThemeIDs()` in `internal/desktop/themes.go` lists the same ids and is the allowed value list of `appearance.theme`.
@@ -79,6 +119,8 @@ Each `DESKTOP_THEMES` entry is one `Object.freeze({ ... })` line with these keys
 | `fx` | boolean | loads the lazy effects bundle for the theme |
 | `wallpaper` | an `appearance.wallpaper` value | suggested wallpaper (`followThemeWallpaper()`) |
 | `thumb` | `/img/themes/<id>.svg` | picker thumbnail |
+| `cursorTheme` | cursor artwork directory id, or empty | themed cursor set; empty keeps system cursors |
+| `soundTheme` | registered sound set id | sound set used by **Follow desktop theme** |
 | `motion` | eight keys in ms, 20 to 800: `open`, `close`, `minimize`, `restore`, `menuOpen`, `menuClose`, `startOpen`, `startClose` | fallback timers of `animateThen` via `themeMotionMs(kind)`; an unknown kind gets 160 ms |
 
 ### Token Contract

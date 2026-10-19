@@ -20,7 +20,7 @@ import (
 // desktopThemeKeyOrder is the property order of every descriptor line.
 var desktopThemeKeyOrder = []string{
 	"id", "labelKey", "descKey", "scheme", "schemeSetting", "shell", "globalMenu", "iconTheme", "iconFamily",
-	"accent", "glassPolish", "fx", "wallpaper", "thumb", "motion",
+	"accent", "glassPolish", "fx", "wallpaper", "thumb", "cursorTheme", "soundTheme", "motion",
 }
 
 // desktopThemeMotionKeys are the eight motion durations every descriptor carries (milliseconds).

@@ -15,6 +15,19 @@ var desktopSoundEvents = []string{
 }
 
 var desktopSoundLocaleKeys = []string{
+	"desktop.settings_theme_cursors",
+	"desktop.settings_theme_cursors_desc",
+	"desktop.settings_cursor_preview",
+	"desktop.settings_sound_theme_desktop",
+	"desktop.settings_sound_theme_desktop_desc",
+	"desktop.settings_sound_preview_playing",
+	"desktop.settings_sound_preview_failed",
+	"desktop.settings_sound_theme_amiga_desc",
+	"desktop.settings_sound_theme_cyberpunk_desc",
+	"desktop.settings_sound_theme_black_gloss_desc",
+	"desktop.settings_sound_theme_crazy_desc",
+	"desktop.settings_sound_theme_lollipop_desc",
+	"desktop.settings_sound_theme_organic_desc",
 	"desktop.settings_category_sound",
 	"desktop.settings_category_sound_desc",
 	"desktop.settings_sound_enabled",
@@ -159,7 +172,7 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 	t.Parallel()
 
 	eventRe := regexp.MustCompile(`'([a-z]+(?:\.[a-z]+)+)':`)
-	for _, theme := range []string{"crystal", "wood", "analog", "workshop", "water"} {
+	for _, theme := range []string{"crystal", "wood", "analog", "workshop", "water", "desktop"} {
 		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
 		found := map[string]bool{}
 		for _, match := range eventRe.FindAllStringSubmatch(source, -1) {

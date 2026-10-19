@@ -2079,14 +2079,14 @@
     // Parsed by ui/desktop_theme_registry_test.go: one descriptor per line, single quotes, keys in this order.
     // Ids and order must equal desktop.DesktopThemeIDs() in internal/desktop/themes.go.
     const DESKTOP_THEMES = Object.freeze([
-        Object.freeze({ id: 'standard', labelKey: 'desktop.settings_theme_standard', descKey: 'desktop.settings_theme_standard_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/standard.svg', motion: Object.freeze({ open: 240, close: 130, minimize: 170, restore: 180, menuOpen: 100, menuClose: 100, startOpen: 130, startClose: 120 }) }),
-        Object.freeze({ id: 'fruity', labelKey: 'desktop.settings_theme_fruity', descKey: 'desktop.settings_theme_fruity_desc', scheme: 'light', schemeSetting: 'appearance.fruity_mode', shell: 'dock', globalMenu: true, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/fruity.svg', motion: Object.freeze({ open: 240, close: 180, minimize: 200, restore: 230, menuOpen: 150, menuClose: 150, startOpen: 190, startClose: 170 }) }),
-        Object.freeze({ id: 'amiga', labelKey: 'desktop.settings_theme_amiga', descKey: 'desktop.settings_theme_amiga_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'slate', thumb: '/img/themes/amiga.svg', motion: Object.freeze({ open: 20, close: 20, minimize: 20, restore: 20, menuOpen: 20, menuClose: 20, startOpen: 20, startClose: 20 }) }),
-        Object.freeze({ id: 'cyberpunk', labelKey: 'desktop.settings_theme_cyberpunk', descKey: 'desktop.settings_theme_cyberpunk_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'city_rain', thumb: '/img/themes/cyberpunk.svg', motion: Object.freeze({ open: 200, close: 150, minimize: 190, restore: 190, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) }),
-        Object.freeze({ id: 'black_gloss', labelKey: 'desktop.settings_theme_black_gloss', descKey: 'desktop.settings_theme_black_gloss_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'midnight', thumb: '/img/themes/black_gloss.svg', motion: Object.freeze({ open: 260, close: 180, minimize: 230, restore: 240, menuOpen: 150, menuClose: 130, startOpen: 200, startClose: 160 }) }),
-        Object.freeze({ id: 'crazy', labelKey: 'desktop.settings_theme_crazy', descKey: 'desktop.settings_theme_crazy_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: true, wallpaper: 'fractal_trip', thumb: '/img/themes/crazy.svg', motion: Object.freeze({ open: 520, close: 380, minimize: 440, restore: 440, menuOpen: 240, menuClose: 180, startOpen: 340, startClose: 220 }) }),
-        Object.freeze({ id: 'lollipop', labelKey: 'desktop.settings_theme_lollipop', descKey: 'desktop.settings_theme_lollipop_desc', scheme: 'light', schemeSetting: '', shell: 'dock', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'paper_waves', thumb: '/img/themes/lollipop.svg', motion: Object.freeze({ open: 300, close: 200, minimize: 260, restore: 280, menuOpen: 180, menuClose: 140, startOpen: 240, startClose: 180 }) }),
-        Object.freeze({ id: 'organic', labelKey: 'desktop.settings_theme_organic', descKey: 'desktop.settings_theme_organic_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'forest', thumb: '/img/themes/organic.svg', motion: Object.freeze({ open: 280, close: 190, minimize: 240, restore: 250, menuOpen: 160, menuClose: 130, startOpen: 220, startClose: 170 }) })
+        Object.freeze({ id: 'standard', labelKey: 'desktop.settings_theme_standard', descKey: 'desktop.settings_theme_standard_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/standard.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 240, close: 130, minimize: 170, restore: 180, menuOpen: 100, menuClose: 100, startOpen: 130, startClose: 120 }) }),
+        Object.freeze({ id: 'fruity', labelKey: 'desktop.settings_theme_fruity', descKey: 'desktop.settings_theme_fruity_desc', scheme: 'light', schemeSetting: 'appearance.fruity_mode', shell: 'dock', globalMenu: true, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/fruity.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 240, close: 180, minimize: 200, restore: 230, menuOpen: 150, menuClose: 150, startOpen: 190, startClose: 170 }) }),
+        Object.freeze({ id: 'amiga', labelKey: 'desktop.settings_theme_amiga', descKey: 'desktop.settings_theme_amiga_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'slate', thumb: '/img/themes/amiga.svg', cursorTheme: 'amiga', soundTheme: 'amiga', motion: Object.freeze({ open: 20, close: 20, minimize: 20, restore: 20, menuOpen: 20, menuClose: 20, startOpen: 20, startClose: 20 }) }),
+        Object.freeze({ id: 'cyberpunk', labelKey: 'desktop.settings_theme_cyberpunk', descKey: 'desktop.settings_theme_cyberpunk_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'city_rain', thumb: '/img/themes/cyberpunk.svg', cursorTheme: 'cyberpunk', soundTheme: 'cyberpunk', motion: Object.freeze({ open: 200, close: 150, minimize: 190, restore: 190, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) }),
+        Object.freeze({ id: 'black_gloss', labelKey: 'desktop.settings_theme_black_gloss', descKey: 'desktop.settings_theme_black_gloss_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'midnight', thumb: '/img/themes/black_gloss.svg', cursorTheme: 'black_gloss', soundTheme: 'black_gloss', motion: Object.freeze({ open: 260, close: 180, minimize: 230, restore: 240, menuOpen: 150, menuClose: 130, startOpen: 200, startClose: 160 }) }),
+        Object.freeze({ id: 'crazy', labelKey: 'desktop.settings_theme_crazy', descKey: 'desktop.settings_theme_crazy_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: true, wallpaper: 'fractal_trip', thumb: '/img/themes/crazy.svg', cursorTheme: 'crazy', soundTheme: 'crazy', motion: Object.freeze({ open: 520, close: 380, minimize: 440, restore: 440, menuOpen: 240, menuClose: 180, startOpen: 340, startClose: 220 }) }),
+        Object.freeze({ id: 'lollipop', labelKey: 'desktop.settings_theme_lollipop', descKey: 'desktop.settings_theme_lollipop_desc', scheme: 'light', schemeSetting: '', shell: 'dock', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'paper_waves', thumb: '/img/themes/lollipop.svg', cursorTheme: 'lollipop', soundTheme: 'lollipop', motion: Object.freeze({ open: 300, close: 200, minimize: 260, restore: 280, menuOpen: 180, menuClose: 140, startOpen: 240, startClose: 180 }) }),
+        Object.freeze({ id: 'organic', labelKey: 'desktop.settings_theme_organic', descKey: 'desktop.settings_theme_organic_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'forest', thumb: '/img/themes/organic.svg', cursorTheme: 'organic', soundTheme: 'organic', motion: Object.freeze({ open: 280, close: 190, minimize: 240, restore: 250, menuOpen: 160, menuClose: 130, startOpen: 220, startClose: 170 }) })
     ]);
 
     // Load token of the lazy effects bundle: a newer sync invalidates an older pending load.
@@ -2130,6 +2130,7 @@
         body.dataset.shell = theme.shell;
         body.dataset.scheme = themeScheme(theme);
         body.dataset.polish = theme.glassPolish ? 'on' : 'off';
+        applyDesktopCursors(body, theme);
     }
 
     function bindThemeFxMotionListener() {
@@ -2204,6 +2205,28 @@
     }
 
 ;
+/* ui/js/desktop/core/cursor-runtime.js */
+    // Native CSS cursors: no pointer-following DOM, animation loop or input interception.
+    const DESKTOP_CURSOR_ROLES = Object.freeze({
+        default: [3, 2], pointer: [13, 3], text: [16, 16], grab: [16, 16], grabbing: [16, 16],
+        move: [16, 16], 'ew-resize': [16, 16], 'ns-resize': [16, 16],
+        'nesw-resize': [16, 16], 'nwse-resize': [16, 16], 'not-allowed': [16, 16], wait: [16, 16]
+    });
+
+    function applyDesktopCursors(body, theme) {
+        const id = settingValue('appearance.theme_cursors') !== 'false' ? theme.cursorTheme : '';
+        if (body.dataset.cursorTheme === (id || 'system')) return;
+        body.dataset.cursorTheme = id || 'system';
+        Object.entries(DESKTOP_CURSOR_ROLES).forEach(([role, hotspot]) => {
+            const property = '--vd-cursor-' + role;
+            if (!id) { body.style.removeProperty(property); return; }
+            const path = '/img/cursors/' + id + '/' + role + '.svg';
+            const url = window.AuraLazyAssets ? window.AuraLazyAssets.versionedURL(path) : path;
+            body.style.setProperty(property, 'url("' + url + '") ' + hotspot.join(' ') + ', ' + role);
+        });
+    }
+
+;
 /* ui/js/desktop/core/sound-runtime.js */
 (function () {
     'use strict';
@@ -2217,7 +2240,7 @@
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water'];
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic'];
     let actx = null;
     let master = null;
     let compressor = null;
@@ -2229,6 +2252,11 @@
     let lastEventAt = {};
     let recentVoices = [];
     let notifyBurst = { at: 0, played: false };
+    let soundEpoch = 0;
+    let previewEpoch = 0;
+    let observedSettings = '';
+    const pendingRenders = new Map();
+    const voices = new Set();
     let stats = { plays: 0, renders: 0, previewPlays: 0, lastEvent: '', lastPeak: 0, lastRms: 0 };
 
     function soundsEnabled() {
@@ -2248,9 +2276,13 @@
         return clamped * clamped;
     }
 
-    function currentThemeId() {
-        const id = settingValue('sound.theme') || 'crystal';
+    function resolveThemeId(id) {
+        if (!id || id === 'desktop') id = currentDesktopTheme().soundTheme;
         return THEME_IDS.indexOf(id) >= 0 ? id : 'crystal';
+    }
+
+    function currentThemeId() {
+        return resolveThemeId(settingValue('sound.theme'));
     }
 
     function ensureContext(force) {
@@ -2281,6 +2313,16 @@
     }
 
     function syncDesktopSoundSettings() {
+        const signature = [soundsEnabled(), currentThemeId(), ...['windows', 'notifications', 'navigation', 'files'].map(categoryEnabled)].join('|');
+        if (observedSettings && signature !== observedSettings) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            stopVoices();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+        observedSettings = signature;
+        if (soundsEnabled() && !unlocked) wireUnlock();
         if (!master) return;
         master.gain.value = volumeGain();
         ['windows', 'notifications', 'navigation', 'files'].forEach(cat => {
@@ -2289,9 +2331,6 @@
     }
 
     function setDesktopSoundVolume(value) {
-        if (!master) {
-            ensureContext(true);
-        }
         syncDesktopSoundSettings();
         if (master && isFinite(value)) {
             const clamped = Math.min(1, Math.max(0, value));
@@ -2299,16 +2338,27 @@
         }
     }
 
+    function stopVoices() {
+        voices.forEach(src => { try { src.stop(); } catch (e) {} });
+        voices.clear();
+    }
+
     async function closeSoundContext() {
-        if (actx && typeof actx.close === 'function') {
-            try { await actx.close(); } catch (e) {}
-        }
+        soundEpoch++;
+        previewEpoch++;
+        window.DesktopSoundsPreviewActive = false;
+        stopVoices();
+        const closing = actx;
+        if (master) master.gain.value = 0;
         actx = null;
         master = null;
         compressor = null;
         categoryGains = {};
         unlocked = false;
         cache = { theme: '', buffers: {}, stats: {} };
+        if (closing && typeof closing.close === 'function') {
+            try { await closing.close(); } catch (e) {}
+        }
     }
 
     function wireUnlock() {
@@ -2322,6 +2372,7 @@
             unlocked = true;
             document.removeEventListener('pointerdown', unlock, true);
             document.removeEventListener('keydown', unlock, true);
+            window.DesktopSoundsUnlockWired = false;
         };
         document.addEventListener('pointerdown', unlock, true);
         document.addEventListener('keydown', unlock, true);
@@ -2362,7 +2413,10 @@
 
     async function ensureBuffers(themeId) {
         if (cache.theme === themeId && cache.buffers && Object.keys(cache.buffers).length) return cache;
-        return renderTheme(themeId);
+        if (pendingRenders.has(themeId)) return pendingRenders.get(themeId);
+        const pending = renderTheme(themeId).finally(() => pendingRenders.delete(themeId));
+        pendingRenders.set(themeId, pending);
+        return pending;
     }
 
     function rateLimited(eventId) {
@@ -2398,6 +2452,8 @@
         g.gain.value = (options && options.gain != null ? options.gain : 1) * jitterGain;
         src.connect(g);
         g.connect(dest);
+        voices.add(src);
+        src.onended = () => { voices.delete(src); src.disconnect(); g.disconnect(); };
         src.start();
         stats.plays++;
         stats.lastEvent = options && options.event || '';
@@ -2415,14 +2471,19 @@
             wireUnlock();
             return;
         }
-        if (rateLimited(eventId) && !options.preview) return;
+        if (!options.preview && rateLimited(eventId)) return;
+        const epoch = soundEpoch;
         try {
-            const themeId = options.theme || currentThemeId();
-            await ensureBuffers(themeId);
-            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
-            const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
+            const themeId = options.theme ? resolveThemeId(options.theme) : currentThemeId();
+            const rendered = await ensureBuffers(themeId);
+            if (epoch !== soundEpoch || document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
+            if (!categoryEnabled(category)) return;
+            if (options.preview) {
+                if (options.previewToken !== previewEpoch || !window.DesktopSoundsPreviewActive) return;
+            } else if (!soundsEnabled() || !unlocked || themeId !== currentThemeId()) return;
+            const buffer = rendered.buffers[eventId] || rendered.buffers['notify.info'];
             if (!buffer) return;
-            const meta = cache.stats[eventId] || {};
+            const meta = rendered.stats[eventId] || {};
             stats.lastPeak = meta.peak || 0;
             stats.lastRms = meta.rms || 0;
             playBuffer(buffer, category, { event: eventId, gain: options.gain });
@@ -2432,20 +2493,29 @@
     }
 
     async function previewDesktopSound(themeId) {
+        syncDesktopSoundSettings();
+        const token = ++previewEpoch;
+        soundEpoch++;
+        stopVoices();
         window.DesktopSoundsPreviewActive = true;
         try {
             ensureContext(true);
             if (actx && actx.state === 'suspended') actx.resume().catch(function () {});
+            if (!actx) throw new Error('Web Audio unavailable');
             unlocked = true;
-            await ensureBuffers(themeId || currentThemeId());
-            await desktopSound('window.open', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 180));
-            await desktopSound('notify.info', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 220));
-            await desktopSound('window.close', { preview: true, theme: themeId });
-            stats.previewPlays++;
+            const resolved = resolveThemeId(themeId || currentThemeId());
+            await ensureBuffers(resolved);
+            for (const event of ['window.open', 'notify.info', 'window.close']) {
+                if (token !== previewEpoch || document.hidden) return;
+                await desktopSound(event, { preview: true, theme: resolved, previewToken: token });
+                await new Promise(r => setTimeout(r, 420));
+            }
+            if (token === previewEpoch) stats.previewPlays++;
         } finally {
-            window.DesktopSoundsPreviewActive = false;
+            if (token === previewEpoch) {
+                window.DesktopSoundsPreviewActive = false;
+                if (!soundsEnabled()) await closeSoundContext();
+            }
         }
     }
 
@@ -2475,19 +2545,21 @@
     }
 
     function applySoundSettingsChange(key, value) {
-        if (key === 'sound.enabled' && value !== 'true') {
-            closeSoundContext();
-            return;
-        }
-        if (key === 'sound.enabled' && value === 'true') {
-            wireUnlock();
-        }
-        if (key === 'sound.theme') {
-            cache = { theme: '', buffers: {}, stats: {} };
-            if (soundsEnabled() && unlocked) ensureBuffers(currentThemeId()).catch(function () {});
-        }
         syncDesktopSoundSettings();
+        if (key === 'sound.enabled' && value !== 'true') closeSoundContext();
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            stopVoices();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+    });
+    window.addEventListener('pagehide', () => closeSoundContext());
+    window.addEventListener('aurago:auth-ended', () => closeSoundContext());
 
     window.desktopSound = desktopSound;
     window.syncDesktopSoundSettings = syncDesktopSoundSettings;

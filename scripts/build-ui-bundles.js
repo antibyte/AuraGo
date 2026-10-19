@@ -9,6 +9,7 @@ const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/theme-runtime.js',
+  'ui/js/desktop/core/cursor-runtime.js',
   'ui/js/desktop/core/sound-runtime.js',
   'ui/js/desktop/core/screensaver-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
@@ -130,7 +131,8 @@ const jsBundles = [
       'ui/js/desktop/sound/theme-wood.js',
       'ui/js/desktop/sound/theme-analog.js',
       'ui/js/desktop/sound/theme-workshop.js',
-      'ui/js/desktop/sound/theme-water.js'
+      'ui/js/desktop/sound/theme-water.js',
+      'ui/js/desktop/sound/theme-desktop.js'
     ]
   },
   {
@@ -197,6 +199,7 @@ const cssBundles = [
       'ui/css/desktop-theme-crazy.css',
       'ui/css/desktop-theme-lollipop.css',
       'ui/css/desktop-theme-organic.css',
+      'ui/css/desktop-cursors.css',
       'ui/css/desktop-polish.css'
     ]
   },

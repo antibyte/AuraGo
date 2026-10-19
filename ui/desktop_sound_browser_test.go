@@ -13,7 +13,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
 )
 
 func TestDesktopSoundBrowser(t *testing.T) {
@@ -128,7 +127,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 	}
 
 	qualityJSON := page.MustEval(`async()=>{
-        const themes=['crystal','wood','analog','workshop','water'];
+        const themes=DesktopSounds.inspect().themes;
         const report={themes:{}};
         for (const theme of themes) {
             const cache=await soundTest.renderTheme(theme);
@@ -150,8 +149,8 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if err := json.Unmarshal([]byte(qualityJSON), &quality); err != nil {
 		t.Fatalf("parse render quality: %v\n%s", err, qualityJSON)
 	}
-	if len(quality.Themes) != 5 {
-		t.Fatalf("expected 5 rendered themes, got %d", len(quality.Themes))
+	if len(quality.Themes) != 11 {
+		t.Fatalf("expected 11 rendered themes, got %d", len(quality.Themes))
 	}
 	const rmsMin = 0.0005
 	const peakMax = 0.891 // -1 dBFS
