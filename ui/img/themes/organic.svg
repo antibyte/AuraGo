@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
+<defs>
+<radialGradient id="bg" cx=".5" cy=".34" r=".82"><stop offset="0" stop-color="#233126"/><stop offset=".6" stop-color="#171813"/><stop offset="1" stop-color="#0f0b08"/></radialGradient>
+<linearGradient id="wd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e1f16"/><stop offset=".52" stop-color="#231710"/><stop offset="1" stop-color="#1a110c"/></linearGradient>
+<linearGradient id="wh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2b1d14"/><stop offset=".38" stop-color="#382519"/><stop offset=".74" stop-color="#271a12"/><stop offset="1" stop-color="#322117"/></linearGradient>
+<linearGradient id="br" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d993"/><stop offset=".48" stop-color="#d4a84f"/><stop offset="1" stop-color="#9e7322"/></linearGradient>
+<radialGradient id="bs" cx=".4" cy=".3" r=".7"><stop offset="0" stop-color="#fae5aa"/><stop offset=".55" stop-color="#d4a84f"/><stop offset="1" stop-color="#7d5816"/></radialGradient>
+<radialGradient id="bc" cx=".4" cy=".3" r=".7"><stop offset="0" stop-color="#f5c6aa"/><stop offset=".55" stop-color="#c97248"/><stop offset="1" stop-color="#733216"/></radialGradient>
+</defs>
+<rect width="160" height="100" fill="url(#bg)"/>
+<rect x="16" y="11" width="128" height="68" rx="13" fill="#000" opacity=".32"/>
+<rect x="20" y="8" width="120" height="63" rx="10" fill="url(#wd)" stroke="#d4a84f" stroke-opacity=".46" stroke-width=".8"/>
+<path d="M20.4 18A9.6 9.6 0 0 1 30 8.4h100a9.6 9.6 0 0 1 9.6 9.6v2H20.4z" fill="url(#wh)"/>
+<path d="M21 26c28-1.4 62 1.2 118-.5M21 39c36 1.3 74-1.2 118 .6M21 54c32-1.1 78 1.3 118-.4" stroke="#d4a84f" stroke-opacity=".06" stroke-width=".9" fill="none"/>
+<path d="M30 8.7h100" stroke="#fff0c6" stroke-opacity=".45" stroke-width=".6"/>
+<rect x="20.4" y="19.6" width="119.2" height=".7" fill="#d4a84f" opacity=".36"/>
+<circle cx="67.5" cy="14.2" r="1.6" fill="#d4a84f"/>
+<rect x="71" y="13.1" width="21" height="2.2" rx="1.1" fill="#f4ebe1" opacity=".9"/>
+<circle cx="117.5" cy="14.2" r="2.5" fill="url(#bs)" stroke="#fff0c6" stroke-opacity=".45" stroke-width=".35"/>
+<circle cx="124.5" cy="14.2" r="2.5" fill="url(#bs)" stroke="#fff0c6" stroke-opacity=".45" stroke-width=".35"/>
+<circle cx="131.5" cy="14.2" r="2.5" fill="url(#bc)" stroke="#ffd8c2" stroke-opacity=".45" stroke-width=".35"/>
+<rect x="27" y="25" width="40" height="3" rx="1.5" fill="#d9c8b8" opacity=".82"/>
+<rect x="27" y="30.8" width="66" height="2.2" rx="1.1" fill="#b8a390" opacity=".55"/>
+<rect x="27" y="37" width="106" height="11" rx="5.5" fill="#160f0a" stroke="#d4a84f" stroke-opacity=".26" stroke-width=".6"/>
+<rect x="30" y="39.5" width="2.2" height="6" rx="1.1" fill="url(#br)"/>
+<rect x="35.5" y="41.2" width="32" height="2.5" rx="1.25" fill="#f4ebe1" opacity=".88"/>
+<rect x="114" y="39.5" width="15" height="6" rx="3" fill="url(#br)"/>
+<rect x="27" y="53" width="62" height="2.2" rx="1.1" fill="#b8a390" opacity=".48"/>
+<rect x="27" y="58.5" width="78" height="2.2" rx="1.1" fill="#b8a390" opacity=".42"/>
+<path d="M0 87a7 7 0 0 1 7-7h146a7 7 0 0 1 7 7v13H0z" fill="url(#wh)" stroke="#d4a84f" stroke-opacity=".4" stroke-width=".7"/>
+<path d="M8 80.4h144" stroke="#fff0c6" stroke-opacity=".42" stroke-width=".6"/>
+<circle cx="11" cy="90" r="5.2" fill="url(#bs)" stroke="#fff0c6" stroke-opacity=".55" stroke-width=".5"/>
+<circle cx="11" cy="90" r="2.3" fill="none" stroke="#1a120b" stroke-width=".65"/>
+<rect x="52" y="86.2" width="11" height="7.2" rx="3.6" fill="#17100b" stroke="#d4a84f" stroke-opacity=".28" stroke-width=".5"/>
+<rect x="66" y="86.2" width="14" height="7.2" rx="3.6" fill="#3b2919" stroke="#e8c068" stroke-opacity=".6" stroke-width=".6"/>
+<rect x="83" y="86.2" width="11" height="7.2" rx="3.6" fill="#17100b" stroke="#d4a84f" stroke-opacity=".28" stroke-width=".5"/>
+<rect x="97" y="86.2" width="11" height="7.2" rx="3.6" fill="#17100b" stroke="#d4a84f" stroke-opacity=".28" stroke-width=".5"/>
+<rect x="69.5" y="95.4" width="7" height="1.6" rx=".8" fill="url(#br)"/>
+<rect x="133" y="86.5" width="18" height="7" rx="3.5" fill="#17100b" stroke="#d4a84f" stroke-opacity=".28" stroke-width=".5"/>
+<rect x="136.5" y="88.9" width="11" height="2.2" rx="1.1" fill="#f4ebe1" opacity=".85"/>
+</svg>

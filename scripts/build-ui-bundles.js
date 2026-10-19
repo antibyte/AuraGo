@@ -196,6 +196,7 @@ const cssBundles = [
       'ui/css/desktop-theme-black-gloss.css',
       'ui/css/desktop-theme-crazy.css',
       'ui/css/desktop-theme-lollipop.css',
+      'ui/css/desktop-theme-organic.css',
       'ui/css/desktop-polish.css'
     ]
   },

@@ -105,7 +105,7 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 		}
 	}
 	page.MustSetViewport(1366, 900, 1, false)
-	for _, theme := range []string{"standard", "lollipop", "cyberpunk", "crazy", "black_gloss", "amiga"} {
+	for _, theme := range []string{"standard", "lollipop", "cyberpunk", "crazy", "black_gloss", "amiga", "organic"} {
 		page.MustEval(`theme => fixtureTheme(theme)`, theme)
 		page.MustElement("#radialTrigger").MustClick()
 		if blurred := page.MustEval(`() => {
