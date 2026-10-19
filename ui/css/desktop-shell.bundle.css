@@ -14292,15 +14292,15 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
     /* Core */
     --vd-bg: #140E0A;
-    --vd-surface: #221711;
-    --vd-surface-strong: #2A1D15;
-    --vd-border: rgba(212, 168, 79, 0.22);
-    --vd-border-bright: rgba(232, 192, 104, 0.48);
+    --vd-surface: #261810;
+    --vd-surface-strong: #2E1D13;
+    --vd-border: rgba(212, 168, 79, 0.28);
+    --vd-border-bright: rgba(236, 196, 108, 0.56);
     --vd-text: #F4EBE1;
-    --vd-muted: #B8A390;
-    --vd-shadow: 0 20px 54px rgba(8, 4, 2, 0.68), 0 6px 18px rgba(8, 4, 2, 0.46);
-    --vd-shadow-window: 0 30px 78px rgba(6, 3, 1, 0.76), 0 8px 22px rgba(6, 3, 1, 0.52);
-    --vd-inner-glow: inset 0 1px 0 rgba(255, 232, 190, 0.22), inset 0 0 0 1px rgba(212, 168, 79, 0.14);
+    --vd-muted: #C4AF9B;
+    --vd-shadow: 0 20px 54px rgba(8, 4, 2, 0.72), 0 6px 18px rgba(8, 4, 2, 0.5);
+    --vd-shadow-window: 0 30px 78px rgba(6, 3, 1, 0.8), 0 8px 22px rgba(6, 3, 1, 0.56);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 232, 190, 0.24), inset 0 0 0 1px rgba(212, 168, 79, 0.18);
     --vd-window-radius: 24px;
     --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
 
@@ -14309,60 +14309,60 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-accent-r: 212;
     --vd-accent-g: 168;
     --vd-accent-b: 79;
-    --vd-accent-glow: rgba(212, 168, 79, 0.2);
+    --vd-accent-glow: rgba(212, 168, 79, 0.22);
     --vd-accent-contrast: #1A120B;
 
     /* Theme bridge */
-    --vd-theme-app-bg: #1E1510;
-    --vd-theme-panel-bg: #281C15;
-    --vd-theme-panel-bg-strong: #241912F7;
-    --vd-theme-chrome-bg: #1A120D;
-    --vd-theme-overlay-bg: rgba(12, 7, 4, 0.72);
-    --vd-theme-control-bg: rgba(212, 168, 79, 0.09);
-    --vd-theme-control-hover: rgba(212, 168, 79, 0.18);
-    --vd-theme-border: rgba(212, 168, 79, 0.22);
-    --vd-theme-border-strong: rgba(232, 192, 104, 0.46);
-    --vd-theme-muted: #B8A390;
-    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 212), var(--vd-accent-g, 168), var(--vd-accent-b, 79), 0.16);
-    --vd-theme-accent-border: rgba(var(--vd-accent-r, 212), var(--vd-accent-g, 168), var(--vd-accent-b, 79), 0.52);
-    --vd-theme-radius-panel: 20px;
+    --vd-theme-app-bg: #22160F;
+    --vd-theme-panel-bg: #2B1C13;
+    --vd-theme-panel-bg-strong: #281A11;
+    --vd-theme-chrome-bg: #1E130C;
+    --vd-theme-overlay-bg: rgba(12, 7, 4, 0.74);
+    --vd-theme-control-bg: rgba(18, 10, 6, 0.56);
+    --vd-theme-control-hover: rgba(212, 168, 79, 0.2);
+    --vd-theme-border: rgba(212, 168, 79, 0.26);
+    --vd-theme-border-strong: rgba(232, 192, 104, 0.5);
+    --vd-theme-muted: #C4AF9B;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 212), var(--vd-accent-g, 168), var(--vd-accent-b, 79), 0.18);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 212), var(--vd-accent-g, 168), var(--vd-accent-b, 79), 0.54);
+    --vd-theme-radius-panel: 22px;
     --vd-theme-radius-modal: 26px;
-    --vd-theme-shadow-panel: 0 20px 52px rgba(6, 3, 1, 0.68), inset 0 1px 0 rgba(255, 232, 190, 0.2);
-    --vd-theme-shadow-modal: 0 32px 84px rgba(6, 3, 1, 0.78), inset 0 1px 0 rgba(255, 232, 190, 0.24);
+    --vd-theme-shadow-panel: 0 22px 56px rgba(6, 3, 1, 0.72), inset 0 1px 0 rgba(255, 232, 190, 0.22);
+    --vd-theme-shadow-modal: 0 32px 84px rgba(6, 3, 1, 0.82), inset 0 1px 0 rgba(255, 232, 190, 0.26);
     --vd-theme-blur: none;
 
     /* Chrome */
-    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 234, 194, 0.22);
-    --vd-chrome-ring: inset 0 0 0 1px rgba(212, 168, 79, 0.28);
-    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(236, 198, 116, 0.78) 18%, rgba(255, 240, 198, 0.95) 50%, rgba(236, 198, 116, 0.78) 82%, transparent);
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 234, 194, 0.24);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(212, 168, 79, 0.32);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(236, 198, 116, 0.82) 18%, rgba(255, 240, 198, 0.96) 50%, rgba(236, 198, 116, 0.82) 82%, transparent);
 
     /* Design system: warm walnut surfaces and brass focus/accent tokens */
     --ds-color-fg-primary: #F4EBE1;
-    --ds-color-fg-secondary: #D9C8B8;
-    --ds-color-fg-muted: #B8A390;
-    --ds-color-fg-disabled: #7D6B5D;
+    --ds-color-fg-secondary: #DFC9B6;
+    --ds-color-fg-muted: #C4AF9B;
+    --ds-color-fg-disabled: #857262;
     --ds-color-bg-canvas: #140E0A;
-    --ds-color-bg-raised: #221711;
-    --ds-color-bg-overlay: #281C15;
-    --ds-color-bg-modal: #2C1F17;
-    --ds-color-surface-0: #1A120D;
-    --ds-color-surface-1: #211711;
-    --ds-color-surface-2: #281C15;
-    --ds-color-surface-3: #31231A;
-    --ds-color-border-subtle: rgba(212, 168, 79, 0.14);
-    --ds-color-border-default: rgba(212, 168, 79, 0.24);
-    --ds-color-border-strong: rgba(232, 192, 104, 0.44);
+    --ds-color-bg-raised: #241710;
+    --ds-color-bg-overlay: #2B1C13;
+    --ds-color-bg-modal: #2E1E14;
+    --ds-color-surface-0: #1C120C;
+    --ds-color-surface-1: #231710;
+    --ds-color-surface-2: #2B1C13;
+    --ds-color-surface-3: #352318;
+    --ds-color-border-subtle: rgba(212, 168, 79, 0.16);
+    --ds-color-border-default: rgba(212, 168, 79, 0.26);
+    --ds-color-border-strong: rgba(232, 192, 104, 0.48);
     --ds-color-border-focus: #D4A84F;
     --ds-color-accent-500: #D4A84F;
     --ds-color-accent-600: #B58932;
-    --ds-color-accent-glow: rgba(212, 168, 79, 0.18);
-    --ds-color-control-active: rgba(212, 168, 79, 0.22);
-    --ds-color-inner-highlight: rgba(255, 232, 190, 0.14);
-    --ds-elevation-1: 0 2px 4px rgba(8, 4, 2, 0.52);
-    --ds-elevation-2: 0 6px 16px rgba(8, 4, 2, 0.58);
-    --ds-elevation-3: 0 14px 36px rgba(8, 4, 2, 0.64);
-    --ds-elevation-4: 0 24px 64px rgba(6, 3, 1, 0.72);
-    --ds-elevation-5: 0 32px 84px rgba(6, 3, 1, 0.78);
+    --ds-color-accent-glow: rgba(212, 168, 79, 0.2);
+    --ds-color-control-active: rgba(212, 168, 79, 0.24);
+    --ds-color-inner-highlight: rgba(255, 232, 190, 0.16);
+    --ds-elevation-1: 0 2px 4px rgba(8, 4, 2, 0.55);
+    --ds-elevation-2: 0 6px 16px rgba(8, 4, 2, 0.6);
+    --ds-elevation-3: 0 14px 36px rgba(8, 4, 2, 0.66);
+    --ds-elevation-4: 0 24px 64px rgba(6, 3, 1, 0.74);
+    --ds-elevation-5: 0 32px 84px rgba(6, 3, 1, 0.8);
     --ds-blur-fine: none;
     --ds-blur-coarse: blur(6px);
 
@@ -14375,43 +14375,43 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
     /* Shared site-wide tokens */
     --accent: #D4A84F;
-    --accent-dim: rgba(212, 168, 79, 0.16);
-    --accent-glow: rgba(212, 168, 79, 0.32);
-    --border-accent: rgba(212, 168, 79, 0.44);
-    --border-subtle: rgba(212, 168, 79, 0.2);
+    --accent-dim: rgba(212, 168, 79, 0.18);
+    --accent-glow: rgba(212, 168, 79, 0.34);
+    --border-accent: rgba(212, 168, 79, 0.46);
+    --border-subtle: rgba(212, 168, 79, 0.22);
     --text-primary: #F4EBE1;
-    --text-secondary: #B8A390;
-    --modal-surface: #281C15;
-    --bg-glass: rgba(40, 28, 21, 0.92);
+    --text-secondary: #C4AF9B;
+    --modal-surface: #2B1C13;
+    --bg-glass: rgba(43, 28, 19, 0.96);
 
-    /* Skin geometry, procedural walnut grain and brushed brass shaders */
+    /* Skin geometry, photorealistic SVG walnut figure + pore texture, and brushed brass shaders */
     --vd-taskbar-height: 52px;
     --vd-taskbar-gap: calc(var(--vd-taskbar-height) + var(--vd-taskbar-offset, 0px));
     --vd-start-button-size: 40px;
     --vd-organic-title-h: 42px;
     --vd-organic-menubar-h: 30px;
     --vd-organic-side-w: 118px;
-    --vd-organic-wood-grain:
-        radial-gradient(ellipse 130% 60% at 22% 15%, rgba(186, 118, 62, 0.14), transparent 62%),
-        radial-gradient(ellipse 110% 55% at 82% 85%, rgba(148, 88, 42, 0.12), transparent 60%),
-        repeating-linear-gradient(1.5deg, rgba(255, 214, 165, 0.028) 0px, rgba(255, 214, 165, 0.028) 1px, transparent 1px, transparent 5px, rgba(12, 6, 3, 0.14) 5px, rgba(12, 6, 3, 0.14) 7px, transparent 7px, transparent 13px),
-        repeating-linear-gradient(-1.2deg, rgba(196, 132, 74, 0.032) 0px, rgba(196, 132, 74, 0.032) 2px, transparent 2px, transparent 9px, rgba(10, 5, 2, 0.12) 9px, rgba(10, 5, 2, 0.12) 11px, transparent 11px, transparent 19px);
+    --vd-organic-wood-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='420' viewBox='0 0 720 420'%3E%3Cfilter id='w' x='0%25' y='0%25' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0018 0.015' numOctaves='3' seed='14' stitchTiles='stitch' result='f'/%3E%3CfeColorMatrix in='f' type='matrix' values='2.6 0 0 0 -0.8 2.6 0 0 0 -0.8 2.6 0 0 0 -0.8 0 0 0 1 0' result='fc'/%3E%3CfeComponentTransfer in='fc' result='rings'%3E%3CfeFuncR type='table' tableValues='0.18 0.62 0.28 0.84 0.14 0.72 0.30 0.88 0.20 0.56'/%3E%3CfeFuncG type='table' tableValues='0.18 0.62 0.28 0.84 0.14 0.72 0.30 0.88 0.20 0.56'/%3E%3CfeFuncB type='table' tableValues='0.18 0.62 0.28 0.84 0.14 0.72 0.30 0.88 0.20 0.56'/%3E%3C/feComponentTransfer%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.11' numOctaves='4' seed='41' stitchTiles='stitch' result='p'/%3E%3CfeColorMatrix in='p' type='matrix' values='2.4 0 0 0 -0.7 2.4 0 0 0 -0.7 2.4 0 0 0 -0.7 0 0 0 1 0' result='pc'/%3E%3CfeComposite operator='arithmetic' k2='0.68' k3='0.32' in='rings' in2='pc' result='g'/%3E%3CfeComponentTransfer in='g'%3E%3CfeFuncR type='table' tableValues='0.078 0.129 0.192 0.263 0.329'/%3E%3CfeFuncG type='table' tableValues='0.043 0.075 0.110 0.157 0.200'/%3E%3CfeFuncB type='table' tableValues='0.024 0.039 0.063 0.090 0.118'/%3E%3CfeFuncA type='discrete' tableValues='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='720' height='420' filter='url(%23w)'/%3E%3C/svg%3E");
     --vd-organic-wood-header:
-        linear-gradient(180deg, rgba(255, 232, 190, 0.1) 0%, rgba(255, 232, 190, 0.02) 48%, rgba(10, 5, 2, 0.18) 100%),
-        var(--vd-organic-wood-grain),
-        linear-gradient(90deg, #2B1D14 0%, #362419 36%, #281A12 72%, #312016 100%);
+        linear-gradient(180deg, rgba(255, 228, 180, 0.16) 0%, rgba(255, 228, 180, 0.02) 48%, rgba(8, 4, 2, 0.34) 100%),
+        radial-gradient(ellipse 95% 140% at 50% 0%, rgba(224, 162, 88, 0.18), transparent 70%),
+        var(--vd-organic-wood-tile);
     --vd-organic-wood-panel:
-        var(--vd-organic-wood-grain),
-        linear-gradient(165deg, #2D1F16 0%, #241811 52%, #1C130D 100%);
+        radial-gradient(ellipse 115% 85% at 24% 8%, rgba(232, 170, 96, 0.14), transparent 64%),
+        linear-gradient(180deg, rgba(255, 230, 186, 0.06) 0%, rgba(8, 4, 2, 0.28) 100%),
+        var(--vd-organic-wood-tile);
+    --vd-organic-wood-surface:
+        linear-gradient(180deg, rgba(16, 10, 6, 0.14) 0%, rgba(12, 7, 4, 0.32) 100%),
+        var(--vd-organic-wood-tile);
     --vd-organic-wood-recess:
-        repeating-linear-gradient(1deg, rgba(255, 214, 165, 0.018) 0px, rgba(255, 214, 165, 0.018) 1px, transparent 1px, transparent 8px),
-        linear-gradient(180deg, #150E0A 0%, #1B120D 100%);
+        linear-gradient(180deg, rgba(8, 4, 2, 0.62) 0%, rgba(12, 6, 3, 0.48) 100%),
+        var(--vd-organic-wood-tile);
     --vd-organic-brass-fill: linear-gradient(135deg, #F3D993 0%, #D4A84F 44%, #A87C28 84%, #CFA144 100%);
     --vd-organic-brass-hover: linear-gradient(135deg, #F9E4A8 0%, #E0B65E 44%, #B88A32 84%, #DCB052 100%);
     --vd-organic-brass-stud:
         radial-gradient(ellipse 56% 38% at 38% 26%, rgba(255, 250, 230, 0.72), rgba(255, 250, 230, 0)),
         radial-gradient(circle at 50% 35%, #E7C26D 0%, #C49538 58%, #7D5816 100%);
-    --vd-organic-brass-rim: inset 0 1px 0 rgba(255, 238, 198, 0.34), inset 0 -1px 0 rgba(12, 6, 2, 0.65), 0 0 0 1px rgba(212, 168, 79, 0.32);
+    --vd-organic-brass-rim: inset 0 1px 0 rgba(255, 238, 198, 0.36), inset 0 -1px 0 rgba(12, 6, 2, 0.68), 0 0 0 1px rgba(212, 168, 79, 0.34);
 }
 
 /* Warm amber ambient polish */
@@ -14424,11 +14424,12 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 /* ---- Shell: carved walnut taskbar with brass trim ---- */
 .desktop-body[data-theme="organic"] .vd-taskbar {
-    border: 1px solid rgba(212, 168, 79, 0.34);
+    border: 1px solid rgba(212, 168, 79, 0.4);
     border-bottom: 0;
     border-radius: 22px 22px 0 0;
-    background: var(--vd-organic-wood-header);
-    box-shadow: var(--vd-organic-brass-rim), 0 -12px 36px rgba(6, 3, 1, 0.62);
+    background-color: #281911;
+    background-image: var(--vd-organic-wood-header);
+    box-shadow: var(--vd-organic-brass-rim), 0 -12px 36px rgba(6, 3, 1, 0.68);
 }
 
 .desktop-body[data-theme="organic"] .vd-taskbar::before {
@@ -14436,29 +14437,29 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     right: 4%;
     height: 1px;
     background: var(--vd-chrome-hairline);
-    box-shadow: 0 0 12px rgba(212, 168, 79, 0.38);
+    box-shadow: 0 0 12px rgba(212, 168, 79, 0.42);
 }
 
 /* Start button: turned brushed-brass medallion */
 .desktop-body[data-theme="organic"] .vd-start-button {
-    border: 1px solid rgba(255, 238, 194, 0.55);
+    border: 1px solid rgba(255, 238, 194, 0.58);
     border-radius: 50%;
     background: var(--vd-organic-brass-stud);
-    box-shadow: inset 0 1px 1px rgba(255, 250, 232, 0.7), inset 0 -2px 4px rgba(74, 48, 10, 0.65), 0 3px 10px rgba(8, 4, 2, 0.72);
+    box-shadow: inset 0 1px 1px rgba(255, 250, 232, 0.72), inset 0 -2px 4px rgba(74, 48, 10, 0.68), 0 3px 10px rgba(8, 4, 2, 0.74);
     color: #1A120B;
     transform: none;
 }
 
 .desktop-body[data-theme="organic"] .vd-start-button:hover {
-    border-color: rgba(255, 245, 214, 0.82);
-    box-shadow: inset 0 1px 2px rgba(255, 252, 238, 0.85), 0 0 14px rgba(212, 168, 79, 0.48), 0 4px 12px rgba(8, 4, 2, 0.78);
+    border-color: rgba(255, 245, 214, 0.85);
+    box-shadow: inset 0 1px 2px rgba(255, 252, 238, 0.85), 0 0 14px rgba(212, 168, 79, 0.5), 0 4px 12px rgba(8, 4, 2, 0.8);
     filter: brightness(1.08);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-button:active { transform: scale(0.94); filter: brightness(0.94); }
 
 .desktop-body[data-theme="organic"] .vd-start-button[data-active="true"] {
-    box-shadow: inset 0 2px 6px rgba(48, 30, 6, 0.78), 0 0 0 2px rgba(243, 217, 147, 0.62);
+    box-shadow: inset 0 2px 6px rgba(48, 30, 6, 0.8), 0 0 0 2px rgba(243, 217, 147, 0.65);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-button :is(.vd-sprite-start, .vd-papirus-icon) {
@@ -14483,32 +14484,33 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="organic"] .vd-taskbar-apps > :first-child { margin-left: auto; }
 .desktop-body[data-theme="organic"] .vd-taskbar-apps > :last-child { margin-right: auto; }
 .desktop-body[data-theme="organic"] .vd-taskbar-windows { flex: 0 1 auto; gap: 6px; }
-.desktop-body[data-theme="organic"] .vd-taskbar-pins { gap: 4px; margin-right: 0; padding-right: 10px; border-right-color: rgba(212, 168, 79, 0.24); }
+.desktop-body[data-theme="organic"] .vd-taskbar-pins { gap: 4px; margin-right: 0; padding-right: 10px; border-right-color: rgba(212, 168, 79, 0.26); }
 .desktop-body[data-theme="organic"] .vd-taskbar-pins:empty { display: none; }
 .desktop-body[data-theme="organic"] .vd-taskbar-pins:has(+ .vd-taskbar-windows:empty) { border-right-color: transparent; }
 .desktop-body[data-theme="organic"] .vd-taskbar-pin { border-radius: 999px; }
 
 .desktop-body[data-theme="organic"] .vd-task-button {
     position: relative;
-    border: 1px solid rgba(212, 168, 79, 0.16);
+    border: 1px solid rgba(212, 168, 79, 0.24);
     border-radius: 999px;
-    background: rgba(20, 12, 8, 0.42);
-    box-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.08);
+    background-color: rgba(18, 10, 6, 0.52);
+    box-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.1);
     color: var(--vd-muted);
     font-weight: 500;
 }
 
 .desktop-body[data-theme="organic"] .vd-task-button:hover,
 .desktop-body[data-theme="organic"] .vd-task-button.active:hover {
-    border-color: rgba(232, 192, 104, 0.44);
-    background: rgba(212, 168, 79, 0.14);
+    border-color: rgba(232, 192, 104, 0.48);
+    background-color: rgba(212, 168, 79, 0.18);
     color: var(--vd-text);
 }
 
 .desktop-body[data-theme="organic"] .vd-task-button.active {
-    border-color: rgba(232, 192, 104, 0.48);
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.2), rgba(212, 168, 79, 0.08));
-    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.26), 0 2px 8px rgba(8, 4, 2, 0.45);
+    border-color: rgba(232, 192, 104, 0.54);
+    background-color: rgba(212, 168, 79, 0.18);
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.24), rgba(212, 168, 79, 0.08));
+    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.28), 0 2px 8px rgba(8, 4, 2, 0.48);
     color: var(--vd-text);
 }
 
@@ -14522,43 +14524,44 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     height: 4px;
     border-radius: 999px;
     background: var(--vd-organic-brass-fill);
-    box-shadow: 0 0 8px rgba(212, 168, 79, 0.8);
+    box-shadow: 0 0 8px rgba(212, 168, 79, 0.85);
     transform: translateX(-50%);
     pointer-events: none;
 }
 
 /* Tray controls: rounded pills with subtle brass trim */
 .desktop-body[data-theme="organic"] :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-space-pager-btn, .vd-live-speech-button) {
-    border: 1px solid rgba(212, 168, 79, 0.18);
+    border: 1px solid rgba(212, 168, 79, 0.22);
     border-radius: 999px;
-    background: rgba(20, 12, 8, 0.38);
+    background-color: rgba(18, 10, 6, 0.48);
     color: var(--vd-muted);
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-fullscreen-button:enabled, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-space-pager-btn, .vd-live-speech-button):hover {
-    border-color: rgba(232, 192, 104, 0.46);
-    background: rgba(212, 168, 79, 0.16);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 192, 0.22);
+    border-color: rgba(232, 192, 104, 0.5);
+    background-color: rgba(212, 168, 79, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 192, 0.24);
     color: var(--vd-text);
 }
 
 .desktop-body[data-theme="organic"] .vd-space-pager-btn:is(.active, [aria-pressed="true"]) {
-    border-color: rgba(255, 238, 194, 0.65);
+    border-color: rgba(255, 238, 194, 0.68);
     background: var(--vd-organic-brass-fill);
     color: var(--vd-accent-contrast);
     font-weight: 600;
 }
 
 .desktop-body[data-theme="organic"] .vd-agent-button {
-    border: 1px solid rgba(232, 192, 104, 0.42);
+    border: 1px solid rgba(232, 192, 104, 0.46);
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.22), rgba(44, 29, 20, 0.88));
-    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.28);
+    background-color: #281A11;
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.26), rgba(44, 29, 20, 0.9));
+    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.3);
     color: var(--vd-text);
 }
 
 .desktop-body[data-theme="organic"] .vd-agent-button:hover {
-    border-color: rgba(243, 217, 147, 0.72);
+    border-color: rgba(243, 217, 147, 0.75);
     filter: brightness(1.12);
 }
 
@@ -14578,9 +14581,35 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="organic"] .vd-window {
     grid-template-rows: var(--vd-organic-title-h) minmax(0, 1fr);
     border-radius: var(--vd-window-radius);
-    border: 1px solid rgba(212, 168, 79, 0.26);
-    background: var(--vd-organic-wood-panel);
-    box-shadow: 0 22px 60px rgba(6, 3, 1, 0.64), inset 0 1px 0 rgba(255, 232, 190, 0.16);
+    border: 1px solid rgba(212, 168, 79, 0.32);
+    background-color: var(--vd-theme-app-bg);
+    background-image: var(--vd-organic-wood-panel);
+    box-shadow: 0 22px 60px rgba(6, 3, 1, 0.68), inset 0 1px 0 rgba(255, 232, 190, 0.2);
+}
+
+/* Window content and settings panes carry the subtle walnut surface grain instead of flat solid fill */
+.desktop-body[data-theme="organic"] :is(.vd-window-content, .vd-settings-app, .vd-settings-pane, .vd-wm-cards) {
+    background-color: var(--vd-theme-app-bg);
+    background-image: var(--vd-organic-wood-surface);
+}
+
+.desktop-body[data-theme="organic"] .vd-settings-sidebar {
+    border-right: 1px solid rgba(212, 168, 79, 0.22);
+    background-color: #1A100A;
+    background-image:
+        linear-gradient(180deg, rgba(12, 7, 4, 0.42), rgba(8, 4, 2, 0.56)),
+        var(--vd-organic-wood-tile);
+}
+
+.desktop-body[data-theme="organic"] :is(.vd-theme-card, .vd-screensaver-card, .vd-sound-card) {
+    border-radius: 18px;
+    border-color: rgba(212, 168, 79, 0.24);
+    background-color: rgba(20, 12, 7, 0.55);
+}
+
+.desktop-body[data-theme="organic"] :is(.vd-theme-card, .vd-screensaver-card, .vd-sound-card).active {
+    border-color: var(--vd-accent);
+    box-shadow: 0 0 0 1px var(--vd-accent), 0 8px 22px rgba(8, 4, 2, 0.5);
 }
 
 .desktop-body[data-theme="organic"] .vd-window.has-window-menu {
@@ -14591,7 +14620,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="organic"] .vd-window.active {
     border-color: var(--vd-border-bright);
-    box-shadow: var(--vd-shadow-window), 0 0 0 1px rgba(212, 168, 79, 0.22);
+    box-shadow: var(--vd-shadow-window), 0 0 0 1px rgba(212, 168, 79, 0.26);
 }
 
 .desktop-body[data-theme="organic"] .vd-window.maximized { border-radius: 0; }
@@ -14609,9 +14638,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* Titlebar: carved grain header with a brushed-brass bottom inlay hairline */
 .desktop-body[data-theme="organic"] .vd-window-titlebar {
     min-height: var(--vd-organic-title-h);
-    background: var(--vd-organic-wood-header);
-    border-bottom: 1px solid rgba(212, 168, 79, 0.26);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.22), 0 1px 0 rgba(12, 6, 2, 0.55);
+    background-color: #281911;
+    background-image: var(--vd-organic-wood-header);
+    border-bottom: 1px solid rgba(212, 168, 79, 0.34);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.26), 0 1px 0 rgba(12, 6, 2, 0.6);
 }
 
 .desktop-body[data-theme="organic"] .vd-window:not(.active) .vd-window-titlebar {
@@ -14626,7 +14656,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     color: var(--vd-text);
     font-weight: 600;
     letter-spacing: 0.005em;
-    text-shadow: 0 1px 2px rgba(8, 4, 2, 0.7);
+    text-shadow: 0 1px 2px rgba(8, 4, 2, 0.75);
 }
 
 .desktop-body[data-theme="organic"] .vd-window.active .vd-window-title {
@@ -14720,7 +14750,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     margin: auto;
     border: 1px solid rgba(212, 168, 79, 0.38);
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.2), rgba(28, 18, 12, 0.85));
+    background-color: #24170F;
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.2), rgba(28, 18, 12, 0.85));
     box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.24);
     pointer-events: none;
 }
@@ -14731,18 +14762,18 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="organic"] .vd-window-titlebar .vd-window-ai-button:hover::before {
     border-color: rgba(243, 217, 147, 0.68);
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.32), rgba(38, 25, 17, 0.92));
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.32), rgba(38, 25, 17, 0.92));
 }
 
 /* Window menubar and popovers */
-.desktop-body[data-theme="organic"] .vd-window-menubar { border-top-color: rgba(212, 168, 79, 0.16); }
+.desktop-body[data-theme="organic"] .vd-window-menubar { border-top-color: rgba(212, 168, 79, 0.18); }
 .desktop-body[data-theme="organic"] .vd-window-menu-button { border-radius: 999px; }
 
 .desktop-body[data-theme="organic"] .vd-window-menu.open > .vd-window-menu-button,
 .desktop-body[data-theme="organic"] .vd-window-menu-button:hover,
 .desktop-body[data-theme="organic"] .vd-window-menu-button:focus-visible {
     border-color: rgba(212, 168, 79, 0.34);
-    background: rgba(212, 168, 79, 0.15);
+    background-color: rgba(212, 168, 79, 0.16);
     color: #FAEAD2;
 }
 
@@ -14751,17 +14782,21 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     outline-offset: -2px;
 }
 
-.desktop-body[data-theme="organic"] .vd-window-menu-popover {
-    border-radius: 18px;
-    background: var(--vd-organic-wood-panel);
-}
-
 /* ---- Start menu, context menus, popovers and modals ---- */
-.desktop-body[data-theme="organic"] :is(.vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog) {
+.desktop-body[data-theme="organic"] :is(.vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog, .vd-widget-manager, .vd-widget-drawer) {
     border: 1px solid var(--vd-theme-border-strong);
     border-radius: var(--vd-theme-radius-panel);
-    background: var(--vd-organic-wood-panel);
+    background-color: var(--vd-theme-panel-bg);
+    background-image: var(--vd-organic-wood-panel);
     box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* Outrank desktop-polish.css (.desktop-body.desktop-body[data-theme] .vd-start-menu) so the wood texture stays intact */
+.desktop-body[data-theme="organic"].desktop-body[data-theme="organic"] :is(.vd-start-menu, .vd-context-menu) {
+    background-color: var(--vd-theme-panel-bg);
+    background-image: var(--vd-organic-wood-panel);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-menu {
@@ -14775,37 +14810,39 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 
 .desktop-body[data-theme="organic"] .vd-start-search {
-    background: var(--vd-organic-wood-header);
-    border-bottom: 1px solid rgba(212, 168, 79, 0.22);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.18);
+    background-color: #281911;
+    background-image: var(--vd-organic-wood-header);
+    border-bottom: 1px solid rgba(212, 168, 79, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.22);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-search input {
-    border: 1px solid rgba(212, 168, 79, 0.28);
+    border: 1px solid rgba(212, 168, 79, 0.36);
     border-radius: 999px;
-    background: var(--vd-organic-wood-recess);
-    box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.65);
+    background-color: #160E09;
+    background-image: var(--vd-organic-wood-recess);
+    box-shadow: inset 0 2px 6px rgba(4, 2, 1, 0.72);
     color: var(--vd-text);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-search input:hover {
-    border-color: rgba(232, 192, 104, 0.45);
+    border-color: rgba(232, 192, 104, 0.5);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-search input:focus {
     border-color: var(--vd-accent);
-    box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.65), 0 0 0 2px rgba(212, 168, 79, 0.24);
+    box-shadow: inset 0 2px 6px rgba(4, 2, 1, 0.72), 0 0 0 2px rgba(212, 168, 79, 0.26);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-rail {
-    border-right-color: rgba(212, 168, 79, 0.18);
-    background: rgba(16, 10, 6, 0.36);
+    border-right-color: rgba(212, 168, 79, 0.24);
+    background-color: rgba(16, 9, 5, 0.44);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-rail-indicator {
     border-radius: 14px;
-    background: rgba(212, 168, 79, 0.14);
-    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.2), inset 0 0 0 1px rgba(212, 168, 79, 0.28);
+    background-color: rgba(212, 168, 79, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.22), inset 0 0 0 1px rgba(212, 168, 79, 0.34);
 }
 
 .desktop-body[data-theme="organic"] .vd-start-rail-indicator::before {
@@ -14818,15 +14855,15 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-start-category, .vd-start-item, .vd-context-item, .vd-window-menu-item) {
-    border-radius: 12px;
+    border-radius: 14px;
 }
 
 .desktop-body[data-theme="organic"] .vd-start-category:hover,
 .desktop-body[data-theme="organic"] .vd-start-item:is(:hover, :focus-visible),
 .desktop-body[data-theme="organic"] .vd-spotlight-item:is(:hover, .active),
 .desktop-body[data-theme="organic"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) {
-    background-color: rgba(212, 168, 79, 0.15);
-    box-shadow: inset 3px 0 0 var(--vd-accent), inset 0 1px 0 rgba(255, 238, 196, 0.14);
+    background-color: rgba(212, 168, 79, 0.18);
+    box-shadow: inset 3px 0 0 var(--vd-accent), inset 0 1px 0 rgba(255, 238, 196, 0.16);
     color: #FAEAD2;
 }
 
@@ -14836,13 +14873,19 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 
 .desktop-body[data-theme="organic"] .vd-start-recent-item {
-    border-radius: 14px;
-    border: 1px solid rgba(212, 168, 79, 0.14);
-    background: rgba(20, 12, 8, 0.36);
+    border-radius: 16px;
+    border: 1px solid rgba(212, 168, 79, 0.24);
+    background-color: rgba(18, 11, 7, 0.58);
+    box-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.1);
+}
+
+.desktop-body[data-theme="organic"] .vd-start-recent-item:hover {
+    border-color: rgba(232, 192, 104, 0.48);
+    background-color: rgba(212, 168, 79, 0.18);
 }
 
 .desktop-body[data-theme="organic"] .vd-context-separator {
-    background: linear-gradient(90deg, transparent, rgba(212, 168, 79, 0.32), transparent);
+    background: linear-gradient(90deg, transparent, rgba(212, 168, 79, 0.34), transparent);
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) {
@@ -14850,20 +14893,22 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-file-dialog-header, .vd-notification-header, .vd-clock-popup-head) {
-    background: var(--vd-organic-wood-header);
-    border-bottom: 1px solid rgba(212, 168, 79, 0.24);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.2);
+    background-color: #281911;
+    background-image: var(--vd-organic-wood-header);
+    border-bottom: 1px solid rgba(212, 168, 79, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.22);
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-notification-header, .vd-clock-popup-head) {
-    border-radius: 19px 19px 0 0;
+    border-radius: 21px 21px 0 0;
 }
 
 /* ---- Buttons, inputs, cards and toasts ---- */
 .desktop-body[data-theme="organic"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close) {
-    border: 1px solid rgba(212, 168, 79, 0.34);
+    border: 1px solid rgba(212, 168, 79, 0.36);
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.14), rgba(28, 18, 12, 0.72));
+    background-color: #261810;
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.16), rgba(28, 18, 12, 0.72));
     box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.2), 0 2px 6px rgba(8, 4, 2, 0.42);
     color: var(--vd-text);
 }
@@ -14878,7 +14923,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="organic"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close):hover {
     border-color: rgba(243, 217, 147, 0.62);
-    background: linear-gradient(180deg, rgba(212, 168, 79, 0.24), rgba(38, 25, 17, 0.84));
+    background-image: linear-gradient(180deg, rgba(212, 168, 79, 0.26), rgba(38, 25, 17, 0.84));
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-button-primary, .vd-button.primary) {
@@ -14895,18 +14940,20 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     color: var(--vd-accent-contrast);
 }
 
-.desktop-body[data-theme="organic"] :is(.vd-modal-input, .vd-spotlight-input) {
-    border: 1px solid rgba(212, 168, 79, 0.3);
+.desktop-body[data-theme="organic"] :is(.vd-modal-input, .vd-spotlight-input, .vd-select, .vd-input) {
+    border: 1px solid rgba(212, 168, 79, 0.34);
     border-radius: 14px;
-    background: var(--vd-organic-wood-recess);
-    box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.6);
+    background-color: #160E09;
+    background-image: var(--vd-organic-wood-recess);
+    box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.65);
     color: var(--vd-text);
 }
 
 .desktop-body[data-theme="organic"] .vd-toast {
     border: 1px solid rgba(212, 168, 79, 0.44);
     border-radius: 18px;
-    background: var(--vd-organic-wood-panel);
+    background-color: var(--vd-theme-panel-bg);
+    background-image: var(--vd-organic-wood-panel);
     box-shadow: var(--vd-theme-shadow-panel);
 }
 
@@ -14944,8 +14991,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     max-width: 100%;
     padding: 2px 10px;
     border-radius: 999px;
-    border: 1px solid rgba(212, 168, 79, 0.24);
-    background: rgba(26, 17, 12, 0.86);
+    border: 1px solid rgba(212, 168, 79, 0.26);
+    background-color: rgba(26, 17, 12, 0.88);
     box-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.14), 0 2px 6px rgba(6, 3, 1, 0.55);
     color: var(--vd-text);
     text-shadow: none;
@@ -14953,13 +15000,13 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="organic"] :is(.vd-icon:hover, .vd-icon:focus-visible) {
     border-color: rgba(212, 168, 79, 0.38);
-    background: rgba(44, 29, 20, 0.52);
+    background-color: rgba(44, 29, 20, 0.55);
     box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.2), 0 8px 20px rgba(6, 3, 1, 0.45);
 }
 
 .desktop-body[data-theme="organic"] .vd-icon.selected {
     border-color: rgba(232, 192, 104, 0.68);
-    background: rgba(212, 168, 79, 0.2);
+    background-color: rgba(212, 168, 79, 0.22);
     box-shadow: inset 0 1px 0 rgba(255, 240, 198, 0.28), 0 8px 22px rgba(6, 3, 1, 0.52);
 }
 
@@ -14970,11 +15017,14 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     font-weight: 600;
 }
 
-.desktop-body[data-theme="organic"] .vd-widget {
+.desktop-body[data-theme="organic"] :is(.vd-widget:not(.vd-sticky-note):not([data-leafy-owner]), .vd-widget-frame) {
     border-radius: 22px;
-    border-color: rgba(212, 168, 79, 0.26);
-    background: var(--vd-organic-wood-panel);
-    box-shadow: var(--vd-theme-shadow-panel);
+    border-color: rgba(212, 168, 79, 0.34);
+    background-color: var(--vd-theme-panel-bg);
+    background-image: var(--vd-organic-wood-panel);
+    box-shadow: var(--vd-theme-shadow-panel), var(--vd-organic-brass-rim);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 /* App tokens for contrast on brass accent in Video Studio and Code Studio */
