@@ -5,14 +5,14 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { colorValue, createQualityGovernor, MAX_NAME_LENGTH, POWER_STOPS } from './minigolf-shared.js';
 
-const COLORS = [0xfff6df, 0xf6a378, 0x89c9ef, 0xc8a6ed];
 const LOOKS = {
     garden: { sky: 0x88aa9e, fog: 0x88aa9e, sun: 0xffe4b6, ground: 0x6e9968 },
     coast: { sky: 0x86acb8, fog: 0x86acb8, sun: 0xffeed1, ground: 0x6baeb4 },
     night: { sky: 0x182e43, fog: 0x283c50, sun: 0xabbfee, ground: 0x283e49 }
 };
-const POWER_A = new THREE.Color(0x7fe0a6), POWER_B = new THREE.Color(0xffd789), POWER_C = new THREE.Color(0xff8f77);
+const [POWER_A, POWER_B, POWER_C] = POWER_STOPS.map(([, hex]) => new THREE.Color(hex));
 const powerTint = new THREE.Color();
 
 function powerColor(value) {
@@ -22,7 +22,7 @@ function powerColor(value) {
 }
 
 function nameTag(text) {
-    const label = String(text || '').trim().slice(0, 34) || 'Player';
+    const label = Array.from(String(text || '').trim()).slice(0, MAX_NAME_LENGTH).join('') || 'Player';
     const surface = document.createElement('canvas');
     let context = surface.getContext('2d');
     let size = 30;
@@ -108,6 +108,7 @@ const DRAG_DEAD_ZONE = 14;
 function dashedLine(opacity) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PREVIEW_POINTS * 3), 3));
+    geometry.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(PREVIEW_POINTS), 1));
     geometry.setDrawRange(0, 0);
     const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color: 0xdf914f, transparent: true, opacity, dashSize: .26, gapSize: .18, depthWrite: false }));
     line.visible = false;
@@ -116,15 +117,17 @@ function dashedLine(opacity) {
 }
 
 function fillLine(line, points, from, to) {
-    const positions = line.geometry.attributes.position;
+    const positions = line.geometry.attributes.position, distances = line.geometry.attributes.lineDistance;
     const count = Math.max(0, Math.min(PREVIEW_POINTS, to - from));
+    let total = 0;
     for (let i = 0; i < count; i++) {
-        const point = points[from + i];
+        const point = points[from + i], previous = i ? points[from + i - 1] : point;
+        total += Math.hypot(point[0] - previous[0], point[1] - previous[1], point[2] - previous[2]);
         positions.setXYZ(i, point[0], point[1] - .145, point[2]);
+        distances.setX(i, total);
     }
-    positions.needsUpdate = true;
+    positions.needsUpdate = true; distances.needsUpdate = true;
     line.geometry.setDrawRange(0, count);
-    line.computeLineDistances();
     return count >= 2;
 }
 
@@ -198,23 +201,25 @@ export function createScene(host, options) {
     let course = null, courseRoot = null, disposed = false, generation = 0, request = null;
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let skyGroup = null, followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
-    let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false;
+    let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
     let obstacleNodes = new Map(), waterNodes = [], flagNodes = [], windmill = null, putter = null, swing = 0, elapsed = 0, trailAt = 0;
-    let fpsSum = 0, fpsCount = 0, measuredFPS = 0, lastAdaptive = 0;
-    const cap = () => quality === 'low' ? 60 : quality === 'high' ? 320 : 160;
+    const governor = createQualityGovernor(), screenPoint = new THREE.Vector3();
+    // Chosen quality and effective tier stay separate; auto follows the governor.
+    const tier = () => quality === 'auto' ? governor.tier : quality;
+    const cap = () => tier() === 'low' ? 60 : tier() === 'high' ? 320 : 160;
 
     function resize() {
         if (disposed) return;
         const width = Math.max(1, host.clientWidth), height = Math.max(1, host.clientHeight);
-        const dpr = Math.min(devicePixelRatio || 1, quality === 'high' ? 2 : quality === 'low' ? 1 : 1.5);
+        const dpr = Math.min(devicePixelRatio || 1, tier() === 'high' ? 2 : tier() === 'low' ? 1 : 1.5);
         renderer.setPixelRatio(dpr); renderer.setSize(width, height, false);
         composer.setPixelRatio(dpr); composer.setSize(width, height);
         bloom.setSize(Math.max(1, width >> 1), Math.max(1, height >> 1));
         camera.aspect = width / height; camera.updateProjectionMatrix();
     }
-    function setQuality(value) {
-        quality = ['auto', 'low', 'medium', 'high'].includes(value) ? value : 'auto';
-        const shadows = quality !== 'low';
+    function applyTier() {
+        const level = tier();
+        const shadows = level !== 'low';
         if (renderer.shadowMap.enabled !== shadows) {
             renderer.shadowMap.enabled = shadows;
             const seen = new Set();
@@ -225,12 +230,17 @@ export function createScene(host, options) {
             });
         }
         blob.visible = !shadows;
-        const shadowSize = quality === 'high' ? 2048 : 1024;
+        const shadowSize = level === 'high' ? 2048 : 1024;
         if (sun.shadow.mapSize.x !== shadowSize) {
             sun.shadow.map?.dispose(); sun.shadow.map = null;
             sun.shadow.mapSize.set(shadowSize, shadowSize);
         }
         resize();
+    }
+    function setQuality(value) {
+        quality = ['auto', 'low', 'medium', 'high'].includes(value) ? value : 'auto';
+        if (quality === 'auto') governor.reset(elapsed);
+        applyTier();
     }
     function updateAim() {
         const aiming = canAim && !cameraMode;
@@ -308,10 +318,18 @@ export function createScene(host, options) {
         if (!Number.isFinite(projected.x)) return 0;
         return Math.max(-1, Math.min(1, projected.x)) * .8;
     }
-    function setBall(position, rotation, color = 0) {
+    // Ball (or given point) in CSS pixels relative to the stage; visible is false behind the camera or outside.
+    function screenPosition(position) {
+        if (position?.length >= 3) screenPoint.set(position[0], position[1], position[2]); else screenPoint.copy(ball.position);
+        screenPoint.project(camera);
+        const width = host.clientWidth, height = host.clientHeight;
+        const x = (screenPoint.x + 1) * width / 2, y = (1 - screenPoint.y) * height / 2;
+        return { x, y, visible: Number.isFinite(x) && Number.isFinite(y) && screenPoint.z > -1 && screenPoint.z < 1 && x >= 0 && x <= width && y >= 0 && y <= height };
+    }
+    function setBall(position, rotation, color) {
         ball.position.fromArray(position);
         if (rotation) ball.quaternion.fromArray(rotation);
-        ball.traverse(node => { if (node.isMesh) node.material.color.setHex(COLORS[color % COLORS.length]); });
+        ball.traverse(node => { if (node.isMesh) node.material.color.set(colorValue(color)); });
         blob.position.set(ball.position.x, ball.position.y - .152, ball.position.z);
         updateAim();
     }
@@ -319,7 +337,7 @@ export function createScene(host, options) {
         disposeTree(ghosts); ghosts.clear();
         players.forEach((player, index) => {
             if (index === active || player.done || !player.position) return;
-            const mark = new THREE.Mesh(new THREE.SphereGeometry(.16, 12, 8), new THREE.MeshBasicMaterial({ color: COLORS[index], transparent: true, opacity: .33, depthWrite: false }));
+            const mark = new THREE.Mesh(new THREE.SphereGeometry(.16, 12, 8), new THREE.MeshBasicMaterial({ color: colorValue(player.color), transparent: true, opacity: .33, depthWrite: false }));
             mark.position.fromArray(player.position); ghosts.add(mark);
             const tag = nameTag(player.name);
             tag.position.set(player.position[0], player.position[1] + .46, player.position[2]);
@@ -450,11 +468,18 @@ export function createScene(host, options) {
         const x = sx * -forward.z - sy * forward.x, z = sx * forward.x - sy * forward.z, length = Math.hypot(x, z);
         return length > 1e-6 ? [x / length, z / length] : null;
     }
-    function cancelDrag() {
+    function endDrag() {
         if (pointerId === null) return false;
         if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
-        pointerId = null;
-        dragged = false;
+        pointerId = null; dragged = false; dragStart = null;
+        return true;
+    }
+    // Releases the pointer and restores the aim from before the press.
+    function cancelDrag() {
+        if (pointerId === null) return false;
+        const restore = dragStart;
+        endDrag();
+        if (restore) { setAim(restore.direction, restore.power, canAim); options.onAim?.(aimDirection, aimPower, { phase: 'cancel' }); }
         return true;
     }
     function down(event) {
@@ -465,7 +490,8 @@ export function createScene(host, options) {
             const screen = ballScreen();
             if (Math.hypot(event.clientX - screen.x, event.clientY - screen.y) > 46) return;
         }
-        pointerId = event.pointerId; dragged = false; canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
+        pointerId = event.pointerId; dragged = false; dragStart = { direction: aimDirection.slice(), power: aimPower };
+        canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
@@ -478,15 +504,15 @@ export function createScene(host, options) {
         const direction = dragDirection(event, screen);
         if (!direction) return;
         setAim(direction, Math.max(.02, Math.min(1, (pixels - DRAG_DEAD_ZONE) / (span - DRAG_DEAD_ZONE))), true);
-        options.onAim?.(aimDirection, aimPower);
+        options.onAim?.(aimDirection, aimPower, { phase: 'drag' });
     }
     function up(event) {
         if (pointerId !== event.pointerId) return;
         const screen = ballScreen();
         const outside = Math.hypot(event.clientX - screen.x, event.clientY - screen.y) >= DRAG_DEAD_ZONE;
-        const shot = event.type === 'pointerup' && event.button === 0 && dragged && outside && aimPower > 0 && canAim;
-        cancelDrag();
-        if (shot) options.onShot?.(aimDirection, aimPower);
+        if (!(event.type === 'pointerup' && event.button === 0 && dragged && outside && aimPower > 0 && canAim)) { cancelDrag(); return; }
+        endDrag();
+        options.onShot?.(aimDirection, aimPower);
     }
     const lost = event => { event.preventDefault(); options.onError?.('webgl_error'); };
     canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move);
@@ -498,7 +524,7 @@ export function createScene(host, options) {
     function update(dt, snapshot) {
         if (disposed) return;
         elapsed += dt;
-        if (snapshot?.position) setBall(snapshot.position, snapshot.rotation, snapshot.color || 0);
+        if (snapshot?.position) setBall(snapshot.position, snapshot.rotation, snapshot.color);
         for (const pose of snapshot?.obstacles || []) {
             const node = obstacleNodes.get(pose.id);
             if (node) { node.position.fromArray(pose.position); node.quaternion.fromArray(pose.rotation); }
@@ -510,7 +536,7 @@ export function createScene(host, options) {
             for (const water of waterNodes) water.node.position.y = water.y + Math.sin(elapsed * 1.3) * .018;
             for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * 2.2) * .045;
             if (snapshot?.moving && elapsed - trailAt > .05 && particleData.length < cap()) {
-                trailAt = elapsed; particleData.push({ p: ball.position.clone(), v: new THREE.Vector3(), life: .45, color: COLORS[snapshot.color || 0], size: .7, float: true });
+                trailAt = elapsed; particleData.push({ p: ball.position.clone(), v: new THREE.Vector3(), life: .45, color: colorValue(snapshot.color), size: .7, float: true });
             }
             if (course && elapsed - (update.lastAmbient || 0) > .18 && particleData.length < cap() - 10) {
                 update.lastAmbient = elapsed;
@@ -524,7 +550,7 @@ export function createScene(host, options) {
             if (p.life <= 0 || reduced) { particleData.splice(i, 1); continue; }
             if (!p.float) p.v.y -= dt * 4;
             p.p.addScaledVector(p.v, dt); dummy.position.copy(p.p); dummy.scale.setScalar(p.size * Math.min(1, p.life * 2)); dummy.updateMatrix();
-            effects.setMatrixAt(count, dummy.matrix); effects.setColorAt(count++, effectColor.setHex(p.color));
+            effects.setMatrixAt(count, dummy.matrix); effects.setColorAt(count++, effectColor.set(p.color));
         }
         effects.count = count; effects.instanceMatrix.needsUpdate = true;
         if (effects.instanceColor) effects.instanceColor.needsUpdate = true;
@@ -540,20 +566,17 @@ export function createScene(host, options) {
             controls.target.lerp(ball.position, reduced ? 1 : Math.min(1, dt * 2.5));
         }
         controls.enableDamping = !reduced; controls.update(); updateAim();
-        if (quality === 'low') renderer.render(scene, camera); else composer.render();
-        if (dt > 0 && dt < .5) { fpsSum += dt; fpsCount++; }
-        if (fpsSum > 2) { measuredFPS = fpsCount / fpsSum; fpsSum = 0; fpsCount = 0; }
-        if (quality === 'auto' && elapsed - lastAdaptive > 6 && measuredFPS > 0 && measuredFPS < 38) {
-            lastAdaptive = elapsed; setQuality('low'); options.onQuality?.('low');
-        }
+        if (tier() === 'low') renderer.render(scene, camera); else composer.render();
+        const change = governor.frame(dt, elapsed);
+        if (change && quality === 'auto') { applyTier(); if (change === 'down') options.onQuality?.('low'); }
     }
     return {
-        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag,
+        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition,
         setFollow(value) { followEnabled = !!value; },
         setAimCamera(value) { aimCamEnabled = !!value; if (!value) camTween = null; },
         setReducedMotion(value) { reduced = !!value; if (reduced) particleData.length = 0; },
         setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : null; updateAim(); },
-        stats() { return { fps: measuredFPS, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
+        stats() { return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
