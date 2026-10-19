@@ -5,6 +5,7 @@ import json
 import io
 import tarfile
 import threading
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -105,7 +106,13 @@ class _Broker:
                 def redirect_request(self, req, fp, code, msg, headers, newurl):
                     return None
             try:
-                with urllib.request.build_opener(NoRedirect).open(request, timeout=timeout + 5) as response:
+                handlers = [urllib.request.ProxyHandler({}), NoRedirect()]
+                if urllib.parse.urlsplit(self.url).scheme == "https":
+                    # This opener is bound to the validated loopback origin and
+                    # cannot redirect. Match AuraGo's HTTPS self-call transport,
+                    # including installations with a local self-signed cert.
+                    handlers.append(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()))
+                with urllib.request.build_opener(*handlers).open(request, timeout=timeout + 5) as response:
                     body = response.read(_BROKER_RESPONSE_LIMIT + 1)
                     if len(body) > _BROKER_RESPONSE_LIMIT:
                         raise ValueError("Tool Bridge response exceeds byte limit")
@@ -192,6 +199,7 @@ if _IMAGES:
     # Generic workers never install plotting libraries or execute setup code.
     server._supports_visualization = lambda language: False
     from llm_sandbox.docker import SandboxDockerSession
+    from llm_sandbox.data import ConsoleOutput
 
     def _bounded_output(self, output, on_stdout=None, on_stderr=None):
         limit = int(os.environ.get("AURAGO_SANDBOX_OUTPUT", "1048576"))
@@ -217,6 +225,27 @@ if _IMAGES:
         return tuple(bytes(value).decode("utf-8", errors="replace") for value in chunks)
 
     SandboxDockerSession._process_stream_output = _bounded_output
+
+    def _execute_checked_command(self, command, workdir=None, on_stdout=None, on_stderr=None):
+        # Upstream 0.3.45 coerces Docker's streaming exit_code=None to zero
+        # before consuming stdout. Keep streaming for the broker, then inspect
+        # this exact exec identity instead of manufacturing a success status.
+        if not command or self.container is None:
+            raise RuntimeError("Sandbox command requires an active container")
+        api = self.container.client.api
+        created = api.exec_create(self.container.id, command, stdout=True, stderr=True, tty=False, workdir=workdir)
+        exec_id = created.get("Id")
+        if not isinstance(exec_id, str) or not exec_id:
+            raise RuntimeError("Sandbox execution omitted its identity")
+        output = api.exec_start(exec_id, stream=True, demux=True, tty=False)
+        stdout, stderr = self._process_stream_output(output, on_stdout=on_stdout, on_stderr=on_stderr)
+        status = api.exec_inspect(exec_id)
+        exit_code = status.get("ExitCode")
+        if status.get("Running") is not False or type(exit_code) is not int or exit_code < 0:
+            raise RuntimeError("Sandbox execution has no confirmed final exit status")
+        return ConsoleOutput(exit_code=exit_code, stdout=stdout, stderr=stderr)
+
+    SandboxDockerSession.execute_command = _execute_checked_command
 
     def _execute_supervised(code, language, timeout, cancel_file, broker=None):
         if not os.path.isabs(cancel_file) or not os.path.basename(cancel_file).startswith("aurago-sandbox-cancel-"):

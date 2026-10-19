@@ -4,7 +4,11 @@ import importlib.util
 import io
 import json
 import os
+import http.server
 from pathlib import Path
+import shutil
+import ssl
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -56,8 +60,10 @@ def load_launcher():
     server._get_backend = lambda: "docker"
     docker = types.ModuleType("llm_sandbox.docker")
     docker.SandboxDockerSession = Session
+    data = types.ModuleType("llm_sandbox.data")
+    data.ConsoleOutput = lambda **kwargs: types.SimpleNamespace(**kwargs)
     modules = {name: types.ModuleType(name) for name in ("llm_sandbox", "llm_sandbox.mcp_server")}
-    modules.update({server.__name__: server, docker.__name__: docker})
+    modules.update({server.__name__: server, docker.__name__: docker, data.__name__: data})
     spec = importlib.util.spec_from_file_location("supervisor_fixture", Path(__file__).with_name("sandbox_mcp_launch.py"))
     module = importlib.util.module_from_spec(spec)
     with patch.dict(sys.modules, modules), patch.dict(os.environ, {
@@ -69,6 +75,115 @@ def load_launcher():
 
 
 class SupervisorSecurityTest(unittest.TestCase):
+    def test_streaming_exec_inspects_final_status_after_output(self):
+        module, _ = load_launcher()
+        for exit_code in (0, 7, 137, None, True, -1):
+            with self.subTest(exit_code=exit_code):
+                events = []
+                class ExecAPI:
+                    def exec_create(self, container, command, **kwargs):
+                        self.options = kwargs
+                        return {"Id": "exact-worker-exec"}
+                    def exec_start(self, identity, **kwargs):
+                        self.stream_options = kwargs
+                        if identity != "exact-worker-exec":
+                            raise AssertionError("wrong execution identity")
+                        # Real Docker stream=True exposes no exit code until
+                        # after the iterator is exhausted (high-level gives None).
+                        self.high_level_exit_code = None
+                        yield b"partial stdout\n", None
+                        yield None, b"worker stderr\n"
+                        events.append("drained")
+                    def exec_inspect(self, identity):
+                        if identity != "exact-worker-exec" or events != ["drained"]:
+                            raise AssertionError("inspect preceded output drain")
+                        events.append("inspected")
+                        return {"Running": False, "ExitCode": exit_code}
+                api = ExecAPI()
+                session = Session()
+                session.container = types.SimpleNamespace(id="worker-container", client=types.SimpleNamespace(api=api))
+                if type(exit_code) is int and exit_code >= 0:
+                    result = session.execute_command("fixture command", workdir="/sandbox")
+                    self.assertEqual(result.exit_code, exit_code)
+                    self.assertEqual(result.stdout, "partial stdout\n")
+                    self.assertEqual(result.stderr, "worker stderr\n")
+                    self.assertEqual(events, ["drained", "inspected"])
+                    self.assertEqual(api.stream_options, {"stream": True, "demux": True, "tty": False})
+                else:
+                    with self.assertRaises(RuntimeError):
+                        session.execute_command("fixture command")
+
+    def test_streaming_exec_missing_inspection_never_reports_success(self):
+        load_launcher()
+        for status in ({"Running": True, "ExitCode": 0}, {"ExitCode": 0}, {}):
+            api = types.SimpleNamespace(exec_create=lambda *_, **__: {"Id": "exec"},
+                exec_start=lambda *_, **__: iter([(b"output", None)]), exec_inspect=lambda _: status)
+            session = Session()
+            session.container = types.SimpleNamespace(id="worker", client=types.SimpleNamespace(api=api))
+            with self.assertRaises(RuntimeError):
+                session.execute_command("fixture")
+
+    def test_broker_https_self_signed_ignores_proxy_and_refuses_redirect(self):
+        module, _ = load_launcher()
+        calls, proxies = [], []
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                calls.append((self.path, self.headers.get("X-Internal-Token")))
+                if self.path.startswith("/redirect/"):
+                    self.send_response(307)
+                    self.send_header("Location", "http://127.0.0.1:%d/stolen" % proxy.server_port)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"status":"success","result":"local fixture"}')
+            def log_message(self, *_):
+                pass
+        class Proxy(Handler):
+            def do_POST(self):
+                proxies.append(self.headers.get("X-Internal-Token"))
+                self.send_response(500)
+                self.end_headers()
+            do_CONNECT = do_POST
+        openssl = shutil.which("openssl")
+        if openssl is None and os.name == "nt":
+            candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/usr/bin/openssl.exe"
+            if candidate.is_file():
+                openssl = str(candidate)
+        self.assertIsNotNone(openssl, "OpenSSL is required to create the offline TLS fixture")
+        with tempfile.TemporaryDirectory(prefix="aurago-broker-tls-") as directory:
+            cert, key = Path(directory) / "cert.pem", Path(directory) / "key.pem"
+            subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                "-subj", "/CN=localhost", "-keyout", str(key), "-out", str(cert)], check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=15)
+            proxy = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+            origin = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            tls.load_cert_chain(cert, key)
+            origin.socket = tls.wrap_socket(origin.socket, server_side=True)
+            workers = [threading.Thread(target=server.serve_forever, daemon=True) for server in (proxy, origin)]
+            for worker in workers:
+                worker.start()
+            try:
+                proxy_url = "http://127.0.0.1:%d" % proxy.server_port
+                with patch.dict(os.environ, {"http_proxy": proxy_url, "https_proxy": proxy_url,
+                        "HTTP_PROXY": proxy_url, "HTTPS_PROXY": proxy_url, "no_proxy": "", "NO_PROXY": ""}):
+                    for path, expected in (("/bridge", "success"), ("/redirect", "error")):
+                        broker = module._Broker("https://127.0.0.1:%d%s" % (origin.server_port, path), "fixture-grant", ["allowed"], 2)
+                        session = Session(); session.container = Container()
+                        broker.dispatch(session, {"id": 1, "tool": "allowed", "parameters": {}})
+                        payload = session.container.responses[0][2]
+                        self.assertEqual(payload["status"], expected)
+                        self.assertNotIn("fixture-grant", json.dumps(payload))
+                self.assertEqual(proxies, [])
+                self.assertEqual(calls, [("/bridge/allowed", "fixture-grant"), ("/redirect/allowed", "fixture-grant")])
+            finally:
+                for server in (proxy, origin):
+                    server.shutdown()
+                    server.server_close()
+                for worker in workers:
+                    worker.join(2)
+
     def test_fixed_spec_has_no_host_mount_or_environment(self):
         module, server = load_launcher()
         spec = server.SandboxSession(lang="python", runtime_configs={"privileged": True, "volumes": ["/:/host"]}).options
