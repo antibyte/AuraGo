@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -14,11 +16,15 @@ import (
 // EnhanceImagePrompt uses the main LLM to improve a user's image generation prompt.
 // Returns the enhanced prompt or the original on error.
 func EnhanceImagePrompt(llmClient llm.ChatClient, model string, userPrompt string) (string, error) {
+	return EnhanceImagePromptContext(context.Background(), llmClient, model, userPrompt)
+}
+
+func EnhanceImagePromptContext(ctx context.Context, llmClient llm.ChatClient, model, userPrompt string) (string, error) {
 	if llmClient == nil {
 		return userPrompt, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	req := openai.ChatCompletionRequest{
@@ -40,7 +46,7 @@ func EnhanceImagePrompt(llmClient llm.ChatClient, model string, userPrompt strin
 		MaxTokens:   300,
 	}
 
-	resp, err := llmClient.CreateChatCompletion(ctx, req)
+	resp, err := budget.CompleteChat(ctx, llmClient, req, llm.ModelRoute{Model: model}, "image_prompt", 300, prompts.CountTokensForModelContext)
 	if err != nil {
 		return userPrompt, fmt.Errorf("prompt enhancement failed: %w", err)
 	}

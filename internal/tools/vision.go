@@ -12,8 +12,10 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/providerutil"
 	"aurago/internal/security"
 )
@@ -189,7 +191,7 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 		accountID = strings.TrimSpace(provider.AccountID)
 	}
 	client := llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID)
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := budget.CompleteChat(ctx, llm.WrapOpenAIClient(client), openai.ChatCompletionRequest{
 		Model: model,
 		Messages: []openai.ChatCompletionMessage{{
 			Role: openai.ChatMessageRoleUser,
@@ -198,7 +200,7 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 				{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: imageReference}},
 			},
 		}},
-	})
+	}, llm.ModelRoute{ProviderID: cfg.Vision.Provider, ProviderType: providerType, BaseURL: baseURL, Model: model}, "vision", 2048, prompts.CountTokensForModelContext)
 	if err != nil {
 		var apiErr *openai.APIError
 		var reqErr *openai.RequestError

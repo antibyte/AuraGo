@@ -7,9 +7,10 @@ import (
 	"log/slog"
 	"strings"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
-	"aurago/internal/httporigin"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
@@ -18,9 +19,12 @@ import (
 // SummaryLLMConfig holds the credentials for the summary LLM call,
 // decoupled from any specific tool's config section.
 type SummaryLLMConfig struct {
-	APIKey  string
-	BaseURL string
-	Model   string
+	ProviderID   string
+	ProviderType string
+	AccountID    string
+	APIKey       string
+	BaseURL      string
+	Model        string
 }
 
 type summaryEnvelope struct {
@@ -36,9 +40,20 @@ const maxSummaryPromptContentChars = 12000
 func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) SummaryLLMConfig {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
 		return SummaryLLMConfig{
-			APIKey:  helperCfg.APIKey,
-			BaseURL: helperCfg.BaseURL,
-			Model:   helperCfg.Model,
+			APIKey:     helperCfg.APIKey,
+			BaseURL:    helperCfg.BaseURL,
+			Model:      helperCfg.Model,
+			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID,
+		}
+	}
+	if cfg != nil && fallback.ProviderType == "" {
+		for _, provider := range cfg.Providers {
+			if strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(fallback.BaseURL, "/") && provider.BaseURL != "" {
+				fallback.ProviderID = provider.ID
+				fallback.ProviderType = provider.Type
+				fallback.AccountID = provider.AccountID
+				break
+			}
 		}
 	}
 	return fallback
@@ -113,19 +128,11 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 		return "", fmt.Errorf("summary_mode: no API key configured")
 	}
 
-	clientCfg := openai.DefaultConfig(apiKey)
-	if llmCfg.BaseURL != "" {
-		url := strings.TrimRight(llmCfg.BaseURL, "/")
-		if !strings.Contains(url, "/v1") {
-			url += "/v1"
-		}
-		clientCfg.BaseURL = url
+	baseURL := strings.TrimRight(llmCfg.BaseURL, "/")
+	if baseURL != "" && !strings.Contains(baseURL, "/v1") {
+		baseURL += "/v1"
 	}
-	// The key and source content never follow a redirect off the provider
-	// origin. No client timeout: ctx bounds the call, so slow local summary
-	// models keep the caller's budget.
-	clientCfg.HTTPClient = httporigin.NewClient(0)
-	client := openai.NewClientWithConfig(clientCfg)
+	client := llm.NewClientFromProviderWithConfig(nil, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID)
 
 	req := openai.ChatCompletionRequest{
 		Model: llmCfg.Model,
@@ -136,7 +143,7 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 		Temperature: 0.2,
 	}
 
-	resp, err := client.CreateChatCompletion(ctx, req)
+	resp, err := budget.CompleteChat(ctx, llm.WrapOpenAIClient(client), req, llm.ModelRoute{ProviderID: llmCfg.ProviderID, ProviderType: llmCfg.ProviderType, BaseURL: baseURL, Model: llmCfg.Model}, "content_summary", 2048, prompts.CountTokensForModelContext)
 	if err != nil {
 		return "", fmt.Errorf("summary LLM call failed: %w", err)
 	}
