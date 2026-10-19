@@ -14,7 +14,7 @@ import (
 // LogFile wraps a logger and its optional file handle for clean shutdown.
 type LogFile struct {
 	Logger *slog.Logger
-	file   *os.File
+	file   io.WriteCloser
 }
 
 // Close closes the underlying log file, if any.
@@ -34,7 +34,7 @@ func Setup(debug bool) *slog.Logger {
 // running as another user needs group access granted with chmod.
 // The returned LogFile must be closed on shutdown to release the file handle.
 func SetupWithFile(debug bool, logPath string, appendMode bool) (*LogFile, error) {
-	file, err := openLogFile(logPath, appendMode)
+	file, err := newRotatingLog(logPath, appendMode, defaultLogBytes, defaultLogBackups)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func SetupWithFile(debug bool, logPath string, appendMode bool) (*LogFile, error
 // with the same owner-only file mode as SetupWithFile.
 // The returned LogFile must be closed on shutdown to release the file handle.
 func SetupFileOnly(debug bool, logPath string, appendMode bool) (*LogFile, error) {
-	file, err := openLogFile(logPath, appendMode)
+	file, err := newRotatingLog(logPath, appendMode, defaultLogBytes, defaultLogBackups)
 	if err != nil {
 		return nil, err
 	}
