@@ -6081,6 +6081,7 @@
   "videoStudio.renderSegmentFailed": "{{from}}～{{to}}の間でレンダリングに失敗しました。その部分のクリップを確認して、もう一度お試しください。",
   "videoStudio.diskSpaceLow": "サーバーに、この書き出しに必要な空きディスク容量がありません。",
   "videoStudio.tooManyClipsAtOnce": "タイムラインの一部で同時に再生されるクリップが多すぎます。重なっているクリップの一部を削除するか短くしてください。",
+  "videoStudio.tooManyLUTsAtOnce": "タイムラインの一部で同時に再生される LUT エフェクトが多すぎます。その部分のエフェクトをいくつか削除してください。",
   "videoStudio.exportTooLarge": "動画が、Video Studioの設定で指定された書き出しサイズの上限を超えています。",
   "videoStudio.backgroundJobs": "バックグラウンドジョブ",
   "videoStudio.job_probe": "メディア検査",

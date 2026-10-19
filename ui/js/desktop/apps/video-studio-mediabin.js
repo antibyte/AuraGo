@@ -184,9 +184,8 @@
                 const result = E().removeClips(project, clipIds);
                 if (result !== true) return result;
             }
-            // Effects that use a removed LUT leave in the same undo step (2c). Selected strip keys of effects.<i>.* may then
-            // name another entry, so they are dropped (R8).
-            if (L().removeLUTRefs(project, ids) && s.kfStrip && Array.isArray(s.kfStrip.selected)) s.kfStrip.selected = s.kfStrip.selected.filter(id => !String(id).startsWith('effects.'));
+            // Effects that use a removed LUT leave in the same undo step (2c); mutate then drops stale strip keys (R8).
+            L().removeLUTRefs(project, ids);
             project.assets = project.assets.filter(asset => !ids.includes(asset.id));
             return true;
         }, () => []);

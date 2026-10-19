@@ -6081,6 +6081,7 @@
   "videoStudio.renderSegmentFailed": "Renderingen mislykkedes mellem {{from}} og {{to}}. Kontrollér klippene der, og prøv igen.",
   "videoStudio.diskSpaceLow": "Serveren har ikke nok ledig diskplads til denne eksport.",
   "videoStudio.tooManyClipsAtOnce": "For mange klip afspilles samtidig i en del af tidslinjen. Fjern eller forkort nogle af de overlappende klip.",
+  "videoStudio.tooManyLUTsAtOnce": "For mange LUT-effekter afspilles samtidig i en del af tidslinjen. Fjern nogle af dem der.",
   "videoStudio.exportTooLarge": "Videoen er større end eksportgrænsen, der er angivet i indstillingerne for Video Studio.",
   "videoStudio.backgroundJobs": "Baggrundsopgaver",
   "videoStudio.job_probe": "Medieanalyse",

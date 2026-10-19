@@ -37,7 +37,7 @@ func PlanAudioSegments(project Project, start, end, target int) ([]Segment, erro
 
 // planSegments cuts [start, end) at the frames in between. A segment whose inputs exceed MaxSegmentInputs, or whose
 // lutCount (nil for none) exceed MaxSegmentLUTInstances, is split until it fits; one that cannot be split further
-// fails with ErrTooManyInputs.
+// fails with ErrTooManyInputs, or with ErrTooManyLUTs (which wraps it) when only the lut effects are too many.
 func planSegments(start, end, target int, spans []span, edges []int, inputs, lutCount func(Segment) int) ([]Segment, error) {
 	if end <= start {
 		return nil, fmt.Errorf("render range %d–%d is empty", start, end)
@@ -213,9 +213,10 @@ func countLUTInstances(project Project, window Segment) int {
 	return count
 }
 
-// tooManyLUTs is the refusal of a span that needs more simultaneous lut effects than one FFmpeg process may open.
+// tooManyLUTs is the refusal of a span that needs more simultaneous lut effects than one FFmpeg process may open. It
+// wraps ErrTooManyLUTs, so the job failure names the LUT cap (plan 2f, F4) and errors.Is(err, ErrTooManyInputs) holds.
 func tooManyLUTs(seg Segment, count int) error {
-	return fmt.Errorf("%w: %d lut effects between frames %d and %d, at most %d", ErrTooManyInputs, count, seg.Start, seg.End, MaxSegmentLUTInstances)
+	return fmt.Errorf("%w: %d lut effects between frames %d and %d, at most %d", ErrTooManyLUTs, count, seg.Start, seg.End, MaxSegmentLUTInstances)
 }
 
 func clipEdges(project Project) []int {

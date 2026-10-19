@@ -149,6 +149,30 @@ func TestLUTInstancesAreBoundedPerProcess(t *testing.T) {
 	if !errors.Is(err, ErrTooManyInputs) || !strings.Contains(err.Error(), "256 lut effects") {
 		t.Fatalf("build: %v", err)
 	}
+	// F4 (plan 2f Task 6): both refusals and the staging cap are ErrTooManyLUTs, which wraps ErrTooManyInputs, so a job
+	// failure can name the LUT cap while every errors.Is(err, ErrTooManyInputs) check keeps holding.
+	if _, err := PlanVideoSegments(project, 0, 30, 1000); !errors.Is(err, ErrTooManyLUTs) || !errors.Is(err, ErrTooManyInputs) {
+		t.Fatalf("planner: %v is not ErrTooManyLUTs", err)
+	}
+	if !errors.Is(err, ErrTooManyLUTs) {
+		t.Fatalf("build: %v is not ErrTooManyLUTs", err)
+	}
+	table := &LUT3D{Size: 2, DomainMax: [3]float64{1, 1, 1}, Data: make([]float32, 2*2*2*3)}
+	if _, _, err := stageVideoGraph(t.TempDir(), "graph", ProjectRate(project), graphFiles{luts: tooManyLUTFiles(table)}); !errors.Is(err, ErrTooManyLUTs) || !errors.Is(err, ErrTooManyInputs) || !strings.Contains(err.Error(), "LUT tables") {
+		t.Fatalf("staging: %v", err)
+	}
+	if !errors.Is(ErrTooManyLUTs, ErrTooManyInputs) || !strings.Contains(ErrTooManyLUTs.Error(), "too many simultaneous LUT effects") {
+		t.Fatalf("ErrTooManyLUTs = %v", ErrTooManyLUTs)
+	}
+	// Too many clips without any lut effect stay a plain ErrTooManyInputs.
+	var crowd [][]Clip
+	for i := 0; i <= MaxSegmentInputs; i++ {
+		crowd = append(crowd, []Clip{lutStackClip(fmt.Sprintf("p%d", i), 0, 30)})
+	}
+	crowded, _ := lutStagingProject(crowd...)
+	if _, err := PlanVideoSegments(crowded, 0, 30, 1000); !errors.Is(err, ErrTooManyInputs) || errors.Is(err, ErrTooManyLUTs) {
+		t.Fatalf("clips alone: %v, want ErrTooManyInputs without ErrTooManyLUTs", err)
+	}
 
 	// The cap counts on lut entries with a table of enabled clips on visible visual tracks, nothing else.
 	project, _ = lutStagingProject(tall[:8]...)

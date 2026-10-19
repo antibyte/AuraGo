@@ -29,6 +29,23 @@ func TestVideoStudioRenderFailureCodes(t *testing.T) {
 	if _, code, _ := videoStudioJobFailure("render", fmt.Errorf("x: %w", videostudio.ErrTooManyInputs), ctx); code != "render_too_many_inputs" {
 		t.Fatalf("too many inputs code = %s", code)
 	}
+	// F4 (plan 2f Task 6): the LUT cap has its own code and message. ErrTooManyLUTs wraps ErrTooManyInputs, so it is
+	// checked first; a segment error around it, a range render and a still keep the code.
+	lutCap := fmt.Errorf("%w: 256 lut effects between frames 0 and 30, at most 64", videostudio.ErrTooManyLUTs)
+	for _, tt := range []struct {
+		kind string
+		err  error
+	}{
+		{"render", fmt.Errorf("render: %w", lutCap)},
+		{"render", fmt.Errorf("render: %w", &videostudio.SegmentError{Index: 0, Start: 0, End: 10, Err: lutCap})},
+		{"range_render", lutCap},
+		{"still", lutCap},
+	} {
+		status, code, message := videoStudioJobFailure(tt.kind, tt.err, ctx)
+		if status != "failed" || code != "render_too_many_luts" || message != "Too many LUT effects play at the same time in one part of the timeline." {
+			t.Fatalf("%s with the LUT cap (%v) = %s %s %q", tt.kind, tt.err, status, code, message)
+		}
+	}
 	// A full export names the limit that stopped it: the project quota when it was the smaller one.
 	limitErr := fmt.Errorf("render: %w", videostudio.ErrOutputLimit)
 	for _, tt := range []struct {

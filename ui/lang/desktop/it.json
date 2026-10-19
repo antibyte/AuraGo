@@ -6081,6 +6081,7 @@
   "videoStudio.renderSegmentFailed": "Il rendering non è riuscito tra {{from}} e {{to}}. Controlla le clip in quel punto e riprova.",
   "videoStudio.diskSpaceLow": "Il server non ha abbastanza spazio libero su disco per questa esportazione.",
   "videoStudio.tooManyClipsAtOnce": "In una parte della timeline vengono riprodotte troppe clip contemporaneamente. Rimuovi o accorcia alcune delle clip sovrapposte.",
+  "videoStudio.tooManyLUTsAtOnce": "In una parte della timeline vengono riprodotti troppi effetti LUT contemporaneamente. Rimuovine alcuni in quel punto.",
   "videoStudio.exportTooLarge": "Il video supera il limite di dimensione dell’esportazione impostato nelle impostazioni di Video Studio.",
   "videoStudio.backgroundJobs": "Attività in background",
   "videoStudio.job_probe": "Analisi media",

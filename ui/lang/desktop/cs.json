@@ -6081,6 +6081,7 @@
   "videoStudio.renderSegmentFailed": "Vykreslování mezi {{from}} a {{to}} selhalo. Zkontroluj klipy v tomto úseku a zkus to znovu.",
   "videoStudio.diskSpaceLow": "Server nemá pro tento export dost volného místa na disku.",
   "videoStudio.tooManyClipsAtOnce": "V jedné části časové osy se současně přehrává příliš mnoho klipů. Odeber nebo zkrať některé z překrývajících se klipů.",
+  "videoStudio.tooManyLUTsAtOnce": "V jedné části časové osy se současně přehrává příliš mnoho efektů LUT. Odeber tam některé z nich.",
   "videoStudio.exportTooLarge": "Video je větší než limit velikosti exportu nastavený v nastavení Video Studia.",
   "videoStudio.backgroundJobs": "Úlohy na pozadí",
   "videoStudio.job_probe": "Kontrola médií",

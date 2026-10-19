@@ -6081,6 +6081,7 @@
   "videoStudio.renderSegmentFailed": "在 {{from}} 至 {{to}} 之间渲染失败。请检查该处的片段后重试。",
   "videoStudio.diskSpaceLow": "服务器没有足够的可用磁盘空间来完成此次导出。",
   "videoStudio.tooManyClipsAtOnce": "时间线的某一段同时播放的片段过多。请删除或缩短部分重叠的片段。",
+  "videoStudio.tooManyLUTsAtOnce": "时间线的某一段同时播放的 LUT 效果过多。请删除该处的部分效果。",
   "videoStudio.exportTooLarge": "视频超出了 Video Studio 设置中的导出大小限制。",
   "videoStudio.backgroundJobs": "后台任务",
   "videoStudio.job_probe": "媒体检查",
