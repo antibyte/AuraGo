@@ -7,36 +7,73 @@ not an installation or server dependency.
 
 ## Playing
 
-Choose all eighteen holes, a six-hole world, or a single practice hole. All
-worlds are available immediately. One to four players share the same device
-and take turns after every shot. Other players' translucent ball markers show
-their names and never block the active ball. Pull back from the ball and
+The start screen lists a round card for all eighteen holes, one card per world
+with its preview (when the build provides one) and best score, and a Practice
+card. Practice opens a hole grid that shows each hole's best score. A saved round
+appears as a resume card. All worlds are available immediately.
+
+One to four players share the same device and take turns after every shot. Names
+take up to 24 characters; a duplicate name gets a number. Each player picks one of
+eight colours, unique within the round, and that colour marks the player's ball,
+HUD chip, scorecard row and podium step. Other players' translucent ball markers
+show their names and never block the active ball. Pull back from the ball and
 release to putt. Strength follows the on-screen drag distance (independent of
 camera zoom); releasing next to the ball, a right click, a second finger or
 Escape cancels the drag. A dashed preview path shows the roll up to the first
 rail and a short stretch of the rebound, a color-graded ring marks the
 strength, and the strength readout adds the estimated flat roll distance (full
 strength rolls 28 m on flat felt). Arrow keys adjust aim and strength while
-held (Shift gives finer steps); Space putts and Escape pauses. A gentle aim
-assist snaps shots within four degrees toward the cup, and after a penalty the
-rest position gets a marker ring. Right-drag rotates the view, the wheel
+held (Shift gives finer steps); Space putts. A gentle aim assist snaps shots
+within four degrees toward the cup, and after a penalty the rest position gets a marker ring. Right-drag rotates the view, the wheel
 zooms, and **To the ball** restores focus. Optional settings move the camera
 behind the ball on each turn and follow the rolling ball; reduced motion keeps
 both functional without smooth transitions. Touch users can switch between
 Camera and Aim; in Aim a one-finger drag from anywhere putts, and two fingers
 zoom/pan.
 
-The stage shows a hole map with course bounds, water, tee, cup and every
-ball. Water and out-of-bounds cost one penalty stroke and return the ball to
-its previous shot position. Twelve unsuccessful putts finish the hole with 13.
-The scorecard appears when everyone finishes a hole, colors
-Eagle/Birdie/Par/Bogey results and picks the lowest total.
+The HUD shows a plaque with the world, hole, par and hole name, a chip per player
+with the score and the active turn, and turn and hole banners. While you aim, a
+power meter sits at the ball with the strength in percent and the estimated roll,
+and it stays for a moment after each change. Toasts appear above the panels, and
+a hint line covers the first shots of a session. The lane map, drawn from the
+course collision geometry and water volumes, shows the bounds, water, tee, cup and
+every ball; its toggle is saved. Water and out-of-bounds cost one penalty stroke
+and return the ball to its previous shot position. Twelve unsuccessful putts
+finish the hole with 13.
+
+The scorecard appears when everyone finishes a hole. Its rows animate in when a
+hole ends, Eagle/Birdie/Par/Bogey results are coloured, and Next hole continues
+the round. After the last hole a podium names the winner; equal totals share a
+place (1, 1, 3). A single player gets a result card instead. Play again restarts
+the same mode with the same players and colours. A practice result also offers
+Another hole, which returns to the hole grid.
+
+New rounds start with an interactive introduction until it is finished or
+skipped: a coach bubble walks through aiming, setting the power, releasing and
+watching the first putt, without blocking the stage. Skip ends it for good, and
+Help offers Restart introduction during a round.
+
+Help opens from the question-mark button in the top bar, which stays at every
+width, and with the ? key (ignored while you type). Escape cancels a drag first,
+then steps back out of the current menu step, and otherwise closes the open panel
+or pauses. Help and Settings are unavailable while the game loads or after a load
+error.
 
 Progress is saved after completed shots in namespaced browser localStorage.
 Reopening resumes the last settled position, without counting an interrupted
 shot. Records and saves belong to that browser/profile, not the server. If
 browser storage is blocked, the game remains playable and reports that progress
-cannot be saved. Practice does not overwrite course best scores.
+cannot be saved. Practice updates per-hole bests only; round bests are kept for
+the full course and for each world.
+
+The browser keeps `aurago.desktop.minigolf.round.v2` (the saved round, including
+each player's colour), `aurago.desktop.minigolf.best.v2` (round bests per mode,
+hole bests per course, and the course set they were recorded for) and
+`aurago.desktop.minigolf.settings.v1` (volumes, quality, motion, follow, aim
+camera, magnet, `tutorial` from 0 to 2 where 2 hides the introduction, and
+`showMap`). Unknown settings fields are kept. Old `round.v1` and `best.v1` data is
+removed once without migration; if no v2 progress exists, a one-time notice says
+that progress was reset.
 
 ## Sound and accessibility
 
@@ -75,10 +112,13 @@ there is no CDN, SoundFont or external stream. The in-app credits list every
 track and source under CC0; sources, authors, licenses and hashes are in
 [`assets/minigolf/audio/README.md`](../assets/minigolf/audio/README.md).
 
-Reduced motion follows the OS/Desktop preference or the game's
-checkbox, disabling decorative particles and camera movements while retaining
-the movement of actual gameplay obstacles. Graphics quality can be set manually;
-Automatic reduces quality when measured rendering is persistently slow.
+Reduced motion follows the OS/Desktop preference or the game's checkbox. It
+disables decorative particles, camera movements and CSS transitions, while the
+movement of actual gameplay obstacles remains; the app root carries
+`data-reduced`. Graphics quality can be set to low, medium or high. Automatic
+starts at medium, drops to low when a two-second sample runs below 38 FPS, and
+returns to medium after ten seconds at 55 FPS or more, and at least 12 seconds
+after the last change.
 
 ## Assets and builds
 
@@ -110,7 +150,9 @@ npm run test:synth-studio
 node scripts/build-ui-bundles.js --check
 ```
 
-`npm run test:minigolf` runs the model, physics, asset, course and audio checks.
+`npm run test:minigolf` runs the model, UI, physics, asset, course and audio
+checks. The runtime bundle is capped at 6 MiB; `scripts/build-minigolf.mjs` fails
+above that limit.
 `npm run test:synth-studio` runs the Synth Studio checks that used to live in the
 audio test; AuraGolf itself no longer depends on Synth Studio.
 

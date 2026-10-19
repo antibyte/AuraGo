@@ -66,6 +66,18 @@
   regeneration (`blender --background --python assets/minigolf/generate.py`) is
   deterministic — on Windows rerun it until it reports `Wrote 18 courses` after
   transient export locks, then validate with `node scripts/test-minigolf-assets.mjs`.
+- UI modules: `minigolf-shared.js` is DOM- and three-free (palette,
+  `MAX_NAME_LENGTH` = 24 code points, `POWER_STOPS`, `FLOOR_SURFACES` for physics
+  and the map, `createQualityGovernor`). `minigolf-views.js` builds the shell,
+  imports `-hud`, `-menus`, `-scorecard` and `-tutorial`, and merges the menus and
+  scorecard functions into its view; `-hud` imports `-minimap`. UI factories receive
+  `tr`, `esc` and `icon` as arguments. Register each new `tr` module in
+  `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`).
+- `settings(values, track, focus)`, `audioSettings(settings, track)` and
+  `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
+  settings, sound and credits panels.
+- The first-putt introduction lives in `minigolf-tutorial.js`: `tutorialNext()` and
+  `tutorialView()` are pure, and `createCoach()` renders its single bubble.
 - Controls cover keyboard, mouse and touch: held arrow keys scale with frame time
   (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
   optional persisted settings add a four-degree aim assist, per-turn camera
@@ -73,10 +85,31 @@
   motion. Visuals add a gradient sky dome with night stars and moon, a
   blob-shadow fallback on the low tier, water foam rings, a dashed aim line with
   a color-graded power ring, penalty rest markers, name tags on ghost balls, a
-  hole map, and scorecard grade badges.
+  lane map with a persisted toggle, and the animated scorecard with grade
+  badges.
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
+- Storage: `round.v2` keeps the saved round with each player's colour; `best.v2`
+  holds `set`, `rounds` (full and worlds only) and `holes` (per course, any mode);
+  `settings.v1` holds `tutorial` (0–2, where 2 hides the introduction), `showMap`
+  and the other fields. `normalizeSettings()` is the only place that defines
+  settings fields, and `saveSettings()` keeps unknown stored fields. The v1 round
+  and best keys are removed without migration, with a one-time notice when no v2
+  progress exists.
+- World accents and symbols exist for `garden`, `coast`, `night`, `pirate`,
+  `temple` and `moon`. Optional card previews come from manifest
+  `worlds: [{ id, preview }]`; the game accepts only relative image paths (webp,
+  png, jpg, avif) without `..`.
+- Styling uses `--mg-*` tokens aliased to Desktop `--vd-*` theme tokens, with no
+  theme-name selectors. UI timers advance with the `frame()` loop, never
+  `setTimeout`. `data-reduced` on the app root disables transitions and animations.
+- `inspect()` is additive: `hud` (`meter`, `bannerCount`, `banner`, `toasts`,
+  `map`), `tutorial` (current step) and `menuStep` (menu panel only).
+- Scene helpers `frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`,
+  `screenPosition()`, `cancelDrag()` and `stats().tier` are optional-callable.
+  `cancelDrag()` restores a changed aim from before the press and reports `onAim` with
+  `phase: 'cancel'`.
 - Audio is the `minigolf-audio.js` facade over `minigolf-audio-engine.js` (context,
   buses, limiter, voices, loops, reverb), `minigolf-audio-music.js` (crossfades,
   ducking) and `minigolf-audio-synth.js` (UI blips, ambience, impulse responses).
@@ -93,16 +126,15 @@
   for P3; the game does not call it yet.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
-- Validate `npm run test:minigolf`, `npm run test:synth-studio`,
-  `node scripts/build-minigolf-audio.mjs --check`, `TestDesktopMinigolf*`, the
+- Validate `npm run test:minigolf` (includes `scripts/test-minigolf-ui.mjs`),
+  `npm run test:synth-studio`, `node scripts/build-minigolf-audio.mjs --check`,
+  `TestDesktopMinigolf*`, `TestFrontend_StaticI18nKeysExistInEnglishBundle`, the
   minigolf bundle check (`node scripts/build-minigolf.mjs --check`) and desktop bundle checks.
   Browser/GPU measurements and human listening remain separate acceptance steps.
   Keep `minigolf.*` in all sixteen Desktop locales, including the
   `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings
-  persist `follow`/`aimCamera`/`magnet` additively. New scene helpers
-  (`frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`) stay
-  optional-callable because the browser fixture fake scene keeps the original
-  surface, and `inspect()` remains an additive contract. See `documentation/minigolf.md`.
+  persist `follow`/`aimCamera`/`magnet`/`tutorial`/`showMap` additively.
+  See `documentation/minigolf.md`.
 
 ## Newspaper
 
