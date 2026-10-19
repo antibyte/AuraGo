@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -20,6 +21,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"aurago/internal/config"
 )
 
 var virustotalHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -28,9 +31,11 @@ var virustotalHashPattern = regexp.MustCompile(`(?i)^[a-f0-9]{32}$|^[a-f0-9]{40}
 var virustotalDomainPattern = regexp.MustCompile(`(?i)^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
 type VirusTotalOptions struct {
+	Context  context.Context `json:"-"`
 	Resource string
 	FilePath string
 	Mode     string
+	Config   *config.Config
 }
 
 type virustotalHashes struct {
@@ -79,14 +84,14 @@ func ExecuteVirusTotalScanWithOptions(apiKey string, opts VirusTotalOptions) str
 	}
 
 	if filePath != "" {
-		out, err := executeVirusTotalFileFlow(apiKey, filePath, mode)
+		out, err := executeVirusTotalFileFlow(apiKey, filePath, mode, opts.Config, opts.Context)
 		if err != nil {
 			return formatError(err.Error())
 		}
 		return out
 	}
 
-	out, err := virustotalLookupResource(apiKey, resource)
+	out, err := virustotalLookupResourceContext(opts.Context, apiKey, resource, mode)
 	if err != nil {
 		return formatError(err.Error())
 	}
@@ -96,18 +101,23 @@ func ExecuteVirusTotalScanWithOptions(apiKey string, opts VirusTotalOptions) str
 func normalizeVirusTotalMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
 	case "", "auto":
-		return "auto"
+		return "hash"
 	case "hash":
 		return "hash"
 	case "upload":
 		return "upload"
 	default:
-		return "auto"
+		return "hash"
 	}
 }
 
-func executeVirusTotalFileFlow(apiKey, filePath, mode string) (string, error) {
-	hashes, size, err := computeVirusTotalFileHashes(filePath)
+func executeVirusTotalFileFlow(apiKey, filePath, mode string, cfg *config.Config, contexts ...context.Context) (string, error) {
+	file, err := OpenToolInputFile(filePath, cfg)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hashes, size, err := computeVirusTotalHashes(file)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +132,7 @@ func executeVirusTotalFileFlow(apiKey, filePath, mode string) (string, error) {
 		"hashes": hashes,
 	}
 
-	lookupJSON, lookupPayload, err := virustotalLookupFileHash(apiKey, hashes.SHA256)
+	lookupJSON, lookupPayload, err := virustotalLookupFileHash(apiKey, hashes.SHA256, nativeHTTPContext(contexts...))
 	if err == nil {
 		result["lookup"] = lookupPayload
 		result["used"] = "hash_lookup"
@@ -147,7 +157,10 @@ func executeVirusTotalFileFlow(apiKey, filePath, mode string) (string, error) {
 		"message": "No existing VirusTotal record was found for the file hash. Uploading file instead.",
 	}
 
-	uploadPayload, err := virustotalUploadFile(apiKey, filePath, size)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind upload file: %w", err)
+	}
+	uploadPayload, err := virustotalUploadOpenFile(apiKey, filePath, file, size, nativeHTTPContext(contexts...))
 	if err != nil {
 		return "", fmt.Errorf("VirusTotal file upload failed: %w", err)
 	}
@@ -174,7 +187,11 @@ func isVirusTotalNotFound(err error, target **virustotalAPIError) bool {
 	return apiErr.NotFound()
 }
 
-func virustotalLookupResource(apiKey, resource string) (string, error) {
+func virustotalLookupResource(apiKey, resource string, modes ...string) (string, error) {
+	return virustotalLookupResourceContext(context.Background(), apiKey, resource, modes...)
+}
+
+func virustotalLookupResourceContext(ctx context.Context, apiKey, resource string, modes ...string) (string, error) {
 	resource = strings.TrimSpace(resource)
 	resourceType := classifyVirusTotalResource(resource)
 	if resourceType == "" {
@@ -191,21 +208,21 @@ func virustotalLookupResource(apiKey, resource string) (string, error) {
 
 	switch resourceType {
 	case "file_hash":
-		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/files/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))))
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/files/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))), ctx)
 		if err != nil {
 			return "", fmt.Errorf("VirusTotal file lookup failed: %w", err)
 		}
 		result["used"] = "file_report"
 		result["result"] = payload
 	case "domain":
-		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/domains/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))))
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/domains/%s", virustotalBaseURL, url.PathEscape(strings.ToLower(resource))), ctx)
 		if err != nil {
 			return "", fmt.Errorf("VirusTotal domain lookup failed: %w", err)
 		}
 		result["used"] = "domain_report"
 		result["result"] = payload
 	case "ip_address":
-		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/ip_addresses/%s", virustotalBaseURL, url.PathEscape(resource)))
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/ip_addresses/%s", virustotalBaseURL, url.PathEscape(resource)), ctx)
 		if err != nil {
 			return "", fmt.Errorf("VirusTotal IP lookup failed: %w", err)
 		}
@@ -213,7 +230,7 @@ func virustotalLookupResource(apiKey, resource string) (string, error) {
 		result["result"] = payload
 	case "url":
 		urlID := base64.RawURLEncoding.EncodeToString([]byte(resource))
-		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)))
+		payload, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)), ctx)
 		if err == nil {
 			result["used"] = "url_report"
 			result["result"] = payload
@@ -224,8 +241,13 @@ func virustotalLookupResource(apiKey, resource string) (string, error) {
 		if !isVirusTotalNotFound(err, &apiErr) {
 			return "", fmt.Errorf("VirusTotal URL lookup failed: %w", err)
 		}
+		if len(modes) == 0 || modes[0] != "upload" {
+			result["used"] = "url_report"
+			result["lookup"] = map[string]interface{}{"status": "not_found", "message": "No existing VirusTotal URL report was found; submission requires explicit upload mode."}
+			return marshalVirusTotalResult(result), nil
+		}
 
-		analysis, analysisErr := virustotalSubmitURL(apiKey, resource)
+		analysis, analysisErr := virustotalSubmitURL(apiKey, resource, ctx)
 		if analysisErr != nil {
 			return "", fmt.Errorf("VirusTotal URL submission failed: %w", analysisErr)
 		}
@@ -233,7 +255,7 @@ func virustotalLookupResource(apiKey, resource string) (string, error) {
 		result["submission"] = analysis
 
 		if analysisID := virustotalAnalysisID(analysis); analysisID != "" {
-			if analysisPayload, reportPayload, pollErr := virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID); pollErr == nil {
+			if analysisPayload, reportPayload, pollErr := virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID, ctx); pollErr == nil {
 				result["analysis"] = analysisPayload
 				if reportPayload != nil {
 					result["result"] = reportPayload
@@ -268,8 +290,8 @@ func classifyVirusTotalResource(resource string) string {
 	return ""
 }
 
-func virustotalLookupJSON(apiKey, endpoint string) (map[string]interface{}, error) {
-	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+func virustotalLookupJSON(apiKey, endpoint string, contexts ...context.Context) (map[string]interface{}, error) {
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json", nativeHTTPContext(contexts...))
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +303,11 @@ func virustotalLookupJSON(apiKey, endpoint string) (map[string]interface{}, erro
 	return result, nil
 }
 
-func virustotalSubmitURL(apiKey, resource string) (map[string]interface{}, error) {
+func virustotalSubmitURL(apiKey, resource string, contexts ...context.Context) (map[string]interface{}, error) {
 	form := url.Values{}
 	form.Set("url", resource)
 
-	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, fmt.Sprintf("%s/urls", virustotalBaseURL), strings.NewReader(form.Encode()), "application/x-www-form-urlencoded")
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, fmt.Sprintf("%s/urls", virustotalBaseURL), strings.NewReader(form.Encode()), "application/x-www-form-urlencoded", nativeHTTPContext(contexts...))
 	if err != nil {
 		return nil, err
 	}
@@ -303,22 +325,26 @@ func virustotalAnalysisID(payload map[string]interface{}) string {
 	return id
 }
 
-func virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID string) (map[string]interface{}, map[string]interface{}, error) {
+func virustotalPollAnalysisAndFetchURL(apiKey, analysisID, urlID string, contexts ...context.Context) (map[string]interface{}, map[string]interface{}, error) {
 	for attempt := 0; attempt < 3; attempt++ {
-		analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)))
+		analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)), nativeHTTPContext(contexts...))
 		if err != nil {
 			return nil, nil, err
 		}
 		if virustotalAnalysisCompleted(analysis) {
-			report, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)))
+			report, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/urls/%s", virustotalBaseURL, url.PathEscape(urlID)), nativeHTTPContext(contexts...))
 			if err != nil {
 				return analysis, nil, err
 			}
 			return analysis, report, nil
 		}
-		time.Sleep(2 * time.Second)
+		select {
+		case <-nativeHTTPContext(contexts...).Done():
+			return nil, nil, nativeHTTPContext(contexts...).Err()
+		case <-time.After(2 * time.Second):
+		}
 	}
-	analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)))
+	analysis, err := virustotalLookupJSON(apiKey, fmt.Sprintf("%s/analyses/%s", virustotalBaseURL, url.PathEscape(analysisID)), nativeHTTPContext(contexts...))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -332,9 +358,9 @@ func virustotalAnalysisCompleted(payload map[string]interface{}) bool {
 	return strings.EqualFold(status, "completed")
 }
 
-func virustotalLookupFileHash(apiKey, sha256Hash string) (string, map[string]interface{}, error) {
+func virustotalLookupFileHash(apiKey, sha256Hash string, contexts ...context.Context) (string, map[string]interface{}, error) {
 	endpoint := fmt.Sprintf("%s/files/%s", virustotalBaseURL, url.PathEscape(sha256Hash))
-	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json", nativeHTTPContext(contexts...))
 	if err != nil {
 		return "", nil, err
 	}
@@ -346,21 +372,15 @@ func virustotalLookupFileHash(apiKey, sha256Hash string) (string, map[string]int
 	return string(bodyBytes), result, nil
 }
 
-func virustotalUploadFile(apiKey, filePath string, size int64) (map[string]interface{}, error) {
+func virustotalUploadOpenFile(apiKey, filePath string, file *os.File, size int64, contexts ...context.Context) (map[string]interface{}, error) {
 	uploadURL := fmt.Sprintf("%s/files", virustotalBaseURL)
 	if size > 32*1024*1024 {
-		customURL, err := virustotalGetLargeUploadURL(apiKey)
+		customURL, err := virustotalGetLargeUploadURL(apiKey, nativeHTTPContext(contexts...))
 		if err != nil {
 			return nil, err
 		}
 		uploadURL = customURL
 	}
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file for upload: %w", err)
-	}
-	defer file.Close()
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -375,7 +395,7 @@ func virustotalUploadFile(apiKey, filePath string, size int64) (map[string]inter
 		return nil, fmt.Errorf("failed to finalize upload body: %w", err)
 	}
 
-	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, uploadURL, &body, writer.FormDataContentType())
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodPost, uploadURL, &body, writer.FormDataContentType(), nativeHTTPContext(contexts...))
 	if err != nil {
 		return nil, err
 	}
@@ -387,9 +407,9 @@ func virustotalUploadFile(apiKey, filePath string, size int64) (map[string]inter
 	return result, nil
 }
 
-func virustotalGetLargeUploadURL(apiKey string) (string, error) {
+func virustotalGetLargeUploadURL(apiKey string, contexts ...context.Context) (string, error) {
 	endpoint := fmt.Sprintf("%s/files/upload_url", virustotalBaseURL)
-	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json")
+	bodyBytes, err := virustotalDoRequest(apiKey, http.MethodGet, endpoint, nil, "application/json", nativeHTTPContext(contexts...))
 	if err != nil {
 		return "", err
 	}
@@ -406,8 +426,8 @@ func virustotalGetLargeUploadURL(apiKey string) (string, error) {
 	return payload.Data, nil
 }
 
-func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, contentType string) ([]byte, error) {
-	req, err := http.NewRequest(method, endpoint, body)
+func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, contentType string, contexts ...context.Context) ([]byte, error) {
+	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), method, endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VirusTotal request: %w", err)
 	}
@@ -439,17 +459,21 @@ func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, conten
 }
 
 func computeVirusTotalFileHashes(filePath string) (virustotalHashes, int64, error) {
-	file, err := os.Open(filePath)
+	file, err := rootedToolOpen(filePath)
 	if err != nil {
 		return virustotalHashes{}, 0, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
+	return computeVirusTotalHashes(file)
+}
+
+func computeVirusTotalHashes(file *os.File) (virustotalHashes, int64, error) {
 
 	info, err := file.Stat()
 	if err != nil {
 		return virustotalHashes{}, 0, fmt.Errorf("failed to stat file: %w", err)
 	}
-	if info.IsDir() {
+	if !info.Mode().IsRegular() {
 		return virustotalHashes{}, 0, fmt.Errorf("file_path must point to a file, not a directory")
 	}
 

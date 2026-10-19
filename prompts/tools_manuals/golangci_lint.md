@@ -1,6 +1,6 @@
 ## Tool: golangci-lint (`golangci_lint`)
 
-Run static analysis on Go source code using [golangci-lint](https://github.com/golangci/golangci-lint), the industry-standard meta-linter. golangci-lint is automatically installed via `go install` if not already present on the system.
+Run static analysis on Go source code using [golangci-lint](https://github.com/golangci/golangci-lint). An administrator must provision a pinned version before use.
 
 ### Parameters
 
@@ -37,7 +37,8 @@ JSON object with the following fields:
 ### Notes
 
 - **Timeout**: 5 minutes maximum. For very large codebases, narrow the `path` to avoid timeouts.
-- **Auto-install**: If `golangci-lint` is not in PATH or `~/go/bin`, it is installed via `go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest`. This requires network access and may take ~30 seconds on first use.
+- **Installation**: A missing binary returns a setup error. Tool calls never install or upgrade executable code.
+- **Arguments**: `path` is a package or directory, never a command-line option. Explicit configuration paths remain inside the workspace.
 - **Exit codes**: golangci-lint exits with code 1 when issues are found (not a tool error) and 2+ for configuration/runtime errors.
 - **Config**: Without a config file, golangci-lint uses its built-in defaults which include around 10 popular linters. A `.golangci.yml` in the project root is auto-detected.
 - Enable this tool via `golangci_lint.enabled: true` in `config.yaml`.

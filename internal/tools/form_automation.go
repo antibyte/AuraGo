@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -54,7 +55,24 @@ func formJSON(r formResult) string {
 // selector      – CSS selector for click, or submit button for fill_submit (default: first submit button)
 // screenshotDir – directory to save post-action screenshot (optional; "" = no screenshot)
 func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDir string) string {
+	return ExecuteFormAutomationWithWorkspace(context.Background(), operation, rawURL, fieldsJSON, selector, screenshotDir, "agent_workspace/workdir")
+}
+
+func ExecuteFormAutomationWithWorkspace(ctx context.Context, operation, rawURL, fieldsJSON, selector, screenshotDir, workspaceDir string) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	operation = strings.ToLower(strings.TrimSpace(operation))
+	var screenshotRoot *os.Root
+	if screenshotDir != "" {
+		var err error
+		screenshotRoot, screenshotDir, err = browserOutputRoot(ctx, workspaceDir, screenshotDir)
+		if err != nil {
+			return formJSON(formResult{Status: "error", Message: err.Error()})
+		}
+		defer screenshotRoot.Close()
+		ctx = context.WithValue(ctx, formScreenshotRootKey{}, screenshotRoot)
+	}
 
 	// Validate URL
 	if rawURL == "" {
@@ -78,7 +96,7 @@ func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDi
 	// Launch headless browser
 	u, launchErr := launcher.New().
 		Headless(true).
-		NoSandbox(true).
+		NoSandbox(false).
 		Launch()
 	if launchErr != nil {
 		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", launchErr)})
@@ -96,6 +114,7 @@ func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDi
 	if err != nil {
 		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
 	}
+	page = page.Context(ctx)
 	if err := page.WaitLoad(); err != nil {
 		_ = err // non-fatal
 	}
@@ -239,7 +258,8 @@ func takeFormScreenshot(page *rod.Page, screenshotDir, rawURL, label string) str
 	if screenshotDir == "" {
 		return ""
 	}
-	if err := os.MkdirAll(screenshotDir, 0o750); err != nil {
+	root, ok := page.GetContext().Value(formScreenshotRootKey{}).(*os.Root)
+	if !ok || root == nil {
 		return ""
 	}
 	parsed, _ := url.ParseRequestURI(rawURL)
@@ -257,8 +277,10 @@ func takeFormScreenshot(page *rod.Page, screenshotDir, rawURL, label string) str
 	if err != nil {
 		return ""
 	}
-	if err := os.WriteFile(filename, data, 0o640); err != nil {
+	if err := writeRootFromReaderAtomic(root, filename, strings.NewReader(string(data)), 0o640, false); err != nil {
 		return ""
 	}
-	return filename
+	return filepath.Join(root.Name(), filename)
 }
+
+type formScreenshotRootKey struct{}

@@ -28,7 +28,7 @@ Files may be made available to security researchers and your submissions may be 
 ### Parameters
 - `resource` (string, optional): The URL, domain, IP address, or file hash to scan.
 - `file_path` (string, optional): Local file path to hash or upload to VirusTotal.
-- `mode` (string, optional): For local files only. `auto` = hash lookup first, upload if unknown. `hash` = only calculate hashes and look them up. `upload` = force file upload.
+- `mode` (string, optional): For local files only. Omitted, `hash`, and legacy `auto` calculate hashes and look up existing reports without uploading file content. `upload` explicitly permits an upload after the canonical upload permission check.
 
 Provide either `resource` or `file_path`.
 
@@ -37,5 +37,5 @@ Provide either `resource` or `file_path`.
   - file hash -> file report
   - domain -> domain report
   - IP -> IP report
-  - URL -> URL report, with URL submission fallback if VirusTotal has not seen it yet
-- `file_path` can hash a local file and optionally upload it to VirusTotal.
+  - URL -> existing URL report; an unknown URL is submitted only with explicit `mode: upload` and the upload grant
+- `file_path` must resolve to a regular file inside the authorized workspace. The same rooted open file is hashed and, for an explicit upload, submitted. An unknown hash never causes an automatic upload.

@@ -26,7 +26,7 @@ func encodeGolangciResult(r GolangciLintResult) string {
 }
 
 // ExecuteGolangciLint runs golangci-lint on the given path (package or directory).
-// If golangci-lint is not installed, it attempts to install it via go install.
+// A pinned executable must already be installed by an administrator.
 // lintPath:   package path or directory (e.g. "./...", "./internal/agent")
 // configPath: optional path to a .golangci.yml config file (empty = auto-detect)
 // workspaceDir: workspace root (for resolving relative paths)
@@ -34,30 +34,35 @@ func ExecuteGolangciLint(lintPath, configPath, workspaceDir string) string {
 	if lintPath == "" {
 		lintPath = "./..."
 	}
+	if strings.HasPrefix(strings.TrimSpace(lintPath), "-") || strings.ContainsAny(lintPath, "\r\n\x00") {
+		return encodeGolangciResult(GolangciLintResult{Status: "error", Message: "lint path must be a package or directory, not an option"})
+	}
 
 	absWorkDir := getAbsWorkspace(workspaceDir)
 
-	// Locate or install golangci-lint
+	// Locate an operator-provisioned golangci-lint.
 	binaryPath, err := findOrInstallGolangciLint(absWorkDir)
 	if err != nil {
 		return encodeGolangciResult(GolangciLintResult{
 			Status:  "error",
-			Message: fmt.Sprintf("golangci-lint not available and could not be installed: %v", err),
+			Message: fmt.Sprintf("golangci-lint not available: %v", err),
 		})
 	}
 
 	// Build args
 	args := []string{"run"}
 	if configPath != "" {
-		resolved, resolveErr := filepath.Abs(filepath.Join(absWorkDir, configPath))
-		if resolveErr == nil {
-			args = append(args, "--config="+resolved)
+		resolved, resolveErr := secureResolve(absWorkDir, configPath)
+		if resolveErr != nil {
+			return encodeGolangciResult(GolangciLintResult{Status: "error", Message: "lint configuration is outside the workspace"})
 		}
+		args = append(args, "--config="+resolved)
 	}
-	args = append(args, lintPath)
+	args = append(args, "--", lintPath)
 
 	cmd := exec.Command(binaryPath, args...) //nolint:gosec // binaryPath is resolved from trusted location
 	cmd.Dir = absWorkDir
+	ensureFilteredShellEnv(cmd)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -148,7 +153,7 @@ func parseGolangciOutput(output string) []string {
 }
 
 // findOrInstallGolangciLint returns the path to the golangci-lint executable.
-// If not found in PATH or GOPATH/bin, it installs it via `go install`.
+// Missing executables produce a setup error, without installing host code.
 func findOrInstallGolangciLint(workDir string) (string, error) {
 	// 1. Check PATH
 	if p, err := exec.LookPath("golangci-lint"); err == nil {
@@ -171,28 +176,7 @@ func findOrInstallGolangciLint(workDir string) (string, error) {
 		}
 	}
 
-	// 4. Not found — install via go install
-	installCmd := exec.Command("go", "install", "github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
-	installCmd.Dir = workDir
-	var installErr bytes.Buffer
-	installCmd.Stderr = &installErr
-
-	if err := installCmd.Run(); err != nil {
-		return "", fmt.Errorf("go install failed: %v — %s", err, strings.TrimSpace(installErr.String()))
-	}
-
-	// Retry lookup after installation
-	if p, err := exec.LookPath("golangci-lint"); err == nil {
-		return p, nil
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		candidate := filepath.Join(home, "go", "bin", golangciLintBinary())
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("golangci-lint installed but still not found in PATH or ~/go/bin")
+	return "", fmt.Errorf("golangci-lint is not installed; an administrator must provision a pinned version")
 }
 
 func golangciLintBinary() string {

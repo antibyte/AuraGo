@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/config"
 	"aurago/internal/testutil"
 	"crypto/md5"
 	"crypto/sha1"
@@ -8,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -72,7 +74,7 @@ func TestComputeVirusTotalFileHashes(t *testing.T) {
 	}
 }
 
-func TestExecuteVirusTotalScanWithOptionsAutoUploadsWhenHashUnknown(t *testing.T) {
+func TestExecuteVirusTotalScanWithOptionsAutoDoesNotUploadWhenHashUnknown(t *testing.T) {
 	var (
 		lookupCount int
 		uploadCount int
@@ -108,6 +110,7 @@ func TestExecuteVirusTotalScanWithOptionsAutoUploadsWhenHashUnknown(t *testing.T
 
 	out := ExecuteVirusTotalScanWithOptions("vt-key", VirusTotalOptions{
 		FilePath: filePath,
+		Config:   virusTotalTestConfig(filepath.Dir(filePath)),
 		Mode:     "auto",
 	})
 
@@ -118,20 +121,20 @@ func TestExecuteVirusTotalScanWithOptionsAutoUploadsWhenHashUnknown(t *testing.T
 	if result["status"] != "success" {
 		t.Fatalf("status = %v, want success\noutput=%s", result["status"], out)
 	}
-	if result["used"] != "file_upload" {
-		t.Fatalf("used = %v, want file_upload\noutput=%s", result["used"], out)
+	if result["used"] != "hash_lookup" {
+		t.Fatalf("used = %v, want hash_lookup\noutput=%s", result["used"], out)
 	}
 	if _, ok := result["hashes"]; !ok {
 		t.Fatalf("expected hashes in output\noutput=%s", out)
 	}
-	if _, ok := result["upload"]; !ok {
-		t.Fatalf("expected upload result in output\noutput=%s", out)
+	if _, ok := result["upload"]; ok {
+		t.Fatalf("unexpected upload result in output\noutput=%s", out)
 	}
 	if lookupCount != 1 {
 		t.Fatalf("lookupCount = %d, want 1", lookupCount)
 	}
-	if uploadCount != 1 {
-		t.Fatalf("uploadCount = %d, want 1", uploadCount)
+	if uploadCount != 0 {
+		t.Fatalf("uploadCount = %d, want 0", uploadCount)
 	}
 }
 
@@ -302,7 +305,7 @@ func TestExecuteVirusTotalScanWithOptionsURLResourceFallsBackToSubmission(t *tes
 		virustotalHTTPClient = oldClient
 	}()
 
-	out := ExecuteVirusTotalScanWithOptions("vt-key", VirusTotalOptions{Resource: resource})
+	out := ExecuteVirusTotalScanWithOptions("vt-key", VirusTotalOptions{Resource: resource, Mode: "upload"})
 
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(out), &result); err != nil {
@@ -369,6 +372,7 @@ func TestExecuteVirusTotalScanWithOptionsHashModeDoesNotUpload(t *testing.T) {
 
 	out := ExecuteVirusTotalScanWithOptions("vt-key", VirusTotalOptions{
 		FilePath: filePath,
+		Config:   virusTotalTestConfig(filepath.Dir(filePath)),
 		Mode:     "hash",
 	})
 
@@ -387,5 +391,76 @@ func TestExecuteVirusTotalScanWithOptionsHashModeDoesNotUpload(t *testing.T) {
 	}
 	if lookupCount != 1 {
 		t.Fatalf("lookupCount = %d, want 1", lookupCount)
+	}
+}
+
+func virusTotalTestConfig(workspace string) *config.Config {
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspace
+	return cfg
+}
+
+func TestVirusTotalUploadUsesTheAuthorizedOpenFile(t *testing.T) {
+	workspace := t.TempDir()
+	filePath := filepath.Join(workspace, "sample.txt")
+	if err := os.WriteFile(filePath, []byte("authorized-original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var uploaded string
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			if err := os.Rename(filePath, filePath+".original"); err != nil {
+				t.Error(err)
+				http.Error(w, "fixture rename failed", 500)
+				return
+			}
+			if err := os.WriteFile(filePath, []byte("replacement-path-content"), 0o600); err != nil {
+				t.Error(err)
+			}
+			http.Error(w, "not found", 404)
+			return
+		}
+		if err := r.ParseMultipartForm(1024 * 1024); err != nil {
+			t.Error(err)
+			return
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			t.Error(err)
+		}
+		uploaded = string(data)
+		_, _ = w.Write([]byte(`{"data":{"id":"fixture-analysis"}}`))
+	}))
+	defer server.Close()
+	previousURL, previousClient := virustotalBaseURL, virustotalHTTPClient
+	virustotalBaseURL, virustotalHTTPClient = server.URL, server.Client()
+	defer func() { virustotalBaseURL, virustotalHTTPClient = previousURL, previousClient }()
+	out := ExecuteVirusTotalScanWithOptions("fixture-key", VirusTotalOptions{FilePath: filePath, Mode: "upload", Config: virusTotalTestConfig(workspace)})
+	if uploaded != "authorized-original" || !strings.Contains(out, "file_upload") {
+		t.Fatalf("upload reopened path: %q output %s", uploaded, out)
+	}
+}
+
+func TestVirusTotalUnknownURLDoesNotSubmitByDefault(t *testing.T) {
+	posts := 0
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			posts++
+		}
+		http.Error(w, "not found", 404)
+	}))
+	defer server.Close()
+	previousURL, previousClient := virustotalBaseURL, virustotalHTTPClient
+	virustotalBaseURL, virustotalHTTPClient = server.URL, server.Client()
+	defer func() { virustotalBaseURL, virustotalHTTPClient = previousURL, previousClient }()
+	out := ExecuteVirusTotalScanWithOptions("fixture-key", VirusTotalOptions{Resource: "https://example.com/unseen"})
+	if posts != 0 || !strings.Contains(out, "not_found") {
+		t.Fatalf("URL submitted without explicit intent: posts=%d out=%s", posts, out)
 	}
 }

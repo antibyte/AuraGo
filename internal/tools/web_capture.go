@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -34,6 +33,13 @@ type webCaptureResult struct {
 // fullPage  – capture full scrollable page (screenshot only)
 // outputDir – directory where the output file is saved; defaults to workdir
 func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPage bool, outputDir string) string {
+	return WebCaptureWithWorkspace(ctx, operation, rawURL, selector, fullPage, outputDir, "agent_workspace/workdir")
+}
+
+func WebCaptureWithWorkspace(ctx context.Context, operation, rawURL, selector string, fullPage bool, outputDir, workspaceDir string) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	encode := func(r webCaptureResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -58,12 +64,11 @@ func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPag
 	}
 
 	// Resolve output directory
-	if outputDir == "" {
-		outputDir = "agent_workspace/workdir"
-	}
-	if err := os.MkdirAll(outputDir, 0o750); err != nil {
+	root, outputDir, err := browserOutputRoot(ctx, workspaceDir, outputDir)
+	if err != nil {
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("cannot create output dir: %v", err)})
 	}
+	defer root.Close()
 
 	browser, err := getSharedBrowser()
 	if err != nil {
@@ -110,7 +115,7 @@ func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPag
 		if err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("screenshot failed: %v", err)})
 		}
-		if err := os.WriteFile(filename, screenshotBytes, 0o640); err != nil {
+		if err := writeRootFromReaderAtomic(root, filename, strings.NewReader(string(screenshotBytes)), 0o640, false); err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("write file failed: %v", err)})
 		}
 
@@ -122,14 +127,18 @@ func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPag
 		if err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("pdf render failed: %v", err)})
 		}
-		pdfBytes, err := io.ReadAll(pdfReader)
+		pdfBytes, err := io.ReadAll(io.LimitReader(pdfReader, 32*1024*1024+1))
 		if err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("read pdf stream failed: %v", err)})
 		}
-		if err := os.WriteFile(filename, pdfBytes, 0o640); err != nil {
+		if len(pdfBytes) > 32*1024*1024 {
+			return encode(webCaptureResult{Status: "error", Message: "PDF exceeds 32 MiB limit"})
+		}
+		if err := writeRootFromReaderAtomic(root, filename, strings.NewReader(string(pdfBytes)), 0o640, false); err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("write file failed: %v", err)})
 		}
 	}
+	filename = filepath.Join(root.Name(), filename)
 
 	return encode(webCaptureResult{
 		Status:    "success",
