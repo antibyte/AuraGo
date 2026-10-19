@@ -66,6 +66,11 @@ Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [Eng
 | 23 · Internals | [Interna](de/23-internals.md) | [Internals](en/23-internals.md) | Modules, data flow, architecture |
 | 24 · EasyDrag | [EasyDrag](de/24-easydrag.md) | [EasyDrag](en/24-easydrag.md) | Automations by drag and drop |
 | 25 · CYD Creator | [CYD Creator](de/25-cyd-creator.md) | [CYD Creator](en/25-cyd-creator.md) | Apps for the Cheap Yellow Display |
+| 26 · Video Studio | [Video Studio](de/26-video-studio.md) | [Video Studio](en/26-video-studio.md) | Multitrack video editor, off by default |
+| 27 · Bookshelf | [Bookshelf](de/27-bookshelf.md) | [Bookshelf](en/27-bookshelf.md) | Library and ebook reader |
+| 28 · Mailer | [Mailer](de/28-mailer.md) | [Mailer](en/28-mailer.md) | IMAP, POP3, SMTP, gog and AgentMail |
+| 29 · Infra | [Infra](de/29-infra.md) | [Infra](en/29-infra.md) | The homelab atlas |
+| 30 · RuView | [RuView](de/30-ruview.md) | [RuView](en/30-ruview.md) | Experimental Wi-Fi sensing |
 | FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
 
 ## What this book is
@@ -74,7 +79,7 @@ AuraGo is a self-hosted Go agent for a home lab. The backend is one portable bin
 
 These chapters stay in sync with the product, not with a marketing checklist. If a sentence and the code disagree, the code wins. Deep dives for MeshCore, Game Maker, SIP, Speech Lab, Docker and web assets live next to this handbook under [`documentation/`](../).
 
-**Stand: 15. Oktober 2026.** Both languages cover the same 25 chapters. German uses *du*.
+**Stand: 19. Oktober 2026.** Both languages cover the same 30 chapters. German uses *du*.
 
 ## Nearby docs
 

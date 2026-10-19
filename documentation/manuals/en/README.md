@@ -121,9 +121,14 @@ Your data stays with the installation. **Hosted models still see their request i
 22. [Internal tools](22-internal-tools.md) — The full tool catalog
 23. [Internals](23-internals.md) — Modules, data flow, architecture
 
-### Part 6 — Studio Apps
+### Part 6 — Studio and Desktop Apps
 24. [EasyDrag](24-easydrag.md) — Automations by drag and drop (extends Mission Control from chapter 11)
 25. [CYD Creator](25-cyd-creator.md) — Apps for the Cheap Yellow Display (part of the integrations family from chapter 8)
+26. [Video Studio](26-video-studio.md) — Multitrack video editor with keyframes, LUTs, masks and FFmpeg export (off by default)
+27. [Bookshelf](27-bookshelf.md) — Library and ebook reader for EPUB, MOBI, FB2, CBZ, TXT and PDF
+28. [Mailer](28-mailer.md) — Mail client for IMAP, POP3 and SMTP accounts, Google via gog and AgentMail
+29. [Infra](29-infra.md) — The shared homelab atlas: atlas, topology and inventory views with live power readings
+30. [RuView](30-ruview.md) — Experimental Wi-Fi sensing with ESP32 boards (extends chapter 8)
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 
@@ -168,4 +173,4 @@ The UI speaks **16 languages**. Pick your company in **Config → Personality**.
 
 [![Flags for all 16 UI languages](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Updated 15 October 2026. German edition [here](../de/README.md).*
+*Updated 19 October 2026. German edition [here](../de/README.md).*

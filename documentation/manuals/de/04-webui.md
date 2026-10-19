@@ -255,6 +255,10 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look); mit **Retro-Net** (standardmäßig an) zusätzlich ein Wählerverzeichnis für Telnet-BBS, C64-Boards, MUDs u. a. — siehe unten |
 | **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
+| **Video Studio** | Mehrspur-Videoeditor mit Keyframes, Speed-Ramps, LUTs, Masken, Chroma-Key, WebGL2-Vorschau und FFmpeg-Export. Standardmäßig aus ([Kapitel 26](26-video-studio.md)) |
+| **Bookshelf** | Bibliothek und E-Book-Reader für EPUB, MOBI/KF8, FB2, CBZ, TXT und PDF aus lokalen Ordnern, Uploads und verbundenen Quellen ([Kapitel 27](27-bookshelf.md)) |
+| **Mailer** | Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail, mit Hintergrund-Sync ([Kapitel 28](28-mailer.md)) |
+| **Infra** | Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
 | **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |
@@ -279,7 +283,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
 | **Personal Radio** | Eigener Radiosender: Stationen mit Themen- und Musikauswahl, persönliche Audio-Bibliothek, Nachrichten und Sprachbeiträge |
 | **RTL-SDR** | Empfang für einen RTL-SDR-Stick: Live-Abstimmung, Aufnahmen, Zeitpläne und automatische Spracherkennung (ASR) |
-| **RuView** | Wi-Fi-Sensing (experimentell): Dashboard, Observatory und Pose Fusion für ESP32-CSI oder RSSI, plus Kalibrierung, Aufnahmen und Training — Verwaltung in [Kapitel 8](08-integrations.md#ruview-wi-fi-sensing) |
+| **RuView** | Wi-Fi-Sensing (experimentell): Dashboard, Observatory und Pose Fusion für ESP32-CSI oder RSSI, plus Kalibrierung, Aufnahmen und Training — Anleitung in [Kapitel 30](30-ruview.md), Verwaltung in [Kapitel 8](08-integrations.md#ruview-wi-fi-sensing) |
 | **Bluetooth** | Bluetooth-Adapter des Servers verwalten: suchen, koppeln (mit Zahlenvergleich), verbinden, vertrauen, entfernen und den Server sichtbar machen. Nur sichtbar, wenn ein Adapter vorhanden ist |
 | **HA Switchboard** | Home-Assistant-Schalter als nostalgisches Pult mit Silberhebeln (nur ausgewählte `switch.*`-Entitäten) |
 | **Tresor** | Browser-verschlüsselter Desktop-Safe: Einträge (Namen, Notizen, Dateien) liegen ausschließlich verschlüsselt in `data/tresor.db`; der Server sieht nur Ciphertext. Passwort plus Wiederherstellungsschlüssel, Versionen, automatisches Speichern von Notizen und Verriegeln beim Schließen |

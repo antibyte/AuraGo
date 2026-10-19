@@ -248,3 +248,4 @@ refuses an archive when
 ---
 
 **Previous Chapter:** [Chapter 24: EasyDrag](./24-easydrag.md)
+**Next Chapter:** [Chapter 26: Video Studio](./26-video-studio.md)

@@ -2555,14 +2555,14 @@ virtual_desktop:
 
 **RuView** integrates Wi-Fi sensing ([RuView v3122](https://github.com/ruvnet/RuView)) including its dashboard, observatory, pose fusion, calibration, recording and training views. AuraGo's management speaks all 16 languages; upstream views keep their original language. Wi-Fi sensing is experimental — connectivity proves nothing about measurement, presence or pose accuracy.
 
-**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** installs/starts a managed runtime, **Set up board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi.
+**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** opens the desktop app, where **Install runtime** and **Start** manage a managed runtime; **Configure board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi. Walkthrough: [Chapter 30](30-ruview.md).
 
 **Runtimes:**
 
 | Runtime | Intended use |
 |---------|--------------|
 | Managed Docker | Linux sensing server for ESP32 CSI or an explicit demo; AuraGo creates and stops its own labelled container |
-| Native host | Verified Windows amd64 or macOS package; hosts need a working Wi-Fi adapter for RSSI |
+| Native host | Verified Windows amd64 package (no other native package ships in this release); hosts need a working Wi-Fi adapter for RSSI |
 | External | Existing RuView service at the saved HTTP(S) origin; private/loopback access requires `allow_private` |
 
 **Important:**
