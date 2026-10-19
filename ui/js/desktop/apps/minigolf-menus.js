@@ -1,4 +1,4 @@
-import { PALETTE, colorValue } from './minigolf-shared.js';
+import { PALETTE, colorValue, fillText } from './minigolf-shared.js';
 
 export const WORLD_ICONS = { garden: 'flower', coast: 'wave', night: 'lantern', pirate: 'ship', temple: 'temple', moon: 'moon' };
 
@@ -13,8 +13,7 @@ export function roundLabel(mode, holeId, courses, tr) {
 // its panel plumbing and helpers, so this module imports no other UI module.
 export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
     const serial = createMenus.serial = (createMenus.serial || 0) + 1;
-    const fill = (text, values) => Object.entries(values).reduce((out, [name, value]) => out.replace('{' + name + '}', () => String(value)), text);
-    const bestText = value => value ? fill(tr('best_value'), { n: value }) : tr('no_best');
+    const bestText = value => value ? fillText(tr('best_value'), { n: value }) : tr('no_best');
     const button = (action, text, primary = false) => `<button ${primary ? 'class="mg-primary" ' : ''}data-action="${action}">${esc(text)}</button>`;
     const stepHead = title => `<header class="mg-step-head"><button class="mg-back" data-action="back">${icon('back')}<span>${esc(tr('back'))}</span></button><h2>${esc(title)}</h2></header>`;
     const section = (cls, iconName, title, body) => `<section class="${cls}"><h3>${icon(iconName)}<span>${esc(title)}</span></h3>${body}</section>`;
@@ -27,20 +26,20 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
     }
     function home({ courses, worlds, best, saved }, focus) {
         const bests = best?.rounds || {}, par = list => list.reduce((sum, course) => sum + course.par, 0);
-        const meta = list => fill(tr('world_detail'), { n: list.length, par: par(list) });
+        const meta = list => fillText(tr('world_detail'), { n: list.length, par: par(list) });
         const worldCard = world => {
             const own = courses.filter(course => course.world === world.id);
             const image = world.preview ? `<img alt="" loading="lazy" decoding="async" src="${esc(assetURL('/3d/minigolf/' + world.preview))}">` : '';
             return roundCard('', world.id, world.id, `<span class="mg-preview"><span class="mg-island" aria-hidden="true"></span>${icon(WORLD_ICONS[world.id] || 'star')}${image}</span><span class="mg-round-title">${esc(tr(world.id))}</span><span class="mg-round-meta">${esc(meta(own))}</span><span class="mg-round-best">${esc(bestText(bests[world.id]))}</span>`);
         };
-        const resume = saved ? `<article class="mg-resume-card"><div><h2>${esc(tr('resume'))}</h2><p>${esc(fill(tr('resume_detail'), { hole: saved.hole, total: saved.total, players: saved.players }))}</p><p class="mg-muted">${esc(roundLabel(saved.mode, saved.holeId, courses, tr))}</p></div><button class="mg-primary" data-action="resume">${icon('play')}<span>${esc(tr('continue'))}</span></button></article>` : '';
+        const resume = saved ? `<article class="mg-resume-card"><div><h2>${esc(tr('resume'))}</h2><p>${esc(fillText(tr('resume_detail'), { hole: saved.hole, total: saved.total, players: saved.players }))}</p><p class="mg-muted">${esc(roundLabel(saved.mode, saved.holeId, courses, tr))}</p></div><button class="mg-primary" data-action="resume">${icon('play')}<span>${esc(tr('continue'))}</span></button></article>` : '';
         const full = roundCard('mg-round-full', 'full', 'full', `<span class="mg-round-stripes" aria-hidden="true">${worlds.map(world => `<i data-world="${esc(world.id)}"></i>`).join('')}</span><span class="mg-round-title">${esc(tr('full'))}</span><span class="mg-round-meta">${esc(meta(courses))}</span><span class="mg-round-best">${esc(bestText(bests.full))}</span>`);
         const practice = roundCard('mg-round-practice', 'practice', 'neutral', `<span class="mg-round-title">${esc(tr('training'))}</span><span class="mg-round-meta">${esc(tr('training_detail'))}</span>`);
         showPanel(`<header class="mg-menu-head"><h1 class="mg-title">AuraGolf</h1><p class="mg-tagline">${esc(tr('tagline'))}</p></header>${resume}<h2 class="mg-section-title">${esc(tr('choose_round'))}</h2><div class="mg-round-grid">${full}${worlds.map(worldCard).join('')}${practice}</div><p class="mg-fine">${esc(tr('saved'))}</p>`, 'title', focus);
     }
     function holes({ courses, worlds, best }, focus) {
         const bests = best?.holes || {};
-        const tile = course => `<button class="mg-hole-tile" data-hole-id="${esc(course.id)}"><span class="mg-hole-number">${esc(course.number)}</span><span class="mg-hole-name">${esc(tr('course_' + course.number))}</span><span class="mg-hole-par">${esc(tr('par'))} ${esc(course.par)}</span><span class="mg-hole-best">${esc(bests[course.id] ? fill(tr('best_value'), { n: bests[course.id] }) : '–')}</span></button>`;
+        const tile = course => `<button class="mg-hole-tile" data-hole-id="${esc(course.id)}"><span class="mg-hole-number">${esc(course.number)}</span><span class="mg-hole-name">${esc(tr('course_' + course.number))}</span><span class="mg-hole-par">${esc(tr('par'))} ${esc(course.par)}</span><span class="mg-hole-best">${esc(bests[course.id] ? fillText(tr('best_value'), { n: bests[course.id] }) : '–')}</span></button>`;
         const group = world => `<section class="mg-hole-group" data-world="${esc(world.id)}"><h3 class="mg-group-title">${esc(tr(world.id))}</h3><div class="mg-hole-grid">${courses.filter(course => course.world === world.id).map(tile).join('')}</div></section>`;
         showPanel(`${stepHead(tr('pick_hole'))}${worlds.map(group).join('')}`, 'pick_hole', focus);
     }
@@ -51,7 +50,7 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
             const blocked = new Set(list.filter((_, other) => other !== index).map(entry => entry.color));
             return PALETTE.map(color => `<label class="mg-swatch" style="--mg-swatch:${esc(color.hex)}"><input type="radio" name="mg-color-${serial}-${index}" data-player-color value="${esc(color.id)}" aria-label="${esc(tr('color_' + color.id))}"${player.color === color.id ? ' checked' : ''}${blocked.has(color.id) ? ' disabled' : ''}><span aria-hidden="true"></span></label>`).join('');
         };
-        const card = (player, index) => `<fieldset class="mg-player-card" data-player-index="${index}" style="--mg-player:${esc(colorValue(player.color))}"><legend>${esc(fill(tr('player'), { n: index + 1 }))}</legend><div class="mg-player-fields"><fieldset class="mg-swatches"><legend class="mg-visually-hidden">${esc(tr('color'))}</legend>${swatches(player, index)}</fieldset><label class="mg-field"><span>${esc(tr('player_name'))}</span><input data-player-name maxlength="24" value="${esc(player.name)}" autocomplete="off" spellcheck="false"></label></div></fieldset>`;
+        const card = (player, index) => `<fieldset class="mg-player-card" data-player-index="${index}" style="--mg-player:${esc(colorValue(player.color))}"><legend>${esc(fillText(tr('player'), { n: index + 1 }))}</legend><div class="mg-player-fields"><fieldset class="mg-swatches"><legend class="mg-visually-hidden">${esc(tr('color'))}</legend>${swatches(player, index)}</fieldset><label class="mg-field"><span>${esc(tr('player_name'))}</span><input data-player-name maxlength="24" value="${esc(player.name)}" autocomplete="off" spellcheck="false"></label></div></fieldset>`;
         showPanel(`<header class="mg-step-head"><div><h2>${esc(tr('who_plays'))}</h2><p class="mg-muted">${esc(roundLabel(setup.mode, setup.holeId, courses, tr))}</p></div></header><fieldset class="mg-segment"><legend>${esc(tr('player_count'))}</legend>${counts}</fieldset><div class="mg-player-cards">${list.map(card).join('')}</div><div class="mg-panel-actions">${button('back', tr('back'))}${button('start', tr('got_it'), true)}</div>`, 'who_plays', focus);
     }
 

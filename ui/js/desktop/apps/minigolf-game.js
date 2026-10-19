@@ -273,21 +273,23 @@ export function mountGame(host, context = {}) {
             persist();
             if (round.players.every(p => p.done)) {
                 if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; message('new_best'); } }
-                view.update(round, course, false); showScore();
+                view.update(round, course, false);
+                if (round.mode === 'practice') nextHole().catch(fail); else showScore(true);
             }
             else { setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner(); if (!reduced) scene.focusBall(); }
         }
     }
-    function showScore() {
+    function showScore(animate = false) {
         if (!round) return;
-        setPanel('scorecard'); view.scorecard(round, manifest.courses, round.completed, best?.rounds[round.mode]);
+        setPanel('scorecard'); view.scorecard({ round, courses: manifest.courses, best, newBest, animate });
     }
+    function fail() { if (!disposed) { setPanel('error'); view.error('load_error'); } }
     async function nextHole() {
         if (!advanceHole(round, manifest.courses)) return;
         persist();
         if (round.completed) {
             if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; message('new_best'); }
-            audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore();
+            audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore(true);
         } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); focusStage(); }
     }
     function remember() { if (!['help', 'settings', 'credits'].includes(panelKind)) returnTo = { panel: panelKind, menuStep }; }
@@ -309,6 +311,14 @@ export function mountGame(host, context = {}) {
         start, resume, shoot: () => shoot(), 'next-hole': nextHole,
         menu: showMenu, scorecard: showScore, focus: () => scene?.focusBall(),
         pause() { if (panelKind === 'pause') closePanel(); else { setPanel('pause'); view.pause(); } },
+        async again() {
+            if (!round) return;
+            await startRound({ mode: round.mode, holeId: round.mode === 'practice' ? round.courseIds[0] : undefined, players: round.players.map(p => ({ name: p.name, color: p.color })) });
+        },
+        holes() {
+            if (!round) return;
+            setup.players = round.players.map(p => ({ name: p.name, color: p.color })); setup.mode = 'practice'; menuStep = 'holes'; setPanel('menu'); renderMenu();
+        },
         back() {
             menuStep = menuStep === 'players' && setup.mode === 'practice' ? 'holes' : 'home';
             renderMenu(menuStep === 'holes' ? `[data-hole-id="${CSS.escape(setup.holeId || '')}"]` : `[data-round="${CSS.escape(setup.mode)}"]`);
@@ -330,7 +340,7 @@ export function mountGame(host, context = {}) {
         const button = event.target.closest('[data-action]');
         if (button && !button.disabled && actions[button.dataset.action]) {
             audio.ui(button.dataset.action);
-            Promise.resolve(actions[button.dataset.action]()).catch(() => { if (!disposed) { setPanel('error'); view.error('load_error'); } });
+            Promise.resolve(actions[button.dataset.action]()).catch(fail);
         }
     }
     function input(event) {

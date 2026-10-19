@@ -1,6 +1,6 @@
-import { colorValue } from './minigolf-shared.js';
 import { createHud, formatPower } from './minigolf-hud.js';
 import { createMenus } from './minigolf-menus.js';
+import { createScorecard } from './minigolf-scorecard.js';
 
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -57,7 +57,6 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
     const progressLabel = $('[data-progress-label]'), progressTrack = $('[data-progress-track]'), cameraButton = $('[data-action="camera"]');
     const hud = createHud({ hud: $('[data-hud]'), toasts: $('[data-toasts]'), announcer: $('[data-announcer]') }, { tr, esc, icon });
     let restoreFocus = null;
-    const button = (action, label, primary = false) => `<button ${primary ? 'class="mg-primary"' : ''} data-action="${action}">${esc(tr(label))}</button>`;
 
     function showPanel(html, label, focus) {
         if (panel.hidden) restoreFocus = document.activeElement;
@@ -87,15 +86,8 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
     }
     root.addEventListener('keydown', trap);
 
-    // --- Transitional scorecard (replaced by minigolf-scorecard.js) ---
-    function scorecard(round, courses, complete, best) {
-        const allDone = round.players.every(p => p.done);
-        const columns = round.courseIds.map(id => courses.find(c => c.id === id));
-        showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map(p => `<tr><th><i style="background:${colorValue(p.color)}"></i>${esc(p.name)}</th>${columns.map((c, i) => { const value = p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : null); if (value == null) return '<td>–</td>'; const rel = value - c.par; const grade = rel <= -2 ? 'mg-eagle' : rel === -1 ? 'mg-birdie' : rel === 0 ? 'mg-par' : rel === 1 ? 'mg-bogey' : 'mg-over'; const term = rel <= -2 ? tr('eagle') : rel === -1 ? tr('birdie') : rel === 0 ? tr('par') : rel === 1 ? tr('bogey') : tr('over'); return `<td class="${grade}" title="${esc(term)}">${value}</td>`; }).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
-            ${best ? `<p>${esc(tr('best'))}: <strong>${best}</strong></p>` : ''}<div class="mg-panel-actions">${complete ? button('menu', 'play_again', true) : allDone ? button('next-hole', 'next_hole', true) : button('close', 'close', true)}</div>`, 'scorecard');
-    }
     return Object.assign({
-        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar, scorecard,
+        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar,
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected && !restoreFocus.disabled) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         update(round, course, busy) {
             if (!round || !course) return;
@@ -117,5 +109,5 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
         },
         track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
         dispose() { root.removeEventListener('keydown', trap); hud.dispose(); root.remove(); }
-    }, createMenus({ showPanel, panel, tr, esc, icon, assetURL }));
+    }, createMenus({ showPanel, panel, tr, esc, icon, assetURL }), createScorecard({ showPanel, tr, esc }));
 }

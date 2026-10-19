@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
+import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
 import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
 import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
+import { rankPlayers, relativeToPar } from '../ui/js/desktop/apps/minigolf-scorecard.js';
 
 const close = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 
@@ -28,6 +29,7 @@ assert.ok(FLOOR_SURFACES.has('grass') && FLOOR_SURFACES.has('sand') && !FLOOR_SU
 assert.equal(formatToPar(0, 'Par'), 'Par');
 assert.equal(formatToPar(-2, 'Par'), String.fromCharCode(0x2212) + '2');
 assert.equal(formatToPar(3, 'Par'), '+3');
+assert.equal(fillText('{a} / {b}', { a: '$&', b: 2 }), '$& / 2', 'placeholders fill literally, even with $ in a name');
 assert.equal(powerHex(0), '#7fe0a6');
 assert.equal(powerHex(0.25), '#bfdc98');
 assert.equal(powerHex(0.5), '#ffd789');
@@ -92,5 +94,13 @@ close(Math.max(...xs(still[0])), 1, 1e-9, 'unrotated bar width'); close(Math.max
 const turned = obstacleOutlines(gate, [{ id: 'gate', position: [2, 0.3, 0], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }]);
 close(Math.max(...xs(turned[0])), 2.2, 1e-9, 'physics pose turns and moves the bar'); close(Math.max(...zs(turned[0])), 1, 1e-9, 'turned bar depth');
 close(Math.min(...xs(obstacleOutlines({ obstacles: [{ id: 'box', position: [2, 0, 0], halfExtents: [0.5, 0.1, 0.5] }] })[0])), 1.5, 1e-9, 'single-box obstacle');
+
+// --- Ranking and par (Task 8) --------------------------------------------------
+const ranking = rankPlayers([{ scores: [3, 4], strokes: 0 }, { scores: [2, 4], strokes: 0 }, { scores: [3, 3], strokes: 0 }, { scores: [5, 5], strokes: 0 }]);
+assert.deepEqual(ranking.map(entry => [entry.index, entry.place, entry.total]), [[1, 1, 6], [2, 1, 6], [0, 3, 7], [3, 4, 10]], 'ties share a place (1, 1, 3)');
+const parRound = { courseIds: ['a', 'b'], holeIndex: 1, completed: false }, parCourses = [{ id: 'a', par: 2 }, { id: 'b', par: 3 }];
+assert.equal(relativeToPar({ scores: [3], strokes: 2, done: true }, parRound, parCourses), 0, 'a finished current hole counts');
+assert.equal(relativeToPar({ scores: [3], strokes: 2, done: false }, parRound, parCourses), 1, 'an open hole does not count');
+assert.equal(relativeToPar({ scores: [3, 2], strokes: 0, done: true }, { courseIds: ['a', 'b'], holeIndex: 2, completed: true }, parCourses), 0, 'a completed round counts every hole once');
 
 console.log('minigolf ui: all checks passed');

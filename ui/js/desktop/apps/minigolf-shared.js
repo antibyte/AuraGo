@@ -56,6 +56,9 @@ export const worldIds = courses => [...new Set((courses || []).map(course => cou
 
 export const formatToPar = (diff, parLabel) => diff === 0 ? parLabel : diff < 0 ? MINUS + Math.abs(diff) : '+' + diff;
 
+// Fills {name} placeholders; function replacements keep "$" in player names literal.
+export const fillText = (text, values) => Object.entries(values).reduce((out, [name, value]) => out.replace('{' + name + '}', () => String(value)), text);
+
 export function powerHex(value) {
     const t = Math.max(0, Math.min(1, Number(value) || 0));
     const index = t <= POWER_STOPS[1][0] ? 0 : 1;

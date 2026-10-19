@@ -7898,5 +7898,12 @@
   "minigolf.kbd_space": "Leertaste",
   "minigolf.kbd_shift": "Umschalt",
   "minigolf.kbd_escape": "Esc",
-  "minigolf.tutorial_again": "Einführung erneut starten"
+  "minigolf.tutorial_again": "Einführung erneut starten",
+  "minigolf.hole_done": "Bahn {hole} geschafft",
+  "minigolf.to_par": "±Par",
+  "minigolf.wins": "{name} gewinnt!",
+  "minigolf.tie": "Unentschieden!",
+  "minigolf.other_hole": "Andere Bahn",
+  "minigolf.hole_best": "Bestwert der Bahn",
+  "minigolf.place": "Platz {n}"
 }

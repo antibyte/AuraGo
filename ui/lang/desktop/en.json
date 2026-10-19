@@ -7898,5 +7898,12 @@
   "minigolf.kbd_space": "Space",
   "minigolf.kbd_shift": "Shift",
   "minigolf.kbd_escape": "Esc",
-  "minigolf.tutorial_again": "Restart the introduction"
+  "minigolf.tutorial_again": "Restart the introduction",
+  "minigolf.hole_done": "Hole {hole} complete",
+  "minigolf.to_par": "±Par",
+  "minigolf.wins": "{name} wins!",
+  "minigolf.tie": "It’s a tie!",
+  "minigolf.other_hole": "Another hole",
+  "minigolf.hole_best": "Best on this hole",
+  "minigolf.place": "Place {n}"
 }
