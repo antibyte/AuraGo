@@ -1,0 +1,221 @@
+/* Windows XP: Luna-inspired blue title gradients, a green Start button and warm control surfaces. */
+.desktop-body[data-theme="windows_xp"] {
+    color-scheme: light;
+    --vd-bg: #b7c9e4;
+    --vd-surface: #ece9d8;
+    --vd-surface-strong: #fffdf6;
+    --vd-border: #8298b5;
+    --vd-border-bright: #ffffff;
+    --vd-text: #1c2d45;
+    --vd-muted: #435873;
+    --vd-shadow: 0 12px 30px rgba(26, 54, 94, .24);
+    --vd-shadow-window: 0 18px 40px rgba(20, 48, 89, .3), 0 0 0 1px rgba(255, 255, 255, .6);
+    --vd-inner-glow: inset 0 1px 0 #ffffff;
+    --vd-window-radius: 3px;
+    --vd-font-ui: Tahoma, 'Segoe UI', Arial, sans-serif;
+    --vd-accent: #1d5faf;
+    --vd-accent-r: 29;
+    --vd-accent-g: 95;
+    --vd-accent-b: 175;
+    --vd-accent-glow: rgba(31, 100, 188, .16);
+    --vd-accent-contrast: #ffffff;
+    --vd-theme-app-bg: #ece9d8;
+    --vd-theme-panel-bg: #f1efe2;
+    --vd-theme-panel-bg-strong: #fffdf6;
+    --vd-theme-chrome-bg: #d8e6f8;
+    --vd-theme-overlay-bg: rgba(27, 52, 89, .34);
+    --vd-theme-control-bg: #ffffff;
+    --vd-theme-control-hover: #e9f1fc;
+    --vd-theme-border: #9aaec8;
+    --vd-theme-border-strong: #6685ae;
+    --vd-theme-muted: #435873;
+    --vd-theme-accent-soft: rgba(29, 95, 175, .12);
+    --vd-theme-accent-border: rgba(29, 95, 175, .45);
+    --vd-theme-radius-panel: 3px;
+    --vd-theme-radius-modal: 3px;
+    --vd-theme-shadow-panel: 0 10px 26px rgba(22, 54, 99, .2), inset 0 1px 0 #fff;
+    --vd-theme-shadow-modal: 0 20px 48px rgba(20, 48, 91, .3), inset 0 1px 0 #fff;
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, .9);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(41, 91, 158, .22);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #fff 18%, #a7cafa 50%, #fff 82%, transparent);
+    --ds-color-fg-primary: #1c2d45;
+    --ds-color-fg-secondary: #344a65;
+    --ds-color-fg-muted: #435873;
+    --ds-color-fg-disabled: #78869a;
+    --ds-color-bg-canvas: #dce7f5;
+    --ds-color-bg-raised: #ece9d8;
+    --ds-color-bg-overlay: #f1efe2;
+    --ds-color-bg-modal: #fffdf6;
+    --ds-color-surface-0: #ece9d8;
+    --ds-color-surface-1: #f1efe2;
+    --ds-color-surface-2: #dce6f4;
+    --ds-color-surface-3: #fffdf6;
+    --ds-color-border-subtle: #bfcbdb;
+    --ds-color-border-default: #9aaec8;
+    --ds-color-border-strong: #6685ae;
+    --ds-color-border-focus: #1d5faf;
+    --ds-color-accent-500: #1d5faf;
+    --ds-color-accent-600: #164a8d;
+    --ds-color-accent-glow: rgba(29, 95, 175, .16);
+    --ds-color-control-active: #d1def0;
+    --ds-color-inner-highlight: #ffffff;
+    --ds-elevation-1: 0 1px 3px rgba(34, 62, 99, .12);
+    --ds-elevation-2: 0 4px 10px rgba(34, 62, 99, .16);
+    --ds-elevation-3: 0 10px 24px rgba(34, 62, 99, .2);
+    --ds-elevation-4: 0 20px 42px rgba(34, 62, 99, .24);
+    --ds-elevation-5: 0 28px 60px rgba(34, 62, 99, .3);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+    --vd-taskbar-height: 40px;
+    --vd-start-button-size: 40px;
+}
+
+.desktop-body[data-theme="windows_xp"] .vd-taskbar {
+    border: 1px solid #2c5ca8;
+    border-bottom: 0;
+    background: linear-gradient(180deg, #4a92f0 0%, #2874d8 24%, #155ab9 65%, #08408c 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .48), 0 -3px 9px rgba(31, 73, 133, .24);
+}
+.desktop-body[data-theme="windows_xp"] .vd-taskbar::before { background: linear-gradient(90deg, transparent, rgba(190, 220, 255, .55), transparent); }
+.desktop-body[data-theme="windows_xp"] .vd-start-button {
+    width: 110px;
+    min-width: 110px;
+    height: 40px;
+    padding: 0 10px;
+    gap: 0;
+    border: 1px solid #4d8334;
+    border-radius: 16px 10px 10px 16px;
+    background: linear-gradient(180deg, #4a7e38 0%, #36702b 46%, #20561d 100%);
+    color: #fff;
+    font: 700 14px Tahoma, 'Segoe UI', sans-serif;
+    text-shadow: 0 1px 2px #173c16;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 1px 0 5px rgba(12, 51, 8, .25);
+    transform: none;
+}
+.desktop-body[data-theme="windows_xp"] .vd-start-button:hover { background: linear-gradient(180deg, #568b43, #3d792f 48%, #286522); transform: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-button :is(.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon, .vd-start-label) { display: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-button .vd-start-xp-label {
+    display: inline;
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    color: #fff;
+    font: italic 700 14px Tahoma, 'Segoe UI', sans-serif;
+    line-height: 1;
+    white-space: nowrap;
+}
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand) {
+    border: 1px solid rgba(176, 212, 255, .42);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(45, 112, 201, .96), rgba(20, 72, 148, .98));
+    color: #fff;
+    box-shadow: inset 0 1px rgba(255, 255, 255, .32), 0 1px 2px rgba(5, 35, 82, .28);
+}
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand):hover { background: linear-gradient(180deg, #3478c7, #1b579f); }
+.desktop-body[data-theme="windows_xp"] .vd-task-button.active,
+.desktop-body[data-theme="windows_xp"] .vd-task-button[aria-pressed="true"] { background: linear-gradient(180deg, #174b99, #2b68b9); box-shadow: inset 0 2px 5px rgba(5, 29, 74, .42); }
+.desktop-body[data-theme="windows_xp"] .vd-window {
+    border: 3px solid #1658b0;
+    border-radius: 3px;
+    background: #ece9d8;
+    box-shadow: var(--vd-shadow-window);
+    overflow: hidden;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window-titlebar {
+    height: 30px;
+    min-height: 30px;
+    padding: 2px 6px;
+    gap: 7px;
+    background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%);
+    border-bottom: 1px solid #073b91;
+    color: #fff;
+    text-shadow: 0 1px 2px #17427f;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-titlebar { background: linear-gradient(180deg, #9bb8df 0 3px, #5579ae 4px 66%, #3f6092 67% 100%); }
+.desktop-body[data-theme="windows_xp"] .vd-window-title { color: #fff; font-weight: 700; letter-spacing: .01em; }
+.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-title { opacity: 1; }
+.desktop-body[data-theme="windows_xp"] .vd-window-titlebar .vd-window-subtitle { color: #dce9f8; }
+.desktop-body[data-theme="windows_xp"] .vd-window-button {
+    width: 25px;
+    height: 23px;
+    border: 1px solid #17488f;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #72b5ff, #2375e0 52%, #0752b9);
+    color: #fff;
+    box-shadow: inset 0 1px rgba(255, 255, 255, .7), 0 1px 2px rgba(0, 28, 80, .3);
+}
+.desktop-body[data-theme="windows_xp"] .vd-window-button:hover { background: linear-gradient(180deg, #9bcfff, #3988ed 54%, #1760bf); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"] { background: linear-gradient(180deg, #d84f3c, #bd3025 52%, #922019); border-color: #761712; }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"]:hover { background: linear-gradient(180deg, #e4674d, #cb3a2b 52%, #a6251e); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menubar, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover) { border-color: #a8b8ce; background: #fffef9; color: #1c2d45; box-shadow: 0 8px 22px rgba(28, 53, 87, .22); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menu-button, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 3px; background: #dce9f8; color: #163f79; outline-color: #1d5faf; }
+.desktop-body[data-theme="windows_xp"] .vd-start-menu {
+    width: min(560px, calc(100vw - 14px));
+    border: 1px solid #2a67bc;
+    border-radius: 3px;
+    background: #f4f2e9;
+    box-shadow: 0 12px 36px rgba(18, 45, 84, .38), inset 0 1px #fff;
+    overflow: hidden;
+}
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-header {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 12px;
+    border-bottom: 1px solid #184b99;
+    background: linear-gradient(180deg, #4a8de4, #235eb5);
+    color: #fff;
+    text-shadow: 0 1px 2px #17427f;
+}
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { display: grid; grid-template-columns: minmax(0, 1fr) 180px; grid-template-rows: minmax(0, 1fr) minmax(120px, .76fr); gap: 0; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-pane { grid-column: 1; grid-row: 1 / span 2; min-width: 0; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { grid-column: 2; grid-row: 1; display: grid; align-content: start; gap: 2px; padding: 8px; border-left: 1px solid #c1c9d4; background: #f4f2e9; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { min-height: 34px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #24466f; font: 600 12px Tahoma, 'Segoe UI', sans-serif; text-align: left; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:hover,
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:focus-visible { border-color: #b1c8e3; background: #dce9f8; color: #163f79; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-rail { grid-column: 2; grid-row: 2; min-height: 0; overflow: auto; border-top: 1px solid #8ea8ca; border-right: 0; }
+.desktop-body[data-theme="windows_xp"] .vd-start-search { padding: 10px 12px; background: linear-gradient(180deg, #fefefe, #dce8f6); border-bottom: 1px solid #b8c8de; }
+.desktop-body[data-theme="windows_xp"] .vd-start-search input { border: 1px solid #91a6c1; border-radius: 3px; background: #fff; color: #1c2d45; box-shadow: inset 0 1px 2px rgba(33, 57, 89, .14); }
+.desktop-body[data-theme="windows_xp"] .vd-start-rail { border-right: 1px solid #8ea8ca; background: linear-gradient(180deg, #3978c9, #1a559f); }
+.desktop-body[data-theme="windows_xp"] .vd-start-category { border: 1px solid transparent; border-radius: 3px; color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) { border-color: #9abce6; background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(185,216,255,.12)); color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane { background: linear-gradient(90deg, #fffef9, #f2f0e6); }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane-head { border-bottom: 1px solid #c3c9d1; }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane-title { color: #174c91; font-weight: 700; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):hover { background-color: #dce9f8; color: #173f75; }
+.desktop-body[data-theme="windows_xp"] .vd-start-item { border-radius: 3px; color: #253b56; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 1px solid #91a9c7; border-radius: 3px; background: #f7f6ef; color: #1c2d45; box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 1px solid #8b9db3; border-radius: 2px; background: linear-gradient(180deg, #fff, #e8e7df); color: #1c2d45; box-shadow: inset 0 1px #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-button:hover { border-color: #3c77c3; background: linear-gradient(180deg, #fff, #dcecff); }
+.desktop-body[data-theme="windows_xp"] .vd-button-primary { border-color: #164a8d; background: linear-gradient(180deg, #286ab8, #164a8d); color: #fff; text-shadow: 0 1px #103665; }
+.desktop-body[data-theme="windows_xp"] .vd-window-content :is(input[type="checkbox"], input[type="radio"]) { accent-color: #1d5faf; }
+.desktop-body[data-theme="windows_xp"] .vd-window-content :is(input, select, textarea):focus-visible { outline: 2px solid #1d5faf; outline-offset: 1px; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 15px; height: 15px; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { border: 1px solid #bcc5cf; background: #e7e7e3; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #e7e7e3; border-radius: 5px; background: linear-gradient(90deg, #e2effd, #98b8de); box-shadow: inset 1px 0 #fff, inset -1px 0 #89a4c4; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #d8e9fa, #78a3d5); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #174f97; outline-offset: 2px; }
+.desktop-body[data-theme="windows_xp"] ::selection { background: #286dc2; color: #fff; }
+@media (max-width: 480px) {
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { grid-template-columns: minmax(0, 1fr) 146px; grid-template-rows: minmax(0, 1fr) 118px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { gap: 0; padding: 4px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { min-height: 29px; padding: 4px; font-size: 11px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-category { min-height: 38px; padding-inline: 6px; }
+}
+@media (pointer: coarse) {
+    .desktop-body[data-theme="windows_xp"] { --vd-taskbar-height: 52px; }
+    .desktop-body[data-theme="windows_xp"] .vd-window-titlebar { height: 44px; min-height: 44px; padding-inline: 8px; }
+    .desktop-body[data-theme="windows_xp"] .vd-window-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-button { height: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link,
+    .desktop-body[data-theme="windows_xp"] .vd-start-category { min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 18px; height: 18px; }
+}

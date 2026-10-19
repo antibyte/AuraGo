@@ -302,7 +302,7 @@
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
         'sound.enabled': 'false',
-        'sound.theme': 'crystal',
+        'sound.theme': 'desktop',
         'sound.volume': '0.6',
         'sound.windows': 'true',
         'sound.notifications': 'true',
@@ -390,11 +390,12 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest, xpThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
             api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
-            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
+            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            api('/img/windows-xp/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.miniIconManifest = miniManifest;
@@ -402,7 +403,8 @@
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
         state.iconThemeManifests = {
             papirus: defaultThemeManifest,
-            whitesur: whitesurThemeManifest
+            whitesur: whitesurThemeManifest,
+            windows_xp: xpThemeManifest
         };
     }
 

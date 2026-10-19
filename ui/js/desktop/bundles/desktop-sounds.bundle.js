@@ -239,6 +239,88 @@
         });
     }
 
+    // Compose a complete desktop event bank from a distinct synthesis profile.
+    // Theme files provide the pitch, timbre and texture choices; this keeps event
+    // roles consistent while each bank retains its own authored sound character.
+    function composeDesktopEvents(profile) {
+        const p = profile || {};
+        const events = {};
+        EVENTS.forEach((eventId, index) => {
+            const menu = eventId.startsWith('menu.');
+            const low = /(?:close|minimize|deny|error|cancel|trash|delete|fracture)/.test(eventId);
+            const busy = /(?:maximize|space\.switch|fracture|impact|error)/.test(eventId);
+            const anchor = (p.root || 60) + (low ? (p.fall || -5) : (p.rise || 0)) + (index % 3) * (p.color || 2);
+            const gain = (p.gain || 0.2) * (menu ? 0.62 : 1) * (busy ? 1.08 : 0.9);
+            const step = menu ? 0.026 : (p.step || 0.07);
+            const count = menu ? 1 : (busy ? 3 : 2);
+            const layers = [];
+
+            if (p.voice === 'relay') {
+                for (let i = 0; i < count; i++) {
+                    layers.push(layer('fm', {
+                        midi: anchor + i * (low ? -3 : (p.interval || 4)), at: i * step,
+                        duration: menu ? 0.075 : 0.15 + (p.tail || 0.08), gain: gain * (i ? 0.62 : 1),
+                        attack: 0.003, decay: 0.06, sustain: 0, release: p.tail || 0.08,
+                        modRatio: p.modRatio || 1.8, index: (p.index || 24) * (low ? 1.2 : 1), indexDecay: 0.11,
+                        filter: { type: 'lowpass', freq: p.filter || 2200, q: 0.8 }, reverb: menu ? 'short' : 'plate'
+                    }));
+                }
+                if (!menu && (busy || eventId.startsWith('notify.'))) {
+                    layers.push(layer('noise', { at: step * count, duration: 0.06, gain: gain * 0.12,
+                        color: 'pink', filter: { type: 'bandpass', freq: p.signal || 1250, q: 0.7 }, reverb: 'short' }));
+                }
+            } else if (p.voice === 'chime') {
+                const intervals = busy ? [0, 4, 7] : (low ? [0, -3] : [0, 5]);
+                intervals.forEach((interval, i) => {
+                    layers.push(layer('tone', {
+                        midi: anchor + interval, at: i * step, duration: menu ? 0.095 : 0.22 + (p.tail || 0.12),
+                        gain: gain * (i ? 0.6 : 1), attack: 0.004, decay: 0.08, sustain: 0.04,
+                        release: p.tail || 0.12, type: 'sine',
+                        partials: [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.22, type: 'triangle' }, { ratio: 3.01, gain: 0.06 }],
+                        filter: { type: 'lowpass', freq: p.filter || 4300, q: 0.55 }, reverb: menu ? 'short' : 'plate'
+                    }));
+                });
+            } else if (p.voice === 'slime') {
+                const start = midiToHz(anchor);
+                layers.push(layer('sweep', {
+                    freq: start, toFreq: midiToHz(anchor + (low ? -7 : 6)), duration: menu ? 0.11 : 0.24,
+                    sweepTime: menu ? 0.09 : 0.21, type: 'sine', gain: gain * 0.88,
+                    attack: 0.004, decay: 0.08, sustain: 0.05, release: p.tail || 0.14,
+                    filter: { type: 'lowpass', freq: p.filter || 1500, q: p.resonance || 3 }, reverb: 'short'
+                }));
+                layers.push(layer('pluck', {
+                    midi: anchor - 12, at: menu ? 0.012 : 0.045, duration: menu ? 0.12 : 0.2,
+                    gain: gain * 0.54, periods: 11, decay: 2.6,
+                    filter: { type: 'lowpass', freq: p.filter || 1500, q: 1.3 }, reverb: 'short'
+                }));
+                if (busy) layers.push(layer('noise', {
+                    at: 0.03, duration: 0.12, gain: gain * 0.14, color: 'pink', decayPower: 2.4,
+                    filter: { type: 'lowpass', freq: p.noiseCutoff || 950, q: 0.7 }, reverb: 'short'
+                }));
+            } else {
+                layers.push(layer('pluck', {
+                    midi: anchor - 8, duration: menu ? 0.12 : 0.19, gain: gain * 0.8,
+                    periods: p.periods || 7, decay: 2.4,
+                    filter: { type: 'lowpass', freq: p.filter || 1800, q: 0.8 }, reverb: menu ? 'short' : 'plate'
+                }));
+                layers.push(layer('noise', {
+                    at: 0.012, duration: busy ? 0.13 : 0.075, gain: gain * (busy ? 0.36 : 0.18),
+                    color: 'pink', decayPower: 2.1,
+                    filter: { type: busy ? 'bandpass' : 'lowpass', freq: p.noiseCutoff || 1200, q: 0.85 },
+                    reverb: menu ? 'short' : 'plate'
+                }));
+                if (!menu) layers.push(layer('tone', {
+                    midi: anchor + (low ? -12 : 0), at: 0.026, duration: 0.16, gain: gain * 0.42,
+                    attack: 0.002, decay: 0.07, sustain: 0, release: 0.11, type: 'triangle',
+                    filter: { type: 'lowpass', freq: p.filter || 1800, q: 0.6 }, reverb: 'short'
+                }));
+            }
+            events[eventId] = layers;
+        });
+        events._default = events['notify.info'];
+        return events;
+    }
+
     function normalizeBuffer(buffer) {
         let peak = 0;
         for (let c = 0; c < buffer.numberOfChannels; c++) {
@@ -307,6 +389,7 @@
         MAX_SECONDS,
         midiToHz,
         layer,
+        composeDesktopEvents,
         renderLayers,
         normalizeBuffer
     };
@@ -796,4 +879,86 @@
         events._default = events['notify.info'];
         window.DesktopSoundThemes[id] = { id, events };
     });
+})();
+
+;
+/* ui/js/desktop/sound/theme-electronic-dreams.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    window.DesktopSoundThemes.electronic_dreams = {
+        id: 'electronic_dreams',
+        events: S.composeDesktopEvents({ voice: 'relay', root: 59, rise: 3, fall: -4, color: 2, interval: 5,
+            step: 0.072, gain: 0.23, tail: 0.09, modRatio: 1.55, index: 21, filter: 1750, signal: 980 })
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-windows-xp.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    window.DesktopSoundThemes.windows_xp = {
+        id: 'windows_xp',
+        // Fresh friendly chimes with a bright upper partial and quick, rounded tails.
+        events: S.composeDesktopEvents({ voice: 'chime', root: 65, rise: 2, fall: -3, color: 2,
+            step: 0.064, gain: 0.22, tail: 0.13, filter: 4100 })
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-green-slime.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    window.DesktopSoundThemes.green_slime = {
+        id: 'green_slime',
+        events: S.composeDesktopEvents({ voice: 'slime', root: 53, rise: 5, fall: -7, color: 3,
+            step: 0.082, gain: 0.24, tail: 0.15, filter: 980, resonance: 3.8, noiseCutoff: 680 })
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-voxel-world.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    const L = S.layer;
+    const materials = ['wood', 'stone', 'earth'];
+
+    function impact(eventId, material) {
+        const fracture = eventId === 'window.fracture';
+        const spec = {
+            wood: { midi: 43, cutoff: 950, noise: 0.11, tone: 0.18, periods: 9 },
+            stone: { midi: 55, cutoff: 1850, noise: 0.2, tone: 0.15, periods: 5 },
+            earth: { midi: 38, cutoff: 620, noise: 0.23, tone: 0.11, periods: 12 }
+        }[material];
+        const layers = [
+            L('pluck', { midi: spec.midi - (fracture ? 5 : 0), duration: fracture ? 0.22 : 0.15,
+                gain: fracture ? 0.3 : 0.34, periods: spec.periods, decay: fracture ? 2.1 : 2.8,
+                filter: { type: 'lowpass', freq: spec.cutoff, q: 0.9 }, reverb: 'short' }),
+            L('noise', { at: 0.004, duration: fracture ? 0.21 : 0.12, gain: spec.noise,
+                color: 'pink', decayPower: fracture ? 2.6 : 3.1,
+                filter: { type: material === 'stone' ? 'bandpass' : 'lowpass', freq: spec.cutoff, q: 0.9 }, reverb: 'short' }),
+            L('tone', { at: 0.015, midi: spec.midi - (fracture ? 12 : 7), duration: 0.18,
+                gain: spec.tone, attack: 0.002, decay: 0.07, sustain: 0, release: 0.12,
+                type: 'triangle', filter: { type: 'lowpass', freq: spec.cutoff * 1.4, q: 0.7 }, reverb: 'short' })
+        ];
+        if (fracture) layers.push(L('noise', { at: 0.075, duration: 0.1, gain: spec.noise * 0.42,
+            color: 'pink', decayPower: 3.6,
+            filter: { type: 'highpass', freq: material === 'stone' ? 2200 : 1100 }, reverb: 'short' }));
+        return layers;
+    }
+
+    const specialFx = {};
+    ['window.fracture', 'window.impact'].forEach(eventId => {
+        specialFx[eventId] = Object.fromEntries(materials.map(material => [material, impact(eventId, material)]));
+    });
+
+    window.DesktopSoundThemes.voxel_world = {
+        id: 'voxel_world',
+        events: S.composeDesktopEvents({ voice: 'voxel', root: 48, rise: 3, fall: -5, color: 2,
+            step: 0.064, gain: 0.22, filter: 1380, noiseCutoff: 1150, periods: 7 }),
+        specialFx
+    };
 })();

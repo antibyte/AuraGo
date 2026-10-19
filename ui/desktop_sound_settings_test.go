@@ -28,6 +28,14 @@ var desktopSoundLocaleKeys = []string{
 	"desktop.settings_sound_theme_crazy_desc",
 	"desktop.settings_sound_theme_lollipop_desc",
 	"desktop.settings_sound_theme_organic_desc",
+	"desktop.settings_sound_theme_electronic_dreams",
+	"desktop.settings_sound_theme_electronic_dreams_desc",
+	"desktop.settings_sound_theme_windows_xp",
+	"desktop.settings_sound_theme_windows_xp_desc",
+	"desktop.settings_sound_theme_green_slime",
+	"desktop.settings_sound_theme_green_slime_desc",
+	"desktop.settings_sound_theme_voxel_world",
+	"desktop.settings_sound_theme_voxel_world_desc",
 	"desktop.settings_category_sound",
 	"desktop.settings_category_sound_desc",
 	"desktop.settings_sound_enabled",
@@ -102,6 +110,10 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 		"DesktopSoundThemes.analog",
 		"DesktopSoundThemes.workshop",
 		"DesktopSoundThemes.water",
+		"DesktopSoundThemes.electronic_dreams",
+		"DesktopSoundThemes.windows_xp",
+		"DesktopSoundThemes.green_slime",
+		"DesktopSoundThemes.voxel_world",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop-sounds bundle missing marker %q", marker)
@@ -182,6 +194,33 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 			if !found[event] {
 				t.Fatalf("theme %s missing event %q", theme, event)
 			}
+		}
+	}
+	for _, theme := range []string{"electronic-dreams", "windows-xp", "green-slime", "voxel-world"} {
+		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
+		if !strings.Contains(source, "composeDesktopEvents") {
+			t.Errorf("theme %s must compose a complete event bank from its authored profile", theme)
+		}
+	}
+	voxel := readDesktopAssetText(t, "js/desktop/sound/theme-voxel-world.js")
+	for _, marker := range []string{"specialFx", "'window.fracture'", "'window.impact'", "'wood'", "'stone'", "'earth'"} {
+		if !strings.Contains(voxel, marker) {
+			t.Errorf("voxel-world bank missing material sound marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopVoxelSoundRuntimeContract(t *testing.T) {
+	t.Parallel()
+
+	runtime := readDesktopAssetText(t, "js/desktop/core/sound-runtime.js")
+	for _, marker := range []string{
+		"'window.fracture': 'windows'", "'window.impact': 'windows'",
+		"function queueVoxelFx(", "function ensureVoxelFxBuffer(", "currentThemeId() !== 'voxel_world'",
+		"cancelVoxelFx()", "cleanVoxelFxOptions", "options.pan", "options.strength",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Errorf("sound-runtime missing voxel FX contract marker %q", marker)
 		}
 	}
 }

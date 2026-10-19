@@ -24,7 +24,8 @@
                         ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
                         ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
                         ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
-                        ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
+                        ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip'],
+                        ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world']
                     ]),
                     settingDesktopThemes(),
                     settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
@@ -39,7 +40,7 @@
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
                     ]),
                     settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
-                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur']
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur'], ['windows_xp', 'desktop.settings_icon_theme_windows_xp']
                     ])
                 ].filter(Boolean)
             },
@@ -590,18 +591,13 @@
                 }
             }
             if (!ctx.state.bootstrap) ctx.state.bootstrap = {};
-            const results = await Promise.all(updates.map(update =>
-                ctx.api('/api/desktop/settings', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(update)
-                })
-            ));
-            const last = results[results.length - 1];
-            ctx.state.bootstrap.settings = last.settings || Object.assign(ctx.desktopSettings(), { [key]: value });
-            if (updates.length > 1) {
-                for (const u of updates) ctx.state.bootstrap.settings[u.key] = u.value;
-            }
+            const written = Object.fromEntries(updates.map(update => [update.key, update.value]));
+            const result = await ctx.api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates.length > 1 ? { settings: written } : updates[0])
+            });
+            ctx.state.bootstrap.settings = result.settings || Object.assign({}, ctx.desktopSettings(), written);
             if (themeChange && typeof ctx.followThemeWallpaper === 'function') {
                 // A failed wallpaper hand-over must not keep the already saved theme from being applied.
                 try {

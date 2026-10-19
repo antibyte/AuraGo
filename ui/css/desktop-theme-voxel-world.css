@@ -1,0 +1,139 @@
+/* Voxel World: chunky grass, earth, stone and timber blocks in a bright, warm desktop. */
+.desktop-body[data-theme="voxel_world"] {
+    color-scheme: light;
+    --vd-bg: #d8e7d1;
+    --vd-surface: #f5f1e5;
+    --vd-surface-strong: #fffaf0;
+    --vd-border: #8c7856;
+    --vd-border-bright: #fff5d9;
+    --vd-text: #352b1e;
+    --vd-muted: #5d513e;
+    --vd-shadow: 0 12px 26px rgba(53, 43, 30, .2);
+    --vd-shadow-window: 0 12px 0 #7b5938, 0 18px 34px rgba(52, 42, 27, .3), inset 0 1px 0 #fff7df;
+    --vd-inner-glow: inset 0 1px 0 #fff9e4;
+    --vd-window-radius: 3px;
+    --vd-font-ui: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-accent: #476b3c;
+    --vd-accent-r: 71;
+    --vd-accent-g: 107;
+    --vd-accent-b: 60;
+    --vd-accent-glow: rgba(71, 107, 60, .14);
+    --vd-accent-contrast: #ffffff;
+    --vd-theme-app-bg: #f5f1e5;
+    --vd-theme-panel-bg: #e7dfcb;
+    --vd-theme-panel-bg-strong: #fffaf0;
+    --vd-theme-chrome-bg: #d9e8d2;
+    --vd-theme-overlay-bg: rgba(38, 46, 31, .34);
+    --vd-theme-control-bg: #fffaf0;
+    --vd-theme-control-hover: #e7efdd;
+    --vd-theme-border: #9a8967;
+    --vd-theme-border-strong: #735d3c;
+    --vd-theme-muted: #5d513e;
+    --vd-theme-accent-soft: rgba(71, 107, 60, .12);
+    --vd-theme-accent-border: rgba(71, 107, 60, .44);
+    --vd-theme-radius-panel: 3px;
+    --vd-theme-radius-modal: 4px;
+    --vd-theme-shadow-panel: 0 6px 0 #b19a6d, 0 12px 22px rgba(54, 44, 29, .18), inset 0 1px 0 #fff9e7;
+    --vd-theme-shadow-modal: 0 7px 0 #977b50, 0 18px 36px rgba(48, 39, 26, .28), inset 0 1px 0 #fff9e7;
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, .92);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(87, 104, 64, .2);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #f7f0d4, #92ad70, transparent);
+    --ds-color-fg-primary: #352b1e;
+    --ds-color-fg-secondary: #4d402c;
+    --ds-color-fg-muted: #5d513e;
+    --ds-color-fg-disabled: #8b806d;
+    --ds-color-bg-canvas: #e0ead7;
+    --ds-color-bg-raised: #f5f1e5;
+    --ds-color-bg-overlay: #e7dfcb;
+    --ds-color-bg-modal: #fffaf0;
+    --ds-color-surface-0: #f5f1e5;
+    --ds-color-surface-1: #eee8d8;
+    --ds-color-surface-2: #e7dfcb;
+    --ds-color-surface-3: #fffaf0;
+    --ds-color-border-subtle: #c4b99f;
+    --ds-color-border-default: #9a8967;
+    --ds-color-border-strong: #735d3c;
+    --ds-color-border-focus: #476b3c;
+    --ds-color-accent-500: #476b3c;
+    --ds-color-accent-600: #35562d;
+    --ds-color-accent-glow: rgba(71, 107, 60, .14);
+    --ds-color-control-active: #d2dec6;
+    --ds-color-inner-highlight: #fff9e4;
+    --ds-elevation-1: 0 2px 0 #c5b28d, 0 3px 6px rgba(60, 48, 30, .12);
+    --ds-elevation-2: 0 3px 0 #b9a27a, 0 7px 14px rgba(60, 48, 30, .16);
+    --ds-elevation-3: 0 5px 0 #a88d5f, 0 12px 22px rgba(60, 48, 30, .2);
+    --ds-elevation-4: 0 6px 0 #977b50, 0 20px 34px rgba(60, 48, 30, .24);
+    --ds-elevation-5: 0 8px 0 #80653f, 0 28px 48px rgba(60, 48, 30, .28);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+    --vd-taskbar-height: 56px;
+    --vd-start-button-size: 58px;
+}
+
+.desktop-body[data-theme="voxel_world"] .vd-taskbar {
+    border: 2px solid #654b30;
+    border-bottom: 0;
+    background: linear-gradient(180deg, #80a653 0 12%, #5d7f3d 12% 24%, #7f5a35 24% 100%);
+    box-shadow: inset 0 2px 0 rgba(255, 243, 205, .62), 0 -5px 0 rgba(85, 66, 43, .18);
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand) {
+    border: 2px solid #755332;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #89ad5d 0 20%, #668947 20% 100%);
+    color: #203018;
+    text-shadow: 0 1px rgba(255, 255, 255, .42);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .38), inset 0 -3px 0 rgba(49, 62, 33, .26), 0 3px 0 #694a2e;
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand):hover { background: linear-gradient(180deg, #a0bf70 0 20%, #789d50 20% 100%); }
+.desktop-body[data-theme="voxel_world"] :is(.vd-task-button.active, .vd-task-button[aria-pressed="true"]) { background: linear-gradient(180deg, #725338 0 18%, #9a7047 18% 100%); box-shadow: inset 0 2px 0 rgba(255, 239, 200, .34), inset 0 -2px 0 rgba(48, 35, 22, .2), 0 2px 0 #573e28; }
+.desktop-body[data-theme="voxel_world"] .vd-window {
+    border: 2px solid #705338;
+    border-radius: 3px;
+    background: #f5f1e5;
+    box-shadow: var(--vd-shadow-window);
+    overflow: hidden;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window.active { border-color: #476b3c; }
+.desktop-body[data-theme="voxel_world"] .vd-window-titlebar {
+    background: linear-gradient(180deg, #5b783b 0 17%, #48652f 17% 26%, #68482f 26% 100%);
+    border-bottom: 2px solid #63492e;
+    color: #fffbe8;
+    text-shadow: 0 1px #3d4e2d;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-title { color: #fffbe8; font-weight: 700; letter-spacing: .015em; text-shadow: 0 1px 2px rgba(34, 24, 16, .82); }
+.desktop-body[data-theme="voxel_world"] .vd-window-button {
+    border: 2px solid #60452d;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #f5e5b9, #d9c18d);
+    color: #342719;
+    box-shadow: inset 0 1px #fff8df, 0 2px 0 #63492e;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-button:hover { background: linear-gradient(180deg, #fff4d0, #e5cc96); }
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="close"] { background: linear-gradient(180deg, #d98a62, #aa533d); color: #fff; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menubar, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu) {
+    border: 2px solid #7c5a37;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #f8f4e8, #e5dcc6);
+    color: #352b1e;
+    box-shadow: 0 5px 0 #9d8257, 0 12px 22px rgba(48, 38, 25, .22), inset 0 1px #fff9e7;
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 2px; background: #dbe7c9; color: #2d4b2b; outline-color: #476b3c; }
+.desktop-body[data-theme="voxel_world"] .vd-start-rail { border-right: 2px solid #b19a6d; background: linear-gradient(180deg, #e3ead5, #d5e0c7); }
+.desktop-body[data-theme="voxel_world"] .vd-start-category { border-radius: 2px; color: #3a3327; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 2px solid #795a38; border-radius: 4px; background: #f7f2e4; color: #352b1e; box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 2px solid #90734e; border-radius: 2px; background: linear-gradient(180deg, #fffaf0, #e5dcc6); color: #352b1e; box-shadow: inset 0 1px #fff; }
+.desktop-body[data-theme="voxel_world"] .vd-button:hover { background: linear-gradient(180deg, #fffdf4, #dce9d0); }
+.desktop-body[data-theme="voxel_world"] .vd-button-primary { border-color: #294622; background: linear-gradient(180deg, #46683a, #35562d); color: #fff; box-shadow: inset 0 1px rgba(255, 255, 255, .3), 0 2px 0 #3e582e; }
+.desktop-body[data-theme="voxel_world"] .vd-window-content :is(input[type="checkbox"], input[type="radio"]) { accent-color: #476b3c; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 14px; height: 14px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { border: 2px solid #b39b70; background: #d9ceb4; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #d9ceb4; border-radius: 1px; background: linear-gradient(90deg, #91ad62 0 45%, #708d49 45%); box-shadow: inset 1px 0 #c5d394; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #a7c872 0 45%, #7fa354 45%); }
+.desktop-body[data-theme="voxel_world"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid #35562d; outline-offset: 2px; }
+.desktop-body[data-theme="voxel_world"] ::selection { background: #476b3c; color: #fff; }
+@media (pointer: coarse) {
+    .desktop-body[data-theme="voxel_world"] .vd-start-button { min-height: 44px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
+}
