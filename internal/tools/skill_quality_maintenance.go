@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -444,14 +443,13 @@ func (m *SkillManager) validatePythonQualityRevision(ctx context.Context, entry 
 	if err := os.WriteFile(stageCode, []byte(code), 0o600); err != nil {
 		return nil, err
 	}
-	python := GetPythonBin("")
-	if _, statErr := os.Stat(python); statErr != nil {
-		python = findSystemPython()
-	}
+	// Syntax and AST checks are trusted fixed commands, never agent execution.
+	// Do not adopt the agent-writable venv or its startup/import hooks.
+	python := trustedSupervisorBootstrapPython(m.workspaceDir)
 	if python == "" {
-		return nil, fmt.Errorf("python is unavailable for syntax validation")
+		return nil, fmt.Errorf("trusted system Python is unavailable for syntax validation")
 	}
-	if output, compileErr := exec.CommandContext(ctx, python, "-m", "py_compile", stageCode).CombinedOutput(); compileErr != nil {
+	if output, compileErr := supervisorPythonCommand(ctx, python, "-m", "py_compile", stageCode).CombinedOutput(); compileErr != nil {
 		return nil, fmt.Errorf("python syntax validation failed: %s", strings.TrimSpace(string(output)))
 	}
 	originalCode, err := m.GetSkillCode(entry.ID)
@@ -560,7 +558,7 @@ for n in tree.body:
         a=n.args
         out.append({"name":n.name,"async":isinstance(n,ast.AsyncFunctionDef),"posonly":[x.arg for x in a.posonlyargs],"args":[x.arg for x in a.args],"vararg":a.vararg.arg if a.vararg else "","kwonly":[x.arg for x in a.kwonlyargs],"kwarg":a.kwarg.arg if a.kwarg else "","defaults":len(a.defaults),"kwdefaults":[x is not None for x in a.kw_defaults],"returns":ast.unparse(n.returns) if n.returns else ""})
 print(json.dumps(out,sort_keys=True,separators=(",",":")))`
-	output, err := exec.CommandContext(ctx, python, "-c", script, path).CombinedOutput()
+	output, err := supervisorPythonCommand(ctx, python, "-c", script, path).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s", strings.TrimSpace(string(output)))
 	}

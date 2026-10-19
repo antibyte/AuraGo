@@ -37,7 +37,7 @@ func getSharedBrowser() (*rod.Browser, error) {
 	sharedBrowserOnce.Do(func() {
 		u, err := launcher.New().
 			Headless(true).
-			NoSandbox(true).
+			NoSandbox(false).
 			Launch()
 		if err != nil {
 			sharedBrowserErr = err

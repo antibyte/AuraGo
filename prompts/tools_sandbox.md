@@ -14,12 +14,12 @@ conditions: ["sandbox_enabled"]
 |---|---|---|
 | `code` | ✅ | Complete source code to run |
 | `sandbox_lang` | ❌ | Language: `python` (default), `javascript`, `go`, `java`, `cpp`, `r` |
-| `libraries` | ❌ | Packages to install before running (e.g. `["requests", "pandas"]`) |
+| `libraries` | ❌ | Must be empty; dependencies belong in reviewed pinned images |
 | `description` | ❌ | Brief description of what the code does |
 
 **Important:**
 - `execute_sandbox` is the default isolated executor for supported languages; see `ctx_coding_guidelines.md` for the full execution priority rules
 - Code runs in a fresh container by default — no state persists between calls
-- Network access depends on sandbox configuration (may be disabled)
+- Workers have no network; authorized native calls use the scoped supervisor broker
 - Multi-language support: write the code natively in the target language, set `sandbox_lang` accordingly
-- Installed libraries are available only for the current execution
+- Dependencies must be present in the reviewed pinned image

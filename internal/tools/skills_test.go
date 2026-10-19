@@ -404,7 +404,7 @@ func TestExecuteSkillInSandboxUsesManifestExecutable(t *testing.T) {
 	old := executeSkillSandboxCode
 	t.Cleanup(func() { executeSkillSandboxCode = old })
 	var capturedCode string
-	executeSkillSandboxCode = func(code, lang string, libraries []string, timeoutSeconds int, logger *slog.Logger) (string, error) {
+	executeSkillSandboxCode = func(ctx context.Context, code, lang string, libraries []string, timeoutSeconds int, logger *slog.Logger) (string, error) {
 		capturedCode = code
 		if lang != "python" {
 			t.Fatalf("lang = %q, want python", lang)

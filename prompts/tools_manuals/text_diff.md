@@ -1,30 +1,22 @@
 # text_diff — Text and File Differences
 
-Compare text files or strings to see exact insertions and deletions in unified diff format.
+Compare two files or text strings and return a unified diff. File paths obey the configured workspace restrictions. This tool reads inputs and does not apply patches.
 
 ## Operations
 
-| Operation | Description | Required Params |
-|-----------|-------------|-----------------|
-| `compare_files` | Compare two files on disk | `file_path_a`, `file_path_b` |
-| `compare_text` | Compare two text strings | `text_a`, `text_b` |
-
-## Key Behaviors
-
-- Returns standard unified diff format (like `git diff`).
-- Useful for verifying what changed after a script ran or checking two versions of a config.
-- Automatically handles line endings (CRLF vs LF) to prevent noisy diffs.
+| Operation | Required fields |
+| --- | --- |
+| `diff_files` | `file1`, `file2` |
+| `diff_strings` | `text1`, `text2` |
 
 ## Examples
 
-```
-# Compare two files
-text_diff(operation="compare_files", file_path_a="config.yaml", file_path_b="config.yaml.bak")
-
-# Compare before/after text
-text_diff(operation="compare_text", text_a="old text content", text_b="new text content")
+```json
+{"action":"text_diff","operation":"diff_files","file1":"config.yaml","file2":"config.yaml.bak"}
 ```
 
-## Tips
-- Keep outputs small by only diffing relevant files.
-- Excellent for creating patches or verifying that a `replace_string` operation worked as intended.
+```json
+{"action":"text_diff","operation":"diff_strings","text1":"old text content","text2":"new text content"}
+```
+
+Keep inputs focused on the relevant change. Inspect the returned diff before deciding whether another write is needed. Do not use `compare_files`, `compare_text`, `file_path_a`, `file_path_b`, `text_a`, or `text_b`; those names are not part of this tool's schema.

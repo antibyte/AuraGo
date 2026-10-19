@@ -1,41 +1,29 @@
-# Process Management (`manage_processes`)
+# process_management — AuraGo Background Processes
 
-Platform-independent process listing and resource inspection. Termination is limited to live processes owned by AuraGo's background-process registry.
+Inspect or terminate processes tracked by AuraGo's background-process registry. Completed process status and logs remain available for up to ten minutes. Use `process_analyzer` to inspect arbitrary operating-system processes.
 
 ## Operations
 
-| Operation | Description |
-|-----------|-------------|
-| `list` | Returns the top 50 processes sorted by CPU usage |
-| `kill` | Terminates an AuraGo-owned live background process by PID; requires `allow_shell` |
-| `stats` | Returns detailed memory and CPU info for a specific PID |
+| Operation | Description | Selector |
+| --- | --- | --- |
+| `list` | List AuraGo-managed background processes | none |
+| `status` | Read one managed process's state and captured output | `pid` or `label` |
+| `kill` | Stop one live AuraGo-managed process | `pid` or `label` |
 
-## Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `operation` | string | yes | One of: list, kill, stats |
-| `pid` | integer | for kill/stats | Process ID to target |
+Use a selector from a recent list result. Termination requires `allow_shell`; arbitrary system PIDs, stale registrations, and AuraGo itself cannot be terminated. A label must identify exactly one registered process; prefer its PID when labels are ambiguous.
 
 ## Examples
 
-**List top processes:**
 ```json
-{"action": "manage_processes", "operation": "list"}
+{"action":"process_management","operation":"list"}
 ```
 
-**Kill a process:**
 ```json
-{"action": "manage_processes", "operation": "kill", "pid": 12345}
+{"action":"process_management","operation":"status","pid":12345}
 ```
 
-**Get process stats:**
 ```json
-{"action": "manage_processes", "operation": "stats", "pid": 12345}
+{"action":"process_management","operation":"kill","label":"temporary-build"}
 ```
 
-## Notes
-
-- **Agent processes**: For processes started by the agent in background mode, prefer `list_processes` and `stop_process` — they track agent-specific metadata.
-- **Platform-independent**: Works on Linux, macOS, and Windows without modification.
-- **Permissions**: `kill` requires `allow_shell` and a live registry-owned handle. Arbitrary system PIDs, stale registrations and AuraGo itself cannot be terminated through this tool.
+This schema has no `stats` operation. For CPU or memory details use `process_analyzer` with `operation: "info"` and a PID.

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -12,14 +13,16 @@ func TestUnsafeHostExecutionRequiresExplicitGrant(t *testing.T) {
 	perms.AllowUnsafeHostExecution = false
 	ConfigureRuntimePermissions(perms)
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
-	if _, _, err := ExecutePython("print('blocked')", tempSystemTaskDir(t), tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+	if _, _, err := ExecutePython("print('blocked')", tempSystemTaskDir(t), tempSystemTaskDir(t)); !errors.Is(err, ErrSandboxUnavailable) {
 		t.Fatalf("foreground Python error = %v", err)
 	}
 	if _, err := ExecutePythonBackground("print('blocked')", tempSystemTaskDir(t), tempSystemTaskDir(t), NewProcessRegistry(nil)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
 		t.Fatalf("background Python error = %v", err)
 	}
 	if runtime.GOOS == "windows" {
-		if _, _, err := ExecuteShell(context.Background(), "echo blocked", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		perms.AllowUnsandboxedShell = false
+		ConfigureRuntimePermissions(perms)
+		if _, _, err := ExecuteShell(context.Background(), "echo blocked", tempSystemTaskDir(t)); !errors.Is(err, ErrSandboxUnavailable) {
 			t.Fatalf("Windows shell error = %v", err)
 		}
 	}

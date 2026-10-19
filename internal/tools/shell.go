@@ -104,6 +104,15 @@ func ExecuteShell(ctx context.Context, command, workspaceDir string) (string, st
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if isolatedExecutionRequired(ctx, true) {
+		if err := requireIsolatedPermission(ctx, true); err != nil {
+			return "", "", err
+		}
+		if err := ValidateShellCommandPolicy(command); err != nil {
+			return "", "", err
+		}
+		return runIsolatedWorker(ctx, isolatedShellCode(command), "python", GetForegroundTimeout())
+	}
 	if err := requireHostShellExecutionContext(ctx); err != nil {
 		return "", "", err
 	}

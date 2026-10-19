@@ -81,6 +81,7 @@ type SkillRegistryEntry struct {
 type SkillManager struct {
 	db                *sql.DB
 	skillsDir         string
+	workspaceDir      string
 	logger            *slog.Logger
 	qualityMutationMu sync.RWMutex
 
@@ -279,11 +280,16 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 }
 
 // NewSkillManager creates a new SkillManager instance.
-func NewSkillManager(db *sql.DB, skillsDir string, logger *slog.Logger) *SkillManager {
+func NewSkillManager(db *sql.DB, skillsDir string, logger *slog.Logger, workspaceDirs ...string) *SkillManager {
+	workspaceDir := skillsDir
+	if len(workspaceDirs) > 0 && strings.TrimSpace(workspaceDirs[0]) != "" {
+		workspaceDir = workspaceDirs[0]
+	}
 	return &SkillManager{
-		db:        db,
-		skillsDir: skillsDir,
-		logger:    logger,
+		db:           db,
+		skillsDir:    skillsDir,
+		workspaceDir: workspaceDir,
+		logger:       logger,
 	}
 }
 

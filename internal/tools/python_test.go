@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -276,13 +277,30 @@ func TestExecutePythonCreatesVenvLazily(t *testing.T) {
 
 func TestExecutePythonReportsMissingOptionalRuntime(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
+	perms := defaultRuntimePermissionsForTests()
+	perms.AllowUnsafeHostExecution = false
+	ConfigureRuntimePermissions(perms)
+	sandboxMgrMu.Lock()
+	previous := globalSandboxMgr
+	globalSandboxMgr = nil
+	sandboxMgrMu.Unlock()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+		sandboxMgrMu.Lock()
+		globalSandboxMgr = previous
+		sandboxMgrMu.Unlock()
+	})
 
-	_, _, err := ExecutePython(`print("unreachable")`, t.TempDir(), t.TempDir())
+	workspace := t.TempDir()
+	_, _, err := ExecutePython(`print("unreachable")`, workspace, t.TempDir())
 	if err == nil {
 		t.Fatal("ExecutePython() error = nil, want missing runtime error")
 	}
-	if !strings.Contains(err.Error(), "python runtime unavailable") || !strings.Contains(err.Error(), "failed to create venv") {
-		t.Fatalf("ExecutePython() error = %q, want concrete optional runtime failure", err)
+	if !errors.Is(err, ErrSandboxUnavailable) {
+		t.Fatalf("ExecutePython() error = %q, want missing isolated runtime", err)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, "venv")); !os.IsNotExist(err) {
+		t.Fatal("missing supervisor triggered host venv creation")
 	}
 }
 

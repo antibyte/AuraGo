@@ -60,7 +60,7 @@ func (f *fakeSandboxConn) callTool(ctx context.Context, toolName string, argumen
 	if f.activeCalls > f.maxActiveCalls {
 		f.maxActiveCalls = f.activeCalls
 	}
-	blockExecute := f.blockExecute && toolName == "execute_code"
+	blockExecute := f.blockExecute && toolName == "execute_supervised_code"
 	startCh := f.executeStartCh
 	releaseCh := f.releaseCh
 	closeCh := f.closeCh
@@ -118,6 +118,26 @@ func testSandboxLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+func TestSandboxConnectionCloseHasSingleOwner(t *testing.T) {
+	transport := &fakeSandboxConn{closeCh: make(chan struct{})}
+	mgr := &SandboxManager{logger: testSandboxLogger(), connFactory: func() (sandboxConn, error) { return transport, nil }}
+	conn, err := mgr.openConnContext(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var owners sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		owners.Add(1)
+		go func() { defer owners.Done(); conn.close() }()
+	}
+	owners.Wait()
+	transport.mu.Lock()
+	defer transport.mu.Unlock()
+	if transport.closeCnt != 1 {
+		t.Fatalf("transport closes = %d, want exactly one", transport.closeCnt)
+	}
+}
+
 func TestSandboxManagerExecuteCodeWithoutKeepAliveCreatesFreshConnection(t *testing.T) {
 	logger := testSandboxLogger()
 	var (
@@ -159,8 +179,8 @@ func TestSandboxManagerExecuteCodeWithoutKeepAliveCreatesFreshConnection(t *test
 		if conn.closeCnt != 1 {
 			t.Fatalf("conn %d close count = %d, want 1", i, conn.closeCnt)
 		}
-		if conn.lastTool != "execute_code" {
-			t.Fatalf("conn %d last tool = %q, want execute_code", i, conn.lastTool)
+		if conn.lastTool != "execute_supervised_code" {
+			t.Fatalf("conn %d last tool = %q, want execute_supervised_code", i, conn.lastTool)
 		}
 	}
 }
@@ -500,7 +520,7 @@ func TestSandboxManagerTimeoutCleansUpGoroutine(t *testing.T) {
 }
 
 func TestSandboxMCPEnvUsesNetworkModeAndImage(t *testing.T) {
-	off, err := sandboxMCPEnv(SandboxConfig{Backend: "docker", Image: "python:3.11-slim"})
+	off, err := sandboxMCPEnv(SandboxConfig{Backend: "docker", Image: defaultSandboxImage})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +530,7 @@ func TestSandboxMCPEnvUsesNetworkModeAndImage(t *testing.T) {
 	if _, ok := off["ENABLE_NETWORKING"]; ok {
 		t.Fatalf("ENABLE_NETWORKING must not be set: %#v", off)
 	}
-	if off["IMAGE"] != "python:3.11-slim" {
+	if off["IMAGE"] != defaultSandboxImage {
 		t.Fatalf("image = %q", off["IMAGE"])
 	}
 
@@ -518,7 +538,7 @@ func TestSandboxMCPEnvUsesNetworkModeAndImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if on["SANDBOX_NETWORK_MODE"] != "bridge" || on["BACKEND"] != "podman" {
+	if on["SANDBOX_NETWORK_MODE"] != "none" || on["BACKEND"] != "podman" {
 		t.Fatalf("network on = %#v", on)
 	}
 	if _, ok := on["IMAGE"]; ok {
@@ -559,11 +579,11 @@ func TestSandboxProcessEnvClearsImageWhenUnset(t *testing.T) {
 		t.Fatalf("SANDBOX_NETWORK_MODE = %q", unset["SANDBOX_NETWORK_MODE"])
 	}
 
-	set, err := sandboxProcessEnv(SandboxConfig{Image: "python:3.11-slim"})
+	set, err := sandboxProcessEnv(SandboxConfig{Image: defaultSandboxImage})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if set["IMAGE"] != "python:3.11-slim" {
+	if set["IMAGE"] != defaultSandboxImage {
 		t.Fatalf("IMAGE = %q", set["IMAGE"])
 	}
 }

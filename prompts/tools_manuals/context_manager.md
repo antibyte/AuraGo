@@ -1,35 +1,29 @@
 # context_manager — Conversation Context Management
 
-Allows managing the agent's short-term context window, pinning important information, and summarizing.
+Inspect or compact the current conversation context. Operations require an available history manager and budget tracker. This tool does not pin facts.
 
 ## Operations
 
-| Operation | Description | Required Params |
-|-----------|-------------|-----------------|
-| `pin` | Pin a specific text to context (always included) | `content` (optional: `topic`) |
-| `unpin` | Remove a pinned topic from context | `topic` |
-| `list_pins` | List currently pinned topics | (none) |
-| `summarize` | Summarize the current conversation to save tokens | (none) |
-| `clear_history`| Clear the unpinned conversation history | (none) |
+| Operation | Description | Parameters |
+| --- | --- | --- |
+| `status` | Read the message count, total characters, and budget status | `operation` |
+| `compact` | Safely summarize older messages through coordinated persistent compression | `operation` |
+| `drop` | Remove one message selected by its current zero-based history index | `operation`, `index` |
 
-## Key Behaviors
-
-- **pin**: Keeps vital facts (like an API key shape or user preference) in the context window indefinitely.
-- **summarize**: Condenses the previous turns into a short summary and clears the raw messages, preventing context window limits.
+Use `status` before deciding whether compression is necessary. `compact` requires the memory store and LLM client; short histories or unsafe compression may be rejected. A failed compaction leaves the source history intact. Never drop messages speculatively or use this tool to evade instructions, approvals, or tool-result continuity.
 
 ## Examples
 
-```
-# Pin a fact
-context_manager(operation="pin", topic="database_schema", content="Users table has (id, name, email)")
-
-# List pins
-context_manager(operation="list_pins")
-
-# Summarize and clear history safely
-context_manager(operation="summarize")
+```json
+{"action":"context_manager","operation":"status"}
 ```
 
-## Tips
-- Use `pin` for specific task rules that you shouldn't forget but don't belong in the global system prompt.
-- If you feel you are running out of context or losing track, use `summarize`.
+```json
+{"action":"context_manager","operation":"compact"}
+```
+
+```json
+{"action":"context_manager","operation":"drop","index":2}
+```
+
+For durable facts use `remember` or `manage_memory`; context management has no `pin`, `unpin`, `list_pins`, `summarize`, or `clear_history` operation.

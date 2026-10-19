@@ -352,7 +352,7 @@ func TestHostShellEntryPointsRefuseWithoutFlagOrSandbox(t *testing.T) {
 	ConfigureRuntimePermissions(perms)
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
 
-	if _, _, err := ExecuteShell(context.Background(), "echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+	if _, _, err := ExecuteShell(context.Background(), "echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "sandbox") {
 		t.Fatalf("ExecuteShell() error = %v, want host shell gate", err)
 	}
 	if _, err := ExecuteShellBackground("echo must-not-run", t.TempDir(), NewProcessRegistry(slog.Default())); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {

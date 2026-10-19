@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,15 @@ type sandboxConn interface {
 
 type sandboxConnFactory func() (sandboxConn, error)
 
+// A transport can be retired concurrently by cancellation and ordinary release.
+// The manager owns exactly one close, independently of transport implementations.
+type ownedSandboxConn struct {
+	sandboxConn
+	closeOnce sync.Once
+}
+
+func (c *ownedSandboxConn) close() { c.closeOnce.Do(c.sandboxConn.close) }
+
 // ── LLM-Sandbox Integration ────────────────────────────────────────────────
 //
 // Launches the llm-sandbox MCP server through an embedded Python launcher
@@ -38,7 +48,7 @@ type sandboxConnFactory func() (sandboxConn, error)
 //
 // Environment matrix:
 //   - Docker available  → sandbox runs code in isolated containers (default)
-//   - Docker absent     → sandbox disabled; agent falls back to execute_python
+//   - Docker absent     → sandbox unavailable; execution remains fail-closed
 //   - Podman available  → BACKEND=podman
 //
 // The SandboxManager is a separate singleton from MCPManager so that user-managed
@@ -86,7 +96,7 @@ var ErrSandboxUnavailable = errors.New("sandbox unavailable")
 
 // InitSandboxManager creates and starts the sandbox MCP server.
 // Call once at startup. On failure the manager is still stored but status.Ready == false,
-// so the agent can fall back to execute_python.
+// so execution reports the setup failure without a host fallback.
 func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Logger) *SandboxManager {
 	mgr := &SandboxManager{
 		logger:         logger,
@@ -95,6 +105,13 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		workspaceDir:   workspaceDir,
 		transportGrace: sandboxMCPTransportGrace,
 	}
+	runtimeDir, err := sandboxSupervisorRuntimeDir(cfg.RuntimeDir, workspaceDir)
+	if err != nil {
+		mgr.status.Error = err.Error()
+		registerSandboxSingleton(mgr)
+		return mgr
+	}
+	mgr.workspaceDir = runtimeDir
 
 	// Warn about config options that are parsed but not yet implemented, so users
 	// are not misled into thinking they have container pooling active.
@@ -123,38 +140,33 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	}
 
 	// 2. Check Python availability
-	pythonBin := GetPythonBin(workspaceDir)
-	if _, err := exec.LookPath(pythonBin); err != nil {
-		// Try system python3/python as fallback
-		pythonBin = findSystemPython()
-		if pythonBin == "" {
-			mgr.status.Error = "Python not found"
-			logger.Warn("[Sandbox] Python not found — sandbox disabled")
-			registerSandboxSingleton(mgr)
-			return mgr
-		}
+	pythonBin := GetPythonBin(runtimeDir)
+	if _, err := exec.LookPath(pythonBin); err != nil && !cfg.AutoInstall {
+		mgr.status.Error = "Private supervisor Python is not provisioned; install the pinned sandbox package in sandbox-supervisor/venv under data_dir"
+		registerSandboxSingleton(mgr)
+		return mgr
 	}
-	mgr.status.PythonAvailable = true
 	mgr.pythonBin = pythonBin
 
 	// 3. Auto-install llm-sandbox if configured
 	if cfg.AutoInstall {
 		if !isSandboxMCPInstalled(pythonBin) {
 			logger.Info("[Sandbox] Installing llm-sandbox MCP package...", "backend", cfg.Backend)
-			if err := installSandboxPackage(workspaceDir, cfg.Backend, logger); err != nil {
+			if err := installSandboxPackage(runtimeDir, workspaceDir, cfg.Backend, logger); err != nil {
 				mgr.status.Error = fmt.Sprintf("Failed to install llm-sandbox: %v", err)
 				logger.Error("[Sandbox] Package installation failed", "error", err)
 				registerSandboxSingleton(mgr)
 				return mgr
 			}
 			// Recheck after install — use the venv python which now has the package
-			pythonBin = GetPythonBin(workspaceDir)
+			pythonBin = GetPythonBin(runtimeDir)
 			mgr.pythonBin = pythonBin
 		}
 	}
 
 	// Verify package + MCP deps are present
 	if isSandboxMCPInstalled(pythonBin) {
+		mgr.status.PythonAvailable = true
 		mgr.status.PackageInstalled = true
 	} else {
 		mgr.status.Error = sandboxNotInstalledStatus(cfg.Backend)
@@ -182,7 +194,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 		return mgr
 	}
 	mgr.launchScript = scriptPath
-	args := []string{scriptPath}
+	args := []string{"-I", scriptPath}
 	mgr.connFactory = func() (sandboxConn, error) {
 		ctx := withContainerSandboxLandlock(context.Background(), mgr.workspaceDir, mgr.cfg.DockerHost)
 		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "", ctx)
@@ -216,6 +228,13 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 }
 
 func (m *SandboxManager) openConn() (sandboxConn, error) {
+	return m.openConnContext(context.Background())
+}
+
+func (m *SandboxManager) openConnContext(parent context.Context) (sandboxConn, error) {
+	if err := parent.Err(); err != nil {
+		return nil, err
+	}
 	if m.connFactory == nil {
 		return nil, fmt.Errorf("sandbox connection factory not configured: %w", ErrSandboxUnavailable)
 	}
@@ -224,7 +243,8 @@ func (m *SandboxManager) openConn() (sandboxConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start sandbox MCP server: %w: %w", err, ErrSandboxUnavailable)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+	conn = &ownedSandboxConn{sandboxConn: conn}
+	ctx, cancel := context.WithTimeout(parent, mcpCallToolTimeout)
 	defer cancel()
 	if err := conn.initialize(ctx, m.logger); err != nil {
 		conn.close()
@@ -249,11 +269,17 @@ func wrapSandboxOpenError(err error) error {
 }
 
 func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
+	return m.borrowConnContext(context.Background())
+}
+
+func (m *SandboxManager) borrowConnContext(ctx context.Context) (sandboxConn, func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	m.mu.RLock()
 	ready := m.status.Ready
 	errMsg := m.status.Error
 	keepAlive := m.cfg.KeepAlive
-	conn := m.conn
 	m.mu.RUnlock()
 
 	if !ready {
@@ -264,18 +290,27 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	}
 
 	if !keepAlive {
-		conn, err := m.openConn()
+		conn, err := m.openConnContext(ctx)
 		if err != nil {
 			return nil, nil, wrapSandboxOpenError(err)
 		}
 		return conn, func() { conn.close() }, nil
 	}
 
-	m.sharedConnMu.Lock()
+	for !m.sharedConnMu.TryLock() {
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 	cleanup := func() {
 		m.sharedConnMu.Unlock()
 	}
 
+	m.mu.RLock()
+	conn := m.conn
+	m.mu.RUnlock()
 	if conn != nil {
 		return conn, cleanup, nil
 	}
@@ -284,7 +319,7 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	defer m.mu.Unlock()
 
 	if m.conn == nil {
-		conn, err := m.openConn()
+		conn, err := m.openConnContext(ctx)
 		if err != nil {
 			cleanup()
 			return nil, nil, wrapSandboxOpenError(err)
@@ -365,15 +400,42 @@ func (m *SandboxManager) IsReady() bool {
 
 // ExecuteCode runs code in the sandbox via the MCP execute_code tool.
 func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, timeoutSecs int) (string, error) {
-	conn, cleanup, err := m.borrowConn()
+	return m.ExecuteCodeContext(context.Background(), code, language, libraries, timeoutSecs)
+}
+
+func (m *SandboxManager) ExecuteCodeContext(parent context.Context, code, language string, libraries []string, timeoutSecs int) (string, error) {
+	return m.executeCodeContext(parent, code, language, libraries, timeoutSecs, nil)
+}
+
+func (m *SandboxManager) executeCodeContext(parent context.Context, code, language string, libraries []string, timeoutSecs int, bridge *PythonExecutionOptions) (string, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	if err := parent.Err(); err != nil {
+		return "", err
+	}
+	if len(libraries) > 0 {
+		return "", fmt.Errorf("sandbox libraries must be provisioned in the trusted image")
+	}
+	conn, cleanup, err := m.borrowConnContext(parent)
 	if err != nil {
 		return "", err
 	}
 	defer cleanup()
+	cancelFile, err := os.CreateTemp("", "aurago-sandbox-cancel-*")
+	if err != nil {
+		return "", fmt.Errorf("create sandbox cancellation channel: %w", err)
+	}
+	cancelPath := cancelFile.Name()
+	if err := cancelFile.Close(); err != nil {
+		os.Remove(cancelPath)
+		return "", err
+	}
 
 	args := map[string]interface{}{
-		"code":     code,
-		"language": language,
+		"code":        code,
+		"language":    language,
+		"cancel_file": cancelPath,
 	}
 	if len(libraries) > 0 {
 		args["libraries"] = libraries
@@ -388,16 +450,60 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 	// MCP response is sent only after its short-lived container is removed.
 	args["timeout"] = timeoutSecs
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second+m.transportGrace)
+	ctx, cancel := context.WithTimeout(parent, time.Duration(timeoutSecs)*time.Second+m.transportGrace)
 	defer cancel()
+	stopMarker := context.AfterFunc(ctx, func() { _ = os.WriteFile(cancelPath, []byte("cancel"), 0o600) })
+	defer func() {
+		stopMarker()
+		if ctx.Err() == nil {
+			_ = os.Remove(cancelPath)
+			return
+		}
+		_ = os.WriteFile(cancelPath, []byte("cancel"), 0o600)
+		go func() {
+			defer os.Remove(cancelPath)
+			deadline := time.NewTimer(5 * time.Second)
+			defer deadline.Stop()
+			poll := time.NewTicker(25 * time.Millisecond)
+			defer poll.Stop()
+			for {
+				select {
+				case <-deadline.C:
+					return
+				case <-poll.C:
+					data, _ := os.ReadFile(cancelPath)
+					if string(data) == "terminated" {
+						return
+					}
+				}
+			}
+		}()
+	}()
 
-	out, err := conn.callTool(ctx, "execute_code", args)
+	tool := "execute_supervised_code"
+	if bridge != nil {
+		tool = "execute_brokered_code"
+		delete(args, "language")
+		args["broker_url"] = bridge.ToolBridgeURL
+		args["broker_token"] = bridge.ToolBridgeToken
+		args["allowed_tools"] = bridge.ToolBridgeAllowedTools
+		args["call_limit"] = normalizeToolBridgeCallLimit(bridge.ToolBridgeCallLimit)
+	}
+	out, err := conn.callTool(ctx, tool, args)
 	if ctx.Err() != nil {
 		// Timeout: close the connection to terminate the blocked goroutine
 		// and prevent reuse of a potentially corrupted connection.
 		// markUnhealthy is called asynchronously because close() may block
 		// waiting for the subprocess to exit.
-		go m.markUnhealthy()
+		m.mu.Lock()
+		if m.conn == conn {
+			m.conn = nil
+		}
+		m.mu.Unlock()
+		go conn.close()
+		if parent.Err() != nil {
+			return "", fmt.Errorf("sandbox execution cancelled: %w", parent.Err())
+		}
 		return "", fmt.Errorf("TIMEOUT: sandbox execution exceeded %ds limit", timeoutSecs)
 	}
 	return out, err
@@ -493,11 +599,15 @@ func (m *SandboxManager) fetchLanguagesFromConn(conn sandboxConn) []string {
 
 // SandboxExecuteCode is a package-level shorthand for agent dispatch.
 func SandboxExecuteCode(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
+	return SandboxExecuteCodeContext(context.Background(), code, language, libraries, timeoutSecs, logger)
+}
+
+func SandboxExecuteCodeContext(ctx context.Context, code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
 	mgr := GetSandboxManager()
 	if mgr == nil {
 		return "", fmt.Errorf("sandbox manager not initialized: %w", ErrSandboxUnavailable)
 	}
-	return mgr.ExecuteCode(code, language, libraries, timeoutSecs)
+	return mgr.ExecuteCodeContext(ctx, code, language, libraries, timeoutSecs)
 }
 
 // SandboxGetStatus is a package-level shorthand for the status API.
@@ -514,7 +624,9 @@ func SandboxGetStatus() *SandboxStatus {
 
 const llmSandboxVersion = "0.3.45"
 
-var sandboxImagePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,200}$`)
+var sandboxImagePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,200}@sha256:[a-f0-9]{64}$`)
+
+const defaultSandboxImage = "python:3.13-slim-bookworm@sha256:a1165e272e578941b84abc79e4ab38a0305cd12803a5c4247979ac7655f4d641"
 
 func llmSandboxRequirement(backend string) (string, error) {
 	switch backend {
@@ -535,14 +647,41 @@ func sandboxMCPEnv(cfg SandboxConfig) (map[string]string, error) {
 	if backend != "docker" && backend != "podman" {
 		return nil, fmt.Errorf("unsupported sandbox backend %q", backend)
 	}
+	// Generic execution never inherits the host/control network. Network access
+	// uses the scoped Tool Bridge broker rather than a broad Docker bridge.
 	mode := "none"
-	if cfg.NetworkEnabled {
-		mode = "bridge"
-	}
 	env := map[string]string{
 		"BACKEND":              backend,
 		"SANDBOX_NETWORK_MODE": mode,
 	}
+	memory, cpus, pids, output := cfg.MemoryMB, cfg.CPUs, cfg.PIDsLimit, cfg.MaxOutputBytes
+	if memory <= 0 {
+		memory = 512
+	}
+	if cpus <= 0 {
+		cpus = 1
+	}
+	if pids <= 0 {
+		pids = 64
+	}
+	if output <= 0 {
+		output = 1048576
+	}
+	env["SANDBOX_MEM_LIMIT"] = strconv.Itoa(memory) + "m"
+	env["SANDBOX_CPUS"] = strconv.FormatFloat(cpus, 'f', -1, 64)
+	env["AURAGO_SANDBOX_PIDS"] = strconv.Itoa(pids)
+	env["AURAGO_SANDBOX_OUTPUT"] = strconv.Itoa(output)
+	env["COMMIT_CONTAINER"] = "false"
+	env["KEEP_TEMPLATE"] = "true"
+	images := map[string]string{"python": defaultSandboxImage}
+	for lang, image := range cfg.Images {
+		if !sandboxImagePattern.MatchString(image) {
+			return nil, fmt.Errorf("sandbox %s image requires a digest-pinned reference", lang)
+		}
+		images[lang] = image
+	}
+	encodedImages, _ := json.Marshal(images)
+	env["AURAGO_SANDBOX_IMAGES"] = string(encodedImages)
 	if cfg.DockerHost != "" {
 		env["DOCKER_HOST"] = cfg.DockerHost
 	}
@@ -596,6 +735,7 @@ func writeSandboxMCPLauncher() (string, error) {
 // (avoids import cycle with config package).
 type SandboxConfig struct {
 	Enabled        bool
+	RuntimeDir     string
 	Backend        string
 	DockerHost     string
 	Image          string
@@ -604,6 +744,11 @@ type SandboxConfig struct {
 	TimeoutSeconds int
 	NetworkEnabled bool
 	KeepAlive      bool
+	MemoryMB       int
+	CPUs           float64
+	PIDsLimit      int
+	MaxOutputBytes int
+	Images         map[string]string
 }
 
 // findSystemPython returns the path to a system python3 or python binary, or "" if not found.
@@ -628,30 +773,8 @@ func isSandboxMCPInstalled(pythonBin string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// Check both the base package and the MCP server sub-module
-	cmd := exec.CommandContext(ctx, pythonBin, "-c",
-		"import llm_sandbox; import llm_sandbox.mcp_server.server; print('ok')")
+	cmd := supervisorPythonCommand(ctx, pythonBin, "-c",
+		"import importlib.metadata; import llm_sandbox.mcp_server.server; assert importlib.metadata.version('llm-sandbox') == '0.3.45'; print('ok')")
 	out, err := cmd.CombinedOutput()
 	return err == nil && strings.TrimSpace(string(out)) == "ok"
-}
-
-// installSandboxPackage installs llm-sandbox with the correct MCP+backend extras.
-// The mcp-docker / mcp-podman extras include the 'mcp' Python package that is
-// required for the MCP stdio server to start.
-func installSandboxPackage(workspaceDir string, backend string, logger *slog.Logger) error {
-	// Ensure venv exists first
-	if err := EnsureVenv(workspaceDir, logger); err != nil {
-		return fmt.Errorf("venv setup failed: %w", err)
-	}
-
-	pkg, err := llmSandboxRequirement(backend)
-	if err != nil {
-		return err
-	}
-	logger.Info("[Sandbox] Installing package", "pkg", pkg)
-	stdout, stderr, err := InstallPackage(pkg, workspaceDir)
-	if err != nil {
-		return fmt.Errorf("pip install failed: %w\nstdout: %s\nstderr: %s", err, stdout, stderr)
-	}
-	logger.Info("[Sandbox] llm-sandbox installed successfully", "pkg", pkg)
-	return nil
 }

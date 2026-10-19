@@ -1412,6 +1412,24 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	}
 	ctx, cancel := context.WithTimeout(ctx, GetSkillTimeout())
 	defer cancel()
+	if isolatedExecutionRequired(ctx, ext != ".py") {
+		if err := requireIsolatedPermission(ctx, ext != ".py"); err != nil {
+			return "", err
+		}
+		source, err := rootedToolReadFile(filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
+		if err != nil {
+			return "", err
+		}
+		if len(source) > 1024*1024 {
+			return "", fmt.Errorf("script exceeds 1 MiB")
+		}
+		code, language, err := isolatedSkillCode(string(source), scriptPath, string(input))
+		if err != nil {
+			return "", err
+		}
+		stdout, stderr, err := runIsolatedWorker(ctx, code, language, GetSkillTimeout())
+		return security.Scrub(stdout + stderr), err
+	}
 
 	var cmd *exec.Cmd
 	switch ext {

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-10-18",
+  "images": {
+    "python": {
+      "reference": "python:3.13-slim-bookworm@sha256:a1165e272e578941b84abc79e4ab38a0305cd12803a5c4247979ac7655f4d641",
+      "source": "https://registry-1.docker.io/v2/library/python/manifests/3.13-slim-bookworm",
+      "kind": "official-multi-platform-manifest",
+      "supports": ["python", "posix-shell"]
+    }
+  }
+}

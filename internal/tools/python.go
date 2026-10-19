@@ -383,14 +383,35 @@ func resolveToolPath(name, toolsDir string) (string, error) {
 // RunTool executes a saved tool from the tools directory with arguments (foreground, 30s timeout).
 // Path traversal is blocked — name must resolve within toolsDir.
 func RunTool(name string, args []string, workspaceDir, toolsDir string) (string, string, error) {
-	if err := requirePythonPermission(); err != nil {
+	return RunToolContext(context.Background(), name, args, workspaceDir, toolsDir)
+}
+
+func RunToolContext(ctx context.Context, name string, args []string, workspaceDir, toolsDir string) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if isolatedExecutionRequired(ctx, false) {
+		if err := requireIsolatedPermission(ctx, false); err != nil {
+			return "", "", err
+		}
+		path, err := resolveToolPath(name, toolsDir)
+		if err != nil {
+			return "", "", err
+		}
+		source, err := readIsolatedScript(path, workspaceDir)
+		if err != nil {
+			return "", "", err
+		}
+		return runIsolatedWorker(ctx, isolatedScriptCode(source, name, args, ""), "python", GetForegroundTimeout())
+	}
+	if err := requirePythonPermissionContext(ctx); err != nil {
 		return "", "", err
 	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return "", "", err
 	}
-	if err := ensurePythonVenv(workspaceDir); err != nil {
+	if err := EnsureVenvContext(ctx, workspaceDir, slog.Default()); err != nil {
 		return "", "", err
 	}
 
@@ -409,7 +430,7 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 		KillWait: 10 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run(context.Background())
+	stdout, stderr, err := runner.Run(ctx)
 	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
 		// Reconstruct with the correct tool name in the error message
 		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
@@ -420,14 +441,27 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 // RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
-	if err := requirePythonPermission(); err != nil {
+	return RunToolWithSecretsContext(context.Background(), name, args, workspaceDir, toolsDir, secrets, creds)
+}
+
+func RunToolWithSecretsContext(ctx context.Context, name string, args []string, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if isolatedExecutionRequired(ctx, false) {
+		if len(secrets) > 0 || len(creds) > 0 {
+			return "", "", fmt.Errorf("isolated workers cannot receive host credentials")
+		}
+		return RunToolContext(ctx, name, args, workspaceDir, toolsDir)
+	}
+	if err := requirePythonPermissionContext(ctx); err != nil {
 		return "", "", err
 	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return "", "", err
 	}
-	if err := ensurePythonVenv(workspaceDir); err != nil {
+	if err := EnsureVenvContext(ctx, workspaceDir, slog.Default()); err != nil {
 		return "", "", err
 	}
 
@@ -447,7 +481,7 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 		KillWait:    10 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run(context.Background())
+	stdout, stderr, err := runner.Run(ctx)
 	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
 		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
@@ -525,10 +559,23 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 // Uses KillProcessTree on timeout so any subprocesses spawned by the script
 // (e.g., via subprocess.Popen) are also terminated and the pipes are closed.
 func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) {
-	if err := requirePythonPermission(); err != nil {
+	return ExecutePythonContext(context.Background(), code, workspaceDir, toolsDir)
+}
+
+func ExecutePythonContext(ctx context.Context, code, workspaceDir, toolsDir string) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if isolatedExecutionRequired(ctx, false) {
+		if err := requireIsolatedPermission(ctx, false); err != nil {
+			return "", "", err
+		}
+		return runIsolatedWorker(ctx, code, "python", GetForegroundTimeout())
+	}
+	if err := requirePythonPermissionContext(ctx); err != nil {
 		return "", "", err
 	}
-	if err := ensurePythonVenv(workspaceDir); err != nil {
+	if err := EnsureVenvContext(ctx, workspaceDir, slog.Default()); err != nil {
 		return "", "", err
 	}
 	scriptPath, cleanup, err := writeScript(code, toolsDir)
@@ -550,11 +597,12 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 		ErrMsg:   "TIMEOUT: script exceeded %s limit and was killed",
 	})
 
-	return runner.Run(context.Background())
+	return runner.Run(ctx)
 }
 
 // PythonExecutionOptions configures an explicit foreground Python execution.
 type PythonExecutionOptions struct {
+	Context                context.Context
 	Code                   string
 	WorkspaceDir           string
 	ToolsDir               string
@@ -569,10 +617,31 @@ type PythonExecutionOptions struct {
 // ExecutePythonWithOptions is an additive foreground execution path for runs
 // that need optional secret injection or explicit tool-bridge reentry.
 func ExecutePythonWithOptions(opts PythonExecutionOptions) (string, string, error) {
-	if err := requirePythonPermission(); err != nil {
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if isolatedExecutionRequired(ctx, false) {
+		if len(opts.Secrets) > 0 || len(opts.Credentials) > 0 {
+			return "", "", fmt.Errorf("isolated workers cannot receive host credentials")
+		}
+		if opts.ToolBridgeToken != "" && opts.ToolBridgeURL != "" {
+			if err := requireIsolatedPermission(ctx, false); err != nil {
+				return "", "", err
+			}
+			mgr := GetSandboxManager()
+			if mgr == nil {
+				return "", "", fmt.Errorf("sandbox manager not initialized: %w", ErrSandboxUnavailable)
+			}
+			out, err := mgr.executeCodeContext(ctx, opts.Code, "python", nil, int(GetForegroundTimeout().Seconds()), &opts)
+			return decodeIsolatedWorkerOutput(out, err)
+		}
+		return ExecutePythonContext(ctx, opts.Code, opts.WorkspaceDir, opts.ToolsDir)
+	}
+	if err := requirePythonPermissionContext(ctx); err != nil {
 		return "", "", err
 	}
-	if err := ensurePythonVenv(opts.WorkspaceDir); err != nil {
+	if err := EnsureVenvContext(ctx, opts.WorkspaceDir, slog.Default()); err != nil {
 		return "", "", err
 	}
 	code := opts.Code
@@ -606,12 +675,18 @@ func ExecutePythonWithOptions(opts PythonExecutionOptions) (string, string, erro
 		ErrMsg:      "TIMEOUT: script exceeded %s limit and was killed",
 	})
 
-	return runner.Run(context.Background())
+	return runner.Run(ctx)
 }
 
 // ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	if isolatedExecutionRequired(context.Background(), false) {
+		if len(secrets) > 0 || len(creds) > 0 {
+			return "", "", fmt.Errorf("isolated workers cannot receive host credentials")
+		}
+		return ExecutePython(code, workspaceDir, toolsDir)
+	}
 	if err := requirePythonPermission(); err != nil {
 		return "", "", err
 	}

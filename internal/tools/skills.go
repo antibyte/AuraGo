@@ -383,6 +383,28 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if isolatedExecutionRequired(ctx, !strings.HasSuffix(strings.ToLower(manifest.Executable), ".py")) {
+		lang := isolatedScriptLanguage(absExecPath)
+		if lang == "" {
+			return "", fmt.Errorf("native skill requires an explicit unsafe host execution grant")
+		}
+		if err := requireIsolatedPermission(ctx, lang != "python"); err != nil {
+			return "", err
+		}
+		if opts.injectEnv != nil {
+			return "", fmt.Errorf("isolated skill cannot receive host credentials or ambient bridge tokens")
+		}
+		source, err := readIsolatedScript(absExecPath, workspaceDir)
+		if err != nil {
+			return "", err
+		}
+		code, lang, err := isolatedSkillCode(source, absExecPath, argsString)
+		if err != nil {
+			return "", err
+		}
+		stdout, stderr, err := runIsolatedWorker(ctx, code, lang, GetSkillTimeout())
+		return security.Scrub(stdout + stderr), err
+	}
 	if strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
 		if err := requirePythonPermissionContext(ctx); err != nil {
 			return "", err
@@ -522,6 +544,9 @@ func ExecuteSkill(ctx context.Context, skillsDir, workspaceDir, skillName string
 // ExecuteSkillWithSecrets is like ExecuteSkill but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
+	if len(secrets) == 0 && len(creds) == 0 && bridgeToken == "" {
+		return ExecuteSkill(ctx, skillsDir, workspaceDir, skillName, argsJSON)
+	}
 	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
 	if err != nil {
 		return "", err
@@ -539,12 +564,25 @@ func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skill
 	})
 }
 
-var executeSkillSandboxCode = SandboxExecuteCode
+var executeSkillSandboxCode = SandboxExecuteCodeContext
 
 // ExecuteSkillInSandbox executes a skill inside the sandboxed container environment.
 // It reads the skill code, injects secrets/creds, prepends the args, and runs via SandboxExecuteCode.
 // Returns error if sandbox is unavailable or skill not found.
 func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
+	return ExecuteSkillInSandboxContext(context.Background(), skillsDir, skillName, argsJSON, secrets, creds, timeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
+}
+
+func ExecuteSkillInSandboxContext(ctx context.Context, skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := requireIsolatedPermission(ctx, false); err != nil {
+		return "", err
+	}
+	if len(secrets) > 0 || len(creds) > 0 {
+		return "", fmt.Errorf("isolated skill cannot receive host credentials or ambient bridge tokens")
+	}
 	cleanSkillName, err := validateSkillName(strings.TrimSuffix(skillName, ".py"))
 	if err != nil {
 		return "", fmt.Errorf("invalid skill name: %w", err)
@@ -558,7 +596,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	}
 
 	// Read skill code
-	data, err := os.ReadFile(absExecPath)
+	data, err := rootedToolReadFile(absExecPath)
 	if err != nil {
 		return "", fmt.Errorf("skill '%s' not found: %w", cleanSkillName, err)
 	}
@@ -570,17 +608,8 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	// 3. The skill's if __name__ == "__main__" block will be skipped since we're executing as a module
 	// 4. We need to explicitly call the skill function
 
-	// Build secrets/creds/bridge prelude
+	// Generic workers never receive host credentials in source or environment.
 	prelude := ""
-	if len(secrets) > 0 {
-		prelude += BuildSecretPrelude(secrets)
-	}
-	if len(creds) > 0 {
-		prelude += BuildCredentialPrelude(creds)
-	}
-	if len(bridgeTools) > 0 && bridgeURL != "" && bridgeToken != "" {
-		prelude += BuildToolBridgePrelude(bridgeURL, bridgeToken, bridgeTools)
-	}
 
 	fullCode, err := buildSandboxSkillExecCode(cleanSkillName, skillCode, []byte(argsString), prelude)
 	if err != nil {
@@ -591,7 +620,16 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	if timeoutSeconds <= 0 {
 		timeoutSeconds = 30
 	}
-	result, err := executeSkillSandboxCode(fullCode, "python", nil, timeoutSeconds, logger)
+	var result string
+	if bridgeToken != "" && bridgeURL != "" {
+		mgr := GetSandboxManager()
+		if mgr == nil {
+			return "", fmt.Errorf("sandbox manager unavailable: %w", ErrSandboxUnavailable)
+		}
+		result, err = mgr.executeCodeContext(ctx, fullCode, "python", nil, timeoutSeconds, &PythonExecutionOptions{ToolBridgeURL: bridgeURL, ToolBridgeToken: bridgeToken, ToolBridgeAllowedTools: bridgeTools})
+	} else {
+		result, err = executeSkillSandboxCode(ctx, fullCode, "python", nil, timeoutSeconds, logger)
+	}
 	if err != nil {
 		return "", fmt.Errorf("sandbox execution failed: %w", err)
 	}

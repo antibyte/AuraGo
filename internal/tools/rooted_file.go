@@ -19,6 +19,9 @@ func rootedToolPath(path string) (*os.Root, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	if err := requireUnprotectedProcessPath(path, false); err != nil {
+		return nil, "", err
+	}
 	base := filepath.Dir(path)
 	for current := base; ; current = filepath.Dir(current) {
 		if strings.EqualFold(filepath.Base(current), "agent_workspace") {

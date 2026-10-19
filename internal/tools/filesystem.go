@@ -537,6 +537,11 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 				if err := requireUnprotectedNotesPath(resolved, true); err != nil {
 					return FSResult{Status: "error", Message: err.Error()}
 				}
+				if operation == "delete" || operation == "move" {
+					if err := requireUnprotectedProcessPath(resolved, true); err != nil {
+						return FSResult{Status: "error", Message: err.Error()}
+					}
+				}
 			}
 		}
 	}

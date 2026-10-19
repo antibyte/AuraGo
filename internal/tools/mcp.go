@@ -310,12 +310,14 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	if len(contexts) > 0 {
 		ctx = contexts[0]
 	}
-	if err := requireShellPermissionContext(ctx); err != nil {
+	_, supervisor := containerSandboxLandlockFrom(ctx)
+	supervisor = supervisor && name == containerSandboxMCPName
+	if err := requireShellPermissionContext(ctx); err != nil && !supervisor {
 		return nil, err
 	}
 	perms, _ := EffectiveRuntimePermissions(ctx)
 	sb := sandbox.Get()
-	if sb.Name() == "blocked" || (!sb.Available() && !perms.AllowUnsafeHostExecution) {
+	if !supervisor && (sb.Name() == "blocked" || (!sb.Available() && !perms.AllowUnsafeHostExecution)) {
 		return nil, fmt.Errorf("MCP stdio requires the configured shell sandbox or explicit unsafe host execution permission")
 	}
 	if runtimeName == "docker" && (!perms.DockerEnabled || perms.DockerReadOnly) {
@@ -332,6 +334,10 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	env = normalizeMCPEnv(env)
 
 	cmd := sb.PrepareExecCommand(command, args, hostWorkdir)
+	if supervisor && !sb.Available() {
+		cmd = exec.Command(command, args...)
+		cmd.Dir = hostWorkdir
+	}
 	SetupCmd(cmd)
 
 	// Build environment from a scrubbed base; MCP servers must not inherit host secrets.

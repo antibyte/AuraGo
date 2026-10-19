@@ -52,6 +52,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify with `go test ./internal/tools -run TestNewspaperBundled`.
 
 ### Security Egress and Host Execution
+- Native direct HTTP integrations carry the dispatch owner's context in a per-call configuration or client. Stop cancels request headers, body reads, retry/poll waits and OAuth refresh-lock waits; shared HTTP clients never hold a session context. Legacy standalone wrappers retain their existing lifetime. SiteMonitor initial SSRF DNS pinning uses the same owner. Verify `TestNativeHTTP*` in tools/agent and `TestSSRFClientInitialPinningHonorsOwnerContext`.
+- Generic foreground shell, Python, saved Python tools and supported skill scripts use the existing pinned llm-sandbox supervisor by default; absent runtime/image support is an error with no host fallback. Explicit unsafe-host grants keep compatibility paths; the legacy non-Windows `allow_unsandboxed_shell` grant applies only to shell. Generic workers receive source and bounded arguments, no Vault credentials, ambient bridge token, host bind, Docker socket or network. Require digest-pinned images, read-only image plus task scratch, finite CPU/RAM/PID/output limits, no-new-privileges and the documented DAC_OVERRIDE-only capability exception for upstream private-file injection. Do not claim zero capabilities. Supervisor startup is a trusted fixed-command exception, carried only by the private container-sandbox context; user MCP servers retain shell/unsafe gates. Stop reaches the MCP request and connection acquisition; never hold a cancelled request on a shared connection. `documentation/isolated-executor.md` owns operator guidance. Verify `TestDefaultExecutorFailsClosedWithoutSupervisor`, `TestSandboxCallerCancellationAndBorrowWait`, `TestBrowserPublicationRequiresWriteAndRoot`, and `python internal/tools/sandbox_launcher_security_test.py`.
+- Python Tool Bridge workers use supervisor-brokered framed requests. Grants remain in trusted supervisor memory, bind the originating run and expire; never inject a global admin token, worker HTTP origin or credential into worker source/env. Bound frames, results and call count, validate sequence, refuse redirects and recheck current server/run policy on every call.
+- VirusTotal omitted/hash/auto modes only look up existing hashes or URL reports. File uploads and previously unseen URL submissions require explicit upload mode and the canonical action gate. Open local sources with `OpenToolInputFile` and retain that handle through hashing and upload. Browser capture/form screenshots require effective filesystem-write permission and publish atomically through a workspace `os.Root`; Chromium sandboxing stays enabled. Lint paths cannot introduce options and tool calls never install a latest executable. Verify VirusTotal, isolated-executor, lint argument and SSRF tool tests.
 - Every Cloudflare quick entry point publishes one active registered Homepage project's immutable static snapshot, at a server-allocated port. Reject explicit ports, Web UI defaults, inactive/unregistered projects, symlinks and credential files; bound copying to 64 MiB. Named/token ingress remains administrative. Docker requires a local engine socket or a verified parent container namespace. The origin is host-bound, supports read-only HTTP and rechecks project revocation; uncertain start/termination retains a disabled listener until the original daemon or process confirms termination. Record the request and resulting URL plus snapshot hash in the Homepage ledger. Verify `TestHomepageQuick*`, `TestCloudflareQuick*` and the configuration browser test.
 - Cloudflare's automatic certificate exception belongs only to the configured local AuraGo HTTPS origin. Never set global `originRequest.noTLSVerify`; migrate that legacy default to the matching ingress rule and preserve unrelated provider configuration and origin options. Named tunnel YAML follows the same origin match. Verify `TestCloudflareAPIExceptionAppliesOnlyToAuraGoOrigin` and `TestCloudflareNamedExceptionAppliesOnlyToAuraGoOrigin`.
 - Cloudflare lifecycle mutations use `tunnelLifecycleMu`, keeping `tunnelMu` short. Discover/adopt only verified reserved-name/image/command/label token/named Docker containers, including without auto-start; stop disabled connectors and orphan quick containers. Preserve original engine/ID and disabled quick origins on uncertain create/start/stop. Inspect is bounded to three seconds outside the state lock; unknown is never stopped. Config revocation stops before Docker mutation permissions change. Named YAML uses explicit validated routes and one final 404. Linux installs serialize, verify fixed hashes, cap 100 MiB and atomically replace via fileutil. Metrics always bind loopback, including port zero. Verify `TestCloudflare*` and `TestHomepageQuick*`.
@@ -182,7 +186,52 @@ Agent filesystem, external service and Docker tool safety boundaries.
   lifecycle (per-run owner contexts are phase 2). A revoked owner fires no dependents at all
   (`TestMerge*`).
 
+## Background admission and retention
+
+- Background tasks default to 256 active admissions and at most 64 due starts per
+  tick. Persist a complete bounded claim batch before dispatch. Retain completed/
+  canceled tasks for 30 days and failed/blocked tasks for 90 days, at most 2,000
+  terminal records; never prune active tasks. Existing active tasks are grandfathered.
+- Unknown background execution outcomes are terminal until explicit retry; an
+  `action_rule_required` response is durably blocked and releases active capacity.
+- Prompt jobs keep one manager-owned context across HTTP 202 polls. Task cancel
+  and shutdown cancel the accepted cached agent run; a disconnected HTTP waiter
+  alone does not. The cached run leases the manager's existing drain counter so
+  shutdown waits for it before closing dependencies. Retry only definite dial
+  failures; errors after request transmission retain an unknown outcome.
+  Isolated code uses the existing SandboxManager callback, persists the original
+  runtime permission snapshot, intersects it with current gates and honors task and
+  server cancellation. Host process execution is never a background fallback.
+- Isolated background code also persists its bounded canonical action and original
+  role/scope. Recheck current action policy through the shared authorizer before
+  execution identity and supervisor start; never persist approval grants. Missing
+  legacy action identity or a denied gate stays blocked without automatic replay.
+- Cron admission defaults to 1,000 distinct job IDs. Grandfather loaded jobs and
+  allow same-ID replacement and removal at capacity; preserve seconds expressions.
+- Planner event admission commits event dedupe receipts with the queue. Never
+  execute an unpersisted appointment admission or replay an uncertain running
+  planner event after restart. Flow targets share the durable admission snapshot.
+- Verify `TestBackgroundAdmissionBoundBatchAndPlannerDedupe`,
+  `TestBackgroundClaimFailureNeverExecutesAndRetentionKeepsActive`,
+  `TestCronCapAllowsExistingReplacementAndRemovalWithSeconds`, and
+  `TestPlannerMissionAdmission*`.
+
 ## Verification
+
+- The container supervisor uses only `<data_dir>/sandbox-supervisor/venv`, never
+  the potentially agent-modified workdir venv. Explicit pinned provisioning and
+  import/version probes use isolated Python (`-I`) with a filtered environment.
+  Keep private runtime directories and configured master-key file names/targets
+  in the process-owned protected-path registry across config reloads and env
+  removal. Rooted wrappers and parent deletion/moves must preserve this boundary.
+  Verify `TestRegisteredKeyPath*`, `TestSupervisorRuntime*` and
+  `TestSupervisorPythonIgnoresCWDAndPythonPathHooks` without Docker.
+- Python skill quality maintenance only compiles and parses source using a
+  trusted system interpreter outside the configured agent jail. Reuse the
+  isolated `-I`, filtered-environment supervisor command for syntax and AST
+  contract checks; never adopt an agent venv or execute the reviewed source.
+  Verify `TestPythonQualityValidationIgnoresAgentVenvCWDAndPythonPath` and
+  `TestPythonQualityValidationRejectsOnlyAgentOwnedPython`.
 
 - Image generation owners pass `GenerateImageContext`; provider requests and
   returned-image downloads inherit it. Image/music files publish atomically
