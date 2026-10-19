@@ -429,6 +429,7 @@ Server-owned HTTP and cross-component integration contracts.
 - Hugging Face chat uses an operator-created custom provider with upstream `https://router.huggingface.co` and path `/custom-{slug}/v1/chat/completions`; never substitute the legacy inference API. Preserve custom/local endpoints.
 - Status accepts `provider_id` and remains passive. Metadata tests share runtime routing/auth/privacy; unsupported metadata tests are skipped. Only explicit `probe_kind: generation` may generate, once, through budget accounting with 32 output tokens and a twenty-second deadline. Never return provider error bodies. Cancel on request abort and server shutdown.
 - Validate gateway/provider settings and complete metadata before any Vault write. Preserve all gateway IDs through YAML, provider API, AgoDesk, helper, fallback and task clients. See `documentation/ai-gateway.md`.
+- Gateway hot reload includes the complete gateway configuration and updates cached main/helper/Guardian clients. Game Maker provider switches use the complete provider projection before job-model overrides. Verify `TestAIGateway*Reload`, `TestGameMakerCloudflareRESTPreservesSelectedGateway` and the co-agent/summary identity regressions.
 
 ### here.now Integration Contract
 - here.now uses only the fixed `https://here.now` API origin, Vault key `here_now_api_key`, authenticated permanent Sites, and explicit personal or workspace account resolution. Never fall back to anonymous publishing or claim flows.

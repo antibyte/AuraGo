@@ -1082,7 +1082,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				oldG.FailSafe != newG.FailSafe ||
 				oldG.TimeoutSecs != newG.TimeoutSecs ||
 				oldG.CacheTTL != newG.CacheTTL
-			if guardianChanged {
+			if guardianChanged || !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) {
 				s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
 				if newCfg.LLMGuardian.Enabled {
 					s.Logger.Info("[Config UI] LLMGuardian reconfigured",
@@ -1926,6 +1926,9 @@ func rawString(parent map[string]interface{}, key string) string {
 }
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
+	if !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) {
+		return true
+	}
 	type providerCapabilityFingerprint struct {
 		ID                string
 		Model             string
@@ -1952,16 +1955,6 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal                   bool
 		MultimodalProviderTypesExtra []string
 		ProviderCapabilities         []providerCapabilityFingerprint
-		AIGatewayEnabled             bool
-		AIGatewayAccountID           string
-		AIGatewayGatewayID           string
-		AIGatewayMode                string
-		AIGatewayLogMode             string
-		AIGatewayMetadata            map[string]string
-		AIGatewayRequestTimeoutMS    int
-		AIGatewayMaxAttempts         int
-		AIGatewayRetryDelayMS        int
-		AIGatewayBackoff             string
 	}
 	providerCaps := func(cfg config.Config) []providerCapabilityFingerprint {
 		out := make([]providerCapabilityFingerprint, 0, len(cfg.Providers))
@@ -1995,16 +1988,6 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   oldCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: oldCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(oldCfg),
-		AIGatewayEnabled:             oldCfg.AIGateway.Enabled,
-		AIGatewayAccountID:           oldCfg.AIGateway.AccountID,
-		AIGatewayGatewayID:           oldCfg.AIGateway.GatewayID,
-		AIGatewayMode:                oldCfg.AIGateway.Mode,
-		AIGatewayLogMode:             oldCfg.AIGateway.LogMode,
-		AIGatewayMetadata:            oldCfg.AIGateway.Metadata,
-		AIGatewayRequestTimeoutMS:    oldCfg.AIGateway.RequestTimeoutMS,
-		AIGatewayMaxAttempts:         oldCfg.AIGateway.MaxAttempts,
-		AIGatewayRetryDelayMS:        oldCfg.AIGateway.RetryDelayMS,
-		AIGatewayBackoff:             oldCfg.AIGateway.Backoff,
 	}
 	newFP := llmFingerprint{
 		Provider:                     newCfg.LLM.Provider,
@@ -2020,16 +2003,6 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   newCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: newCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(newCfg),
-		AIGatewayEnabled:             newCfg.AIGateway.Enabled,
-		AIGatewayAccountID:           newCfg.AIGateway.AccountID,
-		AIGatewayGatewayID:           newCfg.AIGateway.GatewayID,
-		AIGatewayMode:                newCfg.AIGateway.Mode,
-		AIGatewayLogMode:             newCfg.AIGateway.LogMode,
-		AIGatewayMetadata:            newCfg.AIGateway.Metadata,
-		AIGatewayRequestTimeoutMS:    newCfg.AIGateway.RequestTimeoutMS,
-		AIGatewayMaxAttempts:         newCfg.AIGateway.MaxAttempts,
-		AIGatewayRetryDelayMS:        newCfg.AIGateway.RetryDelayMS,
-		AIGatewayBackoff:             newCfg.AIGateway.Backoff,
 	}
 	return !reflect.DeepEqual(oldFP, newFP)
 }
@@ -2198,6 +2171,11 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 		}
 		switch sv := srcVal.(type) {
 		case map[string]interface{}:
+			// Metadata is a complete validated map: merging would resurrect removed tags.
+			if fullPath == "ai_gateway.metadata" {
+				dst[key] = sv
+				continue
+			}
 			if _, dstIsSlice := dst[key].([]interface{}); dstIsSlice || isConfigArrayPath(fullPath) {
 				if converted, ok := numericKeyedMapToSlice(sv); ok {
 					mergeConfigArrayValue(dst, key, fullPath, converted)

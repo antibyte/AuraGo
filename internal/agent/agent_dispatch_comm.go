@@ -717,9 +717,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						searchQuery = "summarise the key content of this document"
 					}
 					summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-						APIKey:  cfg.Tools.PDFExtractor.SummaryAPIKey,
-						BaseURL: cfg.Tools.PDFExtractor.SummaryBaseURL,
-						Model:   cfg.Tools.PDFExtractor.SummaryModel,
+						ProviderID: cfg.Tools.PDFExtractor.SummaryProvider,
+						APIKey:     cfg.Tools.PDFExtractor.SummaryAPIKey,
+						BaseURL:    cfg.Tools.PDFExtractor.SummaryBaseURL,
+						Model:      cfg.Tools.PDFExtractor.SummaryModel,
 					}), logger, result, searchQuery, "PDF document")
 					if err != nil {
 						logger.Warn("pdf_extractor summary failed, returning raw content", "error", err)

@@ -547,19 +547,22 @@ func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelecti
 
 // newCoAgentLLMClientForSelection creates an LLM client for a co-agent or specialist.
 func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, role string, selection coAgentLLMSelection) llm.ChatClient {
-	coCfg := deepClone(*cfg)
-	coCfg.LLM.Provider = selection.ProviderID
-	coCfg.LLM.ProviderType = selection.ProviderType
-	coCfg.LLM.APIKey = selection.APIKey
-	coCfg.LLM.BaseURL = selection.BaseURL
-	coCfg.LLM.Model = selection.Model
+	provider := config.ProviderEntry{}
+	if saved := cfg.FindProvider(selection.ProviderID); saved != nil {
+		provider = *saved
+	} else if selection.ProviderID == cfg.LLM.Provider {
+		provider.AccountID, provider.GatewayID = cfg.LLM.AccountID, cfg.LLM.GatewayID
+	}
+	provider.ID, provider.Type, provider.Model = selection.ProviderID, selection.ProviderType, selection.Model
+	provider.APIKey, provider.BaseURL = selection.APIKey, selection.BaseURL
+	coCfg := llm.TaskProviderConfig(cfg, provider)
 	coCfg.FallbackLLM.Enabled = false
 
 	component := "co-agent-llm"
 	if role != "" {
 		component = "specialist-" + role + "-llm"
 	}
-	return llm.NewFailoverManager(&coCfg, logger.With("component", component))
+	return llm.NewFailoverManager(coCfg, logger.With("component", component))
 }
 
 // coAgentModel returns the model name to use for generic co-agents.

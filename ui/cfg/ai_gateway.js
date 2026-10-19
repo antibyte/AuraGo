@@ -13,7 +13,7 @@ function aiGatewayEnsureData() {
     if (!configData.ai_gateway) configData.ai_gateway = {};
     const gw = configData.ai_gateway;
     if (!gw.log_mode) gw.log_mode = 'metadata_only';
-    if (!gw.metadata || typeof gw.metadata !== 'object' || Array.isArray(gw.metadata)) gw.metadata = {};
+    if (!gw.metadata || typeof gw.metadata !== 'object') gw.metadata = {};
     return gw;
 }
 
@@ -96,27 +96,33 @@ function aiGatewayNumberField(labelKey, helpKey, path, value, min, max) {
 function aiGatewayRenderMetadataRows(metadata) {
     let html = '<div class="field-group ai-gateway-metadata" data-ai-gateway-metadata><div class="field-label">' + t('config.ai_gateway.metadata') + '</div><div class="field-help">' + t('help.ai_gateway.metadata') + '</div>';
     html += '<input type="hidden" data-path="ai_gateway.metadata" data-type="json" data-ai-gateway-metadata-store value="' + escapeAttr(JSON.stringify(metadata)) + '">';
-    [...Object.entries(metadata), ['', '']].forEach(([key, value]) => {
+    const rows = Array.isArray(metadata) ? metadata : Object.entries(metadata);
+    [...rows.filter(([key, value]) => key || value), ['', '']].forEach(([key, value]) => {
         html += '<div class="field-grid two-cols ai-gateway-metadata-row"><input class="field-input" value="' + escapeAttr(key) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_key')) + '" data-ai-gateway-metadata-key oninput="aiGatewayCollectMetadata()"><div class="password-wrap"><input class="field-input" value="' + escapeAttr(value) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_value')) + '" data-ai-gateway-metadata-value oninput="aiGatewayCollectMetadata()">';
-        if (key) html += '<button type="button" class="password-toggle" data-ai-gateway-metadata-remove="' + escapeAttr(key) + '" onclick="aiGatewayRemoveMetadata(this.dataset.aiGatewayMetadataRemove)">&times;</button>';
+        if (key || value) html += '<button type="button" class="password-toggle" data-ai-gateway-metadata-remove onclick="aiGatewayRemoveMetadata(this)">&times;</button>';
         html += '</div></div>';
     });
-    return html + '<small id="ai-gw-meta-error" role="status"></small><button type="button" class="btn-save btn-secondary" onclick="aiGatewayAddMetadataRow()">' + t('config.ai_gateway.metadata_add') + '</button></div>';
+    return html + '<small id="ai-gw-meta-error" role="status">' + (Array.isArray(metadata) ? escapeHtml(t('config.ai_gateway.metadata_invalid')) : '') + '</small><button type="button" class="btn-save btn-secondary" onclick="aiGatewayAddMetadataRow()">' + t('config.ai_gateway.metadata_add') + '</button></div>';
 }
 
 function aiGatewayCollectMetadata(mark = true) {
     const next = Object.create(null);
     let valid = true;
-    document.querySelectorAll('.ai-gateway-metadata-row').forEach(row => {
-        const key = row.querySelector('[data-ai-gateway-metadata-key]').value.trim();
-        const value = row.querySelector('[data-ai-gateway-metadata-value]').value.trim();
+    const rows = [...document.querySelectorAll('.ai-gateway-metadata-row')].map(row => [
+        row.querySelector('[data-ai-gateway-metadata-key]').value,
+        row.querySelector('[data-ai-gateway-metadata-value]').value
+    ]);
+    rows.forEach(([rawKey, rawValue]) => {
+        const key = rawKey.trim();
+        const value = rawValue.trim();
         if (!key && !value) return;
         if (!key || !value || Object.hasOwn(next, key)) valid = false;
         next[key] = value;
     });
     valid = valid && Object.keys(next).length <= 5;
     const gw = aiGatewayEnsureData();
-    gw.metadata = valid ? next : [];
+    // Invalid rows are editable draft data, never a valid payload for saving.
+    gw.metadata = valid ? next : rows;
     const store = document.querySelector('[data-ai-gateway-metadata-store]');
     if (store) store.value = JSON.stringify(gw.metadata);
     const error = document.getElementById('ai-gw-meta-error');
@@ -129,9 +135,8 @@ function aiGatewayAddMetadataRow() {
     if (aiGatewayCollectMetadata()) renderAIGatewaySection(null);
 }
 
-function aiGatewayRemoveMetadata(key) {
-    const row = [...document.querySelectorAll('.ai-gateway-metadata-row')].find(r => r.querySelector('[data-ai-gateway-metadata-key]').value === key);
-    row?.remove();
+function aiGatewayRemoveMetadata(button) {
+    button.closest('.ai-gateway-metadata-row')?.remove();
     aiGatewayCollectMetadata();
     aiGatewayInvalidate();
     aiGatewaySetBanner('warning', t('config.ai_gateway.save_first'));

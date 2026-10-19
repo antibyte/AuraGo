@@ -273,6 +273,7 @@ var (
 )
 
 type helperInstanceConfig struct {
+	TransportFingerprint    [32]byte
 	AccountID               string
 	GatewayID               string
 	ProviderType            string
@@ -451,14 +452,15 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 	helperCfg := llm.ResolveHelperLLM(cfg)
 	newInstCfg := helperInstanceConfig{
-		AccountID:           strings.TrimSpace(helperCfg.AccountID),
-		GatewayID:           strings.TrimSpace(helperCfg.GatewayID),
-		ProviderType:        strings.TrimSpace(helperCfg.ProviderType),
-		BaseURL:             strings.TrimSpace(helperCfg.BaseURL),
-		APIKey:              strings.TrimSpace(helperCfg.APIKey),
-		Model:               strings.TrimSpace(helperCfg.Model),
-		ProviderID:          helperCfg.ProviderID,
-		GlobalContextWindow: cfg.Agent.ContextWindow,
+		TransportFingerprint: llm.TaskConfigFingerprint(cfg),
+		AccountID:            strings.TrimSpace(helperCfg.AccountID),
+		GatewayID:            strings.TrimSpace(helperCfg.GatewayID),
+		ProviderType:         strings.TrimSpace(helperCfg.ProviderType),
+		BaseURL:              strings.TrimSpace(helperCfg.BaseURL),
+		APIKey:               strings.TrimSpace(helperCfg.APIKey),
+		Model:                strings.TrimSpace(helperCfg.Model),
+		ProviderID:           helperCfg.ProviderID,
+		GlobalContextWindow:  cfg.Agent.ContextWindow,
 	}
 	if provider := cfg.FindProvider(helperCfg.ProviderID); provider != nil {
 		newInstCfg.ContextWindowOverride = provider.ContextWindow

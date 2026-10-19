@@ -49,27 +49,26 @@ func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) Summ
 			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID, GatewayID: helperCfg.GatewayID,
 		}
 	}
-	if cfg != nil && fallback.ProviderType == "" {
+	fallback.Config = cfg
+	if cfg != nil {
+		if provider := cfg.FindProvider(fallback.ProviderID); provider != nil {
+			fallback.ProviderType, fallback.AccountID, fallback.GatewayID = provider.Type, provider.AccountID, provider.GatewayID
+			if fallback.APIKey == "" {
+				fallback.APIKey = provider.APIKey
+			}
+			if fallback.BaseURL == "" {
+				fallback.BaseURL = provider.BaseURL
+			}
+			if fallback.Model == "" {
+				fallback.Model = provider.Model
+			}
+			return fallback
+		}
+	}
+	if cfg != nil && fallback.ProviderID == "" && fallback.ProviderType == "" {
 		if fallback.APIKey == cfg.LLM.APIKey && fallback.BaseURL == cfg.LLM.BaseURL {
 			fallback.ProviderID, fallback.ProviderType = cfg.LLM.Provider, cfg.LLM.ProviderType
 			fallback.AccountID, fallback.GatewayID = cfg.LLM.AccountID, cfg.LLM.GatewayID
-		}
-		for _, provider := range cfg.Providers {
-			if fallback.ProviderType != "" {
-				break
-			}
-			if strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(fallback.BaseURL, "/") && provider.BaseURL != "" {
-				fallback.ProviderID = provider.ID
-				fallback.ProviderType = provider.Type
-				fallback.AccountID = provider.AccountID
-				break
-			}
-		}
-	}
-	fallback.Config = cfg
-	if cfg != nil {
-		if p := cfg.FindProvider(fallback.ProviderID); p != nil {
-			fallback.GatewayID = p.GatewayID
 		}
 	}
 	return fallback

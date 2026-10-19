@@ -77,6 +77,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Co-agent lifecycle
 
+- Co-agents and specialists resolve the selected provider's complete account/gateway identity through `llm.TaskProviderConfig`; never inherit those fields from an unrelated main provider. Helper clients invalidate on effective transport changes, including logging, routing and gateway credentials. Legacy summary calls carry explicit provider IDs rather than inferring identity from a shared URL.
+
 - A queued co-agent waits at most its `timeout_seconds` for a slot. Every start failure is terminal through `CoAgentRegistry.FailIfActive`, which never overwrites a cancelled, completed or failed entry and releases a slot only when one was held. The execution timeout starts after queue promotion; Stop cancels both phases. Verify `TestCoAgentQueueTimeout*`.
 
 ### Optional task LLM router

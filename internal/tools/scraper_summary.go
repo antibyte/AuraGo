@@ -12,8 +12,9 @@ import (
 // the generic SummariseContent function using the WebScraper config fields.
 func SummariseScrapedContent(ctx context.Context, cfg *config.Config, logger *slog.Logger, scraped string, searchQuery string) (string, error) {
 	return SummariseContent(ctx, ResolveSummaryLLMConfig(cfg, SummaryLLMConfig{
-		APIKey:  cfg.Tools.WebScraper.SummaryAPIKey,
-		BaseURL: cfg.Tools.WebScraper.SummaryBaseURL,
-		Model:   cfg.Tools.WebScraper.SummaryModel,
+		ProviderID: cfg.Tools.WebScraper.SummaryProvider,
+		APIKey:     cfg.Tools.WebScraper.SummaryAPIKey,
+		BaseURL:    cfg.Tools.WebScraper.SummaryBaseURL,
+		Model:      cfg.Tools.WebScraper.SummaryModel,
 	}), logger, scraped, searchQuery, "web page")
 }

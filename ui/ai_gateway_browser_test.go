@@ -74,3 +74,71 @@ func TestAIGatewaySavedProviderDiagnosticsBrowser(t *testing.T) {
 		})
 	}
 }
+
+func TestAIGatewayMetadataDraftBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	for _, theme := range []string{"standard", "fruity"} {
+		t.Run(theme, func(t *testing.T) {
+			page := browser.MustPage(configRefreshFixtureOrigin(t, "en", false) + "/config#overview")
+			defer page.MustClose()
+			waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
+			page.MustEval(`async theme=>{
+                document.documentElement.dataset.theme=theme==='fruity'?'light':'dark';
+                await selectSection('ai_gateway',{scrollBehavior:'auto'});
+                configData.ai_gateway={enabled:false,metadata:{env:'prod'}};
+                window.AuraConfigState.init(configData);
+                renderAIGatewaySection();resetDirtySnapshot();
+                const previousFetch=window.fetch;
+                window.gatewaySaves=0;
+                window.fetch=(url,options={})=>{
+                    if(url==='/api/config' && options.method==='PUT') gatewaySaves++;
+                    return previousFetch(url,options);
+                };
+                document.querySelectorAll('[data-ai-gateway-metadata-key]')[1].value='unfinished';
+                aiGatewayCollectMetadata();window.AuraConfigState.syncFromDOM();
+                await saveConfig();
+                await selectSection('overview',{scrollBehavior:'auto'});
+                await selectSection('ai_gateway',{scrollBehavior:'auto'});
+            }`, theme)
+			if !page.MustEval(`()=>gatewaySaves===0 && !window.AuraConfigState.validate().valid && document.querySelectorAll('[data-ai-gateway-metadata-key]')[0].value==='env' && document.querySelectorAll('[data-ai-gateway-metadata-value]')[0].value==='prod' && document.querySelectorAll('[data-ai-gateway-metadata-key]')[1].value==='unfinished'`).Bool() {
+				t.Fatal("invalid metadata was saved or lost during section navigation")
+			}
+			page.MustEval(`()=>{
+                document.querySelectorAll('[data-ai-gateway-metadata-key]')[1].value='env';
+                document.querySelectorAll('[data-ai-gateway-metadata-value]')[1].value='duplicate';
+                aiGatewayCollectMetadata();window.AuraConfigState.syncFromDOM();
+                renderAIGatewaySection();
+            }`)
+			if !page.MustEval(`()=>!window.AuraConfigState.validate().valid && [...document.querySelectorAll('[data-ai-gateway-metadata-value]')].some(el=>el.value==='prod') && [...document.querySelectorAll('[data-ai-gateway-metadata-value]')].some(el=>el.value==='duplicate')`).Bool() {
+				t.Fatal("duplicate metadata silently replaced a row")
+			}
+			page.MustEval(`()=>{
+                document.querySelector('[data-ai-gateway-metadata-key]').value='renamed';
+                aiGatewayCollectMetadata();
+                document.querySelector('[data-ai-gateway-metadata-remove]').click();
+                window.AuraConfigState.syncFromDOM();
+            }`)
+			if !page.MustEval(`()=>window.AuraConfigState.validate().valid && configData.ai_gateway.metadata.env==='duplicate' && !Object.hasOwn(configData.ai_gateway.metadata,'renamed')`).Bool() {
+				t.Fatal("removing a renamed metadata row used its old key")
+			}
+			page.MustEval(`()=>{
+                configData.ai_gateway.metadata={a:'1',b:'2',c:'3',d:'4',e:'5',f:'6'};
+                renderAIGatewaySection();aiGatewayCollectMetadata();
+                window.AuraConfigState.syncFromDOM();
+                renderAIGatewaySection();
+            }`)
+			if !page.MustEval(`()=>!window.AuraConfigState.validate().valid && document.querySelectorAll('[data-ai-gateway-metadata-key]').length===7`).Bool() {
+				t.Fatal("metadata limit silently truncated entries")
+			}
+			page.MustEval(`()=>{document.querySelectorAll('[data-ai-gateway-metadata-remove]')[5].click();window.AuraConfigState.syncFromDOM();}`)
+			if !page.MustEval(`()=>window.AuraConfigState.validate().valid && Object.keys(configData.ai_gateway.metadata).length===5`).Bool() {
+				t.Fatal("correcting the metadata draft did not restore valid saving")
+			}
+			page.MustEval(`()=>{configData=window.AuraConfigState.discard();renderAIGatewaySection();}`)
+			if !page.MustEval(`()=>!Array.isArray(configData.ai_gateway.metadata) && configData.ai_gateway.metadata.env==='prod' && document.getElementById('ai-gw-meta-error').textContent===''`).Bool() {
+				t.Fatal("discard did not restore the saved metadata")
+			}
+		})
+	}
+}
