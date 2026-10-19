@@ -5,8 +5,10 @@
 Reusable Blender 5.2 modules for the stylized AuraGolf diorama look: palettes,
 soft shape builders, vertex-colour gradients, baked ambient occlusion, per-world
 props, lane sections and the style-probe renders (P2 "Look & Welt-Requisiten").
-It is the seed of the modular generator that will replace the monolithic
-`../generate.py`; `generate.py` and `ui/` are not touched by the kit.
+It is the modular generator behind `../generate.py` (a slim CLI: `--only
+kits,courses`, `--save-blend`): `courses_v1` and `export` hold the legacy
+course code moved verbatim, `kits` exports one prop kit GLB per world. The
+probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`.
 
 ## Ownership
 
@@ -28,7 +30,11 @@ It is the seed of the modular generator that will replace the monolithic
   (threads and OIDN).
 - Prop contract: a builder returns ONE joined mesh named `prop-<world>-<name>`,
   Z-up, metres, base at z=0, footprint centred, accepts `seed`, and is registered
-  in the module's `PROPS` dict. The lane is `lane-<world>`, the ball
+  in the module's `PROPS` dict. The module's `PROP_META` holds each prop's
+  placement `tags` (`hero`, `tall`, `scatter`, `flat`, `span`) and optional
+  `clearance` / `spin`; `kits.build_kit` writes them as node extras
+  `aurago_prop`. Helpers that are not kit props (the pirate foam ring) stay out
+  of `PROPS`. The lane is `lane-<world>`, the ball
   `ball-<world>`. Props are placed by the scene modules; compose helpers keep the
   ground height function that built the terrain.
 - Part pipeline (`prop.Prop.add`): `shapes.finish` (Bevel by angle, optional
@@ -43,11 +49,21 @@ It is the seed of the modular generator that will replace the monolithic
   `Col`. The moon Earth is a Cycles-only procedural shader on a unit sphere
   (`materials.earth`, the runtime would bake a texture); sky bodies are counted
   as `backdrop_tris`, not as game geometry.
-- Materials (`materials.py`): matte, satin, metal, glass, water, emissive, glow.
-  Every material reads `Col` through a Color Attribute node. `emissive` feeds a
-  dimmed copy to Base Color so glow stays saturated; `glow` keeps full lighting
-  plus a soft emission (gems, eyes). The runtime must map both to emissive
-  strength plus `COLOR_0`.
+- Materials (`materials.py`): matte, satin, metal, glass, water, emissive, glow,
+  foliage, cloth. Every material reads `Col` through a Color Attribute node.
+  `emissive` feeds a dimmed copy to Base Color so glow stays saturated; `glow`
+  keeps full lighting plus a soft emission (gems, eyes). The runtime must map
+  both to emissive strength plus `COLOR_0`.
+- Material contract (glTF material `extras`): `aurago_kind` on every material;
+  `aurago_strength` on `emissive`/`glow`, snapped to `EMISSION_STEPS` (1.0, 1.6,
+  2.5) so one prop never needs a primitive per brightness; `aurago_flicker` for
+  flames (`get("emissive", 1.6, flicker=0.35)`); `aurago_sway` (metres) on
+  `foliage`/`cloth`. Only `foliage`, `cloth` and `glass` are double sided. Pass
+  `strength`, `flicker`, `sway` through `Prop.add`.
+- Kits (`kits.py`): at most 3 primitives per prop and 8 materials per world
+  (build errors otherwise), each prop a top-level node `prop-<look>-<name>` at
+  the origin with `COLOR_0` on every primitive, built with `seed=1`. Kit
+  budgets: < 3 MiB and < 60,000 triangles per world, hero <= 16,000 triangles.
 - Look: Khronos PBR Neutral view transform (look None, exposure 0, gamma 1) to
   match three.js `NeutralToneMapping`; keep emission strength near 1-2.5 because
   Neutral desaturates highlights above ~0.8. Camera: perspective, 43 degrees
@@ -60,8 +76,12 @@ It is the seed of the modular generator that will replace the monolithic
 
 ## Work Guidance
 
-- Module map: `palette` (tones, gradient presets), `shapes` (builders, `finish`),
-  `colors` (vertex-colour gradients), `bake`, `materials`, `prop` (composition),
+- Module map: `courses_v1` (the 18 legacy courses; code moved verbatim from the
+  old generator and bit-identical, guarded by the P1 collider fingerprint),
+  `export` (canonical node names, `export_glb`, bounds, collider read-back),
+  `kits` (per-world prop kit GLB), `palette` (tones, gradient presets), `shapes`
+  (builders, `finish`), `colors` (vertex-colour gradients), `bake`, `materials`,
+  `prop` (composition),
   `island` (diorama chunk with strata, water rings), `lane` (felt, rails, cup,
   flag, ball), `compose` (placement, terrain helpers), `stage` (reset, camera,
   lights, sky, render), `props_<world>` plus `ship_pirate` / `head_temple` heroes,
@@ -75,6 +95,11 @@ It is the seed of the modular generator that will replace the monolithic
 
 ## Verification
 
+- `blender --background --factory-startup --python assets/minigolf/generate.py
+  -- --only kits` (about 15 s) prints one `kit <look>: ... bytes ...` line per
+  world; a second run must give identical GLB hashes. A full run must leave
+  `git status ui/3d/minigolf` free of course GLB changes and
+  `node scripts/test-minigolf-assets.mjs` green.
 - `blender --background --factory-startup --python assets/minigolf/kit/probe.py
   -- --out <scratch> --world all` renders the three probes (about 2.5 minutes
   each on 16 cores at 128 samples) and prints per-prop and scene triangle counts,

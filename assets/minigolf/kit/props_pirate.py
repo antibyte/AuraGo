@@ -95,7 +95,7 @@ def build_palm(seed=1, height=2.9, lean=0.55, fronds=10, heading=None):
             w = 0.24 * math.sin(math.pi * (0.08 + 0.92 * s)) ** 0.55 * (1.0 - 0.2 * s)
             widths.append(w * (1.0 if i % 2 == 0 else 0.72))
         frond = shapes.ribbon("frond", spine, widths, normal_hint=(0, 0, 1), fold=0.45, across=4)
-        p.add(frond, "matte", "frond", solidify=0.012, bevel=0, dens=0, ao=0.55, mode="radial",
+        p.add(frond, "foliage", "frond", sway=0.06, solidify=0.012, bevel=0, dens=0, ao=0.55, mode="radial",
               center=(top.x, top.y), jitter=0.04)
     return p.build()
 
@@ -263,7 +263,7 @@ def build_tuft(seed=1, blades=16, height=0.45):
             spine.append((math.cos(a) * r, math.sin(a) * r, h * t * (1.0 - 0.18 * t)))
         widths = [0.052 * (1 - 0.9 * (k / 4) ** 1.2) for k in range(5)]
         blade = shapes.ribbon("blade", spine, widths, normal_hint=(math.cos(a), math.sin(a), 0.0), fold=0.35, across=2)
-        p.add(blade, "matte", "grass", finish=False, ao=0.6, jitter=0.05, mode="z")
+        p.add(blade, "foliage", "grass", sway=0.06, finish=False, ao=0.6, jitter=0.05, mode="z")
     return p.build()
 
 
@@ -367,7 +367,16 @@ def build_foam_ring(seed=1, radius=0.8):
     return p.build()
 
 
+# The foam ring (``build_foam_ring``) is not a kit prop: the runtime draws the shore foam.
 PROPS = {"ship": build_ship, "palm": build_palm, "barrel": build_barrel, "chest": build_chest,
          "cannon": build_cannon, "dock": build_dock, "tuft": build_tuft, "shell": build_shell,
          "starfish": build_starfish, "rock": build_rock, "crab": build_crab, "xmark": build_xmark,
-         "footprint": build_footprint, "foam": build_foam_ring}
+         "footprint": build_footprint}
+
+# Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
+PROP_META = {
+    "ship": {"tags": ["hero"]}, "palm": {"tags": ["tall"]}, "barrel": {"tags": []}, "chest": {"tags": []},
+    "cannon": {"tags": []}, "dock": {"tags": ["flat"]}, "tuft": {"tags": ["scatter"]}, "shell": {"tags": ["scatter", "flat"]},
+    "starfish": {"tags": ["scatter", "flat"]}, "rock": {"tags": []}, "crab": {"tags": ["scatter"]},
+    "xmark": {"tags": ["scatter", "flat"]}, "footprint": {"tags": ["scatter", "flat"]},
+}

@@ -62,7 +62,7 @@ def build_habitat(seed=2):
             tilt = -side * 22
             p.add(ring, "satin", ("metal_dark", "metal"), loc=(x, y, z), rot=(90 + tilt, 0, 0), bevel=0, dens=0, ao=0.5)
             glass = shapes.cylinder("win-glass", 0.23, 0.23, 0.05, seg=18, base=False)
-            p.add(glass, "emissive", ("window", "cyan"), loc=(x, y - side * 0.0, z), rot=(tilt, 0, 0), bevel=0, dens=0, ao=0.0, strength=1.0,
+            p.add(glass, "emissive", ("window", "cyan"), loc=(x, y - side * 0.0, z), rot=(tilt, 0, 0), bevel=0, dens=0, ao=0.0, strength=1.6,
                   mode="x")
     # hatch (front, -Y)
     ang = math.radians(-6)
@@ -70,7 +70,7 @@ def build_habitat(seed=2):
     door = shapes.box("hatch", (0.95, 0.16, 1.5), base=False)
     p.add(door, "satin", ("orange_dark", "orange"), loc=(0.0, hy - 0.03, zc - 0.28 + 0.0), bevel=0.04, segments=3, dens=0.3, ao=0.6)
     dwin = shapes.cylinder("hatch-win", 0.2, 0.2, 0.06, seg=16, base=False)
-    p.add(dwin, "emissive", ("window", "cyan"), loc=(0.0, hy - 0.12, zc + 0.12), rot=(90, 0, 0), bevel=0, dens=0, ao=0.0, strength=1.0)
+    p.add(dwin, "emissive", ("window", "cyan"), loc=(0.0, hy - 0.12, zc + 0.12), rot=(90, 0, 0), bevel=0, dens=0, ao=0.0, strength=1.6)
     wheel = shapes.torus("hatch-wheel", 0.12, 0.022, seg=14, rseg=6)
     p.add(wheel, "metal", ("metal_dark", "metal"), loc=(0.0, hy - 0.14, zc - 0.5), rot=(90, 0, 0), bevel=0, dens=0, ao=0.4)
     step = shapes.box("hatch-step", (1.3, 0.8, 0.14), base=True)
@@ -95,13 +95,13 @@ def build_habitat(seed=2):
         arm = shapes.cylinder("arm", 0.018, 0.018, 0.7 - 0.2 * k, seg=6, base=False)
         p.add(arm, "metal", ("metal_dark", "metal"), loc=(1.2, 0.0, zc + R + zz - 0.4), rot=(0, 90, 0), bevel=0, dens=0.5, ao=0.4)
     bulb = shapes.sphere("beacon", 0.075, seg=12, rings=8)
-    p.add(bulb, "emissive", ("magenta", "magenta"), loc=(1.2, 0.0, zc + R + 1.7), bevel=0, dens=0, ao=0.0, strength=2.5)
+    p.add(bulb, "emissive", ("magenta", "magenta"), loc=(1.2, 0.0, zc + R + 1.7), bevel=0, dens=0, ao=0.0, strength=1.6)
     cup = shapes.sphere("mini-dish", 0.24, seg=14, rings=6)
     p.add(cup, "satin", ("panel_grey", "panel_white"), loc=(1.2, 0.2, zc + R + 1.25), scale=(1.0, 0.4, 1.0), rot=(35, 0, 0), bevel=0, dens=0,
           ao=0.4)
     # cable between the legs
     cable = shapes.tube("cable", [(1.25, 0.95, 0.3), (1.9, 1.2, 0.05), (2.8, 1.45, 0.05), (3.4, 1.7, 0.1)], radius=0.035, seg=6)
-    p.add(cable, "matte", ("black", "panel_dark"), bevel=0, dens=0, ao=0.5)
+    p.add(cable, "satin", ("black", "panel_dark"), bevel=0, dens=0, ao=0.5)
     return p.build()
 
 
@@ -125,7 +125,7 @@ def build_dish(seed=3):
     dish = shapes.lathe("dish-shell", prof, seg=36, caps=False)
     hub = Vector((0.0, 0.0, 1.55))
     tilt = (52, 0, 0)
-    p.add(dish, "matte", ("panel_grey", "panel_white"), loc=hub, rot=tilt, bevel=0, dens=0.3, smooth_angle=70, mode="radial",
+    p.add(dish, "satin", ("panel_grey", "panel_white"), loc=hub, rot=tilt, bevel=0, dens=0.3, smooth_angle=70, mode="radial",
           center=(0, 0), ao=0.55)
     rot = shapes.matrix(rot=tilt)
     rim = shapes.torus("dish-rim", R, 0.04, seg=36, rseg=6)
@@ -153,7 +153,7 @@ def build_dish(seed=3):
     box = shapes.box("control-box", (0.5, 0.36, 0.34), base=True)
     p.add(box, "satin", ("panel_grey", "panel_white"), loc=(0.55, -0.55, 0.0), rot=(0, 0, -20), bevel=0.04, segments=2, dens=0.3)
     led = shapes.sphere("led", 0.035, seg=8, rings=5)
-    p.add(led, "emissive", ("cyan", "cyan"), loc=(0.52, -0.78, 0.26), bevel=0, dens=0, ao=0.0, strength=2.6)
+    p.add(led, "emissive", ("cyan", "cyan"), loc=(0.52, -0.78, 0.26), bevel=0, dens=0, ao=0.0, strength=2.5)
     return p.build()
 
 
@@ -173,7 +173,7 @@ def build_rover(seed=4):
         wy = sy * 0.62
         for k, wx in enumerate((-0.62, 0.0, 0.62)):
             wh = shapes.cylinder("wheel", 0.27, 0.27, 0.2, seg=16, base=False)
-            p.add(wh, "matte", ("black", "rubber") if p.pal.has("rubber") else ("black", "panel_dark"), loc=(wx, wy, 0.27),
+            p.add(wh, "satin", ("black", "rubber") if p.pal.has("rubber") else ("black", "panel_dark"), loc=(wx, wy, 0.27),
                   rot=(90, 0, 0), bevel=0.04, segments=2, dens=0.3)
             hub = shapes.cylinder("hub", 0.12, 0.12, 0.23, seg=10, base=False)
             p.add(hub, "satin", ("orange_dark", "orange"), loc=(wx, wy + sy * 0.0, 0.27), rot=(90, 0, 0), bevel=0.01, segments=1, dens=0)
@@ -185,13 +185,13 @@ def build_rover(seed=4):
     p.add(head, "satin", ("panel_dark", "panel_white"), loc=(0.52, 0.0, 1.58), bevel=0.03, segments=2, dens=0)
     for sy in (-1, 1):
         lens = shapes.cylinder("lens", 0.045, 0.045, 0.05, seg=10, base=False)
-        p.add(lens, "emissive", ("cyan", "window"), loc=(0.64, sy * 0.08, 1.58), rot=(0, 90, 0), bevel=0, dens=0, ao=0.0, strength=2.0)
+        p.add(lens, "emissive", ("cyan", "window"), loc=(0.64, sy * 0.08, 1.58), rot=(0, 90, 0), bevel=0, dens=0, ao=0.0, strength=1.6)
         lamp = shapes.cylinder("lamp", 0.05, 0.05, 0.04, seg=10, base=False)
-        p.add(lamp, "emissive", ("window", "window"), loc=(0.69, sy * 0.28, 0.66), rot=(0, 90, 0), bevel=0, dens=0, ao=0.0, strength=1.5)
+        p.add(lamp, "emissive", ("window", "window"), loc=(0.69, sy * 0.28, 0.66), rot=(0, 90, 0), bevel=0, dens=0, ao=0.0, strength=1.6)
     whip = shapes.tube("whip", [(-0.5, 0.3, 0.86), (-0.55, 0.32, 1.4), (-0.5, 0.3, 1.8)], radius=0.012, seg=5)
     p.add(whip, "metal", ("metal_dark", "metal"), bevel=0, dens=0, ao=0.4)
     tip = shapes.sphere("whip-tip", 0.03, seg=8, rings=5)
-    p.add(tip, "emissive", ("magenta", "magenta"), loc=(-0.5, 0.3, 1.8), bevel=0, dens=0, ao=0.0, strength=2.5)
+    p.add(tip, "emissive", ("magenta", "magenta"), loc=(-0.5, 0.3, 1.8), bevel=0, dens=0, ao=0.0, strength=1.6)
     return p.build()
 
 
@@ -239,7 +239,7 @@ def build_solar(seed=5, panels=3):
     box = shapes.box("battery", (0.42, 0.36, 0.34), base=True)
     p.add(box, "satin", ("panel_grey", "orange"), loc=(total / 2 + 0.45, -0.1, 0.0), bevel=0.04, segments=2, dens=0.3)
     led = shapes.sphere("led", 0.03, seg=8, rings=5)
-    p.add(led, "emissive", ("cyan", "cyan"), loc=(total / 2 + 0.45, -0.3, 0.3), bevel=0, dens=0, ao=0.0, strength=2.6)
+    p.add(led, "emissive", ("cyan", "cyan"), loc=(total / 2 + 0.45, -0.3, 0.3), bevel=0, dens=0, ao=0.0, strength=2.5)
     return p.build()
 
 
@@ -263,7 +263,7 @@ def build_beacon(seed=1, tone="cyan"):
     stem = shapes.box("beacon-stem", (0.12, 0.12, 0.62), base=True)
     p.add(stem, "satin", ("panel_grey", "panel_white"), loc=(0, 0, 0.12), bevel=0.02, segments=2, dens=0.3)
     cap = shapes.sphere("beacon-cap", 0.1, seg=12, rings=8)
-    p.add(cap, "emissive", (tone, tone), loc=(0, 0, 0.82), bevel=0, dens=0, ao=0.0, strength=2.6)
+    p.add(cap, "emissive", (tone, tone), loc=(0, 0, 0.82), bevel=0, dens=0, ao=0.0, strength=2.5)
     return p.build()
 
 
@@ -306,10 +306,17 @@ def build_crystal(seed=1, tone="cyan", count=5):
         t = tone if (k % 3) != 2 else ("magenta" if tone == "cyan" else "cyan")
         lo = (t + "_dark") if p.pal.has(t + "_dark") else t
         p.add(c, "glow", (lo, t), loc=(math.cos(a) * d, math.sin(a) * d, 0.0),
-              rot=(rng.uniform(-14, 14), rng.uniform(-14, 14), rng.uniform(0, 60)), bevel=0.012, segments=1, dens=0, ao=0.25, strength=0.9,
+              rot=(rng.uniform(-14, 14), rng.uniform(-14, 14), rng.uniform(0, 60)), bevel=0.012, segments=1, dens=0, ao=0.25, strength=1.0,
               smooth_angle=20)
     return p.build()
 
 
 PROPS = {"habitat": build_habitat, "dish": build_dish, "rover": build_rover, "solar": build_solar,
          "boulder": build_boulder, "beacon": build_beacon, "crate": build_crate, "pad": build_pad, "crystal": build_crystal}
+
+# Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
+PROP_META = {
+    "habitat": {"tags": ["hero"]}, "dish": {"tags": []}, "rover": {"tags": []}, "solar": {"tags": []},
+    "boulder": {"tags": []}, "beacon": {"tags": []}, "crate": {"tags": ["scatter"]}, "pad": {"tags": []},
+    "crystal": {"tags": []},
+}

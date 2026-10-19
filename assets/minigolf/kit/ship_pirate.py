@@ -15,6 +15,7 @@ from .palette import mix
 from .prop import Prop
 
 WORLD = "pirate"
+CLOTH_SWAY = 0.05  # sail, patches and flag share one cloth material
 
 
 def _rope(p, pts, radius=0.014, sag=0.0, grad="rope", seg=6):
@@ -170,7 +171,7 @@ def _hull_bands(p, stations):
                     ring.append((side * x, _hull_y(t), zz))
                 rings.append(ring)
             obj = shapes.loft("wale", rings, closed=True, recalc=True)
-            p.add(obj, "satin", grad, bevel=0, dens=0, ao=0.55, mode="z")
+            p.add(obj, "matte", grad, bevel=0, dens=0, ao=0.55, mode="z")
 
 
 def _rim_rail(p, stations):
@@ -215,7 +216,7 @@ def _sail(p):
         stitch = 0.93 if s > 0.46 else 1.0
         return stitch
 
-    p.add(sail, "matte", "cream", mode="z", solidify=0.02, bevel=0, dens=0, pattern=seams, noise_amp=0.04, ao=0.5)
+    p.add(sail, "cloth", "cream", sway=CLOTH_SWAY, mode="z", solidify=0.02, bevel=0, dens=0, pattern=seams, noise_amp=0.04, ao=0.5)
     patches = [((-0.5, 0.0), (0.2, 0.52), "red_dark"), ((0.2, 0.62), (0.5, 0.84), "cream_dark"),
                ((-0.85, -0.38), (0.6, 0.9), "cream_dark"), ((0.3, 0.7), (0.08, 0.3), "red_dark")]
     for (u0, u1), (v0, v1), tone in patches:
@@ -235,7 +236,7 @@ def _sail(p):
                     pf.append((a, a + 1, a + pn + 2, a + pn + 1) if face > 0 else (a + pn + 1, a + pn + 2, a + 1, a))
             patch = shapes.make_object("sail-patch", pv, pf)
             lo, hi = ((p.pal.c("red_dark"), p.pal.c("red")) if tone == "red_dark" else (p.pal.c("cream_dark"), p.pal.c("rope")))
-            p.add(patch, "matte", (lo, hi), solidify=0.014, bevel=0, dens=0, ao=0.5, jitter=0.02)
+            p.add(patch, "cloth", (lo, hi), sway=CLOTH_SWAY, solidify=0.014, bevel=0, dens=0, ao=0.5, jitter=0.02)
 
 
 def _skull_flag(p, x, y, z):
@@ -253,7 +254,7 @@ def _skull_flag(p, x, y, z):
             a = j * (nx + 1) + i
             faces.append((a + nx + 1, a + nx + 2, a + 1, a))
     flag = shapes.make_object("flag-cloth", verts, faces)
-    p.add(flag, "satin", ("black", "iron_dark"), solidify=0.014, bevel=0, dens=0, ao=0.3, mode="y")
+    p.add(flag, "cloth", ("black", "iron_dark"), sway=CLOTH_SWAY, solidify=0.014, bevel=0, dens=0, ao=0.3, mode="y")
     for fs in (1, -1):
         cx, cy, cz = x + 0.07 + fs * 0.0, y - 0.45, z + 0.01
         cx = x + fs * 0.075
@@ -262,20 +263,20 @@ def _skull_flag(p, x, y, z):
             return (cx + fs * dx, cy + dy, cz + dz)
 
         skull = shapes.sphere("skull", 0.115, seg=10, rings=6)
-        p.add(skull, "satin", ("cream_dark", "skull"), loc=at(0, 0, 0.07), scale=(0.28, 1.0, 1.0), bevel=0, dens=0, ao=0.2)
+        p.add(skull, "cloth", ("cream_dark", "skull"), sway=CLOTH_SWAY, loc=at(0, 0, 0.07), scale=(0.28, 1.0, 1.0), bevel=0, dens=0, ao=0.2)
         jaw = shapes.box("jaw", (0.05, 0.1, 0.07), base=True)
-        p.add(jaw, "satin", ("cream_dark", "skull"), loc=at(0, 0, -0.06), bevel=0.012, segments=1, dens=0, ao=0.2)
+        p.add(jaw, "cloth", ("cream_dark", "skull"), sway=CLOTH_SWAY, loc=at(0, 0, -0.06), bevel=0.012, segments=1, dens=0, ao=0.2)
         for e in (-1, 1):
             eye = shapes.cylinder("eye", 0.03, 0.03, 0.03, seg=8)
-            p.add(eye, "matte", ("black", "black"), loc=at(0.02, e * 0.045, 0.075), rot=(0, 90, 0), bevel=0, dens=0,
+            p.add(eye, "cloth", ("black", "black"), sway=CLOTH_SWAY, loc=at(0.02, e * 0.045, 0.075), rot=(0, 90, 0), bevel=0, dens=0,
                   ao=0.0)
         for ang in (38, -38):
             bone = shapes.cylinder("bone", 0.016, 0.016, 0.36, seg=6, base=False)
-            p.add(bone, "satin", ("cream_dark", "skull"), loc=at(0, 0, -0.01), rot=(ang, 0, 0), bevel=0, dens=0, ao=0.2)
+            p.add(bone, "cloth", ("cream_dark", "skull"), sway=CLOTH_SWAY, loc=at(0, 0, -0.01), rot=(ang, 0, 0), bevel=0, dens=0, ao=0.2)
             for e in (-1, 1):
                 knob = shapes.sphere("knob", 0.03, seg=6, rings=4)
                 a = math.radians(ang)
-                p.add(knob, "satin", ("cream_dark", "skull"),
+                p.add(knob, "cloth", ("cream_dark", "skull"), sway=CLOTH_SWAY,
                       loc=at(0, -e * 0.18 * math.sin(a), -0.01 + e * 0.18 * math.cos(a)), bevel=0, dens=0, ao=0.2)
 
 
@@ -301,11 +302,11 @@ def build_ship(seed=3):
         for k in range(2):
             ring = shapes.torus("porthole-ring", 0.085, 0.022, seg=12, rseg=5)
             ypos = cy0 + 0.42 + k * 0.5
-            p.add(ring, "metal", ("gold_dark", "gold_light"), loc=(s * (cw / 2 + 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0),
+            p.add(ring, "matte", ("gold_dark", "gold_light"), loc=(s * (cw / 2 + 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0),
                   bevel=0, dens=0, ao=0.4)
             glass = shapes.cylinder("porthole-glass", 0.075, 0.075, 0.02, seg=14, base=False)
             p.add(glass, "emissive", ("glass", "glass"), loc=(s * (cw / 2 - 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0), bevel=0,
-                  dens=0, ao=0.0, strength=0.9)
+                  dens=0, ao=0.0, strength=1.6, flicker=0.35)
     door = shapes.box("cabin-door", (0.42, 0.04, 0.72), base=True)
     p.add(door, "matte", ("wood_dark", "wood"), loc=(0, cy1 + 0.005, DECK_Z), bevel=0.012, segments=1, dens=0)
     # railing on the roof
@@ -324,9 +325,9 @@ def build_ship(seed=3):
     p.add(lpost, "matte", "wood_dark", loc=(0, cy0 - 0.02, rz), bevel=0.004, dens=0)
     glow = shapes.sphere("lantern", 0.085, seg=12, rings=8)
     p.add(glow, "emissive", ("gold", "gold_light"), loc=(0, cy0 - 0.02, rz + 0.58), scale=(1, 1, 1.2), bevel=0, dens=0,
-          ao=0.0, strength=5.0)
+          ao=0.0, strength=1.6, flicker=0.35)
     cap = shapes.cone("lantern-cap", 0.1, 0.09, seg=12)
-    p.add(cap, "metal", "iron", loc=(0, cy0 - 0.02, rz + 0.7), bevel=0, dens=0, ao=0.4)
+    p.add(cap, "matte", "iron", loc=(0, cy0 - 0.02, rz + 0.7), bevel=0, dens=0, ao=0.4)
 
     # cannon ports -----------------------------------------------------------
     for ty in (0.27, 0.42, 0.57):
@@ -356,7 +357,7 @@ def build_ship(seed=3):
     nest = shapes.lathe("nest", nest_prof, seg=14)
     p.add(nest, "matte", ("wood_dark", "wood"), loc=(0, my, 4.55), bevel=0, dens=0.3)
     topcap = shapes.cone("mast-top", 0.07, 0.2, seg=10)
-    p.add(topcap, "satin", ("gold_dark", "gold_light"), loc=(0, my, 5.0), bevel=0, dens=0, ao=0.3)
+    p.add(topcap, "matte", ("gold_dark", "gold_light"), loc=(0, my, 5.0), bevel=0, dens=0, ao=0.3)
     # sail, flag, rigging
     _sail(p)
     _skull_flag(p, 0.0, my - 0.02, 5.05)
@@ -388,7 +389,7 @@ def build_ship(seed=3):
         spoke = shapes.cylinder("spoke", 0.014, 0.014, 0.5, seg=6, base=False)
         p.add(spoke, "matte", "wood_dark", loc=(0, wy, wz), rot=(90, 0, a), bevel=0, dens=0, ao=0.4)
     hub = shapes.cylinder("hub", 0.045, 0.045, 0.08, seg=10, base=False)
-    p.add(hub, "satin", ("gold_dark", "gold_light"), loc=(0, wy, wz), rot=(90, 0, 0), bevel=0, dens=0, ao=0.3)
+    p.add(hub, "matte", ("gold_dark", "gold_light"), loc=(0, wy, wz), rot=(90, 0, 0), bevel=0, dens=0, ao=0.3)
     post = shapes.cylinder("wheel-post", 0.05, 0.05, 0.62, seg=8)
     p.add(post, "matte", "wood_dark", loc=(0, wy + 0.04, DECK_Z), bevel=0.006, dens=0)
     obj = p.build()

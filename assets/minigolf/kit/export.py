@@ -135,3 +135,19 @@ def export_glb(path, objects):
                                   export_materials="EXPORT", export_current_frame=True)
     finally:
         restore_export_names(names)
+
+
+def glb_json(path):
+    """Return the parsed JSON chunk of the GLB at ``path``."""
+    with open(path, "rb") as f:
+        data = f.read()
+    if data[:4] != b"glTF":
+        raise RuntimeError("Blender did not produce a GLB: " + path)
+    offset = 12
+    while offset < len(data):
+        size, kind = struct.unpack_from("<II", data, offset)
+        offset += 8
+        if kind == 0x4E4F534A:
+            return json.loads(data[offset:offset + size].decode("utf-8").rstrip(" \0"))
+        offset += size
+    raise RuntimeError("GLB has no JSON chunk: " + path)

@@ -84,8 +84,8 @@ def _face(p):
         rim = shapes.torus("eye-rim", 0.56, 0.08, seg=16, rseg=6)
         p.add(rim, "matte", ("stone", "stone_light"), loc=(x, FRONT - 0.09, 3.12), rot=(90, 0, 0), bevel=0, dens=0, ao=0.5)
         eye = shapes.sphere("eye", 0.3, seg=12, rings=8)
-        p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(x, FRONT - 0.08, 3.1), scale=(1.0, 0.55, 1.0), bevel=0,
-              dens=0, ao=0.3, strength=0.8)
+        p.add(eye, "emissive", ("gold_dark", "gold_light"), loc=(x, FRONT - 0.08, 3.1), scale=(1.0, 0.55, 1.0), bevel=0,
+              dens=0, ao=0.3, strength=1.0)
         brow = shapes.box("brow", (1.95, 0.5, 0.44), base=False)
         p.add(brow, "matte", ("stone", "stone_light"), loc=(x * 1.02 + side * 0.04, FRONT - 0.12, 3.64), rot=(0, -side * 11, 0),
               bevel=0.12, segments=2, dens=0.6, noise_amp=0.05)
@@ -133,7 +133,7 @@ def build_head(seed=3):
     _mouth_details(p)
     rng = p.rng
     orb = shapes.sphere("tunnel-orb", 0.3, seg=14, rings=8)
-    p.add(orb, "emissive", ("fire_orange", "gold"), loc=(0.0, 0.4, 0.55), bevel=0, dens=0, ao=0.0, strength=1.2)
+    p.add(orb, "emissive", ("fire_orange", "gold"), loc=(0.0, 0.4, 0.55), bevel=0, dens=0, ao=0.0, strength=1.0)
     for k in range(8):
         a = rng.uniform(0, math.tau)
         r = rng.uniform(0.5, 1.9)

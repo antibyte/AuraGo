@@ -1,10 +1,17 @@
 """Shared material set (MIT License).
 
 All colour comes from the ``Col`` vertex-colour attribute, so a world needs
-only a handful of materials: matte, satin, metal, glass, water and emissive.
-The Color Attribute node feeding Principled Base Color is what the glTF
-exporter turns into ``COLOR_0``. Emissive materials also take their emission
-colour from ``Col`` so neon, flames and windows keep their gradients.
+only a handful of materials: matte, satin, metal, glass, water, emissive, glow,
+foliage and cloth. The Color Attribute node feeding Principled Base Color is
+what the glTF exporter turns into ``COLOR_0``. Emissive materials also take
+their emission colour from ``Col`` so neon, flames and windows keep their
+gradients.
+
+Material contract (read by the runtime from the glTF material ``extras``): every
+datablock carries ``aurago_kind``; ``emissive``/``glow`` add ``aurago_strength``
+(snapped to ``EMISSION_STEPS``), flames add ``aurago_flicker`` and
+``foliage``/``cloth`` add ``aurago_sway`` (metres). Only ``foliage``, ``cloth``
+and ``glass`` are double sided; every other kind culls back faces.
 """
 
 import bpy
@@ -12,6 +19,11 @@ import bpy
 from .palette import hex_to_linear
 
 COLOR_ATTRIBUTE = "Col"
+
+# Emission strengths are snapped to these steps so a prop never needs more than
+# one primitive per brightness; brightness differences come from the vertex colour.
+EMISSION_STEPS = (1.0, 1.6, 2.5)
+DOUBLE_SIDED = ("foliage", "cloth", "glass")
 
 # kind -> Principled settings (colour always comes from the attribute).
 _KINDS = {
@@ -22,6 +34,8 @@ _KINDS = {
     "water": {"Roughness": 0.10, "Metallic": 0.0},
     "emissive": {"Roughness": 0.5, "Metallic": 0.0},
     "glow": {"Roughness": 0.35, "Metallic": 0.0},
+    "foliage": {"Roughness": 0.85, "Metallic": 0.0},
+    "cloth": {"Roughness": 0.88, "Metallic": 0.0},
 }
 
 
@@ -31,25 +45,51 @@ def _set(bsdf, name, value):
         sock.default_value = value
 
 
-def get(kind, strength=3.0, bump=0.0):
+def snap_strength(strength):
+    """Nearest ``EMISSION_STEPS`` value (the lower step wins a tie)."""
+    return min(EMISSION_STEPS, key=lambda step: (abs(step - strength), step))
+
+
+def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
     """Return the shared material ``kind`` (created on first use).
 
     ``strength`` applies to ``emissive`` (self-lit, base nearly black) and ``glow``
-    (lit surface plus a soft emission, for gems and eyes); ``bump`` adds a render-only
-    ripple to ``water``. Variants get their own datablock name so repeated
-    calls with the same arguments return the same material.
+    (lit surface plus a soft emission, for gems and eyes) and is snapped to
+    ``EMISSION_STEPS``; ``flicker`` (0-1) marks flames; ``sway`` (metres) is the
+    wind amplitude of ``foliage`` and ``cloth``; ``bump`` adds a render-only
+    ripple to ``water``. Variants get their own datablock name (for example
+    ``kit-emissive-1.6-f0.35`` or ``kit-foliage-s0.06``) so repeated calls with
+    the same arguments return the same material.
     """
     if kind not in _KINDS:
         raise KeyError(kind)
     name = "kit-" + kind
     if kind in ("emissive", "glow"):
+        strength = snap_strength(strength)
         name += "-%g" % strength
+        if flicker:
+            name += "-f%g" % flicker
+    else:
+        flicker = 0.0
+    if kind in ("foliage", "cloth"):
+        if sway:
+            name += "-s%g" % sway
+    else:
+        sway = 0.0
     if kind == "water" and bump:
         name += "-b%g" % bump
     mat = bpy.data.materials.get(name)
     if mat is not None:
         return mat
     mat = bpy.data.materials.new(name)
+    mat["aurago_kind"] = kind
+    mat.use_backface_culling = kind not in DOUBLE_SIDED
+    if kind in ("emissive", "glow"):
+        mat["aurago_strength"] = strength
+    if flicker:
+        mat["aurago_flicker"] = flicker
+    if sway:
+        mat["aurago_sway"] = sway
     mat.use_nodes = True
     tree = mat.node_tree
     for node in list(tree.nodes):

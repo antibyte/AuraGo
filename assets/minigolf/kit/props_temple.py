@@ -55,7 +55,7 @@ def build_totem(seed=1):
     p.add(beak, "satin", ("gold_dark", "gold_light"), loc=(0, -0.62, 1.55), rot=(24, 0, 0), bevel=0.05, segments=2, dens=0)
     for s in (-1, 1):
         eye = shapes.sphere("t-eagle-eye", 0.065, seg=10, rings=6)
-        p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.22, -0.42, 1.68), bevel=0, dens=0, ao=0.3, strength=0.7)
+        p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.22, -0.42, 1.68), bevel=0, dens=0, ao=0.3, strength=1.0)
         wing = shapes.box("t-wing", (0.12, 0.5, 0.6), base=False)
         p.add(wing, "matte", _dark(p, "totem_teal", 0.7), loc=(s * 0.46, 0.0, 1.55), rot=(0, 0, s * 10), bevel=0.04, segments=2, dens=0.3)
     # jaguar (tier 3)
@@ -64,7 +64,7 @@ def build_totem(seed=1):
         p.add(ear, "matte", _dark(p, "totem_red", 0.6), loc=(s * 0.26, 0.0, 2.84), bevel=0, dens=0)
         eye = shapes.sphere("t-cat-eye", 0.07, seg=10, rings=6)
         p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.2, -0.4, 2.52), scale=(1.2, 0.6, 0.9), bevel=0, dens=0, ao=0.3,
-              strength=0.7)
+              strength=1.0)
         fang = shapes.cone("t-fang", 0.045, 0.16, seg=8)
         p.add(fang, "satin", ("stone_light", "gold_light"), loc=(s * 0.14, -0.43, 2.22), rot=(180, 0, 0), bevel=0, dens=0)
     snout = shapes.box("t-snout", (0.3, 0.22, 0.2), base=False)
@@ -97,17 +97,17 @@ def build_torch(seed=1):
                         seg=18)
     p.add(bowl, "matte", ("stone_deep", "stone_light"), loc=(0, 0, 0.84), bevel=0.012, segments=2, dens=0.3)
     outer = shapes.flame("flame", 0.2, 0.7)
-    p.add(outer, "emissive", ("fire_red", "fire_orange"), loc=(0, 0, 1.0), scale=(1, 1, 1), bevel=0, dens=0, ao=0.0, strength=1.0,
+    p.add(outer, "emissive", ("fire_red", "fire_orange"), loc=(0, 0, 1.0), scale=(1, 1, 1), bevel=0, dens=0, ao=0.0, strength=1.6, flicker=0.35,
           smooth_angle=80)
     inner = shapes.flame("flame", 0.11, 0.5)
-    p.add(inner, "emissive", ("fire_orange", "fire_yellow"), loc=(0.0, 0.0, 1.0), bevel=0, dens=0, ao=0.0, strength=1.3)
+    p.add(inner, "emissive", ("fire_orange", "fire_yellow"), loc=(0.0, 0.0, 1.0), bevel=0, dens=0, ao=0.0, strength=1.6, flicker=0.35)
     for k, (dx, dy, h) in enumerate(((0.16, 0.04, 0.42), (-0.12, -0.1, 0.34))):
         fl = shapes.flame("flame", 0.09, h)
         p.add(fl, "emissive", ("fire_red", "fire_yellow"), loc=(dx, dy, 1.0), rot=(dy * 40, -dx * 40, 0), bevel=0, dens=0, ao=0.0,
-              strength=1.1)
+              strength=1.6, flicker=0.35)
     for dx, dy, dz in ((0.05, 0.1, 1.78), (-0.1, -0.02, 1.95), (0.12, -0.08, 2.1)):
         spark = shapes.ico_sphere("spark", 0.018, 1)
-        p.add(spark, "emissive", ("fire_yellow", "fire_yellow"), loc=(dx, dy, dz), bevel=0, dens=0, ao=0.0, strength=1.6)
+        p.add(spark, "emissive", ("fire_yellow", "fire_yellow"), loc=(dx, dy, dz), bevel=0, dens=0, ao=0.0, strength=1.6, flicker=0.35)
     return p.build()
 
 
@@ -141,7 +141,7 @@ def build_liana(seed=1, length=2.4):
                       base[2] + (tip[2] - base[2]) * k / 4 + 0.03 * math.sin(math.pi * k / 4)) for k in range(5)]
             widths = [0.02 + 0.075 * math.sin(math.pi * (k / 4) ** 0.8) for k in range(5)]
             leaf = shapes.ribbon("leaf", spine, widths, normal_hint=(math.cos(a + 1.6), math.sin(a + 1.6), 0.3), fold=0.3, across=2)
-            p.add(leaf, "matte", "leaf", solidify=0.006, bevel=0, dens=0, ao=0.5, jitter=0.05, mode="z")
+            p.add(leaf, "foliage", "leaf", sway=0.06, solidify=0.006, bevel=0, dens=0, ao=0.5, jitter=0.05, mode="z")
     return p.build()
 
 
@@ -161,7 +161,7 @@ def build_fern(seed=1, fronds=11, size=1.0):
             w = 0.14 * math.sin(math.pi * (0.06 + 0.94 * s)) ** 0.5
             widths.append(w * (1.0 if i % 2 == 0 else 0.7))
         frond = shapes.ribbon("fern-frond", spine, widths, normal_hint=(0, 0, 1), fold=0.4, across=2)
-        p.add(frond, "matte", "leaf", solidify=0.008, bevel=0, dens=0, ao=0.55, mode="radial", center=(0, 0), jitter=0.05)
+        p.add(frond, "foliage", "leaf", sway=0.06, solidify=0.008, bevel=0, dens=0, ao=0.55, mode="radial", center=(0, 0), jitter=0.05)
     return p.build()
 
 
@@ -203,7 +203,7 @@ def _curtain(p, rng, x, y, z_top, drop, width, bulge, steps=7, across=10):
     def streaks(px, py, pz):
         return 0.86 + 0.14 * math.sin(px * 31.0 + seed + pz * 1.3)
 
-    p.add(sheet, "glow", "water", stops=stops, solidify=0.05, bevel=0, dens=0, ao=0.25, mode="z", strength=0.3, pattern=streaks,
+    p.add(sheet, "glow", "water", stops=stops, solidify=0.05, bevel=0, dens=0, ao=0.25, mode="z", strength=1.0, pattern=streaks,
           jitter=0.0)
 
 
@@ -229,11 +229,11 @@ def build_waterfall(seed=2):
     for k, (zt, yf, w, d, yo) in enumerate(tops):
         film = shapes.box("film", (w - 0.5, d - 0.35, 0.04), base=True)
         p.add(film, "glow", ("water", "water_light"), loc=(0, yo + 0.05, zt - 0.005), bevel=0.01, segments=1, dens=0, ao=0.2,
-              strength=0.25, mode="y")
+              strength=1.0, mode="y")
         below = tops[k - 1][0] if k else 0.0
         _curtain(p, rng, 0.0, yf + 0.05, zt - 0.01, zt - below - 0.04, w - 0.5, 0.2)
     pool = shapes.lathe("pool", [(0.0, 0.03), (1.7, 0.03), (1.85, 0.0)], seg=28, caps=False)
-    p.add(pool, "glow", ("water_deep", "water"), loc=(0, -1.45, 0.0), scale=(1.15, 0.7, 1), bevel=0, dens=0, ao=0.2, strength=0.25,
+    p.add(pool, "glow", ("water_deep", "water"), loc=(0, -1.45, 0.0), scale=(1.15, 0.7, 1), bevel=0, dens=0, ao=0.2, strength=1.0,
           mode="radial", center=(0, -1.45))
     for k in range(7):
         a = rng.uniform(math.pi * 0.85, math.pi * 2.15)
@@ -331,3 +331,11 @@ def build_lilypad(seed=1, flower=False):
 PROPS = {"head": build_head, "totem": build_totem, "torch": build_torch, "liana": build_liana, "fern": build_fern,
          "bush": build_bush, "waterfall": build_waterfall, "tile": build_tile, "pillar": build_pillar, "rock": build_rock,
          "islet": build_islet, "lilypad": build_lilypad}
+
+# Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
+PROP_META = {
+    "head": {"tags": ["hero"]}, "totem": {"tags": []}, "torch": {"tags": []}, "liana": {"tags": []},
+    "fern": {"tags": ["scatter"]}, "bush": {"tags": ["scatter"]}, "waterfall": {"tags": []},
+    "tile": {"tags": ["scatter", "flat"]}, "pillar": {"tags": []}, "rock": {"tags": []}, "islet": {"tags": []},
+    "lilypad": {"tags": []},
+}

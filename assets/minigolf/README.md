@@ -1,20 +1,23 @@
 # AuraGo Mini Golf courses
 
-The 18 original low-poly courses, Blender source, and generator in this directory
+The 18 original low-poly courses and the Blender generator in this directory
 were created for AuraGo and are licensed under the MIT License in this
 directory. They were authored in Blender 5.2.2 using metres. Runtime GLBs and
 manifest coordinates use glTF's Y-up coordinate system.
 
-Regenerate all scenes, runtime GLBs, and the collision manifest from the
-repository root with Blender 5.2.2:
+Regenerate the prop kits, runtime GLBs, and the collision manifest from the
+repository root with Blender 5.2.2 (`-- --only kits` or `-- --only courses`
+rebuilds just one half and keeps the other half of the manifest):
 
 ```powershell
-& 'D:\Blender 5.2\blender.exe' --background --python assets/minigolf/generate.py
+& 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/minigolf/generate.py
 node scripts/test-minigolf-assets.mjs
 ```
 
-The generator saves 18 editable scenes in `aura-golf-courses.blend` and writes
-one self-contained GLB per course plus `ui/3d/minigolf/manifest.json`. Fixed
+The generator writes one self-contained GLB per course, one prop kit
+`props-<look>.glb` per world (`pirate`, `temple`, `moon`) plus
+`ui/3d/minigolf/manifest.json`. The Blender scenes are no longer versioned;
+`-- --save-blend` writes them to the ignored `assets/minigolf/build/`. Fixed
 collider vertices and triangle indices are read back from each exported GLB, so
 physics follows Blender's exported topology and coordinates exactly. Moving
 obstacles are named top-level nodes and remain separate from fixed colliders;
