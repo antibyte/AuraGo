@@ -7905,5 +7905,15 @@
   "minigolf.tie": "Unentschieden!",
   "minigolf.other_hole": "Andere Bahn",
   "minigolf.hole_best": "Bestwert der Bahn",
-  "minigolf.place": "Platz {n}"
+  "minigolf.place": "Platz {n}",
+  "minigolf.tutorial_aim": "Zieh vom Ball nach hinten weg – wie bei einer Steinschleuder.",
+  "minigolf.tutorial_aim_keys": "←/→ zielen",
+  "minigolf.tutorial_power": "Je weiter Du ziehst, desto kräftiger. Die gestrichelte Linie zeigt den Weg.",
+  "minigolf.tutorial_power_keys": "↑/↓ Stärke",
+  "minigolf.tutorial_release": "Lass los, um zu schlagen!",
+  "minigolf.tutorial_release_keys": "Leertaste schlägt",
+  "minigolf.tutorial_watch": "Gut! Warte, bis der Ball liegt.",
+  "minigolf.tutorial_done": "Geschafft! Die Hilfe findest Du jederzeit hier.",
+  "minigolf.tutorial_camera": "Zum Zielen den Kameramodus verlassen.",
+  "minigolf.tutorial_skip": "Überspringen"
 }

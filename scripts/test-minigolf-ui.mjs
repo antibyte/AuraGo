@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
 import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
 import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
 import { rankPlayers, relativeToPar } from '../ui/js/desktop/apps/minigolf-scorecard.js';
+import { tutorialStart, tutorialNext, tutorialView } from '../ui/js/desktop/apps/minigolf-tutorial.js';
 
 const close = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 
@@ -102,5 +104,36 @@ const parRound = { courseIds: ['a', 'b'], holeIndex: 1, completed: false }, parC
 assert.equal(relativeToPar({ scores: [3], strokes: 2, done: true }, parRound, parCourses), 0, 'a finished current hole counts');
 assert.equal(relativeToPar({ scores: [3], strokes: 2, done: false }, parRound, parCourses), 1, 'an open hole does not count');
 assert.equal(relativeToPar({ scores: [3, 2], strokes: 0, done: true }, { courseIds: ['a', 'b'], holeIndex: 2, completed: true }, parCourses), 0, 'a completed round counts every hole once');
+
+// --- Tutorial state machine (Task 9) ----------------------------------------
+let step = tutorialStart();
+assert.equal(step.step, 'aim');
+assert.equal(tutorialNext(step, { type: 'cancel' }), step, 'a cancelled drag keeps the step');
+step = tutorialNext(step, { type: 'drag', strength: 0.05 }); assert.equal(step.step, 'power');
+assert.equal(tutorialNext(step, { type: 'drag', strength: 0.1 }).step, 'power');
+step = tutorialNext(step, { type: 'strength', strength: 0.25 }); assert.equal(step.step, 'release');
+step = tutorialNext(step, { type: 'shot' }); assert.equal(step.step, 'watch');
+assert.equal(tutorialNext(step, { type: 'panel' }).step, 'watch');
+step = tutorialNext(step, { type: 'resolved' }); assert.equal(step.step, 'done');
+assert.deepEqual(tutorialNext(step, { type: 'confirm' }), { step: null, finished: true });
+assert.deepEqual(tutorialNext(step, { type: 'shot' }), { step: null, finished: true });
+assert.deepEqual(tutorialNext(step, { type: 'panel' }), { step: null, finished: true });
+assert.equal(tutorialNext(tutorialNext(tutorialStart(), { type: 'turn' }), { type: 'shot' }).step, 'watch', 'an early shot jumps to watch');
+assert.deepEqual(tutorialNext(tutorialStart(), { type: 'skip' }), { step: null, finished: true });
+const finished = tutorialNext(tutorialStart(), { type: 'skip' });
+assert.equal(tutorialNext(finished, { type: 'shot' }), finished, 'a finished tutorial stays finished');
+const powerStep = { step: 'power', finished: false };
+assert.equal(tutorialView(powerStep, { canAim: true }).text, 'tutorial_power');
+assert.equal(tutorialView(powerStep, { canAim: true, camera: true }).text, 'tutorial_camera', 'camera mode hides the aiming steps');
+assert.equal(tutorialView(powerStep, { canAim: true, panel: true }), null);
+assert.equal(tutorialView(powerStep, { canAim: true, ballVisible: false }).anchor, 'top');
+assert.equal(tutorialView({ step: 'done', finished: false }, {}).anchor, 'help');
+// Every text the tutorial shows has an English string.
+const english = JSON.parse(fs.readFileSync(new URL('../ui/lang/desktop/en.json', import.meta.url), 'utf8'));
+for (const name of ['aim', 'power', 'release', 'watch', 'done']) {
+    const view = tutorialView({ step: name, finished: false }, { canAim: true });
+    for (const key of [view.text, view.keys].filter(Boolean)) assert.ok(english['minigolf.' + key], 'missing en string minigolf.' + key);
+}
+assert.ok(english['minigolf.' + tutorialView(powerStep, { canAim: true, camera: true }).text], 'missing en string for the camera hint');
 
 console.log('minigolf ui: all checks passed');

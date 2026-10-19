@@ -1,6 +1,7 @@
 import { createHud, formatPower } from './minigolf-hud.js';
 import { createMenus } from './minigolf-menus.js';
 import { createScorecard } from './minigolf-scorecard.js';
+import { createCoach } from './minigolf-tutorial.js';
 
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -29,7 +30,7 @@ const ICONS = {
 };
 export const icon = name => `<svg class="mg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ICONS.star}</svg>`;
 
-export function createView(host, tr, { assetURL = path => path } = {}) {
+export function createView(host, tr, { assetURL = path => path, onFocusLost } = {}) {
     const serial = createView.serial = (createView.serial || 0) + 1;
     const root = document.createElement('div'); root.className = 'mg-app';
     root.dataset.world = 'neutral'; root.dataset.panel = 'loading'; root.dataset.reduced = 'false';
@@ -56,6 +57,7 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
     const panel = $('.mg-overlay'), loadingEl = $('[data-loading]'), slider = $('[data-power]'), powerOut = $('[data-power-value]');
     const progressLabel = $('[data-progress-label]'), progressTrack = $('[data-progress-track]'), cameraButton = $('[data-action="camera"]');
     const hud = createHud({ hud: $('[data-hud]'), toasts: $('[data-toasts]'), announcer: $('[data-announcer]') }, { tr, esc, icon });
+    const coach = createCoach($('[data-coach]'), { tr, esc, onFocusLost: () => onFocusLost?.() });
     let restoreFocus = null;
 
     function showPanel(html, label, focus) {
@@ -87,7 +89,7 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
     root.addEventListener('keydown', trap);
 
     return Object.assign({
-        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar,
+        root, canvasHost: $('.mg-canvas'), panel, hud, coach, showPanel, progress, topbar,
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected && !restoreFocus.disabled) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         update(round, course, busy) {
             if (!round || !course) return;
@@ -108,6 +110,6 @@ export function createView(host, tr, { assetURL = path => path } = {}) {
             hud.power(strength, formatted);
         },
         track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
-        dispose() { root.removeEventListener('keydown', trap); hud.dispose(); root.remove(); }
+        dispose() { root.removeEventListener('keydown', trap); hud.dispose(); coach.dispose(); root.remove(); }
     }, createMenus({ showPanel, panel, tr, esc, icon, assetURL }), createScorecard({ showPanel, tr, esc }));
 }

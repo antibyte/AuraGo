@@ -7905,5 +7905,15 @@
   "minigolf.tie": "It’s a tie!",
   "minigolf.other_hole": "Another hole",
   "minigolf.hole_best": "Best on this hole",
-  "minigolf.place": "Place {n}"
+  "minigolf.place": "Place {n}",
+  "minigolf.tutorial_aim": "Drag back from the ball – like a slingshot.",
+  "minigolf.tutorial_aim_keys": "←/→ aim",
+  "minigolf.tutorial_power": "The further you pull, the harder the putt. The dashed line shows the path.",
+  "minigolf.tutorial_power_keys": "↑/↓ power",
+  "minigolf.tutorial_release": "Let go to putt!",
+  "minigolf.tutorial_release_keys": "Space putts",
+  "minigolf.tutorial_watch": "Nice! Wait until the ball stops.",
+  "minigolf.tutorial_done": "Done! You can always find help here.",
+  "minigolf.tutorial_camera": "Leave camera mode to aim.",
+  "minigolf.tutorial_skip": "Skip"
 }

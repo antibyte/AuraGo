@@ -305,6 +305,24 @@ p.mg-loading{padding:24px}
     .mg-result-total{font-size:48px}
 }
 
+/* 10 Coach marks: one non-modal bubble over the stage; only the demo dot loops (reduced motion shows a static arrow instead). */
+.mg-coach-bubble{position:absolute;left:0;top:0;display:grid;gap:6px;width:max-content;max-width:min(280px,calc(100% - 16px));padding:12px 14px;border:2px solid var(--mg-accent);border-radius:var(--mg-radius);background:var(--mg-surface-strong);color:var(--mg-text);box-shadow:0 8px 22px #0b161238;font-size:14px;line-height:1.4;will-change:transform}
+.mg-coach-bubble::after{content:'';position:absolute;left:var(--mg-arrow,50%);width:14px;height:14px;margin-left:-7px;background:var(--mg-surface-strong);border:0 solid var(--mg-accent);transform:rotate(45deg)}
+.mg-coach-bubble[data-side=above]::after{bottom:-9px;border-width:0 2px 2px 0}
+.mg-coach-bubble[data-side=below]::after{top:-9px;border-width:2px 0 0 2px}
+.mg-coach-bubble[data-side=none]::after{display:none}
+.mg-coach-text{margin:0;font-weight:600}
+.mg-coach-keys{margin:0;font-size:13px;color:var(--mg-muted)}
+.mg-coach-actions{display:flex;flex-wrap:wrap;gap:8px}
+.mg-coach-actions button{pointer-events:auto;min-height:40px}
+.mg-coach-demo{position:relative;display:block;height:30px}
+.mg-coach-demo::after{content:'';position:absolute;left:18px;top:4px;width:14px;height:14px;border:2px solid var(--mg-text);border-radius:50%}
+.mg-coach-demo i{position:absolute;left:21px;top:7px;width:8px;height:8px;border-radius:50%;background:var(--mg-accent);animation:mg-coach-drag 1.2s ease-in-out infinite}
+.mg-app[data-reduced=true] .mg-coach-demo i{display:none}
+.mg-app[data-reduced=true] .mg-coach-demo::before{content:'';position:absolute;left:10px;top:16px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--mg-accent);transform:rotate(45deg)}
+@keyframes mg-coach-drag{0%{opacity:0;transform:translate(0,0)}15%{opacity:1}75%{opacity:1;transform:translate(-13px,15px)}100%{opacity:0;transform:translate(-13px,15px)}}
+@media (prefers-reduced-motion:reduce){.mg-app .mg-coach-demo i{display:none}}
+
 /* 11 Motion: banners, toasts, scorecard rows and the podium animate; reduced motion removes every animation and transition. */
 @keyframes mg-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes mg-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
