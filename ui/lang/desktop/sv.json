@@ -7817,7 +7817,7 @@
   "minigolf.tutorial_body": "Dra försiktigt bakåt från bollen. Pilen visar riktningen och mätaren kraften. Försök nå flaggan.",
   "minigolf.got_it": "Då kör vi",
   "minigolf.credits": "Musikcredits",
-  "minigolf.credits_body": "Originalkonst i Blender för AuraGo. Musiken är publicerad under CC0 och spelas med lokalt syntetiserade instrument.",
+  "minigolf.credits_body": "Originalkonst i Blender för AuraGo. Musiken och de inspelade ljudeffekterna är publicerade under CC0; ljudmiljön och gränssnittsljuden syntetiseras lokalt.",
   "minigolf.help": "Så spelar du",
   "minigolf.score_hint": "Lägst totalsumma vinner. Vatten och slag utanför banan ger ett pliktslag.",
   "minigolf.leave_hint": "Ditt senast avslutade slag sparas. Ett oavslutat slag räknas inte.",

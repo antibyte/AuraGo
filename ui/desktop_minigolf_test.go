@@ -36,7 +36,19 @@ func TestDesktopMinigolfRegistrationAndLocalResources(t *testing.T) {
 			}
 		}
 	}
-	for _, file := range []string{"3d/minigolf/manifest.json", "js/vendor/minigolf/game.esm.js", "3d/minigolf/music/manifest.json", "img/desktop-icons/minigolf.svg"} {
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	entryStart := strings.Index(loader, "'minigolf': {")
+	if entryStart < 0 {
+		t.Fatal("module-loader.js has no minigolf entry")
+	}
+	entryLength := strings.Index(loader[entryStart:], "},")
+	if entryLength < 0 {
+		t.Fatal("module-loader.js minigolf entry is not closed")
+	}
+	if entry := loader[entryStart : entryStart+entryLength]; strings.Contains(entry, "synth-studio") {
+		t.Fatalf("AuraGolf has its own audio engine and must not load Synth Studio: %s", entry)
+	}
+	for _, file := range []string{"3d/minigolf/manifest.json", "js/vendor/minigolf/game.esm.js", "3d/minigolf/audio/manifest.json", "img/desktop-icons/minigolf.svg"} {
 		resource, err := Content.Open(file)
 		if err != nil {
 			t.Fatalf("missing packaged resource %s: %v", file, err)

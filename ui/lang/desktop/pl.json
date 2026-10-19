@@ -7817,7 +7817,7 @@
   "minigolf.tutorial_body": "Delikatnie pociągnij w tył od piłki. Strzałka pokazuje kierunek, a wskaźnik siłę. Spróbuj dotrzeć do flagi.",
   "minigolf.got_it": "Zaczynamy",
   "minigolf.credits": "Informacje o muzyce",
-  "minigolf.credits_body": "Oryginalna grafika Blender dla AuraGo. Muzyka jest udostępniona na licencji CC0 i odtwarzana za pomocą lokalnie syntezowanych instrumentów.",
+  "minigolf.credits_body": "Oryginalna grafika Blender dla AuraGo. Muzyka i nagrane efekty dźwiękowe są udostępnione na licencji CC0; dźwięki otoczenia i interfejsu są syntezowane lokalnie.",
   "minigolf.help": "Jak grać",
   "minigolf.score_hint": "Wygrywa najniższy wynik łączny. Woda i wyjście poza pole dodają jeden punkt karny.",
   "minigolf.leave_hint": "Ostatnie ukończone uderzenie jest zapisywane. Nieukończone uderzenie nie jest liczone.",

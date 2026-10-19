@@ -1,7 +1,7 @@
 import { createScene } from './minigolf-scene.js';
 import { createPhysics, strengthToPower, MAX_ROLL } from './minigolf-physics.js';
 import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, scoreTotal } from './minigolf-model.js';
-import { createAudio } from './minigolf-audio.js';
+import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
 
 const SAVE_KEY = 'aurago.desktop.minigolf.round.v1';
@@ -53,6 +53,7 @@ export function mountGame(host, context = {}) {
     function syncAmbient() {
         const world = !loading && course && round && !round.completed && !panelKind ? course.world : null;
         audio.setAmbient(world);
+        audio.setMusic(panelKind === 'menu' || !round || round.completed || !course ? 'menu' : course.world);
     }
     function snapTowardCup(dir) {
         if (!settings.magnet || !course?.cup || !round) return dir;
@@ -245,7 +246,10 @@ export function mountGame(host, context = {}) {
     };
     function click(event) {
         const button = event.target.closest('[data-action]');
-        if (button && !button.disabled && actions[button.dataset.action]) Promise.resolve(actions[button.dataset.action]()).catch(() => { if (!disposed) { setPanel('error'); view.error('load_error'); } });
+        if (button && !button.disabled && actions[button.dataset.action]) {
+            audio.ui(button.dataset.action);
+            Promise.resolve(actions[button.dataset.action]()).catch(() => { if (!disposed) { setPanel('error'); view.error('load_error'); } });
+        }
     }
     function input(event) {
         const element = event.target;
@@ -342,11 +346,7 @@ export function mountGame(host, context = {}) {
             if (data.version !== 1 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model))) throw Error('manifest');
             manifest = data; const saved = read(SAVE_KEY);
             checkpoint = saved && validateSave(saved, manifest.courses) ? saved : null;
-            tracks = [
-                { title: 'A Simple Trifle', author: 'jestar' },
-                { title: 'Piano Emotional Solo 139', author: 'Tozan' },
-                { title: 'Crystal Tune Bright 1', author: 'Tozan' }
-            ];
+            tracks = AUDIO_CREDITS;
             await loadCourse(manifest.courses[0], true);
             if (!disposed && panelKind !== 'error') showMenu();
         } catch (_) { if (!disposed) { loading = false; setPanel('error'); view.error('load_error'); } }

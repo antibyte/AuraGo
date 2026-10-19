@@ -7817,7 +7817,7 @@
   "minigolf.tutorial_body": "Tira suavemente hacia atrás desde la bola. La flecha indica la dirección y el medidor, la potencia. Intenta llegar a la bandera.",
   "minigolf.got_it": "¡A jugar!",
   "minigolf.credits": "Créditos de música",
-  "minigolf.credits_body": "Arte original de Blender para AuraGo. Música publicada bajo CC0 y reproducida con instrumentos sintetizados localmente.",
+  "minigolf.credits_body": "Arte original de Blender para AuraGo. La música y los efectos de sonido grabados se publican bajo CC0; el ambiente y los sonidos de la interfaz se sintetizan localmente.",
   "minigolf.help": "Cómo jugar",
   "minigolf.score_hint": "Gana quien tenga el total más bajo. El agua y salir de límites añaden un golpe de penalización.",
   "minigolf.leave_hint": "Se guarda tu último golpe completado. Los golpes sin terminar no cuentan.",

@@ -7,6 +7,8 @@ const originalFetch = window.fetch.bind(window);
 const audioContexts = [];
 let failCourseLoads = new URLSearchParams(location.search).has('fail-course');
 const assetURL = value => `${value}?v=minigolf-browser-test`;
+// foreignResources() reads the whole page session, so keep every resource entry.
+performance.setResourceTimingBufferSize(2000);
 
 // Chrome 146 exposes playback underrun counters on AudioContext. Wrap the
 // constructor before mounting the app so this fixture can compare live-game
@@ -50,70 +52,35 @@ const mount = () => {
     return game;
 };
 
-function shortMusicProject(project) {
-    const clone = structuredClone(project);
-    clone.loop = { enabled: false, start: 0, end: 0 };
-    const endTick = Math.floor(5 * clone.tempo * clone.ppq / 60);
-    clone.tracks = clone.tracks.map(track => ({
-        ...track,
-        mute: false,
-        solo: false,
-        volume: Math.min(0.65, Math.max(0.2, track.volume ?? 0.8)),
-        clips: (track.clips || []).filter(clip => clip.start < endTick).map(clip => {
-            const clipEnd = Math.max(1, endTick - clip.start);
-            const notes = clip.notes.filter(note => note.start < clipEnd).map(note => ({
-                ...note,
-                duration: Math.max(1, Math.min(note.duration, clipEnd - note.start))
-            }));
-            return {
-                ...clip,
-                length: Math.min(clip.length || clipEnd, clipEnd),
-                notes,
-                controllers: (clip.controllers || []).filter(control => control.tick <= clipEnd)
-            };
-        })
-    })).filter(track => track.clips.length);
-    return clone;
-}
-
-async function renderMusicSamples() {
-    const manifest = await (await originalFetch(assetURL('/3d/minigolf/music/manifest.json'))).json();
+async function decodeAudioSamples() {
+    const manifest = await (await originalFetch(assetURL('/3d/minigolf/audio/manifest.json'))).json();
     const results = [];
-    for (const track of manifest.tracks) {
-        const project = await (await originalFetch(assetURL('/3d/minigolf/music/' + track.project))).json();
-        const blob = await SynthStudioAudio.renderWav(shortMusicProject(project));
-        const bytes = await blob.arrayBuffer();
-        const view = new DataView(bytes);
-        if (view.getUint32(0, false) !== 0x52494646 || view.getUint32(8, false) !== 0x57415645 || view.getUint32(40, true) !== bytes.byteLength - 44) {
-            throw new Error(`Invalid offline WAV for ${track.id}`);
+    for (const track of manifest.music) {
+        const bytes = await (await originalFetch(assetURL('/3d/minigolf/audio/' + track.file))).arrayBuffer();
+        // Decode at the engine's sample rate; length 1 is enough for decodeAudioData.
+        const buffer = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(bytes);
+        let squareSum = 0, peak = 0, fullScale = 0, count = 0, seam = 0;
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const data = buffer.getChannelData(channel);
+            for (const sample of data) {
+                if (!Number.isFinite(sample)) throw new Error(`Non-finite PCM for ${track.id}`);
+                const magnitude = Math.abs(sample);
+                squareSum += sample * sample;
+                peak = Math.max(peak, magnitude);
+                if (magnitude >= 0.999) fullScale++;
+                count++;
+            }
+            seam = Math.max(seam, Math.abs(data[data.length - 1] - data[0]));
         }
-        const samples = new Int16Array(bytes, 44);
-        let squareSum = 0, peak = 0, fullScale = 0;
-        for (const sample of samples) {
-            const normalized = sample / 32768;
-            if (!Number.isFinite(normalized)) throw new Error(`Non-finite PCM for ${track.id}`);
-            const magnitude = Math.abs(normalized);
-            squareSum += normalized * normalized;
-            peak = Math.max(peak, magnitude);
-            if (magnitude >= 0.999) fullScale++;
-        }
-        const seconds = view.getUint32(40, true) / (44100 * 2 * 2);
-        const result = {
+        results.push({
             id: track.id,
-            seconds,
-            rms: Math.sqrt(squareSum / Math.max(1, samples.length)),
+            seconds: buffer.duration,
+            expectedSeconds: track.seconds,
+            rms: Math.sqrt(squareSum / Math.max(1, count)),
             peak,
-            fullScaleFraction: fullScale / Math.max(1, samples.length)
-        };
-        // renderWav retains its fixed release tail after this five-second note window.
-        if (result.seconds < 4 || result.seconds > 10 || result.rms < 0.0005 || result.peak <= 0.01 || result.fullScaleFraction > 0.001) {
-            throw new Error(`Offline render bounds failed for ${track.id}: ${JSON.stringify(result)}`);
-        }
-        if (new URLSearchParams(location.search).has('save-renders')) {
-            const response = await fetch('/__minigolf-render/' + encodeURIComponent(track.id), { method: 'POST', body: blob });
-            if (!response.ok) throw new Error(`Could not save rendered sample for ${track.id}`);
-        }
-        results.push(result);
+            fullScaleFraction: fullScale / Math.max(1, count),
+            seam
+        });
     }
     return results;
 }
@@ -257,52 +224,18 @@ async function benchmarkCurrentScene() {
     };
 }
 
-function startIndependentPlayers() {
-    const first = SynthStudioAudio.create();
-    const second = SynthStudioAudio.create();
-    const project = (id, pitch) => ({
-        version: 1, tempo: 120, ppq: 480, loop: { enabled: false, start: 0, end: 0 },
-        tracks: [{ id, name: id, instrument: 'lead-saw', volume: 0.35, pan: 0, mute: false, solo: false,
-            params: { tone: 0.5, resonance: 0, drive: 0, attack: 0.01, release: 0.12, chorus: 0, phaser: 0, reverb: 0, delay: 0 },
-            clips: [{ id: id + '-clip', start: 0, length: 4800, notes: [{ id: id + '-note', pitch, start: 0, duration: 4800, velocity: 0.5 }], controllers: [] }] }]
-    });
-    return (async () => {
-        try {
-            const ready = await Promise.all([first.unlock(), second.unlock()]);
-            if (!ready.every(Boolean)) return { independent: false, reason: 'unlock' };
-            const firstDone = first.play(project('minigolf-audio-a', 60));
-            const secondDone = second.play(project('minigolf-audio-b', 67));
-            await new Promise(resolve => setTimeout(resolve, 320));
-            const beforeStop = second.currentTick();
-            first.stop();
-            await new Promise(resolve => setTimeout(resolve, 150));
-            const afterStop = second.currentTick();
-            second.stop();
-            await Promise.all([firstDone, secondDone]);
-            return { independent: beforeStop > 0 && afterStop > beforeStop, beforeStop, afterStop };
-        } finally {
-            first.dispose();
-            second.dispose();
-        }
-    })();
-}
-
 mount();
 window.golfFixture = {
     errors,
     assetRequests,
     inspect: () => game.inspect(),
-    renderMusicSamples,
+    decodeAudioSamples,
+    foreignResources: () => performance.getEntriesByType('resource').map(entry => entry.name).filter(name => new URL(name, location.href).origin !== location.origin),
     measureFrameIntervals,
     measureAudioPlaybackStats,
     measureActivePlayAudioStats,
     audioContexts,
     benchmarkCurrentScene,
-    armIndependentPlayerTest(button) {
-        button.addEventListener('pointerdown', () => {
-            this.independentPlayersPromise = startIndependentPlayers();
-        }, { once: true });
-    },
     reopen() { game?.dispose(); return mount(); },
     setCourseFailure(value) { failCourseLoads = !!value; },
     dispose() { game.dispose(); },

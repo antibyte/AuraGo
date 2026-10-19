@@ -7817,7 +7817,7 @@
   "minigolf.tutorial_body": "ボールからゆっくり後ろへ引きます。矢印は方向、メーターはパワーを示します。旗を目指しましょう。",
   "minigolf.got_it": "さあ、プレイ",
   "minigolf.credits": "音楽クレジット",
-  "minigolf.credits_body": "AuraGoのために制作したオリジナルのBlenderアート。音楽はCC0で公開され、ローカルで合成した楽器音で再生します。",
+  "minigolf.credits_body": "AuraGoのために制作したオリジナルのBlenderアート。音楽と録音した効果音はCC0で公開されており、環境音とインターフェースの音はローカルで合成しています。",
   "minigolf.help": "遊び方",
   "minigolf.score_hint": "合計打数が最も少ない人の勝ちです。水やコース外ではペナルティが1打加算されます。",
   "minigolf.leave_hint": "最後に完了したショットは保存されます。未完了のショットは数えません。",

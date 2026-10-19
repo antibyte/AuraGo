@@ -7817,7 +7817,7 @@
   "minigolf.tutorial_body": "从球的位置轻轻向后拉。箭头表示方向，刻度表示力度。试着推到旗杆处。",
   "minigolf.got_it": "开始游戏",
   "minigolf.credits": "音乐鸣谢",
-  "minigolf.credits_body": "为 AuraGo 创作的原创 Blender 美术作品。音乐以 CC0 发布，并由本地合成乐器播放。",
+  "minigolf.credits_body": "为 AuraGo 创作的原创 Blender 美术作品。音乐和录制的音效以 CC0 发布；环境音和界面音效在本地合成。",
   "minigolf.help": "玩法说明",
   "minigolf.score_hint": "总杆数最低者获胜。下水或出界会增加一杆罚杆。",
   "minigolf.leave_hint": "最后完成的一杆会被保存。未完成的击球不计数。",

@@ -3,7 +3,6 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -27,37 +26,11 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mux.HandleFunc("/__minigolf-render/", func(w http.ResponseWriter, r *http.Request) {
-		if artifactDir == "" || r.Method != http.MethodPost {
-			http.Error(w, "render artifact saving is disabled", http.StatusNotFound)
-			return
-		}
-		name := filepath.Base(r.URL.Path)
-		if name != "a-simple-trifle" && name != "piano-emotional-solo-139" && name != "crystal-tune-bright-1" {
-			http.Error(w, "unknown track", http.StatusBadRequest)
-			return
-		}
-		bytes, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16<<20))
-		if err != nil {
-			http.Error(w, "render artifact is too large", http.StatusRequestEntityTooLarge)
-			return
-		}
-		if len(bytes) < 44 || string(bytes[:4]) != "RIFF" || string(bytes[8:12]) != "WAVE" {
-			http.Error(w, "invalid WAV render", http.StatusBadRequest)
-			return
-		}
-		if err := os.WriteFile(filepath.Join(artifactDir, "minigolf-"+name+".wav"), bytes, 0644); err != nil {
-			http.Error(w, "could not save render", http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-minigolf.css">
 <style>html,body,#golf-host,.vd-window{margin:0;width:100%;height:100%;overflow:hidden}.vd-window{position:relative}body{font-family:system-ui,sans-serif}</style>
-<script src="/js/vendor/synth-studio/gm-data.js"></script><script src="/js/desktop/apps/synth-studio-voices.js"></script><script src="/js/desktop/apps/synth-studio-audio.js"></script>
 </head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window" id="golf-host"></main><script type="module" src="/testdata/minigolf-fixture.js"></script></body></html>`)
 	})
 	server := httptest.NewServer(mux)
@@ -73,17 +46,35 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page := browser.MustPage("about:blank").Timeout(180 * time.Second)
 	t.Cleanup(func() { _ = page.Close() })
 	page.MustSetViewport(1280, 760, 1, false)
-	fixtureURL := server.URL + "/fixture"
-	if artifactDir != "" {
-		fixtureURL += "?save-renders=1"
+	audioManifestData, err := os.ReadFile("3d/minigolf/audio/manifest.json")
+	if err != nil {
+		t.Fatal(err)
 	}
-	page.MustNavigate(fixtureURL).MustWaitLoad()
+	var audioManifest struct {
+		SFX   map[string][]string `json:"sfx"`
+		Music []struct {
+			ID string `json:"id"`
+		} `json:"music"`
+	}
+	if err := json.Unmarshal(audioManifestData, &audioManifest); err != nil {
+		t.Fatal(err)
+	}
+	sfxFiles := 0
+	for _, paths := range audioManifest.SFX {
+		sfxFiles += len(paths)
+	}
+	if sfxFiles == 0 || len(audioManifest.Music) != 4 {
+		t.Fatalf("unexpected audio manifest: %d effect files, %d music tracks", sfxFiles, len(audioManifest.Music))
+	}
+	page.MustNavigate(server.URL + "/fixture").MustWaitLoad()
 	page.MustWait(`()=>!!window.golfFixture?.inspect && window.golfFixture.inspect().loading===false && window.golfFixture.inspect().panel==='menu'`)
 	if !page.MustEval(`()=>window.I18N['minigolf.title']==='AuraGolf' && golfFixture.inspect().audio.unlocked===false`).Bool() {
 		t.Fatal("fixture did not load the real locale or audio stayed unlocked before a gesture")
 	}
+	if page.MustEval(`()=>golfFixture.assetRequests.some(path=>path.includes('/3d/minigolf/audio/'))`).Bool() {
+		t.Fatal("audio assets were requested before the first user gesture")
+	}
 	page.MustEval(`()=>{const e=document.querySelector('[data-players]');e.value='2';e.dispatchEvent(new Event('change',{bubbles:true}));const names=document.querySelectorAll('[data-player-name]');names[0].value='Player 1 Has A Very Long AuraGolf Name';names[1].value='Player 2 Has A Very Long AuraGolf Name';}`)
-	page.MustEval(`()=>golfFixture.armIndependentPlayerTest(document.querySelector('[data-action="start"]'))`)
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel==='tutorial'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
@@ -92,10 +83,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long AuraGolf'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long AuraGolf'`).Bool() {
 		t.Fatalf("long player names did not survive menu validation: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().round.players.map(p=>p.name))`).Str())
 	}
-	page.Timeout(10 * time.Second).MustWait(`()=>!!golfFixture.independentPlayersPromise`)
-	if !page.MustEval(`async()=>{const result=await golfFixture.independentPlayersPromise;return result.independent}`).Bool() {
-		t.Fatal("stopping one Synth Studio player interrupted its simultaneous peer")
-	}
+	// All recorded effects decode in the background after the first gesture; wait
+	// for them so the underrun measurement below does not overlap that work.
+	page.Timeout(30*time.Second).MustWait(`count=>{const s=golfFixture.inspect().audio.samples;return s.loaded===count&&s.failed===0}`, sfxFiles)
 	page.Timeout(15 * time.Second).MustWait(`()=>golfFixture.inspect().audio.playing`)
 	playbackJSON := page.Timeout(45 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.measureAudioPlaybackStats(20000))`).Str()
 	var playback struct {
@@ -250,35 +240,38 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-action="pause"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel==='pause'&&golfFixture.inspect().audio.paused&&!golfFixture.inspect().audio.playing`)
-	pausedMusicTick := page.MustEval(`()=>golfFixture.inspect().audio.tick`).Num()
-	samplesJSON := page.Timeout(90 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.renderMusicSamples())`).Str()
+	pausedMusicPosition := page.MustEval(`()=>golfFixture.inspect().audio.position`).Num()
+	samplesJSON := page.Timeout(90 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.decodeAudioSamples())`).Str()
 	var samples []struct {
 		ID                string  `json:"id"`
 		Seconds           float64 `json:"seconds"`
+		ExpectedSeconds   float64 `json:"expectedSeconds"`
 		RMS               float64 `json:"rms"`
 		Peak              float64 `json:"peak"`
 		FullScaleFraction float64 `json:"fullScaleFraction"`
+		Seam              float64 `json:"seam"`
 	}
 	if err := json.Unmarshal([]byte(samplesJSON), &samples); err != nil {
-		t.Fatalf("parse short MIDI renders: %v (%s)", err, samplesJSON)
+		t.Fatalf("parse decoded music tracks: %v (%s)", err, samplesJSON)
 	}
-	if len(samples) != 3 {
-		t.Fatalf("rendered %d MIDI samples, expected all three", len(samples))
+	if len(samples) != len(audioManifest.Music) {
+		t.Fatalf("decoded %d music tracks, expected all %d", len(samples), len(audioManifest.Music))
 	}
-	for _, sample := range samples {
-		if sample.Seconds < 4 || sample.Seconds > 10 || sample.RMS < .0005 || sample.Peak <= .01 || sample.FullScaleFraction > .001 {
-			t.Fatalf("MIDI render is silent or outside bounds: %+v", sample)
+	for index, sample := range samples {
+		if sample.ID != audioManifest.Music[index].ID {
+			t.Fatalf("decoded track %d is %q, manifest lists %q", index, sample.ID, audioManifest.Music[index].ID)
+		}
+		if math.Abs(sample.Seconds-sample.ExpectedSeconds) > .05 || sample.RMS <= .01 || sample.FullScaleFraction > .001 || sample.Seam >= .1 {
+			t.Fatalf("music track is silent, clipped, mis-timed or has a loop seam: %+v", sample)
 		}
 	}
-	if got := page.MustEval(`()=>golfFixture.inspect().audio.tick`).Num(); got != pausedMusicTick {
-		t.Fatalf("offline WAV render advanced the paused live playlist: before=%f after=%f", pausedMusicTick, got)
+	t.Logf("decoded music tracks: %s", samplesJSON)
+	if got := page.MustEval(`()=>golfFixture.inspect().audio.position`).Num(); got != pausedMusicPosition {
+		t.Fatalf("offline decoding advanced the paused live music: before=%f after=%f", pausedMusicPosition, got)
 	}
 	page.MustElement(`[data-action="pause"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel===''&&golfFixture.inspect().audio.playing`)
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,100))`)
-	if !page.MustEval(`tick=>golfFixture.inspect().audio.tick>tick`, pausedMusicTick).Bool() {
-		t.Fatal("live playlist did not continue from its saved position after offline WAV rendering")
-	}
+	page.Timeout(5*time.Second).MustWait(`position=>golfFixture.inspect().audio.position>position`, pausedMusicPosition)
 	page.MustEval(`()=>document.querySelector('.mg-canvas canvas').focus()`)
 	page.Keyboard.MustType(input.Space)
 	page.MustWait(`()=>golfFixture.inspect().busy`)
@@ -504,6 +497,11 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	if errors := page.MustEval(`()=>golfFixture.errors`).JSON("", " "); errors != "[]" {
 		t.Fatalf("browser reported uncaught errors: %s", errors)
+	}
+	// Nothing may load from outside the test origin: not through the fixture's
+	// recorded fetches (path and query only) and not through any page resource.
+	if offsite := page.MustEval(`()=>JSON.stringify({requests:golfFixture.assetRequests.filter(path=>path.startsWith('//')||path.startsWith('http')),resources:golfFixture.foreignResources()})`).Str(); offsite != `{"requests":[],"resources":[]}` {
+		t.Fatalf("minigolf requested resources outside the test origin: %s", offsite)
 	}
 	page.MustNavigate(server.URL + "/fixture?no-webgl=1").MustWaitLoad()
 	page.Timeout(30 * time.Second).MustWait(`()=>!!window.golfFixture?.inspect&&golfFixture.inspect().panel==='error'`)
