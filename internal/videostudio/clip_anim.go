@@ -125,7 +125,10 @@ func animMaskLevel(clip Clip, frame, n int) int {
 //     m. A neighbour upscale gives the processed picture size.
 //   - Opaque: one gbrp output, m<n>.
 //   - Alpha: the colour mask c<n> (gbrp; maskedmerge's format negotiation gives it alpha 255), and the alpha mask a<n>
-//     (gbrap, alpha = m, through extractplanes and alphamerge, spike S8).
+//     (gbrap, alpha = m). Its branch enters gbrap first (kq<n>), then alphamerge takes the g plane as alpha
+//     (extractplanes, spike S8), so alphamerge, the upscale and the closing format=gbrap all stay in gbrap and every
+//     alpha byte is m exactly on FFmpeg 5.1.9 and 8.1.1 (plan 2f Task 5). Without the first format=gbrap, alphamerge
+//     negotiated rgba, and the rgba -> gbrap step added 1 to m in 128..254.
 //
 // The upscale's input never changes size, so the 5.1 t-term rule does not apply. Nothing but colorchannelmixer is
 // commanded.
@@ -153,7 +156,8 @@ func animMaskBranch(c clipChain, n int, alpha bool) (filter string, file sendCmd
 	return source + ",split=3" + label("kc") + label("ka") + label("kg") + ";" +
 		label("kc") + scale + ",format=gbrp" + label("c") + ";" +
 		label("kg") + "extractplanes=g" + label("kp") + ";" +
-		label("ka") + label("kp") + "alphamerge," + scale + ",format=gbrap" + label("a"), file
+		label("ka") + "format=gbrap" + label("kq") + ";" +
+		label("kq") + label("kp") + "alphamerge," + scale + ",format=gbrap" + label("a"), file
 }
 
 // animBlurGraph is the blur_in cascade of clip chain c (index §4.24). It returns the cascade without its closing filter,

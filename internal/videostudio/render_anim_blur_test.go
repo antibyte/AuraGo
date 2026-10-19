@@ -38,8 +38,8 @@ func animMM(b, o, m int) int { return (b*(255-m) + o*m + 127) / 255 }
 //  1. Each mask branch rendered alone gives m of animMaskLevel on every pixel of every window frame: all three planes of
 //     a colour mask, and the alpha plane of an alpha mask.
 //  2. The cascade (animBlurGraph, before an alpha layer's closing unpremultiply) equals
-//     MM(MM(g(S), g(S/4), m1), sharp, m2) of this FFmpeg's own static dumps inside the spans. Colour is exact, and the
-//     alpha plane is within 1 (spike S8). Outside the spans the cascade is the straight picture exactly.
+//     MM(MM(g(S), g(S/4), m1), sharp, m2) of this FFmpeg's own static dumps inside the spans, exactly on every plane
+//     (plan 2f Task 5). Outside the spans the cascade is the straight picture exactly.
 //  3. Renders with 1, 7 and 16 filter threads are identical.
 //  4. A window that starts at frame 5 renders the same frames, because masks and enable come from absolute frames.
 //  5. The whole clip chain at rest equals the clip without blur_in. The opaque case is exact; the still's alpha is within
@@ -83,11 +83,13 @@ func TestRenderAnimBlurMatchesCascade(t *testing.T) {
 			}
 			size := planes * plane
 
-			// 1. The masks.
+			// 1. The masks. Every byte equals m (plan 2f Task 5): the colour masks on all three planes, the alpha mask on its
+			// alpha plane. The alpha branch enters gbrap before alphamerge, so no rgba -> gbrap step adds 1 to m in 128..254.
 			outputs := []maskOutput{{"m", "gbrp", 3, 0}}
 			if tc.still {
 				outputs = []maskOutput{{"c", "gbrp", 3, 0}, {"a", "gbrap", 4, 3}}
 			}
+			formerlyHigh := 0 // alpha mask frames with m in 128..254, where the 2e branch gave m+1
 			for n := 1; n <= 2; n++ {
 				filter, file := animMaskBranch(chain, n, tc.still)
 				for _, o := range outputs {
@@ -100,18 +102,19 @@ func TestRenderAnimBlurMatchesCascade(t *testing.T) {
 					graph += ";[" + animLabel(chain, fmt.Sprintf("%s%d", o.part, n)) + "]format=" + o.format + "[vs_video_out]"
 					for k, mask := range renderAnimGraph(t, ctx, ffmpeg, graph, []sendCmdFile{file}, rate, nil, frames, o.planes*plane, o.format) {
 						level := animMaskLevel(clip, k, n)
+						if o.part == "a" && level >= 128 && level <= 254 {
+							formerlyHigh++
+						}
 						for i := o.from * plane; i < o.planes*plane; i++ {
-							// Deviation from the plan (reported with Task 8): the alpha mask passes alphamerge's rgba and a
-							// neighbour scale before format=gbrap, and that rgba → gbrap step adds 1 to alpha 128..254
-							// (measured 0..255 on 8.1.1; the cascade's alpha tolerance of 1 covers it). Every other
-							// mask byte, and all colour mask planes, equal m exactly.
-							high := o.part == "a" && level >= 128 && level <= 254
-							if d := int(mask[i]) - level; d != 0 && !(high && d == 1) {
-								t.Fatalf("mask %s%d, frame %d: byte %d is %d, want m = %d (alpha mask: m or m+1 for m in 128..254)", o.part, n, k, i, mask[i], level)
+							if int(mask[i]) != level {
+								t.Fatalf("mask %s%d, frame %d: byte %d is %d, want m = %d exactly", o.part, n, k, i, mask[i], level)
 							}
 						}
 					}
 				}
+			}
+			if tc.still && formerlyHigh == 0 {
+				t.Fatal("no alpha mask frame has m in 128..254, where the 2e branch gave m+1; the case does not test the fix")
 			}
 
 			// 2. The cascade against MM of the static nodes.
@@ -140,12 +143,10 @@ func TestRenderAnimBlurMatchesCascade(t *testing.T) {
 			for k, out := range got {
 				a := animAt(clip, k)
 				for i := range size {
+					// Exact on every plane (plan 2f Task 5): with exact alpha masks the alpha plane measured 0 on 5.1.9 and 8.1.1.
 					want, tolerance := int(straight[i]), 0
 					if a.Blur {
 						want = animMM(animMM(int(g1[i]), int(g2[i]), a.M1), int(sharp[i]), a.M2)
-						if i >= 3*plane {
-							tolerance = 1 // the alpha plane of the premultiplied recipe (spike S8)
-						}
 					}
 					d := absInt(int(out[i]) - want)
 					if d > tolerance {
