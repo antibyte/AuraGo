@@ -2,15 +2,19 @@
 
 Each builder returns one joined mesh object named ``prop-pirate-<name>`` with
 its base at z=0 and its footprint centred on the origin. ``PROPS`` maps the
-short name to its builder; the hero ship lives in ``ship_pirate``.
+short name to its builder; the hero ship lives in ``ship_pirate``, the palms in
+``props_pirate_palm``, lighthouse, post, buoy and flagpole in
+``props_pirate_harbour`` and skull rock, seaweed, pebbles and the shell group
+in ``props_pirate_shore`` (shared helpers: ``props_pirate_util``).
 """
 
 import math
 
-from mathutils import Vector
-
 from . import shapes
 from .prop import Prop
+from .props_pirate_harbour import build_buoy, build_flagpole, build_lighthouse, build_post
+from .props_pirate_palm import build_palm, build_palm2
+from .props_pirate_shore import build_pebble, build_seaweed, build_shell, build_skullrock
 from .ship_pirate import build_ship
 
 WORLD = "pirate"
@@ -43,60 +47,6 @@ def build_barrel(seed=1, height=0.64):
     p.add(lid, "matte", ("wood", "wood_light"), loc=(0, 0, h - 0.012), bevel=0.008, ao=0.7)
     bung = shapes.cylinder("barrel-bung", 0.032, 0.026, 0.02, seg=10)
     p.add(bung, "matte", "wood_dark", loc=(0.1, 0.05, h + 0.012), bevel=0, dens=0)
-    return p.build()
-
-
-# --------------------------------------------------------------------------
-# Palm
-# --------------------------------------------------------------------------
-
-def build_palm(seed=1, height=2.9, lean=0.55, fronds=10, heading=None):
-    """Palm with a curved, ring-segmented trunk, coconuts and drooping fronds."""
-    p = Prop(WORLD, "palm", seed)
-    rng = p.rng
-    heading = rng.uniform(0, math.tau) if heading is None else math.radians(heading)
-    hx, hy = math.cos(heading), math.sin(heading)
-    n = 26
-    pts, radii = [], []
-    for i in range(n + 1):
-        t = i / n
-        bend = lean * t ** 1.7
-        side = 0.09 * math.sin(t * math.pi)
-        pts.append((hx * bend - hy * side, hy * bend + hx * side, height * t))
-        r = 0.205 - 0.085 * t + 0.07 * (1 - t) ** 6
-        ring = max(0.0, math.sin(t * math.pi * 14))
-        radii.append(r * (1.0 + 0.055 * ring))
-    trunk = shapes.tube("trunk", pts, radius=radii, seg=10)
-
-    def rings(x, y, z):
-        return 0.80 + 0.20 * (0.5 + 0.5 * math.sin(z * math.tau / 0.2))
-
-    p.add(trunk, "matte", "trunk", bevel=0, dens=0.6, pattern=rings, smooth_angle=70, noise_amp=0.05)
-    top = Vector(pts[-1])
-    crown = shapes.sphere("crown", 0.19, seg=12, rings=7)
-    p.add(crown, "matte", ("trunk_dark", "frond_dark"), loc=(top.x, top.y, top.z + 0.02), scale=(1, 1, 0.85), bevel=0, dens=0)
-    for k in range(4):
-        a = k * math.tau / 4 + 0.5
-        nut = shapes.sphere("coconut", 0.085, seg=10, rings=6)
-        p.add(nut, "matte", ("trunk_dark", "trunk_dark"), loc=(top.x + math.cos(a) * 0.15, top.y + math.sin(a) * 0.15, top.z - 0.1),
-              bevel=0, dens=0, ao=0.5)
-    for k in range(fronds):
-        a = k * math.tau / fronds + rng.uniform(-0.2, 0.2)
-        length = rng.uniform(1.5, 2.05)
-        rise = rng.uniform(0.45, 0.85)
-        droop = rng.uniform(0.7, 1.15)
-        spine, widths = [], []
-        steps = 20
-        for i in range(steps + 1):
-            s = i / steps
-            reach = length * s
-            z = length * (rise * s - droop * s * s) * 0.9
-            spine.append((top.x + math.cos(a) * reach, top.y + math.sin(a) * reach, top.z + 0.1 + z))
-            w = 0.24 * math.sin(math.pi * (0.08 + 0.92 * s)) ** 0.55 * (1.0 - 0.2 * s)
-            widths.append(w * (1.0 if i % 2 == 0 else 0.72))
-        frond = shapes.ribbon("frond", spine, widths, normal_hint=(0, 0, 1), fold=0.45, across=4)
-        p.add(frond, "foliage", "frond", sway=0.06, solidify=0.012, bevel=0, dens=0, ao=0.55, mode="radial",
-              center=(top.x, top.y), jitter=0.04)
     return p.build()
 
 
@@ -267,27 +217,6 @@ def build_tuft(seed=1, blades=16, height=0.45):
     return p.build()
 
 
-def build_shell(seed=1):
-    """Ridged scallop-like shell, half sunk in the sand."""
-    p = Prop(WORLD, "shell", seed)
-    prof = [(0.0, 0.052), (0.035, 0.048), (0.07, 0.034), (0.1, 0.012), (0.108, 0.0)]
-    shell = shapes.lathe("shell", prof, seg=32, caps=False)
-    for v in shell.data.vertices:
-        r = math.hypot(v.co.x, v.co.y)
-        if r > 1e-5:
-            a = math.atan2(v.co.y, v.co.x)
-            k = 1.0 + 0.09 * math.cos(a * 9)
-            v.co.x *= k
-            v.co.y *= k
-            v.co.z *= 1.0 + 0.12 * math.cos(a * 9) * (r / 0.1)
-
-    def ridges(x, y, z):
-        return 0.9 + 0.1 * math.cos(math.atan2(y, x) * 9)
-
-    p.add(shell, "satin", ("shell_pink", "shell_white"), scale=(1, 0.88, 1), bevel=0, dens=0, pattern=ridges, ao=0.5, smooth_angle=70)
-    return p.build()
-
-
 def build_starfish(seed=1):
     p = Prop(WORLD, "starfish", seed)
     outline = []
@@ -368,15 +297,18 @@ def build_foam_ring(seed=1, radius=0.8):
 
 
 # The foam ring (``build_foam_ring``) is not a kit prop: the runtime draws the shore foam.
-PROPS = {"ship": build_ship, "palm": build_palm, "barrel": build_barrel, "chest": build_chest,
+PROPS = {"ship": build_ship, "palm": build_palm, "palm2": build_palm2, "barrel": build_barrel, "chest": build_chest,
          "cannon": build_cannon, "dock": build_dock, "tuft": build_tuft, "shell": build_shell,
          "starfish": build_starfish, "rock": build_rock, "crab": build_crab, "xmark": build_xmark,
-         "footprint": build_footprint}
+         "footprint": build_footprint, "lighthouse": build_lighthouse, "post": build_post, "buoy": build_buoy,
+         "flagpole": build_flagpole, "skullrock": build_skullrock, "seaweed": build_seaweed, "pebble": build_pebble}
 
 # Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
 PROP_META = {
-    "ship": {"tags": ["hero"]}, "palm": {"tags": ["tall"]}, "barrel": {"tags": []}, "chest": {"tags": []},
+    "ship": {"tags": ["hero"]}, "palm": {"tags": ["tall"]}, "palm2": {"tags": ["tall"]}, "barrel": {"tags": []}, "chest": {"tags": []},
     "cannon": {"tags": []}, "dock": {"tags": ["flat"]}, "tuft": {"tags": ["scatter"]}, "shell": {"tags": ["scatter", "flat"]},
     "starfish": {"tags": ["scatter", "flat"]}, "rock": {"tags": []}, "crab": {"tags": ["scatter"]},
     "xmark": {"tags": ["scatter", "flat"]}, "footprint": {"tags": ["scatter", "flat"]},
+    "lighthouse": {"tags": ["tall"]}, "post": {"tags": []}, "buoy": {"tags": []}, "flagpole": {"tags": ["tall"]},
+    "skullrock": {"tags": []}, "seaweed": {"tags": ["scatter"]}, "pebble": {"tags": ["scatter"]},
 }
