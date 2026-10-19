@@ -274,6 +274,7 @@
         return '' +
             '<div class="vd-chess">' +
             '<section class="vd-chess-board-pane">' +
+            '<div class="vd-chess-pane-head">' +
             '<div class="vd-chess-view-switch" data-chess-view-toggle role="group" aria-label="' + esc(t('desktop.chess_view_mode')) + '">' +
             '<button type="button" data-chess-view="2d" class="is-active" aria-pressed="true">' + esc(t('desktop.chess_view_2d')) + '</button>' +
             '<button type="button" data-chess-view="3d" aria-pressed="false">' + esc(t('desktop.chess_view_3d')) + '</button></div>' +
@@ -281,7 +282,7 @@
             '<span class="vd-chess-material-side" aria-hidden="true">' + king + '</span>' +
             '<div class="vd-chess-material-track" title="' + esc(t('desktop.chess_material')) + '">' +
             '<div class="vd-chess-material-fill" data-material-fill></div></div>' +
-            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div>' +
+            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div></div>' +
             '<div class="vd-chess-board-shell">' +
             '<div class="vd-chess-fx-layer" data-fx-layer aria-hidden="true"></div>' +
             '<div class="vd-chess-board-frame" data-chess-board-frame>' +

@@ -186,7 +186,10 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 		".vd-chess-board-shell",
 		".vd-chess-board-frame",
 		"overflow: hidden;",
-		"height: min(100%, 620px);",
+		/* the board fits one square box that never leaves the pane height */
+		"container-type: size;",
+		"width: min(100%, var(--chess-column), 100cqh);",
+		".vd-chess-pane-head",
 		".vd-chess-ribbon",
 		".vd-chess-material-bar",
 		"is-capture-fx",

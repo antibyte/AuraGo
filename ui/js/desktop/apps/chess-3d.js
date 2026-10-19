@@ -577,12 +577,29 @@
       state.failed = true;
     });
 
+    function fitCamera() {
+      const target = controls ? controls.target : new THREE.Vector3(0, 0.02, 0);
+      const half = Math.tan((camera.fov * Math.PI) / 360);
+      const radius = (BOARD_SIZE / 2 + FRAME_WIDTH) * 1.26;
+      const distance = Math.max(radius / half, radius / (half * Math.max(camera.aspect, 0.25)));
+      const direction = camera.position.clone().sub(target);
+      if (direction.lengthSq() < 1e-8) direction.set(0, 0.62, -0.72);
+      direction.normalize();
+      camera.position.copy(target).addScaledVector(direction, distance);
+      if (controls) {
+        controls.minDistance = distance * 0.6;
+        controls.maxDistance = distance * 2.1;
+        controls.update();
+      }
+    }
+
     function resize() {
       const width = container.clientWidth || 1;
       const height = container.clientHeight || 1;
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      fitCamera();
     }
 
     if (typeof ResizeObserver !== 'undefined') {
