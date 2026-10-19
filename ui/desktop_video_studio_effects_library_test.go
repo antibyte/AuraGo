@@ -319,7 +319,10 @@ assert.deepEqual(notices, ['readonly']);
 s = session(lane()); notices.length = 0;
 assert.equal(P.addLibraryItem(s, 'm', entry('wipeup')), false);
 assert.equal(P.addLibraryItem(s, '', entry('wipeup')), false);
-assert.deepEqual(notices, ['effectsLibraryNeedsClip', 'effectsLibraryNeedsClip']);
+assert.deepEqual(notices, ['effectsLibraryTransitionNeedsClip', 'effectsLibraryTransitionNeedsClip'], 'a transition without a picture clip names the cut (2f F1)');
+notices.length = 0;
+assert.equal(P.addLibraryItem(s, 'm', L.item('blur')), false);
+assert.deepEqual(notices, ['effectsLibraryNeedsClip'], 'effects keep their own notice');
 FX.adopt(FX.registry(), {effects: [], transitions: ['radial'], blend_modes: [], anim_presets: []});
 notices.length = 0;
 assert.equal(P.addLibraryItem(s, 'a', L.item('transition:radial')), false);
@@ -348,12 +351,13 @@ console.log('ok');
 `)
 }
 
-// The library strings of Task 17 in every desktop locale: the new intro and the cut notice. en and de are the plan's
-// texts; every other locale translates both.
+// The library strings of 2e Task 17 and 2f F1 in every desktop locale: the intro, the cut notice and the transition
+// notice without a picture clip. en and de are the plans' texts; every other locale translates them.
 func TestVideoStudioEffectsLibraryTransitionLocales(t *testing.T) {
 	want := map[string][2]string{
-		"effectsLibraryIntro":     {"Drag an effect onto a clip, or a transition onto the cut between two clips. Double-click adds it to the selected clip.", "Ziehe einen Effekt auf einen Clip oder einen Übergang auf den Schnitt zwischen zwei Clips. Ein Doppelklick fügt ihn dem ausgewählten Clip hinzu."},
-		"effectsLibraryDropOnCut": {"Drop a transition on the cut between two clips on one track.", "Lege einen Übergang auf den Schnitt zwischen zwei Clips einer Spur."},
+		"effectsLibraryIntro":               {"Drag an effect onto a clip, or a transition onto the cut between two clips. Double-click adds it to the selected clip.", "Ziehe einen Effekt auf einen Clip oder einen Übergang auf den Schnitt zwischen zwei Clips. Ein Doppelklick fügt ihn dem ausgewählten Clip hinzu."},
+		"effectsLibraryDropOnCut":           {"Drop a transition on the cut between two clips on one track.", "Lege einen Übergang auf den Schnitt zwischen zwei Clips einer Spur."},
+		"effectsLibraryTransitionNeedsClip": {"Select the picture clip before the cut first, or drop the transition on a cut.", "Wähle zuerst den Bildclip vor dem Schnitt aus oder lege den Übergang auf einen Schnitt."},
 	}
 	english := readDesktopLocale(t, "en")
 	for _, lang := range videoStudioLocales {

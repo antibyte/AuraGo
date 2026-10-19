@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"aurago/internal/videostudio"
 )
@@ -264,6 +265,52 @@ func TestVideoStudioTransitionPickerLocales(t *testing.T) {
 		}
 		if lang != "en" && values["videoStudio.transitionPicker"] == english["videoStudio.transitionPicker"] {
 			t.Errorf("%s copies the English videoStudio.transitionPicker", lang)
+		}
+	}
+}
+
+// Picker labels break between words only (2f F1, plan index §4.26.9). In the 3-column narrow drawer a word of 14 or more
+// characters was broken inside itself (2e Task 16 review). The rule:
+//   - every space-separated word of every registry transition label, and of None, has at most 13 characters (runes);
+//   - it applies in every locale except ja and zh, which have no spaces (CJK may break anywhere);
+//   - the six shortened labels are pinned: de is binding, the others are the texts accepted in brief.md.
+func TestVideoStudioTransitionLabelsFitThePicker(t *testing.T) {
+	const longest = 13
+	keys := []string{"none"}
+	for _, spec := range videostudio.EffectRegistry().Transitions {
+		keys = append(keys, spec.LabelKey)
+	}
+	if len(keys) != 25 {
+		t.Fatalf("label keys %v, want None and 24 transitions", keys)
+	}
+	for _, lang := range videoStudioLocales {
+		if lang == "ja" || lang == "zh" {
+			continue
+		}
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			text := values["videoStudio."+key]
+			if strings.TrimSpace(text) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+				continue
+			}
+			for _, word := range strings.Fields(text) {
+				if n := utf8.RuneCountInString(word); n > longest {
+					t.Errorf("%s videoStudio.%s = %q: the word %q has %d characters, at most %d fit a picker button", lang, key, text, word, n, longest)
+				}
+			}
+		}
+	}
+	for _, c := range []struct{ lang, key, want string }{
+		{"de", "transition_radial", "Uhrblende"},
+		{"de", "transition_squeezeh", "Vertikal stauchen"},
+		{"da", "transition_squeezeh", "Klem lodret"},
+		{"no", "transition_squeezeh", "Klem loddrett"},
+		{"no", "dissolve", "Overtoning"},
+		{"it", "transition_pixelize", "Effetto pixel"},
+	} {
+		if got := readDesktopLocale(t, c.lang)["videoStudio."+c.key]; got != c.want {
+			t.Errorf("%s videoStudio.%s = %q, want %q", c.lang, c.key, got, c.want)
 		}
 	}
 }

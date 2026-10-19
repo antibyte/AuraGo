@@ -281,7 +281,11 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fxlib-group h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
 .vs-fxlib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .vs-app .vs-fxlib-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; cursor: grab; }
-.vs-app .vs-fxlib-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Names wrap between words instead of ending in an ellipsis (2f F1, 2c follow-up 2). The two-column list of the 288 px
+   library cut "Teal and orange", "Black and white" and "Bleach bypass". A word wider than its item still breaks, and
+   each item fills its grid row, so the items of a row keep one height. */
+.vs-app .vs-fxlib-item span { min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.2; }
+.vs-fxlib-list > li { display: grid; }
 .vs-app .vs-fxlib-item .vs-icon { flex: none; color: var(--vs-accent); }
 .vs-app .vs-fxlib-item:hover:not([aria-disabled="true"]) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-app .vs-fxlib-item[aria-disabled="true"] { opacity: .5; cursor: default; }

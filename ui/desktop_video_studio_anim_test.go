@@ -353,12 +353,14 @@ valid(p);
 //   - The clamp hint shows only while the stored length is longer than half the clip, and names the length the render
 //     plays.
 //   - P.animChange takes the preset lists and the length sliders (one applyEdit each) and nothing else.
+//   - 2f F1: animClamped has U+00A0 between {{seconds}} and the unit in every locale and in the JS fallback, so the
+//     hint never breaks between "2.5" and "s".
 func TestVideoStudioAnimInspector(t *testing.T) {
 	binding := map[string][2]string{
 		"animIn":          {"In animation", "Animation am Anfang"},
 		"animOut":         {"Out animation", "Animation am Ende"},
 		"animLength":      {"Length", "Länge"},
-		"animClamped":     {"This clip is short: the animation plays over {{seconds}} s, half the clip.", "Dieser Clip ist kurz: Die Animation dauert {{seconds}} s, die halbe Cliplänge."},
+		"animClamped":     {"This clip is short: the animation plays over {{seconds}}\xc2\xa0s, half the clip.", "Dieser Clip ist kurz: Die Animation dauert {{seconds}}\xc2\xa0s, die halbe Cliplänge."},
 		"animUnavailable": {"This server's FFmpeg cannot export this animation.", "Das FFmpeg dieses Servers kann diese Animation nicht exportieren."},
 	}
 	english := readDesktopLocale(t, "en")
@@ -374,6 +376,9 @@ func TestVideoStudioAnimInspector(t *testing.T) {
 		}
 		if !strings.Contains(values["videoStudio.animClamped"], "{{seconds}}") {
 			t.Errorf("%s: videoStudio.animClamped lacks {{seconds}}", lang)
+		}
+		if strings.Contains(values["videoStudio.animClamped"], "{{seconds}} ") {
+			t.Errorf("%s: videoStudio.animClamped has a plain space after {{seconds}}; use U+00A0 so the unit stays with the number", lang)
 		}
 	}
 	for key, texts := range binding {
@@ -429,6 +434,8 @@ assert(side(html, 'in').includes('<output>0.7 s</output>') && side(html, 'in').i
 assert(!side(html, 'out').includes('data-anim-clamped="out" hidden') && side(html, 'out').includes('<span>SHORT 1.7</span>'), 'the out side plays over 50 frames');
 assert.equal(IN.animClampText({tr, locale: 'en', project: p}, at(p,'c'), 'out'), 'SHORT 1.7');
 assert.equal(IN.animClampText({tr, locale: 'en', project: p}, at(p,'c'), 'in'), '');
+// Without a locale text the fallback keeps the number and its unit together (U+00A0, 2f F1).
+assert.equal(IN.animClampText({tr: (key, fallback) => fallback, locale: 'en', project: p}, at(p,'c'), 'out'), 'This clip is short: the animation plays over 1.7\xa0s, half the clip.');
 
 // A preset the server's FFmpeg cannot export is disabled with a title, except the clip's own.
 FX.adopt(FX.BUILTIN, {effects: [], transitions: [], blend_modes: [], anim_presets: ['pop', 'blur_in']});

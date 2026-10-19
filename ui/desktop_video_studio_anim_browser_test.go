@@ -97,7 +97,7 @@ func videoStudioAnimInspectorPart(t *testing.T) {
 	// While the thumb passes half the clip the hint and the output follow without a re-render.
 	steps = history()
 	page.MustEval(`sel => { const input = document.querySelector(sel); input.value = '90'; input.dispatchEvent(new Event('input', { bubbles: true })); }`, inLength)
-	if got := controls("in"); got.Output != "3 s" || got.Hint != "This clip is short: the animation plays over 2.5 s, half the clip." {
+	if got := controls("in"); got.Output != "3 s" || got.Hint != "This clip is short: the animation plays over 2.5\xc2\xa0s, half the clip." {
 		t.Errorf("the in row while dragging to 90: %+v, want output 3 s and the clamp hint", got)
 	}
 	page.MustEval(`sel => { const input = document.querySelector(sel); for (const value of ['30', '45', '60']) { input.value = value; input.dispatchEvent(new Event('input', { bubbles: true })); } input.dispatchEvent(new Event('change', { bubbles: true })); }`, inLength)
@@ -118,7 +118,7 @@ func videoStudioAnimInspectorPart(t *testing.T) {
 		t.Fatalf("anim_in length after 90: %d", frames)
 	}
 	waitForJSBool(t, page, `() => !document.querySelector('[data-inspector] [data-anim-clamped="in"]').hidden`)
-	if got := controls("in").Hint; got != "This clip is short: the animation plays over 2.5 s, half the clip." {
+	if got := controls("in").Hint; got != "This clip is short: the animation plays over 2.5\xc2\xa0s, half the clip." {
 		t.Errorf("clamp hint %q", got)
 	}
 	page.MustEval(`() => document.querySelector('[data-inspector] .vs-anim-section').scrollIntoView({ block: 'center' })`)
@@ -187,6 +187,7 @@ func videoStudioTransitionsProject() map[string]any {
 //   - an unavailable type is disabled with its title, and the current one stays enabled and pressed;
 //   - in the narrow window the panel fits the drawer, and Esc closes the panel but not the drawer;
 //   - it takes screenshots of the open panel at both widths.
+//   - 2f: in de, da, no and it the shortened labels break between words only (a screenshot per locale).
 func videoStudioTransitionPickerPart(t *testing.T) {
 	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioTransitionsProject()))
 	shots := videoStudioKeyframesShotDir(t)
@@ -292,6 +293,63 @@ func videoStudioTransitionPickerPart(t *testing.T) {
 	}
 	page.MustEval(`() => document.querySelector('[data-tx-picker]').scrollIntoView({ block: 'center' })`)
 	page.MustScreenshot(filepath.Join(shots, "transition-picker-900x900.png"))
+	// Shortened labels (2f F1, plan index §4.26.9), in the 900 px drawer, for de, da, no and it:
+	//   - The four changed types (Clock wipe, Squeeze vertically, Dissolve, Pixelate) must break between words only:
+	//     a Range over each word of their label has one client rect. Words broken in other labels are logged for the
+	//     screenshot review.
+	//   - [data-inspector] (.vs-inspector-body, the element that scrolls) must not scroll sideways.
+	//   - The English texts come back afterwards.
+	for _, lang := range []string{"de", "da", "no", "it"} {
+		words := map[string]string{}
+		for key, value := range readDesktopLocale(t, lang) {
+			if strings.HasPrefix(key, "videoStudio.") {
+				words[key] = value
+			}
+		}
+		page.MustEval(`(words, lang) => { window.kfLocaleEnglish = window.kfLocaleEnglish || window.kfLocale; window.kfLocale = Object.assign({}, window.kfLocaleEnglish, words); document.documentElement.lang = lang; }`, words, lang)
+		page.MustEval(`() => window.VideoStudioParts.setTransitionPicker(` + app + `, true)`)
+		opened()
+		raw := page.MustEval(`() => {
+const changed = ['radial', 'squeezeh', 'dissolve', 'pixelize'], out = {changed: [], other: []};
+document.querySelectorAll('[data-tx-picker] [data-transition]').forEach(button => {
+  const span = button.querySelector('span'), node = span && span.firstChild;
+  if (!node || node.nodeType !== 3) return;
+  const text = node.textContent;
+  let from = 0;
+  for (const word of text.split(/[\s-]+/)) {
+    if (!word) continue;
+    const start = text.indexOf(word, from);
+    from = start + word.length;
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, start + word.length);
+    if (range.getClientRects().length > 1) out[changed.includes(button.dataset.transition) ? 'changed' : 'other'].push(word);
+  }
+});
+return JSON.stringify(out);
+}`).Str()
+		var broken struct {
+			Changed []string `json:"changed"`
+			Other   []string `json:"other"`
+		}
+		if err := json.Unmarshal([]byte(raw), &broken); err != nil {
+			t.Fatalf("%s: word check: %v (%s)", lang, err, raw)
+		}
+		if len(broken.Changed) > 0 {
+			t.Errorf("%s: shortened picker labels still break inside a word in the 900 px drawer: %v", lang, broken.Changed)
+		}
+		if len(broken.Other) > 0 {
+			t.Logf("%s: other picker words broken inside themselves (check the screenshot): %v", lang, broken.Other)
+		}
+		if !page.MustEval(`() => { const body = document.querySelector('.vs-inspector-body'); return body.scrollWidth <= body.clientWidth + 1; }`).Bool() {
+			t.Errorf("%s: the open picker makes the narrow drawer scroll sideways", lang)
+		}
+		page.MustEval(`() => document.querySelector('[data-tx-picker]').scrollIntoView({ block: 'center' })`)
+		page.MustScreenshot(filepath.Join(shots, "transition-picker-"+lang+"-900x900.png"))
+	}
+	page.MustEval(`() => { window.kfLocale = window.kfLocaleEnglish; document.documentElement.lang = 'en'; }`)
+	page.MustEval(`() => window.VideoStudioParts.setTransitionPicker(` + app + `, true)`)
+	opened()
 	page.KeyActions().Type(input.Escape).MustDo()
 	closed()
 	if !page.MustEval(`() => document.querySelector('.vs-app').classList.contains('vs-show-inspector')`).Bool() {
@@ -317,6 +375,7 @@ func videoStudioTransitionPickerPart(t *testing.T) {
 //   - An unavailable item is aria-disabled with its reason and changes nothing.
 //   - The 2c effect drop still works (Color onto tx1).
 //   - Screenshots show the cut mark on a plain cut and, with the tab at the effects/transitions boundary and at the wipes, on an unselected clip.
+//   - 2f: no item name is cut at 1280 px (two columns) or at 1100 px (the narrow rail).
 func videoStudioTransitionLibraryPart(t *testing.T) {
 	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioTransitionsProject()))
 	shots := videoStudioKeyframesShotDir(t)
@@ -479,6 +538,21 @@ return mark;
 	if page.MustHas(`.vs-clip.is-cut-drop-before, .vs-clip.is-cut-drop-after`) {
 		t.Error("dragend left a cut mark")
 	}
+	// Item names wrap instead of ending in an ellipsis (2f F1; 2c follow-up 2). The cut showed in the two-column list of
+	// the 288 px library at 1280 px ("Teal and orange", "Black and white", "Bleach bypass"). The narrow rail at 1100 px
+	// is checked too. A cut name has scrollWidth > clientWidth. A screenshot at each width.
+	for _, view := range []struct {
+		width int
+		shot  string
+	}{{1280, "effects-library-rail-1280x900.png"}, {1100, "effects-library-rail-1100x900.png"}} {
+		page.MustSetViewport(view.width, 900, 1, false)
+		page.MustEval(`() => document.querySelector('[data-effects-library] .vs-fxlib-group').scrollIntoView({ block: 'start' })`)
+		if cut := page.MustEval(`() => JSON.stringify(Array.from(document.querySelectorAll('[data-effects-library] .vs-fxlib-item span'), span => (span.scrollWidth > span.clientWidth + 1 ? span.textContent : '')).filter(Boolean))`).Str(); cut != "[]" {
+			t.Errorf("library names cut at %d px: %s", view.width, cut)
+		}
+		page.MustScreenshot(filepath.Join(shots, view.shot))
+	}
+	page.MustSetViewport(1280, 900, 1, false)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the library part: %s", errs)
 	}

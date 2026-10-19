@@ -209,7 +209,7 @@
     //   - a length slider in timeline frames over VideoStudioAnim.frameRange (0.2 to 3 s), with its output in seconds.
     //     It is disabled while the side has no animation.
     //   - [data-anim-clamped]: while the stored length is longer than half the clip, the render plays it over half the
-    //     clip (VideoStudioAnim.spans), and this hint says so (animClampText).
+    //     clip (VideoStudioAnim.spans), and this hint says so (animClampText; U+00A0 keeps the number with its unit).
     // The edits run in video-studio-inspector-effects.js (P.animChange, P.liveAnimDuration). animationRows returns ''
     // without VideoStudioAnim. The app loads it before the inspector (§5); the guard keeps Node checks working that
     // load the inspector alone.
@@ -217,7 +217,7 @@
     function animClampText(v, clip, side) {
         const anim = clip && clip['anim_' + side], played = anim ? window.VideoStudioAnim.spans(clip)[side] : 0;
         if (!anim || !(Number(anim.duration) > played)) return '';
-        return v.tr('animClamped', 'This clip is short: the animation plays over {{seconds}} s, half the clip.').split('{{seconds}}').join(formatSeconds(played, v.locale, v.project));
+        return v.tr('animClamped', 'This clip is short: the animation plays over {{seconds}}\xa0s, half the clip.').split('{{seconds}}').join(formatSeconds(played, v.locale, v.project));
     }
     function animationRows(v, clip) {
         const A = window.VideoStudioAnim;
