@@ -669,7 +669,18 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.OllamaOwner] {
+				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama containers belong to the administrator. Use the ollama tool for model operations.")
+			}
+			if dockerutil.IsOllamaVolumeName(req.Name) {
+				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama model volumes cannot be managed through the docker tool.")
+			}
+			for _, bind := range req.Volumes {
+				if tools.DockerBindUsesOllamaVolume(bind) {
+					return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama model volumes cannot be mounted through the docker tool.")
+				}
+			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
 				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
 			}
@@ -757,7 +768,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -812,7 +823,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)

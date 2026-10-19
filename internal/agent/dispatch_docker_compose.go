@@ -956,6 +956,8 @@ func dockerComposeErrorTail(text string, limit int) string {
 
 func dockerComposeOwnerDenial(owner string) string {
 	switch owner {
+	case dockerutil.OllamaOwner:
+		return dockerAgentError("docker_managed_ollama_resource", "Docker Compose access to managed Ollama containers and model volumes is blocked.")
 	case dockerutil.LocalLLMOwner, acestep.Owner:
 		return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
 	case dockerutil.BoringGarageOwner:
@@ -995,6 +997,7 @@ func dockerComposeCYDCreatorImageDenial(cfg *config.Config, models ...tools.Dock
 // (dispatchServices). The security proxy is not listed: the agent keeps its
 // exec access there.
 var dockerComposeReferenceOwners = []string{
+	dockerutil.OllamaOwner,
 	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.DecisionsOwner,
 }

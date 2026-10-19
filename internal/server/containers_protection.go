@@ -37,6 +37,7 @@ const (
 // name. The app owner comes first so the app container names itself.
 var containerProtectedOwners = []string{
 	dockerutil.AppOwner,
+	dockerutil.OllamaOwner,
 	acestep.Owner,
 	dockerutil.HomepageOwner,
 	"go2rtc",
