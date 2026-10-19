@@ -3,7 +3,7 @@ import { createPhysics, strengthToPower, MAX_ROLL } from './minigolf-physics.js'
 import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, normalizeBest, recordHole, recordRound } from './minigolf-model.js';
 import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
-import { DEFAULT_COLORS, cleanName, uniqueNames, worldIds } from './minigolf-shared.js';
+import { DEFAULT_COLORS, colorValue, cleanName, uniqueNames, worldIds } from './minigolf-shared.js';
 
 const SAVE_KEY = 'aurago.desktop.minigolf.round.v2';
 const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
@@ -45,22 +45,25 @@ export function mountGame(host, context = {}) {
     host.dataset.golfIcon = assetURL('/img/desktop-icons/minigolf.svg');
     const view = createView(host, tr), root = view.root;
     const media = matchMedia('(prefers-reduced-motion: reduce)');
-    let storageFailed = false, storedSettings = {}, settings = normalizeSettings(null);
+    let storageWarned = false, storedSettings = {}, settings = normalizeSettings(null);
     let best = null, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
     let worlds = [], newBest = false;
+    // dragActive: a pointer drag is aiming; meterLeft: ms the power meter stays after the last change; sessionShots: shots this session.
+    let dragActive = false, meterLeft = 0, sessionShots = 0, hintShown = false;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', previousPanel = 'menu', track = null, tracks = [];
+    view.topbar(panelKind, false);
     let angle = 0, strength = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
     // strength is the UI value (drag, slider, keys); physics power = strengthToPower(strength).
     let previewAt = 0, previewKey = '';
-    let lastSurface = 'grass', soundTime = 0, noticeUntil = 0, reduced = false;
+    let lastSurface = 'grass', soundTime = 0, reduced = false;
     const held = { left: false, right: false, up: false, down: false, fine: false };
     const fetchController = new AbortController(), events = [], cleanup = [];
     const windowElement = root.closest('.vd-window');
     function read(key) { try { const data = localStorage.getItem(key); return data && data.length < 65536 ? JSON.parse(data) : null; } catch (_) { return null; } }
     function write(key, value) {
         try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-        catch (_) { storageFailed = true; view.notice('storage_error'); return false; }
+        catch (_) { if (!storageWarned) { storageWarned = true; view.hud.toast('storage_error'); } return false; }
     }
     const stored = read(SETTINGS_KEY);
     if (plain(stored)) storedSettings = stored;
@@ -74,12 +77,12 @@ export function mountGame(host, context = {}) {
     const knownMode = mode => mode === 'full' || mode === 'practice' || worlds.includes(mode);
     const playerLabel = index => tr('player').replace('{n}', index + 1);
     function focusStage() { if (!disposed && panelKind === '') scene?.canvas?.focus({ preventScroll: true }); }
-    const audio = createAudio({ assetURL, onTrack(value) { track = value; view.track(value); }, onError() { if (!disposed) view.notice('audio_error'); } });
+    const audio = createAudio({ assetURL, onTrack(value) { track = value; view.track(value); }, onError() { if (!disposed) view.hud.toast('audio_error'); } });
     audio.setMusicVolume(settings.music); audio.setEffectsVolume(settings.effects);
 
     function persist() { if (round) { checkpoint = cloneSave(round); write(SAVE_KEY, checkpoint); } }
     function effectiveReduced() { return settings.reducedMotion || media.matches || document.body.dataset.animations === 'false'; }
-    function updateMotion() { reduced = effectiveReduced(); scene?.setReducedMotion(reduced); }
+    function updateMotion() { reduced = effectiveReduced(); scene?.setReducedMotion(reduced); view.setReduced(reduced); }
     function direction() { return [Math.sin(angle), -Math.cos(angle)]; }
     function clearHeld() { held.left = held.right = held.up = held.down = false; held.fine = false; }
     function syncAmbient() {
@@ -104,7 +107,8 @@ export function mountGame(host, context = {}) {
         return [dx * cos - dz * sin, dx * sin + dz * cos];
     }
     function allowAim() { return !!round && !round.completed && !busy && !loading && panelKind === '' && !round.players.every(p => p.done); }
-    function showStrength() { view.power(strength, strengthToPower(strength) * MAX_ROLL); }
+    function showStrength() { view.power(strength, strengthToPower(strength) * MAX_ROLL, document.documentElement.lang); }
+    function markStrength() { meterLeft = 1200; }
     function updateAim() {
         const enabled = allowAim();
         scene?.setAim(direction(), strength, enabled); showStrength();
@@ -131,16 +135,15 @@ export function mountGame(host, context = {}) {
         scene?.setBall(player.position, [0, 0, 0, 1], player.color);
         scene?.setGhosts(round.players, round.turnIndex);
         angle = Math.atan2(course.cup[0] - player.position[0], -(course.cup[2] - player.position[2]));
-        strength = .35; cameraMode = false; scene?.setCameraMode(false);
-        root.querySelector('[data-action="camera"]').setAttribute('aria-pressed', 'false');
-        root.querySelector('[data-action="camera"]').textContent = tr('camera');
-        view.hud(round, course, busy); updateAim();
+        strength = .35; cameraMode = false; scene?.setCameraMode(false); view.setCamera(false);
+        view.update(round, course, busy); updateAim();
         scene?.frameTurn?.(angle, player.position);
     }
     function setPanel(kind) {
         clearHeld();
         panelKind = kind; updateAim(); syncAudio();
         root.dataset.panel = kind;
+        view.topbar(kind, !!round && !round.completed);
         syncAmbient();
     }
     function syncAudio() {
@@ -154,15 +157,21 @@ export function mountGame(host, context = {}) {
         else if (!raf && !disposed) raf = requestAnimationFrame(frame);
         syncAudio();
     }
-    function message(key, seconds = 3) { view.notice(key); noticeUntil = performance.now() + seconds * 1000; }
+    function message(key) { view.hud.toast(key); }
+    function holeBanner() {
+        const player = round.players[round.turnIndex];
+        view.hud.banner(tr('hole_par').replace('{hole}', course.number).replace('{par}', course.par),
+            [tr('course_' + course.number), round.players.length > 1 ? tr('turn_of').replace('{name}', player.name) : ''], colorValue(player.color), 2.2);
+    }
+    function turnBanner() { const player = round.players[round.turnIndex]; view.hud.banner(tr('turn_of').replace('{name}', player.name), [], colorValue(player.color), 1.6); }
     async function loadCourse(next, preview = false) {
         const version = ++generation; loading = true; busy = false; events.length = 0;
         physics?.dispose(); physics = null; course = next; previewKey = '';
-        updateAim(); view.notice('loading');
+        updateAim(); view.loading(true);
         try {
             if (!scene) scene = createScene(view.canvasHost, { assetURL, quality: settings.quality, reducedMotion: effectiveReduced(), label: tr('title'),
-                onShot: shoot, onAim(dir, amount) { angle = Math.atan2(dir[0], -dir[1]); strength = amount; showStrength(); },
-                onError() { setPanel('error'); view.error('webgl_error'); }, onQuality() { message('quality_changed'); }
+                onShot: shoot, onAim(dir, amount, info) { angle = Math.atan2(dir[0], -dir[1]); strength = amount; dragActive = info?.phase === 'drag'; markStrength(); showStrength(); },
+                onError() { view.loading(false); setPanel('error'); view.error('webgl_error'); }, onQuality() { message('quality_changed'); }
             });
             if (!await scene.load(next) || disposed || version !== generation) return;
             const nextPhysics = await createPhysics(next, { onEvent: event => events.push(event) });
@@ -170,19 +179,19 @@ export function mountGame(host, context = {}) {
             physics = nextPhysics; loading = false;
             scene.setFollow?.(settings.follow); scene.setAimCamera?.(settings.aimCamera);
             syncAmbient();
-            if (!preview && round) setTurn();
+            if (!preview && round) { setTurn(); holeBanner(); }
             else scene.setBall(next.tee);
-            view.notice(storageFailed ? 'storage_error' : '');
+            view.loading(false);
             if (!preview && settings.tutorial < 1) { setPanel('tutorial'); view.help(true); }
             updateAim(); syncVisibility();
         } catch (error) {
             if (disposed || version !== generation) return;
-            loading = false; setPanel('error'); view.error(scene ? 'load_error' : 'webgl_error');
+            loading = false; view.loading(false); setPanel('error'); view.error(scene ? 'load_error' : 'webgl_error');
         }
     }
     function showMenu() {
         if (busy && checkpoint && manifest) { round = cloneSave(checkpoint); busy = false; setTurn(); }
-        setPanel('menu'); view.menu(manifest.courses, checkpoint && !checkpoint.completed, { mode: round?.mode || 'full', count: round?.players.length || 1 });
+        setPanel('menu'); view.progress(null); view.menu(manifest.courses, checkpoint && !checkpoint.completed, { mode: round?.mode || 'full', count: round?.players.length || 1 });
     }
     async function startRound({ mode, holeId, players }) {
         const courses = mode === 'full' || mode === 'practice' ? manifest.courses : manifest.courses.filter(c => c.world === mode);
@@ -204,16 +213,18 @@ export function mountGame(host, context = {}) {
         if (!disposed && round.players.every(p => p.done)) showScore(); else focusStage();
     }
     function shoot(dir = direction(), amount = strength) {
+        dragActive = false;
         if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
         dir = snapTowardCup(dir);
         if (!physics.shoot(dir, strengthToPower(amount))) return;
         if (!beginShot(round)) { physics.setBall(round.players[round.turnIndex].position); return; }
         angle = Math.atan2(dir[0], -dir[1]); strength = amount; busy = true; clearHeld();
+        meterLeft = 0; sessionShots++;
         const ballPosition = physics.getBall();
         audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
         scene.burst('strike', ballPosition, amount * 2);
         scene.setRestMark?.(null);
-        view.notice('rolling'); view.hud(round, course, busy); updateAim();
+        view.update(round, course, busy); updateAim();
     }
     function handleEvents() {
         for (const event of events.splice(0)) {
@@ -226,7 +237,7 @@ export function mountGame(host, context = {}) {
                 }
                 continue;
             }
-            const finishingPlayer = round?.players[round.turnIndex];
+            const finishingPlayer = round?.players[round.turnIndex], before = round?.turnIndex;
             if (!busy || !round || !resolveShot(round, event, course)) continue;
             busy = false; audio.rolling(0, lastSurface);
             if (event.type === 'water' || event.type === 'out') {
@@ -236,14 +247,14 @@ export function mountGame(host, context = {}) {
             } else if (event.type === 'cup') {
                 audio.effect('cup', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
                 scene.burst('cup', course.cup); message('sunk');
-            } else message('aim_hint');
-            if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit', 6);
+            }
+            if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit');
             persist();
             if (round.players.every(p => p.done)) {
-                if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; message('new_best', 6); } }
-                view.hud(round, course, false); showScore();
+                if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; message('new_best'); } }
+                view.update(round, course, false); showScore();
             }
-            else { setTurn(); if (!reduced) scene.focusBall(); }
+            else { setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner(); if (!reduced) scene.focusBall(); }
         }
     }
     function showScore() {
@@ -254,7 +265,7 @@ export function mountGame(host, context = {}) {
         if (!advanceHole(round, manifest.courses)) return;
         persist();
         if (round.completed) {
-            if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; message('new_best', 6); }
+            if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; message('new_best'); }
             audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore();
         } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); focusStage(); }
     }
@@ -271,7 +282,7 @@ export function mountGame(host, context = {}) {
         settings() { previousPanel = panelKind; setPanel('settings'); view.settings(settings, track); },
         help() { previousPanel = panelKind; setPanel('help'); view.help(); },
         close: closePanel,
-        camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); const button = root.querySelector('[data-action="camera"]'); button.setAttribute('aria-pressed', String(cameraMode)); button.textContent = tr(cameraMode ? 'aiming' : 'camera'); },
+        camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); view.setCamera(cameraMode); },
         'next-track': () => audio.nextTrack(),
         mute() { if (settings.music > 0) { previousMusic = settings.music; settings.music = 0; } else settings.music = previousMusic || .2; audio.setMusicVolume(settings.music); saveSettings(); view.settings(settings, track); },
         credits() { setPanel('credits'); view.credits(tracks); },
@@ -286,7 +297,7 @@ export function mountGame(host, context = {}) {
     }
     function input(event) {
         const element = event.target;
-        if (element.matches('[data-power]')) { strength = Number(element.value) / 100; updateAim(); }
+        if (element.matches('[data-power]')) { strength = Number(element.value) / 100; markStrength(); updateAim(); }
         else if (element.matches('[data-music]')) { settings.music = Number(element.value) / 100; audio.setMusicVolume(settings.music); saveSettings(); }
         else if (element.matches('[data-effects]')) { settings.effects = Number(element.value) / 100; audio.setEffectsVolume(settings.effects); saveSettings(); }
     }
@@ -331,9 +342,10 @@ export function mountGame(host, context = {}) {
         if (name === 'right') angle += fine ? .008 : .035;
         if (name === 'up') strength = Math.min(1, strength + (fine ? .005 : .02));
         if (name === 'down') strength = Math.max(.02, strength - (fine ? .005 : .02));
+        if (name === 'up' || name === 'down') markStrength();
         updateAim();
     }
-    function gesture() { void audio.unlock().then(syncAudio).catch(() => { if (!disposed) view.notice('audio_error'); }); }
+    function gesture() { void audio.unlock().then(syncAudio).catch(() => { if (!disposed) view.hud.toast('audio_error'); }); }
     root.addEventListener('click', click); root.addEventListener('input', input); root.addEventListener('change', change);
     root.addEventListener('keydown', key); root.addEventListener('keyup', key); window.addEventListener('blur', clearHeld);
     root.addEventListener('pointerdown', gesture); root.addEventListener('keydown', gesture);
@@ -359,18 +371,22 @@ export function mountGame(host, context = {}) {
             const rotate = (held.right ? 1 : 0) - (held.left ? 1 : 0);
             const lift = (held.up ? 1 : 0) - (held.down ? 1 : 0);
             if (rotate) angle += rotate * (fine ? .35 : 1.15) * dt;
-            if (lift) strength = Math.max(.02, Math.min(1, strength + lift * .55 * dt));
+            if (lift) { strength = Math.max(.02, Math.min(1, strength + lift * .55 * dt)); markStrength(); }
             if (rotate || lift) updateAim();
         }
         if (!busy && !panelKind && !loading) refreshPreview();
         if (round && course && !panelKind && snapshot) {
             view.mapBalls?.(round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), round.turnIndex);
         }
-        if (noticeUntil && time > noticeUntil) { noticeUntil = 0; view.notice(storageFailed ? 'storage_error' : busy ? 'rolling' : round && !panelKind ? 'aim_hint' : ''); }
+        meterLeft = Math.max(0, meterLeft - dt * 1000);
+        view.hud.meter(scene && allowAim() && !cameraMode && (dragActive || meterLeft > 0) ? scene.screenPosition?.() || { visible: false } : null);
+        const hintOn = allowAim() && sessionShots < 3;
+        if (hintOn !== hintShown) { hintShown = hintOn; view.hud.hint(hintOn ? tr('aim_hint') : ''); }
+        view.hud.tick(time);
         raf = requestAnimationFrame(frame);
     }
     async function initialize() {
-        loading = true; view.notice('loading');
+        loading = true; view.loading(true);
         try {
             const response = await fetch(assetURL('/3d/minigolf/manifest.json'), { signal: fetchController.signal });
             if (!response.ok) throw Error('manifest');
@@ -385,17 +401,17 @@ export function mountGame(host, context = {}) {
             checkpoint = saved && validateSave(saved, manifest.courses) && knownMode(saved.mode) ? saved : null;
             tracks = AUDIO_CREDITS;
             await loadCourse(manifest.courses[0], true);
-            if (!disposed && panelKind !== 'error') { showMenu(); if (legacyReset) message('progress_reset', 8); }
-        } catch (_) { if (!disposed) { loading = false; setPanel('error'); view.error('load_error'); } }
+            if (!disposed && panelKind !== 'error') { showMenu(); if (legacyReset) message('progress_reset'); }
+        } catch (_) { if (!disposed) { loading = false; view.loading(false); setPanel('error'); view.error('load_error'); } }
     }
     updateMotion(); syncVisibility(); void initialize();
     return {
-        inspect() { return { round: round && cloneSave(round), course: course?.id, busy, loading, visible, panel: panelKind, physics: physics?.getSnapshot(), graphics: scene?.stats(), audio: audio.getState() }; },
+        inspect() { return { round: round && cloneSave(round), course: course?.id, busy, loading, visible, panel: panelKind, physics: physics?.getSnapshot(), graphics: scene?.stats(), audio: audio.getState(), hud: view.hud.inspect() }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; fetchController.abort(); cancelAnimationFrame(raf);
             for (const dispose of cleanup) dispose();
             physics?.dispose(); physics = null; scene?.dispose(); scene = null;
-            audio.dispose(); visible = false; raf = 0; root.remove();
+            audio.dispose(); visible = false; raf = 0; view.dispose();
         }
     };
 }

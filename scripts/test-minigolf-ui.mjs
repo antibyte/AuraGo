@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
+import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
 
 const close = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 
@@ -48,5 +49,20 @@ const fast = feed(60, 4);
 assert.deepEqual(fast.map(entry => entry.change), ['up']);
 assert.ok(fast[0].at - slow[0].at >= 12, 'upgrade waits 12 s');
 assert.equal(governor.tier, 'medium');
+
+// --- HUD formats (Task 5) -----------------------------------------------------
+const nb = '\xa0';
+assert.equal(formatPower(0.54, 11.2, 'de').percent, '54' + nb + '%');
+assert.equal(formatPower(0.54, 11.2, 'en').percent, '54%');
+assert.equal(formatPower(0.54, 11.2, 'de').text, '54' + nb + '% · ≈' + nb + '11' + nb + 'm');
+assert.equal(formatPower(0.3, 0.42, 'de').distance, '≈' + nb + '0,4' + nb + 'm', 'below 1 m: 0.1 m steps');
+assert.equal(formatPower(0.3, 7.3, 'de').distance, '≈' + nb + '7,5' + nb + 'm', 'below 10 m: 0.5 m steps');
+assert.equal(formatPower(0.3, 7.3, 'en').distance, '≈' + nb + '7.5' + nb + 'm');
+assert.equal(formatPower(0.3, NaN, 'en').text, '30%');
+assert.equal(formatPower(0.3, 2, 'not a tag!').percent, '30%', 'invalid language tags fall back to English');
+assert.deepEqual(placeMeter({ x: 100, y: 200, visible: true }, 800, 600, 96), { x: 108, y: 88 });
+assert.deepEqual(placeMeter({ x: 780, y: 200, visible: true }, 800, 600, 96), { x: 676, y: 88 }, 'mirrors left at the right edge');
+assert.deepEqual(placeMeter({ x: 100, y: 40, visible: true }, 800, 600, 96), { x: 108, y: 56 }, 'mirrors below at the top edge');
+assert.deepEqual(placeMeter({ visible: false }, 800, 600, 96), { x: 352, y: 492 }, 'hidden ball: bottom centre');
 
 console.log('minigolf ui: all checks passed');

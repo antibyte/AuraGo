@@ -7791,7 +7791,7 @@
   "minigolf.focus": "To the ball",
   "minigolf.camera": "Camera",
   "minigolf.aiming": "Aim",
-  "minigolf.settings": "Sound & graphics",
+  "minigolf.settings": "Settings",
   "minigolf.close": "Close",
   "minigolf.music": "Music",
   "minigolf.effects": "Sound effects",
@@ -7851,5 +7851,11 @@
   "minigolf.birdie": "Birdie",
   "minigolf.bogey": "Bogey",
   "minigolf.over": "Double bogey or worse",
-  "minigolf.progress_reset": "AuraGolf has been redesigned. Old saves and best scores were reset."
+  "minigolf.progress_reset": "AuraGolf has been redesigned. Old saves and best scores were reset.",
+  "minigolf.hole_progress": "Hole {hole}/{total}",
+  "minigolf.hole_par": "Hole {hole} · Par {par}",
+  "minigolf.turn_of": "{name}’s turn",
+  "minigolf.chip_active": "playing",
+  "minigolf.chip_done": "Finished",
+  "minigolf.help_short": "Help"
 }

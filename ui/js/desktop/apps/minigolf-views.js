@@ -1,22 +1,92 @@
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const PLAYER_COLORS = ['#fff0c5', '#f6a378', '#89c9ef', '#c8a6ed'];
+import { DEFAULT_COLORS, colorValue } from './minigolf-shared.js';
+import { createHud, formatPower } from './minigolf-hud.js';
+
+export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Inline 24 px line icons; .mg-icon strokes them with currentColor.
+const ICONS = {
+    scorecard: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.1-2.4 3.8M12 17.2v.1"/>',
+    pause: '<path d="M9 5v14M15 5v14"/>', play: '<path d="M7 5l12 7-12 7z"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    ball: '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M12 8h.01M15 10h.01M10.5 13h.01M13.5 13h.01"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    map: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
+    back: '<path d="M15 5l-7 7 7 7"/>', check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+    star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    flower: '<circle cx="12" cy="9" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="16" cy="9" r="2"/><circle cx="12" cy="13" r="2"/><circle cx="8" cy="9" r="2"/><path d="M12 15v6M12 18l3-2"/>',
+    wave: '<path d="M3 15c3 0 3-3 6-3s3 3 6 3 3-3 6-3M3 19c3 0 3-3 6-3s3 3 6 3 3-3 6-3M7 9c1-3 4-5 8-4"/>',
+    lantern: '<path d="M10 3h4M12 3v2M8 7h8l-1 10H9z"/><path d="M9 20h6M12 10v4"/>',
+    ship: '<path d="M4 16h16l-2 4H6z"/><path d="M12 3v13M12 4l6 9h-6M12 6l-5 7h5"/>',
+    temple: '<path d="M3 20h18M5 20v-3h14v3M7 17v-3h10v3M9 14v-3h6v3M11 11V8h2v3"/>',
+    moon: '<path d="M15 4a8 8 0 1 0 5 13A7 7 0 0 1 15 4z"/><circle cx="18" cy="7" r="1.5"/>',
+    keyboard: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    touch: '<path d="M9 11V5a2 2 0 0 1 4 0v6M13 10a2 2 0 0 1 4 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.6 1.6 0 0 1 2.4-2L9 15"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
+    sound: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+    display: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>'
+};
+export const icon = name => `<svg class="mg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ICONS.star}</svg>`;
 
 export function createView(host, tr) {
+    const serial = createView.serial = (createView.serial || 0) + 1;
     const root = document.createElement('div'); root.className = 'mg-app';
-    root.innerHTML = `<header class="mg-topbar"><div class="mg-brand"><img src="${esc(host.dataset.golfIcon)}" alt="" width="34" height="34"><strong>AuraGolf</strong></div><div class="mg-course-heading"><span data-world></span><strong data-course>${esc(tr('round_ready'))}</strong></div><nav><button data-action="scorecard">${esc(tr('scorecard'))}</button><button data-action="settings">${esc(tr('settings'))}</button><button data-action="pause">${esc(tr('pause'))}</button></nav></header>
-        <div class="mg-stage"><div class="mg-canvas"></div><div class="mg-hole-badge"><span data-hole>${esc(tr('hole'))} 1</span><span data-par>${esc(tr('par'))} 2</span></div><div class="mg-minimap" data-minimap hidden aria-label="${esc(tr('hole_map'))}"></div><div class="mg-turn" aria-live="polite"><span data-turn></span><strong data-strokes></strong></div><div class="mg-overlay" hidden></div><div class="mg-status" role="status" aria-live="polite"></div></div>
-        <footer class="mg-controls"><div class="mg-player-strip"></div><div class="mg-power"><label for="mg-power-${createView.serial = (createView.serial || 0) + 1}">${esc(tr('power'))} <output data-power-value>35%</output></label><input id="mg-power-${createView.serial}" data-power type="range" min="2" max="100" value="35"></div><button class="mg-primary" data-action="shoot">${esc(tr('shoot'))}</button><button data-action="focus">${esc(tr('focus'))}</button><button data-action="camera" aria-pressed="false">${esc(tr('camera'))}</button><button data-action="help">?</button></footer>`;
-    root.querySelector('[data-action="help"]').setAttribute('aria-label', tr('help'));
+    root.dataset.world = 'neutral'; root.dataset.panel = 'loading'; root.dataset.reduced = 'false';
+    const topButton = (action, iconName, key) => `<button class="mg-top-button" data-action="${action}" aria-label="${esc(tr(key))}" title="${esc(tr(key))}">${icon(iconName)}<span class="mg-label">${esc(tr(key))}</span></button>`;
+    root.innerHTML = `<header class="mg-topbar">
+            <div class="mg-brand"><img src="${esc(host.dataset.golfIcon)}" alt="" width="32" height="32"><strong class="mg-brand-name">AuraGolf</strong></div>
+            <div class="mg-progress"><span class="mg-progress-label" data-progress-label>${esc(tr('subtitle'))}</span><ol class="mg-progress-track" data-progress-track aria-hidden="true"></ol></div>
+            <nav class="mg-topbar-actions">${topButton('scorecard', 'scorecard', 'scorecard')}${topButton('settings', 'settings', 'settings')}${topButton('help', 'help', 'help_short')}${topButton('pause', 'pause', 'pause')}</nav>
+        </header>
+        <div class="mg-stage">
+            <div class="mg-canvas"></div><div class="mg-hud" data-hud></div><div class="mg-coach" data-coach hidden></div>
+            <div class="mg-loading" data-loading hidden><span class="mg-spinner" aria-hidden="true"></span><span>${esc(tr('loading'))}</span></div>
+            <div class="mg-overlay" hidden></div><div class="mg-toasts" data-toasts aria-hidden="true"></div>
+            <div class="mg-announcer" data-announcer role="status" aria-live="polite"></div>
+        </div>
+        <footer class="mg-controls">
+            <div class="mg-power"><label for="mg-power-${serial}"><span>${esc(tr('power'))}</span><output data-power-value></output></label><input id="mg-power-${serial}" data-power type="range" min="2" max="100" value="35"></div>
+            <button class="mg-primary" data-action="shoot">${icon('play')}<span class="mg-label">${esc(tr('shoot'))}</span></button>
+            <button data-action="focus" aria-label="${esc(tr('focus'))}" title="${esc(tr('focus'))}">${icon('ball')}<span class="mg-label">${esc(tr('focus'))}</span></button>
+            <button data-action="camera" aria-pressed="false" aria-label="${esc(tr('camera'))}" title="${esc(tr('camera'))}">${icon('camera')}<span class="mg-label">${esc(tr('camera'))}</span></button>
+        </footer>`;
     host.replaceChildren(root);
-    const panel = root.querySelector('.mg-overlay'), status = root.querySelector('.mg-status');
+    const $ = selector => root.querySelector(selector);
+    const panel = $('.mg-overlay'), loadingEl = $('[data-loading]'), slider = $('[data-power]'), powerOut = $('[data-power-value]');
+    const progressLabel = $('[data-progress-label]'), progressTrack = $('[data-progress-track]'), cameraButton = $('[data-action="camera"]');
+    const hud = createHud({ hud: $('[data-hud]'), toasts: $('[data-toasts]'), announcer: $('[data-announcer]') }, { tr, esc, icon });
     let restoreFocus = null;
     const button = (action, label, primary = false) => `<button ${primary ? 'class="mg-primary"' : ''} data-action="${action}">${esc(tr(label))}</button>`;
-    function showPanel(html, label) {
-        restoreFocus ||= document.activeElement;
-        panel.innerHTML = `<section class="mg-panel" role="dialog" aria-modal="true" aria-label="${esc(tr(label))}">${html}</section>`;
+
+    function showPanel(html, label, focus) {
+        if (panel.hidden) restoreFocus = document.activeElement;
+        panel.innerHTML = `<section class="mg-panel" role="dialog" aria-label="${esc(tr(label))}">${html}</section>`;
         panel.hidden = false;
-        panel.querySelector('button,input,select')?.focus({ preventScroll: true });
+        (focus && panel.querySelector(focus) || panel.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)'))?.focus({ preventScroll: true });
     }
+    function progress(round) {
+        if (!round) { progressLabel.textContent = tr('subtitle'); progressTrack.replaceChildren(); return; }
+        const total = round.courseIds.length;
+        progressLabel.textContent = tr('hole_progress').replace('{hole}', Math.min(round.holeIndex + 1, total)).replace('{total}', total);
+        progressTrack.innerHTML = round.courseIds.map((_, index) => `<li data-state="${index < round.holeIndex ? 'done' : index === round.holeIndex ? 'current' : 'open'}"></li>`).join('');
+    }
+    function topbar(kind, hasRound) {
+        const locked = kind === 'loading' || kind === 'error', idle = locked || kind === 'menu' || !hasRound;
+        for (const [action, off] of [['scorecard', idle], ['pause', idle], ['settings', locked], ['help', locked]]) $(`.mg-topbar [data-action="${action}"]`).disabled = off;
+    }
+    // Tab stays on the open panel and the top bar.
+    function trap(event) {
+        if (event.key !== 'Tab' || panel.hidden) return;
+        const controls = [...root.querySelectorAll('.mg-topbar button, .mg-overlay :is(button,input,select,textarea,summary,a[href])')].filter(el => !el.disabled && el.getClientRects().length);
+        if (!controls.length) return;
+        const first = controls[0], last = controls.at(-1);
+        if (!controls.includes(document.activeElement)) { first.focus(); event.preventDefault(); }
+        else if (event.shiftKey && document.activeElement === first) { last.focus(); event.preventDefault(); }
+        else if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
+    }
+    root.addEventListener('keydown', trap);
+
+    // --- Transitional panels (replaced by minigolf-menus.js and minigolf-scorecard.js) ---
     function menu(courses, saved, values = {}) {
         const modes = ['full', 'garden', 'coast', 'night', 'practice'];
         showPanel(`<div class="mg-eyebrow">${esc(tr('subtitle'))}</div><h1>AuraGolf<span>✳</span></h1><p class="mg-tagline">${esc(tr('tagline'))}</p>
@@ -26,12 +96,12 @@ export function createView(host, tr) {
             <label>${esc(tr('players'))}<select data-players>${[1, 2, 3, 4].map(n => `<option value="${n}"${values.count === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div data-names class="mg-names"></div>
             <div class="mg-panel-actions">${button('start', 'start', true)}${saved ? button('resume', 'resume') : ''}</div><p class="mg-fine">${esc(tr('saved'))}</p>`, 'title');
         playerNames(values.count || 1);
-        root.querySelector('[data-hole-select]').hidden = values.mode !== 'practice';
+        $('[data-hole-select]').hidden = values.mode !== 'practice';
     }
     function playerNames(count) {
-        const holder = root.querySelector('[data-names]'); if (!holder) return;
+        const holder = $('[data-names]'); if (!holder) return;
         const previous = Array.from(holder.querySelectorAll('input')).map(input => input.value);
-        holder.innerHTML = Array.from({ length: count }, (_, i) => `<label><span style="--player-color:${PLAYER_COLORS[i]}">${esc(tr('player').replace('{n}', i + 1))}</span><input data-player-name maxlength="40" value="${esc(previous[i] || tr('player').replace('{n}', i + 1))}" autocomplete="off"></label>`).join('');
+        holder.innerHTML = Array.from({ length: count }, (_, i) => `<label><span style="--player-color:${colorValue(DEFAULT_COLORS[i])}">${esc(tr('player').replace('{n}', i + 1))}</span><input data-player-name maxlength="24" value="${esc(previous[i] || tr('player').replace('{n}', i + 1))}" autocomplete="off"></label>`).join('');
     }
     function settings(settings, track) {
         showPanel(`<h2>${esc(tr('settings'))}</h2><label>${esc(tr('music'))}<input data-music type="range" min="0" max="100" value="${Math.round(settings.music * 100)}"></label><div class="mg-track"><span data-track>${esc(track?.title || '♪')}</span>${button('next-track', 'next_track')}${button('mute', settings.music === 0 ? 'unmute' : 'mute')}</div>
@@ -44,84 +114,36 @@ export function createView(host, tr) {
     function scorecard(round, courses, complete, best) {
         const allDone = round.players.every(p => p.done);
         const columns = round.courseIds.map(id => courses.find(c => c.id === id));
-        showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map((p, index) => `<tr><th><i style="background:${PLAYER_COLORS[index]}"></i>${esc(p.name)}</th>${columns.map((c, i) => { const value = p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : null); if (value == null) return '<td>–</td>'; const rel = value - c.par; const grade = rel <= -2 ? 'mg-eagle' : rel === -1 ? 'mg-birdie' : rel === 0 ? 'mg-par' : rel === 1 ? 'mg-bogey' : 'mg-over'; const term = rel <= -2 ? tr('eagle') : rel === -1 ? tr('birdie') : rel === 0 ? tr('par') : rel === 1 ? tr('bogey') : tr('over'); return `<td class="${grade}" title="${esc(term)}">${value}</td>`; }).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
+        showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map(p => `<tr><th><i style="background:${colorValue(p.color)}"></i>${esc(p.name)}</th>${columns.map((c, i) => { const value = p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : null); if (value == null) return '<td>–</td>'; const rel = value - c.par; const grade = rel <= -2 ? 'mg-eagle' : rel === -1 ? 'mg-birdie' : rel === 0 ? 'mg-par' : rel === 1 ? 'mg-bogey' : 'mg-over'; const term = rel <= -2 ? tr('eagle') : rel === -1 ? tr('birdie') : rel === 0 ? tr('par') : rel === 1 ? tr('bogey') : tr('over'); return `<td class="${grade}" title="${esc(term)}">${value}</td>`; }).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
             ${best ? `<p>${esc(tr('best'))}: <strong>${best}</strong></p>` : ''}<div class="mg-panel-actions">${complete ? button('menu', 'play_again', true) : allDone ? button('next-hole', 'next_hole', true) : button('close', 'close', true)}</div>`, 'scorecard');
     }
-    function hud(round, course, busy) {
-        holePlan(course);
-        root.dataset.course = course.id; root.dataset.turn = round.turnIndex; root.dataset.playing = String(busy);
-        root.querySelector('[data-world]').textContent = tr(course.world);
-        root.querySelector('[data-course]').textContent = tr('course_' + course.number);
-        root.querySelector('[data-hole]').textContent = `${tr('hole')} ${course.number}`;
-        root.querySelector('[data-par]').textContent = `${tr('par')} ${course.par}`;
-        const player = round.players[round.turnIndex];
-        root.querySelector('[data-turn]').textContent = player.name + ' · ' + tr(busy ? 'rolling' : 'turn');
-        root.querySelector('[data-strokes]').textContent = `${tr('strokes')} ${player.strokes}`;
-        root.querySelector('.mg-player-strip').innerHTML = round.players.map((p, i) => `<span class="${i === round.turnIndex ? 'active' : ''}" style="--player-color:${PLAYER_COLORS[i]}"><i></i>${esc(p.name)} <b>${p.strokes}${p.done ? ' ✓' : ''}</b></span>`).join('');
-        root.querySelector('[data-action="shoot"]').disabled = busy || round.players.every(p => p.done);
-    }
-    panel.addEventListener('keydown', event => {
-        if (event.key !== 'Tab') return;
-        const controls = Array.from(panel.querySelectorAll('button,input,select,a[href]')).filter(el => !el.disabled && el.getClientRects().length);
-        if (!controls.length) return;
-        const first = controls[0], last = controls.at(-1);
-        if (event.shiftKey && document.activeElement === first) { last.focus(); event.preventDefault(); }
-        else if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
-    });
-    let mapKey = null, mapProject = null, mapDots = [];
-    function holePlan(course) {
-        const holder = root.querySelector('[data-minimap]');
-        if (!holder) return;
-        if (!course || !Array.isArray(course.bounds) || course.bounds.length < 2) {
-            holder.hidden = true; mapKey = null; mapProject = null; mapDots = [];
-            return;
-        }
-        if (mapKey === course.id) { holder.hidden = false; return; }
-        mapKey = course.id; holder.hidden = false; mapDots = [];
-        const xs = [course.bounds[0][0], course.bounds[1][0]].sort((a, b) => a - b);
-        const zs = [course.bounds[0][2], course.bounds[1][2]].sort((a, b) => a - b);
-        const span = Math.max(xs[1] - xs[0], zs[1] - zs[0]) || 1;
-        const pad = 8, box = 84;
-        const px = value => pad + (value - xs[0]) / span * box;
-        const pz = value => pad + (value - zs[0]) / span * box;
-        mapProject = { px, pz };
-        const water = (course.water || []).map(volume => {
-            const x1 = px(Math.min(volume[0][0], volume[1][0])), x2 = px(Math.max(volume[0][0], volume[1][0]));
-            const z1 = pz(Math.min(volume[0][2], volume[1][2])), z2 = pz(Math.max(volume[0][2], volume[1][2]));
-            return `<rect class="map-water" x="${x1.toFixed(2)}" y="${z1.toFixed(2)}" width="${Math.max(3, x2 - x1).toFixed(2)}" height="${Math.max(3, z2 - z1).toFixed(2)}" rx="2"></rect>`;
-        }).join('');
-        const field = `<rect class="map-field" x="${px(xs[0]).toFixed(2)}" y="${pz(zs[0]).toFixed(2)}" width="${((xs[1] - xs[0]) / span * box).toFixed(2)}" height="${((zs[1] - zs[0]) / span * box).toFixed(2)}" rx="8"></rect>`;
-        const tee = course.tee || [0, 0, 0], cup = course.cup || [0, 0, 0];
-        holder.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">${field}${water}<line class="map-path" x1="${px(tee[0]).toFixed(2)}" y1="${pz(tee[2]).toFixed(2)}" x2="${px(cup[0]).toFixed(2)}" y2="${pz(cup[2]).toFixed(2)}"></line><circle class="map-tee" cx="${px(tee[0]).toFixed(2)}" cy="${pz(tee[2]).toFixed(2)}" r="2.4"></circle><circle class="map-cup" cx="${px(cup[0]).toFixed(2)}" cy="${pz(cup[2]).toFixed(2)}" r="3"></circle><g data-map-balls></g></svg>`;
-    }
-    function mapBalls(positions, active) {
-        const holder = root.querySelector('[data-map-balls]');
-        if (!holder || !mapProject || !positions?.length) return;
-        const list = positions.filter(position => position && position.length >= 3);
-        if (mapDots.length !== list.length) {
-            holder.innerHTML = list.map((_, index) => `<circle r="3.6" fill="${PLAYER_COLORS[index % PLAYER_COLORS.length]}" stroke="#0b1612" stroke-width="1"></circle>`).join('');
-            mapDots = Array.from(holder.children);
-        }
-        list.forEach((position, index) => {
-            const dot = mapDots[index]; if (!dot) return;
-            dot.setAttribute('cx', mapProject.px(position[0]).toFixed(2));
-            dot.setAttribute('cy', mapProject.pz(position[2]).toFixed(2));
-            dot.setAttribute('r', index === active ? '4.6' : '3.6');
-        });
-    }
+    function pause() { showPanel(`<h2>${esc(tr('paused'))}</h2><p>${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', 'continue', true)}${button('menu', 'menu')}</div>`, 'pause'); }
+    function error(key) { showPanel(`<h2>${esc(tr(key))}</h2>${button('retry', 'retry', true)}`, key); }
+    function credits(tracks) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul>${tracks.map(t => `<li>${esc(t.title)} · ${esc(t.author)} · CC0</li>`).join('')}</ul>${button('close', 'close', true)}`, 'credits'); }
+
     return {
-        root, canvasHost: root.querySelector('.mg-canvas'), panel, menu, playerNames, settings, help, scorecard, hud, showPanel, mapBalls,
-        notice(key) { status.textContent = key ? tr(key) : ''; },
-        close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
-        pause() { showPanel(`<h2>${esc(tr('paused'))}</h2><p>${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', 'continue', true)}${button('menu', 'menu')}</div>`, 'pause'); },
-        error(key) { showPanel(`<h2>${esc(tr(key))}</h2>${button('retry', 'retry', true)}`, key); },
-        power(value, meters) {
-            const percent = Math.round(value * 100);
-            root.querySelector('[data-power]').value = percent;
-            const distance = Number.isFinite(meters) ? (meters < 1 ? Math.round(meters * 10) / 10 : meters < 10 ? Math.round(meters * 2) / 2 : Math.round(meters)) : null;
-            root.querySelector('[data-power-value]').textContent = percent + '%' + (distance === null ? '' : ' · ≈' + distance.toLocaleString(document.documentElement.lang || undefined) + ' m');
+        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar,
+        menu, playerNames, settings, help, scorecard, pause, error, credits,
+        close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected && !restoreFocus.disabled) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
+        update(round, course, busy) {
+            if (!round || !course) return;
+            root.dataset.world = course.world || 'neutral'; root.dataset.course = course.id; root.dataset.turn = round.turnIndex; root.dataset.playing = String(busy);
+            hud.update(round, course, busy); progress(round);
         },
-        track(value) { const el = root.querySelector('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
-        credits(tracks) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul>${tracks.map(t => `<li>${esc(t.title)} · ${esc(t.author)} · CC0</li>`).join('')}</ul>${button('close', 'close', true)}`, 'credits'); }
+        setCamera(pressed) {
+            const text = tr(pressed ? 'aiming' : 'camera');
+            cameraButton.setAttribute('aria-pressed', String(pressed)); cameraButton.setAttribute('aria-label', text); cameraButton.title = text;
+            cameraButton.querySelector('.mg-label').textContent = text;
+        },
+        setReduced(on) { root.dataset.reduced = String(!!on); },
+        loading(on) { loadingEl.hidden = !on; },
+        power(strength, meters, lang) {
+            const formatted = formatPower(strength, meters, lang);
+            slider.value = Math.round(strength * 100); slider.setAttribute('aria-valuetext', formatted.text);
+            powerOut.textContent = formatted.text;
+            hud.power(strength, formatted);
+        },
+        track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
+        dispose() { root.removeEventListener('keydown', trap); hud.dispose(); root.remove(); }
     };
 }
