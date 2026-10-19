@@ -371,9 +371,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-action="tutorial-done"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().tutorial===null&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).tutorial===2`)
-	if !page.MustEval(`()=>document.activeElement===document.querySelector('.mg-canvas canvas')`).Bool() {
-		t.Fatal("finishing the coach marks did not hand the keyboard back to the stage")
-	}
+	// The coach hands focus back from the game's next animation frame, not from the click, so wait for it.
+	page.Timeout(5 * time.Second).MustWait(`()=>document.activeElement===document.querySelector('.mg-canvas canvas')`)
 
 	// A browser that refuses to store anything shows one toast and the game keeps running.
 	page.MustEval(`()=>golfFixture.failStorage(true)`)
