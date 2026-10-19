@@ -2,15 +2,18 @@
 
 Each builder returns one joined mesh object named ``prop-moon-<name>`` with its
 base at z=0 and its footprint centred on the origin. ``PROPS`` maps the short
-name to its builder.
+name to its builder. The dish (``props_moon_dish``), the masts
+(``props_moon_station``) and the regolith props (``props_moon_nature``) live in
+their own modules and are re-exported here.
 """
 
 import math
 
-from mathutils import Vector
-
 from . import shapes
 from .prop import Prop
+from .props_moon_dish import build_dishbase, build_dishhead  # noqa: F401
+from .props_moon_nature import build_boulder, build_crater, build_crystal, build_pebble  # noqa: F401
+from .props_moon_station import build_antenna, build_neonpost, build_tower  # noqa: F401
 
 WORLD = "moon"
 
@@ -106,58 +109,6 @@ def build_habitat(seed=2):
 
 
 # --------------------------------------------------------------------------
-# Dish on a tripod
-# --------------------------------------------------------------------------
-
-def build_dish(seed=3):
-    """Parabolic dish with feed horn on a tripod, tilted up and towards -Y."""
-    p = Prop(WORLD, "dish", seed)
-    R, depth, t = 1.15, 0.62, 0.05
-    prof = [(0.0, -t)]
-    n = 10
-    for k in range(1, n + 1):
-        r = R * k / n
-        prof.append((r, depth * (r / R) ** 2 - t))
-    prof.append((R, depth))
-    for k in range(n - 1, -1, -1):
-        r = R * k / n
-        prof.append((r, depth * (r / R) ** 2))
-    dish = shapes.lathe("dish-shell", prof, seg=36, caps=False)
-    hub = Vector((0.0, 0.0, 1.55))
-    tilt = (52, 0, 0)
-    p.add(dish, "satin", ("panel_grey", "panel_white"), loc=hub, rot=tilt, bevel=0, dens=0.3, smooth_angle=70, mode="radial",
-          center=(0, 0), ao=0.55)
-    rot = shapes.matrix(rot=tilt)
-    rim = shapes.torus("dish-rim", R, 0.04, seg=36, rseg=6)
-    shapes.transform(rim, loc=(0, 0, depth))
-    p.add(rim, "satin", "orange", loc=hub, rot=tilt, bevel=0, dens=0, ao=0.4)
-    focus = hub + rot @ Vector((0, 0, R * R / (4 * depth)))
-    for k in range(3):
-        a = math.radians(30 + k * 120)
-        rimpt = hub + rot @ Vector((R * math.cos(a), R * math.sin(a), depth))
-        strut = shapes.tube("feed-strut", [rimpt, focus], radius=0.022, seg=6)
-        p.add(strut, "metal", ("metal_dark", "metal"), bevel=0, dens=0, ao=0.4)
-    horn = shapes.cone("feed-horn", 0.1, 0.2, seg=12)
-    p.add(horn, "satin", "orange", loc=focus, rot=(52 + 180, 0, 0), bevel=0, dens=0, ao=0.4)
-    # tripod
-    post = shapes.cylinder("post", 0.1, 0.08, 1.2, seg=10)
-    p.add(post, "metal", ("metal_dark", "metal"), loc=(0, 0.0, 0.3), bevel=0, dens=0.5, ao=0.5)
-    mount = shapes.box("mount", (0.42, 0.34, 0.3), base=False)
-    p.add(mount, "satin", ("panel_dark", "metal"), loc=(0, 0.0, 1.5), bevel=0.05, segments=2, dens=0.3)
-    for k in range(3):
-        a = math.radians(90 + k * 120)
-        leg = shapes.tube("tripod-leg", [(0.0, 0.0, 1.35), (math.cos(a) * 0.85, math.sin(a) * 0.85, 0.06)], radius=[0.055, 0.04], seg=8)
-        p.add(leg, "metal", ("metal_dark", "metal"), bevel=0, dens=0, ao=0.5)
-        foot = shapes.cylinder("pad", 0.17, 0.13, 0.08, seg=10)
-        p.add(foot, "satin", ("panel_dark", "panel_grey"), loc=(math.cos(a) * 0.9, math.sin(a) * 0.9, 0.0), bevel=0.015, segments=1, dens=0)
-    box = shapes.box("control-box", (0.5, 0.36, 0.34), base=True)
-    p.add(box, "satin", ("panel_grey", "panel_white"), loc=(0.55, -0.55, 0.0), rot=(0, 0, -20), bevel=0.04, segments=2, dens=0.3)
-    led = shapes.sphere("led", 0.035, seg=8, rings=5)
-    p.add(led, "emissive", ("cyan", "cyan"), loc=(0.52, -0.78, 0.26), bevel=0, dens=0, ao=0.0, strength=2.5)
-    return p.build()
-
-
-# --------------------------------------------------------------------------
 # Six-wheeled rover
 # --------------------------------------------------------------------------
 
@@ -247,14 +198,6 @@ def build_solar(seed=5, panels=3):
 # Rocks, beacon, crates, pad
 # --------------------------------------------------------------------------
 
-def build_boulder(seed=1, size=0.6, cuts=4, subdiv=3, squash=(1.0, 0.85, 0.72)):
-    p = Prop(WORLD, "boulder", seed)
-    rock = shapes.blob("boulder", size, p.rng, subdiv=subdiv, amp=0.2, freq=1.1, squash=squash, cuts=cuts, cut_depth=0.8, flat_bottom=0.5,
-                       relax=2)
-    p.add(rock, "matte", "rock", bevel=0, dens=0, ao=0.7, noise_amp=0.08, smooth_angle=80, jitter=0.03)
-    return p.build()
-
-
 def build_beacon(seed=1, tone="cyan"):
     """Short pylon with a glowing neon cap."""
     p = Prop(WORLD, "beacon", seed)
@@ -292,31 +235,19 @@ def build_pad(seed=1, size=2.4):
     return p.build()
 
 
-def build_crystal(seed=1, tone="cyan", count=5):
-    """Cluster of glowing neon crystals growing out of the regolith."""
-    p = Prop(WORLD, "crystal", seed)
-    rng = p.rng
-    for k in range(count):
-        a = rng.uniform(0, math.tau)
-        d = rng.uniform(0.0, 0.3) if k else 0.0
-        h = rng.uniform(0.45, 0.95) * (1.25 if k == 0 else 1.0)
-        w = rng.uniform(0.1, 0.17)
-        prof = [(0.0, 0.0), (w, 0.0), (w * 1.05, h * 0.62), (w * 0.4, h * 0.92), (0.0, h)]
-        c = shapes.lathe("crystal", prof, seg=6)
-        t = tone if (k % 3) != 2 else ("magenta" if tone == "cyan" else "cyan")
-        lo = (t + "_dark") if p.pal.has(t + "_dark") else t
-        p.add(c, "glow", (lo, t), loc=(math.cos(a) * d, math.sin(a) * d, 0.0),
-              rot=(rng.uniform(-14, 14), rng.uniform(-14, 14), rng.uniform(0, 60)), bevel=0.012, segments=1, dens=0, ao=0.25, strength=1.0,
-              smooth_angle=20)
-    return p.build()
-
-
-PROPS = {"habitat": build_habitat, "dish": build_dish, "rover": build_rover, "solar": build_solar,
-         "boulder": build_boulder, "beacon": build_beacon, "crate": build_crate, "pad": build_pad, "crystal": build_crystal}
+PROPS = {"habitat": build_habitat, "dishbase": build_dishbase, "dishhead": build_dishhead, "rover": build_rover,
+         "solar": build_solar, "crate": build_crate, "boulder": build_boulder, "neonpost": build_neonpost,
+         "crystal": build_crystal, "antenna": build_antenna, "crater": build_crater, "pebble": build_pebble,
+         "tower": build_tower, "beacon": build_beacon, "pad": build_pad}
 
 # Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
+# ``dishbase`` and ``dishhead`` share the vertical axis x = y = 0; the course places both with identical
+# transforms and the runtime turns the head about that axis (glTF Y-up axis, radians per second).
 PROP_META = {
-    "habitat": {"tags": ["hero"]}, "dish": {"tags": []}, "rover": {"tags": []}, "solar": {"tags": []},
-    "boulder": {"tags": []}, "beacon": {"tags": []}, "crate": {"tags": ["scatter"]}, "pad": {"tags": []},
-    "crystal": {"tags": []},
+    "habitat": {"tags": ["hero"]}, "dishbase": {"tags": []},
+    "dishhead": {"tags": [], "spin": {"axis": [0, 1, 0], "speed": 0.25}},
+    "rover": {"tags": []}, "solar": {"tags": []}, "crate": {"tags": ["scatter"]}, "boulder": {"tags": []},
+    "neonpost": {"tags": ["tall"]}, "crystal": {"tags": []}, "antenna": {"tags": ["tall"]},
+    "crater": {"tags": ["scatter", "flat"]}, "pebble": {"tags": ["scatter"]}, "tower": {"tags": ["tall"]},
+    "beacon": {"tags": []}, "pad": {"tags": ["flat"]},
 }

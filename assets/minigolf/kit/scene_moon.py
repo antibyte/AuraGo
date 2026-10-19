@@ -136,26 +136,31 @@ def place_props(comp, pal, lane):
     put("habitat", P.build_habitat(), 3.9, 2.1, 3.0, yaw=-8.0, sink=0.12)
     put("pad", P.build_pad(), 3.7, -2.2, 1.7, yaw=-8.0, sink=0.03)
     put("rover", P.build_rover(), 3.6, -2.2, 1.0, yaw=148.0, z=comp.height(3.7, -2.2) + 0.065, sink=0)
-    put("dish", P.build_dish(), -3.1, 2.7, 1.6, yaw=24.0, sink=0.05)
+    # the dish is two props placed with identical transforms; the runtime turns the head
+    put("dishbase", P.build_dishbase(), -3.1, 2.7, 1.6, yaw=24.0, sink=0.05)
+    put("dishhead", P.build_dishhead(), -3.1, 2.7, 0.0, yaw=24.0, sink=0.05)
     put("solar", P.build_solar(panels=3), -0.4, 4.3, 2.6, yaw=-4.0, sink=0.03)
+    put("tower", P.build_tower(), 3.2, 5.0, 1.0, yaw=35.0, sink=0.05)
+    put("antenna", P.build_antenna(), 5.2, -3.5, 1.0, yaw=60.0, sink=0.03)
     put("crate", P.build_crate(), 5.6, -0.4, 0.8, yaw=30.0, sink=0.02)
-    # beacons along the tee
+    put("crater", P.build_crater(seed=3, radius=0.7), 5.4, -2.0, 1.0, yaw=20.0, sink=0.02)
+    # neon posts along the tee
     for t, side in ((0.04, 1), (0.04, -1), (0.3, -1), (0.62, 1)):
         q = lane.pos(t) + lane.left(t) * (side * 1.42)
-        put("beacon", P.build_beacon(tone="cyan" if side < 0 else "magenta"), q.x, q.y, 0.3, sink=0.02)
-    for i, (x, y, tone) in enumerate(((-2.9, -3.4, "cyan"), (5.4, -3.6, "magenta"), (-5.0, 0.9, "magenta"), (5.9, 3.7, "cyan"))):
+        put("neonpost", P.build_neonpost(), q.x, q.y, 0.3, yaw=rng.uniform(0, 360), sink=0.02)
+    for i, (x, y, tone) in enumerate(((-2.9, -3.4, "cyan"), (-5.0, 0.9, "magenta"), (5.9, 3.7, "cyan"))):
         put("crystal", P.build_crystal(seed=50 + i, tone=tone), x, y, 0.5, yaw=rng.uniform(0, 360), sink=0.03)
     for i, (x, y, s, sq) in enumerate(((-4.3, -0.2, 0.85, (1.1, 0.9, 0.75)), (-2.0, -3.6, 0.55, (1.0, 0.8, 0.7)),
                                        (-2.5, 1.7, 0.42, (1.0, 0.9, 0.8)), (2.2, -0.9, 0.38, (1.0, 0.8, 0.7)),
                                        (5.7, 3.1, 0.7, (1.0, 0.9, 0.75)), (-5.0, 3.2, 0.6, (1.0, 0.85, 0.8)),
                                        (1.5, 4.7, 0.5, (1.0, 0.9, 0.8)))):
-        put("boulder", P.build_boulder(seed=i + 3, size=s, squash=sq), x, y, s, yaw=rng.uniform(0, 360), sink=0.1)
-    for i in range(24):
+        # the kit boulder sits on z = 0: sink it by its old half-buried offset
+        put("boulder", P.build_boulder(seed=i + 3, size=s, squash=sq), x, y, s, yaw=rng.uniform(0, 360), sink=0.1 + 0.5 * s)
+    for i in range(14):
         for _ in range(30):
             x, y = rng.uniform(-5.2, 6.6), rng.uniform(-4.0, 5.4)
-            if comp.outline.contains_signed(x, y) < -0.6 and free(x, y, 0.3):
-                put("pebble", P.build_boulder(seed=30 + i, size=rng.uniform(0.07, 0.2), cuts=2, subdiv=2), x, y, 0.2,
-                    yaw=rng.uniform(0, 360), sink=0.03)
+            if comp.outline.contains_signed(x, y) < -0.6 and free(x, y, 0.45):
+                put("pebble", P.build_pebble(seed=30 + i), x, y, 0.45, yaw=rng.uniform(0, 360), sink=0.02)
                 break
 
 
