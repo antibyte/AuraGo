@@ -4,7 +4,7 @@ import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSa
 import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
 import { tutorialStart, tutorialNext, tutorialView } from './minigolf-tutorial.js';
-import { DEFAULT_COLORS, colorValue, assignColors, cleanName, uniqueNames, worldIds } from './minigolf-shared.js';
+import { DEFAULT_COLORS, colorValue, assignColors, cleanName, uniqueNames, worldIds, fillText } from './minigolf-shared.js';
 
 const SAVE_KEY = 'aurago.desktop.minigolf.round.v2';
 const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
@@ -80,7 +80,7 @@ export function mountGame(host, context = {}) {
         return write(SETTINGS_KEY, next);
     }
     const knownMode = mode => mode === 'full' || mode === 'practice' || worlds.includes(mode);
-    const playerLabel = index => tr('player').replace('{n}', index + 1);
+    const playerLabel = index => fillText(tr('player'), { n: index + 1 });
     function focusStage() { if (!disposed && panelKind === '') scene?.canvas?.focus({ preventScroll: true }); }
     function tutorialEvent(event) {
         const next = tutorialNext(tutorial, event);
@@ -140,8 +140,11 @@ export function mountGame(host, context = {}) {
         const enabled = allowAim();
         scene?.setAim(direction(), strength, enabled); showStrength();
         if (!enabled) { scene?.setPreview?.(null); previewKey = ''; }
-        root.querySelector('[data-action="shoot"]').disabled = !enabled;
-        root.querySelector('[data-power]').disabled = !enabled;
+        // A keyboard user who putts from the footer button must keep arrow keys, Space and Escape working.
+        const controls = [root.querySelector('[data-action="shoot"]'), root.querySelector('[data-power]')];
+        const hadFocus = !enabled && controls.includes(document.activeElement);
+        for (const control of controls) control.disabled = !enabled;
+        if (hadFocus) focusStage();
     }
     // Recompute at most every 66 ms while the aim changes, every 150 ms on
     // courses with moving obstacles, and never for an unchanged static aim.
@@ -188,10 +191,10 @@ export function mountGame(host, context = {}) {
     function message(key) { view.hud.toast(key); }
     function holeBanner() {
         const player = round.players[round.turnIndex];
-        view.hud.banner(tr('hole_par').replace('{hole}', course.number).replace('{par}', course.par),
-            [tr('course_' + course.number), round.players.length > 1 ? tr('turn_of').replace('{name}', player.name) : ''], colorValue(player.color), 2.2);
+        view.hud.banner(fillText(tr('hole_par'), { hole: course.number, par: course.par }),
+            [tr('course_' + course.number), round.players.length > 1 ? fillText(tr('turn_of'), { name: player.name }) : ''], colorValue(player.color), 2.2);
     }
-    function turnBanner() { const player = round.players[round.turnIndex]; view.hud.banner(tr('turn_of').replace('{name}', player.name), [], colorValue(player.color), 1.6); }
+    function turnBanner() { const player = round.players[round.turnIndex]; view.hud.banner(fillText(tr('turn_of'), { name: player.name }), [], colorValue(player.color), 1.6); }
     async function loadCourse(next, preview = false) {
         const version = ++generation; loading = true; busy = false; events.length = 0;
         physics?.dispose(); physics = null; course = next; previewKey = '';
