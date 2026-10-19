@@ -1730,11 +1730,89 @@
         openApp(appId);
     }
 
+    // Glass taskbar, dock status pill and global menu bar use backdrop-filter.
+    // Chromium paints overflowing descendants behind that blur, so an open
+    // radial menu has to leave the chrome until it closes.
+    function placeLiftedRadialMenu() {
+        const anchor = document.getElementById('radialMenuAnchor');
+        const placeholder = anchor && anchor._radialPlaceholder;
+        if (!anchor || anchor.dataset.radialLifted !== 'true' || !placeholder || !placeholder.isConnected) return;
+        const rect = placeholder.getBoundingClientRect();
+        anchor.style.left = rect.left + 'px';
+        anchor.style.top = rect.top + 'px';
+        anchor.style.width = rect.width + 'px';
+        anchor.style.height = rect.height + 'px';
+    }
+
+    function bindRadialMenuBlurEscape(anchor) {
+        if (!anchor || anchor.dataset.radialBlurBound === 'true') return;
+        anchor.dataset.radialBlurBound = 'true';
+        const lift = () => {
+            const menu = anchor.querySelector('#radialMenu');
+            if (!menu || !menu.classList.contains('open')) return;
+            if (anchor.dataset.radialLifted === 'true') {
+                placeLiftedRadialMenu();
+                return;
+            }
+            const home = anchor.parentElement;
+            if (!home) return;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'vd-radial-anchor vd-radial-anchor-placeholder';
+            placeholder.setAttribute('aria-hidden', 'true');
+            home.insertBefore(placeholder, anchor);
+            document.body.appendChild(anchor);
+            anchor._radialHome = home;
+            anchor._radialPlaceholder = placeholder;
+            anchor.dataset.radialLifted = 'true';
+            anchor.classList.add('is-lifted');
+            placeLiftedRadialMenu();
+            const track = () => {
+                if (anchor.dataset.radialLifted !== 'true') return;
+                placeLiftedRadialMenu();
+                anchor._radialLiftFrame = requestAnimationFrame(track);
+            };
+            anchor._radialLiftFrame = requestAnimationFrame(track);
+        };
+        const park = () => {
+            if (anchor.dataset.radialLifted !== 'true') return;
+            if (anchor._radialLiftFrame) cancelAnimationFrame(anchor._radialLiftFrame);
+            anchor._radialLiftFrame = 0;
+            const placeholder = anchor._radialPlaceholder;
+            const home = anchor._radialHome && anchor._radialHome.isConnected
+                ? anchor._radialHome
+                : document.querySelector('.vd-taskbar-system');
+            if (home) {
+                if (placeholder && placeholder.parentElement === home) home.insertBefore(anchor, placeholder);
+                else home.appendChild(anchor);
+            }
+            if (placeholder) placeholder.remove();
+            anchor._radialHome = null;
+            anchor._radialPlaceholder = null;
+            anchor.dataset.radialLifted = 'false';
+            anchor.classList.remove('is-lifted');
+            anchor.style.left = '';
+            anchor.style.top = '';
+            anchor.style.width = '';
+            anchor.style.height = '';
+        };
+        const sync = () => {
+            const menu = anchor.querySelector('#radialMenu');
+            if (menu && menu.classList.contains('open')) lift();
+            else park();
+        };
+        const observer = new MutationObserver(sync);
+        observer.observe(anchor, { attributes: true, attributeFilter: ['class'], subtree: true });
+        anchor.addEventListener('click', sync);
+        window.addEventListener('resize', placeLiftedRadialMenu);
+        sync();
+    }
+
     function ensureDesktopRadialMenuAnchor() {
         const taskbarSystem = document.querySelector('.vd-taskbar-system');
         if (!taskbarSystem) return null;
         let anchor = document.getElementById('radialMenuAnchor');
         const agentButton = $('vd-agent-button');
+        const lifted = anchor && anchor.dataset.radialLifted === 'true';
         if (!anchor) {
             anchor = document.createElement('div');
             anchor.id = 'radialMenuAnchor';
@@ -1744,7 +1822,7 @@
             } else {
                 taskbarSystem.appendChild(anchor);
             }
-        } else {
+        } else if (!lifted) {
             anchor.classList.add('vd-radial-anchor');
             if (anchor.parentElement !== taskbarSystem) {
                 if (agentButton && agentButton.parentElement === taskbarSystem) {
@@ -1754,7 +1832,10 @@
                 }
             }
         }
-        if (typeof injectRadialMenu === 'function') injectRadialMenu();
-        if (typeof initRadialMenu === 'function') initRadialMenu();
+        if (!lifted) {
+            if (typeof injectRadialMenu === 'function') injectRadialMenu();
+            if (typeof initRadialMenu === 'function') initRadialMenu();
+        }
+        bindRadialMenuBlurEscape(anchor);
         return anchor;
     }

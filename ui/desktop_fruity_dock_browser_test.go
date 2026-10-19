@@ -58,6 +58,18 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 		for _, theme := range []string{"fruity-light", "fruity-dark"} {
 			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 			page.MustElement("#radialTrigger").MustClick()
+			if blurred := page.MustEval(`() => {
+				const menu = document.getElementById('radialMenu');
+				let node = menu;
+				while (node && node !== document.documentElement) {
+					const filter = getComputedStyle(node).backdropFilter || getComputedStyle(node).webkitBackdropFilter || 'none';
+					if (filter !== 'none') return (node.id || node.className || node.tagName) + ' ' + filter;
+					node = node.parentElement;
+				}
+				return '';
+			}`).Str(); blurred != "" {
+				t.Fatalf("%s %dx%d: radial menu opens inside a backdrop blur: %s", theme, size[0], size[1], blurred)
+			}
 			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 				if err := os.MkdirAll(dir, 0755); err != nil {
 					t.Fatal(err)
@@ -93,6 +105,28 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 		}
 	}
 	page.MustSetViewport(1366, 900, 1, false)
+	for _, theme := range []string{"standard", "lollipop", "cyberpunk", "crazy", "black_gloss", "amiga"} {
+		page.MustEval(`theme => fixtureTheme(theme)`, theme)
+		page.MustElement("#radialTrigger").MustClick()
+		if blurred := page.MustEval(`() => {
+			const menu = document.getElementById('radialMenu');
+			if (!menu || !menu.classList.contains('open') || menu.closest('.vd-taskbar, .vd-global-bar, .vd-taskbar-system')) return 'still in chrome';
+			let node = menu;
+			while (node && node !== document.documentElement) {
+				const filter = getComputedStyle(node).backdropFilter || getComputedStyle(node).webkitBackdropFilter || 'none';
+				if (filter !== 'none') return (node.id || node.className || node.tagName) + ' ' + filter;
+				node = node.parentElement;
+			}
+			const link = document.querySelector('.radial-item[href]');
+			const rect = link.getBoundingClientRect();
+			if (rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth) return '';
+			const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+			return link.contains(hit) ? '' : 'covered';
+		}`).Str(); blurred != "" {
+			t.Fatalf("%s: radial menu opens behind chrome blur (%s)", theme, blurred)
+		}
+		page.MustElement("#radialTrigger").MustClick()
+	}
 	page.MustEval(`async()=>{
         await fixtureReady;
         aurora.state.bootstrap.installed_apps=[{id:'system-info',name:'System',icon:'monitor',dock_visible:true},{id:'custom-dock',name:'Custom dock app',icon:'apps',dock_visible:true}];
