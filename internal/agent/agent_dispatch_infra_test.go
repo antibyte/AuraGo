@@ -235,11 +235,12 @@ func TestDispatchInfraMQTTPerRunGatesIntersectLiveResolver(t *testing.T) {
 		enabled    bool
 		readOnly   bool
 		wantSubstr string
+		wantCode   string
 	}{
 		{name: "native disabled", enabled: false, wantSubstr: "MQTT is not enabled"},
 		{name: "native readonly", enabled: true, readOnly: true, wantSubstr: "MQTT is in read-only mode"},
-		{name: "invoke disabled", invoke: true, enabled: false, wantSubstr: "MQTT is not enabled"},
-		{name: "invoke readonly", invoke: true, enabled: true, readOnly: true, wantSubstr: "MQTT is in read-only mode"},
+		{name: "invoke disabled", invoke: true, enabled: false, wantCode: "tool_disabled"},
+		{name: "invoke readonly", invoke: true, enabled: true, readOnly: true, wantCode: "readonly"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -270,6 +271,15 @@ func TestDispatchInfraMQTTPerRunGatesIntersectLiveResolver(t *testing.T) {
 			}
 			if !handled || !strings.Contains(out, tt.wantSubstr) {
 				t.Fatalf("handled=%v output=%s, want %q", handled, out, tt.wantSubstr)
+			}
+			if tt.wantCode != "" {
+				var refusal struct {
+					Code   string `json:"code"`
+					Status string `json:"status"`
+				}
+				if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &refusal); err != nil || refusal.Code != tt.wantCode || refusal.Status != string(ToolResultDenied) {
+					t.Fatalf("expected canonical %s denial: output=%s err=%v", tt.wantCode, out, err)
+				}
 			}
 		})
 	}

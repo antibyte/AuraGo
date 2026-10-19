@@ -18,7 +18,9 @@ func TestExecutionHookCannotBeBypassedByInvokeTool(t *testing.T) {
 			session := "hook-" + item.action
 			SetDiscoverToolsState(session, []openai.Tool{testToolSchema(item.schema, "fixture")}, nil, "")
 			calls := 0
-			dc := &DispatchContext{Cfg: &config.Config{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionID: session, ExecutionHooks: &ExecutionHooks{BeforeTool: func(_ context.Context, tc ToolCall) error {
+			cfg := &config.Config{}
+			cfg.Agent.AllowPython = true // The hook test must pass run_tool's capability gate.
+			dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionID: session, ExecutionHooks: &ExecutionHooks{BeforeTool: func(_ context.Context, tc ToolCall) error {
 				if tc.Action != item.action {
 					t.Fatalf("wrong routed action: %+v", tc)
 				}

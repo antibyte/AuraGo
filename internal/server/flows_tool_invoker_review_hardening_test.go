@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -54,9 +55,9 @@ func TestC13RemoteTextPicksNoStatus(t *testing.T) {
 	}
 }
 
-// I2: the server's Guardian wraps every answer once, AuraGo's own refusals included; that
-// layer is presentation and the refusal still maps. A second layer is the tool's own marking
-// of remote content and maps nothing.
+// I2: shared hard gates return typed refusals before tool-output presentation.
+// Dispatched legacy refusals still map through the Guardian's single wrapper;
+// a second layer is the tool's own remote-content marking and maps nothing.
 func TestC13RefusalsMapThroughTheGuardiansWrapper(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.HomeAssistant.Enabled = true
@@ -70,12 +71,25 @@ func TestC13RefusalsMapThroughTheGuardiansWrapper(t *testing.T) {
 	t.Cleanup(func() { tools.SetRuntimePermissionResolver(nil) })
 
 	resp, err := inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "call_service", "domain": "light", "service": "turn_on", "entity_id": "light.a"}))
-	if err != nil || resp.Status != "denied" || !strings.Contains(resp.Output, "<external_data>") {
-		t.Fatalf("Home Assistant read-only through the Guardian: %+v, %v", resp, err)
+	var refusal struct {
+		Code   string `json:"code"`
+		Status string `json:"status"`
+	}
+	if err != nil || resp.Status != "denied" || !resp.IsError || json.Unmarshal([]byte(strings.TrimPrefix(resp.Output, "Tool Output: ")), &refusal) != nil || refusal.Code != "readonly" || refusal.Status != "denied" {
+		t.Fatalf("Home Assistant shared read-only gate: %+v, %v", resp, err)
 	}
 	resp, err = inv.InvokeTool(context.Background(), c13Request("mqtt_publish", map[string]any{"topic": "a", "payload": "b"}))
-	if err != nil || resp.Status != "needs_setup" {
-		t.Fatalf("MQTT off through the Guardian: %+v, %v", resp, err)
+	refusal.Code, refusal.Status = "", ""
+	if err != nil || resp.Status != "denied" || !resp.IsError || json.Unmarshal([]byte(strings.TrimPrefix(resp.Output, "Tool Output: ")), &refusal) != nil || refusal.Code != "tool_disabled" || refusal.Status != "denied" {
+		t.Fatalf("MQTT shared disabled-tool gate: %+v, %v", resp, err)
+	}
+
+	wrapped := "[Tool Output]\n" + security.IsolateExternalData(`Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`)
+	inv, s, _ = c13Invoker(cfg, map[string]bool{"home_assistant": true}, c13Answer(agent.ToolDispatchResult{Output: wrapped, Status: agent.ToolResultFailed, IsError: true}))
+	s.Guardian = security.NewGuardian(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	resp, err = inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "get_state", "entity_id": "light.a"}))
+	if err != nil || resp.Status != "denied" || resp.Output != wrapped {
+		t.Fatalf("dispatched refusal through the Guardian: %+v, %v", resp, err)
 	}
 
 	double := "[Tool Output]\n" + security.IsolateExternalData("Tool Output: "+security.IsolateExternalData(`{"status":"error","message":"Home Assistant is in read-only mode"}`))

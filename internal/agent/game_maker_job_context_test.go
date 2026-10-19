@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,7 +36,10 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 		return NativeToolCallToToolCall(openai.ToolCall{Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: string(data)}}, nil)
 	}
 	verified := make(chan struct{}, 1)
+	var lastStep atomic.Value
+	lastStep.Store("queued")
 	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		lastStep.Store(run.Stage)
 		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
 		write := native(map[string]any{"path": "src/probe.ts", "content": "export const probe = 7;"})
 		if run.Stage == "planning" {
@@ -45,6 +49,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			}
 			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
 		}
+		lastStep.Store("building: native/XML writes")
 		for _, tc := range []ToolCall{
 			write,
 			ParseToolCall(`<tool_call><function=game_maker_file><parameter=path>src/probe.ts</parameter><parameter=content>export const probe = 7;</parameter></function></tool_call>`),
@@ -56,6 +61,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				return fmt.Errorf("bound native/XML write failed: %s, read=%q, err=%v", out, got, err)
 			}
 		}
+		lastStep.Store("building: foreign job identity checks")
 		for _, action := range []string{"game_maker_file", "game_maker_project", "game_maker_asset", "game_maker_validate"} {
 			out, _ := dispatchGameMaker(bound, ToolCall{Action: action, Params: map[string]any{"job_id": "foreign-job"}}, nil)
 			if !strings.Contains(out, "does not match") {
@@ -71,6 +77,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				return fmt.Errorf("native/XML source search failed: %s", out)
 			}
 		}
+		lastStep.Store("building: source batches")
 		for i := range 3 {
 			before, _ := s.ReadJobFile(ctx, run.Job.ID, "src/probe.ts")
 			after := fmt.Sprintf("export const probe = %d;", i+8)
@@ -94,6 +101,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				return fmt.Errorf("malformed batch accepted: %s", out)
 			}
 		}
+		lastStep.Store("building: bounded line range checks")
 		// Native JSON numbers and XML text must address the same bounded range.
 		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/lines.ts", strings.Repeat("// line\n", 350), ""); err != nil {
 			return err
@@ -118,6 +126,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				}
 			}
 		}
+		lastStep.Store("building: invalid write gates")
 		for _, check := range []struct {
 			ctx  context.Context
 			tc   ToolCall
@@ -143,12 +152,14 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 		if !strings.Contains(out, `"status":"ok"`) || err != nil || got != "" {
 			return fmt.Errorf("explicit empty content was not written: %s", out)
 		}
+		lastStep.Store("building: read-only revocation")
 		s.UpdatePolicy(gamemaker.Policy{Enabled: true, ReadOnly: true, AllowEdit: true})
 		out, _ = dispatchGameMaker(bound, write, nil)
 		if !strings.Contains(out, "read-only") && !strings.Contains(out, "context canceled") {
 			return fmt.Errorf("bound write bypassed read-only: %s", out)
 		}
 		verified <- struct{}{}
+		lastStep.Store("verified; awaiting cancelled terminal state")
 		return fmt.Errorf("verified bound writes")
 	}))
 	job, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{})
@@ -169,7 +180,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("bound dispatch test did not finish")
+			t.Fatalf("bound dispatch test did not finish: step=%s job_status=%q job_phase=%q job_error=%q lookup_error=%v", lastStep.Load(), finished.Status, finished.Phase, finished.Error, err)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
