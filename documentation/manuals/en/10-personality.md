@@ -279,7 +279,7 @@ The values are written transactionally with revision guards; load and friction d
 
 ### Web UI Setup
 
-The Dashboard shows the current dynamics on the personality card (**Agent** tab) with a trend badge; **Config → Personality** renders the same block. The **Reset current dynamics** button zeroes the dynamics and returns affect to rest values without changing traits, lived notes, history, or the active persona (epoch and revision increase, in-flight results are invalidated). The reset is a same-origin POST with normal session authentication and requires the personality engine to be active.
+The Dashboard shows the current dynamics on the **Personality** card (**Personality** section, `#personality`) with a trend badge; **Config → Personality** renders the same block. The **Reset current dynamics** button zeroes the dynamics and returns affect to rest values without changing traits, lived notes, history, or the active persona (epoch and revision increase, in-flight results are invalidated). The reset is a same-origin POST with normal session authentication and requires the personality engine to be active.
 
 ### API Reference
 

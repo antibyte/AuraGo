@@ -118,7 +118,7 @@ Conflicting inputs are rejected. Passive router status includes the selected
 Decisions service/model and never performs inference.
 
 Web Chat and Desktop show the area, decision source and actual provider/model in
-a transient turn badge. The Dashboard's system tab shows in-memory counters since
+a transient turn badge. The Dashboard's **LLM and costs** section (**LLM router** card) shows in-memory counters since
 restart, including separate Decisions/helper calls, tokens, failures and fallbacks. Unknown
 usage is shown as `?` or a lower bound rather than zero cost. No dollar savings are
 inferred. Routing metadata is not included in assistant text or persistent memory.

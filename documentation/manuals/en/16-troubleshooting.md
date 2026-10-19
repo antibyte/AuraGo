@@ -537,8 +537,8 @@ curl http://localhost:8088/api/health
 # View current configuration (masked)
 curl http://localhost:8088/api/config
 
-# Check memory usage
-curl http://localhost:8088/api/dashboard
+# Check CPU, RAM and disk usage
+curl http://localhost:8088/api/dashboard/system
 ```
 
 ### Chat-Based Diagnostics

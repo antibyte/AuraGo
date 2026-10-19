@@ -372,11 +372,10 @@ Co-agents run as goroutines (lightweight threads). CPU usage scales with:
 
 ### Web UI
 
-Dashboard → Co-Agents tab shows:
-- Active co-agents
-- Runtime per agent
-- Token usage
-- Success/failure rates
+Dashboard → **Tools** section → **Activity** card lists the co-agents:
+- Task (or ID), with a specialist icon where one is set
+- State: queued, running, completed, failed or cancelled
+- Runtime, queue position and retry count
 
 ### API
 

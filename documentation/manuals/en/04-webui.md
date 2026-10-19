@@ -56,7 +56,7 @@ Different buttons appear depending on the page:
 - `Agent Active` – Status pill
 
 **In Dashboard:**
-- Filter buttons for different views
+- Menu button for the section sidebar (only in windows up to 900 px wide) and the density toggle (**Comfortable** / **Compact**)
 
 **In Config:**
 - `Save` – Save changes
@@ -171,34 +171,19 @@ Click the arrow ▼/▶ to expand/collapse details.
 
 ## The Dashboard
 
-The dashboard shows system information and statistics.
+The dashboard (`/dashboard`) answers "Is everything OK?" and holds the statistics. A sidebar groups 14 sections:
 
-### Sections
+| Group | Sections |
+|-------|----------|
+| — | **Overview**: status line, **Needs attention** list and tiles |
+| **Agent** | **Personality**, **Memory**, **User** |
+| **Knowledge** | **Knowledge graph**, **File sync** |
+| **Operations** | **Problems**, **Automations**, **System and services**, **Audit**, **Logs** |
+| **Analytics** | **LLM and costs**, **Prompts**, **Tools** |
 
-**1. System Metrics**
-- CPU usage
-- RAM consumption
-- Disk space
-- Uptime
+The status block at the top of the sidebar shows the overall state on every section; badges count attention items, open problems and automation errors. In windows up to 900 px wide the sidebar becomes a drawer behind the menu button. Every section header has a refresh button, and links like `/dashboard#automations` open a section directly.
 
-**2. Mood History**
-- Temporal development of agent mood
-- Color-coded (Green = positive, Red = negative)
-
-**3. Prompt Builder Analytics**
-- Token consumption per request
-- Context compression
-- Cost per model
-
-**4. Memory Statistics**
-- Size of vector database
-- Number of stored facts
-- Knowledge graph size
-
-**5. Budget Tracking** (if enabled)
-- Today's costs
-- Daily limit progress bar
-- Model usage
+Details: [Chapter 13: Dashboard](13-dashboard.md)
 
 ## The Config Interface
 

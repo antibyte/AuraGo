@@ -658,7 +658,7 @@ Nach jedem Gesprächsstrang analysiert der Helper LLM:
 
 ### Dashboard-Überwachung
 
-Helper LLM-Statistiken im Dashboard → System-Tab anzeigen:
+Helper-LLM-Statistiken im Dashboard → Bereich **LLM und Kosten** (Karte **Hilfs-LLM**) anzeigen:
 
 ```text
 Helper LLM Statistiken

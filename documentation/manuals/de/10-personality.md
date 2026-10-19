@@ -276,7 +276,7 @@ Die Werte werden transaktional mit Revisionsschutz geschrieben; Belastung und Re
 
 ### Einrichtung in der Web-UI
 
-Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte (Tab **Agent**) mit Trend-Badge; unter **Config → Persönlichkeit** erscheint derselbe Block. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen, Verlauf oder die aktive Persona zu verändern (Epoch und Revision steigen, laufende Auswertungen werden ungültig). Der Reset ist ein same-origin POST mit normaler Sitzungsauthentifizierung und verlangt die aktive Personality Engine.
+Das Dashboard zeigt die aktuelle Dynamik auf der Karte **Persönlichkeit** (Bereich **Persönlichkeit**, `#personality`) mit Trend-Badge; unter **Config → Persönlichkeit** erscheint derselbe Block. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen, Verlauf oder die aktive Persona zu verändern (Epoch und Revision steigen, laufende Auswertungen werden ungültig). Der Reset ist ein same-origin POST mit normaler Sitzungsauthentifizierung und verlangt die aktive Personality Engine.
 
 ### API-Referenz
 

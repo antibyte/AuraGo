@@ -376,7 +376,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   (`[data-pw-density-toggle]`, styled `pw-density-toggle`) next to the theme
   toggle; `js/precision/workspace.js` discovers it automatically.
 - Tab strips use the boxed Precision style only. Page tab classes
-  (`.kc-tab`, `.sk-tab`, `.media-tab`, `.dash-tab`, `.invasion-tab`,
+  (`.kc-tab`, `.sk-tab`, `.media-tab`, `.invasion-tab`,
   `.cheatsheet-tab`, `.tab` with `.ct-filter-btn`) must not re-skin tabs with
   underline indicators, pill shapes, or per-page tab backgrounds; shared tab
   visuals belong to `precision-pages.css`. Knowledge has no tab indicator

@@ -386,7 +386,7 @@ sqlite:
 | GET | `/api/health` | Health check | No |
 | GET | `/api/config` | Get configuration (masked) | Yes* |
 | POST | `/api/config` | Update configuration | Yes* |
-| GET | `/api/dashboard` | System metrics | Yes* |
+| GET | `/api/dashboard/system` | System metrics (CPU, RAM, disk, network, uptime) | Yes* |
 | GET | `/api/memory/short-term` | Short-term memory | Yes* |
 | GET | `/api/memory/long-term` | Long-term memory | Yes* |
 | POST | `/api/memory/query` | Query memories | Yes* |

@@ -56,7 +56,7 @@ Je nach Seite werden verschiedene Buttons angezeigt:
 - `Agent Active` – Status-Pill
 
 **Im Dashboard:**
-- Filter-Buttons für verschiedene Ansichten
+- Menü-Button für die Bereichs-Seitenleiste (nur in Fenstern bis 900 px Breite) und der Dichte-Umschalter (**Komfortabel** / **Kompakt**)
 
 **In Config:**
 - `Save` – Änderungen speichern
@@ -171,34 +171,19 @@ Klicke auf den Pfeil ▼/▶ um Details ein-/auszuklappen.
 
 ## Das Dashboard
 
-Das Dashboard zeigt System-Informationen und Statistiken.
+Das Dashboard (`/dashboard`) beantwortet „Ist alles in Ordnung?“ und sammelt die Statistiken. Eine Seitenleiste gliedert 14 Bereiche:
 
-### Bereiche
+| Gruppe | Bereiche |
+|--------|----------|
+| — | **Lagebild**: Statuszeile, Liste **Braucht Aufmerksamkeit** und Kacheln |
+| **Agent** | **Persönlichkeit**, **Gedächtnis**, **Benutzer** |
+| **Wissen** | **Wissensgraph**, **Dateisync** |
+| **Betrieb** | **Probleme**, **Automationen**, **System und Dienste**, **Audit**, **Logs** |
+| **Analyse** | **LLM und Kosten**, **Prompts**, **Tools** |
 
-**1. System-Metriken**
-- CPU-Auslastung
-- RAM-Verbrauch
-- Disk-Platz
-- Laufzeit
+Der Statusblock oben in der Seitenleiste zeigt in jedem Bereich den Gesamtzustand; Badges zählen Aufmerksamkeitspunkte, offene Probleme und Automationsfehler. In Fenstern bis 900 px Breite wird die Seitenleiste zur Schublade hinter dem Menü-Button. Jeder Bereichskopf hat einen Aktualisieren-Button, und Links wie `/dashboard#automations` öffnen einen Bereich direkt.
 
-**2. Mood-Verlauf**
-- Zeitliche Entwicklung der Agent-Stimmung
-- Farbcodiert (Grün = positiv, Rot = negativ)
-
-**3. Prompt-Builder Analytics**
-- Token-Verbrauch pro Anfrage
-- Kontext-Kompression
-- Kosten pro Modell
-
-**4. Memory-Statistiken**
-- Größe der Vektordatenbank
-- Anzahl gespeicherter Fakten
-- Knowledge-Graph-Größe
-
-**5. Budget-Tracking** (falls aktiviert)
-- Heutige Kosten
-- Tageslimit-Fortschrittsbalken
-- Modell-Nutzung
+Details: [Kapitel 13: Dashboard](13-dashboard.md)
 
 ## Die Config-Oberfläche
 
