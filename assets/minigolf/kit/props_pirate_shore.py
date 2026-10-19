@@ -170,7 +170,7 @@ def build_skullrock(seed=1):
 # Seaweed
 # --------------------------------------------------------------------------
 
-def build_seaweed(seed=1, blades=11):
+def build_seaweed(seed=1, blades=10):
     """Wavy kelp tuft with frilled blades and a few golden air bladders (shore scatter)."""
     p = Prop(WORLD, "seaweed", seed)
     rng = p.rng
@@ -181,7 +181,7 @@ def build_seaweed(seed=1, blades=11):
         length = rng.uniform(0.4, 0.85)
         lean = rng.uniform(0.1, 0.4)
         wave, phase = rng.uniform(0.04, 0.08), rng.uniform(0, math.tau)
-        steps = 14
+        steps = 12
         spine, widths = [], []
         ca, sa = math.cos(a), math.sin(a)
         for i in range(steps + 1):
@@ -215,10 +215,9 @@ def build_pebble(seed=1):
     p = Prop(WORLD, "pebble", seed)
     rng = p.rng
     off = Vector((rng.uniform(-30, 30), rng.uniform(-30, 30), rng.uniform(-30, 30)))
-    placed = []
     spec = ((0.075, -0.07, 0.03), (0.06, 0.08, 0.06), (0.05, 0.02, -0.1), (0.04, 0.14, -0.05), (0.034, -0.15, -0.06), (0.03, -0.02, 0.12))
     for i, (r, x, y) in enumerate(spec):
-        pebble = shapes.sphere("pebble", r, seg=12, rings=7)
+        pebble = shapes.sphere("pebble", r, seg=10 if r > 0.045 else 8, rings=6 if r > 0.045 else 5)
         o = off + Vector((i * 5.3, 0.0, 0.0))
         for v in pebble.data.vertices:
             d = Vector(v.co).normalized()
@@ -227,7 +226,6 @@ def build_pebble(seed=1):
         lo_t, hi_t = _PEBBLE_TONES[(i + int(seed)) % len(_PEBBLE_TONES)]
         p.add(pebble, "matte", (lo_t, hi_t), loc=(x, y, r * sz * 0.9), rot=(rng.uniform(-8, 8), rng.uniform(-8, 8), rng.uniform(0, 360)),
               scale=(sx, sy, sz), bevel=0, dens=0, ao=0.7, noise_amp=0.05, smooth_angle=80)
-        placed.append((x, y, r))
     return p.build()
 
 
@@ -237,7 +235,7 @@ def build_pebble(seed=1):
 
 def _scallop(p, loc, yaw, k=1.0, tilt=(0.0, 0.0)):
     prof = [(0.0, 0.052), (0.035, 0.048), (0.07, 0.034), (0.1, 0.012), (0.108, 0.0)]
-    shell = shapes.lathe("scallop", prof, seg=26, caps=False)
+    shell = shapes.lathe("scallop", prof, seg=20, caps=False)
     for v in shell.data.vertices:
         r = math.hypot(v.co.x, v.co.y)
         if r > 1e-5:
@@ -256,7 +254,7 @@ def _scallop(p, loc, yaw, k=1.0, tilt=(0.0, 0.0)):
 
 def _whelk(p, loc, yaw, k=1.0):
     """Spiral turret shell lying on its side: bulging whorls that shrink to a tip, banded, with a pink mouth."""
-    rows, whorl_h, length = 26, 0.056, 0.22
+    rows, whorl_h, length = 20, 0.056, 0.22
     prof = [(0.0, 0.0)]
     for i in range(rows + 1):
         z = length * i / rows
@@ -264,7 +262,7 @@ def _whelk(p, loc, yaw, k=1.0):
         bulge = 1.0 + 0.3 * abs(math.sin(math.pi * z / whorl_h)) ** 0.5
         prof.append((max(0.004, base * bulge), z))
     prof.append((0.0, length + 0.004))
-    shell = shapes.lathe("whelk", prof, seg=14)
+    shell = shapes.lathe("whelk", prof, seg=12)
     for v in shell.data.vertices:
         # twist the rings so the whorls spiral
         a = math.atan2(v.co.y, v.co.x) + v.co.z * 12.0
