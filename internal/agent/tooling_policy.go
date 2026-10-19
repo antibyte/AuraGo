@@ -785,7 +785,7 @@ func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFl
 	flags := resolveToolFeatureState(runCfg, policy).ToolFlags
 	if flags.Go2RTCEnabled {
 		manager := tools.DefaultGo2RTCManager()
-		flags.Go2RTCEnabled = manager != nil && manager.Available()
+		flags.Go2RTCEnabled = manager != nil
 	}
 	return flags
 }

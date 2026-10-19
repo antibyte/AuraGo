@@ -87,6 +87,11 @@ func go2RTCClampNanoCPUs(nanoCPUs int64, hostCPUs int) int64 {
 // 256 MB), or while person detection runs 0.5 + 0.25 CPU per detecting camera
 // (at most 2 CPUs) and 512 MB.
 func Go2RTCResourcesFor(cfg config.Go2RTCConfig) Go2RTCContainerResources {
+	for _, stream := range cfg.Streams {
+		if cfg.Enabled && stream.Enabled && stream.CodecProfile != "" && stream.CodecProfile != "original" {
+			return Go2RTCContainerResources{NanoCPUs: 2_000_000_000, MemoryBytes: 1 << 30, DetectingCameras: Go2RTCDetectingCameras(cfg)}
+		}
+	}
 	count := Go2RTCDetectingCameras(cfg)
 	if count == 0 {
 		return Go2RTCContainerResources{NanoCPUs: go2RTCBaseNanoCPUs, MemoryBytes: go2RTCBaseMemoryBytes}

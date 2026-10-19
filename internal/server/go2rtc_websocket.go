@@ -37,7 +37,23 @@ func validateGo2RTCOffer(raw string, talk bool) error {
 		return fallback
 	}
 	sessionDirection := direction(offer.Attributes, "sendrecv")
+	validDirections := func(attrs []sdp.Attribute) bool {
+		count := 0
+		for _, a := range attrs {
+			switch a.Key {
+			case "recvonly", "sendonly", "sendrecv", "inactive":
+				count++
+			}
+		}
+		return count <= 1
+	}
+	if !validDirections(offer.Attributes) {
+		return fmt.Errorf("ambiguous SDP direction")
+	}
 	for _, media := range offer.MediaDescriptions {
+		if !validDirections(media.Attributes) {
+			return fmt.Errorf("ambiguous SDP direction")
+		}
 		if media.MediaName.Media != "audio" && media.MediaName.Media != "video" {
 			return fmt.Errorf("unsupported media")
 		}
@@ -90,7 +106,7 @@ func validateGo2RTCMessage(data []byte, talk bool) (go2RTCWireMessage, error) {
 
 // bridgeGo2RTCWebSocket terminates the public protocol boundary: no caller
 // parameters or arbitrary upstream JSON are forwarded without validation.
-func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, lease *tools.Go2RTCMediaLease) {
+func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, lease *tools.Go2RTCMediaLease, talk *go2RTCTalkSession) {
 	target, err := s.Go2RTC.ProxyTarget()
 	if err != nil {
 		jsonError(w, "Camera upstream unavailable", 503)
@@ -109,6 +125,9 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, le
 	auth.SetBasicAuth(user, password)
 	headers.Set("Origin", "http://"+target.Host)
 	headers.Set("User-Agent", "AuraGo Camera Viewer")
+	if talk != nil {
+		headers.Set("User-Agent", "AuraGo Camera Microphone")
+	}
 	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 	upstream, response, err := dialer.DialContext(r.Context(), target.String(), headers)
 	if response != nil && response.Body != nil {
@@ -131,6 +150,8 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, le
 	defer cancel()
 	go func() { <-ctx.Done(); client.Close(); upstream.Close() }()
 	done := make(chan struct{})
+	seen := map[string]bool{}
+	candidates := 0
 	go func() {
 		defer close(done)
 		defer cancel()
@@ -139,12 +160,38 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, le
 			if err != nil || kind != websocket.TextMessage {
 				return
 			}
-			msg, err := validateGo2RTCMessage(data, false)
-			if strings.HasPrefix(msg.Type, "webrtc/") && !s.Go2RTC.Config().WebRTC.Enabled {
+			if talk != nil {
+				var heartbeat go2RTCWireMessage
+				if json.Unmarshal(data, &heartbeat) != nil {
+					return
+				}
+				if heartbeat.Type == "talk/keepalive" {
+					if !talk.heartbeat(r) {
+						return
+					}
+					continue
+				}
+				if !go2RTCRequestCanTalk(s, r) {
+					return
+				}
+			}
+			msg, err := validateGo2RTCMessage(data, talk != nil)
+			if strings.HasPrefix(msg.Type, "webrtc/") && (!s.Go2RTC.Config().WebRTC.Enabled || !s.Go2RTC.SupportsBoundWebRTC()) {
 				return
 			}
 			if err != nil {
 				return
+			}
+			if msg.Type == "webrtc/candidate" {
+				candidates++
+				if candidates > 256 {
+					return
+				}
+			} else {
+				if seen[msg.Type] {
+					return
+				}
+				seen[msg.Type] = true
 			}
 			clean, _ := json.Marshal(msg)
 			upstream.SetWriteDeadline(time.Now().Add(5 * time.Second))

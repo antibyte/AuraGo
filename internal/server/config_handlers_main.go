@@ -1662,7 +1662,7 @@ func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
 		oldCfg.ContainerName != newCfg.ContainerName ||
 		oldCfg.URL != newCfg.URL ||
 		oldCfg.APIHostPort != newCfg.APIHostPort ||
-		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) {
+		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) || !reflect.DeepEqual(oldCfg.Hardware, newCfg.Hardware) {
 		return true
 	}
 

@@ -13,15 +13,25 @@ import (
 // transformGo2RTCJPEG gives every input codec the same bounded JPEG semantics.
 // The bounds are maximum dimensions; small camera images are never enlarged.
 func transformGo2RTCJPEG(data []byte, opts Go2RTCSnapshotOptions) ([]byte, error) {
-	if opts.Width == 0 && opts.Height == 0 && opts.Rotate == 0 {
-		return data, nil
-	}
 	info, err := jpeg.DecodeConfig(bytes.NewReader(data))
 	if err != nil || info.Width < 1 || info.Height < 1 || info.Width > 8192 || info.Height > 8192 || int64(info.Width)*int64(info.Height) > 40_000_000 {
 		return nil, fmt.Errorf("camera image has invalid or excessive dimensions")
 	}
 	if opts.Rotate == 0 && (opts.Width == 0 || opts.Width >= info.Width) && (opts.Height == 0 || opts.Height >= info.Height) {
 		return data, nil
+	}
+	// Account for the decoded image, optional rotation buffer and fitted image
+	// before allocating any pixels. JPEG can decode to CMYK (four bytes/pixel).
+	pixels := int64(info.Width) * int64(info.Height)
+	workingBytes := pixels * 4
+	if opts.Rotate != 0 {
+		workingBytes += pixels * 4
+	}
+	if opts.Width > 0 || opts.Height > 0 {
+		workingBytes += pixels * 4
+	}
+	if workingBytes > 192<<20 {
+		return nil, fmt.Errorf("camera image exceeds transformation memory limit")
 	}
 	img, err := jpeg.Decode(bytes.NewReader(data))
 	if err != nil {

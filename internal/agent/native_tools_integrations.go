@@ -1079,7 +1079,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform. Only set_arm_mode changes state (person detection alerts off, on or by schedule).",
-					"enum": []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream",
+					"enum": []string{"status", "list_streams", "stream_status", "diagnose_stream", "snapshot", "analyze_snapshot", "show_live_stream",
 						"detection_status", "set_arm_mode", "list_detection_events", "analyze_detection_event", "show_detection_event"},
 				},
 				"stream_id":     prop("string", "Configured stable stream ID. Required for stream-specific operations; optional camera filter for list_detection_events."),

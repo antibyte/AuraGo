@@ -490,3 +490,5 @@ None.
 
 ### EvoMap registration
 - Register nodes only when EvoMap is enabled and writable, through the server-owned configuration callback. Agent snapshots are immutable; no direct config.Save or Vault registration writes from dispatch. The callback rechecks current permissions and serializes persistence.
+
+- go2rtc discovery depends on enabled configuration, `agent_access` and a runtime manager, not on current API reachability: `status` and `diagnose_stream` remain discoverable during outages. Dispatch keeps those configuration grants, returns actual runtime diagnostics, and never exposes talk/microphone operations. Other media operations still require a usable API. Verify `TestGo2RTCToolCapabilityKeepsOutageDiagnosticsDiscoverable`.

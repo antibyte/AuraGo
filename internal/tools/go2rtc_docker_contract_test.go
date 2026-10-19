@@ -55,6 +55,12 @@ func TestGo2RTCRealImageContract(t *testing.T) {
 	containerName := "aurago-go2rtc-contract-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	manager := NewGo2RTCManager(&config.Config{}, nil, nil, nil)
+	defer manager.Close()
+	image := Go2RTCImageFor(config.Go2RTCConfig{})
+	if err := manager.ensureManagedSidecarImage(ctx, DockerConfig{}, image); err != nil {
+		t.Fatalf("build pinned lifecycle sidecar: %v", err)
+	}
 	run := exec.CommandContext(ctx, "docker", "run", "-d", "--rm",
 		"--name", containerName,
 		"--user", "65532:65532",
@@ -69,7 +75,7 @@ func TestGo2RTCRealImageContract(t *testing.T) {
 		"-e", "AURAGO_GO2RTC_API_PASSWORD="+password,
 		"-v", configDir+":/config:ro",
 		"-p", "127.0.0.1::1984",
-		config.Go2RTCDefaultImage,
+		image, "/bin/sh", "-c", "umask 077; cp /config/go2rtc.yaml /tmp/aurago-go2rtc.yaml && exec /usr/local/bin/aurago-go2rtc -config /tmp/aurago-go2rtc.yaml",
 	)
 	if output, err := run.CombinedOutput(); err != nil {
 		t.Fatalf("start pinned go2rtc image: %v\n%s", err, output)
@@ -103,6 +109,12 @@ func TestGo2RTCRealImageContract(t *testing.T) {
 	}.Encode()
 	if _, err := go2RTCContractRequest(ctx, client, http.MethodPatch, patchURL, password); err != nil {
 		t.Fatalf("runtime stream reconcile: %v", err)
+	}
+	if _, err := go2RTCContractRequest(ctx, client, http.MethodPut, baseURL+"/api/preload?src=aurago_synthetic&video", password); err != nil {
+		t.Fatalf("preload cannot write private tmpfs config: %v", err)
+	}
+	if _, err := go2RTCContractRequest(ctx, client, http.MethodDelete, baseURL+"/api/preload?src=aurago_synthetic", password); err != nil {
+		t.Fatalf("preload cleanup: %v", err)
 	}
 	snapshotURL := baseURL + "/api/frame.jpeg?src=aurago_synthetic"
 	var snapshot []byte

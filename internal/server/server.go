@@ -210,6 +210,8 @@ type Server struct {
 	CronManager               *tools.CronManager
 	BackgroundTasks           *tools.BackgroundTaskManager
 	Go2RTC                    *tools.Go2RTCManager
+	go2RTCTalkMu              sync.Mutex
+	go2RTCTalks               map[string]*go2RTCTalkSession
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService

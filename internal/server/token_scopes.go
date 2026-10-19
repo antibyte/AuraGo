@@ -20,6 +20,7 @@ var knownTokenScopes = map[string]bool{
 	"webhook":             true, // webhooks.Handler
 	tokenScopeCYD:         true, // authenticateCYD
 	go2RTCViewScope:       true,
+	go2RTCTalkScope:       true,
 	desktopScopeRead:      true,
 	desktopScopeWrite:     true,
 	desktopScopeAdmin:     true,

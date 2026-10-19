@@ -1,0 +1,93 @@
+--- a/internal/webrtc/webrtc.go
++++ b/internal/webrtc/webrtc.go
+@@ -168,6 +168,15 @@
+ 	defer sendAnswer.Done(nil)
+ 
+ 	conn := webrtc.NewConn(pc)
++	// AuraGo owns the signaling lease. A revoked camera/talk session must
++	// terminate the media peer even when its client ignores the socket close.
++	defer func() {
++		if err != nil {
++			_ = conn.Close()
++			return
++		}
++		tr.OnClose(func() { _ = conn.Close() })
++	}()
+ 	conn.Mode = mode
+ 	conn.Protocol = "ws"
+ 	conn.UserAgent = tr.Request.UserAgent()
+--- a/internal/streams/api.go
++++ b/internal/streams/api.go
+@@ -18,7 +18,13 @@
+ 
+ 	// without source - return all streams list
+ 	if src == "" && r.Method != "POST" {
+-		api.ResponseJSON(w, streams)
++		streamsMu.Lock()
++		snapshot := make(map[string]*Stream, len(streams))
++		for name, stream := range streams {
++			snapshot[name] = stream
++		}
++		streamsMu.Unlock()
++		api.ResponseJSON(w, snapshot)
+ 		return
+ 	}
+ 
+@@ -43,7 +49,7 @@
+ 
+ 			stream.RemoveConsumer(cons)
+ 		} else {
+-			api.ResponsePrettyJSON(w, streams[src])
++			api.ResponsePrettyJSON(w, stream)
+ 		}
+ 
+ 	case "PUT":
+@@ -98,7 +104,7 @@
+ 		}
+ 
+ 	case "DELETE":
+-		delete(streams, src)
++		Delete(src)
+ 
+ 		if err := app.PatchConfig([]string{"streams", src}, nil); err != nil {
+ 			http.Error(w, err.Error(), http.StatusBadRequest)
+--- a/internal/streams/stream_test.go
++++ b/internal/streams/stream_test.go
+@@ -10,13 +10,13 @@
+ 
+ func TestRecursion(t *testing.T) {
+ 	// create stream with some source
+-	stream1 := New("from_yaml", "does_not_matter")
++	stream1, _ := New("from_yaml", "does_not_matter")
+ 	require.Len(t, streams, 1)
+ 
+ 	// ask another unnamed stream that links go2rtc
+ 	query, err := url.ParseQuery("src=rtsp://localhost:8554/from_yaml?video")
+ 	require.Nil(t, err)
+-	stream2 := GetOrPatch(query)
++	stream2, _ := GetOrPatch(query)
+ 
+ 	// check stream is same
+ 	require.Equal(t, stream1, stream2)
+@@ -29,9 +29,9 @@
+ 	HandleFunc("rtsp", func(url string) (core.Producer, error) { return nil, nil }) // bypass HasProducer
+ 
+ 	// config from yaml
+-	stream1 := New("camera.from_hass", "ffmpeg:{input}#video=copy")
++	stream1, _ := New("camera.from_hass", "ffmpeg:{input}#video=copy")
+ 	// request from hass
+-	stream2 := Patch("camera.from_hass", "rtsp://example.com")
++	stream2, _ := Patch("camera.from_hass", "rtsp://example.com")
+ 
+ 	require.Equal(t, stream1, stream2)
+ 	require.Equal(t, "ffmpeg:rtsp://example.com#video=copy", stream1.producers[0].url)
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -66,6 +66,7 @@
+ 
+ 	Info["version"] = Version
+ 	Info["revision"] = revision
++	Info["aurago_webrtc_lifecycle"] = "ws-close-v1"
+ 
+ 	initConfig(config)
+ 	initLogger()

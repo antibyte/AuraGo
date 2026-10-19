@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -54,6 +56,7 @@ func go2RTCMediaKey(s config.Go2RTCStreamConfig, hardware config.Go2RTCHardwareC
 // syncMediaConfig runs after publishing the manager snapshot, outside mu.
 // Never wait for network I/O while holding mediaMu.
 func (m *Go2RTCManager) syncMediaConfig(cfg config.Go2RTCConfig) {
+	_, hardwareKey := m.hardwareCache(cfg)
 	m.mediaMu.Lock()
 	defer m.mediaMu.Unlock()
 	if m.media == nil {
@@ -64,6 +67,12 @@ func (m *Go2RTCManager) syncMediaConfig(cfg config.Go2RTCConfig) {
 		_, _ = rand.Read(nonce[:])
 		m.mediaEpoch = hex.EncodeToString(nonce[:])
 	}
+	if hardwareKey != m.hardwareKey {
+		m.hardwareKey = hardwareKey
+		m.hardwareVerified = false
+		m.hardwareVerifiedAt = ""
+	}
+	m.hardwareBackend = cfg.Hardware.Backend
 	wanted := map[string]bool{}
 	for _, s := range cfg.Streams {
 		if !cfg.Enabled || !s.Enabled {
@@ -158,6 +167,9 @@ func (m *Go2RTCManager) AcquireMedia(ctx context.Context, id, purpose string, co
 		return nil, fmt.Errorf("camera media profile is not ready")
 	}
 	if transcode {
+		if m.hardwareBackend != "" && m.hardwareBackend != "software" && !m.hardwareVerified {
+			return nil, fmt.Errorf("selected camera hardware must be verified first")
+		}
 		if m.transcodes[alias] == 0 && len(m.transcodes) >= 2 {
 			return nil, fmt.Errorf("camera transcoding capacity reached (two profiles)")
 		}
@@ -226,15 +238,33 @@ func go2RTCTransportSource(source, transport string) string {
 		}
 	}
 	parts = append(parts, "transport="+transport)
-	u.Fragment = strings.Join(parts, "#")
-	return u.String()
+	u.Fragment, u.RawFragment = "", ""
+	return u.String() + "#" + strings.Join(parts, "#")
 }
 
 func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) {
+	m.mediaMu.Lock()
+	closed := m.mediaClosed
+	m.mediaMu.Unlock()
+	if closed {
+		return 0, fmt.Errorf("camera manager is closed")
+	}
 	cfg := m.Config()
 	if !cfg.Enabled {
 		return 0, fmt.Errorf("go2rtc integration is disabled")
 	}
+	// Aliases are immutable for their revision. Avoid touching live producers
+	// on periodic reconciliation; a missing alias after a sidecar restart is
+	// registered again. Failure to read the inventory keeps the safe old retry.
+	known := map[string]json.RawMessage{}
+	_ = m.requestJSON(ctx, http.MethodGet, "/api/streams", nil, &known, 4<<20)
+	m.mediaMu.Lock()
+	for alias := range known {
+		if strings.HasPrefix(alias, "aurago~") && !strings.HasPrefix(alias, "aurago~"+m.mediaEpoch+"~") {
+			m.retiredAliases = append(m.retiredAliases, alias)
+		}
+	}
+	m.mediaMu.Unlock()
 	count := 0
 	for _, stream := range cfg.Streams {
 		if !stream.Enabled {
@@ -264,6 +294,7 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 			}
 		}
 
+		registered := r.registered
 		revision := r.revision
 		prefix := fmt.Sprintf("aurago~%s~%x~%d~", m.mediaEpoch, sha256.Sum256([]byte(stream.ID)), revision)
 		aliases := map[string]string{}
@@ -293,8 +324,10 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 			if ValidateGo2RTCSource(source) != nil {
 				return count, fmt.Errorf("invalid camera %s source", role)
 			}
-			if err := m.patchMediaSource(ctx, aliases[role], go2RTCTransportSource(source, stream.Transport)); err != nil {
-				return count, err
+			if !registered || len(known[aliases[role]]) == 0 {
+				if err := m.patchMediaSource(ctx, aliases[role], go2RTCTransportSource(source, stream.Transport)); err != nil {
+					return count, err
+				}
 			}
 			if derived := aliases[role+"/"+stream.CodecProfile]; derived != "" {
 				audio := "opus"
@@ -305,8 +338,10 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 				if cfg.Hardware.Backend != "" && cfg.Hardware.Backend != "software" {
 					input += "#hardware=" + cfg.Hardware.Backend
 				}
-				if err := m.patchMediaSource(ctx, derived, input); err != nil {
-					return count, err
+				if !registered || len(known[derived]) == 0 {
+					if err := m.patchMediaSource(ctx, derived, input); err != nil {
+						return count, err
+					}
 				}
 			}
 		}
@@ -368,6 +403,15 @@ func (m *Go2RTCManager) reconcilePreload(ctx context.Context, stream config.Go2R
 		}
 	}
 	m.mediaMu.Lock()
+	if m.mediaClosed {
+		m.mediaMu.Unlock()
+		if stream.Preload {
+			cleanup, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			_ = m.request(cleanup, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil)
+		}
+		return fmt.Errorf("camera manager closed during preload update")
+	}
 	if m.preloaded == nil {
 		m.preloaded = map[string]string{}
 	}
@@ -378,6 +422,23 @@ func (m *Go2RTCManager) reconcilePreload(ctx context.Context, stream config.Go2R
 	}
 	m.mediaMu.Unlock()
 	return nil
+}
+
+func (m *Go2RTCManager) clearPreloads(ctx context.Context) error {
+	m.mediaMu.Lock()
+	aliases := make([]string, 0, len(m.preloaded))
+	for _, alias := range m.preloaded {
+		aliases = append(aliases, alias)
+	}
+	m.preloaded = nil
+	m.mediaMu.Unlock()
+	var failure error
+	for _, alias := range aliases {
+		if err := m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil); err != nil {
+			failure = err
+		}
+	}
+	return failure
 }
 
 type go2RTCHLSSession struct {
@@ -446,8 +507,15 @@ func (m *Go2RTCManager) applyMediaStatus(out *Go2RTCStreamStatus, s config.Go2RT
 	out.HasCameraSnapshot = s.SnapshotSource != ""
 	out.VideoCodecs = []string{}
 	out.AudioCodecs = []string{}
+	out.SourceRoles = []string{"main"}
+	if s.SubSource != "" {
+		out.SourceRoles = append(out.SourceRoles, "sub")
+	}
+	if s.SnapshotSource != "" {
+		out.SourceRoles = append(out.SourceRoles, "snapshot")
+	}
 	out.State = "idle"
-	out.Media = Go2RTCMediaSettings{s.PreviewSource, s.DetectionSource, s.SnapshotMode, s.CodecProfile, s.Transport, s.PlaybackMode, s.Preload, s.TalkEnabled}
+	out.Media = Go2RTCMediaSettingsFor(s)
 	m.mediaMu.Lock()
 	defer m.mediaMu.Unlock()
 	if r := m.media[s.ID]; r != nil {
@@ -456,10 +524,8 @@ func (m *Go2RTCManager) applyMediaStatus(out *Go2RTCStreamStatus, s config.Go2RT
 		out.LastError = r.lastError
 		if !r.ready {
 			out.State = "connecting"
-		} else if r.lastSnapshot != "" {
-			out.State = "online"
 		}
-		if r.lastError != "" {
+		if r.lastError != "" && r.lastError != "camera_snapshot_fallback" {
 			out.State = "error"
 		}
 	}
@@ -493,7 +559,7 @@ func go2RTCViewerCount(value interface{}) int {
 		}
 		format := strings.ToLower(firstString(m, "format_name", "type"))
 		agent := strings.ToLower(firstString(m, "user_agent"))
-		if format == "probe" || format == "preload" || strings.Contains(agent, "aurago camera snapshot") {
+		if format == "probe" || format == "preload" || strings.Contains(agent, "aurago camera snapshot") || strings.Contains(agent, "go2rtc/ffmpeg") || strings.Contains(agent, "aurago camera microphone") || format == "rtsp" && strings.Contains(agent, "go2rtc") {
 			continue
 		}
 		count++
@@ -501,30 +567,127 @@ func go2RTCViewerCount(value interface{}) int {
 	return count
 }
 
+type Go2RTCMediaCounters struct {
+	ReceivedBytes   uint64 `json:"received_bytes"`
+	SentBytes       uint64 `json:"sent_bytes"`
+	ReceivedPackets uint64 `json:"received_packets"`
+	SentPackets     uint64 `json:"sent_packets"`
+}
+
+func uniqueGo2RTCStrings(values []string) []string {
+	found := map[string]bool{}
+	result := []string{}
+	for _, value := range values {
+		if !found[value] {
+			found[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
 func readGo2RTCTelemetry(value interface{}, out *Go2RTCStreamStatus) {
+	number := func(value interface{}) uint64 {
+		n, _ := value.(float64)
+		if n >= 0 && n < 1<<53 {
+			return uint64(n)
+		}
+		return 0
+	}
+	addCodec := func(kind, codec string) {
+		codec = sanitizeGo2RTCToken(codec, 32)
+		if codec == "" {
+			return
+		}
+		if kind == "video" {
+			out.VideoCodecs = append(out.VideoCodecs, codec)
+		}
+		if kind == "audio" {
+			out.AudioCodecs = append(out.AudioCodecs, codec)
+		}
+	}
 	switch x := value.(type) {
 	case map[string]interface{}:
-		if n, ok := x["bytes_recv"].(float64); ok && n >= 0 {
-			out.ReceivedBytes += uint64(n)
-		}
-		if n, ok := x["bytes_send"].(float64); ok && n >= 0 {
-			out.SentBytes += uint64(n)
-		}
-		if kind, _ := x["kind"].(string); kind == "video" || kind == "audio" {
-			for _, codec := range collectGo2RTCCodecs(x) {
-				if kind == "video" {
-					out.VideoCodecs = append(out.VideoCodecs, codec)
-				} else {
-					out.AudioCodecs = append(out.AudioCodecs, codec)
+		for _, key := range []string{"codec", "codec_name"} {
+			if name, ok := x[key].(string); ok {
+				switch strings.ToUpper(name) {
+				case "H264", "H265", "JPEG", "MJPEG", "VP8", "VP9", "AV1":
+					addCodec("video", name)
+				case "AAC", "OPUS", "PCMA", "PCMU", "PCM", "PCML", "MP3", "G722", "FLAC":
+					addCodec("audio", name)
 				}
 			}
 		}
-		for _, v := range x {
-			readGo2RTCTelemetry(v, out)
+		out.ReceivedBytes += number(x["bytes_recv"])
+		out.SentBytes += number(x["bytes_send"])
+		if kind, _ := x["kind"].(string); kind == "video" || kind == "audio" {
+			for _, codec := range collectGo2RTCCodecs(x) {
+				addCodec(kind, codec)
+			}
+		}
+		for key, child := range x {
+			if key == "medias" {
+				if items, ok := child.([]interface{}); ok {
+					for _, item := range items {
+						media, _ := item.(string)
+						parts := strings.Split(media, ",")
+						if len(parts) < 3 {
+							continue
+						}
+						for _, part := range parts[2:] {
+							addCodec(strings.TrimSpace(parts[0]), strings.TrimSpace(part))
+						}
+					}
+				}
+			}
+			if key == "receivers" || key == "senders" {
+				if items, ok := child.([]interface{}); ok {
+					for _, item := range items {
+						track, _ := item.(map[string]interface{})
+						codec, _ := track["codec"].(map[string]interface{})
+						name := strings.ToUpper(firstString(codec, "codec_name", "name"))
+						counters := &out.Audio
+						switch name {
+						case "H264", "H265", "JPEG", "MJPEG", "VP8", "VP9", "AV1", "RAW":
+							counters = &out.Video
+						}
+						if name == "" {
+							continue
+						}
+						if key == "receivers" {
+							counters.ReceivedBytes += number(track["bytes"])
+							counters.ReceivedPackets += number(track["packets"])
+						} else {
+							counters.SentBytes += number(track["bytes"])
+							counters.SentPackets += number(track["packets"])
+						}
+					}
+				}
+			}
+			readGo2RTCTelemetry(child, out)
 		}
 	case []interface{}:
-		for _, v := range x {
-			readGo2RTCTelemetry(v, out)
+		for _, child := range x {
+			readGo2RTCTelemetry(child, out)
 		}
 	}
+}
+
+func Go2RTCMediaSettingsFor(s config.Go2RTCStreamConfig) Go2RTCMediaSettings {
+	return Go2RTCMediaSettings{s.PreviewSource, s.DetectionSource, s.SnapshotMode, s.CodecProfile, s.Transport, s.PlaybackMode, s.Preload, s.TalkEnabled}
+}
+
+// ConfiguredStreamStatuses keeps revisions and last successful image metadata
+// available while the sidecar/API is stopped, without opening a camera source.
+func (m *Go2RTCManager) ConfiguredStreamStatuses() []Go2RTCStreamStatus {
+	result := []Go2RTCStreamStatus{}
+	for _, stream := range m.Config().Streams {
+		if !stream.Enabled {
+			continue
+		}
+		entry := Go2RTCStreamStatus{ID: stream.ID, Name: stream.Name, Codecs: []string{}}
+		m.applyMediaStatus(&entry, stream)
+		result = append(result, entry)
+	}
+	return result
 }

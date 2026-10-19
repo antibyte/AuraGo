@@ -328,7 +328,7 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 			t.Errorf("upstream src = %q, want internal alias", got)
 		}
 		w.Header().Set("Content-Type", "image/jpeg")
-		_, _ = w.Write([]byte{0xff, 0xd8, 0xff, 0xd9})
+		_, _ = w.Write(cameraTestJPEG())
 	}))
 	defer upstream.Close()
 	parsed, _ := url.Parse(upstream.URL)
@@ -352,8 +352,8 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 	viewerRecorder := httptest.NewRecorder()
 	handleGo2RTCViewer(server).ServeHTTP(viewerRecorder, viewerRequest)
 	if viewerRecorder.Code != http.StatusOK ||
-		!strings.Contains(viewerRecorder.Body.String(), `document.createElement("video-stream")`) ||
-		!strings.Contains(viewerRecorder.Body.String(), `/api/go2rtc/proxy/api/ws?src=`) ||
+		!strings.Contains(viewerRecorder.Body.String(), `/js/go2rtc-viewer.js`) ||
+		!strings.Contains(viewerRecorder.Body.String(), `mountGo2RTCViewer({stream:"front-door"`) ||
 		strings.Contains(viewerRecorder.Body.String(), "camera.local") {
 		t.Fatalf("unsafe or incomplete viewer response: status=%d body=%s", viewerRecorder.Code, viewerRecorder.Body.String())
 	}

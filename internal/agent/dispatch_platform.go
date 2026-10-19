@@ -676,14 +676,14 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return "Tool Output: " + string(data)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
-			if manager == nil || !cfg.Go2RTC.AgentAccess {
+			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess {
 				return `Tool Output: {"status":"error","message":"go2rtc is not enabled for agent access or its API is unavailable."}`
 			}
 			operation := strings.ToLower(strings.TrimSpace(tc.Operation))
 			if operation == "" {
 				operation = strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "operation")))
 			}
-			if operation != "status" && (!cfg.Go2RTC.Enabled || !manager.Available()) {
+			if operation != "status" && operation != "diagnose_stream" && (!cfg.Go2RTC.Enabled || !manager.Available()) {
 				return `Tool Output: {"status":"error","message":"go2rtc API is unavailable."}`
 			}
 			if isGo2RTCDetectionOperation(operation) {
@@ -700,6 +700,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch operation {
 			case "status":
 				return encode(manager.Status(ctx))
+			case "diagnose_stream":
+				return encode(manager.Diagnose(ctx, streamID))
 			case "list_streams":
 				streams, err := manager.ListStreams(ctx)
 				if err != nil {

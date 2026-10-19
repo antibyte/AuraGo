@@ -8,6 +8,7 @@ Operations:
 
 - `status`: Check the managed container and authenticated API state.
 - `list_streams`: List enabled configured streams with sanitized reachability, codec, producer, and consumer data.
+- `diagnose_stream`: Run a bounded read-only API, stream and image diagnosis; returns sanitized stages, image dimensions and configured hardware verification. No source URLs, setup changes or microphone access.
 - `stream_status`: Inspect one configured stream.
 - `snapshot`: Create a verified JPEG snapshot and show it in chat; persistent registration follows `store_media`. The result also includes machine-readable artifact provenance and recommends `go2rtc/analyze_snapshot` for a later camera-analysis question.
 - `analyze_snapshot`: Store a verified snapshot and analyze a bounded private copy through AuraGo's configured vision provider and budget path. Managed snapshots do not need to be inside the agent workspace.
@@ -34,3 +35,11 @@ Camera names, zone names and alert details in detection results are configuratio
 When a person detection wakes you (session `camera_detection`), the message names the event, camera, zones, score, time and armed state and may carry the user's instruction for that camera. Look at the picture with `analyze_detection_event` before you decide, and notify the user only when the instruction or the picture warrants it.
 
 Errors: `detection_disabled` (person detection is switched off; the user can enable it in the Network Cameras app), `detection_unavailable` (the detector is starting, stopping or failed; retry once shortly), `event_not_found` (list events first; retention may have removed the picture), `invalid_request` (fix `mode`, `event_id`, `since`/`until` or `stream_id`), `not_allowed` (an autonomous run tried to switch alerts off or to the schedule; only the user can), `vision_budget_exceeded` (the daily vision budget is used up), `analysis_failed` (the vision provider failed; retry once).
+
+Camera entries can include optional Vault-only substream and camera-snapshot sources.
+Preview/detection auto-select the substream when configured; the detail viewer defaults
+to the main stream. `diagnose_stream` actively checks the API and a non-persisted image,
+returns bounded/sanitized stages, dimensions, codecs and effective transcoding backend,
+and remains usable for outage diagnosis. It neither starts a stopped sidecar nor probes
+hardware or opens a microphone. Viewer counts exclude preload and diagnostic consumers.
+See `documentation/go2rtc-media.md` for the administrator's media/GPU/talk controls.

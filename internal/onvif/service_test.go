@@ -99,6 +99,37 @@ func TestProfilesUseUsernameTokenAndSetupTokenIsSingleUse(t *testing.T) {
 	}
 }
 
+func TestProfileRolesShareOneReservation(t *testing.T) {
+	service := NewService(true)
+	endpoint, _ := url.Parse("http://192.168.20.30/onvif/device_service")
+	service.setups["fixture"] = setupSession{endpoint: endpoint, username: "user", password: "fixture", expires: time.Now().Add(time.Minute), snapshots: true, profiles: map[string]Profile{"main": {ID: "main"}, "sub": {ID: "sub"}}}
+	reservation, err := service.ReserveProfiles("fixture", "main", "sub", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for role, profile := range map[string]string{"main": "main", "sub": "sub", "snapshot": "main"} {
+		source, err := url.Parse(reservation.RoleSource(role))
+		if err != nil || source.Query().Get("subtype") != profile || source.User.Username() != "user" {
+			t.Fatal("role selection lost", role)
+		}
+		if source.Query().Has("snapshot") != (role == "snapshot") {
+			t.Fatal("snapshot flag leaked between roles")
+		}
+	}
+	if _, err := service.ReserveProfiles("fixture", "main", "sub", false); err == nil {
+		t.Fatal("parallel role reservation accepted")
+	}
+	reservation.Release()
+	reservation, err = service.ReserveProfiles("fixture", "main", "sub", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation.Commit()
+	if _, err := service.Reserve("fixture", "main"); err == nil {
+		t.Fatal("committed role selection was replayed")
+	}
+}
+
 func TestProfilesOmitSnapshotAvailabilityWhenCapabilityQueryFails(t *testing.T) {
 	service := NewService(true)
 	service.SetHTTPClient(&http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {

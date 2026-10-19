@@ -57,6 +57,8 @@ func writeGo2RTCMutationFailure(w http.ResponseWriter, err error) {
 // go2RTCAppStream is a stream entry of the app state; managers also see its detection settings.
 type go2RTCAppStream struct {
 	tools.Go2RTCStreamStatus
+	TalkBusy  bool                                `json:"talk_busy"`
+	Actions   []string                            `json:"actions"`
 	Detection *config.Go2RTCStreamDetectionConfig `json:"detection,omitempty"`
 }
 
@@ -68,6 +70,13 @@ func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfi
 	out := make([]go2RTCAppStream, 0, len(streams))
 	for _, stream := range streams {
 		entry := go2RTCAppStream{Go2RTCStreamStatus: stream}
+		for _, camera := range cfg.Streams {
+			if camera.ID == stream.ID {
+				entry.Media = tools.Go2RTCMediaSettingsFor(camera)
+				entry.HasSubstream = camera.SubSourceConfigured || camera.SubSource != ""
+				entry.HasCameraSnapshot = camera.SnapshotSourceConfigured || camera.SnapshotSource != ""
+			}
+		}
 		if detection, ok := detections[stream.ID]; ok && canManage {
 			normalized := config.NormalizeGo2RTCStreamDetection(detection)
 			entry.Detection = &normalized
@@ -119,7 +128,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 		defer cancel()
 		status := manager.Status(ctx)
 		cfg := withPublishedStreamDetection(manager.Config(), s.ConfigSnapshot())
-		streams := configuredGo2RTCStreamStatus(cfg.Streams)
+		streams := manager.ConfiguredStreamStatuses()
 		if status.APIUsable {
 			if live, err := manager.ListStreams(ctx); err == nil {
 				streams = live
@@ -143,13 +152,31 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 			detectionEnabled = published.Go2RTC.Enabled && published.Go2RTC.Detection.Enabled
 			detectionSettings = published.Go2RTC.Detection
 		}
+		appStreams := go2RTCAppStreams(streams, cfg, canManage)
+		canTalk := go2RTCRequestCanTalk(s, r)
+		s.go2RTCTalkMu.Lock()
+		for i := range appStreams {
+			entry := &appStreams[i]
+			session := s.go2RTCTalks[entry.ID]
+			entry.TalkBusy = session != nil && session.lease.Context.Err() == nil
+			entry.Actions = []string{"view", "snapshot"}
+			if canManage {
+				entry.Actions = append(entry.Actions, "manage", "diagnose")
+			}
+			if canTalk && entry.Media.TalkEnabled && cfg.WebRTC.Enabled && manager.SupportsBoundWebRTC() {
+				entry.Actions = append(entry.Actions, "talk")
+			}
+		}
+		s.go2RTCTalkMu.Unlock()
 		response := map[string]interface{}{
 			"status":            "ok",
 			"integration":       status,
-			"webrtc_enabled":    cfg.WebRTC.Enabled,
+			"webrtc_enabled":    cfg.WebRTC.Enabled && manager.SupportsBoundWebRTC(),
 			"can_manage":        canManage,
+			"can_talk":          canTalk,
+			"hardware":          manager.HardwareStatus(),
 			"discovery":         map[string]interface{}{"available": available, "reason": reason, "reason_code": reasonCode},
-			"streams":           go2RTCAppStreams(streams, cfg, canManage),
+			"streams":           appStreams,
 			"web_ui_enabled":    cfg.WebUIEnabled,
 			"thumbnail_refresh": 5,
 			"detection_enabled": detectionEnabled,
@@ -160,11 +187,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				if stream.Enabled {
 					continue
 				}
-				disabled = append(disabled, map[string]interface{}{
-					"id": stream.ID, "name": stream.Name, "enabled": false,
-					"source_configured": stream.SourceConfigured || strings.TrimSpace(stream.Source) != "",
-					"detection":         config.NormalizeGo2RTCStreamDetection(stream.Detection),
-				})
+				disabled = append(disabled, go2RTCMediaProjection(stream))
 			}
 			response["disabled_streams"] = disabled
 			response["detection_settings"] = config.NormalizeGo2RTCDetectionSettings(detectionSettings)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"image"
 	"image/jpeg"
@@ -28,6 +29,11 @@ func cameraTestJPEG() []byte {
 func TestGo2RTCFullRouteBlocksSendingViewer(t *testing.T) {
 	forwarded := make(chan bool, 1)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/go2rtc/proxy/api" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"version":"1.9.14-aurago1","aurago_webrtc_lifecycle":"ws-close-v1"}`))
+			return
+		}
 		ws, err := (&websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}).Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -44,7 +50,7 @@ func TestGo2RTCFullRouteBlocksSendingViewer(t *testing.T) {
 	cfg.Auth.Enabled = true
 	cfg.Auth.PasswordHash = "configured"
 	cfg.Auth.SessionSecret = "fixture"
-	cfg.Go2RTC = config.Go2RTCConfig{Enabled: true, URL: upstream.URL, APIHostPort: port, APIPassword: "fixture-password", Streams: []config.Go2RTCStreamConfig{{ID: "door", Enabled: true, Source: "rtsp://192.168.1.2/live"}}}
+	cfg.Go2RTC = config.Go2RTCConfig{Enabled: true, WebRTC: config.Go2RTCWebRTCConfig{Enabled: true}, URL: upstream.URL, APIHostPort: port, APIPassword: "fixture-password", Streams: []config.Go2RTCStreamConfig{{ID: "door", Enabled: true, Source: "rtsp://192.168.1.2/live"}}}
 	vault, err := security.NewVault(strings.Repeat("44", 32), t.TempDir()+"/vault.bin")
 	if err != nil {
 		t.Fatal(err)
@@ -58,6 +64,10 @@ func TestGo2RTCFullRouteBlocksSendingViewer(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &Server{Cfg: cfg, TokenManager: tokens, Go2RTC: tools.NewGo2RTCManager(cfg, nil, nil, nil)}
+	if _, err := s.Go2RTC.Test(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Go2RTC.Close)
 	mux := http.NewServeMux()
 	registerGo2RTCRoutes(mux, s)
 	server := httptest.NewServer(authMiddleware(s, mux))

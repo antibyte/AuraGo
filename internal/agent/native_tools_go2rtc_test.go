@@ -69,7 +69,7 @@ func go2RTCJSONForTest(value interface{}) string {
 	return string(encoded)
 }
 
-func TestGo2RTCToolCapabilityRequiresReachableRuntimeAPI(t *testing.T) {
+func TestGo2RTCToolCapabilityKeepsOutageDiagnosticsDiscoverable(t *testing.T) {
 	previous := tools.DefaultGo2RTCManager()
 	defer tools.SetDefaultGo2RTCManager(previous)
 
@@ -103,5 +103,16 @@ func TestGo2RTCToolCapabilityRequiresReachableRuntimeAPI(t *testing.T) {
 	flags = buildToolFeatureFlags(RunConfig{Config: cfg}, buildToolingPolicy(cfg, ""))
 	if !flags.Go2RTCEnabled {
 		t.Fatal("go2rtc capability missing with enabled config and reachable authenticated API")
+	}
+	upstream.Close()
+	_, _ = manager.Test(context.Background())
+	flags = buildToolFeatureFlags(RunConfig{Config: cfg}, buildToolingPolicy(cfg, ""))
+	if !flags.Go2RTCEnabled {
+		t.Fatal("status and diagnose_stream disappeared during API outage")
+	}
+	cfg.Go2RTC.AgentAccess = false
+	flags = buildToolFeatureFlags(RunConfig{Config: cfg}, buildToolingPolicy(cfg, ""))
+	if flags.Go2RTCEnabled {
+		t.Fatal("revoked agent permission ignored")
 	}
 }

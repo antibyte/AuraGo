@@ -24,6 +24,9 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	admin := func(handler http.HandlerFunc) http.HandlerFunc {
 		return requireAdmin(s, handler).ServeHTTP
 	}
+	mux.HandleFunc("/api/go2rtc/talk/", handleGo2RTCTalk(s))
+	mux.HandleFunc("/api/go2rtc/diagnostics/", admin(handleGo2RTCDiagnostics(s)))
+	mux.HandleFunc("/api/go2rtc/hardware/test", admin(handleGo2RTCHardwareTest(s)))
 	mux.HandleFunc("/api/go2rtc/status", admin(handleGo2RTCStatus(s)))
 	mux.HandleFunc("/api/go2rtc/test", admin(handleGo2RTCTest(s)))
 	mux.HandleFunc("/api/go2rtc/start", admin(handleGo2RTCStart(s)))
@@ -259,7 +262,7 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 		if purpose == "" {
 			purpose = "main"
 		}
-		lease, err := manager.AcquireMedia(r.Context(), streamID, purpose, false)
+		lease, err := manager.AcquireMedia(r.Context(), streamID, purpose, true)
 		if err != nil {
 			jsonError(w, err.Error(), 400)
 			return
@@ -272,12 +275,16 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 			}
 		}
 		mode := "mse,hls,mp4,mjpeg"
-		if manager.Config().WebRTC.Enabled {
+		if manager.Config().WebRTC.Enabled && manager.SupportsBoundWebRTC() {
 			mode = "webrtc," + mode
 		}
 		if playback != "" && playback != "auto" {
 			mode = playback
 			if playback == "webrtc_tcp" {
+				if !manager.Config().WebRTC.Enabled || !manager.SupportsBoundWebRTC() {
+					jsonError(w, "WebRTC requires the LAN grant and a sidecar with ws-close-v1", 412)
+					return
+				}
 				mode = "webrtc/tcp"
 			}
 		}
@@ -293,7 +300,7 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' ws: wss:; frame-ancestors 'self';")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";const video=document.createElement("video-stream");video.pcConfig={bundlePolicy:"max-bundle",iceServers:[]};video.src="/api/go2rtc/proxy/api/ws?src="+encodeURIComponent(%s)+"&role="+encodeURIComponent(%s);video.mode=%s;document.body.appendChild(video);</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, roleJSON, modeJSON)
+		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";import {mountGo2RTCViewer} from "/js/go2rtc-viewer.js";mountGo2RTCViewer({stream:%s,role:%s,mode:%s});</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, roleJSON, modeJSON)
 	}
 }
 
@@ -367,7 +374,7 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 			return
 		}
 		if subpath == "api/ws" {
-			bridgeGo2RTCWebSocket(s, w, r, lease)
+			bridgeGo2RTCWebSocket(s, w, r, lease, nil)
 			return
 		}
 		if rawSrc != "" {

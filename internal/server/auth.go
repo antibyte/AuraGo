@@ -1149,6 +1149,11 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		if _, ok := tm.Validate(token, "admin"); ok {
 			return true
 		}
+		if strings.HasPrefix(path, "/api/go2rtc/talk/") {
+			_, ok := tm.Validate(token, go2RTCTalkScope)
+			return ok
+		}
+
 		if isSafeMethod(method) {
 			_, ok := tm.Validate(token, go2RTCViewScope)
 			return ok
