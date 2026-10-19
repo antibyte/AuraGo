@@ -474,12 +474,13 @@ export function createScene(host, options) {
         pointerId = null; dragged = false; dragStart = null;
         return true;
     }
-    // Releases the pointer and restores the aim from before the press.
+    // Releases the pointer and restores the aim from before the press; a press that never changed the aim reports nothing.
     function cancelDrag() {
         if (pointerId === null) return false;
         const restore = dragStart;
+        const changed = !!restore && (aimPower !== restore.power || aimDirection[0] !== restore.direction[0] || aimDirection[1] !== restore.direction[1]);
         endDrag();
-        if (restore) { setAim(restore.direction, restore.power, canAim); options.onAim?.(aimDirection, aimPower, { phase: 'cancel' }); }
+        if (changed) { setAim(restore.direction, restore.power, canAim); options.onAim?.(aimDirection, aimPower, { phase: 'cancel' }); }
         return true;
     }
     function down(event) {
@@ -495,7 +496,8 @@ export function createScene(host, options) {
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
-        if (!canAim || cameraMode || (event.pointerType === 'mouse' && (event.buttons & 2))) { cancelDrag(); return; }
+        // A mouse button released outside the window (alt-tab) never delivers pointerup.
+        if (!canAim || cameraMode || (event.pointerType === 'mouse' && (!(event.buttons & 1) || (event.buttons & 2)))) { cancelDrag(); return; }
         const screen = ballScreen();
         const pixels = Math.hypot(event.clientX - screen.x, event.clientY - screen.y);
         dragged = pixels >= DRAG_DEAD_ZONE;
