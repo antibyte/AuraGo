@@ -1232,23 +1232,24 @@ type Config struct {
 		} `yaml:"local_ollama"`
 	} `yaml:"embeddings"`
 	Agent struct {
-		SystemLanguage                  string `yaml:"system_language"`
-		StepDelaySeconds                int    `yaml:"step_delay_seconds"`
-		MemoryCompressionCharLimit      int    `yaml:"memory_compression_char_limit"`
-		SystemPromptTokenBudget         int    `yaml:"system_prompt_token_budget"`
-		SystemPromptTokenBudgetAuto     bool   `yaml:"-"`                                   // true when user set budget to 0 (automatic mode)
-		AdaptiveSystemPromptTokenBudget bool   `yaml:"adaptive_system_prompt_token_budget"` // adapt system prompt token budget to enabled tools/integrations (default: true)
-		OptimizerEnabled                bool   `yaml:"optimizer_enabled"`
-		ContextWindow                   int    `yaml:"context_window"`
-		ShowToolResults                 bool   `yaml:"show_tool_results"`
-		WorkflowFeedback                bool   `yaml:"workflow_feedback"`
-		DebugMode                       bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = default 80
-		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "hard" (default) | "soft"
-		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max bytes of one tool result (0 = automatic 50000; negative invalid)
-		MaxConcurrentLoops              int    `yaml:"max_concurrent_loops"`    // maximum concurrent agent loop executions (0 = default 8)
-		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
-		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
+		ActionPolicy                    ActionPolicyConfig `yaml:"action_policy"`
+		SystemLanguage                  string             `yaml:"system_language"`
+		StepDelaySeconds                int                `yaml:"step_delay_seconds"`
+		MemoryCompressionCharLimit      int                `yaml:"memory_compression_char_limit"`
+		SystemPromptTokenBudget         int                `yaml:"system_prompt_token_budget"`
+		SystemPromptTokenBudgetAuto     bool               `yaml:"-"`                                   // true when user set budget to 0 (automatic mode)
+		AdaptiveSystemPromptTokenBudget bool               `yaml:"adaptive_system_prompt_token_budget"` // adapt system prompt token budget to enabled tools/integrations (default: true)
+		OptimizerEnabled                bool               `yaml:"optimizer_enabled"`
+		ContextWindow                   int                `yaml:"context_window"`
+		ShowToolResults                 bool               `yaml:"show_tool_results"`
+		WorkflowFeedback                bool               `yaml:"workflow_feedback"`
+		DebugMode                       bool               `yaml:"debug_mode"`
+		CoreMemoryMaxEntries            int                `yaml:"core_memory_max_entries"` // 0 = default 80
+		CoreMemoryCapMode               string             `yaml:"core_memory_cap_mode"`    // "hard" (default) | "soft"
+		ToolOutputLimit                 int                `yaml:"tool_output_limit"`       // max bytes of one tool result (0 = automatic 50000; negative invalid)
+		MaxConcurrentLoops              int                `yaml:"max_concurrent_loops"`    // maximum concurrent agent loop executions (0 = default 8)
+		SudoEnabled                     bool               `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		SudoUnrestricted                bool               `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (Go zero value and template are false) ──
 		AllowShell               bool `yaml:"allow_shell"`                 // allow execute_shell
 		AllowPython              bool `yaml:"allow_python"`                // allow execute_python / save_tool / execute_skill
@@ -1292,6 +1293,11 @@ type Config struct {
 			IdenticalToolErrorHits   int `yaml:"identical_tool_error_hits"`    // repeated identical tool errors before retry breaker triggers (default: 3)
 		} `yaml:"recovery"`
 		BackgroundTasks struct {
+			MaxActiveTasks         int  `yaml:"max_active_tasks"`
+			MaxDueStartsPerTick    int  `yaml:"max_due_starts_per_tick"`
+			RetainCompletedDays    int  `yaml:"retain_completed_days"`
+			RetainFailedDays       int  `yaml:"retain_failed_days"`
+			MaxTerminalTasks       int  `yaml:"max_terminal_tasks"`
 			Enabled                bool `yaml:"enabled"`                    // enable persistent background task execution
 			FollowUpDelaySeconds   int  `yaml:"follow_up_delay_seconds"`    // delay before first follow-up execution (default: 2)
 			HTTPTimeoutSeconds     int  `yaml:"http_timeout_seconds"`       // loopback execution timeout for background prompts (default: 120)
@@ -1300,6 +1306,7 @@ type Config struct {
 			WaitPollIntervalSecs   int  `yaml:"wait_poll_interval_seconds"` // poll interval for wait_for_event tasks (default: 5)
 			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
 		} `yaml:"background_tasks"`
+		MaxCronJobs   int `yaml:"max_cron_jobs"`
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 3)
 
 		OutputCompression struct {
@@ -2437,16 +2444,21 @@ type Config struct {
 		Model        string `yaml:"-" json:"-"` // resolved from provider entry
 	} `yaml:"mission_preparation"`
 	Sandbox struct {
-		Enabled                  bool   `yaml:"enabled"`
-		Backend                  string `yaml:"backend"`                     // "docker" (default), "podman"
-		DockerHost               string `yaml:"docker_host"`                 // override; empty = inherit from docker.host or auto-detect
-		Image                    string `yaml:"image"`                       // one image reference passed to llm-sandbox
-		AutoInstall              bool   `yaml:"auto_install"`                // auto-install llm-sandbox Python package (default: true)
-		PoolSize                 int    `yaml:"pool_size"`                   // ignored; container pooling is not implemented
-		TimeoutSeconds           int    `yaml:"timeout_seconds"`             // execution timeout per run (default: 30)
-		NetworkEnabled           bool   `yaml:"network_enabled"`             // false means Docker network_mode=none
-		KeepAlive                bool   `yaml:"keep_alive"`                  // keep sandbox MCP server running between calls
-		AllowLocalPythonFallback bool   `yaml:"allow_local_python_fallback"` // allow unsandboxed Python fallback if sandbox execution fails (default: false)
+		MemoryMB                 int               `yaml:"memory_mb"`
+		CPUs                     float64           `yaml:"cpus"`
+		PIDsLimit                int               `yaml:"pids_limit"`
+		MaxOutputBytes           int               `yaml:"max_output_bytes"`
+		Images                   map[string]string `yaml:"images"`
+		Enabled                  bool              `yaml:"enabled"`
+		Backend                  string            `yaml:"backend"`                     // "docker" (default), "podman"
+		DockerHost               string            `yaml:"docker_host"`                 // override; empty = inherit from docker.host or auto-detect
+		Image                    string            `yaml:"image"`                       // one image reference passed to llm-sandbox
+		AutoInstall              bool              `yaml:"auto_install"`                // auto-install llm-sandbox Python package (default: true)
+		PoolSize                 int               `yaml:"pool_size"`                   // ignored; container pooling is not implemented
+		TimeoutSeconds           int               `yaml:"timeout_seconds"`             // execution timeout per run (default: 30)
+		NetworkEnabled           bool              `yaml:"network_enabled"`             // false means Docker network_mode=none
+		KeepAlive                bool              `yaml:"keep_alive"`                  // keep sandbox MCP server running between calls
+		AllowLocalPythonFallback bool              `yaml:"allow_local_python_fallback"` // allow unsandboxed Python fallback if sandbox execution fails (default: false)
 	} `yaml:"sandbox"`
 	ShellSandbox struct {
 		Enabled             bool `yaml:"enabled"`               // enable Landlock-based shell sandbox (default: false)

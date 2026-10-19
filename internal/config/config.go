@@ -368,6 +368,18 @@ func Load(path string) (*Config, error) {
 	}
 
 	var cfg Config
+	cfg.Agent.ActionPolicy.Enabled = true
+	cfg.Sandbox.Enabled = true
+	cfg.Agent.MaxCronJobs = 1000
+	cfg.Agent.BackgroundTasks.MaxActiveTasks = 256
+	cfg.Agent.BackgroundTasks.MaxDueStartsPerTick = 64
+	cfg.Agent.BackgroundTasks.RetainCompletedDays = 30
+	cfg.Agent.BackgroundTasks.RetainFailedDays = 90
+	cfg.Agent.BackgroundTasks.MaxTerminalTasks = 2000
+	cfg.Sandbox.MemoryMB = 512
+	cfg.Sandbox.CPUs = 1
+	cfg.Sandbox.PIDsLimit = 64
+	cfg.Sandbox.MaxOutputBytes = 1 << 20
 	ApplySIPDefaults(&cfg.SIP)
 	cfg.HereNow.ReadOnly = true
 	cfg.Treg = DefaultTregConfig()
@@ -2630,9 +2642,7 @@ func Load(path string) (*Config, error) {
 	if cfg.Sandbox.Backend == "" {
 		cfg.Sandbox.Backend = "docker"
 	}
-	if cfg.Sandbox.Image == "" {
-		cfg.Sandbox.Image = "python:3.11-slim"
-	}
+	// An empty image selects the supervisor's reviewed digest-pinned default.
 	if cfg.Sandbox.TimeoutSeconds <= 0 {
 		cfg.Sandbox.TimeoutSeconds = 30
 	}
@@ -2677,6 +2687,9 @@ func Load(path string) (*Config, error) {
 
 	cfg.ConfigPath = absConfigPath
 
+	if err := ValidateActionPolicy(cfg.Agent.ActionPolicy); err != nil {
+		return nil, fmt.Errorf("validate agent action policy: %w", err)
+	}
 	return &cfg, nil
 }
 

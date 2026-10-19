@@ -12,12 +12,17 @@ auth:
     max_login_attempts: 5
     lockout_minutes: 15
 agent:
+    action_policy:
+        enabled: true
+        allow: []                 # exact tool/operation/target grants for unattended high-risk actions
+        deny: []                  # hard denials; approval never overrides these or readonly
     context_window: 0             # global context cap; 0 = no configured cap (provider/model limits still apply)
     core_memory_cap_mode: hard
     core_memory_max_entries: 80
     debug_mode: false
     memory_compression_char_limit: 60000
     max_concurrent_loops: 8       # maximum concurrent agent loop executions (restart required)
+    max_cron_jobs: 1000           # cap new cron IDs; existing jobs, replacement and removal remain available
     tool_output_limit: 50000  # max bytes of a single tool result fed into context (0 = automatic: 50000)
     show_tool_results: false
     step_delay_seconds: 0
@@ -96,6 +101,11 @@ agent:
         duplicate_frequency_hits: 3                                 # circuit breaker after repeated identical tool calls overall
         identical_tool_error_hits: 3                                # stop retrying when the exact same tool error repeats
     background_tasks:
+        max_active_tasks: 256
+        max_due_starts_per_tick: 64
+        retain_completed_days: 30
+        retain_failed_days: 90
+        max_terminal_tasks: 2000
         enabled: true                                               # persistent background task queue for follow_up, cron, and wait events
         follow_up_delay_seconds: 2                                  # small delay so the current response can finish first
         http_timeout_seconds: 120                                   # loopback timeout for background prompt execution
@@ -122,7 +132,7 @@ budget:
     default_cost:
         input_per_million: 0.4
         output_per_million: 0.7
-    enabled: false
+    enabled: true
     enforcement: warn
     models: []
     reset_hour: 0
@@ -2004,10 +2014,15 @@ huggingface:
     job_namespace: ""                                   # optional; empty resolves the namespace via whoami per tool call
     # Store the token in the encrypted Vault as huggingface_token, never in config.yaml.
 sandbox:
-    enabled: false
+    enabled: true
     backend: docker
     docker_host: ""
-    image: ""                                           # one image reference passed to llm-sandbox
+    image: ""                                           # empty selects the reviewed digest-pinned Python/sh image
+    images: {}                                          # optional language -> reviewed digest-pinned image
+    memory_mb: 512
+    cpus: 1
+    pids_limit: 64
+    max_output_bytes: 1048576
     auto_install: true
     pool_size: 0                                        # ignored; container pooling is not implemented
     timeout_seconds: 30
