@@ -2,9 +2,11 @@
 
 import os
 import json
-import io
-import tarfile
 import threading
+import re
+import stat
+import time
+import uuid
 import ssl
 import urllib.error
 import urllib.parse
@@ -18,6 +20,70 @@ _IMAGES = json.loads(os.environ.get("AURAGO_SANDBOX_IMAGES", "{}"))
 _BROKER_PREFIX = b"\x1eAURAGO_TOOL:"
 _BROKER_FRAME_LIMIT = 65536
 _BROKER_RESPONSE_LIMIT = 1048576
+_PUBLICATION_LIMIT = 1048576
+_CODE_DESTINATION = re.compile(r"/sandbox/[0-9a-f]{32}\.(?:py|java|js|cpp|go|rb|R)\Z")
+_PUBLICATION_DESTINATION = re.compile(r"/sandbox/(?:[0-9a-f]{32}\.(?:py|java|js|cpp|go|rb|R)|\.aurago_bridge_[0-9]{8}\.json)\Z")
+# Counted stdin avoids depending on socket half-close support. All variable
+# values are separate argv entries, never interpolated into this fixed script.
+_PUBLISH_SCRIPT = '''set -eu
+umask 077
+tmp=$3
+trap 'rm -f -- "$tmp"' EXIT
+set -C
+head -c "$1" > "$tmp"
+set +C
+test "$(wc -c < "$tmp")" -eq "$1"
+chmod 600 "$tmp"
+mv -f -T -- "$tmp" "$2"
+'''
+
+
+def _publish_worker_file(session, destination, data):
+    if not isinstance(destination, str) or not _PUBLICATION_DESTINATION.fullmatch(destination):
+        raise ValueError("Invalid private sandbox destination")
+    if not isinstance(data, bytes) or len(data) > _PUBLICATION_LIMIT:
+        raise ValueError("Private sandbox file exceeds byte limit")
+    cancelled = getattr(session, "_aurago_cancelled", None)
+    if cancelled is not None and cancelled.is_set():
+        raise RuntimeError("Sandbox publication cancelled")
+    container = getattr(session, "container", None)
+    if container is None:
+        raise RuntimeError("Sandbox publication requires an active worker")
+    api = container.client.api
+    temporary = "/sandbox/.aurago_publish_" + uuid.uuid4().hex
+    command = ["/bin/sh", "-c", _PUBLISH_SCRIPT, "aurago-publish", str(len(data)), destination, temporary]
+    created = api.exec_create(container.id, command, stdin=True, stdout=False, stderr=False, tty=False, workdir="/sandbox")
+    identity = created.get("Id")
+    if not isinstance(identity, str) or not identity:
+        raise RuntimeError("Sandbox publication omitted its execution identity")
+    connection = None
+    try:
+        connection = api.exec_start(identity, socket=True, tty=False)
+        stream = getattr(connection, "_sock", connection)
+        stream.settimeout(10)
+        stream.sendall(data)
+        deadline = time.monotonic() + 10
+        while True:
+            if cancelled is not None and cancelled.is_set():
+                raise RuntimeError("Sandbox publication cancelled")
+            status = api.exec_inspect(identity)
+            if status.get("Running") is False:
+                exit_code = status.get("ExitCode")
+                if type(exit_code) is not int or exit_code != 0:
+                    raise RuntimeError("Sandbox publication failed without confirmed success")
+                return
+            if status.get("Running") is not True or time.monotonic() >= deadline:
+                raise RuntimeError("Sandbox publication has no confirmed final status")
+            time.sleep(0.01)
+    except Exception:
+        try:
+            container.kill()
+        except Exception:
+            pass
+        raise
+    finally:
+        if connection is not None:
+            connection.close()
 
 _BROKER_SDK = r'''
 import sys as _aurago_sys, types as _aurago_types, json as _aurago_json
@@ -123,13 +189,7 @@ class _Broker:
         encoded = json.dumps(payload).encode()
         if len(encoded) > _BROKER_RESPONSE_LIMIT:
             encoded = b'{"status":"error","result":"Tool Bridge response exceeds byte limit"}'
-        archive = io.BytesIO()
-        with tarfile.open(fileobj=archive, mode="w") as tar:
-            entry = tarfile.TarInfo(".aurago_bridge_%08d.json" % self.calls)
-            entry.size, entry.mode, entry.uid, entry.gid = len(encoded), 0o600, 0, 0
-            tar.addfile(entry, io.BytesIO(encoded))
-        if not session.container.put_archive("/sandbox", archive.getvalue()):
-            raise RuntimeError("Tool Bridge response publication failed")
+        _publish_worker_file(session, "/sandbox/.aurago_bridge_%08d.json" % self.calls, encoded)
 
 
 def _harden(kwargs):
@@ -201,6 +261,26 @@ if _IMAGES:
     from llm_sandbox.docker import SandboxDockerSession
     from llm_sandbox.data import ConsoleOutput
 
+    def _copy_private_code(self, src, dest):
+        # Upstream 0.3.45 publishes a regular supervisor-created temporary file
+        # to one UUID filename. Engine put_archive cannot write our readonly
+        # rootfs even when the destination is a writable tmpfs.
+        if not isinstance(dest, str) or not _CODE_DESTINATION.fullmatch(dest):
+            raise ValueError("Invalid private sandbox source destination")
+        source = os.fspath(src)
+        before = os.lstat(source)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("Sandbox source must be a regular private file")
+        descriptor = os.open(source, os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as file:
+            current = os.fstat(file.fileno())
+            if (before.st_dev, before.st_ino) != (current.st_dev, current.st_ino) or not stat.S_ISREG(current.st_mode):
+                raise ValueError("Sandbox source identity changed")
+            data = file.read(_PUBLICATION_LIMIT + 1)
+        _publish_worker_file(self, dest, data)
+
+    SandboxDockerSession.copy_to_runtime = _copy_private_code
+
     def _bounded_output(self, output, on_stdout=None, on_stderr=None):
         limit = int(os.environ.get("AURAGO_SANDBOX_OUTPUT", "1048576"))
         chunks = [bytearray(), bytearray()]
@@ -252,6 +332,7 @@ if _IMAGES:
             raise ValueError("Invalid supervisor cancellation channel")
         finished = threading.Event()
         session = server.SandboxSession(lang=language, backend=server._get_backend(), session_timeout=timeout)
+        session._aurago_cancelled = threading.Event()
         def watch_cancel():
             while not finished.wait(0.025):
                 try:
@@ -259,6 +340,7 @@ if _IMAGES:
                         cancelled = marker.read(32) == b"cancel"
                     container = getattr(session, "container", None)
                     if cancelled and container is not None:
+                        session._aurago_cancelled.set()
                         container.kill()
                         with open(cancel_file, "wb") as marker:
                             marker.write(b"terminated")

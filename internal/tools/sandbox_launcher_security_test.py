@@ -1,7 +1,6 @@
 """Protocol fixtures for the pinned supervisor; never starts Docker."""
 
 import importlib.util
-import io
 import json
 import os
 import http.server
@@ -10,7 +9,6 @@ import shutil
 import ssl
 import subprocess
 import sys
-import tarfile
 import tempfile
 import threading
 import time
@@ -39,15 +37,49 @@ class Container:
     def __init__(self):
         self.killed = False
         self.responses = []
+        self.files = {}
+        self.id = "readonly-worker"
+        self.api = PublicationAPI(self)
+        self.client = types.SimpleNamespace(api=self.api)
 
     def kill(self):
         self.killed = True
 
     def put_archive(self, path, data):
-        with tarfile.open(fileobj=io.BytesIO(data)) as archive:
-            entry = archive.getmembers()[0]
-            self.responses.append((path, entry, json.load(archive.extractfile(entry))))
-        return True
+        raise RuntimeError("container rootfs is marked read-only")
+
+
+class PublicationAPI:
+    """Realistic counted-stdin exec fixture; archive writes always fail above."""
+    def __init__(self, container):
+        self.container = container
+        self.status = {"Running": False, "ExitCode": 0}
+        self.created = []
+        self.closed = False
+    def exec_create(self, container, command, **options):
+        self.created.append((container, command, options))
+        return {"Id": "private-publication"}
+    def exec_start(self, identity, **options):
+        self.stream_options = options
+        return types.SimpleNamespace(_sock=self, close=self.close)
+    def settimeout(self, value):
+        self.timeout = value
+    def sendall(self, data):
+        _, command, _ = self.created[-1]
+        self.data = data
+        if len(data) != int(command[4]):
+            raise AssertionError("counted stdin length differs")
+        destination = command[5]
+        self.container.files[destination] = data
+        if ".aurago_bridge_" in destination:
+            entry = types.SimpleNamespace(name=Path(destination).name, mode=0o600)
+            self.container.responses.append(("/sandbox", entry, json.loads(data)))
+    def exec_inspect(self, identity):
+        if identity != "private-publication":
+            raise AssertionError("wrong publication identity")
+        return self.status
+    def close(self):
+        self.closed = True
 
 
 def load_launcher():
@@ -75,6 +107,92 @@ def load_launcher():
 
 
 class SupervisorSecurityTest(unittest.TestCase):
+    def test_private_source_publication_uses_counted_exec_on_readonly_root(self):
+        module, _ = load_launcher()
+        session = Session(); session.container = Container()
+        destination = "/sandbox/" + "a" * 32 + ".py"
+        content = b"# private source\nprint('hello')\n"
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.py"
+            source.write_bytes(content)
+            session.copy_to_runtime(source, destination)
+            self.assertEqual(session.container.files[destination], content)
+            api = session.container.api
+            self.assertEqual(api.created[0][2], {"stdin": True, "stdout": False, "stderr": False, "tty": False, "workdir": "/sandbox"})
+            self.assertEqual(api.created[0][1][:3], ["/bin/sh", "-c", module._PUBLISH_SCRIPT])
+            self.assertEqual(api.created[0][1][4:6], [str(len(content)), destination])
+            self.assertEqual(api.stream_options, {"socket": True, "tty": False})
+            self.assertEqual(api.timeout, 10)
+            self.assertTrue(api.closed)
+            for suffix in ("java", "js", "cpp", "go", "rb", "R"):
+                session.copy_to_runtime(source, "/sandbox/" + "b" * 32 + "." + suffix)
+
+    def test_private_publication_validates_paths_sources_and_byte_limit(self):
+        module, _ = load_launcher()
+        session = Session(); session.container = Container()
+        for destination in ("/tmp/source.py", "/sandbox/../source.py", "/sandbox/a;touch x.py", "/sandbox/" + "a" * 32 + ".py\n", "/sandbox/nested/file.py"):
+            with self.subTest(destination=destination), self.assertRaises(ValueError):
+                module._publish_worker_file(session, destination, b"x")
+        with tempfile.TemporaryDirectory() as directory:
+            destination = "/sandbox/" + "a" * 32 + ".py"
+            with self.assertRaises(ValueError):
+                session.copy_to_runtime(directory, destination)
+            source = Path(directory) / "large.py"
+            source.write_bytes(b"x" * (module._PUBLICATION_LIMIT + 1))
+            with self.assertRaises(ValueError):
+                session.copy_to_runtime(source, destination)
+            with patch.object(module.os, "lstat", return_value=types.SimpleNamespace(st_mode=0o120777)):
+                with self.assertRaises(ValueError):
+                    session.copy_to_runtime(source, destination)
+        self.assertEqual(session.container.api.created, [])
+
+    def test_private_publication_failure_unknown_status_and_cancellation_fail_closed(self):
+        module, server = load_launcher()
+        for status in ({"Running": False, "ExitCode": 7}, {"Running": False, "ExitCode": None}, {"Running": False, "ExitCode": True}, {}):
+            session = Session(); session.container = Container()
+            session.container.api.status = status
+            broker = module._Broker("http://127.0.0.1:1234", "secret", [], 1)
+            with self.subTest(status=status), self.assertRaises(RuntimeError):
+                broker.dispatch(session, {"id": 1, "tool": "denied", "parameters": {}})
+            self.assertTrue(session.container.killed)
+            self.assertTrue(session.container.api.closed)
+        session = Session(); session.container = Container()
+        session._aurago_cancelled = threading.Event()
+        session._aurago_cancelled.set()
+        with self.assertRaises(RuntimeError):
+            module._publish_worker_file(session, "/sandbox/" + "a" * 32 + ".py", b"x")
+        self.assertEqual(session.container.api.created, [])
+        session._aurago_cancelled.clear()
+        def cancelled_status(_):
+            session._aurago_cancelled.set()
+            return {"Running": True, "ExitCode": None}
+        session.container.api.exec_inspect = cancelled_status
+        with self.assertRaises(RuntimeError):
+            module._publish_worker_file(session, "/sandbox/" + "a" * 32 + ".py", b"x")
+        self.assertTrue(session.container.killed)
+
+    def test_private_publication_socket_error_is_bounded_and_never_success(self):
+        module, server = load_launcher()
+        container = Container()
+        container.api.sendall = lambda _: (_ for _ in ()).throw(TimeoutError("fixture blocked stdin"))
+        ran = []
+        class FailedSession:
+            def __init__(self): self.container = container
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def run(self, **_):
+                module._publish_worker_file(self, "/sandbox/" + "a" * 32 + ".py", b"x")
+                ran.append(True)
+        server.SandboxSession = lambda **_: FailedSession()
+        with tempfile.TemporaryDirectory() as directory:
+            channel = Path(directory) / "aurago-sandbox-cancel-fixture"
+            channel.write_bytes(b"")
+            result = server.mcp.tools["execute_supervised_code"]("print(1)", str(channel))
+        self.assertEqual(json.loads(result[0]["text"])["exit_code"], 1)
+        self.assertEqual(ran, [])
+        self.assertTrue(container.killed)
+        self.assertTrue(container.api.closed)
+
     def test_streaming_exec_inspects_final_status_after_output(self):
         module, _ = load_launcher()
         for exit_code in (0, 7, 137, None, True, -1):
