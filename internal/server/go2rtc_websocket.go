@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/tools"
 	"github.com/gorilla/websocket"
 	"github.com/pion/sdp/v3"
 )
@@ -89,7 +90,7 @@ func validateGo2RTCMessage(data []byte, talk bool) (go2RTCWireMessage, error) {
 
 // bridgeGo2RTCWebSocket terminates the public protocol boundary: no caller
 // parameters or arbitrary upstream JSON are forwarded without validation.
-func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, alias string) {
+func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, lease *tools.Go2RTCMediaLease) {
 	target, err := s.Go2RTC.ProxyTarget()
 	if err != nil {
 		jsonError(w, "Camera upstream unavailable", 503)
@@ -102,11 +103,12 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, al
 	}
 	target.Scheme = "ws"
 	target.Path = "/api/go2rtc/proxy/api/ws"
-	target.RawQuery = url.Values{"src": {alias}}.Encode()
+	target.RawQuery = url.Values{"src": {lease.Alias}}.Encode()
 	headers := make(http.Header)
 	auth := &http.Request{Header: headers}
 	auth.SetBasicAuth(user, password)
 	headers.Set("Origin", "http://"+target.Host)
+	headers.Set("User-Agent", "AuraGo Camera Viewer")
 	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 	upstream, response, err := dialer.DialContext(r.Context(), target.String(), headers)
 	if response != nil && response.Body != nil {
@@ -138,6 +140,9 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, al
 				return
 			}
 			msg, err := validateGo2RTCMessage(data, false)
+			if strings.HasPrefix(msg.Type, "webrtc/") && !s.Go2RTC.Config().WebRTC.Enabled {
+				return
+			}
 			if err != nil {
 				return
 			}
@@ -158,8 +163,20 @@ func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, al
 			if json.Unmarshal(data, &msg) != nil {
 				break
 			}
+			if msg.Type == "hls" {
+				var playlist string
+				if json.Unmarshal(msg.Value, &playlist) != nil || rememberGo2RTCHLS(s.Go2RTC, lease, []byte(playlist)) != nil {
+					break
+				}
+			}
 			if msg.Type == "error" {
-				msg.Value = json.RawMessage(`"Camera media unavailable"`)
+				var detail string
+				_ = json.Unmarshal(msg.Value, &detail)
+				prefix, _, _ := strings.Cut(detail, ":")
+				if prefix != "mse" && prefix != "hls" && prefix != "mp4" && prefix != "mjpeg" && prefix != "webrtc/offer" {
+					prefix = "media"
+				}
+				msg.Value, _ = json.Marshal(prefix + ": camera media unavailable")
 				data, _ = json.Marshal(msg)
 			}
 		}

@@ -193,7 +193,7 @@ func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T
 
 func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 	const password = "internal-password"
-	var patchedSource string
+	var patchedSource, patchedName string
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, gotPassword, ok := r.BasicAuth()
 		if !ok || username != go2RTCAPIUser || gotPassword != password {
@@ -207,10 +207,11 @@ func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPatch && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			patchedSource = r.URL.Query().Get("src")
+			patchedName = r.URL.Query().Get("name")
 			w.WriteHeader(http.StatusOK)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"aurago_front-door": map[string]interface{}{
+				patchedName: map[string]interface{}{
 					"producers": []interface{}{
 						map[string]interface{}{
 							"url":   "rtsp://user:password@camera.local/live",

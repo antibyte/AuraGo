@@ -232,14 +232,14 @@ func TestGo2RTCRecreateDecisionKeepsRuntimePatchForAddsAndChanges(t *testing.T) 
 	disabled := base
 	disabled.Streams = append([]config.Go2RTCStreamConfig(nil), base.Streams...)
 	disabled.Streams[0].Enabled = false
-	if !go2RTCRequiresRecreate(base, disabled) {
-		t.Fatal("stream disable must recreate the container to evict the old runtime source")
+	if go2RTCRequiresRecreate(base, disabled) {
+		t.Fatal("stream disable must use per-camera retirement")
 	}
 
 	removed := base
 	removed.Streams = nil
-	if !go2RTCRequiresRecreate(base, removed) {
-		t.Fatal("stream removal must recreate the container to evict the old runtime source")
+	if go2RTCRequiresRecreate(base, removed) {
+		t.Fatal("stream removal must use per-camera retirement")
 	}
 }
 

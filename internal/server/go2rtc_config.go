@@ -18,6 +18,7 @@ import (
 
 type go2RTCSourceChange struct {
 	ID     string
+	Role   string
 	Value  string
 	Delete bool
 }
@@ -211,7 +212,7 @@ func applyGo2RTCRuntimeTransition(ctx context.Context, s *Server, oldCfg, newCfg
 func stageGo2RTCSourceChanges(s *Server, changes []go2RTCSourceChange) (*go2RTCSourceVaultTransaction, error) {
 	txn := &go2RTCSourceVaultTransaction{vault: s.Vault, previous: make(map[string]go2RTCSourceVaultSnapshot)}
 	for _, change := range changes {
-		key := config.Go2RTCStreamSourceVaultKey(change.ID)
+		key := config.Go2RTCSourceKey(change.ID, change.Role)
 		if key == "" {
 			return nil, fmt.Errorf("invalid go2rtc stream id")
 		}
@@ -222,6 +223,7 @@ func stageGo2RTCSourceChanges(s *Server, changes []go2RTCSourceChange) (*go2RTCS
 			} else if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
 				txn.previous[key] = go2RTCSourceVaultSnapshot{}
 			} else {
+				_ = txn.Rollback()
 				return nil, fmt.Errorf("read previous source for stream %q: %w", change.ID, err)
 			}
 		}

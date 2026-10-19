@@ -381,12 +381,24 @@ type Go2RTCStreamDetectionConfig struct {
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
 type Go2RTCStreamConfig struct {
-	ID               string                      `yaml:"id" json:"id"`
-	Name             string                      `yaml:"name" json:"name"`
-	Enabled          bool                        `yaml:"enabled" json:"enabled"`
-	Source           string                      `yaml:"-" json:"-"`
-	SourceConfigured bool                        `yaml:"-" json:"source_configured"`
-	Detection        Go2RTCStreamDetectionConfig `yaml:"detection" json:"detection"`
+	ID                       string                      `yaml:"id" json:"id"`
+	Name                     string                      `yaml:"name" json:"name"`
+	Enabled                  bool                        `yaml:"enabled" json:"enabled"`
+	Source                   string                      `yaml:"-" json:"-"`
+	SourceConfigured         bool                        `yaml:"-" json:"source_configured"`
+	SubSource                string                      `yaml:"-" json:"-"`
+	SubSourceConfigured      bool                        `yaml:"-" json:"sub_source_configured"`
+	SnapshotSource           string                      `yaml:"-" json:"-"`
+	SnapshotSourceConfigured bool                        `yaml:"-" json:"snapshot_source_configured"`
+	PreviewSource            string                      `yaml:"preview_source,omitempty" json:"preview_source"`
+	DetectionSource          string                      `yaml:"detection_source,omitempty" json:"detection_source"`
+	SnapshotMode             string                      `yaml:"snapshot_mode,omitempty" json:"snapshot_mode"`
+	CodecProfile             string                      `yaml:"codec_profile,omitempty" json:"codec_profile"`
+	Transport                string                      `yaml:"transport,omitempty" json:"transport"`
+	PlaybackMode             string                      `yaml:"playback_mode,omitempty" json:"playback_mode"`
+	Preload                  bool                        `yaml:"preload" json:"preload"`
+	TalkEnabled              bool                        `yaml:"talk_enabled" json:"talk_enabled"`
+	Detection                Go2RTCStreamDetectionConfig `yaml:"detection" json:"detection"`
 }
 
 // Go2RTCWebRTCConfig controls the optional direct LAN media listener.
@@ -410,7 +422,15 @@ type Go2RTCConfig struct {
 	WebRTC        Go2RTCWebRTCConfig    `yaml:"webrtc" json:"webrtc"`
 	Streams       []Go2RTCStreamConfig  `yaml:"streams" json:"streams"`
 	Detection     Go2RTCDetectionConfig `yaml:"detection" json:"detection"`
+	Hardware      Go2RTCHardwareConfig  `yaml:"hardware" json:"hardware"`
 	APIPassword   string                `yaml:"-" json:"-"`
+}
+
+type Go2RTCHardwareConfig struct {
+	Backend     string `yaml:"backend" json:"backend"`
+	RenderNode  string `yaml:"render_node,omitempty" json:"render_node"`
+	RenderGroup string `yaml:"render_group,omitempty" json:"render_group"`
+	DeviceID    string `yaml:"device_id,omitempty" json:"device_id"`
 }
 
 const (

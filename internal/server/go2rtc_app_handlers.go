@@ -417,12 +417,15 @@ func go2RTCDiscoveryService(s *Server) *onvif.Service {
 
 func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 	type request struct {
-		ID         string `json:"id"`
-		Name       string `json:"name"`
-		Enabled    *bool  `json:"enabled"`
-		Source     string `json:"source"`
-		SetupToken string `json:"setup_token"`
-		ProfileID  string `json:"profile_id"`
+		go2RTCMediaPatch
+		SubProfileID      string `json:"sub_profile_id"`
+		UseCameraSnapshot bool   `json:"use_camera_snapshot"`
+		ID                string `json:"id"`
+		Name              string `json:"name"`
+		Enabled           *bool  `json:"enabled"`
+		Source            string `json:"source"`
+		SetupToken        string `json:"setup_token"`
+		ProfileID         string `json:"profile_id"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -462,7 +465,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 				})
 				return
 			}
-			reservation, err = service.Reserve(payload.SetupToken, payload.ProfileID)
+			reservation, err = service.ReserveProfiles(payload.SetupToken, payload.ProfileID, payload.SubProfileID, payload.UseCameraSnapshot)
 			if err != nil {
 				jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
 				return
@@ -479,6 +482,19 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 		if payload.Enabled != nil {
 			enabled = *payload.Enabled
 		}
+		changes, err := payload.go2RTCMediaPatch.changes(id)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+		changes = append(changes, go2RTCSourceChange{ID: id, Value: source})
+		if reservation != nil {
+			for _, role := range []string{"sub", "snapshot"} {
+				if value := reservation.RoleSource(role); value != "" {
+					changes = append(changes, go2RTCSourceChange{ID: id, Role: role, Value: value})
+				}
+			}
+		}
 		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
 			if !value.Enabled {
 				return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before adding cameras"}
@@ -488,9 +504,11 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 					return &go2RTCMutationError{Status: http.StatusConflict, Code: "stream_exists", Message: fmt.Sprintf("stream id %q already exists", id)}
 				}
 			}
-			value.Streams = append(value.Streams, config.Go2RTCStreamConfig{ID: id, Name: name, Enabled: enabled})
+			stream := config.Go2RTCStreamConfig{ID: id, Name: name, Enabled: enabled}
+			payload.go2RTCMediaPatch.apply(&stream)
+			value.Streams = append(value.Streams, stream)
 			return nil
-		}, []go2RTCSourceChange{{ID: id, Value: source}}, false)
+		}, changes, false)
 		if err != nil {
 			writeGo2RTCMutationFailure(w, err)
 			return
@@ -504,6 +522,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 
 func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 	type request struct {
+		go2RTCMediaPatch
 		Name    *string `json:"name"`
 		Enabled *bool   `json:"enabled"`
 		Source  *string `json:"source"`
@@ -537,7 +556,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 					}
 				}
 				return &go2RTCMutationError{Status: http.StatusNotFound, Code: "stream_not_found", Message: fmt.Sprintf("stream %q was not found", streamID)}
-			}, []go2RTCSourceChange{{ID: streamID, Delete: true}}, false)
+			}, []go2RTCSourceChange{{ID: streamID, Delete: true}, {ID: streamID, Role: "sub", Delete: true}, {ID: streamID, Role: "snapshot", Delete: true}}, false)
 			if err != nil {
 				writeGo2RTCMutationFailure(w, err)
 				return
@@ -552,7 +571,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			return
 		}
 		hasDetection := payload.Detection != nil
-		if payload.Name == nil && payload.Enabled == nil && payload.Source == nil && !hasDetection {
+		if payload.Name == nil && payload.Enabled == nil && payload.Source == nil && !hasDetection && !payload.go2RTCMediaPatch.present() {
 			jsonError(w, "At least one stream field is required", http.StatusBadRequest)
 			return
 		}
@@ -565,7 +584,11 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				return
 			}
 		}
-		var changes []go2RTCSourceChange
+		changes, err := payload.go2RTCMediaPatch.changes(streamID)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
 		if payload.Source != nil && strings.TrimSpace(*payload.Source) != "" {
 			source := strings.TrimSpace(*payload.Source)
 			security.RegisterSensitive(source)
@@ -583,6 +606,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				if value.Streams[index].ID != streamID {
 					continue
 				}
+				payload.go2RTCMediaPatch.apply(&value.Streams[index])
 				if payload.Name != nil {
 					name, err := validateCameraName(*payload.Name, streamID)
 					if err != nil {
@@ -623,11 +647,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 func safeGo2RTCStream(cfg config.Go2RTCConfig, streamID string) map[string]interface{} {
 	for _, stream := range cfg.Streams {
 		if stream.ID == streamID {
-			return map[string]interface{}{
-				"id": stream.ID, "name": stream.Name, "enabled": stream.Enabled,
-				"source_configured": stream.SourceConfigured || strings.TrimSpace(stream.Source) != "",
-				"detection":         config.NormalizeGo2RTCStreamDetection(stream.Detection),
-			}
+			return go2RTCMediaProjection(stream)
 		}
 	}
 	return nil

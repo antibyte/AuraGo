@@ -230,30 +230,29 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 	}
 	streams := make([]interface{}, 0, len(cfg.Go2RTC.Streams))
 	for _, configured := range cfg.Go2RTC.Streams {
-		sourceConfigured := strings.TrimSpace(configured.Source) != ""
-		if !sourceConfigured && vault != nil {
-			if key := config.Go2RTCStreamSourceVaultKey(configured.ID); key != "" {
-				if value, err := vault.ReadSecret(key); err == nil && strings.TrimSpace(value) != "" {
-					sourceConfigured = true
+		entry := go2RTCMediaProjection(configured)
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			field := "source"
+			if role != "main" {
+				field = role + "_source"
+			}
+			present := strings.TrimSpace(config.Go2RTCRoleSource(configured, role)) != ""
+			if !present && vault != nil {
+				if value, err := vault.ReadSecret(config.Go2RTCSourceKey(configured.ID, role)); err == nil {
+					present = strings.TrimSpace(value) != ""
 				}
 			}
+			entry[field+"_configured"] = present
+			entry[field] = ""
+			if present {
+				entry[field] = "••••••••"
+			}
 		}
-		entry := map[string]interface{}{
-			"id":                configured.ID,
-			"name":              configured.Name,
-			"enabled":           configured.Enabled,
-			"source_configured": sourceConfigured,
-		}
-		if sourceConfigured {
-			entry["source"] = "••••••••"
-		} else {
-			entry["source"] = ""
-		}
-		// A config save replaces go2rtc.streams wholesale (mergeConfigArrayValue);
-		// without the detection object, saving the shown streams would erase it.
 		entry["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCStreamDetection(configured.Detection))
 		streams = append(streams, entry)
 	}
+	section["hardware"] = go2RTCDetectionProjection(cfg.Go2RTC.Hardware)
+
 	section["streams"] = streams
 	section["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCDetectionSettings(cfg.Go2RTC.Detection))
 }
@@ -1666,16 +1665,7 @@ func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
 		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) {
 		return true
 	}
-	newStreams := make(map[string]config.Go2RTCStreamConfig, len(newCfg.Streams))
-	for _, stream := range newCfg.Streams {
-		newStreams[stream.ID] = stream
-	}
-	for _, previous := range oldCfg.Streams {
-		current, exists := newStreams[previous.ID]
-		if !exists || (previous.Enabled && !current.Enabled) {
-			return true
-		}
-	}
+
 	return false
 }
 
@@ -1801,6 +1791,29 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 }
 
 func validateGo2RTCSettings(cfg config.Go2RTCConfig, rt config.Runtime, vault *security.Vault) error {
+	if err := config.ValidateGo2RTCMedia(cfg); err != nil {
+		return err
+	}
+	for _, stream := range cfg.Streams {
+		for _, role := range []string{"sub", "snapshot"} {
+			value := config.Go2RTCRoleSource(stream, role)
+			if vault != nil {
+				if secret, err := vault.ReadSecret(config.Go2RTCSourceKey(stream.ID, role)); err == nil {
+					value = secret
+				}
+			}
+			if value != "" {
+				if err := tools.ValidateGo2RTCSource(value); err != nil {
+					return fmt.Errorf("invalid camera %s source", role)
+				}
+			}
+			required := (role == "sub" && (stream.PreviewSource == "sub" || stream.DetectionSource == "sub")) || (role == "snapshot" && stream.SnapshotMode == "camera")
+			if required && value == "" {
+				return fmt.Errorf("camera %q requires its %s source", stream.ID, role)
+			}
+		}
+	}
+
 	// Detection settings are validated even while go2rtc is off: config.Load
 	// rejects invalid ones unconditionally.
 	if err := validateGo2RTCDetectionSettings(cfg); err != nil {
@@ -2616,66 +2629,22 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 }
 
 func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
-	var firstErr error
-	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		stream, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		raw, exists := stream["source"]
-		delete(stream, "source")
-		delete(stream, "source_configured")
-		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
-		key := config.Go2RTCStreamSourceVaultKey(id)
-		if err := tools.ValidateGo2RTCStreamID(id); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc %w", err)
-			}
-			continue
-		}
-		if _, duplicate := seen[key]; duplicate {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc stream id %q is duplicated", id)
-			}
-			continue
-		}
-		seen[key] = struct{}{}
-		if !exists {
-			continue
-		}
-		value, ok := raw.(string)
-		if !ok {
-			continue
-		}
-		value = strings.TrimSpace(value)
-		if value == "" || value == "••••••••" {
-			continue
-		}
-		if err := validateGo2RTCSourceURL(value); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("invalid source for go2rtc stream %q: %w", id, err)
-			}
-			continue
-		}
-		if vault == nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc stream source for %q cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
-			}
-			continue
-		}
-		if err := vault.WriteSecret(key, value); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("failed to save go2rtc source for stream %q: %w", id, err)
-			}
-			continue
-		}
-		security.RegisterSensitive(value)
-		if logger != nil {
-			logger.Info("[Config] go2rtc stream source saved to vault", "stream_id", id)
-		}
+	changes, err := go2RTCSourceChanges(items, true)
+	if err != nil {
+		return err
 	}
-	return firstErr
+	if len(changes) == 0 {
+		return nil
+	}
+	if vault == nil {
+		return fmt.Errorf("camera sources require the secrets vault")
+	}
+	txn, err := stageGo2RTCSourceChanges(&Server{Vault: vault}, changes)
+	if err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
 }
 
 type go2RTCSourceVaultSnapshot struct {
@@ -2705,34 +2674,25 @@ func captureGo2RTCSourceVaultState(patch map[string]interface{}, vault *security
 	case map[string]interface{}:
 		items, _ = numericKeyedMapToSlice(streams)
 	}
-	for _, item := range items {
-		stream, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		source, ok := stream["source"].(string)
-		if !ok || strings.TrimSpace(source) == "" || source == "••••••••" {
-			continue
-		}
-		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
-		if tools.ValidateGo2RTCStreamID(id) != nil {
-			continue
-		}
-		key := config.Go2RTCStreamSourceVaultKey(id)
+	changes, err := go2RTCSourceChanges(items, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, change := range changes {
+		key := config.Go2RTCSourceKey(change.ID, change.Role)
 		if _, captured := txn.previous[key]; captured {
 			continue
 		}
 		value, err := vault.ReadSecret(key)
 		if err == nil {
 			txn.previous[key] = go2RTCSourceVaultSnapshot{value: value, exists: true}
-			continue
-		}
-		if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
+		} else if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
 			txn.previous[key] = go2RTCSourceVaultSnapshot{}
-			continue
+		} else {
+			return nil, fmt.Errorf("read previous camera source: %w", err)
 		}
-		return nil, fmt.Errorf("read previous go2rtc source for stream %q: %w", id, err)
 	}
+
 	return txn, nil
 }
 
@@ -2779,24 +2739,16 @@ func cleanupRemovedGo2RTCStreamSecrets(oldStreams, newStreams []config.Go2RTCStr
 	if vault == nil {
 		return
 	}
-	remaining := make(map[string]struct{}, len(newStreams))
+	remaining := map[string]bool{}
 	for _, stream := range newStreams {
-		if key := config.Go2RTCStreamSourceVaultKey(stream.ID); key != "" {
-			remaining[key] = struct{}{}
-		}
+		remaining[stream.ID] = true
 	}
 	for _, stream := range oldStreams {
-		key := config.Go2RTCStreamSourceVaultKey(stream.ID)
-		if key == "" {
+		if remaining[stream.ID] {
 			continue
 		}
-		if _, ok := remaining[key]; ok {
-			continue
-		}
-		if err := vault.DeleteSecret(key); err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
-			if logger != nil {
-				logger.Warn("[Config] Failed to remove obsolete go2rtc stream source", "stream_id", stream.ID, "error", err)
-			}
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			_ = vault.DeleteSecret(config.Go2RTCSourceKey(stream.ID, role))
 		}
 	}
 }

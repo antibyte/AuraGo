@@ -255,9 +255,31 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		purpose := r.URL.Query().Get("role")
+		if purpose == "" {
+			purpose = "main"
+		}
+		lease, err := manager.AcquireMedia(r.Context(), streamID, purpose, false)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+		lease.Release()
+		playback := ""
+		for _, stream := range manager.Config().Streams {
+			if stream.ID == streamID {
+				playback = stream.PlaybackMode
+			}
+		}
 		mode := "mse,hls,mp4,mjpeg"
 		if manager.Config().WebRTC.Enabled {
 			mode = "webrtc," + mode
+		}
+		if playback != "" && playback != "auto" {
+			mode = playback
+			if playback == "webrtc_tcp" {
+				mode = "webrtc/tcp"
+			}
 		}
 		nonceBytes := make([]byte, 18)
 		if _, err := rand.Read(nonceBytes); err != nil {
@@ -267,10 +289,11 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 		nonce := base64.RawURLEncoding.EncodeToString(nonceBytes)
 		streamJSON, _ := json.Marshal(streamID)
 		modeJSON, _ := json.Marshal(mode)
+		roleJSON, _ := json.Marshal(purpose)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' ws: wss:; frame-ancestors 'self';")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";const video=document.createElement("video-stream");video.pcConfig={bundlePolicy:"max-bundle",iceServers:[]};video.src="/api/go2rtc/proxy/api/ws?src="+encodeURIComponent(%s);video.mode=%s;document.body.appendChild(video);</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, modeJSON)
+		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";const video=document.createElement("video-stream");video.pcConfig={bundlePolicy:"max-bundle",iceServers:[]};video.src="/api/go2rtc/proxy/api/ws?src="+encodeURIComponent(%s)+"&role="+encodeURIComponent(%s);video.mode=%s;document.body.appendChild(video);</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, roleJSON, modeJSON)
 	}
 }
 
@@ -317,22 +340,51 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 		}
 		rawSrc := strings.TrimSpace(query.Get("src"))
 		if go2RTCProxyRequiresStream(subpath) && rawSrc == "" {
-			jsonError(w, "A configured stream id is required", http.StatusBadRequest)
+			jsonError(w, "A configured stream id is required", 400)
+			return
+		}
+		var lease *tools.Go2RTCMediaLease
+		var leaseErr error
+		purpose := query.Get("role")
+		if purpose == "" {
+			purpose = "main"
+		}
+		if strings.HasPrefix(subpath, "api/hls/") {
+			lease, leaseErr = manager.HLSLease(r.Context(), query.Get("id"))
+		} else if rawSrc != "" {
+			lease, leaseErr = manager.AcquireMedia(r.Context(), rawSrc, purpose, subpath != "api/frame.jpeg" && subpath != "api/streams")
+		}
+		if leaseErr != nil {
+			jsonError(w, leaseErr.Error(), http.StatusForbidden)
+			return
+		}
+		if lease != nil {
+			defer lease.Release()
+			r = r.WithContext(lease.Context)
+		}
+		if subpath == "api/frame.jpeg" {
+			serveGo2RTCProxySnapshot(s, w, r, rawSrc, purpose)
+			return
+		}
+		if subpath == "api/ws" {
+			bridgeGo2RTCWebSocket(s, w, r, lease)
 			return
 		}
 		if rawSrc != "" {
-			alias, err := manager.EnabledStreamAlias(rawSrc)
-			if err != nil {
-				jsonError(w, "Stream is not configured or enabled", http.StatusForbidden)
-				return
+			safe := url.Values{"src": {lease.Alias}}
+			for _, key := range []string{"video", "audio", "mp4"} {
+				for _, value := range query[key] {
+					if !go2RTCSafeCodecFilter(value) {
+						jsonError(w, "Invalid media filter", 400)
+						return
+					}
+					safe.Add(key, value)
+				}
 			}
-			query.Set("src", alias)
+			query = safe
 			r.URL.RawQuery = query.Encode()
 		}
-		if subpath == "api/ws" {
-			bridgeGo2RTCWebSocket(s, w, r, query.Get("src"))
-			return
-		}
+
 		target, err := manager.ProxyTarget()
 		if err != nil {
 			jsonError(w, "Invalid go2rtc upstream", http.StatusServiceUnavailable)
@@ -354,6 +406,18 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 		}
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			resp.Header.Del("Set-Cookie")
+			if subpath == "api/stream.m3u8" && resp.StatusCode == http.StatusOK && lease != nil {
+				data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+				resp.Body.Close()
+				if err != nil {
+					return err
+				}
+				if err := rememberGo2RTCHLS(s.Go2RTC, lease, data); err != nil {
+					return err
+				}
+				resp.Body = io.NopCloser(bytes.NewReader(data))
+			}
+
 			resp.Header.Set("X-Content-Type-Options", "nosniff")
 			if subpath == "api/streams" && r.Method != http.MethodHead {
 				if err := maskGo2RTCStreamsResponse(resp); err != nil {

@@ -1190,6 +1190,9 @@ func Load(path string) (*Config, error) {
 	// Person detection: defaults for unset values, then the same validation the
 	// config UI and the camera app apply before they write the file.
 	NormalizeGo2RTCDetection(&cfg.Go2RTC)
+	if err := ValidateGo2RTCMedia(cfg.Go2RTC); err != nil {
+		return nil, err
+	}
 	if err := ValidateGo2RTCDetection(cfg.Go2RTC); err != nil {
 		return nil, fmt.Errorf("invalid go2rtc detection config: %w", err)
 	}
@@ -3115,6 +3118,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
+		{[]string{"go2rtc", "hardware"}, c.Go2RTC.Hardware},
 		{[]string{"go2rtc", "detection"}, c.Go2RTC.Detection},
 		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},
 		{[]string{"decisions", "backend"}, c.Decisions.Backend},

@@ -78,12 +78,13 @@ type discoveredDevice struct {
 }
 
 type setupSession struct {
-	endpoint *url.URL
-	username string
-	password string
-	profiles map[string]Profile
-	expires  time.Time
-	reserved string
+	endpoint  *url.URL
+	username  string
+	password  string
+	profiles  map[string]Profile
+	expires   time.Time
+	reserved  string
+	snapshots bool
 }
 
 // SetupReservation holds a setup token while its source is being published.
@@ -93,6 +94,7 @@ type SetupReservation struct {
 	token   string
 	lease   string
 	source  string
+	roles   map[string]string
 	once    sync.Once
 }
 
@@ -102,6 +104,17 @@ func (r *SetupReservation) Source() string {
 		return ""
 	}
 	return r.source
+}
+
+// RoleSource returns a source from the same single-use profile reservation.
+func (r *SetupReservation) RoleSource(role string) string {
+	if r == nil {
+		return ""
+	}
+	if role == "main" {
+		return r.source
+	}
+	return r.roles[role]
 }
 
 // Commit permanently consumes the reserved setup token.
@@ -325,7 +338,7 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 	expires := now.Add(sessionTTL)
 	s.setups[token] = setupSession{
 		endpoint: cloneURL(endpoint), username: username, password: password,
-		profiles: profileMap, expires: expires,
+		profiles: profileMap, expires: expires, snapshots: snapshotAvailable != nil && *snapshotAvailable,
 	}
 	s.mu.Unlock()
 	time.AfterFunc(sessionTTL, func() {
@@ -344,6 +357,10 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 // Reserve validates and exclusively leases a setup token while its source is
 // being published. The caller must Commit or Release the reservation.
 func (s *Service) Reserve(token, profileID string) (*SetupReservation, error) {
+	return s.ReserveProfiles(token, profileID, "", false)
+}
+
+func (s *Service) ReserveProfiles(token, profileID, subID string, snapshot bool) (*SetupReservation, error) {
 	if s == nil {
 		return nil, fmt.Errorf("ONVIF setup is unavailable")
 	}
@@ -364,6 +381,14 @@ func (s *Service) Reserve(token, profileID string) (*SetupReservation, error) {
 	if _, ok := session.profiles[profileID]; !ok {
 		return nil, fmt.Errorf("selected ONVIF profile is unavailable")
 	}
+	if subID != "" {
+		if _, ok := session.profiles[subID]; !ok {
+			return nil, fmt.Errorf("selected substream profile is unavailable")
+		}
+	}
+	if snapshot && !session.snapshots {
+		return nil, fmt.Errorf("camera snapshot support is unavailable")
+	}
 	if session.reserved != "" {
 		return nil, fmt.Errorf("setup token is already in use")
 	}
@@ -378,7 +403,23 @@ func (s *Service) Reserve(token, profileID string) (*SetupReservation, error) {
 	source.RawQuery = query.Encode()
 	value := source.String()
 	security.RegisterSensitive(value)
-	return &SetupReservation{service: s, token: token, lease: lease, source: value}, nil
+	roles := map[string]string{}
+	if subID != "" {
+		q := source.Query()
+		q.Set("subtype", subID)
+		source.RawQuery = q.Encode()
+		roles["sub"] = source.String()
+		security.RegisterSensitive(roles["sub"])
+	}
+	if snapshot {
+		q := source.Query()
+		q.Set("subtype", profileID)
+		q.Set("snapshot", "")
+		source.RawQuery = q.Encode()
+		roles["snapshot"] = source.String()
+		security.RegisterSensitive(roles["snapshot"])
+	}
+	return &SetupReservation{service: s, token: token, lease: lease, source: value, roles: roles}, nil
 }
 
 func (s *Service) finishReservation(token, lease string, commit bool) {

@@ -332,6 +332,7 @@ func (m *Go2RTCManager) StopContainer() error {
 }
 
 func (m *Go2RTCManager) stopContainerLocked() error {
+	m.cancelMedia()
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -529,6 +530,7 @@ func (m *Go2RTCManager) ApplyConfigured(ctx context.Context, forceStart bool) er
 }
 
 func (m *Go2RTCManager) removeContainer() error {
+	m.cancelMedia()
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -607,6 +609,7 @@ func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPa
 		"Image": cfg.Image,
 		"User":  "65532:65532",
 		"Env":   []string{"AURAGO_GO2RTC_API_PASSWORD=" + password},
+		"Cmd":   []string{"/bin/sh", "-c", "umask 077; cp /config/go2rtc.yaml /tmp/aurago-go2rtc.yaml && exec go2rtc -config /tmp/aurago-go2rtc.yaml"},
 		"Labels": map[string]string{
 			"aurago.managed":       "go2rtc",
 			go2RTCFingerprintLabel: fingerprint,
@@ -794,7 +797,8 @@ func renderGo2RTCConfig(cfg config.Go2RTCConfig) []byte {
 		webrtcListen = `":8555"`
 		candidates = fmt.Sprintf("[\"%s:%d\"]", cfg.WebRTC.BindAddress, cfg.WebRTC.Port)
 	}
-	return []byte(fmt.Sprintf(`api:
+	return []byte(fmt.Sprintf(`# AuraGo camera media runtime v2
+api:
   listen: ":1984"
   base_path: "/api/go2rtc/proxy"
   username: "aurago"
@@ -804,7 +808,8 @@ func renderGo2RTCConfig(cfg config.Go2RTCConfig) []byte {
     - "/api/go2rtc/proxy/"
     - "/api/go2rtc/proxy/api"
     - "/api/go2rtc/proxy/api/streams"
-    - "/api/go2rtc/proxy/api/webrtc"
+    - "/api/go2rtc/proxy/api/preload"
+    - "/api/go2rtc/proxy/api/ffmpeg/hardware"
     - "/api/go2rtc/proxy/api/frame.jpeg"
     - "/api/go2rtc/proxy/api/ws"
     - "/api/go2rtc/proxy/api/stream.m3u8"
