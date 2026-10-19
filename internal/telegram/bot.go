@@ -492,7 +492,6 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		BudgetTracker:      budgetTracker,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:      tools.IsBusy(),
 		MessageSource:      "telegram",
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}

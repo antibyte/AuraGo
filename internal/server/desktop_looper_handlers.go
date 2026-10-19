@@ -543,7 +543,6 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 		SQLConnectionPool:  s.SQLConnectionPool,
 		RemoteHub:          s.RemoteHub,
 		HistoryMgr:         s.HistoryManager,
-		IsMaintenance:      tools.IsBusy(),
 		Guardian:           s.Guardian,
 		LLMGuardian:        s.LLMGuardian,
 		SessionID:          "looper",

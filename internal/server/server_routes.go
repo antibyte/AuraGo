@@ -768,7 +768,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					PreparationService: s.PreparationService,
 					WorkspaceSearch:    s.WorkspaceSearch,
 					SessionID:          "default",
-					IsMaintenance:      tools.IsBusy(),
 					MessageSource:      "sms",
 				}
 				runCfg.SessionID = sessionID

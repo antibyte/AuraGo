@@ -252,7 +252,6 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		WebhookManager:     webhookManager,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:      tools.IsBusy(),
 		MessageSource:      "rocketchat",
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}

@@ -773,7 +773,6 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 		BudgetTracker:      budgetTracker,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:      tools.IsBusy(),
 		MessageSource:      "discord",
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
