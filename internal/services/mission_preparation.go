@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
-	"aurago/internal/httporigin"
+	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -235,17 +237,11 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		timeout = 120 * time.Second
 	}
 
-	clientCfg := openai.DefaultConfig(apiKey)
-	if prepCfg.BaseURL != "" {
-		url := strings.TrimRight(prepCfg.BaseURL, "/")
-		if !strings.Contains(url, "/v1") {
-			url += "/v1"
-		}
-		clientCfg.BaseURL = url
+	baseURL := strings.TrimRight(prepCfg.BaseURL, "/")
+	if baseURL != "" && !strings.Contains(baseURL, "/v1") {
+		baseURL += "/v1"
 	}
-	// The key and mission prompt never follow a redirect off the provider origin.
-	clientCfg.HTTPClient = httporigin.NewClient(timeout)
-	client := openai.NewClientWithConfig(clientCfg)
+	client := llm.NewClientFromProviderWithConfig(nil, prepCfg.ProviderType, baseURL, apiKey, "")
 
 	llmCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -259,7 +255,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		Temperature: 0.3,
 	}
 
-	resp, err := client.CreateChatCompletion(llmCtx, req)
+	resp, err := budget.CompleteChat(llmCtx, llm.WrapOpenAIClient(client), req, llm.ModelRoute{ProviderID: prepCfg.Provider, ProviderType: prepCfg.ProviderType, BaseURL: baseURL, Model: prepCfg.Model}, "mission_preparation", 4096, prompts.CountTokensForModelContext)
 	elapsed := time.Since(start)
 
 	if err != nil {

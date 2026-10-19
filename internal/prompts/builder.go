@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -980,7 +981,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	// model reads task-specific constraints before detailed tool examples.
 	if taskRules := compactTaskRulesForPrompt(flags.TaskRules); taskRules != "" {
 		finalPrompt.WriteString("# TASK RULES\n")
-		finalPrompt.WriteString(taskRules)
+		finalPrompt.WriteString(escapePromptBoundaryLines(taskRules))
 		finalPrompt.WriteString("\n\n")
 	}
 	if designSystem := compactHomepageDesignSystemForPrompt(flags.HomepageDesignSystem); designSystem != "" {
@@ -1377,7 +1378,6 @@ const (
 	maxPersonaSignalFieldChars       = 1000
 	maxUnifiedMemoryBlockChars       = 1500
 	maxUnifiedMemorySectionBodyChars = 520
-	maxTaskRulesPromptChars          = 900
 	maxHomepageDesignSystemChars     = 1500
 )
 
@@ -1560,7 +1560,7 @@ func compactTaskRulesForPrompt(taskRules string) string {
 	if taskRules == "" {
 		return ""
 	}
-	return truncateWithEllipsis(taskRules, maxTaskRulesPromptChars)
+	return taskRules
 }
 
 func compactHomepageDesignSystemForPrompt(designSystem string) string {
@@ -1697,7 +1697,7 @@ func TruncateWithEllipsis(text string, maxBytes int) string {
 // Returns the trimmed prompt and the list of section headers that were shed.
 // Shedding order:
 // 1. Tool Guides, 2. predicted/recent context, 3. user profile and advisory
-// sections, 4. planner/reminders/task rules/persona signals/state/profile, then
+// sections, 4. planner/reminders and optional persona notes, then
 // per-entry Retrieved Memories trim, full Retrieved Memories drop if needed,
 // and a typed error when the mandatory document cannot fit.
 func budgetShedDetailedContextWithTokens(ctx context.Context, prompt string, flags *ContextFlags, initialTokens int, logger *slog.Logger) (string, []string, int, error) {
@@ -1868,9 +1868,6 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 	if added == 0 {
 		return out
 	}
-	if len(out) > maxUnifiedMemoryBlockChars {
-		return truncateWithEllipsis(out, maxUnifiedMemoryBlockChars)
-	}
 	return out
 }
 
@@ -1906,7 +1903,9 @@ func availableContextIndex(flags *ContextFlags) string {
 }
 
 func appendBudgetedUnifiedMemorySection(current, title, body string, maxChars int) (string, bool) {
-	body = strings.TrimSpace(body)
+	// Recover structured snippet content before byte compaction; the new outer
+	// isolation boundary is emitted only after the complete compact body exists.
+	body = security.StripThinkingTags(html.UnescapeString(security.StripThinkingTags(body)))
 	if body == "" || maxChars <= len(current) {
 		return current, false
 	}

@@ -693,7 +693,7 @@ func TestBudgetShedFailsWhenRequiredCoreExceedsBudget(t *testing.T) {
 	}
 }
 
-func TestBudgetShedRemovesVolatileTurnSectionsBeforeHardTruncate(t *testing.T) {
+func TestBudgetShedPreservesRequiredTaskRules(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return charRatioEncoder{}, nil
 	}, time.Second, time.Second)
@@ -722,12 +722,16 @@ Keep the user's explicit instruction.
 		VoiceOutputActive:  true,
 	}
 
-	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), slog.Default())
+	result, shedSections, _, err := budgetShedDetailedContextWithTokens(context.Background(), prompt, &flags, -1, slog.Default())
+	var exceeded *PromptBudgetExceededError
+	if !errors.As(err, &exceeded) {
+		t.Fatalf("required rules must explicitly exceed this budget: %v", err)
+	}
 	if strings.Contains(result, "# LEARNED RULES") {
 		t.Fatalf("expected # LEARNED RULES to be shed:\n%s", result)
 	}
-	if strings.Contains(result, "# TASK RULES") {
-		t.Fatalf("expected # TASK RULES to be shed:\n%s", result)
+	if !strings.Contains(result, "# TASK RULES\n"+largeContext) {
+		t.Fatalf("required task rules were shed:\n%s", result)
 	}
 	if !strings.Contains(result, "# ADDITIONAL INSTRUCTIONS") {
 		t.Fatalf("expected additional instructions to survive shedding:\n%s", result)
@@ -1041,7 +1045,7 @@ func TestBuildSystemPromptIncludesExactlyOneCurrentToolRoute(t *testing.T) {
 	}
 }
 
-func TestMaintenancePromptIncludesWorkdirCleanupProtocol(t *testing.T) {
+func TestMaintenancePromptKeepsModelReviewReadOnlyAndUsesCanonicalOperations(t *testing.T) {
 	raw, err := promptsembed.FS.ReadFile("maintenance.md")
 	if err != nil {
 		t.Fatalf("read embedded maintenance prompt: %v", err)
@@ -1049,17 +1053,26 @@ func TestMaintenancePromptIncludesWorkdirCleanupProtocol(t *testing.T) {
 
 	prompt := string(raw)
 	required := []string{
-		"**Workdir Cleanup.**",
+		"**Workdir Review.**",
 		"agent_workspace/workdir",
 		"Never delete",
-		"archive/maintenance",
-		"Report deleted, moved, renamed",
+		"operator review",
+		"never claim a proposed cleanup was executed",
+		"read-only review",
+		"cron_scheduler",
+		`operation: "list"`,
 	}
 	for _, marker := range required {
 		if !strings.Contains(prompt, marker) {
 			t.Fatalf("maintenance prompt missing workdir cleanup marker %q", marker)
 		}
 	}
+	for _, obsolete := range []string{"manage_schedule", "view_profile", "delete_profile_entry", "Remove redundant or obsolete"} {
+		if strings.Contains(prompt, obsolete) {
+			t.Fatalf("maintenance advertises obsolete or destructive instruction %q", obsolete)
+		}
+	}
+
 }
 
 func TestBuildSystemPromptStablePrefixIgnoresVolatileSuffix(t *testing.T) {
@@ -2970,30 +2983,12 @@ func TestTokenMultiplierUsesConservativeModelMargins(t *testing.T) {
 	}
 }
 
-func TestTaskRulesTruncatedOnce(t *testing.T) {
-	longRules := "## Rule\n" + strings.Repeat("a", 2000)
-	flags := &ContextFlags{
-		Tier:           "full",
-		TaskRules:      longRules,
-		SystemLanguage: "en",
-	}
-
+func TestTaskRulesRemainComplete(t *testing.T) {
+	longRules := "## Rule\n" + strings.Repeat("a", 2000) + "\nNever delete the production database."
+	flags := &ContextFlags{Tier: "full", TaskRules: longRules, SystemLanguage: "en"}
 	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), flags, "", slog.Default())
-
-	if !strings.Contains(prompt, "# TASK RULES") {
-		t.Fatal("expected # TASK RULES section")
-	}
-	// The section must be truncated to roughly the budget (900 chars) plus ellipsis marker.
-	idx := strings.Index(prompt, "# TASK RULES")
-	sectionEnd := strings.Index(prompt[idx+1:], "\n\n#")
-	if sectionEnd < 0 {
-		sectionEnd = len(prompt) - idx
-	} else {
-		sectionEnd += idx + 1
-	}
-	section := prompt[idx:sectionEnd]
-	if len(section) > 1100 {
-		t.Fatalf("TASK RULES section should be truncated, got %d chars", len(section))
+	if !strings.Contains(prompt, escapePromptBoundaryLines(longRules)) {
+		t.Fatal("required task rules were truncated")
 	}
 }
 

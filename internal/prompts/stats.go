@@ -392,7 +392,10 @@ func GetToolUsageStats() ToolUsageAggregated {
 		rankings = append(rankings, ToolRanking{Tool: tool, Count: stats.TotalCalls})
 	}
 	sort.Slice(rankings, func(i, j int) bool {
-		return rankings[i].Count > rankings[j].Count
+		if rankings[i].Count != rankings[j].Count {
+			return rankings[i].Count > rankings[j].Count
+		}
+		return rankings[i].Tool < rankings[j].Tool
 	})
 	if len(rankings) > 10 {
 		rankings = rankings[:10]
@@ -430,7 +433,10 @@ func GetFrequentTools(topN int) []string {
 		ranked = append(ranked, kv{t, c})
 	}
 	sort.Slice(ranked, func(i, j int) bool {
-		return ranked[i].Count > ranked[j].Count
+		if ranked[i].Count != ranked[j].Count {
+			return ranked[i].Count > ranked[j].Count
+		}
+		return ranked[i].Tool < ranked[j].Tool
 	})
 
 	result := make([]string, 0, topN)
@@ -500,7 +506,11 @@ func RecordAdaptiveToolUsage(toolName string, success bool) {
 // successFactor is 1.0 when weightSuccess is false; otherwise (0.3 + 0.7 * successRate)
 // so that tools with failures are deprioritised without disappearing completely.
 func decayScore(count, successCount int, lastUsed time.Time, halfLifeDays float64, weightSuccess bool) float64 {
-	days := time.Since(lastUsed).Hours() / 24.0
+	return decayScoreAt(count, successCount, lastUsed, halfLifeDays, weightSuccess, time.Now())
+}
+
+func decayScoreAt(count, successCount int, lastUsed time.Time, halfLifeDays float64, weightSuccess bool, now time.Time) float64 {
+	days := now.Sub(lastUsed).Hours() / 24.0
 	if days < 0 || days < 1.0/(24*60*60) {
 		days = 0
 	}
@@ -528,14 +538,18 @@ func GetFrequentToolsWeighted(topN int, halfLifeDays float64, weightSuccess bool
 		score float64
 	}
 	ranked := make([]scored, 0, len(adaptiveToolState.entries))
+	now := time.Now()
 	for _, e := range adaptiveToolState.entries {
-		s := decayScore(e.TotalCount, e.SuccessCount, e.LastUsed, halfLifeDays, weightSuccess)
+		s := decayScoreAt(e.TotalCount, e.SuccessCount, e.LastUsed, halfLifeDays, weightSuccess, now)
 		if s >= 0.5 { // minimum threshold to be considered
 			ranked = append(ranked, scored{e.ToolName, s})
 		}
 	}
 	sort.Slice(ranked, func(i, j int) bool {
-		return ranked[i].score > ranked[j].score
+		if ranked[i].score != ranked[j].score {
+			return ranked[i].score > ranked[j].score
+		}
+		return ranked[i].tool < ranked[j].tool
 	})
 
 	if topN <= 0 {
@@ -559,16 +573,20 @@ func GetAdaptiveToolScores(halfLifeDays float64, weightSuccess bool) []ToolDecay
 		halfLifeDays = 7.0
 	}
 
+	now := time.Now()
 	scores := make([]ToolDecayScore, 0, len(adaptiveToolState.entries))
 	for _, e := range adaptiveToolState.entries {
 		scores = append(scores, ToolDecayScore{
 			Tool:  e.ToolName,
-			Score: decayScore(e.TotalCount, e.SuccessCount, e.LastUsed, halfLifeDays, weightSuccess),
+			Score: decayScoreAt(e.TotalCount, e.SuccessCount, e.LastUsed, halfLifeDays, weightSuccess, now),
 			Count: e.TotalCount,
 		})
 	}
 	sort.Slice(scores, func(i, j int) bool {
-		return scores[i].Score > scores[j].Score
+		if scores[i].Score != scores[j].Score {
+			return scores[i].Score > scores[j].Score
+		}
+		return scores[i].Tool < scores[j].Tool
 	})
 	return scores
 }

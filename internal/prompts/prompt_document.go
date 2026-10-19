@@ -226,7 +226,7 @@ func markdownHeadingLevel(line string) int {
 
 func promptSectionDirectPolicy(id string) (int, bool, bool) {
 	id = canonicalPromptSectionID(id)
-	if id == promptSectionPersona || id == promptSectionPersonaState {
+	if id == promptSectionPersona || id == promptSectionPersonaState || id == promptSectionTaskRules {
 		return 1000, true, true
 	}
 	for priority, header := range promptOptionalHeaders(false) {
@@ -385,7 +385,6 @@ func promptOptionalHeaders(unifiedMemory bool) []string {
 		promptSectionOperationalNotice,
 		promptSectionActiveTasks,
 		promptSectionOutgoingWebhooks,
-		promptSectionTaskRules,
 		promptSectionHomepageDesign,
 		promptSectionAgentSkills,
 		promptSectionAvailableContextIndex,
@@ -441,7 +440,19 @@ func trimRetrievedMemoriesLedgerContext(ctx context.Context, prompt string, budg
 		sectionContent, afterSection = rest[:nextHeader], rest[nextHeader:]
 	}
 	beforeSection := prompt[:index]
-	rawEntries := strings.Split(strings.TrimSpace(sectionContent), separator)
+	// The builder isolates the complete memory ledger. Drop entries inside that
+	// boundary and then close it again; never trim the already wrapped string.
+	sectionPrefix, sectionSuffix := "", ""
+	body := strings.TrimSpace(sectionContent)
+	if open := strings.Index(body, "<external_data>"); open >= 0 {
+		close := strings.LastIndex(body, "</external_data>")
+		if close > open && strings.TrimSpace(body[close+len("</external_data>"):]) == "" {
+			sectionPrefix = body[:open] + "<external_data>\n"
+			sectionSuffix = "\n</external_data>"
+			body = strings.TrimSpace(body[open+len("<external_data>") : close])
+		}
+	}
+	rawEntries := strings.Split(body, separator)
 	entries := make([]string, 0, len(rawEntries))
 	for _, entry := range rawEntries {
 		if trimmed := strings.TrimSpace(entry); trimmed != "" {
@@ -471,7 +482,7 @@ func trimRetrievedMemoriesLedgerContext(ctx context.Context, prompt string, budg
 		updated := strings.TrimRight(beforeSection, "\n ") + "\n\n" + afterSection
 		return updated, false, true, estimatedTokens, nil
 	}
-	updated := beforeSection + header + "\n" + strings.Join(entries, separator) + "\n\n" + afterSection
+	updated := beforeSection + header + "\n" + sectionPrefix + strings.Join(entries, separator) + sectionSuffix + "\n\n" + afterSection
 	return updated, true, false, estimatedTokens, nil
 }
 
