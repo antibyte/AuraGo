@@ -419,7 +419,7 @@ Bestehende Abläufe auf die neuen Bedienelemente umstellen (`data-round`, `data-
 
 ### 13.3 Abnahmekriterien
 
-- Layout bei 1280 × 760 und 420 px ohne Überlauf (Browser-Test).
+- Layout bei 1280 × 760 und 420 × 760 ohne Überlauf (Browser-Test).
 - Tastatur- und Touch-Bedienung aller Menüs, des HUD und der Einführung.
 - Reduzierte Bewegung wird respektiert.
 - Alle neuen Texte in 16 Sprachen (`TestDesktopMinigolfLocales`).
