@@ -62,9 +62,11 @@ acceptance; a created container alone is not proof of acceleration.
 
 The agent's `pull` operation accepts a background download immediately; use
 `running` to inspect its receipt. Only `ready` confirms successful completion of
-the full response. `unknown` means the response was lost or interrupted: inspect
-the installed models before explicitly trying again. Such writes are never
-automatically replayed. Automatic and agent pulls share concurrent work for the
+the full response. A refused connection or failed DNS lookup is `failed`; a later
+pull can retry after connectivity is restored. `unknown` means the write outcome
+was lost or interrupted: inspect the installed models and resolve it with an
+administrator. Repeating `pull` does not replay an unknown write. Automatic and
+agent pulls share concurrent work for the
 same endpoint and model. Four ordinary operation slots and 128 process-local
 receipts are available, with two additional reserved slots and receipts for
 stopping the managed instances. Stops remain available while downloads drain or

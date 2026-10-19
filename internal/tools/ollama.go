@@ -3,8 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -198,6 +200,10 @@ func ollamaPullVerified(cfg OllamaConfig, modelName string) error {
 
 	resp, err := ollamaPullHTTPClient.Do(req)
 	if err != nil {
+		var dialErr *net.OpError
+		if errors.As(err, &dialErr) && dialErr.Op == "dial" {
+			return fmt.Errorf("connect to Ollama before sending pull: %w", err)
+		}
 		return &ollamaUnknownOutcome{fmt.Errorf("Ollama pull outcome unknown; check model availability before retry: %w", err)}
 	}
 	defer resp.Body.Close()

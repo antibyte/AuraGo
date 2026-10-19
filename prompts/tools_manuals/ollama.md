@@ -24,8 +24,10 @@ aliases remain compatible but are not part of the native schema. A successful
 `pull` response means accepted, not installed: check `running.operations` for the
 returned ID. Only `state=ready` confirms completion. `failed`, `cancelled`, and
 `unknown` must not be reported as success. An absent receipt after restart is
-unknown. Check `list` before explicitly retrying an uncertain download. Downloads
-stop on server shutdown, target changes, or revoked permissions. Container
+unknown. A refused connection or failed DNS lookup is `failed` and can be retried
+after connectivity is restored. For `unknown`, inspect `list` and ask the
+administrator to resolve the uncertain outcome; repeating `pull` alone does not
+replay that write. Downloads stop on server shutdown, target changes, or revoked permissions. Container
 lifecycle belongs to administrator settings, not the generic Docker tool.
 
 | Parameter | Type | Required | Description |
