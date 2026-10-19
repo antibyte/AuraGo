@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"aurago/internal/memory"
@@ -169,6 +170,7 @@ func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData st
 // The history entry historyID is completed even when the mission is gone, because deleting a
 // flow deletes its mission before it cancels the flow's runs.
 func (m *MissionManagerV2) FlowRunFinishedAtDepth(missionID, historyID, result, output string, outputs map[string]any, depth int) {
+	result = classifyMissionOutcome(result, output)
 	// Outputs can reach 32 MiB: encode them before taking the lock.
 	var encodedOutputs json.RawMessage
 	if outputs != nil {
@@ -240,6 +242,8 @@ func completeFlowRunHistory(historyDB *sql.DB, recorder func(memory.AuditEvent) 
 	var err error
 	if result == MissionResultSuccess {
 		err = RecordMissionCompletion(historyDB, historyID, "success", output)
+	} else if result == MissionResultBlocked {
+		err = RecordMissionCompletion(historyDB, historyID, "blocked", output)
 	} else {
 		err = RecordMissionError(historyDB, historyID, output)
 	}
@@ -270,6 +274,9 @@ func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, re
 // (notifyFlowsForOwnerLocked); once started, a flow run has the independent lifecycle of the
 // flow service. Caller holds m.mu.
 func (m *MissionManagerV2) enqueueCompletionDependentsForOwnerLocked(sourceID, result, output string, outputs json.RawMessage, depth int, owner QueueItem) int {
+	if result == MissionResultBlocked {
+		return 0
+	}
 	ev := flowEvent{SourceMissionID: sourceID, Result: result}
 	next := depth + 1
 	if next > maxCompletionChainDepth {
@@ -446,4 +453,11 @@ func (m *MissionManagerV2) nextFlowRun(id string) (next time.Time, ok bool, isFl
 		consider(hooks.NextFlowRun(id))
 	}
 	return next, !next.IsZero(), true
+}
+
+func classifyMissionOutcome(result, output string) string {
+	if result == "action_rule_required" || result == MissionResultBlocked || strings.TrimSpace(output) == "action_rule_required" {
+		return MissionResultBlocked
+	}
+	return result
 }

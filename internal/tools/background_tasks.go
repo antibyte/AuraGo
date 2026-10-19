@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,7 +19,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/security"
+	"aurago/internal/uid"
 )
 
 const (
@@ -28,6 +31,7 @@ const (
 )
 
 const (
+	BackgroundTaskStatusBlocked   = "blocked"
 	BackgroundTaskStatusQueued    = "queued"
 	BackgroundTaskStatusWaiting   = "waiting"
 	BackgroundTaskStatusRunning   = "running"
@@ -79,6 +83,7 @@ type WaitForEventTaskPayload struct {
 }
 
 type BackgroundTaskScheduleOptions struct {
+	ExecutionKind      string
 	Source             string
 	Description        string
 	Delay              time.Duration
@@ -89,6 +94,7 @@ type BackgroundTaskScheduleOptions struct {
 }
 
 type BackgroundTaskSummary struct {
+	Blocked   int `json:"blocked"`
 	Queued    int `json:"queued"`
 	Waiting   int `json:"waiting"`
 	Running   int `json:"running"`
@@ -98,23 +104,36 @@ type BackgroundTaskSummary struct {
 	Total     int `json:"total"`
 }
 
+type BackgroundTaskLimits struct {
+	MaxActiveTasks      int
+	MaxDueStartsPerTick int
+	RetainCompletedDays int
+	RetainFailedDays    int
+	MaxTerminalTasks    int
+}
+
 type BackgroundTaskManager struct {
-	mu            sync.Mutex
-	file          string
-	store         *systemTaskStore
-	tasks         map[string]*BackgroundTask
-	logger        *slog.Logger
-	httpClient    *http.Client
-	registry      atomic.Pointer[ProcessRegistry]
-	executor      func(executionID, taskType, prompt string, timeout time.Duration) error
-	notifier      func(title, body string)
-	internalToken string // crypto token for loopback auth (set by main, read by server)
-	ctx           context.Context
-	cancel        context.CancelFunc
-	trigger       chan struct{}
-	workerOnce    sync.Once
-	shutdownOnce  sync.Once
-	workerWg      sync.WaitGroup
+	isolatedAuthorizer func(context.Context, BackgroundCodeAction) error
+	isolatedExecutor   func(context.Context, string, string, time.Duration) (string, error)
+	taskCancels        map[string]context.CancelFunc
+	taskContexts       map[string]context.Context
+	limits             BackgroundTaskLimits
+	mu                 sync.Mutex
+	file               string
+	store              *systemTaskStore
+	tasks              map[string]*BackgroundTask
+	logger             *slog.Logger
+	httpClient         *http.Client
+	registry           atomic.Pointer[ProcessRegistry]
+	executor           func(context.Context, string, string, string, time.Duration) error
+	notifier           func(title, body string)
+	internalToken      string // crypto token for loopback auth (set by main, read by server)
+	ctx                context.Context
+	cancel             context.CancelFunc
+	trigger            chan struct{}
+	workerOnce         sync.Once
+	shutdownOnce       sync.Once
+	workerWg           sync.WaitGroup
 }
 
 var (
@@ -157,6 +176,18 @@ func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTa
 }
 
 func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(executionID, taskType, prompt string, timeout time.Duration) error) {
+	if fn == nil {
+		m.SetLoopbackExecutorContext(nil)
+		return
+	}
+	m.SetLoopbackExecutorContext(func(_ context.Context, executionID, taskType, prompt string, timeout time.Duration) error {
+		return fn(executionID, taskType, prompt, timeout)
+	})
+}
+
+// SetLoopbackExecutorContext passes the task owner, which survives HTTP 202
+// polling but ends on task cancellation, terminal state or manager shutdown.
+func (m *BackgroundTaskManager) SetLoopbackExecutorContext(fn func(context.Context, string, string, string, time.Duration) error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.executor = fn
@@ -188,6 +219,11 @@ func (m *BackgroundTaskManager) SetNotifier(fn func(title, body string)) {
 
 func (m *BackgroundTaskManager) Start() {
 	m.workerOnce.Do(func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if m.ctx.Err() != nil {
+			return
+		}
 		m.workerWg.Add(1)
 		go m.run()
 	})
@@ -195,6 +231,8 @@ func (m *BackgroundTaskManager) Start() {
 
 func (m *BackgroundTaskManager) Stop() {
 	m.shutdownOnce.Do(func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
 		m.cancel()
 	})
 }
@@ -251,15 +289,26 @@ func (m *BackgroundTaskManager) ScheduleWaitForEvent(payload WaitForEventTaskPay
 	return m.enqueue(task)
 }
 
+const backgroundCancelPersistenceFailed = "cancel_persistence_failed"
+
+// CancelTask retains the legacy boolean contract without reporting durable
+// success when the cancellation could not be saved.
 func (m *BackgroundTaskManager) CancelTask(id string) bool {
+	canceled, err := m.CancelTaskWithError(id)
+	return canceled && err == nil
+}
+
+// CancelTaskWithError always revokes a live owner immediately. A persistence
+// failure leaves a visible marker and may be retried without restarting work.
+func (m *BackgroundTaskManager) CancelTaskWithError(id string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	task, ok := m.tasks[id]
 	if !ok {
-		return false
+		return false, nil
 	}
-	if task.Status == BackgroundTaskStatusCompleted || task.Status == BackgroundTaskStatusFailed || task.Status == BackgroundTaskStatusCanceled {
-		return false
+	if task.Status == BackgroundTaskStatusCompleted || task.Status == BackgroundTaskStatusFailed || task.Status == BackgroundTaskStatusCanceled && task.LastError != backgroundCancelPersistenceFailed {
+		return false, nil
 	}
 	now := time.Now().UTC()
 	task.Status = BackgroundTaskStatusCanceled
@@ -267,8 +316,12 @@ func (m *BackgroundTaskManager) CancelTask(id string) bool {
 	task.CompletedAt = &now
 	task.LastError = ""
 	task.Result = "task canceled"
-	_ = m.saveLocked()
-	return true
+	m.releaseTaskContextLocked(id)
+	if err := m.saveLocked(); err != nil {
+		task.LastError = backgroundCancelPersistenceFailed
+		return true, fmt.Errorf("persist background task cancellation: %w", err)
+	}
+	return true, nil
 }
 
 func (m *BackgroundTaskManager) RetryTask(id string) bool {
@@ -278,9 +331,19 @@ func (m *BackgroundTaskManager) RetryTask(id string) bool {
 	if !ok {
 		return false
 	}
-	if task.Status != BackgroundTaskStatusFailed {
+	if task.Status != BackgroundTaskStatusFailed && task.Status != BackgroundTaskStatusBlocked {
 		return false
 	}
+	active := 0
+	for _, existing := range m.tasks {
+		if !backgroundTaskTerminal(existing.Status) {
+			active++
+		}
+	}
+	if active >= maxInt(m.limits.MaxActiveTasks, 256) {
+		return false
+	}
+	previous := *task
 	now := time.Now().UTC()
 	task.Status = BackgroundTaskStatusQueued
 	task.UpdatedAt = now
@@ -291,7 +354,10 @@ func (m *BackgroundTaskManager) RetryTask(id string) bool {
 	task.NextAttemptAt = now
 	task.RetryCount = 0
 	task.ExecutionID = ""
-	_ = m.saveLocked()
+	if err := m.saveLocked(); err != nil {
+		*task = previous
+		return false
+	}
 	m.signal()
 	return true
 }
@@ -342,6 +408,8 @@ func (m *BackgroundTaskManager) Summary() BackgroundTaskSummary {
 			summary.Running++
 		case BackgroundTaskStatusCompleted:
 			summary.Completed++
+		case BackgroundTaskStatusBlocked:
+			summary.Blocked++
 		case BackgroundTaskStatusFailed:
 			summary.Failed++
 		case BackgroundTaskStatusCanceled:
@@ -380,21 +448,20 @@ func (m *BackgroundTaskManager) claimDueTasks(now time.Time) []*BackgroundTask {
 	defer m.mu.Unlock()
 	var ids []string
 	for id, task := range m.tasks {
-		if task.Status == BackgroundTaskStatusQueued || task.Status == BackgroundTaskStatusWaiting {
-			if !task.NextAttemptAt.After(now) {
-				ids = append(ids, id)
-			}
+		if (task.Status == BackgroundTaskStatusQueued || task.Status == BackgroundTaskStatusWaiting) && !task.NextAttemptAt.After(now) {
+			ids = append(ids, id)
 		}
 	}
-	sort.Slice(ids, func(i, j int) bool {
-		return m.tasks[ids[i]].NextAttemptAt.Before(m.tasks[ids[j]].NextAttemptAt)
-	})
+	sort.Slice(ids, func(i, j int) bool { return m.tasks[ids[i]].NextAttemptAt.Before(m.tasks[ids[j]].NextAttemptAt) })
+	limit := maxInt(m.limits.MaxDueStartsPerTick, 64)
+	if len(ids) > limit {
+		ids = ids[:limit]
+	}
 	out := make([]*BackgroundTask, 0, len(ids))
+	previous := make(map[string]BackgroundTask, len(ids))
 	for _, id := range ids {
 		task := m.tasks[id]
-		if task.Status == BackgroundTaskStatusCanceled || task.Status == BackgroundTaskStatusCompleted || task.Status == BackgroundTaskStatusFailed {
-			continue
-		}
+		previous[id] = *task
 		started := now
 		task.Status = BackgroundTaskStatusRunning
 		task.UpdatedAt = now
@@ -402,12 +469,26 @@ func (m *BackgroundTaskManager) claimDueTasks(now time.Time) []*BackgroundTask {
 		cp := *task
 		out = append(out, &cp)
 	}
-	_ = m.saveLocked()
+	if len(out) == 0 {
+		return nil
+	}
+	// Persist the complete bounded claim batch before any execution can begin.
+	if err := m.saveLocked(); err != nil {
+		for id, task := range previous {
+			*m.tasks[id] = task
+		}
+		if m.logger != nil {
+			m.logger.Error("Failed to persist background task claims", "error", err)
+		}
+		return nil
+	}
 	return out
 }
 
 func (m *BackgroundTaskManager) executeTask(task *BackgroundTask) {
 	switch task.Type {
+	case BackgroundTaskTypeIsolatedCode:
+		m.executeIsolatedCode(task)
 	case BackgroundTaskTypeFollowUp, BackgroundTaskTypeCronPrompt:
 		m.executePromptTask(task)
 	case BackgroundTaskTypeWaitForEvent:
@@ -448,12 +529,32 @@ func (m *BackgroundTaskManager) executePromptTask(task *BackgroundTask) {
 		m.failTask(task.ID, "could not persist background execution identity", false)
 		return
 	}
-	if err := executor(executionID, task.Type, payload.Prompt, timeout); err != nil {
+	owner, ok := m.promptTaskContext(task.ID)
+	if !ok {
+		return
+	}
+	if err := executor(owner, executionID, task.Type, payload.Prompt, timeout); err != nil {
+		if owner.Err() != nil {
+			m.finishTask(task.ID, BackgroundTaskStatusCanceled, "", "background execution canceled")
+			return
+		}
+		if errors.Is(err, ErrBackgroundTaskOutcomeUnknown) {
+			m.failTask(task.ID, "background execution outcome unknown; verify effects before explicit retry", false)
+			return
+		}
+		if errors.Is(err, ErrBackgroundTaskBlocked) {
+			m.finishTask(task.ID, BackgroundTaskStatusBlocked, "", "action_rule_required")
+			return
+		}
 		if errors.Is(err, ErrBackgroundTaskPending) {
 			m.rescheduleWaiting(task.ID, 10*time.Second, "agent execution is still running")
 			return
 		}
 		m.retryOrFail(task.ID, fmt.Sprintf("loopback execution failed: %v", err))
+		return
+	}
+	if owner.Err() != nil {
+		m.finishTask(task.ID, BackgroundTaskStatusCanceled, "", "background execution canceled")
 		return
 	}
 
@@ -627,12 +728,16 @@ func (m *BackgroundTaskManager) finishTask(id, status, result, errMsg string) {
 	if !ok {
 		return
 	}
+	if task.Status == BackgroundTaskStatusCanceled {
+		return
+	}
 	now := time.Now().UTC()
 	task.Status = status
 	task.UpdatedAt = now
 	task.CompletedAt = &now
 	task.LastError = errMsg
 	task.Result = result
+	m.releaseTaskContextLocked(id)
 	_ = m.saveLocked()
 	maybeNotify := task.NotifyOnCompletion
 	notify := m.notifier
@@ -642,6 +747,9 @@ func (m *BackgroundTaskManager) finishTask(id, status, result, errMsg string) {
 		if status == BackgroundTaskStatusFailed {
 			title = "Background task failed"
 			body = fmt.Sprintf("%s failed: %s", task.DescriptionOrType(), errMsg)
+		} else if status == BackgroundTaskStatusBlocked {
+			title = "Background task blocked"
+			body = fmt.Sprintf("%s was blocked before execution: %s", task.DescriptionOrType(), errMsg)
 		}
 		go notify(title, body)
 	}
@@ -651,7 +759,7 @@ func (m *BackgroundTaskManager) retryOrFail(id, errMsg string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	task, ok := m.tasks[id]
-	if !ok {
+	if !ok || task.Status == BackgroundTaskStatusCanceled {
 		return
 	}
 	now := time.Now().UTC()
@@ -661,6 +769,7 @@ func (m *BackgroundTaskManager) retryOrFail(id, errMsg string) {
 	if task.RetryCount > task.MaxRetries {
 		task.Status = BackgroundTaskStatusFailed
 		task.CompletedAt = &now
+		m.releaseTaskContextLocked(id)
 		_ = m.saveLocked()
 		if task.NotifyOnCompletion && m.notifier != nil {
 			go m.notifier("Background task failed", fmt.Sprintf("%s failed: %s", task.DescriptionOrType(), errMsg))
@@ -678,7 +787,7 @@ func (m *BackgroundTaskManager) rescheduleWaiting(id string, delay time.Duration
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	task, ok := m.tasks[id]
-	if !ok {
+	if !ok || task.Status == BackgroundTaskStatusCanceled {
 		return
 	}
 	now := time.Now().UTC()
@@ -714,7 +823,7 @@ func (m *BackgroundTaskManager) newTask(taskType string, payload json.RawMessage
 		delay = 0
 	}
 	task := &BackgroundTask{
-		ID:                 fmt.Sprintf("bt_%d", now.UnixNano()),
+		ID:                 "bt_" + uid.New(),
 		Type:               taskType,
 		Status:             BackgroundTaskStatusQueued,
 		Source:             opts.Source,
@@ -734,6 +843,22 @@ func (m *BackgroundTaskManager) newTask(taskType string, payload json.RawMessage
 func (m *BackgroundTaskManager) enqueue(task *BackgroundTask) (*BackgroundTask, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.ctx.Err() != nil {
+		return nil, fmt.Errorf("background task manager stopped")
+	}
+	if existing, ok := m.tasks[task.ID]; ok {
+		cp := *existing
+		return &cp, nil
+	}
+	active := 0
+	for _, existing := range m.tasks {
+		if !backgroundTaskTerminal(existing.Status) {
+			active++
+		}
+	}
+	if active >= maxInt(m.limits.MaxActiveTasks, 256) {
+		return nil, fmt.Errorf("background task active limit reached")
+	}
 	m.tasks[task.ID] = task
 	if err := m.saveLocked(); err != nil {
 		delete(m.tasks, task.ID)
@@ -798,6 +923,7 @@ func (m *BackgroundTaskManager) load() error {
 }
 
 func (m *BackgroundTaskManager) saveLocked() error {
+	m.pruneTerminalLocked(time.Now().UTC())
 	if m.store != nil {
 		tasks := make([]*BackgroundTask, 0, len(m.tasks))
 		for _, task := range m.tasks {
@@ -822,12 +948,8 @@ func (m *BackgroundTaskManager) saveLocked() error {
 	if err != nil {
 		return fmt.Errorf("marshal background tasks: %w", err)
 	}
-	tmp := m.file + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return fmt.Errorf("write temp background tasks: %w", err)
-	}
-	if err := os.Rename(tmp, m.file); err != nil {
-		return fmt.Errorf("rename temp background tasks: %w", err)
+	if err := fileutil.WriteFileContext(context.Background(), m.file, data, 0o600); err != nil {
+		return fmt.Errorf("persist background tasks: %w", err)
 	}
 	return nil
 }
@@ -865,4 +987,58 @@ func maxDuration(v, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return v
+}
+
+// SetLimits applies bounded admission, per-tick starts, and terminal retention.
+// Zero fields select defaults and never evict already admitted active tasks.
+func (m *BackgroundTaskManager) SetLimits(limits BackgroundTaskLimits) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.limits = limits
+}
+
+// SchedulePlannerPrompt durably admits one task for an appointment revision.
+// Repeated admission returns the existing task, including after a restart.
+func (m *BackgroundTaskManager) SchedulePlannerPrompt(eventID, prompt string, opts BackgroundTaskScheduleOptions) (*BackgroundTask, error) {
+	if strings.TrimSpace(eventID) == "" || strings.TrimSpace(prompt) == "" {
+		return nil, fmt.Errorf("planner event ID and prompt are required")
+	}
+	payload, err := json.Marshal(FollowUpTaskPayload{Prompt: prompt})
+	if err != nil {
+		return nil, err
+	}
+	task := m.newTask(BackgroundTaskTypeFollowUp, payload, opts)
+	task.ID = fmt.Sprintf("planner_%x", sha256.Sum256([]byte(eventID)))
+	return m.enqueue(task)
+}
+
+func backgroundTaskTerminal(status string) bool {
+	return status == BackgroundTaskStatusCompleted || status == BackgroundTaskStatusFailed || status == BackgroundTaskStatusCanceled || status == BackgroundTaskStatusBlocked
+}
+
+func (m *BackgroundTaskManager) pruneTerminalLocked(now time.Time) {
+	var retained []*BackgroundTask
+	for id, task := range m.tasks {
+		if !backgroundTaskTerminal(task.Status) {
+			continue
+		}
+		days := maxInt(m.limits.RetainCompletedDays, 30)
+		if task.Status == BackgroundTaskStatusFailed || task.Status == BackgroundTaskStatusBlocked {
+			days = maxInt(m.limits.RetainFailedDays, 90)
+		}
+		terminalAt := task.UpdatedAt
+		if task.CompletedAt != nil {
+			terminalAt = *task.CompletedAt
+		}
+		if !terminalAt.IsZero() && terminalAt.Before(now.AddDate(0, 0, -days)) {
+			delete(m.tasks, id)
+			continue
+		}
+		retained = append(retained, task)
+	}
+	sort.Slice(retained, func(i, j int) bool { return retained[i].UpdatedAt.After(retained[j].UpdatedAt) })
+	limit := maxInt(m.limits.MaxTerminalTasks, 2000)
+	for i := limit; i < len(retained); i++ {
+		delete(m.tasks, retained[i].ID)
+	}
 }

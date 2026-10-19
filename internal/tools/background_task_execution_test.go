@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,5 +110,57 @@ func TestBackgroundRestartRequiresExplicitRetryForUncertainExecution(t *testing.
 	after, _ = restarted.GetTask(task.ID)
 	if after.Status != BackgroundTaskStatusCompleted {
 		t.Fatalf("explicit retry: %+v", after)
+	}
+}
+
+func TestBackgroundPromptOwnerSurvivesPendingUntilCancelOrCompletion(t *testing.T) {
+	for _, cancelTask := range []bool{true, false} {
+		m := NewBackgroundTaskManager(tempSystemTaskDir(t), testBackgroundTaskLogger())
+		var owners []context.Context
+		var executionID string
+		m.SetLoopbackExecutorContext(func(ctx context.Context, id, _, _ string, _ time.Duration) error {
+			owners = append(owners, ctx)
+			executionID = id
+			if len(owners) == 1 {
+				return ErrBackgroundTaskPending
+			}
+			return nil
+		})
+		task, err := m.ScheduleFollowUp("local pending owner", BackgroundTaskScheduleOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.processDueTasks()
+		if len(owners) != 1 || owners[0].Err() != nil {
+			t.Fatal("202 ended task owner")
+		}
+		if owner, ok := m.ExecutionContext(executionID); !ok || owner != owners[0] {
+			t.Fatal("execution lost its original owner")
+		}
+		if _, ok := m.ExecutionContext("forged-execution"); ok {
+			t.Fatal("unowned execution ID accepted")
+		}
+		if cancelTask {
+			if !m.CancelTask(task.ID) {
+				t.Fatal("cancel failed")
+			}
+		} else {
+			m.mu.Lock()
+			m.tasks[task.ID].NextAttemptAt = time.Now().Add(-time.Second)
+			m.mu.Unlock()
+			m.processDueTasks()
+			if len(owners) != 2 || owners[0] != owners[1] {
+				t.Fatal("poll replaced task owner")
+			}
+		}
+		if owners[0].Err() != context.Canceled {
+			t.Fatal("terminal task retained a live owner")
+		}
+		if _, ok := m.ExecutionContext(executionID); ok {
+			t.Fatal("terminal task remained admissible")
+		}
+		if err := m.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

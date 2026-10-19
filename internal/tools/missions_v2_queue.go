@@ -8,7 +8,8 @@ import (
 )
 
 type QueueItem struct {
-	RequiresOwner      bool `json:"requires_owner,omitempty"`
+	EventID            string `json:"event_id,omitempty"`
+	RequiresOwner      bool   `json:"requires_owner,omitempty"`
 	ownerContext       context.Context
 	releaseOwner       context.CancelFunc
 	retainOwner        func() context.CancelFunc
@@ -22,10 +23,12 @@ type QueueItem struct {
 }
 
 type missionQueueSnapshot struct {
-	Items                []QueueItem `json:"items"`
-	Running              string      `json:"running,omitempty"`
-	RunningRequiresOwner bool        `json:"running_requires_owner,omitempty"`
-	NonReplayableIDs     []string    `json:"non_replayable_ids,omitempty"`
+	PlannerEvents        map[string]*plannerMissionAdmission `json:"planner_events,omitempty"`
+	RunningEventID       string                              `json:"running_event_id,omitempty"`
+	Items                []QueueItem                         `json:"items"`
+	Running              string                              `json:"running,omitempty"`
+	RunningRequiresOwner bool                                `json:"running_requires_owner,omitempty"`
+	NonReplayableIDs     []string                            `json:"non_replayable_ids,omitempty"`
 }
 
 // MissionQueue manages the execution queue with priority sorting
@@ -76,7 +79,7 @@ func (q *MissionQueue) enqueueItem(item QueueItem) bool {
 	}
 
 	for _, existing := range q.items {
-		if existing.MissionID == item.MissionID {
+		if existing.MissionID == item.MissionID && (item.EventID == "" || existing.EventID == item.EventID) {
 			return false
 		}
 	}
@@ -182,10 +185,11 @@ func (q *MissionQueue) Restore(items []QueueItem, running string) {
 		if item.MissionID == "" {
 			continue
 		}
-		if _, ok := seen[item.MissionID]; ok {
+		key := item.MissionID + "\x00" + item.EventID
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[item.MissionID] = struct{}{}
+		seen[key] = struct{}{}
 		q.items = append(q.items, item)
 	}
 	q.running = running

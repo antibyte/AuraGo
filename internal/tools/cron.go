@@ -31,6 +31,7 @@ type CronJobRuntimeStatus struct {
 }
 
 type CronManager struct {
+	maxJobs            int
 	mu                 sync.Mutex
 	engine             *cron.Cron
 	file               string
@@ -423,6 +424,10 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			jobID = fmt.Sprintf("%d", time.Now().UnixNano())
 		}
 
+		if !m.canAddJobLocked(jobID) {
+			return "", fmt.Errorf("cron job limit reached")
+		}
+
 		// Idempotent add: remove any existing persisted/runtime job with the same ID.
 		if jobID != "" {
 			m.removeJobLocked(jobID)
@@ -539,6 +544,9 @@ func (m *CronManager) AddRuntimeJob(id, expr, prompt, source string) (string, er
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if !m.canAddJobLocked(id) {
+		return "", fmt.Errorf("cron job limit reached")
+	}
 	wasPersisted := false
 	for _, job := range m.jobs {
 		if job.ID == id && !m.runtimeJobs[id] {
@@ -647,4 +655,15 @@ func (m *CronManager) MakeRuntimeOnly(source string) (int, error) {
 		return 0, nil
 	}
 	return moved, m.saveLocked()
+}
+
+// SetMaxJobs limits new job IDs; loaded jobs and same-ID replacements survive.
+func (m *CronManager) SetMaxJobs(limit int) { m.mu.Lock(); defer m.mu.Unlock(); m.maxJobs = limit }
+func (m *CronManager) canAddJobLocked(id string) bool {
+	for _, job := range m.jobs {
+		if job.ID == id {
+			return true
+		}
+	}
+	return len(m.jobs) < maxInt(m.maxJobs, 1000)
 }

@@ -81,6 +81,7 @@ const (
 const (
 	MissionResultSuccess = "success"
 	MissionResultError   = "error"
+	MissionResultBlocked = "blocked"
 )
 
 // MissionCancelledOutput is the recorded output of a run that the user
@@ -186,6 +187,7 @@ type MissionV2 struct {
 
 // QueueItem represents a mission in the execution queue
 type MissionManagerV2 struct {
+	plannerEvents      map[string]*plannerMissionAdmission
 	mu                 sync.RWMutex
 	saveMu             sync.Mutex // serialises file writes in save()
 	file               string
@@ -568,18 +570,13 @@ func (m *MissionManagerV2) save() error {
 
 func (m *MissionManagerV2) saveQueueLocked() error {
 	snapshot := m.queue.persistedSnapshot()
+	snapshot.PlannerEvents = m.plannerEvents
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := m.queueFile + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		slog.Error("[MissionV2] Failed to persist mission queue", "error", err)
-		return fmt.Errorf("write queue temp file: %w", err)
-	}
-	if err := fileutil.Rename(tmp, m.queueFile); err != nil {
-		slog.Error("[MissionV2] Failed to persist mission queue", "error", err)
-		return fmt.Errorf("rename queue temp file: %w", err)
+	if err := fileutil.WriteFileContext(context.Background(), m.queueFile, data, 0o600); err != nil {
+		return fmt.Errorf("persist mission queue: %w", err)
 	}
 	return nil
 }
@@ -596,8 +593,29 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return false, fmt.Errorf("failed to parse %s: %w", m.queueFile, err)
 	}
-	items := make([]QueueItem, 0, len(snapshot.Items))
+	m.plannerEvents = snapshot.PlannerEvents
 	statusChanged := false
+	for eventID, event := range m.plannerEvents {
+		if eventID == "" || event == nil {
+			return false, fmt.Errorf("invalid persisted planner admission")
+		}
+		for i := range event.Flows {
+			switch event.Flows[i].State {
+			case "pending", "accepted", "unknown", "canceled":
+			case "dispatching":
+				event.Flows[i].State = "unknown"
+				if mission := m.missions[event.Flows[i].MissionID]; mission != nil {
+					mission.LastResult = MissionResultError
+					mission.LastOutput = "Planner flow dispatch interrupted; verify effects before an explicit retry"
+					statusChanged = true
+				}
+			default:
+				return false, fmt.Errorf("invalid persisted planner flow admission state")
+			}
+		}
+	}
+	items := make([]QueueItem, 0, len(snapshot.Items))
+
 	for _, id := range snapshot.NonReplayableIDs {
 		if mission, ok := m.missions[id]; ok && (mission.Status == MissionStatusQueued || mission.Status == MissionStatusRunning) {
 			mission.Status = MissionStatusIdle
@@ -630,13 +648,22 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 			statusChanged = true
 		}
 	}
-	if snapshot.Running != "" && !snapshot.RunningRequiresOwner {
+	if snapshot.RunningEventID != "" {
+		if mission, ok := m.missions[snapshot.Running]; ok {
+			mission.Status = MissionStatusIdle
+			mission.LastResult = MissionResultError
+			mission.LastOutput = "Planner mission interrupted; verify effects before an explicit retry"
+			statusChanged = true
+		}
+	}
+	if snapshot.Running != "" && !snapshot.RunningRequiresOwner && snapshot.RunningEventID == "" {
 		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) && !isFlowMission(mission) {
 			item := QueueItem{
 				MissionID:   snapshot.Running,
 				Priority:    prioFromString(mission.Priority),
 				EnqueuedAt:  time.Now(),
 				TriggerType: "restart_recovery",
+				EventID:     snapshot.RunningEventID,
 			}
 			items = append(items, item)
 			if mission.Status != MissionStatusQueued {
@@ -900,7 +927,10 @@ func (m *MissionManagerV2) processNext() {
 	if m.ctx.Err() != nil {
 		return
 	}
+	m.processPlannerFlowAdmissions()
+	m.mu.Lock()
 	item, ok := m.queue.TryStartNext()
+	m.mu.Unlock()
 	if !ok {
 		return
 	}
@@ -968,6 +998,14 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	m.save()
 	if err := m.saveQueueLocked(); err != nil {
 		slog.Error("[MissionV2] Failed to persist queue after starting mission", "mission_id", mission.ID, "error", err)
+		if item.EventID != "" {
+			mission.Status = MissionStatusQueued
+			m.queue.Done()
+			m.queue.enqueueItem(item)
+			m.mu.Unlock()
+			muLocked = false
+			return
+		}
 	}
 
 	callback := m.callback
@@ -1121,6 +1159,8 @@ func recordMissionAuditCompletion(recorder func(memory.AuditEvent) error, runID,
 	status := memory.AuditStatusError
 	if result == MissionResultSuccess || result == "success" {
 		status = memory.AuditStatusSuccess
+	} else if result == MissionResultBlocked {
+		status = memory.AuditStatusBlocked
 	}
 	summary := fmt.Sprintf("Mission %s completed with status %s", missionDisplayName(missionID, missionName), status)
 	if err := recorder(memory.AuditEvent{
@@ -1177,6 +1217,7 @@ func (m *MissionManagerV2) shouldFireTriggerLocked(mission *MissionV2, triggerTy
 
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
+	result = classifyMissionOutcome(result, output)
 	owner := m.queue.activeItem(missionID)
 	complete := func(result, output string, allowDependents bool) {
 		m.mu.Lock()
@@ -1203,6 +1244,9 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 }
 
 func (m *MissionManagerV2) completeMissionLocked(missionID, result, output string, owner QueueItem, allowDependents bool) {
+	if result == MissionResultBlocked {
+		allowDependents = false
+	}
 
 	// Cancel timeout guardian if active
 	cancel, guarded := m.missionGuards[missionID]
@@ -1241,6 +1285,8 @@ func (m *MissionManagerV2) completeMissionLocked(missionID, result, output strin
 				var histErr error
 				if result == MissionResultSuccess || result == "success" {
 					histErr = RecordMissionCompletion(hdb, runID, "success", output)
+				} else if result == MissionResultBlocked {
+					histErr = RecordMissionCompletion(hdb, runID, "blocked", output)
 				} else {
 					histErr = RecordMissionError(hdb, runID, output)
 				}

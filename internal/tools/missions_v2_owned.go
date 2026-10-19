@@ -123,7 +123,7 @@ func (q *MissionQueue) persistedSnapshot() missionQueueSnapshot {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	return missionQueueSnapshot{Items: append([]QueueItem{}, q.items...), Running: q.running, RunningRequiresOwner: q.runningItem.RequiresOwner, NonReplayableIDs: ids}
+	return missionQueueSnapshot{RunningEventID: q.runningItem.EventID, Items: append([]QueueItem{}, q.items...), Running: q.running, RunningRequiresOwner: q.runningItem.RequiresOwner, NonReplayableIDs: ids}
 }
 
 // Keep markers after completion until a deliberate independent invocation
