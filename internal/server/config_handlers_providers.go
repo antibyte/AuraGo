@@ -355,9 +355,13 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			s.CfgMu.RLock()
 			ollamaHost = s.Cfg.Ollama.URL
 			if integration == "embeddings" {
-				ollamaHost = strings.TrimSuffix(s.Cfg.Embeddings.BaseURL, "/v1")
+				ollamaHost = s.Cfg.Embeddings.BaseURL
 			}
 			s.CfgMu.RUnlock()
+			ollamaHost = strings.TrimRight(strings.TrimSpace(ollamaHost), "/")
+			if integration == "embeddings" {
+				ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")
+			}
 			parsed, err := neturl.Parse(ollamaHost)
 			if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 				jsonError(w, "Invalid saved Ollama endpoint", http.StatusBadRequest)

@@ -49,3 +49,35 @@ func TestOllamaConnectionTestUsesSavedEndpoint(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 }
+
+func TestOllamaConnectionTestNormalizesSavedBasePath(t *testing.T) {
+	for _, test := range []struct{ integration, prefix, suffix string }{
+		{"ollama", "", "/"},
+		{"ollama", "/ollama", "/"},
+		{"embeddings", "", "/v1/"},
+		{"embeddings", "/ollama", "/v1/"},
+	} {
+		t.Run(test.integration+test.prefix, func(t *testing.T) {
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case test.prefix + "/api/tags":
+					fmt.Fprint(w, `{"models":[]}`)
+				case test.prefix + "/api/version":
+					fmt.Fprint(w, `{"version":"fixture"}`)
+				default:
+					t.Errorf("unexpected backend path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			defer backend.Close()
+			var cfg config.Config
+			cfg.Ollama.URL = backend.URL + test.prefix + test.suffix
+			cfg.Embeddings.BaseURL = cfg.Ollama.URL
+			response := httptest.NewRecorder()
+			handleOllamaModels(&Server{Cfg: &cfg})(response, httptest.NewRequest(http.MethodGet, "/api/ollama/models?integration="+test.integration, nil))
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"version":"fixture"`) {
+				t.Fatalf("%d %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
