@@ -96,6 +96,8 @@ p.mg-loading{padding:24px}
     .mg-meter{width:76px;height:76px}
     .mg-meter-percent{font-size:20px}
     .mg-banner{top:10px}
+    /* At this width the banner covers the plaque, so the plaque steps aside while it shows. */
+    .mg-hud:has(.mg-banner:not([hidden])) .mg-plaque{visibility:hidden}
 }
 
 /* 5 Toasts and loading: toasts sit above the panels */

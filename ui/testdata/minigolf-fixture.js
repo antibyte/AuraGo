@@ -44,6 +44,8 @@ if (new URLSearchParams(location.search).has('no-webgl')) {
     };
 }
 
+// The real desktop sets the lang attribute; the game formats numbers from it.
+document.documentElement.lang = 'en';
 window.I18N = await (await originalFetch('/lang/desktop/en.json')).json();
 window.tr = key => window.I18N[key] || key;
 let game;
@@ -224,6 +226,40 @@ async function benchmarkCurrentScene() {
     };
 }
 
+let storageFails = false;
+const nativeSetItem = Storage.prototype.setItem;
+Storage.prototype.setItem = function (...args) {
+    if (storageFails) throw new DOMException('fixture quota', 'QuotaExceededError');
+    return nativeSetItem.apply(this, args);
+};
+
+// Horizontal overflow anywhere, vertical overflow outside panels, panels that scroll sideways, text below 13 px.
+function layoutIssues() {
+    const root = host.querySelector('.mg-app'), box = root.getBoundingClientRect(), issues = [];
+    const shown = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+    const name = element => element.tagName.toLowerCase() + (element.classList[0] ? '.' + element.classList[0] : '') + (element.dataset.action ? '[' + element.dataset.action + ']' : '');
+    for (const element of root.querySelectorAll('button,input,select,canvas,.mg-chip,.mg-plaque,.mg-banner,.mg-toast,.mg-round-card,.mg-hole-tile,.mg-player-card,.mg-step')) {
+        if (!shown(element) || element.closest('.mg-score-scroll')) continue;
+        const rect = element.getBoundingClientRect();
+        if (rect.left < box.left - 1 || rect.right > box.right + 1) issues.push('x ' + name(element));
+        if (!element.closest('.mg-overlay') && (rect.top < box.top - 1 || rect.bottom > box.bottom + 1)) issues.push('y ' + name(element));
+    }
+    for (const panel of root.querySelectorAll('.mg-panel')) if (panel.scrollWidth > panel.clientWidth + 1) issues.push('panel scrolls sideways');
+    for (const element of root.querySelectorAll('*')) {
+        if (element.closest('.mg-announcer') || !shown(element)) continue;
+        if ([...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()) && parseFloat(getComputedStyle(element).fontSize) < 13) issues.push('font ' + name(element));
+    }
+    return [...new Set(issues)];
+}
+
+// A round.v2 save on the last hole of a world with both players finished.
+async function seedFinalHole(mode = 'garden') {
+    const manifest = await (await originalFetch(assetURL('/3d/minigolf/manifest.json'))).json();
+    const courses = manifest.courses.filter(course => course.world === mode), last = courses.at(-1);
+    const player = (name, color, score) => ({ name, color, scores: Array(courses.length - 1).fill(score), position: last.cup.slice(), shots: score, strokes: score, penalties: 0, done: true });
+    localStorage.setItem('aurago.desktop.minigolf.round.v2', JSON.stringify({ version: 2, mode, courseIds: courses.map(course => course.id), holeIndex: courses.length - 1, players: [player('Ada', 'teal', 2), player('Lin', 'gold', 3)], turnIndex: 0, completed: false }));
+}
+
 mount();
 window.golfFixture = {
     errors,
@@ -236,6 +272,9 @@ window.golfFixture = {
     measureActivePlayAudioStats,
     audioContexts,
     benchmarkCurrentScene,
+    layoutIssues,
+    seedFinalHole,
+    failStorage(value) { storageFails = !!value; },
     reopen() { game?.dispose(); return mount(); },
     setCourseFailure(value) { failCourseLoads = !!value; },
     dispose() { game.dispose(); },

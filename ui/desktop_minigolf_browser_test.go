@@ -29,8 +29,10 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-minigolf.css">
-<style>html,body,#golf-host,.vd-window{margin:0;width:100%;height:100%;overflow:hidden}.vd-window{position:relative}body{font-family:system-ui,sans-serif}</style>
+<link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/desktop-app-minigolf.css">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden}body{font-family:system-ui,sans-serif}
+/* The shell bundle turns .vd-window into a titled grid; the fixture host stands in for a maximized window that fills the viewport. */
+#golf-host.vd-window{position:relative!important;display:block;inset:auto!important;transform:none!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;backdrop-filter:none!important;overflow:hidden!important}</style>
 </head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window" id="golf-host"></main><script type="module" src="/testdata/minigolf-fixture.js"></script></body></html>`)
 	})
 	server := httptest.NewServer(mux)
@@ -43,7 +45,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			l.Delete("disable-gpu")
 		}
 	})
-	page := browser.MustPage("about:blank").Timeout(180 * time.Second)
+	// The page deadline is absolute; individual waits below narrow it further.
+	page := browser.MustPage("about:blank").Timeout(15 * time.Minute)
 	t.Cleanup(func() { _ = page.Close() })
 	page.MustSetViewport(1280, 760, 1, false)
 	audioManifestData, err := os.ReadFile("3d/minigolf/audio/manifest.json")
@@ -74,13 +77,64 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if page.MustEval(`()=>golfFixture.assetRequests.some(path=>path.includes('/3d/minigolf/audio/'))`).Bool() {
 		t.Fatal("audio assets were requested before the first user gesture")
 	}
-	page.MustEval(`()=>{const e=document.querySelector('[data-players]');e.value='2';e.dispatchEvent(new Event('change',{bubbles:true}));const names=document.querySelectorAll('[data-player-name]');names[0].value='Player 1 Has A Very Long AuraGolf Name';names[1].value='Player 2 Has A Very Long AuraGolf Name';}`)
+	// The shell bundle collapses .vd-window; the fixture must still hand the game the whole viewport.
+	if !page.MustEval(`()=>[document.querySelector('#golf-host'),document.querySelector('.mg-app')].every(e=>{const b=e.getBoundingClientRect();return Math.abs(b.width-innerWidth)<1&&Math.abs(b.height-innerHeight)<1})`).Bool() {
+		t.Fatalf("the fixture host or .mg-app does not fill the viewport: %s", page.MustEval(`()=>JSON.stringify([innerWidth,innerHeight,...['#golf-host','.mg-app'].map(s=>{const b=document.querySelector(s).getBoundingClientRect();return [b.width,b.height]})])`).Str())
+	}
+	layoutOK := func(label string) {
+		t.Helper()
+		if issues := page.MustEval(`()=>JSON.stringify(golfFixture.layoutIssues())`).Str(); issues != "[]" {
+			t.Fatalf("layout issues at %s: %s", label, issues)
+		}
+	}
+	shot := func(name string) {
+		if artifactDir != "" {
+			page.MustScreenshot(filepath.Join(artifactDir, "minigolf-p4-"+name+".png"))
+		}
+	}
+	settle := func() {
+		page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+	}
+
+	// Home: one card per round kind, in a fixed order.
+	page.MustWait(`()=>golfFixture.inspect().menuStep==='home'`)
+	if rounds := page.MustEval(`()=>[...document.querySelectorAll('[data-round]')].map(e=>e.dataset.round).join(',')`).Str(); rounds != "full,garden,coast,night,practice" {
+		t.Fatalf("home cards are %q", rounds)
+	}
+	layoutOK("home 1280")
+	shot("home-1280")
+
+	// Player setup: two players, unique colours, long names.
+	page.MustElement(`[data-round="full"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
+	page.MustEval(`()=>{const radio=document.querySelector('[data-player-count][value="2"]');radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}))}`)
+	page.MustWait(`()=>document.querySelectorAll('[data-player-index]').length===2`)
+	if !page.MustEval(`()=>document.querySelector('[data-player-index="1"] [data-player-color][value="cream"]').disabled===true`).Bool() {
+		t.Fatal("player 1's colour is still selectable for player 2")
+	}
+	page.MustEval(`()=>{const names=document.querySelectorAll('[data-player-name]');names[0].value='Player 1 Has A Very Long AuraGolf Name';names[0].dispatchEvent(new Event('input',{bubbles:true}));names[1].value='Player 2 Has A Very Long AuraGolf Name';names[1].dispatchEvent(new Event('input',{bubbles:true}))}`)
+	layoutOK("players 1280")
+	shot("players-1280")
+
+	// Help from the setup returns to the setup, by button and by the ? key.
+	page.MustElement(`.mg-topbar [data-action="help"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+	page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel==='menu'&&s.menuStep==='players'}`)
+	if !page.MustEval(`()=>document.querySelector('[data-player-name]').value.startsWith('Player 1 Has')`).Bool() {
+		t.Fatal("closing the help dropped the typed player name")
+	}
+	page.MustEval(`()=>document.querySelector('[data-action="start"]').dispatchEvent(new KeyboardEvent('keydown',{key:'?',bubbles:true}))`)
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel==='menu'&&s.menuStep==='players'}`)
+
 	page.MustElement(`[data-action="start"]`).MustClick()
-	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel==='tutorial'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
+	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
 		t.Fatal("first gesture did not unlock audio or two-player mode was not applied")
 	}
-	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long AuraGolf'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long AuraGolf'`).Bool() {
+	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long'`).Bool() {
 		t.Fatalf("long player names did not survive menu validation: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().round.players.map(p=>p.name))`).Str())
 	}
 	// All recorded effects decode in the background after the first gesture; wait
@@ -112,7 +166,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if err := json.Unmarshal([]byte(playbackJSON), &playback); err != nil {
 		t.Fatalf("parse real-time AudioContext playback stats: %v (%s)", err, playbackJSON)
 	}
-	t.Logf("uninterrupted live music during the visible 3D course intro overlay, before any shots (Chrome playbackStats when available): %s", playbackJSON)
+	t.Logf("uninterrupted live music during the first course with coach marks, before any shots (Chrome playbackStats when available): %s", playbackJSON)
 	advancedContext := false
 	for _, after := range playback.After {
 		if after.State != "running" || after.Index >= len(playback.Before) {
@@ -132,8 +186,16 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			}
 		}
 	}
-	page.MustElement(`[data-action="close"]`).MustClick()
-	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+
+	// HUD: hole plaque with the course name, one chip per player, and a map that can be hidden.
+	if !page.MustEval(`()=>{const name=document.querySelector('.mg-plaque-name');return name.getClientRects().length>0&&name.textContent===I18N['minigolf.course_1']&&document.querySelectorAll('.mg-chip').length===2&&golfFixture.inspect().hud.map.visible===true&&golfFixture.inspect().hud.map.drawn===true}`).Bool() {
+		t.Fatalf("HUD plaque, chips or map are wrong: %s", page.MustEval(`()=>JSON.stringify({plaque:document.querySelector('.mg-plaque-name').textContent,chips:document.querySelectorAll('.mg-chip').length,hud:golfFixture.inspect().hud})`).Str())
+	}
+	page.MustElement(`[data-action="map"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().hud.map.visible===false&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).showMap===false`)
+	page.MustElement(`[data-action="map"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().hud.map.visible===true&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).showMap===true`)
+
 	type cameraSnapshot struct {
 		Position      [3]float64 `json:"position"`
 		Target        [3]float64 `json:"target"`
@@ -272,16 +334,87 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustElement(`[data-action="pause"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel===''&&golfFixture.inspect().audio.playing`)
 	page.Timeout(5*time.Second).MustWait(`position=>golfFixture.inspect().audio.position>position`, pausedMusicPosition)
-	page.MustEval(`()=>document.querySelector('.mg-canvas canvas').focus()`)
-	page.Keyboard.MustType(input.Space)
-	page.MustWait(`()=>golfFixture.inspect().busy`)
-	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().busy&&golfFixture.inspect().round.turnIndex===1`)
-	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].strokes===1`).Bool() {
-		t.Fatal("keyboard shot did not resolve for the first player")
+
+	// The first putt of a fresh profile walks the coach marks with a real pointer drag:
+	// press the ball, pull a little (power), pull further (release), let go (watch, done).
+	page.MustElement(`[data-action="focus"]`).MustClick()
+	page.Timeout(5 * time.Second).MustWait(cameraCentered)
+	if step := page.MustEval(`()=>golfFixture.inspect().tutorial`).Str(); step != "aim" {
+		t.Fatalf("the coach marks left the aim step before the first drag: %q", step)
 	}
+	bannersBefore := page.MustEval(`()=>golfFixture.inspect().hud.bannerCount`).Int()
+	ballPoint := page.MustEval(`()=>{const c=golfFixture.inspect().graphics.camera.projectedBall,r=document.querySelector('.mg-canvas canvas').getBoundingClientRect();return{x:r.left+(c[0]+1)/2*r.width,y:r.top+(1-c[1])/2*r.height}}`)
+	ballX, ballY := ballPoint.Get("x").Num(), ballPoint.Get("y").Num()
+	page.Mouse.MustMoveTo(ballX, ballY).MustDown(proto.InputMouseButtonLeft).MustMoveTo(ballX, ballY+24)
+	page.Timeout(5 * time.Second).MustWait(`()=>golfFixture.inspect().tutorial==='power'`)
+	page.Mouse.MustMoveTo(ballX, ballY+64)
+	page.Timeout(5 * time.Second).MustWait(`()=>golfFixture.inspect().tutorial==='release'`)
+	page.Timeout(5 * time.Second).MustWait(`()=>golfFixture.inspect().hud.meter===true`)
+	if !page.MustEval(`()=>{const meter=document.querySelector('.mg-meter'),stage=document.querySelector('.mg-stage').getBoundingClientRect(),b=meter.getBoundingClientRect();return meter.getClientRects().length>0&&b.left>=stage.left-.5&&b.right<=stage.right+.5&&b.top>=stage.top-.5&&b.bottom<=stage.bottom+.5}`).Bool() {
+		t.Fatalf("the power meter left the stage: %s", page.MustEval(`()=>JSON.stringify({meter:document.querySelector('.mg-meter').getBoundingClientRect(),stage:document.querySelector('.mg-stage').getBoundingClientRect()})`).Str())
+	}
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustWait(`()=>golfFixture.inspect().busy`)
+	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.busy&&s.round.turnIndex===1&&s.tutorial==='done'}`)
+	if !page.MustEval(`count=>{const hud=golfFixture.inspect().hud;return hud.bannerCount>count&&hud.banner.includes('Player 2 Has A Very Long')}`, bannersBefore).Bool() {
+		t.Fatalf("no turn banner named the second player: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().hud)`).Str())
+	}
+	page.MustElement(`[data-action="tutorial-done"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().tutorial===null&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).tutorial===2`)
+	if !page.MustEval(`()=>document.activeElement===document.querySelector('.mg-canvas canvas')`).Bool() {
+		t.Fatal("finishing the coach marks did not hand the keyboard back to the stage")
+	}
+
+	// A browser that refuses to store anything shows one toast and the game keeps running.
+	page.MustEval(`()=>golfFixture.failStorage(true)`)
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+	page.MustEval(`()=>{const magnet=document.querySelector('[data-magnet]');magnet.click();magnet.click()}`)
+	page.Timeout(5 * time.Second).MustWait(`()=>golfFixture.inspect().hud.toasts.includes('storage_error')`)
+	page.MustEval(`()=>golfFixture.failStorage(false)`)
+	page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+
+	// Panels nest: Settings, ? and Escape land on Settings again, Credits and Help stack one level deeper,
+	// and a panel opened from the pause panel or the top bar hands the focus back to its opener.
+	helpKey := `()=>document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'?',bubbles:true}))`
+	page.MustElement(`.mg-topbar [data-action="settings"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+	page.MustEval(helpKey)
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+	page.MustElement(`.mg-panel [data-action="credits"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='credits'`)
+	page.MustEval(helpKey)
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>golfFixture.inspect().panel==='credits'`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>golfFixture.inspect().panel==='settings'&&document.activeElement.dataset.action==='credits'`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+	page.MustElement(`.mg-topbar [data-action="pause"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='pause'`)
+	page.MustElement(`.mg-panel [data-action="help"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='pause'&&document.activeElement.dataset.action==='help'`)
+	page.MustElement(`.mg-topbar [data-action="pause"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel===''`)
+
+	// Putting from the footer button must keep arrow keys, Space and Escape working.
+	page.MustEval(`()=>document.querySelector('[data-action="shoot"]').focus()`)
+	page.Keyboard.MustType(input.Enter)
+	page.MustWait(`()=>golfFixture.inspect().busy`)
+	if !page.MustEval(`()=>document.activeElement===document.querySelector('.mg-canvas canvas')`).Bool() {
+		t.Fatal("putting from the footer button dropped the keyboard focus")
+	}
+	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().busy&&golfFixture.inspect().round.turnIndex===0`)
 
 	// Hiding the Desktop window pauses both audio and simulation, then resuming
 	// the reopened app continues from its persisted round checkpoint.
+	checkpoint := page.MustEval(`()=>JSON.stringify({turn:golfFixture.inspect().round.turnIndex,strokes:golfFixture.inspect().round.players.map(p=>p.strokes)})`).Str()
 	page.Keyboard.MustType(input.Space)
 	page.MustWait(`()=>golfFixture.inspect().busy`)
 	page.MustEval(`()=>{document.querySelector('#golf-host').style.display='none'}`)
@@ -302,7 +435,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustEval(`()=>golfFixture.reopen()`)
 	page.MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel==='menu'&&!!document.querySelector('[data-action="resume"]')`)
 	page.MustElement(`[data-action="resume"]`).MustClick()
-	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''&&golfFixture.inspect().round?.players[1]?.strokes===0&&golfFixture.inspect().round?.turnIndex===1`)
+	page.Timeout(30*time.Second).MustWait(`before=>{const s=golfFixture.inspect(),saved=JSON.parse(before);return !s.loading&&s.panel===''&&s.round?.turnIndex===saved.turn&&JSON.stringify(s.round.players.map(p=>p.strokes))===JSON.stringify(saved.strokes)}`, checkpoint)
 	if !page.MustEval(`()=>golfFixture.inspect().visible`).Bool() {
 		t.Fatal("reopening did not resume the persisted interrupted round")
 	}
@@ -322,15 +455,35 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if err := json.Unmarshal(manifest, &courseManifest); err != nil {
 		t.Fatal(err)
 	}
-	worldCaptured := map[string]bool{}
-	for _, course := range courseManifest.Courses {
-		if page.MustEval(`()=>golfFixture.inspect().panel!== 'pause' && golfFixture.inspect().panel!== 'menu'`).Bool() {
-			page.MustElement(`[data-action="pause"]`).MustClick()
+	// Menu paths shared by the passes below: the pause panel leads to the start page,
+	// Training to the hole grid, a tile to the player setup, Start into the course.
+	openMenu := func() {
+		if page.MustEval(`()=>{const p=golfFixture.inspect().panel;return p!=='pause'&&p!=='menu'}`).Bool() {
+			page.MustElement(`.mg-topbar [data-action="pause"]`).MustClick()
 			page.MustWait(`()=>golfFixture.inspect().panel==='pause'`)
 		}
-		page.MustElement(`[data-action="menu"]`).MustClick()
-		page.MustWait(`()=>golfFixture.inspect().panel==='menu'`)
-		page.MustEval(`id=>{const mode=document.querySelector('[data-mode]');mode.value='practice';mode.dispatchEvent(new Event('change',{bubbles:true}));const hole=document.querySelector('[data-hole-id]');hole.value=id;const names=document.querySelectorAll('[data-player-name]');if(names.length===2){names[0].value='Player 1 Has A Very Long AuraGolf Name';names[1].value='Player 2 Has A Very Long AuraGolf Name';}}`, course.ID)
+		if page.MustEval(`()=>golfFixture.inspect().panel==='pause'`).Bool() {
+			page.MustElement(`.mg-panel [data-action="menu"]`).MustClick()
+		}
+		page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel==='menu'&&s.menuStep==='home'}`)
+	}
+	openHoles := func() {
+		openMenu()
+		page.MustElement(`[data-round="practice"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().menuStep==='holes'&&document.querySelectorAll('[data-hole-id]').length===18`)
+	}
+	pickHole := func(id string) {
+		page.MustElement(`[data-hole-id="` + id + `"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
+	}
+	worldCaptured := map[string]bool{}
+	for index, course := range courseManifest.Courses {
+		openHoles()
+		if index == 0 {
+			layoutOK("holes 1280")
+			shot("holes-1280")
+		}
+		pickHole(course.ID)
 		page.MustElement(`[data-action="start"]`).MustClick()
 		page.Timeout(30*time.Second).MustWait(`id=>{const s=golfFixture.inspect();return !s.loading&&s.course===id&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`, course.ID)
 		if artifactDir != "" && !worldCaptured[course.World] {
@@ -372,15 +525,23 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode}`, theme, mode)
 			for _, width := range []int{1280, 420} {
 				page.MustSetViewport(width, 760, 1, width < 600)
-				if !page.MustEval(`()=>{const root=document.querySelector('.mg-app'),bounds=root.getBoundingClientRect();return [...root.querySelectorAll('button,input,select')].filter(e=>e.getClientRects().length).every(e=>{const b=e.getBoundingClientRect();return b.left>=bounds.left-1&&b.right<=bounds.right+1&&b.top>=bounds.top-1&&b.bottom<=bounds.bottom+1})}`).Bool() {
-					t.Fatalf("horizontal overflow for %s/%s at %dpx", theme, mode, width)
+				settle()
+				label := fmt.Sprintf("%s/%s at %dpx", theme, mode, width)
+				layoutOK(label)
+				if !page.MustEval(`()=>{const name=document.querySelector('.mg-plaque-name');return name.getClientRects().length>0&&name.textContent.trim()!==''}`).Bool() {
+					t.Fatalf("the hole plaque name is not visible for %s", label)
 				}
-				if width == 420 && !page.MustEval(`()=>[...document.querySelectorAll('.mg-player-strip span')].filter(e=>e.textContent.includes('Player 1 Has A Very Long AuraGolf')||e.textContent.includes('Player 2 Has A Very Long AuraGolf')).every(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect(),root=document.querySelector('.mg-app').getBoundingClientRect();return s.overflow==='hidden'&&s.textOverflow==='ellipsis'&&r.left>=root.left-1&&r.right<=root.right+1})`).Bool() {
-					t.Fatalf("long player names escaped their ellipsis pills for %s/%s at 420px", theme, mode)
+				if width == 420 && !page.MustEval(`()=>{const names=[...document.querySelectorAll('.mg-chip-name')].filter(e=>e.getClientRects().length&&e.textContent.includes('Player '));return names.length>0&&names.every(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect(),root=document.querySelector('.mg-app').getBoundingClientRect();return s.overflow==='hidden'&&s.textOverflow==='ellipsis'&&r.left>=root.left-1&&r.right<=root.right+1})}`).Bool() {
+					t.Fatalf("long player names escaped their ellipsis pills for %s", label)
 				}
 				if artifactDir != "" && width == 420 {
 					page.MustScreenshot(filepath.Join(artifactDir, fmt.Sprintf("minigolf-%s-%s-420.png", theme, mode)))
 				}
+				page.MustElement(`.mg-topbar [data-action="pause"]`).MustClick()
+				page.MustWait(`()=>golfFixture.inspect().panel==='pause'`)
+				layoutOK(label + " with the pause panel")
+				page.MustElement(`.mg-topbar [data-action="pause"]`).MustClick()
+				page.MustWait(`()=>golfFixture.inspect().panel===''`)
 			}
 		}
 	}
@@ -404,14 +565,60 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustWait(`()=>golfFixture.inspect().busy`)
 	page.Timeout(30*time.Second).MustWait(`()=>!golfFixture.inspect().busy&&golfFixture.inspect().round.turnIndex!==JSON.parse(arguments[0]).turn`, beforeTouch)
 
+	// Layout of the five screens at the phone and the desktop width, each shot for review.
+	layoutPass := func(width int) {
+		label := fmt.Sprint(width)
+		page.MustSetViewport(width, 760, 1, width < 600)
+		settle()
+		page.MustWait(`()=>golfFixture.inspect().panel===''`)
+		layoutOK("game " + label)
+		shot("game-" + label)
+
+		page.MustElement(`.mg-topbar [data-action="scorecard"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().panel==='scorecard'`)
+		layoutOK("scorecard " + label)
+		shot("scorecard-" + label)
+		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().panel===''`)
+
+		openMenu()
+		layoutOK("home " + label)
+		if width != 1280 {
+			shot("home-" + label)
+		}
+		page.MustElement(`[data-round="practice"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().menuStep==='holes'&&document.querySelectorAll('[data-hole-id]').length===18`)
+		layoutOK("holes " + label)
+		shot("holes-" + label)
+		pickHole("garden-01")
+		layoutOK("players " + label)
+		shot("players-" + label)
+		if width < 600 {
+			if !page.MustEval(`()=>document.querySelector('.mg-topbar [data-action="help"]').getClientRects().length>0`).Bool() {
+				t.Fatal("the help button is hidden at 420px")
+			}
+			page.MustElement(`.mg-topbar [data-action="help"]`).MustClick()
+			page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+			layoutOK("help " + label)
+			page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+			page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel==='menu'&&s.menuStep==='players'}`)
+		}
+		page.MustElement(`.mg-panel [data-action="back"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().menuStep==='holes'`)
+		page.MustElement(`.mg-step-head [data-action="back"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().menuStep==='home'`)
+		page.MustElement(`[data-action="resume"]`).MustClick()
+		page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''`)
+	}
+	layoutPass(420)
+	layoutPass(1280)
+
 	// Measure the live WebAudio output while normal gameplay is actively
 	// triggering strike/rolling effects through the enabled Shoot control.
-	page.MustSetViewport(1280, 760, 1, false)
-	page.MustElement(`[data-action="pause"]`).MustClick()
-	page.MustWait(`()=>golfFixture.inspect().panel==='pause'`)
-	page.MustElement(`[data-action="menu"]`).MustClick()
-	page.MustWait(`()=>golfFixture.inspect().panel==='menu'`)
-	page.MustEval(`()=>{const mode=document.querySelector('[data-mode]');mode.value='garden';mode.dispatchEvent(new Event('change',{bubbles:true}));const players=document.querySelector('[data-players]');players.value='1';players.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	openMenu()
+	page.MustElement(`[data-round="garden"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
+	page.MustEval(`()=>{const radio=document.querySelector('[data-player-count][value="1"]');radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''&&golfFixture.inspect().course==='garden-01'&&golfFixture.inspect().audio.playing`)
 	activePlayJSON := page.Timeout(60 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.measureActivePlayAudioStats(15000))`).Str()
@@ -463,13 +670,54 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		}
 	}
 
+	// A decided round on a fresh profile: the last Garden hole is seeded with both players
+	// finished, so Resume opens the scorecard and Next hole the podium. The save and the
+	// reopen share one task, so no running shot can overwrite the seed in between.
+	page.MustEval(`()=>{document.body.dataset.animations='false';localStorage.removeItem('aurago.desktop.minigolf.settings.v1')}`)
+	page.MustEval(`async()=>{await golfFixture.seedFinalHole('garden');golfFixture.reopen()}`)
+	page.MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel==='menu'&&!!document.querySelector('[data-action="resume"]')`)
+	page.MustElement(`[data-action="resume"]`).MustClick()
+	page.Timeout(30 * time.Second).MustWait(`()=>golfFixture.inspect().panel==='scorecard'&&!!document.querySelector('[data-action="next-hole"]')`)
+	if running := page.MustEval(`()=>document.querySelector('.mg-app').getAnimations({subtree:true}).length`).Int(); running != 0 {
+		t.Fatalf("%d animations still run on the scorecard with animations disabled", running)
+	}
+	layoutOK("final-hole scorecard 1280")
+	shot("scorecard-final-1280")
+	page.MustElement(`[data-action="next-hole"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().round.completed&&document.querySelectorAll('.mg-podium .mg-step').length===2`)
+	if !page.MustEval(`()=>document.querySelector('.mg-winner').textContent.includes('Ada')`).Bool() {
+		t.Fatalf("the podium names the wrong winner: %s", page.MustEval(`()=>document.querySelector('.mg-winner').textContent`).Str())
+	}
+	for _, width := range []int{1280, 420} {
+		page.MustSetViewport(width, 760, 1, width < 600)
+		settle()
+		layoutOK(fmt.Sprintf("podium %dpx", width))
+		shot(fmt.Sprintf("podium-%d", width))
+	}
+	page.MustSetViewport(1280, 760, 1, false)
+	settle()
+	page.MustElement(`[data-action="again"]`).MustClick()
+	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.course==='garden-01'&&s.round.holeIndex===0}`)
+	if got := page.MustEval(`()=>golfFixture.inspect().round.players.map(p=>p.name+':'+p.color).join(',')`).Str(); got != "Ada:teal,Lin:gold" {
+		t.Fatalf("Play again changed the players: %s", got)
+	}
+	page.MustEval(`()=>{delete document.body.dataset.animations}`)
+
+	// The fresh profile starts the coach marks again; skipping them is remembered, and Help restarts them.
+	page.MustWait(`()=>golfFixture.inspect().tutorial==='aim'`)
+	page.MustElement(`.mg-coach [data-action="tutorial-skip"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().tutorial===null&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).tutorial===2`)
+	page.MustElement(`.mg-topbar [data-action="help"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().panel==='help'`)
+	page.MustElement(`.mg-panel [data-action="tutorial-again"]`).MustClick()
+	page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel===''&&s.tutorial==='aim'}`)
+	page.MustElement(`.mg-coach [data-action="tutorial-skip"]`).MustClick()
+	page.MustWait(`()=>golfFixture.inspect().tutorial===null`)
+
 	// A failed real course request keeps an actionable, translated retry.
 	page.MustEval(`()=>golfFixture.setCourseFailure(true)`)
-	page.MustElement(`[data-action="pause"]`).MustClick()
-	page.MustWait(`()=>golfFixture.inspect().panel==='pause'`)
-	page.MustElement(`[data-action="menu"]`).MustClick()
-	page.MustWait(`()=>golfFixture.inspect().panel==='menu'`)
-	page.MustEval(`()=>{const mode=document.querySelector('[data-mode]');mode.value='practice';mode.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-hole-id]').value='garden-01';}`)
+	openHoles()
+	pickHole("garden-01")
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel==='error'`)
 	if !page.MustEval(`()=>{const b=document.querySelector('[data-action="retry"]');return !!b&&b.textContent===I18N['minigolf.retry']&&document.querySelector('.mg-panel h2').textContent===I18N['minigolf.load_error']}`).Bool() {
@@ -481,9 +729,12 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 
 	page.MustElement(`[data-action="settings"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
-	page.MustEval(`()=>{const e=document.querySelector('[data-music]');e.value='0';e.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-music]');e.focus();e.value='0';e.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	if !page.MustEval(`()=>golfFixture.inspect().audio.musicVolume===0`).Bool() {
 		t.Fatal("music settings did not persist the zero volume")
+	}
+	if !page.MustEval(`()=>document.querySelector('[data-action="mute"]').textContent===I18N['minigolf.unmute']&&document.activeElement===document.querySelector('[data-music]')`).Bool() {
+		t.Fatal("the Mute button did not follow the music slider to zero, or the slider lost its focus")
 	}
 	page.MustElement(`[data-action="close"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel===''`)
