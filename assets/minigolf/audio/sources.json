@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "sources": [
+    { "id": "kenney-impact", "title": "Impact Sounds", "author": "Kenney", "page": "https://kenney.nl/assets/impact-sounds", "download": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip", "file": "kenney_impact-sounds.zip", "bytes": 800850, "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "kenney-scifi", "title": "Sci-Fi Sounds", "author": "Kenney", "page": "https://kenney.nl/assets/sci-fi-sounds", "download": "https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip", "file": "kenney_sci-fi-sounds.zip", "bytes": 5875104, "sha256": "119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "kenney-jingles", "title": "Music Jingles", "author": "Kenney", "page": "https://kenney.nl/assets/music-jingles", "download": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip", "file": "kenney_music-jingles.zip", "bytes": 1239525, "sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-bowling-roll", "title": "Bowling Ball Rolling", "author": "qubodup", "page": "https://opengameart.org/content/bowling-ball-rolling", "download": "https://opengameart.org/sites/default/files/qubodup-bowling-roll.7z", "file": "qubodup-bowling-roll.7z", "bytes": 195563, "sha256": "3c99cfe42ecf8a87ab13f66f0f4c16d0a2bdbf75f825eb2e959baab581091af8", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-sfx-loops", "title": "30 CC0 SFX Loops", "author": "rubberduck", "page": "https://opengameart.org/content/30-cc0-sfx-loops", "download": "https://opengameart.org/sites/default/files/sfx_loops.zip", "file": "sfx_loops.zip", "bytes": 3526706, "sha256": "9c013474c7e56192a0d1b2840535a1e1d8b93166948d4a9f7136bb6c3d5421cd", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-water-splash", "title": "6 Short Water Splashes", "author": "ezwa (cut by qubodup)", "page": "https://opengameart.org/content/6-short-water-splashes", "download": "https://opengameart.org/sites/default/files/ezwa-water_splash.7z", "file": "ezwa-water_splash.7z", "bytes": 426627, "sha256": "6187fa510cb7b5e8c3ac7c79f294ddc0e44d07472758bf6ecf2628a372ae9a26", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-cannon-fire", "title": "Cannon Fire", "author": "Thimras", "page": "https://opengameart.org/content/cannon-fire", "download": "https://opengameart.org/sites/default/files/cannon_fire_0.ogg", "file": "cannon_fire_0.ogg", "bytes": 179939, "sha256": "2b21ffa41e5c3be4eecdfbd3490544f5aa8b6d1581787265863e13de1a8e599d", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-happy-clappy", "title": "Happy Clappy Loop", "author": "OwlishMedia", "page": "https://opengameart.org/content/happy-clappy-loop", "download": "https://opengameart.org/sites/default/files/HappyClappyLoop.wav", "file": "HappyClappyLoop.wav", "bytes": 6162894, "sha256": "1ca66b4e4d41e14a4ccfcc3b758e061cf283b9d5e332c4ea8e00f94f4deb6554", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-pirate-adventure", "title": "Pirate Adventure", "author": "Eldritch Grim", "page": "https://opengameart.org/content/pirate-adventure", "download": "https://opengameart.org/sites/default/files/pirate_adventure.wav", "file": "pirate_adventure.wav", "bytes": 10935228, "sha256": "54c3bff9b139054685cd3ecb62c2da8815496df5cc8df7c8888d97891dcb5640", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-hidden-temple", "title": "Hidden Temple", "author": "Eldritch Grim", "page": "https://opengameart.org/content/hidden-temple", "download": "https://opengameart.org/sites/default/files/hidden_temple_0.wav", "file": "hidden_temple_0.wav", "bytes": 11910076, "sha256": "6feaea11112a772b1a4825033fd65f157309ec5216f9a2c074b1efb53954be12", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" },
+    { "id": "oga-galactic-temple", "title": "Galactic Temple", "author": "yd", "page": "https://opengameart.org/content/galactic-temple", "download": "https://opengameart.org/sites/default/files/GalacticTemple.zip", "file": "GalacticTemple.zip", "bytes": 1083496, "sha256": "4713ef3fb215e51fb2bdc2a6ca8e1f399461108fc2efad63874c4df4dba91c8d", "license": "CC0-1.0", "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/" }
+  ],
+  "sfx": [
+    { "group": "strike", "source": "kenney-impact", "members": ["Audio/impactGeneric_light_000.ogg", "Audio/impactGeneric_light_001.ogg", "Audio/impactGeneric_light_002.ogg"] },
+    { "group": "impact.wood.light", "source": "kenney-impact", "members": ["Audio/impactWood_light_000.ogg", "Audio/impactWood_light_001.ogg", "Audio/impactWood_light_002.ogg"] },
+    { "group": "impact.wood.medium", "source": "kenney-impact", "members": ["Audio/impactWood_medium_000.ogg", "Audio/impactWood_medium_001.ogg", "Audio/impactWood_medium_002.ogg"] },
+    { "group": "impact.wood.heavy", "source": "kenney-impact", "members": ["Audio/impactWood_heavy_000.ogg", "Audio/impactWood_heavy_001.ogg", "Audio/impactWood_heavy_002.ogg"] },
+    { "group": "impact.stone", "source": "kenney-impact", "members": ["Audio/impactGeneric_light_003.ogg", "Audio/impactGeneric_light_004.ogg", "Audio/impactPlank_medium_002.ogg"] },
+    { "group": "impact.metal.light", "source": "kenney-impact", "members": ["Audio/impactMetal_light_000.ogg", "Audio/impactMetal_light_001.ogg", "Audio/impactMetal_light_002.ogg"] },
+    { "group": "impact.metal.medium", "source": "kenney-impact", "members": ["Audio/impactMetal_medium_000.ogg", "Audio/impactMetal_medium_001.ogg"] },
+    { "group": "impact.metal.heavy", "source": "kenney-impact", "members": ["Audio/impactMetal_heavy_000.ogg", "Audio/impactMetal_heavy_001.ogg"] },
+    { "group": "impact.soft.light", "source": "kenney-impact", "members": ["Audio/impactSoft_medium_000.ogg", "Audio/impactSoft_medium_001.ogg", "Audio/impactSoft_medium_002.ogg"] },
+    { "group": "impact.soft.heavy", "source": "kenney-impact", "members": ["Audio/impactSoft_heavy_000.ogg", "Audio/impactSoft_heavy_001.ogg"] },
+    { "group": "cup.rim", "source": "kenney-impact", "members": ["Audio/impactPlate_light_000.ogg", "Audio/impactPlate_light_001.ogg", "Audio/impactPlate_light_002.ogg"] },
+    { "group": "cup.rattle", "source": "kenney-impact", "members": ["Audio/impactTin_medium_000.ogg", "Audio/impactTin_medium_001.ogg", "Audio/impactTin_medium_002.ogg"] },
+    { "group": "splash", "source": "oga-water-splash", "members": ["ezwa-water_splash/water_splash-01.flac", "ezwa-water_splash/water_splash-02.flac", "ezwa-water_splash/water_splash-04.flac", "ezwa-water_splash/water_splash-05.flac"] },
+    { "group": "cannon", "source": "oga-cannon-fire", "members": ["cannon_fire_0.ogg"], "end": 2.2, "fadeOut": { "start": 1.4, "duration": 0.8 } },
+    { "group": "cannon.boom", "source": "kenney-scifi", "members": ["Audio/lowFrequency_explosion_001.ogg"] },
+    { "group": "boost", "source": "kenney-scifi", "members": ["Audio/thrusterFire_000.ogg", "Audio/thrusterFire_001.ogg"], "end": 1.1, "fadeIn": 0.02, "fadeOut": { "start": 0.6, "duration": 0.5 } },
+    { "group": "teleport", "source": "kenney-scifi", "members": ["Audio/forceField_000.ogg", "Audio/forceField_001.ogg"] },
+    { "group": "roll.soft", "source": "oga-sfx-loops", "members": ["rolling.ogg"], "trimSilence": false },
+    { "group": "roll.hard", "source": "oga-bowling-roll", "members": ["qubodup-bowling-roll/qubodup-bowling_roll-nofadeout.ogg"], "start": 0.3, "end": 3.7, "crossfade": 0.3, "trimSilence": false },
+    { "group": "win.pirate", "source": "kenney-jingles", "members": ["Audio/Steel jingles/jingles_STEEL07.ogg"] },
+    { "group": "win.temple", "source": "kenney-jingles", "members": ["Audio/Pizzicato jingles/jingles_PIZZI07.ogg"] },
+    { "group": "win.moon", "source": "kenney-jingles", "members": ["Audio/8-Bit jingles/jingles_NES00.ogg"] }
+  ],
+  "music": [
+    { "id": "menu", "source": "oga-happy-clappy", "member": "HappyClappyLoop.wav", "crossfade": 0, "quality": 3, "title": "Happy Clappy Loop", "author": "OwlishMedia" },
+    { "id": "pirate", "source": "oga-pirate-adventure", "member": "pirate_adventure.wav", "start": 0, "end": 51.5, "crossfade": 2.5, "quality": 2, "title": "Pirate Adventure", "author": "Eldritch Grim" },
+    { "id": "temple", "source": "oga-hidden-temple", "member": "hidden_temple_0.wav", "start": 0, "end": 63.5, "crossfade": 2.5, "quality": 2, "title": "Hidden Temple", "author": "Eldritch Grim" },
+    { "id": "moon", "source": "oga-galactic-temple", "member": "GalacticTemple.ogg", "start": 28, "end": 128, "crossfade": 4, "quality": 1, "title": "Galactic Temple", "author": "yd" }
+  ]
+}

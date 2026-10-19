@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:minigolf": "node scripts/build-minigolf-music.mjs && node scripts/build-minigolf.mjs",
+    "build:minigolf": "node scripts/build-minigolf-audio.mjs --check && node scripts/build-minigolf.mjs",
     "test:minigolf": "node scripts/test-minigolf-model.mjs && node scripts/test-minigolf-physics.mjs && node scripts/test-minigolf-assets.mjs && node scripts/test-minigolf-courses.mjs && node scripts/test-minigolf-audio.mjs",
     "build:codemirror": "node scripts/build-codemirror.js",
     "build:chess-vendor": "node scripts/build-chess-vendor.js",
