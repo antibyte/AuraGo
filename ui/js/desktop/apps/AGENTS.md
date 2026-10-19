@@ -2302,7 +2302,11 @@ buttons and menu popovers remain excluded from those gestures.
   exposes `window.createChess3D` plus `window.ChessView3D` (view switch, sync
   and disposal). The module never owns game state: `chess.js` owns the
   position, the turn, the board skin and the orientation, and the 3D view
-  mirrors the snapshot it is given. Player intent (select, move) is reported
+  mirrors the snapshot it is given. Piece reconciliation keeps pieces that
+  still match their square and code, retires every other previous piece by
+  entry identity (a taken piece shares its target square with its captor, so a
+  square-keyed sweep leaks it), animates the mover onto its target and swaps a
+  promoted pawn for the promoted piece. Player intent (select, move) is reported
   back to `chess.js`, which applies the move through the regular player-move
   path including the promotion dialog. The 2D board stays the default and
   stays mounted; switching modes hides one surface and shows the other, and

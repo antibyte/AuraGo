@@ -356,18 +356,28 @@
     function syncPieces(position, lastMove) {
       const previous = state.pieces;
       const next = new Map();
-      let moved = null;
+      const live = new Set();
       previous.forEach((entry, name) => {
-        if (position.get(name) === entry.code) next.set(name, entry);
+        if (position.get(name) === entry.code) {
+          next.set(name, entry);
+          live.add(entry);
+        }
       });
-      if (lastMove && lastMove.from && lastMove.to) {
+      if (lastMove && !next.has(lastMove.to)) {
         const moving = previous.get(lastMove.from);
-        if (moving && position.get(lastMove.to) && position.get(lastMove.to) !== moving.code) {
+        const code = position.get(lastMove.to);
+        if (moving && code && !live.has(moving)) {
           const captured = previous.get(lastMove.to);
+          // A capture keeps the mover's code, so the target square alone cannot
+          // tell a capture from an empty square: drop whatever stood there.
           if (captured && captured !== moving) removePiece(captured);
-          animateTo(moving, lastMove.to);
-          next.set(lastMove.to, moving);
-          moved = moving;
+          if (code === moving.code) {
+            animateTo(moving, lastMove.to);
+            next.set(lastMove.to, moving);
+            live.add(moving);
+          } else {
+            removePiece(moving);
+          }
         }
       }
       position.forEach((code, name) => {
@@ -376,10 +386,12 @@
         if (!entry) return;
         spawn(entry);
         next.set(name, entry);
+        live.add(entry);
       });
-      previous.forEach((entry, name) => {
-        if (entry === moved) return;
-        if (!next.has(name)) removePiece(entry);
+      // Leftovers are matched by entry, not by square: a piece that was taken
+      // on a square that now holds its captor shares that square's key.
+      previous.forEach((entry) => {
+        if (!live.has(entry)) removePiece(entry);
       });
       state.pieces = next;
     }

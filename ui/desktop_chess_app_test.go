@@ -94,6 +94,11 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"'/3d/chess/v1/'",
 		"GLTFLoader",
 		"OrbitControls",
+		/* A capture keeps the mover's code, and a taken piece shares the target
+		   square with its captor, so reconciliation must retire leftovers by
+		   entry instead of by square key. */
+		"const live = new Set();",
+		"if (!live.has(entry)) removePiece(entry);",
 	} {
 		if !strings.Contains(view3d, want) {
 			t.Fatalf("desktop chess 3D board missing marker %q", want)
