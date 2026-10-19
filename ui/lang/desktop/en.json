@@ -7857,5 +7857,6 @@
   "minigolf.turn_of": "{name}’s turn",
   "minigolf.chip_active": "playing",
   "minigolf.chip_done": "Finished",
-  "minigolf.help_short": "Help"
+  "minigolf.help_short": "Help",
+  "minigolf.map": "Map"
 }

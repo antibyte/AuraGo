@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
 import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
+import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
 
 const close = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 
@@ -64,5 +65,32 @@ assert.deepEqual(placeMeter({ x: 100, y: 200, visible: true }, 800, 600, 96), { 
 assert.deepEqual(placeMeter({ x: 780, y: 200, visible: true }, 800, 600, 96), { x: 676, y: 88 }, 'mirrors left at the right edge');
 assert.deepEqual(placeMeter({ x: 100, y: 40, visible: true }, 800, 600, 96), { x: 108, y: 56 }, 'mirrors below at the top edge');
 assert.deepEqual(placeMeter({ visible: false }, 800, 600, 96), { x: 352, y: 492 }, 'hidden ball: bottom centre');
+
+// --- Lane map geometry (Task 6) ----------------------------------------------
+const lane = laneGeometry({
+    bounds: { min: [-5, -1, -5], max: [5, 2, 5] },
+    water: [{ min: [2, -1, -1], max: [3, 0, 1] }],
+    colliders: [
+        { type: 'mesh', surface: 'grass', vertices: [-1, 0, -3, 1, 0, -3, 1, 0, 3, -1, 0, 3], indices: [0, 1, 2, 0, 3, 2] },
+        { type: 'mesh', surface: 'sand', vertices: [1, 0, -1, 2, 0, -1, 2, 0, 1], indices: [0, 2, 1] },
+        { type: 'mesh', surface: 'wood', vertices: [-1.2, 0.3, -3, -1, 0.3, -3, -1, 0.3, 3, -1.2, 0.3, 3, -1.2, 0, -3], indices: [0, 1, 2, 0, 2, 3, 4, 0, 3] }
+    ]
+});
+assert.equal(lane.floor.grass.length, 12, 'both grass triangles count regardless of winding');
+assert.equal(lane.floor.sand.length, 6);
+assert.equal(lane.walls.length, 12, 'rail tops count, the vertical rail side does not');
+assert.deepEqual(lane.frame, { min: [-1.5, -3.5], max: [2.5, 3.5] }, 'floor bounds plus 0.5 m');
+assert.deepEqual(lane.water, [{ min: [2, -1], max: [3, 1] }]);
+assert.deepEqual(laneGeometry({ bounds: { min: [-5, -1, -4], max: [5, 2, 4] } }).frame, { min: [-5, -4], max: [5, 4] }, 'no floor falls back to bounds');
+const area = (list, at) => ((list[at + 2] - list[at]) * (list[at + 5] - list[at + 1]) - (list[at + 4] - list[at]) * (list[at + 3] - list[at + 1])) / 2;
+assert.equal(new Set([area(lane.floor.grass, 0), area(lane.floor.grass, 6), area(lane.floor.sand, 0)].map(Math.sign)).size, 1, 'floor triangles share one winding, so one fill never cancels overlaps');
+const gate = { obstacles: [{ id: 'gate', position: [0, 0.3, 0], halfExtents: [1, 0.1, 1], colliders: [{ position: [0, 0, 0], halfExtents: [1, 0.1, 0.2] }, { position: [0, 0, 0], halfExtents: [0.2, 0.1, 1] }] }] };
+const xs = outline => outline.filter((_, index) => index % 2 === 0), zs = outline => outline.filter((_, index) => index % 2 === 1);
+const still = obstacleOutlines(gate);
+assert.equal(still.length, 2, 'one outline per obstacle part');
+close(Math.max(...xs(still[0])), 1, 1e-9, 'unrotated bar width'); close(Math.max(...zs(still[0])), 0.2, 1e-9, 'unrotated bar depth');
+const turned = obstacleOutlines(gate, [{ id: 'gate', position: [2, 0.3, 0], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }]);
+close(Math.max(...xs(turned[0])), 2.2, 1e-9, 'physics pose turns and moves the bar'); close(Math.max(...zs(turned[0])), 1, 1e-9, 'turned bar depth');
+close(Math.min(...xs(obstacleOutlines({ obstacles: [{ id: 'box', position: [2, 0, 0], halfExtents: [0.5, 0.1, 0.5] }] })[0])), 1.5, 1e-9, 'single-box obstacle');
 
 console.log('minigolf ui: all checks passed');

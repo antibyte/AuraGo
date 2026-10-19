@@ -1,4 +1,5 @@
 import { colorValue, formatToPar, powerHex } from './minigolf-shared.js';
+import { createMinimap } from './minigolf-minimap.js';
 
 const formatters = new Map();
 function numberFormat(lang, options) {
@@ -51,6 +52,9 @@ export function createHud(elements, { tr, esc, icon }) {
         <p class="mg-hint" data-hint hidden></p>`;
     const $ = selector => hud.querySelector(selector);
     const plaque = { world: $('[data-plaque-world]'), hole: $('[data-plaque-hole]'), name: $('[data-plaque-name]') };
+    const mapElement = $('[data-map]');
+    mapElement.innerHTML = `<button class="mg-map-toggle" data-action="map" aria-pressed="true" aria-label="${esc(tr('map'))}" title="${esc(tr('map'))}">${icon('map')}</button><div class="mg-map-frame" role="img" aria-label="${esc(tr('hole_map'))}"><canvas class="mg-map-lane"></canvas><canvas class="mg-map-live"></canvas></div>`;
+    const map = createMinimap(mapElement);
     const chips = $('[data-chips]'), banner = $('[data-banner]'), bannerTitle = $('[data-banner-title]'), bannerLines = $('[data-banner-lines]');
     const meter = $('[data-meter]'), arc = $('[data-meter-arc]'), percent = $('[data-meter-percent]'), distance = $('[data-meter-distance]'), hint = $('[data-hint]');
     let clock = 0, bannerLeft = 0, bannerCount = 0, bannerText = null, hintText = '', meterAt = '';
@@ -68,6 +72,7 @@ export function createHud(elements, { tr, esc, icon }) {
     }
 
     return {
+        map,
         update(round, course) {
             plaque.world.textContent = tr(course.world);
             plaque.hole.textContent = tr('hole_par').replace('{hole}', course.number).replace('{par}', course.par);
@@ -125,8 +130,9 @@ export function createHud(elements, { tr, esc, icon }) {
             if (!banner.hidden && (bannerLeft -= dt) <= 0) { banner.hidden = true; banner.classList.remove('mg-banner-in'); }
             for (const entry of live.slice()) if ((entry.left -= dt) <= 0) dismiss(entry);
         },
-        inspect() { return { meter: !meter.hidden, bannerCount, banner: bannerText, toasts: live.map(item => item.key), map: null }; },
+        inspect() { return { meter: !meter.hidden, bannerCount, banner: bannerText, toasts: live.map(item => item.key), map: map.inspect() }; },
         dispose() {
+            map.dispose();
             toasts.removeEventListener('click', onToastClick);
             live.length = 0; toasts.replaceChildren(); hud.replaceChildren();
         }

@@ -7857,5 +7857,6 @@
   "minigolf.turn_of": "{name} ist dran",
   "minigolf.chip_active": "am Zug",
   "minigolf.chip_done": "Fertig",
-  "minigolf.help_short": "Hilfe"
+  "minigolf.help_short": "Hilfe",
+  "minigolf.map": "Karte"
 }

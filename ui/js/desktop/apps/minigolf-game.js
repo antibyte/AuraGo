@@ -68,6 +68,7 @@ export function mountGame(host, context = {}) {
     const stored = read(SETTINGS_KEY);
     if (plain(stored)) storedSettings = stored;
     settings = normalizeSettings(storedSettings);
+    view.hud.map.setVisible(settings.showMap);
     function saveSettings() {
         const next = { ...storedSettings, ...settings };
         delete next.tutorialDone;
@@ -177,6 +178,7 @@ export function mountGame(host, context = {}) {
             const nextPhysics = await createPhysics(next, { onEvent: event => events.push(event) });
             if (disposed || version !== generation) { nextPhysics.dispose(); return; }
             physics = nextPhysics; loading = false;
+            view.hud.map.setCourse(next);
             scene.setFollow?.(settings.follow); scene.setAimCamera?.(settings.aimCamera);
             syncAmbient();
             if (!preview && round) { setTurn(); holeBanner(); }
@@ -283,6 +285,7 @@ export function mountGame(host, context = {}) {
         help() { previousPanel = panelKind; setPanel('help'); view.help(); },
         close: closePanel,
         camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); view.setCamera(cameraMode); },
+        map() { settings.showMap = !settings.showMap; saveSettings(); view.hud.map.setVisible(settings.showMap); },
         'next-track': () => audio.nextTrack(),
         mute() { if (settings.music > 0) { previousMusic = settings.music; settings.music = 0; } else settings.music = previousMusic || .2; audio.setMusicVolume(settings.music); saveSettings(); view.settings(settings, track); },
         credits() { setPanel('credits'); view.credits(tracks); },
@@ -375,8 +378,8 @@ export function mountGame(host, context = {}) {
             if (rotate || lift) updateAim();
         }
         if (!busy && !panelKind && !loading) refreshPreview();
-        if (round && course && !panelKind && snapshot) {
-            view.mapBalls?.(round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), round.turnIndex);
+        if (round && course && !panelKind && snapshot && settings.showMap) {
+            view.hud.map.update(round.players, round.turnIndex, round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), snapshot.obstacles || []);
         }
         meterLeft = Math.max(0, meterLeft - dt * 1000);
         view.hud.meter(scene && allowAim() && !cameraMode && (dragActive || meterLeft > 0) ? scene.screenPosition?.() || { visible: false } : null);
