@@ -969,12 +969,12 @@ func Start(opts StartOptions) error {
 		}
 	}()
 	defer s.closeSelfTests()
-	if s.BackgroundTasks != nil {
-		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
+	if manager := s.BackgroundTasks; manager != nil {
+		manager.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
 			return agent.ValidateBackgroundCodeAction(ctx, s.ConfigSnapshot(), s.Logger, action)
 		})
-		stopBackground := context.AfterFunc(serverCtx, s.BackgroundTasks.Stop)
-		defer func() { stopBackground(); s.BackgroundTasks.Stop() }()
+		stopBackground := context.AfterFunc(serverCtx, manager.Stop)
+		defer func() { stopBackground(); manager.Stop() }()
 	}
 	releaseKnowledgeRuntime := agent.RegisterKnowledgeRuntime(s.configureRunKnowledge)
 	defer releaseKnowledgeRuntime()

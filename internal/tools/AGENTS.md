@@ -378,6 +378,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Planner event admission commits event dedupe receipts with the queue. Never
   execute an unpersisted appointment admission or replay an uncertain running
   planner event after restart. Flow targets share the durable admission snapshot.
+- `BackgroundTaskManager.Stop` and `Close` are idempotent and nil-receiver safe:
+  `server.Start` defers `Stop`, which runs after `closeRuntimeResources` has
+  already closed the manager and cleared `Server.BackgroundTasks`. Keep both a
+  no-op in that state. Verify
+  `TestBackgroundTaskManagerStopAndCloseTolerateNilReceiver`.
 - Verify `TestBackgroundAdmissionBoundBatchAndPlannerDedupe`,
   `TestBackgroundClaimFailureNeverExecutesAndRetentionKeepsActive`,
   `TestCronCapAllowsExistingReplacementAndRemovalWithSeconds`, and

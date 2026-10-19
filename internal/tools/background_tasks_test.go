@@ -283,3 +283,24 @@ func TestBackgroundTaskManagerProcessExitedIncludesStatusAndLogTail(t *testing.T
 		}
 	}
 }
+
+// server.Start defers a Stop that may run after closeRuntimeResources already
+// closed the manager and dropped it, so Stop and Close must tolerate a nil
+// receiver and repeated calls.
+func TestBackgroundTaskManagerStopAndCloseTolerateNilReceiver(t *testing.T) {
+	var nilMgr *BackgroundTaskManager
+	nilMgr.Stop()
+	if err := nilMgr.Close(); err != nil {
+		t.Fatalf("nil manager Close: %v", err)
+	}
+
+	mgr := NewBackgroundTaskManager(tempSystemTaskDir(t), testBackgroundTaskLogger())
+	mgr.Stop()
+	mgr.Stop()
+	if err := mgr.Close(); err != nil {
+		t.Fatalf("first Close: %v", err)
+	}
+	if err := mgr.Close(); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+}

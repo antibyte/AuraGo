@@ -253,7 +253,12 @@ func (m *BackgroundTaskManager) Start() {
 	})
 }
 
+// Stop cancels the manager. The server's deferred cleanup may run after the
+// manager was closed and dropped, so a nil receiver and repeated calls are no-ops.
 func (m *BackgroundTaskManager) Stop() {
+	if m == nil {
+		return
+	}
 	m.shutdownOnce.Do(func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
@@ -262,6 +267,9 @@ func (m *BackgroundTaskManager) Stop() {
 }
 
 func (m *BackgroundTaskManager) Close() error {
+	if m == nil {
+		return nil
+	}
 	m.Stop()
 	// Wait for the worker goroutine to exit before releasing the store so that
 	// no in-flight task can observe a nil store after Close returns.
