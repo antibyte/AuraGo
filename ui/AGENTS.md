@@ -466,7 +466,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Integration actions that depend on credentials remain locked until the
   authoritative saved runtime status is ready. After `aurago:config-saved`,
   visible integration sections refresh that status; independent catalog
-  requests preserve successful results when a sibling request fails.
+  requests preserve successful results when a sibling request fails. A section
+  that caches its runtime status across renders (Netlify) drops that cache on
+  `aurago:config-saved` so a new token or toggle is visible without a reload.
 - Telephone agent is a dedicated lazy Config section under Agent & AI. SIP Phone
   owns account/network/trust/browser-media settings and only links to the
   telephone profile; it must not expose a second editable copy of `sip.voice`

@@ -201,6 +201,21 @@ func homepageNetlifyResultVerified(parsed map[string]interface{}) bool {
 	return homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url") != ""
 }
 
+// homepageNetlifyResultPublished reports whether the deploy changed the site's
+// published content. A draft deploy keeps the previous publication, so the
+// ledger must not record it as a deployment. Older results carry no flag and
+// stay published by definition.
+func homepageNetlifyResultPublished(parsed map[string]interface{}) bool {
+	if parsed == nil {
+		return true
+	}
+	published, ok := parsed["published"].(bool)
+	if !ok {
+		return true
+	}
+	return published
+}
+
 func recordHomepageLedgerMutation(homepageCfg tools.HomepageConfig, db *sql.DB, projectDir, eventType, summary, source string, saveRevision bool, payload map[string]interface{}, logger *slog.Logger) []string {
 	if db == nil {
 		return []string{"homepage registry DB not initialized"}
@@ -1175,16 +1190,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
 				}
-				if !cfg.Netlify.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
-				}
 				if !cfg.Netlify.Enabled {
 					return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
+				}
+				if !cfg.Netlify.AllowDeploy {
+					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
 				}
 				nfToken, nfErr := vault.ReadSecret("netlify_token")
 				if nfErr != nil || nfToken == "" {
 					return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
 				}
+				security.RegisterSensitive(nfToken)
 				nfCfg := tools.NetlifyConfig{Context: ctx,
 					Token:               nfToken,
 					DefaultSiteID:       cfg.Netlify.DefaultSiteID,
@@ -1203,8 +1219,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						netlifyVerified = homepageNetlifyResultVerified(parsed)
 					}
 				}
-				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyVerified {
+				// Auto-log deploy and history in homepage registry. A draft deploy
+				// never publishes content, so it must not enter the ledger.
+				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyVerified && homepageNetlifyResultPublished(parsed) {
 					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url")
 					if deployURL == "" {
 						deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")

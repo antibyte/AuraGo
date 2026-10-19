@@ -28,6 +28,14 @@ Management of Netlify sites, deployments, environment variables, forms, notifica
 | `delete_hook` | Delete a notification hook; requires site management |
 | `provision_ssl` | Provision Let's Encrypt SSL certificate; requires site management |
 
+`deploy_zip` and `deploy_draft` are not available in the agent flow: a ZIP cannot
+be transported through tool arguments. Use the `homepage` tool with
+`operation: deploy_netlify` instead.
+
+Environment variable operations require the Netlify account (team). Without
+`netlify.team_slug` a single visible account is used automatically; several
+accounts produce an error naming the setting.
+
 ## Parameters
 
 | Parameter | Type | Required | Description |
@@ -83,14 +91,20 @@ netlify:
   allow_deploy: false       # Explicitly allow rollback/cancel_deploy
   allow_site_management: false  # Explicitly allow create/update/delete site, hooks, and SSL
   allow_env_management: false  # Explicitly allow set_env/delete_env
+  team_slug: ""             # Optional: required when the token sees several accounts
+  default_site_id: ""       # Optional: site UUID, name or custom domain
 ```
 
 ## Notes
 
 - **Authentication**: A Personal Access Token (PAT) is required. Store it in the vault with key `netlify_token`.
 - **Homepage/project deploys**: Do not use this tool or `homepage exec` with the Netlify CLI to upload website files. Direct CLI commands do not receive the vault token. For AuraGo homepage workspace projects, use `homepage_deploy` `deploy_netlify` with `project_dir`; it installs dependencies, builds, validates static output, uploads a hardened ZIP, polls Netlify until ready, and verifies the public URL.
+- **Deploy URLs**: `deploy_url` in a deploy result is the immutable deploy permalink; `site_url` is the published site. Verification always uses the permalink.
+- **Draft deploys**: `draft: true` publishes nothing. The result reports `published: false`; the Homepage ledger is not updated. A permalink that requires a Netlify login is reported as `verified: false` with a `verification_note`, not as an error.
+- **ZIP contents**: only regular files are packed, and credential material (`.env*`, keys, certificates, `.netrc`, databases, logs) is filtered by name. A catch-all `_redirects` rewrite is added only for a single-page output; multi-page sites keep Netlify's 404.
 - **ZIP deploys**: Binary ZIP data cannot be reliably transported through LLM tool arguments. Use `homepage_deploy` `deploy_netlify` instead for builds.
 - **Destructive cleanup**: `delete_site` permanently deletes a site. Keep `netlify.allow_site_management=false` or `netlify.readonly=true` if agents should not be able to delete sites.
-- **Rate limits**: General API: 500 requests/minute. Deploys: 3/minute, 100/day.
+- **Rate limits**: General API: 500 requests/minute. Deploys: 3/minute, 100/day. Read requests retry a rate limit or a transient gateway error at most twice, honouring `Retry-After` for up to 30 seconds; mutations are sent exactly once, so a failed write is never silently repeated.
+- **Site references**: `site_id` accepts the site UUID, its name or its custom domain. AuraGo resolves names across all result pages.
 - **Permission model**: `readonly` blocks all mutations. `allow_deploy` controls rollback/cancel. `allow_site_management` controls create/update/delete site plus hook mutations and SSL provisioning. `allow_env_management` controls env var writes/deletes.
 - **Form submissions**: Contain user-generated content and are wrapped in `<external_data>` for safety.

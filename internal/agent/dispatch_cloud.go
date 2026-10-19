@@ -496,6 +496,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if tokenErr != nil || token == "" {
 				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
 			}
+			security.RegisterSensitive(token)
 			nfCfg := tools.NetlifyConfig{Context: ctx,
 				Token:               token,
 				DefaultSiteID:       cfg.Netlify.DefaultSiteID,

@@ -432,6 +432,12 @@ Server-owned HTTP and cross-component integration contracts.
 - API, upload, and Site verification traffic uses strict public DNS-pinned transports that ignore the loopback SSRF escape hatch. Upload redirects are blocked; Site verification validates and repins every bounded redirect hop before accepting a final `2xx`, `401`, or `403`.
 - Access mutations require a complete current provider policy and preserve omitted allowlist fields. Site-password Vault keys bind canonical account ID plus slug, never use slug-only fallback, and are deleted only after verified password removal or successful Site deletion. The generic Homepage ledger records here.now only after finalize and URL verification.
 
+### Netlify Integration Contract
+- `/api/netlify/status` and `/api/netlify/test-connection` are administrator-only through the shared `/api/` bearer catch-all. Both read the Vault token, pass it through `netlifyServerConfig` (which registers it with `security.RegisterSensitive`) and use saved settings only.
+- `status` answers the account plus `site_count` and `site_count_truncated`; a failed site listing never replaces the account answer.
+- Provider bodies never reach the browser verbatim: `tools.NetlifyTestConnection` and `tools.NetlifyGetAccount` already answer bounded JSON, and the handlers re-encode the parsed object.
+- Verify `go test ./internal/server -run Netlify -count=1` (`TestNetlifyStatusReportsDisabledIntegration`, `TestNetlifyHandlersRejectWrongMethods`) plus the Config UI rows for `cfg/netlify.js`.
+
 ### GitHub Integration Contract
 - `github.allowed_repos` is a strict allowlist; prefer `owner/repo` entries. Legacy bare repo names only match the configured `github.owner`.
 - An empty `github.allowed_repos` list permits only repositories recorded in the protected `directories.data_dir/github_trust.json` ledger after successful creation. Grants bind API base and canonical repository identity. Workspace `agent_created` markers never grant access; existing markers expose `trust_migration_required` until an administrator explicitly selects the repository in the allowlist.
