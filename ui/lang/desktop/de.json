@@ -7850,5 +7850,6 @@
   "minigolf.eagle": "Adler",
   "minigolf.birdie": "Birdie",
   "minigolf.bogey": "Bogey",
-  "minigolf.over": "Doppel-Bogey oder schlechter"
+  "minigolf.over": "Doppel-Bogey oder schlechter",
+  "minigolf.progress_reset": "AuraGolf wurde überarbeitet. Alte Spielstände und Bestwerte wurden zurückgesetzt."
 }

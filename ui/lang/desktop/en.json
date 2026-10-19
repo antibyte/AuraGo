@@ -7850,5 +7850,6 @@
   "minigolf.eagle": "Eagle",
   "minigolf.birdie": "Birdie",
   "minigolf.bogey": "Bogey",
-  "minigolf.over": "Double bogey or worse"
+  "minigolf.over": "Double bogey or worse",
+  "minigolf.progress_reset": "AuraGolf has been redesigned. Old saves and best scores were reset."
 }

@@ -1,13 +1,43 @@
 import { createScene } from './minigolf-scene.js';
 import { createPhysics, strengthToPower, MAX_ROLL } from './minigolf-physics.js';
-import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, scoreTotal } from './minigolf-model.js';
+import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, normalizeBest, recordHole, recordRound } from './minigolf-model.js';
 import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
+import { DEFAULT_COLORS, cleanName, uniqueNames, worldIds } from './minigolf-shared.js';
 
-const SAVE_KEY = 'aurago.desktop.minigolf.round.v1';
+const SAVE_KEY = 'aurago.desktop.minigolf.round.v2';
 const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
-const BEST_KEY = 'aurago.desktop.minigolf.best.v1';
+const BEST_KEY = 'aurago.desktop.minigolf.best.v2';
+const LEGACY_KEYS = ['aurago.desktop.minigolf.round.v1', 'aurago.desktop.minigolf.best.v1'];
+const QUALITIES = ['auto', 'low', 'medium', 'high'];
 const finiteUnit = (v, fallback) => Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
+const plain = value => !!value && typeof value === 'object' && !Array.isArray(value);
+
+// One line per known field; P5 adds its own lines. saveSettings() keeps unknown stored fields.
+function normalizeSettings(stored) {
+    const s = plain(stored) ? stored : {};
+    return {
+        music: finiteUnit(s.music, .2),
+        effects: finiteUnit(s.effects, .65),
+        quality: QUALITIES.includes(s.quality) ? s.quality : 'auto',
+        reducedMotion: s.reducedMotion === true,
+        follow: s.follow !== false,
+        aimCamera: s.aimCamera === true,
+        magnet: s.magnet !== false,
+        tutorial: Number.isInteger(s.tutorial) && s.tutorial >= 0 && s.tutorial <= 2 ? s.tutorial : s.tutorialDone === true ? 1 : 0,
+        showMap: s.showMap !== false
+    };
+}
+
+// v1 saves and bests are dropped without migration; true when the one-time notice is due.
+function migrateLegacy() {
+    try {
+        if (!LEGACY_KEYS.some(key => localStorage.getItem(key) !== null)) return false;
+        const current = [SAVE_KEY, BEST_KEY].some(key => localStorage.getItem(key) !== null);
+        LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
+        return !current;
+    } catch (_) { return false; }
+}
 
 export function mountGame(host, context = {}) {
     const tr = key => context.t?.('minigolf.' + key) || key;
@@ -15,8 +45,9 @@ export function mountGame(host, context = {}) {
     host.dataset.golfIcon = assetURL('/img/desktop-icons/minigolf.svg');
     const view = createView(host, tr), root = view.root;
     const media = matchMedia('(prefers-reduced-motion: reduce)');
-    let storageFailed = false, settings = { music: .2, effects: .65, quality: 'auto', reducedMotion: false, tutorialDone: false, follow: true, aimCamera: false, magnet: true };
-    let best = {}, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
+    let storageFailed = false, storedSettings = {}, settings = normalizeSettings(null);
+    let best = null, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
+    let worlds = [], newBest = false;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', previousPanel = 'menu', track = null, tracks = [];
     let angle = 0, strength = .35, generation = 0, raf = 0, last = 0, previousMusic = .2;
@@ -32,16 +63,17 @@ export function mountGame(host, context = {}) {
         catch (_) { storageFailed = true; view.notice('storage_error'); return false; }
     }
     const stored = read(SETTINGS_KEY);
-    if (stored && typeof stored === 'object') settings = {
-        music: finiteUnit(stored.music, .2), effects: finiteUnit(stored.effects, .65),
-        quality: ['auto', 'low', 'medium', 'high'].includes(stored.quality) ? stored.quality : 'auto',
-        reducedMotion: stored.reducedMotion === true, tutorialDone: stored.tutorialDone === true,
-        follow: stored.follow !== false, aimCamera: stored.aimCamera === true, magnet: stored.magnet !== false
-    };
-    const storedBest = read(BEST_KEY);
-    if (storedBest && typeof storedBest === 'object') for (const key of ['full', 'garden', 'coast', 'night']) {
-        if (Number.isInteger(storedBest[key]) && storedBest[key] > 0 && storedBest[key] <= 234) best[key] = storedBest[key];
+    if (plain(stored)) storedSettings = stored;
+    settings = normalizeSettings(storedSettings);
+    function saveSettings() {
+        const next = { ...storedSettings, ...settings };
+        delete next.tutorialDone;
+        storedSettings = next;
+        return write(SETTINGS_KEY, next);
     }
+    const knownMode = mode => mode === 'full' || mode === 'practice' || worlds.includes(mode);
+    const playerLabel = index => tr('player').replace('{n}', index + 1);
+    function focusStage() { if (!disposed && panelKind === '') scene?.canvas?.focus({ preventScroll: true }); }
     const audio = createAudio({ assetURL, onTrack(value) { track = value; view.track(value); }, onError() { if (!disposed) view.notice('audio_error'); } });
     audio.setMusicVolume(settings.music); audio.setEffectsVolume(settings.effects);
 
@@ -58,7 +90,7 @@ export function mountGame(host, context = {}) {
     function snapTowardCup(dir) {
         if (!settings.magnet || !course?.cup || !round) return dir;
         const player = round.players[round.turnIndex];
-        if (!player || player.holed || player.finished || !physics) return dir;
+        if (!player || player.done || !physics) return dir;
         const position = physics.getBall();
         if (!position) return dir;
         const wx = course.cup[0] - position[0], wz = course.cup[2] - position[2];
@@ -96,7 +128,7 @@ export function mountGame(host, context = {}) {
         if (!round || round.completed || !course) return;
         const player = round.players[round.turnIndex];
         physics?.setBall(player.position);
-        scene?.setBall(player.position, [0, 0, 0, 1], round.turnIndex);
+        scene?.setBall(player.position, [0, 0, 0, 1], player.color);
         scene?.setGhosts(round.players, round.turnIndex);
         angle = Math.atan2(course.cup[0] - player.position[0], -(course.cup[2] - player.position[2]));
         strength = .35; cameraMode = false; scene?.setCameraMode(false);
@@ -141,7 +173,7 @@ export function mountGame(host, context = {}) {
             if (!preview && round) setTurn();
             else scene.setBall(next.tee);
             view.notice(storageFailed ? 'storage_error' : '');
-            if (!preview && !settings.tutorialDone) { setPanel('tutorial'); view.help(true); }
+            if (!preview && settings.tutorial < 1) { setPanel('tutorial'); view.help(true); }
             updateAim(); syncVisibility();
         } catch (error) {
             if (disposed || version !== generation) return;
@@ -152,23 +184,24 @@ export function mountGame(host, context = {}) {
         if (busy && checkpoint && manifest) { round = cloneSave(checkpoint); busy = false; setTurn(); }
         setPanel('menu'); view.menu(manifest.courses, checkpoint && !checkpoint.completed, { mode: round?.mode || 'full', count: round?.players.length || 1 });
     }
+    async function startRound({ mode, holeId, players }) {
+        const courses = mode === 'full' || mode === 'practice' ? manifest.courses : manifest.courses.filter(c => c.world === mode);
+        round = createRound(courses, { players, mode, holeId });
+        newBest = false; persist(); view.close(); setPanel('');
+        await loadCourse(manifest.courses.find(c => c.id === round.courseIds[0]));
+        focusStage();
+    }
     async function start() {
         if (!manifest || loading) return;
-        const mode = root.querySelector('[data-mode]').value;
-        const count = Number(root.querySelector('[data-players]').value);
-        const names = Array.from(root.querySelectorAll('[data-player-name]')).slice(0, count).map((input, index) => input.value.trim().replace(/[\u0000-\u001f\u007f-\u009f]/g, '').slice(0, 34) || tr('player').replace('{n}', index + 1));
-        const unique = new Set();
-        names.forEach((name, index) => { if (unique.has(name.toLocaleLowerCase())) names[index] = name + ' ' + (index + 1); unique.add(names[index].toLocaleLowerCase()); });
-        const courses = ['garden', 'coast', 'night'].includes(mode) ? manifest.courses.filter(c => c.world === mode) : manifest.courses;
-        round = createRound(courses, { players: names, mode, holeId: mode === 'practice' ? root.querySelector('[data-hole-id]').value : undefined });
-        persist(); view.close(); setPanel('');
-        await loadCourse(manifest.courses.find(c => c.id === round.courseIds[0]));
+        const mode = root.querySelector('[data-mode]').value, count = Number(root.querySelector('[data-players]').value);
+        const names = uniqueNames(Array.from(root.querySelectorAll('[data-player-name]')).slice(0, count).map((input, index) => cleanName(input.value, playerLabel(index))));
+        await startRound({ mode, holeId: mode === 'practice' ? root.querySelector('[data-hole-id]').value : undefined, players: names.map((name, index) => ({ name, color: DEFAULT_COLORS[index] })) });
     }
     async function resume() {
         if (!checkpoint || !validateSave(checkpoint, manifest.courses) || checkpoint.completed) return;
         round = cloneSave(checkpoint); view.close(); setPanel('');
         await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex]));
-        if (!disposed && round.players.every(p => p.done)) showScore();
+        if (!disposed && round.players.every(p => p.done)) showScore(); else focusStage();
     }
     function shoot(dir = direction(), amount = strength) {
         if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
@@ -206,27 +239,27 @@ export function mountGame(host, context = {}) {
             } else message('aim_hint');
             if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit', 6);
             persist();
-            if (round.players.every(p => p.done)) { view.hud(round, course, false); showScore(); }
+            if (round.players.every(p => p.done)) {
+                if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; message('new_best', 6); } }
+                view.hud(round, course, false); showScore();
+            }
             else { setTurn(); if (!reduced) scene.focusBall(); }
         }
     }
     function showScore() {
         if (!round) return;
-        setPanel('scorecard'); view.scorecard(round, manifest.courses, round.completed, best[round.mode]);
+        setPanel('scorecard'); view.scorecard(round, manifest.courses, round.completed, best?.rounds[round.mode]);
     }
     async function nextHole() {
         if (!advanceHole(round, manifest.courses)) return;
         persist();
         if (round.completed) {
-            if (round.mode !== 'practice') {
-                const lowest = Math.min(...round.players.map(scoreTotal));
-                if (!best[round.mode] || lowest < best[round.mode]) { best[round.mode] = lowest; write(BEST_KEY, best); message('new_best', 8); }
-            }
+            if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; message('new_best', 6); }
             audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore();
-        } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); }
+        } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); focusStage(); }
     }
     function closePanel() {
-        if (panelKind === 'tutorial') { settings.tutorialDone = true; write(SETTINGS_KEY, settings); }
+        if (panelKind === 'tutorial') { settings.tutorial = Math.max(settings.tutorial, 1); saveSettings(); }
         if (!round || round.completed || previousPanel === 'menu' && ['settings', 'credits', 'help'].includes(panelKind)) { showMenu(); return; }
         if (round.players.every(p => p.done)) { showScore(); return; }
         view.close(); setPanel(''); view.canvasHost.querySelector('canvas')?.focus({ preventScroll: true });
@@ -240,9 +273,9 @@ export function mountGame(host, context = {}) {
         close: closePanel,
         camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); const button = root.querySelector('[data-action="camera"]'); button.setAttribute('aria-pressed', String(cameraMode)); button.textContent = tr(cameraMode ? 'aiming' : 'camera'); },
         'next-track': () => audio.nextTrack(),
-        mute() { if (settings.music > 0) { previousMusic = settings.music; settings.music = 0; } else settings.music = previousMusic || .2; audio.setMusicVolume(settings.music); write(SETTINGS_KEY, settings); view.settings(settings, track); },
+        mute() { if (settings.music > 0) { previousMusic = settings.music; settings.music = 0; } else settings.music = previousMusic || .2; audio.setMusicVolume(settings.music); saveSettings(); view.settings(settings, track); },
         credits() { setPanel('credits'); view.credits(tracks); },
-        async retry() { if (!manifest) await initialize(); else { scene?.dispose(); scene = null; view.close(); setPanel(round ? '' : 'menu'); await loadCourse(course || manifest.courses[0], !round); if (!round && panelKind !== 'error') showMenu(); } }
+        async retry() { if (!manifest) await initialize(); else { scene?.dispose(); scene = null; view.close(); setPanel(round ? '' : 'menu'); await loadCourse(course || manifest.courses[0], !round); focusStage(); if (!round && panelKind !== 'error') showMenu(); } }
     };
     function click(event) {
         const button = event.target.closest('[data-action]');
@@ -254,18 +287,18 @@ export function mountGame(host, context = {}) {
     function input(event) {
         const element = event.target;
         if (element.matches('[data-power]')) { strength = Number(element.value) / 100; updateAim(); }
-        else if (element.matches('[data-music]')) { settings.music = Number(element.value) / 100; audio.setMusicVolume(settings.music); write(SETTINGS_KEY, settings); }
-        else if (element.matches('[data-effects]')) { settings.effects = Number(element.value) / 100; audio.setEffectsVolume(settings.effects); write(SETTINGS_KEY, settings); }
+        else if (element.matches('[data-music]')) { settings.music = Number(element.value) / 100; audio.setMusicVolume(settings.music); saveSettings(); }
+        else if (element.matches('[data-effects]')) { settings.effects = Number(element.value) / 100; audio.setEffectsVolume(settings.effects); saveSettings(); }
     }
     function change(event) {
         const element = event.target;
         if (element.matches('[data-players]')) view.playerNames(Number(element.value));
         if (element.matches('[data-mode]')) root.querySelector('[data-hole-select]').hidden = element.value !== 'practice';
-        if (element.matches('[data-quality]')) { settings.quality = element.value; scene?.setQuality(settings.quality); write(SETTINGS_KEY, settings); }
-        if (element.matches('[data-motion]')) { settings.reducedMotion = element.checked; updateMotion(); write(SETTINGS_KEY, settings); }
-        if (element.matches('[data-follow]')) { settings.follow = element.checked; scene?.setFollow?.(settings.follow); write(SETTINGS_KEY, settings); }
-        if (element.matches('[data-aim-camera]')) { settings.aimCamera = element.checked; scene?.setAimCamera?.(settings.aimCamera); write(SETTINGS_KEY, settings); }
-        if (element.matches('[data-magnet]')) { settings.magnet = element.checked; write(SETTINGS_KEY, settings); }
+        if (element.matches('[data-quality]')) { settings.quality = element.value; scene?.setQuality(settings.quality); saveSettings(); }
+        if (element.matches('[data-motion]')) { settings.reducedMotion = element.checked; updateMotion(); saveSettings(); }
+        if (element.matches('[data-follow]')) { settings.follow = element.checked; scene?.setFollow?.(settings.follow); saveSettings(); }
+        if (element.matches('[data-aim-camera]')) { settings.aimCamera = element.checked; scene?.setAimCamera?.(settings.aimCamera); saveSettings(); }
+        if (element.matches('[data-magnet]')) { settings.magnet = element.checked; saveSettings(); }
     }
     const heldMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
     function key(event) {
@@ -317,7 +350,7 @@ export function mountGame(host, context = {}) {
         let snapshot = physics?.getSnapshot();
         if (physics && !loading && panelKind === '' && !round?.completed) { snapshot = physics.step(dt); handleEvents(); }
         if (scene) {
-            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.turnIndex || 0 };
+            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0] };
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
         }
         if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface, scene?.panAt?.(snapshot.position) ?? 0);
@@ -344,11 +377,15 @@ export function mountGame(host, context = {}) {
             const data = await response.json();
             if (disposed) return;
             if (data.version !== 1 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model))) throw Error('manifest');
-            manifest = data; const saved = read(SAVE_KEY);
-            checkpoint = saved && validateSave(saved, manifest.courses) ? saved : null;
+            manifest = data;
+            const legacyReset = migrateLegacy();
+            worlds = worldIds(manifest.courses);
+            best = normalizeBest(read(BEST_KEY), manifest.courses);
+            const saved = read(SAVE_KEY);
+            checkpoint = saved && validateSave(saved, manifest.courses) && knownMode(saved.mode) ? saved : null;
             tracks = AUDIO_CREDITS;
             await loadCourse(manifest.courses[0], true);
-            if (!disposed && panelKind !== 'error') showMenu();
+            if (!disposed && panelKind !== 'error') { showMenu(); if (legacyReset) message('progress_reset', 8); }
         } catch (_) { if (!disposed) { loading = false; setPanel('error'); view.error('load_error'); } }
     }
     updateMotion(); syncVisibility(); void initialize();
