@@ -65,7 +65,9 @@ agent never transports ZIP bytes through tool arguments.
 - **The single-page rewrite is opt-in by structure.** A catch-all
   `_redirects` to `index.html` is added only when the output contains a single
   root `index.html` (optionally with `404.html`). A multi-page site keeps
-  Netlify's real 404 instead of a soft 200.
+  Netlify's real 404 instead of a soft 200. A project that ships several HTML
+  files but still needs the rewrite (per-locale entry documents, prerendered
+  routes) provides its own `_redirects`; AuraGo then leaves it untouched.
 - **`deploy_url` is the deploy permalink, `site_url` is the published site.**
   They are never mixed up. Verification always uses the permalink.
 - **Draft deploys never claim a publication.** With `draft: true` the result

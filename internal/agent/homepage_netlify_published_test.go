@@ -20,3 +20,28 @@ func TestHomepageNetlifyResultPublished(t *testing.T) {
 		})
 	}
 }
+
+// The deployment ledger requires a result that is both verified and published.
+// A draft deploy can pass the permalink check and must still stay out of it.
+func TestHomepageNetlifyVerifiedDraftIsNeverLedgerWorthy(t *testing.T) {
+	draft := map[string]interface{}{
+		"verified":     true,
+		"verified_url": "https://deploy-123--site.netlify.app",
+		"published":    false,
+	}
+	if !homepageNetlifyResultVerified(draft) {
+		t.Fatal("a verified draft must still report its permalink verification")
+	}
+	if homepageNetlifyResultVerified(draft) && homepageNetlifyResultPublished(draft) {
+		t.Fatal("a verified draft must never enter the deployment ledger")
+	}
+
+	published := map[string]interface{}{
+		"verified":     true,
+		"verified_url": "https://site.netlify.app",
+		"published":    true,
+	}
+	if !homepageNetlifyResultVerified(published) || !homepageNetlifyResultPublished(published) {
+		t.Fatal("a verified published deploy must enter the deployment ledger")
+	}
+}

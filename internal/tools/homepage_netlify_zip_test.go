@@ -143,6 +143,28 @@ func TestBuildNetlifyZipRejectsOversizedOutput(t *testing.T) {
 	}
 }
 
+func TestBuildNetlifyZipCountsBundledAssetsAgainstTheBudget(t *testing.T) {
+	previous := netlifyZipMaxBytes
+	netlifyZipMaxBytes = 200
+	t.Cleanup(func() { netlifyZipMaxBytes = previous })
+
+	deploy := t.TempDir()
+	writeNetlifyDeployFiles(t, deploy, map[string]string{
+		"index.html": `<img src="/assets/img_big.png">`,
+	})
+	dataDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dataDir, "generated_images"), 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "generated_images", "img_big.png"), bytes.Repeat([]byte("a"), 400), 0o644); err != nil {
+		t.Fatalf("write bundled asset: %v", err)
+	}
+
+	if _, _, err := buildNetlifyZip(HomepageConfig{DataDir: dataDir}, deploy, slogDiscard()); err == nil {
+		t.Fatal("a bundled asset must count against the deploy budget")
+	}
+}
+
 func TestBuildNetlifyZipAddsSPAFallbackOnlyForSinglePageSites(t *testing.T) {
 	single := t.TempDir()
 	writeNetlifyDeployFiles(t, single, map[string]string{

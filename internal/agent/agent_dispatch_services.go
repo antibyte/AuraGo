@@ -1214,14 +1214,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
 				var parsed map[string]interface{}
 				netlifyVerified := false
+				netlifyPublished := true
 				if homepageResultSuccess(result) {
 					if json.Unmarshal([]byte(result), &parsed) == nil {
 						netlifyVerified = homepageNetlifyResultVerified(parsed)
+						netlifyPublished = homepageNetlifyResultPublished(parsed)
 					}
 				}
-				// Auto-log deploy and history in homepage registry. A draft deploy
-				// never publishes content, so it must not enter the ledger.
-				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyVerified && homepageNetlifyResultPublished(parsed) {
+				// A draft deploy never publishes content, so neither the deployment
+				// history nor the deployment ledger may record it.
+				netlifyLedgerWorthy := netlifyVerified && netlifyPublished
+				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyLedgerWorthy {
 					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url")
 					if deployURL == "" {
 						deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")
@@ -1238,11 +1241,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				if homepageResultSuccess(result) {
-					if netlifyVerified {
+					switch {
+					case netlifyLedgerWorthy:
 						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
-					} else {
-						warnings := []string{"Netlify deploy result was not verified; deployment ledger was not updated"}
-						result = withHomepageLedgerWarnings(result, warnings)
+					case netlifyVerified:
+						result = withHomepageLedgerWarnings(result, []string{"Draft deploy was not published; the deployment ledger was not updated"})
+					default:
+						result = withHomepageLedgerWarnings(result, []string{"Netlify deploy result was not verified; deployment ledger was not updated"})
 					}
 				}
 				return "Tool Output: " + result

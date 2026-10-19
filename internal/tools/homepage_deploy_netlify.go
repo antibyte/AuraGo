@@ -21,7 +21,7 @@ var (
 
 var (
 	errNetlifyZipTooManyEntries = errors.New("too many files for a Netlify ZIP deploy (limit 25000)")
-	errNetlifyZipTooLarge       = errors.New("static output exceeds the Netlify deploy budget of 100 MiB")
+	errNetlifyZipTooLarge       = errors.New("deploy content exceeds the Netlify deploy budget of 100 MiB")
 )
 
 // netlifyZipStats describes what one ZIP build published.
@@ -218,9 +218,14 @@ func buildNetlifyZip(cfg HomepageConfig, deployPath string, logger *slog.Logger)
 	}
 
 	// Bundle any referenced assets into the ZIP so Netlify can serve
-	// them at the same /files/<subdir>/<name> path.
+	// them at the same /files/<subdir>/<name> path. Bundled assets share the
+	// deploy budget with the build output, so a reference cannot push the ZIP
+	// past the provider limits.
 	if cfg.DataDir != "" && len(referencedAssets) > 0 {
 		for ref := range referencedAssets {
+			if stats.Files >= netlifyZipMaxEntries {
+				return nil, stats, errNetlifyZipTooManyEntries
+			}
 			srcPath := filepath.Join(cfg.DataDir, ref.subdir, filepath.Base(ref.name))
 			srcData, readErr := os.ReadFile(srcPath)
 			if readErr != nil {
@@ -234,9 +239,14 @@ func buildNetlifyZip(cfg HomepageConfig, deployPath string, logger *slog.Logger)
 			if _, exists := writtenZipPaths[zipPath]; exists {
 				continue
 			}
+			stats.Bytes += int64(len(srcData))
+			if stats.Bytes > netlifyZipMaxBytes {
+				return nil, stats, errNetlifyZipTooLarge
+			}
 			if iw, werr := zw.Create(zipPath); werr == nil {
 				_, _ = iw.Write(srcData)
 				writtenZipPaths[zipPath] = struct{}{}
+				stats.Files++
 				stats.Bundled++
 			}
 		}

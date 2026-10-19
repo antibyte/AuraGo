@@ -817,7 +817,9 @@ func NetlifyTestConnection(cfg NetlifyConfig) string {
 
 	// 1. DNS resolution
 	ctx := nativeHTTPContext(cfg.Context)
-	addrs, dnsErr := net.DefaultResolver.LookupHost(ctx, host)
+	dnsCtx, cancelDNS := context.WithTimeout(ctx, 10*time.Second)
+	addrs, dnsErr := net.DefaultResolver.LookupHost(dnsCtx, host)
+	cancelDNS()
 	if dnsErr != nil || len(addrs) == 0 {
 		result["dns_ok"] = false
 		message := "DNS resolution failed for " + host
