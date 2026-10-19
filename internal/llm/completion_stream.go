@@ -187,7 +187,11 @@ func (s *observedCompletionStream) finishSuccess() {
 
 func (s *observedCompletionStream) finishError(err error) {
 	s.once.Do(func() {
-		if s.ctx.Err() == nil && s.onError != nil {
+		owner := s.ctx
+		if parent, ok := s.ctx.Value(attemptParentKey{}).(context.Context); ok {
+			owner = parent
+		}
+		if owner.Err() == nil && s.onError != nil {
 			s.onError(err)
 		}
 	})

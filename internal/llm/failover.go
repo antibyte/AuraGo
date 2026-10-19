@@ -39,12 +39,12 @@ type FailoverManager struct {
 	logger *slog.Logger
 
 	clientFactory      func(*config.Config) *openai.Client
-	probeUsageRecorder func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)
+	probeUsageRecorder func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
 }
 
 type failoverProbeSnapshot struct {
 	route          ModelRoute
-	recorder       func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)
+	recorder       func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
 	generation     int
 	onFallback     bool
 	primaryClient  *openai.Client
@@ -68,7 +68,7 @@ func WithClientFactory(factory func(*config.Config) *openai.Client) FailoverOpti
 
 // SetProbeUsageRecorder attaches process-owned per-response accounting to bounded
 // recovery confirmations. The callback is snapshotted with the provider route.
-func (fm *FailoverManager) SetProbeUsageRecorder(recorder func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse)) {
+func (fm *FailoverManager) SetProbeUsageRecorder(recorder func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)) {
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
 	fm.probeUsageRecorder = recorder
@@ -600,7 +600,7 @@ func probePrimaryGeneration(ctx context.Context, snapshot failoverProbeSnapshot)
 	callCtx, capture := CaptureUsage(ctx)
 	response, err := snapshot.primaryClient.CreateChatCompletion(callCtx, request)
 	if snapshot.recorder != nil {
-		snapshot.recorder(snapshot.route, capture, response)
+		snapshot.recorder(callCtx, snapshot.route, request, capture, response)
 	}
 	if err == nil && len(response.Choices) == 0 {
 		return errors.New("primary generation probe returned no choices")

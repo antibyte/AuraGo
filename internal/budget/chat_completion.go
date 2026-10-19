@@ -127,6 +127,12 @@ func completionInputEstimate(ctx context.Context, request openai.ChatCompletionR
 	return total
 }
 
+// EstimateResponseUsage preserves reported components and estimates missing usage
+// only when the response contains consumption evidence. It does not book usage.
+func EstimateResponseUsage(ctx context.Context, request openai.ChatCompletionRequest, response openai.ChatCompletionResponse, count TokenCounter) (int, int, bool) {
+	return completionResponseUsage(ctx, request, response, completionInputEstimate(ctx, request, count), count)
+}
+
 func completionResponseUsage(ctx context.Context, request openai.ChatCompletionRequest, response openai.ChatCompletionResponse, inputEstimate int, count TokenCounter) (int, int, bool) {
 	input, output, total := max(0, response.Usage.PromptTokens), max(0, response.Usage.CompletionTokens), max(0, response.Usage.TotalTokens)
 	var text strings.Builder
@@ -165,13 +171,15 @@ func completionResponseUsage(ctx context.Context, request openai.ChatCompletionR
 		if input == 0 {
 			input = inputEstimate
 		}
-		if output == 0 && text.Len() > 0 {
-			model := response.Model
-			if model == "" {
-				model = request.Model
-			}
-			output = count(ctx, text.String(), model)
+	}
+	// A stream can report its input and output=0 before any text arrives.
+	// Its initial total cannot make later observed output free on interruption.
+	if output == 0 && text.Len() > 0 {
+		model := response.Model
+		if model == "" {
+			model = request.Model
 		}
+		output = count(ctx, text.String(), model)
 	}
 	return input, output, true
 }

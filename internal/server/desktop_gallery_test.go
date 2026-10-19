@@ -193,3 +193,32 @@ func TestDesktopGalleryVisionBudgetBlocksBeforeProvider(t *testing.T) {
 		t.Fatalf("budget: %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestDesktopGalleryVisionHTTPTrackingBooksOnce(t *testing.T) {
+	s, _ := galleryTestServer(t)
+	calls := 0
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"description\":\"Fixture moon\",\"tags\":[\"moon\"]}"}}],"usage":{"prompt_tokens":10,"completion_tokens":20}}`))
+	}))
+	defer provider.Close()
+	s.Cfg.Vision.ProviderType, s.Cfg.Vision.BaseURL, s.Cfg.Vision.APIKey, s.Cfg.Vision.Model = "openai", provider.URL+"/v1", "gallery-budget-fixture", "vision-fixture"
+	s.Cfg.Budget.Enabled, s.Cfg.Budget.DailyLimitUSD = true, 100
+	s.BudgetTracker = budget.NewTracker(s.Cfg, s.Logger, t.TempDir())
+	defer s.BudgetTracker.Flush()
+	m := gallerySnapshot(t, s)
+	body, err := json.Marshal(map[string]string{"path": "Photos/cover.png", "version": m.Version})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	s.trackHTTP(handleDesktopGalleryMetadata(s)).ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/desktop/gallery/metadata", bytes.NewReader(body)))
+	if w.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("status=%d calls=%d body=%s", w.Code, calls, w.Body.String())
+	}
+	usage := s.BudgetTracker.GetStatus().Models["vision-fixture"]
+	if usage.Calls != 1 || usage.InputTokens != 10 || usage.OutputTokens != 20 {
+		t.Fatalf("gallery physical response booked more than once: %+v", usage)
+	}
+}

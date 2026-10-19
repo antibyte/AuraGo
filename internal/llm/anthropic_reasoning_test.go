@@ -183,7 +183,12 @@ func TestRecoveryProbeRequiresGenerationAndBooksOnce(t *testing.T) {
 				}
 				return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
 			}))
-			err := probePrimaryGeneration(context.Background(), failoverProbeSnapshot{primaryClient: client, primaryType: "openai", primaryModel: "fixture", recorder: func(ModelRoute, *UsageCapture, openai.ChatCompletionResponse) { booked++ }})
+			err := probePrimaryGeneration(context.Background(), failoverProbeSnapshot{primaryClient: client, primaryType: "openai", primaryModel: "fixture", recorder: func(ctx context.Context, _ ModelRoute, request openai.ChatCompletionRequest, _ *UsageCapture, _ openai.ChatCompletionResponse) {
+				booked++
+				if ctx.Err() != nil || request.Model != "fixture" || request.MaxTokens != 1 || len(request.Messages) != 1 || request.Messages[0].Content != "ok" {
+					t.Fatal("recorder lost the actual bounded probe request or context")
+				}
+			}})
 			if (err == nil) != test.wantSuccess || calls != test.wantCalls || booked != test.wantCalls {
 				t.Fatalf("err=%v generation=%d booked=%d", err, calls, booked)
 			}

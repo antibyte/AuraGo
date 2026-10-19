@@ -32,7 +32,25 @@ func (t *Tracker) RecordResponseUsage(category, provider, model string, capture 
 	recorded := false
 	warning := false
 	if capture != nil {
-		for _, usage := range capture.Snapshot() {
+		items := capture.Snapshot()
+		for i, usage := range items {
+			supplemented := false
+			// A capture belongs to one logical call; retry/failover requests finish
+			// sequentially. Only its final successful response owns the caller's
+			// output evidence. Never spread that estimate over earlier attempts.
+			if fallback && i == len(items)-1 && usage.Status >= 200 && usage.Status < 300 &&
+				(usage.Model == "" || strings.EqualFold(usage.Model, model)) {
+				if usage.InputTokens == nil {
+					n := max(0, input)
+					usage.InputTokens = &n
+					supplemented = true
+				}
+				if usage.OutputTokens == nil || *usage.OutputTokens == 0 && output > 0 {
+					n := max(0, output)
+					usage.OutputTokens = &n
+					supplemented = true
+				}
+			}
 			if usage.InputTokens == nil && usage.OutputTokens == nil {
 				continue
 			}
@@ -48,7 +66,11 @@ func (t *Tracker) RecordResponseUsage(category, provider, model string, capture 
 				out = *usage.OutputTokens
 			}
 			cost := usage.EstimatedCostUSD
-			estimated := cost == nil
+			estimated := cost == nil || supplemented
+			if supplemented {
+				// A previous estimate may cover only initial stream usage.
+				cost = nil
+			}
 			if cost == nil {
 				cost = llm.EstimateMeasuredCost(usage)
 			}

@@ -56,6 +56,7 @@ import (
 	"aurago/internal/personalradio"
 	"aurago/internal/persondetect"
 	"aurago/internal/planner"
+	"aurago/internal/prompts"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
 	"aurago/internal/retrogames"
@@ -708,12 +709,13 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	}
 	if failover, ok := s.LLMClient.(*llm.FailoverManager); ok {
 		tracker := s.BudgetTracker
-		failover.SetProbeUsageRecorder(func(route llm.ModelRoute, capture *llm.UsageCapture, response openai.ChatCompletionResponse) {
+		failover.SetProbeUsageRecorder(func(ctx context.Context, route llm.ModelRoute, request openai.ChatCompletionRequest, capture *llm.UsageCapture, response openai.ChatCompletionResponse) {
 			model := response.Model
 			if model == "" {
 				model = route.Model
 			}
-			tracker.RecordResponseUsage("recovery_probe", route.ProviderType, model, capture, response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens > 0)
+			input, output, observed := budget.EstimateResponseUsage(ctx, request, response, prompts.CountTokensForModelContext)
+			tracker.RecordResponseUsage("recovery_probe", route.ProviderType, model, capture, input, output, observed)
 		})
 	}
 	if s.BudgetTracker != nil && s.MissionManagerV2 != nil {
